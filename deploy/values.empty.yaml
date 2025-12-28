@@ -1,0 +1,32 @@
+
+# See here https://devspace.cloud/docs/cli/deployment/components/configuration/overview-specification
+# For information on how to configure this file,
+
+# A list of containers that should run the pods of this component
+containers: []
+initContainers: []
+
+service:
+  # type: NodePort
+  type: ClusterIP
+  labels: {}
+  annotations: {}
+  ports: []
+  externalIPs: []
+
+labels: {}
+annotations: {}
+
+ingress:
+  ingressClassName: nginx
+  labels: {}
+  annotations: {}
+  rules: []
+
+# Defines image pull secrets
+# DevSpace CLI will append all pull secrets which are automatically created
+# More infos on: https://devspace.cloud/docs/cli/image-building/workflow-basics#8-create-image-pull-secret
+# pullSecrets: []
+
+
+env:

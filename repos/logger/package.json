@@ -1,0 +1,29 @@
+{
+  "name": "@tdsk/logger",
+  "version": "0.1.0",
+  "description": "Logger",
+  "main": "index.js",
+  "author": "Lance Tipton",
+  "license": "ISC",
+  "type": "module",
+  "keywords": [],
+  "private": true,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build": "pnpm tsup-node --config ./configs/tsup.config.ts",
+    "clean": "rm -rf ./node_modules"
+  },
+  "dependencies": {
+    "@keg-hub/jsutils": "10.0.0",
+    "@keg-hub/parse-config": "2.2.0",
+    "express-winston": "4.2.0",
+    "winston": "3.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.12.0",
+    "tsup": "8.3.6"
+  }
+}

@@ -1,0 +1,15 @@
+# Values only loaded in a local environment, when NODE_ENV === 'local'
+env:
+
+  # ---- Shared ENVs ---- #
+  NODE_ENV: local
+  DEVSPACE_INJECT_LOCAL: true
+  TDSK_KUBE_NAMESPACE: tdsk-local
+  TDSK_KUBE_CONTEXT: docker-desktop
+  TDSK_HOST_DOMAIN: local.threadedstack.app
+
+  # --- Run the conductor in local dev mode --- #
+  TDSK_LOCAL_DEV_MODE: true
+
+  # Disable logger hiding
+  STL_FORCE_DISABLE_SAFE: true

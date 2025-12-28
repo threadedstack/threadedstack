@@ -1,0 +1,172 @@
+
+env:
+
+
+# ---- General Shared ENVs ---- #
+  BUILDKIT_INLINE_CACHE: 1
+  DOCKER_REGISTRY: ghcr.io
+  TDSK_NODE_VERSION: 20
+  TDSK_PNPM_VERSION: 8.12.1
+  TDSK_KUBE_SCRT_DB_CFG: tdsk-db-cfg
+  TDSK_KUBE_SCRT_DOC_AUTH: docker-auth
+  TDSK_KUBE_SCRT_TLS_NAME: tdsk-tls-secret
+
+  # Production url for threaded stack 
+  TDSK_URL: http://threadedstack.com/
+
+  TDSK_IMAGE_TAG: latest
+  TDSK_DEV_IMAGE_TAG: main
+  TDSK_APP_DEPLOYMENT: tdsk-app
+  TDSK_IMAGE: 'ghcr.io/threadedstack/tdsk-app'
+
+# ---- PostHog ENVs ---- #
+  TDSK_POSTHOG_HOST: https://us.i.posthog.com
+  TDSK_POSTHOG_KEY: phc_1OSMc9q9VYsvfjRwQsjsTpyik5XyuEmJfvpY8LFklBk
+
+
+# ---- Secrets ENVs ---- #
+  TDSK_KUBE_SCRT_MASTER_KEY: tdsk-master-key
+  # Set by the TDSK_KUBE_SCRT_MASTER_KEY secret with-in kubernetes
+  TDSK_MASTER_KEY:
+
+
+# ---- TDSK Shared ENVs ---- #
+  TDSK_SH_LOCAL_MOUNT: tdsk-local
+  TDSK_SERVER_ORIGINS: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,proxy.dev.threadedstack.app,http://0.0.0.0'
+
+
+  # ---- Logger ENVs ---- #
+  # Enable to set custom log-level for conductor
+  TDSK_LOG_LEVEL: debug
+  TDSK_LOG_LABEL: ThreadedStack
+  TDSK_LOG_DISABLED: false
+  TDSK_LOG_EXIT_ON_ERR: false
+  TDSK_LOG_PRETTY_PRINT: true
+  TDSK_LOG_HANDLE_EXCEPTION: true
+
+# ---- Proxy ENVs ---- #
+  TDSK_PX_PORT: 7118
+  TDSK_PX_HOST: 0.0.0.0
+  TDSK_PX_SECURE_PORT: 443
+
+  # Default to the backend and host
+  # But should be set when running as own server
+  TDSK_PX_IMAGE_TAG: latest
+  TDSK_PX_DEV_IMAGE_TAG: main
+  TDSK_PX_DEPLOYMENT: tdsk-proxy
+  TDSK_PX_IMAGE_FROM: 'ubuntu:20.04'
+  TDSK_PX_IMAGE: 'ghcr.io/threadedstack/tdsk-proxy'
+
+  # ---- Proxy Websocket ENVs ---- #
+  TDSK_PX_WS_PATH: /tdsk-socket
+  TDSK_PX_WS_PROTOCOL: http
+
+
+# --- AUTH ENVs --- #
+  TDSK_AUTH_PROVIDERS: github,google,gitlab
+
+
+# --- Certs ENVs --- #
+  TDSK_CR_DEBUG: true
+  TDSK_CR_CHART_TAG: 0.0.1
+  TDSK_CR_MANAGE_ALL_NS: true
+  TDSK_CR_DEPLOYMENT: tdsk-certs
+  TDSK_CR_CHART_URL: oci://ghcr.io/threadedstack/tdsk-certs-chart
+
+  TDSK_CR_SECRET_KEY: backend-key
+  TDSK_CR_SECRET: provider-auth
+  TDSK_CR_USER_EMAIL: lancetipton04@gmail.com
+  TDSK_CR_SECRET_ENV: ""
+  TDSK_CR_SECRET_VALUE_PATH: ""
+
+
+# --- Database Envs --- #
+
+  TDSK_DB_JWT_CREDS: false
+  
+  # The below envs should be set by the TDSK_KUBE_SCRT_DB_CFG secret with-in kubernetes
+  # Name of the database to use
+  TDSK_DB_NAME: tdsk
+  # Type of postgres database to use, i.e. supabase
+  TDSK_DB_TYPE: supabase
+  # Url connection string to connect to the database
+  TDSK_DB_URL:
+  # Public key used to connect to the database if needed
+  TDSK_DB_PUBLIC_KEY:
+  # Secret jwt for creating auth tokens
+  TDSK_DB_JWT_SCRT:
+  # Secret token for accessing the database, i.e. password
+  TDSK_DB_SRV_ROLE:
+
+
+# ---- API ENVs ---- #
+  TDSK_BE_IMAGE_TAG: latest
+  TDSK_BE_DEV_IMAGE_TAG: main
+  TDSK_BE_DEPLOYMENT: tdsk-backend
+  TDSK_BE_IMAGE: 'ghcr.io/threadedstack/tdsk-backend'
+  TDSK_BE_IMAGE_FROM: 'mcr.microsoft.com/playwright:v1.49.1'
+
+
+  # ---- Backend ENVs --- #
+
+  # Host where the Proxy can be accessed, mainly used by the frontend
+  TDSK_BE_HOST: 0.0.0.0
+
+  # Port the Proxy server will listen on, and what is publicly exposed from the docker container
+  TDSK_BE_PORT: 5885
+
+  # Admin API path for the proxy backend
+  # All other paths are forwarded to configured endpoints
+  TDSK_BE_API_ADMIN_PATH: _
+
+  # Enable SSL handling from the server, requires an SSL CA, Key and Certificate
+  TDSK_BE_ENABLE_SSL: 0
+
+  # SSL CA for when SSL handling is enabled
+  TDSK_BE_SSL_CA:
+
+  # SSL Key for when SSL handling is enabled
+  TDSK_BE_SSL_KEY:
+
+  # SSL Certificate for when SSL handling is enabled
+  TDSK_BE_SSL_CERT:
+
+  # Default remote server, if no other route matches, the request will be forwarded to this remote
+  TDSK_BE_REMOTE: http://localhost
+
+  # Default remote port, combined with the `TDSK_BE_REMOTE` env to build the default remote host
+  TDSK_BE_REMOTE_PORT: 5886
+
+  # List of allowed origins to accept requests from
+  # Should be a comma separated list of host urls, using * allows all hosts origins
+  TDSK_BE_ALLOW_ORIGIN: '*'
+
+  # Log level of the Proxy server
+  # Allowed levels are debug | info | warn | error
+  TDSK_BE_LOGGER_LEVEL: debug
+
+  # Pretty print log output for easier legibility, should only be used in local / dev environments
+  TDSK_BE_LOGGER_PRETTY: 1
+
+  # Disable all log output from the proxy
+  TDSK_BE_LOGGER_SILENT: 0
+
+  # Proxy header added the each request that contains the proxy secret
+  # Downstream remote servers can use this header to validate the request
+  TDSK_BE_HEADER_KEY: tdsk-backend
+
+  # Default proxy header value to validate against incoming requests
+  TDSK_BE_HEADER_VALUE: loca1-thre4ded-5tack
+
+  # Default endpoint routes that are public and don't require authentication 
+  TDSK_BE_PUBLIC_ROUTES:
+
+
+  # ---- Admin ENVs --- #
+  TDSK_AD_PORT: 5887
+  TDSK_AD_IMAGE_TAG: latest
+  TDSK_AD_DEV_IMAGE_TAG: main
+  TDSK_AD_DEPLOYMENT: tdsk-admin
+  TDSK_AD_MOUNT_PATH: .:/tdsk/app
+  TDSK_AD_IMAGE_FROM: node:20-alpine3.17
+  TDSK_AD_IMAGE: 'ghcr.io/threadedstack/tdsk-admin'

@@ -1,0 +1,81 @@
+#! /usr/bin/env bash
+
+# Ensure the TDSK_CLI_TASK_RUNNING env is unset when a tdsk task exits
+unsetTdskTaskRunning(){
+  unset TDSK_CLI_TASK_RUNNING
+}
+
+trap "unsetTdskTaskRunning" ERR
+
+TDSK_SHELL_TYPE="$(ps -o comm= $$)"
+
+# Check for the shell type
+# Could be run in bash || zsh
+if [[ "$TDSK_SHELL_TYPE" == "/bin/zsh" || "$TDSK_SHELL_TYPE" == "-zsh" ]]; then
+  TDSK_IS_ZSH=1
+else
+  unset TDSK_IS_ZSH
+fi
+
+tdsk(){
+
+  # Check if the tdsk-cli root dir has been set
+  # If not set, then this code will find the root path based on the BASH_SOURCE[0] argument
+  # Works when the tdsk-cli is symlinked into the /usr/local/bin
+  if [[ -z "$TDSK_CLI_PATH" ]]; then
+    # Get the tdsk-cli path based on the tdsk root directory
+    local SOURCE
+    if [[ "$TDSK_IS_ZSH" ]]; then
+      SOURCE="${(%):-%x}"
+    else
+      SOURCE="$BASH_SOURCE"
+    fi
+
+    # Resolve $SOURCE until the file is no longer a symlink
+    while [ -h "$SOURCE" ]; do
+      TDSK_CLI_PATH="$(dirname "$SOURCE")"
+      SOURCE="$(readlink "$SOURCE")"
+      # If $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+      [[ $SOURCE != /* ]] && SOURCE="$TDSK_CLI_PATH/$SOURCE"
+    done
+
+    TDSK_CLI_PATH="$(dirname "$SOURCE")"
+    export TDSK_CLI_PATH
+  fi
+
+  # Ensure the TDSK_REPO env exists
+  if [[ -z "$TDSK_REPO" ]]; then
+    export TDSK_REPO="$(dirname "$(dirname "$TDSK_CLI_PATH")")"
+  fi
+
+
+  # Shortcut to navigate to the tdsk directory
+  if [[ -z "$2" ]]; then
+    cd $TDSK_REPO
+    return 0
+  fi
+
+  # Shortcut to open the tdsk directory in vscode
+  if [[ "$1" == "open" ]]; then
+    code $TDSK_REPO
+    return 0
+  fi
+
+  # Execute the tdsk cli command
+  (
+    set -e
+
+    # Set the env so we know a task is coming from the tdsk-cli and not locally
+    export TDSK_CLI_TASK_RUNNING=1
+    cd $TDSK_CLI_PATH
+    node -r esbuild-register -r $TDSK_CLI_PATH/configs/aliases.ts $TDSK_CLI_PATH/src/index.ts $@
+
+    TASK_RESP="$?"
+    # Unset the TDSK_CLI_TASK_RUNNING env
+    unsetTdskTaskRunning
+
+    # return the exit code of the node tdsk-cli script
+    return "$TASK_RESP"
+  )
+
+}

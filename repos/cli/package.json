@@ -1,0 +1,29 @@
+{
+  "name": "@tdsk/cli",
+  "version": "0.1.0",
+  "description": "",
+  "scripts": {
+    "build": "tsup --config ./configs/tsup.config.ts",
+    "clean": "rm -rf ./node_modules",
+    "start": "tsup --config ./configs/tsup.config.ts --watch ./src --watch ./configs --onSuccess 'node dist/index.js'",
+    "cli": "node -r esbuild-register -r ./configs/aliases.ts src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@keg-hub/args-parse": "10.0.1",
+    "@keg-hub/jsutils": "10.0.0",
+    "@keg-hub/parse-config": "2.2.0",
+    "@tdsk/domain": "workspace:*",
+    "@tdsk/logger": "workspace:*",
+    "alias-hq": "6.2.4",
+    "esbuild": "0.19.3",
+    "esbuild-register": "3.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.12.0",
+    "typescript": "^5.3.3"
+  }
+}

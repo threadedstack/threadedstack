@@ -1,0 +1,67 @@
+{
+  "parserOptions": {
+    "extraFileExtensions": ["json"]
+  },
+  "compilerOptions": {
+    "baseUrl": ".",
+    "outDir": "./dist",
+    "target": "esnext",
+    "module": "esnext",
+    "noEmit": true,
+    "allowJs": true,
+    "sourceMap": true,
+    "declaration": false,
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "noImplicitAny": false,
+    "declarationMap": false,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "ignoreDeprecations": "6.0",
+    "moduleResolution": "bundler",
+    "noFallthroughCasesInSwitch": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+
+      "@TBE/configs": ["configs"],
+      "@TBE/configs/*": ["configs/*"],
+      "@TBE/public": ["public"],
+      "@TBE/public/*": ["public/*"],
+      "@TBE/": ["src"],
+      "@TBE/*": ["src/*"],
+      
+      "@TDM": ["../../domain/src"],
+      "@TDM/*": ["../../domain/src/*"],
+      "@tdsk/domain": ["../../domain/src"],
+      "@tdsk/domain/*": ["../../domain/src/*"],
+
+      "@TDB": ["../../database/src"],
+      "@TDB/*": ["../../database/src/*"],
+      "@TDB/configs": ["../../database/configs"],
+      "@TDB/configs/*": ["../../database/configs/*"],
+      "@tdsk/database": ["../../database/src"],
+      "@tdsk/database/*": ["../../database/src/*"],
+
+      "@tdsk/logger": ["../../logger/src"],
+      "@tdsk/logger/*": ["../../logger/src/*"],
+
+      "@ROOT": ["../../../"],
+      "@ROOT/*": ["../../../*"],
+      "@TSR/deploy": ["../../../deploy"],
+      "@TSR/deploy/*": ["../../../deploy/*"],
+      "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
+      "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"],
+      "@keg-hub/jsutils/src/node": ["node_modules/@keg-hub/jsutils/build/esm/node"],
+      "@keg-hub/jsutils/src/node/*": ["node_modules/@keg-hub/jsutils/build/esm/node"]
+    }
+  },
+  "include": [
+    "src",
+    "configs",
+    "scripts",
+    "../logger/src",
+    "../domain/src"
+  ]
+}

@@ -1,0 +1,73 @@
+ARG IMAGE_FROM=node:20-alpine3.17
+
+
+# ---- Base Stage  ---- #
+FROM $IMAGE_FROM AS tdsk-base
+RUN npm i -g pnpm
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="${PATH}:${PNPM_HOME}"
+RUN npm install --global pnpm@9.15.4
+
+# ---- End Stage ---- #
+
+
+# ---- PNPM Stage  ---- #
+FROM tdsk-base AS tdsk-pnpm
+WORKDIR /tdsk
+COPY .npmrc pnpm-*.yaml ./
+RUN pnpm fetch --prod --no-optional --ignore-scripts
+COPY package.json tsconfig* ./
+# ---- End Stage ---- #
+
+
+# ---- Build Stage  ---- #
+FROM tdsk-pnpm AS tdsk-build
+WORKDIR /tdsk
+ADD repos/components/package.json ./repos/components/package.json
+ADD repos/frontend/package.json ./repos/frontend/package.json
+RUN pnpm --filter "./repos/frontend" --filter "./repos/components" install --prod --offline --frozen-lockfile
+ADD deploy ./deploy
+ADD repos ./repos
+ADD docs/guides ./docs/guides
+WORKDIR /tdsk/repos/frontend
+ARG TDSK_AD_APP_VERSION
+ARG TDSK_AD_BASE_PATH=/
+ENV TDSK_IN_DOCKER=1 \
+    NODE_ENV=production \
+    TDSK_AD_BASE_PATH=$TDSK_AD_BASE_PATH \
+    TDSK_AD_APP_VERSION=$TDSK_AD_APP_VERSION \
+    TDSK_AD_PORT=${TDSK_AD_PORT:-%%TDSK_AD_PORT%%} \
+    TDSK_PX_URL=${TDSK_PX_URL:-%%TDSK_PX_URL%%} \
+    TDSK_PX_PORT=${TDSK_PX_PORT:-%%TDSK_PX_PORT%%}
+
+RUN pnpm build
+# ---- End Stage ---- #
+
+# ---- Run Stage  ---- #
+FROM alpine:3.16 AS tdsk-serve
+WORKDIR /usr/share/nginx/html
+ARG TDSK_AD_APP_VERSION
+ENV TDSK_IN_DOCKER=1 \
+    NODE_ENV=production \
+    TDSK_AD_APP_VERSION=$TDSK_AD_APP_VERSION \
+    TDSK_AD_ROOT_DIR=/usr/share/nginx/html \
+    TDSK_JS_DIR=/usr/share/nginx/html/assets
+
+RUN apk update && \
+    apk add --no-cache --update curl gettext && \
+    apk add --virtual build_deps libintl && \
+    cp /usr/bin/envsubst /usr/local/bin/envsubst && \
+    apk del build_deps && \
+    apk add --update-cache nginx
+
+COPY deploy/scripts/replace-tokens.sh /replace-tokens.sh
+RUN chmod +x /replace-tokens.sh
+
+COPY repos/frontend/configs/nginx.conf /etc/nginx/http.d/default.conf.template
+COPY --from=tdsk-build /tdsk/repos/frontend/dist .
+
+WORKDIR /etc/nginx
+ENTRYPOINT ["/replace-tokens.sh"]
+
+CMD ["nginx", "-g", "daemon off;"]
+# ---- End Stage ---- #

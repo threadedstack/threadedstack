@@ -1,0 +1,33 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../../../.config/tdsk"
+		}
+	],
+  "settings": {
+    "explorerExclude.backup": {},
+    "yaml.schemas": {
+    },
+    "cSpell.words": [
+      "cschema",
+      "dpath",
+      "dtag",
+      "pdata",
+      "pdpath",
+      "pschema",
+      "pspath",
+      "rschema",
+      "spath",
+      "spindletwist",
+      "Supabase",
+      "TCLI",
+      "TDSK",
+      "threadedstack",
+      "TSCD",
+      "TSCP"
+    ]
+  }
+}

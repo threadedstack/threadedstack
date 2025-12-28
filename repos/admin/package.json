@@ -1,0 +1,53 @@
+{
+  "name": "@tdsk/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build -c configs/vite.config.ts --force",
+    "host": "vite --open --host -c configs/vite.config.ts",
+    "clean": "rm -rf ./node_modules",
+    "types": "tsc -b",
+    "lint": "eslint .",
+    "preview": "vite preview -c configs/vite.config.ts",
+    "start": "vite -c configs/vite.config.ts",
+    "sf": "NODE_ENV=local vite -c configs/vite.config.ts --force"
+  },
+  "dependencies": {
+    "@emotion/react": "11.13.3",
+    "@emotion/styled": "11.13.0",
+    "@keg-hub/jsutils": "^10.0.0",
+    "@keg-hub/parse-config": "2.1.0",
+    "@mui/icons-material": "6.1.2",
+    "@mui/lab": "6.0.0-beta.10",
+    "@mui/material": "6.1.2",
+    "@supabase/supabase-js": "2.48.1",
+    "@tdsk/components": "workspace:*",
+    "@tdsk/database": "workspace:*",
+    "@tdsk/domain": "workspace:*",
+    "@vitejs/plugin-react-swc": "^3.3.2",
+    "alias-hq": "6.2.4",
+    "esbuild-register": "3.5.0",
+    "posthog-js": "1.242.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router": "7.1.1",
+    "recoil": "0.7.7",
+    "sonner": "^1.2.3",
+    "tsconfig-paths": "4.2.0",
+    "vite": "^5.0.12",
+    "vite-plugin-svgr-component": "1.0.1",
+    "vite-tsconfig-paths": "^4.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.2.1",
+    "@types/node": "^20.11.16",
+    "@types/react": "^18.2.53",
+    "@types/react-dom": "^18.2.18",
+    "@types/react-router": "5.1.20",
+    "jsdom": "^24.0.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.4.0"
+  }
+}

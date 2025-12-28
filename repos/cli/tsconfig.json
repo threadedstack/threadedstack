@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "outDir": "./dist",
+    "target": "esnext",
+    "module": "esnext",
+    "noEmit": true,
+    "allowJs": true,
+    "sourceMap": true,
+    "declaration": false,
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "noImplicitAny": false,
+    "declarationMap": false,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "ignoreDeprecations": "6.0",
+    "moduleResolution": "bundler",
+    "noFallthroughCasesInSwitch": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@ROOT": ["../../"],
+
+      "@TSCL": ["./src"],
+      "@TSCL/*": ["./src/*"],
+      "@TSCL/configs": ["./configs"],
+      "@TSCL/configs/*": ["./configs/*"],
+
+      "@tdsk/logger": ["../logger/src/logger.ts"],
+      "@tdsk/logger/*": ["../logger/src/*"],
+
+      "@TDM": ["../domain/src"],
+      "@TDM/*": ["../domain/src/*"],
+      "@tdsk/domain": ["../domain/src"],
+      "@tdsk/domain/*": ["../domain/src/*"],
+
+      "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
+      "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"],
+      "@keg-hub/jsutils/src/node": ["node_modules/@keg-hub/jsutils/build/esm/node"],
+      "@keg-hub/jsutils/src/node/*": ["node_modules/@keg-hub/jsutils/build/esm/node"]
+      
+    }
+  },
+  "include": [
+    "src",
+    "configs",
+    "scripts",
+    "../logger/src",
+    "../domain/src",
+    "../conductor/src",
+  ]
+}

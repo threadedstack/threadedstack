@@ -1,0 +1,362 @@
+import { gutter } from '@TSC/theme/gutter'
+
+export const MonacoClass = `tdsk-monaco-container`
+export const MonacoPlaceholderClass = `tdsk-monaco-placeholder`
+
+export const CodeLanguages = [
+  {
+    id: 1,
+    value: 1,
+    label: `apex`,
+  },
+  {
+    id: 2,
+    value: 2,
+    label: `azcli`,
+    syntax: false,
+  },
+  {
+    id: 3,
+    value: 3,
+    label: `bat`,
+  },
+  {
+    id: 4,
+    value: 4,
+    label: `c`,
+  },
+  {
+    id: 5,
+    value: 5,
+    label: `clojure`,
+  },
+  {
+    id: 6,
+    value: 6,
+    label: `coffeescript`,
+  },
+  {
+    id: 7,
+    value: 7,
+    label: `cpp`,
+  },
+  {
+    id: 8,
+    value: 8,
+    label: `csharp`,
+  },
+  {
+    id: 9,
+    value: 9,
+    label: `csp`,
+    syntax: false,
+  },
+  {
+    id: 10,
+    value: 10,
+    label: `css`,
+    mime: `text/css`,
+  },
+  {
+    id: 11,
+    value: 11,
+    label: `dockerfile`,
+    mime: `application/x-docker`,
+  },
+  {
+    id: 12,
+    value: 12,
+    label: `fsharp`,
+  },
+  {
+    id: 13,
+    value: 13,
+    label: `go`,
+  },
+  {
+    id: 14,
+    value: 14,
+    label: `graphql`,
+  },
+  {
+    id: 15,
+    value: 15,
+    label: `hbs`,
+    name: `handlebars`,
+  },
+  {
+    id: 16,
+    value: 16,
+    label: `html`,
+  },
+  {
+    id: 17,
+    value: 17,
+    label: `ini`,
+  },
+  {
+    id: 18,
+    value: 18,
+    label: `java`,
+  },
+  {
+    id: 19,
+    value: 19,
+    label: `javascript`,
+    mime: `application/javascript`,
+    ext: [`js`, `mjs`, `cjs`, `ejs`],
+  },
+  {
+    id: 20,
+    value: 20,
+    label: `json`,
+    mime: `application/json`,
+  },
+  {
+    id: 21,
+    value: 21,
+    label: `kotlin`,
+    mime: `application/x-kotlin`,
+  },
+  {
+    id: 22,
+    value: 22,
+    label: `less`,
+  },
+  {
+    id: 23,
+    value: 23,
+    label: `lua`,
+  },
+  {
+    id: 24,
+    value: 24,
+    label: `markdown`,
+    ext: [`md`, `mdx`],
+    mime: `application/x-markdown`,
+  },
+  {
+    id: 25,
+    value: 25,
+    label: `msdax`,
+    syntax: false,
+  },
+  {
+    id: 26,
+    value: 26,
+    label: `mysql`,
+    syntax: false,
+    mime: `application/x-mysql`,
+  },
+  {
+    id: 27,
+    value: 27,
+    label: `objective-c`,
+  },
+  {
+    id: 28,
+    value: 28,
+    label: `pascal`,
+  },
+  {
+    id: 29,
+    value: 29,
+    label: `perl`,
+  },
+  {
+    id: 30,
+    value: 30,
+    label: `pgsql`,
+    ext: [`sql`],
+    syntax: false,
+  },
+  {
+    id: 31,
+    value: 31,
+    label: `php`,
+  },
+  {
+    id: 32,
+    value: 32,
+    label: `plaintext`,
+    ext: [`txt`],
+  },
+  {
+    id: 33,
+    value: 33,
+    label: `postiats`,
+    syntax: false,
+  },
+  {
+    id: 34,
+    value: 34,
+    label: `powerquery`,
+  },
+  {
+    id: 35,
+    value: 35,
+    label: `powershell`,
+  },
+  {
+    id: 36,
+    value: 36,
+    label: `pug`,
+  },
+  {
+    id: 37,
+    value: 37,
+    label: `python`,
+    ext: [`py`],
+    mime: `application/x-python`,
+  },
+  {
+    id: 38,
+    value: 38,
+    label: `r`,
+  },
+  {
+    id: 39,
+    value: 39,
+    label: `razor`,
+  },
+  {
+    id: 40,
+    value: 40,
+    label: `redis`,
+    syntax: false,
+  },
+  {
+    id: 41,
+    value: 41,
+    label: `redshift`,
+    syntax: false,
+  },
+  {
+    id: 42,
+    value: 42,
+    label: `ruby`,
+    ext: [`rb`],
+    mime: `application/x-ruby`,
+  },
+  {
+    id: 43,
+    value: 43,
+    label: `rust`,
+    ext: [`rs`],
+  },
+  {
+    id: 44,
+    value: 44,
+    label: `sb`,
+    syntax: false,
+  },
+  {
+    id: 45,
+    value: 45,
+    label: `scheme`,
+  },
+  {
+    id: 46,
+    value: 46,
+    label: `scss`,
+  },
+  {
+    id: 47,
+    value: 47,
+    label: `shell`,
+    ext: [`sh`],
+    mime: `application/x-shell`,
+  },
+  {
+    id: 48,
+    value: 48,
+    label: `sol`,
+    syntax: false,
+  },
+  {
+    id: 49,
+    value: 49,
+    label: `sql`,
+  },
+  {
+    id: 50,
+    value: 50,
+    label: `st`,
+    syntax: false,
+  },
+  {
+    id: 51,
+    value: 51,
+    label: `swift`,
+  },
+  {
+    id: 52,
+    value: 52,
+    label: `tcl`,
+  },
+  {
+    id: 53,
+    value: 53,
+    label: `typescript`,
+    ext: [`ts`, `cts`, `mts`, `ets`],
+    mime: `application/x-typescript`,
+  },
+  {
+    id: 54,
+    value: 54,
+    label: `vb`,
+  },
+  {
+    id: 55,
+    value: 55,
+    label: `xml`,
+  },
+  {
+    id: 56,
+    value: 56,
+    label: `yaml`,
+    ext: [`yml`],
+  },
+]
+
+export const CodeLanguageNames = CodeLanguages.map((lang) => lang.label)
+
+export const MonacoOptions = {
+  codeLens: false,
+  cursorBlinking: `phase`,
+  minimap: { enabled: false },
+  showFoldingControls: `always`,
+  renderControlCharacters: true,
+  renderWhitespace: `trailing`,
+  renderFinalNewline: `on`,
+  renderMinimap: `none`,
+  revealHorizontalRightPadding: gutter.h,
+  wordWrap: `bounded`,
+  wrappingIndent: `deepIndent`,
+  wordWrapColumn: 100, // maybe go 80?
+  padding: {
+    top: gutter.c,
+  },
+  tabSize: 2,
+  fontSize: 16,
+  folding: false,
+  glyphMargin: false,
+  lineNumbersMinChars: 3,
+  lineDecorationsWidth: gutter.h,
+  lightbulb: { enabled: `off` },
+  scrollBeyondLastColumn: 1,
+  scrollBeyondLastLine: false,
+  selectionClipboard: false,
+  selectOnLineNumbers: false,
+  selectionHighlight: false,
+  occurrencesHighlight: `off`,
+  renderLineHighlight: `none`,
+  renderLineHighlightOnlyWhenFocus: false,
+  overviewRulerLanes: 0,
+  overviewRulerBorder: false,
+  hideCursorInOverviewRuler: true,
+  automaticLayout: true,
+  scrollbar: {
+    alwaysConsumeMouseWheel: false,
+  },
+} as any

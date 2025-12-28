@@ -1,0 +1,53 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "strict": false,
+    "allowJs": false,
+    "jsx": "react-jsx",
+    "ignoreDeprecations": "6.0",
+    "moduleResolution": "bundler",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "types": [
+      "./src/external",
+      "./src/overrides",
+      "vite/client"
+    ],
+    "paths": {
+      "@TAF/*": ["src/*"],
+      "@TAF": ["src"],
+
+      "@ROOT": ["../../"],
+      "@TSC/*": ["../components/src/*"],
+      "@TSC": ["../components/src"],
+      "@tdsk/components": ["../components/src"],
+
+      "@TDM/*": ["../domain/src/*"],
+      "@TDM": ["../domain/src"],
+      "@tdsk/domain/web": ["../domain/src/web.ts"],
+
+      "@TDB/*": ["../database/src/*"],
+      "@TDB": ["../database/src"],
+      "@tdsk/database/web": ["../database/src/web.ts"],
+
+      "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"],
+      "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
+      "@keg-hub/jsutils/src/node": ["node_modules/@keg-hub/jsutils/build/esm/node"],
+      "@keg-hub/jsutils/src/node/*": ["node_modules/@keg-hub/jsutils/build/esm/node"]
+    }
+  },
+  "include": [
+    "src",
+    "configs",
+    "../../configs",
+    "../components/src"
+  ],
+  "exclude": [
+    "build",
+    "**/build/*",
+    "node_modules",
+    "**/node_modules/*",
+    "dist",
+    "**/dist/*"
+  ]
+}

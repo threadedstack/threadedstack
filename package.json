@@ -1,0 +1,54 @@
+{
+  "name": "@tdsk/main",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "clean": "pnpm -r clean",
+    "clean:nm": "rm -rf ./node_modules",
+    "clean:full": "pnpm clean; pnpm clean:nm; pnpm install",
+    "ds": "cd deploy; ./values.loader.sh local -- devspace",
+    "preinstall": "npx only-allow pnpm",
+    "si": "pnpm sync; pnpm install",
+    "sync": "syncpack fix-mismatches --config configs/syncpack.config.js",
+    "tdsk": "cd repos/cli; pnpm cli",
+    "ts": "cd repos/cli; pnpm cli",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "turbo": "turbo"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "pnpm": {
+    "overrides": {
+      "@keg-hub/args-parse": "10.0.1",
+      "@keg-hub/cli-utils": "0.9.0"
+    },
+    "peerDependencyRules": {
+      "ignoreMissing": [
+        "dockerode",
+        "react"
+      ],
+      "allowAny": [
+        "esbuild-register",
+        "dockerode",
+        "esbuild",
+        "react",
+        "react-dom"
+      ]
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "dependencies": {
+    "@keg-hub/jsutils": "10.0.0",
+    "@keg-hub/parse-config": "2.2.0",
+    "esbuild": "0.19.7",
+    "esbuild-register": "3.5.0",
+    "syncpack": "13.0.0"
+  },
+  "devDependencies": {
+    "turbo": "2.3.4"
+  }
+}

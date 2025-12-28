@@ -1,0 +1,48 @@
+ARG IMAGE_FROM=node:22-alpine3.19
+
+
+# ---- Base Stage  ---- #
+FROM $IMAGE_FROM AS tdsk-base
+RUN npm i -g pnpm
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="${PATH}:${PNPM_HOME}"
+RUN npm install --global pnpm@9.15.4
+# ---- End Stage ---- #
+
+
+# ---- PNPM Stage  ---- #
+FROM tdsk-base AS tdsk-pnpm
+WORKDIR /tdsk
+COPY .npmrc pnpm-*.yaml ./
+RUN pnpm fetch --prod --no-optional --ignore-scripts
+COPY package.json tsconfig* ./
+# ---- End Stage ---- #
+
+# ---- Build Stage  ---- #
+FROM tdsk-pnpm AS tdsk-build
+WORKDIR /tdsk
+ADD repos/logger/package.json ./repos/logger/package.json
+ADD repos/backend/package.json ./repos/backend/package.json
+ADD repos/database/package.json ./repos/database/package.json
+ADD repos/domain/package.json ./repos/domain/package.json
+RUN pnpm install --prod --offline --frozen-lockfile
+ADD repos/backend ./repos/backend
+ADD repos/database ./repos/database
+ADD repos/logger ./repos/logger
+ADD repos/domain ./repos/domain
+WORKDIR /tdsk/repos/backend
+RUN pnpm build
+RUN pnpm --filter=@tdsk/backend --prod deploy /tdsk-runner/repos/backend
+# ---- End Stage ---- #
+
+
+# ---- Run Stage  ---- #
+FROM tdsk-base AS tdsk-runner
+WORKDIR /tdsk
+COPY --from=tdsk-build /tdsk-runner /tdsk
+COPY deploy deploy
+COPY .npmrc pnpm-*.yaml ./
+COPY package.json tsconfig* ./
+WORKDIR /tdsk/repos/backend
+ENTRYPOINT ["pnpm", "serve"]
+# ---- End Stage ---- #

@@ -1,0 +1,3 @@
+export const SettingsStorageKey = `settings-storage-key`
+export const ThemeTypeStorageKey = `theme-type-storage-key`
+export const ApiHeadersStorageKey = `api-headers-storage-key`

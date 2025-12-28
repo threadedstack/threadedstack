@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "strict": false,
+    "allowJs": false,
+    "outDir": "./dist",
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "paths": {
+      "@TSC": ["src"],
+      "@TSC/*": ["src/*"],
+      "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
+      "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"],
+      "@keg-hub/jsutils/src/node": ["node_modules/@keg-hub/jsutils/build/esm/node"],
+      "@keg-hub/jsutils/src/node/*": ["node_modules/@keg-hub/jsutils/build/esm/node"]
+    },
+  },
+  "include": ["src", "configs", "../../configs"],
+  "exclude": [
+    "build",
+    "**/build/*",
+    "node_modules",
+    "**/node_modules/*",
+    "dist",
+    "**/dist/*"
+  ]
+}
