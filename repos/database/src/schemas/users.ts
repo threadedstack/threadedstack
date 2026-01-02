@@ -16,9 +16,7 @@ export const users = pgTable(`users`, {
   email: varchar(`email`, { length: 255 }).notNull().unique(),
   displayName: varchar(`display_name`, { length: 255 }).notNull(),
 },
-  (table) => [
-    uniqueIndex(`email_idx`).on(table.email)
-  ]
+  (table) => [uniqueIndex(`email_idx`).on(table.email)]
 )
 
 export const usersRelations = relations(users, ({ many }) => ({

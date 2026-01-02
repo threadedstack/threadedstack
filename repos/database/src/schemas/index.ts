@@ -1,5 +1,5 @@
-export { teams } from '@TDB/schemas/teams'
 export { users } from '@TDB/schemas/users'
+export { teams } from '@TDB/schemas/teams'
 export { repos } from '@TDB/schemas/repos'
 export { roles } from '@TDB/schemas/roles'
 export { assets } from '@TDB/schemas/assets'
