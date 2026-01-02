@@ -1,5 +1,5 @@
-import type { TEndpointConfig, TConfigProxy } from '@TBE/types'
-import type { RequestHandler, Filter } from 'http-proxy-middleware'
+import type { TEndpointConfig } from '@TBE/types'
+import type { RequestHandler } from 'http-proxy-middleware'
 
 import { buildProxy } from './buildProxy'
 import { createProxyMiddleware } from 'http-proxy-middleware'

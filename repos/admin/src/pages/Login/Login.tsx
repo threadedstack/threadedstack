@@ -1,11 +1,13 @@
-export type TPage = {
+export type TLogin = {
   
 }
 
-export const Page = (props:TPage) => {
+export const Login = (props:TLogin) => {
   
   return (
     <>
     </>
   )
 }
+
+export default Login

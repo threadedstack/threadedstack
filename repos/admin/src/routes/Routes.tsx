@@ -4,10 +4,8 @@ import { Loading } from '@tdsk/components'
 import Layout from '@TAF/pages/Layout/Layout'
 import { Navigate, createBrowserRouter } from 'react-router'
 
-
 const Home = lazy(() => import('@TAF/pages/Home/Home'))
 const Login = lazy(() => import('@TAF/pages/Login/Login'))
-
 
 export const Routes = createBrowserRouter([
   {

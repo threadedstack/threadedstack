@@ -1,6 +1,5 @@
 import { Toaster } from 'sonner'
 import { Outlet } from 'react-router'
-import { Loading } from '@tdsk/components'
 import { useTheme } from '@mui/material/styles'
 import { LayoutContainer, LayoutContent } from '@TAF/pages/Layout/Layout.styles'
 
@@ -26,15 +25,8 @@ const Layout = (props: any) => {
       />
       
       <LayoutContent className='tdsk-page-content'>
-        {(!loading || session)
-          ? (
-              <>
-                <Outlet />
-                {props?.children}
-              </>
-            )
-          : (<Loading fixed full />)
-        }
+        <Outlet />
+        {props?.children}
       </LayoutContent>
     </LayoutContainer>
   )
