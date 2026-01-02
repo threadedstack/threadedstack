@@ -22,6 +22,8 @@
       "@TDB/*": ["./src/*"],
       "@TDB/configs": ["./configs"],
       "@TDB/configs/*": ["./configs/*"],
+      "@TDB/drizzle": ["./drizzle"],
+      "@TDB/drizzle/*": ["./drizzle/*"],
 
       "@tdsk/logger": ["../logger/src"],
       "@tdsk/logger/*": ["../logger/src/*"],

@@ -82,19 +82,40 @@ env:
 
 # --- Database Envs --- #
 
+  # Project ID when using the neon
+  TDSK_DB_PROJECT_ID:
+
   TDSK_DB_JWT_CREDS: false
-  
+
   # The below envs should be set by the TDSK_KUBE_SCRT_DB_CFG secret with-in kubernetes
   # Name of the database to use
   TDSK_DB_NAME: tdsk
-  # Type of postgres database to use, i.e. supabase
-  TDSK_DB_TYPE: supabase
+
+  # SQL database dialect to use with drizzle orm
+  # Must be one of '"postgresql" | "mysql" | "sqlite" | "turso" | "singlestore" | "gel"'
+  TDSK_DB_DIALECT: `postgresql`
+
+  # Database protocol to use in the URL connection string
+  TDSK_DB_PROTO: postgresql
+
+  # Name or Role of the user to use when connecting to postgres
+  TDSK_DB_USER:
+
+  # Password for the postgres user
+  TDSK_DB_PASS:
+
+  # Type of postgres database to use, i.e. supabase, neon
+  TDSK_DB_TYPE: 
+
   # Url connection string to connect to the database
-  TDSK_DB_URL:
+  TDSK_DB_URL: 
+
   # Public key used to connect to the database if needed
   TDSK_DB_PUBLIC_KEY:
+
   # Secret jwt for creating auth tokens
   TDSK_DB_JWT_SCRT:
+
   # Secret token for accessing the database, i.e. password
   TDSK_DB_SRV_ROLE:
 

@@ -14,17 +14,31 @@
   },
   "scripts": {
     "build": "pnpm tsup-node --config ./configs/tsup.config.ts",
-    "clean": "rm -rf ./node_modules"
+    "clean": "rm -rf ./node_modules",
+    "dk": "drizzle-kit",
+    "generate": "drizzle-kit generate --config=configs/drizzle.config",
+    "migrate": "drizzle-kit migrate --config=configs/drizzle.config",
+    "introspect": "drizzle-kit introspect --config=configs/drizzle.config",
+    "push": "drizzle-kit push --config=configs/drizzle.config",
+    "studio": "drizzle-kit studio --config=configs/drizzle.config",
+    "up": "drizzle-kit up --config=configs/drizzle.config",
+    "check": "drizzle-kit check --config=configs/drizzle.config",
+    "drop": "drizzle-kit drop --config=configs/drizzle.config",
+    "export": "drizzle-kit export --config=configs/drizzle.config"
   },
   "dependencies": {
     "@keg-hub/jsutils": "10.0.0",
     "@keg-hub/parse-config": "2.2.0",
+    "@neondatabase/serverless": "1.0.2",
     "@tdsk/domain": "workspace:*",
     "alias-hq": "6.2.4",
+    "drizzle-orm": "0.45.1",
     "module-alias": "2.2.3"
   },
   "devDependencies": {
     "@types/node": "22.12.0",
-    "tsup": "8.3.6"
+    "drizzle-kit": "0.31.8",
+    "tsup": "8.3.6",
+    "tsx": "4.21.0"
   }
 }
