@@ -1,5 +1,5 @@
-
 import { URL } from 'url'
+import { DefDBProto } from '@TDB/constants/values'
 
 
 export type TBuildDBUrl = {
@@ -12,30 +12,26 @@ export type TBuildDBUrl = {
   params?:Record<string, string>
 }
 
+const ensureProto = (url:string, proto?:string) => {
+  const hasProto = /^[a-zA-Z0-9]+:\/\//.test(url)
+
+  if(!proto) return hasProto ? url : `${DefDBProto}://${url}`
+
+  if(!hasProto) return `${proto}://${url}`
+
+  const uri = url.split(`://`).pop()
+  return `${proto}://${uri}`
+}
+
 const getDBUrl = (opts: TBuildDBUrl) => {
-  const {
-    url,
-    host,
-    proto,
-  } = opts
-  
-  if (url) return new URL(url)
+  const { url, host, proto } = opts
+
+  if (url) return new URL(ensureProto(url, proto))
 
   if (!host)
     throw new Error(`Can not build DB connection string, either a "url" or "host" must be provided`)
 
-  if(proto){
-    // Check if host contains a protocol, if not default to postgresql
-    // (The URL constructor requires a protocol to function)
-    if(/^[a-zA-Z0-9]+:\/\//.test(host)){
-      const uri = host.split(`://`).pop()
-      return new URL(`${proto}://${uri}`)
-    }
-
-    return new URL(`${proto}://${host}`)
-  }
-
-  return new URL(host)
+  return new URL(ensureProto(host, proto))
 }
 
 const addParams = (url:URL, params:Record<string, string>) => {

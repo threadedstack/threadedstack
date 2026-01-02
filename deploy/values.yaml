@@ -92,8 +92,8 @@ env:
   TDSK_DB_NAME: tdsk
 
   # SQL database dialect to use with drizzle orm
-  # Must be one of '"postgresql" | "mysql" | "sqlite" | "turso" | "singlestore" | "gel"'
-  TDSK_DB_DIALECT: `postgresql`
+  # Must be one of postgresql | mysql | sqlite | turso | singlestore | gel
+  TDSK_DB_DIALECT: postgresql
 
   # Database protocol to use in the URL connection string
   TDSK_DB_PROTO: postgresql

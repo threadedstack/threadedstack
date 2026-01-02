@@ -40,4 +40,4 @@ export default defineConfig({
       pass: TDSK_DB_PASS,
     }),
   },
-});
+})
