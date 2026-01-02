@@ -11,7 +11,7 @@
 * Setup `deployment/values(*).yaml` for each environment.
   * `*` === environment name (i.e. `local`, `develop`, `staging`, `production`)
 
-## 2. atabase & Domain
+## 2. Database & Domain
 
 * Create shared Types/Interfaces in `repos/domain`.
 * Implement Drizzle ORM schemas in `repos/database`.
