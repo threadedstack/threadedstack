@@ -10,5 +10,13 @@ export enum ERoutePath {
   Auth=`/auth`,
   Login=`/auth/:pathname`,
   Account=`/account/:pathname`,
+  Repos=`/repos`,
+  Repo=`/repos/:repoId`,
+  Endpoints=`/applications/:appId/endpoints`,
+  Endpoint=`/applications/:appId/endpoints/:endpointId`,
+  ApiTokens=`/api-tokens`,
+  AI=`/ai`,
+  AIAgents=`/ai/agents`,
+  MCPTools=`/ai/mcp-tools`,
   Star=`*`,
 }

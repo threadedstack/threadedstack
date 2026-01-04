@@ -25,4 +25,4 @@ export class NavService {
 
 }
 
-export const navService = new NavService()
+export const nav = new NavService()

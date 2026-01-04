@@ -8,7 +8,10 @@ import { init } from '@TAF/actions/init'
 import { ife } from '@keg-hub/jsutils/ife'
 import { useTheme } from '@TSC/hooks/theme/useTheme'
 import { Header } from '@TAF/components/Header/Header'
+import { HeaderSettingsItems } from '@TAF/constants/nav'
 import { Loading, useEffectOnce, dims } from '@tdsk/components'
+
+
 
 export type TPage = {
   sx?:SxProps|CSSProperties
@@ -68,7 +71,7 @@ export const Page = (props:TPage) => {
           ? (<Loading {...defs.loading} />)
           : (
               <>
-                <Header />
+                <Header navItems={HeaderSettingsItems} />
                 <Box
                   component="main"
                   className={className}

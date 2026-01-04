@@ -1,16 +1,14 @@
 import type { ReactNode } from 'react'
-import type { TAnyCB, TAuthSession } from '@TAF/types'
+import type { TAuthSession } from '@TAF/types'
 
-
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ife } from '@keg-hub/jsutils/ife'
 import { authClient } from '@TAF/services/auth'
-import { useEffect, useMemo } from 'react'
 import { AuthContext } from '@TAF/contexts/AuthContext'
 import { initAuth } from '@TAF/actions/auth/local/init'
-import { Loading, MemoChildren } from '@tdsk/components'
 import { LoginError } from '@TAF/components/Login/LoginError'
 import { NeonAuthUIProvider } from '@neondatabase/neon-js/auth/react'
+import { Loading, MemoChildren, useEffectOnce } from '@tdsk/components'
 
 export type TAuthProvider = {
   children: ReactNode
@@ -23,7 +21,7 @@ export const AuthProvider = (props: TAuthProvider) => {
   const [session, setSession] = useState<TAuthSession>()
   const ctx = useMemo(() => ({session, loading}), [session, loading])
 
-  useEffect(() => {
+  useEffectOnce(() => {
     if(session) return
 
     ife(async () => {
@@ -34,6 +32,7 @@ export const AuthProvider = (props: TAuthProvider) => {
         session && setSession(session)
       }
       catch(err){
+        console.error(err)
         setError(err.message)
       }
       finally {

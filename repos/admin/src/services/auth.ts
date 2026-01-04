@@ -45,7 +45,10 @@ export class Auth {
 
   session = async ():Promise<TAuthResp> => {
     const { data, error } = await this.client.getSession()
-    return error ? this.#error(error) : {...data, user: new User(data.user)}
+    if(error) return this.#error(error)
+    if(data) return {...data, user: new User(data.user)}
+
+    return {}
   }
 
 }
