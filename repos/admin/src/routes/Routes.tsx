@@ -6,6 +6,7 @@ import { Navigate, createBrowserRouter } from 'react-router'
 
 const Home = lazy(() => import('@TAF/pages/Home/Home'))
 const Login = lazy(() => import('@TAF/pages/Login/Login'))
+const Account = lazy(() => import('@TAF/pages/Account/Account'))
 
 export const Routes = createBrowserRouter([
   {
@@ -60,6 +61,22 @@ export const Routes = createBrowserRouter([
         }
       >
         <Login />
+      </Suspense>
+    ),
+  },
+  {
+    id: ERoutePath.Account,
+    path: ERoutePath.Account,
+    Component: () => (
+      <Suspense
+        fallback={
+          <Loading
+            fixed
+            full
+          />
+        }
+      >
+        <Account />
       </Suspense>
     ),
   },

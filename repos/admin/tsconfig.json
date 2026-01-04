@@ -24,11 +24,8 @@
 
       "@TDM/*": ["../domain/src/*"],
       "@TDM": ["../domain/src"],
+      "@tdsk/domain": ["../domain/src/web.ts"],
       "@tdsk/domain/web": ["../domain/src/web.ts"],
-
-      "@TDB/*": ["../database/src/*"],
-      "@TDB": ["../database/src"],
-      "@tdsk/database/web": ["../database/src/web.ts"],
 
       "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"],
       "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],

@@ -1,9 +1,6 @@
-import path from 'node:path'
 import { version } from '../package.json'
 import { loadEnvs } from '../scripts/loadEnvs'
 
-const rootDir = path.join(__dirname, '..')
-const tdskRoot = path.join(rootDir, `../../..`)
 const nodeEnv = process.env.NODE_ENV || `local`
 const overrideEnvs = process.env.TDSK_AD_OVERRIDE_ENVS
 const envOverride = Boolean(overrideEnvs || nodeEnv === `local`)
@@ -33,9 +30,10 @@ export const loadConfig = () => {
     {} as Record<string, string>
   )
 
-  const aliases = {
-    [`@keg-hub/jsutils`]: path.join(tdskRoot, `node_modules/@keg-hub/jsutils/build/esm`),
-  } as Record<string, string>
+  /**
+   * Add extra aliases here if needed
+   */
+  const aliases = {} as Record<string, string>
 
 
   return {

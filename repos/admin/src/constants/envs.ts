@@ -20,10 +20,10 @@ const envPath = process.env.TDSK_AD_BASE_PATH
 export const TDSK_AD_BASE_PATH = envPath?.startsWith?.(`/`) ? envPath : `/`
 
 export const Environment = process.env.NODE_ENV || `local`
-export const TDSK_DB_URL = process.env.TDSK_DB_URL
-export const TDSK_DB_NAME = process.env.TDSK_DB_NAME
-export const TDSK_DB_TYPE = process.env.TDSK_DB_TYPE
-export const TDSK_DB_PUBLIC_KEY = process.env.TDSK_DB_PUBLIC_KEY
+
+export const TDSK_AUTH_URL = ensureEnv(process.env.TDSK_AUTH_URL, `TDSK_AUTH_URL`)
+export const TDSK_AUTH_JWKS = ensureEnv(process.env.TDSK_AUTH_JWKS, `TDSK_AUTH_JWKS`)
+
 export const TDSK_AUTH_PROVIDERS = (process.env.TDSK_AUTH_PROVIDERS || `github`).split(`,`)
 
 export const TDSK_POSTHOG_KEY = process.env.TDSK_POSTHOG_KEY

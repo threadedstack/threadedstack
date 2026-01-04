@@ -1,12 +1,7 @@
 import { useParams } from 'react-router'
-import { AuthView } from '@neondatabase/neon-js/auth/react'
+import { AccountView } from '@neondatabase/neon-js/auth/react'
 
-export type TLogin = {
-  
-}
-
-export const Login = (props:TLogin) => {
-
+export const Account = () => {
   const { pathname } = useParams()
   return (
     <div
@@ -18,9 +13,9 @@ export const Login = (props:TLogin) => {
         padding: '2rem 1rem',
       }}
     >
-      <AuthView pathname={pathname} />
+      <AccountView pathname={pathname} />
     </div>
-  );
+  )
 }
 
-export default Login
+export default Account

@@ -44,9 +44,9 @@ export const config = {
       root: rootDir,
       projects: [
         rootDir,
-        path.join(rootDir, `../../domain`),
-        path.join(rootDir, `../../database`),
-        path.join(rootDir, `../../components`),
+        path.join(rootDir, `../domain`),
+        path.join(rootDir, `../database`),
+        path.join(rootDir, `../components`),
       ]
     }),
     svgrComponent({
