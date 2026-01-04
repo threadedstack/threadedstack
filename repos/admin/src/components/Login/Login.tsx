@@ -1,7 +1,7 @@
 import type { TOnLogin } from '@TAF/types'
 import { GhButton } from '@TAF/components/Login/GithubBtn'
-import { GlButton } from '@TAF/components/Login/GitlabBtn'
 import { GgButton } from '@TAF/components/Login/GoogleBtn'
+import { VrButton } from '@TAF/components/Login/VercelBtn'
 
 import {
   TSLogo,
@@ -37,7 +37,7 @@ export type TLogin = TLoginBtnProps & {
 const LoginBtns:Record<string, TLoginBtn> = {
   github: GhButton,
   google: GgButton,
-  gitlab: GlButton,
+  vercel: VrButton
 }
 
 

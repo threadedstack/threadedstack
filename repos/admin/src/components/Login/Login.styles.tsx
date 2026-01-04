@@ -143,6 +143,19 @@ export const GlLoginButton = styled(LoadingButton)(({ theme }) => {
   `
 })
 
+export const VrLoginButton = styled(LoadingButton)(({ theme }) => {
+  return `
+    width: 100%;
+    color: ${grey[0]};
+    background-color: #0A0A0A;
+    :hover{
+      transition:.2s;
+      background-color: ${darken('#0A0A0A', 0.3)}
+    } 
+  `
+})
+
+
 
 export const TSLogo = styled(TSIcon)(({ theme }) => {
   return `
