@@ -48,12 +48,12 @@ export const AINavItems:TNavItem[] = [
 ]
 
 export const NavItems: TNavItem[] = [
+  { to: ERoutePath.Teams, text: `Teams`, Icon: <TeamIcon /> },
   {
       to: ERoutePath.Repos,
       text: `Repos`,
       Icon: <AppsIcon />,
     },
-  { to: ERoutePath.Teams, text: `Teams`, Icon: <TeamIcon /> },
   { to: ERoutePath.Secrets, text: `Secrets`, Icon: <SecretIcon /> },
   { to: ERoutePath.ApiTokens, text: `API Tokens`, Icon: <TokenIcon /> },
   { to: ERoutePath.Providers, text: `Providers`, Icon: <ProviderIcon /> },
