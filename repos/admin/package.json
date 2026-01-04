@@ -22,7 +22,6 @@
     "@mui/lab": "6.0.0-beta.10",
     "@mui/material": "6.1.2",
     "@neondatabase/neon-js": "0.1.0-beta.21",
-    "@supabase/supabase-js": "2.48.1",
     "@tdsk/components": "workspace:*",
     "@tdsk/database": "workspace:*",
     "@tdsk/domain": "workspace:*",

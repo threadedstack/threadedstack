@@ -9,7 +9,6 @@ const Layout = (props: any) => {
 
   return (
     <>
-      this is outside
       <SignedIn>
         <LayoutContainer className='tdsk-layout-container' >
           <Toaster
@@ -27,8 +26,6 @@ const Layout = (props: any) => {
               },
             }}
           />
-          
-          This is a test
           <LayoutContent className='tdsk-page-content'>
             <Outlet />
             {props?.children}

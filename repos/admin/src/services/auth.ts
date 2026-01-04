@@ -1,13 +1,15 @@
+import type { TAuthError } from '@TAF/types'
+
+import { User } from '@tdsk/domain'
 import { TDSK_AUTH_URL } from '@TAF/constants/envs'
 import { createAuthClient } from '@neondatabase/neon-js/auth'
 
 export const authClient = createAuthClient(TDSK_AUTH_URL)
 
-type TAuthError = {
-  code?: string;
-  message?: string;
-  status: number;
-  statusText: string;
+type TAuthResp = {
+  session?:any
+  error?:TAuthError
+  user?:User
 }
 
 export class Auth {
@@ -16,14 +18,23 @@ export class Auth {
 
   constructor(){}
 
-  #error = (error:TAuthError) => {
+  #error = (error:TAuthError):TAuthResp => {
     console.log(`[${error.status}] - (${error.code}) ${error.message}`)
-    return false
+    return { error }
   }
 
-  signin = async (provider?:string) => {
-    return await this.client.signIn.social({
+  signin = async (provider:string):Promise<TAuthResp> => {
+    const { data, error } = await this.client.signIn.social({
       provider,
+    })
+    if(`user` in data) return { user: new User(data.user)}
+    if(error) return this.#error(error)
+
+    return this.#error({
+      status: 404,
+      code: `404`,
+      statusText: `Error`,
+      message: `Could not complete user login`
     })
   }
 
@@ -32,9 +43,9 @@ export class Auth {
     return error ? this.#error(error) : true
   }
 
-  session = async () => {
+  session = async ():Promise<TAuthResp> => {
     const { data, error } = await this.client.getSession()
-    return error ? this.#error(error) : data
+    return error ? this.#error(error) : {...data, user: new User(data.user)}
   }
 
 }

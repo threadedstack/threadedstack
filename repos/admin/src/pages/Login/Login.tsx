@@ -1,26 +1,34 @@
+import type { TOnLogin } from '@TAF/types'
+
+import { useState } from 'react'
 import { useParams } from 'react-router'
-import { AuthView } from '@neondatabase/neon-js/auth/react'
+import { Login } from '@TAF/components/Login'
+import { TDSK_AUTH_PROVIDERS } from '@TAF/constants/envs'
+import { signin } from '@TAF/actions/auth/local/signin'
 
-export type TLogin = {
-  
-}
+export type TLogin = {}
 
-export const Login = (props:TLogin) => {
+export const LoginPage = (props:TLogin) => {
 
-  const { pathname } = useParams()
+  const [error, setError] = useState<string>()
+  const [authenticating, setAuthenticating] = useState<string>()
+
+  const onLogin:TOnLogin = async (data) => {
+    setAuthenticating(data.provider)
+    const resp = await signin(data.provider)
+    resp.error && setError(resp.error.message)
+    setAuthenticating(undefined)
+  }
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        padding: '2rem 1rem',
-      }}
-    >
-      <AuthView pathname={pathname} />
-    </div>
-  );
+    <Login
+      error={error}
+      onLogin={onLogin}
+      providers={TDSK_AUTH_PROVIDERS}
+      authenticating={authenticating}
+    />
+  )
+
 }
 
-export default Login
+export default LoginPage
