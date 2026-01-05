@@ -1,9 +1,8 @@
 import { dims } from '@tdsk/components'
-import { NavItems } from '@TAF/constants/nav'
 import { useSidebarOpen } from '@TAF/state/selectors'
 import { SBLogo } from '@TAF/components/Sidebar/SBLogo'
 import { SBNavList } from '@TAF/components/Sidebar/SBNavList'
-import { SideDrawer, SBToggleBox, SBToggleBtn } from '@TAF/components/Sidebar/Sidebar.styles'
+import { NavItems, BottomNavItems } from '@TAF/constants/nav'
 import {
   Toolbar,
   Divider,
@@ -12,6 +11,12 @@ import {
   ChevronLeft,
   ChevronRight,
 } from '@mui/icons-material'
+import {
+  SideDrawer,
+  SBToggleBox,
+  SBToggleBtn,
+  SBNavListSpacer,
+} from '@TAF/components/Sidebar/Sidebar.styles'
 
 
 export type TSidebar = {}
@@ -41,6 +46,9 @@ export const Sidebar = (props:TSidebar) => {
         </Toolbar>
         <Divider />
         <SBNavList open={open} items={NavItems} />
+        <SBNavListSpacer />
+        <Divider />
+        <SBNavList open={open} items={BottomNavItems} />
       </SideDrawer>
       <SBToggleBox>
         <SBToggleBtn onClick={() => setOpen(!open)}>

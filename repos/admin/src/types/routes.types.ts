@@ -6,6 +6,7 @@ export enum ERoutePath {
   Team=`/teams/:teamId`,
   Secrets=`/secrets`,
   Settings=`/settings`,
+  Profile=`/profile`,
   Providers=`/providers`,
   Auth=`/auth`,
   Login=`/auth/:pathname`,

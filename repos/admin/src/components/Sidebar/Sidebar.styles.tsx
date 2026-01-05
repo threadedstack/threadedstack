@@ -91,8 +91,8 @@ export const NavItem = styled(ListItem)`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: ${gutter.px} ${gutter.px};
   background-color: transparent;
+  padding: ${gutter.tpx} ${gutter.tpx};
   transition: opacity 0.4s ease, color 0.4s ease, background-color 0.4s ease;
 
   &:hover {
@@ -113,6 +113,7 @@ export const NavItem = styled(ListItem)`
   }
 
   &.open {
+  
     & .MuiTypography-root {
       opacity: 1;
     }
@@ -123,14 +124,19 @@ export const NavItem = styled(ListItem)`
   
   
   & .MuiListItemIcon-root {
+    padding-left: ${gutter.cpx};
+    padding-right: ${gutter.hpx};
     transition: color 0.4s ease;
+    
+    & svg {
+      font-size: 18px;
+    }
   }
-  
+    
   & .MuiTypography-root {
     opacity: 0;
-    font-size: 16px;
+    font-size: 14px;
     transition: opacity 0.4s ease, color 0.4s ease;
-    padding-left: ${gutter.tpx};
   }
   
   & .tdsk-list-item-expand {
@@ -138,4 +144,9 @@ export const NavItem = styled(ListItem)`
     min-width: 0;
     transition: opacity 0.4s ease;
   }
+`
+
+
+export const SBNavListSpacer = styled(Box)`
+  flex: 1;
 `
