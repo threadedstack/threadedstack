@@ -40,7 +40,7 @@ export const Header = (props:THeaderProps) => {
   ] = useStateReset<null | HTMLElement, MouseEvent<HTMLElement>>(null, null, `currentTarget`)
 
   return (
-    <AppHeader position="sticky" className='tsdk-app-header' >
+    <AppHeader elevation={0} position="sticky" className='tsdk-app-header' >
       <HeaderToolbar>
         <Box flex={1} />
         <ToggleThemeAction

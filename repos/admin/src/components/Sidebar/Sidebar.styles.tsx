@@ -20,6 +20,7 @@ export const SideDrawer = styled(Drawer, { shouldForwardProp: (prop) => prop !==
     [`& .MuiDrawer-paper`]: {
       position: `relative`,
       whiteSpace: `nowrap`,
+      backgroundColor: theme.palette.background.section,
       width: SidebarWidthOpen,
       transition: theme.transitions.create(`width`, {
         easing: theme.transitions.easing.sharp,

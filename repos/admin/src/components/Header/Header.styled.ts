@@ -18,7 +18,7 @@ export const AppHeader = styled(AppBar)(({ theme }) => {
     padding: 0 ${gutter.hpx};
     height: ${dims.header.hpx};
     box-shadow: ${theme.palette.colors.shadow};
-    background-color: ${theme.palette.background.default};
+    background-color: ${theme.palette.background.section};
     
     & .MuiToolbar-root {
       min-height: ${dims.header.hpx};
