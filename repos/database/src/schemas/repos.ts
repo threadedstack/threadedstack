@@ -17,8 +17,8 @@ import {
 export const repos = pgTable(`repos`, {
   ...base,
   meta: jsonb(`meta`),
+  gitUrl: text(`git_url`),
   name: text(`name`).notNull(),
-  gitUrl: text(`git_url`).notNull(),
   branch: text(`branch`).default(`main`),
   teamId: uuid(`team_id`).references(() => teams.id, { onDelete: `cascade` }).notNull(),
 })

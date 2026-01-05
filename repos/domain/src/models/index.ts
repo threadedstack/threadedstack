@@ -1,3 +1,6 @@
 export * from './base'
 export * from './user'
+export * from './team'
+export * from './repo'
+export * from './provider'
 
