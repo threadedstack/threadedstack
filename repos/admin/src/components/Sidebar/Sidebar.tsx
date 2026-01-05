@@ -44,7 +44,6 @@ export const Sidebar = (props:TSidebar) => {
         >
           <SBLogo full={open} />
         </Toolbar>
-        <Divider />
         <SBNavList open={open} items={NavItems} />
         <SBNavListSpacer />
         <Divider />
