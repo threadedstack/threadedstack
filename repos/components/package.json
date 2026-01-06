@@ -3,6 +3,7 @@
   "description": "Threaded Stack components",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "scripts": {
     "build": "tsup --config ./configs/tsup.config.ts",
     "build:watch": "tsup --watch --config ./configs/tsup.config.ts",
@@ -52,12 +53,8 @@
     "@types/react": "^18.2.53",
     "@types/react-dom": "^18.2.18",
     "alias-hq": "6.2.4",
-    "esbuild": "0.24.2",
-    "esbuild-register": "3.5.0",
     "glob": "10.3.10",
     "jsdom": "^24.0.0",
-    "tsconfig-paths": "4.2.0",
-    "tsup": "^7.2.0",
     "typescript": "^5.3.3",
     "vitest": "^1.4.0",
     "vite-tsconfig-paths": "^4.3.1"

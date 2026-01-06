@@ -4,7 +4,7 @@ import './aliases'
 import hq from 'alias-hq'
 import { defineConfig } from 'vitest/config'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
-import { loadEnvs } from '@TDM/environment/loadEnvs'
+import { loadEnvs } from '../src/environment/loadEnvs'
 
 const alias = hq.get(`webpack`)
 

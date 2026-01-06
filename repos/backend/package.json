@@ -4,13 +4,14 @@
   "license": "MIT",
   "private": true,
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "build": "tsup-node --config configs/tsup.config.ts",
     "clean": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",
     "clean:full": "pnpm clean && pnpm clean:nm",
     "start": "tsup --config ./configs/tsup.config.ts --watch ./src --watch ./configs --watch ../../domain/src --watch ../../logger/src --watch ../../database/src --onSuccess 'pnpm serve'",
-    "serve": "node --enable-source-maps dist/index.js",
+    "serve": "node --enable-source-maps dist/index.cjs",
     "biome": "biome",
     "lint": "pnpm biome:lint --write",
     "format": "pnpm biome:format --write",
@@ -55,12 +56,9 @@
     "@types/is-secret": "1.2.2",
     "@types/jsonwebtoken": "9.0.10",
     "@types/node": "^20.11.16",
-    "esbuild": "0.24.2",
-    "esbuild-register": "3.5.0",
     "rimraf": "6.0.1",
     "tsup": "8.3.0",
     "typescript": "5.7.3",
-    "tsconfig-paths": "4.2.0",
     "vite-tsconfig-paths": "^4.3.1",
     "vitest": "^1.4.0"
   }
