@@ -8,7 +8,7 @@ export const Home = (props:THome) => {
 
   return (
     <Page className='tdsk-home-page' >
-      I am home
+      TODO: implement home page
     </Page>
   )
 }

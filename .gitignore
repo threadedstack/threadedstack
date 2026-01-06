@@ -175,6 +175,8 @@ vite.config.ts.timestamp*
 .turbo
 **/cline_docs/**
 .clinerules
+.swarm
+.claude-flow
 
 
 repos/api/scripts/script.ts
