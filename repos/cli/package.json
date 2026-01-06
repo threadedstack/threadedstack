@@ -7,7 +7,16 @@
     "clean": "rm -rf ./node_modules",
     "start": "tsup --config ./configs/tsup.config.ts --watch ./src --watch ./configs --onSuccess 'node dist/index.js'",
     "cli": "node -r esbuild-register -r ./configs/aliases.ts src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "biome": "biome",
+    "lint": "pnpm biome:lint --write",
+    "format": "pnpm biome:format --write",
+    "lint:ci": "pnpm biome:lint --diagnostic-level=error --changed",
+    "format:ci": "pnpm biome:format --diagnostic-level=error --changed",
+    "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "test": "vitest run --config configs/vitest.config.ts"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +33,9 @@
   },
   "devDependencies": {
     "@types/node": "22.12.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "module-alias": "2.2.3",
+    "vite-tsconfig-paths": "^4.3.1",
+    "vitest": "^1.4.0"
   }
 }

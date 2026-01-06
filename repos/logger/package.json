@@ -14,7 +14,17 @@
   },
   "scripts": {
     "build": "pnpm tsup-node --config ./configs/tsup.config.ts",
-    "clean": "rm -rf ./node_modules"
+    "clean": "rm -rf ./node_modules",
+    "biome": "biome",
+    "lint": "pnpm biome:lint --write",
+    "format": "pnpm biome:format --write",
+    "lint:ci": "pnpm biome:lint --diagnostic-level=error --changed",
+    "format:ci": "pnpm biome:format --diagnostic-level=error --changed",
+    "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "test": "vitest run --config configs/vitest.config.ts"
   },
   "dependencies": {
     "@keg-hub/jsutils": "10.0.0",
@@ -24,6 +34,10 @@
   },
   "devDependencies": {
     "@types/node": "22.12.0",
-    "tsup": "8.3.6"
+    "alias-hq": "6.2.4",
+    "module-alias": "2.2.3",
+    "tsup": "8.3.6",
+    "vite-tsconfig-paths": "^4.3.1",
+    "vitest": "^1.4.0"
   }
 }

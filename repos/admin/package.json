@@ -8,6 +8,7 @@
     "host": "vite --open --host -c configs/vite.config.ts",
     "clean": "rm -rf ./node_modules",
     "types": "tsc -b",
+    "biome": "biome",
     "lint": "pnpm biome:lint --write",
     "format": "pnpm biome:format --write",
     "lint:ci": "pnpm biome:lint --diagnostic-level=error --changed",
@@ -15,10 +16,11 @@
     "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
-    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",    
     "preview": "vite preview -c configs/vite.config.ts",
     "start": "vite -c configs/vite.config.ts",
-    "sf": "NODE_ENV=local vite -c configs/vite.config.ts --force"
+    "sf": "NODE_ENV=local vite -c configs/vite.config.ts --force",
+    "test": "vitest run --config configs/vite.config.ts"
   },
   "dependencies": {
     "@emotion/react": "11.13.3",

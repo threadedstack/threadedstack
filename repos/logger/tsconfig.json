@@ -16,6 +16,7 @@
     "moduleResolution": "bundler",
     "forceConsistentCasingInFileNames": true,
     "paths": {
+      "@ROOT": ["../../"],
       "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
       "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"],
       "@keg-hub/jsutils/src/node": ["node_modules/@keg-hub/jsutils/build/esm/node"],

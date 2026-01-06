@@ -13,8 +13,23 @@
     "sync": "syncpack fix-mismatches --config configs/syncpack.config.js",
     "tdsk": "cd repos/cli; pnpm cli",
     "ts": "cd repos/cli; pnpm cli",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "turbo": "turbo"
+    "test": "",
+    "biome": "biome",
+    "bypass": "HUSKY=0 git commit -m ",
+    "precommit": "pnpm lint:staged && pnpm format:staged",
+    "validate": "pnpm lint:ci && pnpm format:ci",
+    "format": "pnpm format:js && pnpm format:py .",
+    "lint": "pnpm lint:js && pnpm lint:py --fix .",
+    "lint:py": "pdm run ruff check",
+    "format:py": "pdm run ruff format",
+    "lint:js": "pnpm biome:lint --write && pnpm -r lint",
+    "format:js": "pnpm biome:format --write && pnpm -r format",
+    "lint:ci": "pnpm biome:lint --diagnostic-level=error --changed --log-level=info && pnpm -r lint:ci",
+    "format:ci": "pnpm biome:format --diagnostic-level=error --changed && pnpm -r format:ci",
+    "lint:staged": "pnpm biome:lint --staged --write --no-errors-on-unmatched --diagnostic-level=error && pnpm -r lint:staged",
+    "format:staged": "pnpm biome:format --staged --write --no-errors-on-unmatched --diagnostic-level=error && pnpm -r format:staged",
+    "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json"
   },
   "keywords": [],
   "author": "",
@@ -26,7 +41,6 @@
     },
     "peerDependencyRules": {
       "ignoreMissing": [
-        "dockerode",
         "react"
       ],
       "allowAny": [
@@ -42,13 +56,18 @@
     ]
   },
   "dependencies": {
-    "@keg-hub/jsutils": "10.0.0",
-    "@keg-hub/parse-config": "2.2.0",
-    "esbuild": "0.19.7",
-    "esbuild-register": "3.5.0",
-    "syncpack": "13.0.0"
+    "@keg-hub/jsutils": "^10.0.0"
   },
   "devDependencies": {
-    "turbo": "2.3.4"
+    "@biomejs/biome": "2.1.2",
+    "@types/node": "24.8.0",
+    "@keg-hub/jsutils": "10.0.0",
+    "@keg-hub/cli-utils": "0.9.0",
+    "@keg-hub/parse-config": "2.2.0",
+    "husky": "9.1.7",
+    "esbuild": "0.19.7",
+    "esbuild-register": "3.5.0",
+    "syncpack": "13.0.0",
+    "typescript": "5.7.3"
   }
 }

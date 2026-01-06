@@ -1,0 +1,68 @@
+[
+  {
+    "type": "feat",
+    "release": "minor",
+    "section": "Features",
+    "hidden": false
+  },
+  {
+    "type": "fix",
+    "release": "patch",
+    "section": "Bug Fixes",
+    "hidden": false
+  },
+  {
+    "type": "chore",
+    "release": "patch",
+    "section": "Miscellaneous Chores",
+    "hidden": false
+  },
+  {
+    "type": "refactor",
+    "release": "patch",
+    "section": "Code Refactoring",
+    "hidden": false
+  },
+  {
+    "type": "build",
+    "release": "patch",
+    "section": "Build System",
+    "hidden": false
+  },
+  {
+    "type": "test",
+    "release": "patch",
+    "section": "Tests",
+    "hidden": false
+  },
+  {
+    "type": "perf",
+    "release": "patch",
+    "section": "Performance Improvements",
+    "hidden": false
+  },
+  {
+    "type": "revert",
+    "release": "patch",
+    "section": "Reverts",
+    "hidden": false
+  },
+  {
+    "type": "docs",
+    "release": false,
+    "section": "Documentation",
+    "hidden": false
+  },
+  {
+    "type": "style",
+    "release": false,
+    "section": "Styles",
+    "hidden": false
+  },
+  {
+    "type": "ci",
+    "release": false,
+    "section": "Continuous Integration",
+    "hidden": false
+  }
+]

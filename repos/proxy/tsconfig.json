@@ -20,14 +20,11 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@PX/configs": ["configs"],
-      "@PX/configs/*": ["configs/*"],
-      "@PX": ["src"],
-      "@PX/*": ["src/*"],
-      "@ror/root/*": ["../../*"],
-      "@ror/root": ["../../"],
-      "@ror/deploy": ["../../deploy"],
-      "@ror/deploy/*": ["../../deploy/*"],
+      "@ROOT": ["../../"],
+      "@TPX/configs": ["configs"],
+      "@TPX/configs/*": ["configs/*"],
+      "@TPX": ["src"],
+      "@TPX/*": ["src/*"],
       "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
       "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"]
     }

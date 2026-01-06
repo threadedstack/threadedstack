@@ -25,7 +25,17 @@
     "up": "drizzle-kit up --config=configs/drizzle.config.ts",
     "check": "drizzle-kit check --config=configs/drizzle.config.ts",
     "drop": "drizzle-kit drop --config=configs/drizzle.config.ts",
-    "export": "drizzle-kit export --config=configs/drizzle.config.ts"
+    "export": "drizzle-kit export --config=configs/drizzle.config.ts",
+    "biome": "biome",
+    "lint": "pnpm biome:lint --write",
+    "format": "pnpm biome:format --write",
+    "lint:ci": "pnpm biome:lint --diagnostic-level=error --changed",
+    "format:ci": "pnpm biome:format --diagnostic-level=error --changed",
+    "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "test": "vitest run --config configs/vitest.config.ts"
   },
   "dependencies": {
     "@keg-hub/jsutils": "10.0.0",
@@ -40,6 +50,8 @@
     "@types/node": "22.12.0",
     "drizzle-kit": "0.31.8",
     "tsup": "8.3.6",
-    "tsx": "4.21.0"
+    "tsx": "4.21.0",
+    "vite-tsconfig-paths": "^4.3.1",
+    "vitest": "^1.4.0"
   }
 }

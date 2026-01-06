@@ -11,6 +11,7 @@
     "clean:full": "pnpm clean && pnpm clean:nm",
     "start": "tsup --config ./configs/tsup.config.ts --watch ./src --watch ./configs --watch ../../domain/src --watch ../../logger/src --watch ../../database/src --onSuccess 'pnpm serve'",
     "serve": "node --enable-source-maps dist/index.js",
+    "biome": "biome",
     "lint": "pnpm biome:lint --write",
     "format": "pnpm biome:format --write",
     "lint:ci": "pnpm biome:lint --diagnostic-level=error --changed",
@@ -18,7 +19,8 @@
     "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
-    "biome:format": "biome format --config-path $(pwd)/configs/biome.json"
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "test": "vitest run --config configs/vitest.config.ts"
   },
   "dependencies": {
     "@elastic/ecs-winston-format": "1.5.3",
@@ -58,6 +60,8 @@
     "esbuild-register": "3.5.0",
     "rimraf": "6.0.1",
     "tsup": "8.3.0",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "vite-tsconfig-paths": "^4.3.1",
+    "vitest": "^1.4.0"
   }
 }
