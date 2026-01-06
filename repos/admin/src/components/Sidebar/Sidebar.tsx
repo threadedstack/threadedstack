@@ -3,14 +3,8 @@ import { useSidebarOpen } from '@TAF/state/selectors'
 import { SBLogo } from '@TAF/components/Sidebar/SBLogo'
 import { SBNavList } from '@TAF/components/Sidebar/SBNavList'
 import { NavItems, BottomNavItems } from '@TAF/constants/nav'
-import {
-  Toolbar,
-  Divider,
-} from '@mui/material'
-import {
-  ChevronLeft,
-  ChevronRight,
-} from '@mui/icons-material'
+import { Toolbar, Divider } from '@mui/material'
+import { ChevronLeft, ChevronRight } from '@mui/icons-material'
 import {
   SideDrawer,
   SBToggleBox,
@@ -18,18 +12,16 @@ import {
   SBNavListSpacer,
 } from '@TAF/components/Sidebar/Sidebar.styles'
 
-
 export type TSidebar = {}
 
-export const Sidebar = (props:TSidebar) => {
-
+export const Sidebar = (props: TSidebar) => {
   const [open, setOpen] = useSidebarOpen()
 
   return (
     <>
       <SideDrawer
         open={open}
-        variant="permanent"
+        variant='permanent'
         onClick={() => !open && setOpen(true)}
       >
         <Toolbar
@@ -44,10 +36,16 @@ export const Sidebar = (props:TSidebar) => {
         >
           <SBLogo full={open} />
         </Toolbar>
-        <SBNavList open={open} items={NavItems} />
+        <SBNavList
+          open={open}
+          items={NavItems}
+        />
         <SBNavListSpacer />
         <Divider />
-        <SBNavList open={open} items={BottomNavItems} />
+        <SBNavList
+          open={open}
+          items={BottomNavItems}
+        />
       </SideDrawer>
       <SBToggleBox>
         <SBToggleBtn onClick={() => setOpen(!open)}>

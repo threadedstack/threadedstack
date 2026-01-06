@@ -1,7 +1,7 @@
 import { styled } from '@mui/material'
 import Box from '@mui/material/Box'
 import Drawer from '@mui/material/Drawer'
-import Typography from '@mui/material/Typography'
+import type Typography from '@mui/material/Typography'
 import MuiIconButton from '@mui/material/IconButton'
 import { SidebarWidthOpen, SidebarWidthClosed } from '@TAF/constants/values'
 import {
@@ -15,30 +15,29 @@ import {
   IconButton,
 } from '@tdsk/components'
 
-export const SideDrawer = styled(Drawer, { shouldForwardProp: (prop) => prop !== `open` })(
-  ({ theme, open }) => ({
-    [`& .MuiDrawer-paper`]: {
-      position: `relative`,
-      whiteSpace: `nowrap`,
-      backgroundColor: theme.palette.background.section,
-      width: SidebarWidthOpen,
+export const SideDrawer = styled(Drawer, {
+  shouldForwardProp: (prop) => prop !== `open`,
+})(({ theme, open }) => ({
+  [`& .MuiDrawer-paper`]: {
+    position: `relative`,
+    whiteSpace: `nowrap`,
+    backgroundColor: theme.palette.background.section,
+    width: SidebarWidthOpen,
+    transition: theme.transitions.create(`width`, {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    boxSizing: `border-box`,
+    ...(!open && {
+      overflowX: `hidden`,
       transition: theme.transitions.create(`width`, {
         easing: theme.transitions.easing.sharp,
-        duration: theme.transitions.duration.enteringScreen,
+        duration: theme.transitions.duration.leavingScreen,
       }),
-      boxSizing: `border-box`,
-      ...(!open && {
-        overflowX: `hidden`,
-        transition: theme.transitions.create(`width`, {
-          easing: theme.transitions.easing.sharp,
-          duration: theme.transitions.duration.leavingScreen,
-        }),
-        width: SidebarWidthClosed,
-      }),
-    },
-  }),
-)
-
+      width: SidebarWidthClosed,
+    }),
+  },
+}))
 
 export const LogoContainer = styled(Box)`
   display: flex;
@@ -53,15 +52,16 @@ export const LogoBtn = styled(MuiIconButton)`
   align-items: center;
 `
 
-export const LogoText = styled(Text)(({ theme }) => `
+export const LogoText = styled(Text)(
+  ({ theme }) => `
   left: 100%;
   font-size: 18px;
   margin-left: 6px;
   margin-right: 6px;
   letter-spacing: -1px;
   color: ${theme.palette.text.primary};
-`) as typeof Typography
-
+`
+) as typeof Typography
 
 export const SBToggleBox = styled(Box)`
   width: 0px;
@@ -74,7 +74,7 @@ export const SBToggleBtn = styled(IconButton)(({ theme }) => {
   return `
     position: absolute;
     transition: left 0.4s ease;
-    top: ${(dims.header.height - 40)/2}px;
+    top: ${(dims.header.height - 40) / 2}px;
   `
 })
 
@@ -146,7 +146,6 @@ export const NavItem = styled(ListItem)`
     transition: opacity 0.4s ease;
   }
 `
-
 
 export const SBNavListSpacer = styled(Box)`
   flex: 1;

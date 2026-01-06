@@ -5,22 +5,23 @@ import { pnpm } from '@TSCL/utils/pnpm/pnpm'
 import { getCtx } from '@TSCL/utils/config/getCtx'
 import { deepMerge } from '@keg-hub/jsutils/deepMerge'
 
-
-const repoStart:TTaskAction = async (args) => {
+const repoStart: TTaskAction = async (args) => {
   const { params } = args
-  if(params.docker) return await run?.action(args)
-  
+  if (params.docker) return await run?.action(args)
+
   const ctx = getCtx(args)
 
-  await pnpm.run(deepMerge(args, {
-    params: {
-      cmd: `start`,
-      cwd: ctx.location,
-    }
-  }))
+  await pnpm.run(
+    deepMerge(args, {
+      params: {
+        cmd: `start`,
+        cwd: ctx.location,
+      },
+    })
+  )
 }
 
-export const start:TTask = {
+export const start: TTask = {
   name: `start`,
   alias: [`st`],
   action: repoStart,
@@ -43,6 +44,6 @@ export const start:TTask = {
       type: `boolean`,
       description: `Start the application in a docker container`,
     },
-    ...run.options
+    ...run.options,
   },
 }

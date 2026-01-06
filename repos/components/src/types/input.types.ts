@@ -1,27 +1,22 @@
-import type {
-  FocusEvent,
-  ChangeEvent,
-  KeyboardEvent,
-  MutableRefObject,
-} from 'react'
+import type { FocusEvent, ChangeEvent, KeyboardEvent, MutableRefObject } from 'react'
 import type { ReactNode } from 'react'
 import type { NotificationCountProps } from './notification.types'
 
 type TFocusOpts = {
-  text:string|number
-  element?:HtmlInEl
+  text: string | number
+  element?: HtmlInEl
 }
 
-export type TOnKeyDown = (evt:KeyboardEvent<any>) => void
-export type HtmlInEl = HTMLInputElement | (HTMLElement & { value:string|number })
-export type TInRangeEl = HtmlInEl|ChildNode
-export type TOnChange = (evt:ChangeEvent<any>) => void
-export type TOnBlur = (evt:FocusEvent<any>, opts:TFocusOpts) => void
-export type TOnFocus = (evt:FocusEvent<any>, opts:TFocusOpts) => void
+export type TOnKeyDown = (evt: KeyboardEvent<any>) => void
+export type HtmlInEl = HTMLInputElement | (HTMLElement & { value: string | number })
+export type TInRangeEl = HtmlInEl | ChildNode
+export type TOnChange = (evt: ChangeEvent<any>) => void
+export type TOnBlur = (evt: FocusEvent<any>, opts: TFocusOpts) => void
+export type TOnFocus = (evt: FocusEvent<any>, opts: TFocusOpts) => void
 
 export type TInAutoSelectAll = {
-  selectLength?:number
-  rangeEl:TInRangeEl
+  selectLength?: number
+  rangeEl: TInRangeEl
 }
 
 export enum EInputDepOutcome {
@@ -56,7 +51,7 @@ interface IInput {
   disabled?: boolean
   hasError?: boolean
   className?: string
-  required?:boolean
+  required?: boolean
   description?: string
   depends?: TInputDepend
   size?: `small` | `medium`

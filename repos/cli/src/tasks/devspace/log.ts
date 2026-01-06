@@ -9,11 +9,11 @@ import { sharedOpts } from '@TSCL/utils/tasks/options'
  * @public
  * @returns {Void}
  */
-const logAct:TTaskAction = async (args) => {
+const logAct: TTaskAction = async (args) => {
   await devspace.logs(args)
 }
 
-export const log:TTask = {
+export const log: TTask = {
   name: `log`,
   action: logAct,
   alias: [`logs`, `lg`, `lgs`],

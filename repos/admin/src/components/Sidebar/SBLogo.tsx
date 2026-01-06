@@ -1,4 +1,3 @@
-
 import { TSIcon, colors } from '@tdsk/components'
 import { LogoContainer, LogoBtn, LogoText } from '@TAF/components/Sidebar/Sidebar.styles'
 
@@ -14,25 +13,29 @@ const style = {
 }
 
 export type TSBLogo = {
-  full?:boolean
+  full?: boolean
 }
 
-export const SBLogo = (props:TSBLogo) => {
+export const SBLogo = (props: TSBLogo) => {
   const { full } = props
 
   return (
-    <LogoContainer className="tdsk-logo-icon-container" >
-      <LogoBtn className="tdsk-logo-icon-button" onClick={gotoHome} >
+    <LogoContainer className='tdsk-logo-icon-container'>
+      <LogoBtn
+        className='tdsk-logo-icon-button'
+        onClick={gotoHome}
+      >
         <TSIcon svgStyle={style} />
-        {full && (
+        {(full && (
           <LogoText
             noWrap
-            variant="h6"
-            component="a"
+            variant='h6'
+            component='a'
           >
             Threaded Stack
           </LogoText>
-        ) || null}
+        )) ||
+          null}
       </LogoBtn>
     </LogoContainer>
   )

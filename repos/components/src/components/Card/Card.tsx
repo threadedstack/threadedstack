@@ -4,28 +4,23 @@ import type { TCardAction } from './CardActions'
 import { cls } from '@keg-hub/jsutils'
 import { CardActions } from './CardActions'
 
-import {
-  CardMain,
-  CardContent,
-  CardContainer,
-} from './Card.styled'
-
+import { CardMain, CardContent, CardContainer } from './Card.styled'
 
 export type TCard = {
-  sx?:CSSProperties
-  children?:ReactNode
-  cardSx?:CSSProperties
-  actions?:TCardAction[]
-  actionSx?:CSSProperties
-  contentSx?:CSSProperties
-  actionsSx?:CSSProperties
-  className?:string|string[]
-  cardClass?:string|string[]
-  onClick?:(evt:any) => void
-  variant?:`elevation`|`outlined`
+  sx?: CSSProperties
+  children?: ReactNode
+  cardSx?: CSSProperties
+  actions?: TCardAction[]
+  actionSx?: CSSProperties
+  contentSx?: CSSProperties
+  actionsSx?: CSSProperties
+  className?: string | string[]
+  cardClass?: string | string[]
+  onClick?: (evt: any) => void
+  variant?: `elevation` | `outlined`
 }
 
-export const Card = (props:TCard) => {
+export const Card = (props: TCard) => {
   const {
     sx,
     cardSx,
@@ -51,7 +46,10 @@ export const Card = (props:TCard) => {
         variant={variant}
         className={cls(`tdsk-card-main`, cardClass)}
       >
-        <CardContent sx={contentSx} className='tdsk-card-content' >
+        <CardContent
+          sx={contentSx}
+          className='tdsk-card-content'
+        >
           {children}
         </CardContent>
         {actions?.length && (

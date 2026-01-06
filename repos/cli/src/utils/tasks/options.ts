@@ -1,10 +1,9 @@
 import type { TTaskOptions } from '@TSCL/types'
 import { ETSApps } from '@TSCL/types'
 
-
 export type TSharedOpts = Record<string, TTaskOptions>
 
-export const sharedOpts:TSharedOpts = {
+export const sharedOpts: TSharedOpts = {
   shared: {
     context: {
       type: `array`,
@@ -56,8 +55,8 @@ export const sharedOpts:TSharedOpts = {
     args: {
       type: `array`,
       example: `--debug,--skip-push`,
-      alias: [`params`, `arg`, `param` ],
+      alias: [`params`, `arg`, `param`],
       description: `Extra arguments to pass on to the devspace command`,
     },
-  }
+  },
 }

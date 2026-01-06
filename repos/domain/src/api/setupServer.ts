@@ -6,7 +6,7 @@ import type { TApp } from '@TDM/types'
  *
  * @returns {void}
  */
-export const setupServer = (app:TApp) => {
+export const setupServer = (app: TApp) => {
   app.set(`trust proxy`, 1)
   app.disable(`etag`)
   app.disable(`x-powered-by`)

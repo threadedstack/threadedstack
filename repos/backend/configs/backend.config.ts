@@ -40,8 +40,10 @@ const {
 
 const enableSSL = nodeEnv !== `production` && toBool(TDSK_BE_ENABLE_SSL)
 
-if(enableSSL && (!TDSK_BE_SSL_CERT || !TDSK_BE_SSL_KEY))
-  throw new Error(`SSL is enabled, but missing SSL cert ( TDSK_BE_SSL_CERT ) and or SSL key ( TDSK_BE_SSL_KEY ) envs`)
+if (enableSSL && (!TDSK_BE_SSL_CERT || !TDSK_BE_SSL_KEY))
+  throw new Error(
+    `SSL is enabled, but missing SSL cert ( TDSK_BE_SSL_CERT ) and or SSL key ( TDSK_BE_SSL_KEY ) envs`
+  )
 
 export const config = {
   server: {
@@ -78,7 +80,7 @@ export const config = {
       jwt: TDSK_DB_JWT_SCRT,
       role: TDSK_DB_SRV_ROLE,
       public: TDSK_DB_PUBLIC_KEY,
-    }
+    },
   },
   logger: {
     label: `TDSK - Backend`,

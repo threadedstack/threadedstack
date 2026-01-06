@@ -7,7 +7,6 @@ import { GlobalStyles } from '@TAF/theme/GlobalStyles'
 import { useMakeTheme } from '@TAF/hooks/theme/useMakeTheme'
 
 const App = () => {
-
   useWindowResize()
   const theme = useMakeTheme()
 

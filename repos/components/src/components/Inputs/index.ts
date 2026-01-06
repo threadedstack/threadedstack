@@ -16,7 +16,6 @@ export { CheckContainer } from './CheckContainer'
 export { InputStateHandler } from './InputStateHandler'
 export { SelectCategoryInput } from './SelectCategoryInput'
 
-
 export type { TTextInput } from './TextInput'
 export type { TagsInputProps } from './TagsInput'
 export type { TInlineSelect } from './InlineSelect'

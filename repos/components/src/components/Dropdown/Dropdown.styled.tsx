@@ -8,9 +8,9 @@ import AccordionDetails from '@mui/material/AccordionDetails'
 import AccordionSummary from '@mui/material/AccordionSummary'
 
 type THeaderProps = ComponentProps<typeof AccordionSummary> & {
-  transformOn?:number
-  transformOff?:number
-  noIconTransform?:boolean
+  transformOn?: number
+  transformOff?: number
+  noIconTransform?: boolean
 }
 
 export const Container = styled(Accordion)(({ theme }) => {
@@ -27,22 +27,12 @@ export const Container = styled(Accordion)(({ theme }) => {
 `
 })
 
-
-const noProps = [
-  `transformOn`,
-  `transformOff`,
-  `noIconTransform`
-]
+const noProps = [`transformOn`, `transformOff`, `noIconTransform`]
 
 export const Header = styled(AccordionSummary, {
   shouldForwardProp: (prop) => !noProps.includes(prop as any),
 })((props: THeaderProps) => {
-
-  const {
-    transformOn=0,
-    transformOff=-90,
-    noIconTransform=true,
-  } = props
+  const { transformOn = 0, transformOff = -90, noIconTransform = true } = props
 
   const [on, off] = noIconTransform
     ? [`transform: rotate(${transformOn}deg);`, `transform: rotate(${transformOff}deg);`]
@@ -101,9 +91,7 @@ export const HeaderText = styled(H5)`
 `
 
 export const Body = styled(AccordionDetails)(({ theme }) => {
-  
   return `
     border-top: 1px solid ${theme.palette.border.default};
   `
-
 })

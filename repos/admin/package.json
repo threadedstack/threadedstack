@@ -16,7 +16,7 @@
     "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
-    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",    
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
     "preview": "vite preview -c configs/vite.config.ts",
     "start": "vite -c configs/vite.config.ts",
     "sf": "NODE_ENV=local vite -c configs/vite.config.ts --force",

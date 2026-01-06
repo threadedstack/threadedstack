@@ -3,9 +3,7 @@ import { config } from '@TBE/configs/backend.config'
 
 setupLogger({
   tag: `TDSK Accounts Backend`,
-  level: config?.logger?.level
+  level: config?.logger?.level,
 })
 
-export {
-  ApiLogger as logger
-}
+export { ApiLogger as logger }

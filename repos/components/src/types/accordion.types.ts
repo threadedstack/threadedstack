@@ -1,11 +1,11 @@
 import type { TButton } from '@TSC/components/Buttons/Button'
 import type { ReactNode } from 'react'
 
-export type TAccordionAction = Omit<TButton, `color`|`variant`> & {
-  color?:string
-  variant?:string
+export type TAccordionAction = Omit<TButton, `color` | `variant`> & {
+  color?: string
+  variant?: string
   info?: ReactNode
-  hidden?:boolean
+  hidden?: boolean
   loading?: boolean
   editing?: boolean
   inactive?: boolean

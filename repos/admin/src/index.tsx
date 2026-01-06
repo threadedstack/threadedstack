@@ -19,5 +19,5 @@ createRoot(document.getElementById(`root`)!).render(
       </AuthProvider>
       <Version />
     </Provider>
-  </StrictMode>,
+  </StrictMode>
 )

@@ -9,8 +9,6 @@ import { LoadingButton } from '@TSC/components/Buttons'
 import { TextInput } from '@TSC/components/Inputs/TextInput'
 import { Accordion } from '@TSC/components/Accordion/Accordion'
 
-
-
 export const CDAccordion = styled(Accordion)(({ theme }) => {
   return `
     min-width: 40vw;
@@ -35,7 +33,6 @@ export const CDAccordion = styled(Accordion)(({ theme }) => {
   `
 })
 
-
 export const DefFiltersBox = styled(Box)`
   top: 0px;
   z-index: 10;
@@ -43,7 +40,8 @@ export const DefFiltersBox = styled(Box)`
   box-sizing: border-box;
 `
 
-export const DefFiltersContainer = styled(Box)(({ theme }) =>(`
+export const DefFiltersContainer = styled(Box)(
+  ({ theme }) => `
   width: 100%;
   display: flex;
   align-items: center;
@@ -52,8 +50,8 @@ export const DefFiltersContainer = styled(Box)(({ theme }) =>(`
   padding: ${gutter.qpx} ${gutter.px} ${gutter.tpx};
   background-color: ${theme.palette.background.default};
   border-bottom: 1px solid ${theme.palette.border.default};
-`))
-
+`
+)
 
 export const DefSearchBox = styled(Box)`
   width: 100%;
@@ -87,21 +85,24 @@ export const DefSearchBtn = styled(LoadingButton)`
   }
 `
 
-
-export const DefGroupBox = styled(Box)(({ theme }) => (`
+export const DefGroupBox = styled(Box)(
+  ({ theme }) => `
   margin: ${gutter.px} ${gutter.hpx};
   border-radius: ${dims.border.ipx};
   border: 1px solid ${theme.palette.border.muted};
-`))
+`
+)
 
-export const DefGroupHeader = styled(Box)(({ theme }) => (`
+export const DefGroupHeader = styled(Box)(
+  ({ theme }) => `
   display: flex;
   align-items: center;
   padding: ${gutter.qpx} ${gutter.hpx};
   border-top-left-radius: ${dims.border.ipx};
   border-top-right-radius: ${dims.border.ipx};
   background-color: ${theme.palette.background.section};
-`))
+`
+)
 
 export const DefGroupTitle = styled(Label)(({ theme }) => {
   return `

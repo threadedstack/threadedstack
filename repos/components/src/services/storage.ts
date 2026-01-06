@@ -1,6 +1,4 @@
-
 export class Storage {
-
   /**
    * Saves data to local storage by key using using window.localStorage
    * @function
@@ -44,16 +42,14 @@ export class Storage {
       console.error(`Error removing ${key} from local-storage.\n${err?.message}`)
     }
   }
-  
-  find = (key:string) => {
-    if (!key) return console.error(`A key is required to a local storage value; got "${key}"`)
+
+  find = (key: string) => {
+    if (!key)
+      return console.error(`A key is required to a local storage value; got "${key}"`)
 
     for (let i = 0; i < localStorage.length; i++) {
       const name = localStorage.key(i)
-      if(name.endsWith(key)) return this.get(name)
+      if (name.endsWith(key)) return this.get(name)
     }
-
   }
-
 }
-

@@ -1,9 +1,9 @@
 export type TLoginData = {
-  provider?:string
-  options?:Record<string, any>
+  provider?: string
+  options?: Record<string, any>
 }
 
-export type TOnLogin = (data:TLoginData) => void
+export type TOnLogin = (data: TLoginData) => void
 
 export type TAuthError = {
   code?: string
@@ -18,9 +18,9 @@ export type TAuthSession = {
   userId: string
   ipAddress?: string
   userAgent?: string
-  expiresAt: string|Date
-  createdAt: string|Date
-  updatedAt: string|Date
+  expiresAt: string | Date
+  createdAt: string | Date
+  updatedAt: string | Date
   impersonatedBy?: string
   activeOrganizationId?: string
 }

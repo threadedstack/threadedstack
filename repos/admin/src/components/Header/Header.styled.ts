@@ -5,11 +5,7 @@ import Toolbar from '@mui/material/Toolbar'
 import { styled } from '@mui/material/styles'
 import MuiIconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
-import {
-  dims,
-  gutter,
-  IconButton,
-} from '@tdsk/components'
+import { dims, gutter, IconButton } from '@tdsk/components'
 
 export const AppHeader = styled(AppBar)(({ theme }) => {
   return `
@@ -34,7 +30,7 @@ export const HeaderToolbar = styled(Toolbar)(({ theme }) => {
   `
 })
 
-export const Menu  = styled(MuiMenu)(({ theme }) => {
+export const Menu = styled(MuiMenu)(({ theme }) => {
   return `
     & .MuiPaper-root {
       min-width: 200px;
@@ -57,16 +53,16 @@ export const LogoBtn = styled(MuiIconButton)`
   align-items: center;
 `
 
-export const LogoText = styled(Typography)(({ theme }) => `
+export const LogoText = styled(Typography)(
+  ({ theme }) => `
   left: 100%;
   font-size: 18px;
   margin-left: 6px;
   margin-right: 6px;
   letter-spacing: -1px;
   color: ${theme.palette.text.primary};
-`) as typeof Typography
-
-
+`
+) as typeof Typography
 
 export const ToggleBinBAction = styled(IconButton)`
   margin-right: ${gutter.qpx};
@@ -75,4 +71,3 @@ export const ToggleBinBAction = styled(IconButton)`
 export const ToggleThemeAction = styled(IconButton)`
   margin-right: ${gutter.hpx};
 `
-

@@ -36,7 +36,8 @@ export type TDBProviderInsert = typeof providers.$inferInsert
 export type TDBFunctionSelect = typeof functions.$inferSelect
 export type TDBFunctionInsert = typeof functions.$inferInsert
 
-export type TDBEntitySelect = TDBUserSelect
+export type TDBEntitySelect =
+  | TDBUserSelect
   | TDBTeamSelect
   | TDBRepoSelect
   | TDBRoleSelect
@@ -49,8 +50,8 @@ export type TDBEntitySelect = TDBUserSelect
   | TDBProviderSelect
   | TDBFunctionSelect
 
-
-export type TDBEntityInsert = TDBUserInsert
+export type TDBEntityInsert =
+  | TDBUserInsert
   | TDBTeamInsert
   | TDBRepoInsert
   | TDBRoleInsert
@@ -63,26 +64,20 @@ export type TDBEntityInsert = TDBUserInsert
   | TDBProviderInsert
   | TDBFunctionInsert
 
-
 export type TDBSelectOpts = {
-  [key:string]: any
+  [key: string]: any
 }
 
-export type TDBApiRes<S extends TDBEntitySelect|TDBEntitySelect[]> = {
-  data?:S
-  error?:Error
+export type TDBApiRes<S extends TDBEntitySelect | TDBEntitySelect[]> = {
+  data?: S
+  error?: Error
 }
 
-export interface IDBApi<
-  S extends TDBEntitySelect,
-  I extends TDBEntityInsert,
-> {
-
-  create: (data:I, opts:TDBSelectOpts) => Promise<TDBApiRes<S>>
-  list: (opts:TDBSelectOpts) => Promise<TDBApiRes<S[]>>
-  get: (id:string, opts:TDBSelectOpts) => Promise<TDBApiRes<S>>
-  update: (data:I, opts:TDBSelectOpts) => Promise<TDBApiRes<S>>
-  upsert: (data:I, opts:TDBSelectOpts) => Promise<TDBApiRes<S>>
-  delete: (id:string, opts:TDBSelectOpts) => Promise<TDBApiRes<S>>
-
+export interface IDBApi<S extends TDBEntitySelect, I extends TDBEntityInsert> {
+  create: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
+  list: (opts: TDBSelectOpts) => Promise<TDBApiRes<S[]>>
+  get: (id: string, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
+  update: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
+  upsert: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
+  delete: (id: string, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
 }

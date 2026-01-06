@@ -9,28 +9,18 @@ import { TooltipHoc } from '@TSC/hocs/TooltipHoc'
 import { isValidFuncComp } from '@TSC/utils/isValidFuncComp'
 
 export type TDialButton = FabProps & {
-  label?:string
-  text?:ReactNode
+  label?: string
+  text?: ReactNode
   variant?: string
-  children?:ReactNode
+  children?: ReactNode
   tooltip?: THocTooltip | string
   iconProps?: ComponentProps<any>
   Icon?: ComponentType<any> | ReactNode | JSX.Element
 }
 
-
 export const DialButton = TooltipHoc<TDialButton, HTMLButtonElement>(
   forwardRef((props: TDialButton, ref: ForwardedRef<HTMLButtonElement>) => {
-    const {
-      Icon,
-      text,
-      variant,
-      tooltip,
-      children,
-      label,
-      iconProps,
-      ...rest
-    } = props
+    const { Icon, text, variant, tooltip, children, label, iconProps, ...rest } = props
 
     return (
       <Fab

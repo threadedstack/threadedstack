@@ -5,7 +5,7 @@ import * as docker from './docker'
 
 import * as devspace from './devspace'
 
-export const tasks:TTasks = {
+export const tasks: TTasks = {
   ...kube,
   ...repos,
   ...docker,

@@ -8,10 +8,9 @@ import { enter } from './enter'
 import { attach } from './attach'
 import { render } from './render'
 
-
-export const devspace:TTask = {
+export const devspace: TTask = {
   name: `devspace`,
-  alias: [ `dev`, `ds`],
+  alias: [`dev`, `ds`],
   tasks: {
     use,
     log,

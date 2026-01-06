@@ -56,15 +56,12 @@ type RemoveEndIcon<T, End extends string> = {
 }
 type TransformedIcons = RemoveEndIcon<typeof InternalIcons, `Icon`>
 
-const Renamed = Object.entries(InternalIcons)
-  .reduce((acc, [name, func]) => {
-    const clean = name.replace(/Icon$/, ``)
-    clean && (acc[clean] = func)
+const Renamed = Object.entries(InternalIcons).reduce((acc, [name, func]) => {
+  const clean = name.replace(/Icon$/, ``)
+  clean && (acc[clean] = func)
 
-    return acc
-  }, {} as TransformedIcons)
-
-
+  return acc
+}, {} as TransformedIcons)
 
 export const IconList = {
   ...Renamed,
@@ -115,12 +112,20 @@ export const IconList = {
 }
 
 type TRenderIcon = Omit<SvgIconProps, `sx`> & {
-  sx?:CSSProperties
-  icon:keyof typeof IconList
+  sx?: CSSProperties
+  icon: keyof typeof IconList
 }
 
 export const NamedIcon = forwardRef<SVGSVGElement>((props: TRenderIcon, ref) => {
   const { icon, ...rest } = props
   const Icon = IconList[icon]
-  return Icon && (<Icon ref={ref} {...rest} />) || null
+  return (
+    (Icon && (
+      <Icon
+        ref={ref}
+        {...rest}
+      />
+    )) ||
+    null
+  )
 })

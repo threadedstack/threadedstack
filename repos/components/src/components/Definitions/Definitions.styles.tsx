@@ -8,7 +8,6 @@ import { Text } from '@TSC/components/Text/Text'
 import { Image } from '@TSC/components/Image/Image'
 import { Button } from '@TSC/components/Buttons/Button'
 
-
 // TODO: grid-template-columns should change based on screen-size
 export const DefsContainer = styled(Box)`
   display: grid;
@@ -27,14 +26,12 @@ export const DefContainer = styled(Box)`
   border-radius: ${dims.border.tpx};
 `
 
-
 type TDefButton = TButton & {
   iconColor?: string
 }
 
-
 export const DefButton = styled(Button, {
-  shouldForwardProp: (prop) => prop !== `iconColor`
+  shouldForwardProp: (prop) => prop !== `iconColor`,
 })<TDefButton>(({ theme, iconColor }) => {
   return `
     width: 80px;
@@ -66,7 +63,6 @@ export const DefButton = styled(Button, {
   `
 })
 
-
 export const DefText = styled(Text)`
   color: inherit;
   font-size: 12px;
@@ -88,4 +84,3 @@ export const DefIconImage = styled(Image)(({ theme }) => {
     border-radius: ${dims.border.tpx};
   `
 })
-

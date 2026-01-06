@@ -19,13 +19,7 @@ export type TLoadEnvs = {
 }
 
 export const loadEnvs = (args: TLoadEnvs) => {
-  const {
-    force,
-    processAdd,
-    name = `tdsk`,
-    locations = [],
-    env = nodeEnv,
-  } = args
+  const { force, processAdd, name = `tdsk`, locations = [], env = nodeEnv } = args
 
   const envs = loadConfigs({
     env,

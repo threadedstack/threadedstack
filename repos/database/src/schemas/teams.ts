@@ -6,10 +6,7 @@ import { base } from '@TDB/utils/schema/base'
 import { secrets } from '@TDB/schemas/secrets'
 import { configs } from '@TDB/schemas/configs'
 import { providers } from '@TDB/schemas/providers'
-import {
-  text,
-  pgTable,
-} from 'drizzle-orm/pg-core'
+import { text, pgTable } from 'drizzle-orm/pg-core'
 
 export const teams = pgTable(`teams`, {
   ...base,

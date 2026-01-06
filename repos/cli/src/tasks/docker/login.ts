@@ -2,7 +2,7 @@ import type { TTask } from '@TSCL/types'
 
 import { docker } from '@TSCL/utils/docker/docker'
 
-export const login:TTask = {
+export const login: TTask = {
   name: `login`,
   alias: [`auth`],
   action: async (args) => await docker.login(args),
@@ -36,4 +36,3 @@ export const login:TTask = {
     },
   },
 }
-

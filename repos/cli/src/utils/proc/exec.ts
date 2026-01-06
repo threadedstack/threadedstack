@@ -6,25 +6,18 @@ import { emptyObj } from '@keg-hub/jsutils/emptyObj'
 import { ensureArr } from '@keg-hub/jsutils/ensureArr'
 
 export type TExec = {
-  cwd?:string
-  log?:boolean
-  args?:string[]
-  cmd:string|string[]
-  envs?:Record<string, string>
-  stdio?:`pipe`|`ignore`|`inherit`|Array<`pipe`|`ignore`|`inherit`|number>
+  cwd?: string
+  log?: boolean
+  args?: string[]
+  cmd: string | string[]
+  envs?: Record<string, string>
+  stdio?: `pipe` | `ignore` | `inherit` | Array<`pipe` | `ignore` | `inherit` | number>
 }
 
-export const exec = (props:TExec) => {
-  const {
-    cmd,
-    log,
-    envs=emptyObj,
-    args=emptyArr,
-    stdio=`inherit`,
-  } = props
+export const exec = (props: TExec) => {
+  const { cmd, log, envs = emptyObj, args = emptyArr, stdio = `inherit` } = props
 
   try {
-    
     const cwd = props.cwd || hq.get(`webpack`)[`@ROOT`]
     const command = [...ensureArr(cmd), ...args].join(` `)
 
@@ -33,11 +26,9 @@ export const exec = (props:TExec) => {
     return execSync(command, {
       cwd,
       stdio,
-      env: {...process.env, ...envs},
+      env: { ...process.env, ...envs },
     })
-
-  }
-  catch (e: any) {
+  } catch (e: any) {
     throw new Error(`Failed to execute command: ${cmd}. ${e.message || e}`)
   }
 }

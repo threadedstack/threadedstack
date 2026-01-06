@@ -6,14 +6,13 @@ import { defineConfig } from 'vitest/config'
 import { loadEnvs } from '../scripts/loadEnvs'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 
-
 const nodeEnv = process.env.NODE_ENV || `local`
 const alias = hq.get(`webpack`)
 
 export default defineConfig(async () => {
   loadEnvs({
     env: nodeEnv,
-    force: true
+    force: true,
   })
 
   return {

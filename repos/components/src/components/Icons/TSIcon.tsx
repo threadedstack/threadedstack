@@ -1,7 +1,6 @@
 import { forwardRef } from 'react'
 import { Icon, TIconProps } from './Icon'
 
-
 export const TSIcon = forwardRef((props: TIconProps, ref) => {
   return (
     <Icon

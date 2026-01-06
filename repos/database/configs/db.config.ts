@@ -1,11 +1,7 @@
 import { loadEnvs } from '@tdsk/domain'
 import { buildDBUrl } from '@TDB/utils/database/buildDBUrl'
 
-const {
-  TDSK_DB_JWT_SCRT,
-  TDSK_DB_SRV_ROLE,
-  TDSK_DB_PUBLIC_KEY,
-} = process.env
+const { TDSK_DB_JWT_SCRT, TDSK_DB_SRV_ROLE, TDSK_DB_PUBLIC_KEY } = process.env
 
 const nodeEnv = process.env.NODE_ENV || `local`
 const envs = loadEnvs({
@@ -22,8 +18,6 @@ const {
   TDSK_DB_PROTO,
   TDSK_DB_DIALECT,
 } = envs
-
-
 
 export const config = {
   type: TDSK_DB_TYPE,

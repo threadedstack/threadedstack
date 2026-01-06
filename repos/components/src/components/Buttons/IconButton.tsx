@@ -12,8 +12,8 @@ export type TIconButton = Omit<ComponentProps<typeof MuiIconBtn>, `color`> & {
   color?: string
   variant?: string
   text?: ReactNode
-  loading?:boolean
-  loadingSize?:string|number
+  loading?: boolean
+  loadingSize?: string | number
   tooltip?: THocTooltip | string
   iconProps?: ComponentProps<any>
   Icon?: ComponentType<any> | ReactNode
@@ -30,10 +30,9 @@ export const IconButton = TooltipHoc<TIconButton, HTMLButtonElement>(
       tooltip,
       children,
       iconProps,
-      loadingSize=`1rem`,
+      loadingSize = `1rem`,
       ...rest
     } = props
-
 
     return (
       <MuiIconBtn
@@ -41,21 +40,21 @@ export const IconButton = TooltipHoc<TIconButton, HTMLButtonElement>(
         {...rest}
         color={color as any}
       >
-      
-        {
-          loading
-            ? (
-                <CircularProgress
-                  size={loadingSize}
-                  color={color as any}
-                  {...iconProps}
-                  sx={[inherit, iconProps?.sx]}
-                />
-              )
-            : Icon
-              ? (<RenderIcon {...iconProps} Icon={Icon} />)
-              : children
-        }
+        {loading ? (
+          <CircularProgress
+            size={loadingSize}
+            color={color as any}
+            {...iconProps}
+            sx={[inherit, iconProps?.sx]}
+          />
+        ) : Icon ? (
+          <RenderIcon
+            {...iconProps}
+            Icon={Icon}
+          />
+        ) : (
+          children
+        )}
       </MuiIconBtn>
     )
   })

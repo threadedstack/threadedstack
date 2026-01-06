@@ -11,9 +11,9 @@ export type TAdminInput = {
   id: string
   label?: string
   error?: string
-  hidden?:boolean
-  disabled?:boolean
-  required?:boolean
+  hidden?: boolean
+  disabled?: boolean
+  required?: boolean
   minRows?: number
   maxRows?: number
   Input?: TReactEl
@@ -58,7 +58,7 @@ export const AdminInput = (props: TAdminInput) => {
         hidden && `hidden`,
         disabled && `disabled`,
         required && `required`,
-        touched && error && `error`,
+        touched && error && `error`
       )}
     >
       {label && (
@@ -71,7 +71,7 @@ export const AdminInput = (props: TAdminInput) => {
             hidden && `hidden`,
             disabled && `disabled`,
             required && `required`,
-            touched && error && `error`,
+            touched && error && `error`
           )}
         >
           {label}
@@ -92,7 +92,7 @@ export const AdminInput = (props: TAdminInput) => {
           inputProps?.className,
           disabled && `disabled`,
           required && `required`,
-          touched && error && `error`,
+          touched && error && `error`
         )}
       />
       {touched && error && <FormHelperText error>{error}</FormHelperText>}

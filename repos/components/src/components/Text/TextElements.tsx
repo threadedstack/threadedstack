@@ -4,7 +4,6 @@ import { forwardRef, useMemo } from 'react'
 import { Text } from './Text'
 import { inherit } from '@TSC/theme/helpers'
 
-
 export type TTextEl = ComponentProps<typeof Text>
 
 export const H1 = forwardRef((props: TTextEl, ref: TTextRef) => (

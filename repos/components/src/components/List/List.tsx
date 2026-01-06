@@ -18,7 +18,7 @@ export type TList = Omit<ComponentProps<typeof MuiList>, `title`> & {
   Item?: ComponentType<any>
   List?: ComponentType<any>
   containerSx?: CSSProperties
-  itemProps?:Record<string, any>
+  itemProps?: Record<string, any>
   Container?: ComponentType<any>
   Header?: ComponentType<any> | ReactNode
   itemsToggleRef?: TListItemToggleRef

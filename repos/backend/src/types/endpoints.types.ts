@@ -26,7 +26,7 @@ export type TEndpointConfig = {
     | EPMethod
 }
 
-export type TEndpointBuilder = (config:TABConfig) => TEndpointConfig
+export type TEndpointBuilder = (config: TABConfig) => TEndpointConfig
 
 export type TEndpoint = TEndpointConfig | TEndpointBuilder
 

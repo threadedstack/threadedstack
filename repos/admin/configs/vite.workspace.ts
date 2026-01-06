@@ -14,9 +14,8 @@ const { aliases, envs, port, environment } = loadConfig()
  * Then from deploy/values.yaml
  * Or default to `/`
  */
-export const basePath = process.env.TDSK_AD_BASE_PATH
-  || envs[`process.env.TDSK_AD_BASE_PATH`]
-  || `/`
+export const basePath =
+  process.env.TDSK_AD_BASE_PATH || envs[`process.env.TDSK_AD_BASE_PATH`] || `/`
 
 export const config = {
   root: rootDir,
@@ -47,7 +46,7 @@ export const config = {
         path.join(rootDir, `../domain`),
         path.join(rootDir, `../database`),
         path.join(rootDir, `../components`),
-      ]
+      ],
     }),
     svgrComponent({
       svgrOptions: {
@@ -59,10 +58,9 @@ export const config = {
     }),
     {
       name: `markdown-loader`,
-      transform(code:string, id:string) {
-        if (id.slice(-3) === `.md`)
-          return `export default ${JSON.stringify(code)}`
-      }
+      transform(code: string, id: string) {
+        if (id.slice(-3) === `.md`) return `export default ${JSON.stringify(code)}`
+      },
     },
   ],
   build: {

@@ -3,18 +3,17 @@ import type { TTask, TTaskAction } from '@TSCL/types'
 import { devspace } from '@TSCL/utils/devspace'
 import { sharedOpts } from '@TSCL/utils/tasks/options'
 
-
 /**
  * Runs a devspace log command and returns the output
  * @function
  * @public
  * @returns {Void}
  */
-const enterAct:TTaskAction = async (args) => {
+const enterAct: TTaskAction = async (args) => {
   await devspace.enter(args)
 }
 
-export const enter:TTask = {
+export const enter: TTask = {
   name: `enter`,
   action: enterAct,
   alias: [`enter`, `exec`],

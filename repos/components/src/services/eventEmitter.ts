@@ -62,13 +62,15 @@ export class EventEmitter {
 
     this.listeners[event].delete(cb)
 
-    this.refKey = Object.entries(this.refKey)
-    .reduce((acc, [key, value]) => {
-      if (ref === value || ref === key) return acc
+    this.refKey = Object.entries(this.refKey).reduce(
+      (acc, [key, value]) => {
+        if (ref === value || ref === key) return acc
 
-      acc[key] = value
-      return acc
-    }, {} as Record<string, TEventCB>)
+        acc[key] = value
+        return acc
+      },
+      {} as Record<string, TEventCB>
+    )
 
     return this
   }

@@ -3,16 +3,12 @@ import type { TAnyCB } from '@TSC/types'
 import { useState, useEffect } from 'react'
 
 export type THSyncValue = {
-  value?:any
-  onChange?:TAnyCB
+  value?: any
+  onChange?: TAnyCB
 }
 
-export const useSyncValue = (props:THSyncValue) => {
-  
-  const {
-    value,
-    onChange
-  } = props
+export const useSyncValue = (props: THSyncValue) => {
+  const { value, onChange } = props
 
   const [internalValue, setInternalValue] = useState(value)
 
@@ -20,7 +16,7 @@ export const useSyncValue = (props:THSyncValue) => {
     if (value !== internalValue) setInternalValue(value)
   }, [value])
 
-  const onChangeCB = (event:any) => {
+  const onChangeCB = (event: any) => {
     setInternalValue(event.target.value)
     onChange?.(event)
   }
@@ -29,5 +25,4 @@ export const useSyncValue = (props:THSyncValue) => {
     value: internalValue,
     onChange: onChangeCB,
   }
-
 }

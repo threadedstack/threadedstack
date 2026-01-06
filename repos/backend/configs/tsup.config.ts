@@ -12,11 +12,10 @@ const entry = path.join(rootDir, `src/index.ts`)
 const getExternal = () => {
   return [
     `openai`,
-    ...(Object.keys(packcfg.dependencies || {})),
-    ...(Object.keys(packcfg.devDependencies || {})),
-  ].filter(name => !name.startsWith(`@tdsk`) && !name.startsWith(`@keg-hub`))
+    ...Object.keys(packcfg.dependencies || {}),
+    ...Object.keys(packcfg.devDependencies || {}),
+  ].filter((name) => !name.startsWith(`@tdsk`) && !name.startsWith(`@keg-hub`))
 }
-
 
 export default defineConfig(async () => {
   await fs.rm(outdir, { recursive: true, force: true })
@@ -30,11 +29,9 @@ export default defineConfig(async () => {
     outDir: outdir,
     format: [`cjs`],
     entry: [entry],
-    noExternal: [ /(.*)/ ],
-    esbuildOptions:(options, context) => {
-      options && (
-        options.external = getExternal()
-      )
+    noExternal: [/(.*)/],
+    esbuildOptions: (options, context) => {
+      options && (options.external = getExternal())
     },
     async onSuccess() {
       console.log(`Module "@tdsk/backend" built successfully`)

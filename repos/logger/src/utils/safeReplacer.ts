@@ -13,22 +13,20 @@ const KEYS = [
   /session[-._]?id/i,
 
   // specific
-  /^connect\.sid$/ // https://github.com/expressjs/session
+  /^connect\.sid$/, // https://github.com/expressjs/session
 ]
 
 const VALUES = [
-  /^\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}$/ // credit card number
+  /^\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}$/, // credit card number
 ]
 
 const isSecret = {
-  key: (str:string) => KEYS.find((regex) => regex.test(str)),
-  value: (str:string) => VALUES.some((regex) => regex.test(str))
+  key: (str: string) => KEYS.find((regex) => regex.test(str)),
+  value: (str: string) => VALUES.some((regex) => regex.test(str)),
 }
 
-const escapeStrForRegEx = (str:string) => {
-  return str
-    .replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
-    .replace(/-/g, '\\x2d');
+const escapeStrForRegEx = (str: string) => {
+  return str.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d')
 }
 
 const unsafeValues = [
@@ -43,7 +41,7 @@ const unsafeValues = [
   /api[-._]?key/i,
   /session[-._]?id/i,
   /\*\*\*\*[^,}\n\t]*/i,
-  /^\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}$/ // credit card number
+  /^\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}$/, // credit card number
 ]
 
 const unsafeKeyValuePair = [
@@ -53,24 +51,23 @@ const unsafeKeyValuePair = [
   { key: `secret`, value: /.*/i },
 ]
 
-let injectedRegEx:RegExp[] = []
+let injectedRegEx: RegExp[] = []
 
-let Injected:string[] = []
+let Injected: string[] = []
 
 export const resetInjectedLogs = () => {
   Injected = []
   injectedRegEx = []
 }
 
-export const injectUnsafe = (items:string[]) => {
+export const injectUnsafe = (items: string[]) => {
   try {
-    items.map(item => {
-      if(Injected.includes(item)) return
+    items.map((item) => {
+      if (Injected.includes(item)) return
       Injected.push(item)
       injectedRegEx.push(new RegExp(escapeStrForRegEx(item), `i`))
     })
-  }
-  catch(err){
+  } catch (err) {
     throw new Error(`Could not inject items into Unsafe values`)
   }
 }
@@ -78,18 +75,18 @@ export const injectUnsafe = (items:string[]) => {
 const possibleArrayKeys = [`stack`, `message`]
 const HIDDEN = `****`
 
-const shouldHideUnsafe = (value:string) => {
+const shouldHideUnsafe = (value: string) => {
   return unsafeValues.some((regexp) => regexp.test(value))
 }
 
-const replaceInjected = (value:string) => {
+const replaceInjected = (value: string) => {
   return Injected.reduce((acc, item) => {
     const replaced = acc.replaceAll(item, HIDDEN)
     return replaced
   }, value)
 }
 
-const replaceSecretMatch = (value:string, text:string, space?:boolean) => {
+const replaceSecretMatch = (value: string, text: string, space?: boolean) => {
   const hasOr = text.includes(`(`) && text.includes(`)`)
   const extra = space ? ` ` : ``
   return value.replaceAll(
@@ -98,15 +95,15 @@ const replaceSecretMatch = (value:string, text:string, space?:boolean) => {
   )
 }
 
-export const safeReplacer = (key:string|number, value:any) => {
-  if(key === HIDDEN || value === HIDDEN) return HIDDEN
+export const safeReplacer = (key: string | number, value: any) => {
+  if (key === HIDDEN || value === HIDDEN) return HIDDEN
 
   if (value instanceof Buffer) return value.toString('base64')
   if (value instanceof Date) return value.toString()
 
-  if (typeof key === `string`){
+  if (typeof key === `string`) {
     const match = isSecret.key(key)
-    if(match) return replaceSecretMatch(key, match.source, key !== value)
+    if (match) return replaceSecretMatch(key, match.source, key !== value)
   }
 
   if (typeof value !== `string`) return value
@@ -117,11 +114,13 @@ export const safeReplacer = (key:string|number, value:any) => {
 
   if (shouldHideUnsafe(key)) return HIDDEN
 
-  const shouldHide = unsafeKeyValuePair.some(({ key: unsafeKey, value: unsafeRegexValue }) => {
-    return key === unsafeKey &&  unsafeRegexValue.test(value)
-  })
+  const shouldHide = unsafeKeyValuePair.some(
+    ({ key: unsafeKey, value: unsafeRegexValue }) => {
+      return key === unsafeKey && unsafeRegexValue.test(value)
+    }
+  )
 
-  if(shouldHide) return HIDDEN
+  if (shouldHide) return HIDDEN
 
   if (possibleArrayKeys.includes(key) && value.indexOf('\n') >= 0)
     return value.split('\n').map((x) => x.trim())
@@ -129,13 +128,18 @@ export const safeReplacer = (key:string|number, value:any) => {
   return replaceInjected(value)
 }
 
-export const replaceUnsafe = (str:string) => {
+export const replaceUnsafe = (str: string) => {
   try {
     return safeReplacer(str, str)
-  }
-  catch(err){
+  } catch (err) {
     // Use set timeout because we are already in a stdout / stderr call and don't want to cause recursive call
-    setTimeout(() => console.error(`[ERROR: replaceUnsafe] Could not replace unsafe values from string`), 100)
+    setTimeout(
+      () =>
+        console.error(
+          `[ERROR: replaceUnsafe] Could not replace unsafe values from string`
+        ),
+      100
+    )
     return ``
   }
 }

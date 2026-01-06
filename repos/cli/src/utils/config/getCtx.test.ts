@@ -1,6 +1,5 @@
-
 import { describe, it, expect } from 'vitest'
-import { ECtxMap } from "@TSCL/types"
+import { ECtxMap } from '@TSCL/types'
 import { getCtx } from './getCtx'
 
 describe(`getCtx`, () => {

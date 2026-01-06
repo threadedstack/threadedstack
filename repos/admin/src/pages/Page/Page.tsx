@@ -1,7 +1,6 @@
 import type { ReactNode, CSSProperties } from 'react'
 import type { SxProps } from '@mui/material'
 
-
 import { useState } from 'react'
 import Box from '@mui/material/Box'
 import { init } from '@TAF/actions/init'
@@ -11,12 +10,10 @@ import { Header } from '@TAF/components/Header/Header'
 import { HeaderSettingsItems } from '@TAF/constants/nav'
 import { Loading, useEffectOnce, dims } from '@tdsk/components'
 
-
-
 export type TPage = {
-  sx?:SxProps|CSSProperties
-  className?:string
-  children?:ReactNode
+  sx?: SxProps | CSSProperties
+  className?: string
+  children?: ReactNode
 }
 
 const defs = {
@@ -25,7 +22,7 @@ const defs = {
       flexGrow: 1,
       width: `100%`,
       height: `100%`,
-    }
+    },
   },
   loading: {
     full: true,
@@ -39,17 +36,12 @@ const defs = {
       overflow: `auto`,
       bgcolor: `background.default`,
       height: `calc( 100vh - ${dims.header.hpx})`,
-    }
-  }
-  
+    },
+  },
 }
 
-export const Page = (props:TPage) => {
-  const {
-    sx,
-    children,
-    className,
-  } = props
+export const Page = (props: TPage) => {
+  const { sx, children, className } = props
 
   const theme = useTheme()
   const [ready, setReady] = useState<boolean>(false)
@@ -66,28 +58,31 @@ export const Page = (props:TPage) => {
       sx={defs.page.sx}
       className='tdsk-page-box'
     >
-      {
-        !ready
-          ? (<Loading {...defs.loading} />)
-          : (
-              <>
-                <Header navItems={HeaderSettingsItems} />
-                <Box
-                  component="main"
-                  className={className}
-                  sx={[defs.main.sx, {
-                    transition: theme.transitions.create(`margin`, {
-                      easing: theme.transitions.easing.sharp,
-                      duration: theme.transitions.duration.leavingScreen,
-                    }),
-                  }, sx] as CSSProperties[]}
-                >
-                  {children}
-                </Box>
-              </>
-            )
-      }
-    
+      {!ready ? (
+        <Loading {...defs.loading} />
+      ) : (
+        <>
+          <Header navItems={HeaderSettingsItems} />
+          <Box
+            component='main'
+            className={className}
+            sx={
+              [
+                defs.main.sx,
+                {
+                  transition: theme.transitions.create(`margin`, {
+                    easing: theme.transitions.easing.sharp,
+                    duration: theme.transitions.duration.leavingScreen,
+                  }),
+                },
+                sx,
+              ] as CSSProperties[]
+            }
+          >
+            {children}
+          </Box>
+        </>
+      )}
     </Box>
   )
 }

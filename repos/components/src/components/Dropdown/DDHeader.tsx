@@ -5,29 +5,21 @@ import {
   DDHeaderText,
   DDHeaderIcon,
   DDHeaderContent,
-  DDHeaderContainer
+  DDHeaderContainer,
 } from '@TSC/components/Dropdown/DDHeader.styles'
 
 export type TDDHeader = {
-  className?:string
-  text?:ReactNode
-  Icon?:ReactNode
-  textSx?:CSSProperties
-  iconSx?:CSSProperties
-  contentSx?:CSSProperties
-  containerSx?:CSSProperties
+  className?: string
+  text?: ReactNode
+  Icon?: ReactNode
+  textSx?: CSSProperties
+  iconSx?: CSSProperties
+  contentSx?: CSSProperties
+  containerSx?: CSSProperties
 }
 
-export const DDHeader = (props:TDDHeader) => {
-  const {
-    text,
-    Icon,
-    textSx,
-    iconSx,
-    className,
-    contentSx,
-    containerSx,
-  } = props
+export const DDHeader = (props: TDDHeader) => {
+  const { text, Icon, textSx, iconSx, className, contentSx, containerSx } = props
 
   return (
     <DDHeaderContainer
@@ -35,25 +27,25 @@ export const DDHeader = (props:TDDHeader) => {
       sx={containerSx}
     >
       <DDHeaderContent
-        className="tdsk-dd-header-content"
+        className='tdsk-dd-header-content'
         sx={contentSx}
       >
-      {Icon && (
-        <DDHeaderIcon
-          className="tdsk-dd-header-icon"
-          sx={iconSx}
-        >
-          {Icon}
-        </DDHeaderIcon>
-      )}
-      {text && (
-        <DDHeaderText
-          className="tdsk-dd-header-text"
-          sx={textSx}
-        >
-          {text}
-        </DDHeaderText>
-      )}
+        {Icon && (
+          <DDHeaderIcon
+            className='tdsk-dd-header-icon'
+            sx={iconSx}
+          >
+            {Icon}
+          </DDHeaderIcon>
+        )}
+        {text && (
+          <DDHeaderText
+            className='tdsk-dd-header-text'
+            sx={textSx}
+          >
+            {text}
+          </DDHeaderText>
+        )}
       </DDHeaderContent>
     </DDHeaderContainer>
   )

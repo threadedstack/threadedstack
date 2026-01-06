@@ -61,20 +61,18 @@ export const Confirm = (props: TConfirm) => {
     maxWidth,
     fullWidth,
     PaperProps,
-    CancelIcon=CloseIcon,
-    ConfirmIcon=CheckIcon,
+    CancelIcon = CloseIcon,
+    ConfirmIcon = CheckIcon,
     disableEscape,
     title = `Confirm`,
     cancel = `Cancel`,
     confirm = `Confirm`,
-    HeaderIcon=ConfirmHeaderIcon,
+    HeaderIcon = ConfirmHeaderIcon,
   } = props
-
-
 
   const onCloseCB = (evt?: any, reason?: any) => {
     evt && stopEvent(evt)
-    if(onClose) return onClose?.(evt)
+    if (onClose) return onClose?.(evt)
     onCancel?.(evt)
   }
 
@@ -99,7 +97,7 @@ export const Confirm = (props: TConfirm) => {
         PaperProps={PaperProps}
         maxWidth={maxWidth as any}
         closeAfterTransition={false}
-        onClick={(evt:any) => stopEvent(evt)}
+        onClick={(evt: any) => stopEvent(evt)}
         disableEscapeKeyDown={disableEscape}
         aria-labelledby='tdsk-confirm-dialog-title'
         aria-describedby='tdsk-confirm-dialog-description'
@@ -110,30 +108,33 @@ export const Confirm = (props: TConfirm) => {
             id='tdsk-confirm-dialog-title'
             sx={titleSx}
           >
-            {
-              HeaderIcon
-                ? isValidFuncComp(HeaderIcon) ? (<HeaderIcon sx={[inherit, iconSx]} />) : HeaderIcon
-                : null
-            }
+            {HeaderIcon ? (
+              isValidFuncComp(HeaderIcon) ? (
+                <HeaderIcon sx={[inherit, iconSx]} />
+              ) : (
+                HeaderIcon
+              )
+            ) : null}
             {title}
           </ConfirmTitle>
-        )) || null}
+        )) ||
+          null}
 
         {(children && (
           <ConfirmContent
             sx={contentSx}
             className='tdsk-confirm-dialog-content'
           >
-            {isStr(children)
-              ? (
-                  <DialogContentText id='tdsk-confirm-dialog-description'>
-                    {children}
-                  </DialogContentText>
-                ) 
-              : children
-            }
+            {isStr(children) ? (
+              <DialogContentText id='tdsk-confirm-dialog-description'>
+                {children}
+              </DialogContentText>
+            ) : (
+              children
+            )}
           </ConfirmContent>
-        )) || null}
+        )) ||
+          null}
 
         {((cancel || confirm) && (
           <ConfirmDialogActions

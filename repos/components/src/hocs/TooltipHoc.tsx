@@ -15,10 +15,7 @@ export type THTooltipOpts = {
   disabledProp?: string
 }
 
-export const TooltipHoc = <
-  T extends ComponentProps<any>,
-  R extends HTMLElement=any
->(
+export const TooltipHoc = <T extends ComponentProps<any>, R extends HTMLElement = any>(
   Component: ComponentType<any>,
   opts: THTooltipOpts = emptyObj
 ) => {
@@ -29,10 +26,16 @@ export const TooltipHoc = <
 
     return tooltip && (rest as any)?.[disabledProp] !== true ? (
       <Tooltip {...(!isStr(tooltip) ? (tooltip as THocTooltip) : { title: tooltip })}>
-        <Component {...rest} ref={ref} />
+        <Component
+          {...rest}
+          ref={ref}
+        />
       </Tooltip>
     ) : (
-      <Component {...rest} ref={ref} />
+      <Component
+        {...rest}
+        ref={ref}
+      />
     )
   })
 }

@@ -1,5 +1,5 @@
 export class Base {
-  id:string
-  createdAt:string|Date
-  updatedAt:string|Date
+  id: string
+  createdAt: string | Date
+  updatedAt: string | Date
 }

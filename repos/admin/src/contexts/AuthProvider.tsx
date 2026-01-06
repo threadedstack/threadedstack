@@ -15,45 +15,43 @@ export type TAuthProvider = {
 }
 
 export const AuthProvider = (props: TAuthProvider) => {
-
   const [error, setError] = useState<string>()
   const [loading, setLoading] = useState<boolean>(true)
   const [session, setSession] = useState<TAuthSession>()
-  const ctx = useMemo(() => ({session, loading}), [session, loading])
+  const ctx = useMemo(() => ({ session, loading }), [session, loading])
 
   useEffectOnce(() => {
-    if(session) return
+    if (session) return
 
     ife(async () => {
       try {
         setLoading(true)
         const { session, error } = await initAuth()
-        if(error) return setError(error.message)
+        if (error) return setError(error.message)
         session && setSession(session)
-      }
-      catch(err){
+      } catch (err) {
         console.error(err)
         setError(err.message)
-      }
-      finally {
+      } finally {
         setLoading(false)
       }
     })
-
   })
-  
+
   return (
     <NeonAuthUIProvider authClient={authClient}>
       <AuthContext.Provider value={ctx}>
-        { 
-          error
-            ? <LoginError message={error} />
-            : loading
-              ? (<Loading fixed full />)
-              : (<MemoChildren {...props} />)
-        }
+        {error ? (
+          <LoginError message={error} />
+        ) : loading ? (
+          <Loading
+            fixed
+            full
+          />
+        ) : (
+          <MemoChildren {...props} />
+        )}
       </AuthContext.Provider>
     </NeonAuthUIProvider>
   )
-
 }

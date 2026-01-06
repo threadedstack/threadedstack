@@ -29,7 +29,7 @@ const SliderInput = (props: SliderInputProps) => {
   } = props
 
   const onChange = (event: any) => {
-    const parsedValue = parseFloat(event.target.value)
+    const parsedValue = Number.parseFloat(event.target.value)
     const { min, max, onChange } = sliderProps
 
     if (max && parsedValue > max) setField && setField(id, max)
@@ -68,7 +68,7 @@ const SliderInput = (props: SliderInputProps) => {
           hidden && `hidden`,
           hasError && `error`,
           disabled && `disabled`,
-          required && `required`,
+          required && `required`
         )}
       />
     </InputStateHandler>

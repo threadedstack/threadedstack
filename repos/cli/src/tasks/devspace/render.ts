@@ -9,11 +9,11 @@ import { sharedOpts } from '@TSCL/utils/tasks/options'
  * @public
  * @returns {Void}
  */
-const renderAct:TTaskAction = async (args) => {
+const renderAct: TTaskAction = async (args) => {
   await devspace.render(args)
 }
 
-export const render:TTask = {
+export const render: TTask = {
   name: `render`,
   action: renderAct,
   alias: [`renders`, `rd`],

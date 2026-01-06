@@ -12,7 +12,6 @@ import { Button } from '@TSC/components/Buttons/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import MenuItem, { type MenuItemProps } from '@mui/material/MenuItem'
 
-
 export const MuiMenu = styled(MMenu)`
 
   & .MuiMenu-paper {
@@ -35,7 +34,6 @@ export const MenuItemsContainer = styled(Box)`
   padding: ${gutter.hpx} 0px;
 `
 
-
 export const MuiMenuItem = TooltipHoc<MenuItemProps, HTMLLIElement>(styled(MenuItem)`
   padding: ${gutter.hpx} ${gutter.px};
   
@@ -45,7 +43,6 @@ export const MuiMenuItem = TooltipHoc<MenuItemProps, HTMLLIElement>(styled(MenuI
   }
   
 `)
-
 
 export const MenuHeaderContainer = styled(Box)(({ theme }) => {
   return `
@@ -103,7 +100,6 @@ export const LoadingIcon = styled(CircularProgress)`
   margin-left: ${gutter.px};
 `
 
-
 export const MenuBackContainer = styled(Box)(({ theme }) => {
   return `
     display: flex;
@@ -117,7 +113,6 @@ export const MenuBackContainer = styled(Box)(({ theme }) => {
 })
 
 export const MenuBackButton = styled(Button)``
-
 
 export const MenuBackText = styled(Text)`
   font-size: 12px;

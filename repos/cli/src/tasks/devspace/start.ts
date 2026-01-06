@@ -13,19 +13,18 @@ const cleanParams = [...Object.keys(clean.options), `env`]
  * @public
  * @returns {Void}
  */
-const startAct:TTaskAction = async (args) => {
+const startAct: TTaskAction = async (args) => {
   const { params } = args
 
-  params?.use
-    && await devspace.use(args)
+  params?.use && (await devspace.use(args))
 
-  params?.clean
-    && await clean.action({...args, params: pickKeys(params, cleanParams)})
+  params?.clean &&
+    (await clean.action({ ...args, params: pickKeys(params, cleanParams) }))
 
   await devspace.start(args)
 }
 
-export const start:TTask = {
+export const start: TTask = {
   name: `start`,
   alias: [`st`],
   action: startAct,
@@ -40,7 +39,7 @@ export const start:TTask = {
     debug: sharedOpts.devspace.debug,
     namespace: sharedOpts.devspace.namespace,
     kubeContext: sharedOpts.devspace.kubeContext,
-    
+
     build: {
       type: `boolean`,
       description: `Adds the "--build" argument to the devspace command`,
@@ -57,7 +56,7 @@ export const start:TTask = {
       type: `boolean`,
       alias: [`cln`],
       example: `--clean`,
-      description: `Cleans the deployment before deploying. Same as running the "clean" task`
+      description: `Cleans the deployment before deploying. Same as running the "clean" task`,
     },
     ...clean.options,
   },

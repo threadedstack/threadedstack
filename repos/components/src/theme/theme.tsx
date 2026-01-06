@@ -1,12 +1,7 @@
 import { BreakpointsOptions } from '@mui/material'
 import createTheme from '@mui/material/styles/createTheme'
 import { gutter } from './gutter'
-import {
-  grey,
-  white,
-  colors,
-} from './colors'
-
+import { grey, white, colors } from './colors'
 
 const typography = {
   fontFamily: ['Ubuntu', 'serif'].join(','),
@@ -17,9 +12,9 @@ const components = (isDark?: boolean) => {
     MuiPaper: {
       styleOverrides: {
         root: {
-          backgroundColor: isDark ? colors.dark.background : colors.light.background
+          backgroundColor: isDark ? colors.dark.background : colors.light.background,
         },
-      }
+      },
     },
     MuiTypography: {
       styleOverrides: {
@@ -31,22 +26,26 @@ const components = (isDark?: boolean) => {
     MuiAccordion: {
       styleOverrides: {
         root: {
-          backgroundColor: isDark ? colors.dark.background : colors.light.background
+          backgroundColor: isDark ? colors.dark.background : colors.light.background,
         },
         heading: {
-          backgroundColor: isDark ? colors.dark.headerBackground : colors.light.headerBackground
-        }
-      }
+          backgroundColor: isDark
+            ? colors.dark.headerBackground
+            : colors.light.headerBackground,
+        },
+      },
     },
     MuiAccordionSummary: {
       styleOverrides: {
         root: {
-          backgroundColor: isDark ? colors.dark.headerBackground : colors.light.headerBackground
+          backgroundColor: isDark
+            ? colors.dark.headerBackground
+            : colors.light.headerBackground,
         },
         content: {
-          margin: `0px`
-        }
-      }
+          margin: `0px`,
+        },
+      },
     },
     MuiButton: {
       defaultProps: {
@@ -62,13 +61,13 @@ const components = (isDark?: boolean) => {
         fontWeight: 500,
       },
     },
-    MuiFormControl:  {
+    MuiFormControl: {
       styleOverrides: {
         root: {
           marginBottom: `0px`,
           marginTop: gutter.qpx,
-        }
-      }
+        },
+      },
     },
     MuiOutlinedInput: {
       styleOverrides: {
@@ -101,15 +100,13 @@ const components = (isDark?: boolean) => {
       styleOverrides: {
         tooltip: {
           padding: `${gutter.tpx} ${gutter.px}`,
-          color: isDark ? colors.dark.foreground: colors.light.foreground,
+          color: isDark ? colors.dark.foreground : colors.light.foreground,
           backgroundColor: isDark ? colors.dark.background : colors.light.background,
         },
       },
     },
   }
 }
-
-
 
 const success = {
   contrastText: white,
@@ -218,10 +215,5 @@ const lightTheme = (breakpoints?: BreakpointsOptions) =>
     },
   })
 
-export const makeTheme = (
-  variant: `dark` | `light`,
-  breakpoints?: BreakpointsOptions
-) =>
-  variant === `dark`
-    ? darkTheme(breakpoints)
-    : lightTheme(breakpoints)
+export const makeTheme = (variant: `dark` | `light`, breakpoints?: BreakpointsOptions) =>
+  variant === `dark` ? darkTheme(breakpoints) : lightTheme(breakpoints)

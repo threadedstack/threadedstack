@@ -4,5 +4,3 @@ export { exists } from '@keg-hub/jsutils/exists'
 export { isColl } from '@keg-hub/jsutils/isColl'
 export { identity } from '@keg-hub/jsutils/identity'
 export { capitalize } from '@keg-hub/jsutils/capitalize'
-
-

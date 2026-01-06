@@ -17,37 +17,32 @@ import { useInline } from '@TSC/hooks/components/useInline'
 import { MenuHeader } from '@TSC/components/Menu/MenuHeader'
 import { MenuContext } from '@TSC/components/Menu/MenuContext'
 
-
 type TMenuPos = {
-  anchorOrigin?:ComponentProps<typeof MuiMenu>[`anchorOrigin`]
-  transformOrigin?:ComponentProps<typeof MuiMenu>[`transformOrigin`]
+  anchorOrigin?: ComponentProps<typeof MuiMenu>[`anchorOrigin`]
+  transformOrigin?: ComponentProps<typeof MuiMenu>[`transformOrigin`]
 }
 
-
-export type TMenu = Omit<ComponentProps<typeof MuiMenu>, `open`|`onClick`> & {
-  open?:boolean
-  title?:ReactNode
-  stopEvent?:boolean
+export type TMenu = Omit<ComponentProps<typeof MuiMenu>, `open` | `onClick`> & {
+  open?: boolean
+  title?: ReactNode
+  stopEvent?: boolean
   autoClose?: boolean
   Context?: ReactNode
-  children?:ReactNode
+  children?: ReactNode
   items?: TMenuItem[]
-  headerClass?:string
-  Header?:ComponentType<any>
-  anchorEl?:HTMLElement|null|undefined
-  HeaderIcon?:ReactNode|ComponentType<any>
-  onOpen?:(event: MouseEvent<HTMLElement>) => any
-  onClose?:(event: MouseEvent<HTMLElement>) => any
-  anchorRef?:MutableRefObject<HTMLElement|null|undefined>
-  onClick?:(item:TMenuItem, evt:MouseEvent<HTMLElement>) => any
+  headerClass?: string
+  Header?: ComponentType<any>
+  anchorEl?: HTMLElement | null | undefined
+  HeaderIcon?: ReactNode | ComponentType<any>
+  onOpen?: (event: MouseEvent<HTMLElement>) => any
+  onClose?: (event: MouseEvent<HTMLElement>) => any
+  anchorRef?: MutableRefObject<HTMLElement | null | undefined>
+  onClick?: (item: TMenuItem, evt: MouseEvent<HTMLElement>) => any
 }
 
-const usePos = (props:TMenu) => {
-  const {
-    anchorOrigin,
-    transformOrigin
-  } = props
-  
+const usePos = (props: TMenu) => {
+  const { anchorOrigin, transformOrigin } = props
+
   return useMemo(() => {
     const originProps = {
       anchorOrigin: {
@@ -57,24 +52,20 @@ const usePos = (props:TMenu) => {
       transformOrigin: {
         vertical: `top`,
         horizontal: `center`,
-      }
+      },
     } as TMenuPos
 
-    if(!anchorOrigin && !transformOrigin) return originProps
+    if (!anchorOrigin && !transformOrigin) return originProps
 
-    if(anchorOrigin) originProps.anchorOrigin = anchorOrigin
+    if (anchorOrigin) originProps.anchorOrigin = anchorOrigin
 
-    if(transformOrigin) originProps.transformOrigin = transformOrigin
+    if (transformOrigin) originProps.transformOrigin = transformOrigin
 
     return originProps
-  }, [
-    anchorOrigin,
-    transformOrigin
-  ])
-  
+  }, [anchorOrigin, transformOrigin])
 }
 
-export const Menu = (props:TMenu) => {
+export const Menu = (props: TMenu) => {
   const {
     open,
     items,
@@ -85,17 +76,17 @@ export const Menu = (props:TMenu) => {
     anchorEl,
     anchorRef,
     className,
-    elevation=1,
+    elevation = 1,
     headerClass,
     HeaderIcon,
-    autoClose=true,
-    autoFocus=false,
-    keepMounted=true,
-    Header=MenuHeader,
-    onOpen:onMenuOpen,
-    onClose:onMenuClose,
-    stopEvent:stopEvt=true,
-    disableEnforceFocus=true,
+    autoClose = true,
+    autoFocus = false,
+    keepMounted = true,
+    Header = MenuHeader,
+    onOpen: onMenuOpen,
+    onClose: onMenuClose,
+    stopEvent: stopEvt = true,
+    disableEnforceFocus = true,
     ...rest
   } = props
 
@@ -119,26 +110,18 @@ export const Menu = (props:TMenu) => {
       disableEnforceFocus={disableEnforceFocus}
       className={cls(`tdsk-menu`, className)}
       anchorEl={anchorRef?.current || anchorEl}
-      open={
-        exists(open)
-          ? Boolean(open && hasRef)
-          : Boolean(anchorRef?.current)
-      }
+      open={exists(open) ? Boolean(open && hasRef) : Boolean(anchorRef?.current)}
     >
-    
-      {(title || (Header !== MenuHeader)) && (
+      {((title || Header !== MenuHeader) && (
         <Header
           title={title}
           Icon={HeaderIcon}
           className={headerClass}
         />
-      ) || null}
+      )) ||
+        null}
 
-      {Context && (
-        <MenuContext>
-          {Context}
-        </MenuContext>
-      ) || null}
+      {(Context && <MenuContext>{Context}</MenuContext>) || null}
 
       {children}
 
@@ -156,4 +139,3 @@ export const Menu = (props:TMenu) => {
     </MuiMenu>
   )
 }
-

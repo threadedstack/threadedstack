@@ -54,9 +54,9 @@ const LoadingDots = (props: TLoadingDots) => {
           animation-delay: 0.4s;
         }
       `}</style>
-      <Box sx={style}></Box>
-      <Box sx={style}></Box>
-      <Box sx={style}></Box>
+      <Box sx={style} />
+      <Box sx={style} />
+      <Box sx={style} />
     </LoadingContainer>
   )
 }

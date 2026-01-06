@@ -12,11 +12,11 @@ type InputLabelProps = {
   id?: string
   tooltip?: string
   className?: string
-  required?:boolean
-  noLabelDim?:boolean
+  required?: boolean
+  noLabelDim?: boolean
   children?: ReactNode
   label?: string | number
-  component?:ElementType<any>
+  component?: ElementType<any>
   sx?: CSSProperties | CSSProperties[]
   notificationsProps?: NotificationCountProps
 }
@@ -32,7 +32,7 @@ const InputLabel = (props: InputLabelProps) => {
     component,
     className,
     noLabelDim,
-    notificationsProps
+    notificationsProps,
   } = props
 
   return (

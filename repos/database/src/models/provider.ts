@@ -2,7 +2,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type { TDBProviderSelect, TDBProviderInsert } from '@TDB/types'
 
 import { Base } from '@TDB/models/base'
-import { providers } from '@TDB/schemas/providers' 
+import { providers } from '@TDB/schemas/providers'
 
 export type TProviderOpts = {
   db: NodePgDatabase
@@ -13,9 +13,7 @@ export class Provider extends Base<
   TDBProviderSelect,
   TDBProviderInsert
 > {
-
   constructor(opts: TProviderOpts) {
-    super({...opts, schema: providers})
+    super({ ...opts, schema: providers })
   }
-
 }

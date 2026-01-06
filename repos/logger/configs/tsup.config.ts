@@ -1,4 +1,4 @@
-import packcfg from '../package.json' assert { type: 'json' }
+import packcfg from '../package.json'
 import path from 'node:path'
 import { defineConfig } from 'tsup'
 import { fileURLToPath } from 'node:url'
@@ -11,7 +11,7 @@ const logIn = path.join(rootDir, `src/index.ts`)
 
 export default defineConfig(async () => {
   await fs.rm(logOutdir, { recursive: true, force: true })
-  
+
   return {
     name: `logger`,
     clean: true,
@@ -21,7 +21,7 @@ export default defineConfig(async () => {
     splitting: false,
     format: [`cjs`],
     outDir: logOutdir,
-    esbuildOptions:(options, context) => {
+    esbuildOptions: (options, context) => {
       options.external = [
         ...(options?.external ?? []),
         ...(Object.keys(packcfg.dependencies) ?? []),

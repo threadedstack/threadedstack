@@ -28,15 +28,15 @@ const isValid = (router: Router, name: string, endpoint: TEndpointConfig) => {
   return true
 }
 
-const buildEndpoint = (
-  router: Router,
-  config: TABConfig,
-  endpoint: TEndpointConfig
-) => {
+const buildEndpoint = (router: Router, config: TABConfig, endpoint: TEndpointConfig) => {
   const { path, proxy, action, method, middleware = [], endpoints: children } = endpoint
 
   method === EPMethod.Use
-    ? router.use(path, ...middleware, buildEndpoints(createAsyncRouter(), config, children, path))
+    ? router.use(
+        path,
+        ...middleware,
+        buildEndpoints(createAsyncRouter(), config, children, path)
+      )
     : isObj(proxy)
       ? router[method](path, ...middleware, endpointProxy(endpoint))
       : router[method](path, ...middleware, action)
@@ -52,11 +52,12 @@ const buildEndpoints = (
     Object.entries(eps).forEach(([name, ep]: [string, TEndpoint]) => {
       const endpoint = isFunc<TEndpointBuilder>(ep) ? ep(config) : ep
       isValid(router, name, endpoint) && buildEndpoint(router, config, endpoint)
-      endpoint.public && config.proxy.publicRoutes.push(`${parentPath || ``}${endpoint.path}`)
+      endpoint.public &&
+        config.proxy.publicRoutes.push(`${parentPath || ``}${endpoint.path}`)
     })
 
   return router
 }
 
-export const setupEndpoints = (router:Router, config: TABConfig) =>
+export const setupEndpoints = (router: Router, config: TABConfig) =>
   buildEndpoints(router, config, endpoints)

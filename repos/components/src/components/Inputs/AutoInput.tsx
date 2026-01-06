@@ -23,7 +23,7 @@ export type TOption = {
 type TAutoInput = {
   placeholder?: string
   initial?: string[]
-  optionClass?:string
+  optionClass?: string
   capitalize?: boolean
   oneTagPerLine?: boolean
   values?: TOption[] | string[]
@@ -95,7 +95,7 @@ const AutoInput = (props: TAutoInput) => {
           `tdsk-auto-input`,
           hidden && `hidden`,
           disabled && `disabled`,
-          required && `required`,
+          required && `required`
         )}
         multiple={multiple}
         options={values as TOption[]}

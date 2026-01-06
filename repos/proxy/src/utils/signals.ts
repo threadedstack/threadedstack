@@ -4,7 +4,7 @@ import type { Server as HTTPS } from 'https'
 import { logger } from './logger'
 import { sigs } from '../constants/values'
 
-export const signals = (server: HTTP|HTTPS) => {
+export const signals = (server: HTTP | HTTPS) => {
   sigs.forEach((sig) => {
     process.on(sig, () => {
       logger.debug(`Received ${sig} signal`)

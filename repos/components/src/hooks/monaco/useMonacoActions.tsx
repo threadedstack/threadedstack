@@ -9,7 +9,11 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import ContentPasteIcon from '@mui/icons-material/ContentPaste'
 import { useCopyToClipboard } from '@TSC/hooks/dom/useCopyToClipboard'
 
-const wrapActions = (actions: TAccordionAction[], editorRef?: TMonEditorRef, id?: string) => {
+const wrapActions = (
+  actions: TAccordionAction[],
+  editorRef?: TMonEditorRef,
+  id?: string
+) => {
   return actions?.map((action) => {
     const { onClick, onChange, ...rest } = action
     return {

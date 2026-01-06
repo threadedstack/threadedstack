@@ -1,13 +1,9 @@
-import type {
-  TTask,
-  TTasks,
-} from '@TSCL/types'
+import type { TTask, TTasks } from '@TSCL/types'
 
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { isArr } from '@keg-hub/jsutils/isArr'
 import { noOpArr } from '@keg-hub/jsutils/noOpArr'
 import { taskError } from '@TSCL/utils/tasks/error'
-
 
 /**
  * Maps task alias to a task name, relative to the options
@@ -21,13 +17,13 @@ import { taskError } from '@TSCL/utils/tasks/error'
  *
  * @returns {Object} - Found task object
  */
-const getTaskRef = (tasks:TTasks, task:string) => {
-  const found = Object.entries(tasks)
-    .find(([key, definition]:[string, TTask]) => (
-      key === task
-        || definition.name === task
-        || (isArr(definition.alias) && definition.alias.includes(task))
-    ))
+const getTaskRef = (tasks: TTasks, task: string) => {
+  const found = Object.entries(tasks).find(
+    ([key, definition]: [string, TTask]) =>
+      key === task ||
+      definition.name === task ||
+      (isArr(definition.alias) && definition.alias.includes(task))
+  )
 
   return found ? found[1] : undefined
 }
@@ -44,13 +40,13 @@ const getTaskRef = (tasks:TTasks, task:string) => {
  *
  * @returns {Object} - Found task definition by name
  */
-const findTaskFromOptions = (task:TTask, options:string[]) => {
+const findTaskFromOptions = (task: TTask, options: string[]) => {
   const opt = options.shift()
   const subTasks = isObj(task) && task.tasks
   const subTask = opt && subTasks && getTaskRef(subTasks, opt)
 
   return !subTask
-    ? { task: task, options: opt ? [ opt, ...options ] : options }
+    ? { task: task, options: opt ? [opt, ...options] : options }
     : findTaskFromOptions(subTask, options)
 }
 
@@ -68,18 +64,13 @@ const findTaskFromOptions = (task:TTask, options:string[]) => {
  *
  * @returns {void}
  */
-export const find = (
-  tasks:TTasks,
-  opts:string[]=noOpArr,
-  throwError=true
-) => {
+export const find = (tasks: TTasks, opts: string[] = noOpArr, throwError = true) => {
   const options = [...opts]
   const taskName = options.shift()
   const task = getTaskRef(tasks, taskName)
   const foundTask = task && findTaskFromOptions(task, options)
 
   return foundTask && foundTask.task
-    ? {...foundTask, tasks}
+    ? { ...foundTask, tasks }
     : taskError(`Task not found for argument: ${taskName}`)
 }
-

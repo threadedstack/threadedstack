@@ -3,14 +3,11 @@ import Box from '@mui/material/Box'
 import { gutter } from '@TSC/theme/gutter'
 
 export type TMenuContext = {
-  sx?:CSSProperties
+  sx?: CSSProperties
   children: ReactNode
 }
 
-export const MenuContext = ({
-  sx,
-  children
-}:TMenuContext) => {
+export const MenuContext = ({ sx, children }: TMenuContext) => {
   return (
     <Box
       padding={gutter.hpx}

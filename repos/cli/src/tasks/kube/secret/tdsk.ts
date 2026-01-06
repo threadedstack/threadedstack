@@ -15,28 +15,29 @@ import { taskError } from '@TSCL/utils/tasks/error'
  *
  * @returns {void}
  */
-const tdskAuthAct = async (props:TTaskActionArgs) => {
+const tdskAuthAct = async (props: TTaskActionArgs) => {
   const { params, tasks, config } = props
   const secretTask = tasks?.kube?.tasks?.secret
   !secretTask &&
-    taskError(`The "kube.tasks.secret" task can not be found. Ensure it exists before running this command`)
+    taskError(
+      `The "kube.tasks.secret" task can not be found. Ensure it exists before running this command`
+    )
 
-  const { token:tToken, ...secParams } = params
+  const { token: tToken, ...secParams } = params
 
   // Get the user name in the same way docker and devspace do
   const envs = config.envs
 
   // Get the auth token in the same way docker and devspace do
   const token = tToken || envs.TDSK_MASTER_KEY
-  const hidden = `${token.slice(0, 2 - token.length)}${token.slice(2, token.length).split('').map(() => '*').join('')}` 
-  token
-    && params.log
-    && Logger.pair(`Found value for token`, hidden)
+  const hidden = `${token.slice(0, 2 - token.length)}${token
+    .slice(2, token.length)
+    .split('')
+    .map(() => '*')
+    .join('')}`
+  token && params.log && Logger.pair(`Found value for token`, hidden)
 
-
-  if(!token)
-    return taskError(`A token is required to create a tdsk secret`)
-
+  if (!token) return taskError(`A token is required to create a tdsk secret`)
 
   await secretTask.action({
     ...props,
@@ -44,14 +45,14 @@ const tdskAuthAct = async (props:TTaskActionArgs) => {
       ...secParams,
       secrets: `token:${token}`,
       name: envs.TDSK_KUBE_SCRT_MASTER_KEY || `tdsk-master-key`,
-    }
+    },
   })
 }
 
-export const tdsk:TTask = {
+export const tdsk: TTask = {
   name: `tdsk`,
   action: tdskAuthAct,
-  alias: [ `ts`],
+  alias: [`ts`],
   example: `tdsk kube secrets ts <options>`,
   description: `Calls the kubectl create secrets command with the tdsk token`,
   options: {

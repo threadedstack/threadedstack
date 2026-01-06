@@ -1,8 +1,4 @@
-import type {
-  Router,
-  NextFunction,
-  RequestHandler
-} from 'express'
+import type { Router, NextFunction, RequestHandler } from 'express'
 import type {
   TRouter,
   TRequest,
@@ -25,37 +21,26 @@ import { isFunc } from '@keg-hub/jsutils/isFunc'
  *
  * @returns {function} - Wrapped handler method
  */
-export const asyncWrap:TAsyncWrap = (handler:TReqHandler) => (async (
-  req:TRequest,
-  res:TResponse,
-  next:NextFunction
-) => {
-  try {
-    await handler(
-      req,
-      res,
-      next
-    )
+export const asyncWrap: TAsyncWrap =
+  (handler: TReqHandler) => async (req: TRequest, res: TResponse, next: NextFunction) => {
+    try {
+      await handler(req, res, next)
+    } catch (err) {
+      ApiLogger.error(err)
+      if (res.headersSent) return
+      res.statusCode = toNum(err.statusCode || 400)
+      res.json({ message: isObj(err) ? err.message : err || `An api error occurred!` })
+    }
   }
-  catch (err) {
-
-    ApiLogger.error(err)
-    if(res.headersSent) return
-    res.statusCode = toNum(err.statusCode || 400)
-    res.json({message: isObj(err) ? err.message : err || `An api error occurred!`})
-
-  }
-})
-
 
 /**
  * Loops the passed in handlers and wraps them in the asyncWrap method
  * Expects the first argument is a string representing the route path
  */
 const wrapInAsync = (
-  boundMethod:TRouterHandler,
-  middleware:Array<any>,
-  ...args:Array<string|RequestHandler>
+  boundMethod: TRouterHandler,
+  middleware: Array<any>,
+  ...args: Array<string | RequestHandler>
 ) => {
   return boundMethod(
     args.shift() as string,
@@ -64,9 +49,7 @@ const wrapInAsync = (
   )
 }
 
-
-export const getAppRouter = (router:Router, md:Array<RequestHandler>=[]) => {
-
+export const getAppRouter = (router: Router, md: Array<RequestHandler> = []) => {
   const boundAll = router.all.bind(router)
   const boundGet = router.get.bind(router)
   const boundPut = router.put.bind(router)
@@ -77,16 +60,17 @@ export const getAppRouter = (router:Router, md:Array<RequestHandler>=[]) => {
   const boundOptions = router.options.bind(router)
 
   const AppRouter = Object.assign(router, {
-    all: (...args:[string, ...TReqHandler[]]) => wrapInAsync(boundAll, md, ...args),
-    get: (...args:[string, ...TReqHandler[]]) => wrapInAsync(boundGet, md, ...args),
-    put: (...args:[string, ...TReqHandler[]]) => wrapInAsync(boundPut, md, ...args),
-    post: (...args:[string, ...TReqHandler[]]) => wrapInAsync(boundPost, md, ...args),
-    head: (...args:[string, ...TReqHandler[]]) => wrapInAsync(boundHead, md, ...args),
-    patch: (...args:[string, ...TReqHandler[]]) => wrapInAsync(boundPatch, md, ...args),
-    delete: (...args:[string, ...TReqHandler[]]) => wrapInAsync(boundDelete, md, ...args),
-    options: (...args:[string, ...TReqHandler[]]) => wrapInAsync(boundOptions, md, ...args),
+    all: (...args: [string, ...TReqHandler[]]) => wrapInAsync(boundAll, md, ...args),
+    get: (...args: [string, ...TReqHandler[]]) => wrapInAsync(boundGet, md, ...args),
+    put: (...args: [string, ...TReqHandler[]]) => wrapInAsync(boundPut, md, ...args),
+    post: (...args: [string, ...TReqHandler[]]) => wrapInAsync(boundPost, md, ...args),
+    head: (...args: [string, ...TReqHandler[]]) => wrapInAsync(boundHead, md, ...args),
+    patch: (...args: [string, ...TReqHandler[]]) => wrapInAsync(boundPatch, md, ...args),
+    delete: (...args: [string, ...TReqHandler[]]) =>
+      wrapInAsync(boundDelete, md, ...args),
+    options: (...args: [string, ...TReqHandler[]]) =>
+      wrapInAsync(boundOptions, md, ...args),
   }) as unknown as TRouter
 
   return AppRouter
 }
-

@@ -10,17 +10,17 @@ const ExpMoreIcon = styled(ExpandMoreIcon)`
   transition: transform 300ms;
 `
 
-export type TIconDirection = `up`|`left`|`right`|`down`
+export type TIconDirection = `up` | `left` | `right` | `down`
 
 export type TExpandIcon = {
-  expand?:boolean
-  className?:string
-  transformOn?:number
-  transformOff?:number
-  openDir?:TIconDirection
-  closedDir?:TIconDirection
-  noIconTransform?:boolean
-  sx?:CSSProperties|CSSProperties[]
+  expand?: boolean
+  className?: string
+  transformOn?: number
+  transformOff?: number
+  openDir?: TIconDirection
+  closedDir?: TIconDirection
+  noIconTransform?: boolean
+  sx?: CSSProperties | CSSProperties[]
 }
 
 const iconDirMap = {
@@ -30,36 +30,27 @@ const iconDirMap = {
   left: `rotate(-90deg) !important`,
 }
 
-export const ExpandIcon = (props:TExpandIcon) => {
+export const ExpandIcon = (props: TExpandIcon) => {
   const {
     sx,
     expand,
     className,
     transformOn,
     transformOff,
-    openDir=`right`,
-    closedDir=`down`,
-    noIconTransform
+    openDir = `right`,
+    closedDir = `down`,
+    noIconTransform,
   } = props
 
   const style = useMemo(() => {
-    if(noIconTransform) return emptyObj
+    if (noIconTransform) return emptyObj
 
     const isExpanded = expand || className?.split(' ').includes(`expanded`)
 
     return exists(transformOn) || exists(transformOff)
       ? { transform: `rotate(${isExpanded ? transformOn : transformOff}deg);` }
       : { transform: iconDirMap[isExpanded ? openDir : closedDir] }
-
-  }, [
-    expand,
-    openDir,
-    closedDir,
-    className,
-    transformOn,
-    transformOff,
-    noIconTransform
-  ])
+  }, [expand, openDir, closedDir, className, transformOn, transformOff, noIconTransform])
 
   return (
     <ExpMoreIcon

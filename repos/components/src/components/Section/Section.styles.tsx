@@ -37,8 +37,6 @@ export const SectionHeader = styled(Box)(({ theme }) => {
   `
 })
 
-
-
 export const SectionHeaderContainer = styled(Box)`
   flex: 1;
   width: 100%;
@@ -66,7 +64,6 @@ export const SectionHeaderIconContainer = styled(Box)(({ theme }) => {
     }
   `
 })
-
 
 export const SectionHeaderText = styled(Box)`
   flex-grow: 1;

@@ -46,7 +46,7 @@ export const Routes = createBrowserRouter([
           </Suspense>
         ),
       },
-    ]
+    ],
   },
   {
     id: ERoutePath.Login,

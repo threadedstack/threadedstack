@@ -5,7 +5,10 @@ import { cls } from '@keg-hub/jsutils/cls'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
 import Checkbox from '@mui/material/Checkbox/Checkbox'
 import { OptionDesc, OptionLabel } from '@TSC/components/Inputs/Inputs.styles'
-import { SelectItemStack, SelectItemText } from '@TSC/components/Inputs/SelectInput.styles'
+import {
+  SelectItemStack,
+  SelectItemText,
+} from '@TSC/components/Inputs/SelectInput.styles'
 
 export type TSelectInputValue = {
   className?: string

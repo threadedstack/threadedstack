@@ -4,21 +4,17 @@ import { GitlabIcon } from '@tdsk/components'
 import { GlLoginButton } from '@TAF/components/Login/Login.styles'
 
 export type TGithubButton = {
-  loading?:boolean
-  disabled?:boolean
-  onLogin:TOnLogin
+  loading?: boolean
+  disabled?: boolean
+  onLogin: TOnLogin
 }
 
-const creds:TLoginData = {
-  provider: `gitlab`
+const creds: TLoginData = {
+  provider: `gitlab`,
 }
 
-export const GlButton = (props:TGithubButton) => {
-  const {
-    onLogin,
-    loading,
-    disabled,
-  } = props
+export const GlButton = (props: TGithubButton) => {
+  const { onLogin, loading, disabled } = props
 
   return (
     <GlLoginButton

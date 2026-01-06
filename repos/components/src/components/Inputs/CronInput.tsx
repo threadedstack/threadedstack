@@ -2,12 +2,11 @@ import type { TTextInput } from '@TSC/components/Inputs/TextInput'
 import type { TSelectInput } from '@TSC/components/Inputs/SelectInput'
 import type { TButtonGroup, TGroupButton } from '@TSC/components/Buttons/ButtonGroup'
 
-
 import { cronToString } from '@TSC/utils/cron'
 import { EChangeType, ERepeatType } from '@TSC/types'
 import { useCron } from '@TSC/hooks/components/useCron'
 import { TextInput } from '@TSC/components/Inputs/TextInput'
-import { DaysOfWeek, RepeatOpts } from "@TSC/constants/elements"
+import { DaysOfWeek, RepeatOpts } from '@TSC/constants/elements'
 import { SelectInput } from '@TSC/components/Inputs/SelectInput'
 
 import {
@@ -17,33 +16,31 @@ import {
   DayButtonGroup,
 } from '@TSC/components/Inputs/CronInput.styles'
 
-
 export type TCronChange = {
-  time:string
-  end?:string
-  start:string
-  value:string
-  days:string[]
-  interval:number
-  repeat:ERepeatType
+  time: string
+  end?: string
+  start: string
+  value: string
+  days: string[]
+  interval: number
+  repeat: ERepeatType
 }
 
 export type TCronInput = {
   value: string
-  disabled?:boolean
-  showCron?:boolean
-  endProps?:Partial<TTextInput>
-  timeProps?:Partial<TTextInput>
-  startProps?:Partial<TTextInput>
-  dayProps?:Partial<TGroupButton>
-  daysProps?:Partial<TButtonGroup>
-  intervalProps?:Partial<TTextInput>
-  repeatProps?:Partial<TSelectInput>
-  onChange?:(e:any, change:TCronChange) => any
+  disabled?: boolean
+  showCron?: boolean
+  endProps?: Partial<TTextInput>
+  timeProps?: Partial<TTextInput>
+  startProps?: Partial<TTextInput>
+  dayProps?: Partial<TGroupButton>
+  daysProps?: Partial<TButtonGroup>
+  intervalProps?: Partial<TTextInput>
+  repeatProps?: Partial<TSelectInput>
+  onChange?: (e: any, change: TCronChange) => any
 }
 
-export const CronInput = (props:TCronInput) => {
-
+export const CronInput = (props: TCronInput) => {
   const {
     disabled,
     showCron,
@@ -56,24 +53,16 @@ export const CronInput = (props:TCronInput) => {
     intervalProps,
   } = props
 
-  const {
-    days,
-    time,
-    repeat,
-    endDate,
-    interval,
-    startDate,
-    onChangeVal,
-  } = useCron(props)
+  const { days, time, repeat, endDate, interval, startDate, onChangeVal } = useCron(props)
 
   return (
     <CronContainer>
-      <CronInputsRow className='cron-inputs-interval' >
+      <CronInputsRow className='cron-inputs-interval'>
         <TextInput
           required
           id='interval'
           label='Every'
-          type="number"
+          type='number'
           disabled={disabled}
           value={interval as any}
           {...intervalProps}
@@ -89,15 +78,14 @@ export const CronInput = (props:TCronInput) => {
           {...repeatProps}
           onChange={(e) => onChangeVal(e, e.target.value as string, EChangeType.repeat)}
         />
-
       </CronInputsRow>
 
-      {repeat === "weekly" && (
-        <CronInputsRow className='cron-inputs-days' >
+      {repeat === 'weekly' && (
+        <CronInputsRow className='cron-inputs-days'>
           <DayButtonGroup
             value={days}
             {...daysProps}
-            onChange={(e:any, days:string[]) => onChangeVal(e, days, EChangeType.days)}
+            onChange={(e: any, days: string[]) => onChangeVal(e, days, EChangeType.days)}
           >
             {DaysOfWeek.map((day) => (
               <DayButton
@@ -112,13 +100,13 @@ export const CronInput = (props:TCronInput) => {
           </DayButtonGroup>
         </CronInputsRow>
       )}
-      
-      <CronInputsRow className='cron-inputs-timing' >
+
+      <CronInputsRow className='cron-inputs-timing'>
         <TextInput
           required
           id='time'
-          type="time"
-          label="Time"
+          type='time'
+          label='Time'
           value={time}
           disabled={disabled}
           {...timeProps}
@@ -127,35 +115,35 @@ export const CronInput = (props:TCronInput) => {
 
         <TextInput
           required
-          type="date"
+          type='date'
           id='start-date'
           value={startDate}
-          label="Start Date"
+          label='Start Date'
           disabled={disabled}
           {...startProps}
           onChange={(e) => onChangeVal(e, e.target.value, EChangeType.start)}
         />
 
         <TextInput
-          type="date"
+          type='date'
           id='end-date'
           value={endDate}
-          label="End Date"
+          label='End Date'
           disabled={disabled}
           {...endProps}
           onChange={(e) => onChangeVal(e, e.target.value, EChangeType.end)}
         />
-
       </CronInputsRow>
 
-      {showCron && (
+      {(showCron && (
         <TextInput
           disabled
           id='cron-expression'
-          label="Cron Expression"
-          value={cronToString({days, time, repeat, interval})}
+          label='Cron Expression'
+          value={cronToString({ days, time, repeat, interval })}
         />
-      ) || null}
+      )) ||
+        null}
     </CronContainer>
   )
 }

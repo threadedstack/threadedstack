@@ -6,14 +6,13 @@ const homeDir = homedir()
 const aliases = hq.get(`webpack`)
 const appRoot = aliases[`@ROOT`]
 
-
 /**
  * Converts the local part of a volume string to an absolute path when needed
  * @param {string} vol - The volume string to check
  *
  * @returns {string} - Updated volume string
  */
-export const resolveLocalPath = (location:string) => {
+export const resolveLocalPath = (location: string) => {
   return location.startsWith(`~`)
     ? path.resolve(path.join(homeDir, location.replace(`~`, '')))
     : location === `.`

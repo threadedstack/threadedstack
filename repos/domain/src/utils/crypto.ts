@@ -2,13 +2,11 @@ import crypto from 'crypto'
 import { Buffer } from 'buffer'
 import { isStr } from '@keg-hub/jsutils/isStr'
 
-
-let MASTER_KEY:Buffer
+let MASTER_KEY: Buffer
 const IV_LENGTH = 12
 const DERIVED_KEY_LENGTH = 32
 const ALGORITHM = `aes-256-gcm`
 const KEY_DERIVATION_INFO = Buffer.from(`user-secret-key`, `utf-8`)
-
 
 export type TEncryptVal = {
   iv: Buffer
@@ -17,17 +15,18 @@ export type TEncryptVal = {
 }
 
 const getMasterKey = () => {
-  if(MASTER_KEY) return
+  if (MASTER_KEY) return
 
   const envMasterKey = process.env.TDSK_MASTER_KEY
   if (!envMasterKey) throw new Error(`Required ENV 'TDSK_MASTER_KEY' is missing.`)
 
   try {
     MASTER_KEY = Buffer.from(envMasterKey, `hex`)
-  }
-  catch (e) {
+  } catch (e) {
     console.error(`Failed to create Buffer from TDSK_MASTER_KEY (is it valid hex?):`, e)
-    throw new Error(`Invalid format for TDSK_MASTER_KEY environment variable (must be hex).`)
+    throw new Error(
+      `Invalid format for TDSK_MASTER_KEY environment variable (must be hex).`
+    )
   }
 }
 
@@ -38,7 +37,6 @@ const getMasterKey = () => {
  * @throws Error if ref_id is invalid. Rejects promise if HKDF fails.
  */
 export const deriveKey = (ref_id: string): Promise<Buffer<ArrayBufferLike>> => {
-
   if (!isStr(ref_id) || ref_id.length === 0)
     return Promise.reject(new Error(`Invalid ref_id provided for key derivation.`))
 
@@ -51,11 +49,10 @@ export const deriveKey = (ref_id: string): Promise<Buffer<ArrayBufferLike>> => {
       ref_id,
       KEY_DERIVATION_INFO,
       DERIVED_KEY_LENGTH,
-      (err, key) => err ? reject(err) : resolve(Buffer.from(key))
+      (err, key) => (err ? reject(err) : resolve(Buffer.from(key)))
     )
   })
 }
-
 
 /**
  * Encrypts a plaintext string using AES-256-GCM.
@@ -69,8 +66,8 @@ export const encryptValue = async (
   derivedKey: Buffer,
   plaintextValue: string
 ): Promise<TEncryptVal> => {
-  
-  if (!Buffer.isBuffer(derivedKey)) throw new Error(`Derived key must be a Node.js Buffer.`)
+  if (!Buffer.isBuffer(derivedKey))
+    throw new Error(`Derived key must be a Node.js Buffer.`)
 
   if (derivedKey.length !== DERIVED_KEY_LENGTH)
     throw new Error(`Invalid derived key length: expected ${DERIVED_KEY_LENGTH} bytes.`)
@@ -90,7 +87,6 @@ export const encryptValue = async (
   return { iv, encrypted, authTag }
 }
 
-
 /**
  * Decrypts data encrypted with `encryptValue` using AES-256-GCM.
  * Automatically verifies the GCM authentication tag appended to the encrypted data.
@@ -102,12 +98,11 @@ export const encryptValue = async (
  * @throws Error if decryption fails (e.g., wrong key, tampered data, invalid IV/Buffer types, auth tag mismatch).
  */
 export const decryptValue = async (
-  derivedKey:Buffer,
-  ciphertext:Buffer,
-  iv:Buffer,
-  authTag:Buffer
+  derivedKey: Buffer,
+  ciphertext: Buffer,
+  iv: Buffer,
+  authTag: Buffer
 ): Promise<string> => {
-
   if (!Buffer.isBuffer(derivedKey))
     throw new Error(`Derived key must be a Node.js Buffer.`)
 
@@ -118,13 +113,14 @@ export const decryptValue = async (
     throw new Error(`Ciphertext must be a Node.js Buffer.`)
 
   if (!Buffer.isBuffer(iv)) throw new Error(`IV must be a Node.js Buffer.`)
-  if (iv.length !== IV_LENGTH) throw new Error(`Invalid IV length: expected ${IV_LENGTH} bytes.`)
+  if (iv.length !== IV_LENGTH)
+    throw new Error(`Invalid IV length: expected ${IV_LENGTH} bytes.`)
 
   if (!Buffer.isBuffer(authTag)) throw new Error(`Auth tag must be a Node.js Buffer.`)
   // Node.js crypto GCM auth tags are 16 bytes by default
-  if (authTag.length !== 16) throw new Error(`Invalid auth tag length. Expected 16 bytes. Got ${authTag.length}.`)
+  if (authTag.length !== 16)
+    throw new Error(`Invalid auth tag length. Expected 16 bytes. Got ${authTag.length}.`)
 
-  
   const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
   decipher.setAuthTag(authTag)
   let decrypted = decipher.update(ciphertext)
@@ -134,16 +130,16 @@ export const decryptValue = async (
   return decrypted.toString(`utf8`)
 }
 
-
 export const bufferToBytea = (buffer: Buffer): string => {
   if (!Buffer.isBuffer(buffer)) throw new Error(`Input must be a Node.js Buffer.`)
   return `\\x${buffer.toString(`hex`)}`
 }
 
-
 export const byteaToBuffer = (byteaString: string): Buffer => {
   if (!isStr(byteaString) || !byteaString.startsWith(`\\x`))
-    throw new Error(`Invalid format received, Expected string with '\\x'. Got: "${byteaString}"`)
+    throw new Error(
+      `Invalid format received, Expected string with '\\x'. Got: "${byteaString}"`
+    )
 
   return Buffer.from(byteaString.substring(2), `hex`)
 }

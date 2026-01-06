@@ -1,8 +1,10 @@
-import React from 'react'
+import type React from 'react'
 
 import { forwardRef } from 'react'
-import { Link as MLink, LinkProps as MLinkProps } from '@mui/material'
-import { Link as RRLink, LinkProps as RRLinkProps } from 'react-router'
+import type { LinkProps as MLinkProps } from '@mui/material'
+import { Link as MLink, } from '@mui/material'
+import type { LinkProps as RRLinkProps } from 'react-router'
+import { Link as RRLink, } from 'react-router'
 type LinkProps = {
   children: React.ReactNode
 } & RRLinkProps &

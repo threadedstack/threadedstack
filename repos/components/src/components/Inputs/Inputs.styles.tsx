@@ -1,7 +1,6 @@
 import type { TextareaAutosizeProps } from '@mui/material/TextareaAutosize'
 import type { InputLabelProps } from '@mui/material/InputLabel'
 
-
 import Box from '@mui/material/Box'
 import { dims } from '@TSC/theme/dims'
 import Stack from '@mui/material/Stack'
@@ -104,7 +103,6 @@ export const TextareaContainer = styled(Box)(({ theme }) => {
 })
 
 export const InputText = styled(TextField)(({ theme }) => {
-
   return `
     background: ${theme.palette.background.input};
     color: ${theme.palette.colors.primaryForeground};

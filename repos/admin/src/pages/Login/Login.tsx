@@ -8,12 +8,11 @@ import { signin } from '@TAF/actions/auth/local/signin'
 
 export type TLogin = {}
 
-export const LoginPage = (props:TLogin) => {
-
+export const LoginPage = (props: TLogin) => {
   const [error, setError] = useState<string>()
   const [authenticating, setAuthenticating] = useState<string>()
 
-  const onLogin:TOnLogin = async (data) => {
+  const onLogin: TOnLogin = async (data) => {
     setAuthenticating(data.provider)
     const resp = await signin(data.provider)
     resp.error && setError(resp.error.message)
@@ -28,7 +27,6 @@ export const LoginPage = (props:TLogin) => {
       authenticating={authenticating}
     />
   )
-
 }
 
 export default LoginPage

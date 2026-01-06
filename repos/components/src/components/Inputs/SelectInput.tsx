@@ -28,7 +28,7 @@ export type TSelectInput = IInput &
     renderLabel?: () => string
     itemMap?: Record<string, any>
     selected?: Array<string | number | boolean>
-    onChange:(e: SelectChangeEvent) => void
+    onChange: (e: SelectChangeEvent) => void
     onItemMouseEnter?: (e: MouseEvent<HTMLLIElement>, itemName: string) => void
     onItemMouseLeave?: (e: MouseEvent<HTMLLIElement>) => void
   }
@@ -230,7 +230,9 @@ export const SelectInput = (props: TSelectInput): JSX.Element => {
             fontSize='16px'
             sx={{
               right: `${gutter.tpx} !important`,
-              color: !disabled ? `${theme.palette.colors.primaryForeground} !important` : '',
+              color: !disabled
+                ? `${theme.palette.colors.primaryForeground} !important`
+                : '',
               ...iconSx,
             }}
           />

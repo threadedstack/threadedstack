@@ -15,22 +15,15 @@ import { taskError } from '@TSCL/utils/tasks/error'
  *
  * @returns {void}
  */
-const databaseAct = async (props:TTaskActionArgs) => {
+const databaseAct = async (props: TTaskActionArgs) => {
   const { params, tasks, config } = props
   const secretTask = tasks?.kube?.tasks?.secret
   !secretTask &&
-    taskError(`The "kube.tasks.secret" task can not be found. Ensure it exists before running this command`)
+    taskError(
+      `The "kube.tasks.secret" task can not be found. Ensure it exists before running this command`
+    )
 
-  const {
-    url,
-    name,
-    key,
-    jwt,
-    role,
-    type,
-    ...secParams
-  } = params
-  
+  const { url, name, key, jwt, role, type, ...secParams } = params
 
   const cfg = {
     url: url || config.envs.TDSK_DB_URL,
@@ -41,8 +34,8 @@ const databaseAct = async (props:TTaskActionArgs) => {
     role: role || config.envs.TDSK_DB_SRV_ROLE,
   }
 
-  ;(!cfg.url || !cfg.name || !cfg.key || !cfg.jwt || !cfg.role)
-    && taskError(`The path to a firebase service-account JSON file is required`)
+  ;(!cfg.url || !cfg.name || !cfg.key || !cfg.jwt || !cfg.role) &&
+    taskError(`The path to a firebase service-account JSON file is required`)
 
   params.log && Logger.pair(`Found valid database config values`)
 
@@ -53,12 +46,12 @@ const databaseAct = async (props:TTaskActionArgs) => {
       name: config.envs.TDSK_KUBE_SCRT_DB_CFG || `tdsk-db-cfg`,
       secrets: Object.entries(cfg)
         .map(([key, value]) => `${key}:${value}`)
-        .join(`,`)
-    }
+        .join(`,`),
+    },
   })
 }
 
-export const database:TTask = {
+export const database: TTask = {
   name: `database`,
   alias: [`db`],
   action: databaseAct,

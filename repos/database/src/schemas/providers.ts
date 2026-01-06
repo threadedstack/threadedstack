@@ -2,12 +2,7 @@ import { relations } from 'drizzle-orm'
 import { teams } from '@TDB/schemas/teams'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
-import {
-  uuid,
-  jsonb,
-  pgEnum,
-  pgTable,
-} from 'drizzle-orm/pg-core'
+import { uuid, jsonb, pgEnum, pgTable } from 'drizzle-orm/pg-core'
 
 export const providerTypeEnum = pgEnum(`provider_type`, [`auth`, `git`, `ai`, `storage`])
 

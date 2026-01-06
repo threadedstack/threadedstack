@@ -2,18 +2,16 @@ import type { TTask, TTaskAction } from '@TSCL/types'
 import { getCtx } from '@TSCL/utils/config/getCtx'
 import { taskError } from '@TSCL/utils/tasks/error'
 
-
-const action:TTaskAction = async (args) => {
+const action: TTaskAction = async (args) => {
   const { params } = args
   console.log(`TODO - Not implemented`)
 }
 
-export const namespace:TTask = {
+export const namespace: TTask = {
   name: `namespace`,
-  alias: [ `nsp`, `ns`],
+  alias: [`nsp`, `ns`],
   action: action,
   example: `pnpm tdsk kube namespace <options>`,
   description: `Sets the active kubernetes namespace`,
-  options: {
-  },
+  options: {},
 }

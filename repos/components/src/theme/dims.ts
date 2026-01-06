@@ -18,7 +18,6 @@ const subHeaderH = 40
 const modalTabsH = 45
 const editorHeaderH = 35
 
-
 export const dims = {
   page: {
     top: 40,
@@ -72,7 +71,7 @@ export const dims = {
     footer: {
       height: sectionFooterH,
       hpx: `${sectionFooterH}px`,
-    }
+    },
   },
   sidebar: {
     width: `${sidebarW}px`,
@@ -104,8 +103,8 @@ export const dims = {
     },
     alt: {
       height: altInputH,
-      hpx: `${altInputH}px`
-    }
+      hpx: `${altInputH}px`,
+    },
   },
   tabs: {
     height: tabsHeight,

@@ -6,8 +6,8 @@ export type TCtxCfgs = TCliCfg[`contexts`]
 export type TCtxCfg = TValueOf<TCtxCfgs>
 
 export enum ECtxMap {
-  api=`api`,
-  web=`web`,
-  px=`proxy`,
-  proxy=`proxy`,
+  api = `api`,
+  web = `web`,
+  px = `proxy`,
+  proxy = `proxy`,
 }

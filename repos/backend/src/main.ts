@@ -10,7 +10,6 @@ import { setupEndpoints } from '@TBE/middleware/setupEndpoints'
 import { setupErrorHandler } from '@TBE/middleware/setupErrorHandler'
 
 export const main = (config: TABConfig) => {
-
   app.locals.config = config
   setupLoggerReq(app)
   setupServer(app, router)

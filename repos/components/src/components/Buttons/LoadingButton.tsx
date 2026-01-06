@@ -45,29 +45,24 @@ const LoadingButton = TooltipHoc<TLoadingButton, HTMLButtonElement>(
         ref={ref}
         onClick={(evt) => !loading && onClick(evt)}
         startIcon={
-          (loading
-            ? (
-                LoadingIcon
-                  ? (
-                      <RenderIcon
-                        {...iconProps}
-                        Icon={LoadingIcon}
-                      />
-                    ) 
-                  : (
-                    <CircularProgress
-                      size={loadingSize}
-                      {...iconProps}
-                      sx={[inherit, iconProps?.sx]}
-                    />
-                  )
-              )
-            : (
+          loading ? (
+            LoadingIcon ? (
               <RenderIcon
-                Icon={StartIcon}
-                {...startIconProps}
+                {...iconProps}
+                Icon={LoadingIcon}
+              />
+            ) : (
+              <CircularProgress
+                size={loadingSize}
+                {...iconProps}
+                sx={[inherit, iconProps?.sx]}
               />
             )
+          ) : (
+            <RenderIcon
+              Icon={StartIcon}
+              {...startIconProps}
+            />
           )
         }
         endIcon={

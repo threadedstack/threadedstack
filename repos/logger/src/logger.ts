@@ -1,13 +1,12 @@
 import { colors } from './utils/colors'
 
-
 /**
  * State of the log tag
  * Disables logging the tag, even when it's set
  * @private
  * @type {Boolean}
  */
-let TAG_DISABLED:boolean = false
+let TAG_DISABLED: boolean = false
 
 /**
  * General logging method for all log types
@@ -18,8 +17,8 @@ let TAG_DISABLED:boolean = false
  *
  * @returns {Void}
  */
-const logData = (logger:Log, type:string) => {
-  return (...args:any[]) => {
+const logData = (logger: Log, type: string) => {
+  return (...args: any[]) => {
     // Get the log color from the type, or use the default
     const logColor = logger.colorMap[type] || logger.colorMap[logger.default]
 
@@ -27,7 +26,7 @@ const logData = (logger:Log, type:string) => {
     const logMethod = (console[type as keyof typeof console] && type) || logger.default
 
     // Loop the passed in data to log, and apply the log color
-    const toLog = args.map(data => {
+    const toLog = args.map((data) => {
       return typeof data === `object` || Array.isArray(data)
         ? colors[logColor](JSON.stringify(data, null, 2))
         : typeof data.toString === `function`
@@ -35,7 +34,7 @@ const logData = (logger:Log, type:string) => {
           : colors[logColor](data)
     })
 
-    if(!TAG_DISABLED && logger.tag){
+    if (!TAG_DISABLED && logger.tag) {
       logMethod === 'dir' || logMethod === 'table'
         ? logger.stdout(`${logger.tag} `)
         : toLog.unshift(logger.tag)
@@ -45,40 +44,37 @@ const logData = (logger:Log, type:string) => {
   }
 }
 
-
-type TLogFun = (...args:any[]) => void
+type TLogFun = (...args: any[]) => void
 type TLog = {
-  default?:string
+  default?: string
 }
-
 
 /**
  * Class with helper methods to log data to the terminal or console
  */
 export class Log {
-
-  log:TLogFun
-  warn:TLogFun
-  default:string
-  colors:typeof colors
-  tag:string|boolean = false
-  colorMap:Record<string, string>
+  log: TLogFun
+  warn: TLogFun
+  default: string
+  colors: typeof colors
+  tag: string | boolean = false
+  colorMap: Record<string, string>
   error: TLogFun
-  data:TLogFun
-  dir:TLogFun
-  fail:TLogFun
-  info:TLogFun
-  success:TLogFun
-  text:TLogFun
-  green:TLogFun
-  red:TLogFun
-  yellow:TLogFun
-  cyan:TLogFun
-  magenta:TLogFun
-  blue:TLogFun
-  gray:TLogFun
+  data: TLogFun
+  dir: TLogFun
+  fail: TLogFun
+  info: TLogFun
+  success: TLogFun
+  text: TLogFun
+  green: TLogFun
+  red: TLogFun
+  yellow: TLogFun
+  cyan: TLogFun
+  magenta: TLogFun
+  blue: TLogFun
+  gray: TLogFun
 
-  constructor(props:TLog={}) {
+  constructor(props: TLog = {}) {
     this.colorMap = {
       data: `white`,
       dir: `white`,
@@ -101,7 +97,7 @@ export class Log {
     this.default = props?.default || `log`
 
     // Loop the colorMap and build the log method for it
-    Object.keys(this.colorMap).map(key => (this[key] = logData(this, key)))
+    Object.keys(this.colorMap).map((key) => (this[key] = logData(this, key)))
 
     // Add the colors module for easy access
     this.colors = colors
@@ -112,12 +108,10 @@ export class Log {
    * Set a tag value for all logged messages
    * @memberof Log
    */
-  setTag = (tag:string, color:string) => {
-    if(!tag) return this.warn(`Tag must be of type string`, tag)
+  setTag = (tag: string, color: string) => {
+    if (!tag) return this.warn(`Tag must be of type string`, tag)
 
-    this.tag = color
-      ? colors[this.colorMap[color] || color](tag)
-      : tag
+    this.tag = color ? colors[this.colorMap[color] || color](tag) : tag
   }
 
   /**
@@ -139,7 +133,7 @@ export class Log {
    *
    */
   toggleTag = () => {
-    if(!TAG_DISABLED) TAG_DISABLED = true
+    if (!TAG_DISABLED) TAG_DISABLED = true
     else TAG_DISABLED = false
   }
 
@@ -150,7 +144,7 @@ export class Log {
    * @function
    *
    */
-  color = (colorName:string, data:any) =>
+  color = (colorName: string, data: any) =>
     colors[this.colorMap[colorName] || colorName](data)
 
   /**
@@ -158,10 +152,8 @@ export class Log {
    * <br/>Similar to calling `console.log(...data)`
    * @instance
    */
-  print = (...data:any[]) => {
-    !TAG_DISABLED &&
-      this.tag &&
-      data.unshift(this.tag)
+  print = (...data: any[]) => {
+    !TAG_DISABLED && this.tag && data.unshift(this.tag)
     console.log(...data)
   }
 
@@ -173,9 +165,8 @@ export class Log {
    *
    * @returns {void}
    */
-  setColors = (colorMap:Record<string, string>) => {
-    typeof colorMap === `object`
-      && (this.colorMap = { ...this.colorMap, ...colorMap })
+  setColors = (colorMap: Record<string, string>) => {
+    typeof colorMap === `object` && (this.colorMap = { ...this.colorMap, ...colorMap })
   }
 
   /**
@@ -194,10 +185,8 @@ export class Log {
    * @see docs about params here: https://developer.mozilla.org/en-US/docs/Web/API/Console/table
    * @returns {void}
    */
-  table = (...args:any[]) => {
-    !TAG_DISABLED &&
-      this.tag &&
-      args.unshift(this.tag)
+  table = (...args: any[]) => {
+    !TAG_DISABLED && this.tag && args.unshift(this.tag)
 
     console.table(...args)
   }
@@ -213,7 +202,7 @@ export class Log {
    *
    * @returns {void}
    */
-  header = (title:string, color?:string) => {
+  header = (title: string, color?: string) => {
     const tagState = TAG_DISABLED
     TAG_DISABLED = true
 
@@ -240,10 +229,10 @@ export class Log {
    * @function
    *
    */
-  subHeader = (title:string, color?:string) => {
+  subHeader = (title: string, color?: string) => {
     const tagState = TAG_DISABLED
     TAG_DISABLED = true
-    
+
     const middle = `          ${title}       `
 
     const line = middle.split('').reduce((line, item, index) => (line += ' '))
@@ -264,7 +253,7 @@ export class Log {
    * @memberof Log
    * @function
    */
-  pair = (title?:string, message?:string) => {
+  pair = (title?: string, message?: string) => {
     const toLog = []
     // Check that the title and message exist, then add to the toLog array
     title && toLog.push(Logger.colors.brightCyan(title))
@@ -279,7 +268,7 @@ export class Log {
    * @memberof Log
    * @function
    */
-  label = (title?:string, message?:string) => this.pair(title, message)
+  label = (title?: string, message?: string) => this.pair(title, message)
 
   /**
    * Helper to log a spaced title and message in separate colors
@@ -287,7 +276,7 @@ export class Log {
    * @memberof Log
    * @function
    */
-  spacedMsg = (title?:string, message?:string) => {
+  spacedMsg = (title?: string, message?: string) => {
     this.empty()
     this.pair(title, message)
     this.empty()
@@ -299,7 +288,7 @@ export class Log {
    * @memberof Log
    * @function
    */
-  spaceMsg = (title?:string, message?:string) => this.spacedMsg(title, message)
+  spaceMsg = (title?: string, message?: string) => this.spacedMsg(title, message)
 
   /**
    * Writes passed in arguments to the process stdout
@@ -307,7 +296,7 @@ export class Log {
    * @memberof Log
    * @function
    */
-  stdout = (...args:any[]) => process.stdout.write(args.join(``))
+  stdout = (...args: any[]) => process.stdout.write(args.join(``))
 
   /**
    * Writes to the process stderr
@@ -315,7 +304,7 @@ export class Log {
    * @memberof Log
    * @function
    */
-  stderr = (...args:any[]) => process.stderr.write(args.join(``))
+  stderr = (...args: any[]) => process.stderr.write(args.join(``))
 
   /**
    * Clears the terminal, does not allow scrolling back
@@ -334,7 +323,7 @@ export class Log {
    * @memberof Log
    * @function
    */
-  highlight = (start:string='', highlight:string='', end:string='') => {
+  highlight = (start: string = '', highlight: string = '', end: string = '') => {
     this.log(`${start}`, Logger.colors.cyan(highlight), end)
   }
 }
@@ -343,5 +332,3 @@ export class Log {
  * Create a Log instance, so we have a singleton through out the application
  */
 export const Logger = new Log()
-
-

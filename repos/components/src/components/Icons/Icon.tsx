@@ -6,17 +6,17 @@ import SvgIcon from '@mui/material/SvgIcon'
 import { forwardRef, useMemo } from 'react'
 
 export type TIconProps = {
-  id?:string
+  id?: string
   d?: string
   Icon?: any
-  role?:string
+  role?: string
   fill?: string
   title?: string
   delta?: string
   color?: string
   stroke?: string
   viewBox?: string
-  tabIndex?:number
+  tabIndex?: number
   definition?: string
   className?: string
   RootEl?: ElementType
@@ -56,13 +56,11 @@ export const Icon = forwardRef((props: TIconProps, ref) => {
     ...rootProps
   } = props
 
-  const joinedSx = useJoinSx(
-    sx as CSSProperties,
-    svgStyle,
-    styles,
-    style,
-    { height, width, color }
-  )
+  const joinedSx = useJoinSx(sx as CSSProperties, svgStyle, styles, style, {
+    height,
+    width,
+    color,
+  })
 
   const withViewBox = useMemo(() => {
     return exists(inheritViewBox) ? inheritViewBox : !viewBox

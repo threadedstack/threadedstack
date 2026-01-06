@@ -1,4 +1,4 @@
-import type {  TSelectItem } from '@TSC/types'
+import type { TSelectItem } from '@TSC/types'
 import type { TSelectInput } from './SelectInput'
 
 import { useIsDarkMode } from '@TSC/hooks/theme/useIsDarkMode'

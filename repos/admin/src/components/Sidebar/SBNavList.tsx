@@ -7,21 +7,19 @@ import { Link } from '@TAF/components/Link/Link'
 import { useNavigate, useLocation } from 'react-router'
 import { NavItem, NavList } from '@TAF/components/Sidebar/Sidebar.styles'
 
-
 export type TSBNavList = {
-  open?:boolean
-  items:TNavItem[]
-  sx?:CSSProperties
-  className?:string
+  open?: boolean
+  items: TNavItem[]
+  sx?: CSSProperties
+  className?: string
 }
 
 export type TSBNavItem = {
-  open?:boolean
-  item:TNavItem
+  open?: boolean
+  item: TNavItem
 }
 
-export const SBNavItem = (props:TNavItem & { open?:boolean }) => {
-
+export const SBNavItem = (props: TNavItem & { open?: boolean }) => {
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -33,9 +31,12 @@ export const SBNavItem = (props:TNavItem & { open?:boolean }) => {
       Icon={props.Icon}
       text={props.text}
       items={props.items}
-      tooltip={!props.open ? { title: props.text, loc: `left` }: undefined}
-      className={cls(props.open && `open`, location.pathname.startsWith(props.to) && `active`)}
-      onClick={(evt:any) => {
+      tooltip={!props.open ? { title: props.text, loc: `left` } : undefined}
+      className={cls(
+        props.open && `open`,
+        location.pathname.startsWith(props.to) && `active`
+      )}
+      onClick={(evt: any) => {
         stopEvent(evt)
         navigate(props.to)
       }}
@@ -43,13 +44,8 @@ export const SBNavItem = (props:TNavItem & { open?:boolean }) => {
   )
 }
 
-export const SBNavList = (props:TSBNavList) => {
-  const {
-    sx,
-    open,
-    items,
-    className,
-  } = props
+export const SBNavList = (props: TSBNavList) => {
+  const { sx, open, items, className } = props
 
   return (
     <NavList
@@ -60,5 +56,4 @@ export const SBNavList = (props:TSBNavList) => {
       className={cls(className, open && `open`)}
     />
   )
-  
 }

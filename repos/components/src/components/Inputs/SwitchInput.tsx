@@ -6,7 +6,6 @@ import styled from '@mui/material/styles/styled'
 import { InputStateHandler } from './InputStateHandler'
 import MSwitch, { SwitchProps as MSwitchProps } from '@mui/material/Switch'
 
-
 type SwitchInputProps = IInput &
   MSwitchProps & {
     checked: boolean
@@ -70,7 +69,7 @@ const SwitchInput = (props: SwitchInputProps): JSX.Element => {
           hidden && `hidden`,
           hasError && `error`,
           disabled && `disabled`,
-          required && `required`,
+          required && `required`
         )}
       />
     </InputStateHandler>

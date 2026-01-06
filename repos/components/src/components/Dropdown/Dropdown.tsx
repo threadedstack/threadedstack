@@ -1,13 +1,8 @@
 import type { AccordionProps } from '@mui/material'
 import type { CSSProperties, ReactNode, ComponentType } from 'react'
-import type { TIconDirection  } from '@TSC/components/Icons/ExpandIcon'
+import type { TIconDirection } from '@TSC/components/Icons/ExpandIcon'
 
-import {
-  useRef,
-  useState,
-  useEffect,
-  useCallback,
-} from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 
 import { useInline } from '@TSC/hooks'
 import { cls } from '@keg-hub/jsutils/cls'
@@ -24,35 +19,35 @@ const defTransProps = {
   unmountOnExit: false,
 }
 
-export type TDropdown = Omit<AccordionProps, `children`|`onChange`|`title`> & {
-  id:string
-  Body?:ReactNode
-  Header?:ReactNode
-  disabled?:boolean
-  noToggle?:boolean
-  expanded?:boolean
-  actions?:ReactNode
-  children?:ReactNode
-  headerClass?:string
-  headerText?:ReactNode
-  bodySx?:CSSProperties
-  transformIconOn?:number
-  showExpandIcon?:boolean
-  headerTextClass?:string
-  transformIconOff?:number
-  noIconTransform?:boolean
-  headerTextSx?:CSSProperties
-  headerContentSx?:CSSProperties
-  expandIconOpenDir?:TIconDirection
-  expandIconClosedDir?:TIconDirection
-  onChange?:(expanded: boolean) => void
-  headerSx?:CSSProperties|CSSProperties[]
-  ExpandIcon?:ComponentType<typeof ExpandIconComp>
-  expandIconSx?:CSSProperties|Record<string, string|number|boolean>
-  expandIconContainerSx?:CSSProperties|Record<string, string|number|boolean>
+export type TDropdown = Omit<AccordionProps, `children` | `onChange` | `title`> & {
+  id: string
+  Body?: ReactNode
+  Header?: ReactNode
+  disabled?: boolean
+  noToggle?: boolean
+  expanded?: boolean
+  actions?: ReactNode
+  children?: ReactNode
+  headerClass?: string
+  headerText?: ReactNode
+  bodySx?: CSSProperties
+  transformIconOn?: number
+  showExpandIcon?: boolean
+  headerTextClass?: string
+  transformIconOff?: number
+  noIconTransform?: boolean
+  headerTextSx?: CSSProperties
+  headerContentSx?: CSSProperties
+  expandIconOpenDir?: TIconDirection
+  expandIconClosedDir?: TIconDirection
+  onChange?: (expanded: boolean) => void
+  headerSx?: CSSProperties | CSSProperties[]
+  ExpandIcon?: ComponentType<typeof ExpandIconComp>
+  expandIconSx?: CSSProperties | Record<string, string | number | boolean>
+  expandIconContainerSx?: CSSProperties | Record<string, string | number | boolean>
 }
 
-export const Dropdown = (props:TDropdown) => {
+export const Dropdown = (props: TDropdown) => {
   const {
     id,
     bodySx,
@@ -65,21 +60,21 @@ export const Dropdown = (props:TDropdown) => {
     headerClass,
     headerTextSx,
     expandIconSx,
-    Body:BodyComp,
+    Body: BodyComp,
     showExpandIcon,
     headerContentSx,
     headerTextClass,
     transformIconOn,
     transformIconOff,
-    children=BodyComp,
-    Header:HeaderComp,
+    children = BodyComp,
+    Header: HeaderComp,
     expandIconOpenDir,
     expandIconClosedDir,
-    onChange:onChangeCB,
-    noIconTransform=true,
+    onChange: onChangeCB,
+    noIconTransform = true,
     expandIconContainerSx,
-    ExpandIcon=ExpandIconComp,
-    TransitionProps=defTransProps,
+    ExpandIcon = ExpandIconComp,
+    TransitionProps = defTransProps,
     ...rest
   } = props
 
@@ -88,26 +83,26 @@ export const Dropdown = (props:TDropdown) => {
   const outsideExpRef = useRef(expanded)
   const [localExpand, setLocalExpanded] = useState<boolean>(expanded || false)
 
-  const onChange = useCallback((_: any, newExpanded?: boolean) => {
-    if(disabled || noToggle) return
+  const onChange = useCallback(
+    (_: any, newExpanded?: boolean) => {
+      if (disabled || noToggle) return
 
-    const updated = exists<boolean>(newExpanded) ? newExpanded : !localExpand
+      const updated = exists<boolean>(newExpanded) ? newExpanded : !localExpand
 
-    updated !== localExpand && setLocalExpanded(updated)
-    updated !== expanded && inlineCB?.(updated)
-
-  }, [expanded, disabled, noToggle, localExpand])
+      updated !== localExpand && setLocalExpanded(updated)
+      updated !== expanded && inlineCB?.(updated)
+    },
+    [expanded, disabled, noToggle, localExpand]
+  )
 
   useEffect(() => {
-    const noExpand = !exists(expanded)
-      || outsideExpRef.current === expanded
-      || expanded === localExpand
+    const noExpand =
+      !exists(expanded) || outsideExpRef.current === expanded || expanded === localExpand
 
-    if(noExpand) return
+    if (noExpand) return
 
     outsideExpRef.current = expanded
     onChange(emptyObj, expanded)
-
   }, [expanded, localExpand])
 
   const noExpandIcon = !showExpandIcon || noToggle
@@ -125,14 +120,14 @@ export const Dropdown = (props:TDropdown) => {
         heading: {
           component: `div`,
           ...rest?.slotProps?.heading,
-        }
+        },
       }}
       {...rest}
       className={cls(
         `tdsk-dropdown`,
         localExpand && `expanded`,
         disabled && `disabled`,
-        rest.className,
+        rest.className
       )}
       TransitionProps={{
         unmountOnExit: false,
@@ -150,51 +145,55 @@ export const Dropdown = (props:TDropdown) => {
           `tdsk-dropdown-header`,
           noExpandIcon ? `tdsk-no-expand` : `tdsk-with-expand`
         )}
-        sx={[
+        sx={
+          [
             ...ensureArr(headerSx),
-          {
-            [`& .MuiAccordionSummary-content`]: headerContentSx,
-            [`& .MuiAccordionSummary-expandIconWrapper`]: expandIconContainerSx
-          }
-        ] as CSSProperties[]}
+            {
+              [`& .MuiAccordionSummary-content`]: headerContentSx,
+              [`& .MuiAccordionSummary-expandIconWrapper`]: expandIconContainerSx,
+            },
+          ] as CSSProperties[]
+        }
         expandIcon={
-          noExpandIcon
-            ? (<></>)
-            : (
-                // @ts-ignore
-                <ExpandIcon
-                  sx={expandIconSx}
-                  expand={localExpand}
-                  openDir={expandIconOpenDir}
-                  transformOn={transformIconOn}
-                  transformOff={transformIconOff}
-                  closedDir={expandIconClosedDir}
-                  noIconTransform={noIconTransform}
-                  className={cls(`tdsk-dropdown-expand-icon`, localExpand && `expanded`)}
-                />
-              )
+          noExpandIcon ? (
+            <></>
+          ) : (
+            // @ts-ignore
+            <ExpandIcon
+              sx={expandIconSx}
+              expand={localExpand}
+              openDir={expandIconOpenDir}
+              transformOn={transformIconOn}
+              transformOff={transformIconOff}
+              closedDir={expandIconClosedDir}
+              noIconTransform={noIconTransform}
+              className={cls(`tdsk-dropdown-expand-icon`, localExpand && `expanded`)}
+            />
+          )
         }
       >
-        { HeaderComp ?? (headerText && (
-          <HeaderText
-            sx={headerTextSx}
-            className={cls(`tdsk-dropdown-header-text`, headerTextClass)}
-          >
-            {headerText}
-          </HeaderText>
-        )) ?? null}
+        {HeaderComp ??
+          (headerText && (
+            <HeaderText
+              sx={headerTextSx}
+              className={cls(`tdsk-dropdown-header-text`, headerTextClass)}
+            >
+              {headerText}
+            </HeaderText>
+          )) ??
+          null}
 
         {actions}
-
       </Header>
-    {children && (
-      <Body
-        sx={bodySx}
-        className='tdsk-dropdown-body'
-      >
-        {children}
-      </Body>
-    ) || null}
+      {(children && (
+        <Body
+          sx={bodySx}
+          className='tdsk-dropdown-body'
+        >
+          {children}
+        </Body>
+      )) ||
+        null}
     </Container>
   )
 }

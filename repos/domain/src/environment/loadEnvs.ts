@@ -4,8 +4,8 @@ import { homedir } from 'os'
 import path from 'node:path'
 import { addToProcess } from './addToProcess'
 import { loadConfigs } from '@keg-hub/parse-config'
-import { emptyArr } from "@keg-hub/jsutils/emptyArr"
-import { omitKeys } from "@keg-hub/jsutils/omitKeys"
+import { emptyArr } from '@keg-hub/jsutils/emptyArr'
+import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 
 const aliases = hq.get(`webpack`)
 
@@ -13,45 +13,46 @@ const aliases = hq.get(`webpack`)
  * Cache holder for the loaded envs
  * @type {Object}
  */
-let __LOADED_ENVS__:Record<string, string>
+let __LOADED_ENVS__: Record<string, string>
 
 type TLoadEnvs = {
-  env?:string
-  name?:string
-  force?:boolean
-  ignore?:string[]
-  override?:boolean
-  locations?:string[]
-  [key:string]: any
+  env?: string
+  name?: string
+  force?: boolean
+  ignore?: string[]
+  override?: boolean
+  locations?: string[]
+  [key: string]: any
 }
 
-export const loadEnvs = (cfg:TLoadEnvs) => {
+export const loadEnvs = (cfg: TLoadEnvs) => {
   const {
     force,
     override,
-    name=`tdsk`,
-    ignore=emptyArr,
-    env=process.env.NODE_ENV || `local`,
-    locations=emptyArr,
+    name = `tdsk`,
+    ignore = emptyArr,
+    env = process.env.NODE_ENV || `local`,
+    locations = emptyArr,
     ...envOpts
   } = cfg
 
-
-  __LOADED_ENVS__ = (!force && __LOADED_ENVS__)
-    || loadConfigs({
-        env,
-        name,
-        locations: [
-          aliases[`@ROOT`],
-          path.join(aliases[`@ROOT`], `deploy`),
-          path.join(homedir(), `.config/tdsk`),
-          ...locations,
-        ],
-        ...envOpts,
-      })
+  __LOADED_ENVS__ =
+    (!force && __LOADED_ENVS__) ||
+    loadConfigs({
+      env,
+      name,
+      locations: [
+        aliases[`@ROOT`],
+        path.join(aliases[`@ROOT`], `deploy`),
+        path.join(homedir(), `.config/tdsk`),
+        ...locations,
+      ],
+      ...envOpts,
+    })
 
   // Ensure node ENV is set is it doesn't exist
-  if(!process.env.NODE_ENV) process.env.NODE_ENV = (__LOADED_ENVS__.NODE_ENV || env || `local`) as string
+  if (!process.env.NODE_ENV)
+    process.env.NODE_ENV = (__LOADED_ENVS__.NODE_ENV || env || `local`) as string
 
   // Use this as a temporary fix until cli-utils is updated
   const toAdd = ignore?.length ? omitKeys(__LOADED_ENVS__, ignore) : __LOADED_ENVS__
@@ -66,5 +67,4 @@ export const loadEnvs = (cfg:TLoadEnvs) => {
   })
 
   return __LOADED_ENVS__
-
 }

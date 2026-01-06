@@ -11,7 +11,7 @@ const Layout = (props: any) => {
   return (
     <>
       <SignedIn>
-        <LayoutContainer className='tdsk-layout-container' >
+        <LayoutContainer className='tdsk-layout-container'>
           <Toaster
             richColors
             closeButton

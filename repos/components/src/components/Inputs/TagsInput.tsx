@@ -73,9 +73,9 @@ const TagsInput = (props: TagsInputProps): JSX.Element => {
               hidden && `hidden`,
               hasError && `error`,
               disabled && `disabled`,
-              required && `required`,
+              required && `required`
             ),
-          }
+          },
         }}
       />
     </InputStateHandler>

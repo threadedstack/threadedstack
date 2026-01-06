@@ -35,9 +35,9 @@ export type TAccordion = {
   disableGutters?: boolean
   openBottomBorder?: boolean
   alwaysShowActions?: boolean
-  actions?:TAccordionAction[]
-  onChange?:(expanded: boolean) => void
-  iconProps?:ComponentProps<any>
+  actions?: TAccordionAction[]
+  onChange?: (expanded: boolean) => void
+  iconProps?: ComponentProps<any>
   Icon?: ComponentType<any> | ReactNode
 }
 
@@ -99,16 +99,14 @@ export const Accordion = (props: TAccordion) => {
                   <AccordionIconContainer
                     className={cls(`tdsk-accordion-${panel}-header-icon`, open && `open`)}
                   >
-                    {
-                      isValidFuncComp(Icon)
-                        ? (
-                            <Icon
-                              {...iconProps}
-                              sx={[inherit, iconProps?.sx]}
-                            />
-                          )
-                        : (Icon)
-                    }
+                    {isValidFuncComp(Icon) ? (
+                      <Icon
+                        {...iconProps}
+                        sx={[inherit, iconProps?.sx]}
+                      />
+                    ) : (
+                      Icon
+                    )}
                   </AccordionIconContainer>
                 )}
 
@@ -131,7 +129,8 @@ export const Accordion = (props: TAccordion) => {
                   actions={actions}
                   show={alwaysShowActions || open}
                 />
-              )) || null}
+              )) ||
+                null}
             </>
           )}
         </AccordionSummary>

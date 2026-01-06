@@ -5,16 +5,7 @@ export const ElRenderMap: Record<string, string> = {
   [`application/json`]: `code`,
 }
 
-
-export const DaysOfWeek: string[] = [
-  `Sun`,
-  `Mon`,
-  `Tue`,
-  `Wed`,
-  `Thu`,
-  `Fri`,
-  `Sat`
-]
+export const DaysOfWeek: string[] = [`Sun`, `Mon`, `Tue`, `Wed`, `Thu`, `Fri`, `Sat`]
 
 export const RepeatOpts = [
   { label: `Minute`, value: ERepeatType.minute },
@@ -24,5 +15,3 @@ export const RepeatOpts = [
   { label: `Monthly`, value: ERepeatType.monthly },
   { label: `Yearly`, value: ERepeatType.yearly },
 ]
-
-

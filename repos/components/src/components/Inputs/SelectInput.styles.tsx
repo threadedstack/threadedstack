@@ -6,7 +6,6 @@ import { styled } from '@mui/material/styles'
 import MMenuItem from '@mui/material/MenuItem'
 import Checkbox from '@mui/material/Checkbox/Checkbox'
 
-
 export const SelectItemInput = styled(MSelect)(({ theme }) => {
   return `
     background-color: ${theme.palette.background.input};

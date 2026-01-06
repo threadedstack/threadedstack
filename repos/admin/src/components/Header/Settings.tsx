@@ -15,10 +15,7 @@ import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
 import { Menu } from '@TAF/components/Header/Header.styled'
 
-
-import {
-  SettingsContainer
-} from './Settings.styled'
+import { SettingsContainer } from './Settings.styled'
 
 type TSettings = {
   anchorEl: null | HTMLElement
@@ -31,7 +28,7 @@ type TSettingItem = TSettingNavItem & {
   onClose?: TAnyCB
 }
 
-const SettingItem = (props:TSettingItem) => {
+const SettingItem = (props: TSettingItem) => {
   const {
     Icon,
     path,
@@ -42,24 +39,34 @@ const SettingItem = (props:TSettingItem) => {
     iconProps,
     itemProps,
     textProps,
-    linkProps
+    linkProps,
   } = props
 
-  const onMenuClose = useCallback((...args:any[]) => {
-    onClick?.(...args)
-    onClose?.(...args)
-  }, [onClose])
+  const onMenuClose = useCallback(
+    (...args: any[]) => {
+      onClick?.(...args)
+      onClose?.(...args)
+    },
+    [onClose]
+  )
 
   return (
     <>
-      {divider && (<Divider />)}
-      <MenuItem onClick={onMenuClose} autoFocus {...itemProps} >
+      {divider && <Divider />}
+      <MenuItem
+        onClick={onMenuClose}
+        autoFocus
+        {...itemProps}
+      >
         <ListItemIcon>
-          <Icon fontSize="small" {...iconProps} />
+          <Icon
+            fontSize='small'
+            {...iconProps}
+          />
         </ListItemIcon>
         <ListItemText>
-          { onClick ? (
-            <Typography {...textProps} >{label}</Typography>
+          {onClick ? (
+            <Typography {...textProps}>{label}</Typography>
           ) : (
             <Link
               underline='none'
@@ -67,7 +74,7 @@ const SettingItem = (props:TSettingItem) => {
               to={`/${(path || label || ``).toLowerCase()}`}
               {...linkProps}
             >
-              <Typography {...textProps} >{label}</Typography>
+              <Typography {...textProps}>{label}</Typography>
             </Link>
           )}
         </ListItemText>
@@ -76,19 +83,14 @@ const SettingItem = (props:TSettingItem) => {
   )
 }
 
-const SettingMenu = (props:TSettings & { user:User }) => {
-  const {
-    user,
-    anchorEl,
-    navItems,
-    onCloseSettings,
-  } = props
+const SettingMenu = (props: TSettings & { user: User }) => {
+  const { user, anchorEl, navItems, onCloseSettings } = props
 
   return (
     <Menu
       elevation={0}
       sx={{ mt: '6px' }}
-      id="tdsk-account-menu"
+      id='tdsk-account-menu'
       anchorEl={anchorEl}
       anchorOrigin={{
         vertical: 'bottom',
@@ -120,23 +122,21 @@ const style = {
   height: `${dims.header.avatar.size}px`,
 }
 
-const getUserInitials = (displayName?:string, username?:string) => {
-  if(!displayName && !username) return {}
-  
-  if(displayName){
+const getUserInitials = (displayName?: string, username?: string) => {
+  if (!displayName && !username) return {}
+
+  if (displayName) {
     const split = displayName.split(` `)
     const first = split.shift() || ``
     const last = split.pop() || ``
     return { children: `${first[0] || ''}${last[0] || ''}`.trim().toUpperCase() }
   }
-  if(username)
-    return { children: `${username[0]}${username[1]}`.trim().toUpperCase()}
+  if (username) return { children: `${username[0]}${username[1]}`.trim().toUpperCase() }
 }
 
-const useAvatar = (user:Partial<User>={}) => {
-
+const useAvatar = (user: Partial<User> = {}) => {
   return useMemo(() => {
-    if(!user?.name && !user.image) return {}
+    if (!user?.name && !user.image) return {}
 
     const displayName = user?.name || user.email?.split?.(`@`)[0] || `Anon User`
 
@@ -151,25 +151,28 @@ const useAvatar = (user:Partial<User>={}) => {
           alt: displayName,
           ...getUserInitials(displayName),
         }
-  }, [
-    user?.name,
-    user?.email,
-  ])
+  }, [user?.name, user?.email])
 }
 
-export const Settings = (props:TSettings) => {
+export const Settings = (props: TSettings) => {
   const { onOpenSettings } = props
   const [user] = useUser()
   const avatarProps = useAvatar(user)
 
   return (
     <SettingsContainer>
-      <Tooltip title="Admin Settings">
-        <IconButton onClick={onOpenSettings} sx={{ p: 0 }}>
+      <Tooltip title='Admin Settings'>
+        <IconButton
+          onClick={onOpenSettings}
+          sx={{ p: 0 }}
+        >
           <Avatar {...avatarProps} />
         </IconButton>
       </Tooltip>
-      <SettingMenu {...props} user={user} />
+      <SettingMenu
+        {...props}
+        user={user}
+      />
     </SettingsContainer>
   )
 }

@@ -11,12 +11,11 @@ export type TNavItem = {
   text: string
   to?: string
   Icon: ReactNode
-  items?:TNavItem[]
+  items?: TNavItem[]
 }
 
-
 export type TSettingNavItem = {
-  id?:string
+  id?: string
   Icon?: any
   path?: string
   label: string
@@ -25,5 +24,5 @@ export type TSettingNavItem = {
   linkProps?: LinkProps
   iconProps?: SvgIconProps
   itemProps?: MenuItemProps
-  textProps?:TypographyProps
+  textProps?: TypographyProps
 }

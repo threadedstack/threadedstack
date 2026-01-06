@@ -58,37 +58,35 @@ export const autofillSx = (
 }
 
 type TRGBAObj = {
-  r?:number
-  g?:number
-  b?:number
-  a?:number
+  r?: number
+  g?: number
+  b?: number
+  a?: number
 }
 
-export const toRgba = (r:number|TRGBAObj, g?:number, b?:number, a?:number) => {
+export const toRgba = (r: number | TRGBAObj, g?: number, b?: number, a?: number) => {
   const map = isObj(r)
-    ? {...r, g: g || r?.g, b: b || r?.b, a: a || r?.a || 1}
-    : {r,g,b,a}
+    ? { ...r, g: g || r?.g, b: b || r?.b, a: a || r?.a || 1 }
+    : { r, g, b, a }
 
   return `rgba(${map.r}, ${map.g}, ${map.b}, ${map.a})`
 }
 
-export const h2ra = (hex:string, alpha:number = 1) => {
+export const h2ra = (hex: string, alpha: number = 1) => {
   hex = hex.replace(/^#/, '')
 
   if (hex.length === 3)
     return toRgba(
-      parseInt(hex[0] + hex[0], 16),
-      parseInt(hex[1] + hex[1], 16),
-      parseInt(hex[2] + hex[2], 16),
+      Number.parseInt(hex[0] + hex[0], 16),
+      Number.parseInt(hex[1] + hex[1], 16),
+      Number.parseInt(hex[2] + hex[2], 16),
       alpha
     )
 
   return toRgba(
-    parseInt(hex.slice(0, 2), 16),
-    parseInt(hex.slice(2, 4), 16),
-    parseInt(hex.slice(4, 6), 16),
+    Number.parseInt(hex.slice(0, 2), 16),
+    Number.parseInt(hex.slice(2, 4), 16),
+    Number.parseInt(hex.slice(4, 6), 16),
     alpha
   )
-
 }
-

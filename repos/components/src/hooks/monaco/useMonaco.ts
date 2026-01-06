@@ -1,7 +1,6 @@
 import type { THMonaco, TMonacoCB, TMonEditor, TSelectItem } from '@TSC/types'
 import type { OnMount, Monaco } from '@monaco-editor/react'
 
-
 import { useRef, useMemo } from 'react'
 import { colors } from '@TSC/theme/colors'
 import { gutter } from '@TSC/theme/gutter'
@@ -167,7 +166,7 @@ const useOnEditorChange = (props: THMonaco) => {
 }
 
 const useOnEditorLanguage = (props: THMonaco) => {
-  const { language, onLangChange, defaultLanguage=language } = props
+  const { language, onLangChange, defaultLanguage = language } = props
 
   const onLangChangeCB = useInline((item: TSelectItem) => {
     const lang = item?.label

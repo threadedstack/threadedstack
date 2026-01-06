@@ -7,16 +7,16 @@ export type TCapKeys<T extends object> = {
 export type TUserHash = string
 
 export enum EStatus {
-  error=`error`,
-  paused=`paused`,
-  waiting=`waiting`,
-  unknown=`unknown`,
-  pending=`pending`,
-  started=`started`,
-  running=`running`,
-  stopped=`stopped`,
-  finished=`finished`,
-  initialized=`initialized`,
+  error = `error`,
+  paused = `paused`,
+  waiting = `waiting`,
+  unknown = `unknown`,
+  pending = `pending`,
+  started = `started`,
+  running = `running`,
+  stopped = `stopped`,
+  finished = `finished`,
+  initialized = `initialized`,
 }
 
 export enum EContainerState {
@@ -26,5 +26,5 @@ export enum EContainerState {
   Stopped = `Stopped`,
   Creating = `Creating`,
   Succeeded = `Succeeded`,
-  Terminated=`Terminated`,
+  Terminated = `Terminated`,
 }

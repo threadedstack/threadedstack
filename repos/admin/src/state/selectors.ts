@@ -10,11 +10,15 @@ import { providersState } from '@TAF/state/providers'
 import { teamsState, activeTeamIdState } from '@TAF/state/teams'
 import { reposState, activeRepoIdState } from '@TAF/state/repos'
 
-const useRecState = <T=any>(state:WritableAtom<T, unknown[], void>) => {
+const useRecState = <T = any>(state: WritableAtom<T, unknown[], void>) => {
   const [current, setCurrent] = useAtom(state)
   const resetCurrent = useResetAtom(state)
 
-  return [current, setCurrent, resetCurrent] as [T, typeof setCurrent, typeof resetCurrent]
+  return [current, setCurrent, resetCurrent] as [
+    T,
+    typeof setCurrent,
+    typeof resetCurrent,
+  ]
 }
 
 export const useUser = () => useRecState(userState)
@@ -25,4 +29,3 @@ export const useTeams = () => useRecState(teamsState)
 export const useActiveTeamId = () => useRecState(activeTeamIdState)
 export const useRepos = () => useRecState(reposState)
 export const useActiveRepoId = () => useRecState(activeRepoIdState)
-

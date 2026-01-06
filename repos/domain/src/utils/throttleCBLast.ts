@@ -1,11 +1,7 @@
-
-export const throttleCBLast = (
-  func:(...args:any) => any,
-  wait:number
-) => {
+export const throttleCBLast = (func: (...args: any) => any, wait: number) => {
   let throttleTimeout
 
-  return function(cb:(resp:any) => any, ...args:any[]) {
+  return function (cb: (resp: any) => any, ...args: any[]) {
     throttleTimeout && clearTimeout(throttleTimeout)
 
     throttleTimeout = setTimeout(() => {
@@ -13,6 +9,5 @@ export const throttleCBLast = (
       cb?.(resp)
       clearTimeout(throttleTimeout)
     }, wait)
-
   }
 }

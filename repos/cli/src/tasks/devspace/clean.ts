@@ -5,7 +5,6 @@ import { devspace } from '@TSCL/utils/devspace'
 import { sharedOpts } from '@TSCL/utils/tasks/options'
 import { removeCacheDir } from '@TSCL/utils/devspace/removeCacheDir'
 
-
 /**
  * Cleans the devspace environment and lingering images that may not be needed
  * @param {Object} props - arguments passed from the runTask method
@@ -18,7 +17,7 @@ import { removeCacheDir } from '@TSCL/utils/devspace/removeCacheDir'
  *
  * @returns {void}
  */
-const cleanAct = async (props:TTaskActionArgs) => {
+const cleanAct = async (props: TTaskActionArgs) => {
   const { images, cache, log } = props.params
   log && Logger.info(`\nCleaning Dev Environment...`)
 
@@ -30,7 +29,7 @@ const cleanAct = async (props:TTaskActionArgs) => {
   log && Logger.success(`\nFinished cleaning Dev Environment\n`)
 }
 
-export const clean:TTask = {
+export const clean: TTask = {
   name: `clean`,
   action: cleanAct,
   alias: [`purge`, `stop`, `kill`],

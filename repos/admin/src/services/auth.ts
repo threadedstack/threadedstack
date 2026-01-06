@@ -7,50 +7,48 @@ import { createAuthClient } from '@neondatabase/neon-js/auth'
 export const authClient = createAuthClient(TDSK_AUTH_URL)
 
 type TAuthResp = {
-  session?:any
-  error?:TAuthError
-  user?:User
+  session?: any
+  error?: TAuthError
+  user?: User
 }
 
 export class Auth {
-  
-  client=authClient
+  client = authClient
 
-  constructor(){}
+  constructor() {}
 
-  #error = (error:TAuthError):TAuthResp => {
+  #error = (error: TAuthError): TAuthResp => {
     console.log(`[${error.status}] - (${error.code}) ${error.message}`)
     return { error }
   }
 
-  signin = async (provider:string):Promise<TAuthResp> => {
+  signin = async (provider: string): Promise<TAuthResp> => {
     const { data, error } = await this.client.signIn.social({
       provider,
     })
-    if(`user` in data) return { user: new User(data.user)}
-    if(error) return this.#error(error)
+    if (`user` in data) return { user: new User(data.user) }
+    if (error) return this.#error(error)
 
     return this.#error({
       status: 404,
       code: `404`,
       statusText: `Error`,
-      message: `Could not complete user login`
+      message: `Could not complete user login`,
     })
   }
 
-  signout = async (provider?:string) => {
+  signout = async (provider?: string) => {
     const { error } = await this.client.signOut()
     return error ? this.#error(error) : true
   }
 
-  session = async ():Promise<TAuthResp> => {
+  session = async (): Promise<TAuthResp> => {
     const { data, error } = await this.client.getSession()
-    if(error) return this.#error(error)
-    if(data) return {...data, user: new User(data.user)}
+    if (error) return this.#error(error)
+    if (data) return { ...data, user: new User(data.user) }
 
     return {}
   }
-
 }
 
 export const auth = new Auth()

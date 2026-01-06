@@ -9,32 +9,24 @@ import {
 } from '@TSC/components/Definitions/ComplexDefs.styles'
 
 export type TDefsFilters = {
-  search?:string
-  loading?:boolean
-  onSearchClick?:(evt:any) => any
-  onSearchChange?:(evt:any) => any
+  search?: string
+  loading?: boolean
+  onSearchClick?: (evt: any) => any
+  onSearchChange?: (evt: any) => any
 }
 
-export const DefsFilters = (props:TDefsFilters) => {
-  
-  const {
-    search,
-    loading,
-    onSearchClick,
-    onSearchChange,
-  } = props
-  
-  const {
-    onKeyDown,
-  } = useKeyDown({
+export const DefsFilters = (props: TDefsFilters) => {
+  const { search, loading, onSearchClick, onSearchChange } = props
+
+  const { onKeyDown } = useKeyDown({
     stopEvt: true,
-    onEnterDown: onSearchClick
+    onEnterDown: onSearchClick,
   })
 
   return (
-    <DefFiltersBox className='tdsk-def-filters-box' >
+    <DefFiltersBox className='tdsk-def-filters-box'>
       <DefFiltersContainer className='tdsk-def-filters-container'>
-        <DefSearchBox className='tdsk-def-search-box' >
+        <DefSearchBox className='tdsk-def-search-box'>
           <DefSearchInput
             value={search}
             disabled={loading}
@@ -55,5 +47,4 @@ export const DefsFilters = (props:TDefsFilters) => {
       </DefFiltersContainer>
     </DefFiltersBox>
   )
-  
 }

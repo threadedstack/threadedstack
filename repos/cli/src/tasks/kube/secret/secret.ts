@@ -11,19 +11,19 @@ import { kubectl } from '@TSCL/utils/kube/kubectl'
 import { taskError } from '@TSCL/utils/tasks/error'
 import { resolveLocalPath } from '@TSCL/utils/helpers/resolveLocalPath'
 
-
-const resolveNames = (name:string, key:string, keyvalue:string) => {
+const resolveNames = (name: string, key: string, keyvalue: string) => {
   const splitK = keyvalue && keyvalue.trim().split(`:`).shift()
-  
-  if(!key) key = splitK || name
-  if(!name) name = key || splitK
 
-  if(!name || !key) taskError(`Either the 'name' or 'key' option must be passed to create a secret`)
-  
-  return {name, key}
+  if (!key) key = splitK || name
+  if (!name) name = key || splitK
+
+  if (!name || !key)
+    taskError(`Either the 'name' or 'key' option must be passed to create a secret`)
+
+  return { name, key }
 }
 
-const saveTempSecret = (value:string) => {
+const saveTempSecret = (value: string) => {
   const tempDir = os.tmpdir()
   const tempFileLoc = path.join(tempDir, `${uuid()}.txt`)
   writeFileSync(tempFileLoc, value)
@@ -32,24 +32,17 @@ const saveTempSecret = (value:string) => {
 }
 
 type TAddSecretArg = {
-  key?:string
-  log?:boolean
-  args:string[]
-  name:string
-  files:string[]
-  value:string
+  key?: string
+  log?: boolean
+  args: string[]
+  name: string
+  files: string[]
+  value: string
 }
 
-const addSecretArg = ({
-  key,
-  log,
-  args,
-  name,
-  files,
-  value,
-}:TAddSecretArg) => {
+const addSecretArg = ({ key, log, args, name, files, value }: TAddSecretArg) => {
   const loc = saveTempSecret(value)
-  if(!loc) return loc
+  if (!loc) return loc
 
   args.push(key ? `--from-file=${key}=${loc}` : `--from-file=${loc}`)
   files.push(loc)
@@ -58,37 +51,17 @@ const addSecretArg = ({
   return loc
 }
 
-const buildLocs = (
-  params:TTaskParams,
-  name:string,
-  defkey:string
-) => {
-  const {
-    file,
-    log,
-    files,
-    literal,
-    secrets,
-    keyvalue,
-    value:val,
-  } = params
+const buildLocs = (params: TTaskParams, name: string, defkey: string) => {
+  const { file, log, files, literal, secrets, keyvalue, value: val } = params
 
+  const secretFiles = files ? files.split(`,`) : file ? [`${defkey}:${file}`] : []
 
-  const secretFiles = files
-    ? files.split(`,`)
-    : file
-      ? [`${defkey}:${file}`]
-      : []
-  
   const builtArr = secretFiles.reduce((acc, joined) => {
-    
-    const [key, ...rest] = joined.includes(`:`)
-      ? joined.trim().split(`:`)
-      : [``, joined]
+    const [key, ...rest] = joined.includes(`:`) ? joined.trim().split(`:`) : [``, joined]
 
     const loc = rest.join(`:`)
 
-    if(!loc) return acc
+    if (!loc) return acc
 
     key
       ? acc.push(`--from-file=${key}=${resolveLocalPath(loc)}`)
@@ -99,11 +72,7 @@ const buildLocs = (
     return acc
   }, [])
 
-  const secretsFrom = secrets
-    ? secrets.split(`,`)
-    : keyvalue
-      ? [keyvalue]
-      : []
+  const secretsFrom = secrets ? secrets.split(`,`) : keyvalue ? [keyvalue] : []
 
   const tempFiles = []
   const secretArgs = secretsFrom.reduce((acc, joined) => {
@@ -117,13 +86,13 @@ const buildLocs = (
         name,
         value,
         args: acc,
-        files: tempFiles
+        files: tempFiles,
       })
 
     return acc
   }, builtArr)
 
-  if(val)
+  if (val)
     literal
       ? secretArgs.push(`--from-literal=${defkey}=${val}`)
       : addSecretArg({
@@ -135,17 +104,21 @@ const buildLocs = (
           args: secretArgs,
         })
 
-  return { tempFiles,  secretArgs }
+  return { tempFiles, secretArgs }
 }
 
-const logCreate = (name:string, key:string, loc:string) => {
-  Logger.info([
-    `\n`,
-    `Creating Secret: ${Logger.colors.white(name)}\n`,
-    key && ` - Key: ${Logger.colors.white(key)}\n`,
-    ` - File: ${Logger.colors.white(loc)}`,
-    `\n`
-  ].filter(Boolean).join(' '))
+const logCreate = (name: string, key: string, loc: string) => {
+  Logger.info(
+    [
+      `\n`,
+      `Creating Secret: ${Logger.colors.white(name)}\n`,
+      key && ` - Key: ${Logger.colors.white(key)}\n`,
+      ` - File: ${Logger.colors.white(loc)}`,
+      `\n`,
+    ]
+      .filter(Boolean)
+      .join(' ')
+  )
 }
 
 /**
@@ -160,45 +133,33 @@ const logCreate = (name:string, key:string, loc:string) => {
  *
  * @returns {void}
  */
-const secretAct = async (props:TTaskActionArgs) => {
+const secretAct = async (props: TTaskActionArgs) => {
   const { params } = props
-  const {
-    file,
-    files,
-    value,
-    secrets,
-    keyvalue,
-    namespace,
-    type=`generic`,
-  } = params
+  const { file, files, value, secrets, keyvalue, namespace, type = `generic` } = params
 
-  !value
-    && !keyvalue
-    && !secrets
-    && !file
-    && !files
-    && taskError(`One of 'value', 'keyvalue', 'secrets', 'file', or 'files' must be passed to create a secret`)
-  
+  !value &&
+    !keyvalue &&
+    !secrets &&
+    !file &&
+    !files &&
+    taskError(
+      `One of 'value', 'keyvalue', 'secrets', 'file', or 'files' must be passed to create a secret`
+    )
+
   const { name, key } = resolveNames(params.name, params.key, keyvalue)
 
-  const { tempFiles,  secretArgs } = buildLocs(params, name, key)
+  const { tempFiles, secretArgs } = buildLocs(params, name, key)
   namespace && secretArgs.push(`--namespace`, namespace)
 
-  await kubectl.create(props, [
-    `secret`,
-    type,
-    name,
-    ...secretArgs
-  ])
+  await kubectl.create(props, [`secret`, type, name, ...secretArgs])
 
   // Clean up temp files after creating the secrets
-  tempFiles.map(loc => rmSync(loc))
-
+  tempFiles.map((loc) => rmSync(loc))
 }
 
-export const secret:TTask = {
+export const secret: TTask = {
   name: `secret`,
-  alias: [ `secrets`, `scrt`, `sct`, `sec`, `sc`],
+  alias: [`secrets`, `scrt`, `sct`, `sec`, `sc`],
   action: secretAct,
   example: `tdsk kube secret <options>`,
   description: `Calls the kubectl create secret command`,
@@ -227,7 +188,7 @@ export const secret:TTask = {
     keyvalue: {
       alias: [`kv`],
       example: `--keyvalue key1:value1`,
-      description: `Joined key value pair. Overrides key and value option`
+      description: `Joined key value pair. Overrides key and value option`,
     },
     secrets: {
       alias: [`data`],

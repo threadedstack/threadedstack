@@ -86,10 +86,7 @@ export const InlineSelect = (props: TInlineSelect): JSX.Element => {
     >
       <InlineSelectContainer
         height={showAmount}
-        className={cls(
-          hidden && `hidden`,
-          `tdsk-inline-select-container`
-        )}
+        className={cls(hidden && `hidden`, `tdsk-inline-select-container`)}
       >
         {children ||
           items?.map((item) => {
@@ -108,7 +105,7 @@ export const InlineSelect = (props: TInlineSelect): JSX.Element => {
                   selected && `selected`,
                   disabled && `disabled`,
                   required && `required`,
-                  `tdsk-inline-select-item`,
+                  `tdsk-inline-select-item`
                 )}
               >
                 <SelectInputValue

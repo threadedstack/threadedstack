@@ -14,9 +14,7 @@ import { cls } from '@keg-hub/jsutils/cls'
 import Box from '@mui/material/Box'
 import MDialog from '@mui/material/Dialog'
 import grey from '@mui/material/colors/grey'
-import {
-  colors
-} from '@TSC/theme/colors'
+import { colors } from '@TSC/theme/colors'
 
 export type DialogProps = {
   title?: ReactNode

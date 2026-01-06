@@ -1,12 +1,12 @@
-import { TLogOpts } from './types'
+import type { TLogOpts } from './types'
 import { npmLevels } from './utils/levels'
 import expressWinston from 'express-winston'
 import { buildLogger } from './utils/buildLogger'
 import { noOpObj } from '@keg-hub/jsutils/noOpObj'
 
 type TExpressApp = {
-  locals:Record<string, any>
-  [key:string]:any
+  locals: Record<string, any>
+  [key: string]: any
 }
 
 /**
@@ -15,8 +15,8 @@ type TExpressApp = {
  *
  * @return {void}
  */
-export const setupLoggerReq = (app:TExpressApp, middlewareOpts?:Record<any, any>) => {
-  const loggerOpts = (app.locals.config.logger || noOpObj as TLogOpts)
+export const setupLoggerReq = (app: TExpressApp, middlewareOpts?: Record<any, any>) => {
+  const loggerOpts = app.locals.config.logger || (noOpObj as TLogOpts)
   const logger = buildLogger(loggerOpts as TLogOpts)
   const logLevel = npmLevels[loggerOpts.level || 'info']
 
@@ -31,7 +31,6 @@ export const setupLoggerReq = (app:TExpressApp, middlewareOpts?:Record<any, any>
   })
 
   app.use(requestLogger)
-
 }
 
 /**
@@ -40,8 +39,8 @@ export const setupLoggerReq = (app:TExpressApp, middlewareOpts?:Record<any, any>
  *
  * @return {void}
  */
-export const setupLoggerErr = (app:TExpressApp, middlewareOpts?:Record<any, any>) => {
-  const loggerOpts = (app.locals.config.logger || noOpObj as TLogOpts)
+export const setupLoggerErr = (app: TExpressApp, middlewareOpts?: Record<any, any>) => {
+  const loggerOpts = app.locals.config.logger || (noOpObj as TLogOpts)
   const logger = buildLogger(loggerOpts)
   const logLevel = npmLevels[loggerOpts.level || 'info']
 
@@ -54,6 +53,4 @@ export const setupLoggerErr = (app:TExpressApp, middlewareOpts?:Record<any, any>
   })
 
   app.use(errorLogger)
-
 }
-

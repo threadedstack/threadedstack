@@ -1,5 +1,5 @@
 import { Exception } from './exception'
-import { NextFunction, Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 
 export const errorHandler = function errorHandler(
   error: Exception,

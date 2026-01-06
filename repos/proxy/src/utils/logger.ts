@@ -3,9 +3,7 @@ import { config } from '@TPX/configs/proxy.config'
 
 setupLogger({
   tag: `TDSK Proxy`,
-  level: config?.logger?.level
+  level: config?.logger?.level,
 })
 
-export {
-  ApiLogger as logger
-}
+export { ApiLogger as logger }

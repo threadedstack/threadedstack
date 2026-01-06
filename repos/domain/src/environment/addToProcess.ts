@@ -1,11 +1,10 @@
-
 import { exists } from '@keg-hub/jsutils/exists'
 import { emptyObj } from '@keg-hub/jsutils/emptyObj'
 import { emptyArr } from '@keg-hub/jsutils/emptyArr'
 
 export type TAddProcOpts = {
-  force?:boolean
-  ignore?:string[]
+  force?: boolean
+  ignore?: string[]
 }
 
 /**
@@ -19,17 +18,15 @@ export type TAddProcOpts = {
  * @returns {Void}
  */
 export const addToProcess = (
-  addEnvs:Record<string, any>,
-  opts:TAddProcOpts=emptyObj
+  addEnvs: Record<string, any>,
+  opts: TAddProcOpts = emptyObj
 ) => {
-  const { force, ignore=emptyArr } = opts
+  const { force, ignore = emptyArr } = opts
 
-  Object.entries(addEnvs)
-    .map(([ key, value ]) => {
-      exists(value)
-        && !ignore.includes(key)
-        && (!exists(process.env[key]) || force)
-        && (process.env[key] = value)
-    })
+  Object.entries(addEnvs).map(([key, value]) => {
+    exists(value) &&
+      !ignore.includes(key) &&
+      (!exists(process.env[key]) || force) &&
+      (process.env[key] = value)
+  })
 }
-

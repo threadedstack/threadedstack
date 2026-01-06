@@ -1,59 +1,49 @@
-import type { TOnKeyDown }  from '@TSC/types'
+import type { TOnKeyDown } from '@TSC/types'
 import type { KeyboardEventHandler } from 'react'
 
 import { stopEvent } from '@TSC/utils/helpers'
 import { useInline } from '@TSC/hooks/components/useInline'
 
-
 export type THKeyDown = {
-  stopEvt?:boolean
-  blurOnEnter?:boolean
-  onKeyDown?:TOnKeyDown
-  onEscDown?:TOnKeyDown
-  onEnterDown?:TOnKeyDown
+  stopEvt?: boolean
+  blurOnEnter?: boolean
+  onKeyDown?: TOnKeyDown
+  onEscDown?: TOnKeyDown
+  onEnterDown?: TOnKeyDown
 }
 
-export const useKeyDown = (props:THKeyDown) => {
-  const {
-    onKeyDown,
-    onEscDown,
-    onEnterDown,
-    blurOnEnter,
-    stopEvt=true,
-  } = props
-
+export const useKeyDown = (props: THKeyDown) => {
+  const { onKeyDown, onEscDown, onEnterDown, blurOnEnter, stopEvt = true } = props
 
   const onKeyDownCB = useInline<KeyboardEventHandler<any>>((evt) => {
-
     /**
-     * Pressing Enter key 
+     * Pressing Enter key
      */
-    if(evt.keyCode === 13 && (blurOnEnter || onEnterDown)){
+    if (evt.keyCode === 13 && (blurOnEnter || onEnterDown)) {
       stopEvt && stopEvent(evt)
       blurOnEnter && (evt?.target as HTMLElement)?.blur()
-      if(onEnterDown){
+      if (onEnterDown) {
         onEnterDown?.(evt)
         return
       }
     }
 
     /**
-     * Pressing Escape key 
+     * Pressing Escape key
      */
-    if(evt.keyCode === 27 && onEscDown){
+    if (evt.keyCode === 27 && onEscDown) {
       stopEvt && stopEvent(evt)
       onEscDown?.(evt)
       return
     }
 
-    if(onKeyDown){
+    if (onKeyDown) {
       stopEvt && stopEvent(evt)
       onKeyDown?.(evt)
     }
-
   })
 
   return {
-    onKeyDown: onKeyDownCB
+    onKeyDown: onKeyDownCB,
   }
 }

@@ -1,5 +1,5 @@
 import type { TEndpointConfig } from '@TBE/types'
-import { Request, Response } from 'express'
+import type { Request, Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
 

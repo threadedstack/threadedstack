@@ -8,7 +8,7 @@ import { health } from '@TBE/endpoints/base/health'
 import { adminPath } from '@TBE/utils/auth/adminPath'
 import { authenticate } from '@TBE/middleware/setupAuth'
 
-export const accounts:TEndpointBuilder = (config) => {
+export const accounts: TEndpointBuilder = (config) => {
   return {
     method: EPMethod.Use,
     path: adminPath(config),

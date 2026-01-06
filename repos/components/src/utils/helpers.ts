@@ -1,5 +1,5 @@
 export const stopEvent = (evt: any) => {
-  if(!evt) return
+  if (!evt) return
 
   evt?.preventDefault?.()
   evt?.stopPropagation?.()
@@ -7,7 +7,11 @@ export const stopEvent = (evt: any) => {
   if (`cancelBubble` in evt) evt.cancelBubble = true
 }
 
-export const wrapEvtStop = (cb:(evt:any, ...args:any[]) => any, evt:any, ...args:any[]) => {
+export const wrapEvtStop = (
+  cb: (evt: any, ...args: any[]) => any,
+  evt: any,
+  ...args: any[]
+) => {
   evt && stopEvent(evt)
   return cb(evt, ...args)
 }

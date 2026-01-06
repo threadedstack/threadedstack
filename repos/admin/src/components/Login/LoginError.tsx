@@ -6,23 +6,17 @@ import {
 } from '@TAF/components/Login/Login.styles'
 
 export type TLoginError = {
-  message?:string
+  message?: string
 }
 
-export const LoginError = (props:TLoginError) => {
-  const {
-     message
-  } = props
-  
+export const LoginError = (props: TLoginError) => {
+  const { message } = props
+
   return (
     <LoginContainer>
-      <ErrorSection className='tdsk-login-error-section' >
-        <ErrorTitle>
-          Authentication Error
-        </ErrorTitle>
-        <ErrorText className='tdsk-login-error-text' >
-        {message}
-        </ErrorText>
+      <ErrorSection className='tdsk-login-error-section'>
+        <ErrorTitle>Authentication Error</ErrorTitle>
+        <ErrorText className='tdsk-login-error-text'>{message}</ErrorText>
       </ErrorSection>
     </LoginContainer>
   )

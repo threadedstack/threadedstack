@@ -29,9 +29,4 @@ export const CSSMuiColors = [
   `textDisabled`,
 ]
 
-export const CSSColorRefs = [
-  `#`,
-  `rgba`,
-  `hsl`,
-  `hwb`
-]
+export const CSSColorRefs = [`#`, `rgba`, `hsl`, `hwb`]

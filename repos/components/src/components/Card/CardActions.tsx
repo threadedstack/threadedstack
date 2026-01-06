@@ -4,39 +4,31 @@ import { cls } from '@keg-hub/jsutils'
 import { CardActions as CActions, CardAction } from './Card.styled'
 
 export type TCardAction = {
-  name?:string
-  text?:ReactNode
-  Icon?:ReactNode
-  id?:string|number
-  sx?:CSSProperties
-  children?:ReactNode
-  onClick:(event:MouseEvent) => void
+  name?: string
+  text?: ReactNode
+  Icon?: ReactNode
+  id?: string | number
+  sx?: CSSProperties
+  children?: ReactNode
+  onClick: (event: MouseEvent) => void
 }
 
 export type TCardActions = {
-  sx?:CSSProperties
-  actions:TCardAction[]
-  actionSx?:CSSProperties
+  sx?: CSSProperties
+  actions: TCardAction[]
+  actionSx?: CSSProperties
 }
 
-export const CardActions = (props:TCardActions) => {
-  const {
-    sx,
-    actions,
-    actionSx,
-  } = props
+export const CardActions = (props: TCardActions) => {
+  const { sx, actions, actionSx } = props
 
   return (
-    <CActions sx={sx} className='tdsk-card-actions' >
+    <CActions
+      sx={sx}
+      className='tdsk-card-actions'
+    >
       {actions.map((action, idx) => {
-        const {
-          sx,
-          id,
-          name,
-          text,
-          onClick,
-          children,
-        } = action
+        const { sx, id, name, text, onClick, children } = action
         return (
           <CardAction
             onClick={onClick}

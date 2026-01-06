@@ -5,7 +5,6 @@ import { defineConfig } from 'drizzle-kit'
 import { buildDBUrl } from '@TDB/utils/database/buildDBUrl'
 import { getDialect } from '@TDB/utils/database/getDialect'
 
-
 const aliases = hq.get(`webpack`)
 const nodeEnv = process.env.NODE_ENV || `local`
 const envs = loadEnvs({
@@ -19,7 +18,7 @@ const {
   TDSK_DB_USER,
   TDSK_DB_PASS,
   TDSK_DB_PROTO,
-  TDSK_DB_DIALECT=`postgresql`,
+  TDSK_DB_DIALECT = `postgresql`,
 } = envs
 
 export default defineConfig({
@@ -30,7 +29,7 @@ export default defineConfig({
   },
   dialect: getDialect({
     proto: TDSK_DB_PROTO,
-    dialect:TDSK_DB_DIALECT
+    dialect: TDSK_DB_DIALECT,
   }),
   dbCredentials: {
     url: buildDBUrl({

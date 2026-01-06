@@ -3,25 +3,14 @@ import { toInt } from '@keg-hub/jsutils/toInt'
 import { toBool } from '@keg-hub/jsutils/toBool'
 import { loadEnvs, generateOrigins } from '@tdsk/domain'
 
-
-
-const {
-  NODE_ENV=`local`,
-} = process.env
-
-
+const { NODE_ENV = `local` } = process.env
 
 const envs = loadEnvs({
   name: `tdsk`,
   override: NODE_ENV === `local`,
 })
 
-const {
-  TDSK_PX_LOGGER_LEVEL,
-  TDSK_PX_LOGGER_PRETTY,
-  TDSK_PX_LOGGER_SILENT,
-} = envs
-
+const { TDSK_PX_LOGGER_LEVEL, TDSK_PX_LOGGER_PRETTY, TDSK_PX_LOGGER_SILENT } = envs
 
 export const config = {
   logger: {

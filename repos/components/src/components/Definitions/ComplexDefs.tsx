@@ -1,7 +1,6 @@
 import type { ComponentProps } from 'react'
 import type { TDef } from '@TSC/components/Definitions/Definition'
 
-
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks'
 import { Definitions } from '@TSC/components/Definitions/Definitions'
 import { DefsFilters } from '@TSC/components/Definitions/DefsFilters'
@@ -13,12 +12,12 @@ import {
   DefGroupTitle,
 } from '@TSC/components/Definitions/ComplexDefs.styles'
 
-export type TComplexDefs = ComponentProps<typeof Definitions> & ComponentProps<typeof CDAccordion> & {
-  parentDef?:TDef
-}
+export type TComplexDefs = ComponentProps<typeof Definitions> &
+  ComponentProps<typeof CDAccordion> & {
+    parentDef?: TDef
+  }
 
-export const ComplexDefs = (props:TComplexDefs) => {
-
+export const ComplexDefs = (props: TComplexDefs) => {
   const {
     id,
     panel,
@@ -27,26 +26,23 @@ export const ComplexDefs = (props:TComplexDefs) => {
     onChange,
     className,
     definitions,
-    showHeader=true,
+    showHeader = true,
     openBottomBorder,
     onDefinitionClick,
-    title=`Definitions`,
-    Icon=(<LibraryBooksIcon />),
+    title = `Definitions`,
+    Icon = <LibraryBooksIcon />,
   } = props
-  
-  
+
   const {
     groups,
     search,
     loading,
     onSearchClick,
     onSearchChange,
-    definitions:defs,
+    definitions: defs,
   } = useDefsFilters({ parentDef, definitions })
 
-
   const groupsArr = Object.entries(groups)
-
 
   return (
     <CDAccordion
@@ -66,38 +62,33 @@ export const ComplexDefs = (props:TComplexDefs) => {
         onSearchClick={onSearchClick}
         onSearchChange={onSearchChange}
       />
-      {groupsArr?.length > 1
-        ? groupsArr.map(([group, gdef]) => {
-            if(group === `default`) return null
-          
-            return (
-              <DefGroupBox
-                key={group}
-                className='tdsk-def-group-box'
-              >
-                <DefGroupHeader>
-                  <DefGroupTitle>
-                    {group}
-                  </DefGroupTitle>
-                </DefGroupHeader>
-                <Definitions
-                  definitions={gdef}
-                  onDefinitionClick={onDefinitionClick}
-                />
-              </DefGroupBox>
-            )
-          })
-        : (
-            <DefGroupBox className='tdsk-def-group-box'>
+      {groupsArr?.length > 1 ? (
+        groupsArr.map(([group, gdef]) => {
+          if (group === `default`) return null
+
+          return (
+            <DefGroupBox
+              key={group}
+              className='tdsk-def-group-box'
+            >
+              <DefGroupHeader>
+                <DefGroupTitle>{group}</DefGroupTitle>
+              </DefGroupHeader>
               <Definitions
-                definitions={defs}
+                definitions={gdef}
                 onDefinitionClick={onDefinitionClick}
               />
             </DefGroupBox>
           )
-      }
-
+        })
+      ) : (
+        <DefGroupBox className='tdsk-def-group-box'>
+          <Definitions
+            definitions={defs}
+            onDefinitionClick={onDefinitionClick}
+          />
+        </DefGroupBox>
+      )}
     </CDAccordion>
   )
-
 }

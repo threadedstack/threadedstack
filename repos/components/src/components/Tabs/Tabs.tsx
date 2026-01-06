@@ -13,7 +13,7 @@ import { TabBadge, TabsContainer } from '@TSC/components/Tabs/Tabs.styles'
 export type TTRef = string | number
 
 export type TTab = {
-  id?:string
+  id?: string
   label: ReactNode
   icon?: ReactNode
   sx?: CSSProperties
@@ -21,9 +21,9 @@ export type TTab = {
   disabled?: boolean
   content?: ReactNode
   badgeCount?: number
-  value?:string | number
-  Icon?:ComponentType<any>
-  Component?:ComponentType<any>
+  value?: string | number
+  Icon?: ComponentType<any>
+  Component?: ComponentType<any>
   iconProps?: ComponentProps<any>
   iconPosition?: `start` | `end` | `top` | `bottom`
 }
@@ -111,18 +111,22 @@ export const Tabs = (props: TTabs) => {
               disabled={isDisabled}
               className={rest.className}
               iconPosition={iconPosition}
-              key={rest.id || (isStr(label) && label) || (isStr(content) && content) || idx}
+              key={
+                rest.id || (isStr(label) && label) || (isStr(content) && content) || idx
+              }
               icon={
-                Icon
-                  ? isValidFuncComp(Icon)
-                    ? (
-                        <Icon
-                          {...iconProps}
-                          sx={[inherit, iconProps?.sx]}
-                        />
-                      )
-                    : (Icon)
-                  : (icon as any)
+                Icon ? (
+                  isValidFuncComp(Icon) ? (
+                    <Icon
+                      {...iconProps}
+                      sx={[inherit, iconProps?.sx]}
+                    />
+                  ) : (
+                    Icon
+                  )
+                ) : (
+                  (icon as any)
+                )
               }
               label={
                 badgeCount ? (

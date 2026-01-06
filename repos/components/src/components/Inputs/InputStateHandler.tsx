@@ -10,9 +10,9 @@ import { InputStateStack } from '@TSC/components/Inputs/Inputs.styles'
 type InputStateHandlerProps = {
   children: React.ReactNode
   sx?: SxProps
-  hidden?:boolean
-  fullWidth?:boolean
-  noLabelDim?:boolean
+  hidden?: boolean
+  fullWidth?: boolean
+  noLabelDim?: boolean
   labelClass?: string
 } & IInput
 
@@ -46,7 +46,7 @@ const InputStateHandler = (props: InputStateHandlerProps): JSX.Element => {
         disabled && `disabled`,
         required && `required`,
         noLabelDim && `no-label-dim`,
-        fullWidth && `full-width`,
+        fullWidth && `full-width`
       )}
     >
       {label ? (
@@ -62,7 +62,7 @@ const InputStateHandler = (props: InputStateHandlerProps): JSX.Element => {
             hasError && `error`,
             disabled && `disabled`,
             required && `required`,
-            noLabelDim && `no-label-dim`,
+            noLabelDim && `no-label-dim`
           )}
         />
       ) : null}

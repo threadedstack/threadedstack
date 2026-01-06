@@ -15,43 +15,41 @@ import {
   ToggleThemeAction,
 } from '@TAF/components/Header/Header.styled'
 
-
 type THeaderProps = {
   navItems?: TSettingNavItem[]
 }
 
 const styles = {
-  icon: { height: `20px`, width: `20px` }
+  icon: { height: `20px`, width: `20px` },
 }
 
-export const Header = (props:THeaderProps) => {
+export const Header = (props: THeaderProps) => {
   const navItems = props.navItems || []
 
-  const {
-    themeType,
-    onThemeToggle
-  } = useThemeToggle()
+  const { themeType, onThemeToggle } = useThemeToggle()
 
-  const [
-    anchorEl,
-    __,
-    resetAnchor,
-    updateAnchor,
-  ] = useStateReset<null | HTMLElement, MouseEvent<HTMLElement>>(null, null, `currentTarget`)
+  const [anchorEl, __, resetAnchor, updateAnchor] = useStateReset<
+    null | HTMLElement,
+    MouseEvent<HTMLElement>
+  >(null, null, `currentTarget`)
 
   return (
-    <AppHeader elevation={0} position="sticky" className='tsdk-app-header' >
+    <AppHeader
+      elevation={0}
+      position='sticky'
+      className='tsdk-app-header'
+    >
       <HeaderToolbar>
         <Box flex={1} />
         <ToggleThemeAction
           onClick={() => onThemeToggle()}
           tooltip='Toggle theme to light or dark'
         >
-        {
-          themeType === EThemeType.light
-            ? (<LightModeIcon style={styles.icon} />)
-            : (<DarkModeIcon style={styles.icon} />)
-        }
+          {themeType === EThemeType.light ? (
+            <LightModeIcon style={styles.icon} />
+          ) : (
+            <DarkModeIcon style={styles.icon} />
+          )}
         </ToggleThemeAction>
         <Settings
           navItems={navItems}
@@ -63,4 +61,3 @@ export const Header = (props:THeaderProps) => {
     </AppHeader>
   )
 }
-

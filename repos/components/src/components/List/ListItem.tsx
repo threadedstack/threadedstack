@@ -32,10 +32,10 @@ export type TListItem<
   ID extends TListItemIdType = TListItemIdType,
 > = {
   id?: ID
-  to?:string
+  to?: string
   metadata?: Meta
   text?: ReactNode
-  divider?:boolean
+  divider?: boolean
   selected?: boolean
   sx?: CSSProperties
   className?: string
@@ -59,13 +59,13 @@ export type TListItem<
   itemsContainerClass?: string
   ItemIcon?: ComponentType<any>
   ItemText?: ComponentType<any>
-  component?:ComponentType<any>
+  component?: ComponentType<any>
   itemsListProps?: Partial<TList>
   ItemExpand?: ComponentType<any>
   ChildList?: ComponentType<any>
   itemsContainerSx?: CSSProperties
   onClick?: (...args: any[]) => void
-  Icon?: ComponentType<any>|ReactNode
+  Icon?: ComponentType<any> | ReactNode
   itemsToggleRef?: TListItemToggleRef
 }
 
@@ -149,156 +149,171 @@ const ItemExpand = (props: TListItemExpand) => {
   )
 }
 
-const ItemNoChildren = TooltipHoc<TListItem, HTMLDivElement>(forwardRef((props: TListItem, ref: ForwardedRef<HTMLDivElement>) => {
-  const {
-    sx,
-    id,
-    text,
-    Icon:_,
-    divider,
-    onClick,
-    selected,
-    children,
-    component,
-    className,
-    itemsToggleRef,
-    ...rest
-  } = props
+const ItemNoChildren = TooltipHoc<TListItem, HTMLDivElement>(
+  forwardRef((props: TListItem, ref: ForwardedRef<HTMLDivElement>) => {
+    const {
+      sx,
+      id,
+      text,
+      Icon: _,
+      divider,
+      onClick,
+      selected,
+      children,
+      component,
+      className,
+      itemsToggleRef,
+      ...rest
+    } = props
 
-  const Container = component ?? ItemContainer
-  const Icon = props.ItemIcon ?? ItemIcon
-  const Text = props.ItemText ?? ItemText
+    const Container = component ?? ItemContainer
+    const Icon = props.ItemIcon ?? ItemIcon
+    const Text = props.ItemText ?? ItemText
 
-  return (
-    <Container
-      sx={sx}
-      ref={ref}
-      {...rest}
-      id={`${id}`}
-      divider={divider}
-      onClick={onClick}
-      selected={selected}
-      className={cls(className, `tdsk-list-item`, selected && `selected`)}
-    >
-      {Icon && (<Icon {...props} />)}
-      {text && Text && <Text {...props} />}
-      {children}
-    </Container>
-  )
-}))
-
-const ItemWithChildren = TooltipHoc<TListItem, HTMLDivElement>(forwardRef((props: TListItem, ref: ForwardedRef<HTMLDivElement>) => {
-  const {
-    sx,
-    id,
-    items,
-    Icon:_,
-    onClick,
-    itemsSx,
-    divider,
-    selected,
-    metadata,
-    disabled,
-    className,
-    component,
-    defaultOpen,
-    expandOnClick,
-    itemsSubheader,
-    itemsClassName,
-    itemsToggleRef,
-    itemsListProps,
-    itemsContainerSx,
-    itemsContainerClass,
-    ...rest
-  } = props
-
-  const Container = component ?? ItemContainer
-  const Icon = props.ItemIcon ?? ItemIcon
-  const Text = props.ItemText ?? ItemText
-  const Expand = props.ItemExpand ?? ItemExpand
-  const ChildList = props.ChildList ?? List
-
-  const [open, setOpen] = useState(defaultOpen ?? false)
-  const onOpen = (evt: MouseEvent) => {
-    evt?.preventDefault?.()
-    evt?.stopPropagation?.()
-    setOpen(!open)
-  }
-
-  const childOnClick = (evt: MouseEvent) => {
-    evt?.preventDefault?.()
-    evt?.stopPropagation?.()
-    onOpen?.(evt)
-  }
-
-  const onClickCB = (evt: MouseEvent) => {
-    expandOnClick && onOpen?.(evt)
-    onClick?.(evt)
-  }
-
-  useEffect(() => {
-    id && itemsToggleRef?.current && (itemsToggleRef.current[id] = { open, onOpen })
-  }, [id, open])
-
-  return (
-    <ListItemBox className={cls(`tdsk-list-item-box`)}>
+    return (
       <Container
         sx={sx}
         ref={ref}
         {...rest}
+        id={`${id}`}
         divider={divider}
-        onClick={onClickCB}
+        onClick={onClick}
         selected={selected}
-        disabled={disabled}
-        className={cls(
-          className,
-          `tdsk-list-item`,
-          open && `opened`,
-          selected && `selected`
-        )}
+        className={cls(className, `tdsk-list-item`, selected && `selected`)}
       >
-        <Icon
-          {...props}
-          open={open}
-          onOpen={childOnClick}
-        />
-        <Text
-          {...props}
-          open={open}
-        />
-        <Expand
-          {...props}
-          open={open}
-          onOpen={childOnClick}
-        />
+        {Icon && <Icon {...props} />}
+        {text && Text && <Text {...props} />}
+        {children}
       </Container>
-      <Collapse
-        in={open}
-        timeout='auto'
-        unmountOnExit
-      >
-        <ChildList
-          disablePadding
-          {...itemsListProps}
-          sx={itemsSx}
-          items={items}
-          subheader={itemsSubheader}
-          className={itemsClassName}
-          containerSx={itemsContainerSx}
-          containerClass={itemsContainerClass}
-        />
-      </Collapse>
-    </ListItemBox>
-  )
-}))
+    )
+  })
+)
 
-export const ListItem = forwardRef((props: TListItem & { tooltip?: THocTooltip | ReactNode }, ref: ForwardedRef<HTMLDivElement>) => {
-  return props?.items?.length ? (
-    <ItemWithChildren {...props} ref={ref} />
-  ) : (
-    <ItemNoChildren {...props} ref={ref} />
-  )
-})
+const ItemWithChildren = TooltipHoc<TListItem, HTMLDivElement>(
+  forwardRef((props: TListItem, ref: ForwardedRef<HTMLDivElement>) => {
+    const {
+      sx,
+      id,
+      items,
+      Icon: _,
+      onClick,
+      itemsSx,
+      divider,
+      selected,
+      metadata,
+      disabled,
+      className,
+      component,
+      defaultOpen,
+      expandOnClick,
+      itemsSubheader,
+      itemsClassName,
+      itemsToggleRef,
+      itemsListProps,
+      itemsContainerSx,
+      itemsContainerClass,
+      ...rest
+    } = props
+
+    const Container = component ?? ItemContainer
+    const Icon = props.ItemIcon ?? ItemIcon
+    const Text = props.ItemText ?? ItemText
+    const Expand = props.ItemExpand ?? ItemExpand
+    const ChildList = props.ChildList ?? List
+
+    const [open, setOpen] = useState(defaultOpen ?? false)
+    const onOpen = (evt: MouseEvent) => {
+      evt?.preventDefault?.()
+      evt?.stopPropagation?.()
+      setOpen(!open)
+    }
+
+    const childOnClick = (evt: MouseEvent) => {
+      evt?.preventDefault?.()
+      evt?.stopPropagation?.()
+      onOpen?.(evt)
+    }
+
+    const onClickCB = (evt: MouseEvent) => {
+      expandOnClick && onOpen?.(evt)
+      onClick?.(evt)
+    }
+
+    useEffect(() => {
+      id && itemsToggleRef?.current && (itemsToggleRef.current[id] = { open, onOpen })
+    }, [id, open])
+
+    return (
+      <ListItemBox className={cls(`tdsk-list-item-box`)}>
+        <Container
+          sx={sx}
+          ref={ref}
+          {...rest}
+          divider={divider}
+          onClick={onClickCB}
+          selected={selected}
+          disabled={disabled}
+          className={cls(
+            className,
+            `tdsk-list-item`,
+            open && `opened`,
+            selected && `selected`
+          )}
+        >
+          <Icon
+            {...props}
+            open={open}
+            onOpen={childOnClick}
+          />
+          <Text
+            {...props}
+            open={open}
+          />
+          <Expand
+            {...props}
+            open={open}
+            onOpen={childOnClick}
+          />
+        </Container>
+        <Collapse
+          in={open}
+          timeout='auto'
+          unmountOnExit
+        >
+          <ChildList
+            disablePadding
+            {...itemsListProps}
+            sx={itemsSx}
+            items={items}
+            subheader={itemsSubheader}
+            className={itemsClassName}
+            containerSx={itemsContainerSx}
+            containerClass={itemsContainerClass}
+          />
+        </Collapse>
+      </ListItemBox>
+    )
+  })
+)
+
+export const ListItem = forwardRef(
+  (
+    props: TListItem & { tooltip?: THocTooltip | ReactNode },
+    ref: ForwardedRef<HTMLDivElement>
+  ) => {
+    return props?.items?.length ? (
+      <ItemWithChildren
+        {...props}
+        ref={ref}
+      />
+    ) : (
+      <ItemNoChildren
+        {...props}
+        ref={ref}
+      />
+    )
+  }
+)
 
 export {
   ItemIcon as ListItemIcon,

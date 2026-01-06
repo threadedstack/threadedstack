@@ -13,7 +13,7 @@ import { MonacoContainer, MonacoPlaceholder } from '@TSC/components/Monaco/Monac
 export type TMonaco = THMonaco & {
   title?: ReactNode
   content?: string
-  hidden?:boolean
+  hidden?: boolean
   disabled?: boolean
   className?: string
   editorCls?: string
@@ -62,10 +62,7 @@ export const Monaco = (props: TMonaco) => {
       {props.placeholder && (
         <MonacoPlaceholder
           sx={{ display: value || defaultValue ? `none` : `initial` }}
-          className={cls(
-            MonacoPlaceholderClass,
-            props.hidden && `hidden`,
-          )}
+          className={cls(MonacoPlaceholderClass, props.hidden && `hidden`)}
         >
           {props.placeholder}
         </MonacoPlaceholder>
@@ -80,11 +77,7 @@ export const Monaco = (props: TMonaco) => {
         beforeMount={onBeforeMount}
         defaultValue={defaultValue}
         defaultLanguage={defaultLanguage}
-        className={cls(
-          `tdsk-editor`,
-          props.editorCls,
-          props.hidden && `hidden`,
-        )}
+        className={cls(`tdsk-editor`, props.editorCls, props.hidden && `hidden`)}
         loading={
           <Loading
             full

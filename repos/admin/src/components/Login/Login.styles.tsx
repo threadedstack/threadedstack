@@ -2,16 +2,7 @@ import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import { styled, darken } from '@mui/material/styles'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
-import {
-  dims,
-  Text,
-  grey,
-  colors,
-  TSIcon,
-  gutter,
-  LoadingButton,
-} from '@tdsk/components'
-
+import { dims, Text, grey, colors, TSIcon, gutter, LoadingButton } from '@tdsk/components'
 
 export const LoginContainer = styled(Box)`
   flex: 1;
@@ -47,7 +38,6 @@ export const LoginHeaderText = styled(Text)(({ theme }) => {
     margin-left: ${gutter.hpx};
   `
 })
-
 
 export const LoginMainContainer = styled(Box)(({ theme }) => {
   return `
@@ -86,9 +76,7 @@ export const LoginMainIcon = styled(SecurityOutlinedIcon)(({ theme }) => {
   `
 })
 
-
 export const LoginStack = styled(Stack)(({ theme }) => {
-
   return `
     display: flex;
     align-items: center;
@@ -96,7 +84,6 @@ export const LoginStack = styled(Stack)(({ theme }) => {
     padding: 0px ${gutter.size * 4}px ${gutter.dpx};
   `
 })
-
 
 export const BtnSection = styled(Box)`
   display: flex;
@@ -106,7 +93,6 @@ export const BtnSection = styled(Box)`
 `
 
 export const GgLoginButton = styled(LoadingButton)(({ theme }) => {
-
   return `
     width: 100%;
     color: ${grey[0]};
@@ -117,7 +103,6 @@ export const GgLoginButton = styled(LoadingButton)(({ theme }) => {
     } 
   `
 })
-
 
 export const GhLoginButton = styled(LoadingButton)(({ theme }) => {
   return `
@@ -155,8 +140,6 @@ export const VrLoginButton = styled(LoadingButton)(({ theme }) => {
   `
 })
 
-
-
 export const TSLogo = styled(TSIcon)(({ theme }) => {
   return `
     width: 32px;
@@ -164,7 +147,6 @@ export const TSLogo = styled(TSIcon)(({ theme }) => {
     fill: ${colors.primary.main};
   `
 })
-
 
 export const ErrorSection = styled(Box)`
   display: flex;

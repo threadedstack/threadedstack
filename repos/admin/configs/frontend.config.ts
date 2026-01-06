@@ -18,7 +18,7 @@ export const loadConfig = () => {
    */
   loadEnvs({
     env: nodeEnv,
-    force: envOverride
+    force: envOverride,
   })
 
   const envs = Object.entries(process.env).reduce(
@@ -35,15 +35,16 @@ export const loadConfig = () => {
    */
   const aliases = {} as Record<string, string>
 
-
   return {
     aliases,
     environment: nodeEnv,
-    port: parseInt(process.env.TDSK_AD_PORT || `5887`, 10),
+    port: Number.parseInt(process.env.TDSK_AD_PORT || `5887`, 10),
     envs: {
       ...envs,
       [`process.env.NODE_ENV`]: JSON.stringify(process.env.NODE_ENV),
-      [`process.env.TDSK_AD_APP_VERSION`]: JSON.stringify(process.env.TDSK_AD_APP_VERSION || version),
+      [`process.env.TDSK_AD_APP_VERSION`]: JSON.stringify(
+        process.env.TDSK_AD_APP_VERSION || version
+      ),
       ...(envOverride ? {} : { [`process.env`]: {} }),
     } as Record<string, string | Record<string, string>>,
   } as TFECfg

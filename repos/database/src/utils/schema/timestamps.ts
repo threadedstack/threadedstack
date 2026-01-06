@@ -1,4 +1,4 @@
-import { timestamp } from "drizzle-orm/pg-core"
+import { timestamp } from 'drizzle-orm/pg-core'
 
 export const timestamps = {
   updatedAt: timestamp(`updated_at`).defaultNow(),

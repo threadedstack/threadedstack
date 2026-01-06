@@ -4,15 +4,11 @@ import { inherit } from '@TSC/theme/helpers'
 import { RenderType } from '@TSC/components/RenderType/RenderType'
 
 export type TRenderIcon = ComponentProps<any> & {
-  Icon?:ReactNode|ComponentType<any>
+  Icon?: ReactNode | ComponentType<any>
 }
 
-export const RenderIcon = (props:TRenderIcon) => {
-
-  const {
-    Icon,
-    ...rest
-  } = props
+export const RenderIcon = (props: TRenderIcon) => {
+  const { Icon, ...rest } = props
 
   return (
     <RenderType
@@ -21,5 +17,4 @@ export const RenderIcon = (props:TRenderIcon) => {
       props={rest}
     />
   )
-  
 }

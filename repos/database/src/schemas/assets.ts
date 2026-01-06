@@ -6,29 +6,28 @@ import { base } from '@TDB/utils/schema/base'
 import { threads } from '@TDB/schemas/threads'
 import { messages } from '@TDB/schemas/messages'
 import { providers } from '@TDB/schemas/providers'
-import {
-  uuid,
-  text,
-  jsonb,
-  check,
-  pgTable,
-} from 'drizzle-orm/pg-core'
+import { uuid, text, jsonb, check, pgTable } from 'drizzle-orm/pg-core'
 
-export const assets = pgTable(`assets`, {
-  ...base,
-  url: text(`url`),
-  meta: jsonb(`meta`),
-  content: jsonb(`content`),
-  name: text(`name`).notNull(),
-  type: text(`type`).notNull(),
-  providerId: uuid(`provider_id`).references(() => providers.id),
-  teamId: uuid(`team_id`).references(() => teams.id, { onDelete: `cascade` }),
-  repoId: uuid(`repo_id`).references(() => repos.id, { onDelete: `cascade` }),
-  userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
-  threadId: uuid(`thread_id`).references(() => threads.id, { onDelete: `cascade` }),
-  messageId: uuid(`message_id`).references(() => messages.id, { onDelete: `cascade` }),
-}, (table) => [
-  check(`asset_owner_check`, sql`
+export const assets = pgTable(
+  `assets`,
+  {
+    ...base,
+    url: text(`url`),
+    meta: jsonb(`meta`),
+    content: jsonb(`content`),
+    name: text(`name`).notNull(),
+    type: text(`type`).notNull(),
+    providerId: uuid(`provider_id`).references(() => providers.id),
+    teamId: uuid(`team_id`).references(() => teams.id, { onDelete: `cascade` }),
+    repoId: uuid(`repo_id`).references(() => repos.id, { onDelete: `cascade` }),
+    userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
+    threadId: uuid(`thread_id`).references(() => threads.id, { onDelete: `cascade` }),
+    messageId: uuid(`message_id`).references(() => messages.id, { onDelete: `cascade` }),
+  },
+  (table) => [
+    check(
+      `asset_owner_check`,
+      sql`
     (
       (${table.teamId} IS NOT NULL)::int + 
       (${table.repoId} IS NOT NULL)::int + 
@@ -36,9 +35,10 @@ export const assets = pgTable(`assets`, {
       (${table.threadId} IS NOT NULL)::int + 
       (${table.messageId} IS NOT NULL)::int
     ) = 1
-  `)
-])
-
+  `
+    ),
+  ]
+)
 
 export const assetsRelations = relations(assets, ({ one }) => ({
   team: one(teams, { fields: [assets.teamId], references: [teams.id] }),

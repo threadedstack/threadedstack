@@ -1,4 +1,3 @@
-
 export const white = `#FFFFFF`
 
 export const grey = {
@@ -24,15 +23,15 @@ export const grey = {
 
 export const primary = {
   50: `#DFE9F4`,
-  100: `#BFD3E9`, 
-  200: `#9FBDE0`, 
-  300: `#80A7D6`, 
-  400: `#608FCC`, 
+  100: `#BFD3E9`,
+  200: `#9FBDE0`,
+  300: `#80A7D6`,
+  400: `#608FCC`,
   main: `#4D7EC0`,
-  500: `#416FAE`, 
-  600: `#365F9B`, 
-  700: `#2A4F89`, 
-  800: `#1F3F76`, 
+  500: `#416FAE`,
+  600: `#365F9B`,
+  700: `#2A4F89`,
+  800: `#1F3F76`,
   900: `#152E64`,
 }
 
@@ -99,7 +98,6 @@ const states = {
   danger: `#d33d3d`,
 }
 
-
 const editor = {
   light: {
     background: white,
@@ -112,7 +110,6 @@ const editor = {
     gbackground: grey[850],
   },
 }
-
 
 export const colors = {
   grey,

@@ -1,9 +1,4 @@
-import type {
-  ElementType,
-  ForwardedRef,
-  CSSProperties,
-  ComponentProps,
-} from 'react'
+import type { ElementType, ForwardedRef, CSSProperties, ComponentProps } from 'react'
 
 import { forwardRef, useMemo } from 'react'
 import Typography from '@mui/material/Typography'
@@ -17,7 +12,7 @@ type TTypography = ComponentProps<typeof Typography>
 export type TText = Omit<TTypography, `color`> & {
   component?: ElementType
   textRef?: ForwardedRef<any>
-  color?:string|TTypography[`color`]
+  color?: string | TTypography[`color`]
 }
 
 export const Text = forwardRef((props: TText, ref: ForwardedRef<any>) => {
@@ -25,14 +20,15 @@ export const Text = forwardRef((props: TText, ref: ForwardedRef<any>) => {
   const resolved = useColor(color)
 
   const { clr, style } = useMemo(() => {
-    if(!resolved) return {style: sx, clr: undefined}
-    if(!CSSColorRefs.find(ref => resolved.startsWith(ref))) return {style: sx, clr: resolved}
+    if (!resolved) return { style: sx, clr: undefined }
+    if (!CSSColorRefs.find((ref) => resolved.startsWith(ref)))
+      return { style: sx, clr: resolved }
 
-    if(!sx) return {style: [{color: resolved}], clr: undefined}
+    if (!sx) return { style: [{ color: resolved }], clr: undefined }
 
     return {
       clr: undefined,
-      style: [...ensureArr<CSSProperties>(sx), {color: resolved}] as CSSProperties[]
+      style: [...ensureArr<CSSProperties>(sx), { color: resolved }] as CSSProperties[],
     }
   }, [sx, resolved])
 

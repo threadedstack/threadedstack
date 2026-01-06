@@ -1,11 +1,7 @@
 import Box from '@mui/material/Box'
 import { gutter } from '@TSC/theme/gutter'
 import { styled } from '@mui/material/styles'
-import {
-  ButtonGroup,
-  GroupButton
-} from '@TSC/components/Buttons/ButtonGroup'
-
+import { ButtonGroup, GroupButton } from '@TSC/components/Buttons/ButtonGroup'
 
 export const CronContainer = styled(Box)`
   display: flex;
@@ -36,4 +32,3 @@ export const CronInputsRow = styled(Box)`
   }
   
 `
-

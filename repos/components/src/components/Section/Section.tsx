@@ -15,26 +15,23 @@ import {
   SectionHeaderIconContainer,
 } from '@TSC/components/Section/Section.styles'
 
-
-
 export type TSection = {
-  id?:string
-  square?:boolean
-  elevation?:number
-  title?:ReactNode
-  sx?:CSSProperties
-  className?:string
-  stackClass?:string
-  children?:ReactNode
-  contentClass?:string
+  id?: string
+  square?: boolean
+  elevation?: number
+  title?: ReactNode
+  sx?: CSSProperties
+  className?: string
+  stackClass?: string
+  children?: ReactNode
+  contentClass?: string
   showHeader?: boolean
-  actions?:TSectionAction[]
-  iconProps?:ComponentProps<any>
+  actions?: TSectionAction[]
+  iconProps?: ComponentProps<any>
   Icon?: ComponentType<any> | ReactNode
 }
 
-export const Section = (props:TSection) => {
-  
+export const Section = (props: TSection) => {
   const {
     id,
     sx,
@@ -46,11 +43,11 @@ export const Section = (props:TSection) => {
     iconProps,
     className,
     stackClass,
-    elevation=0,
+    elevation = 0,
     contentClass,
-    showHeader=true,
+    showHeader = true,
   } = props
-  
+
   return (
     <SectionContainer
       id={id}
@@ -59,47 +56,37 @@ export const Section = (props:TSection) => {
       elevation={elevation}
       className={cls(`tdsk-section`, className)}
     >
-      <SectionStack className={cls(stackClass, `tdsk-section-stack`)} >
-        {showHeader && (
-          <SectionHeader className='tdsk-section-header' >
+      <SectionStack className={cls(stackClass, `tdsk-section-stack`)}>
+        {(showHeader && (
+          <SectionHeader className='tdsk-section-header'>
+            <SectionHeaderContainer className='tdsk-section-header-container'>
+              {Icon ? (
+                <SectionHeaderIconContainer className='tdsk-section-header-icon-container'>
+                  {isValidFuncComp(Icon) ? (
+                    <Icon
+                      {...iconProps}
+                      sx={[inherit, iconProps?.sx]}
+                    />
+                  ) : (
+                    Icon
+                  )}
+                </SectionHeaderIconContainer>
+              ) : null}
 
-            <SectionHeaderContainer className='tdsk-section-header-container' >
-                {
-                  Icon
-                    ? (
-                        <SectionHeaderIconContainer className='tdsk-section-header-icon-container' >
-                          {
-                            isValidFuncComp(Icon)
-                              ? (
-                                  <Icon
-                                    {...iconProps}
-                                    sx={[inherit, iconProps?.sx]}
-                                  />
-                                )
-                              : (Icon)
-                          }
-                        </SectionHeaderIconContainer>
-                      )
-                    : null
-                }
-
-              <SectionHeaderText className='tdsk-section-header-text' >
+              <SectionHeaderText className='tdsk-section-header-text'>
                 {title}
               </SectionHeaderText>
 
-              {(actions?.length && (<SectionActions actions={actions} />)) || null}
+              {(actions?.length && <SectionActions actions={actions} />) || null}
             </SectionHeaderContainer>
-
-
           </SectionHeader>
-        ) || null}
+        )) ||
+          null}
 
-        <SectionContent className={cls(contentClass, `tdsk-section-content`)} >
+        <SectionContent className={cls(contentClass, `tdsk-section-content`)}>
           {children}
         </SectionContent>
       </SectionStack>
-
     </SectionContainer>
   )
-  
 }

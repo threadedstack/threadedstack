@@ -4,21 +4,17 @@ import GitHubIcon from '@mui/icons-material/GitHub'
 import { GhLoginButton } from '@TAF/components/Login/Login.styles'
 
 export type TGithubButton = {
-  loading?:boolean
-  disabled?:boolean
-  onLogin:TOnLogin
+  loading?: boolean
+  disabled?: boolean
+  onLogin: TOnLogin
 }
 
-const creds:TLoginData = {
-  provider: `github`
+const creds: TLoginData = {
+  provider: `github`,
 }
 
-export const GhButton = (props:TGithubButton) => {
-  const {
-    onLogin,
-    loading,
-    disabled,
-  } = props
+export const GhButton = (props: TGithubButton) => {
+  const { onLogin, loading, disabled } = props
 
   return (
     <GhLoginButton

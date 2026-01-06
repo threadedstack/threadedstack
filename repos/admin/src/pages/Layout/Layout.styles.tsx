@@ -1,7 +1,6 @@
 import { Box } from '@mui/material'
 import { styled } from '@mui/material/styles'
 
-
 export const LayoutContainer = styled(Box)(({ theme }) => {
   return `
     width: 100vw;

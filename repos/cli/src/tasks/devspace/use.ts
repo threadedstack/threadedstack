@@ -1,9 +1,7 @@
 import type { TTask, TTaskAction } from '@TSCL/types'
 
-
 import { devspace } from '@TSCL/utils/devspace'
 import { sharedOpts } from '@TSCL/utils/tasks/options'
-
 
 /**
  * Runs a devspace use command and returns the output
@@ -11,11 +9,11 @@ import { sharedOpts } from '@TSCL/utils/tasks/options'
  * @public
  * @returns {Void}
  */
-const useAct:TTaskAction = async (args) => {
+const useAct: TTaskAction = async (args) => {
   await devspace.use(args)
 }
 
-export const use:TTask = {
+export const use: TTask = {
   name: `use`,
   alias: [`st`],
   action: useAct,

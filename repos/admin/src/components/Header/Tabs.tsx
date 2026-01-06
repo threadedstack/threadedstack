@@ -1,4 +1,5 @@
-import { useCallback, MouseEvent } from 'react'
+import type { MouseEvent } from 'react'
+import { useCallback, } from 'react'
 
 import Box from '@mui/material/Box'
 import Menu from '@mui/material/Menu'
@@ -11,73 +12,61 @@ import IconButton from '@mui/material/IconButton'
 type TTabProps = {
   tab: string
   menu?: boolean
-  onTabClick?: (...args:any[]) => any
-  onCloseTab?: (...args:any[]) => any
+  onTabClick?: (...args: any[]) => any
+  onCloseTab?: (...args: any[]) => any
 }
 
 type TTabsProps = {
   tabs: string[]
   anchorEl: null | HTMLElement
-  onOpenNav?: (...args:any[]) => any
-  onTabClick?: (...args:any[]) => any
-  onCloseTab?: (...args:any[]) => any
+  onOpenNav?: (...args: any[]) => any
+  onTabClick?: (...args: any[]) => any
+  onCloseTab?: (...args: any[]) => any
 }
 
-const Tab = (props:TTabProps) => {
+const Tab = (props: TTabProps) => {
+  const { tab, menu, onTabClick, onCloseTab } = props
 
-  const {
-    tab,
-    menu,
-    onTabClick,
-    onCloseTab
-  } = props
+  const onClick = useCallback(
+    (event: MouseEvent) => {
+      onTabClick?.(event, tab)
+      onCloseTab?.(event, tab)
+    },
+    [tab, onTabClick, onCloseTab]
+  )
 
-  const onClick = useCallback((event:MouseEvent) => {
-    onTabClick?.(event, tab)
-    onCloseTab?.(event, tab)
-  }, [tab, onTabClick, onCloseTab])
-
-
-  return menu
-    ? (
-        <MenuItem onClick={onClick}>
-          <Typography textAlign="center">{tab}</Typography>
-        </MenuItem>
-      )
-    : (
-        <Button
-          key={tab}
-          onClick={onClick}
-          sx={{ my: 2, color: 'white', display: 'block' }}
-        >
-          {tab}
-        </Button>
-      )
+  return menu ? (
+    <MenuItem onClick={onClick}>
+      <Typography textAlign='center'>{tab}</Typography>
+    </MenuItem>
+  ) : (
+    <Button
+      key={tab}
+      onClick={onClick}
+      sx={{ my: 2, color: 'white', display: 'block' }}
+    >
+      {tab}
+    </Button>
+  )
 }
 
-const MobileTabs = (props:TTabsProps) => {
-  const {
-    tabs,
-    anchorEl,
-    onTabClick,
-    onOpenNav,
-    onCloseTab
-  } = props
+const MobileTabs = (props: TTabsProps) => {
+  const { tabs, anchorEl, onTabClick, onOpenNav, onCloseTab } = props
 
   return (
     <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
       <IconButton
-        size="large"
-        aria-label="account of current user"
-        aria-controls="menu-appbar"
-        aria-haspopup="true"
+        size='large'
+        aria-label='account of current user'
+        aria-controls='menu-appbar'
+        aria-haspopup='true'
         onClick={onOpenNav}
-        color="inherit"
+        color='inherit'
       >
         <MenuIcon />
       </IconButton>
       <Menu
-        id="menu-appbar"
+        id='menu-appbar'
         anchorEl={anchorEl}
         // TODO: test these, they may be causing the issues with focus fighting
         // autoFocus={false}
@@ -111,14 +100,8 @@ const MobileTabs = (props:TTabsProps) => {
   )
 }
 
-
-export const Tabs = (props:TTabsProps) => {
-
-  const {
-    tabs,
-    onTabClick,
-    onCloseTab
-  } = props
+export const Tabs = (props: TTabsProps) => {
+  const { tabs, onTabClick, onCloseTab } = props
 
   return (
     <>

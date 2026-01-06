@@ -1,4 +1,5 @@
-import { ERoutePath, TNavItem } from '@TAF/types'
+import type { TNavItem } from '@TAF/types'
+import { ERoutePath, } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
 import { signout } from '@TAF/actions/auth/local/signout'
 import {
@@ -13,8 +14,7 @@ import {
   Settings as SettingsIcon,
   CloudQueue as ProviderIcon,
   AutoAwesome as AutoAwesomeIcon,
-} from "@mui/icons-material"
-
+} from '@mui/icons-material'
 
 export const HeaderSettingsItems = [
   {
@@ -29,15 +29,14 @@ export const HeaderSettingsItems = [
     Icon: LogoutIcon,
     id: `tdsk-settings-nav-sign-out-user`,
     onClick: async () => await signout(),
-  }
+  },
 ]
-
 
 export const NavItems: TNavItem[] = [
   {
     to: ERoutePath.Teams,
     text: `Teams`,
-    Icon: <TeamIcon />
+    Icon: <TeamIcon />,
   },
   {
     to: ERoutePath.Repos,

@@ -9,7 +9,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware'
 /**
  * Proxy middleware to forward requests to the API-Service
  */
-export const setupProxy = (app:TApp, router:Router) => {
+export const setupProxy = (app: TApp, router: Router) => {
   router.use(
     createProxyMiddleware(
       buildProxy({

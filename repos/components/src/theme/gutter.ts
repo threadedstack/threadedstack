@@ -3,8 +3,8 @@ const size = 16
 export const gutter = {
   q: size / 4,
   qpx: `${size / 4}px`, // 4px
-  s: ((size / 4) * 3)/2,
-  spx: `${((size / 4) * 3)/2}px`, // 6px
+  s: ((size / 4) * 3) / 2,
+  spx: `${((size / 4) * 3) / 2}px`, // 6px
   h: size / 2,
   hpx: `${size / 2}px`, // 8px
   c: (size / 4) * 2.5,

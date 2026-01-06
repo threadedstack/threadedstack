@@ -10,16 +10,16 @@ import { login } from '@TSCL/tasks/docker/login'
  * @public
  * @returns {Void}
  */
-const buildImg:TTaskAction = async (args) => {
+const buildImg: TTaskAction = async (args) => {
   const { params } = args
   const ctx = getCtx(args)
   !ctx && taskError(`Build context name is missing or invalid`)
 
-  params?.login && await login.action(args)
-  await docker.build({...args, ctx})
+  params?.login && (await login.action(args))
+  await docker.build({ ...args, ctx })
 }
 
-export const build:TTask = {
+export const build: TTask = {
   name: `build`,
   alias: [`bld`],
   action: buildImg,
