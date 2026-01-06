@@ -1,5 +1,5 @@
-import { isStr } from '@keg-hub/jsutils/isStr'
 import { isNum } from '@keg-hub/jsutils/isNum'
+import { isStr } from '@keg-hub/jsutils/isStr'
 import { exists } from '@keg-hub/jsutils/exists'
 
 /**

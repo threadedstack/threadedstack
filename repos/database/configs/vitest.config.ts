@@ -1,8 +1,9 @@
 import type { UserConfig } from 'vitest/config'
 
+import './aliases'
 import hq from 'alias-hq'
+import { loadEnvs } from '@tdsk/domain'
 import { defineConfig } from 'vitest/config'
-import { loadEnvs } from '../scripts/loadEnvs'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 
 const alias = hq.get(`webpack`)

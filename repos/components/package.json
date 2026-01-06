@@ -17,7 +17,8 @@
     "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
-    "biome:format": "biome format --config-path $(pwd)/configs/biome.json"
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "test": "vitest run --config configs/vitest.config.ts"
   },
   "files": [
     "dist"
@@ -45,11 +46,20 @@
     "split-pane-react": "0.1.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.2.1",
     "@types/node": "^20.11.16",
     "@types/react": "^18.2.53",
     "@types/react-dom": "^18.2.18",
+    "alias-hq": "6.2.4",
+    "esbuild": "0.24.2",
+    "esbuild-register": "3.5.0",
     "glob": "10.3.10",
+    "jsdom": "^24.0.0",
+    "tsconfig-paths": "4.2.0",
     "tsup": "^7.2.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.4.0",
+    "vite-tsconfig-paths": "^4.3.1"
   }
 }

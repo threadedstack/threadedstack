@@ -20,11 +20,30 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@ROOT": ["../../"],
+
       "@TPX/configs": ["configs"],
       "@TPX/configs/*": ["configs/*"],
       "@TPX": ["src"],
       "@TPX/*": ["src/*"],
+
+      "@TDM": ["../domain/src"],
+      "@TDM/*": ["../domain/src/*"],
+      "@tdsk/domain": ["../domain/src"],
+      "@tdsk/domain/*": ["../domain/src/*"],
+
+      "@TDB": ["../database/src"],
+      "@TDB/*": ["../database/src/*"],
+      "@TDB/configs": ["../database/configs"],
+      "@TDB/configs/*": ["../database/configs/*"],
+      "@tdsk/database": ["../database/src"],
+      "@tdsk/database/*": ["../database/src/*"],
+
+      "@tdsk/logger": ["../logger/src"],
+      "@tdsk/logger/*": ["../logger/src/*"],
+
+      "@ROOT": ["../../"],
+      "@ROOT/*": ["../../*"],
+
       "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
       "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"]
     }

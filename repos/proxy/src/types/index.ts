@@ -1,2 +1,3 @@
-export {}
+export * from './envs.types'
+
 

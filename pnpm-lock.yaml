@@ -246,15 +246,15 @@ importers:
       esbuild:
         specifier: 0.24.2
         version: 0.24.2
-      esbuild-plugin-path-alias:
-        specifier: 1.0.7
-        version: 1.0.7(esbuild@0.24.2)
       esbuild-register:
         specifier: 3.5.0
         version: 3.5.0(esbuild@0.24.2)
       rimraf:
         specifier: 6.0.1
         version: 6.0.1
+      tsconfig-paths:
+        specifier: 4.2.0
+        version: 4.2.0
       tsup:
         specifier: 8.3.0
         version: 8.3.0(@swc/core@1.10.11)(postcss@8.5.3)(tsx@4.21.0)(typescript@5.7.3)(yaml@2.7.0)
@@ -301,6 +301,9 @@ importers:
       module-alias:
         specifier: 2.2.3
         version: 2.2.3
+      tsconfig-paths:
+        specifier: 4.2.0
+        version: 4.2.0
       typescript:
         specifier: ^5.3.3
         version: 5.6.3
@@ -365,6 +368,12 @@ importers:
         specifier: 0.1.3
         version: 0.1.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
+      '@testing-library/jest-dom':
+        specifier: ^6.4.2
+        version: 6.6.3
+      '@testing-library/react':
+        specifier: ^14.2.1
+        version: 14.3.1(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/node':
         specifier: ^20.11.16
         version: 20.17.16
@@ -374,15 +383,36 @@ importers:
       '@types/react-dom':
         specifier: ^18.2.18
         version: 18.3.5(@types/react@18.3.18)
+      alias-hq:
+        specifier: 6.2.4
+        version: 6.2.4(@babel/preset-env@7.26.7(@babel/core@7.27.1))
+      esbuild:
+        specifier: 0.24.2
+        version: 0.24.2
+      esbuild-register:
+        specifier: 3.5.0
+        version: 3.5.0(esbuild@0.24.2)
       glob:
         specifier: 10.3.10
         version: 10.3.10
+      jsdom:
+        specifier: ^24.0.0
+        version: 24.1.3
+      tsconfig-paths:
+        specifier: 4.2.0
+        version: 4.2.0
       tsup:
         specifier: ^7.2.0
         version: 7.3.0(@swc/core@1.10.11)(postcss@8.5.3)(typescript@5.6.3)
       typescript:
         specifier: ^5.3.3
         version: 5.6.3
+      vite-tsconfig-paths:
+        specifier: ^4.3.1
+        version: 4.3.2(typescript@5.6.3)(vite@6.3.5(@types/node@20.17.16)(terser@5.43.1)(tsx@4.21.0)(yaml@2.7.0))
+      vitest:
+        specifier: ^1.4.0
+        version: 1.6.1(@types/node@20.17.16)(jsdom@24.1.3)(terser@5.43.1)
 
   repos/database:
     dependencies:
@@ -414,6 +444,15 @@ importers:
       drizzle-kit:
         specifier: 0.31.8
         version: 0.31.8
+      esbuild:
+        specifier: 0.24.2
+        version: 0.24.2
+      esbuild-register:
+        specifier: 3.5.0
+        version: 3.5.0(esbuild@0.24.2)
+      tsconfig-paths:
+        specifier: 4.2.0
+        version: 4.2.0
       tsup:
         specifier: 8.3.6
         version: 8.3.6(@swc/core@1.10.11)(postcss@8.5.3)(tsx@4.21.0)(typescript@5.7.3)(yaml@2.7.0)
@@ -448,9 +487,18 @@ importers:
       '@types/node':
         specifier: 22.12.0
         version: 22.12.0
+      esbuild:
+        specifier: 0.24.2
+        version: 0.24.2
+      esbuild-register:
+        specifier: 3.5.0
+        version: 3.5.0(esbuild@0.24.2)
       module-alias:
         specifier: 2.2.3
         version: 2.2.3
+      tsconfig-paths:
+        specifier: 4.2.0
+        version: 4.2.0
       tsup:
         specifier: 8.3.6
         version: 8.3.6(@swc/core@1.10.11)(postcss@8.5.3)(tsx@4.21.0)(typescript@5.7.3)(yaml@2.7.0)
@@ -549,6 +597,9 @@ importers:
       esbuild-register:
         specifier: 3.5.0
         version: 3.5.0(esbuild@0.19.3)
+      tsconfig-paths:
+        specifier: 4.2.0
+        version: 4.2.0
       vite-tsconfig-paths:
         specifier: ^4.3.1
         version: 4.3.2(typescript@5.7.3)(vite@6.3.5(@types/node@22.12.0)(terser@5.43.1)(tsx@4.21.0)(yaml@2.7.0))
@@ -5318,11 +5369,6 @@ packages:
   es-object-atoms@1.1.1:
     resolution: {integrity: sha512-FGgH2h8zKNim9ljj7dankFPcICIK9Cp5bm+c2gQSYePhpaG5+esrLODihIorn+Pe6FGJzWhXQotPv73jTaldXA==}
     engines: {node: '>= 0.4'}
-
-  esbuild-plugin-path-alias@1.0.7:
-    resolution: {integrity: sha512-0Be2FjvykTNc8kWrpNmZEopdbGLG+K1jKRwQ9HtBZCQb004C3P7p5HcYxciet+VXtblpeIWL7UFyogz/iMq/cw==}
-    peerDependencies:
-      esbuild: '*'
 
   esbuild-register@3.4.2:
     resolution: {integrity: sha512-kG/XyTDyz6+YDuyfB9ZoSIOOmgyFCH+xPRtsCa8W85HLRV5Csp+o3jWVbOSHgSLfyLc5DmP+KFDNwty4mEjC+Q==}
@@ -12728,10 +12774,6 @@ snapshots:
     dependencies:
       es-errors: 1.3.0
 
-  esbuild-plugin-path-alias@1.0.7(esbuild@0.24.2):
-    dependencies:
-      esbuild: 0.24.2
-
   esbuild-register@3.4.2(esbuild@0.17.6):
     dependencies:
       debug: 4.4.3
@@ -15872,6 +15914,17 @@ snapshots:
       vite: 5.4.14(@types/node@20.17.16)(terser@5.43.1)
     transitivePeerDependencies:
       - supports-color
+
+  vite-tsconfig-paths@4.3.2(typescript@5.6.3)(vite@6.3.5(@types/node@20.17.16)(terser@5.43.1)(tsx@4.21.0)(yaml@2.7.0)):
+    dependencies:
+      debug: 4.4.0
+      globrex: 0.1.2
+      tsconfck: 3.1.4(typescript@5.6.3)
+    optionalDependencies:
+      vite: 6.3.5(@types/node@20.17.16)(terser@5.43.1)(tsx@4.21.0)(yaml@2.7.0)
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
 
   vite-tsconfig-paths@4.3.2(typescript@5.6.3)(vite@6.3.5(@types/node@22.12.0)(terser@5.43.1)(tsx@4.21.0)(yaml@2.7.0)):
     dependencies:

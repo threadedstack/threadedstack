@@ -1,6 +1,5 @@
 import type { Router } from 'express'
 import type { TApp } from '@tdsk/domain'
-import type { Supabase } from '@tdsk/database'
 
 import cors from 'cors'
 import { database } from '@tdsk/database'
@@ -11,7 +10,7 @@ import { database } from '@tdsk/database'
  */
 export const setupServer = (app:TApp, router:Router) => {
 
-  app.locals.db = database<Supabase>(app.locals.config.database)
+  app.locals.db = database(app.locals.config.database)
 
   app.disable(`x-powered-by`)
 

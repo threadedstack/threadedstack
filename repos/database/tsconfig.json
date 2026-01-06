@@ -1,22 +1,29 @@
 {
+  "parserOptions": {
+    "extraFileExtensions": ["json"]
+  },
   "compilerOptions": {
     "baseUrl": ".",
-    "noEmit": true,
-    "strict": false,
-    "allowJs": true,
-    "target": "esnext",
     "outDir": "./dist",
+    "target": "esnext",
     "module": "esnext",
-    "incremental": true,
+    "noEmit": true,
+    "allowJs": true,
+    "sourceMap": true,
+    "declaration": false,
     "skipLibCheck": true,
+    "noEmitOnError": true,
+    "noImplicitAny": false,
+    "declarationMap": false,
     "esModuleInterop": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
     "ignoreDeprecations": "6.0",
     "moduleResolution": "bundler",
+    "noFallthroughCasesInSwitch": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@ROOT": ["../../"],
 
       "@TDB": ["./src"],
       "@TDB/*": ["./src/*"],
@@ -28,17 +35,25 @@
       "@tdsk/logger": ["../logger/src"],
       "@tdsk/logger/*": ["../logger/src/*"],
 
-      "@tdsk/domain/web": ["../domain/src/web.ts"],
+      "@TDM": ["../domain/src"],
+      "@TDM/*": ["../domain/src/*"],
+      "@tdsk/domain": ["../domain/src"],
+      "@tdsk/domain/*": ["../domain/src/*"],
+
+      "@ROOT": ["../../"],
+      "@ROOT/*": ["../../*"],
 
       "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
       "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"],
       "@keg-hub/jsutils/src/node": ["node_modules/@keg-hub/jsutils/build/esm/node"],
       "@keg-hub/jsutils/src/node/*": ["node_modules/@keg-hub/jsutils/build/esm/node"]
-    },
+    }
   },
   "include": [
     "src",
     "configs",
-    "scripts"
+    "scripts",
+    "../logger/src",
+    "../domain/src"
   ]
 }

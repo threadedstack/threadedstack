@@ -2,20 +2,26 @@ import type { UserConfig } from 'vitest/config'
 
 import './aliases'
 import hq from 'alias-hq'
-import { loadEnvs } from '@tdsk/domain'
 import { defineConfig } from 'vitest/config'
+import { loadEnvs } from '../scripts/loadEnvs'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 
+
+const nodeEnv = process.env.NODE_ENV || `local`
 const alias = hq.get(`webpack`)
 
 export default defineConfig(async () => {
-  await loadEnvs({ force: true })
+  loadEnvs({
+    env: nodeEnv,
+    force: true
+  })
 
   return {
     test: {
       globals: true,
-      environment: `node`,
+      environment: `jsdom`,
       include: [`**/*.test.ts`],
+      setupFiles: `./scripts/setupTests.ts`,
     },
     resolve: {
       alias,

@@ -39,5 +39,4 @@ tdsk_install_brew_deps(){
   # tdsk_brew_check_install "azure-cli" "az -v"
   # Check and install git
   tdsk_brew_check_install "git" "git --version"
-  tdsk_brew_check_install "supabase/tap/supabase" "supabase --version"
 }

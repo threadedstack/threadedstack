@@ -28,10 +28,6 @@
       "@TDM/configs": ["./configs"],
       "@TDM/configs/*": ["./configs/*"],
 
-      // Included for types only, should not be used for frontend imports
-      "@TDB": ["../database/src"],
-      "@TDB/*": ["../database/src/*"],
-
       "@tdsk/logger": ["../logger/src"],
       "@tdsk/logger/*": ["../logger/src/*"],
 

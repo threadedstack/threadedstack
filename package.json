@@ -13,7 +13,7 @@
     "sync": "syncpack fix-mismatches --config configs/syncpack.config.js",
     "tdsk": "cd repos/cli; pnpm cli",
     "ts": "cd repos/cli; pnpm cli",
-    "test": "",
+    "test": "pnpm -r test",
     "biome": "biome",
     "bypass": "HUSKY=0 git commit -m ",
     "precommit": "pnpm lint:staged && pnpm format:staged",
