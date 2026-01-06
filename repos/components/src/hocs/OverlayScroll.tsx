@@ -1,3 +1,4 @@
+// @ts-ignore
 import 'overlayscrollbars/overlayscrollbars.css'
 
 import type { ReactNode } from 'react'
