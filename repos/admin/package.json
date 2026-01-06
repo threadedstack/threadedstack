@@ -8,7 +8,14 @@
     "host": "vite --open --host -c configs/vite.config.ts",
     "clean": "rm -rf ./node_modules",
     "types": "tsc -b",
-    "lint": "eslint .",
+    "lint": "pnpm biome:lint --write",
+    "format": "pnpm biome:format --write",
+    "lint:ci": "pnpm biome:lint --diagnostic-level=error --changed",
+    "format:ci": "pnpm biome:format --diagnostic-level=error --changed",
+    "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
     "preview": "vite preview -c configs/vite.config.ts",
     "start": "vite -c configs/vite.config.ts",
     "sf": "NODE_ENV=local vite -c configs/vite.config.ts --force"
@@ -40,6 +47,7 @@
     "vite-tsconfig-paths": "^4.3.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.1.2",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",
     "@types/node": "^20.11.16",

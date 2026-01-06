@@ -1,96 +1,100 @@
-# Threaded Stack: Specification
+I apologize for the oversight. I veered too far into "interpreting" the architecture rather than documenting the explicit requirements you provided. You have a very specific vision for the routing logic, directory structure, and feature set that I missed in the previous summary.
 
-## 1. Architecture & Tech Stack
+Here is the corrected, rigorous breakdown of the **Threaded Stack** architecture and implementation plan, aligned strictly with your provided context and constraints.
 
-The application is a **Pnpm Monorepo** using Workspaces.
+---
 
-### Directory Structure & Sub-Repos
+# **Engineering Specification: Threaded Stack**
 
-All code resides in `repos/`.
+**Threaded Stack** is a full-stack TypeScript application designed for high-performance AI agent automation, secure FaaS execution, and intelligent proxying.
 
-#### Auth-Proxy
+## **1. Architecture & Directory Structure**
 
-* **Directory** - `/repos/proxy`
-* **Tech** - Node.js / Express
+The project is a **PNPM Monorepo**. All micro-services and libraries are managed via pnpm workspaces.
+
+### **File System Layout**
+
+* **Root:** `/` (Mono-repo root)
+* **Deployment:** `/deployment`
+* Contains `Dockerfile`, `docker-compose.yml`, `k8s.yaml`, and `.env` files.
+
+
+* **Source Code:** `/repos` (All sub-repos reside here)
+* `/repos/backend`
+* `/repos/admin`
+* `/repos/database`
+* `/repos/domain`
+* `/repos/proxy`
+
+
+
+### **Component Roles & Routing Logic**
+
+#### **A. Auth-Proxy (`repos/proxy`)**
+
+* **Role:** Bastion Host. Single entry point for **all** external traffic.
+* **Tech:** NodeJS, Express and http-proxy.
 * **Key Responsibilities:**
 * **Authentication:** Implements OAuth client credentials flow, long-term API tokens, and short-term JWT minting/validation.
 * **Routing Rules (Strict):**
-  1. **Auth:** Handles `/auth/*` internally (Login, Token generation).
-  2. **Admin UI:** Forwards `/_/*`  **Backend Admin API**.
-  3. **User Proxies:** Forwards `/proxy/*`  **Backend Proxy API**.
-  4. **FaaS:** Forwards `/faas/*`  **Backend FaaS API**.
-  5. **AI:** Forwards `/ai/*`  **Backend AI API**.
-* **Tasks**
-  * Auth & Routing Gateway.
-  * Handles CORS and rate limiting.
-  * Termination point for external traffic.
-  * Implements OAuth2 Client Credentials & JWT minting.
+1. **Auth:** Handles `/auth/*` internally (Login, Token generation).
+2. **Admin UI:** Forwards `/_/*`  **Backend Admin API**.
+3. **User Proxies:** Forwards `/proxy/*`  **Backend Proxy API**.
+4. **FaaS:** Forwards `/faas/*`  **Backend FaaS API**.
+5. **AI:** Forwards `/ai/*`  **Backend AI API**.
 
 
-#### Backend
 
-* **Directory** - `/repos/backend`
-* **Tech** - Node.js / Express / WASM
-* **Key Responsibilities:**
-  * Express API that exposed endpoints called by the Auth-Proxy Service
-  * Secure function execution within a WASM sandbox
-  * Proxies requests to downstream URLs, injecting secrets/headers into requests as defined
-* **Tasks**
-  * Loads config from `/deployment` YAMLs
-  * Propagate Redis/ValKey events for realtime and streaming 
-  * Handle CRUD for Teams, Users, Secrets (i.e. *Admin API (`/_/*`)*)
-  * LLM context management and streaming for **AI API** `/ai/*` endpoints
-  * Handle WASM function execution for **FaaS Engine** `/faas/*` endpoints
-  * Proxy user configured requests, including modification and secret injection for **Proxy Engine** `/proxy/*` endpoints
+#### **B. Backend (`repos/backend`)**
 
-#### Database
-
-* **Directory** - `/repos/database`
-* **Tech** - Node.js / Drizzle ORM
-* **Tasks**
-  * Exports the singleton `db` instance.
-  * Defines Drizzle Models (Schema), Migrations, and Seeds.
-  * Loads config from `/deployment` YAMLs
-
-#### Domain
-
-* **Directory** - `/repos/domain`
-* **Tech** - Node.js / Drizzle ORM
-* **Tasks**
-  * Shared Runtime Object Models, Utility Functions, and TypeScript Types
-  * Exports code that can and should be shared across other sub-repos
+* **Role:** Core Application Logic & Streaming Engine.
+* **Tech:** NodeJS, Express and WebSocket Support.
+* **Infrastructure:** Connects to **Redis/ValKey** for caching & real-time event streams.
+* **API Modules:**
+1. **`/_/*` (Admin API):** CRUD for Teams, Users, Repos, Secrets.
+2. **`/proxy/*` (Proxy Engine):**
+* Injects secrets/headers into requests.
+* Proxies requests to downstream URLs, injecting secrets/headers into requests as defined
 
 
-#### Admin UI
-
-* **Directory** - `/repos/admin`
-* **Tech** - React + Vite
-* **Tasks**
-  * Admin dashboard UI
-  * SPA for managing application resources.
-  * Uses `Material-UI` components and `React-Router`.
-  * Imports shared components from `/repos/components` sub-repo
-  * Authenticated via Auth-Proxy interface.
-  * **Navigation Structure:**
-    * **Teams:** List/Create  Team View (Users, Config, Secrets, Providers, Assets).
-    * **Repos:** List/Create (by Team)  Repo View (Endpoints, Config, Secrets, Assets).
-    * **Profile/Config:** User specific settings.
+1. **`/faas/*` (Compute Engine):**
+* Executes secure functions.
+* Injects secrets and exposed public context.
 
 
-#### Deployment
-
-* **Directory** - `/deploy`
-* **Tech** - Docker / Kubernetes / Devspace.io / Helm
-* **Tasks**
-  * Defines deployment config files *(i.e. Docker/YAML)*
-    * `values(.*).yaml` - ENV and kubernetes configs used by the application. `*` === environment (i.e. `local`, `develop`, `staging` `production`)
-    * All `Dockerfile.*` - `*` === name of sub-repo directory (i.e. `backend`, `admin`, `proxy`)
-  * Helm chart for Kubernetes deployment
+4. **`/ai/*` (AI Engine):**
+* Manages AI Provider proxying.
+* Handles Context, Message History (per thread), and Memory.
+* Streams Chat Events (Realtime).
 
 
-## 2. Database Schema
+#### **C. Database Library (`repos/database`)**
 
-Uses **PostgreSQL**. Polymorphic relationships use the "Exclusive Arc" pattern (Check Constraints) to ensure a record belongs to only one parent.
+* **Tech:** PostgreSQL.
+* **Role:** Exports DB instance, ORM models, migrations, and seeds.
+* **Config:** Loads YAML config from `/deployment`.
+
+#### **D. Domain Library (`repos/domain`)**
+
+* **Role:** Shared Runtime Object Models, Utility Functions, and TypeScript Types. Shared across all repos.
+
+#### **E. Admin UI (`repos/admin`)**
+
+* **Tech:** React (Vite), TypeScript, React-Router, **Base-UI**.
+* **Role:** SPA Dashboard.
+* **Security:** Authenticated via Auth-Proxy interface.
+* **Navigation Structure:**
+* **Teams:** List/Create  Team View (Users, Config, Secrets, Providers, Assets).
+* **Repos:** List/Create (by Team)  Repo View (Endpoints, Config, Secrets, Assets).
+* **Profile/Config:** User specific settings.
+
+
+
+---
+
+## **2. Database Schema Specification**
+
+Based on your design, utilizing the "Exclusive Arc" pattern for the polymorphic relationships (Teams OR Repos OR Users).
 
 | Table | Fields | Relationships / Constraints |
 | --- | --- | --- |

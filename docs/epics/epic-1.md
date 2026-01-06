@@ -21,7 +21,8 @@
 ## 3. Auth-Proxy (The Gatekeeper)
 
 * Setup Pnpm + Express server in `repos/proxy`.
-* Implement Auth endpoints: `POST /auth/login` (JWT) and Register.
+* Integrate Neon Auth (`@neondatabase/neon-js`) for backend authentication and JWT token generation.
+* Implement Auth endpoints: as needed via `POST /auth/*` endpoints
 * Implement Forwarding Logic: Forward `/_/*` requests to the Backend port.
 
 ## 4. Backend Core

@@ -5,7 +5,7 @@
 ## 1. Compute Engine (Backend)
 
 * **Runtime Environment:**
-* Integrate a secure WASM runtime (e.g., via Bun’s FFI or dedicated isolate).
+* Integrate a secure WASM runtime.
 * **Sandbox Security:** Ensure strict isolation for execution.
 
 
@@ -29,7 +29,7 @@
 
 ## 3. Language Support
 
-* **TypeScript/JavaScript:** Support via internal transpiler (executed via Bun).
+* **TypeScript/JavaScript:** Support via internal transpiler or QuickJS (TBD).
 * **Python:** Support via WASM build (Pyodide or similar).
 
 ## 4. Git Integration (Investigation)
