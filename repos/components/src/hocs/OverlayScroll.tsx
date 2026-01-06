@@ -19,9 +19,7 @@ export const OverlayScroll = (props: TOverlayScroll) => {
       {...rest}
       options={{ ...overlayScrollOpts, ...options }}
     >
-      <MemoChildren>
-        {children}
-      </MemoChildren>
+      <MemoChildren>{children}</MemoChildren>
     </OverlayScrollbarsComponent>
   )
 }

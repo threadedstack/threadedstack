@@ -1,5 +1,5 @@
 import type { TNavItem } from '@TAF/types'
-import { ERoutePath, } from '@TAF/types'
+import { ERoutePath } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
 import { signout } from '@TAF/actions/auth/local/signout'
 import {

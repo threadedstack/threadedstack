@@ -15,7 +15,9 @@ export const parseCron = (cron: string) => {
   const hours = parts[2]
   const minutes = parts[1]
   const days =
-    parts[5] !== `*` ? parts[5].split(`,`).map((d) => DaysOfWeek[Number.parseInt(d, 10)]) : []
+    parts[5] !== `*`
+      ? parts[5].split(`,`).map((d) => DaysOfWeek[Number.parseInt(d, 10)])
+      : []
 
   let interval = 1
   let repeat = ERepeatType.daily

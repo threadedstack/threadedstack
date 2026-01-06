@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import { useCallback, } from 'react'
+import { useCallback } from 'react'
 
 import Box from '@mui/material/Box'
 import Menu from '@mui/material/Menu'

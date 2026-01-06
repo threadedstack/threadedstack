@@ -17,9 +17,9 @@ import { isValidFuncComp } from '@TSC/utils/isValidFuncComp'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 
 export type TGroupButton = {
-  id?:string
+  id?: string
   value?: any
-  key?:string|number
+  key?: string | number
   sx?: CSSProperties
   className?: string
   disabled?: boolean
@@ -72,7 +72,10 @@ export const ButtonGroup = (props: TButtonGroup) => {
       className={cls(className, `tdsk-button-group`)}
     >
       {buttons?.map((button, idx) => (
-        <GroupButton key={button?.key || button?.id || idx} {...button} />
+        <GroupButton
+          key={button?.key || button?.id || idx}
+          {...button}
+        />
       ))}
       {children}
     </ToggleButtonGroup>
