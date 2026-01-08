@@ -1,0 +1,45 @@
+import type { Request, Response, NextFunction } from 'express'
+import type { TProxyApp } from '@TPX/types'
+
+import { logger } from '@TPX/utils/logger'
+
+/**
+ * Request/Response logging middleware
+ * Logs incoming requests and outgoing responses with timing information
+ */
+export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
+  const startTime = Date.now()
+  const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+  // Log incoming request
+  logger.info(`→ ${req.method} ${req.path}`, {
+    requestId,
+    method: req.method,
+    path: req.path,
+    query: req.query,
+    ip: req.ip,
+    userAgent: req.get(`User-Agent`),
+  })
+
+  // Capture response finish
+  res.on(`finish`, () => {
+    const duration = Date.now() - startTime
+    const statusCode = res.statusCode
+
+    const logLevel = statusCode >= 500 ? `error` : statusCode >= 400 ? `warn` : `info`
+
+    logger[logLevel](`← ${req.method} ${req.path} ${statusCode} ${duration}ms`, {
+      requestId,
+      method: req.method,
+      path: req.path,
+      statusCode,
+      duration,
+    })
+  })
+
+  next()
+}
+
+export const setupLogger = (app: TProxyApp) => {
+  app.use(requestLogger)
+}

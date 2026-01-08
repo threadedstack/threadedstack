@@ -92,23 +92,23 @@
 - [x] **TASK-3.1.1**: Initialize Express server in `repos/proxy/src/index.ts`
 - [x] **TASK-3.1.2**: Create server configuration in `repos/proxy/src/server/index.ts`
 - [x] **TASK-3.1.3**: Implement environment variables loading in `repos/proxy/src/constants/envs.ts`
-- [ ] **TASK-3.1.4**: Implement proxy server logic in `repos/proxy/src/proxy.ts` (currently TODO stub)
+- [x] **TASK-3.1.4**: Implement proxy server logic in `repos/proxy/src/proxy.ts`
 
 ### 3.2 Neon Auth Integration
 - [ ] **TASK-3.2.1**: Install and configure `@neondatabase/neon-js` in proxy repo
-- [ ] **TASK-3.2.2**: Implement JWT token validation middleware
-- [ ] **TASK-3.2.3**: Implement session management
+- [ ] **TASK-3.2.2**: Implement JWT token validation middleware using neon-js auth
+- [ ] **TASK-3.2.3**: Implement session management using neon-js auth
 
 ### 3.3 Auth Endpoints
-- [ ] **TASK-3.3.1**: Implement `POST /auth/login` endpoint
-- [ ] **TASK-3.3.2**: Implement `POST /auth/logout` endpoint
-- [ ] **TASK-3.3.3**: Implement `POST /auth/refresh` token refresh endpoint
-- [ ] **TASK-3.3.4**: Implement `GET /auth/me` current user endpoint
+- [ ] **TASK-3.3.1**: Update `POST /auth/login` endpoint to use neon-js auth
+- [ ] **TASK-3.3.2**: Update `POST /auth/logout` endpoint to use neon-js auth
+- [ ] **TASK-3.3.3**: Update `POST /auth/refresh` token refresh endpoint to use neon-js auth
+- [ ] **TASK-3.3.4**: Update `GET /auth/me` current user endpoint to use neon-js auth
 
 ### 3.4 Forwarding Logic
-- [ ] **TASK-3.4.1**: Implement `/_/*` request forwarding to Backend
-- [ ] **TASK-3.4.2**: Configure proxy headers for backend requests
-- [ ] **TASK-3.4.3**: Implement request/response logging
+- [x] **TASK-3.4.1**: Implement `/_/*` request forwarding to Backend
+- [x] **TASK-3.4.2**: Configure proxy headers for backend requests
+- [x] **TASK-3.4.3**: Implement request/response logging
 
 ---
 

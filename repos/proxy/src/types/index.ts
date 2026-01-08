@@ -1,1 +1,5 @@
 export * from './envs.types'
+export * from './auth.types'
+export * from './proxy.types'
+export * from './config.types'
+export * from './express.types'
