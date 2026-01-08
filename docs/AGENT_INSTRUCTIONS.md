@@ -132,6 +132,12 @@ When updating a task's status in `tasks.md`, preserve the exact format:
 - [x] **TASK-1.1.1**: Initialize pnpm workspace
 ```
 
+### TODOs are NOT Allowed
+
+- A task can only be marked as completed if all the work related to that task is complete.
+- It the work contains `TODO` or similar comments, then that task is incomplete
+- Only mark a task as completed once all work related to the task is finished.
+
 ---
 
 ## Code Conventions
