@@ -126,20 +126,20 @@
 - [x] **TASK-4.2.3**: Implement auth endpoint structure in `repos/backend/src/endpoints/auth/auth.ts`
 
 ### 4.3 Users API
-- [ ] **TASK-4.3.1**: Implement `GET /_api/users` - List users
-- [ ] **TASK-4.3.2**: Implement `GET /_api/users/:id` - Get user by ID
-- [ ] **TASK-4.3.3**: Implement `POST /_api/users` - Create user
-- [ ] **TASK-4.3.4**: Implement `PUT /_api/users/:id` - Update user
-- [ ] **TASK-4.3.5**: Implement `DELETE /_api/users/:id` - Delete user
+- [x] **TASK-4.3.1**: Implement `GET /_/users` - List users
+- [x] **TASK-4.3.2**: Implement `GET /_/users/:id` - Get user by ID
+- [x] **TASK-4.3.3**: Implement `POST /_/users` - Create user
+- [x] **TASK-4.3.4**: Implement `PUT /_/users/:id` - Update user
+- [x] **TASK-4.3.5**: Implement `DELETE /_/users/:id` - Delete user
 
 ### 4.4 Teams API
-- [ ] **TASK-4.4.1**: Implement `GET /_api/teams` - List teams (verify DB connectivity)
-- [ ] **TASK-4.4.2**: Implement `GET /_api/teams/:id` - Get team by ID
-- [ ] **TASK-4.4.3**: Implement `POST /_api/teams` - Create team
-- [ ] **TASK-4.4.4**: Implement `PUT /_api/teams/:id` - Update team
-- [ ] **TASK-4.4.5**: Implement `DELETE /_api/teams/:id` - Delete team
-- [ ] **TASK-4.4.6**: Implement `POST /_api/teams/:id/members` - Add team member
-- [ ] **TASK-4.4.7**: Implement `DELETE /_api/teams/:id/members/:userId` - Remove team member
+- [x] **TASK-4.4.1**: Implement `GET /_/teams` - List teams (verify DB connectivity)
+- [x] **TASK-4.4.2**: Implement `GET /_/teams/:id` - Get team by ID
+- [x] **TASK-4.4.3**: Implement `POST /_/teams` - Create team
+- [x] **TASK-4.4.4**: Implement `PUT /_/teams/:id` - Update team
+- [x] **TASK-4.4.5**: Implement `DELETE /_/teams/:id` - Delete team
+- [x] **TASK-4.4.6**: Implement `POST /_/teams/:id/members` - Add team member
+- [x] **TASK-4.4.7**: Implement `DELETE /_/teams/:id/members/:userId` - Remove team member
 
 ---
 
@@ -192,8 +192,8 @@
 - [ ] User can Login and receive JWT token
 - [ ] User can Create a Team via the UI
 - [ ] User can View the Team via the UI
-- [ ] Backend `GET /_api/teams` returns data from database
-
+- [ ] Backend `GET /_/teams` returns data from database
+- [ ] Backend `GET /_/users` returns data from database
 ---
 
 ## Dependencies

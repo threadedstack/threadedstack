@@ -43,11 +43,11 @@
 
 ### 2.1 Repository Management
 - [ ] **TASK-2.1.1**: Create repos API endpoint at `repos/backend/src/endpoints/repos.ts`
-- [ ] **TASK-2.1.2**: Implement `POST /_api/repos` - Register repository
-- [ ] **TASK-2.1.3**: Implement `GET /_api/repos` - List repositories
-- [ ] **TASK-2.1.4**: Implement `GET /_api/repos/:id` - Get repository details
-- [ ] **TASK-2.1.5**: Implement `PUT /_api/repos/:id` - Update repository
-- [ ] **TASK-2.1.6**: Implement `DELETE /_api/repos/:id` - Delete repository
+- [ ] **TASK-2.1.2**: Implement `POST /_/repos` - Register repository
+- [ ] **TASK-2.1.3**: Implement `GET /_/repos` - List repositories
+- [ ] **TASK-2.1.4**: Implement `GET /_/repos/:id` - Get repository details
+- [ ] **TASK-2.1.5**: Implement `PUT /_/repos/:id` - Update repository
+- [ ] **TASK-2.1.6**: Implement `DELETE /_/repos/:id` - Delete repository
 
 ### 2.2 Git Authentication
 - [ ] **TASK-2.2.1**: Create git credentials schema (SSH keys, tokens)
@@ -149,19 +149,19 @@
 
 ### 6.1 Agents CRUD
 - [ ] **TASK-6.1.1**: Create agents endpoint at `repos/backend/src/endpoints/agents.ts`
-- [ ] **TASK-6.1.2**: Implement `POST /_api/agents` - Create agent configuration
-- [ ] **TASK-6.1.3**: Implement `GET /_api/agents` - List agent configs
-- [ ] **TASK-6.1.4**: Implement `GET /_api/agents/:id` - Get agent details
-- [ ] **TASK-6.1.5**: Implement `PUT /_api/agents/:id` - Update agent
-- [ ] **TASK-6.1.6**: Implement `DELETE /_api/agents/:id` - Delete agent
+- [ ] **TASK-6.1.2**: Implement `POST /_/agents` - Create agent configuration
+- [ ] **TASK-6.1.3**: Implement `GET /_/agents` - List agent configs
+- [ ] **TASK-6.1.4**: Implement `GET /_/agents/:id` - Get agent details
+- [ ] **TASK-6.1.5**: Implement `PUT /_/agents/:id` - Update agent
+- [ ] **TASK-6.1.6**: Implement `DELETE /_/agents/:id` - Delete agent
 
 ### 6.2 Agent Execution
-- [ ] **TASK-6.2.1**: Implement `POST /_api/agents/:id/run` - Start agent execution
-- [ ] **TASK-6.2.2**: Implement `GET /_api/agents/:id/runs` - List agent runs
-- [ ] **TASK-6.2.3**: Implement `GET /_api/agents/:id/runs/:runId` - Get run details
-- [ ] **TASK-6.2.4**: Implement `POST /_api/agents/:id/runs/:runId/stop` - Stop running agent
-- [ ] **TASK-6.2.5**: Implement `GET /_api/agents/:id/runs/:runId/logs` - Get run logs
-- [ ] **TASK-6.2.6**: Implement `GET /_api/agents/:id/runs/:runId/stream` - Stream run output
+- [ ] **TASK-6.2.1**: Implement `POST /_/agents/:id/run` - Start agent execution
+- [ ] **TASK-6.2.2**: Implement `GET /_/agents/:id/runs` - List agent runs
+- [ ] **TASK-6.2.3**: Implement `GET /_/agents/:id/runs/:runId` - Get run details
+- [ ] **TASK-6.2.4**: Implement `POST /_/agents/:id/runs/:runId/stop` - Stop running agent
+- [ ] **TASK-6.2.5**: Implement `GET /_/agents/:id/runs/:runId/logs` - Get run logs
+- [ ] **TASK-6.2.6**: Implement `GET /_/agents/:id/runs/:runId/stream` - Stream run output
 
 ---
 

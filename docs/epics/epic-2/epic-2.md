@@ -5,12 +5,12 @@
 ## 1. Backend API & Data
 
 * **Secrets Management:**
-* Implement `POST /_api/secrets`.
+* Implement `POST /_/secrets`.
 * Ensure all values are encrypted before insertion (store `encrypted_value`).
 * Associate secrets with specific Teams or Repositories.
 
 * **Endpoint Management:**
-* Implement `POST /_api/endpoints` to create proxy definitions.
+* Implement `POST /_/endpoints` to create proxy definitions.
 * Define schema for `proxy_url`, `proxy_headers`, and `proxy_options` (for regex/replacements).
 
 

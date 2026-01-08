@@ -13,11 +13,11 @@
 
 ### 1.1 Secrets Management API
 - [ ] **TASK-1.1.1**: Create secrets endpoint file at `repos/backend/src/endpoints/secrets.ts`
-- [ ] **TASK-1.1.2**: Implement `POST /_api/secrets` - Create secret (encrypt value before storage)
-- [ ] **TASK-1.1.3**: Implement `GET /_api/secrets` - List secrets (metadata only, no values)
-- [ ] **TASK-1.1.4**: Implement `GET /_api/secrets/:id` - Get secret metadata by ID
-- [ ] **TASK-1.1.5**: Implement `PUT /_api/secrets/:id` - Update secret
-- [ ] **TASK-1.1.6**: Implement `DELETE /_api/secrets/:id` - Delete secret
+- [ ] **TASK-1.1.2**: Implement `POST /_/secrets` - Create secret (encrypt value before storage)
+- [ ] **TASK-1.1.3**: Implement `GET /_/secrets` - List secrets (metadata only, no values)
+- [ ] **TASK-1.1.4**: Implement `GET /_/secrets/:id` - Get secret metadata by ID
+- [ ] **TASK-1.1.5**: Implement `PUT /_/secrets/:id` - Update secret
+- [ ] **TASK-1.1.6**: Implement `DELETE /_/secrets/:id` - Delete secret
 - [ ] **TASK-1.1.7**: Implement encryption utility for secret values
 - [ ] **TASK-1.1.8**: Implement decryption utility for secret values
 - [ ] **TASK-1.1.9**: Associate secrets with Teams (team_id foreign key)
@@ -25,11 +25,11 @@
 
 ### 1.2 Endpoint Management API
 - [ ] **TASK-1.2.1**: Create endpoints endpoint file at `repos/backend/src/endpoints/proxyEndpoints.ts`
-- [ ] **TASK-1.2.2**: Implement `POST /_api/endpoints` - Create proxy endpoint definition
-- [ ] **TASK-1.2.3**: Implement `GET /_api/endpoints` - List endpoints
-- [ ] **TASK-1.2.4**: Implement `GET /_api/endpoints/:id` - Get endpoint by ID
-- [ ] **TASK-1.2.5**: Implement `PUT /_api/endpoints/:id` - Update endpoint
-- [ ] **TASK-1.2.6**: Implement `DELETE /_api/endpoints/:id` - Delete endpoint
+- [ ] **TASK-1.2.2**: Implement `POST /_/endpoints` - Create proxy endpoint definition
+- [ ] **TASK-1.2.3**: Implement `GET /_/endpoints` - List endpoints
+- [ ] **TASK-1.2.4**: Implement `GET /_/endpoints/:id` - Get endpoint by ID
+- [ ] **TASK-1.2.5**: Implement `PUT /_/endpoints/:id` - Update endpoint
+- [ ] **TASK-1.2.6**: Implement `DELETE /_/endpoints/:id` - Delete endpoint
 - [ ] **TASK-1.2.7**: Define schema validation for `proxy_url` field
 - [ ] **TASK-1.2.8**: Define schema validation for `proxy_headers` field
 - [ ] **TASK-1.2.9**: Define schema validation for `proxy_options` (regex/replacements)
@@ -87,9 +87,9 @@
 
 ### 3.2 API Key Authentication
 - [ ] **TASK-3.2.1**: Create API key model/schema additions
-- [ ] **TASK-3.2.2**: Implement `POST /_api/api-keys` - Generate API key
-- [ ] **TASK-3.2.3**: Implement `GET /_api/api-keys` - List API keys (masked)
-- [ ] **TASK-3.2.4**: Implement `DELETE /_api/api-keys/:id` - Revoke API key
+- [ ] **TASK-3.2.2**: Implement `POST /_/api-keys` - Generate API key
+- [ ] **TASK-3.2.3**: Implement `GET /_/api-keys` - List API keys (masked)
+- [ ] **TASK-3.2.4**: Implement `DELETE /_/api-keys/:id` - Revoke API key
 - [ ] **TASK-3.2.5**: Implement API key validation middleware
 - [ ] **TASK-3.2.6**: Support API key scopes (read, write, admin)
 - [ ] **TASK-3.2.7**: Implement rate limiting per API key

@@ -29,7 +29,7 @@
 
 * Setup Pnpm + Express server in `repos/backend`.
 * Implement API stubs (Users, Teams).
-* Create `GET /_api/teams` endpoint to verify DB read connectivity.
+* Create `GET /_/teams` endpoint to verify DB read connectivity.
 
 ## 5. Admin UI (Skeleton)
 

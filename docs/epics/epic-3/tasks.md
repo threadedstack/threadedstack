@@ -46,12 +46,12 @@
 
 ### 2.1 Functions CRUD API
 - [ ] **TASK-2.1.1**: Create functions endpoint at `repos/backend/src/endpoints/functions.ts`
-- [ ] **TASK-2.1.2**: Implement `POST /_api/functions` - Create function
-- [ ] **TASK-2.1.3**: Implement `GET /_api/functions` - List functions
-- [ ] **TASK-2.1.4**: Implement `GET /_api/functions/:id` - Get function by ID
-- [ ] **TASK-2.1.5**: Implement `PUT /_api/functions/:id` - Update function
-- [ ] **TASK-2.1.6**: Implement `DELETE /_api/functions/:id` - Delete function
-- [ ] **TASK-2.1.7**: Implement `POST /_api/functions/:id/execute` - Test execute function
+- [ ] **TASK-2.1.2**: Implement `POST /_/functions` - Create function
+- [ ] **TASK-2.1.3**: Implement `GET /_/functions` - List functions
+- [ ] **TASK-2.1.4**: Implement `GET /_/functions/:id` - Get function by ID
+- [ ] **TASK-2.1.5**: Implement `PUT /_/functions/:id` - Update function
+- [ ] **TASK-2.1.6**: Implement `DELETE /_/functions/:id` - Delete function
+- [ ] **TASK-2.1.7**: Implement `POST /_/functions/:id/execute` - Test execute function
 - [ ] **TASK-2.1.8**: Implement function versioning support
 
 ### 2.2 Function Configuration Schema
@@ -143,7 +143,7 @@
 ### 6.1 Function Logs
 - [ ] **TASK-6.1.1**: Create function logs table schema
 - [ ] **TASK-6.1.2**: Implement log capture during execution
-- [ ] **TASK-6.1.3**: Implement `GET /_api/functions/:id/logs` endpoint
+- [ ] **TASK-6.1.3**: Implement `GET /_/functions/:id/logs` endpoint
 - [ ] **TASK-6.1.4**: Create logs viewer UI component
 - [ ] **TASK-6.1.5**: Implement log filtering (by time, level)
 - [ ] **TASK-6.1.6**: Implement log retention policy
@@ -153,7 +153,7 @@
 - [ ] **TASK-6.2.2**: Track invocation count per function
 - [ ] **TASK-6.2.3**: Track execution duration statistics
 - [ ] **TASK-6.2.4**: Track error rate per function
-- [ ] **TASK-6.2.5**: Implement `GET /_api/functions/:id/metrics` endpoint
+- [ ] **TASK-6.2.5**: Implement `GET /_/functions/:id/metrics` endpoint
 - [ ] **TASK-6.2.6**: Create metrics dashboard in UI
 
 ---

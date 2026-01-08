@@ -22,21 +22,21 @@
 
 ### 1.2 Providers API
 - [ ] **TASK-1.2.1**: Create providers endpoint at `repos/backend/src/endpoints/providers.ts`
-- [ ] **TASK-1.2.2**: Implement `POST /_api/providers` - Create provider config
-- [ ] **TASK-1.2.3**: Implement `GET /_api/providers` - List providers
-- [ ] **TASK-1.2.4**: Implement `GET /_api/providers/:id` - Get provider by ID
-- [ ] **TASK-1.2.5**: Implement `PUT /_api/providers/:id` - Update provider
-- [ ] **TASK-1.2.6**: Implement `DELETE /_api/providers/:id` - Delete provider
+- [ ] **TASK-1.2.2**: Implement `POST /_/providers` - Create provider config
+- [ ] **TASK-1.2.3**: Implement `GET /_/providers` - List providers
+- [ ] **TASK-1.2.4**: Implement `GET /_/providers/:id` - Get provider by ID
+- [ ] **TASK-1.2.5**: Implement `PUT /_/providers/:id` - Update provider
+- [ ] **TASK-1.2.6**: Implement `DELETE /_/providers/:id` - Delete provider
 - [ ] **TASK-1.2.7**: Store provider API keys as secrets (encrypted)
 
 ### 1.3 Threads & Messages API
 - [ ] **TASK-1.3.1**: Create threads endpoint at `repos/backend/src/endpoints/threads.ts`
-- [ ] **TASK-1.3.2**: Implement `POST /_api/threads` - Create thread
-- [ ] **TASK-1.3.3**: Implement `GET /_api/threads` - List threads
-- [ ] **TASK-1.3.4**: Implement `GET /_api/threads/:id` - Get thread with messages
-- [ ] **TASK-1.3.5**: Implement `DELETE /_api/threads/:id` - Delete thread
-- [ ] **TASK-1.3.6**: Implement `POST /_api/threads/:id/messages` - Add message to thread
-- [ ] **TASK-1.3.7**: Implement `GET /_api/threads/:id/messages` - Get thread messages (paginated)
+- [ ] **TASK-1.3.2**: Implement `POST /_/threads` - Create thread
+- [ ] **TASK-1.3.3**: Implement `GET /_/threads` - List threads
+- [ ] **TASK-1.3.4**: Implement `GET /_/threads/:id` - Get thread with messages
+- [ ] **TASK-1.3.5**: Implement `DELETE /_/threads/:id` - Delete thread
+- [ ] **TASK-1.3.6**: Implement `POST /_/threads/:id/messages` - Add message to thread
+- [ ] **TASK-1.3.7**: Implement `GET /_/threads/:id/messages` - Get thread messages (paginated)
 - [ ] **TASK-1.3.8**: Implement thread title auto-generation from first message
 
 ### 1.4 Chat Completion API
@@ -88,8 +88,8 @@
 ### 3.1 Tool Definition System
 - [ ] **TASK-3.1.1**: Create tool definition schema
 - [ ] **TASK-3.1.2**: Implement tool definition storage in database
-- [ ] **TASK-3.1.3**: Implement `POST /_api/tools` - Create tool definition
-- [ ] **TASK-3.1.4**: Implement `GET /_api/tools` - List tools
+- [ ] **TASK-3.1.3**: Implement `POST /_/tools` - Create tool definition
+- [ ] **TASK-3.1.4**: Implement `GET /_/tools` - List tools
 - [ ] **TASK-3.1.5**: Link tools to functions (Epic 3 FaaS)
 - [ ] **TASK-3.1.6**: Generate OpenAI function calling format from tools
 - [ ] **TASK-3.1.7**: Generate Anthropic tool use format from tools

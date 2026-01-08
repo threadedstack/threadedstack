@@ -2,6 +2,8 @@ import type { TEndpointBuilder } from '@TBE/types'
 
 import express from 'express'
 import { EPMethod } from '@TBE/types'
+import { teams } from '@TBE/endpoints/teams'
+import { users } from '@TBE/endpoints/users'
 import { base } from '@TBE/endpoints/base/base'
 import { auth } from '@TBE/endpoints/auth/auth'
 import { health } from '@TBE/endpoints/base/health'
@@ -16,6 +18,8 @@ export const accounts: TEndpointBuilder = (config) => {
     endpoints: {
       auth,
       base,
+      users,
+      teams,
       health,
     },
   }

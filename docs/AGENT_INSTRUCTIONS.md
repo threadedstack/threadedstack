@@ -258,7 +258,7 @@ import type { Request, Response } from 'express'
 import { EPMethod } from '@TBE/types'
 
 export const listItems: TEndpointConfig = {
-  path: `/_api/items`,
+  path: `/_/items`,
   method: EPMethod.Get,
   action: async (req: Request, res: Response): Promise<void> => {
     // Implementation
@@ -354,16 +354,16 @@ router.get('/path', async (req, res) => {
 
 Here's an example workflow for implementing a backend endpoint:
 
-### Task: Implement `GET /_api/teams` endpoint
+### Task: Implement `GET /_/teams` endpoint
 
 1. **Find the task** in `docs/epics/epic-1/tasks.md`:
    ```markdown
-   - [ ] **TASK-4.4.1**: Implement `GET /_api/teams` - List teams
+   - [ ] **TASK-4.4.1**: Implement `GET /_/teams` - List teams
    ```
 
 2. **Mark as in-progress**:
    ```markdown
-   - [~] **TASK-4.4.1**: Implement `GET /_api/teams` - List teams
+   - [~] **TASK-4.4.1**: Implement `GET /_/teams` - List teams
    ```
 
 3. **Create the endpoint** in `repos/backend/src/endpoints/teams.ts`:
@@ -373,7 +373,7 @@ Here's an example workflow for implementing a backend endpoint:
    import { EPMethod } from '@TBE/types'
 
    export const listTeams: TEndpointConfig = {
-     path: `/_api/teams`,
+     path: `/_/teams`,
      method: EPMethod.Get,
      action: async (req: Request, res: Response): Promise<void> => {
        const { db } = req.app?.locals
@@ -410,7 +410,7 @@ Here's an example workflow for implementing a backend endpoint:
 
 7. **Mark as completed**:
    ```markdown
-   - [x] **TASK-4.4.1**: Implement `GET /_api/teams` - List teams
+   - [x] **TASK-4.4.1**: Implement `GET /_/teams` - List teams
    ```
 
 ---
@@ -532,7 +532,7 @@ When committing, follow this format:
 
 ```bash
 git commit -m "$(cat <<'EOF'
-feat: implement GET /_api/teams endpoint
+feat: implement GET /_/teams endpoint
 
 - Add teams endpoint with list functionality
 - Integrate with TeamModel from database repo
