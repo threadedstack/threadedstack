@@ -1,4 +1,5 @@
 import type { WritableAtom } from 'jotai'
+import type { atomWithReset } from 'jotai/utils'
 
 import { useResetAtom } from 'jotai/utils'
 
@@ -10,7 +11,7 @@ import { providersState } from '@TAF/state/providers'
 import { teamsState, activeTeamIdState } from '@TAF/state/teams'
 import { reposState, activeRepoIdState } from '@TAF/state/repos'
 
-const useRecState = <T = any>(state: WritableAtom<T, unknown[], void>) => {
+const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
   const [current, setCurrent] = useAtom(state)
   const resetCurrent = useResetAtom(state)
 

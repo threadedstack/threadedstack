@@ -1,7 +1,7 @@
+import type { EThemeType } from '@TAF/types'
 import type { User, Team, Repo, Provider } from '@tdsk/domain'
 
 import { createStore } from 'jotai'
-import type { EThemeType } from '@TAF/types'
 import { userState } from '@TAF/state/user'
 import { providersState } from '@TAF/state/providers'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
