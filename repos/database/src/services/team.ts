@@ -1,7 +1,7 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type { TDBTeamSelect, TDBTeamInsert } from '@TDB/types'
 
-import { Base } from '@TDB/models/base'
+import { Base } from '@TDB/services/base'
 import { teams } from '@TDB/schemas/teams'
 
 export type TTeamOpts = {

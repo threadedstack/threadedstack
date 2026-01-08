@@ -1,7 +1,7 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type { TDBEndpointSelect, TDBEndpointInsert } from '@TDB/types'
 
-import { Base } from '@TDB/models/base'
+import { Base } from '@TDB/services/base'
 import { endpoints } from '@TDB/schemas/endpoints'
 
 export type TEndpointOpts = {

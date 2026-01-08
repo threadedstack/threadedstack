@@ -1,7 +1,7 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type { TDBSecretSelect, TDBSecretInsert } from '@TDB/types'
 
-import { Base } from '@TDB/models/base'
+import { Base } from '@TDB/services/base'
 import { secrets } from '@TDB/schemas/secrets'
 
 export type TSecretOpts = {

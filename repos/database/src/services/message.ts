@@ -1,7 +1,7 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type { TDBMessageSelect, TDBMessageInsert } from '@TDB/types'
 
-import { Base } from '@TDB/models/base'
+import { Base } from '@TDB/services/base'
 import { messages } from '@TDB/schemas/messages'
 
 export type TMessageOpts = {

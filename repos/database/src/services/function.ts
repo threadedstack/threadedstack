@@ -1,7 +1,7 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type { TDBFunctionSelect, TDBFunctionInsert } from '@TDB/types'
 
-import { Base } from '@TDB/models/base'
+import { Base } from '@TDB/services/base'
 import { functions } from '@TDB/schemas/functions'
 
 export type TFunctionOpts = {

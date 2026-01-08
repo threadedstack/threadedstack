@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+# npx --no -- commitlint --config ./configs/commitlint.config.js --edit "$1"
+

@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "biome": "biome",
+    "bypass": "HUSKY=0 git commit -m ",
+    "commit": "git-cz",
     "clean": "pnpm -r clean",
     "clean:nm": "rm -rf ./node_modules",
     "clean:full": "pnpm clean; pnpm clean:nm; pnpm install",
@@ -14,8 +17,6 @@
     "tdsk": "cd repos/cli; pnpm cli",
     "ts": "cd repos/cli; pnpm cli",
     "test": "pnpm -r test",
-    "biome": "biome",
-    "bypass": "HUSKY=0 git commit -m ",
     "precommit": "pnpm lint:staged && pnpm format:staged",
     "validate": "pnpm lint:ci && pnpm format:ci",
     "format": "pnpm biome:format --write && pnpm -r format",
@@ -25,7 +26,8 @@
     "lint:staged": "pnpm biome:lint --staged --write --no-errors-on-unmatched --diagnostic-level=error && pnpm -r lint:staged",
     "format:staged": "pnpm biome:format --staged --write --no-errors-on-unmatched --diagnostic-level=error && pnpm -r format:staged",
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
-    "biome:format": "biome format --config-path $(pwd)/configs/biome.json"
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "prepare": "husky || true"
   },
   "keywords": [],
   "author": "",
@@ -51,18 +53,29 @@
       "esbuild"
     ]
   },
-  "dependencies": {
-    "@keg-hub/jsutils": "^10.0.0"
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
-    "@types/node": "24.8.0",
-    "@keg-hub/jsutils": "10.0.0",
+    "@commitlint/cli": "20.3.0",
+    "@commitlint/config-conventional": "20.3.0",
     "@keg-hub/cli-utils": "0.9.0",
+    "@keg-hub/jsutils": "10.0.0",
     "@keg-hub/parse-config": "2.2.0",
-    "husky": "9.1.7",
+    "@semantic-release/changelog": "6.0.3",
+    "@semantic-release/exec": "7.1.0",
+    "@semantic-release/git": "10.0.1",
+    "@semantic-release/npm": "13.1.3",
+    "@types/node": "24.8.0",
+    "commitizen": "4.3.1",
+    "cz-conventional-changelog": "3.3.0",
     "esbuild": "0.19.7",
     "esbuild-register": "3.5.0",
+    "husky": "9.1.7",
+    "semantic-release-plus": "20.0.0",
     "syncpack": "13.0.0",
     "typescript": "5.7.3"
   }
