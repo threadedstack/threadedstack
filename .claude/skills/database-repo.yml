@@ -1,0 +1,826 @@
+---
+name: "Threaded Stack - Database Repo"
+description: "Knowledge base for the database ORM & migrations repo"
+version: "1.0.0"
+tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon"]
+---
+# Database Repo Skill
+
+## Overview
+
+The `repos/database` repository provides the **ORM layer and migration system** for the Threaded Stack platform. Built on **Drizzle ORM** and **PostgreSQL (Neon.com)**, it defines all database schemas, relationships, and provides a service-based API for database operations across all other repos.
+
+**Key Responsibilities:**
+- Define database schemas with Drizzle ORM
+- Manage migrations and schema versioning
+- Provide type-safe database services (CRUD operations)
+- Implement polymorphic relationships via "Exclusive Arc" pattern
+- Handle database connection pooling and configuration
+
+**Database Provider:** Neon.com (PostgreSQL)
+**ORM:** Drizzle ORM v0.45.1
+**Path Alias:** `@TDB/*`
+
+## Directory Structure
+
+```
+repos/database/
+├── .vscode/               # VS Code settings
+├── configs/               # Configuration files
+│   ├── aliases.ts         # Path alias setup (alias-hq)
+│   ├── biome.json         # Biome linter config
+│   ├── db.config.ts       # Database connection config
+│   ├── drizzle.config.ts  # Drizzle Kit configuration
+│   └── vitest.config.ts   # Vitest test configuration
+├── drizzle/               # Generated migrations
+│   ├── meta/              # Migration metadata
+│   │   ├── _journal.json  # Migration journal
+│   │   └── 0000_snapshot.json
+│   └── 0000_open_spitfire.sql  # Initial migration
+├── scripts/               # Utility scripts
+│   ├── addToProcess.ts    # Process environment helper
+│   ├── loadEnvs.ts        # Environment loader
+│   └── script.ts          # General script runner
+├── src/
+│   ├── constants/         # Database constants
+│   │   ├── index.ts
+│   │   └── values.ts
+│   ├── schemas/           # Drizzle table schemas
+│   │   ├── assets.ts      # File/asset storage
+│   │   ├── configs.ts     # Configuration data (polymorphic)
+│   │   ├── endpoints.ts   # API proxy endpoints
+│   │   ├── functions.ts   # FaaS function definitions
+│   │   ├── messages.ts    # Chat messages
+│   │   ├── providers.ts   # External API providers
+│   │   ├── repos.ts       # Project repositories
+│   │   ├── roles.ts       # User-team roles (many-to-many)
+│   │   ├── secrets.ts     # Encrypted secrets (polymorphic)
+│   │   ├── teams.ts       # Team/organization
+│   │   ├── threads.ts     # Chat threads
+│   │   ├── users.ts       # User accounts
+│   │   └── index.ts       # Schema exports
+│   ├── services/          # Service layer (CRUD API)
+│   │   ├── base.ts        # Base service class
+│   │   ├── asset.ts       # Asset service
+│   │   ├── config.ts      # Config service
+│   │   ├── endpoint.ts    # Endpoint service
+│   │   ├── function.ts    # Function service
+│   │   ├── message.ts     # Message service
+│   │   ├── provider.ts    # Provider service
+│   │   ├── repo.ts        # Repo service
+│   │   ├── role.ts        # Role service
+│   │   ├── secret.ts      # Secret service
+│   │   ├── team.ts        # Team service
+│   │   ├── thread.ts      # Thread service
+│   │   ├── user.ts        # User service
+│   │   └── index.ts       # Service exports
+│   ├── types/             # TypeScript types
+│   │   ├── db.types.ts    # Database utility types
+│   │   ├── helper.types.ts # Helper types
+│   │   ├── schema.types.ts # Schema inferred types
+│   │   └── index.ts
+│   ├── utils/             # Utility functions
+│   │   ├── database/      # Database utilities
+│   │   │   ├── buildDBUrl.ts      # URL builder
+│   │   │   ├── getDialect.ts      # Dialect resolver
+│   │   │   └── getDialect.test.ts
+│   │   ├── error/         # Error handling
+│   │   │   └── error.ts
+│   │   ├── schema/        # Schema utilities
+│   │   │   ├── base.ts    # Base schema fields (id)
+│   │   │   └── timestamps.ts # Timestamp fields
+│   │   └── index.ts
+│   ├── database.ts        # Database singleton factory
+│   └── index.ts           # Main export
+├── index.ts               # Root export
+├── package.json           # Dependencies and scripts
+└── tsconfig.json          # TypeScript configuration
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/database.ts` | Singleton database instance factory with service initialization |
+| `src/schemas/*.ts` | Drizzle table definitions with relations |
+| `src/services/base.ts` | Base service class with CRUD operations (create, get, list, update, upsert, delete) |
+| `src/services/*.ts` | Specific service classes extending Base |
+| `src/types/schema.types.ts` | TypeScript types inferred from schemas (Select/Insert) |
+| `configs/drizzle.config.ts` | Drizzle Kit configuration for migrations |
+| `configs/db.config.ts` | Database connection configuration |
+| `drizzle/*.sql` | Generated SQL migration files |
+| `src/utils/schema/base.ts` | Shared base fields (id, createdAt, updatedAt) |
+
+## Schema Overview
+
+### Core Tables
+
+**12 main tables** organized by domain:
+
+#### User & Team Management
+- **`users`**: User accounts with Neon Auth integration
+  - Fields: id, email, first, last, displayName, provider, photoUrl, timestamps
+  - Unique index on email
+  - Relations: teams (via roles), assets, threads, providers
+
+- **`teams`**: Organizations/workspaces
+  - Fields: id, name, description, timestamps
+  - Relations: users (via roles), repos, assets, secrets, configs, providers
+
+- **`roles`**: Many-to-many user-team relationships
+  - Fields: id, userId, teamId, role, timestamps
+  - Implements user team membership
+
+#### Repository & Code Management
+- **`repos`**: Project repositories
+  - Fields: id, name, gitUrl, branch, teamId, meta (jsonb), timestamps
+  - Relations: team, endpoints, functions, assets, secrets, configs, providers
+
+- **`endpoints`**: API proxy endpoints
+  - Fields: id, repoId, proxyUrl, proxyMethod, proxyHeaders (jsonb), proxyOptions (jsonb), public (boolean), timestamps
+  - Relations: repo, functions
+
+- **`functions`**: FaaS function definitions
+  - Fields: id, endpointId, code, runtime, configuration, timestamps
+  - Relations: endpoint
+
+#### Configuration & Secrets
+- **`configs`**: Configuration data (polymorphic - Exclusive Arc)
+  - Fields: id, data (jsonb), userId?, teamId?, repoId?, timestamps
+  - Constraint: Exactly ONE of userId/teamId/repoId must be set
+  - Relations: user, team, repo
+
+- **`secrets`**: Encrypted secrets (polymorphic - Exclusive Arc)
+  - Fields: id, name, hashKey, encryptedValue, teamId?, repoId?, timestamps
+  - Constraint: Exactly ONE of teamId/repoId must be set
+  - Relations: team, repo
+
+#### AI & Chat Features
+- **`threads`**: Chat conversation threads
+  - Fields: id, userId, title, metadata, timestamps
+  - Relations: user, messages
+
+- **`messages`**: Chat messages in threads
+  - Fields: id, threadId, role, content, metadata, timestamps
+  - Relations: thread
+
+#### External Integration
+- **`providers`**: External API provider configurations
+  - Fields: id, name, type, credentials, userId?, teamId?, repoId?, timestamps
+  - Relations: user, team, repo
+
+- **`assets`**: File and asset storage
+  - Fields: id, name, type, url, metadata, userId?, teamId?, repoId?, timestamps
+  - Relations: user, team, repo
+
+## Exclusive Arc Pattern
+
+**Polymorphic relationships** are implemented using the **"Exclusive Arc"** pattern - ensuring a record belongs to exactly ONE parent entity, not multiple.
+
+### Implementation Pattern
+
+```typescript
+// Example: secrets table belongs to EITHER team OR repo (not both)
+export const secrets = pgTable(
+  'secrets',
+  {
+    ...base,
+    name: text('name').notNull(),
+    hashKey: text('hash_key').notNull(),
+    encryptedValue: text('encrypted_value').notNull(),
+
+    // Nullable foreign keys
+    teamId: uuid('team_id').references(() => teams.id, { onDelete: 'cascade' }),
+    repoId: uuid('repo_id').references(() => repos.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    // Database constraint: exactly ONE must be set
+    check(
+      'secret_scope_check',
+      sql`
+        (${table.teamId} IS NOT NULL AND ${table.repoId} IS NULL) OR
+        (${table.teamId} IS NULL AND ${table.repoId} IS NOT NULL)
+      `
+    ),
+  ]
+)
+```
+
+### Tables Using Exclusive Arc
+
+1. **`secrets`**: teamId XOR repoId
+2. **`configs`**: userId XOR teamId XOR repoId
+3. **`assets`**: userId XOR teamId XOR repoId
+4. **`providers`**: userId XOR teamId XOR repoId
+
+### Constraint SQL Pattern
+
+```sql
+-- Two-way exclusive arc (e.g., secrets)
+CHECK (
+  (team_id IS NOT NULL AND repo_id IS NULL) OR
+  (team_id IS NULL AND repo_id IS NOT NULL)
+)
+
+-- Three-way exclusive arc (e.g., configs)
+CHECK (
+  (
+    (user_id IS NOT NULL)::int +
+    (team_id IS NOT NULL)::int +
+    (repo_id IS NOT NULL)::int
+  ) = 1
+)
+```
+
+**Benefits:**
+- Enforces data integrity at database level
+- Prevents orphaned records
+- Clear ownership semantics
+- Type-safe polymorphic queries
+
+## Architecture
+
+### 3-Layer Architecture
+
+```
+┌──────────────────────────────────────┐
+│  Consumer Repos (backend, admin)    │  Import services
+│  db.services.team.create()          │
+└─────────────┬────────────────────────┘
+              │
+┌─────────────▼────────────────────────┐
+│  Service Layer (src/services/)       │  Business logic
+│  - Base class (CRUD operations)     │
+│  - Specific services (Team, User)   │
+└─────────────┬────────────────────────┘
+              │
+┌─────────────▼────────────────────────┐
+│  Schema Layer (src/schemas/)         │  Data models
+│  - Table definitions (Drizzle)      │
+│  - Relations                         │
+└─────────────┬────────────────────────┘
+              │
+┌─────────────▼────────────────────────┐
+│  Database (PostgreSQL via Neon)      │  Data storage
+└──────────────────────────────────────┘
+```
+
+### Database Singleton Pattern
+
+```typescript
+// src/database.ts
+let _database: TDatabase
+
+export const database = (cfg: TDBConfig = config) => {
+  if (!_database) {
+    _database = drizzle({
+      client: new Pool({ connectionString: config.url })
+    })
+
+    // Auto-initialize services
+    _database.services = Object.entries(DBservices).reduce((acc, [name, Service]) => {
+      acc[name] = new Service({ db: _database, schema: undefined, config: cfg })
+      return acc
+    }, {} as TDBServices)
+  }
+
+  return _database
+}
+```
+
+**Usage in other repos:**
+```typescript
+import { database } from '@TDB/database'
+
+const db = database()
+const { data, error } = await db.services.team.create({ name: 'My Team' })
+```
+
+## Logic Flow
+
+### Service CRUD Flow
+
+```
+Client Request → Service Method → Drizzle Query → PostgreSQL → Response
+```
+
+**Example: Create Team**
+
+```typescript
+// 1. Client calls service
+const { data, error } = await db.services.team.create({
+  name: 'Acme Corp',
+  description: 'Our company'
+})
+
+// 2. Service (base.ts) executes query
+create = async (data: I): Promise<TDBApiRes<S>> => {
+  try {
+    const resp = await this.db
+      .insert(this.schema)
+      .values(data)
+      .returning()
+
+    return { data: resp[0] as S }
+  } catch (error: any) {
+    return { error }
+  }
+}
+
+// 3. Drizzle translates to SQL
+INSERT INTO teams (id, name, description, created_at, updated_at)
+VALUES (uuid_generate_v4(), 'Acme Corp', 'Our company', now(), now())
+RETURNING *;
+
+// 4. PostgreSQL executes and returns row
+// 5. Service returns { data: { id, name, description, ... } }
+```
+
+### Migration Flow
+
+```bash
+# 1. Modify schema file
+# src/schemas/teams.ts - add new field
+
+# 2. Generate migration
+pnpm generate
+# → Creates drizzle/0001_*.sql
+
+# 3. Review generated SQL
+# cat drizzle/0001_*.sql
+
+# 4. Apply migration
+pnpm migrate
+# → Executes SQL against database
+
+# 5. Verify in Drizzle Studio
+pnpm studio
+# → Opens web UI at localhost:4983
+```
+
+## Key Patterns
+
+### 1. Base Schema Pattern
+
+All tables share common fields via spread operator:
+
+```typescript
+// src/utils/schema/base.ts
+export const base = {
+  id: uuid('id').defaultRandom().primaryKey(),
+  ...timestamps,
+}
+
+// src/utils/schema/timestamps.ts
+export const timestamps = {
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}
+
+// Usage in schema
+export const teams = pgTable('teams', {
+  ...base,  // id, createdAt, updatedAt
+  name: text('name').notNull(),
+  description: text('description'),
+})
+```
+
+### 2. Service Inheritance Pattern
+
+All services extend Base class for consistent CRUD API:
+
+```typescript
+// src/services/team.ts
+export class Team extends Base<typeof teams, TDBTeamSelect, TDBTeamInsert> {
+  constructor(opts: TTeamOpts) {
+    super({ ...opts, schema: teams })
+  }
+
+  // Inherits: create, get, list, update, upsert, delete
+  // Can add custom methods here
+}
+```
+
+### 3. Type Inference Pattern
+
+Types are automatically inferred from schemas:
+
+```typescript
+// src/types/schema.types.ts
+export type TDBTeamSelect = typeof teams.$inferSelect
+export type TDBTeamInsert = typeof teams.$inferInsert
+
+// Consumer usage - fully type-safe
+const teamData: TDBTeamInsert = {
+  name: 'Team A',
+  description: 'Description'
+}
+const result: TDBApiRes<TDBTeamSelect> = await db.services.team.create(teamData)
+```
+
+### 4. Relation Definition Pattern
+
+Drizzle relations are defined separately from table schemas:
+
+```typescript
+// Define table
+export const teams = pgTable('teams', { ...base, name: text('name') })
+
+// Define relations separately
+export const teamsRelations = relations(teams, ({ many }) => ({
+  users: many(roles),     // teams have many users via roles
+  repos: many(repos),     // teams have many repos
+  secrets: many(secrets), // teams have many secrets
+}))
+```
+
+### 5. Cascade Deletion Pattern
+
+Foreign keys use `onDelete: 'cascade'` to maintain referential integrity:
+
+```typescript
+repoId: uuid('repo_id')
+  .references(() => repos.id, { onDelete: 'cascade' })
+  .notNull()
+
+// When repo is deleted, all related endpoints are automatically deleted
+```
+
+### 6. JSONB for Flexible Data
+
+Complex/dynamic data stored as JSONB:
+
+```typescript
+export const repos = pgTable('repos', {
+  ...base,
+  meta: jsonb('meta'),           // Arbitrary metadata
+  name: text('name').notNull(),
+})
+
+export const endpoints = pgTable('endpoints', {
+  ...base,
+  proxyHeaders: jsonb('proxy_headers'),  // Dynamic headers
+  proxyOptions: jsonb('proxy_options'),  // Dynamic options
+})
+```
+
+## Dependencies
+
+### Core Dependencies
+- **`drizzle-orm`** (0.45.1): Type-safe ORM for PostgreSQL
+- **`pg`** (8.16.3): PostgreSQL client for Node.js
+- **`@keg-hub/parse-config`** (2.2.0): Environment configuration loader
+- **`@keg-hub/jsutils`** (10.0.0): JavaScript utilities
+- **`@tdsk/domain`** (workspace): Shared domain utilities
+- **`alias-hq`** (6.2.4): Path alias management
+- **`module-alias`** (2.2.3): Runtime module aliasing
+
+### Dev Dependencies
+- **`drizzle-kit`** (0.31.8): Migration generation and management CLI
+- **`tsx`** (4.21.0): TypeScript execution for scripts
+- **`vitest`** (^1.4.0): Unit testing framework
+- **`vite-tsconfig-paths`** (^4.3.1): Path alias resolution for Vite
+
+## Commands
+
+### Drizzle Kit Commands
+```bash
+# Generate migration from schema changes
+pnpm generate
+
+# Run pending migrations against database
+pnpm migrate
+
+# Introspect existing database schema
+pnpm introspect
+
+# Push schema changes without migrations (dev only)
+pnpm push
+
+# Open Drizzle Studio web UI (localhost:4983)
+pnpm studio
+
+# Upgrade migration files to latest format
+pnpm up
+
+# Check migration files for issues
+pnpm check
+
+# Drop migration files
+pnpm drop
+
+# Export schema as TypeScript/SQL
+pnpm export
+
+# Direct Drizzle Kit access
+pnpm dk <command>
+```
+
+### Development Commands
+```bash
+# Run utility script with aliases
+pnpm script
+
+# Linting with Biome
+pnpm lint          # Auto-fix issues
+pnpm lint:ci       # CI mode (fail on errors)
+pnpm lint:staged   # Lint staged files only
+
+# Formatting with Biome
+pnpm format        # Auto-format code
+pnpm format:ci     # CI mode (fail on errors)
+pnpm format:staged # Format staged files only
+
+# Testing with Vitest
+pnpm test
+
+# Clean node_modules
+pnpm clean
+```
+
+### Environment Variables
+
+Required in `deploy/values.*.yml`:
+
+```yaml
+TDSK_DB_URL: "postgresql://..."      # Full connection URL (preferred)
+TDSK_DB_NAME: "threaded_stack"       # Database name
+TDSK_DB_USER: "username"             # Database user
+TDSK_DB_PASS: "password"             # Database password
+TDSK_DB_PROTO: "postgres"            # Protocol (postgres/postgresql)
+TDSK_DB_DIALECT: "postgresql"        # Drizzle dialect
+TDSK_DB_TYPE: "postgresql"           # Database type
+TDSK_DB_JWT_SCRT: "secret"           # JWT secret (optional)
+TDSK_DB_SRV_ROLE: "service"          # Service role (optional)
+TDSK_DB_PUBLIC_KEY: "key"            # Public key (optional)
+```
+
+## Integration Points
+
+### Consumed By
+
+**Backend** (`repos/backend`):
+```typescript
+import { database } from '@tdsk/database'
+
+const db = database()
+
+// Admin API routes use services
+app.post('/api/teams', async (req, res) => {
+  const { data, error } = await db.services.team.create(req.body)
+  if (error) return res.status(400).json({ error })
+  res.json(data)
+})
+```
+
+**Admin SPA** (`repos/admin`):
+```typescript
+// Makes API calls to backend, which uses database services
+// Indirectly consumes via backend API
+
+fetch('/api/teams')
+  .then(res => res.json())
+  .then(teams => setTeams(teams))
+```
+
+**Proxy** (`repos/proxy`):
+```typescript
+import { database } from '@tdsk/database'
+
+// Proxy uses services to fetch secrets for injection
+const db = database()
+const { data: secrets } = await db.services.secret.list({ repoId })
+```
+
+### Export Surface
+
+```typescript
+// Main exports from @tdsk/database
+export { database } from './database'          // Singleton factory
+export * from './schemas'                      // All table schemas
+export * from './services'                     // All service classes
+export * from './types'                        // All TypeScript types
+export * from './constants'                    // Constants
+```
+
+### Type Safety Across Repos
+
+```typescript
+// Backend imports types from database
+import type { TDBTeamSelect, TDBTeamInsert } from '@tdsk/database'
+
+// Type-safe request handler
+async function createTeam(data: TDBTeamInsert): Promise<TDBTeamSelect> {
+  const { data: team, error } = await db.services.team.create(data)
+  if (error) throw error
+  return team
+}
+```
+
+## Common Workflows
+
+### Adding a New Table
+
+1. **Create schema file**: `src/schemas/newtable.ts`
+```typescript
+import { base } from '@TDB/utils/schema/base'
+import { pgTable, text } from 'drizzle-orm/pg-core'
+
+export const newtable = pgTable('newtable', {
+  ...base,
+  name: text('name').notNull(),
+})
+```
+
+2. **Add relations** (if needed)
+```typescript
+import { relations } from 'drizzle-orm'
+
+export const newtableRelations = relations(newtable, ({ one, many }) => ({
+  // Define relationships
+}))
+```
+
+3. **Export from schemas/index.ts**
+```typescript
+export { newtable } from '@TDB/schemas/newtable'
+```
+
+4. **Create service**: `src/services/newtable.ts`
+```typescript
+import { Base } from '@TDB/services/base'
+import { newtable } from '@TDB/schemas/newtable'
+
+export class Newtable extends Base<typeof newtable, TDBNewtableSelect, TDBNewtableInsert> {
+  constructor(opts: TNewtableOpts) {
+    super({ ...opts, schema: newtable })
+  }
+}
+```
+
+5. **Add types**: `src/types/schema.types.ts`
+```typescript
+export type TDBNewtableSelect = typeof newtable.$inferSelect
+export type TDBNewtableInsert = typeof newtable.$inferInsert
+```
+
+6. **Export service**: `src/services/index.ts`
+```typescript
+export { Newtable as newtable } from './newtable'
+```
+
+7. **Generate migration**
+```bash
+pnpm generate
+```
+
+8. **Review and apply**
+```bash
+cat drizzle/0001_*.sql  # Review generated SQL
+pnpm migrate            # Apply to database
+```
+
+### Modifying Existing Schema
+
+1. **Edit schema file**: `src/schemas/teams.ts`
+```typescript
+export const teams = pgTable('teams', {
+  ...base,
+  name: text('name').notNull(),
+  description: text('description'),
+  website: text('website'),  // NEW FIELD
+})
+```
+
+2. **Generate migration**
+```bash
+pnpm generate
+# Creates: drizzle/0002_add_website_to_teams.sql
+```
+
+3. **Review migration**
+```bash
+cat drizzle/0002_*.sql
+# Should show: ALTER TABLE teams ADD COLUMN website text;
+```
+
+4. **Apply migration**
+```bash
+pnpm migrate
+```
+
+5. **Verify in Studio**
+```bash
+pnpm studio
+# Check teams table has new column
+```
+
+### Testing in Drizzle Studio
+
+```bash
+pnpm studio
+# Opens http://localhost:4983
+```
+
+**Features:**
+- Browse all tables and data
+- Run raw SQL queries
+- Edit records directly
+- View relationships
+- Inspect indexes and constraints
+
+## Best Practices
+
+### 1. Schema Design
+- Use `base` spread for all tables (id, timestamps)
+- Define relations separately from tables
+- Use JSONB for flexible/dynamic data
+- Add unique indexes for lookup fields (email, etc.)
+- Use `onDelete: 'cascade'` for parent-child relationships
+
+### 2. Service Implementation
+- Extend `Base` class for standard CRUD
+- Add custom methods for complex queries
+- Always return `{ data, error }` pattern
+- Use TypeScript generics for type safety
+
+### 3. Migration Management
+- Always review generated SQL before applying
+- Test migrations on dev environment first
+- Use `pnpm push` for rapid dev iteration (skips migrations)
+- Keep migration files in version control
+- Never edit applied migrations
+
+### 4. Type Safety
+- Let Drizzle infer types (`$inferSelect`, `$inferInsert`)
+- Export types from `schema.types.ts`
+- Use types across all repos
+- Avoid `any` types in database code
+
+### 5. Performance
+- Use indexes on frequently queried columns
+- Use JSONB for flexible data structures
+- Leverage connection pooling (pg.Pool)
+- Monitor query performance in production
+
+### 6. Security
+- Never commit database credentials
+- Use environment variables for config
+- Store secrets encrypted in `secrets` table
+- Use Neon's built-in security features
+
+## Troubleshooting
+
+### Common Issues
+
+**Migration generation fails:**
+```bash
+# Check schema syntax
+pnpm biome:lint src/schemas/
+
+# Verify path aliases
+cat configs/aliases.ts
+
+# Check drizzle config
+cat configs/drizzle.config.ts
+```
+
+**Connection errors:**
+```bash
+# Verify environment variables
+echo $TDSK_DB_URL
+
+# Test connection manually
+psql $TDSK_DB_URL
+```
+
+**Type errors in consumers:**
+```bash
+# Rebuild database types
+cd repos/database && pnpm build
+
+# Verify exports
+cat dist/index.d.ts
+```
+
+**Studio won't start:**
+```bash
+# Check port 4983 is available
+lsof -i :4983
+
+# Kill existing process if needed
+kill -9 <pid>
+```
+
+## Related Documentation
+
+- [Drizzle ORM Docs](https://orm.drizzle.team/docs/overview)
+- [Neon Database Docs](https://neon.tech/docs)
+- [PostgreSQL Docs](https://www.postgresql.org/docs/)
+- [Drizzle Kit CLI](https://orm.drizzle.team/kit-docs/overview)
+
+---
+
+**Last Updated:** 2026-01-07
+**Maintained By:** Lance Tipton
+**License:** ISC (Private)

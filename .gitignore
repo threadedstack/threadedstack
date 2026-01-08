@@ -183,6 +183,7 @@ repos/api/scripts/script.ts
 repos/api/scripts/toolLoop.ts
 
 .claude
+!.claude/skills/
 .claude/settings.local.json
 .mcp.json
 claude-flow.config.json

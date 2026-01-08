@@ -1,0 +1,469 @@
+---
+name: "Threaded Stack - Backend Repo"
+description: "Knowledge base for the backend Core API repo"
+version: "1.0.0"
+tags: ["express", "nodejs", "api", "websocket", "backend"]
+---
+# Backend Repo Skill
+
+## Overview
+
+The **Backend** repo (`repos/backend`) serves as the Core API server for Threaded Stack. It is built on Express 5 and acts as the central orchestration layer for:
+
+- **Admin CRUD operations** - User, team, and configuration management
+- **Proxy Engine** - Secure API proxying with secret injection and header transforms
+- **FaaS (Functions-as-a-Service)** - Serverless compute execution
+- **AI Engine** - LLM proxy with RAG and streaming capabilities
+
+The backend receives all admin requests from the Auth-Proxy service at `/_/*` paths and handles internal business logic before interacting with the database or external services.
+
+## Directory Structure
+
+```
+repos/backend/
+├── configs/
+│   ├── backend.config.ts    # Main configuration loader
+│   ├── biome.json           # Linter/formatter config
+│   ├── tsup.config.ts       # Build configuration
+│   ├── vitest.config.ts     # Test configuration
+│   └── aliases.ts           # Path aliases (@TBE/*, @TDM/*)
+├── src/
+│   ├── constants/           # Application constants
+│   │   ├── envs.ts         # Environment variable names
+│   │   ├── values.ts       # Static values (AuthIgnore, sigs)
+│   │   └── index.ts
+│   ├── endpoints/           # API route definitions
+│   │   ├── auth/           # Authentication endpoints
+│   │   ├── base/           # Base/health endpoints
+│   │   ├── accounts.ts     # Main accounts routes (/_/*)
+│   │   ├── endpoints.ts    # Endpoint registry
+│   │   └── index.ts
+│   ├── middleware/          # Express middleware setup
+│   │   ├── setupAuth.ts    # JWT authentication
+│   │   ├── setupEndpoints.ts # Dynamic route builder
+│   │   ├── setupErrorHandler.ts # Error handling
+│   │   ├── setupProxy.ts   # Proxy to Auth-Proxy
+│   │   ├── setupServer.ts  # CORS, DB, base setup
+│   │   └── index.ts
+│   ├── server/              # Express app and server setup
+│   │   ├── app.ts          # Express app instance
+│   │   ├── router.ts       # Async router wrapper
+│   │   ├── server.ts       # HTTP/HTTPS server creation
+│   │   └── index.ts
+│   ├── types/               # TypeScript type definitions
+│   │   ├── endpoints.types.ts # Endpoint configs
+│   │   ├── proxy.types.ts  # Proxy configuration
+│   │   ├── request.types.ts # Request/Response types
+│   │   ├── server.types.ts # Server configuration
+│   │   ├── token.types.ts  # JWT token types
+│   │   └── index.ts
+│   ├── utils/               # Utility functions
+│   │   ├── auth/           # Auth utilities (shouldIgnore, adminPath, parseToken)
+│   │   ├── errors/         # Error handling (Exception, errorHandler, withEx)
+│   │   ├── proxy/          # Proxy utilities (buildProxy, endpointProxy, proxyHeaders)
+│   │   ├── helpers.ts      # General utilities
+│   │   ├── logger.ts       # Winston logger instance
+│   │   └── signals.ts      # Process signal handling
+│   ├── index.ts            # Entry export (re-exports start.ts)
+│   ├── start.ts            # Application bootstrap
+│   └── main.ts             # Main initialization logic
+├── package.json
+└── tsconfig.json
+```
+
+## Key Files
+
+### Entry Points
+- **`src/index.ts`** - Root export that re-exports `start.ts`
+- **`src/start.ts`** - Loads config and calls `main(config)`
+- **`src/main.ts`** - Orchestrates all middleware setup and initializes the server
+
+### Configuration
+- **`configs/backend.config.ts`** - Loads environment variables and builds the application config object with sections for `server`, `proxy`, `database`, and `logger`
+
+### Application Core
+- **`src/server/app.ts`** - Creates the Express app instance as a singleton
+- **`src/server/server.ts`** - `initServer()` function creates HTTP or HTTPS server based on config
+- **`src/server/router.ts`** - `createAsyncRouter()` wraps Express router methods with `express-async-handler` for automatic error handling
+
+### Middleware Setup
+- **`src/middleware/setupServer.ts`** - Initializes database connection, disables `x-powered-by`, sets up CORS
+- **`src/middleware/setupAuth.ts`** - JWT authentication middleware via Neon Auth
+- **`src/middleware/setupEndpoints.ts`** - Dynamically builds Express routes from endpoint configs
+- **`src/middleware/setupProxy.ts`** - Proxies remaining requests to Auth-Proxy service
+- **`src/middleware/setupErrorHandler.ts`** - Error handling middleware
+
+### Endpoints
+- **`src/endpoints/accounts.ts`** - Main admin API routes mounted at `/_/*` with JWT auth
+- **`src/endpoints/base/base.ts`** - Base endpoint returning status message
+- **`src/endpoints/base/health.ts`** - Health check endpoint
+- **`src/endpoints/auth/auth.ts`** - Authentication endpoint structure
+
+### Utilities
+- **`src/utils/logger.ts`** - Winston logger configured from config
+- **`src/utils/auth/shouldIgnore.ts`** - Determines if request should bypass auth
+- **`src/utils/auth/adminPath.ts`** - Builds admin API path prefix
+- **`src/utils/proxy/buildProxy.ts`** - Builds proxy middleware configuration
+- **`src/utils/proxy/endpointProxy.ts`** - Creates proxy for specific endpoints
+- **`src/utils/errors/errorHandler.ts`** - Express error handler middleware
+- **`src/utils/errors/exception.ts`** - Custom Exception class for structured errors
+
+## Architecture
+
+### Application Bootstrap Flow
+
+```
+index.ts
+  ↓
+start.ts → loads backend.config.ts
+  ↓
+main.ts
+  ├─ setupLoggerReq(app)          # Request logging
+  ├─ setupServer(app, router)     # DB, CORS, router mount
+  ├─ setupEndpoints(router, config) # Dynamic route building
+  ├─ setupProxy(app, router)      # Fallback proxy
+  ├─ setupLoggerErr(app)          # Error logging
+  ├─ setupErrorHandler(app)       # Error middleware
+  └─ initServer()                 # HTTP/HTTPS server creation
+```
+
+### Endpoint Definition Pattern
+
+Endpoints are defined as configuration objects or builder functions:
+
+```typescript
+// Static endpoint
+export const base: TEndpointConfig = {
+  path: `/`,
+  method: EPMethod.Get,
+  action: async (req, res) => { /* handler */ }
+}
+
+// Dynamic endpoint with builder
+export const accounts: TEndpointBuilder = (config) => ({
+  method: EPMethod.Use,
+  path: adminPath(config),  // e.g., /_
+  middleware: [express.json(), authenticate],
+  endpoints: { auth, base, health }
+})
+```
+
+### Middleware Setup Order
+
+The middleware stack is set up in this critical order:
+
+1. **Logger Request** - Logs incoming requests (from `@tdsk/logger`)
+2. **Server Setup** - Database connection, CORS, basic Express config
+3. **Endpoints** - Dynamic route registration from `endpoints/` directory
+4. **Proxy** - Catch-all proxy to Auth-Proxy service for unhandled routes
+5. **Logger Error** - Logs errors (from `@tdsk/logger`)
+6. **Error Handler** - Formats and sends error responses
+
+## API Routes
+
+### Admin Routes (`/_/*`)
+
+All admin API routes are mounted under the admin path prefix (configured via `TDSK_BE_API_ADMIN_PATH`, default `/_`):
+
+- **GET `/_/`** - Base endpoint, returns status message
+- **GET `/_/health`** - Health check endpoint
+- **USE `/_/auth/*`** - Authentication routes (nested)
+
+Routes are protected by JWT authentication middleware except those in `AuthIgnore` list (`/`, `/health`).
+
+### Proxy Routes (`/**`)
+
+All routes not matched by endpoints are proxied to the Auth-Proxy service configured via `TDSK_BE_REMOTE` and `TDSK_BE_REMOTE_PORT`.
+
+## Logic Flow
+
+### Request Flow
+
+```
+1. Request arrives at Express app
+2. Winston request logger logs the request
+3. CORS middleware checks origin
+4. Router attempts to match endpoint
+   ├─ If matched: Execute endpoint handler
+   │  └─ If protected: Run authenticate middleware
+   └─ If not matched: Proxy to Auth-Proxy service
+5. Response sent or error thrown
+6. Winston error logger logs errors
+7. Error handler formats error response
+```
+
+### Authentication Flow
+
+```
+1. Request enters authenticate middleware
+2. Check if path should be ignored (shouldIgnore)
+   ├─ Yes: Skip to next middleware
+   └─ No: Continue authentication
+3. Extract Bearer token from Authorization header
+4. Validate token with database (Neon Auth)
+   ├─ Valid: Attach user to res.locals.user
+   └─ Invalid: Return 401 error
+5. Continue to endpoint handler
+```
+
+### Endpoint Registration Flow
+
+```
+1. setupEndpoints called with router and config
+2. Iterate through endpoints object
+3. For each endpoint:
+   ├─ If builder function: Call with config
+   └─ If config object: Use directly
+4. Validate endpoint (method, path)
+5. Determine endpoint type:
+   ├─ EPMethod.Use: Create nested router
+   ├─ Has proxy config: Create proxy middleware
+   └─ Has action: Use action handler
+6. Register with Express router
+7. If public: Add to publicRoutes list
+```
+
+## Key Patterns
+
+### 1. Async Router Pattern
+
+All route handlers are automatically wrapped with `express-async-handler` to catch errors:
+
+```typescript
+export const createAsyncRouter = () => {
+  const Router = express.Router()
+  // Wrap all HTTP methods with asyncHandler
+  Router.get = (endpoint, ...args) =>
+    Get(endpoint, ...args.map(handler => asyncHandler(handler)))
+  // ... similar for post, put, patch, delete, all, use
+  return Router
+}
+```
+
+### 2. Configuration-Driven Endpoints
+
+Endpoints are defined declaratively, then dynamically registered:
+
+```typescript
+// Define
+export const endpoints = {
+  accounts,  // Builder function or config object
+}
+
+// Register
+setupEndpoints(router, config) // Iterates and registers
+```
+
+### 3. Middleware Composition
+
+Endpoints can specify middleware arrays that are composed:
+
+```typescript
+{
+  path: '/admin',
+  middleware: [express.json(), authenticate],
+  endpoints: { /* nested */ }
+}
+```
+
+### 4. Proxy Configuration
+
+Endpoints can be proxied by specifying proxy config:
+
+```typescript
+{
+  path: '/api',
+  method: EPMethod.all,
+  proxy: {
+    target: 'https://external-api.com',
+    changeOrigin: true,
+    pathRewrite: { '^/api': '' }
+  }
+}
+```
+
+### 5. Error Handling
+
+Custom `Exception` class with HTTP status codes:
+
+```typescript
+throw new Exception(400, 'Invalid request', 'BAD_REQUEST')
+```
+
+Caught by global error handler that formats responses:
+
+```typescript
+res.status(status).json({ status, message, errorCode })
+```
+
+### 6. Path Aliases
+
+TypeScript path aliases for clean imports:
+
+- `@TBE/*` → `repos/backend/src/*`
+- `@TDM/*` → `repos/domain/src/*`
+- `@TDB/*` → `repos/database/src/*`
+- `@tdsk/logger` → `repos/logger/src`
+
+### 7. Environment Configuration
+
+Configuration loaded from `deploy/values.*.yml` via `@keg-hub/parse-config`:
+
+```typescript
+loadEnvs({ force: nodeEnv === 'local' })
+```
+
+Local development forces override, production uses system env vars.
+
+## Dependencies
+
+### Core Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| `express@5.1.0` | Web server framework |
+| `express-async-handler` | Automatic error handling for async routes |
+| `express-jwt` | JWT middleware |
+| `jsonwebtoken` | JWT signing and verification |
+| `http-proxy-middleware` | Proxy middleware for forwarding requests |
+| `cors` | Cross-Origin Resource Sharing |
+| `winston@3.17.0` | Logging framework |
+| `axios` | HTTP client |
+
+### Workspace Dependencies
+
+- `@tdsk/domain` - Shared types and domain models
+- `@tdsk/database` - Database ORM (Drizzle) and services
+- `@tdsk/logger` - Winston logging service
+
+### Development Dependencies
+
+- `@biomejs/biome` - Linting and formatting
+- `tsup` - TypeScript bundler for build
+- `vitest` - Testing framework
+- `typescript@5.7.3` - TypeScript compiler
+
+## Commands
+
+### Development
+
+```bash
+pnpm start          # Dev server with watch mode
+                    # Watches: src, configs, domain, logger, database
+                    # Runs: tsup build + node dist/index.cjs
+
+pnpm serve          # Run built server (no watch)
+```
+
+### Build
+
+```bash
+pnpm build          # Production build via tsup
+pnpm clean          # Remove dist folder
+pnpm clean:nm       # Remove node_modules
+pnpm clean:full     # Clean dist + node_modules
+```
+
+### Code Quality
+
+```bash
+pnpm lint           # Biome lint with auto-fix
+pnpm format         # Biome format with auto-fix
+pnpm lint:ci        # Lint for CI (errors only, changed files)
+pnpm format:ci      # Format for CI (errors only, changed files)
+pnpm lint:staged    # Lint staged files (for pre-commit)
+pnpm format:staged  # Format staged files (for pre-commit)
+```
+
+### Testing
+
+```bash
+pnpm test           # Run vitest test suite
+```
+
+## Integration Points
+
+### Database Integration
+
+- Initializes database connection in `setupServer` middleware
+- Stores database instance on `app.locals.db`
+- Uses `@tdsk/database` package for ORM operations
+- Validates JWT tokens via `db.validate({ access_token })`
+
+### Logger Integration
+
+- Uses `@tdsk/logger` package for Winston-based logging
+- Request logging via `setupLoggerReq(app)`
+- Error logging via `setupLoggerErr(app)`
+- Logger instance configured from `config.logger`
+
+### Domain Integration
+
+- Imports shared types from `@tdsk/domain`
+- Key types: `TApp`, `TRequest`, `TResponse`, `TABConfig`
+- Extends Express types with custom properties
+
+### Proxy Integration
+
+- Proxies unhandled requests to Auth-Proxy service
+- Adds custom headers for internal communication
+- Configured via `TDSK_BE_REMOTE` and `TDSK_BE_REMOTE_PORT`
+- Uses `http-proxy-middleware` for proxying
+
+### Auth-Proxy Communication
+
+- Receives admin requests from Auth-Proxy at `/_/*` paths
+- Proxies back to Auth-Proxy for unmatched routes
+- Shares JWT validation logic via database
+- Coordinates on allowed origins and public routes
+
+## Environment Variables
+
+Key environment variables loaded from `deploy/values.*.yml`:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `TDSK_BE_PORT` | Server port | - |
+| `TDSK_BE_REMOTE` | Auth-Proxy host | - |
+| `TDSK_BE_REMOTE_PORT` | Auth-Proxy port | - |
+| `TDSK_BE_API_ADMIN_PATH` | Admin path prefix | `/_` |
+| `TDSK_BE_ALLOW_ORIGIN` | CORS origins (comma-separated) | - |
+| `TDSK_BE_ENABLE_SSL` | Enable HTTPS | `false` |
+| `TDSK_BE_SSL_CERT` | SSL certificate path | - |
+| `TDSK_BE_SSL_KEY` | SSL key path | - |
+| `TDSK_BE_PUBLIC_ROUTES` | Public routes (comma-separated) | - |
+| `TDSK_DB_URL` | Database URL | - |
+| `TDSK_DB_JWT_SCRT` | JWT secret | - |
+| `TDSK_BE_LOGGER_LEVEL` | Log level | `info` |
+
+## Development Notes
+
+### Adding a New Endpoint
+
+1. Create endpoint file in `src/endpoints/`
+2. Define endpoint config or builder function
+3. Export from `src/endpoints/endpoints.ts`
+4. Endpoint will be auto-registered on next restart
+
+### Adding Middleware
+
+1. Create middleware in `src/middleware/`
+2. Add to appropriate setup function or create new setup function
+3. Call setup function in `src/main.ts` in correct order
+
+### Debugging
+
+- Set `TDSK_BE_LOGGER_LEVEL=debug` for verbose logs
+- Use `TDSK_BE_LOGGER_PRETTY=true` for formatted logs
+- Check `dist/index.cjs.map` for source maps
+
+### Watch Mode
+
+The `pnpm start` command watches multiple packages:
+- `./src` - Backend source
+- `./configs` - Backend configs
+- `../../domain/src` - Domain package
+- `../../logger/src` - Logger package
+- `../../database/src` - Database package
+
+Changes to any of these trigger automatic rebuild and server restart.

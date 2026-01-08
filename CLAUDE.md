@@ -375,16 +375,38 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 
 ### Workspace Structure (`repos/`)
 
-| Directory | Role | Tech |
-|-----------|------|------|
-| `proxy/` | Auth Gateway - single entry point for all external traffic | Express, JWT, http-proxy |
-| `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket |
-| `admin/` | SPA Dashboard | Vite, React, MUI, Jotai |
-| `database/` | ORM & migrations | Drizzle, PostgreSQL |
-| `domain/` | Shared types, models, utilities | TypeScript |
-| `components/` | Shared React components/hooks | React, MUI |
-| `logger/` | Winston-based logging service | Winston |
-| `cli/` | Developer CLI for project management | Node.js |
+| Directory | Role | Tech | Skill |
+|-----------|------|------|-------|
+| `proxy/` | Auth Gateway - single entry point for all external traffic | Express, JWT, http-proxy | `.claude/skills/proxy-repo.yml` |
+| `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/backend-repo.yml` |
+| `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/admin-repo.yml` |
+| `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/database-repo.yml` |
+| `domain/` | Shared types, models, utilities | TypeScript | `.claude/skills/domain-repo.yml` |
+| `components/` | Shared React components/hooks | React, MUI | `.claude/skills/components-repo.yml` |
+| `logger/` | Winston-based logging service | Winston | `.claude/skills/logger-repo.yml` |
+| `cli/` | Developer CLI for project management | Node.js | `.claude/skills/cli-repo.yml` |
+
+## Sub-Repo Skills
+
+**IMPORTANT**: Before working on any sub-repo, load its corresponding skill file for comprehensive knowledge of the codebase structure, patterns, and best practices.
+
+### How to Use Skills
+Load the relevant skill when working on a specific repo:
+- Working on admin UI? → Read `.claude/skills/admin-repo.yml` first
+- Adding API endpoints? → Read `.claude/skills/backend-repo.yml` first
+- Modifying database schema? → Read `.claude/skills/database-repo.yml` first
+
+### Available Skills
+| Skill File | Contents |
+|------------|----------|
+| `admin-repo.yml` | React/Vite architecture, Jotai state, MUI theming, Neon Auth, routing patterns |
+| `backend-repo.yml` | Express 5 API structure, middleware patterns, route organization, WebSocket setup |
+| `cli-repo.yml` | CLI command structure, DevOps orchestration, task system, Docker/K8s integration |
+| `components-repo.yml` | 30+ React components, 25+ hooks, Monaco editor integration, MUI patterns |
+| `database-repo.yml` | Drizzle ORM patterns, schema definitions, Exclusive Arc pattern, migrations |
+| `domain-repo.yml` | TypeScript types, models, crypto utilities, Express helpers, error handling |
+| `logger-repo.yml` | Winston configuration, transports, secret redaction, Express middleware |
+| `proxy-repo.yml` | Auth gateway architecture, JWT handling, route forwarding, middleware chain |
 
 ### Database & Authentication
 
