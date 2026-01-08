@@ -59,13 +59,19 @@ Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Team O
 # Install (PNPM required - enforced)
 pnpm install
 
-# Run developer CLI
-pnpm tdsk   # or: pnpm ts
+# Run unit tests via vitest
+pnpm test
+
+# Run code formatting via biome
+pnpm format
+
+# Run code linting via biome
+pnpm lint
 
 # Sync package versions
 pnpm sync
 
-# Clean reinstall
+# Clean reinstall of node_modules
 pnpm clean:full
 ```
 
