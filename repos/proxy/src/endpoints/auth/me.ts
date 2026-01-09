@@ -5,11 +5,16 @@ import { logger } from '@TPX/utils/logger'
 
 /**
  * GET /auth/me
- * Returns the current authenticated user's information
+ * Returns the current authenticated user's information from JWT
+ *
+ * In client-side auth flow:
+ * - JWT is validated by middleware and user info is attached to req.user
+ * - This endpoint simply returns the decoded user info from the JWT
  */
 export const me = (_app: TProxyApp) => {
   return async (req: Request, res: Response): Promise<void> => {
     try {
+      // User info is attached to request by JWT validation middleware
       const user = req.user
 
       if (!user) {
@@ -19,15 +24,14 @@ export const me = (_app: TProxyApp) => {
 
       logger.debug(`Get current user: ${user.userId}`)
 
-      // TODO: In production, fetch additional user data from database
-      // For now, return the user info from the JWT
-
       res.status(200).json({
         data: {
-          userId: user.userId,
-          email: user.email,
-          teamId: user.teamId,
-          role: user.role,
+          user: {
+            id: user.userId,
+            email: user.email,
+            teamId: user.teamId,
+            role: user.role,
+          },
         },
       })
     } catch (err) {

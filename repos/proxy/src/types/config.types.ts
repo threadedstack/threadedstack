@@ -34,9 +34,14 @@ export type TLoggerConfig = {
   exitOnError: boolean
 }
 
+export type TJWKSConfig = {
+  jwksUrl: string
+}
+
 export type TProxyConfig = {
   jwt: TJwtConfig
   server: TServerConfig
   backend: TBackendConfig
   logger: TLoggerConfig
+  jwks: TJWKSConfig
 }

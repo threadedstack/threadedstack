@@ -12,37 +12,13 @@ vi.mock(`@TPX/utils/logger`, () => ({
   },
 }))
 
-// Create error classes for mock
-class MockTokenExpiredError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = `TokenExpiredError`
-  }
-}
+// Mock neonAuth
+const mockVerifyToken = vi.fn()
+const mockIsJWKSInitialized = vi.fn()
 
-class MockJsonWebTokenError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = `JsonWebTokenError`
-  }
-}
-
-// Mock jwt
-vi.mock(`jsonwebtoken`, () => ({
-  default: {
-    sign: vi.fn().mockReturnValue(`mock-token`),
-    verify: vi.fn().mockImplementation((token, _secret) => {
-      if (token === `valid-token`) {
-        return { userId: `user-123`, email: `test@test.com` }
-      }
-      if (token === `expired-token`) {
-        throw new MockTokenExpiredError(`Token expired`)
-      }
-      throw new MockJsonWebTokenError(`Invalid token`)
-    }),
-  },
-  TokenExpiredError: MockTokenExpiredError,
-  JsonWebTokenError: MockJsonWebTokenError,
+vi.mock(`@TPX/utils/auth/neonAuth`, () => ({
+  verifyToken: (...args: unknown[]) => mockVerifyToken(...args),
+  isJWKSInitialized: () => mockIsJWKSInitialized(),
 }))
 
 const createMockApp = (): TProxyApp =>
@@ -52,7 +28,9 @@ const createMockApp = (): TProxyApp =>
         jwt: {
           secret: `test-secret`,
           expiresIn: `7d`,
-          refreshExpiresIn: `30d`,
+        },
+        jwks: {
+          jwksUrl: `https://auth.example.com/.well-known/jwks.json`,
         },
       },
     },
@@ -83,29 +61,20 @@ describe(`JWT Auth Middleware`, () => {
     vi.clearAllMocks()
     mockApp = createMockApp()
     mockRes = createMockResponse()
-    mockNext = vi.fn() as any
+    mockNext = vi.fn() as NextFunction
+    mockIsJWKSInitialized.mockReturnValue(true)
   })
 
   describe(`setupAuth middleware`, () => {
-    it(`should skip auth for public routes`, async () => {
-      const { setupAuth } = await import(`./setupAuth`)
-      const middleware = setupAuth(mockApp)
-      const mockReq = createMockRequest({ path: `/auth/login` })
-
-      middleware(mockReq, mockRes, mockNext)
-
-      expect(mockNext).toHaveBeenCalled()
-      expect(mockRes.status).not.toHaveBeenCalled()
-    })
-
     it(`should skip auth for health endpoint`, async () => {
       const { setupAuth } = await import(`./setupAuth`)
       const middleware = setupAuth(mockApp)
       const mockReq = createMockRequest({ path: `/health` })
 
-      middleware(mockReq, mockRes, mockNext)
+      await middleware(mockReq, mockRes, mockNext)
 
       expect(mockNext).toHaveBeenCalled()
+      expect(mockRes.status).not.toHaveBeenCalled()
     })
 
     it(`should return 401 if no token provided`, async () => {
@@ -113,7 +82,7 @@ describe(`JWT Auth Middleware`, () => {
       const middleware = setupAuth(mockApp)
       const mockReq = createMockRequest({ path: `/protected` })
 
-      middleware(mockReq, mockRes, mockNext)
+      await middleware(mockReq, mockRes, mockNext)
 
       expect(mockRes.status).toHaveBeenCalledWith(401)
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -130,7 +99,7 @@ describe(`JWT Auth Middleware`, () => {
         headers: { authorization: `InvalidFormat token` },
       })
 
-      middleware(mockReq, mockRes, mockNext)
+      await middleware(mockReq, mockRes, mockNext)
 
       expect(mockRes.status).toHaveBeenCalledWith(401)
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -138,7 +107,30 @@ describe(`JWT Auth Middleware`, () => {
       })
     })
 
+    it(`should return 500 if JWKS not initialized`, async () => {
+      mockIsJWKSInitialized.mockReturnValue(false)
+
+      const { setupAuth } = await import(`./setupAuth`)
+      const middleware = setupAuth(mockApp)
+      const mockReq = createMockRequest({
+        path: `/protected`,
+        headers: { authorization: `Bearer some-token` },
+      })
+
+      await middleware(mockReq, mockRes, mockNext)
+
+      expect(mockRes.status).toHaveBeenCalledWith(500)
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: `Authentication service unavailable`,
+      })
+    })
+
     it(`should return 401 for expired token`, async () => {
+      mockVerifyToken.mockResolvedValue({
+        valid: false,
+        error: `Token expired`,
+      })
+
       const { setupAuth } = await import(`./setupAuth`)
       const middleware = setupAuth(mockApp)
       const mockReq = createMockRequest({
@@ -146,7 +138,7 @@ describe(`JWT Auth Middleware`, () => {
         headers: { authorization: `Bearer expired-token` },
       })
 
-      middleware(mockReq, mockRes, mockNext)
+      await middleware(mockReq, mockRes, mockNext)
 
       expect(mockRes.status).toHaveBeenCalledWith(401)
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -155,6 +147,11 @@ describe(`JWT Auth Middleware`, () => {
     })
 
     it(`should return 401 for invalid token`, async () => {
+      mockVerifyToken.mockResolvedValue({
+        valid: false,
+        error: `Invalid token signature`,
+      })
+
       const { setupAuth } = await import(`./setupAuth`)
       const middleware = setupAuth(mockApp)
       const mockReq = createMockRequest({
@@ -162,7 +159,7 @@ describe(`JWT Auth Middleware`, () => {
         headers: { authorization: `Bearer invalid-token` },
       })
 
-      middleware(mockReq, mockRes, mockNext)
+      await middleware(mockReq, mockRes, mockNext)
 
       expect(mockRes.status).toHaveBeenCalledWith(401)
       expect(mockRes.json).toHaveBeenCalledWith({
@@ -171,6 +168,16 @@ describe(`JWT Auth Middleware`, () => {
     })
 
     it(`should attach user to request for valid token`, async () => {
+      mockVerifyToken.mockResolvedValue({
+        valid: true,
+        payload: {
+          sub: `user-123`,
+          email: `test@test.com`,
+          teamId: `team-456`,
+          role: `admin`,
+        },
+      })
+
       const { setupAuth } = await import(`./setupAuth`)
       const middleware = setupAuth(mockApp)
       const mockReq = createMockRequest({
@@ -178,14 +185,54 @@ describe(`JWT Auth Middleware`, () => {
         headers: { authorization: `Bearer valid-token` },
       })
 
-      middleware(mockReq, mockRes, mockNext)
+      await middleware(mockReq, mockRes, mockNext)
 
       expect(mockNext).toHaveBeenCalled()
       expect(mockReq.user).toEqual({
         userId: `user-123`,
         email: `test@test.com`,
-        teamId: undefined,
-        role: undefined,
+        teamId: `team-456`,
+        role: `admin`,
+      })
+    })
+
+    it(`should use userId from payload if sub not present`, async () => {
+      mockVerifyToken.mockResolvedValue({
+        valid: true,
+        payload: {
+          userId: `user-789`,
+          email: `test@test.com`,
+        },
+      })
+
+      const { setupAuth } = await import(`./setupAuth`)
+      const middleware = setupAuth(mockApp)
+      const mockReq = createMockRequest({
+        path: `/protected`,
+        headers: { authorization: `Bearer valid-token` },
+      })
+
+      await middleware(mockReq, mockRes, mockNext)
+
+      expect(mockNext).toHaveBeenCalled()
+      expect(mockReq.user?.userId).toBe(`user-789`)
+    })
+
+    it(`should handle verification errors gracefully`, async () => {
+      mockVerifyToken.mockRejectedValue(new Error(`Network error`))
+
+      const { setupAuth } = await import(`./setupAuth`)
+      const middleware = setupAuth(mockApp)
+      const mockReq = createMockRequest({
+        path: `/protected`,
+        headers: { authorization: `Bearer some-token` },
+      })
+
+      await middleware(mockReq, mockRes, mockNext)
+
+      expect(mockRes.status).toHaveBeenCalledWith(500)
+      expect(mockRes.json).toHaveBeenCalledWith({
+        error: `Authentication error`,
       })
     })
   })

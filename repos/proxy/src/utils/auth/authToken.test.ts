@@ -1,74 +1,53 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock the logger
-vi.mock(`@TPX/utils/logger`, () => ({
-  logger: {
-    info: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}))
-
-// Create error classes for mock
-class MockTokenExpiredError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = `TokenExpiredError`
-  }
-}
-
-class MockJsonWebTokenError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = `JsonWebTokenError`
-  }
-}
-
-// Mock jwt
-vi.mock(`jsonwebtoken`, () => ({
-  default: {
-    sign: vi.fn().mockReturnValue(`mock-token`),
-    verify: vi.fn().mockImplementation((token, _secret) => {
-      if (token === `valid-token`) {
-        return { userId: `user-123`, email: `test@test.com` }
-      }
-      if (token === `expired-token`) {
-        throw new MockTokenExpiredError(`Token expired`)
-      }
-      throw new MockJsonWebTokenError(`Invalid token`)
-    }),
-  },
-  TokenExpiredError: MockTokenExpiredError,
-  JsonWebTokenError: MockJsonWebTokenError,
-}))
-
-describe(`JWT Auth Middleware`, () => {
+describe(`extractToken`, () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  describe(`Token generation`, () => {
-    it(`should generate access token`, async () => {
-      const { generateAccessToken } = await import(`./authToken`)
-      const token = generateAccessToken(
-        { userId: `user-123`, email: `test@test.com` },
-        `secret`,
-        `7d`
-      )
+  it(`should extract token from valid Authorization header`, async () => {
+    const { extractToken } = await import(`./authToken`)
+    const req = {
+      headers: {
+        authorization: `Bearer valid-token-123`,
+      },
+    } as any
 
-      expect(token).toBe(`mock-token`)
-    })
+    const token = extractToken(req)
+    expect(token).toBe(`valid-token-123`)
+  })
 
-    it(`should generate refresh token`, async () => {
-      const { generateRefreshToken } = await import(`./authToken`)
-      const token = generateRefreshToken(
-        { userId: `user-123`, email: `test@test.com` },
-        `secret`,
-        `30d`
-      )
+  it(`should return null when no Authorization header`, async () => {
+    const { extractToken } = await import(`./authToken`)
+    const req = {
+      headers: {},
+    } as any
 
-      expect(token).toBe(`mock-token`)
-    })
+    const token = extractToken(req)
+    expect(token).toBeNull()
+  })
+
+  it(`should return null when Authorization header does not start with Bearer`, async () => {
+    const { extractToken } = await import(`./authToken`)
+    const req = {
+      headers: {
+        authorization: `Basic some-credentials`,
+      },
+    } as any
+
+    const token = extractToken(req)
+    expect(token).toBeNull()
+  })
+
+  it(`should return null when Authorization header is empty`, async () => {
+    const { extractToken } = await import(`./authToken`)
+    const req = {
+      headers: {
+        authorization: ``,
+      },
+    } as any
+
+    const token = extractToken(req)
+    expect(token).toBeNull()
   })
 })

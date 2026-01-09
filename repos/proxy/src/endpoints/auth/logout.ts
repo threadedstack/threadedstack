@@ -5,20 +5,19 @@ import { logger } from '@TPX/utils/logger'
 
 /**
  * POST /auth/logout
- * Invalidates the current user session
+ * Client-side logout acknowledgment endpoint
  *
- * Note: For stateless JWT, the client is responsible for discarding the token.
- * In production, you may want to implement a token blacklist in Redis/database.
+ * In client-side auth flow:
+ * - Admin app handles signout with Neon Auth directly
+ * - This endpoint is called to confirm logout and clear any server-side state
+ * - JWT tokens are invalidated on client side
  */
 export const logout = (_app: TProxyApp) => {
   return async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = req.user?.userId
 
-      if (userId) {
-        logger.info(`Logout for user: ${userId}`)
-        // TODO: In production, add token to blacklist if implementing server-side session invalidation
-      }
+      logger.info(`Logout request received`, { userId })
 
       res.status(200).json({
         data: {

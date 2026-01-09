@@ -2,11 +2,6 @@ export const ProcessSignals = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
 
 /**
  * List of public routes that don't require authentication
+ * Note: login/register/refresh are handled client-side by Neon Auth
  */
-export const PublicRoutes = [
-  `/auth/login`,
-  `/auth/register`,
-  `/auth/refresh`,
-  `/auth/callback`,
-  `/health`,
-]
+export const PublicRoutes = [`/health`]

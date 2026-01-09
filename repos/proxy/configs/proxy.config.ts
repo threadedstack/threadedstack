@@ -2,7 +2,6 @@ import type { TLogLevel, TProxyConfig } from '@TPX/types'
 
 import { loadEnvs } from '@tdsk/domain'
 import { toInt } from '@keg-hub/jsutils/toInt'
-import { LOG_LEVEL } from '@TPX/constants/envs'
 import { toBool } from '@keg-hub/jsutils/toBool'
 
 const { NODE_ENV = `local` } = process.env
@@ -19,6 +18,7 @@ const {
   TDSK_PX_SSL_CERT,
   TDSK_PX_ENABLE_SSL,
   TDSK_PX_ALLOW_ORIGIN,
+  TDSK_PX_LOG_LEVEL,
   TDSK_PX_LOGGER_LEVEL,
   TDSK_PX_LOGGER_PRETTY,
   TDSK_PX_LOGGER_SILENT,
@@ -29,6 +29,7 @@ const {
   TDSK_PX_JWT_EXPIRES_IN,
   TDSK_PX_JWT_REFRESH_EXPIRES_IN,
   TDSK_BE_API_ADMIN_PATH = `_`,
+  TDSK_AUTH_JWKS = ``,
 } = envs
 
 const enableSSL = NODE_ENV !== `production` && toBool(TDSK_PX_ENABLE_SSL)
@@ -64,6 +65,9 @@ export const config: TProxyConfig = {
     exitOnError: false,
     pretty: toBool(TDSK_PX_LOGGER_PRETTY) ?? false,
     silent: toBool(TDSK_PX_LOGGER_SILENT) ?? false,
-    level: (TDSK_PX_LOGGER_LEVEL ?? LOG_LEVEL) as TLogLevel,
+    level: (TDSK_PX_LOGGER_LEVEL || TDSK_PX_LOG_LEVEL || `info`) as TLogLevel,
+  },
+  jwks: {
+    jwksUrl: TDSK_AUTH_JWKS,
   },
 }
