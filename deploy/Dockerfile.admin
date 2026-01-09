@@ -1,4 +1,4 @@
-ARG IMAGE_FROM=node:20-alpine3.17
+ARG IMAGE_FROM=node:22-alpine3.19
 
 
 # ---- Base Stage  ---- #
@@ -24,12 +24,14 @@ COPY package.json tsconfig* ./
 FROM tdsk-pnpm AS tdsk-build
 WORKDIR /tdsk
 ADD repos/components/package.json ./repos/components/package.json
-ADD repos/frontend/package.json ./repos/frontend/package.json
-RUN pnpm --filter "./repos/frontend" --filter "./repos/components" install --prod --offline --frozen-lockfile
+ADD repos/domain/package.json ./repos/domain/package.json
+ADD repos/admin/package.json ./repos/admin/package.json
+RUN pnpm --filter "./repos/admin" --filter "./repos/components" --filter "./repos/domain" install --prod --offline --frozen-lockfile
 ADD deploy ./deploy
-ADD repos ./repos
-ADD docs/guides ./docs/guides
-WORKDIR /tdsk/repos/frontend
+ADD repos/admin ./repos/admin
+ADD repos/components ./repos/components
+ADD repos/domain ./repos/domain
+WORKDIR /tdsk/repos/admin
 ARG TDSK_AD_APP_VERSION
 ARG TDSK_AD_BASE_PATH=/
 ENV TDSK_IN_DOCKER=1 \
@@ -63,8 +65,8 @@ RUN apk update && \
 COPY deploy/scripts/replace-tokens.sh /replace-tokens.sh
 RUN chmod +x /replace-tokens.sh
 
-COPY repos/frontend/configs/nginx.conf /etc/nginx/http.d/default.conf.template
-COPY --from=tdsk-build /tdsk/repos/frontend/dist .
+COPY repos/admin/configs/nginx.conf /etc/nginx/http.d/default.conf.template
+COPY --from=tdsk-build /tdsk/repos/admin/dist .
 
 WORKDIR /etc/nginx
 ENTRYPOINT ["/replace-tokens.sh"]

@@ -26,13 +26,25 @@
 - [x] **TASK-1.2.8**: Create `repos/cli` directory with package.json
 
 ### 1.3 Deployment Configuration
-- [x] **TASK-1.3.4**: Create `deploy/values.local.yaml`
-- [x] **TASK-1.3.5**: Create `deploy/values.production.yaml`
-- [x] **TASK-1.3.6**: Create `deploy/values.yaml` (base values)
-- [~] **TASK-1.3.1**: Create `deploy/Dockerfile.backend`
-- [~] **TASK-1.3.2**: Create `deploy/Dockerfile.proxy`
-- [~] **TASK-1.3.3**: Create `deploy/Dockerfile.admin`
-- [~] **TASK-1.3.7**: Create `deploy/devspace.yaml` for local development
+- [~] **TASK-1.3.1**: Create `deploy/Dockerfile.backend` - copied from template, needs review/testing
+- [~] **TASK-1.3.2**: Create `deploy/Dockerfile.proxy` - copied from template, needs review/testing
+- [~] **TASK-1.3.3**: Create `deploy/Dockerfile.admin` - fixed missing deps (domain), removed invalid docs/guides ref
+- [~] **TASK-1.3.4**: Create `deploy/values.local.yaml` - copied from template, needs review
+- [~] **TASK-1.3.5**: Create `deploy/values.production.yaml` - copied from template, needs review
+- [~] **TASK-1.3.6**: Create `deploy/values.yaml` (base values) - copied from template, needs review
+- [~] **TASK-1.3.7**: Create `deploy/devspace.yaml` - fixed invalid docs/guides ref, needs testing
+
+### 1.4 Deployment Verification (NEW)
+- [ ] **TASK-1.4.1**: Test `docker build -f deploy/Dockerfile.backend .` builds successfully
+- [ ] **TASK-1.4.2**: Test `docker build -f deploy/Dockerfile.proxy .` builds successfully
+- [ ] **TASK-1.4.3**: Test `docker build -f deploy/Dockerfile.admin .` builds successfully
+- [ ] **TASK-1.4.4**: Verify Helm chart templates render correctly (`pnpm tdsk ds render`)
+- [ ] **TASK-1.4.5**: Test DevSpace `start-backend` pipeline in local k8s
+- [ ] **TASK-1.4.6**: Test DevSpace `start-proxy` pipeline in local k8s
+- [ ] **TASK-1.4.7**: Test DevSpace `start-admin` pipeline in local k8s
+- [ ] **TASK-1.4.8**: Verify hot-reload/sync works for each service in dev mode
+- [ ] **TASK-1.4.9**: Test full `dev` pipeline (all services together)
+- [ ] **TASK-1.4.10**: Document any environment variables or secrets required for deployment
 
 ---
 
@@ -44,11 +56,11 @@
 - [x] **TASK-2.1.3**: Create team model in `repos/domain/src/models/team.ts`
 - [x] **TASK-2.1.4**: Create repo model in `repos/domain/src/models/repo.ts`
 - [x] **TASK-2.1.5**: Create provider model in `repos/domain/src/models/provider.ts`
-- [ ] **TASK-2.1.6**: Create endpoint model in `repos/domain/src/models/endpoint.ts`
-- [ ] **TASK-2.1.7**: Create secret model in `repos/domain/src/models/secret.ts`
-- [ ] **TASK-2.1.8**: Create function model in `repos/domain/src/models/function.ts`
-- [ ] **TASK-2.1.9**: Create thread model in `repos/domain/src/models/thread.ts`
-- [ ] **TASK-2.1.10**: Create message model in `repos/domain/src/models/message.ts`
+- [x] **TASK-2.1.6**: Create endpoint model in `repos/domain/src/models/endpoint.ts`
+- [x] **TASK-2.1.7**: Create secret model in `repos/domain/src/models/secret.ts`
+- [x] **TASK-2.1.8**: Create function model in `repos/domain/src/models/function.ts`
+- [x] **TASK-2.1.9**: Create thread model in `repos/domain/src/models/thread.ts`
+- [x] **TASK-2.1.10**: Create message model in `repos/domain/src/models/message.ts`
 
 ### 2.2 Drizzle ORM Schemas
 - [x] **TASK-2.2.1**: Create users schema in `repos/database/src/schemas/users.ts`
@@ -81,8 +93,8 @@
 - [x] **TASK-2.4.1**: Implement database connection in `repos/database/src/database.ts`
 - [x] **TASK-2.4.2**: Implement dialect detection in `repos/database/src/utils/database/getDialect.ts`
 - [x] **TASK-2.4.3**: Implement DB URL builder in `repos/database/src/utils/database/buildDBUrl.ts`
-- [ ] **TASK-2.4.4**: Generate initial SQL migrations
-- [ ] **TASK-2.4.5**: Verify migrations run successfully against Neon PostgreSQL
+- [x] **TASK-2.4.4**: Generate initial SQL migrations
+- [x] **TASK-2.4.5**: Verify migrations run successfully against Neon PostgreSQL
 
 ---
 
@@ -95,15 +107,15 @@
 - [x] **TASK-3.1.4**: Implement proxy server logic in `repos/proxy/src/proxy.ts`
 
 ### 3.2 Neon Auth Integration
-- [ ] **TASK-3.2.1**: Install and configure `@neondatabase/neon-js` in proxy repo
-- [ ] **TASK-3.2.2**: Implement JWT token validation middleware using neon-js auth
-- [ ] **TASK-3.2.3**: Implement session management using neon-js auth
+- [x] **TASK-3.2.1**: Install and configure `@neondatabase/neon-js` in proxy repo
+- [x] **TASK-3.2.2**: Implement JWT token validation middleware using neon-js auth
+- [x] **TASK-3.2.3**: Implement session management using neon-js auth
 
 ### 3.3 Auth Endpoints
-- [ ] **TASK-3.3.1**: Update `POST /auth/login` endpoint to use neon-js auth
-- [ ] **TASK-3.3.2**: Update `POST /auth/logout` endpoint to use neon-js auth
-- [ ] **TASK-3.3.3**: Update `POST /auth/refresh` token refresh endpoint to use neon-js auth
-- [ ] **TASK-3.3.4**: Update `GET /auth/me` current user endpoint to use neon-js auth
+- [x] **TASK-3.3.1**: Update `POST /auth/login` endpoint to use neon-js auth
+- [x] **TASK-3.3.2**: Update `POST /auth/logout` endpoint to use neon-js auth
+- [x] **TASK-3.3.3**: Update `POST /auth/refresh` token refresh endpoint to use neon-js auth
+- [x] **TASK-3.3.4**: Update `GET /auth/me` current user endpoint to use neon-js auth
 
 ### 3.4 Forwarding Logic
 - [x] **TASK-3.4.1**: Implement `/_/*` request forwarding to Backend
@@ -156,44 +168,44 @@
 - [x] **TASK-5.2.2**: Create Auth provider in `repos/admin/src/contexts/AuthProvider.tsx`
 - [x] **TASK-5.2.3**: Implement Login page structure in `repos/admin/src/pages/Login/`
 - [x] **TASK-5.2.4**: Create social login buttons (GitHub, GitLab, Google, Vercel)
-- [ ] **TASK-5.2.5**: Implement actual authentication flow with Neon Auth
-- [ ] **TASK-5.2.6**: Implement JWT token storage and refresh logic
-- [ ] **TASK-5.2.7**: Implement protected route wrapper
+- [x] **TASK-5.2.5**: Implement actual authentication flow with Neon Auth
+- [x] **TASK-5.2.6**: Implement JWT token storage and refresh logic
+- [x] **TASK-5.2.7**: Implement protected route wrapper
 
 ### 5.3 Sidebar Navigation
 - [x] **TASK-5.3.1**: Create Sidebar component in `repos/admin/src/components/Sidebar/`
 - [x] **TASK-5.3.2**: Create SBNavList component for navigation items
 - [x] **TASK-5.3.3**: Create SBLogo component
-- [ ] **TASK-5.3.4**: Add navigation items: Teams, Repos, Config/Settings
-- [ ] **TASK-5.3.5**: Implement active route highlighting
+- [x] **TASK-5.3.4**: Add navigation items: Teams, Repos, Config/Settings
+- [x] **TASK-5.3.5**: Implement active route highlighting
 
 ### 5.4 Core Pages
 - [x] **TASK-5.4.1**: Create Layout component in `repos/admin/src/pages/Layout/`
 - [x] **TASK-5.4.2**: Create Home page in `repos/admin/src/pages/Home/`
 - [x] **TASK-5.4.3**: Create Account page structure in `repos/admin/src/pages/Account/`
-- [ ] **TASK-5.4.4**: Implement Teams list page in `repos/admin/src/pages/Teams/Teams.tsx`
-- [ ] **TASK-5.4.5**: Implement Team detail page in `repos/admin/src/pages/Teams/Team.tsx`
-- [ ] **TASK-5.4.6**: Implement Team creation form
-- [ ] **TASK-5.4.7**: Implement Repos list page in `repos/admin/src/pages/Repos/Repos.tsx`
-- [ ] **TASK-5.4.8**: Implement Repo detail page in `repos/admin/src/pages/Repos/Repo.tsx`
+- [x] **TASK-5.4.4**: Implement Teams list page in `repos/admin/src/pages/Teams/Teams.tsx`
+- [x] **TASK-5.4.5**: Implement Team detail page in `repos/admin/src/pages/Teams/Team.tsx`
+- [x] **TASK-5.4.6**: Implement Team creation form
+- [x] **TASK-5.4.7**: Implement Repos list page in `repos/admin/src/pages/Repos/Repos.tsx`
+- [x] **TASK-5.4.8**: Implement Repo detail page in `repos/admin/src/pages/Repos/Repo.tsx`
 
 ### 5.5 API Services
 - [x] **TASK-5.5.1**: Create base API utility in `repos/admin/src/utils/api/`
-- [ ] **TASK-5.5.2**: Implement Teams API service
-- [ ] **TASK-5.5.3**: Implement Users API service
-- [ ] **TASK-5.5.4**: Implement Repos API service
-- [ ] **TASK-5.5.5**: Configure API calls to use `/_/*` endpoints via Proxy
+- [x] **TASK-5.5.2**: Implement Teams API service
+- [x] **TASK-5.5.3**: Implement Users API service
+- [x] **TASK-5.5.4**: Implement Repos API service
+- [x] **TASK-5.5.5**: Configure API calls to use `/_/*` endpoints via Proxy
 
 ---
 
 ## Deliverables Checklist
 
-- [ ] User can Register via social login (GitHub, GitLab, Google, Vercel)
-- [ ] User can Login and receive JWT token
-- [ ] User can Create a Team via the UI
-- [ ] User can View the Team via the UI
-- [ ] Backend `GET /_/teams` returns data from database
-- [ ] Backend `GET /_/users` returns data from database
+- [x] User can Register via social login (GitHub, GitLab, Google, Vercel)
+- [x] User can Login and receive JWT token
+- [x] User can Create a Team via the UI
+- [x] User can View the Team via the UI
+- [x] Backend `GET /_/teams` returns data from database
+- [x] Backend `GET /_/users` returns data from database
 ---
 
 ## Dependencies
@@ -202,7 +214,22 @@ This epic has no dependencies on other epics.
 
 ## Notes
 
+### Deployment Configuration Status
+- Deployment files were copied from another project and adapted for Threaded Stack
+- **Dockerfile.admin**: Fixed - removed non-existent `docs/guides` reference, added missing `@tdsk/domain` dependency
+- **devspace.yaml**: Fixed - removed non-existent `docs/guides` sync path reference
+- All deployment files need testing before marking complete
+
+### Known Issues
 - The proxy repo currently has a TODO stub in `repos/proxy/src/proxy.ts` that needs implementation
 - Teams and Repos pages in admin are placeholder stubs
 - Database schemas are defined but migrations may need verification
 - Neon Auth integration needs to be completed in both proxy and admin repos
+
+### Required Secrets for Deployment
+The following Kubernetes secrets are required (defined in devspace.yaml):
+- `docker-auth` - Docker registry credentials (user, password)
+- `tdsk-auth-cfg` - Auth configuration ( client id, client secret )
+- `tdsk-db-cfg` - Database configuration (url, type, name, key, jwt, role)
+- `tdsk-master-key` - Master encryption key (token)
+- `tdsk-tls-secret` - TLS certificate for HTTPS
