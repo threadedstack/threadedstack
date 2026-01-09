@@ -10,6 +10,10 @@ import { themeTypeState } from '@TAF/state/theme'
 import { providersState } from '@TAF/state/providers'
 import { teamsState, activeTeamIdState } from '@TAF/state/teams'
 import { reposState, activeRepoIdState } from '@TAF/state/repos'
+import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
+import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
+import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
+import { configsState, activeConfigIdState } from '@TAF/state/configs'
 
 const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
   const [current, setCurrent] = useAtom(state)
@@ -30,3 +34,11 @@ export const useTeams = () => useRecState(teamsState)
 export const useActiveTeamId = () => useRecState(activeTeamIdState)
 export const useRepos = () => useRecState(reposState)
 export const useActiveRepoId = () => useRecState(activeRepoIdState)
+export const useSecrets = () => useRecState(secretsState)
+export const useActiveSecretId = () => useRecState(activeSecretIdState)
+export const useEndpoints = () => useRecState(endpointsState)
+export const useActiveEndpointId = () => useRecState(activeEndpointIdState)
+export const useFunctions = () => useRecState(functionsState)
+export const useActiveFunctionId = () => useRecState(activeFunctionIdState)
+export const useConfigs = () => useRecState(configsState)
+export const useActiveConfigId = () => useRecState(activeConfigIdState)

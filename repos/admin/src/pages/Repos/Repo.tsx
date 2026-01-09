@@ -19,16 +19,22 @@ import {
 } from '@mui/icons-material'
 import { Page } from '@TAF/pages/Page/Page'
 import { useRepos } from '@TAF/state/selectors'
+import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
 import { fetchRepo, deleteRepo } from '@TAF/actions/repos'
 import { ERoutePath } from '@TAF/types'
 
 export type TRepo = {}
 
 export const Repo = (props: TRepo) => {
-  const { repoId } = useParams<{ repoId: string }>()
+  const { teamId, repoId } = useParams<{ teamId: string; repoId: string }>()
   const navigate = useNavigate()
   const [repos] = useRepos()
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (teamId) setActiveTeamId(teamId)
+    if (repoId) setActiveRepoId(repoId)
+  }, [teamId, repoId])
 
   useEffect(() => {
     const loadRepo = async () => {
@@ -43,7 +49,7 @@ export const Repo = (props: TRepo) => {
   const repo = repoId && repos ? repos[repoId] : undefined
 
   const handleBack = () => {
-    navigate(ERoutePath.Repos)
+    navigate(`/teams/${teamId}/repos`)
   }
 
   const handleDelete = async () => {
@@ -53,7 +59,7 @@ export const Repo = (props: TRepo) => {
     }
     const result = await deleteRepo(repoId)
     if (!result.error) {
-      navigate(ERoutePath.Repos)
+      navigate(`/teams/${teamId}/repos`)
     }
   }
 

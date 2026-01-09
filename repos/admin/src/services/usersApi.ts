@@ -142,6 +142,57 @@ export class UsersApi extends BaseApi {
       queryKey: this.cache.listTeam(teamId),
     })
   }
+
+  /**
+   * Invite user to team
+   * @param teamId - Team ID
+   * @param data - Invite data (email and roleType)
+   * @returns Success status
+   */
+  async inviteToTeam(teamId: string, data: { email: string; roleType: string }): Promise<TApiRes<{ success: boolean }>> {
+    const resp = await this.api.post<{ success: boolean }>({
+      data,
+      path: `/teams/${teamId}/users/invite`,
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to invite user to team`))
+
+    return resp
+  }
+
+  /**
+   * Update user role in team
+   * @param teamId - Team ID
+   * @param roleId - Role ID
+   * @param roleType - New role type
+   * @returns Success status
+   */
+  async updateRole(teamId: string, roleId: string, roleType: string): Promise<TApiRes<{ success: boolean }>> {
+    const resp = await this.api.put<{ success: boolean }>({
+      data: { roleType },
+      path: `/teams/${teamId}/roles/${roleId}`,
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to update user role`))
+
+    return resp
+  }
+
+  /**
+   * Remove user from team
+   * @param teamId - Team ID
+   * @param roleId - Role ID
+   * @returns Success status
+   */
+  async removeFromTeam(teamId: string, roleId: string): Promise<TApiRes<{ success: boolean }>> {
+    const resp = await this.api.delete<{ success: boolean }>({
+      path: `/teams/${teamId}/roles/${roleId}`,
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to remove user from team`))
+
+    return resp
+  }
 }
 
 // Export singleton instance

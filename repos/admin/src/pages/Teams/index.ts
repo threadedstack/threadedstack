@@ -1,2 +1,7 @@
 export * from './Teams'
 export * from './Team'
+export * from './TeamUsers'
+export * from './TeamSecrets'
+export * from './TeamProviders'
+export * from './TeamSettings'
+export * from './TeamRepos'

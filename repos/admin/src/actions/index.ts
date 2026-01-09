@@ -1,2 +1,7 @@
 export * from './init'
 export * from './auth'
+export * as secretsActions from './secrets'
+export * as providersActions from './providers'
+export * as endpointsActions from './endpoints'
+export * as functionsActions from './functions'
+export * as configsActions from './configs'

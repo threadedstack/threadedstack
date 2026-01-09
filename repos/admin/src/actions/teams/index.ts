@@ -1,4 +1,5 @@
 export * from './fetchTeams'
 export * from './fetchTeam'
 export * from './createTeam'
+export * from './updateTeam'
 export * from './deleteTeam'

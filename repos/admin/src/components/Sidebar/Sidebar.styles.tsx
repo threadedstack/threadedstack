@@ -150,3 +150,14 @@ export const NavItem = styled(ListItem)`
 export const SBNavListSpacer = styled(Box)`
   flex: 1;
 `
+
+export const SBSectionHeader = styled(Box)(({ theme }) => ({
+  padding: '12px 16px 4px 16px',
+  '& .MuiTypography-root': {
+    fontSize: '11px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    color: theme.palette.text.secondary,
+  },
+}))

@@ -1,1 +1,6 @@
 export * from './Repos'
+export * from './RepoEndpoints'
+export * from './RepoSecrets'
+export * from './RepoProviders'
+export * from './RepoFunctions'
+export * from './RepoSettings'

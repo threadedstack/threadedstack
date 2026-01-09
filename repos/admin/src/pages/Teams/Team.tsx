@@ -22,6 +22,7 @@ import {
 } from '@mui/icons-material'
 import { Page } from '@TAF/pages/Page/Page'
 import { useTeams } from '@TAF/state/selectors'
+import { setActiveTeamId } from '@TAF/state/accessors'
 import { fetchTeam, deleteTeam } from '@TAF/actions/teams'
 import { ERoutePath } from '@TAF/types'
 
@@ -32,6 +33,12 @@ export const Team = (props: TTeam) => {
   const navigate = useNavigate()
   const [teams] = useTeams()
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (teamId) {
+      setActiveTeamId(teamId)
+    }
+  }, [teamId])
 
   useEffect(() => {
     const loadTeam = async () => {

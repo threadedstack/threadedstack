@@ -7,11 +7,35 @@ import type {
   TypographyProps,
 } from '@mui/material'
 
+// Context for dynamic navigation
+export type TNavContext = {
+  teamId?: string
+  teamName?: string
+  repoId?: string
+  repoName?: string
+}
+
+// Nav item with dynamic path support
 export type TNavItem = {
   text: string
-  to?: string
+  to?: string | ((context: TNavContext) => string)  // Support dynamic paths
   Icon: ReactNode
   items?: TNavItem[]
+  visible?: (context: TNavContext) => boolean  // Conditional visibility
+}
+
+// Section in the sidebar
+export type TNavSection = {
+  id: string
+  header?: string | ((context: TNavContext) => string)  // Dynamic header
+  items: TNavItem[]
+  visible?: (context: TNavContext) => boolean
+}
+
+// Full navigation configuration
+export type TDynamicNavConfig = {
+  sections: TNavSection[]
+  bottomItems: TNavItem[]
 }
 
 export type TSettingNavItem = {
