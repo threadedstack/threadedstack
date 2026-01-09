@@ -8,19 +8,17 @@ export type TFetchReposResult = {
   error?: Error
 }
 
-export const fetchRepos = async (): Promise<TFetchReposResult> => {
-  const resp = await reposApi.list()
+export type TFetchRepos = {
+  teamId?: string
+}
 
-  if (resp.error) {
-    return { error: resp.error }
-  }
+export const fetchRepos = async (opts?: TFetchRepos): Promise<TFetchReposResult> => {
+  const resp = opts?.teamId
+    ? await reposApi.listByTeam(opts?.teamId)
+    : await reposApi.list()
 
-  const reposMap =
-    resp.data?.reduce((acc: Record<string, Repo>, repo: Repo) => {
-      acc[repo.id] = repo
-      return acc
-    }, {}) || {}
+  if (resp.error) return resp
 
-  setRepos(reposMap)
-  return { repos: reposMap }
+  setRepos(resp.data)
+  return { repos: resp.data }
 }

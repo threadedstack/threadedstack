@@ -34,7 +34,7 @@ export class SecretsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((secret) => new Secret(secret)) || [],
+      data: resp.data?.map?.((secret) => new Secret(secret)) || [],
     }
   }
 

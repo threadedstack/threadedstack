@@ -1,12 +1,13 @@
 import { Base } from './base'
 
 export class Endpoint extends Base {
+  url: string
+  name: string
   repoId: string
-  proxyUrl?: string
-  proxyMethod: string = 'GET'
-  proxyHeaders?: Record<string, any>
-  proxyOptions?: Record<string, any>
-  public: boolean = false
+  public?: boolean
+  method: string = `GET`
+  headers: Record<string, string>
+  options: Record<string, any>
 
   constructor(endpoint: Partial<Endpoint>) {
     super()

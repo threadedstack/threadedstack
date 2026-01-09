@@ -1,31 +1,38 @@
-import { useEffect, useState } from 'react'
+import type { User } from '@tdsk/domain'
+
 import { useParams } from 'react-router'
+import { usersApi } from '@TAF/services'
+import { Page } from '@TAF/pages/Page/Page'
+import { EditRoleDialog } from './EditRoleDialog'
+import { useEffect, useState, useMemo } from 'react'
+import { InviteUserDialog } from './InviteUserDialog'
+import { setActiveTeamId } from '@TAF/state/accessors'
 import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  CardActions,
-  Grid,
-  Button,
-  IconButton,
-  Tooltip,
-  Avatar,
-  Chip,
-  CircularProgress,
-  Alert,
-} from '@mui/material'
+  SearchBar,
+  PageHeader,
+  EmptyState,
+  FilterSelect,
+  LoadingSpinner,
+} from '@TAF/components'
 import {
-  PersonAdd as PersonAddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  PersonAdd as PersonAddIcon,
 } from '@mui/icons-material'
-import { Page } from '@TAF/pages/Page/Page'
-import { setActiveTeamId } from '@TAF/state/accessors'
-import { usersApi } from '@TAF/services'
-import type { User } from '@tdsk/domain'
-import { InviteUserDialog } from './InviteUserDialog'
-import { EditRoleDialog } from './EditRoleDialog'
+
+import {
+  Box,
+  Card,
+  Grid,
+  Chip,
+  Alert,
+  Avatar,
+  Tooltip,
+  IconButton,
+  Typography,
+  CardContent,
+  CardActions,
+} from '@mui/material'
 
 export type TUserWithRole = User & {
   roleId?: string
@@ -33,6 +40,13 @@ export type TUserWithRole = User & {
 }
 
 export type TTeamUsers = {}
+
+// TODO: move to domain repo
+const ROLE_FILTER_OPTIONS = [
+  { value: 'super', label: 'Super Admin' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'basic', label: 'Basic' },
+]
 
 export const TeamUsers = (props: TTeamUsers) => {
   const { teamId } = useParams<{ teamId: string }>()
@@ -42,15 +56,15 @@ export const TeamUsers = (props: TTeamUsers) => {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<TUserWithRole | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState<string>('all')
 
-  // Sync active team with URL params
   useEffect(() => {
     if (teamId) {
       setActiveTeamId(teamId)
     }
   }, [teamId])
 
-  // Load team users
   const loadUsers = async () => {
     if (!teamId) return
 
@@ -72,38 +86,40 @@ export const TeamUsers = (props: TTeamUsers) => {
     loadUsers()
   }, [teamId])
 
-  const handleOpenInviteDialog = () => {
+  const onOpenInviteDialog = () => {
     setInviteDialogOpen(true)
   }
 
-  const handleCloseInviteDialog = () => {
+  const onCloseInviteDialog = () => {
     setInviteDialogOpen(false)
   }
 
-  const handleInviteSuccess = () => {
+  const onInviteSuccess = () => {
     loadUsers()
-    handleCloseInviteDialog()
+    onCloseInviteDialog()
   }
 
-  const handleOpenEditRole = (user: TUserWithRole) => {
+  const onOpenEditRole = (user: TUserWithRole) => {
     setSelectedUser(user)
     setEditRoleDialogOpen(true)
   }
 
-  const handleCloseEditRole = () => {
+  const onCloseEditRole = () => {
     setSelectedUser(null)
     setEditRoleDialogOpen(false)
   }
 
-  const handleEditRoleSuccess = () => {
+  const onEditRoleSuccess = () => {
     loadUsers()
-    handleCloseEditRole()
+    onCloseEditRole()
   }
 
-  const handleRemoveUser = async (user: TUserWithRole) => {
+  const onRemoveUser = async (user: TUserWithRole) => {
     const displayName = user.displayName || user.email || 'this user'
 
-    if (!window.confirm(`Are you sure you want to remove "${displayName}" from this team?`)) {
+    if (
+      !window.confirm(`Are you sure you want to remove "${displayName}" from this team?`)
+    ) {
       return
     }
 
@@ -151,85 +167,138 @@ export const TeamUsers = (props: TTeamUsers) => {
     return 'U'
   }
 
+  // Filter users based on search query and role filter
+  const filteredUsers = useMemo(() => {
+    let filtered = users
+
+    // Apply role filter
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter((user) => user.roleType === roleFilter)
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (user) =>
+          user.displayName?.toLowerCase().includes(query) ||
+          user.email?.toLowerCase().includes(query) ||
+          user.first?.toLowerCase().includes(query) ||
+          user.last?.toLowerCase().includes(query)
+      )
+    }
+
+    return filtered
+  }, [users, searchQuery, roleFilter])
+
   return (
     <Page className='tdsk-team-users-page'>
-      <Box
-        sx={{
-          mb: 3,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography variant='h4' component='h1'>
-            Team Users
-          </Typography>
-          <Typography color='text.secondary' variant='body2'>
-            Manage team members and their roles
-          </Typography>
-        </Box>
-        <Button
-          variant='contained'
-          color='primary'
-          startIcon={<PersonAddIcon />}
-          onClick={handleOpenInviteDialog}
-        >
-          Invite User
-        </Button>
-      </Box>
+      <PageHeader
+        title='Team Users'
+        count={users.length}
+        countLabel='member'
+        actionLabel='Invite User'
+        actionIcon={<PersonAddIcon />}
+        onAction={onOpenInviteDialog}
+      />
 
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-          <CircularProgress />
+      {!loading && users.length > 0 && (
+        <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder='Search users by name or email...'
+            sx={{ flex: 1 }}
+          />
+          <FilterSelect
+            id='role-filter'
+            label='Role'
+            value={roleFilter}
+            onChange={setRoleFilter}
+            options={ROLE_FILTER_OPTIONS}
+            allLabel='All Roles'
+          />
         </Box>
       )}
 
+      {loading && <LoadingSpinner />}
+
       {error && (
-        <Alert severity='error' sx={{ mb: 3 }} onClose={() => setError(null)}>
+        <Alert
+          severity='error'
+          sx={{ mb: 3 }}
+          onClose={() => setError(null)}
+        >
           Error loading users: {error.message}
         </Alert>
       )}
 
       {!loading && !error && users.length === 0 && (
-        <Card>
-          <CardContent>
-            <Typography color='text.secondary' align='center'>
-              No team members yet. Invite users to this team to get started.
-            </Typography>
-          </CardContent>
-        </Card>
+        <EmptyState
+          message='No team members yet. Invite users to this team to get started.'
+          actionLabel='Invite Your First User'
+          actionIcon={<PersonAddIcon />}
+          onAction={onOpenInviteDialog}
+        />
       )}
 
-      {!loading && !error && users.length > 0 && (
-        <Grid container spacing={3}>
-          {users.map((user) => (
-            <Grid item xs={12} sm={6} md={4} key={user.id}>
+      {!loading && !error && users.length > 0 && filteredUsers.length === 0 && (
+        <EmptyState message='No users match your search or filter criteria.' />
+      )}
+
+      {!loading && !error && filteredUsers.length > 0 && (
+        <Grid
+          container
+          spacing={3}
+        >
+          {filteredUsers.map((user) => (
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={4}
+              key={user.id}
+            >
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <Avatar
-                      src={user.photoUrl}
+                      src={user.image}
                       sx={{ width: 56, height: 56, mr: 2 }}
                     >
                       {getInitials(user)}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant='h6' component='h3'>
+                      <Typography
+                        variant='h6'
+                        component='h3'
+                      >
                         {user.displayName || `${user.first} ${user.last}`}
                       </Typography>
-                      <Typography variant='body2' color='text.secondary'>
+                      <Typography
+                        variant='body2'
+                        color='text.secondary'
+                      >
                         {user.email}
                       </Typography>
                     </Box>
                   </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
                     <Chip
                       label={getRoleLabel(user.roleType)}
                       color={getRoleColor(user.roleType)}
                       size='small'
                     />
-                    <Typography variant='caption' color='text.secondary'>
+                    <Typography
+                      variant='caption'
+                      color='text.secondary'
+                    >
                       {user.provider || 'Email'}
                     </Typography>
                   </Box>
@@ -239,18 +308,24 @@ export const TeamUsers = (props: TTeamUsers) => {
                     <IconButton
                       size='small'
                       color='primary'
-                      onClick={() => handleOpenEditRole(user)}
+                      onClick={() => onOpenEditRole(user)}
                       disabled={user.roleType === 'super'}
                     >
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title={user.roleType === 'super' ? 'Cannot remove super admin' : 'Remove User'}>
+                  <Tooltip
+                    title={
+                      user.roleType === 'super'
+                        ? 'Cannot remove super admin'
+                        : 'Remove User'
+                    }
+                  >
                     <span>
                       <IconButton
                         size='small'
                         color='error'
-                        onClick={() => handleRemoveUser(user)}
+                        onClick={() => onRemoveUser(user)}
                         disabled={user.roleType === 'super'}
                       >
                         <DeleteIcon />
@@ -265,19 +340,19 @@ export const TeamUsers = (props: TTeamUsers) => {
       )}
 
       <InviteUserDialog
-        open={inviteDialogOpen}
         teamId={teamId || ''}
-        onClose={handleCloseInviteDialog}
-        onSuccess={handleInviteSuccess}
+        open={inviteDialogOpen}
+        onSuccess={onInviteSuccess}
+        onClose={onCloseInviteDialog}
       />
 
       {selectedUser && (
         <EditRoleDialog
-          open={editRoleDialogOpen}
-          teamId={teamId || ''}
           user={selectedUser}
-          onClose={handleCloseEditRole}
-          onSuccess={handleEditRoleSuccess}
+          teamId={teamId || ''}
+          onClose={onCloseEditRole}
+          open={editRoleDialogOpen}
+          onSuccess={onEditRoleSuccess}
         />
       )}
     </Page>

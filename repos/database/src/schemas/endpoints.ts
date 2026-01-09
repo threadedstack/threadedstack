@@ -6,11 +6,12 @@ import { uuid, text, jsonb, varchar, boolean, pgTable } from 'drizzle-orm/pg-cor
 
 export const endpoints = pgTable(`endpoints`, {
   ...base,
-  proxyUrl: text(`proxy_url`),
-  proxyHeaders: jsonb(`proxy_headers`),
-  proxyOptions: jsonb(`proxy_options`),
+  url: text(`url`),
+  name: text(`name`),
+  headers: jsonb(`headers`),
+  options: jsonb(`options`),
   public: boolean(`public`).default(false),
-  proxyMethod: varchar(`proxy_method`, { length: 10 }).default(`GET`),
+  method: varchar(`method`, { length: 10 }).default(`GET`),
   repoId: uuid(`repo_id`)
     .references(() => repos.id, { onDelete: `cascade` })
     .notNull(),

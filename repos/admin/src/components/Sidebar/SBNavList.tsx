@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
 import { stopEvent } from '@tdsk/components'
 import { Link } from '@TAF/components/Link/Link'
+import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { useNavigate, useLocation } from 'react-router'
 import { NavItem, NavList } from '@TAF/components/Sidebar/Sidebar.styles'
 
@@ -21,15 +22,15 @@ export type TSBNavItem = {
   context?: TNavContext
 }
 
-export const SBNavItem = (props: TNavItem & { open?: boolean; context?: TNavContext }) => {
+export const SBNavItem = (
+  props: TNavItem & { open?: boolean; context?: TNavContext }
+) => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Check visibility with fallback for undefined context
   if (props.visible && !props.visible(props.context || {})) return null
 
-  // Resolve dynamic path with fallback for undefined context
-  const resolvedPath = typeof props.to === 'function' ? props.to(props.context || {}) : props.to
+  const resolvedPath = isFunc(props.to) ? props.to(props.context || {}) : props.to
 
   return (
     <NavItem

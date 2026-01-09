@@ -1,21 +1,22 @@
+import type { TUserWithRole } from './TeamUsers'
+
+import { usersApi } from '@TAF/services'
 import { useState, useEffect } from 'react'
 import {
+  Box,
+  Alert,
+  Avatar,
+  Select,
+  Button,
   Dialog,
+  MenuItem,
+  Typography,
+  InputLabel,
+  FormControl,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  Box,
-  Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Typography,
-  Avatar,
 } from '@mui/material'
-import { usersApi } from '@TAF/services'
-import type { TUserWithRole } from './TeamUsers'
 
 export type TEditRoleDialog = {
   open: boolean
@@ -25,8 +26,16 @@ export type TEditRoleDialog = {
   onSuccess: () => void
 }
 
-export const EditRoleDialog = ({ open, teamId, user, onClose, onSuccess }: TEditRoleDialog) => {
-  const [roleType, setRoleType] = useState<'admin' | 'basic'>(user.roleType === 'admin' ? 'admin' : 'basic')
+export const EditRoleDialog = ({
+  open,
+  teamId,
+  user,
+  onClose: onCloseCB,
+  onSuccess: onSuccessCB,
+}: TEditRoleDialog) => {
+  const [roleType, setRoleType] = useState<'admin' | 'basic'>(
+    user.roleType === 'admin' ? 'admin' : 'basic'
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,14 +43,14 @@ export const EditRoleDialog = ({ open, teamId, user, onClose, onSuccess }: TEdit
     setRoleType(user.roleType === 'admin' ? 'admin' : 'basic')
   }, [user])
 
-  const handleClose = () => {
+  const onClose = () => {
     if (!loading) {
       setError(null)
-      onClose()
+      onCloseCB?.()
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!user.roleId) {
@@ -59,7 +68,7 @@ export const EditRoleDialog = ({ open, teamId, user, onClose, onSuccess }: TEdit
     if (resp.error) {
       setError(resp.error.message || 'Failed to update role. Please try again.')
     } else {
-      onSuccess()
+      onSuccessCB?.()
     }
   }
 
@@ -80,11 +89,11 @@ export const EditRoleDialog = ({ open, teamId, user, onClose, onSuccess }: TEdit
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={onClose}
       maxWidth='sm'
       fullWidth
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={onSubmit}>
         <DialogTitle>Edit User Role</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
@@ -97,21 +106,42 @@ export const EditRoleDialog = ({ open, teamId, user, onClose, onSuccess }: TEdit
               </Alert>
             )}
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-              <Avatar src={user.photoUrl} sx={{ width: 48, height: 48 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                p: 2,
+                bgcolor: 'action.hover',
+                borderRadius: 1,
+              }}
+            >
+              <Avatar
+                src={user.image}
+                sx={{ width: 48, height: 48 }}
+              >
                 {getInitials(user)}
               </Avatar>
               <Box>
-                <Typography variant='subtitle1' fontWeight='medium'>
-                  {user.displayName || `${user.first} ${user.last}`}
+                <Typography
+                  variant='subtitle1'
+                  fontWeight='medium'
+                >
+                  {user.displayName}
                 </Typography>
-                <Typography variant='body2' color='text.secondary'>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                >
                   {user.email}
                 </Typography>
               </Box>
             </Box>
 
-            <FormControl fullWidth disabled={loading}>
+            <FormControl
+              fullWidth
+              disabled={loading}
+            >
               <InputLabel id='role-edit-label'>Role</InputLabel>
               <Select
                 labelId='role-edit-label'
@@ -132,7 +162,7 @@ export const EditRoleDialog = ({ open, teamId, user, onClose, onSuccess }: TEdit
         </DialogContent>
         <DialogActions>
           <Button
-            onClick={handleClose}
+            onClick={onClose}
             disabled={loading}
           >
             Cancel

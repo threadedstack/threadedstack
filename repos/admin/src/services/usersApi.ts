@@ -149,7 +149,10 @@ export class UsersApi extends BaseApi {
    * @param data - Invite data (email and roleType)
    * @returns Success status
    */
-  async inviteToTeam(teamId: string, data: { email: string; roleType: string }): Promise<TApiRes<{ success: boolean }>> {
+  async inviteToTeam(
+    teamId: string,
+    data: { email: string; roleType: string }
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.post<{ success: boolean }>({
       data,
       path: `/teams/${teamId}/users/invite`,
@@ -167,7 +170,11 @@ export class UsersApi extends BaseApi {
    * @param roleType - New role type
    * @returns Success status
    */
-  async updateRole(teamId: string, roleId: string, roleType: string): Promise<TApiRes<{ success: boolean }>> {
+  async updateRole(
+    teamId: string,
+    roleId: string,
+    roleType: string
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.put<{ success: boolean }>({
       data: { roleType },
       path: `/teams/${teamId}/roles/${roleId}`,
@@ -184,7 +191,10 @@ export class UsersApi extends BaseApi {
    * @param roleId - Role ID
    * @returns Success status
    */
-  async removeFromTeam(teamId: string, roleId: string): Promise<TApiRes<{ success: boolean }>> {
+  async removeFromTeam(
+    teamId: string,
+    roleId: string
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
       path: `/teams/${teamId}/roles/${roleId}`,
     })

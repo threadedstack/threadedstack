@@ -1,28 +1,33 @@
-import { useEffect, useState } from 'react'
+import { Page } from '@TAF/pages/Page/Page'
+import { useRepos } from '@TAF/state/selectors'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CardActions,
-  Typography,
-  Grid,
-  IconButton,
-  Tooltip,
-  Chip,
-  CircularProgress,
-} from '@mui/material'
+import { setActiveTeamId } from '@TAF/state/accessors'
+import { fetchRepos, deleteRepo } from '@TAF/actions/repos'
+import { CreateTeamRepoDialog } from './CreateTeamRepoDialog'
 import {
   Add as AddIcon,
+  Folder as RepoIcon,
+  Clear as ClearIcon,
   Delete as DeleteIcon,
+  Search as SearchIcon,
   Visibility as ViewIcon,
-  FolderGit as RepoIcon,
 } from '@mui/icons-material'
-import { Page } from '@TAF/pages/Page/Page'
-import { setActiveTeamId } from '@TAF/state/accessors'
-import { useRepos } from '@TAF/state/selectors'
-import { fetchRepos, deleteRepo } from '@TAF/actions/repos'
+import {
+  Box,
+  Card,
+  Grid,
+  Chip,
+  Button,
+  Tooltip,
+  TextField,
+  IconButton,
+  Typography,
+  CardContent,
+  CardActions,
+  InputAdornment,
+  CircularProgress,
+} from '@mui/material'
 
 export type TTeamRepos = {}
 
@@ -32,6 +37,8 @@ export const TeamRepos = (props: TTeamRepos) => {
   const [repos] = useRepos()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Sync active team with URL params
   useEffect(() => {
@@ -48,7 +55,7 @@ export const TeamRepos = (props: TTeamRepos) => {
       setLoading(true)
       setError(null)
 
-      const result = await fetchRepos()
+      const result = await fetchRepos({ teamId })
 
       if (result.error) {
         setError(result.error)
@@ -60,26 +67,50 @@ export const TeamRepos = (props: TTeamRepos) => {
     loadRepos()
   }, [teamId])
 
-  const handleCreateClick = () => {
-    // TODO: Open create repo dialog
-    console.log('Create repo for team:', teamId)
+  const onCreateClick = () => {
+    setDialogOpen(true)
   }
 
-  const handleViewRepo = (repoId: string) => {
+  const onDialogClose = () => {
+    setDialogOpen(false)
+  }
+
+  const onDialogSuccess = async () => {
+    await fetchRepos()
+  }
+
+  const onViewRepo = (repoId: string) => {
     navigate(`/teams/${teamId}/repos/${repoId}`)
   }
 
-  const handleDeleteRepo = async (repoId: string, repoName: string) => {
+  const onDeleteRepo = async (repoId: string, repoName: string) => {
     if (!window.confirm(`Are you sure you want to delete repo "${repoName}"?`)) {
       return
     }
     await deleteRepo(repoId)
   }
 
-  // Filter repos by teamId - note: backend may need to support this filter in the future
-  const reposArray = repos
-    ? Object.values(repos).filter((repo) => repo.teamId === teamId)
-    : []
+  // Filter repos by teamId and search query
+  const filteredRepos = useMemo(() => {
+    const teamRepos = repos
+      ? Object.values(repos).filter((repo) => repo.teamId === teamId)
+      : []
+
+    if (!searchQuery.trim()) return teamRepos
+
+    const query = searchQuery.toLowerCase()
+    return teamRepos.filter(
+      (repo) =>
+        repo.name?.toLowerCase().includes(query) ||
+        repo.gitUrl?.toLowerCase().includes(query) ||
+        repo.branch?.toLowerCase().includes(query) ||
+        repo.id?.toLowerCase().includes(query)
+    )
+  }, [repos, teamId, searchQuery])
+
+  const reposCount = repos
+    ? Object.values(repos).filter((repo) => repo.teamId === teamId).length
+    : 0
 
   return (
     <Page className='tdsk-team-repos-page'>
@@ -92,22 +123,55 @@ export const TeamRepos = (props: TTeamRepos) => {
         }}
       >
         <Box>
-          <Typography variant='h4' component='h1'>
+          <Typography
+            variant='h4'
+            component='h1'
+          >
             Team Repositories
           </Typography>
           <Typography color='text.secondary'>
-            Team ID: {teamId}
+            {reposCount} repositor{reposCount !== 1 ? 'ies' : 'y'}
           </Typography>
         </Box>
         <Button
           variant='contained'
           color='primary'
           startIcon={<AddIcon />}
-          onClick={handleCreateClick}
+          onClick={onCreateClick}
         >
           Create Repository
         </Button>
       </Box>
+
+      {!loading && reposCount > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <TextField
+            placeholder='Search repositories by name, URL, or branch...'
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            size='small'
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position='start'>
+                  <SearchIcon color='action' />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position='end'>
+                  <IconButton
+                    size='small'
+                    onClick={() => setSearchQuery('')}
+                    edge='end'
+                  >
+                    <ClearIcon />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
+      )}
 
       {loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
@@ -125,25 +189,56 @@ export const TeamRepos = (props: TTeamRepos) => {
         </Card>
       )}
 
-      {!loading && !error && reposArray.length === 0 && (
+      {!loading && !error && reposCount === 0 && (
         <Card>
           <CardContent>
-            <Typography color='text.secondary' align='center'>
+            <Typography
+              color='text.secondary'
+              align='center'
+            >
               No repositories yet. Create your first repository to get started.
             </Typography>
           </CardContent>
         </Card>
       )}
 
-      {!loading && !error && reposArray.length > 0 && (
-        <Grid container spacing={3}>
-          {reposArray.map((repo) => (
-            <Grid item xs={12} sm={6} md={4} key={repo.id}>
-              <Card>
+      {!loading && !error && reposCount > 0 && filteredRepos.length === 0 && (
+        <Card>
+          <CardContent>
+            <Typography
+              color='text.secondary'
+              align='center'
+            >
+              No repositories match your search query.
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && filteredRepos.length > 0 && (
+        <Grid
+          container
+          spacing={3}
+        >
+          {filteredRepos.map((repo) => (
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={4}
+              key={repo.id}
+            >
+              <Card
+                sx={{ cursor: 'pointer' }}
+                onClick={() => onViewRepo(repo.id)}
+              >
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <RepoIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                    <Typography variant='h6' component='h2'>
+                    <Typography
+                      variant='h6'
+                      component='h2'
+                    >
                       {repo.name}
                     </Typography>
                   </Box>
@@ -160,7 +255,11 @@ export const TeamRepos = (props: TTeamRepos) => {
 
                   <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                     {repo.branch && (
-                      <Chip label={repo.branch} size='small' variant='outlined' />
+                      <Chip
+                        label={repo.branch}
+                        size='small'
+                        variant='outlined'
+                      />
                     )}
                   </Box>
 
@@ -177,7 +276,10 @@ export const TeamRepos = (props: TTeamRepos) => {
                     <IconButton
                       size='small'
                       color='primary'
-                      onClick={() => handleViewRepo(repo.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onViewRepo(repo.id)
+                      }}
                     >
                       <ViewIcon />
                     </IconButton>
@@ -186,7 +288,10 @@ export const TeamRepos = (props: TTeamRepos) => {
                     <IconButton
                       size='small'
                       color='error'
-                      onClick={() => handleDeleteRepo(repo.id, repo.name)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDeleteRepo(repo.id, repo.name)
+                      }}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -196,6 +301,15 @@ export const TeamRepos = (props: TTeamRepos) => {
             </Grid>
           ))}
         </Grid>
+      )}
+
+      {teamId && (
+        <CreateTeamRepoDialog
+          open={dialogOpen}
+          teamId={teamId}
+          onClose={onDialogClose}
+          onSuccess={onDialogSuccess}
+        />
       )}
     </Page>
   )

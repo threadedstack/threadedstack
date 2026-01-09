@@ -1,34 +1,25 @@
-import { useEffect, useState } from 'react'
+import type { Secret } from '@tdsk/domain'
+import type { TDataTableColumn } from '@TAF/components'
+
 import { useParams } from 'react-router'
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  CircularProgress,
-  Button,
-  IconButton,
-  Tooltip,
-  Chip,
-} from '@mui/material'
-import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Key as KeyIcon,
-  Visibility as ViewIcon,
-  VisibilityOff as HideIcon,
-} from '@mui/icons-material'
 import { Page } from '@TAF/pages/Page/Page'
-import { setActiveTeamId } from '@TAF/state/accessors'
 import { useSecrets } from '@TAF/state/selectors'
 import { fetchSecrets } from '@TAF/actions/secrets'
+import { useEffect, useState, useMemo } from 'react'
+import { Box, Typography, Chip } from '@mui/material'
+import { EditSecretDialog } from './EditSecretDialog'
+import { setActiveTeamId } from '@TAF/state/accessors'
+import { CreateSecretDialog } from './CreateSecretDialog'
+import { Key as KeyIcon, Add as AddIcon, Edit as EditIcon } from '@mui/icons-material'
+import {
+  SearchBar,
+  DataTable,
+  PageHeader,
+  ErrorAlert,
+  EmptyState,
+  LoadingSpinner,
+  ActionIconButton,
+} from '@TAF/components'
 
 export type TTeamSecrets = {}
 
@@ -37,8 +28,11 @@ export const TeamSecrets = (props: TTeamSecrets) => {
   const [secrets] = useSecrets()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [selectedSecret, setSelectedSecret] = useState<Secret | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Sync active team with URL params
   useEffect(() => {
     if (teamId) {
       setActiveTeamId(teamId)
@@ -65,137 +59,209 @@ export const TeamSecrets = (props: TTeamSecrets) => {
     loadSecrets()
   }, [teamId])
 
-  const handleCreateSecret = () => {
-    // TODO: Open create secret dialog
-    console.log('Create secret for team:', teamId)
+  const onCreateSecret = () => {
+    setCreateDialogOpen(true)
   }
 
-  const handleDeleteSecret = async (secretId: string, secretKey: string) => {
-    if (!window.confirm(`Are you sure you want to delete secret "${secretKey}"?`)) {
-      return
-    }
-    // TODO: Implement delete secret
-    console.log('Delete secret:', secretId)
+  const onDialogClose = () => {
+    setCreateDialogOpen(false)
   }
 
-  const secretsArray = secrets ? Object.values(secrets) : []
+  const onSecretCreated = async () => {
+    if (!teamId) return
+
+    setLoading(true)
+    setError(null)
+
+    const result = await fetchSecrets({ teamId })
+    result.error ? setError(result.error) : setError(undefined)
+
+    setLoading(false)
+  }
+
+  const onEditSecret = (secret: Secret) => {
+    setSelectedSecret(secret)
+    setEditDialogOpen(true)
+  }
+
+  const onEditDialogClose = () => {
+    setEditDialogOpen(false)
+    setSelectedSecret(null)
+  }
+
+  const onEditSuccess = async () => {
+    if (!teamId) return
+
+    setLoading(true)
+    setError(null)
+
+    const result = await fetchSecrets({ teamId })
+    result.error && setError(result.error)
+
+    setLoading(false)
+  }
+
+  const filteredSecrets = useMemo(() => {
+    const secretsArray = secrets ? Object.values(secrets) : []
+    if (!searchQuery.trim()) return secretsArray
+
+    const query = searchQuery.toLowerCase()
+    return secretsArray.filter(
+      (secret) =>
+        secret.hashKey?.toLowerCase().includes(query) ||
+        secret.name?.toLowerCase().includes(query) ||
+        secret.id?.toLowerCase().includes(query)
+    )
+  }, [secrets, searchQuery])
+
+  const secretsCount = secrets ? Object.keys(secrets).length : 0
+
+  const columns: TDataTableColumn<Secret>[] = [
+    {
+      id: 'key',
+      label: 'Key',
+      render: (secret) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <KeyIcon sx={{ color: 'text.secondary' }} />
+          <Typography
+            variant='body2'
+            fontWeight='medium'
+          >
+            {secret.hashKey}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      id: 'provider',
+      label: 'Provider',
+      render: (secret) =>
+        secret.providerId ? (
+          <Chip
+            label={secret.providerId}
+            size='small'
+            variant='outlined'
+          />
+        ) : (
+          <Typography
+            variant='body2'
+            color='text.secondary'
+          >
+            N/A
+          </Typography>
+        ),
+    },
+    {
+      id: 'created',
+      label: 'Created',
+      render: (secret) => (
+        <Typography
+          variant='body2'
+          color='text.secondary'
+        >
+          {secret.createdAt ? new Date(secret.createdAt).toLocaleDateString() : 'N/A'}
+        </Typography>
+      ),
+    },
+    {
+      id: 'id',
+      label: 'ID',
+      render: (secret) => (
+        <Typography
+          variant='caption'
+          color='text.secondary'
+        >
+          {secret.id}
+        </Typography>
+      ),
+    },
+    {
+      id: 'actions',
+      label: 'Actions',
+      align: 'right',
+      render: (secret) => (
+        <ActionIconButton
+          tooltip='Edit Secret'
+          icon={<EditIcon />}
+          size='small'
+          color='primary'
+          onClick={(e) => {
+            e.stopPropagation()
+            onEditSecret(secret)
+          }}
+        />
+      ),
+    },
+  ]
 
   return (
     <Page className='tdsk-team-secrets-page'>
-      <Box
-        sx={{
-          mb: 3,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography variant='h4' component='h1'>
-            Team Secrets
-          </Typography>
-          <Typography color='text.secondary'>
-            Team ID: {teamId}
-          </Typography>
-        </Box>
-        <Button
-          variant='contained'
-          color='primary'
-          startIcon={<AddIcon />}
-          onClick={handleCreateSecret}
-        >
-          Create Secret
-        </Button>
-      </Box>
+      <PageHeader
+        title='Team Secrets'
+        count={secretsCount}
+        countLabel='secret'
+        actionLabel='Create Secret'
+        actionIcon={<AddIcon />}
+        onAction={onCreateSecret}
+      />
 
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-          <CircularProgress />
+      {!loading && secretsCount > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder='Search secrets by name or ID...'
+          />
         </Box>
       )}
+
+      {loading && <LoadingSpinner />}
 
       {error && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography color='error'>
-              Error loading secrets: {error.message}
-            </Typography>
-          </CardContent>
-        </Card>
+        <ErrorAlert
+          message={`Error loading secrets: ${error.message}`}
+          onClose={() => setError(null)}
+          sx={{ mb: 3 }}
+        />
       )}
 
-      {!loading && !error && secretsArray.length === 0 && (
-        <Card>
-          <CardContent>
-            <Typography color='text.secondary' align='center'>
-              No secrets yet. Create your first secret to get started.
-            </Typography>
-          </CardContent>
-        </Card>
+      {!loading && !error && secretsCount === 0 && (
+        <EmptyState
+          message='No secrets yet. Create your first secret to get started.'
+          actionLabel='Create Your First Secret'
+          actionIcon={<AddIcon />}
+          onAction={onCreateSecret}
+        />
       )}
 
-      {!loading && !error && secretsArray.length > 0 && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Key</TableCell>
-                <TableCell>Provider</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell>ID</TableCell>
-                <TableCell align='right'>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {secretsArray.map((secret) => (
-                <TableRow key={secret.id}>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <KeyIcon sx={{ color: 'text.secondary' }} />
-                      <Typography variant='body2' fontWeight='medium'>
-                        {secret.key}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    {secret.providerId ? (
-                      <Chip
-                        label={secret.providerId}
-                        size='small'
-                        variant='outlined'
-                      />
-                    ) : (
-                      <Typography variant='body2' color='text.secondary'>
-                        N/A
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant='body2' color='text.secondary'>
-                      {secret.createdAt ? new Date(secret.createdAt).toLocaleDateString() : 'N/A'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant='caption' color='text.secondary'>
-                      {secret.id}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align='right'>
-                    <Tooltip title='Delete Secret'>
-                      <IconButton
-                        size='small'
-                        color='error'
-                        onClick={() => handleDeleteSecret(secret.id, secret.key)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      {!loading && !error && secretsCount > 0 && filteredSecrets.length === 0 && (
+        <EmptyState message='No secrets match your search query.' />
+      )}
+
+      {!loading && !error && filteredSecrets.length > 0 && (
+        <DataTable
+          columns={columns}
+          data={filteredSecrets}
+          onRowClick={onEditSecret}
+          getRowKey={(secret) => secret.id}
+        />
+      )}
+
+      {teamId && (
+        <>
+          <CreateSecretDialog
+            teamId={teamId}
+            open={createDialogOpen}
+            onClose={onDialogClose}
+            onSuccess={onSecretCreated}
+          />
+          <EditSecretDialog
+            open={editDialogOpen}
+            secret={selectedSecret}
+            onSuccess={onEditSuccess}
+            onClose={onEditDialogClose}
+          />
+        </>
       )}
     </Page>
   )

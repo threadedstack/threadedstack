@@ -63,11 +63,31 @@ vi.mock('@TAF/constants/nav', () => ({
         id: 'repo',
         header: ctx.repoName || 'Repository',
         items: [
-          { text: 'Endpoints', to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/endpoints`, Icon: null },
-          { text: 'Functions', to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/functions`, Icon: null },
-          { text: 'Secrets', to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/secrets`, Icon: null },
-          { text: 'Providers', to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/providers`, Icon: null },
-          { text: 'Repo Settings', to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/settings`, Icon: null },
+          {
+            text: 'Endpoints',
+            to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/endpoints`,
+            Icon: null,
+          },
+          {
+            text: 'Functions',
+            to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/functions`,
+            Icon: null,
+          },
+          {
+            text: 'Secrets',
+            to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/secrets`,
+            Icon: null,
+          },
+          {
+            text: 'Providers',
+            to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/providers`,
+            Icon: null,
+          },
+          {
+            text: 'Repo Settings',
+            to: `/teams/${ctx.teamId}/repos/${ctx.repoId}/settings`,
+            Icon: null,
+          },
         ],
         visible: (c: TNavContext) => !!c.teamId && !!c.repoId,
       })
@@ -84,33 +104,44 @@ vi.mock('@TAF/constants/nav', () => ({
 // Mock styled components and MUI
 vi.mock('@TAF/components/Sidebar/Sidebar.styles', () => ({
   SideDrawer: ({ children, onClick }: any) => (
-    <div data-testid="side-drawer" onClick={onClick}>
+    <div
+      data-testid='side-drawer'
+      onClick={onClick}
+      onKeyDown={onClick}
+    >
       {children}
     </div>
   ),
-  SBToggleBox: ({ children }: any) => <div data-testid="toggle-box">{children}</div>,
+  SBToggleBox: ({ children }: any) => <div data-testid='toggle-box'>{children}</div>,
   SBToggleBtn: ({ children, onClick }: any) => (
-    <button data-testid="toggle-btn" onClick={onClick}>
+    <button
+      data-testid='toggle-btn'
+      onClick={onClick}
+      onKeyDown={onClick}
+    >
       {children}
     </button>
   ),
-  SBNavListSpacer: () => <div data-testid="nav-spacer" />,
+  SBNavListSpacer: () => <div data-testid='nav-spacer' />,
   SBSectionHeader: ({ children }: any) => (
-    <div data-testid="section-header">{children}</div>
+    <div data-testid='section-header'>{children}</div>
   ),
 }))
 
 vi.mock('@TAF/components/Sidebar/SBLogo', () => ({
   SBLogo: ({ full }: { full: boolean }) => (
-    <div data-testid="logo">{full ? 'Full Logo' : 'Mini Logo'}</div>
+    <div data-testid='logo'>{full ? 'Full Logo' : 'Mini Logo'}</div>
   ),
 }))
 
 vi.mock('@TAF/components/Sidebar/SBNavList', () => ({
   SBNavList: ({ items, context }: any) => (
-    <div data-testid="nav-list">
+    <div data-testid='nav-list'>
       {items?.map((item: any, i: number) => (
-        <div key={i} data-testid="nav-item">
+        <div
+          key={i}
+          data-testid='nav-item'
+        >
           {item.text}
         </div>
       ))}
@@ -119,14 +150,14 @@ vi.mock('@TAF/components/Sidebar/SBNavList', () => ({
 }))
 
 vi.mock('@mui/material', () => ({
-  Toolbar: ({ children, sx }: any) => <div data-testid="toolbar">{children}</div>,
-  Divider: () => <hr data-testid="divider" />,
+  Toolbar: ({ children, sx }: any) => <div data-testid='toolbar'>{children}</div>,
+  Divider: () => <hr data-testid='divider' />,
   Typography: ({ children }: any) => <span>{children}</span>,
 }))
 
 vi.mock('@mui/icons-material', () => ({
-  ChevronLeft: () => <span data-testid="chevron-left">ChevronLeft</span>,
-  ChevronRight: () => <span data-testid="chevron-right">ChevronRight</span>,
+  ChevronLeft: () => <span data-testid='chevron-left'>ChevronLeft</span>,
+  ChevronRight: () => <span data-testid='chevron-right'>ChevronRight</span>,
 }))
 
 vi.mock('@tdsk/components', () => ({

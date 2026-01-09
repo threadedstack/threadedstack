@@ -43,7 +43,7 @@ export class TeamsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((team) => new Team(team)) || [],
+      data: resp?.data?.map?.((team) => new Team(team)) || [],
     }
   }
 

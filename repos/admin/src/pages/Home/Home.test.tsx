@@ -1,45 +1,47 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Home } from './Home'
 import * as teamsActions from '@TAF/actions/teams'
 import * as accessors from '@TAF/state/accessors'
 
-// Mock the router
+const selectorMocks = vi.hoisted(() => {
+  return {
+    useTeams: vi.fn(),
+    useActiveTeamId: vi.fn(),
+  }
+})
+
 const mockNavigate = vi.fn()
 vi.mock('react-router', () => ({
   useNavigate: () => mockNavigate,
 }))
 
-// Mock the Page component to avoid split-pane-react dependency issues
 vi.mock('@TAF/pages/Page/Page', () => ({
   Page: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
 }))
 
-// Mock the CreateTeamDialog component
 vi.mock('@TAF/pages/Teams/CreateTeamDialog', () => ({
   CreateTeamDialog: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
     open ? (
-      <div data-testid="create-team-dialog">
+      <div data-testid='create-team-dialog'>
         <button onClick={onClose}>Close</button>
       </div>
     ) : null,
 }))
 
-// Mock the state selectors
 const mockTeamsData = {
   '1': { id: '1', name: 'Team Alpha', description: 'First team' },
   '2': { id: '2', name: 'Team Beta', description: 'Second team' },
 }
 
 const mockSetTeamsState = vi.fn()
-const mockSetActiveTeamId = vi.fn()
 
 vi.mock('@TAF/state/selectors', () => ({
-  useTeams: () => [mockTeamsData, mockSetTeamsState],
-  useActiveTeamId: () => ['1', vi.fn()],
+  useTeams: selectorMocks.useTeams,
+  useActiveTeamId: selectorMocks.useActiveTeamId,
 }))
 
 // Mock the state accessors
@@ -54,6 +56,7 @@ vi.mock('@TAF/actions/teams', () => ({
 
 // Mock MUI useTheme
 vi.mock('@mui/material/styles', () => ({
+  styled: (...args: any[]) => vi.fn(),
   useTheme: () => ({
     palette: {
       primary: { main: '#1976d2' },
@@ -65,6 +68,13 @@ vi.mock('@mui/material/styles', () => ({
 describe('Home', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    selectorMocks.useActiveTeamId.mockImplementation(() => ['1', vi.fn()])
+    selectorMocks.useTeams.mockImplementation(() => [mockTeamsData, mockSetTeamsState])
+  })
+
+  afterAll(() => {
+    selectorMocks.useTeams.mockRestore()
+    selectorMocks.useActiveTeamId.mockRestore()
   })
 
   it('should render team selection heading', async () => {
@@ -77,7 +87,9 @@ describe('Home', () => {
   it('should render team selection description', async () => {
     render(<Home />)
     await waitFor(() => {
-      expect(screen.getByText('Choose a team to continue or create a new one')).toBeDefined()
+      expect(
+        screen.getByText('Choose a team to continue or create a new one')
+      ).toBeDefined()
     })
   })
 
@@ -162,12 +174,16 @@ describe('Home', () => {
 describe('Home - Empty State', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Override the mock to return empty teams
-    vi.mocked(vi.importActual('@TAF/state/selectors')).useTeams = () => [{}, mockSetTeamsState]
+    selectorMocks.useActiveTeamId.mockImplementation(() => [undefined, vi.fn()])
+    selectorMocks.useTeams.mockImplementation(() => [{}, mockSetTeamsState])
+  })
+
+  afterAll(() => {
+    selectorMocks.useTeams.mockRestore()
+    selectorMocks.useActiveTeamId.mockRestore()
   })
 
   it('should show empty state when no teams exist', async () => {
-    // Create a custom mock for empty teams
     vi.doMock('@TAF/state/selectors', () => ({
       useTeams: () => [{}, mockSetTeamsState],
       useActiveTeamId: () => [null, vi.fn()],
@@ -177,7 +193,9 @@ describe('Home - Empty State', () => {
     render(<HomeComponent />)
 
     await waitFor(() => {
-      expect(screen.getByText('No teams yet. Create your first team to get started.')).toBeDefined()
+      expect(
+        screen.getByText('No teams yet. Create your first team to get started.')
+      ).toBeDefined()
     })
   })
 
@@ -200,6 +218,13 @@ describe('Home - Empty State', () => {
 describe('Home - Team Selection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    selectorMocks.useActiveTeamId.mockImplementation(() => ['1', vi.fn()])
+    selectorMocks.useTeams.mockImplementation(() => [mockTeamsData, mockSetTeamsState])
+  })
+
+  afterAll(() => {
+    selectorMocks.useTeams.mockRestore()
+    selectorMocks.useActiveTeamId.mockRestore()
   })
 
   it('should call setActiveTeamId when select icon button is clicked', async () => {
@@ -210,11 +235,11 @@ describe('Home - Team Selection', () => {
       expect(screen.getByText('Team Alpha')).toBeDefined()
     })
 
-    // Find the icon button (ArrowForward icon) - there should be multiple for each team
-    const iconButtons = screen.getAllByRole('button', { name: /select team|continue with team/i })
+    const iconButtons = screen.getAllByRole('button', {
+      name: /select team|continue with team/i,
+    })
     expect(iconButtons.length).toBeGreaterThan(0)
 
-    // Click the first team's select button
     await user.click(iconButtons[0])
 
     await waitFor(() => {
@@ -234,7 +259,6 @@ describe('Home - Team Selection', () => {
   it('should render team icons for each team card', async () => {
     render(<Home />)
     await waitFor(() => {
-      // MUI icons render as SVG elements with specific test attributes
       const teamCards = screen.getAllByText(/Team Alpha|Team Beta/)
       expect(teamCards.length).toBeGreaterThanOrEqual(2)
     })

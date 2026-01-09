@@ -32,8 +32,9 @@ export type TListItem<
   ID extends TListItemIdType = TListItemIdType,
 > = {
   id?: ID
-  to?: string
   metadata?: Meta
+  visible?: (...args: any[]) => boolean
+  to?: ((...args: any[]) => void) | string
   text?: ReactNode
   divider?: boolean
   selected?: boolean

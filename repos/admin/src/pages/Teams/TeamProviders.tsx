@@ -1,28 +1,29 @@
-import { useEffect, useState } from 'react'
+import type { Provider } from '@tdsk/domain'
+
 import { useParams } from 'react-router'
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CardActions,
-  Typography,
-  Grid,
-  IconButton,
-  Tooltip,
-  CircularProgress,
-  Chip,
-} from '@mui/material'
+import { Page } from '@TAF/pages/Page/Page'
+import { useProviders } from '@TAF/state/selectors'
+import { useEffect, useState, useMemo } from 'react'
+import { Box, Typography, Chip } from '@mui/material'
+import { setActiveTeamId } from '@TAF/state/accessors'
+import { fetchProviders } from '@TAF/actions/providers'
+import { EditProviderDialog } from './EditProviderDialog'
+import { CreateProviderDialog } from './CreateProviderDialog'
 import {
   Add as AddIcon,
-  Delete as DeleteIcon,
   Edit as EditIcon,
   CloudQueue as ProviderIcon,
 } from '@mui/icons-material'
-import { Page } from '@TAF/pages/Page/Page'
-import { setActiveTeamId } from '@TAF/state/accessors'
-import { useProviders } from '@TAF/state/selectors'
-import { fetchProviders } from '@TAF/actions/providers'
+import {
+  SearchBar,
+  PageHeader,
+  EmptyState,
+  LoadingSpinner,
+  ErrorAlert,
+  CardGrid,
+  ItemCard,
+  ActionIconButton,
+} from '@TAF/components'
 
 export type TTeamProviders = {}
 
@@ -31,15 +32,17 @@ export const TeamProviders = (props: TTeamProviders) => {
   const [providers] = useProviders()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Sync active team with URL params
   useEffect(() => {
     if (teamId) {
       setActiveTeamId(teamId)
     }
   }, [teamId])
 
-  // Load team providers
   useEffect(() => {
     const loadProviders = async () => {
       if (!teamId) return
@@ -59,145 +62,177 @@ export const TeamProviders = (props: TTeamProviders) => {
     loadProviders()
   }, [teamId])
 
-  const handleCreateProvider = () => {
-    // TODO: Open create provider dialog
-    console.log('Create provider for team:', teamId)
+  const onCreateProvider = () => {
+    setCreateDialogOpen(true)
   }
 
-  const handleEditProvider = (providerId: string) => {
-    // TODO: Open edit provider dialog
-    console.log('Edit provider:', providerId)
-  }
-
-  const handleDeleteProvider = async (providerId: string, providerName: string) => {
-    if (!window.confirm(`Are you sure you want to delete provider "${providerName}"?`)) {
-      return
+  const onCreateSuccess = async () => {
+    if (teamId) {
+      setLoading(true)
+      await fetchProviders({ teamId })
+      setLoading(false)
     }
-    // TODO: Implement delete provider
-    console.log('Delete provider:', providerId)
   }
 
-  const providersArray = providers ? Object.values(providers) : []
+  const onEditProvider = (providerId: string) => {
+    const provider = providers?.[providerId]
+    if (provider) {
+      setSelectedProvider(provider)
+      setEditDialogOpen(true)
+    }
+  }
+
+  const onEditSuccess = async () => {
+    if (teamId) {
+      setLoading(true)
+      await fetchProviders({ teamId })
+      setLoading(false)
+    }
+  }
+
+  const filteredProviders = useMemo(() => {
+    const providersArray = providers ? Object.values(providers) : []
+    if (!searchQuery.trim()) return providersArray
+
+    const query = searchQuery.toLowerCase()
+    return providersArray.filter(
+      (provider) =>
+        provider.options?.name?.toLowerCase().includes(query) ||
+        provider.type?.toLowerCase().includes(query) ||
+        provider.options?.baseUrl?.toLowerCase().includes(query) ||
+        provider.id?.toLowerCase().includes(query)
+    )
+  }, [providers, searchQuery])
+
+  const providersCount = providers ? Object.keys(providers).length : 0
+
+  const renderProviderCard = (provider: Provider) => (
+    <ItemCard
+      onClick={() => onEditProvider(provider.id)}
+      actionsPosition='left'
+      actions={
+        <ActionIconButton
+          tooltip='Edit Provider'
+          icon={<EditIcon />}
+          size='small'
+          color='primary'
+          onClick={(e) => {
+            e.stopPropagation()
+            onEditProvider(provider.id)
+          }}
+        />
+      }
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <ProviderIcon sx={{ mr: 1, color: 'text.secondary' }} />
+        <Typography
+          variant='h6'
+          component='h2'
+        >
+          {provider.options?.name || 'Unnamed Provider'}
+        </Typography>
+      </Box>
+
+      {provider.type && (
+        <Chip
+          label={provider.type}
+          size='small'
+          color='primary'
+          variant='outlined'
+          sx={{ mb: 1 }}
+        />
+      )}
+
+      {provider.options?.baseUrl && (
+        <Typography
+          variant='body2'
+          color='text.secondary'
+          sx={{ mb: 1, wordBreak: 'break-all' }}
+        >
+          {provider.options.baseUrl}
+        </Typography>
+      )}
+
+      <Typography
+        variant='caption'
+        color='text.secondary'
+        sx={{ mt: 1, display: 'block' }}
+      >
+        ID: {provider.id}
+      </Typography>
+    </ItemCard>
+  )
 
   return (
     <Page className='tdsk-team-providers-page'>
-      <Box
-        sx={{
-          mb: 3,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography variant='h4' component='h1'>
-            Team Providers
-          </Typography>
-          <Typography color='text.secondary'>
-            Team ID: {teamId}
-          </Typography>
-        </Box>
-        <Button
-          variant='contained'
-          color='primary'
-          startIcon={<AddIcon />}
-          onClick={handleCreateProvider}
-        >
-          Create Provider
-        </Button>
-      </Box>
+      <PageHeader
+        title='Team Providers'
+        count={providersCount}
+        countLabel='provider'
+        actionLabel='Create Provider'
+        actionIcon={<AddIcon />}
+        onAction={onCreateProvider}
+      />
 
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-          <CircularProgress />
+      {!loading && providersCount > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder='Search providers by name, type, or URL...'
+          />
         </Box>
       )}
+
+      {loading && <LoadingSpinner />}
 
       {error && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography color='error'>
-              Error loading providers: {error.message}
-            </Typography>
-          </CardContent>
-        </Card>
+        <ErrorAlert
+          message={`Error loading providers: ${error.message}`}
+          onClose={() => setError(null)}
+          sx={{ mb: 3 }}
+        />
       )}
 
-      {!loading && !error && providersArray.length === 0 && (
-        <Card>
-          <CardContent>
-            <Typography color='text.secondary' align='center'>
-              No providers yet. Create your first provider to get started.
-            </Typography>
-          </CardContent>
-        </Card>
+      {!loading && !error && providersCount === 0 && (
+        <EmptyState
+          message='No providers yet. Create your first provider to get started.'
+          actionLabel='Create Your First Provider'
+          actionIcon={<AddIcon />}
+          onAction={onCreateProvider}
+        />
       )}
 
-      {!loading && !error && providersArray.length > 0 && (
-        <Grid container spacing={3}>
-          {providersArray.map((provider) => (
-            <Grid item xs={12} sm={6} md={4} key={provider.id}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <ProviderIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                    <Typography variant='h6' component='h2'>
-                      {provider.name}
-                    </Typography>
-                  </Box>
+      {!loading && !error && providersCount > 0 && filteredProviders.length === 0 && (
+        <EmptyState message='No providers match your search query.' />
+      )}
 
-                  {provider.type && (
-                    <Chip
-                      label={provider.type}
-                      size='small'
-                      color='primary'
-                      variant='outlined'
-                      sx={{ mb: 1 }}
-                    />
-                  )}
+      {!loading && !error && filteredProviders.length > 0 && (
+        <CardGrid
+          items={filteredProviders}
+          renderCard={renderProviderCard}
+          getKey={(provider) => provider.id}
+        />
+      )}
 
-                  {provider.baseUrl && (
-                    <Typography
-                      variant='body2'
-                      color='text.secondary'
-                      sx={{ mb: 1, wordBreak: 'break-all' }}
-                    >
-                      {provider.baseUrl}
-                    </Typography>
-                  )}
-
-                  <Typography
-                    variant='caption'
-                    color='text.secondary'
-                    sx={{ mt: 1, display: 'block' }}
-                  >
-                    ID: {provider.id}
-                  </Typography>
-                </CardContent>
-                <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-                  <Tooltip title='Edit Provider'>
-                    <IconButton
-                      size='small'
-                      color='primary'
-                      onClick={() => handleEditProvider(provider.id)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title='Delete Provider'>
-                    <IconButton
-                      size='small'
-                      color='error'
-                      onClick={() => handleDeleteProvider(provider.id, provider.name)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Tooltip>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+      {teamId && (
+        <>
+          <CreateProviderDialog
+            teamId={teamId}
+            open={createDialogOpen}
+            onSuccess={onCreateSuccess}
+            onClose={() => setCreateDialogOpen(false)}
+          />
+          <EditProviderDialog
+            open={editDialogOpen}
+            provider={selectedProvider}
+            onClose={() => {
+              setEditDialogOpen(false)
+              setSelectedProvider(null)
+            }}
+            onSuccess={onEditSuccess}
+          />
+        </>
       )}
     </Page>
   )

@@ -3,13 +3,6 @@ import type { Provider } from '@tdsk/domain'
 import { providersApi } from '@TAF/services'
 import { setProviders, getProviders } from '@TAF/state/accessors'
 
-export type TUpdateProviderInput = {
-  name?: string
-  type?: string
-  config?: Record<string, any>
-  description?: string
-}
-
 export type TUpdateProviderResult = {
   provider?: Provider
   error?: Error
@@ -17,7 +10,7 @@ export type TUpdateProviderResult = {
 
 export const updateProvider = async (
   id: string,
-  input: TUpdateProviderInput
+  input: Partial<Provider>
 ): Promise<TUpdateProviderResult> => {
   const resp = await providersApi.update(id, input)
 

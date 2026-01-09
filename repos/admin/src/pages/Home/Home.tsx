@@ -57,7 +57,11 @@ export const Home = (props: THome) => {
   return (
     <Page className='tdsk-home-page'>
       <Box sx={{ mb: 3 }}>
-        <Typography variant='h4' component='h1' gutterBottom>
+        <Typography
+          variant='h4'
+          component='h1'
+          gutterBottom
+        >
           Select a Team
         </Typography>
         <Typography color='text.secondary'>
@@ -76,7 +80,11 @@ export const Home = (props: THome) => {
       {!loading && teamsArray.length === 0 && (
         <Card>
           <CardContent>
-            <Typography color='text.secondary' align='center' sx={{ mb: 2 }}>
+            <Typography
+              color='text.secondary'
+              align='center'
+              sx={{ mb: 2 }}
+            >
               No teams yet. Create your first team to get started.
             </Typography>
           </CardContent>
@@ -95,11 +103,20 @@ export const Home = (props: THome) => {
 
       {!loading && teamsArray.length > 0 && (
         <>
-          <Grid container spacing={3}>
+          <Grid
+            container
+            spacing={3}
+          >
             {teamsArray.map((team) => {
               const isActiveTeam = team.id === activeTeamId
               return (
-                <Grid item xs={12} sm={6} md={4} key={team.id}>
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                  md={4}
+                  key={team.id}
+                >
                   <Card
                     sx={{
                       cursor: 'pointer',
@@ -117,22 +134,39 @@ export const Home = (props: THome) => {
                     <CardContent>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                         <TeamIcon sx={{ mr: 1, color: 'primary.main' }} />
-                        <Typography variant='h6' component='h2' sx={{ flexGrow: 1 }}>
+                        <Typography
+                          variant='h6'
+                          component='h2'
+                          sx={{ flexGrow: 1 }}
+                        >
                           {team.name}
                         </Typography>
                         {isActiveTeam && (
-                          <Chip label='Current' color='primary' size='small' />
+                          <Chip
+                            label='Current'
+                            color='primary'
+                            size='small'
+                          />
                         )}
                       </Box>
-                      <Typography color='text.secondary' variant='body2' sx={{ mb: 1 }}>
+                      <Typography
+                        color='text.secondary'
+                        variant='body2'
+                        sx={{ mb: 1 }}
+                      >
                         {team.description || 'No description'}
                       </Typography>
-                      <Typography variant='caption' color='text.secondary'>
+                      <Typography
+                        variant='caption'
+                        color='text.secondary'
+                      >
                         ID: {team.id}
                       </Typography>
                     </CardContent>
                     <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
-                      <Tooltip title={isActiveTeam ? 'Continue with Team' : 'Select Team'}>
+                      <Tooltip
+                        title={isActiveTeam ? 'Continue with Team' : 'Select Team'}
+                      >
                         <IconButton
                           size='small'
                           color='primary'

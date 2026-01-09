@@ -1,20 +1,22 @@
 import { relations } from 'drizzle-orm'
-import { providers } from '@TDB/schemas/providers'
-import { endpoints } from '@TDB/schemas/endpoints'
+import { repos } from '@TDB/schemas/repos'
 import { base } from '@TDB/utils/schema/base'
+import { endpoints } from '@TDB/schemas/endpoints'
 import { uuid, text, jsonb, varchar, pgTable } from 'drizzle-orm/pg-core'
 
 export const functions = pgTable(`functions`, {
   ...base,
+  name: text(`name`).notNull(),
+  description: text(`name`),
   defaultArgs: jsonb(`default_args`),
   content: text(`content`).notNull(),
   dependencies: jsonb(`dependencies`),
   language: varchar(`language`, { length: 50 }).default(`typescript`),
-  providerId: uuid(`provider_id`)
-    .references(() => providers.id)
-    .notNull(),
   endpointId: uuid(`endpoint_id`)
     .references(() => endpoints.id, { onDelete: `cascade` })
+    .notNull(),
+  repoId: uuid(`repo_id`)
+    .references(() => repos.id, { onDelete: `cascade` })
     .notNull(),
 })
 
@@ -23,8 +25,8 @@ export const functionsRelations = relations(functions, ({ one }) => ({
     fields: [functions.endpointId],
     references: [endpoints.id],
   }),
-  provider: one(providers, {
-    fields: [functions.providerId],
-    references: [providers.id],
+  repo: one(repos, {
+    fields: [functions.repoId],
+    references: [repos.id],
   }),
 }))

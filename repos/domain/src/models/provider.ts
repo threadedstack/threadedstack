@@ -3,8 +3,10 @@ import type { TProviderType } from '@TDM/types'
 import { Base } from './base'
 
 export class Provider extends Base {
+  name?: string
   teamId?: string
   userId?: string
+  repoId?: string
   type: TProviderType
   options: Record<string, any> = {}
 

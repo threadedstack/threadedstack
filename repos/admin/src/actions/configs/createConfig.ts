@@ -1,22 +1,16 @@
-import type { TConfig } from '@TAF/state/configs'
+import type { Config } from '@tdsk/domain'
 
 import { configsApi } from '@TAF/services'
 import { setConfigs, getConfigs } from '@TAF/state/accessors'
 
-export type TCreateConfigInput = {
-  name: string
-  data: Record<string, any>
-  teamId?: string
-  repoId?: string
-  userId?: string
-}
-
 export type TCreateConfigResult = {
-  config?: TConfig
+  config?: Config
   error?: Error
 }
 
-export const createConfig = async (input: TCreateConfigInput): Promise<TCreateConfigResult> => {
+export const createConfig = async (
+  input: Partial<Config>
+): Promise<TCreateConfigResult> => {
   const resp = await configsApi.create(input)
 
   if (resp.error) {

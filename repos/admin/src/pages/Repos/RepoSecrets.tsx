@@ -1,29 +1,29 @@
+import { Page } from '@TAF/pages/Page/Page'
+import { useSecrets } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Tooltip,
-} from '@mui/material'
+import { fetchSecrets, deleteSecret } from '@TAF/actions/secrets'
+import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
 } from '@mui/icons-material'
-import { Page } from '@TAF/pages/Page/Page'
-import { useSecrets } from '@TAF/state/selectors'
-import { fetchSecrets, deleteSecret } from '@TAF/actions/secrets'
-import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import {
+  Box,
+  Card,
+  Table,
+  Button,
+  Tooltip,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+  Typography,
+  CardContent,
+  IconButton,
+  TableContainer,
+} from '@mui/material'
 
 export type TRepoSecrets = {}
 
@@ -33,13 +33,11 @@ export const RepoSecrets = (props: TRepoSecrets) => {
   const [secrets] = useSecrets()
   const [loading, setLoading] = useState(true)
 
-  // Sync active team and repo with URL params
   useEffect(() => {
     if (teamId) setActiveTeamId(teamId)
     if (repoId) setActiveRepoId(repoId)
   }, [teamId, repoId])
 
-  // Load secrets for this repo
   useEffect(() => {
     const loadData = async () => {
       if (!repoId) return
@@ -50,13 +48,12 @@ export const RepoSecrets = (props: TRepoSecrets) => {
     loadData()
   }, [repoId])
 
-  // Filter secrets for this repo
   const repoSecrets = useMemo(() => {
     if (!secrets || !repoId) return []
-    return Object.values(secrets).filter(secret => secret.repoId === repoId)
+    return Object.values(secrets).filter((secret) => secret.repoId === repoId)
   }, [secrets, repoId])
 
-  const handleDelete = async (id: string, name: string) => {
+  const onDelete = async (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to delete secret "${name}"?`)) {
       return
     }
@@ -66,7 +63,7 @@ export const RepoSecrets = (props: TRepoSecrets) => {
     }
   }
 
-  const handleCreate = () => {
+  const onCreate = () => {
     navigate(`/teams/${teamId}/repos/${repoId}/secrets/new`)
   }
 
@@ -81,13 +78,17 @@ export const RepoSecrets = (props: TRepoSecrets) => {
   return (
     <Page className='tdsk-repo-secrets-page'>
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Typography variant='h4' component='h1' sx={{ flex: 1 }}>
+        <Typography
+          variant='h4'
+          component='h1'
+          sx={{ flex: 1 }}
+        >
           Secrets
         </Typography>
         <Button
           variant='contained'
           startIcon={<AddIcon />}
-          onClick={handleCreate}
+          onClick={onCreate}
         >
           Create Secret
         </Button>
@@ -102,7 +103,7 @@ export const RepoSecrets = (props: TRepoSecrets) => {
             <Button
               variant='outlined'
               startIcon={<AddIcon />}
-              onClick={handleCreate}
+              onClick={onCreate}
               sx={{ mt: 2 }}
             >
               Create Your First Secret
@@ -121,10 +122,16 @@ export const RepoSecrets = (props: TRepoSecrets) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {repoSecrets.map(secret => (
-                <TableRow key={secret.id} hover>
+              {repoSecrets.map((secret) => (
+                <TableRow
+                  key={secret.id}
+                  hover
+                >
                   <TableCell>
-                    <Typography variant='body2' fontFamily='monospace'>
+                    <Typography
+                      variant='body2'
+                      fontFamily='monospace'
+                    >
                       {secret.name}
                     </Typography>
                   </TableCell>
@@ -138,7 +145,10 @@ export const RepoSecrets = (props: TRepoSecrets) => {
                         ••••••••
                       </Typography>
                       <Tooltip title='Values are never displayed for security'>
-                        <VisibilityIcon fontSize='small' color='disabled' />
+                        <VisibilityIcon
+                          fontSize='small'
+                          color='disabled'
+                        />
                       </Tooltip>
                     </Box>
                   </TableCell>
@@ -152,7 +162,7 @@ export const RepoSecrets = (props: TRepoSecrets) => {
                       <IconButton
                         size='small'
                         color='error'
-                        onClick={() => handleDelete(secret.id, secret.name)}
+                        onClick={() => onDelete(secret.id, secret.name)}
                       >
                         <DeleteIcon />
                       </IconButton>

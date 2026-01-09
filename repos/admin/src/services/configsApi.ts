@@ -1,5 +1,5 @@
+import type { Config } from '@tdsk/domain'
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
-import type { TConfig } from '@TAF/state/configs'
 
 import { BaseApi } from '@TAF/services/api'
 
@@ -21,10 +21,10 @@ export class ConfigsApi extends BaseApi {
    * @param data - Optional query parameters (teamId, repoId, limit, offset, etc.)
    * @returns List of all configs
    */
-  async list(data?: Record<string, any>): Promise<TApiRes<TConfig[]>> {
+  async list(data?: Record<string, any>): Promise<TApiRes<Config[]>> {
     const { queryKey, ...rest } = data || {}
 
-    const resp = await this.api.get<TConfig[]>({
+    const resp = await this.api.get<Config[]>({
       data: rest,
       path: this.path,
       queryKey: queryKey || this.cache.list(),
@@ -40,8 +40,8 @@ export class ConfigsApi extends BaseApi {
    * @param id - Config ID
    * @returns Config object
    */
-  async get(id: string): Promise<TApiRes<TConfig>> {
-    const resp = await this.api.get<TConfig>({
+  async get(id: string): Promise<TApiRes<Config>> {
+    const resp = await this.api.get<Config>({
       path: `${this.path}/${id}`,
       queryKey: this.cache.detail(id),
     })
@@ -56,8 +56,8 @@ export class ConfigsApi extends BaseApi {
    * @param data - Config data
    * @returns Created config
    */
-  async create(data: Partial<TConfig>): Promise<TApiRes<TConfig>> {
-    const resp = await this.api.post<TConfig>({
+  async create(data: Partial<Config>): Promise<TApiRes<Config>> {
+    const resp = await this.api.post<Config>({
       data,
       path: this.path,
     })
@@ -73,8 +73,8 @@ export class ConfigsApi extends BaseApi {
    * @param data - Updated config data
    * @returns Updated config
    */
-  async update(id: string, data: Partial<TConfig>): Promise<TApiRes<TConfig>> {
-    const resp = await this.api.put<TConfig>({
+  async update(id: string, data: Partial<Config>): Promise<TApiRes<Config>> {
+    const resp = await this.api.put<Config>({
       data,
       path: `${this.path}/${id}`,
     })

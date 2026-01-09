@@ -1,9 +1,11 @@
 import { Base } from './base'
 
 export class Function extends Base {
-  endpointId: string
-  providerId: string
+  name: string
+  repoId: string
   content: string
+  endpointId: string
+  description?: string
   language: string = 'typescript'
   defaultArgs?: Record<string, any>
   dependencies?: Record<string, any>

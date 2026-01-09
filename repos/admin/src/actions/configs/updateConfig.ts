@@ -1,21 +1,16 @@
-import type { TConfig } from '@TAF/state/configs'
+import type { Config } from '@tdsk/domain'
 
 import { configsApi } from '@TAF/services'
 import { setConfigs, getConfigs } from '@TAF/state/accessors'
 
-export type TUpdateConfigInput = {
-  name?: string
-  data?: Record<string, any>
-}
-
 export type TUpdateConfigResult = {
-  config?: TConfig
+  config?: Config
   error?: Error
 }
 
 export const updateConfig = async (
   id: string,
-  input: TUpdateConfigInput
+  input: Partial<Config>
 ): Promise<TUpdateConfigResult> => {
   const resp = await configsApi.update(id, input)
 

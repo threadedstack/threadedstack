@@ -16,7 +16,9 @@ export type TCreateSecretResult = {
   error?: Error
 }
 
-export const createSecret = async (input: TCreateSecretInput): Promise<TCreateSecretResult> => {
+export const createSecret = async (
+  input: TCreateSecretInput
+): Promise<TCreateSecretResult> => {
   const resp = await secretsApi.create(input)
 
   if (resp.error) {

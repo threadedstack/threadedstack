@@ -1,6 +1,14 @@
 import type { EThemeType } from '@TAF/types'
-import type { User, Team, Repo, Provider, Secret, Endpoint, Function as TDFunction } from '@tdsk/domain'
-import type { TConfig } from '@TAF/state/configs'
+import type {
+  User,
+  Team,
+  Repo,
+  Config,
+  Secret,
+  Provider,
+  Endpoint,
+  Function as TDFunction,
+} from '@tdsk/domain'
 
 import { createStore } from 'jotai'
 import { userState } from '@TAF/state/user'
@@ -51,7 +59,8 @@ export const setProviders = (providers: Record<string, Provider>) =>
 
 export const getSecrets = () => store.get(secretsState)
 export const resetSecrets = () => store.set(secretsState, undefined)
-export const setSecrets = (secrets: Record<string, Secret>) => store.set(secretsState, secrets)
+export const setSecrets = (secrets: Record<string, Secret>) =>
+  store.set(secretsState, secrets)
 
 export const getActiveSecretId = () => store.get(activeSecretIdState)
 export const resetActiveSecretId = () => store.set(activeSecretIdState, undefined)
@@ -59,7 +68,8 @@ export const setActiveSecretId = (id: string) => store.set(activeSecretIdState, 
 
 export const getEndpoints = () => store.get(endpointsState)
 export const resetEndpoints = () => store.set(endpointsState, undefined)
-export const setEndpoints = (endpoints: Record<string, Endpoint>) => store.set(endpointsState, endpoints)
+export const setEndpoints = (endpoints: Record<string, Endpoint>) =>
+  store.set(endpointsState, endpoints)
 
 export const getActiveEndpointId = () => store.get(activeEndpointIdState)
 export const resetActiveEndpointId = () => store.set(activeEndpointIdState, undefined)
@@ -67,7 +77,8 @@ export const setActiveEndpointId = (id: string) => store.set(activeEndpointIdSta
 
 export const getFunctions = () => store.get(functionsState)
 export const resetFunctions = () => store.set(functionsState, undefined)
-export const setFunctions = (functions: Record<string, TDFunction>) => store.set(functionsState, functions)
+export const setFunctions = (functions: Record<string, TDFunction>) =>
+  store.set(functionsState, functions)
 
 export const getActiveFunctionId = () => store.get(activeFunctionIdState)
 export const resetActiveFunctionId = () => store.set(activeFunctionIdState, undefined)
@@ -75,7 +86,8 @@ export const setActiveFunctionId = (id: string) => store.set(activeFunctionIdSta
 
 export const getConfigs = () => store.get(configsState)
 export const resetConfigs = () => store.set(configsState, undefined)
-export const setConfigs = (configs: Record<string, TConfig>) => store.set(configsState, configs)
+export const setConfigs = (configs: Record<string, Config>) =>
+  store.set(configsState, configs)
 
 export const getActiveConfigId = () => store.get(activeConfigIdState)
 export const resetActiveConfigId = () => store.set(activeConfigIdState, undefined)

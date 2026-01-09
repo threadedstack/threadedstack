@@ -3,21 +3,13 @@ import type { Provider } from '@tdsk/domain'
 import { providersApi } from '@TAF/services'
 import { setProviders, getProviders } from '@TAF/state/accessors'
 
-export type TCreateProviderInput = {
-  name: string
-  type: string
-  teamId: string
-  config?: Record<string, any>
-  description?: string
-}
-
 export type TCreateProviderResult = {
   provider?: Provider
   error?: Error
 }
 
 export const createProvider = async (
-  input: TCreateProviderInput
+  input: Partial<Provider>
 ): Promise<TCreateProviderResult> => {
   const resp = await providersApi.create(input)
 

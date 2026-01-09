@@ -1,19 +1,19 @@
 import { useState } from 'react'
+import { usersApi } from '@TAF/services'
 import {
+  Box,
+  Alert,
+  Button,
+  Select,
   Dialog,
+  MenuItem,
+  TextField,
+  InputLabel,
+  FormControl,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  TextField,
-  Box,
-  Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material'
-import { usersApi } from '@TAF/services'
 
 export type TInviteUserDialog = {
   open: boolean
@@ -22,22 +22,27 @@ export type TInviteUserDialog = {
   onSuccess: () => void
 }
 
-export const InviteUserDialog = ({ open, teamId, onClose, onSuccess }: TInviteUserDialog) => {
+export const InviteUserDialog = ({
+  open,
+  teamId,
+  onClose: onCloseCB,
+  onSuccess: onSuccessCB,
+}: TInviteUserDialog) => {
   const [email, setEmail] = useState('')
   const [roleType, setRoleType] = useState<'admin' | 'basic'>('basic')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleClose = () => {
+  const onClose = () => {
     if (!loading) {
       setEmail('')
       setRoleType('basic')
       setError(null)
-      onClose()
+      onCloseCB?.()
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!email.trim()) {
@@ -45,7 +50,6 @@ export const InviteUserDialog = ({ open, teamId, onClose, onSuccess }: TInviteUs
       return
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       setError('Please enter a valid email address')
@@ -65,18 +69,18 @@ export const InviteUserDialog = ({ open, teamId, onClose, onSuccess }: TInviteUs
     if (resp.error) {
       setError(resp.error.message || 'Failed to invite user. Please try again.')
     } else {
-      onSuccess()
+      onSuccessCB?.()
     }
   }
 
   return (
     <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth='sm'
       fullWidth
+      open={open}
+      maxWidth='sm'
+      onClose={onClose}
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={onSubmit}>
         <DialogTitle>Invite User to Team</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
@@ -101,7 +105,10 @@ export const InviteUserDialog = ({ open, teamId, onClose, onSuccess }: TInviteUs
               disabled={loading}
             />
 
-            <FormControl fullWidth disabled={loading}>
+            <FormControl
+              fullWidth
+              disabled={loading}
+            >
               <InputLabel id='role-select-label'>Role</InputLabel>
               <Select
                 labelId='role-select-label'
@@ -118,7 +125,7 @@ export const InviteUserDialog = ({ open, teamId, onClose, onSuccess }: TInviteUs
         </DialogContent>
         <DialogActions>
           <Button
-            onClick={handleClose}
+            onClick={onClose}
             disabled={loading}
           >
             Cancel

@@ -26,4 +26,8 @@ export class User extends Base {
 
     Object.assign(this, { ...usr, first, last })
   }
+
+  get displayName(): string {
+    return this.name || `${this.first} ${this.last}`.trim()
+  }
 }

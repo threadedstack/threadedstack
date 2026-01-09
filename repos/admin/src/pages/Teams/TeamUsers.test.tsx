@@ -47,10 +47,10 @@ describe('TeamUsers', () => {
     })
   })
 
-  it('should render the TODO message', async () => {
+  it('should render the Team Users header', async () => {
     render(<TeamUsers />)
     await waitFor(() => {
-      expect(screen.getByText('TODO: Implement team users management')).toBeDefined()
+      expect(screen.getByText('Team Users')).toBeDefined()
     })
   })
 })

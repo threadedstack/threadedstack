@@ -1,42 +1,55 @@
-import { useEffect, useState, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router'
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CardActions,
-  Typography,
-  Grid,
-  IconButton,
-  Tooltip,
-  Chip,
-} from '@mui/material'
-import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Code as CodeIcon,
-} from '@mui/icons-material'
+import type { Function as TDFunction } from '@tdsk/domain'
+
+import { useParams } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { useFunctions } from '@TAF/state/selectors'
+import { useEffect, useState, useMemo } from 'react'
+import { EditFunctionDialog } from './EditFunctionDialog'
+import { CreateFunctionDialog } from './CreateFunctionDialog'
 import { fetchFunctions, deleteFunction } from '@TAF/actions/functions'
 import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import {
+  SearchBar,
+  FilterSelect,
+  PageHeader,
+  EmptyState,
+  LoadingSpinner,
+} from '@TAF/components'
+import {
+  Add as AddIcon,
+  Code as CodeIcon,
+  Delete as DeleteIcon,
+} from '@mui/icons-material'
+import {
+  Box,
+  Card,
+  Grid,
+  Chip,
+  Button,
+  Tooltip,
+  IconButton,
+  Typography,
+  CardContent,
+  CardActions,
+} from '@mui/material'
 
 export type TRepoFunctions = {}
 
 export const RepoFunctions = (props: TRepoFunctions) => {
   const { teamId, repoId } = useParams<{ teamId: string; repoId: string }>()
-  const navigate = useNavigate()
   const [functions] = useFunctions()
   const [loading, setLoading] = useState(true)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [selectedFunction, setSelectedFunction] = useState<TDFunction | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [languageFilter, setLanguageFilter] = useState<string>('all')
 
-  // Sync active team and repo with URL params
   useEffect(() => {
     if (teamId) setActiveTeamId(teamId)
     if (repoId) setActiveRepoId(repoId)
   }, [teamId, repoId])
 
-  // Load functions for this repo
   useEffect(() => {
     const loadData = async () => {
       if (!repoId) return
@@ -47,13 +60,46 @@ export const RepoFunctions = (props: TRepoFunctions) => {
     loadData()
   }, [repoId])
 
-  // Filter functions for this repo
-  const repoFunctions = useMemo(() => {
+  const filteredFunctions = useMemo(() => {
     if (!functions || !repoId) return []
-    return Object.values(functions).filter(func => func.repoId === repoId)
+
+    let filtered = Object.values(functions).filter((func) => func.repoId === repoId)
+
+    if (languageFilter !== 'all') {
+      filtered = filtered.filter((func) => func.language === languageFilter)
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (func) =>
+          func.name?.toLowerCase().includes(query) ||
+          func.id?.toLowerCase().includes(query) ||
+          func.endpointId?.toLowerCase().includes(query)
+      )
+    }
+
+    return filtered
+  }, [functions, repoId, searchQuery, languageFilter])
+
+  const languageFilterOptions = useMemo(() => {
+    if (!functions || !repoId) return []
+    const languages = new Set<string>()
+    Object.values(functions)
+      .filter((func) => func.repoId === repoId)
+      .forEach((func) => {
+        if (func.language) languages.add(func.language)
+      })
+    return Array.from(languages)
+      .sort()
+      .map((lang) => ({ value: lang, label: lang }))
   }, [functions, repoId])
 
-  const handleDelete = async (id: string, name: string) => {
+  const functionsCount = functions
+    ? Object.values(functions).filter((f) => f.repoId === repoId).length
+    : 0
+
+  const onDelete = async (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to delete function "${name}"?`)) {
       return
     }
@@ -63,63 +109,92 @@ export const RepoFunctions = (props: TRepoFunctions) => {
     }
   }
 
-  const handleCreate = () => {
-    navigate(`/teams/${teamId}/repos/${repoId}/functions/new`)
+  const onCreate = () => {
+    setCreateDialogOpen(true)
   }
 
-  const handleEdit = (functionId: string) => {
-    navigate(`/teams/${teamId}/repos/${repoId}/functions/${functionId}`)
+  const onCreateSuccess = async () => {
+    repoId && (await fetchFunctions({ repoId }))
   }
 
-  if (loading) {
-    return (
-      <Page className='tdsk-repo-functions-page'>
-        <Typography>Loading functions...</Typography>
-      </Page>
-    )
+  const onEdit = (func: TDFunction) => {
+    setSelectedFunction(func)
+    setEditDialogOpen(true)
+  }
+
+  const onEditSuccess = async () => {
+    repoId && (await fetchFunctions({ repoId }))
   }
 
   return (
     <Page className='tdsk-repo-functions-page'>
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Typography variant='h4' component='h1' sx={{ flex: 1 }}>
-          Functions
-        </Typography>
-        <Button
-          variant='contained'
-          startIcon={<AddIcon />}
-          onClick={handleCreate}
-        >
-          Create Function
-        </Button>
-      </Box>
+      <PageHeader
+        title='Repo Functions'
+        count={functionsCount}
+        countLabel='function'
+        actionLabel='Create Function'
+        actionIcon={<AddIcon />}
+        onAction={onCreate}
+      />
 
-      {repoFunctions.length === 0 ? (
-        <Card>
-          <CardContent>
-            <Typography color='text.secondary'>
-              No functions found for this repository.
-            </Typography>
-            <Button
-              variant='outlined'
-              startIcon={<AddIcon />}
-              onClick={handleCreate}
-              sx={{ mt: 2 }}
+      {!loading && functionsCount > 0 && (
+        <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder='Search functions by name...'
+            sx={{ flex: 1, minWidth: 200 }}
+          />
+          {languageFilterOptions.length > 1 && (
+            <FilterSelect
+              id='language-filter'
+              label='Language'
+              value={languageFilter}
+              onChange={setLanguageFilter}
+              options={languageFilterOptions}
+              allLabel='All Languages'
+              minWidth={140}
+            />
+          )}
+        </Box>
+      )}
+
+      {loading && <LoadingSpinner />}
+
+      {!loading && functionsCount === 0 && (
+        <EmptyState
+          message='No functions found for this repository.'
+          actionLabel='Create Your First Function'
+          actionIcon={<AddIcon />}
+          onAction={onCreate}
+        />
+      )}
+
+      {!loading && functionsCount > 0 && filteredFunctions.length === 0 && (
+        <EmptyState message='No functions match your search or filter criteria.' />
+      )}
+
+      {!loading && filteredFunctions.length > 0 && (
+        <Grid
+          container
+          spacing={3}
+        >
+          {filteredFunctions.map((func) => (
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={4}
+              key={func.id}
             >
-              Create Your First Function
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Grid container spacing={3}>
-          {repoFunctions.map(func => (
-            <Grid item xs={12} sm={6} md={4} key={func.id}>
               <Card
                 sx={{
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
+                  cursor: 'pointer',
                 }}
+                onClick={() => onEdit(func)}
               >
                 <CardContent sx={{ flex: 1 }}>
                   <Box
@@ -131,7 +206,10 @@ export const RepoFunctions = (props: TRepoFunctions) => {
                     }}
                   >
                     <CodeIcon color='primary' />
-                    <Typography variant='h6' component='div'>
+                    <Typography
+                      variant='h6'
+                      component='div'
+                    >
                       {func.name}
                     </Typography>
                   </Box>
@@ -181,7 +259,10 @@ export const RepoFunctions = (props: TRepoFunctions) => {
                       >
                         Created
                       </Typography>
-                      <Typography variant='body2' sx={{ mt: 0.5 }}>
+                      <Typography
+                        variant='body2'
+                        sx={{ mt: 0.5 }}
+                      >
                         {new Date(func.createdAt).toLocaleDateString()}
                       </Typography>
                     </Box>
@@ -190,7 +271,10 @@ export const RepoFunctions = (props: TRepoFunctions) => {
                 <CardActions sx={{ justifyContent: 'flex-end', p: 2, pt: 0 }}>
                   <Button
                     size='small'
-                    onClick={() => handleEdit(func.id)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit(func)
+                    }}
                   >
                     Edit
                   </Button>
@@ -198,7 +282,10 @@ export const RepoFunctions = (props: TRepoFunctions) => {
                     <IconButton
                       size='small'
                       color='error'
-                      onClick={() => handleDelete(func.id, func.name)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDelete(func.id, func.name)
+                      }}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -208,6 +295,26 @@ export const RepoFunctions = (props: TRepoFunctions) => {
             </Grid>
           ))}
         </Grid>
+      )}
+
+      {repoId && (
+        <>
+          <CreateFunctionDialog
+            open={createDialogOpen}
+            repoId={repoId}
+            onClose={() => setCreateDialogOpen(false)}
+            onSuccess={onCreateSuccess}
+          />
+          <EditFunctionDialog
+            open={editDialogOpen}
+            func={selectedFunction}
+            onClose={() => {
+              setEditDialogOpen(false)
+              setSelectedFunction(null)
+            }}
+            onSuccess={onEditSuccess}
+          />
+        </>
       )}
     </Page>
   )

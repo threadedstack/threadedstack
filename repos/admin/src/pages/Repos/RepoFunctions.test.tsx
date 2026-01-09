@@ -34,14 +34,6 @@ describe('RepoFunctions', () => {
     })
   })
 
-  it('should display the team and repo IDs', async () => {
-    render(<RepoFunctions />)
-    await waitFor(() => {
-      expect(screen.getByText(/team-123/)).toBeDefined()
-      expect(screen.getByText(/repo-456/)).toBeDefined()
-    })
-  })
-
   it('should call setActiveTeamId with teamId', async () => {
     render(<RepoFunctions />)
     await waitFor(() => {

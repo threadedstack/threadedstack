@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build -c configs/vite.config.ts --force",
+    "build": "vite build -c configs/vite.config.ts",
     "host": "vite --open --host -c configs/vite.config.ts",
     "clean": "rm -rf ./node_modules",
     "types": "tsc -b",
@@ -19,7 +19,7 @@
     "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
     "preview": "vite preview -c configs/vite.config.ts",
     "start": "vite -c configs/vite.config.ts",
-    "sf": "NODE_ENV=local vite -c configs/vite.config.ts --force",
+    "sf": "NODE_ENV=local vite -c configs/vite.config.ts",
     "test": "vitest run --config configs/vite.config.ts"
   },
   "dependencies": {
@@ -53,6 +53,7 @@
     "@biomejs/biome": "2.1.2",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",
+    "@testing-library/user-event": "14.6.1",
     "@types/node": "^20.11.16",
     "@types/react": "^18.2.53",
     "@types/react-dom": "^18.2.18",

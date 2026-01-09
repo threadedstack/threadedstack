@@ -1,33 +1,45 @@
+import type { Config } from '@tdsk/domain'
+
+import { Page } from '@TAF/pages/Page/Page'
+import { fetchConfigs } from '@TAF/actions/configs'
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router'
+import { EditConfigDialog } from './EditConfigDialog'
+import { CreateConfigDialog } from './CreateConfigDialog'
+import { useRepos, useConfigs } from '@TAF/state/selectors'
+import { fetchRepo, updateRepo, deleteRepo } from '@TAF/actions/repos'
+import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Clear as ClearIcon,
+  Search as SearchIcon,
+  ContentCopy as ContentCopyIcon,
+} from '@mui/icons-material'
 import {
   Box,
-  Button,
   Card,
-  CardContent,
-  Typography,
-  Divider,
-  TextField,
   Alert,
+  Dialog,
   Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
+  Button,
+  Divider,
   Tooltip,
-  Chip,
+  TableRow,
+  TextField,
+  TableCell,
+  TableBody,
+  TableHead,
+  Typography,
+  IconButton,
+  CardContent,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  InputAdornment,
+  TableContainer,
+  CircularProgress,
 } from '@mui/material'
-import {
-  Delete as DeleteIcon,
-  Add as AddIcon,
-} from '@mui/icons-material'
-import { Page } from '@TAF/pages/Page/Page'
-import { useRepos, useConfigs } from '@TAF/state/selectors'
-import { fetchRepo, deleteRepo } from '@TAF/actions/repos'
-import { fetchConfigs, deleteConfig } from '@TAF/actions/configs'
-import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
 
 export type TRepoSettings = {}
 
@@ -37,245 +49,517 @@ export const RepoSettings = (props: TRepoSettings) => {
   const [repos] = useRepos()
   const [configs] = useConfigs()
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState<string | null>(null)
 
-  // Sync active team and repo with URL params
+  const [name, setName] = useState('')
+  const [gitUrl, setGitUrl] = useState('')
+  const [branch, setBranch] = useState('')
+  const [originalName, setOriginalName] = useState('')
+  const [originalGitUrl, setOriginalGitUrl] = useState('')
+  const [originalBranch, setOriginalBranch] = useState('')
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
+
+  const [createConfigDialogOpen, setCreateConfigDialogOpen] = useState(false)
+  const [editConfigDialogOpen, setEditConfigDialogOpen] = useState(false)
+  const [selectedConfig, setSelectedConfig] = useState<Config | null>(null)
+
+  const [configSearchQuery, setConfigSearchQuery] = useState('')
+  const [configTypeFilter, setConfigTypeFilter] = useState<string>('all')
+
   useEffect(() => {
     if (teamId) setActiveTeamId(teamId)
     if (repoId) setActiveRepoId(repoId)
   }, [teamId, repoId])
 
-  // Load repo and configs
   useEffect(() => {
     const loadData = async () => {
       if (!repoId) return
+
       setLoading(true)
-      await Promise.all([
-        fetchRepo(repoId),
-        fetchConfigs({ repoId })
-      ])
+      setError(null)
+
+      const repoResult = await fetchRepo(repoId)
+      await fetchConfigs({ repoId })
+
+      if (repoResult.error) {
+        setError(repoResult.error.message)
+      } else if (repoResult.repo) {
+        setName(repoResult.repo.name || '')
+        setGitUrl(repoResult.repo.gitUrl || '')
+        setBranch(repoResult.repo.branch || '')
+        setOriginalName(repoResult.repo.name || '')
+        setOriginalGitUrl(repoResult.repo.gitUrl || '')
+        setOriginalBranch(repoResult.repo.branch || '')
+      }
+
       setLoading(false)
     }
     loadData()
   }, [repoId])
 
-  const repo = repoId && repos ? repos[repoId] : undefined
+  const repo = repos && repoId ? repos[repoId] : null
+  const hasChanges =
+    name !== originalName || gitUrl !== originalGitUrl || branch !== originalBranch
 
-  // Filter configs for this repo
   const repoConfigs = useMemo(() => {
     if (!configs || !repoId) return []
-    return Object.values(configs).filter(config => config.repoId === repoId)
+    let filtered = Object.values(configs).filter((config) => config.repoId === repoId)
+
+    if (configSearchQuery.trim()) {
+      const query = configSearchQuery.toLowerCase()
+      filtered = filtered.filter((config) => {
+        const data = JSON.stringify(config.data)
+        return (
+          data?.toLowerCase().includes(query) || config.id?.toLowerCase().includes(query)
+        )
+      })
+    }
+
+    return filtered
+  }, [configs, repoId, configSearchQuery, configTypeFilter])
+
+  const totalConfigsCount = useMemo(() => {
+    if (!configs || !repoId) return 0
+    return Object.values(configs).filter((config) => config.repoId === repoId).length
   }, [configs, repoId])
 
-  const handleDeleteRepo = async () => {
-    if (!repo || !repoId) return
-    if (!window.confirm(
-      `Are you sure you want to delete repository "${repo.name}"? This action cannot be undone.`
-    )) {
-      return
-    }
-    const result = await deleteRepo(repoId)
+  const onSave = async () => {
+    if (!repoId || !hasChanges) return
+
+    setSaving(true)
+    setError(null)
+    setSuccess(null)
+
+    const result = await updateRepo(repoId, { name, gitUrl, branch })
+
     if (result.error) {
-      alert(`Failed to delete repository: ${result.error.message}`)
+      setError(result.error.message)
+    } else {
+      setSuccess('Repository updated successfully')
+      setOriginalName(name)
+      setOriginalGitUrl(gitUrl)
+      setOriginalBranch(branch)
+    }
+
+    setSaving(false)
+  }
+
+  const onDeleteClick = () => {
+    setDeleteDialogOpen(true)
+    setConfirmName('')
+  }
+
+  const onDelete = async () => {
+    if (!repoId || !repo) return
+
+    const result = await deleteRepo(repoId)
+
+    if (result.error) {
+      setError(result.error.message)
+      setDeleteDialogOpen(false)
     } else {
       navigate(`/teams/${teamId}/repos`)
     }
   }
 
-  const handleDeleteConfig = async (id: string, key: string) => {
-    if (!window.confirm(`Are you sure you want to delete config "${key}"?`)) {
-      return
-    }
-    const result = await deleteConfig(id)
-    if (result.error) {
-      alert(`Failed to delete config: ${result.error.message}`)
-    }
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setSuccess('Copied to clipboard')
+    setTimeout(() => setSuccess(null), 2000)
   }
 
-  const handleCreateConfig = () => {
-    navigate(`/teams/${teamId}/repos/${repoId}/configs/new`)
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleString()
   }
 
-  if (loading) {
-    return (
-      <Page className='tdsk-repo-settings-page'>
-        <Typography>Loading settings...</Typography>
-      </Page>
-    )
+  const onCreateConfig = () => {
+    setCreateConfigDialogOpen(true)
   }
 
-  if (!repo) {
-    return (
-      <Page className='tdsk-repo-settings-page'>
-        <Alert severity='error'>Repository not found</Alert>
-      </Page>
-    )
+  const onCreateConfigSuccess = async () => {
+    repoId && (await fetchConfigs({ repoId }))
+  }
+
+  const onEditConfig = (config: Config) => {
+    setSelectedConfig(config)
+    setEditConfigDialogOpen(true)
+  }
+
+  const onEditConfigSuccess = async () => {
+    repoId && (await fetchConfigs({ repoId }))
   }
 
   return (
     <Page className='tdsk-repo-settings-page'>
-      <Typography variant='h4' component='h1' sx={{ mb: 3 }}>
-        Repository Settings
-      </Typography>
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant='h5'
+          component='h1'
+        >
+          Repository Settings
+        </Typography>
+      </Box>
 
-      {/* Repository Information */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant='h6' gutterBottom>
-            General Information
-          </Typography>
-          <Divider sx={{ mb: 3 }} />
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
 
-          <TextField
-            label='Repository Name'
-            value={repo.name}
-            fullWidth
-            disabled
-            sx={{ mb: 2 }}
-            helperText='Repository name cannot be changed'
-          />
+      {error && (
+        <Alert
+          severity='error'
+          sx={{ mb: 3 }}
+        >
+          {error}
+        </Alert>
+      )}
 
-          <TextField
-            label='Git URL'
-            value={repo.gitUrl || ''}
-            fullWidth
-            disabled
-            sx={{ mb: 2 }}
-            helperText='Git repository URL'
-          />
+      {success && (
+        <Alert
+          severity='success'
+          sx={{ mb: 3 }}
+        >
+          {success}
+        </Alert>
+      )}
 
-          <TextField
-            label='Branch'
-            value={repo.branch || 'main'}
-            fullWidth
-            disabled
-            sx={{ mb: 2 }}
-            helperText='Default branch'
-          />
+      {!loading && repo && (
+        <>
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant='h6'>General Settings</Typography>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  label='Repository Name'
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  fullWidth
+                />
+                <TextField
+                  label='Git URL'
+                  value={gitUrl}
+                  onChange={(e) => setGitUrl(e.target.value)}
+                  fullWidth
+                  placeholder='https://github.com/username/repo.git'
+                />
+                <TextField
+                  label='Branch'
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  fullWidth
+                  placeholder='main'
+                />
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    variant='contained'
+                    onClick={onSave}
+                    disabled={!hasChanges || saving}
+                  >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              label='Repository ID'
-              value={repo.id}
-              fullWidth
-              disabled
-              size='small'
-            />
-            <TextField
-              label='Team ID'
-              value={repo.teamId}
-              fullWidth
-              disabled
-              size='small'
-            />
-          </Box>
-        </CardContent>
-      </Card>
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant='h6'>Repository Information</Typography>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant='subtitle2'
+                  color='text.secondary'
+                >
+                  Repository ID
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography
+                    variant='body2'
+                    fontFamily='monospace'
+                  >
+                    {repo.id}
+                  </Typography>
+                  <IconButton
+                    size='small'
+                    onClick={() => copyToClipboard(repo.id)}
+                  >
+                    <ContentCopyIcon fontSize='small' />
+                  </IconButton>
+                </Box>
+              </Box>
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant='subtitle2'
+                  color='text.secondary'
+                >
+                  Team ID
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography
+                    variant='body2'
+                    fontFamily='monospace'
+                  >
+                    {repo.teamId}
+                  </Typography>
+                  <IconButton
+                    size='small'
+                    onClick={() => copyToClipboard(repo.teamId)}
+                  >
+                    <ContentCopyIcon fontSize='small' />
+                  </IconButton>
+                </Box>
+              </Box>
+              {repo.createdAt && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography
+                    variant='subtitle2'
+                    color='text.secondary'
+                  >
+                    Created
+                  </Typography>
+                  <Typography variant='body2'>{formatDate(repo.createdAt)}</Typography>
+                </Box>
+              )}
+              {repo.updatedAt && (
+                <Box>
+                  <Typography
+                    variant='subtitle2'
+                    color='text.secondary'
+                  >
+                    Last Updated
+                  </Typography>
+                  <Typography variant='body2'>{formatDate(repo.updatedAt)}</Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Configurations */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Typography variant='h6' sx={{ flex: 1 }}>
-              Configurations
-            </Typography>
-            <Button
-              size='small'
-              variant='outlined'
-              startIcon={<AddIcon />}
-              onClick={handleCreateConfig}
-            >
-              Add Config
-            </Button>
-          </Box>
-          <Divider sx={{ mb: 2 }} />
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant='h6'>Configurations</Typography>
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                  >
+                    {totalConfigsCount} config{totalConfigsCount !== 1 ? 's' : ''}
+                  </Typography>
+                </Box>
+                <Button
+                  size='small'
+                  variant='outlined'
+                  startIcon={<AddIcon />}
+                  onClick={onCreateConfig}
+                >
+                  Add Config
+                </Button>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
 
-          {repoConfigs.length === 0 ? (
-            <Typography color='text.secondary'>
-              No configurations found for this repository.
-            </Typography>
-          ) : (
-            <TableContainer>
-              <Table size='small'>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Key</TableCell>
-                    <TableCell>Value</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell align='right'>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {repoConfigs.map(config => (
-                    <TableRow key={config.id} hover>
-                      <TableCell>
-                        <Typography variant='body2' fontFamily='monospace'>
-                          {config.key}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography
-                          variant='body2'
-                          fontFamily='monospace'
-                          sx={{
-                            maxWidth: 300,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {config.value}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={config.type || 'string'}
-                          size='small'
-                          variant='outlined'
-                        />
-                      </TableCell>
-                      <TableCell align='right'>
-                        <Tooltip title='Delete config'>
+              {totalConfigsCount > 0 && (
+                <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <TextField
+                    placeholder='Search configs by key or value...'
+                    value={configSearchQuery}
+                    onChange={(e) => setConfigSearchQuery(e.target.value)}
+                    size='small'
+                    sx={{ flex: 1, minWidth: 200 }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position='start'>
+                          <SearchIcon color='action' />
+                        </InputAdornment>
+                      ),
+                      endAdornment: configSearchQuery && (
+                        <InputAdornment position='end'>
                           <IconButton
                             size='small'
-                            color='error'
-                            onClick={() => handleDeleteConfig(config.id, config.key)}
+                            onClick={() => setConfigSearchQuery('')}
+                            edge='end'
                           >
-                            <DeleteIcon />
+                            <ClearIcon />
                           </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </CardContent>
-      </Card>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Box>
+              )}
 
-      {/* Danger Zone */}
-      <Card sx={{ borderColor: 'error.main', borderWidth: 1, borderStyle: 'solid' }}>
-        <CardContent>
-          <Typography variant='h6' color='error' gutterBottom>
-            Danger Zone
+              {totalConfigsCount === 0 && (
+                <Typography color='text.secondary'>
+                  No configurations found for this repository.
+                </Typography>
+              )}
+
+              {totalConfigsCount > 0 && repoConfigs.length === 0 && (
+                <Typography
+                  color='text.secondary'
+                  align='center'
+                >
+                  No configurations match your search or filter criteria.
+                </Typography>
+              )}
+
+              {repoConfigs.length > 0 && (
+                <TableContainer>
+                  <Table size='small'>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Key</TableCell>
+                        <TableCell>Value</TableCell>
+                        <TableCell align='right'>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {repoConfigs.map((config) => (
+                        <TableRow
+                          key={config.id}
+                          hover
+                          sx={{ cursor: 'pointer' }}
+                          onClick={() => onEditConfig(config)}
+                        >
+                          <TableCell>
+                            <Typography
+                              variant='body2'
+                              fontFamily='monospace'
+                            >
+                              {config.id}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              variant='body2'
+                              fontFamily='monospace'
+                              sx={{
+                                maxWidth: 300,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              TODO: config.data
+                            </Typography>
+                          </TableCell>
+                          <TableCell align='right'>
+                            <Tooltip title='Edit config'>
+                              <IconButton
+                                size='small'
+                                color='primary'
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onEditConfig(config)
+                                }}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card sx={{ border: '1px solid', borderColor: 'error.main' }}>
+            <CardContent>
+              <Typography
+                variant='h6'
+                color='error'
+              >
+                Danger Zone
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Box>
+                  <Typography variant='body1'>Delete this repository</Typography>
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                  >
+                    Once deleted, this action cannot be undone. All data will be lost.
+                  </Typography>
+                </Box>
+                <Button
+                  variant='outlined'
+                  color='error'
+                  onClick={onDeleteClick}
+                >
+                  Delete Repository
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Delete Repository?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <strong>{repo?.name}</strong>? This will
+            permanently delete all associated endpoints, functions, secrets, and
+            configurations.
           </Typography>
-          <Divider sx={{ mb: 2 }} />
-
-          <Alert severity='warning' sx={{ mb: 2 }}>
-            Deleting this repository will permanently remove all associated data including
-            endpoints, functions, secrets, and configurations. This action cannot be undone.
-          </Alert>
-
+          <TextField
+            label='Type repository name to confirm'
+            value={confirmName}
+            onChange={(e) => setConfirmName(e.target.value)}
+            fullWidth
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
           <Button
-            variant='contained'
             color='error'
-            startIcon={<DeleteIcon />}
-            onClick={handleDeleteRepo}
+            variant='contained'
+            disabled={confirmName !== repo?.name}
+            onClick={onDelete}
           >
             Delete Repository
           </Button>
-        </CardContent>
-      </Card>
+        </DialogActions>
+      </Dialog>
+
+      {repoId && (
+        <CreateConfigDialog
+          open={createConfigDialogOpen}
+          repoId={repoId}
+          onClose={() => setCreateConfigDialogOpen(false)}
+          onSuccess={onCreateConfigSuccess}
+        />
+      )}
+
+      <EditConfigDialog
+        open={editConfigDialogOpen}
+        config={selectedConfig}
+        onClose={() => {
+          setEditConfigDialogOpen(false)
+          setSelectedConfig(null)
+        }}
+        onSuccess={onEditConfigSuccess}
+      />
     </Page>
   )
 }

@@ -1,28 +1,27 @@
+import { ERoutePath } from '@TAF/types'
 import { useEffect, useState } from 'react'
+import { Page } from '@TAF/pages/Page/Page'
+import { useTeams } from '@TAF/state/selectors'
 import { useParams, useNavigate } from 'react-router'
+import { setActiveTeamId } from '@TAF/state/accessors'
+import { ContentCopy as ContentCopyIcon } from '@mui/icons-material'
+import { fetchTeam, updateTeam, deleteTeam } from '@TAF/actions/teams'
 import {
   Box,
-  Button,
   Card,
-  CardContent,
-  Typography,
-  TextField,
-  CircularProgress,
-  Divider,
-  IconButton,
   Alert,
   Dialog,
+  Button,
+  Divider,
+  TextField,
+  Typography,
+  IconButton,
   DialogTitle,
+  CardContent,
   DialogContent,
   DialogActions,
+  CircularProgress,
 } from '@mui/material'
-import { ContentCopy as ContentCopyIcon } from '@mui/icons-material'
-import { Page } from '@TAF/pages/Page/Page'
-import { setActiveTeamId } from '@TAF/state/accessors'
-import { useTeams } from '@TAF/state/selectors'
-import { fetchTeam, updateTeam, deleteTeam } from '@TAF/actions/teams'
-import { ERoutePath } from '@TAF/types'
-import type { Team } from '@tdsk/domain'
 
 export type TTeamSettings = {}
 
@@ -35,24 +34,20 @@ export const TeamSettings = (props: TTeamSettings) => {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Form state
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [originalName, setOriginalName] = useState('')
   const [originalDescription, setOriginalDescription] = useState('')
 
-  // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmName, setConfirmName] = useState('')
 
-  // Sync active team with URL params
   useEffect(() => {
     if (teamId) {
       setActiveTeamId(teamId)
     }
   }, [teamId])
 
-  // Load team
   useEffect(() => {
     const loadData = async () => {
       if (!teamId) return
@@ -80,7 +75,7 @@ export const TeamSettings = (props: TTeamSettings) => {
   const team = teams && teamId ? teams[teamId] : null
   const hasChanges = name !== originalName || description !== originalDescription
 
-  const handleSave = async () => {
+  const onSave = async () => {
     if (!teamId || !hasChanges) return
 
     setSaving(true)
@@ -100,12 +95,12 @@ export const TeamSettings = (props: TTeamSettings) => {
     setSaving(false)
   }
 
-  const handleDeleteClick = () => {
+  const onDeleteClick = () => {
     setDeleteDialogOpen(true)
     setConfirmName('')
   }
 
-  const handleDelete = async () => {
+  const onDelete = async () => {
     if (!teamId || !team) return
 
     const result = await deleteTeam(teamId)
@@ -131,7 +126,10 @@ export const TeamSettings = (props: TTeamSettings) => {
   return (
     <Page className='tdsk-team-settings-page'>
       <Box sx={{ mb: 3 }}>
-        <Typography variant='h5' component='h1'>
+        <Typography
+          variant='h5'
+          component='h1'
+        >
           Team Settings
         </Typography>
       </Box>
@@ -143,43 +141,48 @@ export const TeamSettings = (props: TTeamSettings) => {
       )}
 
       {error && (
-        <Alert severity='error' sx={{ mb: 3 }}>
+        <Alert
+          severity='error'
+          sx={{ mb: 3 }}
+        >
           {error}
         </Alert>
       )}
 
       {success && (
-        <Alert severity='success' sx={{ mb: 3 }}>
+        <Alert
+          severity='success'
+          sx={{ mb: 3 }}
+        >
           {success}
         </Alert>
       )}
 
       {!loading && team && (
         <>
-          {/* General Settings */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant='h6'>General Settings</Typography>
               <Divider sx={{ my: 2 }} />
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
-                  label='Team Name'
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
                   fullWidth
+                  value={name}
+                  label='Team Name'
+                  onChange={(e) => setName(e.target.value)}
                 />
                 <TextField
+                  rows={3}
+                  multiline
+                  fullWidth
                   label='Description'
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  multiline
-                  rows={3}
-                  fullWidth
                 />
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <Button
+                    onClick={onSave}
                     variant='contained'
-                    onClick={handleSave}
                     disabled={!hasChanges || saving}
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
@@ -189,27 +192,38 @@ export const TeamSettings = (props: TTeamSettings) => {
             </CardContent>
           </Card>
 
-          {/* Team Information */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant='h6'>Team Information</Typography>
               <Divider sx={{ my: 2 }} />
               <Box sx={{ mb: 2 }}>
-                <Typography variant='subtitle2' color='text.secondary'>
+                <Typography
+                  variant='subtitle2'
+                  color='text.secondary'
+                >
                   Team ID
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant='body2' fontFamily='monospace'>
+                  <Typography
+                    variant='body2'
+                    fontFamily='monospace'
+                  >
                     {team.id}
                   </Typography>
-                  <IconButton size='small' onClick={() => copyToClipboard(team.id)}>
+                  <IconButton
+                    size='small'
+                    onClick={() => copyToClipboard(team.id)}
+                  >
                     <ContentCopyIcon fontSize='small' />
                   </IconButton>
                 </Box>
               </Box>
               {team.createdAt && (
                 <Box sx={{ mb: 2 }}>
-                  <Typography variant='subtitle2' color='text.secondary'>
+                  <Typography
+                    variant='subtitle2'
+                    color='text.secondary'
+                  >
                     Created
                   </Typography>
                   <Typography variant='body2'>{formatDate(team.createdAt)}</Typography>
@@ -217,7 +231,10 @@ export const TeamSettings = (props: TTeamSettings) => {
               )}
               {team.updatedAt && (
                 <Box>
-                  <Typography variant='subtitle2' color='text.secondary'>
+                  <Typography
+                    variant='subtitle2'
+                    color='text.secondary'
+                  >
                     Last Updated
                   </Typography>
                   <Typography variant='body2'>{formatDate(team.updatedAt)}</Typography>
@@ -226,10 +243,12 @@ export const TeamSettings = (props: TTeamSettings) => {
             </CardContent>
           </Card>
 
-          {/* Danger Zone */}
           <Card sx={{ border: '1px solid', borderColor: 'error.main' }}>
             <CardContent>
-              <Typography variant='h6' color='error'>
+              <Typography
+                variant='h6'
+                color='error'
+              >
                 Danger Zone
               </Typography>
               <Divider sx={{ my: 2 }} />
@@ -242,11 +261,19 @@ export const TeamSettings = (props: TTeamSettings) => {
               >
                 <Box>
                   <Typography variant='body1'>Delete this team</Typography>
-                  <Typography variant='body2' color='text.secondary'>
-                    Once deleted, this action cannot be undone. All repos and data will be lost.
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                  >
+                    Once deleted, this action cannot be undone. All repos and data will be
+                    lost.
                   </Typography>
                 </Box>
-                <Button variant='outlined' color='error' onClick={handleDeleteClick}>
+                <Button
+                  variant='outlined'
+                  color='error'
+                  onClick={onDeleteClick}
+                >
                   Delete Team
                 </Button>
               </Box>
@@ -255,8 +282,10 @@ export const TeamSettings = (props: TTeamSettings) => {
         </>
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
         <DialogTitle>Delete Team?</DialogTitle>
         <DialogContent>
           <Typography>
@@ -264,11 +293,11 @@ export const TeamSettings = (props: TTeamSettings) => {
             permanently delete all associated repos, secrets, and configurations.
           </Typography>
           <TextField
-            label='Type team name to confirm'
-            value={confirmName}
-            onChange={(e) => setConfirmName(e.target.value)}
             fullWidth
             sx={{ mt: 2 }}
+            value={confirmName}
+            label='Type team name to confirm'
+            onChange={(e) => setConfirmName(e.target.value)}
           />
         </DialogContent>
         <DialogActions>
@@ -276,8 +305,8 @@ export const TeamSettings = (props: TTeamSettings) => {
           <Button
             color='error'
             variant='contained'
+            onClick={onDelete}
             disabled={confirmName !== team?.name}
-            onClick={handleDelete}
           >
             Delete Team
           </Button>

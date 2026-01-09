@@ -1,47 +1,73 @@
-import { useEffect, useState, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router'
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Tooltip,
-  Chip,
-} from '@mui/material'
-import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Public as PublicIcon,
-  Lock as PrivateIcon,
-} from '@mui/icons-material'
+import type { Endpoint } from '@tdsk/domain'
+
+import { useParams } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { useEndpoints } from '@TAF/state/selectors'
+import { useEffect, useState, useMemo } from 'react'
+import { EditEndpointDialog } from './EditEndpointDialog'
+import { CreateEndpointDialog } from './CreateEndpointDialog'
 import { fetchEndpoints, deleteEndpoint } from '@TAF/actions/endpoints'
 import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import {
+  SearchBar,
+  FilterSelect,
+  PageHeader,
+  EmptyState,
+  LoadingSpinner,
+} from '@TAF/components'
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Lock as PrivateIcon,
+  Delete as DeleteIcon,
+  Public as PublicIcon,
+} from '@mui/icons-material'
+import {
+  Box,
+  Chip,
+  Card,
+  Table,
+  Tooltip,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead,
+  IconButton,
+  TableContainer,
+} from '@mui/material'
 
 export type TRepoEndpoints = {}
 
+// TODO: move to domain repo
+const METHOD_FILTER_OPTIONS = [
+  { value: 'GET', label: 'GET' },
+  { value: 'POST', label: 'POST' },
+  { value: 'PUT', label: 'PUT' },
+  { value: 'PATCH', label: 'PATCH' },
+  { value: 'DELETE', label: 'DELETE' },
+]
+// TODO: move to domain repo
+const VISIBILITY_FILTER_OPTIONS = [
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
+]
+
 export const RepoEndpoints = (props: TRepoEndpoints) => {
   const { teamId, repoId } = useParams<{ teamId: string; repoId: string }>()
-  const navigate = useNavigate()
   const [endpoints] = useEndpoints()
   const [loading, setLoading] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [methodFilter, setMethodFilter] = useState<string>('all')
+  const [visibilityFilter, setVisibilityFilter] = useState<string>('all')
 
-  // Sync active team and repo with URL params
   useEffect(() => {
     if (teamId) setActiveTeamId(teamId)
     if (repoId) setActiveRepoId(repoId)
   }, [teamId, repoId])
 
-  // Load endpoints for this repo
   useEffect(() => {
     const loadData = async () => {
       if (!repoId) return
@@ -52,13 +78,43 @@ export const RepoEndpoints = (props: TRepoEndpoints) => {
     loadData()
   }, [repoId])
 
-  // Filter endpoints for this repo
-  const repoEndpoints = useMemo(() => {
+  const filteredEndpoints = useMemo(() => {
     if (!endpoints || !repoId) return []
-    return Object.values(endpoints).filter(endpoint => endpoint.repoId === repoId)
-  }, [endpoints, repoId])
 
-  const handleDelete = async (id: string, name: string) => {
+    let filtered = Object.values(endpoints).filter(
+      (endpoint) => endpoint.repoId === repoId
+    )
+
+    // Apply method filter
+    if (methodFilter !== 'all') {
+      filtered = filtered.filter((endpoint) => endpoint.method === methodFilter)
+    }
+
+    // Apply visibility filter
+    if (visibilityFilter !== 'all') {
+      const isPublic = visibilityFilter === 'public'
+      filtered = filtered.filter((endpoint) => endpoint.public === isPublic)
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (endpoint) =>
+          endpoint.name?.toLowerCase().includes(query) ||
+          endpoint.url?.toLowerCase().includes(query) ||
+          endpoint.id?.toLowerCase().includes(query)
+      )
+    }
+
+    return filtered
+  }, [endpoints, repoId, searchQuery, methodFilter, visibilityFilter])
+
+  const endpointsCount = endpoints
+    ? Object.values(endpoints).filter((e) => e.repoId === repoId).length
+    : 0
+
+  const onDelete = async (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to delete endpoint "${name}"?`)) {
       return
     }
@@ -68,50 +124,90 @@ export const RepoEndpoints = (props: TRepoEndpoints) => {
     }
   }
 
-  const handleCreate = () => {
-    navigate(`/teams/${teamId}/repos/${repoId}/endpoints/new`)
+  const onCreate = () => {
+    setDialogOpen(true)
   }
 
-  if (loading) {
-    return (
-      <Page className='tdsk-repo-endpoints-page'>
-        <Typography>Loading endpoints...</Typography>
-      </Page>
-    )
+  const onDialogClose = () => {
+    setDialogOpen(false)
+  }
+
+  const onDialogSuccess = async () => {
+    if (repoId) {
+      await fetchEndpoints({ repoId })
+    }
+  }
+
+  const onEdit = (endpoint: Endpoint) => {
+    setSelectedEndpoint(endpoint)
+    setEditDialogOpen(true)
+  }
+
+  const onEditDialogClose = () => {
+    setEditDialogOpen(false)
+    setSelectedEndpoint(null)
+  }
+
+  const onEditDialogSuccess = async () => {
+    if (repoId) {
+      await fetchEndpoints({ repoId })
+    }
   }
 
   return (
     <Page className='tdsk-repo-endpoints-page'>
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Typography variant='h4' component='h1' sx={{ flex: 1 }}>
-          Endpoints
-        </Typography>
-        <Button
-          variant='contained'
-          startIcon={<AddIcon />}
-          onClick={handleCreate}
-        >
-          Create Endpoint
-        </Button>
-      </Box>
+      <PageHeader
+        title='Endpoints'
+        onAction={onCreate}
+        countLabel='endpoint'
+        count={endpointsCount}
+        actionIcon={<AddIcon />}
+        actionLabel='Create Endpoint'
+      />
 
-      {repoEndpoints.length === 0 ? (
-        <Card>
-          <CardContent>
-            <Typography color='text.secondary'>
-              No endpoints found for this repository.
-            </Typography>
-            <Button
-              variant='outlined'
-              startIcon={<AddIcon />}
-              onClick={handleCreate}
-              sx={{ mt: 2 }}
-            >
-              Create Your First Endpoint
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
+      {!loading && endpointsCount > 0 && (
+        <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            sx={{ flex: 1, minWidth: 200 }}
+            placeholder='Search endpoints by name or URL...'
+          />
+          <FilterSelect
+            id='method-filter'
+            label='Method'
+            value={methodFilter}
+            allLabel='All Methods'
+            onChange={setMethodFilter}
+            options={METHOD_FILTER_OPTIONS}
+          />
+          <FilterSelect
+            allLabel='All'
+            label='Visibility'
+            id='visibility-filter'
+            value={visibilityFilter}
+            onChange={setVisibilityFilter}
+            options={VISIBILITY_FILTER_OPTIONS}
+          />
+        </Box>
+      )}
+
+      {loading && <LoadingSpinner />}
+
+      {!loading && endpointsCount === 0 && (
+        <EmptyState
+          onAction={onCreate}
+          actionIcon={<AddIcon />}
+          message='No endpoints found for this repository.'
+          actionLabel='Create Your First Endpoint'
+        />
+      )}
+
+      {!loading && endpointsCount > 0 && filteredEndpoints.length === 0 && (
+        <EmptyState message='No endpoints match your search or filter criteria.' />
+      )}
+
+      {!loading && filteredEndpoints.length > 0 && (
         <TableContainer component={Card}>
           <Table>
             <TableHead>
@@ -124,8 +220,13 @@ export const RepoEndpoints = (props: TRepoEndpoints) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {repoEndpoints.map(endpoint => (
-                <TableRow key={endpoint.id} hover>
+              {filteredEndpoints.map((endpoint) => (
+                <TableRow
+                  key={endpoint.id}
+                  hover
+                  sx={{ cursor: 'pointer' }}
+                  onClick={() => onEdit(endpoint)}
+                >
                   <TableCell>{endpoint.name}</TableCell>
                   <TableCell>
                     <Chip
@@ -135,14 +236,14 @@ export const RepoEndpoints = (props: TRepoEndpoints) => {
                       variant='outlined'
                     />
                   </TableCell>
-                  <TableCell>
-                    <Typography
-                      variant='body2'
-                      fontFamily='monospace'
-                      sx={{ wordBreak: 'break-all' }}
-                    >
-                      {endpoint.proxyUrl}
-                    </Typography>
+                  <TableCell
+                    sx={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.875rem',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {endpoint.url}
                   </TableCell>
                   <TableCell align='center'>
                     {endpoint.public ? (
@@ -156,11 +257,25 @@ export const RepoEndpoints = (props: TRepoEndpoints) => {
                     )}
                   </TableCell>
                   <TableCell align='right'>
+                    <Tooltip title='Edit endpoint'>
+                      <IconButton
+                        size='small'
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onEdit(endpoint)
+                        }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title='Delete endpoint'>
                       <IconButton
                         size='small'
                         color='error'
-                        onClick={() => handleDelete(endpoint.id, endpoint.name)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDelete(endpoint.id, endpoint.name)
+                        }}
                       >
                         <DeleteIcon />
                       </IconButton>
@@ -172,6 +287,22 @@ export const RepoEndpoints = (props: TRepoEndpoints) => {
           </Table>
         </TableContainer>
       )}
+
+      {repoId && (
+        <CreateEndpointDialog
+          open={dialogOpen}
+          repoId={repoId}
+          onClose={onDialogClose}
+          onSuccess={onDialogSuccess}
+        />
+      )}
+
+      <EditEndpointDialog
+        open={editDialogOpen}
+        endpoint={selectedEndpoint}
+        onClose={onEditDialogClose}
+        onSuccess={onEditDialogSuccess}
+      />
     </Page>
   )
 }

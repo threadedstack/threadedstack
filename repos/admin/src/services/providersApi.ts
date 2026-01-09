@@ -34,7 +34,7 @@ export class ProvidersApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((provider) => new Provider(provider)) || [],
+      data: resp?.data?.map?.((provider) => new Provider(provider)) || [],
     }
   }
 

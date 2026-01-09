@@ -1,9 +1,9 @@
+import { sql } from 'drizzle-orm'
 import { teams } from '@TDB/schemas/teams'
 import { users } from '@TDB/schemas/users'
 import { repos } from '@TDB/schemas/repos'
 import { base } from '@TDB/utils/schema/base'
-import { uuid, text, jsonb, check, pgEnum, boolean, pgTable } from 'drizzle-orm/pg-core'
-import { sql } from 'drizzle-orm'
+import { uuid, jsonb, check, pgTable } from 'drizzle-orm/pg-core'
 
 export const configs = pgTable(
   'configs',
