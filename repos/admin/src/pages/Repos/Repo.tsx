@@ -15,7 +15,7 @@ import {
   ArrowBack as BackIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  FolderGit as RepoIcon,
+  Folder as RepoIcon,
 } from '@mui/icons-material'
 import { Page } from '@TAF/pages/Page/Page'
 import { useRepos } from '@TAF/state/selectors'

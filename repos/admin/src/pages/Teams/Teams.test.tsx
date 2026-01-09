@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { Teams } from './Teams'
 import * as teamsActions from '@TAF/actions/teams'
@@ -6,6 +6,13 @@ import * as teamsActions from '@TAF/actions/teams'
 // Mock the router
 vi.mock('react-router', () => ({
   useNavigate: () => vi.fn(),
+}))
+
+// Mock the Page component to avoid split-pane-react dependency issues
+vi.mock('@TAF/pages/Page/Page', () => ({
+  Page: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div className={className}>{children}</div>
+  ),
 }))
 
 // Mock the state selectors
@@ -26,6 +33,10 @@ vi.mock('@TAF/actions/teams', () => ({
 }))
 
 describe('Teams', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('should render teams list', async () => {
     render(<Teams />)
 

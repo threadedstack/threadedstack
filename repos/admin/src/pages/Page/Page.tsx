@@ -26,7 +26,7 @@ const defs = {
   },
   loading: {
     full: true,
-    message: `Loading dashboard...`,
+    message: `Loading...`,
     messageSx: { color: `text.primary` },
   },
   main: {

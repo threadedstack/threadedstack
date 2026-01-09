@@ -32,7 +32,7 @@ describe('CreateTeamDialog', () => {
     expect(screen.queryByText('Create New Team')).toBeNull()
   })
 
-  it('should show error when name is empty', async () => {
+  it('should show error when submitting with empty name', async () => {
     render(
       <CreateTeamDialog
         open={true}
@@ -40,8 +40,13 @@ describe('CreateTeamDialog', () => {
       />
     )
 
-    const submitButton = screen.getByText('Create Team')
-    fireEvent.click(submitButton)
+    // Clear any value and ensure the input is empty
+    const nameInput = screen.getByPlaceholderText('Enter team name')
+    fireEvent.change(nameInput, { target: { value: '' } })
+
+    // Submit the form directly to bypass browser validation
+    const form = screen.getByText('Create New Team').closest('form')
+    fireEvent.submit(form!)
 
     await waitFor(() => {
       expect(screen.getByText('Team name is required')).toBeDefined()
