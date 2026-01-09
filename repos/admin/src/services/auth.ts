@@ -4,6 +4,11 @@ import { User } from '@tdsk/domain'
 import { TDSK_AUTH_URL } from '@TAF/constants/envs'
 import { createAuthClient } from '@neondatabase/neon-js/auth'
 
+/**
+ * Neon Auth client for client-side OAuth
+ * The admin app handles auth directly with Neon Auth
+ * JWT tokens are sent to proxy which validates them
+ */
 export const authClient = createAuthClient(TDSK_AUTH_URL)
 
 type TAuthResp = {
@@ -37,7 +42,7 @@ export class Auth {
     })
   }
 
-  signout = async (provider?: string) => {
+  signout = async () => {
     const { error } = await this.client.signOut()
     return error ? this.#error(error) : true
   }

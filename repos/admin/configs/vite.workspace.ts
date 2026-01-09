@@ -74,5 +74,10 @@ export const config = {
     watch: false,
     environment: `jsdom`,
     setupFiles: `./scripts/setupTests.ts`,
+    server: {
+      deps: {
+        inline: [`mui-image-alter`],
+      },
+    },
   },
 }

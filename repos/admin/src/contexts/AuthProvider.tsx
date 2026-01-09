@@ -14,6 +14,15 @@ export type TAuthProvider = {
   children: ReactNode
 }
 
+/**
+ * AuthProvider handles authentication state for the admin app
+ *
+ * Auth flow (Client-Side with Neon Auth):
+ * 1. On mount, calls initAuth() which validates session with Neon Auth
+ * 2. NeonAuthUIProvider handles OAuth redirects and token management
+ * 3. JWT tokens from Neon Auth are sent to proxy in Authorization header
+ * 4. Proxy validates JWT using JWKS from Neon Auth
+ */
 export const AuthProvider = (props: TAuthProvider) => {
   const [error, setError] = useState<string>()
   const [loading, setLoading] = useState<boolean>(true)

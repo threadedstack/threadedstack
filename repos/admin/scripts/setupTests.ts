@@ -8,7 +8,6 @@ afterEach(() => {
   cleanup()
 })
 
-// Mock problematic MUI dependencies
 vi.mock('mui-image-alter', () => ({
   default: () => null,
 }))

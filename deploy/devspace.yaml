@@ -55,7 +55,7 @@ vars:
     default: latest
 
 
-# ----- Backend Values ----- #
+# ----- Proxy Values ----- #
   TDSK_PX_DEPLOYMENT:
     source: env
     default: tdsk-proxy
@@ -74,6 +74,22 @@ vars:
   TDSK_PX_WS_DEBUG_PATH:
     source: env
     default: /devtools/page
+
+# ----- Backend Values ----- #
+  TDSK_BE_DEPLOYMENT:
+    source: env
+    default: tdsk-backend
+  TDSK_BE_IMAGE:
+    source: env
+    default: ghcr.io/threadedstack/tdsk-backend
+  TDSK_BE_IMAGE_TAG:
+    source: env
+    default: latest
+  TDSK_BE_PORT:
+    source: env
+    default: 7119
+
+# ----- Kubernetes Secrets ----- #
   TDSK_KUBE_SCRT_DOC_AUTH:
     source: env
     default: docker-auth
@@ -83,6 +99,11 @@ vars:
   TDSK_KUBE_SCRT_TLS_NAME:
     source: env
     default: tdsk-tls-secret
+  TDSK_KUBE_SCRT_MASTER_KEY:
+    source: env
+    default: tdsk-master-key
+
+# ----- Server Configuration ----- #
   TDSK_ALLOWED_HEADERS:
     source: env
     default: 'X-PINGOTHER,Origin,X-Requested-With,Content-Type,Accept,Authorization,AuthToken,x-tdsk-host,x-tdsk-proto,x-tdsk-port,x-tdsk-route,x-tdsk-job-id,x-tdsk-subdomain,x-forwarded-subdomain,x-forwarded-port,x-forwarded-proto,x-forwarded-host,x-forwarded-for'
@@ -388,15 +409,12 @@ dev:
       - port: ${TDSK_BE_PORT}
 
 
-# Use profile to dynamically set options based on the environment 
+# Use profile to dynamically set options based on the environment
 profiles:
 - name: local
   patches:
   - op: replace
     path: deployments.tdsk-proxy.helm.values.containers[0].image
-    value: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
-  - op: replace
-    path: deployments.tdsk-browser.helm.values.containers[0].image
     value: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
   - op: replace
     path: deployments.tdsk-backend.helm.values.containers[0].image
