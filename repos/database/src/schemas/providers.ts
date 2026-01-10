@@ -3,15 +3,13 @@ import { teams } from '@TDB/schemas/teams'
 import { repos } from '@TDB/schemas/repos'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
-import { uuid, jsonb, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
-
-export const providerTypeEnum = pgEnum(`provider_type`, [`auth`, `git`, `ai`, `storage`])
+import { uuid, jsonb, pgTable, text } from 'drizzle-orm/pg-core'
 
 export const providers = pgTable(`providers`, {
   ...base,
   name: text(`name`),
   options: jsonb(`options`),
-  type: providerTypeEnum(`type`).notNull(),
+  type: text(`type`).notNull(),
   repoId: uuid(`repo_id`).references(() => repos.id, { onDelete: `cascade` }),
   teamId: uuid(`team_id`).references(() => teams.id, { onDelete: `cascade` }),
   userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),

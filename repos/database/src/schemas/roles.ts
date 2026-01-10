@@ -3,16 +3,14 @@ import { teams } from '@TDB/schemas/teams'
 import { users } from '@TDB/schemas/users'
 import { repos } from '@TDB/schemas/repos'
 import { base } from '@TDB/utils/schema/base'
-import { uuid, text, check, pgEnum, pgTable } from 'drizzle-orm/pg-core'
-
-export const roleTypeEnum = pgEnum(`role_type`, [`super`, `admin`, `basic`])
+import { uuid, text, check, pgTable } from 'drizzle-orm/pg-core'
 
 export const roles = pgTable(
   `roles`,
   {
     ...base,
     name: text(`name`),
-    type: roleTypeEnum(`type`).default(`basic`).notNull(),
+    type: text(`type`).notNull(),
     teamId: uuid(`team_id`).references(() => teams.id, { onDelete: `cascade` }),
     repoId: uuid(`repo_id`).references(() => repos.id, { onDelete: `cascade` }),
     userId: uuid(`user_id`)

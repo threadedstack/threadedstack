@@ -89,8 +89,6 @@ env:
   # Project ID when using the neon
   TDSK_DB_PROJECT_ID:
 
-  TDSK_DB_JWT_CREDS: false
-
   # The below envs should be set by the TDSK_KUBE_SCRT_DB_CFG secret with-in kubernetes
   # Name of the database to use
   TDSK_DB_NAME: tdsk

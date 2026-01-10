@@ -10,6 +10,6 @@ export type TRepoOpts = {
 
 export class Repo extends Base<typeof repos, TDBRepoSelect, TDBRepoInsert> {
   constructor(opts: TRepoOpts) {
-    super({ ...opts, schema: repos })
+    super({ ...opts, table: repos })
   }
 }

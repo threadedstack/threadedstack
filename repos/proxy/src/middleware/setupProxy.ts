@@ -4,7 +4,7 @@ import type { Options } from 'http-proxy-middleware'
 import type { ClientRequest, IncomingMessage, ServerResponse } from 'http'
 
 import { logger } from '@TPX/utils/logger'
-import { adminPath } from '@TPX/utils/adminPath'
+import { adminPath, setAuthHeaders } from '@tdsk/domain'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 
 /**
@@ -19,11 +19,7 @@ const addProxyHeaders = (
     config.backend.headerValue &&
     proxyReq.setHeader(config.backend.headerKey, config.backend.headerValue)
 
-  if (!req.user) return
-
-  proxyReq.setHeader(`X-User-Id`, req.user.userId)
-  req.user.teamId && proxyReq.setHeader(`X-Team-Id`, req.user.teamId)
-  req.user.role && proxyReq.setHeader(`X-User-Role`, req.user.role)
+  setAuthHeaders(proxyReq, req)
 }
 
 /**
@@ -59,9 +55,11 @@ const createBackendProxy = (app: TProxyApp, loc: string) => {
     xfwd: true,
     changeOrigin: true,
     target: backend.url,
+    // The backend expects the original URL response
+    pathRewrite: (path, req: Request) => req.originalUrl,
     on: {
       error: handleProxyError,
-      proxyReq: (proxyReq, req) => {
+      proxyReq: (proxyReq, req: Request) => {
         addProxyHeaders(proxyReq, req as Request, app.locals.config)
       },
       proxyRes: (proxyRes, req) => {
@@ -74,6 +72,6 @@ const createBackendProxy = (app: TProxyApp, loc: string) => {
 }
 
 export const setupProxy = (app: TProxyApp) => {
-  const loc = adminPath(app.locals.config)
+  const loc = adminPath(app.locals.config.backend)
   app.use(pathFilter(loc), createBackendProxy(app, loc))
 }

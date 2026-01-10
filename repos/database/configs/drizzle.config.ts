@@ -23,7 +23,7 @@ const {
 
 export default defineConfig({
   out: aliases[`@TDB/drizzle`],
-  schema: path.join(aliases[`@TDB`], `schemas`),
+  schema: path.join(aliases[`@TDB`], `schemas`, `schemas.ts`),
   introspect: {
     casing: `camel`,
   },

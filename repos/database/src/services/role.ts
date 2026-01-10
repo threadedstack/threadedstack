@@ -10,6 +10,6 @@ export type TRoleOpts = {
 
 export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert> {
   constructor(opts: TRoleOpts) {
-    super({ ...opts, schema: roles })
+    super({ ...opts, table: roles })
   }
 }

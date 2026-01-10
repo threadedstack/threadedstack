@@ -14,6 +14,6 @@ export class Provider extends Base<
   TDBProviderInsert
 > {
   constructor(opts: TProviderOpts) {
-    super({ ...opts, schema: providers })
+    super({ ...opts, table: providers })
   }
 }

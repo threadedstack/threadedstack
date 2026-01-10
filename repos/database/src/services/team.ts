@@ -10,6 +10,6 @@ export type TTeamOpts = {
 
 export class Team extends Base<typeof teams, TDBTeamSelect, TDBTeamInsert> {
   constructor(opts: TTeamOpts) {
-    super({ ...opts, schema: teams })
+    super({ ...opts, table: teams })
   }
 }

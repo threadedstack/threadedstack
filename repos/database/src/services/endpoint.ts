@@ -14,6 +14,6 @@ export class Endpoint extends Base<
   TDBEndpointInsert
 > {
   constructor(opts: TEndpointOpts) {
-    super({ ...opts, schema: endpoints })
+    super({ ...opts, table: endpoints })
   }
 }

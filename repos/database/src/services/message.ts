@@ -10,6 +10,6 @@ export type TMessageOpts = {
 
 export class Message extends Base<typeof messages, TDBMessageSelect, TDBMessageInsert> {
   constructor(opts: TMessageOpts) {
-    super({ ...opts, schema: messages })
+    super({ ...opts, table: messages })
   }
 }

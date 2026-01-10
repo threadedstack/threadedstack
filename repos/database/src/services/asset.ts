@@ -10,6 +10,6 @@ export type TAssetOpts = {
 
 export class Asset extends Base<typeof assets, TDBAssetSelect, TDBAssetInsert> {
   constructor(opts: TAssetOpts) {
-    super({ ...opts, schema: assets })
+    super({ ...opts, table: assets })
   }
 }

@@ -19,7 +19,7 @@ export type TServerConfig = {
 
 export type TBackendConfig = {
   url: string
-  path?: string
+  adminPath?: string
   headerKey?: string
   headerValue?: string
 }

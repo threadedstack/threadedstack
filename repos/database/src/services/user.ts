@@ -10,6 +10,6 @@ export type TUserOpts = {
 
 export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert> {
   constructor(opts: TUserOpts) {
-    super({ ...opts, schema: users })
+    super({ ...opts, table: users })
   }
 }

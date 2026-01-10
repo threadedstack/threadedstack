@@ -14,6 +14,6 @@ export class Function extends Base<
   TDBFunctionInsert
 > {
   constructor(opts: TFunctionOpts) {
-    super({ ...opts, schema: functions })
+    super({ ...opts, table: functions })
   }
 }

@@ -1,2 +1,2 @@
-export * from './parseToken'
+export * from './pxToBeHeader'
 export * from './shouldIgnore'

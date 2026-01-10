@@ -10,6 +10,6 @@ export type TSecretOpts = {
 
 export class Secret extends Base<typeof secrets, TDBSecretSelect, TDBSecretInsert> {
   constructor(opts: TSecretOpts) {
-    super({ ...opts, schema: secrets })
+    super({ ...opts, table: secrets })
   }
 }

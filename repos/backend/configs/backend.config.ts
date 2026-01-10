@@ -36,7 +36,6 @@ const {
   TDSK_DB_PASS,
   TDSK_DB_JWT_SCRT,
   TDSK_DB_SRV_ROLE,
-  TDSK_DB_JWT_CREDS,
   TDSK_DB_PROJECT_ID,
   TDSK_DB_PUBLIC_KEY,
 } = process.env
@@ -56,10 +55,6 @@ export const config = {
     environment: process.env.NODE_ENV,
     adminPath: TDSK_BE_API_ADMIN_PATH,
     origins: (TDSK_BE_ALLOW_ORIGIN || '').split(','),
-    jwt: {
-      secret: TDSK_DB_JWT_SCRT,
-      active: toBool(TDSK_DB_JWT_CREDS || true),
-    },
     certs: {
       ca: TDSK_BE_SSL_CA,
       key: TDSK_BE_SSL_KEY,

@@ -10,6 +10,6 @@ export type TConfigOpts = {
 
 export class Config extends Base<typeof configs, TDBConfigSelect, TDBConfigInsert> {
   constructor(opts: TConfigOpts) {
-    super({ ...opts, schema: configs })
+    super({ ...opts, table: configs })
   }
 }

@@ -67,9 +67,9 @@ export const config: TProxyConfig = {
   },
   backend: {
     url: backendUrl(),
-    path: TDSK_BE_API_ADMIN_PATH,
     headerKey: TDSK_BE_HEADER_KEY,
     headerValue: TDSK_BE_HEADER_VALUE,
+    adminPath: TDSK_BE_API_ADMIN_PATH,
   },
   logger: {
     label: `TDSK - Proxy`,

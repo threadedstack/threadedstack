@@ -10,6 +10,6 @@ export type TThreadOpts = {
 
 export class Thread extends Base<typeof threads, TDBThreadSelect, TDBThreadInsert> {
   constructor(opts: TThreadOpts) {
-    super({ ...opts, schema: threads })
+    super({ ...opts, table: threads })
   }
 }
