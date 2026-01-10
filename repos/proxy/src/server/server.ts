@@ -1,4 +1,4 @@
-import type { TProxyApp } from './app'
+import type { TProxyApp } from '@TPX/types'
 
 import fs from 'fs'
 import http from 'http'

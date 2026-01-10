@@ -1,10 +1,8 @@
 import type { TProxyApp } from '@TPX/types'
 import type { Request, Response, NextFunction } from 'express'
 
+import { Auth } from '@TPX/services/auth'
 import { logger } from '@TPX/utils/logger'
-import { extractToken } from '@TPX/utils/auth/authToken'
-import { isPublicRoute } from '@TPX/utils/auth/isPublicRoute'
-import { verifyToken, isJWKSInitialized } from '@TPX/utils/auth/neonAuth'
 
 /**
  * JWT Authentication middleware
@@ -16,16 +14,16 @@ import { verifyToken, isJWKSInitialized } from '@TPX/utils/auth/neonAuth'
  * 3. Admin app sends JWT in Authorization header
  * 4. This middleware validates JWT using JWKS endpoint
  */
-export const setupAuth = (_app: TProxyApp) => {
+export const setupAuth = (app: TProxyApp) => {
+  app.locals.auth = new Auth({ url: app.locals.config.jwks.jwksUrl })
+
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // Skip auth for public routes
-    if (isPublicRoute(req.path)) {
+    if (app.locals.auth.isPublic(req.path)) {
       logger.debug(`Public route accessed: ${req.path}`)
       return next()
     }
 
-    // Extract Bearer token from Authorization header
-    const token = extractToken(req)
+    const token = app.locals.auth.extract(req)
 
     if (!token) {
       res.status(401).json({ error: `No authentication token provided` })
@@ -34,31 +32,26 @@ export const setupAuth = (_app: TProxyApp) => {
 
     logger.debug(`Attempting JWT token validation`)
 
-    // Check if JWKS is initialized
-    if (!isJWKSInitialized()) {
-      logger.error(`JWKS client not initialized`)
+    if (!app.locals.auth.initialized()) {
+      logger.error(`Auth client not initialized`)
       res.status(500).json({ error: `Authentication service unavailable` })
       return
     }
 
     try {
-      // Verify token using JWKS
-      const result = await verifyToken(token)
+      const result = await app.locals.auth.verify(token)
 
       if (!result.valid || !result.payload) {
-        const isExpired = result.error?.includes('expired')
-        res.status(401).json({
-          error: isExpired ? `Token expired` : `Invalid token`,
-        })
+        const isExpired = result.error?.includes(`expired`)
+        res.status(401).json({ error: isExpired ? `Token expired` : `Invalid token` })
         return
       }
 
-      // Attach user info from token payload
       req.user = {
-        userId: result.payload.sub || result.payload.userId || ``,
-        email: result.payload.email || ``,
         teamId: result.payload.teamId,
-        role: result.payload.role || 'user',
+        email: result.payload.email || ``,
+        role: result.payload.role || `user`,
+        userId: result.payload.sub || result.payload.userId || ``,
       }
 
       logger.debug(`JWT validated for user: ${req.user.userId}`)

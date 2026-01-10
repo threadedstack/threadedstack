@@ -1,3 +1,9 @@
+export enum EJWTError {
+  expired = `JWTExpired`,
+  claim = `JWTClaimValidationFailed`,
+  signature = `JWSSignatureVerificationFailed`,
+}
+
 export type TTokenPayload = {
   userId: string
   email: string
@@ -12,4 +18,21 @@ export type TAuthUser = {
   email: string
   teamId?: string
   role?: string
+}
+
+export type TJWTPayload = {
+  sub?: string
+  userId?: string
+  email?: string
+  teamId?: string
+  role?: string
+  iat?: number
+  exp?: number
+  [key: string]: unknown
+}
+
+export type TJWTValidationResult = {
+  valid: boolean
+  payload?: TJWTPayload
+  error?: string
 }

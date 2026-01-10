@@ -4,7 +4,7 @@ import type { Options } from 'http-proxy-middleware'
 import type { ClientRequest, IncomingMessage, ServerResponse } from 'http'
 
 import { logger } from '@TPX/utils/logger'
-import { adminPath } from '@TPX/utils/auth/adminPath'
+import { adminPath } from '@TPX/utils/adminPath'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 
 /**
