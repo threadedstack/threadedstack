@@ -1,3 +1,4 @@
+import type { Express } from 'express'
 import type { TApp, TRequest, TResponse } from '@TDM/types'
 
 const allowedHeaders = [
@@ -43,7 +44,7 @@ export const getOrigin = (req: TRequest) => {
  * Defines the origins that are allow to connect to the API
  * @returns {void}
  */
-export const setupCors = (app: TApp, extraHeaders: string[] = []) => {
+export const setupCors = <T extends TApp = TApp>(app: T, extraHeaders: string[] = []) => {
   const config = app?.locals?.config?.server
   if (!app) throw new Error(`Error setting up Cors. Express app does not exist`)
   if (!config) throw new Error(`Error setting up Cors. Server config does not exist`)

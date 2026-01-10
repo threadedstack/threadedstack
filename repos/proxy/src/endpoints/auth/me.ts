@@ -28,9 +28,9 @@ export const me = (_app: TProxyApp) => {
         data: {
           user: {
             id: user.userId,
+            role: user.role,
             email: user.email,
             teamId: user.teamId,
-            role: user.role,
           },
         },
       })

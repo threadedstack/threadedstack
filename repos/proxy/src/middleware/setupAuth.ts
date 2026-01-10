@@ -14,9 +14,7 @@ import { logger } from '@TPX/utils/logger'
  * 3. Admin app sends JWT in Authorization header
  * 4. This middleware validates JWT using JWKS endpoint
  */
-export const setupAuth = (app: TProxyApp) => {
-  app.locals.auth = new Auth({ url: app.locals.config.jwks.jwksUrl })
-
+export const validateAuth = (app: TProxyApp) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (app.locals.auth.isPublic(req.path)) {
       logger.debug(`Public route accessed: ${req.path}`)
@@ -61,4 +59,9 @@ export const setupAuth = (app: TProxyApp) => {
       res.status(500).json({ error: `Authentication error` })
     }
   }
+}
+
+export const setupAuth = (app: TProxyApp) => {
+  app.locals.auth = new Auth({ url: app.locals.config.jwks.jwksUrl })
+  app.use(validateAuth(app))
 }

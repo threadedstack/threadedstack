@@ -1,8 +1,4 @@
-import type { Express } from 'express'
+import type { TApp } from '@tdsk/domain'
 import type { TProxyConfig } from '@TPX/types/config.types'
 
-export type TProxyApp = Express & {
-  locals: {
-    config: TProxyConfig
-  }
-}
+export type TProxyApp = TApp<TProxyConfig>

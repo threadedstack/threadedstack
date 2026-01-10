@@ -5,3 +5,8 @@ export const ProcessSignals = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
  * Note: login/register/refresh are handled client-side by Neon Auth
  */
 export const PublicRoutes = [`/health`]
+
+export const LoggerIgnore = {
+  methods: [`OPTIONS`],
+  routes: [],
+}

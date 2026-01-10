@@ -37,9 +37,13 @@ const handleProxyError = (
   logger.error(`Proxy error: ${err.message}`, { stack: err.stack })
 
   if (res && !res.headersSent) {
-    res.writeHead(502, { 'Content-Type': `application/json` })
+    res.writeHead(502, { [`Content-Type`]: `application/json` })
     res.end(JSON.stringify({ error: `Backend service unavailable` }))
   }
+}
+
+const pathFilter = (loc: string) => {
+  return `/${loc.replace(/$\//, ``).replace(/^\//, ``)}/**`
 }
 
 /**
@@ -52,11 +56,9 @@ const createBackendProxy = (app: TProxyApp, loc: string) => {
   const proxyOptions: Options = {
     logger,
     ws: true,
+    xfwd: true,
     changeOrigin: true,
     target: backend.url,
-    pathRewrite: {
-      [`^${loc}`]: loc,
-    },
     on: {
       error: handleProxyError,
       proxyReq: (proxyReq, req) => {
@@ -73,5 +75,5 @@ const createBackendProxy = (app: TProxyApp, loc: string) => {
 
 export const setupProxy = (app: TProxyApp) => {
   const loc = adminPath(app.locals.config)
-  app.use(loc, createBackendProxy(app, loc))
+  app.use(pathFilter(loc), createBackendProxy(app, loc))
 }

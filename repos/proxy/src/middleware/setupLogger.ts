@@ -2,6 +2,12 @@ import type { Request, Response, NextFunction } from 'express'
 import type { TProxyApp } from '@TPX/types'
 
 import { logger } from '@TPX/utils/logger'
+import { LoggerIgnore } from '@TPX/constants/values'
+
+const ignore = (req: Request) => {
+  if (LoggerIgnore.methods.includes(req.method)) return true
+  return LoggerIgnore.routes.some((route) => req.path.startsWith(route))
+}
 
 /**
  * Request/Response logging middleware
@@ -11,7 +17,8 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
   const startTime = Date.now()
   const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-  // Log incoming request
+  if (ignore(req)) return next()
+
   logger.info(`→ ${req.method} ${req.path}`, {
     requestId,
     method: req.method,
@@ -21,7 +28,6 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
     userAgent: req.get(`User-Agent`),
   })
 
-  // Capture response finish
   res.on(`finish`, () => {
     const duration = Date.now() - startTime
     const statusCode = res.statusCode

@@ -3,6 +3,7 @@ import type { TProxyApp } from '@TPX/types'
 
 import cors from 'cors'
 import express from 'express'
+import { ensureArr } from '@keg-hub/jsutils/ensureArr'
 
 /**
  * Configures the express app and router
@@ -10,19 +11,17 @@ import express from 'express'
  */
 export const setupServer = (app: TProxyApp, router: Router) => {
   app.disable(`x-powered-by`)
+  const origins = ensureArr(app.locals.config.server.origins)
 
-  // CORS middleware
   app.use(
     cors({
       credentials: true,
-      origin: app.locals.config.server.origins,
+      origin: origins.includes(`*`) ? `*` : origins,
     })
   )
 
-  // Body parsing middleware
   app.use(express.json())
   app.use(express.urlencoded({ extended: true }))
 
-  // Add the AppRouter that contains all the configured endpoints
   app.use(router)
 }

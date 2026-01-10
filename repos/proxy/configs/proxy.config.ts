@@ -22,17 +22,30 @@ const {
   TDSK_PX_LOGGER_LEVEL,
   TDSK_PX_LOGGER_PRETTY,
   TDSK_PX_LOGGER_SILENT,
-  TDSK_PX_BACKEND_URL,
-  TDSK_PX_HEADER_KEY,
-  TDSK_PX_HEADER_VALUE,
   TDSK_PX_JWT_SECRET,
   TDSK_PX_JWT_EXPIRES_IN,
   TDSK_PX_JWT_REFRESH_EXPIRES_IN,
+  TDSK_BE_URL,
+  TDSK_BE_HOST,
+  TDSK_BE_PORT,
+  TDSK_BE_HEADER_KEY,
+  TDSK_BE_HEADER_VALUE,
   TDSK_BE_API_ADMIN_PATH = `_`,
   TDSK_AUTH_JWKS = ``,
 } = envs
 
 const enableSSL = NODE_ENV !== `production` && toBool(TDSK_PX_ENABLE_SSL)
+
+const backendUrl = () => {
+  if (TDSK_BE_URL) return new URL(TDSK_BE_URL).toString()
+  if (!TDSK_BE_HOST) throw new Error(`A valid URL or host is required!`)
+
+  let built = TDSK_BE_HOST
+  if (!TDSK_BE_HOST.startsWith(`http`)) built = `http://${TDSK_BE_HOST}`
+  if (TDSK_BE_PORT) built = `${built}:${TDSK_BE_PORT}`
+
+  return new URL(built).toString()
+}
 
 export const config: TProxyConfig = {
   jwt: {
@@ -43,7 +56,7 @@ export const config: TProxyConfig = {
   server: {
     enableSSL,
     port: toInt(TDSK_PX_PORT) || 4000,
-    origins: (TDSK_PX_ALLOW_ORIGIN || `http://localhost:3000`).split(`,`),
+    origins: (TDSK_PX_ALLOW_ORIGIN || `http://localhost:5887`).split(`,`),
     certs: enableSSL
       ? {
           ca: TDSK_PX_SSL_CA,
@@ -53,10 +66,10 @@ export const config: TProxyConfig = {
       : undefined,
   },
   backend: {
+    url: backendUrl(),
     path: TDSK_BE_API_ADMIN_PATH,
-    url: TDSK_PX_BACKEND_URL || `http://localhost:5000`,
-    headerKey: TDSK_PX_HEADER_KEY,
-    headerValue: TDSK_PX_HEADER_VALUE,
+    headerKey: TDSK_BE_HEADER_KEY,
+    headerValue: TDSK_BE_HEADER_VALUE,
   },
   logger: {
     label: `TDSK - Proxy`,

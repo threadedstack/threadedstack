@@ -29,7 +29,6 @@ export class Auth {
 
     this.jwksUrl = url
     this.jwks = jose.createRemoteJWKSet(new URL(url))
-    logger.info(`JWKS client initialized with URL: ${url}`)
   }
 
   /**

@@ -49,6 +49,7 @@ env:
   TDSK_PX_PORT: 7118
   TDSK_PX_HOST: 0.0.0.0
   TDSK_PX_SECURE_PORT: 443
+  TDSK_PX_ALLOW_ORIGIN: '*'
 
   # Default to the backend and host
   # But should be set when running as own server
@@ -138,6 +139,9 @@ env:
 
   # Port the Proxy server will listen on, and what is publicly exposed from the docker container
   TDSK_BE_PORT: 5885
+
+  # Backend URL overrides the TDSK_BE_HOST and TDSK_BE_PORT envs
+  TDSK_BE_URL:
 
   # Admin API path for the proxy backend
   # All other paths are forwarded to configured endpoints
