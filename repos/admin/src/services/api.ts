@@ -3,6 +3,7 @@ import type {
   TApiReq,
   TApiData,
   TApiReqEx,
+  TAuthData,
   TFetchOpts,
   TApiService,
 } from '@TAF/types'
@@ -66,13 +67,16 @@ export class ApiService {
     return exists(msg) ? msg : res.statusText || `Request returned ${res.status}`
   }
 
-  bearer = async () => {
-    const { data } = await authClient.getSession()
-    if (!data?.session?.token) return
+  bearer = async (auth?: TAuthData) => {
+    if (!auth) {
+      const { data } = await authClient.getSession()
+      if (!data?.session?.token) return
+      auth = data as TAuthData
+    }
 
     this.options.headers = {
       ...this.options.headers,
-      Authorization: `Bearer ${data.session.token}`,
+      Authorization: `Bearer ${auth.session.token}`,
     }
   }
 

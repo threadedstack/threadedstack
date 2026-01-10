@@ -1,3 +1,5 @@
+import type { User } from '@tdsk/domain'
+
 export type TLoginData = {
   provider?: string
   options?: Record<string, any>
@@ -23,4 +25,13 @@ export type TAuthSession = {
   updatedAt: string | Date
   impersonatedBy?: string
   activeOrganizationId?: string
+}
+
+export type TAuthData = {
+  user?: User
+  session?: TAuthSession
+}
+
+export type TAuthResp = TAuthData & {
+  error?: TAuthError
 }

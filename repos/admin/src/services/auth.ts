@@ -1,4 +1,4 @@
-import type { TAuthError } from '@TAF/types'
+import type { TAuthError, TAuthResp } from '@TAF/types'
 
 import { User } from '@tdsk/domain'
 import { TDSK_AUTH_URL } from '@TAF/constants/envs'
@@ -10,12 +10,6 @@ import { createAuthClient } from '@neondatabase/neon-js/auth'
  * JWT tokens are sent to proxy which validates them
  */
 export const authClient = createAuthClient(TDSK_AUTH_URL)
-
-type TAuthResp = {
-  session?: any
-  error?: TAuthError
-  user?: User
-}
 
 export class Auth {
   client = authClient
