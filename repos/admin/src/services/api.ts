@@ -13,6 +13,7 @@ import { query } from '@TAF/services/query'
 import { limbo } from '@keg-hub/jsutils/limbo'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { isStr } from '@keg-hub/jsutils/isStr'
+import { apiUrl } from '@TAF/utils/api/apiUrl'
 import { authClient } from '@TAF/services/auth'
 import { exists } from '@keg-hub/jsutils/exists'
 import { emptyObj } from '@keg-hub/jsutils/emptyObj'
@@ -80,8 +81,7 @@ export class ApiService {
     const { url, path, options } = this.#config
 
     if (path) this.path = path
-    const valid = validateUrl(url)
-    if (valid && this.base !== valid) this.base = valid
+    this.base = apiUrl({ url })
 
     if (options) this.options = deepMerge<TApiReq>(this.options, options)
   }
@@ -116,6 +116,7 @@ export class ApiService {
   get = async <D extends TApiData = TApiData>(opts: TApiReq): Promise<TApiRes<D>> => {
     const { queryKey, staleTime, refetchInterval, ...rest } = opts
 
+    //const [error, data] = await limbo<D, ApiError>(this.fetch<D>({ ...rest, method: EAPIMethod.GET }))
     const [error, data] = await limbo<D, ApiError>(
       query.fetch(
         query.options({

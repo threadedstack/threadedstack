@@ -45,6 +45,7 @@ env:
   TDSK_LOG_HANDLE_EXCEPTION: true
 
 # ---- Proxy ENVs ---- #
+  TDSK_PX_URL:
   TDSK_PX_PORT: 7118
   TDSK_PX_HOST: 0.0.0.0
   TDSK_PX_SECURE_PORT: 443

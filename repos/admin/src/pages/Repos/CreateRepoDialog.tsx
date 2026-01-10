@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react'
 import {
+  Box,
+  Alert,
+  Select,
   Dialog,
+  Button,
+  MenuItem,
+  TextField,
+  InputLabel,
+  FormControl,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  TextField,
-  Box,
-  Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from '@mui/material'
+import { ife } from '@keg-hub/jsutils/ife'
 import { createRepo } from '@TAF/actions/repos'
 import { fetchTeams } from '@TAF/actions/teams'
 import { useTeams } from '@TAF/state/selectors'
@@ -31,11 +32,8 @@ export const CreateRepoDialog = ({ open, onClose }: TCreateRepoDialog) => {
   const [error, setError] = useState<string | null>(null)
   const [teams] = useTeams()
 
-  // Load teams when dialog opens
   useEffect(() => {
-    if (open && !teams) {
-      fetchTeams()
-    }
+    open && !teams && ife(async () => await fetchTeams())
   }, [open, teams])
 
   const handleClose = () => {

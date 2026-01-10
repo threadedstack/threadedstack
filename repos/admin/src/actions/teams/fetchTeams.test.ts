@@ -32,8 +32,8 @@ describe('fetchTeams', () => {
 
     expect(mockTeamsList).toHaveBeenCalled()
     expect(mockSetTeams).toHaveBeenCalled()
-    expect(result.teams).toBeDefined()
-    expect(Object.keys(result.teams!)).toHaveLength(2)
+    expect(result.data).toBeDefined()
+    expect(Object.keys(result.data!)).toHaveLength(2)
   })
 
   it('should handle API errors', async () => {

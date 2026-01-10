@@ -30,7 +30,7 @@ export class TeamsApi extends BaseApi {
    * @param data - Optional query parameters (limit, offset, etc.)
    * @returns List of all teams
    */
-  async list(data?: Record<string, any>): Promise<TApiRes<Team[]>> {
+  async list(data?: Record<string, any>): Promise<TApiRes<Record<string, Team>>> {
     const { queryKey, ...rest } = data || {}
 
     const resp = await this.api.get<Team[]>({
@@ -43,7 +43,11 @@ export class TeamsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp?.data?.map?.((team) => new Team(team)) || [],
+      data:
+        resp?.data?.reduce?.((acc, team) => {
+          acc[team.id] = new Team(team)
+          return acc
+        }, {}) || {},
     }
   }
 

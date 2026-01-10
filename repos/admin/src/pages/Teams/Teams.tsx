@@ -18,15 +18,14 @@ import {
 } from '@mui/icons-material'
 import { Page } from '@TAF/pages/Page/Page'
 import { useTeams } from '@TAF/state/selectors'
-import { fetchTeams, deleteTeam } from '@TAF/actions/teams'
-import { ERoutePath } from '@TAF/types'
 import { CreateTeamDialog } from './CreateTeamDialog'
+import { fetchTeams, deleteTeam } from '@TAF/actions/teams'
 
 export type TTeams = {}
 
 export const Teams = (props: TTeams) => {
+  const [teams] = useTeams()
   const navigate = useNavigate()
-  const [teams, setTeamsState] = useTeams()
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
