@@ -23,15 +23,18 @@ const databaseAct = async (props: TTaskActionArgs) => {
       `The "kube.tasks.secret" task can not be found. Ensure it exists before running this command`
     )
 
-  const { url, name, key, jwt, role, type, ...secParams } = params
+  const { url, name, key, jwt, role, type, user, pass, project, ...secParams } = params
 
   const cfg = {
     url: url || config.envs.TDSK_DB_URL,
     type: type || config.envs.TDSK_DB_TYPE,
     name: name || config.envs.TDSK_DB_NAME,
+    user: user || config.envs.TDSK_DB_USER,
+    pass: pass || config.envs.TDSK_DB_PASS,
     key: key || config.envs.TDSK_DB_PUBLIC_KEY,
     jwt: jwt || config.envs.TDSK_DB_JWT_SCRT,
     role: role || config.envs.TDSK_DB_SRV_ROLE,
+    project: project || config.envs.TDSK_DB_PROJECT_ID,
   }
 
   ;(!cfg.url || !cfg.name || !cfg.key || !cfg.jwt || !cfg.role) &&
@@ -74,6 +77,14 @@ export const database: TTask = {
       env: `TDSK_DB_PUBLIC_KEY`,
       description: `Public key used for connecting to the database`,
     },
+    user: {
+      env: `TDSK_DB_USER`,
+      description: `Database user used for connecting to the database`,
+    },
+    pass: {
+      env: `TDSK_DB_PASS`,
+      description: `Database password used for connecting to the database`,
+    },
     jwt: {
       env: `TDSK_DB_JWT_SCRT`,
       description: `JWT authentication token`,
@@ -81,6 +92,10 @@ export const database: TTask = {
     role: {
       env: `TDSK_DB_SRV_ROLE`,
       description: `Service role authentication token`,
+    },
+    project: {
+      env: `TDSK_DB_PROJECT_ID`,
+      description: `Database Project ID`,
     },
     log: {
       default: true,

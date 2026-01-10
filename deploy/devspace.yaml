@@ -144,17 +144,11 @@ deployments:
             env:
             - name: TDSK_SUB_REPO
               value: proxy
-            - name: DOCKER_AUTH_USER
+            - name: TDSK_MASTER_KEY
               valueFrom:
                 secretKeyRef:
-                  key: user
-                  name: ${TDSK_KUBE_SCRT_DOC_AUTH}
-                  optional: false
-            - name: DOCKER_AUTH_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  key: password
-                  name: ${TDSK_KUBE_SCRT_DOC_AUTH}
+                  key: token
+                  name: ${TDSK_KUBE_SCRT_MASTER_KEY}
                   optional: false
             - name: TDSK_DB_URL
               valueFrom:
@@ -179,25 +173,37 @@ deployments:
                 secretKeyRef:
                   key: key
                   name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: false
+                  optional: true
             - name: TDSK_DB_JWT_SCRT
               valueFrom:
                 secretKeyRef:
                   key: jwt
                   name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: false
+                  optional: true
+            - name: TDSK_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  key: user
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: pass
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: project
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
             - name: TDSK_DB_SRV_ROLE
               valueFrom:
                 secretKeyRef:
                   key: role
                   name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: false
-            - name: TDSK_MASTER_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: token
-                  name: ${TDSK_KUBE_SCRT_MASTER_KEY}
-                  optional: false
+                  optional: true
 
         service:
           name: ${TDSK_PX_DEPLOYMENT}
@@ -310,13 +316,38 @@ deployments:
                 secretKeyRef:
                   key: key
                   name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: false
+                  optional: true
             - name: TDSK_DB_JWT_SCRT
               valueFrom:
                 secretKeyRef:
                   key: jwt
                   name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: false
+                  optional: true
+            - name: TDSK_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  key: user
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: pass
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: project
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_SRV_ROLE
+              valueFrom:
+                secretKeyRef:
+                  key: role
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+                  
         service:
           name: ${TDSK_BE_DEPLOYMENT}
           ports:

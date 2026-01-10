@@ -28,8 +28,6 @@ export const validateAuth = (app: TProxyApp) => {
       return
     }
 
-    logger.debug(`Attempting JWT token validation`)
-
     if (!app.locals.auth.initialized()) {
       logger.error(`Auth client not initialized`)
       res.status(500).json({ error: `Authentication service unavailable` })
@@ -40,8 +38,9 @@ export const validateAuth = (app: TProxyApp) => {
       const result = await app.locals.auth.verify(token)
 
       if (!result.valid || !result.payload) {
-        const isExpired = result.error?.includes(`expired`)
-        res.status(401).json({ error: isExpired ? `Token expired` : `Invalid token` })
+        res
+          .status(401)
+          .json({ error: result.expired ? `Token expired` : `Invalid token` })
         return
       }
 

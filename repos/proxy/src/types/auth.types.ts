@@ -33,6 +33,7 @@ export type TJWTPayload = {
 
 export type TJWTValidationResult = {
   valid: boolean
+  expired?: boolean
   payload?: TJWTPayload
   error?: string
 }

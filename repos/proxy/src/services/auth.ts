@@ -67,6 +67,7 @@ export class Auth {
 
     try {
       const { payload } = await jose.jwtVerify(token, this.jwks)
+
       return {
         valid: true,
         payload: payload as TJWTPayload,
@@ -78,6 +79,7 @@ export class Auth {
         case EJWTError.expired: {
           return {
             valid: false,
+            expired: true,
             error: `Token expired`,
           }
         }

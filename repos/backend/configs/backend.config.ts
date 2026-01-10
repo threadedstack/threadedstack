@@ -32,9 +32,12 @@ const {
   TDSK_DB_URL,
   TDSK_DB_TYPE,
   TDSK_DB_NAME,
+  TDSK_DB_USER,
+  TDSK_DB_PASS,
   TDSK_DB_JWT_SCRT,
   TDSK_DB_SRV_ROLE,
   TDSK_DB_JWT_CREDS,
+  TDSK_DB_PROJECT_ID,
   TDSK_DB_PUBLIC_KEY,
 } = process.env
 
@@ -77,9 +80,12 @@ export const config = {
     [TDSK_DB_TYPE]: {
       url: TDSK_DB_URL,
       name: TDSK_DB_NAME,
+      user: TDSK_DB_USER,
+      pass: TDSK_DB_PASS,
       jwt: TDSK_DB_JWT_SCRT,
       role: TDSK_DB_SRV_ROLE,
       public: TDSK_DB_PUBLIC_KEY,
+      project: TDSK_DB_PROJECT_ID,
     },
   },
   logger: {
