@@ -1,6 +1,7 @@
 import type { Provider, TProviderType } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
+import { ProviderTypes } from '@TAF/constants/providers'
 import { updateProvider, deleteProvider } from '@TAF/actions/providers'
 import {
   Box,
@@ -23,15 +24,6 @@ export type TEditProviderDialog = {
   onClose: () => void
   onSuccess?: () => void
 }
-
-// TODO: move this to domain repo, and define actual allowed provider list
-const PROVIDER_TYPES = [
-  { value: 'azure', label: 'Azure' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'google', label: 'Google' },
-  { value: 'custom', label: 'Custom' },
-  { value: 'anthropic', label: 'Anthropic' },
-]
 
 export const EditProviderDialog = ({
   open,
@@ -201,7 +193,7 @@ export const EditProviderDialog = ({
                 label='Provider Type'
                 onChange={(e) => setType(e.target.value)}
               >
-                {PROVIDER_TYPES.map((providerType) => (
+                {ProviderTypes.map((providerType) => (
                   <MenuItem
                     key={providerType.value}
                     value={providerType.value}

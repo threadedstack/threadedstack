@@ -23,7 +23,7 @@ export const getDynamicNav = (context: TNavCtx): TDynamicNavConfig => {
   if (context.teamId) {
     sections.push({
       id: `team`,
-      header: context.team.name || `Team`,
+      header: context.team?.name || `Team`,
       items: TeamNavItems,
       visible: (ctx: TNavCtx) => !!ctx.teamId,
     })
@@ -32,7 +32,7 @@ export const getDynamicNav = (context: TNavCtx): TDynamicNavConfig => {
   if (context.teamId && context.repoId) {
     sections.push({
       id: `repo`,
-      header: context.repo.name || `Repository`,
+      header: context.repo?.name || `Repository`,
       items: RepoNavItems,
       visible: (ctx: TNavCtx) => !!ctx.teamId && !!ctx.repoId,
     })

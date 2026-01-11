@@ -1,6 +1,7 @@
 import type { TProviderType } from '@tdsk/domain'
 import { useState } from 'react'
 import { createProvider } from '@TAF/actions/providers'
+import { ProviderTypes } from '@TAF/constants/providers'
 import {
   Box,
   Alert,
@@ -22,15 +23,6 @@ export type TCreateProviderDialog = {
   onClose: () => void
   onSuccess?: () => void
 }
-
-// TODO: move to domain repo, and define actually allowed providers
-const PROVIDER_TYPES = [
-  { value: 'azure', label: 'Azure' },
-  { value: 'google', label: 'Google' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'custom', label: 'Custom' },
-  { value: 'anthropic', label: 'Anthropic' },
-]
 
 export const CreateProviderDialog = ({
   open,
@@ -135,7 +127,7 @@ export const CreateProviderDialog = ({
                 label='Provider Type'
                 onChange={(e) => setType(e.target.value)}
               >
-                {PROVIDER_TYPES.map((providerType) => (
+                {ProviderTypes.map((providerType) => (
                   <MenuItem
                     key={providerType.value}
                     value={providerType.value}

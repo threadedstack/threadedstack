@@ -16,10 +16,25 @@ vi.mock('@TAF/pages/Page/Page', () => ({
   ),
 }))
 
+// Mock components
+vi.mock('@TAF/components', () => ({
+  PageHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
+  EmptyState: ({ message }: { message: string }) => <div>{message}</div>,
+  LoadingSpinner: () => <div>Loading...</div>,
+  SearchBar: () => <div>SearchBar</div>,
+  FilterSelect: () => <div>FilterSelect</div>,
+}))
+
 // Mock accessors
 vi.mock('@TAF/state/accessors', () => ({
   setActiveTeamId: vi.fn(),
   setActiveRepoId: vi.fn(),
+}))
+
+// Mock actions
+vi.mock('@TAF/actions/functions', () => ({
+  fetchFunctions: vi.fn().mockResolvedValue({ functions: {} }),
+  deleteFunction: vi.fn(),
 }))
 
 describe('RepoFunctions', () => {
@@ -30,7 +45,7 @@ describe('RepoFunctions', () => {
   it('should render the repo functions page', async () => {
     render(<RepoFunctions />)
     await waitFor(() => {
-      expect(screen.getByText('Repo Functions')).toBeDefined()
+      expect(screen.getByRole('heading', { name: 'Repo Functions' })).toBeDefined()
     })
   })
 

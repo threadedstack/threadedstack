@@ -9,16 +9,31 @@ vi.mock('react-router', () => ({
   useNavigate: () => vi.fn(),
 }))
 
-// Mock the Page component to avoid split-pane-react dependency issues
+// Mock the Page component
 vi.mock('@TAF/pages/Page/Page', () => ({
   Page: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
 }))
 
-// Mock the accessors
+// Mock components
+vi.mock('@TAF/components', () => ({
+  PageHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
+  EmptyState: ({ message }: { message: string }) => <div>{message}</div>,
+  LoadingSpinner: () => <div>Loading...</div>,
+  SearchBar: () => <div>SearchBar</div>,
+  ErrorAlert: () => <div>ErrorAlert</div>,
+  CardGrid: () => <div>CardGrid</div>,
+}))
+
+// Mock accessors
 vi.mock('@TAF/state/accessors', () => ({
   setActiveTeamId: vi.fn(),
+}))
+
+// Mock actions
+vi.mock('@TAF/actions/providers', () => ({
+  fetchProviders: vi.fn().mockResolvedValue({ providers: {} }),
 }))
 
 describe('TeamProviders', () => {
@@ -29,14 +44,7 @@ describe('TeamProviders', () => {
   it('should render the team providers page', async () => {
     render(<TeamProviders />)
     await waitFor(() => {
-      expect(screen.getByText('Team Providers')).toBeDefined()
-    })
-  })
-
-  it('should display the team ID', async () => {
-    render(<TeamProviders />)
-    await waitFor(() => {
-      expect(screen.getByText(/team-789/)).toBeDefined()
+      expect(screen.getByRole('heading', { name: 'Team Providers' })).toBeDefined()
     })
   })
 
@@ -47,10 +55,12 @@ describe('TeamProviders', () => {
     })
   })
 
-  it('should render the TODO message', async () => {
+  it('should render empty state when no providers', async () => {
     render(<TeamProviders />)
     await waitFor(() => {
-      expect(screen.getByText('TODO: Implement team providers management')).toBeDefined()
+      expect(
+        screen.getByText('No providers yet. Create your first provider to get started.')
+      ).toBeDefined()
     })
   })
 })

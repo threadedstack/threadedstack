@@ -9,16 +9,46 @@ vi.mock('react-router', () => ({
   useNavigate: () => vi.fn(),
 }))
 
-// Mock the Page component to avoid split-pane-react dependency issues
+// Mock the Page component
 vi.mock('@TAF/pages/Page/Page', () => ({
   Page: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
 }))
 
-// Mock the accessors
+// Mock accessors
 vi.mock('@TAF/state/accessors', () => ({
   setActiveTeamId: vi.fn(),
+}))
+
+// Mock actions
+vi.mock('@TAF/actions/teams', () => ({
+  fetchTeam: vi.fn().mockResolvedValue({
+    team: {
+      id: 'team-abc',
+      name: 'Test Team',
+      description: 'Test Description',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  }),
+  updateTeam: vi.fn(),
+  deleteTeam: vi.fn(),
+}))
+
+// Mock state selectors
+vi.mock('@TAF/state/selectors', () => ({
+  useTeams: () => [
+    {
+      'team-abc': {
+        id: 'team-abc',
+        name: 'Test Team',
+        description: 'Test Description',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  ],
 }))
 
 describe('TeamSettings', () => {
@@ -29,14 +59,14 @@ describe('TeamSettings', () => {
   it('should render the team settings page', async () => {
     render(<TeamSettings />)
     await waitFor(() => {
-      expect(screen.getByText('Team Settings')).toBeDefined()
+      expect(screen.getByRole('heading', { name: 'Team Settings' })).toBeDefined()
     })
   })
 
   it('should display the team ID', async () => {
     render(<TeamSettings />)
     await waitFor(() => {
-      expect(screen.getByText(/team-abc/)).toBeDefined()
+      expect(screen.getByText('team-abc')).toBeDefined()
     })
   })
 
@@ -44,13 +74,6 @@ describe('TeamSettings', () => {
     render(<TeamSettings />)
     await waitFor(() => {
       expect(accessors.setActiveTeamId).toHaveBeenCalledWith('team-abc')
-    })
-  })
-
-  it('should render the TODO message', async () => {
-    render(<TeamSettings />)
-    await waitFor(() => {
-      expect(screen.getByText('TODO: Implement team settings management')).toBeDefined()
     })
   })
 })

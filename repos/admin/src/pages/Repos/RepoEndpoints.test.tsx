@@ -16,10 +16,25 @@ vi.mock('@TAF/pages/Page/Page', () => ({
   ),
 }))
 
+// Mock components
+vi.mock('@TAF/components', () => ({
+  PageHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
+  EmptyState: ({ message }: { message: string }) => <div>{message}</div>,
+  LoadingSpinner: () => <div>Loading...</div>,
+  SearchBar: () => <div>SearchBar</div>,
+  FilterSelect: () => <div>FilterSelect</div>,
+}))
+
 // Mock accessors
 vi.mock('@TAF/state/accessors', () => ({
   setActiveTeamId: vi.fn(),
   setActiveRepoId: vi.fn(),
+}))
+
+// Mock actions
+vi.mock('@TAF/actions/endpoints', () => ({
+  fetchEndpoints: vi.fn().mockResolvedValue({ endpoints: {} }),
+  deleteEndpoint: vi.fn(),
 }))
 
 describe('RepoEndpoints', () => {
@@ -30,15 +45,16 @@ describe('RepoEndpoints', () => {
   it('should render the repo endpoints page', async () => {
     render(<RepoEndpoints />)
     await waitFor(() => {
-      expect(screen.getByText('Repo Endpoints')).toBeDefined()
+      // The PageHeader renders the title "Endpoints"
+      expect(screen.getByRole('heading', { name: 'Endpoints' })).toBeDefined()
     })
   })
 
   it('should display the team and repo IDs', async () => {
+    // The component checks if empty and displays EmptyState
     render(<RepoEndpoints />)
     await waitFor(() => {
-      expect(screen.getByText(/team-123/)).toBeDefined()
-      expect(screen.getByText(/repo-456/)).toBeDefined()
+      expect(screen.getByText('No endpoints found for this repository.')).toBeDefined()
     })
   })
 

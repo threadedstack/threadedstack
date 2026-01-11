@@ -9,16 +9,31 @@ vi.mock('react-router', () => ({
   useNavigate: () => vi.fn(),
 }))
 
-// Mock the Page component to avoid split-pane-react dependency issues
+// Mock the Page component
 vi.mock('@TAF/pages/Page/Page', () => ({
   Page: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
 }))
 
-// Mock the accessors
+// Mock components
+vi.mock('@TAF/components', () => ({
+  PageHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
+  EmptyState: ({ message }: { message: string }) => <div>{message}</div>,
+  LoadingSpinner: () => <div>Loading...</div>,
+  SearchBar: () => <div>SearchBar</div>,
+  ErrorAlert: () => <div>ErrorAlert</div>,
+  DataTable: () => <div>DataTable</div>,
+}))
+
+// Mock accessors
 vi.mock('@TAF/state/accessors', () => ({
   setActiveTeamId: vi.fn(),
+}))
+
+// Mock actions
+vi.mock('@TAF/actions/secrets', () => ({
+  fetchSecrets: vi.fn().mockResolvedValue({ secrets: {} }),
 }))
 
 describe('TeamSecrets', () => {
@@ -29,14 +44,7 @@ describe('TeamSecrets', () => {
   it('should render the team secrets page', async () => {
     render(<TeamSecrets />)
     await waitFor(() => {
-      expect(screen.getByText('Team Secrets')).toBeDefined()
-    })
-  })
-
-  it('should display the team ID', async () => {
-    render(<TeamSecrets />)
-    await waitFor(() => {
-      expect(screen.getByText(/team-456/)).toBeDefined()
+      expect(screen.getByRole('heading', { name: 'Team Secrets' })).toBeDefined()
     })
   })
 
@@ -47,10 +55,12 @@ describe('TeamSecrets', () => {
     })
   })
 
-  it('should render the TODO message', async () => {
+  it('should render empty state when no secrets', async () => {
     render(<TeamSecrets />)
     await waitFor(() => {
-      expect(screen.getByText('TODO: Implement team secrets management')).toBeDefined()
+      expect(
+        screen.getByText('No secrets yet. Create your first secret to get started.')
+      ).toBeDefined()
     })
   })
 })

@@ -22,6 +22,45 @@ vi.mock('@TAF/state/accessors', () => ({
   setActiveRepoId: vi.fn(),
 }))
 
+// Mock actions
+vi.mock('@TAF/actions/repos', () => ({
+  fetchRepo: vi.fn().mockResolvedValue({
+    repo: {
+      id: 'repo-456',
+      teamId: 'team-123',
+      name: 'Test Repo',
+      gitUrl: 'https://github.com/test/repo.git',
+      branch: 'main',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  }),
+  updateRepo: vi.fn(),
+  deleteRepo: vi.fn(),
+}))
+
+vi.mock('@TAF/actions/configs', () => ({
+  fetchConfigs: vi.fn().mockResolvedValue({ configs: {} }),
+}))
+
+// Mock state selectors
+vi.mock('@TAF/state/selectors', () => ({
+  useRepos: () => [
+    {
+      'repo-456': {
+        id: 'repo-456',
+        teamId: 'team-123',
+        name: 'Test Repo',
+        gitUrl: 'https://github.com/test/repo.git',
+        branch: 'main',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  ],
+  useConfigs: () => [{}],
+}))
+
 describe('RepoSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -30,15 +69,15 @@ describe('RepoSettings', () => {
   it('should render the repo settings page', async () => {
     render(<RepoSettings />)
     await waitFor(() => {
-      expect(screen.getByText('Repo Settings')).toBeDefined()
+      expect(screen.getByRole('heading', { name: 'Repository Settings' })).toBeDefined()
     })
   })
 
   it('should display the team and repo IDs', async () => {
     render(<RepoSettings />)
     await waitFor(() => {
-      expect(screen.getByText(/team-123/)).toBeDefined()
-      expect(screen.getByText(/repo-456/)).toBeDefined()
+      expect(screen.getByText('repo-456')).toBeDefined()
+      expect(screen.getByText('team-123')).toBeDefined()
     })
   })
 
