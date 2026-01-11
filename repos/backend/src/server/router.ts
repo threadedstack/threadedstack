@@ -1,9 +1,8 @@
-import type { IRouterMatcher } from 'express'
+import type { IRouterMatcher, RequestHandler } from 'express'
 
+import express from 'express'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import asyncHandler from 'express-async-handler'
-import express from 'express'
-import type { RequestHandler } from 'express'
 
 export type TBoundMethod = IRouterMatcher<express.Router>
 

@@ -1,5 +1,4 @@
 import type { Router } from 'express'
-
 import type {
   TEndpoint,
   TBEConfig,
@@ -13,8 +12,8 @@ import { endpoints } from '@TBE/endpoints'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { ServerErr } from '@TBE/utils/errors/server'
-import { endpointProxy } from '@TBE/utils/proxy/endpointProxy'
 import { createAsyncRouter } from '@TBE/server/router'
+import { endpointProxy } from '@TBE/utils/proxy/endpointProxy'
 
 const isValid = (router: Router, name: string, endpoint: TEndpointConfig) => {
   if (!isObj(endpoint)) return false
@@ -37,9 +36,11 @@ const buildEndpoint = (router: Router, config: TBEConfig, endpoint: TEndpointCon
         ...middleware,
         buildEndpoints(createAsyncRouter(), config, children, path)
       )
-    : isObj(proxy)
-      ? router[method](path, ...middleware, endpointProxy(endpoint))
-      : router[method](path, ...middleware, action)
+    : method === EPMethod.Proxy
+      ? router.use(path, ...middleware, endpointProxy(endpoint))
+      : isObj(proxy)
+        ? router[method](path, ...middleware, endpointProxy(endpoint))
+        : router[method](path, ...middleware, action)
 }
 
 const buildEndpoints = (

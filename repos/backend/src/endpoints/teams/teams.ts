@@ -1,6 +1,7 @@
-import type { TEndpointConfig } from '@TBE/types'
-import type { Request, Response } from 'express'
+import type { Response } from 'express'
+import type { TEndpointConfig, TRequest } from '@TBE/types'
 
+import type { Role } from '@tdsk/domain'
 import { EPMethod } from '@TBE/types'
 
 /**
@@ -9,7 +10,7 @@ import { EPMethod } from '@TBE/types'
 const listTeams: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
-  action: async (req: Request, res: Response): Promise<void> => {
+  action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { data, error } = await db.services.team.list()
 
@@ -28,7 +29,7 @@ const listTeams: TEndpointConfig = {
 const getTeam: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Get,
-  action: async (req: Request, res: Response): Promise<void> => {
+  action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
     const { data, error } = await db.services.team.get(id)
@@ -53,7 +54,7 @@ const getTeam: TEndpointConfig = {
 const createTeam: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
-  action: async (req: Request, res: Response): Promise<void> => {
+  action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const teamData = req.body
 
@@ -79,7 +80,7 @@ const createTeam: TEndpointConfig = {
 const updateTeam: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
-  action: async (req: Request, res: Response): Promise<void> => {
+  action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
     const teamData = req.body
@@ -114,7 +115,7 @@ const updateTeam: TEndpointConfig = {
 const deleteTeam: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Delete,
-  action: async (req: Request, res: Response): Promise<void> => {
+  action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
 
@@ -149,7 +150,7 @@ const deleteTeam: TEndpointConfig = {
 const addTeamMember: TEndpointConfig = {
   path: `/:id/members`,
   method: EPMethod.Post,
-  action: async (req: Request, res: Response): Promise<void> => {
+  action: async (req: TRequest, res: Response): Promise<void> => {
     const { id: teamId } = req.params
     const { db } = req.app.locals
     const { userId, type = `basic` } = req.body
@@ -208,7 +209,7 @@ const addTeamMember: TEndpointConfig = {
 const removeTeamMember: TEndpointConfig = {
   path: `/:id/members/:userId`,
   method: EPMethod.Delete,
-  action: async (req: Request, res: Response): Promise<void> => {
+  action: async (req: TRequest, res: Response): Promise<void> => {
     const { id: teamId, userId } = req.params
     const { db } = req.app.locals
 
@@ -236,10 +237,9 @@ const removeTeamMember: TEndpointConfig = {
       return
     }
 
-    const memberRole = roles?.find(
-      (role: { teamId: string; userId: string }) =>
-        role.teamId === teamId && role.userId === userId
-    )
+    const memberRole = roles?.find((role: Role) => {
+      return role.teamId === teamId && role.userId === userId
+    })
 
     if (!memberRole) {
       res.status(404).json({ error: `Team member not found` })

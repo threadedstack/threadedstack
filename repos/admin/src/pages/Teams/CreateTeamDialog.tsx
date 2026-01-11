@@ -1,15 +1,15 @@
 import { useState } from 'react'
+import { createTeam } from '@TAF/actions/teams'
 import {
+  Box,
+  Alert,
   Dialog,
+  Button,
+  TextField,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  TextField,
-  Box,
-  Alert,
 } from '@mui/material'
-import { createTeam } from '@TAF/actions/teams'
 
 export type TCreateTeamDialog = {
   open: boolean

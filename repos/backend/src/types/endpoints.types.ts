@@ -12,6 +12,8 @@ export type TEndpointMethod = (
 ) => void
 export type TRequestHandler = RequestHandler | TEndpointMethod
 
+export type TMethodType = `get` | `put` | `post` | `patch` | `delete` | `all` | `use`
+
 export type TEndpointConfig = {
   path: string
   public?: boolean
@@ -20,12 +22,7 @@ export type TEndpointConfig = {
   action?: TEndpointMethod
   endpoints?: TEndpointsConfig
   middleware?: TRequestHandler[]
-  method:
-    | keyof Pick<
-        typeof router,
-        `get` | `put` | `post` | `patch` | `delete` | `all` | `use`
-      >
-    | EPMethod
+  method: keyof Pick<typeof router, TMethodType> | EPMethod
 }
 
 export type TEndpointBuilder = (config: TBEConfig) => TEndpointConfig
@@ -56,4 +53,7 @@ export enum EPMethod {
   DELETE = `delete`,
   delete = `delete`,
   Delete = `delete`,
+  PROXY = `proxy`,
+  Proxy = `proxy`,
+  proxy = `proxy`,
 }

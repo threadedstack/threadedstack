@@ -1,7 +1,6 @@
 import type { NextFunction, Router } from 'express'
 import type { TRequest, TResponse, TApp } from '@TBE/types'
 
-import { User } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { fromAuthHeaders } from '@tdsk/domain'
 import { shouldIgnore } from '@TBE/utils/auth/shouldIgnore'

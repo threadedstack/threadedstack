@@ -39,14 +39,14 @@ const handleProxyError = (
 }
 
 const pathFilter = (loc: string) => {
-  return `/${loc.replace(/$\//, ``).replace(/^\//, ``)}/**`
+  return `/${loc.replace(/$\//, ``).replace(/^\//, ``)}`
 }
 
 /**
  * Creates proxy middleware for forwarding requests to the backend
  * Handles /_/* routes by forwarding to the backend server
  */
-const createBackendProxy = (app: TProxyApp, loc: string) => {
+const createBackendProxy = (app: TProxyApp) => {
   const { backend } = app.locals.config
 
   const proxyOptions: Options = {
@@ -73,5 +73,5 @@ const createBackendProxy = (app: TProxyApp, loc: string) => {
 
 export const setupProxy = (app: TProxyApp) => {
   const loc = adminPath(app.locals.config.backend)
-  app.use(pathFilter(loc), createBackendProxy(app, loc))
+  app.use(pathFilter(loc), createBackendProxy(app))
 }

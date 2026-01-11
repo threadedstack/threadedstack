@@ -1,4 +1,4 @@
-import type { TApp } from '@tdsk/domain'
+import type { TApp } from '@TBE/types'
 
 import hq from 'alias-hq'
 import path from 'node:path'
