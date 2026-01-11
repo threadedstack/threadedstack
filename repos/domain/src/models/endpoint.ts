@@ -4,10 +4,10 @@ export class Endpoint extends Base {
   url: string
   name: string
   repoId: string
-  public?: boolean
   method: string = `GET`
-  headers: Record<string, string>
+  public?: boolean = false
   options: Record<string, any>
+  headers: Record<string, string>
 
   constructor(endpoint: Partial<Endpoint>) {
     super()

@@ -23,13 +23,13 @@ describe('Endpoint Model', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         repoId: '456e4567-e89b-12d3-a456-426614174001',
-        proxyUrl: 'https://api.example.com/v1/users',
-        proxyMethod: 'POST',
-        proxyHeaders: {
+        url: 'https://api.example.com/v1/users',
+        method: 'POST',
+        headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer token',
         },
-        proxyOptions: {
+        options: {
           timeout: 5000,
           retry: 3,
         },
@@ -42,10 +42,10 @@ describe('Endpoint Model', () => {
 
       expect(endpoint.id).toBe(endpointData.id)
       expect(endpoint.repoId).toBe(endpointData.repoId)
-      expect(endpoint.proxyUrl).toBe(endpointData.proxyUrl)
-      expect(endpoint.proxyMethod).toBe(endpointData.proxyMethod)
-      expect(endpoint.proxyHeaders).toEqual(endpointData.proxyHeaders)
-      expect(endpoint.proxyOptions).toEqual(endpointData.proxyOptions)
+      expect(endpoint.url).toBe(endpointData.url)
+      expect(endpoint.method).toBe(endpointData.method)
+      expect(endpoint.headers).toEqual(endpointData.headers)
+      expect(endpoint.options).toEqual(endpointData.options)
       expect(endpoint.public).toBe(true)
       expect(endpoint.createdAt).toBe(endpointData.createdAt)
       expect(endpoint.updatedAt).toBe(endpointData.updatedAt)
@@ -61,25 +61,25 @@ describe('Endpoint Model', () => {
 
       const endpoint = new Endpoint(endpointData)
 
-      expect(endpoint.proxyMethod).toBe('GET')
+      expect(endpoint.method).toBe('GET')
       expect(endpoint.public).toBe(false)
-      expect(endpoint.proxyUrl).toBeUndefined()
-      expect(endpoint.proxyHeaders).toBeUndefined()
-      expect(endpoint.proxyOptions).toBeUndefined()
+      expect(endpoint.url).toBeUndefined()
+      expect(endpoint.headers).toBeUndefined()
+      expect(endpoint.options).toBeUndefined()
     })
 
-    it('should override default proxyMethod when provided', () => {
+    it('should override default method when provided', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         repoId: '456e4567-e89b-12d3-a456-426614174001',
-        proxyMethod: 'PUT',
+        method: 'PUT',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
 
       const endpoint = new Endpoint(endpointData)
 
-      expect(endpoint.proxyMethod).toBe('PUT')
+      expect(endpoint.method).toBe('PUT')
     })
 
     it('should override default public flag when provided', () => {
@@ -96,11 +96,11 @@ describe('Endpoint Model', () => {
       expect(endpoint.public).toBe(true)
     })
 
-    it('should handle complex proxyHeaders object', () => {
+    it('should handle complex headers object', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         repoId: '456e4567-e89b-12d3-a456-426614174001',
-        proxyHeaders: {
+        headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer token',
           'X-Custom-Header': 'custom-value',
@@ -112,15 +112,15 @@ describe('Endpoint Model', () => {
 
       const endpoint = new Endpoint(endpointData)
 
-      expect(endpoint.proxyHeaders).toEqual(endpointData.proxyHeaders)
-      expect(Object.keys(endpoint.proxyHeaders || {})).toHaveLength(4)
+      expect(endpoint.headers).toEqual(endpointData.headers)
+      expect(Object.keys(endpoint.headers || {})).toHaveLength(4)
     })
 
-    it('should handle complex proxyOptions object', () => {
+    it('should handle complex options object', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         repoId: '456e4567-e89b-12d3-a456-426614174001',
-        proxyOptions: {
+        options: {
           timeout: 10000,
           retry: 5,
           retryDelay: 1000,
@@ -134,9 +134,9 @@ describe('Endpoint Model', () => {
 
       const endpoint = new Endpoint(endpointData)
 
-      expect(endpoint.proxyOptions).toEqual(endpointData.proxyOptions)
-      expect(endpoint.proxyOptions?.timeout).toBe(10000)
-      expect(endpoint.proxyOptions?.retry).toBe(5)
+      expect(endpoint.options).toEqual(endpointData.options)
+      expect(endpoint.options?.timeout).toBe(10000)
+      expect(endpoint.options?.retry).toBe(5)
     })
 
     it('should handle Date objects for timestamps', () => {
@@ -162,7 +162,7 @@ describe('Endpoint Model', () => {
       const endpoint = new Endpoint(endpointData)
 
       expect(endpoint.repoId).toBe(endpointData.repoId)
-      expect(endpoint.proxyMethod).toBe('GET')
+      expect(endpoint.method).toBe('GET')
       expect(endpoint.public).toBe(false)
     })
 
@@ -173,13 +173,13 @@ describe('Endpoint Model', () => {
         const endpointData = {
           id: `123e4567-e89b-12d3-a456-42661417400${methods.indexOf(method)}`,
           repoId: '456e4567-e89b-12d3-a456-426614174001',
-          proxyMethod: method,
+          method: method,
           createdAt: '2024-01-01T00:00:00Z',
           updatedAt: '2024-01-01T00:00:00Z',
         }
 
         const endpoint = new Endpoint(endpointData)
-        expect(endpoint.proxyMethod).toBe(method)
+        expect(endpoint.method).toBe(method)
       })
     })
   })
@@ -202,48 +202,48 @@ describe('Endpoint Model', () => {
   })
 
   describe('type safety', () => {
-    it('should handle empty proxyHeaders object', () => {
+    it('should handle empty headers object', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         repoId: '456e4567-e89b-12d3-a456-426614174001',
-        proxyHeaders: {},
+        headers: {},
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
 
       const endpoint = new Endpoint(endpointData)
 
-      expect(endpoint.proxyHeaders).toEqual({})
-      expect(Object.keys(endpoint.proxyHeaders || {})).toHaveLength(0)
+      expect(endpoint.headers).toEqual({})
+      expect(Object.keys(endpoint.headers || {})).toHaveLength(0)
     })
 
-    it('should handle empty proxyOptions object', () => {
+    it('should handle empty options object', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         repoId: '456e4567-e89b-12d3-a456-426614174001',
-        proxyOptions: {},
+        options: {},
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
 
       const endpoint = new Endpoint(endpointData)
 
-      expect(endpoint.proxyOptions).toEqual({})
-      expect(Object.keys(endpoint.proxyOptions || {})).toHaveLength(0)
+      expect(endpoint.options).toEqual({})
+      expect(Object.keys(endpoint.options || {})).toHaveLength(0)
     })
 
     it('should preserve null values if provided', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         repoId: '456e4567-e89b-12d3-a456-426614174001',
-        proxyUrl: null as any,
+        url: null as any,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
 
       const endpoint = new Endpoint(endpointData)
 
-      expect(endpoint.proxyUrl).toBeNull()
+      expect(endpoint.url).toBeNull()
     })
   })
 
@@ -252,13 +252,13 @@ describe('Endpoint Model', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         repoId: '456e4567-e89b-12d3-a456-426614174001',
-        proxyUrl: 'https://api.github.com/repos/{owner}/{repo}',
-        proxyMethod: 'GET',
-        proxyHeaders: {
+        url: 'https://api.github.com/repos/{owner}/{repo}',
+        method: 'GET',
+        headers: {
           Accept: 'application/vnd.github.v3+json',
           'User-Agent': 'Threaded-Stack-Proxy',
         },
-        proxyOptions: {
+        options: {
           timeout: 30000,
           cache: true,
           cacheTTL: 300,
@@ -270,8 +270,8 @@ describe('Endpoint Model', () => {
 
       const endpoint = new Endpoint(endpointData)
 
-      expect(endpoint.proxyUrl).toContain('github.com')
-      expect(endpoint.proxyHeaders?.Accept).toContain('github')
+      expect(endpoint.url).toContain('github.com')
+      expect(endpoint.headers?.Accept).toContain('github')
       expect(endpoint.public).toBe(true)
     })
 
@@ -279,9 +279,9 @@ describe('Endpoint Model', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         repoId: '456e4567-e89b-12d3-a456-426614174001',
-        proxyUrl: 'https://internal-api.example.com/v1/data',
-        proxyMethod: 'POST',
-        proxyHeaders: {
+        url: 'https://internal-api.example.com/v1/data',
+        method: 'POST',
+        headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer ${SECRET_TOKEN}',
         },
@@ -293,7 +293,7 @@ describe('Endpoint Model', () => {
       const endpoint = new Endpoint(endpointData)
 
       expect(endpoint.public).toBe(false)
-      expect(endpoint.proxyHeaders?.Authorization).toContain('Bearer')
+      expect(endpoint.headers?.Authorization).toContain('Bearer')
     })
   })
 })

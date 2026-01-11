@@ -1,4 +1,3 @@
-import '../types/pc.types'
 import hq from 'alias-hq'
 import { homedir } from 'os'
 import path from 'node:path'

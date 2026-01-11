@@ -44,7 +44,7 @@ describe('proxy.config', () => {
       const { config } = await import('./proxy.config')
 
       expect(config.backend).toHaveProperty('url')
-      expect(config.backend).toHaveProperty('path')
+      expect(config.backend).toHaveProperty('adminPath')
       expect(typeof config.backend.url).toBe('string')
       expect(config.backend.url).toContain('http')
     })

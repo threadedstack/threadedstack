@@ -7,7 +7,7 @@ describe('Function Model', () => {
       const functionData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         endpointId: '456e4567-e89b-12d3-a456-426614174001',
-        providerId: '789e4567-e89b-12d3-a456-426614174002',
+        repoId: '789e4567-e89b-12d3-a456-426614174002',
         content:
           'export default function handler(req, res) { return res.json({ success: true }) }',
         createdAt: '2024-01-01T00:00:00Z',
@@ -17,8 +17,8 @@ describe('Function Model', () => {
       const func = new Function(functionData)
 
       expect(func.id).toBe(functionData.id)
+      expect(func.repoId).toBe(functionData.repoId)
       expect(func.endpointId).toBe(functionData.endpointId)
-      expect(func.providerId).toBe(functionData.providerId)
       expect(func.content).toBe(functionData.content)
       expect(func.createdAt).toBe(functionData.createdAt)
       expect(func.updatedAt).toBe(functionData.updatedAt)
@@ -28,7 +28,7 @@ describe('Function Model', () => {
       const functionData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         endpointId: '456e4567-e89b-12d3-a456-426614174001',
-        providerId: '789e4567-e89b-12d3-a456-426614174002',
+        repoId: '789e4567-e89b-12d3-a456-426614174002',
         content:
           'export default function handler(req, res) { return res.json({ data: req.body }) }',
         language: 'python',
@@ -48,7 +48,7 @@ describe('Function Model', () => {
 
       expect(func.id).toBe(functionData.id)
       expect(func.endpointId).toBe(functionData.endpointId)
-      expect(func.providerId).toBe(functionData.providerId)
+      expect(func.repoId).toBe(functionData.repoId)
       expect(func.content).toBe(functionData.content)
       expect(func.language).toBe(functionData.language)
       expect(func.defaultArgs).toEqual(functionData.defaultArgs)
@@ -170,14 +170,14 @@ describe('Function Model', () => {
     it('should handle partial data with only required fields', () => {
       const functionData = {
         endpointId: '456e4567-e89b-12d3-a456-426614174001',
-        providerId: '789e4567-e89b-12d3-a456-426614174002',
+        repoId: '789e4567-e89b-12d3-a456-426614174002',
         content: 'export default function handler(req, res) { }',
       }
 
       const func = new Function(functionData)
 
       expect(func.endpointId).toBe(functionData.endpointId)
-      expect(func.providerId).toBe(functionData.providerId)
+      expect(func.repoId).toBe(functionData.repoId)
       expect(func.content).toBe(functionData.content)
       expect(func.language).toBe('typescript')
     })

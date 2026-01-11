@@ -9,6 +9,8 @@ import { ensureArr } from '@keg-hub/jsutils/ensureArr'
  * Should be called after request logger, but before other middleware
  */
 export const setupServer = (app: TApp, router: Router) => {
+  //app.disable(`etag`)
+  //app.set(`trust proxy`, 1)
   app.disable(`x-powered-by`)
 
   const origins = ensureArr(app.locals.config.server.origins)

@@ -2,49 +2,33 @@ import type { ReactNode } from 'react'
 import type { SxProps, Theme } from '@mui/material'
 
 import { Box, Typography, Button } from '@mui/material'
+import { pluralize } from '@TAF/utils/text/pluralize'
 
 export type TPageHeader = {
   title: string
   count?: number
+  sx?: SxProps<Theme>
   countLabel?: string
   actionLabel?: string
   actionIcon?: ReactNode
   onAction?: () => void
   actionDisabled?: boolean
-  sx?: SxProps<Theme>
   variant?: 'h4' | 'h5' | 'h6'
 }
 
-// TODO: update to use jsutils function
-const pluralize = (count: number, singular: string): string => {
-  if (count === 1) return singular
+export const PageHeader = (props: TPageHeader) => {
+  const {
+    sx,
+    title,
+    count,
+    onAction,
+    actionIcon,
+    countLabel,
+    actionLabel,
+    variant = `h4`,
+    actionDisabled = false,
+  } = props
 
-  if (
-    singular.endsWith('s') ||
-    singular.endsWith('x') ||
-    singular.endsWith('ch') ||
-    singular.endsWith('sh')
-  ) {
-    return `${singular}es`
-  }
-  if (singular.endsWith('y') && !/[aeiou]y$/i.test(singular)) {
-    return `${singular.slice(0, -1)}ies`
-  }
-
-  return `${singular}s`
-}
-
-export const PageHeader = ({
-  title,
-  count,
-  countLabel,
-  actionLabel,
-  actionIcon,
-  onAction,
-  actionDisabled = false,
-  sx,
-  variant = 'h4',
-}: TPageHeader) => {
   const label = countLabel || title.toLowerCase().replace(/^team\s+|^repo\s+/i, '')
 
   return (
@@ -59,8 +43,8 @@ export const PageHeader = ({
     >
       <Box>
         <Typography
-          variant={variant}
           component='h1'
+          variant={variant}
         >
           {title}
         </Typography>
