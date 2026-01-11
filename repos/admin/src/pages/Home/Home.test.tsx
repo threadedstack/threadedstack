@@ -194,7 +194,9 @@ describe('Home - Empty State', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('No orgs yet. Create your first org to get started.')
+        screen.getByText(
+          'No organizations yet. Create your first organization to get started.'
+        )
       ).toBeDefined()
     })
   })
@@ -210,7 +212,7 @@ describe('Home - Empty State', () => {
     render(<HomeComponent />)
 
     await waitFor(() => {
-      expect(screen.getByText('Create Org')).toBeDefined()
+      expect(screen.getByText('Create')).toBeDefined()
     })
   })
 })

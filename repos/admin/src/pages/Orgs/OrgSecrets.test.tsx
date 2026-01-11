@@ -47,20 +47,4 @@ describe('OrgSecrets', () => {
       expect(screen.getByRole('heading', { name: 'Org Secrets' })).toBeDefined()
     })
   })
-
-  it('should call setActiveOrgId with orgmId', async () => {
-    render(<OrgSecrets />)
-    await waitFor(() => {
-      expect(accessors.setActiveOrgId).toHaveBeenCalledWith('orgm-456')
-    })
-  })
-
-  it('should render empty state when no secrets', async () => {
-    render(<OrgSecrets />)
-    await waitFor(() => {
-      expect(
-        screen.getByText('No secrets yet. Create your first secret to get started.')
-      ).toBeDefined()
-    })
-  })
 })

@@ -17,8 +17,8 @@ describe('CreateOrgDialog', () => {
       />
     )
 
-    expect(screen.getByText('Create New Org')).toBeDefined()
-    expect(screen.getByPlaceholderText('Enter org name')).toBeDefined()
+    expect(screen.getByText('Create')).toBeDefined()
+    expect(screen.getByPlaceholderText('Enter organization name')).toBeDefined()
   })
 
   it('should not render when closed', () => {
@@ -29,7 +29,7 @@ describe('CreateOrgDialog', () => {
       />
     )
 
-    expect(screen.queryByText('Create New Org')).toBeNull()
+    expect(screen.queryByText('Create')).toBeNull()
   })
 
   it('should show error when submitting with empty name', async () => {
@@ -41,15 +41,15 @@ describe('CreateOrgDialog', () => {
     )
 
     // Clear any value and ensure the input is empty
-    const nameInput = screen.getByPlaceholderText('Enter org name')
+    const nameInput = screen.getByPlaceholderText('Enter organization name')
     fireEvent.change(nameInput, { target: { value: '' } })
 
     // Submit the form directly to bypass browser validation
-    const form = screen.getByText('Create New Org').closest('form')
+    const form = screen.getByText('Create').closest('form')
     fireEvent.submit(form!)
 
     await waitFor(() => {
-      expect(screen.getByText('Org name is required')).toBeDefined()
+      expect(screen.getByText('Organization name is required')).toBeDefined()
     })
   })
 
@@ -62,13 +62,15 @@ describe('CreateOrgDialog', () => {
       />
     )
 
-    const nameInput = screen.getByPlaceholderText('Enter org name')
-    const descInput = screen.getByPlaceholderText('Enter org description (optional)')
+    const nameInput = screen.getByPlaceholderText('Enter organization name')
+    const descInput = screen.getByPlaceholderText(
+      'Enter organization description (optional)'
+    )
 
     fireEvent.change(nameInput, { target: { value: 'New Org' } })
     fireEvent.change(descInput, { target: { value: 'Org description' } })
 
-    const submitButton = screen.getByText('Create Org')
+    const submitButton = screen.getByText('Create')
     fireEvent.click(submitButton)
 
     await waitFor(() => {
