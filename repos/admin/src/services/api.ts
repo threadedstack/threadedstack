@@ -62,8 +62,8 @@ export class ApiService {
     return ext
   }
 
-  #error = (res: Response, data?: Record<`detail`, string> | string) => {
-    const msg = isObj(data) ? data.detail : isStr(data) ? data : undefined
+  #error = (res: Response, data?: Record<string, string> | string) => {
+    const msg = isObj(data) ? data.error || data.detail : isStr(data) ? data : undefined
     return exists(msg) ? msg : res.statusText || `Request returned ${res.status}`
   }
 
@@ -99,14 +99,10 @@ export class ApiService {
     const [error, res] = await limbo<TApiRes<R>, ApiError>(
       ((this.mock || fetch) as typeof fetch)(url, options)
         .then(async (res) => {
-          const data = responseType !== `text` ? await res.json() : await res.text()
-
-          if (res.status >= 400)
-            return {
-              error: new ApiError(this.#error(res, data), res.status),
-            }
-
-          return { data }
+          const result = responseType !== `text` ? await res.json() : await res.text()
+          return res.status >= 400
+            ? { error: new ApiError(this.#error(res, result), res.status) }
+            : result
         })
         .catch((error) => ({ error: new ApiError(error, 400) }))
     )
