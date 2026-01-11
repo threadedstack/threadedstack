@@ -21,7 +21,7 @@ export const authenticate = async (req: TRequest, res: TResponse, next: NextFunc
     const auth = fromAuthHeaders(req)
     if (!auth.userId) throw Error(`A valid and authorized user is required.`)
 
-    const { data: user, error } = await db.services.auth.get(auth.userId)
+    const { data: user, error } = await db.services.user.get(auth.userId)
 
     if (error) throw error
     if (!user) throw Error(`A valid and authorized user could not be found.`)

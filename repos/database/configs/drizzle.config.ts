@@ -22,9 +22,9 @@ const {
 } = envs
 
 export default defineConfig({
-  out: aliases[`@TDB/drizzle`],
   schemaFilter: [`public`],
   schema: path.join(aliases[`@TDB`], `schemas`, `schemas.ts`),
+  out: path.relative(aliases[`@TDB/root`], aliases[`@TDB/drizzle`]),
   introspect: {
     casing: `camel`,
   },

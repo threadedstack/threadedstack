@@ -25,6 +25,7 @@
     "forceConsistentCasingInFileNames": true,
     "paths": {
 
+      "@TDB/root": ["./"],
       "@TDB": ["./src"],
       "@TDB/*": ["./src/*"],
       "@TDB/configs": ["./configs"],
