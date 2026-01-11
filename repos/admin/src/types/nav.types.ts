@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { TListItem } from '@tdsk/components'
+import type { Team, Repo } from '@tdsk/domain'
 import type { TAnyCB } from '@TAF/types/helper.types'
 import type {
   LinkProps,
@@ -8,32 +8,28 @@ import type {
   TypographyProps,
 } from '@mui/material'
 
-// Context for dynamic navigation
-export type TNavContext = {
+export type TNavCtx = {
+  team?: Team
+  repo?: Repo
   teamId?: string
-  teamName?: string
   repoId?: string
-  repoName?: string
 }
 
-// Nav item with dynamic path support
 export type TNavItem = {
   text: ReactNode
   Icon: ReactNode
   items?: TNavItem[]
-  to?: string | ((context: TNavContext) => string)
-  visible?: (context: TNavContext) => boolean
+  to?: string | ((context: TNavCtx) => string)
+  visible?: (context: TNavCtx) => boolean
 }
 
-// Section in the sidebar
 export type TNavSection = {
   id: string
-  header?: string | ((context: TNavContext) => string)
+  header?: string | ((context: TNavCtx) => string)
   items: TNavItem[]
-  visible?: (context: TNavContext) => boolean
+  visible?: (context: TNavCtx) => boolean
 }
 
-// Full navigation configuration
 export type TDynamicNavConfig = {
   sections: TNavSection[]
   bottomItems: TNavItem[]

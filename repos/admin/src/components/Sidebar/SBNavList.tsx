@@ -1,4 +1,4 @@
-import type { TNavItem, TNavContext } from '@TAF/types'
+import type { TNavItem, TNavCtx } from '@TAF/types'
 import type { CSSProperties } from 'react'
 
 import { cls } from '@keg-hub/jsutils/cls'
@@ -13,18 +13,16 @@ export type TSBNavList = {
   items: TNavItem[]
   sx?: CSSProperties
   className?: string
-  context?: TNavContext
+  context?: TNavCtx
 }
 
 export type TSBNavItem = {
   open?: boolean
   item: TNavItem
-  context?: TNavContext
+  context?: TNavCtx
 }
 
-export const SBNavItem = (
-  props: TNavItem & { open?: boolean; context?: TNavContext }
-) => {
+export const SBNavItem = (props: TNavItem & { open?: boolean; context?: TNavCtx }) => {
   const location = useLocation()
   const navigate = useNavigate()
 

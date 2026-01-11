@@ -1,16 +1,15 @@
+import type { TNavCtx } from '@TAF/types'
+
+import { Sidebar } from './Sidebar'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { Sidebar } from './Sidebar'
-import type { TNavContext } from '@TAF/types'
 
-// Mock react-router
 const mockNavigate = vi.fn()
 vi.mock('react-router', () => ({
   useLocation: () => ({ pathname: '/' }),
   useNavigate: () => mockNavigate,
 }))
 
-// Default mock state
 let mockSidebarOpen = true
 let mockSetSidebarOpen = vi.fn()
 let mockTeams = {}
@@ -18,7 +17,6 @@ let mockRepos = {}
 let mockActiveTeamId = null
 let mockActiveRepoId = null
 
-// Mock state selectors
 vi.mock('@TAF/state/selectors', () => ({
   useSidebarOpen: () => [mockSidebarOpen, mockSetSidebarOpen],
   useTeams: () => [mockTeams, vi.fn()],
@@ -27,12 +25,14 @@ vi.mock('@TAF/state/selectors', () => ({
   useActiveRepoId: () => [mockActiveRepoId, vi.fn()],
 }))
 
-// Mock getDynamicNavConfig with realistic implementation
 vi.mock('@TAF/constants/nav', () => ({
-  getDynamicNavConfig: (ctx: TNavContext) => {
+  BottomNavItems: [{ text: 'Settings', to: '/settings', Icon: null }],
+}))
+
+vi.mock('@TAF/utils/nav/getDynamicNav', () => ({
+  getDynamicNav: (ctx: TNavCtx) => {
     const sections = []
 
-    // Global section (always visible)
     sections.push({
       id: 'global',
       items: [
@@ -41,11 +41,10 @@ vi.mock('@TAF/constants/nav', () => ({
       ],
     })
 
-    // Team section (visible when teamId is present)
     if (ctx.teamId) {
       sections.push({
         id: 'team',
-        header: ctx.teamName || 'Team',
+        header: ctx.team.name || 'Team',
         items: [
           { text: 'Users', to: `/teams/${ctx.teamId}/users`, Icon: null },
           { text: 'Repos', to: `/teams/${ctx.teamId}/repos`, Icon: null },
@@ -53,7 +52,7 @@ vi.mock('@TAF/constants/nav', () => ({
           { text: 'Providers', to: `/teams/${ctx.teamId}/providers`, Icon: null },
           { text: 'Team Settings', to: `/teams/${ctx.teamId}/settings`, Icon: null },
         ],
-        visible: (c: TNavContext) => !!c.teamId,
+        visible: (c: TNavCtx) => !!c.teamId,
       })
     }
 
@@ -61,7 +60,7 @@ vi.mock('@TAF/constants/nav', () => ({
     if (ctx.teamId && ctx.repoId) {
       sections.push({
         id: 'repo',
-        header: ctx.repoName || 'Repository',
+        header: ctx.repo.name || 'Repository',
         items: [
           {
             text: 'Endpoints',
@@ -89,7 +88,7 @@ vi.mock('@TAF/constants/nav', () => ({
             Icon: null,
           },
         ],
-        visible: (c: TNavContext) => !!c.teamId && !!c.repoId,
+        visible: (c: TNavCtx) => !!c.teamId && !!c.repoId,
       })
     }
 
@@ -98,10 +97,8 @@ vi.mock('@TAF/constants/nav', () => ({
       bottomItems: [{ text: 'Settings', to: '/settings', Icon: null }],
     }
   },
-  BottomNavItems: [{ text: 'Settings', to: '/settings', Icon: null }],
 }))
 
-// Mock styled components and MUI
 vi.mock('@TAF/components/Sidebar/Sidebar.styles', () => ({
   SideDrawer: ({ children, onClick }: any) => (
     <div
