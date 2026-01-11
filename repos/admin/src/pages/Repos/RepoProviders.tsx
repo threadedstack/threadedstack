@@ -4,7 +4,7 @@ import { useProviders } from '@TAF/state/selectors'
 import { useParams, useNavigate } from 'react-router'
 import { fetchProviders } from '@TAF/actions/providers'
 import { Settings as SettingsIcon } from '@mui/icons-material'
-import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import { setActiveOrgId, setActiveRepoId } from '@TAF/state/accessors'
 import {
   Box,
   Card,
@@ -24,33 +24,33 @@ import {
 export type TRepoProviders = {}
 
 export const RepoProviders = (props: TRepoProviders) => {
-  const { teamId, repoId } = useParams<{ teamId: string; repoId: string }>()
+  const { orgId, repoId } = useParams<{ orgId: string; repoId: string }>()
   const navigate = useNavigate()
   const [providers] = useProviders()
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (teamId) setActiveTeamId(teamId)
+    if (orgId) setActiveOrgId(orgId)
     if (repoId) setActiveRepoId(repoId)
-  }, [teamId, repoId])
+  }, [orgId, repoId])
 
   useEffect(() => {
     const loadData = async () => {
-      if (!teamId) return
+      if (!orgId) return
       setLoading(true)
-      await fetchProviders({ teamId })
+      await fetchProviders({ orgId })
       setLoading(false)
     }
     loadData()
-  }, [teamId])
+  }, [orgId])
 
-  const teamProviders = useMemo(() => {
-    if (!providers || !teamId) return []
-    return Object.values(providers).filter((provider) => provider.teamId === teamId)
-  }, [providers, teamId])
+  const orgProviders = useMemo(() => {
+    if (!providers || !orgId) return []
+    return Object.values(providers).filter((provider) => provider.orgId === orgId)
+  }, [providers, orgId])
 
   const onManageProviders = () => {
-    navigate(`/teams/${teamId}/providers`)
+    navigate(`/orgs/${orgId}/providers`)
   }
 
   if (loading) {
@@ -76,7 +76,7 @@ export const RepoProviders = (props: TRepoProviders) => {
           startIcon={<SettingsIcon />}
           onClick={onManageProviders}
         >
-          Manage Team Providers
+          Manage Org Providers
         </Button>
       </Box>
 
@@ -84,15 +84,15 @@ export const RepoProviders = (props: TRepoProviders) => {
         severity='info'
         sx={{ mb: 3 }}
       >
-        Providers are team-scoped and shared across all repositories in the team. This
-        page shows all providers available to this repository.
+        Providers are org-scoped and shared across all repositories in the org. This page
+        shows all providers available to this repository.
       </Alert>
 
-      {teamProviders.length === 0 ? (
+      {orgProviders.length === 0 ? (
         <Card>
           <CardContent>
             <Typography color='text.secondary'>
-              No providers configured for this team.
+              No providers configured for this org.
             </Typography>
             <Button
               variant='outlined'
@@ -116,7 +116,7 @@ export const RepoProviders = (props: TRepoProviders) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {teamProviders.map((provider) => (
+              {orgProviders.map((provider) => (
                 <TableRow
                   key={provider.id}
                   hover

@@ -1,40 +1,39 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router'
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Typography,
-  Divider,
-  IconButton,
-  Tooltip,
-  Chip,
-} from '@mui/material'
-import {
-  ArrowBack as BackIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Folder as RepoIcon,
-} from '@mui/icons-material'
 import { Page } from '@TAF/pages/Page/Page'
 import { useRepos } from '@TAF/state/selectors'
-import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import { useParams, useNavigate } from 'react-router'
 import { fetchRepo, deleteRepo } from '@TAF/actions/repos'
-import { ERoutePath } from '@TAF/types'
+import { setActiveOrgId, setActiveRepoId } from '@TAF/state/accessors'
+import {
+  Edit as EditIcon,
+  Folder as RepoIcon,
+  Delete as DeleteIcon,
+  ArrowBack as BackIcon,
+} from '@mui/icons-material'
+import {
+  Box,
+  Card,
+  Chip,
+  Button,
+  Divider,
+  Tooltip,
+  Typography,
+  IconButton,
+  CardContent,
+} from '@mui/material'
 
 export type TRepo = {}
 
 export const Repo = (props: TRepo) => {
-  const { teamId, repoId } = useParams<{ teamId: string; repoId: string }>()
+  const { orgId, repoId } = useParams<{ orgId: string; repoId: string }>()
   const navigate = useNavigate()
   const [repos] = useRepos()
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (teamId) setActiveTeamId(teamId)
+    if (orgId) setActiveOrgId(orgId)
     if (repoId) setActiveRepoId(repoId)
-  }, [teamId, repoId])
+  }, [orgId, repoId])
 
   useEffect(() => {
     const loadRepo = async () => {
@@ -49,7 +48,7 @@ export const Repo = (props: TRepo) => {
   const repo = repoId && repos ? repos[repoId] : undefined
 
   const handleBack = () => {
-    navigate(`/teams/${teamId}/repos`)
+    navigate(`/orgs/${orgId}/repos`)
   }
 
   const handleDelete = async () => {
@@ -59,7 +58,7 @@ export const Repo = (props: TRepo) => {
     }
     const result = await deleteRepo(repoId)
     if (!result.error) {
-      navigate(`/teams/${teamId}/repos`)
+      navigate(`/orgs/${orgId}/repos`)
     }
   }
 
@@ -178,13 +177,13 @@ export const Repo = (props: TRepo) => {
               variant='subtitle2'
               color='text.secondary'
             >
-              Team ID
+              Org ID
             </Typography>
             <Typography
               variant='body2'
               fontFamily='monospace'
             >
-              {repo.teamId}
+              {repo.orgId}
             </Typography>
           </Box>
 

@@ -30,7 +30,7 @@ export const me = (_app: TProxyApp) => {
             id: user.userId,
             role: user.role,
             email: user.email,
-            teamId: user.teamId,
+            orgId: user.orgId,
           },
         },
       })

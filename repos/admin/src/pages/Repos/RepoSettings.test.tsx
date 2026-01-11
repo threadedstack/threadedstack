@@ -5,7 +5,7 @@ import * as accessors from '@TAF/state/accessors'
 
 // Mock the router
 vi.mock('react-router', () => ({
-  useParams: () => ({ teamId: 'team-123', repoId: 'repo-456' }),
+  useParams: () => ({ orgId: 'org-123', repoId: 'repo-456' }),
   useNavigate: () => vi.fn(),
 }))
 
@@ -18,7 +18,7 @@ vi.mock('@TAF/pages/Page/Page', () => ({
 
 // Mock accessors
 vi.mock('@TAF/state/accessors', () => ({
-  setActiveTeamId: vi.fn(),
+  setActiveOrgId: vi.fn(),
   setActiveRepoId: vi.fn(),
 }))
 
@@ -27,7 +27,7 @@ vi.mock('@TAF/actions/repos', () => ({
   fetchRepo: vi.fn().mockResolvedValue({
     repo: {
       id: 'repo-456',
-      teamId: 'team-123',
+      orgId: 'org-123',
       name: 'Test Repo',
       gitUrl: 'https://github.com/test/repo.git',
       branch: 'main',
@@ -49,7 +49,7 @@ vi.mock('@TAF/state/selectors', () => ({
     {
       'repo-456': {
         id: 'repo-456',
-        teamId: 'team-123',
+        orgId: 'org-123',
         name: 'Test Repo',
         gitUrl: 'https://github.com/test/repo.git',
         branch: 'main',
@@ -73,18 +73,18 @@ describe('RepoSettings', () => {
     })
   })
 
-  it('should display the team and repo IDs', async () => {
+  it('should display the org and repo IDs', async () => {
     render(<RepoSettings />)
     await waitFor(() => {
       expect(screen.getByText('repo-456')).toBeDefined()
-      expect(screen.getByText('team-123')).toBeDefined()
+      expect(screen.getByText('org-123')).toBeDefined()
     })
   })
 
-  it('should call setActiveTeamId with teamId', async () => {
+  it('should call setActiveOrgId with orgId', async () => {
     render(<RepoSettings />)
     await waitFor(() => {
-      expect(accessors.setActiveTeamId).toHaveBeenCalledWith('team-123')
+      expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-123')
     })
   })
 

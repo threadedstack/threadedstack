@@ -14,7 +14,7 @@ vi.mock('@TAF/pages/Page/Page', () => ({
 
 vi.mock('@TAF/state/selectors', () => ({
   useRepos: () => [undefined, vi.fn(), vi.fn()],
-  useTeams: () => [undefined, vi.fn(), vi.fn()],
+  useOrgs: () => [undefined, vi.fn(), vi.fn()],
 }))
 
 vi.mock('@TAF/actions/repos', () => ({

@@ -7,7 +7,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { EditFunctionDialog } from './EditFunctionDialog'
 import { CreateFunctionDialog } from './CreateFunctionDialog'
 import { fetchFunctions, deleteFunction } from '@TAF/actions/functions'
-import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import { setActiveOrgId, setActiveRepoId } from '@TAF/state/accessors'
 import {
   SearchBar,
   FilterSelect,
@@ -36,7 +36,7 @@ import {
 export type TRepoFunctions = {}
 
 export const RepoFunctions = (props: TRepoFunctions) => {
-  const { teamId, repoId } = useParams<{ teamId: string; repoId: string }>()
+  const { orgId, repoId } = useParams<{ orgId: string; repoId: string }>()
   const [functions] = useFunctions()
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -46,9 +46,9 @@ export const RepoFunctions = (props: TRepoFunctions) => {
   const [languageFilter, setLanguageFilter] = useState<string>('all')
 
   useEffect(() => {
-    if (teamId) setActiveTeamId(teamId)
+    if (orgId) setActiveOrgId(orgId)
     if (repoId) setActiveRepoId(repoId)
-  }, [teamId, repoId])
+  }, [orgId, repoId])
 
   useEffect(() => {
     const loadData = async () => {

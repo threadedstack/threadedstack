@@ -7,7 +7,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { EditEndpointDialog } from './EditEndpointDialog'
 import { CreateEndpointDialog } from './CreateEndpointDialog'
 import { fetchEndpoints, deleteEndpoint } from '@TAF/actions/endpoints'
-import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import { setActiveOrgId, setActiveRepoId } from '@TAF/state/accessors'
 import {
   SearchBar,
   FilterSelect,
@@ -53,7 +53,7 @@ const VISIBILITY_FILTER_OPTIONS = [
 ]
 
 export const RepoEndpoints = (props: TRepoEndpoints) => {
-  const { teamId, repoId } = useParams<{ teamId: string; repoId: string }>()
+  const { orgId, repoId } = useParams<{ orgId: string; repoId: string }>()
   const [endpoints] = useEndpoints()
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -64,9 +64,9 @@ export const RepoEndpoints = (props: TRepoEndpoints) => {
   const [visibilityFilter, setVisibilityFilter] = useState<string>('all')
 
   useEffect(() => {
-    if (teamId) setActiveTeamId(teamId)
+    if (orgId) setActiveOrgId(orgId)
     if (repoId) setActiveRepoId(repoId)
-  }, [teamId, repoId])
+  }, [orgId, repoId])
 
   useEffect(() => {
     const loadData = async () => {

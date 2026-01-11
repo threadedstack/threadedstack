@@ -9,7 +9,7 @@ export type TFetchProvidersResult = {
 }
 
 export const fetchProviders = async (filters?: {
-  teamId?: string
+  orgId?: string
 }): Promise<TFetchProvidersResult> => {
   const resp = await providersApi.list(filters)
 

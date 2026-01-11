@@ -183,7 +183,7 @@ When updating a task's status in `tasks.md`, preserve the exact format:
 ### Naming Conventions
 
 - **Files**: camelCase for utilities, PascalCase for components
-- **React Components**: PascalCase (e.g., `Teams.tsx`, `TeamList.tsx`)
+- **React Components**: PascalCase (e.g., `Orgs.tsx`, `OrgList.tsx`)
 - **Functions/Variables**: camelCase
 - **Types**: PascalCase with `T` prefix (e.g., `TEndpointConfig`)
 - **Interfaces**: PascalCase with `I` prefix (e.g., `IDBApi`)
@@ -360,30 +360,30 @@ router.get('/path', async (req, res) => {
 
 Here's an example workflow for implementing a backend endpoint:
 
-### Task: Implement `GET /_/teams` endpoint
+### Task: Implement `GET /_/orgs` endpoint
 
 1. **Find the task** in `docs/epics/epic-1/tasks.md`:
    ```markdown
-   - [ ] **TASK-4.4.1**: Implement `GET /_/teams` - List teams
+   - [ ] **TASK-4.4.1**: Implement `GET /_/orgs` - List orgs
    ```
 
 2. **Mark as in-progress**:
    ```markdown
-   - [~] **TASK-4.4.1**: Implement `GET /_/teams` - List teams
+   - [~] **TASK-4.4.1**: Implement `GET /_/orgs` - List orgs
    ```
 
-3. **Create the endpoint** in `repos/backend/src/endpoints/teams.ts`:
+3. **Create the endpoint** in `repos/backend/src/endpoints/orgs.ts`:
    ```typescript
    import type { TEndpointConfig } from '@TBE/types'
    import type { Request, Response } from 'express'
    import { EPMethod } from '@TBE/types'
 
-   export const listTeams: TEndpointConfig = {
-     path: `/_/teams`,
+   export const listOrgs: TEndpointConfig = {
+     path: `/_/orgs`,
      method: EPMethod.Get,
      action: async (req: Request, res: Response): Promise<void> => {
        const { db } = req.app?.locals
-       const { data, error } = await db.services.team.list()
+       const { data, error } = await db.services.org.list()
 
        if (error) {
          res.status(500).json({ error: error.message })
@@ -397,11 +397,11 @@ Here's an example workflow for implementing a backend endpoint:
 
 4. **Register the endpoint** in `repos/backend/src/endpoints/endpoints.ts`:
    ```typescript
-   import { listTeams } from './teams'
-   export const endpoints = { listTeams, /* other endpoints */ }
+   import { listOrgs } from './orgs'
+   export const endpoints = { listOrgs, /* other endpoints */ }
    ```
 
-5. **Write tests** in `repos/backend/src/endpoints/teams.test.ts`:
+5. **Write tests** in `repos/backend/src/endpoints/orgs.test.ts`:
    ```typescript
    import { describe, it, expect, vi } from 'vitest'
    // Test implementation
@@ -416,7 +416,7 @@ Here's an example workflow for implementing a backend endpoint:
 
 7. **Mark as completed**:
    ```markdown
-   - [x] **TASK-4.4.1**: Implement `GET /_/teams` - List teams
+   - [x] **TASK-4.4.1**: Implement `GET /_/orgs` - List orgs
    ```
 
 ---
@@ -499,7 +499,7 @@ Each repo loads envs in `src/constants/envs.ts` or via scripts in `scripts/loadE
 
 ### Completed Features (Epic 1 Progress)
 - Monorepo structure with pnpm workspaces
-- Database schemas for all entities (teams, users, repos, etc.)
+- Database schemas for all entities (orgs, users, repos, etc.)
 - Database models with CRUD operations
 - Basic backend server structure with Express 5
 - Admin UI skeleton with MUI theming and routing
@@ -508,14 +508,14 @@ Each repo loads envs in `src/constants/envs.ts` or via scripts in `scripts/loadE
 
 ### In Progress / Not Started
 - Auth flow integration with Neon Auth
-- Backend API endpoints (Teams, Users, Repos CRUD)
-- Admin pages for Teams and Repos management
+- Backend API endpoints (Orgs, Users, Repos CRUD)
+- Admin pages for Orgs and Repos management
 - Proxy server forwarding logic
 - Protected route wrappers
 
 ### Notes for Agents
 - The proxy repo has a TODO stub in `repos/proxy/src/proxy.ts`
-- Teams and Repos pages in admin are placeholder stubs
+- Orgs and Repos pages in admin are placeholder stubs
 - Database migrations exist but may need verification against Neon
 - Some domain types (secrets, functions, threads) are not yet created
 
@@ -538,10 +538,10 @@ When committing, follow this format:
 
 ```bash
 git commit -m "$(cat <<'EOF'
-feat: implement GET /_/teams endpoint
+feat: implement GET /_/orgs endpoint
 
-- Add teams endpoint with list functionality
-- Integrate with TeamModel from database repo
+- Add orgs endpoint with list functionality
+- Integrate with OrgModel from database repo
 - Add pagination support
 
 EOF

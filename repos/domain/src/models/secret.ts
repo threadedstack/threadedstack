@@ -3,7 +3,7 @@ import { Base } from './base'
 export class Secret extends Base {
   name: string
   hashKey: string
-  teamId?: string
+  orgId?: string
   repoId?: string
   providerId?: string
   encryptedValue: string

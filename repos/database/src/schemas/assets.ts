@@ -1,5 +1,5 @@
 import { sql, relations } from 'drizzle-orm'
-import { teams } from '@TDB/schemas/teams'
+import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { repos } from '@TDB/schemas/repos'
 import { base } from '@TDB/utils/schema/base'
@@ -18,7 +18,7 @@ export const assets = pgTable(
     name: text(`name`).notNull(),
     type: text(`type`).notNull(),
     providerId: uuid(`provider_id`).references(() => providers.id),
-    teamId: uuid(`team_id`).references(() => teams.id, { onDelete: `cascade` }),
+    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
     repoId: uuid(`repo_id`).references(() => repos.id, { onDelete: `cascade` }),
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
     threadId: uuid(`thread_id`).references(() => threads.id, { onDelete: `cascade` }),
@@ -29,7 +29,7 @@ export const assets = pgTable(
       `asset_owner_check`,
       sql`
     (
-      (${table.teamId} IS NOT NULL)::int + 
+      (${table.orgId} IS NOT NULL)::int + 
       (${table.repoId} IS NOT NULL)::int + 
       (${table.userId} IS NOT NULL)::int + 
       (${table.threadId} IS NOT NULL)::int + 
@@ -41,7 +41,7 @@ export const assets = pgTable(
 )
 
 export const assetsRelations = relations(assets, ({ one }) => ({
-  team: one(teams, { fields: [assets.teamId], references: [teams.id] }),
+  org: one(orgs, { fields: [assets.orgId], references: [orgs.id] }),
   repo: one(repos, { fields: [assets.repoId], references: [repos.id] }),
   user: one(users, { fields: [assets.userId], references: [users.id] }),
   thread: one(threads, { fields: [assets.threadId], references: [threads.id] }),

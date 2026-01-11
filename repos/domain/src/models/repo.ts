@@ -2,7 +2,7 @@ import { Base } from './base'
 
 export class Repo extends Base {
   name: string
-  teamId: string
+  orgId: string
   gitUrl?: string
   branch: string = `main`
   meta: Record<string, any> = {}

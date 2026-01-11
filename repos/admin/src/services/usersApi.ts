@@ -13,14 +13,14 @@ export class UsersApi extends BaseApi {
   cache: TApiCacheKeys = {
     all: () => [this.path] as const,
     list: () => [...this.cache.all(), `list`] as const,
-    listTeam: (teamId: string) => [...this.cache.all(), `list`, teamId] as const,
+    listOrg: (orgId: string) => [...this.cache.all(), `list`, orgId] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
     me: () => [`auth`, `me`] as const,
   }
 
   /**
    * Get all users
-   * @param data - Optional query parameters (teamId, limit, offset, etc.)
+   * @param data - Optional query parameters (orgId, limit, offset, etc.)
    * @returns List of all users
    */
   async list(data?: Record<string, any>): Promise<TApiRes<User[]>> {
@@ -132,52 +132,52 @@ export class UsersApi extends BaseApi {
   }
 
   /**
-   * Get users by team ID
-   * @param teamId - Team ID
-   * @returns List of users for the team
+   * Get users by org ID
+   * @param orgId - Org ID
+   * @returns List of users for the org
    */
-  async listByTeam(teamId: string): Promise<TApiRes<User[]>> {
+  async listByOrg(orgId: string): Promise<TApiRes<User[]>> {
     return this.list({
-      teamId,
-      queryKey: this.cache.listTeam(teamId),
+      orgId,
+      queryKey: this.cache.listOrg(orgId),
     })
   }
 
   /**
-   * Invite user to team
-   * @param teamId - Team ID
+   * Invite user to org
+   * @param orgId - Org ID
    * @param data - Invite data (email and roleType)
    * @returns Success status
    */
-  async inviteToTeam(
-    teamId: string,
+  async inviteToOrg(
+    orgId: string,
     data: { email: string; roleType: string }
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.post<{ success: boolean }>({
       data,
-      path: `/teams/${teamId}/users/invite`,
+      path: `/orgs/${orgId}/users/invite`,
     })
 
-    resp.error && (await this._onError(resp.error, `Failed to invite user to team`))
+    resp.error && (await this._onError(resp.error, `Failed to invite user to org`))
 
     return resp
   }
 
   /**
-   * Update user role in team
-   * @param teamId - Team ID
+   * Update user role in org
+   * @param orgId - Org ID
    * @param roleId - Role ID
    * @param roleType - New role type
    * @returns Success status
    */
   async updateRole(
-    teamId: string,
+    orgId: string,
     roleId: string,
     roleType: string
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.put<{ success: boolean }>({
       data: { roleType },
-      path: `/teams/${teamId}/roles/${roleId}`,
+      path: `/orgs/${orgId}/roles/${roleId}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update user role`))
@@ -186,20 +186,20 @@ export class UsersApi extends BaseApi {
   }
 
   /**
-   * Remove user from team
-   * @param teamId - Team ID
+   * Remove user from org
+   * @param orgId - Org ID
    * @param roleId - Role ID
    * @returns Success status
    */
-  async removeFromTeam(
-    teamId: string,
+  async removeFromOrg(
+    orgId: string,
     roleId: string
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `/teams/${teamId}/roles/${roleId}`,
+      path: `/orgs/${orgId}/roles/${roleId}`,
     })
 
-    resp.error && (await this._onError(resp.error, `Failed to remove user from team`))
+    resp.error && (await this._onError(resp.error, `Failed to remove user from org`))
 
     return resp
   }

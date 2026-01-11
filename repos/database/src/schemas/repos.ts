@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { teams } from '@TDB/schemas/teams'
+import { orgs } from '@TDB/schemas/orgs'
 import { assets } from '@TDB/schemas/assets'
 import { base } from '@TDB/utils/schema/base'
 import { secrets } from '@TDB/schemas/secrets'
@@ -14,8 +14,8 @@ export const repos = pgTable(`repos`, {
   gitUrl: text(`git_url`),
   name: text(`name`).notNull(),
   branch: text(`branch`).default(`main`),
-  teamId: uuid(`team_id`)
-    .references(() => teams.id, { onDelete: `cascade` })
+  orgId: uuid(`org_id`)
+    .references(() => orgs.id, { onDelete: `cascade` })
     .notNull(),
 })
 
@@ -25,8 +25,8 @@ export const reposRelations = relations(repos, ({ one, many }) => ({
   configs: many(configs),
   providers: many(providers),
   endpoints: many(endpoints),
-  team: one(teams, {
-    fields: [repos.teamId],
-    references: [teams.id],
+  org: one(orgs, {
+    fields: [repos.orgId],
+    references: [orgs.id],
   }),
 }))

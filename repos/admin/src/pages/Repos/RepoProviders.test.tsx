@@ -5,7 +5,7 @@ import * as accessors from '@TAF/state/accessors'
 
 // Mock the router
 vi.mock('react-router', () => ({
-  useParams: () => ({ teamId: 'team-123', repoId: 'repo-456' }),
+  useParams: () => ({ orgId: 'org-123', repoId: 'repo-456' }),
   useNavigate: () => vi.fn(),
 }))
 
@@ -18,7 +18,7 @@ vi.mock('@TAF/pages/Page/Page', () => ({
 
 // Mock accessors
 vi.mock('@TAF/state/accessors', () => ({
-  setActiveTeamId: vi.fn(),
+  setActiveOrgId: vi.fn(),
   setActiveRepoId: vi.fn(),
 }))
 
@@ -40,19 +40,19 @@ describe('RepoProviders', () => {
     })
   })
 
-  it('should display the team and repo IDs', async () => {
-    // The component doesn't display teamId/repoId directly in the UI text.
-    // It renders "No providers configured for this team." if empty.
+  it('should display the org and repo IDs', async () => {
+    // The component doesn't display orgId/repoId directly in the UI text.
+    // It renders "No providers configured for this org." if empty.
     render(<RepoProviders />)
     await waitFor(() => {
-      expect(screen.getByText('No providers configured for this team.')).toBeDefined()
+      expect(screen.getByText('No providers configured for this org.')).toBeDefined()
     })
   })
 
-  it('should call setActiveTeamId with teamId', async () => {
+  it('should call setActiveOrgId with orgId', async () => {
     render(<RepoProviders />)
     await waitFor(() => {
-      expect(accessors.setActiveTeamId).toHaveBeenCalledWith('team-123')
+      expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-123')
     })
   })
 

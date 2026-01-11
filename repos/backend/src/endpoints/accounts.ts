@@ -3,7 +3,7 @@ import type { TEndpointBuilder } from '@TBE/types'
 import express from 'express'
 import { EPMethod } from '@TBE/types'
 import { adminPath } from '@tdsk/domain'
-import { teams } from '@TBE/endpoints/teams'
+import { orgs } from '@TBE/endpoints/orgs'
 import { users } from '@TBE/endpoints/users'
 import { base } from '@TBE/endpoints/base/base'
 import { auth } from '@TBE/endpoints/auth/auth'
@@ -19,7 +19,7 @@ export const accounts: TEndpointBuilder = (config) => {
       auth,
       base,
       users,
-      teams,
+      orgs,
       health,
     },
   }

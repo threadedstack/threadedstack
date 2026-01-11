@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Home } from './Home'
-import * as teamsActions from '@TAF/actions/teams'
+import * as orgsActions from '@TAF/actions/orgs'
 import * as accessors from '@TAF/state/accessors'
 
 const selectorMocks = vi.hoisted(() => {
   return {
-    useTeams: vi.fn(),
-    useActiveTeamId: vi.fn(),
+    useOrgs: vi.fn(),
+    useActiveOrgId: vi.fn(),
   }
 })
 
@@ -23,35 +23,35 @@ vi.mock('@TAF/pages/Page/Page', () => ({
   ),
 }))
 
-vi.mock('@TAF/pages/Teams/CreateTeamDialog', () => ({
-  CreateTeamDialog: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+vi.mock('@TAF/pages/Orgs/CreateOrgDialog', () => ({
+  CreateOrgDialog: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
     open ? (
-      <div data-testid='create-team-dialog'>
+      <div data-testid='create-org-dialog'>
         <button onClick={onClose}>Close</button>
       </div>
     ) : null,
 }))
 
-const mockTeamsData = {
-  '1': { id: '1', name: 'Team Alpha', description: 'First team' },
-  '2': { id: '2', name: 'Team Beta', description: 'Second team' },
+const mockOrgsData = {
+  '1': { id: '1', name: 'Org Alpha', description: 'First org' },
+  '2': { id: '2', name: 'Org Beta', description: 'Second org' },
 }
 
-const mockSetTeamsState = vi.fn()
+const mockSetOrgsState = vi.fn()
 
 vi.mock('@TAF/state/selectors', () => ({
-  useTeams: selectorMocks.useTeams,
-  useActiveTeamId: selectorMocks.useActiveTeamId,
+  useOrgs: selectorMocks.useOrgs,
+  useActiveOrgId: selectorMocks.useActiveOrgId,
 }))
 
 // Mock the state accessors
 vi.mock('@TAF/state/accessors', () => ({
-  setActiveTeamId: vi.fn(),
+  setActiveOrgId: vi.fn(),
 }))
 
 // Mock the actions
-vi.mock('@TAF/actions/teams', () => ({
-  fetchTeams: vi.fn().mockResolvedValue({}),
+vi.mock('@TAF/actions/orgs', () => ({
+  fetchOrgs: vi.fn().mockResolvedValue({}),
 }))
 
 // Mock MUI useTheme
@@ -68,105 +68,105 @@ vi.mock('@mui/material/styles', () => ({
 describe('Home', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    selectorMocks.useActiveTeamId.mockImplementation(() => ['1', vi.fn()])
-    selectorMocks.useTeams.mockImplementation(() => [mockTeamsData, mockSetTeamsState])
+    selectorMocks.useActiveOrgId.mockImplementation(() => ['1', vi.fn()])
+    selectorMocks.useOrgs.mockImplementation(() => [mockOrgsData, mockSetOrgsState])
   })
 
   afterAll(() => {
-    selectorMocks.useTeams.mockRestore()
-    selectorMocks.useActiveTeamId.mockRestore()
+    selectorMocks.useOrgs.mockRestore()
+    selectorMocks.useActiveOrgId.mockRestore()
   })
 
-  it('should render team selection heading', async () => {
+  it('should render org selection heading', async () => {
     render(<Home />)
     await waitFor(() => {
-      expect(screen.getByText('Select a Team')).toBeDefined()
+      expect(screen.getByText('Your Organizations')).toBeDefined()
     })
   })
 
-  it('should render team selection description', async () => {
+  it('should render org selection description', async () => {
     render(<Home />)
     await waitFor(() => {
       expect(
-        screen.getByText('Choose a team to continue or create a new one')
+        screen.getByText('Choose an organization to continue or create a new one')
       ).toBeDefined()
     })
   })
 
-  it('should call fetchTeams on mount', async () => {
+  it('should call fetchOrgs on mount', async () => {
     render(<Home />)
     await waitFor(() => {
-      expect(teamsActions.fetchTeams).toHaveBeenCalled()
+      expect(orgsActions.fetchOrgs).toHaveBeenCalled()
     })
   })
 
   it('should display loading state initially', async () => {
     render(<Home />)
-    expect(screen.getByText('Loading teams...')).toBeDefined()
+    expect(screen.getByText('Loading orgs...')).toBeDefined()
   })
 
-  it('should display team names after loading', async () => {
+  it('should display org names after loading', async () => {
     render(<Home />)
     await waitFor(() => {
-      expect(screen.getByText('Team Alpha')).toBeDefined()
-      expect(screen.getByText('Team Beta')).toBeDefined()
+      expect(screen.getByText('Org Alpha')).toBeDefined()
+      expect(screen.getByText('Org Beta')).toBeDefined()
     })
   })
 
-  it('should display team descriptions', async () => {
+  it('should display org descriptions', async () => {
     render(<Home />)
     await waitFor(() => {
-      expect(screen.getByText('First team')).toBeDefined()
-      expect(screen.getByText('Second team')).toBeDefined()
+      expect(screen.getByText('First org')).toBeDefined()
+      expect(screen.getByText('Second org')).toBeDefined()
     })
   })
 
-  it('should highlight active team with Current badge', async () => {
+  it('should highlight active org with Current badge', async () => {
     render(<Home />)
     await waitFor(() => {
       expect(screen.getByText('Current')).toBeDefined()
     })
   })
 
-  it('should render Create New Team button when teams exist', async () => {
+  it('should render Create New Org button when orgs exist', async () => {
     render(<Home />)
     await waitFor(() => {
-      expect(screen.getByText('Create New Team')).toBeDefined()
+      expect(screen.getByText('Create New')).toBeDefined()
     })
   })
 
-  it('should call setActiveTeamId and navigate when team card is clicked', async () => {
+  it('should call setActiveOrgId and navigate when org card is clicked', async () => {
     const user = userEvent.setup()
     render(<Home />)
 
     await waitFor(() => {
-      expect(screen.getByText('Team Beta')).toBeDefined()
+      expect(screen.getByText('Org Beta')).toBeDefined()
     })
 
-    const teamCard = screen.getByText('Team Beta').closest('div[class*="MuiCard"]')
-    if (teamCard) {
-      await user.click(teamCard)
+    const orgCard = screen.getByText('Org Beta').closest('div[class*="MuiCard"]')
+    if (orgCard) {
+      await user.click(orgCard)
     }
 
     await waitFor(() => {
-      expect(accessors.setActiveTeamId).toHaveBeenCalledWith('2')
-      expect(mockNavigate).toHaveBeenCalledWith('/teams/2')
+      expect(accessors.setActiveOrgId).toHaveBeenCalledWith('2')
+      expect(mockNavigate).toHaveBeenCalledWith('/orgs/2')
     })
   })
 
-  it('should open create team dialog when Create New Team button is clicked', async () => {
+  it('should open create org dialog when Create New Org button is clicked', async () => {
     const user = userEvent.setup()
     render(<Home />)
 
     await waitFor(() => {
-      expect(screen.getByText('Create New Team')).toBeDefined()
+      expect(screen.getByText('Create New')).toBeDefined()
     })
 
-    const createButton = screen.getByText('Create New Team')
+    const createButton = screen.getByText('Create New')
     await user.click(createButton)
 
     await waitFor(() => {
-      expect(screen.getByTestId('create-team-dialog')).toBeDefined()
+      expect(screen.getByTestId('create-org-dialog')).toBeDefined()
     })
   })
 })
@@ -174,19 +174,19 @@ describe('Home', () => {
 describe('Home - Empty State', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    selectorMocks.useActiveTeamId.mockImplementation(() => [undefined, vi.fn()])
-    selectorMocks.useTeams.mockImplementation(() => [{}, mockSetTeamsState])
+    selectorMocks.useActiveOrgId.mockImplementation(() => [undefined, vi.fn()])
+    selectorMocks.useOrgs.mockImplementation(() => [{}, mockSetOrgsState])
   })
 
   afterAll(() => {
-    selectorMocks.useTeams.mockRestore()
-    selectorMocks.useActiveTeamId.mockRestore()
+    selectorMocks.useOrgs.mockRestore()
+    selectorMocks.useActiveOrgId.mockRestore()
   })
 
-  it('should show empty state when no teams exist', async () => {
+  it('should show empty state when no orgs exist', async () => {
     vi.doMock('@TAF/state/selectors', () => ({
-      useTeams: () => [{}, mockSetTeamsState],
-      useActiveTeamId: () => [null, vi.fn()],
+      useOrgs: () => [{}, mockSetOrgsState],
+      useActiveOrgId: () => [null, vi.fn()],
     }))
 
     const { Home: HomeComponent } = await import('./Home')
@@ -194,61 +194,61 @@ describe('Home - Empty State', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('No teams yet. Create your first team to get started.')
+        screen.getByText('No orgs yet. Create your first org to get started.')
       ).toBeDefined()
     })
   })
 
-  it('should render Create Team button in empty state', async () => {
-    // Create a custom mock for empty teams
+  it('should render Create Org button in empty state', async () => {
+    // Create a custom mock for empty orgs
     vi.doMock('@TAF/state/selectors', () => ({
-      useTeams: () => [{}, mockSetTeamsState],
-      useActiveTeamId: () => [null, vi.fn()],
+      useOrgs: () => [{}, mockSetOrgsState],
+      useActiveOrgId: () => [null, vi.fn()],
     }))
 
     const { Home: HomeComponent } = await import('./Home')
     render(<HomeComponent />)
 
     await waitFor(() => {
-      expect(screen.getByText('Create Team')).toBeDefined()
+      expect(screen.getByText('Create Org')).toBeDefined()
     })
   })
 })
 
-describe('Home - Team Selection', () => {
+describe('Home - Org Selection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    selectorMocks.useActiveTeamId.mockImplementation(() => ['1', vi.fn()])
-    selectorMocks.useTeams.mockImplementation(() => [mockTeamsData, mockSetTeamsState])
+    selectorMocks.useActiveOrgId.mockImplementation(() => ['1', vi.fn()])
+    selectorMocks.useOrgs.mockImplementation(() => [mockOrgsData, mockSetOrgsState])
   })
 
   afterAll(() => {
-    selectorMocks.useTeams.mockRestore()
-    selectorMocks.useActiveTeamId.mockRestore()
+    selectorMocks.useOrgs.mockRestore()
+    selectorMocks.useActiveOrgId.mockRestore()
   })
 
-  it('should call setActiveTeamId when select icon button is clicked', async () => {
+  it('should call setActiveOrgId when select icon button is clicked', async () => {
     const user = userEvent.setup()
     render(<Home />)
 
     await waitFor(() => {
-      expect(screen.getByText('Team Alpha')).toBeDefined()
+      expect(screen.getByText('Org Alpha')).toBeDefined()
     })
 
     const iconButtons = screen.getAllByRole('button', {
-      name: /select team|continue with team/i,
+      name: /select org|continue with org/i,
     })
     expect(iconButtons.length).toBeGreaterThan(0)
 
     await user.click(iconButtons[0])
 
     await waitFor(() => {
-      expect(accessors.setActiveTeamId).toHaveBeenCalled()
+      expect(accessors.setActiveOrgId).toHaveBeenCalled()
       expect(mockNavigate).toHaveBeenCalled()
     })
   })
 
-  it('should display team IDs', async () => {
+  it('should display org IDs', async () => {
     render(<Home />)
     await waitFor(() => {
       expect(screen.getByText(/ID: 1/)).toBeDefined()
@@ -256,11 +256,11 @@ describe('Home - Team Selection', () => {
     })
   })
 
-  it('should render team icons for each team card', async () => {
+  it('should render org icons for each org card', async () => {
     render(<Home />)
     await waitFor(() => {
-      const teamCards = screen.getAllByText(/Team Alpha|Team Beta/)
-      expect(teamCards.length).toBeGreaterThanOrEqual(2)
+      const orgCards = screen.getAllByText(/Org Alpha|Org Beta/)
+      expect(orgCards.length).toBeGreaterThanOrEqual(2)
     })
   })
 })

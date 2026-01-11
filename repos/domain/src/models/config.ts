@@ -2,7 +2,7 @@ import { Base } from './base'
 
 export class Config extends Base {
   userId?: string
-  teamId?: string
+  orgId?: string
   repoId?: string
   data: Record<string, any>
 

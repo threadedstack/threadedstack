@@ -9,13 +9,11 @@ export type TFetchReposResult = {
 }
 
 export type TFetchRepos = {
-  teamId?: string
+  orgId?: string
 }
 
 export const fetchRepos = async (opts?: TFetchRepos): Promise<TFetchReposResult> => {
-  const resp = opts?.teamId
-    ? await reposApi.listByTeam(opts?.teamId)
-    : await reposApi.list()
+  const resp = opts?.orgId ? await reposApi.listByOrg(opts?.orgId) : await reposApi.list()
 
   if (resp.error) return resp
 

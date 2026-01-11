@@ -15,8 +15,8 @@ import {
 } from '@mui/material'
 import { ife } from '@keg-hub/jsutils/ife'
 import { createRepo } from '@TAF/actions/repos'
-import { fetchTeams } from '@TAF/actions/teams'
-import { useTeams } from '@TAF/state/selectors'
+import { fetchOrgs } from '@TAF/actions/orgs'
+import { useOrgs } from '@TAF/state/selectors'
 
 export type TCreateRepoDialog = {
   open: boolean
@@ -25,21 +25,21 @@ export type TCreateRepoDialog = {
 
 export const CreateRepoDialog = ({ open, onClose }: TCreateRepoDialog) => {
   const [name, setName] = useState('')
-  const [teamId, setTeamId] = useState('')
+  const [orgId, setOrgId] = useState('')
   const [gitUrl, setGitUrl] = useState('')
   const [branch, setBranch] = useState('main')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [teams] = useTeams()
+  const [orgs] = useOrgs()
 
   useEffect(() => {
-    open && !teams && ife(async () => await fetchTeams())
-  }, [open, teams])
+    open && !orgs && ife(async () => await fetchOrgs())
+  }, [open, orgs])
 
   const handleClose = () => {
     if (!loading) {
       setName('')
-      setTeamId('')
+      setOrgId('')
       setGitUrl('')
       setBranch('main')
       setError(null)
@@ -55,8 +55,8 @@ export const CreateRepoDialog = ({ open, onClose }: TCreateRepoDialog) => {
       return
     }
 
-    if (!teamId) {
-      setError('Team selection is required')
+    if (!orgId) {
+      setError('Org selection is required')
       return
     }
 
@@ -65,7 +65,7 @@ export const CreateRepoDialog = ({ open, onClose }: TCreateRepoDialog) => {
 
     const result = await createRepo({
       name: name.trim(),
-      teamId,
+      orgId,
       gitUrl: gitUrl.trim() || undefined,
       branch: branch.trim() || 'main',
     })
@@ -79,7 +79,7 @@ export const CreateRepoDialog = ({ open, onClose }: TCreateRepoDialog) => {
     }
   }
 
-  const teamsArray = teams ? Object.values(teams) : []
+  const orgsArray = orgs ? Object.values(orgs) : []
 
   return (
     <Dialog
@@ -117,27 +117,27 @@ export const CreateRepoDialog = ({ open, onClose }: TCreateRepoDialog) => {
               required
               disabled={loading}
             >
-              <InputLabel id='team-select-label'>Team</InputLabel>
+              <InputLabel id='org-select-label'>Org</InputLabel>
               <Select
-                labelId='team-select-label'
-                value={teamId}
-                label='Team'
-                onChange={(e) => setTeamId(e.target.value)}
+                labelId='org-select-label'
+                value={orgId}
+                label='Org'
+                onChange={(e) => setOrgId(e.target.value)}
               >
-                {teamsArray.length === 0 && (
+                {orgsArray.length === 0 && (
                   <MenuItem
                     value=''
                     disabled
                   >
-                    No teams available
+                    No orgs available
                   </MenuItem>
                 )}
-                {teamsArray.map((team) => (
+                {orgsArray.map((org) => (
                   <MenuItem
-                    key={team.id}
-                    value={team.id}
+                    key={org.id}
+                    value={org.id}
                   >
-                    {team.name}
+                    {org.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -172,7 +172,7 @@ export const CreateRepoDialog = ({ open, onClose }: TCreateRepoDialog) => {
           <Button
             type='submit'
             variant='contained'
-            disabled={loading || teamsArray.length === 0}
+            disabled={loading || orgsArray.length === 0}
           >
             {loading ? 'Creating...' : 'Create Repository'}
           </Button>

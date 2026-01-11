@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-**Threaded Stack** is a developer platform that unifies authentication, serverless compute (FaaS), and secure API proxying into a single infrastructure. It solves the fragmentation problem developers face when building "Agentic" AI applications: connecting LLMs to real-world tools securely. By acting as the "nervous system" between an AI model and external APIs/databases, Threaded Stack allows teams to build autonomous software without managing complex AWS/Azure infrastructure.
+**Threaded Stack** is a developer platform that unifies authentication, serverless compute (FaaS), and secure API proxying into a single infrastructure. It solves the fragmentation problem developers face when building "Agentic" AI applications: connecting LLMs to real-world tools securely. By acting as the "nervous system" between an AI model and external APIs/databases, Threaded Stack allows orgs to build autonomous software without managing complex AWS/Azure infrastructure.
 
 ## 2. The Problem
 
@@ -10,7 +10,7 @@ Developers building modern AI applications face three specific hurdles:
 
 1. **The "Glued Together" Stack:** To build an app where an AI can "do" things (e.g., check a database, call an API), developers currently have to stitch together Vercel (frontend), AWS Lambda (compute), LangChain (logic), and Vault (secrets). This is expensive and brittle.
 2. **The Security Gap:** Giving an LLM access to API keys is dangerous. If the AI hallucinates or is prompted maliciously, it can leak credentials.
-3. **Context Management:** LLMs need context (code, docs, history). Managing vector stores and retrieval pipelines manually is a massive overhead for engineering teams.
+3. **Context Management:** LLMs need context (code, docs, history). Managing vector stores and retrieval pipelines manually is a massive overhead for engineering orgs.
 
 ## 3. The Solution: Threaded Stack
 
@@ -28,7 +28,7 @@ A single, self-hosted or managed platform that provides:
 * **Pain Point:** They want to build an "AI Employee" (e.g., a customer support agent that can process refunds), but they are getting bogged down in DevOps and security compliance.
 * **Why they buy:** Speed to market. They get Auth, FaaS, and AI Proxy in one repo.
 
-### Secondary ICP: Enterprise Data Engineering Teams
+### Secondary ICP: Enterprise Data Engineering Orgs
 
 * **Role:** Engineering Managers (like yourself) at mid-to-large companies.
 * **Pain Point:** Their developers are using random OpenAI keys and pasting code into ChatGPT. They need a governance layer.
@@ -79,7 +79,7 @@ Since this is a developer tool, a "Product-Led Growth" (PLG) model works best.
 * Includes: Managed hosting of the Proxy/FaaS (so they don't have to run Docker), basic compute limits.
 
 
-3. **Team/Enterprise:**
+3. **Org/Enterprise:**
 * Pricing: Usage-based (per FaaS execution or per Proxy GB) + Seat license.
 * Features: SSO, Audit Logs, Private VPC peering, higher rate limits.
 

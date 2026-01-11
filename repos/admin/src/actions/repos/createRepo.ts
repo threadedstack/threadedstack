@@ -5,7 +5,7 @@ import { setRepos, getRepos } from '@TAF/state/accessors'
 
 export type TCreateRepoInput = {
   name: string
-  teamId: string
+  orgId: string
   gitUrl?: string
   branch?: string
 }

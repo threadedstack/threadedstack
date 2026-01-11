@@ -20,7 +20,7 @@
 - [ ] **TASK-1.1.6**: Implement `DELETE /_/secrets/:id` - Delete secret
 - [ ] **TASK-1.1.7**: Implement encryption utility for secret values
 - [ ] **TASK-1.1.8**: Implement decryption utility for secret values
-- [ ] **TASK-1.1.9**: Associate secrets with Teams (team_id foreign key)
+- [ ] **TASK-1.1.9**: Associate secrets with Orgs (org_id foreign key)
 - [ ] **TASK-1.1.10**: Associate secrets with Repos (repo_id foreign key - exclusive arc)
 
 ### 1.2 Endpoint Management API
@@ -112,7 +112,7 @@
 - [ ] **TASK-4.1.4**: Implement secret creation form/modal
 - [ ] **TASK-4.1.5**: Implement secret edit form (value hidden by default)
 - [ ] **TASK-4.1.6**: Implement secret deletion with confirmation
-- [ ] **TASK-4.1.7**: Add secrets tab/section to Team detail page
+- [ ] **TASK-4.1.7**: Add secrets tab/section to Org detail page
 - [ ] **TASK-4.1.8**: Add secrets tab/section to Repo detail page
 - [ ] **TASK-4.1.9**: Create Secrets API service in admin
 
@@ -130,7 +130,7 @@
 - [ ] **TASK-4.2.11**: Add route for Endpoints in admin router
 
 ### 4.3 API Keys UI
-- [ ] **TASK-4.3.1**: Create API Keys section in Settings or Team page
+- [ ] **TASK-4.3.1**: Create API Keys section in Settings or Org page
 - [ ] **TASK-4.3.2**: Implement API key generation UI
 - [ ] **TASK-4.3.3**: Display generated key once (copy to clipboard)
 - [ ] **TASK-4.3.4**: Implement API key list with revoke option
@@ -152,7 +152,7 @@
 
 ## Dependencies
 
-- **Epic 1**: Base Setup must be completed (Auth, Users, Teams, basic UI)
+- **Epic 1**: Base Setup must be completed (Auth, Users, Orgs, basic UI)
 
 ## Technical Notes
 

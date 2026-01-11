@@ -18,7 +18,7 @@ export class ConfigsApi extends BaseApi {
 
   /**
    * Get all configs
-   * @param data - Optional query parameters (teamId, repoId, limit, offset, etc.)
+   * @param data - Optional query parameters (orgId, repoId, limit, offset, etc.)
    * @returns List of all configs
    */
   async list(data?: Record<string, any>): Promise<TApiRes<Config[]>> {

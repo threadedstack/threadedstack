@@ -3,7 +3,7 @@ import { useSecrets } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { fetchSecrets, deleteSecret } from '@TAF/actions/secrets'
-import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import { setActiveOrgId, setActiveRepoId } from '@TAF/state/accessors'
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -28,15 +28,15 @@ import {
 export type TRepoSecrets = {}
 
 export const RepoSecrets = (props: TRepoSecrets) => {
-  const { teamId, repoId } = useParams<{ teamId: string; repoId: string }>()
+  const { orgId, repoId } = useParams<{ orgId: string; repoId: string }>()
   const navigate = useNavigate()
   const [secrets] = useSecrets()
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (teamId) setActiveTeamId(teamId)
+    if (orgId) setActiveOrgId(orgId)
     if (repoId) setActiveRepoId(repoId)
-  }, [teamId, repoId])
+  }, [orgId, repoId])
 
   useEffect(() => {
     const loadData = async () => {
@@ -64,7 +64,7 @@ export const RepoSecrets = (props: TRepoSecrets) => {
   }
 
   const onCreate = () => {
-    navigate(`/teams/${teamId}/repos/${repoId}/secrets/new`)
+    navigate(`/orgs/${orgId}/repos/${repoId}/secrets/new`)
   }
 
   if (loading) {

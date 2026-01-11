@@ -22,8 +22,8 @@ describe('fetchRepos', () => {
 
   it('should fetch repos successfully and update state', async () => {
     const mockRepos = [
-      new Repo({ id: '1', name: 'Repo 1', teamId: 'team1', branch: 'main' }),
-      new Repo({ id: '2', name: 'Repo 2', teamId: 'team1', branch: 'develop' }),
+      new Repo({ id: '1', name: 'Repo 1', orgId: 'org1', branch: 'main' }),
+      new Repo({ id: '2', name: 'Repo 2', orgId: 'org1', branch: 'develop' }),
     ]
 
     mockReposList.mockResolvedValueOnce({ data: mockRepos })

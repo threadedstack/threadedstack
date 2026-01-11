@@ -5,7 +5,7 @@ import * as accessors from '@TAF/state/accessors'
 
 // Mock the router
 vi.mock('react-router', () => ({
-  useParams: () => ({ teamId: 'team-123', repoId: 'repo-456' }),
+  useParams: () => ({ orgId: 'org-123', repoId: 'repo-456' }),
   useNavigate: () => vi.fn(),
 }))
 
@@ -27,7 +27,7 @@ vi.mock('@TAF/components', () => ({
 
 // Mock accessors
 vi.mock('@TAF/state/accessors', () => ({
-  setActiveTeamId: vi.fn(),
+  setActiveOrgId: vi.fn(),
   setActiveRepoId: vi.fn(),
 }))
 
@@ -50,7 +50,7 @@ describe('RepoEndpoints', () => {
     })
   })
 
-  it('should display the team and repo IDs', async () => {
+  it('should display the org and repo IDs', async () => {
     // The component checks if empty and displays EmptyState
     render(<RepoEndpoints />)
     await waitFor(() => {
@@ -58,10 +58,10 @@ describe('RepoEndpoints', () => {
     })
   })
 
-  it('should call setActiveTeamId with teamId', async () => {
+  it('should call setActiveOrgId with orgId', async () => {
     render(<RepoEndpoints />)
     await waitFor(() => {
-      expect(accessors.setActiveTeamId).toHaveBeenCalledWith('team-123')
+      expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-123')
     })
   })
 

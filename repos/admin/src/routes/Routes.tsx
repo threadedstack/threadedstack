@@ -10,14 +10,14 @@ const Login = lazy(() => import('@TAF/pages/Login/Login'))
 const Account = lazy(() => import('@TAF/pages/Account/Account'))
 const Settings = lazy(() => import('@TAF/pages/Settings/Settings'))
 
-// Team pages
-const TeamSelect = lazy(() => import('@TAF/pages/Teams/Teams'))
-const Team = lazy(() => import('@TAF/pages/Teams/Team'))
-const TeamUsers = lazy(() => import('@TAF/pages/Teams/TeamUsers'))
-const TeamSecrets = lazy(() => import('@TAF/pages/Teams/TeamSecrets'))
-const TeamProviders = lazy(() => import('@TAF/pages/Teams/TeamProviders'))
-const TeamSettings = lazy(() => import('@TAF/pages/Teams/TeamSettings'))
-const TeamRepos = lazy(() => import('@TAF/pages/Teams/TeamRepos'))
+// Org pages
+const OrgSelect = lazy(() => import('@TAF/pages/Orgs/Orgs'))
+const Org = lazy(() => import('@TAF/pages/Orgs/Org'))
+const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
+const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
+const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
+const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
+const OrgRepos = lazy(() => import('@TAF/pages/Orgs/OrgRepos'))
 
 // Repo pages
 const Repo = lazy(() => import('@TAF/pages/Repos/Repo'))
@@ -64,48 +64,48 @@ export const Routes = createBrowserRouter([
       </Suspense>
     ),
     children: [
-      // Home route - Team selection at root
+      // Home route - Org selection at root
       {
         index: true,
         Component: () => <SuspensePage Component={Home} />,
       },
-      // Team selection route
+      // Org selection route
       {
-        path: 'teams',
-        Component: () => <SuspensePage Component={TeamSelect} />,
+        path: 'orgs',
+        Component: () => <SuspensePage Component={OrgSelect} />,
       },
-      // Nested team routes
+      // Nested org routes
       {
-        path: 'teams/:teamId',
+        path: 'orgs/:orgId',
         children: [
-          // Team dashboard
+          // Org dashboard
           {
             index: true,
-            Component: () => <SuspensePage Component={Team} />,
+            Component: () => <SuspensePage Component={Org} />,
           },
-          // Team sub-pages
+          // Org sub-pages
           {
             path: 'users',
-            Component: () => <SuspensePage Component={TeamUsers} />,
+            Component: () => <SuspensePage Component={OrgUsers} />,
           },
           {
             path: 'secrets',
-            Component: () => <SuspensePage Component={TeamSecrets} />,
+            Component: () => <SuspensePage Component={OrgSecrets} />,
           },
           {
             path: 'providers',
-            Component: () => <SuspensePage Component={TeamProviders} />,
+            Component: () => <SuspensePage Component={OrgProviders} />,
           },
           {
             path: 'settings',
-            Component: () => <SuspensePage Component={TeamSettings} />,
+            Component: () => <SuspensePage Component={OrgSettings} />,
           },
-          // Repo selection for this team
+          // Repo selection for this org
           {
             path: 'repos',
-            Component: () => <SuspensePage Component={TeamRepos} />,
+            Component: () => <SuspensePage Component={OrgRepos} />,
           },
-          // Nested repo routes under team
+          // Nested repo routes under org
           {
             path: 'repos/:repoId',
             children: [

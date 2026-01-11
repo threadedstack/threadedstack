@@ -23,13 +23,13 @@ describe('Secret Model', () => {
       expect(secret.updatedAt).toBe(secretData.updatedAt)
     })
 
-    it('should create a team-scoped secret', () => {
+    it('should create a org-scoped secret', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'TEAM_SECRET',
-        hashKey: 'hash_team123',
-        encryptedValue: 'encrypted_team_value',
-        teamId: '456e4567-e89b-12d3-a456-426614174001',
+        name: 'ORG_SECRET',
+        hashKey: 'hash_org123',
+        encryptedValue: 'encrypted_org_value',
+        orgId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -40,7 +40,7 @@ describe('Secret Model', () => {
       expect(secret.name).toBe(secretData.name)
       expect(secret.hashKey).toBe(secretData.hashKey)
       expect(secret.encryptedValue).toBe(secretData.encryptedValue)
-      expect(secret.teamId).toBe(secretData.teamId)
+      expect(secret.orgId).toBe(secretData.orgId)
       expect(secret.repoId).toBeUndefined()
       expect(secret.createdAt).toBe(secretData.createdAt)
       expect(secret.updatedAt).toBe(secretData.updatedAt)
@@ -64,7 +64,7 @@ describe('Secret Model', () => {
       expect(secret.hashKey).toBe(secretData.hashKey)
       expect(secret.encryptedValue).toBe(secretData.encryptedValue)
       expect(secret.repoId).toBe(secretData.repoId)
-      expect(secret.teamId).toBeUndefined()
+      expect(secret.orgId).toBeUndefined()
       expect(secret.createdAt).toBe(secretData.createdAt)
       expect(secret.updatedAt).toBe(secretData.updatedAt)
     })
@@ -76,7 +76,7 @@ describe('Secret Model', () => {
         name: 'API_KEY',
         hashKey: 'hash_abc123',
         encryptedValue: 'encrypted_value_xyz789',
-        teamId: '456e4567-e89b-12d3-a456-426614174001',
+        orgId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: now,
         updatedAt: now,
       }
@@ -99,7 +99,7 @@ describe('Secret Model', () => {
       expect(secret.name).toBe(secretData.name)
       expect(secret.hashKey).toBe(secretData.hashKey)
       expect(secret.encryptedValue).toBe(secretData.encryptedValue)
-      expect(secret.teamId).toBeUndefined()
+      expect(secret.orgId).toBeUndefined()
       expect(secret.repoId).toBeUndefined()
     })
 
@@ -109,7 +109,7 @@ describe('Secret Model', () => {
         name: 'DATABASE_URL_PROD',
         hashKey: 'hash_db_123',
         encryptedValue: 'encrypted_db_connection_string',
-        teamId: '456e4567-e89b-12d3-a456-426614174001',
+        orgId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -144,7 +144,7 @@ describe('Secret Model', () => {
         name: 'AWS_SECRET_KEY',
         hashKey: 'hash_aws',
         encryptedValue: 'encrypted_aws_secret',
-        teamId: '456e4567-e89b-12d3-a456-426614174001',
+        orgId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-02T00:00:00Z',
       }
@@ -175,20 +175,20 @@ describe('Secret Model', () => {
   })
 
   describe('exclusive arc pattern', () => {
-    it('should allow secret with teamId only', () => {
+    it('should allow secret with orgId only', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'TEAM_API_KEY',
-        hashKey: 'hash_team',
-        encryptedValue: 'encrypted_team_api_key',
-        teamId: '456e4567-e89b-12d3-a456-426614174001',
+        name: 'ORG_API_KEY',
+        hashKey: 'hash_org',
+        encryptedValue: 'encrypted_org_api_key',
+        orgId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
 
       const secret = new Secret(secretData)
 
-      expect(secret.teamId).toBe(secretData.teamId)
+      expect(secret.orgId).toBe(secretData.orgId)
       expect(secret.repoId).toBeUndefined()
     })
 
@@ -206,10 +206,10 @@ describe('Secret Model', () => {
       const secret = new Secret(secretData)
 
       expect(secret.repoId).toBe(secretData.repoId)
-      expect(secret.teamId).toBeUndefined()
+      expect(secret.orgId).toBeUndefined()
     })
 
-    it('should allow secret with neither teamId nor repoId', () => {
+    it('should allow secret with neither orgId nor repoId', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         name: 'UNSCOPED_SECRET',
@@ -221,17 +221,17 @@ describe('Secret Model', () => {
 
       const secret = new Secret(secretData)
 
-      expect(secret.teamId).toBeUndefined()
+      expect(secret.orgId).toBeUndefined()
       expect(secret.repoId).toBeUndefined()
     })
 
-    it('should allow secret with both teamId and repoId (model layer does not enforce constraint)', () => {
+    it('should allow secret with both orgId and repoId (model layer does not enforce constraint)', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         name: 'BOTH_IDS_SECRET',
         hashKey: 'hash_both',
         encryptedValue: 'encrypted_both_value',
-        teamId: '456e4567-e89b-12d3-a456-426614174001',
+        orgId: '456e4567-e89b-12d3-a456-426614174001',
         repoId: '789e4567-e89b-12d3-a456-426614174002',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -239,7 +239,7 @@ describe('Secret Model', () => {
 
       const secret = new Secret(secretData)
 
-      expect(secret.teamId).toBe(secretData.teamId)
+      expect(secret.orgId).toBe(secretData.orgId)
       expect(secret.repoId).toBe(secretData.repoId)
     })
   })
@@ -248,10 +248,10 @@ describe('Secret Model', () => {
     it('should handle null values if provided', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'NULL_TEAM_SECRET',
+        name: 'NULL_ORG_SECRET',
         hashKey: 'hash_null',
         encryptedValue: 'encrypted_null_value',
-        teamId: null as any,
+        orgId: null as any,
         repoId: null as any,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -259,19 +259,19 @@ describe('Secret Model', () => {
 
       const secret = new Secret(secretData)
 
-      expect(secret.teamId).toBeNull()
+      expect(secret.orgId).toBeNull()
       expect(secret.repoId).toBeNull()
     })
   })
 
   describe('real-world scenarios', () => {
-    it('should create a GitHub API token secret for a team', () => {
+    it('should create a GitHub API token secret for a org', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         name: 'GITHUB_API_TOKEN',
         hashKey: 'sha256_hash_of_github_token',
         encryptedValue: 'aes256_encrypted_github_token_value',
-        teamId: '456e4567-e89b-12d3-a456-426614174001',
+        orgId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -279,7 +279,7 @@ describe('Secret Model', () => {
       const secret = new Secret(secretData)
 
       expect(secret.name).toBe('GITHUB_API_TOKEN')
-      expect(secret.teamId).toBeDefined()
+      expect(secret.orgId).toBeDefined()
       expect(secret.repoId).toBeUndefined()
     })
 
@@ -298,7 +298,7 @@ describe('Secret Model', () => {
 
       expect(secret.name).toBe('DATABASE_URL')
       expect(secret.repoId).toBeDefined()
-      expect(secret.teamId).toBeUndefined()
+      expect(secret.orgId).toBeUndefined()
     })
 
     it('should create an AWS credentials secret', () => {
@@ -307,7 +307,7 @@ describe('Secret Model', () => {
         name: 'AWS_SECRET_ACCESS_KEY',
         hashKey: 'sha256_hash_of_aws_secret',
         encryptedValue: 'aes256_encrypted_aws_secret_access_key',
-        teamId: '456e4567-e89b-12d3-a456-426614174001',
+        orgId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -352,7 +352,7 @@ describe('Secret Model', () => {
           name,
           hashKey: `hash_${name}`,
           encryptedValue: `encrypted_${name}`,
-          teamId: '456e4567-e89b-12d3-a456-426614174001',
+          orgId: '456e4567-e89b-12d3-a456-426614174001',
           createdAt: '2024-01-01T00:00:00Z',
           updatedAt: '2024-01-01T00:00:00Z',
         }

@@ -124,7 +124,7 @@
 ## 5. User Credentials & Secrets
 
 ### 5.1 User-Scoped Secrets
-- [ ] **TASK-5.1.1**: Extend secrets schema for user-scope (vs team/repo scope)
+- [ ] **TASK-5.1.1**: Extend secrets schema for user-scope (vs org/repo scope)
 - [ ] **TASK-5.1.2**: Implement user secret CRUD operations
 - [ ] **TASK-5.1.3**: Create UI for managing personal secrets
 - [ ] **TASK-5.1.4**: Implement secret scope validation in API
@@ -214,7 +214,7 @@
 
 ## Dependencies
 
-- **Epic 1**: Base Setup (Auth, Users, Teams, basic UI)
+- **Epic 1**: Base Setup (Auth, Users, Orgs, basic UI)
 - **Epic 2**: Proxy Feature (Secrets management)
 - **Epic 3**: FaaS (Function execution patterns)
 - **Epic 4**: AI Engine (AI provider integration)

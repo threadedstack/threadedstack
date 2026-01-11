@@ -36,7 +36,7 @@ export const HeaderSettingsItems = [
 // Global navigation items (always visible)
 export const GlobalNavItems: TNavItem[] = [
   {
-    to: ERoutePath.Team,
+    to: ERoutePath.Org,
     text: `Home`,
     Icon: <HomeIcon />,
   },
@@ -47,52 +47,52 @@ export const GlobalNavItems: TNavItem[] = [
   },
 ]
 
-// Team-scoped navigation items
-export const TeamNavItems: TNavItem[] = [
+// Org-scoped navigation items
+export const OrgNavItems: TNavItem[] = [
   {
     text: `Users`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId) return '#'
-      return `/teams/${ctx.teamId}/users`
+      if (!ctx.orgId) return '#'
+      return `/orgs/${ctx.orgId}/users`
     },
     Icon: <PersonIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
     text: `Repos`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId) return '#'
-      return `/teams/${ctx.teamId}/repos`
+      if (!ctx.orgId) return '#'
+      return `/orgs/${ctx.orgId}/repos`
     },
     Icon: <AppsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
     text: `Secrets`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId) return '#'
-      return `/teams/${ctx.teamId}/secrets`
+      if (!ctx.orgId) return '#'
+      return `/orgs/${ctx.orgId}/secrets`
     },
     Icon: <SecretIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
     text: `Providers`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId) return '#'
-      return `/teams/${ctx.teamId}/providers`
+      if (!ctx.orgId) return '#'
+      return `/orgs/${ctx.orgId}/providers`
     },
     Icon: <ProviderIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
-    text: `Team Settings`,
+    text: `Org Settings`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId) return '#'
-      return `/teams/${ctx.teamId}/settings`
+      if (!ctx.orgId) return '#'
+      return `/orgs/${ctx.orgId}/settings`
     },
     Icon: <SettingsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
 ]
 
@@ -101,47 +101,47 @@ export const RepoNavItems: TNavItem[] = [
   {
     text: `Endpoints`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId || !ctx.repoId) return '#'
-      return `/teams/${ctx.teamId}/repos/${ctx.repoId}/endpoints`
+      if (!ctx.orgId || !ctx.repoId) return '#'
+      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/endpoints`
     },
     Icon: <EndpointIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
   },
   {
     text: `Functions`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId || !ctx.repoId) return '#'
-      return `/teams/${ctx.teamId}/repos/${ctx.repoId}/functions`
+      if (!ctx.orgId || !ctx.repoId) return '#'
+      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/functions`
     },
     Icon: <FunctionIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
   },
   {
     text: `Secrets`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId || !ctx.repoId) return '#'
-      return `/teams/${ctx.teamId}/repos/${ctx.repoId}/secrets`
+      if (!ctx.orgId || !ctx.repoId) return '#'
+      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/secrets`
     },
     Icon: <SecretIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
   },
   {
     text: `Providers`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId || !ctx.repoId) return '#'
-      return `/teams/${ctx.teamId}/repos/${ctx.repoId}/providers`
+      if (!ctx.orgId || !ctx.repoId) return '#'
+      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/providers`
     },
     Icon: <ProviderIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
   },
   {
     text: `Repo Settings`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.teamId || !ctx.repoId) return '#'
-      return `/teams/${ctx.teamId}/repos/${ctx.repoId}/settings`
+      if (!ctx.orgId || !ctx.repoId) return '#'
+      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/settings`
     },
     Icon: <SettingsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.teamId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
   },
 ]
 

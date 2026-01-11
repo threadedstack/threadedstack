@@ -353,7 +353,7 @@ Never save working files, text/mds and tests to the root folder.
 
 ## Project Overview
 
-**Threaded Stack** is a developer platform that unifies authentication, serverless compute (FaaS), and secure API proxying for building AI agent applications. It acts as the "nervous system" between AI models and external APIs/databases, enabling teams to build autonomous software without managing complex cloud infrastructure.
+**Threaded Stack** is a developer platform that unifies authentication, serverless compute (FaaS), and secure API proxying for building AI agent applications. It acts as the "nervous system" between AI models and external APIs/databases, enabling orgs to build autonomous software without managing complex cloud infrastructure.
 
 The platform solves three key problems:
 1. **Fragmented stacks** - Replaces stitching together Vercel + Lambda + LangChain + Vault
@@ -420,9 +420,9 @@ Load the relevant skill when working on a specific repo:
 
 ### Database Schema (Exclusive Arc Pattern)
 
-Key tables: `teams`, `users`, `repos`, `endpoints`, `functions`, `configs`, `providers`, `secrets`, `roles`, `threads`, `messages`, `assets`
+Key tables: `orgs`, `users`, `repos`, `endpoints`, `functions`, `configs`, `providers`, `secrets`, `roles`, `threads`, `messages`, `assets`
 
-Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Team OR Repo (not both).
+Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR Repo (not both).
 
 ## Common Commands
 
@@ -484,7 +484,7 @@ pnpm studio         # Open Drizzle Studio
 
 The project follows a phased rollout:
 
-1. **Phase 1 (Base Setup)**: Monorepo, DB, Auth backbone, basic UI - Teams/Users CRUD
+1. **Phase 1 (Base Setup)**: Monorepo, DB, Auth backbone, basic UI - Orgs/Users CRUD
 2. **Phase 2 (Proxy Feature)**: Secret injection, header/body transforms, M2M auth
 3. **Phase 3 (FaaS)**: WASM sandbox execution, Monaco editor, TS/Python support
 4. **Phase 4 (AI Engine)**: RAG-enabled LLM proxy, streaming chat, tool execution

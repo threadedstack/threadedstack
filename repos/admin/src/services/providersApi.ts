@@ -18,7 +18,7 @@ export class ProvidersApi extends BaseApi {
 
   /**
    * Get all providers
-   * @param data - Optional query parameters (teamId, limit, offset, etc.)
+   * @param data - Optional query parameters (orgId, limit, offset, etc.)
    * @returns List of all providers
    */
   async list(data?: Record<string, any>): Promise<TApiRes<Provider[]>> {

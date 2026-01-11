@@ -3,15 +3,15 @@ import { render, screen } from '@testing-library/react'
 import { CreateRepoDialog } from './CreateRepoDialog'
 
 vi.mock('@TAF/state/selectors', () => ({
-  useTeams: () => [undefined, vi.fn(), vi.fn()],
+  useOrgs: () => [undefined, vi.fn(), vi.fn()],
 }))
 
 vi.mock('@TAF/actions/repos', () => ({
   createRepo: vi.fn(),
 }))
 
-vi.mock('@TAF/actions/teams', () => ({
-  fetchTeams: vi.fn(),
+vi.mock('@TAF/actions/orgs', () => ({
+  fetchOrgs: vi.fn(),
 }))
 
 describe('CreateRepoDialog', () => {

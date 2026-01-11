@@ -88,7 +88,7 @@ describe('Thread Model', () => {
           topic: 'technical-support',
           priority: 'high',
           tags: ['urgent', 'bug', 'production'],
-          assignedTo: 'support-team-1',
+          assignedTo: 'support-org-1',
           customFields: {
             severity: 'critical',
             affectedUsers: 150,

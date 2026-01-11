@@ -53,7 +53,7 @@
 ### 2.1 Shared Types/Interfaces
 - [x] **TASK-2.1.1**: Create base model types in `repos/domain/src/models/base.ts`
 - [x] **TASK-2.1.2**: Create user model in `repos/domain/src/models/user.ts`
-- [x] **TASK-2.1.3**: Create team model in `repos/domain/src/models/team.ts`
+- [x] **TASK-2.1.3**: Create org model in `repos/domain/src/models/org.ts`
 - [x] **TASK-2.1.4**: Create repo model in `repos/domain/src/models/repo.ts`
 - [x] **TASK-2.1.5**: Create provider model in `repos/domain/src/models/provider.ts`
 - [x] **TASK-2.1.6**: Create endpoint model in `repos/domain/src/models/endpoint.ts`
@@ -64,7 +64,7 @@
 
 ### 2.2 Drizzle ORM Schemas
 - [x] **TASK-2.2.1**: Create users schema in `repos/database/src/schemas/users.ts`
-- [x] **TASK-2.2.2**: Create teams schema in `repos/database/src/schemas/teams.ts`
+- [x] **TASK-2.2.2**: Create orgs schema in `repos/database/src/schemas/orgs.ts`
 - [x] **TASK-2.2.3**: Create repos schema in `repos/database/src/schemas/repos.ts`
 - [x] **TASK-2.2.4**: Create roles schema in `repos/database/src/schemas/roles.ts`
 - [x] **TASK-2.2.5**: Create assets schema in `repos/database/src/schemas/assets.ts`
@@ -79,7 +79,7 @@
 ### 2.3 Database Services (Query Interfaces)
 - [x] **TASK-2.3.1**: Create base service class in `repos/database/src/services/base.ts`
 - [x] **TASK-2.3.2**: Create user service in `repos/database/src/services/user.ts`
-- [x] **TASK-2.3.3**: Create team service in `repos/database/src/services/team.ts`
+- [x] **TASK-2.3.3**: Create org service in `repos/database/src/services/org.ts`
 - [x] **TASK-2.3.4**: Create repo service in `repos/database/src/services/repo.ts`
 - [x] **TASK-2.3.5**: Create role service in `repos/database/src/services/role.ts`
 - [x] **TASK-2.3.6**: Create secret service in `repos/database/src/services/secret.ts`
@@ -144,14 +144,14 @@
 - [x] **TASK-4.3.4**: Implement `PUT /_/users/:id` - Update user
 - [x] **TASK-4.3.5**: Implement `DELETE /_/users/:id` - Delete user
 
-### 4.4 Teams API
-- [x] **TASK-4.4.1**: Implement `GET /_/teams` - List teams (verify DB connectivity)
-- [x] **TASK-4.4.2**: Implement `GET /_/teams/:id` - Get team by ID
-- [x] **TASK-4.4.3**: Implement `POST /_/teams` - Create team
-- [x] **TASK-4.4.4**: Implement `PUT /_/teams/:id` - Update team
-- [x] **TASK-4.4.5**: Implement `DELETE /_/teams/:id` - Delete team
-- [x] **TASK-4.4.6**: Implement `POST /_/teams/:id/members` - Add team member
-- [x] **TASK-4.4.7**: Implement `DELETE /_/teams/:id/members/:userId` - Remove team member
+### 4.4 Orgs API
+- [x] **TASK-4.4.1**: Implement `GET /_/orgs` - List orgs (verify DB connectivity)
+- [x] **TASK-4.4.2**: Implement `GET /_/orgs/:id` - Get org by ID
+- [x] **TASK-4.4.3**: Implement `POST /_/orgs` - Create org
+- [x] **TASK-4.4.4**: Implement `PUT /_/orgs/:id` - Update org
+- [x] **TASK-4.4.5**: Implement `DELETE /_/orgs/:id` - Delete org
+- [x] **TASK-4.4.6**: Implement `POST /_/orgs/:id/members` - Add org member
+- [x] **TASK-4.4.7**: Implement `DELETE /_/orgs/:id/members/:userId` - Remove org member
 
 ---
 
@@ -176,22 +176,22 @@
 - [x] **TASK-5.3.1**: Create Sidebar component in `repos/admin/src/components/Sidebar/`
 - [x] **TASK-5.3.2**: Create SBNavList component for navigation items
 - [x] **TASK-5.3.3**: Create SBLogo component
-- [x] **TASK-5.3.4**: Add navigation items: Teams, Repos, Config/Settings
+- [x] **TASK-5.3.4**: Add navigation items: Orgs, Repos, Config/Settings
 - [x] **TASK-5.3.5**: Implement active route highlighting
 
 ### 5.4 Core Pages
 - [x] **TASK-5.4.1**: Create Layout component in `repos/admin/src/pages/Layout/`
 - [x] **TASK-5.4.2**: Create Home page in `repos/admin/src/pages/Home/`
 - [x] **TASK-5.4.3**: Create Account page structure in `repos/admin/src/pages/Account/`
-- [x] **TASK-5.4.4**: Implement Teams list page in `repos/admin/src/pages/Teams/Teams.tsx`
-- [x] **TASK-5.4.5**: Implement Team detail page in `repos/admin/src/pages/Teams/Team.tsx`
-- [x] **TASK-5.4.6**: Implement Team creation form
+- [x] **TASK-5.4.4**: Implement Orgs list page in `repos/admin/src/pages/Orgs/Orgs.tsx`
+- [x] **TASK-5.4.5**: Implement Org detail page in `repos/admin/src/pages/Orgs/Org.tsx`
+- [x] **TASK-5.4.6**: Implement Org creation form
 - [x] **TASK-5.4.7**: Implement Repos list page in `repos/admin/src/pages/Repos/Repos.tsx`
 - [x] **TASK-5.4.8**: Implement Repo detail page in `repos/admin/src/pages/Repos/Repo.tsx`
 
 ### 5.5 API Services
 - [x] **TASK-5.5.1**: Create base API utility in `repos/admin/src/utils/api/`
-- [x] **TASK-5.5.2**: Implement Teams API service
+- [x] **TASK-5.5.2**: Implement Orgs API service
 - [x] **TASK-5.5.3**: Implement Users API service
 - [x] **TASK-5.5.4**: Implement Repos API service
 - [x] **TASK-5.5.5**: Configure API calls to use `/_/*` endpoints via Proxy
@@ -202,9 +202,9 @@
 
 - [x] User can Register via social login (GitHub, GitLab, Google, Vercel)
 - [x] User can Login and receive JWT token
-- [x] User can Create a Team via the UI
-- [x] User can View the Team via the UI
-- [x] Backend `GET /_/teams` returns data from database
+- [x] User can Create a Org via the UI
+- [x] User can View the Org via the UI
+- [x] Backend `GET /_/orgs` returns data from database
 - [x] Backend `GET /_/users` returns data from database
 ---
 
@@ -222,7 +222,7 @@ This epic has no dependencies on other epics.
 
 ### Known Issues
 - The proxy repo currently has a TODO stub in `repos/proxy/src/proxy.ts` that needs implementation
-- Teams and Repos pages in admin are placeholder stubs
+- Orgs and Repos pages in admin are placeholder stubs
 - Database schemas are defined but migrations may need verification
 - Neon Auth integration needs to be completed in both proxy and admin repos
 

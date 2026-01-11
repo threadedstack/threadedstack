@@ -27,7 +27,7 @@ describe('createRepo', () => {
     const mockRepo = new Repo({
       id: '1',
       name: 'Test Repo',
-      teamId: 'team1',
+      orgId: 'org1',
       branch: 'main',
       gitUrl: 'https://github.com/test/repo.git',
     })
@@ -36,14 +36,14 @@ describe('createRepo', () => {
 
     const result = await createRepo({
       name: 'Test Repo',
-      teamId: 'team1',
+      orgId: 'org1',
       branch: 'main',
       gitUrl: 'https://github.com/test/repo.git',
     })
 
     expect(mockReposCreate).toHaveBeenCalledWith({
       name: 'Test Repo',
-      teamId: 'team1',
+      orgId: 'org1',
       branch: 'main',
       gitUrl: 'https://github.com/test/repo.git',
     })
@@ -59,7 +59,7 @@ describe('createRepo', () => {
 
     const result = await createRepo({
       name: 'Test Repo',
-      teamId: 'team1',
+      orgId: 'org1',
     })
 
     expect(result.error).toBeDefined()

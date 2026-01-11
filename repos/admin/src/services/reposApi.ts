@@ -13,13 +13,13 @@ export class ReposApi extends BaseApi {
   cache: TApiCacheKeys = {
     all: () => [this.path] as const,
     list: () => [...this.cache.all(), `list`] as const,
-    listTeam: (teamId: string) => [...this.cache.list(), teamId] as const,
+    listOrg: (orgId: string) => [...this.cache.list(), orgId] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
   /**
    * Get all repositories
-   * @param params - Optional query parameters (teamId, limit, offset, etc.)
+   * @param params - Optional query parameters (orgId, limit, offset, etc.)
    * @returns List of all repos
    */
   async list(data: Record<string, any> = {}): Promise<TApiRes<Record<string, Repo>>> {
@@ -116,14 +116,14 @@ export class ReposApi extends BaseApi {
   }
 
   /**
-   * Get repositories by team ID
-   * @param teamId - Team ID
-   * @returns List of repos for the team
+   * Get repositories by org ID
+   * @param orgId - Org ID
+   * @returns List of repos for the org
    */
-  async listByTeam(teamId: string): Promise<TApiRes<Record<string, Repo>>> {
+  async listByOrg(orgId: string): Promise<TApiRes<Record<string, Repo>>> {
     return this.list({
-      teamId,
-      queryKey: this.cache.listTeam(teamId),
+      orgId,
+      queryKey: this.cache.listOrg(orgId),
     })
   }
 }

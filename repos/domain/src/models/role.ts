@@ -4,7 +4,7 @@ export class Role extends Base {
   name: string
   type: string
   userId: string
-  teamId?: string
+  orgId?: string
   repoId?: string
 
   constructor(role: Partial<Role>) {

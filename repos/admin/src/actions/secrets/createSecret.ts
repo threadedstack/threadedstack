@@ -6,7 +6,7 @@ import { setSecrets, getSecrets } from '@TAF/state/accessors'
 export type TCreateSecretInput = {
   name: string
   value: string
-  teamId?: string
+  orgId?: string
   repoId?: string
   description?: string
 }

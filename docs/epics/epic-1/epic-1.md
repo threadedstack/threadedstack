@@ -28,17 +28,17 @@
 ## 4. Backend Core
 
 * Setup Pnpm + Express server in `repos/backend`.
-* Implement API stubs (Users, Teams).
-* Create `GET /_/teams` endpoint to verify DB read connectivity.
+* Implement API stubs (Users, Orgs).
+* Create `GET /_/orgs` endpoint to verify DB read connectivity.
 
 ## 5. Admin UI (Skeleton)
 
 * Scaffold Vite + React + TS in `repos/admin`.
 * Implement Authentication Layer (Login Page & Store JWT).
-* Build Sidebar Navigation (Teams, Repos, Config/Settings).
+* Build Sidebar Navigation (Orgs, Repos, Config/Settings).
 * Connect UI services to call `/_/*` endpoints via the Proxy.
 
 
 ## Deliverables / Acceptance Criteria
 
-* User can Register, Login, Create a Team, and View the Team via the UI.
+* User can Register, Login, Create a Org, and View the Org via the UI.

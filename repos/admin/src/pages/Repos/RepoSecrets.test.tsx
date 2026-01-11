@@ -5,7 +5,7 @@ import * as accessors from '@TAF/state/accessors'
 
 // Mock the router
 vi.mock('react-router', () => ({
-  useParams: () => ({ teamId: 'team-123', repoId: 'repo-456' }),
+  useParams: () => ({ orgId: 'org-123', repoId: 'repo-456' }),
   useNavigate: () => vi.fn(),
 }))
 
@@ -18,7 +18,7 @@ vi.mock('@TAF/pages/Page/Page', () => ({
 
 // Mock accessors
 vi.mock('@TAF/state/accessors', () => ({
-  setActiveTeamId: vi.fn(),
+  setActiveOrgId: vi.fn(),
   setActiveRepoId: vi.fn(),
 }))
 
@@ -41,12 +41,12 @@ describe('RepoSecrets', () => {
     })
   })
 
-  it('should display the team and repo IDs', async () => {
-    // The component doesn't actually display teamId/repoId directly in the UI text
+  it('should display the org and repo IDs', async () => {
+    // The component doesn't actually display orgId/repoId directly in the UI text
     // based on the previous cat output. It displays "Secrets", "Create Secret", etc.
     // The previous test expectation seems to assume IDs are visible.
     // Let's check what the component does.
-    // It calls setActiveTeamId/RepoId.
+    // It calls setActiveOrgId/RepoId.
     // It doesn't seem to render the IDs in the DOM.
     // So this test might be invalid or checking for something that was removed.
     // I will skip this check or update it to check for something that IS rendered.
@@ -57,10 +57,10 @@ describe('RepoSecrets', () => {
     })
   })
 
-  it('should call setActiveTeamId with teamId', async () => {
+  it('should call setActiveOrgId with orgId', async () => {
     render(<RepoSecrets />)
     await waitFor(() => {
-      expect(accessors.setActiveTeamId).toHaveBeenCalledWith('team-123')
+      expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-123')
     })
   })
 

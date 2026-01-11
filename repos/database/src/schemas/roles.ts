@@ -1,5 +1,5 @@
 import { sql, relations } from 'drizzle-orm'
-import { teams } from '@TDB/schemas/teams'
+import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { repos } from '@TDB/schemas/repos'
 import { base } from '@TDB/utils/schema/base'
@@ -11,7 +11,7 @@ export const roles = pgTable(
     ...base,
     name: text(`name`),
     type: text(`type`).notNull(),
-    teamId: uuid(`team_id`).references(() => teams.id, { onDelete: `cascade` }),
+    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
     repoId: uuid(`repo_id`).references(() => repos.id, { onDelete: `cascade` }),
     userId: uuid(`user_id`)
       .references(() => users.id, { onDelete: `cascade` })
@@ -21,8 +21,8 @@ export const roles = pgTable(
     check(
       `role_scope_check`,
       sql`
-    (${table.teamId} IS NOT NULL AND ${table.repoId} IS NULL) OR 
-    (${table.teamId} IS NULL AND ${table.repoId} IS NOT NULL)
+    (${table.orgId} IS NOT NULL AND ${table.repoId} IS NULL) OR 
+    (${table.orgId} IS NULL AND ${table.repoId} IS NOT NULL)
   `
     ),
   ]
@@ -30,6 +30,6 @@ export const roles = pgTable(
 
 export const rolesRelations = relations(roles, ({ one }) => ({
   user: one(users, { fields: [roles.userId], references: [users.id] }),
-  team: one(teams, { fields: [roles.teamId], references: [teams.id] }),
+  org: one(orgs, { fields: [roles.orgId], references: [orgs.id] }),
   repo: one(repos, { fields: [roles.repoId], references: [repos.id] }),
 }))

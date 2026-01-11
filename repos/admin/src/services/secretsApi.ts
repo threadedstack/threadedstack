@@ -18,7 +18,7 @@ export class SecretsApi extends BaseApi {
 
   /**
    * Get all secrets
-   * @param data - Optional query parameters (teamId, repoId, limit, offset, etc.)
+   * @param data - Optional query parameters (orgId, repoId, limit, offset, etc.)
    * @returns List of all secrets
    */
   async list(data?: Record<string, any>): Promise<TApiRes<Secret[]>> {

@@ -129,7 +129,7 @@
 
 ### 5.1 Threads & Messages Indexes
 - [ ] **TASK-5.1.1**: Add index on `threads.user_id`
-- [ ] **TASK-5.1.2**: Add index on `threads.team_id`
+- [ ] **TASK-5.1.2**: Add index on `threads.org_id`
 - [ ] **TASK-5.1.3**: Add index on `messages.thread_id`
 - [ ] **TASK-5.1.4**: Add composite index on `messages(thread_id, created_at)`
 - [ ] **TASK-5.1.5**: Analyze query patterns and add additional indexes
@@ -198,7 +198,7 @@
 
 ## Dependencies
 
-- **Epic 1**: Base Setup (Auth, Users, Teams, basic UI)
+- **Epic 1**: Base Setup (Auth, Users, Orgs, basic UI)
 - **Epic 2**: Proxy Feature (Secrets for API key storage)
 - **Epic 3**: FaaS (Functions for tool execution)
 

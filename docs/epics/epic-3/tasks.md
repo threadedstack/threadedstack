@@ -174,7 +174,7 @@
 
 ## Dependencies
 
-- **Epic 1**: Base Setup (Auth, Users, Teams, basic UI)
+- **Epic 1**: Base Setup (Auth, Users, Orgs, basic UI)
 - **Epic 2**: Proxy Feature (Secrets management for secret injection)
 
 ## Technical Notes

@@ -1,12 +1,12 @@
 import type { EThemeType } from '@TAF/types'
 import type {
   User,
-  Team,
   Repo,
   Config,
   Secret,
   Provider,
   Endpoint,
+  Organization,
   Function as TDFunction,
 } from '@tdsk/domain'
 
@@ -15,7 +15,7 @@ import { userState } from '@TAF/state/user'
 import { providersState } from '@TAF/state/providers'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
 import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
-import { teamsState, activeTeamIdState } from '@TAF/state/teams'
+import { orgsState, activeOrgIdState } from '@TAF/state/orgs'
 import { reposState, activeRepoIdState } from '@TAF/state/repos'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
@@ -36,13 +36,13 @@ export const getUser = () => store.get(userState)
 export const resetUser = () => store.set(userState, undefined)
 export const setUser = (user: User) => store.set(userState, user)
 
-export const getTeams = () => store.get(teamsState)
-export const resetTeams = () => store.set(teamsState, undefined)
-export const setTeams = (teams: Record<string, Team>) => store.set(teamsState, teams)
+export const getOrgs = () => store.get(orgsState)
+export const resetOrgs = () => store.set(orgsState, undefined)
+export const setOrgs = (orgs: Record<string, Organization>) => store.set(orgsState, orgs)
 
-export const getActiveTeamId = () => store.get(activeTeamIdState)
-export const resetActiveTeamId = () => store.set(activeTeamIdState, undefined)
-export const setActiveTeamId = (id: string) => store.set(activeTeamIdState, id)
+export const getActiveOrgId = () => store.get(activeOrgIdState)
+export const resetActiveOrgId = () => store.set(activeOrgIdState, undefined)
+export const setActiveOrgId = (id: string) => store.set(activeOrgIdState, id)
 
 export const getRepos = () => store.get(reposState)
 export const resetRepos = () => store.set(reposState, undefined)

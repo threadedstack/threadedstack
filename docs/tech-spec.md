@@ -51,7 +51,7 @@ The project is a **PNPM Monorepo**. All micro-services and libraries are managed
 * **Tech:** NodeJS, Express and WebSocket Support.
 * **Infrastructure:** Connects to **Redis/ValKey** for caching & real-time event streams.
 * **API Modules:**
-1. **`/_/*` (Admin API):** CRUD for Teams, Users, Repos, Secrets.
+1. **`/_/*` (Admin API):** CRUD for Orgs, Users, Repos, Secrets.
 2. **`/proxy/*` (Proxy Engine):**
 * Injects secrets/headers into requests.
 * Proxies requests to downstream URLs, injecting secrets/headers into requests as defined
@@ -84,8 +84,8 @@ The project is a **PNPM Monorepo**. All micro-services and libraries are managed
 * **Role:** SPA Dashboard.
 * **Security:** Authenticated via Auth-Proxy interface.
 * **Navigation Structure:**
-* **Teams:** List/Create  Team View (Users, Config, Secrets, Providers, Assets).
-* **Repos:** List/Create (by Team)  Repo View (Endpoints, Config, Secrets, Assets).
+* **Orgs:** List/Create  Org View (Users, Config, Secrets, Providers, Assets).
+* **Repos:** List/Create (by Org)  Repo View (Endpoints, Config, Secrets, Assets).
 * **Profile/Config:** User specific settings.
 
 
@@ -94,20 +94,20 @@ The project is a **PNPM Monorepo**. All micro-services and libraries are managed
 
 ## **2. Database Schema Specification**
 
-Based on your design, utilizing the "Exclusive Arc" pattern for the polymorphic relationships (Teams OR Repos OR Users).
+Based on your design, utilizing the "Exclusive Arc" pattern for the polymorphic relationships (Orgs OR Repos OR Users).
 
 | Table | Fields | Relationships / Constraints |
 | --- | --- | --- |
-| **`teams`** | `id`, `name`, `description`, `created_at`, `updated_at` | Has many: Users, Repos, Secrets, Assets, Providers. |
-| **`users`** | `id`, `email` (unique), `full_name`, `password` (enc), `alt_email`, `bio`, `avatar_url` | Has many: Teams, Assets, Providers (auth). |
-| **`repos`** | `id`, `name`, `git_url`, `branch`, `meta` (JSONB) | **Belongs to Team**. Has many: Secrets, Providers (git), Assets, Endpoints. |
-| **`endpoints`** | `id`, `public` (bool), `proxy_url`, `proxy_method`, `proxy_headers` (JSONB), `proxy_options` (JSONB) | **Belongs to Repo**. Linked to Secrets (via Repo/Team). |
+| **`orgs`** | `id`, `name`, `description`, `created_at`, `updated_at` | Has many: Users, Repos, Secrets, Assets, Providers. |
+| **`users`** | `id`, `email` (unique), `full_name`, `password` (enc), `alt_email`, `bio`, `avatar_url` | Has many: Orgs, Assets, Providers (auth). |
+| **`repos`** | `id`, `name`, `git_url`, `branch`, `meta` (JSONB) | **Belongs to Org**. Has many: Secrets, Providers (git), Assets, Endpoints. |
+| **`endpoints`** | `id`, `public` (bool), `proxy_url`, `proxy_method`, `proxy_headers` (JSONB), `proxy_options` (JSONB) | **Belongs to Repo**. Linked to Secrets (via Repo/Org). |
 | **`functions`** | `id`, `content` (string), `language`, `dependencies` (JSONB array), `default_args` (JSONB) | **Belongs to Endpoint**. Has one Provider. |
-| **`configs`** | `id`, `data` (JSONB) | **Polymorphic:** Belongs to User **OR** Team **OR** Repo (Exclusive). |
-| **`providers`** | `id`, `type` (auth/git/ai/storage), `options` (JSONB) | **Belongs to Team** (usually) or User. |
-| **`secrets`** | `id`, `name`, `encrypted_value`, `hash_key` | **Polymorphic:** Belongs to Team **OR** Repo. (Admins R/W, Users Read-Name-Only). |
-| **`roles`** | `id`, `type` (super/admin/basic), `name` | **Polymorphic:** Links User to **Team** OR **Repo**. |
+| **`configs`** | `id`, `data` (JSONB) | **Polymorphic:** Belongs to User **OR** Org **OR** Repo (Exclusive). |
+| **`providers`** | `id`, `type` (auth/git/ai/storage), `options` (JSONB) | **Belongs to Org** (usually) or User. |
+| **`secrets`** | `id`, `name`, `encrypted_value`, `hash_key` | **Polymorphic:** Belongs to Org **OR** Repo. (Admins R/W, Users Read-Name-Only). |
+| **`roles`** | `id`, `type` (super/admin/basic), `name` | **Polymorphic:** Links User to **Org** OR **Repo**. |
 | **`threads`** | `id`, `name`, `public`, `meta` (JSONB) | **Belongs to User**. Links to Provider (AI) & Config. |
 | **`messages`** | `id`, `type` (user/assistant/system/tool/action), `content` (JSONB), `meta` (JSONB) | **Belongs to Thread**. Has many Assets. |
-| **`assets`** | `id`, `name`, `type`, `url`, `content` (JSONB), `meta` (JSONB) | **Polymorphic:** Belongs to Team/Repo/User/Thread/Message. Links to Provider (Storage). |
+| **`assets`** | `id`, `name`, `type`, `url`, `content` (JSONB), `meta` (JSONB) | **Polymorphic:** Belongs to Org/Repo/User/Thread/Message. Links to Provider (Storage). |
 

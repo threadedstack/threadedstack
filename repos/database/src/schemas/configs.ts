@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { teams } from '@TDB/schemas/teams'
+import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { repos } from '@TDB/schemas/repos'
 import { base } from '@TDB/utils/schema/base'
@@ -11,7 +11,7 @@ export const configs = pgTable(
     ...base,
     data: jsonb(`data`).notNull(),
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
-    teamId: uuid(`team_id`).references(() => teams.id, { onDelete: `cascade` }),
+    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
     repoId: uuid(`repo_id`).references(() => repos.id, { onDelete: `cascade` }),
   },
   (table) => [
@@ -21,7 +21,7 @@ export const configs = pgTable(
       sql`
     (
       (${table.userId} IS NOT NULL)::int + 
-      (${table.teamId} IS NOT NULL)::int + 
+      (${table.orgId} IS NOT NULL)::int + 
       (${table.repoId} IS NOT NULL)::int
     ) = 1
   `

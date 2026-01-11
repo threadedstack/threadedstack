@@ -1,4 +1,4 @@
-import { teams } from '@TDB/schemas/teams'
+import { orgs } from '@TDB/schemas/orgs'
 import { repos } from '@TDB/schemas/repos'
 import { base } from '@TDB/utils/schema/base'
 import { sql, relations } from 'drizzle-orm'
@@ -12,7 +12,7 @@ export const secrets = pgTable(
     name: text(`name`).notNull(),
     hashKey: text(`hash_key`).notNull(),
     encryptedValue: text(`encrypted_value`).notNull(),
-    teamId: uuid(`team_id`).references(() => teams.id, { onDelete: `cascade` }),
+    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
     repoId: uuid(`repo_id`).references(() => repos.id, { onDelete: `cascade` }),
     providerId: uuid(`provider_id`).references(() => providers.id, {
       onDelete: `cascade`,
@@ -22,15 +22,15 @@ export const secrets = pgTable(
     check(
       `secret_scope_check`,
       sql`
-    (${table.teamId} IS NOT NULL AND ${table.repoId} IS NULL) OR 
-    (${table.teamId} IS NULL AND ${table.repoId} IS NOT NULL) OR 
-    (${table.teamId} IS NULL AND ${table.providerId} IS NOT NULL)
+    (${table.orgId} IS NOT NULL AND ${table.repoId} IS NULL) OR 
+    (${table.orgId} IS NULL AND ${table.repoId} IS NOT NULL) OR 
+    (${table.orgId} IS NULL AND ${table.providerId} IS NOT NULL)
   `
     ),
   ]
 )
 
 export const secretsRelations = relations(secrets, ({ one }) => ({
-  team: one(teams, { fields: [secrets.teamId], references: [teams.id] }),
+  org: one(orgs, { fields: [secrets.orgId], references: [orgs.id] }),
   repo: one(repos, { fields: [secrets.repoId], references: [repos.id] }),
 }))

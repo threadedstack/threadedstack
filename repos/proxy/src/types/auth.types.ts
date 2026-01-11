@@ -7,7 +7,7 @@ export enum EJWTError {
 export type TTokenPayload = {
   userId: string
   email: string
-  teamId?: string
+  orgId?: string
   role?: string
   iat?: number
   exp?: number
@@ -16,7 +16,7 @@ export type TTokenPayload = {
 export type TAuthUser = {
   userId: string
   email: string
-  teamId?: string
+  orgId?: string
   role?: string
 }
 
@@ -24,7 +24,7 @@ export type TJWTPayload = {
   sub?: string
   userId?: string
   email?: string
-  teamId?: string
+  orgId?: string
   role?: string
   iat?: number
   exp?: number

@@ -8,7 +8,7 @@ import { EditConfigDialog } from './EditConfigDialog'
 import { CreateConfigDialog } from './CreateConfigDialog'
 import { useRepos, useConfigs } from '@TAF/state/selectors'
 import { fetchRepo, updateRepo, deleteRepo } from '@TAF/actions/repos'
-import { setActiveTeamId, setActiveRepoId } from '@TAF/state/accessors'
+import { setActiveOrgId, setActiveRepoId } from '@TAF/state/accessors'
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -44,7 +44,7 @@ import {
 export type TRepoSettings = {}
 
 export const RepoSettings = (props: TRepoSettings) => {
-  const { teamId, repoId } = useParams<{ teamId: string; repoId: string }>()
+  const { orgId, repoId } = useParams<{ orgId: string; repoId: string }>()
   const navigate = useNavigate()
   const [repos] = useRepos()
   const [configs] = useConfigs()
@@ -71,9 +71,9 @@ export const RepoSettings = (props: TRepoSettings) => {
   const [configTypeFilter, setConfigTypeFilter] = useState<string>('all')
 
   useEffect(() => {
-    if (teamId) setActiveTeamId(teamId)
+    if (orgId) setActiveOrgId(orgId)
     if (repoId) setActiveRepoId(repoId)
-  }, [teamId, repoId])
+  }, [orgId, repoId])
 
   useEffect(() => {
     const loadData = async () => {
@@ -162,7 +162,7 @@ export const RepoSettings = (props: TRepoSettings) => {
       setError(result.error.message)
       setDeleteDialogOpen(false)
     } else {
-      navigate(`/teams/${teamId}/repos`)
+      navigate(`/orgs/${orgId}/repos`)
     }
   }
 
@@ -299,18 +299,18 @@ export const RepoSettings = (props: TRepoSettings) => {
                   variant='subtitle2'
                   color='text.secondary'
                 >
-                  Team ID
+                  Org ID
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography
                     variant='body2'
                     fontFamily='monospace'
                   >
-                    {repo.teamId}
+                    {repo.orgId}
                   </Typography>
                   <IconButton
                     size='small'
-                    onClick={() => copyToClipboard(repo.teamId)}
+                    onClick={() => copyToClipboard(repo.orgId)}
                   >
                     <ContentCopyIcon fontSize='small' />
                   </IconButton>

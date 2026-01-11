@@ -1,5 +1,5 @@
+import type { orgs } from '@TDB/schemas/orgs'
 import type { users } from '@TDB/schemas/users'
-import type { teams } from '@TDB/schemas/teams'
 import type { repos } from '@TDB/schemas/repos'
 import type { roles } from '@TDB/schemas/roles'
 import type { assets } from '@TDB/schemas/assets'
@@ -12,10 +12,10 @@ import type { providers } from '@TDB/schemas/providers'
 import type { functions } from '@TDB/schemas/functions'
 import type { Base as BaseModel } from '@tdsk/domain'
 
+export type TDBOrgSelect = typeof orgs.$inferSelect
+export type TDBOrgInsert = typeof orgs.$inferInsert
 export type TDBUserSelect = typeof users.$inferSelect
 export type TDBUserInsert = typeof users.$inferInsert
-export type TDBTeamSelect = typeof teams.$inferSelect
-export type TDBTeamInsert = typeof teams.$inferInsert
 export type TDBRepoSelect = typeof repos.$inferSelect
 export type TDBRepoInsert = typeof repos.$inferInsert
 export type TDBRoleSelect = typeof roles.$inferSelect
@@ -39,7 +39,7 @@ export type TDBFunctionInsert = typeof functions.$inferInsert
 
 export type TDBEntitySelect =
   | TDBUserSelect
-  | TDBTeamSelect
+  | TDBOrgSelect
   | TDBRepoSelect
   | TDBRoleSelect
   | TDBAssetSelect
@@ -53,7 +53,7 @@ export type TDBEntitySelect =
 
 export type TDBEntityInsert =
   | TDBUserInsert
-  | TDBTeamInsert
+  | TDBOrgInsert
   | TDBRepoInsert
   | TDBRoleInsert
   | TDBAssetInsert

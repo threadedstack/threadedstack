@@ -27,7 +27,7 @@ export const users = authSchema.table(`user`, {
 })
 
 export const usersRelations = relations(users, ({ many }) => ({
-  teams: many(roles),
+  orgs: many(roles),
   roles: many(roles),
   assets: many(assets),
   threads: many(threads),

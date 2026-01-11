@@ -1,7 +1,7 @@
+export { Org as org } from './org'
 export { Base as base } from './base'
 export { Repo as repo } from './repo'
 export { Role as role } from './role'
-export { Team as team } from './team'
 export { User as user } from './user'
 export { Asset as asset } from './asset'
 export { Secret as secret } from './secret'

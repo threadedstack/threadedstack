@@ -4,7 +4,7 @@
  * It only exists so it can be read, so it's not included here
  */
 
-export { teams } from '@TDB/schemas/teams'
+export { orgs } from '@TDB/schemas/orgs'
 export { repos } from '@TDB/schemas/repos'
 export { roles } from '@TDB/schemas/roles'
 export { assets } from '@TDB/schemas/assets'
