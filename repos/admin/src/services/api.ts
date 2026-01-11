@@ -74,9 +74,15 @@ export class ApiService {
       auth = data as TAuthData
     }
 
+    if (!auth?.session?.token) {
+      const { Authorization, ...rest } = this.options.headers
+      this.options.headers = rest
+      return
+    }
+
     this.options.headers = {
       ...this.options.headers,
-      Authorization: `Bearer ${auth.session.token}`,
+      Authorization: `Bearer ${auth?.session?.token}`,
     }
   }
 

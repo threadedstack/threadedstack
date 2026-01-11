@@ -22,18 +22,10 @@ export class Auth {
   }
 
   signin = async (provider: string): Promise<TAuthResp> => {
-    const { data, error } = await this.client.signIn.social({
-      provider,
-    })
-    if (`user` in data) return { user: new User(data.user) }
+    const { error } = await this.client.signIn.social({ provider })
     if (error) return this.#error(error)
 
-    return this.#error({
-      status: 404,
-      code: `404`,
-      statusText: `Error`,
-      message: `Could not complete user login`,
-    })
+    return await this.session()
   }
 
   signout = async () => {

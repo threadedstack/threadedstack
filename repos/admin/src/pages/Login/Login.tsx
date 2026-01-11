@@ -1,7 +1,6 @@
 import type { TOnLogin } from '@TAF/types'
 
 import { useState } from 'react'
-import { useParams } from 'react-router'
 import { Login } from '@TAF/components/Login'
 import { TDSK_AUTH_PROVIDERS } from '@TAF/constants/envs'
 import { signin } from '@TAF/actions/auth/local/signin'
