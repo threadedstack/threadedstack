@@ -36,7 +36,8 @@ env:
 
 
   # ---- Logger ENVs ---- #
-  # Enable to set custom log-level for conductor
+  # Fallback Log level used when others are not defined
+  # Allowed levels are debug | info | warn | error
   TDSK_LOG_LEVEL: debug
   TDSK_LOG_LABEL: ThreadedStack
   TDSK_LOG_DISABLED: false
@@ -50,6 +51,15 @@ env:
   TDSK_PX_HOST: 0.0.0.0
   TDSK_PX_SECURE_PORT: 443
   TDSK_PX_ALLOW_ORIGIN: '*'
+
+  # Proxy specific log level
+  TDSK_PX_LOG_LEVEL:
+
+  # Pretty print log output for easier legibility, should only be used in local / dev environments
+  TDSK_PX_LOGGER_PRETTY: 1
+
+  # Disable all log output from the proxy
+  TDSK_PX_LOGGER_SILENT: 0
 
   # Default to the backend and host
   # But should be set when running as own server
@@ -120,6 +130,12 @@ env:
 
   # Secret token for accessing the database, i.e. password
   TDSK_DB_SRV_ROLE:
+  
+  # Log level for the database repo
+  TDSK_DB_LOG_LEVEL:
+  
+  # Label for database logs
+  TDSK_DB_LOG_LABEL:
 
 
 # ---- API ENVs ---- #
@@ -169,7 +185,7 @@ env:
 
   # Log level of the Proxy server
   # Allowed levels are debug | info | warn | error
-  TDSK_BE_LOGGER_LEVEL: debug
+  TDSK_BE_LOG_LEVEL:
 
   # Pretty print log output for easier legibility, should only be used in local / dev environments
   TDSK_BE_LOGGER_PRETTY: 1
