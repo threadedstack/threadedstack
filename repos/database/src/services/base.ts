@@ -42,7 +42,7 @@ export class Base<
     this.config = opts.config || {}
   }
 
-  #convert = (data: S, ...args: any[]): M => {
+  model = (data: S, ...args: any[]): M => {
     const owner = this.constructor.name
     logger.error(`Warning, the ${owner} class should override this function!`)
     return data as unknown as M
@@ -52,7 +52,7 @@ export class Base<
     try {
       const resp = await this.db.insert(this.table).values(data).returning()
 
-      return { data: this.#convert(resp[0]) as M }
+      return { data: this.model(resp[0]) as M }
     } catch (error: any) {
       return { error }
     }
@@ -65,7 +65,7 @@ export class Base<
         .from(this.table as TTableSchema)
         .where(eq(this.table.id, id))
 
-      return { data: this.#convert(resp[0]) as M }
+      return { data: this.model(resp[0]) as M }
     } catch (error: any) {
       return { error }
     }
@@ -75,7 +75,7 @@ export class Base<
     try {
       // TODO: Expand this to handle `opts` for limit/offset
       const resp = await this.db.select().from(this.table as TTableSchema)
-      return { data: resp.map((item) => this.#convert(item)) as M[] }
+      return { data: resp.map((item) => this.model(item)) as M[] }
     } catch (error: any) {
       return { error }
     }
@@ -92,7 +92,7 @@ export class Base<
         .where(eq(this.table.id, id))
         .returning()
 
-      return { data: this.#convert(resp[0]) as M }
+      return { data: this.model(resp[0]) as M }
     } catch (error: any) {
       return { error }
     }
@@ -112,7 +112,7 @@ export class Base<
         })
         .returning()
 
-      return { data: this.#convert(resp[0]) as M }
+      return { data: this.model(resp[0]) as M }
     } catch (error: any) {
       return { error }
     }

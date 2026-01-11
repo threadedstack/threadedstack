@@ -18,6 +18,7 @@ export class Provider extends Base<
   constructor(opts: TProviderOpts) {
     super({ ...opts, table: providers })
   }
-  #convert = (data: TDBProviderSelect) =>
-    new ProviderModel(data as Partial<ProviderModel>)
+  model = (data: TDBProviderSelect) => {
+    return new ProviderModel(data as Partial<ProviderModel>)
+  }
 }

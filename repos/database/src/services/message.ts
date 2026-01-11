@@ -18,5 +18,5 @@ export class Message extends Base<
   constructor(opts: TMessageOpts) {
     super({ ...opts, table: messages })
   }
-  #convert = (data: TDBMessageSelect) => new MessageModel(data as Partial<MessageModel>)
+  model = (data: TDBMessageSelect) => new MessageModel(data as Partial<MessageModel>)
 }

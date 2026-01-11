@@ -12,5 +12,5 @@ export class Asset extends Base<typeof assets, TDBAssetSelect, TDBAssetInsert> {
   constructor(opts: TAssetOpts) {
     super({ ...opts, table: assets })
   }
-  #convert = (data: TDBAssetSelect) => data
+  model = (data: TDBAssetSelect) => data
 }

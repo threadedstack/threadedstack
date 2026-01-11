@@ -18,5 +18,5 @@ export class Config extends Base<
   constructor(opts: TConfigOpts) {
     super({ ...opts, table: configs })
   }
-  #convert = (data: TDBConfigSelect) => new ConfigModel(data)
+  model = (data: TDBConfigSelect) => new ConfigModel(data)
 }

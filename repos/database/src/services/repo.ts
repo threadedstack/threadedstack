@@ -14,5 +14,5 @@ export class Repo extends Base<typeof repos, TDBRepoSelect, TDBRepoInsert, RepoM
     super({ ...opts, table: repos })
   }
 
-  #convert = (data: TDBRepoSelect) => new RepoModel(data)
+  model = (data: TDBRepoSelect) => new RepoModel(data)
 }

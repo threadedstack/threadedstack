@@ -19,5 +19,5 @@ export class Secret extends Base<
     super({ ...opts, table: secrets })
   }
 
-  #convert = (data: TDBSecretSelect) => new SecretModel(data)
+  model = (data: TDBSecretSelect) => new SecretModel(data)
 }

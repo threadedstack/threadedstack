@@ -18,5 +18,5 @@ export class Function extends Base<
   constructor(opts: TFunctionOpts) {
     super({ ...opts, table: functions })
   }
-  #convert = (data: TDBFunctionSelect) => new FunctionModel(data)
+  model = (data: TDBFunctionSelect) => new FunctionModel(data)
 }

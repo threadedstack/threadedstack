@@ -18,6 +18,7 @@ export class Endpoint extends Base<
   constructor(opts: TEndpointOpts) {
     super({ ...opts, table: endpoints })
   }
-  #convert = (data: TDBEndpointSelect) =>
-    new EndpointModel(data as Partial<EndpointModel>)
+  model = (data: TDBEndpointSelect) => {
+    return new EndpointModel(data as Partial<EndpointModel>)
+  }
 }

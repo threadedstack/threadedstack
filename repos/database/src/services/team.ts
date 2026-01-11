@@ -14,5 +14,5 @@ export class Team extends Base<typeof teams, TDBTeamSelect, TDBTeamInsert, TeamM
     super({ ...opts, table: teams })
   }
 
-  #convert = (data: TDBTeamSelect) => new TeamModel(data)
+  model = (data: TDBTeamSelect) => new TeamModel(data)
 }
