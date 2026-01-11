@@ -177,7 +177,7 @@
 ### 7.2 Agent Configuration UI
 - [ ] **TASK-7.2.1**: Create agent task definition form
 - [ ] **TASK-7.2.2**: Implement repository selector
-- [ ] **TASK-7.2.3**: Implement CLI tool selector (claude-code, codex, etc.)
+- [ ] **TASK-7.2.3**: Implement CLI tool selector (claude-code, gemini-cli, codex, etc.)
 - [ ] **TASK-7.2.4**: Implement resource limit configuration
 - [ ] **TASK-7.2.5**: Implement timeout configuration
 - [ ] **TASK-7.2.6**: Implement credential/secret linking

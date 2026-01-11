@@ -544,11 +544,6 @@ feat: implement GET /_/teams endpoint
 - Integrate with TeamModel from database repo
 - Add pagination support
 
-Generated with [Claude Code](https://claude.ai/code)
-via [Happy](https://happy.engineering)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-Co-Authored-By: Happy <yesreply@happy.engineering>
 EOF
 )"
 ```
