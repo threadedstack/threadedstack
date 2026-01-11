@@ -1,15 +1,10 @@
 import type { TProxyApp } from '@TPX/types'
+import type { TSSLCreds } from '@tdsk/domain'
 
 import fs from 'fs'
 import http from 'http'
 import https from 'https'
 import { logger } from '@TPX/utils/logger'
-
-type TSSLCreds = {
-  ca?: string
-  key?: string
-  cert?: string
-}
 
 /**
  * Loads the ssl certs file content from the defined paths

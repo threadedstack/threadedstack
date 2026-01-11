@@ -11,6 +11,7 @@ import type { messages } from '@TDB/schemas/messages'
 import type { endpoints } from '@TDB/schemas/endpoints'
 import type { providers } from '@TDB/schemas/providers'
 import type { functions } from '@TDB/schemas/functions'
+import type { Base as BaseModel } from '@tdsk/domain'
 
 export type TDBAuthSelect = typeof auth.$inferSelect
 export type TDBAuthInsert = typeof auth.$inferInsert
@@ -73,16 +74,16 @@ export type TDBSelectOpts = {
   [key: string]: any
 }
 
-export type TDBApiRes<S extends TDBEntitySelect | TDBEntitySelect[]> = {
-  data?: S
+export type TDBApiRes<M extends BaseModel | BaseModel[]> = {
+  data?: M
   error?: Error
 }
 
-export interface IDBApi<S extends TDBEntitySelect, I extends TDBEntityInsert> {
-  create: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
-  list: (opts: TDBSelectOpts) => Promise<TDBApiRes<S[]>>
-  get: (id: string, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
-  update: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
-  upsert: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
-  delete: (id: string, opts: TDBSelectOpts) => Promise<TDBApiRes<S>>
+export interface IDBApi<M extends BaseModel, I extends TDBEntityInsert> {
+  create: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
+  list: (opts: TDBSelectOpts) => Promise<TDBApiRes<M[]>>
+  get: (id: string, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
+  update: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
+  upsert: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
+  delete: (id: string, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
 }

@@ -7,11 +7,11 @@ import { pgSchema, text, timestamp, boolean, uuid } from 'drizzle-orm/pg-core'
 
 const authSchema = pgSchema(`neon_auth`)
 
-export const auth = authSchema.table(`users`, {
+export const auth = authSchema.table(`user`, {
   id: uuid(`id`).primaryKey().notNull(),
   name: text(`name`),
   email: text(`email`),
-  image: text(`images`),
+  image: text(`image`),
   role: text(`role`),
   banned: boolean(`banned`),
   banReason: text(`banReason`),

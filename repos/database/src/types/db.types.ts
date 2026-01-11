@@ -19,7 +19,7 @@ export enum EDBDialects {
 export type TDBConfig = typeof config
 
 export type TDBServices = {
-  [K in keyof typeof DBservices]: (typeof DBservices)[K]
+  [K in keyof typeof DBservices]: InstanceType<(typeof DBservices)[K]>
 }
 
 export type TDatabase = NodePgDatabase & {

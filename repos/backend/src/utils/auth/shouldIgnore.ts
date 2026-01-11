@@ -1,5 +1,4 @@
 import type { TRequest } from '@tdsk/domain'
-import type { TABConfig } from '@TBE/types'
 
 import { adminPath } from '@tdsk/domain'
 import { AuthIgnore } from '@TBE/constants/values'

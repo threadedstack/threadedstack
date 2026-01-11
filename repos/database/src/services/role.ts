@@ -12,4 +12,6 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert> {
   constructor(opts: TRoleOpts) {
     super({ ...opts, table: roles })
   }
+
+  #convert = (data: TDBRoleSelect) => data
 }

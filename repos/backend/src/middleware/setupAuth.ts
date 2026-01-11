@@ -1,6 +1,7 @@
 import type { NextFunction, Router } from 'express'
-import type { TRequest, TResponse, TApp } from '@tdsk/domain'
+import type { TRequest, TResponse, TApp } from '@TBE/types'
 
+import { User } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { fromAuthHeaders } from '@tdsk/domain'
 import { shouldIgnore } from '@TBE/utils/auth/shouldIgnore'
@@ -18,19 +19,18 @@ export const authenticate = async (req: TRequest, res: TResponse, next: NextFunc
     const { db } = req.app?.locals
 
     const auth = fromAuthHeaders(req)
-    console.log(`------- auth -------`)
-    console.log(auth)
+    if (!auth.userId) throw Error(`A valid and authorized user is required.`)
 
-    const token = req.header(`Authorization`)?.split(' ')[1]
+    const { data: user, error } = await db.services.auth.get(auth.userId)
 
-    if (!token) throw Error(`Authorization is required`)
+    if (error) throw error
+    if (!user) throw Error(`A valid and authorized user could not be found.`)
 
-    res.status(200).json({ data: [] })
-
+    req.user = user
     next()
   } catch (err) {
     logger.error(err)
-    res.status(401).json({ error: `Invalid token, auth denied!` })
+    res.status(401).json({ error: err.message })
   }
 }
 

@@ -1,11 +1,11 @@
 import type { Request } from 'express'
-import type { TABConfig } from '@TBE/types'
+import type { TBEConfig } from '@TBE/types'
 import type { ClientRequest, IncomingMessage } from 'http'
 
 /**
  * Updates the headers of the request sent to the proxy url
  */
-export const addProxyHeader = (proxyReq: ClientRequest, config: TABConfig): void => {
+export const addProxyHeader = (proxyReq: ClientRequest, config: TBEConfig): void => {
   const { headerValue, headerKey } = config.proxy
   if (!headerKey) return
 
@@ -20,7 +20,7 @@ export const addProxyHeader = (proxyReq: ClientRequest, config: TABConfig): void
 export const addOriginHeader = (
   proxyRes: IncomingMessage,
   req: Request,
-  config: TABConfig
+  config: TBEConfig
 ) => {
   const origin = (req.get(`origin`) || ``).trim()
 

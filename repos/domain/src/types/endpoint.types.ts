@@ -1,22 +1,20 @@
+import type { User } from '@TDM/models/user'
 import type { Router, Express, Request, Response, NextFunction } from 'express'
 
 type TCfg = Record<string, any>
+type TDB = Record<string, any>
 
-export type TAppLocals<C extends TCfg = TCfg> = {
+export type TAppLocals<C extends TCfg = TCfg, D extends TDB = TDB> = {
   config: C
-  db: Record<string, any>
+  db: D
 }
 
-export type TApp<C extends TCfg = TCfg, L = TAppLocals<C>> = Express & {
+export type TApp<
+  C extends TCfg = TCfg,
+  D extends TDB = TDB,
+  L = TAppLocals<C, D>,
+> = Express & {
   locals: L
-}
-
-export type TTokenUser = {
-  user_id: string
-  token: string
-  subdomain: string
-  username?: string
-  status: Record<string, any>
 }
 
 export type TResLocals = {
@@ -30,23 +28,25 @@ export type TResponse<ResBody = any, Locals extends TResLocals = TResLocals> = R
 >
 
 export type TRequest<
+  App extends TApp = TApp,
   ReqParams extends Record<string, any> = Record<string, any>,
   ResBody = any,
   ReqBody = any,
   ReqQuery extends Record<string, any> = Record<string, any>,
   Locals extends Record<string, any> = Record<string, any>,
 > = Omit<Request<ReqParams, ResBody, ReqBody, ReqQuery, Locals>, `app`> & {
-  app: TApp
-  auth?: TTokenUser
+  app: App
+  user?: User
 }
 
 export type TPostReq<
+  App extends TApp = TApp,
   ReqBody extends Record<string, any> = Record<string, any>,
   ReqParams extends Record<string, any> = Record<string, any>,
   ResBody = any,
   ReqQuery extends Record<string, any> = Record<string, any>,
   Locals extends Record<string, any> = Record<string, any>,
-> = TRequest<ReqParams, ResBody, ReqBody, ReqQuery, Locals>
+> = TRequest<App, ReqParams, ResBody, ReqBody, ReqQuery, Locals>
 
 export type TRequestHandler = (
   req: TRequest,

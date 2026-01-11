@@ -2,7 +2,7 @@ import type { Router } from 'express'
 
 import type {
   TEndpoint,
-  TABConfig,
+  TBEConfig,
   TEndpointsConfig,
   TEndpointConfig,
   TEndpointBuilder,
@@ -28,7 +28,7 @@ const isValid = (router: Router, name: string, endpoint: TEndpointConfig) => {
   return true
 }
 
-const buildEndpoint = (router: Router, config: TABConfig, endpoint: TEndpointConfig) => {
+const buildEndpoint = (router: Router, config: TBEConfig, endpoint: TEndpointConfig) => {
   const { path, proxy, action, method, middleware = [], endpoints: children } = endpoint
 
   method === EPMethod.Use
@@ -44,7 +44,7 @@ const buildEndpoint = (router: Router, config: TABConfig, endpoint: TEndpointCon
 
 const buildEndpoints = (
   router: Router,
-  config: TABConfig,
+  config: TBEConfig,
   eps: TEndpointsConfig,
   parentPath?: string
 ) => {
@@ -59,5 +59,5 @@ const buildEndpoints = (
   return router
 }
 
-export const setupEndpoints = (router: Router, config: TABConfig) =>
+export const setupEndpoints = (router: Router, config: TBEConfig) =>
   buildEndpoints(router, config, endpoints)

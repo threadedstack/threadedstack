@@ -1,4 +1,4 @@
-import type { TSSLCreds } from '@TBE/types'
+import type { TSSLCreds } from '@tdsk/domain'
 
 import fs from 'fs'
 import http from 'http'

@@ -9,6 +9,7 @@ import type {
 } from '@TDB/types'
 
 import { eq } from 'drizzle-orm'
+import type { Base as BaseModel } from '@tdsk/domain'
 import { DBIdError } from '@TDB/utils/error/error'
 
 type TTableWithId = {
@@ -27,7 +28,8 @@ export class Base<
   TTable extends TTableSchema,
   S extends TDBEntitySelect = TDBEntitySelect,
   I extends TDBEntityInsert = TDBEntityInsert,
-> implements IDBApi<S, I>
+  M extends BaseModel = BaseModel,
+> implements IDBApi<M, I>
 {
   table: TTable
   db: NodePgDatabase
@@ -39,40 +41,45 @@ export class Base<
     this.config = opts.config || {}
   }
 
-  create = async (data: I, opts?: TDBSelectOpts): Promise<TDBApiRes<S>> => {
+  #convert = (data: S, ...args: any[]): M => {
+    console.error(`Warning, this function should be overridden!`)
+    return data as unknown as M
+  }
+
+  create = async (data: I, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
     try {
       const resp = await this.db.insert(this.table).values(data).returning()
 
-      return { data: resp[0] as S }
+      return { data: this.#convert(resp[0]) as M }
     } catch (error: any) {
       return { error }
     }
   }
 
-  get = async (id: string, opts?: TDBSelectOpts): Promise<TDBApiRes<S>> => {
+  get = async (id: string, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
     try {
       const resp = await this.db
         .select()
         .from(this.table as TTableSchema)
         .where(eq(this.table.id, id))
 
-      return { data: resp[0] as S }
+      return { data: this.#convert(resp[0]) as M }
     } catch (error: any) {
       return { error }
     }
   }
 
-  list = async (opts?: TDBSelectOpts): Promise<TDBApiRes<S[]>> => {
+  list = async (opts?: TDBSelectOpts): Promise<TDBApiRes<M[]>> => {
     try {
       // TODO: Expand this to handle `opts` for limit/offset
       const resp = await this.db.select().from(this.table as TTableSchema)
-      return { data: resp as S[] }
+      return { data: resp.map((item) => this.#convert(item)) as M[] }
     } catch (error: any) {
       return { error }
     }
   }
 
-  update = async (data: I, opts?: TDBSelectOpts): Promise<TDBApiRes<S>> => {
+  update = async (data: I, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
     try {
       const id = data.id
       !id && DBIdError.throw()
@@ -83,13 +90,13 @@ export class Base<
         .where(eq(this.table.id, id))
         .returning()
 
-      return { data: resp[0] as S }
+      return { data: this.#convert(resp[0]) as M }
     } catch (error: any) {
       return { error }
     }
   }
 
-  upsert = async (data: I, opts?: TDBSelectOpts): Promise<TDBApiRes<S>> => {
+  upsert = async (data: I, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
     try {
       const id = data.id
       !id && DBIdError.throw()
@@ -103,20 +110,20 @@ export class Base<
         })
         .returning()
 
-      return { data: resp[0] as S }
+      return { data: this.#convert(resp[0]) as M }
     } catch (error: any) {
       return { error }
     }
   }
 
-  delete = async (id: string, opts?: TDBSelectOpts): Promise<TDBApiRes<S>> => {
+  delete = async (id: string, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
     try {
       const resp = await this.db
         .delete(this.table)
         .where(eq(this.table.id, id))
         .returning()
 
-      return { data: resp[0] as S }
+      return { data: resp[0] as M }
     } catch (error: any) {
       return { error }
     }

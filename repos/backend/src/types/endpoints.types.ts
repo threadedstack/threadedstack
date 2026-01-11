@@ -1,13 +1,15 @@
+import type { NextFunction } from 'express'
+import type { TResponse } from '@tdsk/domain'
 import type { router } from '@TBE/server/router'
-import type { TABConfig } from '@TBE/types/proxy.types'
-import type { Request, Response, NextFunction } from 'express'
+import type { TBEConfig, TRequest } from '@TBE/types/backend.types'
 import type { RequestHandler, Options } from 'http-proxy-middleware'
 
-export type TRequest = Request
-export type TResponse = Response
-
 export type TConfigProxy = Options
-export type TEndpointMethod = (req?: Request, res?: Response, next?: NextFunction) => void
+export type TEndpointMethod = (
+  req?: TRequest,
+  res?: TResponse,
+  next?: NextFunction
+) => void
 export type TRequestHandler = RequestHandler | TEndpointMethod
 
 export type TEndpointConfig = {
@@ -26,7 +28,7 @@ export type TEndpointConfig = {
     | EPMethod
 }
 
-export type TEndpointBuilder = (config: TABConfig) => TEndpointConfig
+export type TEndpointBuilder = (config: TBEConfig) => TEndpointConfig
 
 export type TEndpoint = TEndpointConfig | TEndpointBuilder
 

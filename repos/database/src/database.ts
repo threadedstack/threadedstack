@@ -17,7 +17,7 @@ export const database = (cfg: TDBConfig = config) => {
     }) as unknown as TDatabase
 
     _database.services = Object.entries(DBservices).reduce((acc, [name, Service]) => {
-      acc[name] = new Service({ db: _database, schema: undefined, config: cfg })
+      acc[name] = new Service({ db: _database, table: undefined, config: cfg })
       return acc
     }, {} as TDBServices)
   }

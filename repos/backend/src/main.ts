@@ -1,4 +1,4 @@
-import type { TABConfig } from '@TBE/types'
+import type { TBEConfig } from '@TBE/types'
 
 import { app } from '@TBE/server/app'
 import { router } from '@TBE//server/router'
@@ -10,7 +10,7 @@ import { setupDatabase } from '@TBE/middleware/setupDatabase'
 import { setupEndpoints } from '@TBE/middleware/setupEndpoints'
 import { setupErrorHandler } from '@TBE/middleware/setupErrorHandler'
 
-export const main = (config: TABConfig) => {
+export const main = (config: TBEConfig) => {
   app.locals.config = config
   setupLoggerReq(app)
   setupServer(app, router)
