@@ -14,5 +14,9 @@ export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert, UserM
     super({ ...opts, table: users })
   }
 
-  #convert = (data: TDBUserSelect) => new UserModel(data)
+  #convert = (data: TDBUserSelect) => {
+    console.log(`------- users convert -------`)
+
+    return new UserModel(data)
+  }
 }

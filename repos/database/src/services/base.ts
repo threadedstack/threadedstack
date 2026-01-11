@@ -1,5 +1,6 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type { Base as BaseModel } from '@tdsk/domain'
 import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type {
   IDBApi,
   TDBApiRes,
@@ -9,7 +10,7 @@ import type {
 } from '@TDB/types'
 
 import { eq } from 'drizzle-orm'
-import type { Base as BaseModel } from '@tdsk/domain'
+import { logger } from '@TDB/utils/logger'
 import { DBIdError } from '@TDB/utils/error/error'
 
 type TTableWithId = {
@@ -42,7 +43,8 @@ export class Base<
   }
 
   #convert = (data: S, ...args: any[]): M => {
-    console.error(`Warning, this function should be overridden!`)
+    const owner = this.constructor.name
+    logger.error(`Warning, the ${owner} class should override this function!`)
     return data as unknown as M
   }
 

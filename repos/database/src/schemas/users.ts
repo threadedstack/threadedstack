@@ -1,25 +1,30 @@
+/**
+ * IMPORTANT - Do not export this file from '@TDB/schemas/schemas'
+ * This schema is managed by neon, not drizzle so should not be included in migrations
+ * It only exists so it can be read.
+ */
 import { relations } from 'drizzle-orm'
 import { roles } from '@TDB/schemas/roles'
 import { assets } from '@TDB/schemas/assets'
-import { base } from '@TDB/utils/schema/base'
 import { threads } from '@TDB/schemas/threads'
 import { providers } from '@TDB/schemas/providers'
-import { pgTable, varchar, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgSchema, text, timestamp, boolean, uuid } from 'drizzle-orm/pg-core'
 
-export const users = pgTable(
-  `users`,
-  {
-    ...base,
-    first: varchar({ length: 255 }).notNull(),
-    last: varchar({ length: 255 }).notNull(),
-    photoUrl: varchar({ length: 255 }),
-    provider: varchar({ length: 255 }).notNull(),
-    altEmail: varchar(`alt_email`, { length: 255 }),
-    email: varchar(`email`, { length: 255 }).notNull().unique(),
-    displayName: varchar(`display_name`, { length: 255 }).notNull(),
-  },
-  (table) => [uniqueIndex(`email_idx`).on(table.email)]
-)
+const authSchema = pgSchema(`neon_auth`)
+
+export const users = authSchema.table(`user`, {
+  id: uuid(`id`).primaryKey().notNull(),
+  name: text(`name`),
+  email: text(`email`),
+  image: text(`image`),
+  role: text(`role`),
+  banned: boolean(`banned`),
+  banReason: text(`banReason`),
+  banExpires: timestamp(`banReason`),
+  emailVerified: boolean(`emailVerified`),
+  createdAt: timestamp(`createdAt`, { mode: `string` }).notNull(),
+  updatedAt: timestamp(`updatedAt`, { mode: `string` }).notNull(),
+})
 
 export const usersRelations = relations(users, ({ many }) => ({
   teams: many(roles),

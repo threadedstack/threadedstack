@@ -19,7 +19,6 @@ const {
   TDSK_PX_ENABLE_SSL,
   TDSK_PX_ALLOW_ORIGIN,
   TDSK_PX_LOG_LEVEL,
-  TDSK_PX_LOGGER_LEVEL,
   TDSK_PX_LOGGER_PRETTY,
   TDSK_PX_LOGGER_SILENT,
   TDSK_PX_JWT_SECRET,
@@ -32,6 +31,7 @@ const {
   TDSK_BE_HEADER_VALUE,
   TDSK_BE_API_ADMIN_PATH = `_`,
   TDSK_AUTH_JWKS = ``,
+  TDSK_LOG_LEVEL = `info`,
 } = envs
 
 const enableSSL = NODE_ENV !== `production` && toBool(TDSK_PX_ENABLE_SSL)
@@ -78,7 +78,7 @@ export const config: TProxyConfig = {
     exitOnError: false,
     pretty: toBool(TDSK_PX_LOGGER_PRETTY) ?? false,
     silent: toBool(TDSK_PX_LOGGER_SILENT) ?? false,
-    level: (TDSK_PX_LOGGER_LEVEL || TDSK_PX_LOG_LEVEL || `info`) as TLogLevel,
+    level: (TDSK_PX_LOG_LEVEL ?? TDSK_LOG_LEVEL) as TLogLevel,
   },
   jwks: {
     jwksUrl: TDSK_AUTH_JWKS,

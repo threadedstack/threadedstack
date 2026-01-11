@@ -1,4 +1,3 @@
-import type { auth } from '@TDB/schemas/auth'
 import type { users } from '@TDB/schemas/users'
 import type { teams } from '@TDB/schemas/teams'
 import type { repos } from '@TDB/schemas/repos'
@@ -13,8 +12,6 @@ import type { providers } from '@TDB/schemas/providers'
 import type { functions } from '@TDB/schemas/functions'
 import type { Base as BaseModel } from '@tdsk/domain'
 
-export type TDBAuthSelect = typeof auth.$inferSelect
-export type TDBAuthInsert = typeof auth.$inferInsert
 export type TDBUserSelect = typeof users.$inferSelect
 export type TDBUserInsert = typeof users.$inferInsert
 export type TDBTeamSelect = typeof teams.$inferSelect
@@ -41,7 +38,6 @@ export type TDBFunctionSelect = typeof functions.$inferSelect
 export type TDBFunctionInsert = typeof functions.$inferInsert
 
 export type TDBEntitySelect =
-  | TDBAuthSelect
   | TDBUserSelect
   | TDBTeamSelect
   | TDBRepoSelect
@@ -56,7 +52,6 @@ export type TDBEntitySelect =
   | TDBFunctionSelect
 
 export type TDBEntityInsert =
-  | TDBAuthInsert
   | TDBUserInsert
   | TDBTeamInsert
   | TDBRepoInsert

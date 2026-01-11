@@ -1,7 +1,7 @@
 import type { TDBConfig, TDatabase, TDBServices } from '@TDB/types'
 
 import { Pool } from 'pg'
-import { auth } from '@TDB/schemas/auth'
+import { users } from '@TDB/schemas/users'
 import * as DBservices from '@TDB/services'
 import * as schema from '@TDB/schemas/schemas'
 import { config } from '@TDB/configs/db.config'
@@ -12,7 +12,7 @@ let _database: TDatabase
 export const database = (cfg: TDBConfig = config) => {
   if (!_database) {
     _database = drizzle({
-      schema: { auth, ...schema },
+      schema: { users, ...schema },
       client: new Pool({ connectionString: config.url }),
     }) as unknown as TDatabase
 

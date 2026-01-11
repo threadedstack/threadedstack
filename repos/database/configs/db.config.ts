@@ -8,6 +8,9 @@ const {
   TDSK_DB_SRV_ROLE,
   TDSK_DB_PUBLIC_KEY,
   TDSK_DB_PROJECT_ID,
+  TDSK_DB_LOG_LEVEL,
+  TDSK_LOG_LEVEL = `info`,
+  TDSK_DB_LOG_LABEL = `TDSK - Database`,
 } = process.env
 
 const nodeEnv = process.env.NODE_ENV || `local`
@@ -36,4 +39,8 @@ export const config = {
     pass: TDSK_DB_PASS,
     proto: TDSK_DB_PROTO,
   }),
+  logger: {
+    label: TDSK_DB_LOG_LABEL,
+    level: TDSK_DB_LOG_LEVEL ?? TDSK_LOG_LEVEL,
+  },
 }

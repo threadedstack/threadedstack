@@ -1,2 +1,2 @@
 export * from '@TDB/schemas/schemas'
-export { auth } from '@TDB/schemas/auth'
+export { users } from '@TDB/schemas/users'

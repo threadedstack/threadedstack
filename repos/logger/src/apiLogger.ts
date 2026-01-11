@@ -13,20 +13,23 @@ export const setupLogger = ({ tag, label = tag, ...opts }: TSetupLogger) => {
   __logger = buildLogger({ label: __logLabel, ...opts }) as TWLogger
 }
 
-const autoInit = () => {
-  if (__logger && __logLabel) return
-
-  setupLogger({ tag: __logLabel, label: __logLabel })
+const autoInit = (logger: TWLogger = __logger, label: string = __logLabel) => {
+  if (logger && label) return
+  setupLogger({ label, tag: label })
 }
 
-const loggerWrap = (method: string = `info`) => {
+const loggerWrap = (
+  method: string = `info`,
+  logger: TWLogger = __logger,
+  label: string = __logLabel
+) => {
   return (...args: any[]) => {
-    autoInit()
+    autoInit(logger, label)
     const toLog =
       args.length <= 1 && isStr(args[0])
         ? {
             message: args[0],
-            label: __logLabel,
+            label: label,
           }
         : args.reduce(
             (obj, arg) => {
@@ -40,26 +43,36 @@ const loggerWrap = (method: string = `info`) => {
 
               return obj
             },
-            { message: ``, label: __logLabel }
+            { message: ``, label }
           )
 
-    __logger?.[method]?.(toLog)
+    logger?.[method]?.(toLog)
   }
 }
 
 const empty = () => console.log(`\n`)
 
-export const ApiLogger = {
-  empty,
-  pair: loggerWrap(`info`),
-  highlight: loggerWrap(`info`),
-  error: loggerWrap(`error`),
-  warn: loggerWrap(`warn`),
-  data: loggerWrap(`data`),
-  log: loggerWrap(`info`),
-  info: loggerWrap(`info`),
-  debug: loggerWrap(`info`),
-  verbose: loggerWrap(`info`),
-  silly: loggerWrap(`info`),
-  success: loggerWrap(`info`),
+export const buildApiLogger = (
+  label: string = __logLabel,
+  level: string = `info`,
+  logger: TWLogger = __logger
+) => {
+  logger = logger || buildLogger({ label, level }, false)
+
+  return {
+    empty,
+    pair: loggerWrap(`info`, logger, label),
+    highlight: loggerWrap(`info`, logger, label),
+    error: loggerWrap(`error`, logger, label),
+    warn: loggerWrap(`warn`, logger, label),
+    data: loggerWrap(`data`, logger, label),
+    log: loggerWrap(`info`, logger, label),
+    info: loggerWrap(`info`, logger, label),
+    debug: loggerWrap(`info`, logger, label),
+    verbose: loggerWrap(`info`, logger, label),
+    silly: loggerWrap(`info`, logger, label),
+    success: loggerWrap(`info`, logger, label),
+  }
 }
+
+export const ApiLogger = buildApiLogger()

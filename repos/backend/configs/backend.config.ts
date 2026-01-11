@@ -1,6 +1,5 @@
 import { loadEnvs } from '@tdsk/domain'
 import { toNum, toBool } from '@keg-hub/jsutils'
-import { LOG_LEVEL } from '@TBE/constants/envs'
 import { buildProxyUrl } from '@TBE/utils/proxy/buildProxyUrl'
 
 const nodeEnv = process.env.NODE_ENV || `local`
@@ -19,12 +18,12 @@ const {
   TDSK_BE_SSL_CA,
   TDSK_BE_SSL_KEY,
   TDSK_BE_SSL_CERT,
+  TDSK_BE_LOG_LEVEL,
   TDSK_BE_ENABLE_SSL,
   TDSK_BE_HEADER_KEY,
   TDSK_BE_REMOTE_PORT,
   TDSK_BE_HEADER_VALUE,
   TDSK_BE_ALLOW_ORIGIN,
-  TDSK_BE_LOGGER_LEVEL,
   TDSK_BE_LOGGER_PRETTY,
   TDSK_BE_LOGGER_SILENT,
   TDSK_BE_PUBLIC_ROUTES,
@@ -38,6 +37,7 @@ const {
   TDSK_DB_SRV_ROLE,
   TDSK_DB_PROJECT_ID,
   TDSK_DB_PUBLIC_KEY,
+  TDSK_LOG_LEVEL = `info`,
 } = process.env
 
 const enableSSL = nodeEnv !== `production` && toBool(TDSK_BE_ENABLE_SSL)
@@ -88,7 +88,7 @@ export const config = {
     exceptions: true,
     rejections: true,
     exitOnError: false,
-    level: TDSK_BE_LOGGER_LEVEL ?? LOG_LEVEL,
+    level: TDSK_BE_LOG_LEVEL ?? TDSK_LOG_LEVEL,
     pretty: toBool(TDSK_BE_LOGGER_PRETTY) ?? false,
     silent: toBool(TDSK_BE_LOGGER_SILENT) ?? false,
   },

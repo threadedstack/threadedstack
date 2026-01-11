@@ -1,9 +1,4 @@
-import { ApiLogger, setupLogger } from '@tdsk/logger'
+import { buildApiLogger } from '@tdsk/logger'
 import { config } from '@TPX/configs/proxy.config'
 
-setupLogger({
-  tag: `TDSK Proxy`,
-  level: config?.logger?.level,
-})
-
-export { ApiLogger as logger }
+export const logger = buildApiLogger(config?.logger?.label, config?.logger?.level)
