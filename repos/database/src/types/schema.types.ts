@@ -17,7 +17,7 @@ type TInferDateProps<T extends TAnyObj = TAnyObj, D extends TKeyLike = TKeyLike>
   T,
   D
 > & {
-  [K in D]: string | Date
+  [K in D]?: string | Date
 }
 
 type TInferDates<T extends TAnyObj = TAnyObj> = TInferDateProps<

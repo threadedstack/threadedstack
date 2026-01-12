@@ -1,3 +1,5 @@
+import type { TEndpointOpts } from '@TDM/types'
+
 import { Base } from './base'
 
 export class Endpoint extends Base {
@@ -5,8 +7,8 @@ export class Endpoint extends Base {
   name: string
   repoId: string
   method: string = `GET`
+  options: TEndpointOpts
   public?: boolean = false
-  options: Record<string, any>
   headers: Record<string, string>
 
   constructor(endpoint: Partial<Endpoint>) {

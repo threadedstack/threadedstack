@@ -143,3 +143,22 @@ export const byteaToBuffer = (byteaString: string): Buffer => {
 
   return Buffer.from(byteaString.substring(2), `hex`)
 }
+
+/**
+ * Helper to encode encrypted data for storage
+ * Combines iv + authTag + encrypted into a single base64 string
+ */
+export const encodeEncrypted = (
+  iv: Buffer,
+  authTag: Buffer,
+  encrypted: Buffer
+): string => {
+  return Buffer.concat([iv, authTag, encrypted]).toString(`base64`)
+}
+
+/**
+ * Helper to create a hash key from the secret name for lookup purposes
+ */
+export const createHashKey = (name: string): string => {
+  return crypto.createHash(`sha256`).update(name).digest(`hex`).slice(0, 16)
+}

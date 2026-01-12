@@ -1,8 +1,10 @@
-import { Base } from './base'
 import type { TApiKeyScope } from '@TDM/types'
+
+import { Base } from './base'
 import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 
 export class ApiKey extends Base {
+  key?: string
   name: string
   orgId?: string
   repoId?: string
@@ -40,6 +42,6 @@ export class ApiKey extends Base {
   }
 
   sanitize = () => {
-    return new ApiKey(omitKeys(this, [`keyHash`]))
+    return new ApiKey(omitKeys(this, [`key`, `keyHash`]))
   }
 }

@@ -1,4 +1,5 @@
 export * from './ai.types'
+export * from './epd.types'
 export * from './http.types'
 export * from './scopes.types'
 export * from './server.types'

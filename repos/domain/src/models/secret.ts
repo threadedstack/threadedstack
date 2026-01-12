@@ -1,15 +1,21 @@
 import { Base } from './base'
+import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 
 export class Secret extends Base {
+  value?: any
   name: string
-  hashKey: string
   orgId?: string
   repoId?: string
+  hashKey: string
   providerId?: string
   encryptedValue: string
 
   constructor(secret: Partial<Secret>) {
     super()
     Object.assign(this, secret)
+  }
+
+  sanitize = () => {
+    return new Secret(omitKeys(this, [`value`, `encryptedValue`]))
   }
 }

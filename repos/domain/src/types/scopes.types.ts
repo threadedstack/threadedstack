@@ -13,3 +13,9 @@ export enum ERoleType {
 }
 
 export type TRoleType = `${ERoleType}`
+
+export type TKeyHash = {
+  key: string
+  hash: string
+  prefix: string
+}
