@@ -1,6 +1,6 @@
 export * from './ai.types'
-export * from './role.types'
 export * from './http.types'
+export * from './scopes.types'
 export * from './server.types'
 export * from './headers.types'
 export * from './helpers.types'
