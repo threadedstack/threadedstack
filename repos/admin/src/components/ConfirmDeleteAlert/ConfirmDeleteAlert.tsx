@@ -1,34 +1,45 @@
-import { Alert, Button, Box } from '@mui/material'
+import type { ReactNode } from 'react'
 import type { SxProps, Theme } from '@mui/material'
+import { Alert, Button, Box } from '@mui/material'
 
 export type TConfirmDeleteAlert = {
+  text?: ReactNode
   itemName: string
+  loading?: boolean
+  cancelText?: string
+  deleteText?: string
+  confirmText?: string
+  sx?: SxProps<Theme>
   onCancel: () => void
   onConfirm: () => void
-  loading?: boolean
-  sx?: SxProps<Theme>
 }
 
-export const ConfirmDeleteAlert = ({
-  itemName,
-  onCancel,
-  onConfirm,
-  loading = false,
-  sx,
-}: TConfirmDeleteAlert) => {
+export const ConfirmDeleteAlert = (props: TConfirmDeleteAlert) => {
+  const {
+    sx,
+    itemName,
+    onCancel,
+    onConfirm,
+    loading = false,
+    cancelText = `Cancel`,
+    confirmText = `Confirm`,
+    deleteText = `Deleting...`,
+    text = `Are you sure you want to delete "${itemName}"?`,
+  } = props
+
   return (
     <Alert
-      severity='warning'
       sx={sx}
+      severity='warning'
       action={
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
-            color='inherit'
             size='small'
+            color='inherit'
             onClick={onCancel}
             disabled={loading}
           >
-            Cancel
+            {cancelText}
           </Button>
           <Button
             color='inherit'
@@ -36,12 +47,12 @@ export const ConfirmDeleteAlert = ({
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? 'Deleting...' : 'Confirm'}
+            {loading ? deleteText : confirmText}
           </Button>
         </Box>
       }
     >
-      Are you sure you want to delete "{itemName}"?
+      {text}
     </Alert>
   )
 }

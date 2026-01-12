@@ -11,6 +11,7 @@ import { providersState } from '@TAF/state/providers'
 import { orgsState, activeOrgIdState } from '@TAF/state/orgs'
 import { reposState, activeRepoIdState } from '@TAF/state/repos'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
+import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
@@ -42,3 +43,5 @@ export const useFunctions = () => useRecState(functionsState)
 export const useActiveFunctionId = () => useRecState(activeFunctionIdState)
 export const useConfigs = () => useRecState(configsState)
 export const useActiveConfigId = () => useRecState(activeConfigIdState)
+export const useApiKeys = () => useRecState(apiKeysState)
+export const useActiveApiKeyId = () => useRecState(activeApiKeyIdState)

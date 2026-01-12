@@ -102,7 +102,7 @@ describe('Home', () => {
 
   it('should display loading state initially', async () => {
     render(<Home />)
-    expect(screen.getByText('Loading orgs...')).toBeDefined()
+    expect(screen.getByText('Loading...')).toBeDefined()
   })
 
   it('should display org names after loading', async () => {

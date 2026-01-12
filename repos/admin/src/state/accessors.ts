@@ -4,6 +4,7 @@ import type {
   Repo,
   Config,
   Secret,
+  ApiKey,
   Provider,
   Endpoint,
   Organization,
@@ -18,6 +19,7 @@ import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
 import { orgsState, activeOrgIdState } from '@TAF/state/orgs'
 import { reposState, activeRepoIdState } from '@TAF/state/repos'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
+import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
@@ -92,3 +94,21 @@ export const setConfigs = (configs: Record<string, Config>) =>
 export const getActiveConfigId = () => store.get(activeConfigIdState)
 export const resetActiveConfigId = () => store.set(activeConfigIdState, undefined)
 export const setActiveConfigId = (id: string) => store.set(activeConfigIdState, id)
+
+export const getApiKeys = () => store.get(apiKeysState)
+export const resetApiKeys = () => store.set(apiKeysState, undefined)
+export const setApiKeys = (apiKeys: Record<string, ApiKey>) =>
+  store.set(apiKeysState, apiKeys)
+export const setApiKey = (apiKey: ApiKey) => {
+  const current = store.get(apiKeysState) || {}
+  store.set(apiKeysState, { ...current, [apiKey.id]: apiKey })
+}
+export const removeApiKey = (id: string) => {
+  const current = store.get(apiKeysState) || {}
+  const { [id]: _, ...rest } = current
+  store.set(apiKeysState, rest)
+}
+
+export const getActiveApiKeyId = () => store.get(activeApiKeyIdState)
+export const resetActiveApiKeyId = () => store.set(activeApiKeyIdState, undefined)
+export const setActiveApiKeyId = (id: string) => store.set(activeApiKeyIdState, id)
