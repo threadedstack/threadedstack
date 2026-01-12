@@ -420,7 +420,7 @@ Load the relevant skill when working on a specific repo:
 
 ### Database Schema (Exclusive Arc Pattern)
 
-Key tables: `orgs`, `users`, `repos`, `endpoints`, `functions`, `configs`, `providers`, `secrets`, `roles`, `threads`, `messages`, `assets`
+Key tables: `orgs`, `users`, `projects`, `endpoints`, `functions`, `configs`, `providers`, `secrets`, `roles`, `threads`, `messages`, `assets`
 
 Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR Repo (not both).
 

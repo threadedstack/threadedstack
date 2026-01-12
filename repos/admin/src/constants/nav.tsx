@@ -59,10 +59,10 @@ export const OrgNavItems: TNavItem[] = [
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
-    text: `Repos`,
+    text: `Projects`,
     to: (ctx: TNavCtx) => {
       if (!ctx.orgId) return '#'
-      return `/orgs/${ctx.orgId}/repos`
+      return `/orgs/${ctx.orgId}/projects`
     },
     Icon: <AppsIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
@@ -96,52 +96,52 @@ export const OrgNavItems: TNavItem[] = [
   },
 ]
 
-// Repo-scoped navigation items
-export const RepoNavItems: TNavItem[] = [
+// Project-scoped navigation items
+export const ProjectNavItems: TNavItem[] = [
   {
     text: `Endpoints`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.repoId) return '#'
-      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/endpoints`
+      if (!ctx.orgId || !ctx.projectId) return '#'
+      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints`
     },
     Icon: <EndpointIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
     text: `Functions`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.repoId) return '#'
-      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/functions`
+      if (!ctx.orgId || !ctx.projectId) return '#'
+      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/functions`
     },
     Icon: <FunctionIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
     text: `Secrets`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.repoId) return '#'
-      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/secrets`
+      if (!ctx.orgId || !ctx.projectId) return '#'
+      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/secrets`
     },
     Icon: <SecretIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
     text: `Providers`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.repoId) return '#'
-      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/providers`
+      if (!ctx.orgId || !ctx.projectId) return '#'
+      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/providers`
     },
     Icon: <ProviderIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
-    text: `Repo Settings`,
+    text: `Project Settings`,
     to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.repoId) return '#'
-      return `/orgs/${ctx.orgId}/repos/${ctx.repoId}/settings`
+      if (!ctx.orgId || !ctx.projectId) return '#'
+      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/settings`
     },
     Icon: <SettingsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
 ]
 

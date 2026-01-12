@@ -1,15 +1,15 @@
 import type { TNavCtx, TDynamicNavConfig } from '@TAF/types'
 
 import {
-  RepoNavItems,
   OrgNavItems,
   GlobalNavItems,
   BottomNavItems,
+  ProjectNavItems,
 } from '@TAF/constants/nav'
 
 /**
  * Get dynamic navigation configuration based on context
- * @param context - Current navigation context (orgId, repoId, etc.)
+ * @param context - Current navigation context (orgId, projectId, etc.)
  * @returns Dynamic navigation configuration with sections and bottom items
  */
 export const getDynamicNav = (context: TNavCtx): TDynamicNavConfig => {
@@ -23,18 +23,18 @@ export const getDynamicNav = (context: TNavCtx): TDynamicNavConfig => {
   if (context.orgId) {
     sections.push({
       id: `org`,
-      header: context.org?.name || `Org`,
       items: OrgNavItems,
       visible: (ctx: TNavCtx) => !!ctx.orgId,
+      header: context.org?.name || `Organization`,
     })
   }
 
-  if (context.orgId && context.repoId) {
+  if (context.orgId && context.projectId) {
     sections.push({
-      id: `repo`,
-      header: context.repo?.name || `Repository`,
-      items: RepoNavItems,
-      visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.repoId,
+      id: `project`,
+      items: ProjectNavItems,
+      visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+      header: context.project?.name || `Project`,
     })
   }
 

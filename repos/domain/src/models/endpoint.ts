@@ -5,7 +5,7 @@ import { Base } from './base'
 export class Endpoint extends Base {
   url: string
   name: string
-  repoId: string
+  projectId: string
   method: string = `GET`
   options: TEndpointOpts
   public?: boolean = false

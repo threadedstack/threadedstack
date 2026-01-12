@@ -1,5 +1,0 @@
-export * from './fetchRepos'
-export * from './fetchRepo'
-export * from './createRepo'
-export * from './updateRepo'
-export * from './deleteRepo'

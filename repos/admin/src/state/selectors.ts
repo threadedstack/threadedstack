@@ -9,7 +9,7 @@ import { sidebarOpenState } from '@TAF/state/app'
 import { themeTypeState } from '@TAF/state/theme'
 import { providersState } from '@TAF/state/providers'
 import { orgsState, activeOrgIdState } from '@TAF/state/orgs'
-import { reposState, activeRepoIdState } from '@TAF/state/repos'
+import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
@@ -33,8 +33,8 @@ export const useThemeType = () => useRecState(themeTypeState)
 export const useSidebarOpen = () => useRecState(sidebarOpenState)
 export const useOrgs = () => useRecState(orgsState)
 export const useActiveOrgId = () => useRecState(activeOrgIdState)
-export const useRepos = () => useRecState(reposState)
-export const useActiveRepoId = () => useRecState(activeRepoIdState)
+export const useProjects = () => useRecState(projectsState)
+export const useActiveprojectId = () => useRecState(activeProjectIdState)
 export const useSecrets = () => useRecState(secretsState)
 export const useActiveSecretId = () => useRecState(activeSecretIdState)
 export const useEndpoints = () => useRecState(endpointsState)

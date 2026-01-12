@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { repos } from '@TDB/schemas/repos'
+import { projects } from '@TDB/schemas/projects'
 import { base } from '@TDB/utils/schema/base'
 import { functions } from '@TDB/schemas/functions'
 import { uuid, text, jsonb, varchar, boolean, pgTable } from 'drizzle-orm/pg-core'
@@ -12,15 +12,15 @@ export const endpoints = pgTable(`endpoints`, {
   options: jsonb(`options`),
   public: boolean(`public`).default(false),
   method: varchar(`method`, { length: 10 }).default(`GET`),
-  repoId: uuid(`repo_id`)
-    .references(() => repos.id, { onDelete: `cascade` })
+  projectId: uuid(`project_id`)
+    .references(() => projects.id, { onDelete: `cascade` })
     .notNull(),
 })
 
 export const endpointsRelations = relations(endpoints, ({ one, many }) => ({
   functions: many(functions),
-  repo: one(repos, {
-    references: [repos.id],
-    fields: [endpoints.repoId],
+  project: one(projects, {
+    references: [projects.id],
+    fields: [endpoints.projectId],
   }),
 }))

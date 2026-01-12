@@ -10,7 +10,7 @@ export type TFetchConfigsResult = {
 
 export const fetchConfigs = async (filters?: {
   orgId?: string
-  repoId?: string
+  projectId?: string
 }): Promise<TFetchConfigsResult> => {
   const resp = await configsApi.list(filters)
 

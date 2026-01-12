@@ -2,7 +2,7 @@ import type { TNavCtx } from '@TAF/types'
 
 import { describe, it, expect } from 'vitest'
 import { getDynamicNav } from '@TAF/utils/nav/getDynamicNav'
-import { OrgNavItems, RepoNavItems, GlobalNavItems, BottomNavItems } from './nav'
+import { OrgNavItems, ProjectNavItems, GlobalNavItems, BottomNavItems } from './nav'
 
 describe('getDynamicNav', () => {
   describe('with no context', () => {
@@ -23,11 +23,11 @@ describe('getDynamicNav', () => {
       expect(config.sections[0].items).toBe(GlobalNavItems)
     })
 
-    it('should not include org or repo sections', () => {
+    it('should not include org or project sections', () => {
       const config = getDynamicNav({})
       const sectionIds = config.sections.map((s) => s.id)
       expect(sectionIds).not.toContain('org')
-      expect(sectionIds).not.toContain('repo')
+      expect(sectionIds).not.toContain('project')
     })
   })
 
@@ -53,7 +53,7 @@ describe('getDynamicNav', () => {
     it('should use default header when orgName is not provided', () => {
       const config = getDynamicNav({ orgId: 'org-123' })
       const orgSection = config.sections.find((s) => s.id === 'org')
-      expect(orgSection?.header).toBe('Org')
+      expect(orgSection?.header).toBe('Organization')
     })
 
     it('should have org items in org section', () => {
@@ -69,72 +69,72 @@ describe('getDynamicNav', () => {
       expect(typeof orgSection?.visible).toBe('function')
     })
 
-    it('should not include repo section when repoId is missing', () => {
+    it('should not include project section when projectId is missing', () => {
       const config = getDynamicNav(orgContext)
       const sectionIds = config.sections.map((s) => s.id)
-      expect(sectionIds).not.toContain('repo')
+      expect(sectionIds).not.toContain('project')
     })
   })
 
-  describe('with org and repo context', () => {
+  describe('with org and project context', () => {
     const fullContext: TNavCtx = {
       orgId: 'org-123',
       org: { name: 'Engineering' } as any,
-      repoId: 'repo-456',
-      repo: { name: 'API Gateway' } as any,
+      projectId: 'project-456',
+      project: { name: 'API Gateway' } as any,
     }
 
-    it('should return global, org, and repo sections', () => {
+    it('should return global, org, and project sections', () => {
       const config = getDynamicNav(fullContext)
       expect(config.sections.length).toBe(3)
       expect(config.sections[0].id).toBe('global')
       expect(config.sections[1].id).toBe('org')
-      expect(config.sections[2].id).toBe('repo')
+      expect(config.sections[2].id).toBe('project')
     })
 
-    it('should have repo name in repo section header', () => {
+    it('should have project name in project section header', () => {
       const config = getDynamicNav(fullContext)
-      const repoSection = config.sections.find((s) => s.id === 'repo')
-      expect(repoSection?.header).toBe('API Gateway')
+      const projectSection = config.sections.find((s) => s.id === 'project')
+      expect(projectSection?.header).toBe('API Gateway')
     })
 
-    it('should use default header when repoName is not provided', () => {
+    it('should use default header when projectName is not provided', () => {
       const config = getDynamicNav({
         orgId: 'org-123',
-        repoId: 'repo-456',
+        projectId: 'project-456',
       })
-      const repoSection = config.sections.find((s) => s.id === 'repo')
-      expect(repoSection?.header).toBe('Repository')
+      const projectSection = config.sections.find((s) => s.id === 'project')
+      expect(projectSection?.header).toBe('Project')
     })
 
-    it('should have repo items in repo section', () => {
+    it('should have project items in project section', () => {
       const config = getDynamicNav(fullContext)
-      const repoSection = config.sections.find((s) => s.id === 'repo')
-      expect(repoSection?.items).toBe(RepoNavItems)
+      const projectSection = config.sections.find((s) => s.id === 'project')
+      expect(projectSection?.items).toBe(ProjectNavItems)
     })
 
-    it('should have visible function for repo section', () => {
+    it('should have visible function for project section', () => {
       const config = getDynamicNav(fullContext)
-      const repoSection = config.sections.find((s) => s.id === 'repo')
-      expect(repoSection?.visible).toBeDefined()
-      expect(typeof repoSection?.visible).toBe('function')
+      const projectSection = config.sections.find((s) => s.id === 'project')
+      expect(projectSection?.visible).toBeDefined()
+      expect(typeof projectSection?.visible).toBe('function')
     })
 
     it('should have correct section order', () => {
       const config = getDynamicNav(fullContext)
       const sectionIds = config.sections.map((s) => s.id)
-      expect(sectionIds).toEqual(['global', 'org', 'repo'])
+      expect(sectionIds).toEqual(['global', 'org', 'project'])
     })
   })
 
   describe('with partial context', () => {
-    it('should not include repo section when orgId is missing', () => {
+    it('should not include project section when orgId is missing', () => {
       const config = getDynamicNav({
-        repoId: 'repo-456',
-        repo: { name: 'API Gateway' } as any,
+        projectId: 'project-456',
+        project: { name: 'API Gateway' } as any,
       })
       const sectionIds = config.sections.map((s) => s.id)
-      expect(sectionIds).not.toContain('repo')
+      expect(sectionIds).not.toContain('project')
     })
 
     it('should handle empty orgName gracefully', () => {
@@ -143,17 +143,17 @@ describe('getDynamicNav', () => {
         org: { name: '' } as any,
       })
       const orgSection = config.sections.find((s) => s.id === 'org')
-      expect(orgSection?.header).toBe('Org')
+      expect(orgSection?.header).toBe('Organization')
     })
 
-    it('should handle empty repoName gracefully', () => {
+    it('should handle empty projectName gracefully', () => {
       const config = getDynamicNav({
         orgId: 'org-123',
-        repoId: 'repo-456',
-        repo: { name: '' } as any,
+        projectId: 'project-456',
+        project: { name: '' } as any,
       })
-      const repoSection = config.sections.find((s) => s.id === 'repo')
-      expect(repoSection?.header).toBe('Repository')
+      const projectSection = config.sections.find((s) => s.id === 'project')
+      expect(projectSection?.header).toBe('Project')
     })
   })
 })
@@ -168,12 +168,14 @@ describe('OrgNavItems', () => {
       expect(path).toBe('/orgs/abc-123/users')
     })
 
-    it('should generate correct path for Repos with orgId', () => {
+    it('should generate correct path for Projects with orgId', () => {
       const context: TNavCtx = { orgId: 'xyz-789' }
-      const reposItem = OrgNavItems.find((item) => item.text === 'Repos')
+      const projectsItem = OrgNavItems.find((item) => item.text === 'Projects')
       const path =
-        typeof reposItem?.to === 'function' ? reposItem.to(context) : reposItem?.to
-      expect(path).toBe('/orgs/xyz-789/repos')
+        typeof projectsItem?.to === 'function'
+          ? projectsItem.to(context)
+          : projectsItem?.to
+      expect(path).toBe('/orgs/xyz-789/projects')
     })
 
     it('should generate correct path for Secrets with orgId', () => {
@@ -243,7 +245,7 @@ describe('OrgNavItems', () => {
 
   describe('structure', () => {
     it('should have all required items', () => {
-      const expectedItems = ['Users', 'Repos', 'Secrets', 'Providers', 'Org Settings']
+      const expectedItems = ['Users', 'Projects', 'Secrets', 'Providers', 'Org Settings']
       const actualItems = OrgNavItems.map((item) => item.text)
       expect(actualItems).toEqual(expectedItems)
     })
@@ -256,61 +258,63 @@ describe('OrgNavItems', () => {
   })
 })
 
-describe('RepoNavItems', () => {
+describe('ProjectNavItems', () => {
   describe('path generation', () => {
-    it('should generate correct path for Endpoints with orgId and repoId', () => {
-      const context: TNavCtx = { orgId: 'org-1', repoId: 'repo-2' }
-      const endpointsItem = RepoNavItems.find((item) => item.text === 'Endpoints')
+    it('should generate correct path for Endpoints with orgId and projectId', () => {
+      const context: TNavCtx = { orgId: 'org-1', projectId: 'project-2' }
+      const endpointsItem = ProjectNavItems.find((item) => item.text === 'Endpoints')
       const path =
         typeof endpointsItem?.to === 'function'
           ? endpointsItem.to(context)
           : endpointsItem?.to
-      expect(path).toBe('/orgs/org-1/repos/repo-2/endpoints')
+      expect(path).toBe('/orgs/org-1/projects/project-2/endpoints')
     })
 
-    it('should generate correct path for Functions with orgId and repoId', () => {
-      const context: TNavCtx = { orgId: 'org-abc', repoId: 'repo-xyz' }
-      const functionsItem = RepoNavItems.find((item) => item.text === 'Functions')
+    it('should generate correct path for Functions with orgId and projectId', () => {
+      const context: TNavCtx = { orgId: 'org-abc', projectId: 'project-xyz' }
+      const functionsItem = ProjectNavItems.find((item) => item.text === 'Functions')
       const path =
         typeof functionsItem?.to === 'function'
           ? functionsItem.to(context)
           : functionsItem?.to
-      expect(path).toBe('/orgs/org-abc/repos/repo-xyz/functions')
+      expect(path).toBe('/orgs/org-abc/projects/project-xyz/functions')
     })
 
-    it('should generate correct path for Secrets with orgId and repoId', () => {
-      const context: TNavCtx = { orgId: 'org-123', repoId: 'repo-456' }
-      const secretsItem = RepoNavItems.find((item) => item.text === 'Secrets')
+    it('should generate correct path for Secrets with orgId and projectId', () => {
+      const context: TNavCtx = { orgId: 'org-123', projectId: 'project-456' }
+      const secretsItem = ProjectNavItems.find((item) => item.text === 'Secrets')
       const path =
         typeof secretsItem?.to === 'function' ? secretsItem.to(context) : secretsItem?.to
-      expect(path).toBe('/orgs/org-123/repos/repo-456/secrets')
+      expect(path).toBe('/orgs/org-123/projects/project-456/secrets')
     })
 
-    it('should generate correct path for Providers with orgId and repoId', () => {
-      const context: TNavCtx = { orgId: 'org-789', repoId: 'repo-101' }
-      const providersItem = RepoNavItems.find((item) => item.text === 'Providers')
+    it('should generate correct path for Providers with orgId and projectId', () => {
+      const context: TNavCtx = { orgId: 'org-789', projectId: 'project-101' }
+      const providersItem = ProjectNavItems.find((item) => item.text === 'Providers')
       const path =
         typeof providersItem?.to === 'function'
           ? providersItem.to(context)
           : providersItem?.to
-      expect(path).toBe('/orgs/org-789/repos/repo-101/providers')
+      expect(path).toBe('/orgs/org-789/projects/project-101/providers')
     })
 
-    it('should generate correct path for Repo Settings with orgId and repoId', () => {
-      const context: TNavCtx = { orgId: 'org-settings', repoId: 'repo-settings' }
-      const settingsItem = RepoNavItems.find((item) => item.text === 'Repo Settings')
+    it('should generate correct path for Project Settings with orgId and projectId', () => {
+      const context: TNavCtx = { orgId: 'org-settings', projectId: 'project-settings' }
+      const settingsItem = ProjectNavItems.find(
+        (item) => item.text === 'Project Settings'
+      )
       const path =
         typeof settingsItem?.to === 'function'
           ? settingsItem.to(context)
           : settingsItem?.to
-      expect(path).toBe('/orgs/org-settings/repos/repo-settings/settings')
+      expect(path).toBe('/orgs/org-settings/projects/project-settings/settings')
     })
   })
 
   describe('fallback behavior', () => {
-    it('should return # when repoId is missing', () => {
+    it('should return # when projectId is missing', () => {
       const context: TNavCtx = { orgId: 'org-1' }
-      const endpointsItem = RepoNavItems.find((item) => item.text === 'Endpoints')
+      const endpointsItem = ProjectNavItems.find((item) => item.text === 'Endpoints')
       const path =
         typeof endpointsItem?.to === 'function'
           ? endpointsItem.to(context)
@@ -319,8 +323,8 @@ describe('RepoNavItems', () => {
     })
 
     it('should return # when orgId is missing', () => {
-      const context: TNavCtx = { repoId: 'repo-1' }
-      const endpointsItem = RepoNavItems.find((item) => item.text === 'Endpoints')
+      const context: TNavCtx = { projectId: 'project-1' }
+      const endpointsItem = ProjectNavItems.find((item) => item.text === 'Endpoints')
       const path =
         typeof endpointsItem?.to === 'function'
           ? endpointsItem.to(context)
@@ -328,9 +332,9 @@ describe('RepoNavItems', () => {
       expect(path).toBe('#')
     })
 
-    it('should return # when both orgId and repoId are missing', () => {
+    it('should return # when both orgId and projectId are missing', () => {
       const context: TNavCtx = {}
-      const endpointsItem = RepoNavItems.find((item) => item.text === 'Endpoints')
+      const endpointsItem = ProjectNavItems.find((item) => item.text === 'Endpoints')
       const path =
         typeof endpointsItem?.to === 'function'
           ? endpointsItem.to(context)
@@ -340,7 +344,7 @@ describe('RepoNavItems', () => {
 
     it('should return # for all items when context is incomplete', () => {
       const context: TNavCtx = { orgId: 'org-1' }
-      RepoNavItems.forEach((item) => {
+      ProjectNavItems.forEach((item) => {
         const path = typeof item.to === 'function' ? item.to(context) : item.to
         expect(path).toBe('#')
       })
@@ -348,33 +352,33 @@ describe('RepoNavItems', () => {
   })
 
   describe('visibility', () => {
-    it('should be visible when orgId and repoId are present', () => {
-      const context: TNavCtx = { orgId: 'org-123', repoId: 'repo-456' }
-      RepoNavItems.forEach((item) => {
+    it('should be visible when orgId and projectId are present', () => {
+      const context: TNavCtx = { orgId: 'org-123', projectId: 'project-456' }
+      ProjectNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
         expect(item.visible?.(context)).toBe(true)
       })
     })
 
     it('should not be visible when orgId is missing', () => {
-      const context: TNavCtx = { repoId: 'repo-456' }
-      RepoNavItems.forEach((item) => {
+      const context: TNavCtx = { projectId: 'project-456' }
+      ProjectNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
         expect(item.visible?.(context)).toBe(false)
       })
     })
 
-    it('should not be visible when repoId is missing', () => {
+    it('should not be visible when projectId is missing', () => {
       const context: TNavCtx = { orgId: 'org-123' }
-      RepoNavItems.forEach((item) => {
+      ProjectNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
         expect(item.visible?.(context)).toBe(false)
       })
     })
 
-    it('should not be visible when both orgId and repoId are missing', () => {
+    it('should not be visible when both orgId and projectId are missing', () => {
       const context: TNavCtx = {}
-      RepoNavItems.forEach((item) => {
+      ProjectNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
         expect(item.visible?.(context)).toBe(false)
       })
@@ -388,14 +392,14 @@ describe('RepoNavItems', () => {
         'Functions',
         'Secrets',
         'Providers',
-        'Repo Settings',
+        'Project Settings',
       ]
-      const actualItems = RepoNavItems.map((item) => item.text)
+      const actualItems = ProjectNavItems.map((item) => item.text)
       expect(actualItems).toEqual(expectedItems)
     })
 
     it('should have Icons for all items', () => {
-      RepoNavItems.forEach((item) => {
+      ProjectNavItems.forEach((item) => {
         expect(item.Icon).toBeDefined()
       })
     })

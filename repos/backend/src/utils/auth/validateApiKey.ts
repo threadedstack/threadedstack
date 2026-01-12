@@ -20,20 +20,20 @@ export const validateExpiresAt = (expiresAt: string | Date) => {
 }
 
 export const validateApiKey = (data: Partial<ApiKey>) => {
-  const { name, orgId, repoId, scopes, expiresAt } = data
+  const { name, orgId, projectId, scopes, expiresAt } = data
 
   if (!name) return { valid: false, error: `API key name is required` }
 
   const hasOrg = !!orgId
-  const hasRepo = !!repoId
+  const hasProject = !!projectId
 
-  if (!hasOrg && !hasRepo)
-    return { valid: false, error: `API key must belong to an org or repo` }
+  if (!hasOrg && !hasProject)
+    return { valid: false, error: `API key must belong to an org or project` }
 
-  if (hasOrg && hasRepo)
+  if (hasOrg && hasProject)
     return {
       valid: false,
-      error: `API key can only belong to one of: org or repo (exclusive arc)`,
+      error: `API key can only belong to one of: org or project (exclusive arc)`,
     }
 
   if (scopes) {

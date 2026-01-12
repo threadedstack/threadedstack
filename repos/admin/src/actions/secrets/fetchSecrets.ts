@@ -10,7 +10,7 @@ export type TFetchSecretsResult = {
 
 export const fetchSecrets = async (filters?: {
   orgId?: string
-  repoId?: string
+  projectId?: string
 }): Promise<TFetchSecretsResult> => {
   const resp = await secretsApi.list(filters)
 

@@ -131,7 +131,7 @@
 
 ### 5.2 Git Integration Implementation (Optional)
 - [ ] **TASK-5.2.1**: Implement webhook receiver endpoint
-- [ ] **TASK-5.2.2**: Implement repository cloning on webhook
+- [ ] **TASK-5.2.2**: Implement git repository cloning on webhook for projects
 - [ ] **TASK-5.2.3**: Implement function file detection and sync
 - [ ] **TASK-5.2.4**: Implement automatic function deployment on push
 - [ ] **TASK-5.2.5**: Implement rollback capability

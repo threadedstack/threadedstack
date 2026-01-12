@@ -26,7 +26,7 @@ export class ApiKeysApi extends BaseApi {
 
   /**
    * Get all API keys (masked)
-   * @param data - Optional query parameters (orgId, repoId, limit, offset, etc.)
+   * @param data - Optional query parameters (orgId, projectId, limit, offset, etc.)
    * @returns List of all API keys with masked values
    */
   async list(data?: Record<string, any>): Promise<TApiRes<ApiKey[]>> {
@@ -67,7 +67,7 @@ export class ApiKeysApi extends BaseApi {
 
   /**
    * Create new API key
-   * @param data - API key data (name, orgId/repoId, scopes, expiresAt)
+   * @param data - API key data (name, orgId/projectId, scopes, expiresAt)
    * @returns Created API key WITH the raw key (only shown once!)
    */
   async create(data: Partial<ApiKey>): Promise<TApiRes<TCreateApiKeyResponse>> {

@@ -6,7 +6,7 @@ describe('Endpoint Model', () => {
     it('should create an endpoint with required fields', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -14,7 +14,7 @@ describe('Endpoint Model', () => {
       const endpoint = new Endpoint(endpointData)
 
       expect(endpoint.id).toBe(endpointData.id)
-      expect(endpoint.repoId).toBe(endpointData.repoId)
+      expect(endpoint.projectId).toBe(endpointData.projectId)
       expect(endpoint.createdAt).toBe(endpointData.createdAt)
       expect(endpoint.updatedAt).toBe(endpointData.updatedAt)
     })
@@ -22,11 +22,11 @@ describe('Endpoint Model', () => {
     it('should create an endpoint with all optional fields', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         url: 'https://api.example.com/v1/users',
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'projectlication/json',
           Authorization: 'Bearer token',
         },
         options: {
@@ -41,7 +41,7 @@ describe('Endpoint Model', () => {
       const endpoint = new Endpoint(endpointData)
 
       expect(endpoint.id).toBe(endpointData.id)
-      expect(endpoint.repoId).toBe(endpointData.repoId)
+      expect(endpoint.projectId).toBe(endpointData.projectId)
       expect(endpoint.url).toBe(endpointData.url)
       expect(endpoint.method).toBe(endpointData.method)
       expect(endpoint.headers).toEqual(endpointData.headers)
@@ -54,7 +54,7 @@ describe('Endpoint Model', () => {
     it('should use default values when optional fields are not provided', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -71,7 +71,7 @@ describe('Endpoint Model', () => {
     it('should override default method when provided', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         method: 'PUT',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -85,7 +85,7 @@ describe('Endpoint Model', () => {
     it('should override default public flag when provided', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         public: true,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -99,9 +99,9 @@ describe('Endpoint Model', () => {
     it('should handle complex headers object', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'projectlication/json',
           Authorization: 'Bearer token',
           'X-Custom-Header': 'custom-value',
           'X-Request-ID': '12345',
@@ -119,7 +119,7 @@ describe('Endpoint Model', () => {
     it('should handle complex options object', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         options: {
           timeout: 10000,
           retry: 5,
@@ -143,7 +143,7 @@ describe('Endpoint Model', () => {
       const now = new Date()
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: now,
         updatedAt: now,
       }
@@ -154,14 +154,14 @@ describe('Endpoint Model', () => {
       expect(endpoint.updatedAt).toBe(now)
     })
 
-    it('should handle partial data with only repoId', () => {
+    it('should handle partial data with only projectId', () => {
       const endpointData = {
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
       }
 
       const endpoint = new Endpoint(endpointData)
 
-      expect(endpoint.repoId).toBe(endpointData.repoId)
+      expect(endpoint.projectId).toBe(endpointData.projectId)
       expect(endpoint.method).toBe('GET')
       expect(endpoint.public).toBe(false)
     })
@@ -172,7 +172,7 @@ describe('Endpoint Model', () => {
       methods.forEach((method) => {
         const endpointData = {
           id: `123e4567-e89b-12d3-a456-42661417400${methods.indexOf(method)}`,
-          repoId: '456e4567-e89b-12d3-a456-426614174001',
+          projectId: '456e4567-e89b-12d3-a456-426614174001',
           method: method,
           createdAt: '2024-01-01T00:00:00Z',
           updatedAt: '2024-01-01T00:00:00Z',
@@ -188,7 +188,7 @@ describe('Endpoint Model', () => {
     it('should inherit Base properties', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -205,7 +205,7 @@ describe('Endpoint Model', () => {
     it('should handle empty headers object', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         headers: {},
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -220,7 +220,7 @@ describe('Endpoint Model', () => {
     it('should handle empty options object', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         options: {},
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -235,7 +235,7 @@ describe('Endpoint Model', () => {
     it('should preserve null values if provided', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         url: null as any,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -251,11 +251,11 @@ describe('Endpoint Model', () => {
     it('should create a REST API endpoint proxy configuration', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
-        url: 'https://api.github.com/repos/{owner}/{repo}',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
+        url: 'https://api.github.com/projects/{owner}/{project}',
         method: 'GET',
         headers: {
-          Accept: 'application/vnd.github.v3+json',
+          Accept: 'projectlication/vnd.github.v3+json',
           'User-Agent': 'Threaded-Stack-Proxy',
         },
         options: {
@@ -278,11 +278,11 @@ describe('Endpoint Model', () => {
     it('should create a private API endpoint with authentication', () => {
       const endpointData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        repoId: '456e4567-e89b-12d3-a456-426614174001',
+        projectId: '456e4567-e89b-12d3-a456-426614174001',
         url: 'https://internal-api.example.com/v1/data',
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'projectlication/json',
           Authorization: 'Bearer ${SECRET_TOKEN}',
         },
         public: false,

@@ -6,7 +6,7 @@ export class Provider extends Base {
   name?: string
   orgId?: string
   userId?: string
-  repoId?: string
+  projectId?: string
   type: TProviderType
   options: Record<string, any> = {}
 

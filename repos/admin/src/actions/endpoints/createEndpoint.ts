@@ -7,7 +7,7 @@ export type TCreateEndpointInput = {
   name: string
   path: string
   method: string
-  repoId: string
+  projectId: string
   description?: string
   config?: Record<string, any>
 }

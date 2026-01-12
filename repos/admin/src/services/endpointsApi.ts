@@ -18,7 +18,7 @@ export class EndpointsApi extends BaseApi {
 
   /**
    * Get all endpoints
-   * @param data - Optional query parameters (repoId, limit, offset, etc.)
+   * @param data - Optional query parameters (projectId, limit, offset, etc.)
    * @returns List of all endpoints
    */
   async list(data?: Record<string, any>): Promise<TApiRes<Endpoint[]>> {

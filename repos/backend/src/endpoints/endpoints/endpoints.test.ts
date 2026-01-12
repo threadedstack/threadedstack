@@ -69,14 +69,14 @@ describe(`Endpoints endpoints`, () => {
           name: `Get Users`,
           url: `https://api.example.com/users`,
           method: `GET`,
-          repoId: `repo-1`,
+          projectId: `project-1`,
         },
         {
           id: `2`,
           name: `Create User`,
           url: `https://api.example.com/users`,
           method: `POST`,
-          repoId: `repo-1`,
+          projectId: `project-1`,
         },
       ]
 
@@ -91,12 +91,12 @@ describe(`Endpoints endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({ data: mockEndpoints })
     })
 
-    it(`should filter by repoId when provided`, async () => {
+    it(`should filter by projectId when provided`, async () => {
       const mockEndpoints = [
-        { id: `1`, name: `EP1`, url: `u1`, method: `GET`, repoId: `repo-1` },
-        { id: `2`, name: `EP2`, url: `u2`, method: `GET`, repoId: `repo-2` },
+        { id: `1`, name: `EP1`, url: `u1`, method: `GET`, projectId: `project-1` },
+        { id: `2`, name: `EP2`, url: `u2`, method: `GET`, projectId: `project-2` },
       ]
-      mockReq.query = { repoId: `repo-1` }
+      mockReq.query = { projectId: `project-1` }
 
       const mockList = mockReq.app?.locals.db.services.endpoint.list as ReturnType<
         typeof vi.fn
@@ -106,7 +106,7 @@ describe(`Endpoints endpoints`, () => {
 
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
-      expect(responseData[0].repoId).toBe('repo-1')
+      expect(responseData[0].projectId).toBe('project-1')
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -132,7 +132,7 @@ describe(`Endpoints endpoints`, () => {
         name: `Get Users`,
         url: `https://api.example.com/users`,
         method: `GET`,
-        repoId: `repo-1`,
+        projectId: `project-1`,
       }
       mockReq.params = { id: `123` }
 
@@ -171,7 +171,7 @@ describe(`Endpoints endpoints`, () => {
         name: `New Endpoint`,
         url: `https://api.example.com/new`,
         method: `GET`,
-        repoId: `repo-123`,
+        projectId: `project-123`,
       }
       const createdEndpoint = { id: `456`, ...newEndpoint }
       mockReq.body = newEndpoint
@@ -188,7 +188,11 @@ describe(`Endpoints endpoints`, () => {
     })
 
     it(`should return 400 when name is missing`, async () => {
-      mockReq.body = { url: `https://api.example.com`, method: `GET`, repoId: `repo-1` }
+      mockReq.body = {
+        url: `https://api.example.com`,
+        method: `GET`,
+        projectId: `project-1`,
+      }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
@@ -196,7 +200,7 @@ describe(`Endpoints endpoints`, () => {
     })
 
     it(`should return 400 when url is missing`, async () => {
-      mockReq.body = { name: `Test`, method: `GET`, repoId: `repo-1` }
+      mockReq.body = { name: `Test`, method: `GET`, projectId: `project-1` }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
@@ -204,19 +208,23 @@ describe(`Endpoints endpoints`, () => {
     })
 
     it(`should return 400 when method is missing`, async () => {
-      mockReq.body = { name: `Test`, url: `https://api.example.com`, repoId: `repo-1` }
+      mockReq.body = {
+        name: `Test`,
+        url: `https://api.example.com`,
+        projectId: `project-1`,
+      }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
       expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint method is required` })
     })
 
-    it(`should return 400 when repoId is missing`, async () => {
+    it(`should return 400 when projectId is missing`, async () => {
       mockReq.body = { name: `Test`, url: `https://api.example.com`, method: `GET` }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint repoId is required` })
+      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint projectId is required` })
     })
 
     it(`should return 400 when method is invalid`, async () => {
@@ -224,7 +232,7 @@ describe(`Endpoints endpoints`, () => {
         name: `Test`,
         url: `https://api.example.com`,
         method: `INVALID`,
-        repoId: `repo-1`,
+        projectId: `project-1`,
       }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -237,7 +245,7 @@ describe(`Endpoints endpoints`, () => {
         name: `New Endpoint`,
         url: `https://api.example.com/new`,
         method: `POST`,
-        repoId: `repo-123`,
+        projectId: `project-123`,
         headers: { 'Content-Type': 'application/json' },
         options: { timeout: 5000 },
       }
@@ -268,7 +276,7 @@ describe(`Endpoints endpoints`, () => {
         name: `Old Name`,
         url: `https://old.api.com`,
         method: `GET`,
-        repoId: `repo-1`,
+        projectId: `project-1`,
       }
       const updateData = { name: `New Name` }
       const updatedEndpoint = { ...existingEndpoint, ...updateData }
@@ -312,7 +320,7 @@ describe(`Endpoints endpoints`, () => {
         name: `Test`,
         url: `https://api.com`,
         method: `GET`,
-        repoId: `repo-1`,
+        projectId: `project-1`,
       }
       mockReq.params = { id: `123` }
       mockReq.body = { method: `INVALID` }
@@ -338,7 +346,7 @@ describe(`Endpoints endpoints`, () => {
         name: `To Delete`,
         url: `https://api.com`,
         method: `GET`,
-        repoId: `repo-1`,
+        projectId: `project-1`,
       }
       mockReq.params = { id: `123` }
 

@@ -5,7 +5,7 @@ export class Role extends Base {
   type: string
   userId: string
   orgId?: string
-  repoId?: string
+  projectId?: string
 
   constructor(role: Partial<Role>) {
     super()

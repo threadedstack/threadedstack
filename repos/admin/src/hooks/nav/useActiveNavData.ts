@@ -1,19 +1,24 @@
 import { useMemo } from 'react'
-import { useOrgs, useRepos, useActiveOrgId, useActiveRepoId } from '@TAF/state/selectors'
+import {
+  useOrgs,
+  useProjects,
+  useActiveOrgId,
+  useActiveprojectId,
+} from '@TAF/state/selectors'
 
 export const useActiveNavData = () => {
   const [orgs] = useOrgs()
-  const [repos] = useRepos()
+  const [projects] = useProjects()
   const [activeOrgId] = useActiveOrgId()
-  const [activeRepoId] = useActiveRepoId()
+  const [activeprojectId] = useActiveprojectId()
 
   return useMemo(
     () => ({
       orgId: activeOrgId,
       org: activeOrgId && orgs?.[activeOrgId],
-      repoId: activeRepoId,
-      repo: activeRepoId && repos?.[activeRepoId],
+      projectId: activeprojectId,
+      project: activeprojectId && projects?.[activeprojectId],
     }),
-    [orgs, repos, activeOrgId, activeRepoId]
+    [orgs, projects, activeOrgId, activeprojectId]
   )
 }

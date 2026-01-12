@@ -28,14 +28,14 @@ import {
 
 export type TCreateApiKeyDialog = {
   orgId: string
-  repoId?: string
+  projectId?: string
   open: boolean
   onClose: () => void
   onSuccess?: () => void
 }
 
 export const CreateApiKeyDialog = (props: TCreateApiKeyDialog) => {
-  const { open, orgId, repoId, onClose: onCloseCB, onSuccess: onSuccessCB } = props
+  const { open, orgId, projectId, onClose: onCloseCB, onSuccess: onSuccessCB } = props
 
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<TApiKeyScope[]>([`read`])
@@ -75,8 +75,8 @@ export const CreateApiKeyDialog = (props: TCreateApiKeyDialog) => {
 
     const result = await createApiKey({
       name: name.trim(),
-      orgId: repoId ? undefined : orgId,
-      repoId,
+      orgId: projectId ? undefined : orgId,
+      projectId,
       scopes: scopes.join(','),
       expiresAt,
     })

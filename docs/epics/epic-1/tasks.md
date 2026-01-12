@@ -54,7 +54,7 @@
 - [x] **TASK-2.1.1**: Create base model types in `repos/domain/src/models/base.ts`
 - [x] **TASK-2.1.2**: Create user model in `repos/domain/src/models/user.ts`
 - [x] **TASK-2.1.3**: Create org model in `repos/domain/src/models/org.ts`
-- [x] **TASK-2.1.4**: Create repo model in `repos/domain/src/models/repo.ts`
+- [x] **TASK-2.1.4**: Create project model in `repos/domain/src/models/project.ts`
 - [x] **TASK-2.1.5**: Create provider model in `repos/domain/src/models/provider.ts`
 - [x] **TASK-2.1.6**: Create endpoint model in `repos/domain/src/models/endpoint.ts`
 - [x] **TASK-2.1.7**: Create secret model in `repos/domain/src/models/secret.ts`
@@ -65,7 +65,7 @@
 ### 2.2 Drizzle ORM Schemas
 - [x] **TASK-2.2.1**: Create users schema in `repos/database/src/schemas/users.ts`
 - [x] **TASK-2.2.2**: Create orgs schema in `repos/database/src/schemas/orgs.ts`
-- [x] **TASK-2.2.3**: Create repos schema in `repos/database/src/schemas/repos.ts`
+- [x] **TASK-2.2.3**: Create projects schema in `repos/database/src/schemas/projects.ts`
 - [x] **TASK-2.2.4**: Create roles schema in `repos/database/src/schemas/roles.ts`
 - [x] **TASK-2.2.5**: Create assets schema in `repos/database/src/schemas/assets.ts`
 - [x] **TASK-2.2.6**: Create configs schema in `repos/database/src/schemas/configs.ts`
@@ -80,7 +80,7 @@
 - [x] **TASK-2.3.1**: Create base service class in `repos/database/src/services/base.ts`
 - [x] **TASK-2.3.2**: Create user service in `repos/database/src/services/user.ts`
 - [x] **TASK-2.3.3**: Create org service in `repos/database/src/services/org.ts`
-- [x] **TASK-2.3.4**: Create repo service in `repos/database/src/services/repo.ts`
+- [x] **TASK-2.3.4**: Create project service in `repos/database/src/services/project.ts`
 - [x] **TASK-2.3.5**: Create role service in `repos/database/src/services/role.ts`
 - [x] **TASK-2.3.6**: Create secret service in `repos/database/src/services/secret.ts`
 - [x] **TASK-2.3.7**: Create thread service in `repos/database/src/services/thread.ts`
@@ -176,7 +176,7 @@
 - [x] **TASK-5.3.1**: Create Sidebar component in `repos/admin/src/components/Sidebar/`
 - [x] **TASK-5.3.2**: Create SBNavList component for navigation items
 - [x] **TASK-5.3.3**: Create SBLogo component
-- [x] **TASK-5.3.4**: Add navigation items: Orgs, Repos, Config/Settings
+- [x] **TASK-5.3.4**: Add navigation items: Orgs, Projects, Config/Settings
 - [x] **TASK-5.3.5**: Implement active route highlighting
 
 ### 5.4 Core Pages
@@ -186,14 +186,14 @@
 - [x] **TASK-5.4.4**: Implement Orgs list page in `repos/admin/src/pages/Orgs/Orgs.tsx`
 - [x] **TASK-5.4.5**: Implement Org detail page in `repos/admin/src/pages/Orgs/Org.tsx`
 - [x] **TASK-5.4.6**: Implement Org creation form
-- [x] **TASK-5.4.7**: Implement Repos list page in `repos/admin/src/pages/Repos/Repos.tsx`
-- [x] **TASK-5.4.8**: Implement Repo detail page in `repos/admin/src/pages/Repos/Repo.tsx`
+- [x] **TASK-5.4.7**: Implement Projects list page in `repos/admin/src/pages/Projects/Projects.tsx`
+- [x] **TASK-5.4.8**: Implement Project detail page in `repos/admin/src/pages/Projects/Project.tsx`
 
 ### 5.5 API Services
 - [x] **TASK-5.5.1**: Create base API utility in `repos/admin/src/utils/api/`
 - [x] **TASK-5.5.2**: Implement Orgs API service
 - [x] **TASK-5.5.3**: Implement Users API service
-- [x] **TASK-5.5.4**: Implement Repos API service
+- [x] **TASK-5.5.4**: Implement Projects API service
 - [x] **TASK-5.5.5**: Configure API calls to use `/_/*` endpoints via Proxy
 
 ---
@@ -222,7 +222,7 @@ This epic has no dependencies on other epics.
 
 ### Known Issues
 - The proxy repo currently has a TODO stub in `repos/proxy/src/proxy.ts` that needs implementation
-- Orgs and Repos pages in admin are placeholder stubs
+- Orgs and Projects pages in admin are placeholder stubs
 - Database schemas are defined but migrations may need verification
 - Neon Auth integration needs to be completed in both proxy and admin repos
 

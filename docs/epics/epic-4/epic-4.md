@@ -5,7 +5,7 @@
 ## 1. Backend & API (`/ai/*`)
 
 * **Provider Proxy:** Implement handlers to connect with OpenAI and Anthropic APIs.
-* **Context Manager:** Middleware to construct prompt context by fetching conversation history (`messages` from a `thread`) and relevant repository data (`repos`).
+* **Context Manager:** Middleware to construct prompt context by fetching conversation history (`messages` from a `thread`) and relevant repository data (`projects`).
 * **Tool Execution:** Enable the AI to trigger `functions` (from Epic 3) via the provider's tool-calling API.
 * **Stream Handler:** Implement Server-Sent Events (SSE) to support real-time text generation for chat completions (`POST /chat`).
 
@@ -21,14 +21,14 @@
 
 ## Deliverables / Acceptance Criteria
 
-* A fully functional, streaming chat interface that can discuss repo context and execute backend tools.
+* A fully functional, streaming chat interface that can discuss project context and execute backend tools.
 
 ---
 
 
 ## Context Manager - expanded
 
-To build a robust RAG-enabled chat, you cannot simply concatenate everything. You need a **Token Budgeting Strategy** that prioritizes the "fresh" data (retrieved repo context) while maintaining enough conversational history for the user to feel heard.
+To build a robust RAG-enabled chat, you cannot simply concatenate everything. You need a **Token Budgeting Strategy** that prioritizes the "fresh" data (retrieved project context) while maintaining enough conversational history for the user to feel heard.
 
 ### 1. The Priority Hierarchy
 
@@ -36,7 +36,7 @@ The Context Manager should assemble the prompt payload in this strict order of i
 
 1. **System Prompt (Immutable):** The core persona, constraints, and tool definitions. This must never be truncated.
 2. **The User's Current Query:** Obviously required.
-3. **Retrieved Repo Context (RAG):** The specific code snippets, documentation, or file contents fetched based on the current query. This is the "knowledge" the AI needs to answer.
+3. **Retrieved Project Context (RAG):** The specific code snippets, documentation, or file contents fetched based on the current query. This is the "knowledge" the AI needs to answer.
 4. **Recent Conversation History:** The immediate back-and-forth.
 5. **Older Conversation History:** The first victim of truncation.
 
@@ -53,7 +53,7 @@ Assuming a generic context window (e.g., 128k tokens for GPT-4o or 200k for Clau
 
 
 3. **Inject RAG Context:**
-* Fetch relevant repo chunks (vector search or active file selection).
+* Fetch relevant project chunks (vector search or active file selection).
 * **Hard Limit:** Dedicate a specific slice (e.g., 40% of the budget) to this context.
 * If `RAG_Data > 40%`, summarize or truncate the lowest-relevance chunks.
 * *Update `RemainingBudget`.*

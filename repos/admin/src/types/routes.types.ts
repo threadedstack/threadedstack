@@ -18,17 +18,17 @@ export enum ERoutePath {
   OrgSecrets = `/orgs/:orgId/secrets`,
   OrgProviders = `/orgs/:orgId/providers`,
   OrgSettings = `/orgs/:orgId/settings`,
-  OrgRepos = `/orgs/:orgId/repos`,
+  OrgProjects = `/orgs/:orgId/projects`,
 
-  // Repo routes (nested under org)
-  Repo = `/orgs/:orgId/repos/:repoId`,
-  RepoEndpoints = `/orgs/:orgId/repos/:repoId/endpoints`,
-  RepoEndpoint = `/orgs/:orgId/repos/:repoId/endpoints/:endpointId`,
-  RepoSecrets = `/orgs/:orgId/repos/:repoId/secrets`,
-  RepoProviders = `/orgs/:orgId/repos/:repoId/providers`,
-  RepoFunctions = `/orgs/:orgId/repos/:repoId/functions`,
-  RepoFunction = `/orgs/:orgId/repos/:repoId/functions/:functionId`,
-  RepoSettings = `/orgs/:orgId/repos/:repoId/settings`,
+  // Project routes (nested under org)
+  Project = `/orgs/:orgId/projects/:projectId`,
+  ProjectEndpoints = `/orgs/:orgId/projects/:projectId/endpoints`,
+  ProjectEndpoint = `/orgs/:orgId/projects/:projectId/endpoints/:endpointId`,
+  ProjectSecrets = `/orgs/:orgId/projects/:projectId/secrets`,
+  ProjectProviders = `/orgs/:orgId/projects/:projectId/providers`,
+  ProjectFunctions = `/orgs/:orgId/projects/:projectId/functions`,
+  ProjectFunction = `/orgs/:orgId/projects/:projectId/functions/:functionId`,
+  ProjectSettings = `/orgs/:orgId/projects/:projectId/settings`,
 
   // Catch-all
   Star = `*`,

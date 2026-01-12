@@ -18,7 +18,7 @@ export const createSecret: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { name, value, orgId, repoId, providerId } = req.body
+    const { name, value, orgId, projectId, providerId } = req.body
 
     if (!name) {
       res.status(400).json({ error: `Secret name is required` })
@@ -31,24 +31,26 @@ export const createSecret: TEndpointConfig = {
     }
 
     const hasOrg = !!orgId
-    const hasRepo = !!repoId
+    const hasProject = !!projectId
     const hasProvider = !!providerId
 
-    if (!hasOrg && !hasRepo && !hasProvider) {
-      res.status(400).json({ error: `Secret must belong to an org, repo, or provider` })
+    if (!hasOrg && !hasProject && !hasProvider) {
+      res
+        .status(400)
+        .json({ error: `Secret must belong to an org, project, or provider` })
       return
     }
 
-    if ((hasOrg && hasRepo) || (hasOrg && hasProvider && hasRepo)) {
+    if ((hasOrg && hasProject) || (hasOrg && hasProvider && hasProject)) {
       res.status(400).json({
-        error: `Secret can only belong to one of: org, repo, or provider (exclusive arc)`,
+        error: `Secret can only belong to one of: org, project, or provider (exclusive arc)`,
       })
       return
     }
 
     try {
       // Derive encryption key using the owner's ID
-      const refId = orgId || repoId || providerId
+      const refId = orgId || projectId || providerId
       const derivedKey = await deriveKey(refId)
 
       const { iv, encrypted, authTag } = await encryptValue(derivedKey, value)
@@ -60,7 +62,7 @@ export const createSecret: TEndpointConfig = {
         hashKey,
         encryptedValue,
         ...(orgId && { orgId }),
-        ...(repoId && { repoId }),
+        ...(projectId && { projectId }),
         ...(providerId && { providerId }),
       })
 

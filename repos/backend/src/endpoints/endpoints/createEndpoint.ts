@@ -17,7 +17,7 @@ export const createEndpoint: TEndpointConfig = {
       name,
       url,
       method,
-      repoId,
+      projectId,
       headers = {},
       options = {},
       public: isPublic,
@@ -39,8 +39,8 @@ export const createEndpoint: TEndpointConfig = {
       return
     }
 
-    if (!repoId) {
-      res.status(400).json({ error: `Endpoint repoId is required` })
+    if (!projectId) {
+      res.status(400).json({ error: `Endpoint projectId is required` })
       return
     }
 
@@ -68,7 +68,7 @@ export const createEndpoint: TEndpointConfig = {
     const endpointData = new Endpoint({
       name,
       url,
-      repoId,
+      projectId,
       method: lower,
       ...(headers && { headers }),
       ...(options && { options }),

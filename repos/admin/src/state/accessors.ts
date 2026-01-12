@@ -1,7 +1,7 @@
 import type { EThemeType } from '@TAF/types'
 import type {
   User,
-  Repo,
+  Project,
   Config,
   Secret,
   ApiKey,
@@ -17,7 +17,7 @@ import { providersState } from '@TAF/state/providers'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
 import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
 import { orgsState, activeOrgIdState } from '@TAF/state/orgs'
-import { reposState, activeRepoIdState } from '@TAF/state/repos'
+import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
@@ -46,13 +46,14 @@ export const getActiveOrgId = () => store.get(activeOrgIdState)
 export const resetActiveOrgId = () => store.set(activeOrgIdState, undefined)
 export const setActiveOrgId = (id: string) => store.set(activeOrgIdState, id)
 
-export const getRepos = () => store.get(reposState)
-export const resetRepos = () => store.set(reposState, undefined)
-export const setRepos = (repos: Record<string, Repo>) => store.set(reposState, repos)
+export const getProjects = () => store.get(projectsState)
+export const resetProjects = () => store.set(projectsState, undefined)
+export const setProjects = (projects: Record<string, Project>) =>
+  store.set(projectsState, projects)
 
-export const getActiveRepoId = () => store.get(activeRepoIdState)
-export const resetActiveRepoId = () => store.set(activeRepoIdState, undefined)
-export const setActiveRepoId = (id: string) => store.set(activeRepoIdState, id)
+export const getActiveprojectId = () => store.get(activeProjectIdState)
+export const resetActiveprojectId = () => store.set(activeProjectIdState, undefined)
+export const setActiveprojectId = (id: string) => store.set(activeProjectIdState, id)
 
 export const getProviders = () => store.get(providersState)
 export const resetProviders = () => store.set(providersState, undefined)

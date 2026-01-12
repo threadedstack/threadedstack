@@ -5,7 +5,7 @@ import { setFunctions, getFunctions } from '@TAF/state/accessors'
 
 export type TCreateFunctionInput = {
   name: string
-  repoId: string
+  projectId: string
   code: string
   runtime?: string
   description?: string

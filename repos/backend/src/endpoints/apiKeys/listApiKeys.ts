@@ -12,7 +12,7 @@ export const listApiKeys: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, repoId } = req.query
+    const { orgId, projectId } = req.query
 
     const { data, error } = await db.services.apiKey.list()
 
@@ -23,7 +23,7 @@ export const listApiKeys: TEndpointConfig = {
 
     let keys = data || []
     if (orgId) keys = keys.filter((k: any) => k.orgId === orgId)
-    if (repoId) keys = keys.filter((k: any) => k.repoId === repoId)
+    if (projectId) keys = keys.filter((k: any) => k.projectId === projectId)
 
     const sanitizedData = keys.map((apiKey: ApiKey) => apiKey.sanitize())
 

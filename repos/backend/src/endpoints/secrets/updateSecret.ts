@@ -42,7 +42,7 @@ export const updateSecret: TEndpointConfig = {
       }
 
       if (value) {
-        const refId = existing.orgId || existing.repoId || existing.providerId
+        const refId = existing.orgId || existing.projectId || existing.providerId
         const derivedKey = await deriveKey(refId)
         const { iv, encrypted, authTag } = await encryptValue(derivedKey, value)
         update.encryptedValue = encodeEncrypted(iv, authTag, encrypted)

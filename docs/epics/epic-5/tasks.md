@@ -41,13 +41,13 @@
 
 ## 2. Git Integration
 
-### 2.1 Repository Management
-- [ ] **TASK-2.1.1**: Create repos API endpoint at `repos/backend/src/endpoints/repos.ts`
-- [ ] **TASK-2.1.2**: Implement `POST /_/repos` - Register repository
-- [ ] **TASK-2.1.3**: Implement `GET /_/repos` - List repositories
-- [ ] **TASK-2.1.4**: Implement `GET /_/repos/:id` - Get repository details
-- [ ] **TASK-2.1.5**: Implement `PUT /_/repos/:id` - Update repository
-- [ ] **TASK-2.1.6**: Implement `DELETE /_/repos/:id` - Delete repository
+### 2.1 Project repository Management
+- [ ] **TASK-2.1.1**: Create projects API endpoint at `repos/backend/src/endpoints/projects/projects.ts`
+- [ ] **TASK-2.1.2**: Implement `POST /_/projects` - Register project
+- [ ] **TASK-2.1.3**: Implement `GET /_/projects` - List projects
+- [ ] **TASK-2.1.4**: Implement `GET /_/projects/:id` - Get project details
+- [ ] **TASK-2.1.5**: Implement `PUT /_/projects/:id` - Update project
+- [ ] **TASK-2.1.6**: Implement `DELETE /_/projects/:id` - Delete project
 
 ### 2.2 Git Authentication
 - [ ] **TASK-2.2.1**: Create git credentials schema (SSH keys, tokens)
@@ -59,7 +59,7 @@
 
 ### 2.3 Git Operations
 - [ ] **TASK-2.3.1**: Implement `git clone` execution in agent sandbox
-- [ ] **TASK-2.3.2**: Implement shallow clone for large repositories
+- [ ] **TASK-2.3.2**: Implement shallow clone for large git repositories
 - [ ] **TASK-2.3.3**: Implement branch checkout
 - [ ] **TASK-2.3.4**: Implement `git add` for modified files
 - [ ] **TASK-2.3.5**: Implement `git commit` with agent-generated messages
@@ -124,7 +124,7 @@
 ## 5. User Credentials & Secrets
 
 ### 5.1 User-Scoped Secrets
-- [ ] **TASK-5.1.1**: Extend secrets schema for user-scope (vs org/repo scope)
+- [ ] **TASK-5.1.1**: Extend secrets schema for user-scope (vs org/project scope)
 - [ ] **TASK-5.1.2**: Implement user secret CRUD operations
 - [ ] **TASK-5.1.3**: Create UI for managing personal secrets
 - [ ] **TASK-5.1.4**: Implement secret scope validation in API
@@ -176,7 +176,7 @@
 
 ### 7.2 Agent Configuration UI
 - [ ] **TASK-7.2.1**: Create agent task definition form
-- [ ] **TASK-7.2.2**: Implement repository selector
+- [ ] **TASK-7.2.2**: Implement project selector
 - [ ] **TASK-7.2.3**: Implement CLI tool selector (claude-code, gemini-cli, codex, etc.)
 - [ ] **TASK-7.2.4**: Implement resource limit configuration
 - [ ] **TASK-7.2.5**: Implement timeout configuration
@@ -200,11 +200,11 @@
 
 ## Deliverables Checklist
 
-- [ ] Agent can be configured with repository and credentials
-- [ ] Agent can clone a user repository into sandbox
+- [ ] Agent can be configured with project and credentials
+- [ ] Agent can clone a user project via git url into sandbox
 - [ ] Agent can execute CLI tools (claude-code, codex, gemini-cli)
 - [ ] Agent can modify code within sandbox
-- [ ] Agent can push changes back to remote repository
+- [ ] Agent can push changes back to git remote
 - [ ] Agent can optionally create PR/MR for changes
 - [ ] Real-time logs stream to UI during execution
 - [ ] Users can store personal AI provider API keys

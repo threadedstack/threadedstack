@@ -36,7 +36,7 @@ The Admin UI is fully implemented and calling `/secrets` and `/endpoints` backen
 - [x] **TASK-1.1.7**: Implement encryption utility for secret values - **EXISTS**: `repos/domain/src/utils/crypto.ts`
 - [x] **TASK-1.1.8**: Implement decryption utility for secret values - **EXISTS**: `repos/domain/src/utils/crypto.ts`
 - [x] **TASK-1.1.9**: Associate secrets with Orgs (org_id foreign key) - **EXISTS**: Schema has `orgId` field
-- [x] **TASK-1.1.10**: Associate secrets with Repos (repo_id foreign key - exclusive arc) - **EXISTS**: Schema has `repoId` with check constraint
+- [x] **TASK-1.1.10**: Associate secrets with Projects (project_id foreign key - exclusive arc) - **EXISTS**: Schema has `projectId` with check constraint
 - [x] **TASK-1.1.11**: Register secrets endpoints in backend router (`repos/backend/src/endpoints/accounts.ts`)
 
 ### 1.2 Endpoint Management API
@@ -132,12 +132,12 @@ The Admin UI is fully implemented and calling `/secrets` and `/endpoints` backen
 - [x] **TASK-4.1.4**: Implement secret edit form - **EXISTS**: `EditSecretDialog.tsx`
 - [x] **TASK-4.1.5**: Implement secret deletion with confirmation - **EXISTS**: In OrgSecrets.tsx
 - [x] **TASK-4.1.6**: Add secrets section to Org detail page - **EXISTS**: OrgSecrets.tsx
-- [x] **TASK-4.1.7**: Add secrets section to Repo detail page - **EXISTS**: `RepoSecrets.tsx`
+- [x] **TASK-4.1.7**: Add secrets section to Projects detail page - **EXISTS**: `ProjectSecrets.tsx`
 - [x] **TASK-4.1.8**: Create Secrets API service in admin - **EXISTS**: `repos/admin/src/services/secretsApi.ts`
 - [ ] **TASK-4.1.9**: Add secret reference picker to endpoint forms (dropdown of available secrets)
 
 ### 4.2 Endpoint Builder UI
-- [x] **TASK-4.2.1**: Create Endpoints list page - **EXISTS**: `repos/admin/src/pages/Repos/RepoEndpoints.tsx`
+- [x] **TASK-4.2.1**: Create Endpoints list page - **EXISTS**: `repos/admin/src/pages/Projects/ProjectEndpoints.tsx`
 - [x] **TASK-4.2.2**: Implement endpoint list table - **EXISTS**: Using MUI Table
 - [x] **TASK-4.2.3**: Create endpoint builder form component - **EXISTS**: `CreateEndpointDialog.tsx`
 - [x] **TASK-4.2.4**: Implement target URL input - **EXISTS**: In CreateEndpointDialog
@@ -145,7 +145,7 @@ The Admin UI is fully implemented and calling `/secrets` and `/endpoints` backen
 - [ ] **TASK-4.2.6**: Implement proxy_options configuration (regex rules UI)
 - [ ] **TASK-4.2.7**: Implement endpoint testing tool (send test request)
 - [x] **TASK-4.2.8**: Create Endpoints API service in admin - **EXISTS**: `repos/admin/src/services/endpointsApi.ts`
-- [x] **TASK-4.2.9**: Endpoint routes exist in admin router - **EXISTS**: Routes to RepoEndpoints
+- [x] **TASK-4.2.9**: Endpoint routes exist in admin router - **EXISTS**: Routes to ProjectEndpoints
 
 ### 4.3 API Keys UI
 - [x] **TASK-4.3.1**: Create API Keys page at `repos/admin/src/pages/Orgs/OrgApiKeys.tsx`
@@ -180,7 +180,7 @@ The Admin UI is fully implemented and calling `/secrets` and `/endpoints` backen
 
 ## Deliverables Checklist
 
-- [x] User can create an Endpoint via the Admin UI - RepoEndpoints.tsx + CreateEndpointDialog.tsx
+- [x] User can create an Endpoint via the Admin UI - ProjectEndpoints.tsx + CreateEndpointDialog.tsx
 - [x] User can create and attach a Secret to an Endpoint - OrgSecrets.tsx + header injection via `{{SECRET_NAME}}`
 - [x] User can generate an API Key for M2M authentication - OrgApiKeys.tsx + CreateApiKeyDialog.tsx
 - [x] Proxy validates API Key or OAuth credentials - apiKeyAuth.ts middleware, oauthClient.ts
@@ -202,13 +202,13 @@ The Admin UI is fully implemented and calling `/secrets` and `/endpoints` backen
   - `deriveKey(ref_id)` - Derives encryption key from MASTER_KEY using HKDF
   - `encryptValue(derivedKey, plaintext)` - AES-256-GCM encryption
   - `decryptValue(derivedKey, ciphertext, iv, authTag)` - AES-256-GCM decryption
-- Secrets are encrypted with derived keys (one key per org/repo)
+- Secrets are encrypted with derived keys (one key per org/project)
 - `TDSK_MASTER_KEY` env variable required (hex format)
 
 ### Database Schema (Already Implemented)
-- `secrets` table: id, name, hashKey, encryptedValue, orgId, repoId, providerId
-- `endpoints` table: id, name, url, headers (jsonb), options (jsonb), method, public, repoId
-- Exclusive arc pattern: secrets belong to EITHER org OR repo (not both)
+- `secrets` table: id, name, hashKey, encryptedValue, orgId, projectId, providerId
+- `endpoints` table: id, name, url, headers (jsonb), options (jsonb), method, public, projectId
+- Exclusive arc pattern: secrets belong to EITHER org OR project (not both)
 
 ### Admin UI (Already Implemented)
 - Full CRUD UI for secrets and endpoints exists

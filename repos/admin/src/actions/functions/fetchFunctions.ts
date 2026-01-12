@@ -9,7 +9,7 @@ export type TFetchFunctionsResult = {
 }
 
 export const fetchFunctions = async (filters?: {
-  repoId?: string
+  projectId?: string
 }): Promise<TFetchFunctionsResult> => {
   const resp = await functionsApi.list(filters)
 

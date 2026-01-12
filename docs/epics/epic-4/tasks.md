@@ -73,7 +73,7 @@
 - [ ] **TASK-2.3.4**: Implement vector similarity search
 - [ ] **TASK-2.3.5**: Implement relevance scoring for chunks
 - [ ] **TASK-2.3.6**: Implement chunk summarization for over-budget scenarios
-- [ ] **TASK-2.3.7**: Support explicit file/repo selection by user
+- [ ] **TASK-2.3.7**: Support explicit file/project selection by user
 
 ### 2.4 Edge Case Handling
 - [ ] **TASK-2.4.1**: Implement "needle in a haystack" protection
@@ -158,8 +158,8 @@
 - [ ] **TASK-6.1.10**: Implement thread deletion
 
 ### 6.2 Context Selection UI
-- [ ] **TASK-6.2.1**: Create repo/file context picker component
-- [ ] **TASK-6.2.2**: Implement file tree browser for repo context
+- [ ] **TASK-6.2.1**: Create project/file context picker component
+- [ ] **TASK-6.2.2**: Implement file tree browser for project context
 - [ ] **TASK-6.2.3**: Display selected context with token count
 - [ ] **TASK-6.2.4**: Warn when context exceeds model limit
 - [ ] **TASK-6.2.5**: Implement context removal
@@ -189,7 +189,7 @@
 - [ ] User can create and manage chat threads
 - [ ] User can send messages and receive streaming responses
 - [ ] Chat interface renders Markdown content properly
-- [ ] AI can access repo context via RAG
+- [ ] AI can access project context via RAG
 - [ ] AI can execute backend tools/functions
 - [ ] Prompt playground allows testing different configurations
 - [ ] Conversation history is properly managed with token budgeting

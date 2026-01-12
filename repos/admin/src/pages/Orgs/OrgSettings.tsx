@@ -265,8 +265,8 @@ export const OrgSettings = (props: TOrgSettings) => {
                     variant='body2'
                     color='text.secondary'
                   >
-                    Once deleted, this action cannot be undone. All repos and data will be
-                    lost.
+                    Once deleted, this action cannot be undone. All projects and data will
+                    be lost.
                   </Typography>
                 </Box>
                 <Button
@@ -290,7 +290,7 @@ export const OrgSettings = (props: TOrgSettings) => {
         <DialogContent>
           <Typography>
             Are you sure you want to delete <strong>{org?.name}</strong>? This will
-            permanently delete all associated repos, secrets, and configurations.
+            permanently delete all associated projects, secrets, and configurations.
           </Typography>
           <TextField
             fullWidth

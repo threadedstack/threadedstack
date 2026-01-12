@@ -3,6 +3,7 @@ import type { TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { apiKeys } from './apiKeys'
+import { ApiKey } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 
@@ -76,7 +77,7 @@ describe(`API Keys endpoints`, () => {
 
     it(`should return 200 with masked API key data`, async () => {
       const mockApiKeys = [
-        {
+        new ApiKey({
           id: `1`,
           name: `Production Key`,
           keyHash: `abc123hash`,
@@ -85,17 +86,17 @@ describe(`API Keys endpoints`, () => {
           active: true,
           orgId: `org-1`,
           createdAt: new Date(),
-        },
-        {
+        }),
+        new ApiKey({
           id: `2`,
           name: `Test Key`,
           keyHash: `def456hash`,
           keyPrefix: `tdsk_test`,
           scopes: `read`,
           active: true,
-          repoId: `repo-1`,
+          projectId: `project-1`,
           createdAt: new Date(),
-        },
+        }),
       ]
 
       const mockList = mockReq.app?.locals.db.services.apiKey.list as ReturnType<
@@ -109,14 +110,26 @@ describe(`API Keys endpoints`, () => {
 
       // Verify keyHash is not included in response
       const responseData = mockJson.mock.calls[0][0].data
-      expect(responseData[0]).not.toHaveProperty('keyHash')
+      expect(responseData[0].keyHash).toBe(undefined)
       expect(responseData[0]).toHaveProperty('keyPrefix', 'tdsk_prod')
     })
 
     it(`should filter by orgId when provided`, async () => {
       const mockApiKeys = [
-        { id: `1`, name: `K1`, keyHash: `h1`, keyPrefix: `p1`, orgId: `org-1` },
-        { id: `2`, name: `K2`, keyHash: `h2`, keyPrefix: `p2`, orgId: `org-2` },
+        new ApiKey({
+          id: `1`,
+          name: `K1`,
+          keyHash: `h1`,
+          keyPrefix: `p1`,
+          orgId: `org-1`,
+        }),
+        new ApiKey({
+          id: `2`,
+          name: `K2`,
+          keyHash: `h2`,
+          keyPrefix: `p2`,
+          orgId: `org-2`,
+        }),
       ]
       mockReq.query = { orgId: `org-1` }
 
@@ -149,7 +162,7 @@ describe(`API Keys endpoints`, () => {
     const ep = getEndpointCfg(apiKeys.endpoints?.getApiKey)
 
     it(`should return 200 with masked API key data`, async () => {
-      const mockApiKey = {
+      const mockApiKey = new ApiKey({
         id: `123`,
         name: `My API Key`,
         keyHash: `secret_hash`,
@@ -157,7 +170,7 @@ describe(`API Keys endpoints`, () => {
         scopes: `read`,
         active: true,
         orgId: `org-1`,
-      }
+      })
       mockReq.params = { id: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.apiKey.get as ReturnType<
@@ -171,7 +184,7 @@ describe(`API Keys endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(200)
 
       const responseData = mockJson.mock.calls[0][0].data
-      expect(responseData).not.toHaveProperty('keyHash')
+      expect(responseData.keyHash).toBe(undefined)
     })
 
     it(`should return 404 when API key not found`, async () => {
@@ -194,7 +207,7 @@ describe(`API Keys endpoints`, () => {
 
     it(`should return 201 with created API key including the raw key`, async () => {
       const newApiKey = { name: `New Key`, orgId: `org-123` }
-      const createdApiKey = {
+      const createdApiKey = new ApiKey({
         id: `456`,
         name: `New Key`,
         keyHash: `some_hash`,
@@ -203,7 +216,7 @@ describe(`API Keys endpoints`, () => {
         active: true,
         orgId: `org-123`,
         createdAt: new Date(),
-      }
+      })
       mockReq.body = newApiKey
 
       const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
@@ -230,23 +243,23 @@ describe(`API Keys endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({ error: `API key name is required` })
     })
 
-    it(`should return 400 when neither orgId nor repoId is provided`, async () => {
+    it(`should return 400 when neither orgId nor projectId is provided`, async () => {
       mockReq.body = { name: `KEY` }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
       expect(mockJson).toHaveBeenCalledWith({
-        error: `API key must belong to an org or repo`,
+        error: `API key must belong to an org or project`,
       })
     })
 
-    it(`should return 400 when both orgId and repoId are provided`, async () => {
-      mockReq.body = { name: `KEY`, orgId: `org-1`, repoId: `repo-1` }
+    it(`should return 400 when both orgId and projectId are provided`, async () => {
+      mockReq.body = { name: `KEY`, orgId: `org-1`, projectId: `project-1` }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
       expect(mockJson).toHaveBeenCalledWith({
-        error: `API key can only belong to one of: org or repo (exclusive arc)`,
+        error: `API key can only belong to one of: org or project (exclusive arc)`,
       })
     })
 
@@ -260,7 +273,7 @@ describe(`API Keys endpoints`, () => {
 
     it(`should accept custom scopes`, async () => {
       mockReq.body = { name: `Admin Key`, orgId: `org-123`, scopes: `read,write,admin` }
-      const createdApiKey = {
+      const createdApiKey = new ApiKey({
         id: `789`,
         name: `Admin Key`,
         keyHash: `hash`,
@@ -268,7 +281,7 @@ describe(`API Keys endpoints`, () => {
         scopes: `read,write,admin`,
         active: true,
         orgId: `org-123`,
-      }
+      })
 
       const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
         typeof vi.fn
@@ -286,7 +299,7 @@ describe(`API Keys endpoints`, () => {
     it(`should accept expiration date`, async () => {
       const futureDate = new Date(Date.now() + 86400000).toISOString() // 1 day from now
       mockReq.body = { name: `Temp Key`, orgId: `org-123`, expiresAt: futureDate }
-      const createdApiKey = {
+      const createdApiKey = new ApiKey({
         id: `101`,
         name: `Temp Key`,
         keyHash: `hash`,
@@ -295,7 +308,7 @@ describe(`API Keys endpoints`, () => {
         active: true,
         orgId: `org-123`,
         expiresAt: new Date(futureDate),
-      }
+      })
 
       const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
         typeof vi.fn
@@ -326,7 +339,7 @@ describe(`API Keys endpoints`, () => {
     const ep = getEndpointCfg(apiKeys.endpoints?.updateApiKey)
 
     it(`should return 200 with updated API key`, async () => {
-      const existingApiKey = {
+      const existingApiKey = new ApiKey({
         id: `123`,
         name: `Old Name`,
         keyHash: `hash`,
@@ -334,7 +347,7 @@ describe(`API Keys endpoints`, () => {
         scopes: `read`,
         active: true,
         orgId: `org-1`,
-      }
+      })
       const updateData = { name: `New Name`, scopes: `read,write` }
       const updatedApiKey = { ...existingApiKey, ...updateData }
       mockReq.params = { id: `123` }
@@ -371,14 +384,14 @@ describe(`API Keys endpoints`, () => {
     })
 
     it(`should return 400 when scopes are invalid`, async () => {
-      const existingApiKey = {
+      const existingApiKey = new ApiKey({
         id: `123`,
         name: `Key`,
         keyHash: `hash`,
         keyPrefix: `p`,
         scopes: `read`,
         orgId: `org-1`,
-      }
+      })
       mockReq.params = { id: `123` }
       mockReq.body = { scopes: `invalid` }
 
@@ -397,13 +410,13 @@ describe(`API Keys endpoints`, () => {
     const ep = getEndpointCfg(apiKeys.endpoints?.deleteApiKey)
 
     it(`should return 200 with success on revoke`, async () => {
-      const existingApiKey = {
+      const existingApiKey = new ApiKey({
         id: `123`,
         name: `To Revoke`,
         keyHash: `h`,
         keyPrefix: `p`,
         orgId: `o`,
-      }
+      })
       mockReq.params = { id: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.apiKey.get as ReturnType<

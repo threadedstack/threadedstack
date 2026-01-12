@@ -11,7 +11,7 @@ export const listEndpoints: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { repoId } = req.query
+    const { projectId } = req.query
 
     const { data, error } = await db.services.endpoint.list()
 
@@ -21,7 +21,7 @@ export const listEndpoints: TEndpointConfig = {
     }
 
     let eps = data || []
-    if (repoId) eps = eps.filter((e: any) => e.repoId === repoId)
+    if (projectId) eps = eps.filter((e: any) => e.projectId === projectId)
 
     res.status(200).json({ data: eps })
   },

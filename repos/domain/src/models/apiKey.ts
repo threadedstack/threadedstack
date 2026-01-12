@@ -7,12 +7,12 @@ export class ApiKey extends Base {
   key?: string
   name: string
   orgId?: string
-  repoId?: string
   keyHash: string
   scopes?: string
   active: boolean
   keyPrefix: string
   rateLimit?: number
+  projectId?: string
   expiresAt?: Date | string
   lastUsedAt?: Date | string
 

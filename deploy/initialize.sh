@@ -6,9 +6,6 @@ COLOR_GREEN="\033[0;92m"
 COLOR_RESET="\033[0m"
 
 tdsk_proxy() {
-  cd /tdsk/repos/devtools
-  pnpm start >> /proc/1/fd/1 &
-
   cd /tdsk/repos/proxy
   pnpm start 2>&1 &
 }

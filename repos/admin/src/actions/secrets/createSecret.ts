@@ -7,7 +7,7 @@ export type TCreateSecretInput = {
   name: string
   value: string
   orgId?: string
-  repoId?: string
+  projectId?: string
   description?: string
 }
 

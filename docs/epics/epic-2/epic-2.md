@@ -7,7 +7,7 @@
 * **Secrets Management:**
 * Implement `POST /_/secrets`.
 * Ensure all values are encrypted before insertion (store `encrypted_value`).
-* Associate secrets with specific Orgs or Repositories.
+* Associate secrets with specific Orgs or Projects.
 
 * **Endpoint Management:**
 * Implement `POST /_/endpoints` to create proxy definitions.
@@ -33,7 +33,7 @@
 
 * **Secrets Manager:**
 * Forms to Create/Edit/List secrets.
-* Integrate lists into Org/Repo views.
+* Integrate lists into Org/Project views.
 
 
 * **Endpoint Builder:**

@@ -1,6 +1,6 @@
 import type { orgs } from '@TDB/schemas/orgs'
 import type { users } from '@TDB/schemas/users'
-import type { repos } from '@TDB/schemas/repos'
+import type { projects } from '@TDB/schemas/projects'
 import type { roles } from '@TDB/schemas/roles'
 import type { assets } from '@TDB/schemas/assets'
 import type { apiKeys } from '@TDB/schemas/apiKeys'
@@ -29,8 +29,6 @@ export type TDBOrgSelect = TInferDates<typeof orgs.$inferSelect>
 export type TDBOrgInsert = TInferDates<typeof orgs.$inferInsert>
 export type TDBUserSelect = TInferDates<typeof users.$inferSelect>
 export type TDBUserInsert = TInferDates<typeof users.$inferInsert>
-export type TDBRepoSelect = TInferDates<typeof repos.$inferSelect>
-export type TDBRepoInsert = TInferDates<typeof repos.$inferInsert>
 export type TDBRoleSelect = TInferDates<typeof roles.$inferSelect>
 export type TDBRoleInsert = TInferDates<typeof roles.$inferInsert>
 export type TDBAssetSelect = TInferDates<typeof assets.$inferSelect>
@@ -41,6 +39,8 @@ export type TDBSecretSelect = TInferDates<typeof secrets.$inferSelect>
 export type TDBSecretInsert = TInferDates<typeof secrets.$inferInsert>
 export type TDBThreadSelect = TInferDates<typeof threads.$inferSelect>
 export type TDBThreadInsert = TInferDates<typeof threads.$inferInsert>
+export type TDBProjectSelect = TInferDates<typeof projects.$inferSelect>
+export type TDBProjectInsert = TInferDates<typeof projects.$inferInsert>
 export type TDBMessageSelect = TInferDates<typeof messages.$inferSelect>
 export type TDBMessageInsert = TInferDates<typeof messages.$inferInsert>
 export type TDBEndpointSelect = TInferDates<typeof endpoints.$inferSelect>
@@ -65,7 +65,7 @@ export type TDBApiKeyInsert = Partial<
 export type TDBEntitySelect =
   | TDBUserSelect
   | TDBOrgSelect
-  | TDBRepoSelect
+  | TDBProjectSelect
   | TDBRoleSelect
   | TDBAssetSelect
   | TDBApiKeySelect
@@ -80,7 +80,7 @@ export type TDBEntitySelect =
 export type TDBEntityInsert =
   | TDBUserInsert
   | TDBOrgInsert
-  | TDBRepoInsert
+  | TDBProjectInsert
   | TDBRoleInsert
   | TDBAssetInsert
   | TDBApiKeyInsert

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Organization, Repo } from '@tdsk/domain'
+import type { Organization, Project } from '@tdsk/domain'
 import type { TAnyCB } from '@TAF/types/helper.types'
 import type {
   LinkProps,
@@ -9,9 +9,9 @@ import type {
 } from '@mui/material'
 
 export type TNavCtx = {
-  repo?: Repo
   orgId?: string
-  repoId?: string
+  project?: Project
+  projectId?: string
   org?: Organization
 }
 

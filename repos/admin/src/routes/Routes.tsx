@@ -17,15 +17,15 @@ const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
 const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
-const OrgRepos = lazy(() => import('@TAF/pages/Orgs/OrgRepos'))
+const OrgProjects = lazy(() => import('@TAF/pages/Orgs/OrgProjects'))
 
-// Repo pages
-const Repo = lazy(() => import('@TAF/pages/Repos/Repo'))
-const RepoEndpoints = lazy(() => import('@TAF/pages/Repos/RepoEndpoints'))
-const RepoSecrets = lazy(() => import('@TAF/pages/Repos/RepoSecrets'))
-const RepoProviders = lazy(() => import('@TAF/pages/Repos/RepoProviders'))
-const RepoFunctions = lazy(() => import('@TAF/pages/Repos/RepoFunctions'))
-const RepoSettings = lazy(() => import('@TAF/pages/Repos/RepoSettings'))
+// Project pages
+const Project = lazy(() => import('@TAF/pages/Projects/Project'))
+const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
+const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
+const ProjectProviders = lazy(() => import('@TAF/pages/Projects/ProjectProviders'))
+const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
+const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
 
 // Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
@@ -100,40 +100,40 @@ export const Routes = createBrowserRouter([
             path: 'settings',
             Component: () => <SuspensePage Component={OrgSettings} />,
           },
-          // Repo selection for this org
+          // Project selection for this org
           {
-            path: 'repos',
-            Component: () => <SuspensePage Component={OrgRepos} />,
+            path: 'projects',
+            Component: () => <SuspensePage Component={OrgProjects} />,
           },
-          // Nested repo routes under org
+          // Nested project routes under org
           {
-            path: 'repos/:repoId',
+            path: 'projects/:projectId',
             children: [
-              // Repo dashboard
+              // Project dashboard
               {
                 index: true,
-                Component: () => <SuspensePage Component={Repo} />,
+                Component: () => <SuspensePage Component={Project} />,
               },
-              // Repo sub-pages
+              // Project sub-pages
               {
                 path: 'endpoints',
-                Component: () => <SuspensePage Component={RepoEndpoints} />,
+                Component: () => <SuspensePage Component={ProjectEndpoints} />,
               },
               {
                 path: 'secrets',
-                Component: () => <SuspensePage Component={RepoSecrets} />,
+                Component: () => <SuspensePage Component={ProjectSecrets} />,
               },
               {
                 path: 'providers',
-                Component: () => <SuspensePage Component={RepoProviders} />,
+                Component: () => <SuspensePage Component={ProjectProviders} />,
               },
               {
                 path: 'functions',
-                Component: () => <SuspensePage Component={RepoFunctions} />,
+                Component: () => <SuspensePage Component={ProjectFunctions} />,
               },
               {
                 path: 'settings',
-                Component: () => <SuspensePage Component={RepoSettings} />,
+                Component: () => <SuspensePage Component={ProjectSettings} />,
               },
             ],
           },

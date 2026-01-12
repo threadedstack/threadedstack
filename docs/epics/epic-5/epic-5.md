@@ -10,7 +10,7 @@
 
 ## 2. Git Integration
 
-* Allow the Agent to authenticate and `git clone` repositories defined in the database.
+* Allow the Agent to authenticate and `git clone` repositories defined via project git url.
 * Enable the Agent to modify code within the sandbox and `git push` changes back to the remote.
 
 ## 3. Browser Automation

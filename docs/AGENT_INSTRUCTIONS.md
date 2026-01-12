@@ -499,7 +499,7 @@ Each repo loads envs in `src/constants/envs.ts` or via scripts in `scripts/loadE
 
 ### Completed Features (Epic 1 Progress)
 - Monorepo structure with pnpm workspaces
-- Database schemas for all entities (orgs, users, repos, etc.)
+- Database schemas for all entities (orgs, users, projects, etc.)
 - Database models with CRUD operations
 - Basic backend server structure with Express 5
 - Admin UI skeleton with MUI theming and routing
@@ -508,16 +508,10 @@ Each repo loads envs in `src/constants/envs.ts` or via scripts in `scripts/loadE
 
 ### In Progress / Not Started
 - Auth flow integration with Neon Auth
-- Backend API endpoints (Orgs, Users, Repos CRUD)
-- Admin pages for Orgs and Repos management
+- Backend API endpoints (Orgs, Users, Projects CRUD)
+- Admin pages for Orgs and Projects management
 - Proxy server forwarding logic
 - Protected route wrappers
-
-### Notes for Agents
-- The proxy repo has a TODO stub in `repos/proxy/src/proxy.ts`
-- Orgs and Repos pages in admin are placeholder stubs
-- Database migrations exist but may need verification against Neon
-- Some domain types (secrets, functions, threads) are not yet created
 
 ---
 

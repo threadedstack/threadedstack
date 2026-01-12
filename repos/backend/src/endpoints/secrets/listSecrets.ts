@@ -12,7 +12,7 @@ export const listSecrets: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, repoId } = req.query
+    const { orgId, projectId } = req.query
 
     const { data, error } = await db.services.secret.list()
 
@@ -21,10 +21,10 @@ export const listSecrets: TEndpointConfig = {
       return
     }
 
-    // Filter by orgId or repoId if provided
+    // Filter by orgId or projectId if provided
     let secrets: Secret[] = data || []
     if (orgId) secrets = secrets.filter((s) => s.orgId === orgId)
-    if (repoId) secrets = secrets.filter((s) => s.repoId === repoId)
+    if (projectId) secrets = secrets.filter((s) => s.projectId === projectId)
 
     const sanitized = secrets.map((secret: Secret) => secret.sanitize())
 

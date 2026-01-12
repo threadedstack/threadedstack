@@ -5,8 +5,8 @@ export class Secret extends Base {
   value?: any
   name: string
   orgId?: string
-  repoId?: string
   hashKey: string
+  projectId?: string
   providerId?: string
   encryptedValue: string
 

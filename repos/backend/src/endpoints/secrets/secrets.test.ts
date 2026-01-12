@@ -3,6 +3,7 @@ import type { TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { secrets } from './secrets'
+import { Secret } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 
@@ -79,22 +80,22 @@ describe(`Secrets endpoints`, () => {
 
     it(`should return 200 with secret metadata on success`, async () => {
       const mockSecrets = [
-        {
+        new Secret({
           id: `1`,
           name: `API_KEY`,
           hashKey: `abc123`,
           orgId: `org-1`,
           encryptedValue: `encrypted`,
           createdAt: new Date(),
-        },
-        {
+        }),
+        new Secret({
           id: `2`,
           name: `DB_PASS`,
           hashKey: `def456`,
-          repoId: `repo-1`,
+          projectId: `project-1`,
           encryptedValue: `encrypted`,
           createdAt: new Date(),
-        },
+        }),
       ]
 
       const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
@@ -107,14 +108,26 @@ describe(`Secrets endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(200)
       // Should not include encryptedValue in response
       const responseData = mockJson.mock.calls[0][0].data
-      expect(responseData[0]).not.toHaveProperty('encryptedValue')
+      expect(responseData[0].encryptedValue).toBe(undefined)
       expect(responseData[0]).toHaveProperty('name', 'API_KEY')
     })
 
     it(`should filter by orgId when provided`, async () => {
       const mockSecrets = [
-        { id: `1`, name: `S1`, hashKey: `h1`, orgId: `org-1`, encryptedValue: `e` },
-        { id: `2`, name: `S2`, hashKey: `h2`, orgId: `org-2`, encryptedValue: `e` },
+        new Secret({
+          id: `1`,
+          name: `S1`,
+          hashKey: `h1`,
+          orgId: `org-1`,
+          encryptedValue: `e`,
+        }),
+        new Secret({
+          id: `2`,
+          name: `S2`,
+          hashKey: `h2`,
+          orgId: `org-2`,
+          encryptedValue: `e`,
+        }),
       ]
       mockReq.query = { orgId: `org-1` }
 
@@ -147,13 +160,13 @@ describe(`Secrets endpoints`, () => {
     const ep = getEndpointCfg(secrets.endpoints?.getSecret)
 
     it(`should return 200 with secret metadata when secret exists`, async () => {
-      const mockSecret = {
+      const mockSecret = new Secret({
         id: `123`,
         name: `API_KEY`,
         hashKey: `abc123`,
         orgId: `org-1`,
         encryptedValue: `encrypted`,
-      }
+      })
       mockReq.params = { id: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.secret.get as ReturnType<
@@ -167,7 +180,7 @@ describe(`Secrets endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(200)
       // Should not include encryptedValue
       const responseData = mockJson.mock.calls[0][0].data
-      expect(responseData).not.toHaveProperty('encryptedValue')
+      expect(responseData.encryptedValue).toBe(undefined)
     })
 
     it(`should return 404 when secret not found`, async () => {
@@ -190,13 +203,13 @@ describe(`Secrets endpoints`, () => {
 
     it(`should return 201 with created secret metadata on success`, async () => {
       const newSecret = { name: `NEW_KEY`, value: `secret-value`, orgId: `org-123` }
-      const createdSecret = {
+      const createdSecret = new Secret({
         id: `456`,
         name: `NEW_KEY`,
         hashKey: `hash`,
         orgId: `org-123`,
         encryptedValue: `encrypted`,
-      }
+      })
       mockReq.body = newSecret
 
       const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
@@ -209,7 +222,7 @@ describe(`Secrets endpoints`, () => {
       expect(mockStatus).toHaveBeenCalledWith(201)
       // Should not include encryptedValue in response
       const responseData = mockJson.mock.calls[0][0].data
-      expect(responseData).not.toHaveProperty('encryptedValue')
+      expect(responseData.encryptedValue).toBe(undefined)
     })
 
     it(`should return 400 when name is missing`, async () => {
@@ -228,23 +241,28 @@ describe(`Secrets endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({ error: `Secret value is required` })
     })
 
-    it(`should return 400 when neither orgId nor repoId is provided`, async () => {
+    it(`should return 400 when neither orgId nor projectId is provided`, async () => {
       mockReq.body = { name: `KEY`, value: `secret` }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
       expect(mockJson).toHaveBeenCalledWith({
-        error: `Secret must belong to an org, repo, or provider`,
+        error: `Secret must belong to an org, project, or provider`,
       })
     })
 
-    it(`should return 400 when both orgId and repoId are provided`, async () => {
-      mockReq.body = { name: `KEY`, value: `secret`, orgId: `org-1`, repoId: `repo-1` }
+    it(`should return 400 when both orgId and projectId are provided`, async () => {
+      mockReq.body = {
+        name: `KEY`,
+        value: `secret`,
+        orgId: `org-1`,
+        projectId: `project-1`,
+      }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
       expect(mockJson).toHaveBeenCalledWith({
-        error: `Secret can only belong to one of: org, repo, or provider (exclusive arc)`,
+        error: `Secret can only belong to one of: org, project, or provider (exclusive arc)`,
       })
     })
   })
@@ -253,13 +271,13 @@ describe(`Secrets endpoints`, () => {
     const ep = getEndpointCfg(secrets.endpoints?.updateSecret)
 
     it(`should return 200 with updated secret metadata on success`, async () => {
-      const existingSecret = {
+      const existingSecret = new Secret({
         id: `123`,
         name: `OLD_KEY`,
         hashKey: `old`,
         orgId: `org-1`,
         encryptedValue: `old-encrypted`,
-      }
+      })
       const updateData = { name: `NEW_KEY` }
       const updatedSecret = { ...existingSecret, name: `NEW_KEY`, hashKey: `new` }
       mockReq.params = { id: `123` }
@@ -300,7 +318,12 @@ describe(`Secrets endpoints`, () => {
     const ep = getEndpointCfg(secrets.endpoints?.deleteSecret)
 
     it(`should return 200 with success on delete`, async () => {
-      const existingSecret = { id: `123`, name: `TO_DELETE`, hashKey: `h`, orgId: `o` }
+      const existingSecret = new Secret({
+        id: `123`,
+        name: `TO_DELETE`,
+        hashKey: `h`,
+        orgId: `o`,
+      })
       mockReq.params = { id: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.secret.get as ReturnType<

@@ -35,7 +35,7 @@
 
 * Scaffold Vite + React + TS in `repos/admin`.
 * Implement Authentication Layer (Login Page & Store JWT).
-* Build Sidebar Navigation (Orgs, Repos, Config/Settings).
+* Build Sidebar Navigation (Orgs, Projects, Config/Settings).
 * Connect UI services to call `/_/*` endpoints via the Proxy.
 
 

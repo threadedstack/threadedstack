@@ -15,7 +15,7 @@ export const createApiKey: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { name, orgId, repoId, scopes, expiresAt, rateLimit } = req.body
+    const { name, orgId, projectId, scopes, expiresAt, rateLimit } = req.body
 
     const { valid, error } = validateApiKey(req.body)
     if (!valid || error) {
@@ -33,7 +33,7 @@ export const createApiKey: TEndpointConfig = {
         scopes: scopes || `read`,
         rateLimit: rateLimit || 100,
         ...(orgId && { orgId }),
-        ...(repoId && { repoId }),
+        ...(projectId && { projectId }),
         ...(expiresAt && { expiresAt: new Date(expiresAt) }),
       })
 
@@ -47,7 +47,7 @@ export const createApiKey: TEndpointConfig = {
       logger.info({
         name,
         orgId,
-        repoId,
+        projectId,
         apiKeyId: data.id,
         message: `New API Key created`,
       })

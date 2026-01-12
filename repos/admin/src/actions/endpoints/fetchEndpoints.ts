@@ -9,7 +9,7 @@ export type TFetchEndpointsResult = {
 }
 
 export const fetchEndpoints = async (filters?: {
-  repoId?: string
+  projectId?: string
 }): Promise<TFetchEndpointsResult> => {
   const resp = await endpointsApi.list(filters)
 

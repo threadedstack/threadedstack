@@ -29,7 +29,7 @@ export const PageHeader = (props: TPageHeader) => {
     actionDisabled = false,
   } = props
 
-  const label = countLabel || title.toLowerCase().replace(/^org\s+|^repo\s+/i, '')
+  const label = countLabel || title.toLowerCase().replace(/^org\s+|^project\s+/i, '')
 
   return (
     <Box

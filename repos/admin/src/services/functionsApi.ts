@@ -18,7 +18,7 @@ export class FunctionsApi extends BaseApi {
 
   /**
    * Get all functions
-   * @param data - Optional query parameters (repoId, limit, offset, etc.)
+   * @param data - Optional query parameters (projectId, limit, offset, etc.)
    * @returns List of all functions
    */
   async list(data?: Record<string, any>): Promise<TApiRes<TDFunction[]>> {

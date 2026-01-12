@@ -41,18 +41,18 @@ describe('Secret Model', () => {
       expect(secret.hashKey).toBe(secretData.hashKey)
       expect(secret.encryptedValue).toBe(secretData.encryptedValue)
       expect(secret.orgId).toBe(secretData.orgId)
-      expect(secret.repoId).toBeUndefined()
+      expect(secret.projectId).toBeUndefined()
       expect(secret.createdAt).toBe(secretData.createdAt)
       expect(secret.updatedAt).toBe(secretData.updatedAt)
     })
 
-    it('should create a repo-scoped secret', () => {
+    it('should create a project-scoped secret', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'REPO_SECRET',
-        hashKey: 'hash_repo123',
-        encryptedValue: 'encrypted_repo_value',
-        repoId: '789e4567-e89b-12d3-a456-426614174002',
+        name: 'PROJECT_SECRET',
+        hashKey: 'hash_project123',
+        encryptedValue: 'encrypted_project_value',
+        projectId: '789e4567-e89b-12d3-a456-426614174002',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -63,7 +63,7 @@ describe('Secret Model', () => {
       expect(secret.name).toBe(secretData.name)
       expect(secret.hashKey).toBe(secretData.hashKey)
       expect(secret.encryptedValue).toBe(secretData.encryptedValue)
-      expect(secret.repoId).toBe(secretData.repoId)
+      expect(secret.projectId).toBe(secretData.projectId)
       expect(secret.orgId).toBeUndefined()
       expect(secret.createdAt).toBe(secretData.createdAt)
       expect(secret.updatedAt).toBe(secretData.updatedAt)
@@ -100,7 +100,7 @@ describe('Secret Model', () => {
       expect(secret.hashKey).toBe(secretData.hashKey)
       expect(secret.encryptedValue).toBe(secretData.encryptedValue)
       expect(secret.orgId).toBeUndefined()
-      expect(secret.repoId).toBeUndefined()
+      expect(secret.projectId).toBeUndefined()
     })
 
     it('should handle secrets with special characters in name', () => {
@@ -127,7 +127,7 @@ describe('Secret Model', () => {
         name: 'CERTIFICATE',
         hashKey: 'hash_cert',
         encryptedValue: longEncryptedValue,
-        repoId: '789e4567-e89b-12d3-a456-426614174002',
+        projectId: '789e4567-e89b-12d3-a456-426614174002',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -189,27 +189,27 @@ describe('Secret Model', () => {
       const secret = new Secret(secretData)
 
       expect(secret.orgId).toBe(secretData.orgId)
-      expect(secret.repoId).toBeUndefined()
+      expect(secret.projectId).toBeUndefined()
     })
 
-    it('should allow secret with repoId only', () => {
+    it('should allow secret with projectId only', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'REPO_API_KEY',
-        hashKey: 'hash_repo',
-        encryptedValue: 'encrypted_repo_api_key',
-        repoId: '789e4567-e89b-12d3-a456-426614174002',
+        name: 'PROJECT_API_KEY',
+        hashKey: 'hash_project',
+        encryptedValue: 'encrypted_project_api_key',
+        projectId: '789e4567-e89b-12d3-a456-426614174002',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
 
       const secret = new Secret(secretData)
 
-      expect(secret.repoId).toBe(secretData.repoId)
+      expect(secret.projectId).toBe(secretData.projectId)
       expect(secret.orgId).toBeUndefined()
     })
 
-    it('should allow secret with neither orgId nor repoId', () => {
+    it('should allow secret with neither orgId nor projectId', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         name: 'UNSCOPED_SECRET',
@@ -222,17 +222,17 @@ describe('Secret Model', () => {
       const secret = new Secret(secretData)
 
       expect(secret.orgId).toBeUndefined()
-      expect(secret.repoId).toBeUndefined()
+      expect(secret.projectId).toBeUndefined()
     })
 
-    it('should allow secret with both orgId and repoId (model layer does not enforce constraint)', () => {
+    it('should allow secret with both orgId and projectId (model layer does not enforce constraint)', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         name: 'BOTH_IDS_SECRET',
         hashKey: 'hash_both',
         encryptedValue: 'encrypted_both_value',
         orgId: '456e4567-e89b-12d3-a456-426614174001',
-        repoId: '789e4567-e89b-12d3-a456-426614174002',
+        projectId: '789e4567-e89b-12d3-a456-426614174002',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -240,7 +240,7 @@ describe('Secret Model', () => {
       const secret = new Secret(secretData)
 
       expect(secret.orgId).toBe(secretData.orgId)
-      expect(secret.repoId).toBe(secretData.repoId)
+      expect(secret.projectId).toBe(secretData.projectId)
     })
   })
 
@@ -252,7 +252,7 @@ describe('Secret Model', () => {
         hashKey: 'hash_null',
         encryptedValue: 'encrypted_null_value',
         orgId: null as any,
-        repoId: null as any,
+        projectId: null as any,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -260,7 +260,7 @@ describe('Secret Model', () => {
       const secret = new Secret(secretData)
 
       expect(secret.orgId).toBeNull()
-      expect(secret.repoId).toBeNull()
+      expect(secret.projectId).toBeNull()
     })
   })
 
@@ -280,16 +280,16 @@ describe('Secret Model', () => {
 
       expect(secret.name).toBe('GITHUB_API_TOKEN')
       expect(secret.orgId).toBeDefined()
-      expect(secret.repoId).toBeUndefined()
+      expect(secret.projectId).toBeUndefined()
     })
 
-    it('should create a database connection string secret for a repo', () => {
+    it('should create a database connection string secret for a project', () => {
       const secretData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         name: 'DATABASE_URL',
         hashKey: 'sha256_hash_of_db_url',
         encryptedValue: 'aes256_encrypted_postgres_connection_string',
-        repoId: '789e4567-e89b-12d3-a456-426614174002',
+        projectId: '789e4567-e89b-12d3-a456-426614174002',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -297,7 +297,7 @@ describe('Secret Model', () => {
       const secret = new Secret(secretData)
 
       expect(secret.name).toBe('DATABASE_URL')
-      expect(secret.repoId).toBeDefined()
+      expect(secret.projectId).toBeDefined()
       expect(secret.orgId).toBeUndefined()
     })
 
@@ -324,7 +324,7 @@ describe('Secret Model', () => {
         name: 'OPENAI_API_KEY',
         hashKey: 'sha256_hash_openai',
         encryptedValue: 'aes256_encrypted_openai_key',
-        repoId: '789e4567-e89b-12d3-a456-426614174002',
+        projectId: '789e4567-e89b-12d3-a456-426614174002',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       }
@@ -332,7 +332,7 @@ describe('Secret Model', () => {
       const secret = new Secret(secretData)
 
       expect(secret.name).toBe('OPENAI_API_KEY')
-      expect(secret.repoId).toBeDefined()
+      expect(secret.projectId).toBeDefined()
     })
 
     it('should handle secret name with various formats', () => {
