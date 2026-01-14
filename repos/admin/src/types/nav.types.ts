@@ -15,19 +15,22 @@ export type TNavCtx = {
   org?: Organization
 }
 
+export type TToAction = string | ((context: TNavCtx) => string)
+
 export type TNavItem = {
   text: ReactNode
   Icon: ReactNode
   items?: TNavItem[]
-  to?: string | ((context: TNavCtx) => string)
+  to?: TToAction
   visible?: (context: TNavCtx) => boolean
 }
 
 export type TNavSection = {
   id: string
-  header?: string | ((context: TNavCtx) => string)
+  to?: TToAction
   items: TNavItem[]
   visible?: (context: TNavCtx) => boolean
+  header?: string | ((context: TNavCtx) => string)
 }
 
 export type TDynamicNavConfig = {

@@ -2,10 +2,11 @@ import type { TNavItem, TNavCtx } from '@TAF/types'
 
 import { ERoutePath } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
+import { buildRoute } from '@TAF/utils/nav/buildRoute'
 import { signout } from '@TAF/actions/auth/local/signout'
+
 import {
   Apps as AppsIcon,
-  Home as HomeIcon,
   Build as ToolIcon,
   Code as FunctionIcon,
   Lock as SecretIcon,
@@ -39,55 +40,37 @@ export const GlobalNavItems: TNavItem[] = []
 // Org-scoped navigation items
 export const OrgNavItems: TNavItem[] = [
   {
-    text: `Users`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId) return '#'
-      return `/orgs/${ctx.orgId}/users`
-    },
-    Icon: <PersonIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
     text: `Projects`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId) return '#'
-      return `/orgs/${ctx.orgId}/projects`
-    },
+    to: buildRoute(ERoutePath.OrgProjects),
     Icon: <AppsIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
+    text: `Users`,
+    to: buildRoute(ERoutePath.OrgUsers),
+    Icon: <PersonIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  {
     text: `Secrets`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId) return '#'
-      return `/orgs/${ctx.orgId}/secrets`
-    },
+    to: buildRoute(ERoutePath.OrgSecrets),
     Icon: <SecretIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
     text: `Providers`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId) return '#'
-      return `/orgs/${ctx.orgId}/providers`
-    },
+    to: buildRoute(ERoutePath.OrgProviders),
     Icon: <ProviderIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
     text: `AI`,
     Icon: <AutoAwesomeIcon />,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId) return '#'
-      return `/orgs/${ctx.orgId}/ai`
-    },
+    to: buildRoute(ERoutePath.OrgAi),
   },
   {
-    text: `Org Settings`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId) return '#'
-      return `/orgs/${ctx.orgId}/settings`
-    },
+    text: `Settings`,
+    to: buildRoute(ERoutePath.OrgSettings),
     Icon: <SettingsIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
@@ -97,46 +80,37 @@ export const OrgNavItems: TNavItem[] = [
 export const ProjectNavItems: TNavItem[] = [
   {
     text: `Endpoints`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.projectId) return '#'
-      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints`
-    },
+    to: buildRoute(ERoutePath.ProjectEndpoint),
     Icon: <EndpointIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
     text: `Functions`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.projectId) return '#'
-      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/functions`
-    },
+    to: buildRoute(ERoutePath.ProjectFunctions),
     Icon: <FunctionIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
     text: `Secrets`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.projectId) return '#'
-      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/secrets`
-    },
+    to: buildRoute(ERoutePath.ProjectSecrets),
     Icon: <SecretIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
     text: `Providers`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.projectId) return '#'
-      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/providers`
-    },
+    to: buildRoute(ERoutePath.ProjectProviders),
     Icon: <ProviderIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
+    text: `Project Ai`,
+    to: buildRoute(ERoutePath.ProjectAi),
+    Icon: <AutoAwesomeIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
+  {
     text: `Project Settings`,
-    to: (ctx: TNavCtx) => {
-      if (!ctx.orgId || !ctx.projectId) return '#'
-      return `/orgs/${ctx.orgId}/projects/${ctx.projectId}/settings`
-    },
+    to: buildRoute(ERoutePath.ProjectSettings),
     Icon: <SettingsIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },

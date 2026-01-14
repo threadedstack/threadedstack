@@ -1,6 +1,8 @@
 import { Fragment } from 'react'
-import { dims } from '@tdsk/components'
+import { useNavigate } from 'react-router'
 import { Toolbar, Divider } from '@mui/material'
+import { isFunc } from '@keg-hub/jsutils/isFunc'
+import { dims, stopEvent } from '@tdsk/components'
 import { SBLogo } from '@TAF/components/Sidebar/SBLogo'
 import { useDynamicNav } from '@TAF/hooks/nav/useDynamicNav'
 import { SBNavList } from '@TAF/components/Sidebar/SBNavList'
@@ -17,6 +19,7 @@ import {
 export type TSidebar = {}
 
 export const Sidebar = (props: TSidebar) => {
+  const navigate = useNavigate()
   const [orgId] = useActiveOrgId()
   const [open, setOpen] = useSidebarOpen()
   const { config, context } = useDynamicNav()
@@ -45,13 +48,20 @@ export const Sidebar = (props: TSidebar) => {
           {config.sections.map((section) => {
             if (section.visible && !section.visible(context)) return null
 
+            const resolvedPath = isFunc(section.to)
+              ? section.to(context || {})
+              : section.to
+
             return (
               <Fragment key={section.id}>
                 {section.header && open && (
-                  <SBSectionHeader>
-                    {typeof section.header === 'function'
-                      ? section.header(context)
-                      : section.header}
+                  <SBSectionHeader
+                    onClick={(evt: any) => {
+                      stopEvent(evt)
+                      resolvedPath && navigate(resolvedPath)
+                    }}
+                  >
+                    {isFunc(section.header) ? section.header(context) : section.header}
                   </SBSectionHeader>
                 )}
                 <SBNavList

@@ -1,6 +1,5 @@
-import { ERoutePath } from '@TAF/types'
+import { nav } from '@TAF/services/nav'
 import { TSIcon, colors } from '@tdsk/components'
-import { navigate } from '@TAF/actions/nav/navigate'
 import { LogoContainer, LogoBtn, LogoText } from '@TAF/components/Sidebar/Sidebar.styles'
 
 const style = {
@@ -20,7 +19,7 @@ export const SBLogo = (props: TSBLogo) => {
     <LogoContainer className='tdsk-logo-icon-container'>
       <LogoBtn
         className='tdsk-logo-icon-button'
-        onClick={() => navigate(ERoutePath.Home)}
+        onClick={() => nav.home()}
       >
         <TSIcon svgStyle={style} />
         {(full && (

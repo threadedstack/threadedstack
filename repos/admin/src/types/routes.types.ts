@@ -19,9 +19,11 @@ export enum ERoutePath {
   OrgProviders = `/orgs/:orgId/providers`,
   OrgSettings = `/orgs/:orgId/settings`,
   OrgProjects = `/orgs/:orgId/projects`,
+  OrgAi = `/orgs/:orgId/ai`,
 
   // Project routes (nested under org)
   Project = `/orgs/:orgId/projects/:projectId`,
+  ProjectAi = `/orgs/:orgId/projects/:projectId/ai`,
   ProjectEndpoints = `/orgs/:orgId/projects/:projectId/endpoints`,
   ProjectEndpoint = `/orgs/:orgId/projects/:projectId/endpoints/:endpointId`,
   ProjectSecrets = `/orgs/:orgId/projects/:projectId/secrets`,
