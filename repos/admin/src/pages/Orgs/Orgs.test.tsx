@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import { Orgs } from './Orgs'
+import { OrgsPage as Orgs } from './Orgs'
 import * as orgsActions from '@TAF/actions/orgs'
 
 // Mock the router
@@ -41,7 +41,7 @@ describe('Orgs', () => {
     render(<Orgs />)
 
     await waitFor(() => {
-      expect(screen.getByText('Orgs')).toBeDefined()
+      expect(screen.getByText('Organizations')).toBeDefined()
       expect(screen.getByText('Org 1')).toBeDefined()
       expect(screen.getByText('Org 2')).toBeDefined()
     })
