@@ -34,18 +34,7 @@ export const HeaderSettingsItems = [
 ]
 
 // Global navigation items (always visible)
-export const GlobalNavItems: TNavItem[] = [
-  {
-    to: ERoutePath.Org,
-    text: `Home`,
-    Icon: <HomeIcon />,
-  },
-  {
-    to: ERoutePath.AI,
-    text: `AI`,
-    Icon: <AutoAwesomeIcon />,
-  },
-]
+export const GlobalNavItems: TNavItem[] = []
 
 // Org-scoped navigation items
 export const OrgNavItems: TNavItem[] = [
@@ -84,6 +73,14 @@ export const OrgNavItems: TNavItem[] = [
     },
     Icon: <ProviderIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  {
+    text: `AI`,
+    Icon: <AutoAwesomeIcon />,
+    to: (ctx: TNavCtx) => {
+      if (!ctx.orgId) return '#'
+      return `/orgs/${ctx.orgId}/ai`
+    },
   },
   {
     text: `Org Settings`,

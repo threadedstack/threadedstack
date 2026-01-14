@@ -1,15 +1,16 @@
-import type { ReactNode } from 'react'
-import type { SxProps, Theme } from '@mui/material'
-import { Alert, Button, Box } from '@mui/material'
+import type { ReactNode, CSSProperties } from 'react'
+
+import { Confirm } from '@tdsk/components'
 
 export type TConfirmDeleteAlert = {
   text?: ReactNode
+  title?: ReactNode
   itemName: string
-  loading?: boolean
+  deleting?: boolean
+  sx?: CSSProperties
   cancelText?: string
   deleteText?: string
   confirmText?: string
-  sx?: SxProps<Theme>
   onCancel: () => void
   onConfirm: () => void
 }
@@ -17,10 +18,11 @@ export type TConfirmDeleteAlert = {
 export const ConfirmDeleteAlert = (props: TConfirmDeleteAlert) => {
   const {
     sx,
+    title,
     itemName,
     onCancel,
     onConfirm,
-    loading = false,
+    deleting = false,
     cancelText = `Cancel`,
     confirmText = `Confirm`,
     deleteText = `Deleting...`,
@@ -28,32 +30,18 @@ export const ConfirmDeleteAlert = (props: TConfirmDeleteAlert) => {
   } = props
 
   return (
-    <Alert
+    <Confirm
+      open
       sx={sx}
-      severity='warning'
-      action={
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size='small'
-            color='inherit'
-            onClick={onCancel}
-            disabled={loading}
-          >
-            {cancelText}
-          </Button>
-          <Button
-            color='inherit'
-            size='small'
-            onClick={onConfirm}
-            disabled={loading}
-          >
-            {loading ? deleteText : confirmText}
-          </Button>
-        </Box>
-      }
+      title={title}
+      loading={deleting}
+      cancel={cancelText}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      confirm={deleting ? deleteText : confirmText}
     >
       {text}
-    </Alert>
+    </Confirm>
   )
 }
 

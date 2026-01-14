@@ -3,15 +3,18 @@ import { useEffect, useState } from 'react'
 import { NoOrgs } from '@TAF/components/Orgs/NoOrgs'
 import { setActiveOrgId } from '@TAF/state/accessors'
 import { fetchOrgs } from '@TAF/actions/orgs/fetchOrgs'
+import { deleteOrg } from '@TAF/actions/orgs/deleteOrg'
 import { OrgsGrid } from '@TAF/components/Orgs/OrgsGrid'
-import { useOrgs, useActiveOrgId } from '@TAF/state/selectors'
-import { CreateOrgDialog } from '@TAF/components/Orgs/CreateOrgDialog'
 import { Card, Typography, CardContent } from '@mui/material'
+import { useOrgs, useActiveOrgId } from '@TAF/state/selectors'
+import { useIsAdmin } from '@TAF/hooks/permissions/useIsAdmin'
+import { CreateOrgDialog } from '@TAF/components/Orgs/CreateOrgDialog'
 
 export type TOrgs = {}
 
 export const Orgs = (props: TOrgs) => {
   const [orgs] = useOrgs()
+  const admin = useIsAdmin()
   const navigate = useNavigate()
   const [activeOrgId] = useActiveOrgId()
   const [loading, setLoading] = useState(true)
@@ -26,12 +29,14 @@ export const Orgs = (props: TOrgs) => {
     loadOrgs()
   }, [])
 
-  const onSelectOrg = (orgId: string) => {
+  const onCreate = () => setCreating(true)
+  const onDelete = async (orgId: string) => {
+    orgId && (await deleteOrg(orgId))
+  }
+  const onSelect = (orgId: string) => {
     setActiveOrgId(orgId)
     navigate(`/orgs/${orgId}`)
   }
-
-  const onCreate = () => setCreating(true)
 
   const orgsArray = orgs ? Object.values(orgs) : []
 
@@ -51,15 +56,19 @@ export const Orgs = (props: TOrgs) => {
             <>
               <OrgsGrid
                 orgs={orgsArray}
-                onSelect={onSelectOrg}
+                showDelete={admin}
+                onDelete={onDelete}
+                onSelect={onSelect}
                 activeOrgId={activeOrgId}
               />
 
-              <CreateOrgDialog
-                open={creating}
-                onCreate={onCreate}
-                onClose={() => setCreating(false)}
-              />
+              {admin && (
+                <CreateOrgDialog
+                  open={creating}
+                  onCreate={onCreate}
+                  onClose={() => setCreating(false)}
+                />
+              )}
             </>
           )}
         </>

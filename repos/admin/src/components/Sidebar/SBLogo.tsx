@@ -1,10 +1,7 @@
+import { ERoutePath } from '@TAF/types'
 import { TSIcon, colors } from '@tdsk/components'
+import { navigate } from '@TAF/actions/nav/navigate'
 import { LogoContainer, LogoBtn, LogoText } from '@TAF/components/Sidebar/Sidebar.styles'
-
-const gotoHome = () => {
-  const { search, pathname } = window.location
-  pathname !== `/` && (window.location.href = `/${search}`)
-}
 
 const style = {
   width: `28px`,
@@ -23,7 +20,7 @@ export const SBLogo = (props: TSBLogo) => {
     <LogoContainer className='tdsk-logo-icon-container'>
       <LogoBtn
         className='tdsk-logo-icon-button'
-        onClick={gotoHome}
+        onClick={() => navigate(ERoutePath.Home)}
       >
         <TSIcon svgStyle={style} />
         {(full && (

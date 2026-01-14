@@ -4,12 +4,14 @@ import { OrgCard } from '@TAF/components/Orgs/OrgCard'
 
 export type TOrgsGrid = {
   activeOrgId?: string
+  showDelete?: boolean
   orgs: Organization[]
+  onDelete?: (orgId: string) => void
   onSelect?: (orgId: string) => void
 }
 
 export const OrgsGrid = (props: TOrgsGrid) => {
-  const { orgs, onSelect, activeOrgId } = props
+  const { orgs, onDelete, onSelect, showDelete, activeOrgId } = props
 
   return (
     <Grid
@@ -28,8 +30,10 @@ export const OrgsGrid = (props: TOrgsGrid) => {
           >
             <OrgCard
               org={org}
+              onDelete={onDelete}
               onSelect={onSelect}
               active={isActiveOrg}
+              showDelete={showDelete}
             />
           </Grid>
         )

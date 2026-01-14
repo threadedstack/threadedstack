@@ -27,6 +27,7 @@ export type TConfirm = {
   children?: ReactNode
   fullWidth?: boolean
   sx?: CSSProperties
+  loading?: boolean
   iconSx?: CSSProperties
   titleSx?: CSSProperties
   contentSx?: CSSProperties
@@ -51,6 +52,7 @@ export const Confirm = (props: TConfirm) => {
     scroll,
     iconSx,
     titleSx,
+    loading,
     onClose,
     onCancel,
     children,
@@ -61,12 +63,12 @@ export const Confirm = (props: TConfirm) => {
     maxWidth,
     fullWidth,
     PaperProps,
-    CancelIcon = CloseIcon,
-    ConfirmIcon = CheckIcon,
     disableEscape,
     title = `Confirm`,
     cancel = `Cancel`,
     confirm = `Confirm`,
+    CancelIcon = CloseIcon,
+    ConfirmIcon = CheckIcon,
     HeaderIcon = ConfirmHeaderIcon,
   } = props
 
@@ -158,6 +160,7 @@ export const Confirm = (props: TConfirm) => {
               <LoadingButton
                 autoFocus
                 color='success'
+                loading={loading}
                 Icon={ConfirmIcon}
                 variant='contained'
                 onClick={onConfirmCB}

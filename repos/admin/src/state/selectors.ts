@@ -1,4 +1,3 @@
-import type { WritableAtom } from 'jotai'
 import type { atomWithReset } from 'jotai/utils'
 
 import { useResetAtom } from 'jotai/utils'
