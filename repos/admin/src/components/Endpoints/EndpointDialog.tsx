@@ -1,13 +1,13 @@
 import type { Endpoint } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
-import { updateEndpoint, deleteEndpoint } from '@TAF/actions/endpoints'
+import { createEndpoint, updateEndpoint, deleteEndpoint } from '@TAF/actions/endpoints'
 import {
   Box,
   Alert,
   Select,
+  Switch,
   Button,
   Dialog,
-  Switch,
   MenuItem,
   TextField,
   InputLabel,
@@ -18,22 +18,26 @@ import {
   FormControlLabel,
 } from '@mui/material'
 
-export type TEditEndpointDialog = {
+export type TEndpointDialog = {
   open: boolean
-  endpoint: Endpoint | null
+  projectId: string
+  endpoint?: Endpoint | null
   onClose: () => void
   onSuccess?: () => void
 }
 
-// TODO: move to domain repo
+// TODO: move to domain repo constants enum
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as const
 
-export const EditEndpointDialog = ({
+export const EndpointDialog = ({
   open,
+  projectId,
   endpoint,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TEditEndpointDialog) => {
+}: TEndpointDialog) => {
+  const isEditMode = Boolean(endpoint)
+
   const [name, setName] = useState('')
   const [path, setPath] = useState('')
   const [method, setMethod] = useState<string>('GET')
@@ -42,13 +46,21 @@ export const EditEndpointDialog = ({
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // Pre-populate form with endpoint data when dialog opens
+  // Pre-populate form with endpoint data in edit mode
   useEffect(() => {
     if (endpoint) {
       setName(endpoint.name || '')
       setPath(endpoint.url || '')
       setMethod(endpoint.method || 'GET')
       setPublicEndpoint(endpoint.public || false)
+      setError(null)
+      setShowDeleteConfirm(false)
+    } else {
+      // Reset form in create mode
+      setName('')
+      setPath('')
+      setMethod('GET')
+      setPublicEndpoint(false)
       setError(null)
       setShowDeleteConfirm(false)
     }
@@ -69,10 +81,6 @@ export const EditEndpointDialog = ({
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!endpoint) {
-      return
-    }
-
     if (!name.trim()) {
       setError('Endpoint name is required')
       return
@@ -86,22 +94,36 @@ export const EditEndpointDialog = ({
     setLoading(true)
     setError(null)
 
-    const result = await updateEndpoint(endpoint.id, {
-      name: name.trim(),
-      path: path.trim(),
-      method,
-      config: {
-        public: publicEndpoint,
-      },
-    })
+    const result =
+      isEditMode && endpoint
+        ? await updateEndpoint(endpoint.id, {
+            name: name.trim(),
+            path: path.trim(),
+            method,
+            config: {
+              public: publicEndpoint,
+            },
+          })
+        : await createEndpoint({
+            name: name.trim(),
+            path: path.trim(),
+            method,
+            projectId,
+            config: {
+              public: publicEndpoint,
+            },
+          })
 
     setLoading(false)
 
     if (result.error) {
-      setError(result.error.message || 'Failed to update endpoint. Please try again.')
+      const errorMessage = isEditMode
+        ? 'Failed to update endpoint. Please try again.'
+        : 'Failed to create endpoint. Please try again.'
+      setError(result.error.message || errorMessage)
     } else {
-      onSuccessCB?.()
       onClose()
+      onSuccessCB?.()
     }
   }
 
@@ -134,7 +156,7 @@ export const EditEndpointDialog = ({
       fullWidth
     >
       <form onSubmit={onSubmit}>
-        <DialogTitle>Edit Endpoint</DialogTitle>
+        <DialogTitle>{isEditMode ? 'Edit Endpoint' : 'Create New Endpoint'}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             {error && (
@@ -242,15 +264,25 @@ export const EditEndpointDialog = ({
             </Box>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
-          <Button
-            color='error'
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={loading || showDeleteConfirm}
+        <DialogActions
+          sx={isEditMode ? { justifyContent: 'space-between', px: 3, pb: 2 } : undefined}
+        >
+          {isEditMode && (
+            <Button
+              color='error'
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={loading || showDeleteConfirm}
+            >
+              Delete
+            </Button>
+          )}
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              ml: isEditMode ? 'auto' : undefined,
+            }}
           >
-            Delete
-          </Button>
-          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               onClick={onClose}
               disabled={loading}
@@ -262,7 +294,13 @@ export const EditEndpointDialog = ({
               variant='contained'
               disabled={loading || showDeleteConfirm}
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading
+                ? isEditMode
+                  ? 'Saving...'
+                  : 'Creating...'
+                : isEditMode
+                  ? 'Save Changes'
+                  : 'Create Endpoint'}
             </Button>
           </Box>
         </DialogActions>

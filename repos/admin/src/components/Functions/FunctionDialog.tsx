@@ -1,53 +1,61 @@
 import { useState, useEffect } from 'react'
 import type { Function as TDFunction } from '@tdsk/domain'
-import { updateFunction, deleteFunction } from '@TAF/actions/functions'
+import { createFunction, updateFunction, deleteFunction } from '@TAF/actions/functions'
 import {
   Box,
   Alert,
-  Button,
   Dialog,
-  Select,
+  Button,
   MenuItem,
   TextField,
-  InputLabel,
-  FormControl,
   DialogTitle,
   DialogContent,
   DialogActions,
 } from '@mui/material'
 
-export type TEditFunctionDialog = {
+export type TFunctionDialog = {
   open: boolean
-  func: TDFunction | null
+  projectId: string
+  func?: TDFunction | null
   onClose: () => void
   onSuccess?: () => void
 }
 
-// TODO: move to domain repo, normalize with other functions
+// TODO: move to domain repo, figure out actually allowed languages
 const LANGUAGE_OPTIONS = [
   { value: 'python', label: 'Python' },
   { value: 'typescript', label: 'TypeScript' },
   { value: 'javascript', label: 'JavaScript' },
 ]
 
-export const EditFunctionDialog = ({
+export const FunctionDialog = ({
   open,
+  projectId,
   func,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TEditFunctionDialog) => {
+}: TFunctionDialog) => {
+  const isEditMode = Boolean(func)
+
   const [name, setName] = useState('')
-  const [language, setLanguage] = useState('')
+  const [language, setLanguage] = useState('typescript')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
+  // Pre-populate form in edit mode
   useEffect(() => {
     if (func) {
       setName(func.name || '')
       setLanguage(func.language || 'typescript')
       setDescription(func.description || '')
+      setError(null)
+      setShowDeleteConfirm(false)
+    } else {
+      setName('')
+      setLanguage('typescript')
+      setDescription('')
       setError(null)
       setShowDeleteConfirm(false)
     }
@@ -56,7 +64,7 @@ export const EditFunctionDialog = ({
   const onClose = () => {
     if (!loading) {
       setName('')
-      setLanguage('')
+      setLanguage('typescript')
       setDescription('')
       setError(null)
       setShowDeleteConfirm(false)
@@ -66,10 +74,6 @@ export const EditFunctionDialog = ({
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!func) {
-      return
-    }
 
     if (!name.trim()) {
       setError('Function name is required')
@@ -84,19 +88,29 @@ export const EditFunctionDialog = ({
     setLoading(true)
     setError(null)
 
-    const result = await updateFunction(func.id, {
-      name: name.trim(),
-      runtime: language,
-      description: description.trim() || undefined,
-    })
+    const result = isEditMode
+      ? await updateFunction(func?.id, {
+          name: name.trim(),
+          runtime: language,
+          description: description.trim() || undefined,
+        })
+      : await createFunction({
+          projectId,
+          code: '',
+          name: name.trim(),
+          runtime: language,
+          description: description.trim() || undefined,
+        })
 
     setLoading(false)
 
     if (result.error) {
-      setError('Failed to update function. Please try again.')
+      setError(
+        `Failed to ${isEditMode ? 'update' : 'create'} function. Please try again.`
+      )
     } else {
-      onSuccessCB?.()
       onClose()
+      onSuccessCB?.()
     }
   }
 
@@ -129,7 +143,7 @@ export const EditFunctionDialog = ({
       fullWidth
     >
       <form onSubmit={onSubmit}>
-        <DialogTitle>Edit Function</DialogTitle>
+        <DialogTitle>{isEditMode ? 'Edit Function' : 'Create New Function'}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             {error && (
@@ -141,7 +155,7 @@ export const EditFunctionDialog = ({
               </Alert>
             )}
 
-            {showDeleteConfirm && (
+            {isEditMode && showDeleteConfirm && (
               <Alert
                 severity='warning'
                 action={
@@ -165,7 +179,8 @@ export const EditFunctionDialog = ({
                   </Box>
                 }
               >
-                Are you sure you want to delete "{func?.name || 'this function'}"?
+                Are you sure you want to delete "{func?.name || 'this function'}
+                "?
               </Alert>
             )}
 
@@ -180,50 +195,54 @@ export const EditFunctionDialog = ({
               disabled={loading}
             />
 
-            <FormControl
-              fullWidth
+            <TextField
+              select
+              label='Language'
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
               required
+              fullWidth
               disabled={loading}
             >
-              <InputLabel id='function-language-label'>Language</InputLabel>
-              <Select
-                labelId='function-language-label'
-                value={language}
-                label='Language'
-                onChange={(e) => setLanguage(e.target.value)}
-              >
-                {LANGUAGE_OPTIONS.map((lang) => (
-                  <MenuItem
-                    key={lang.value}
-                    value={lang.value}
-                  >
-                    {lang.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              {LANGUAGE_OPTIONS.map((option) => (
+                <MenuItem
+                  key={option.value}
+                  value={option.value}
+                >
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
 
             <TextField
               label='Description'
               placeholder='Enter function description (optional)'
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              fullWidth
               multiline
               rows={3}
+              fullWidth
               disabled={loading}
-              helperText='Optional: Brief description of what this function does'
+              helperText={
+                isEditMode
+                  ? 'Optional: Brief description of what this function does'
+                  : undefined
+              }
             />
           </Box>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
-          <Button
-            color='error'
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={loading || showDeleteConfirm}
-          >
-            Delete
-          </Button>
+        <DialogActions
+          sx={isEditMode ? { justifyContent: 'space-between', px: 3, pb: 2 } : undefined}
+        >
+          {isEditMode && (
+            <Button
+              color='error'
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={loading || showDeleteConfirm}
+            >
+              Delete
+            </Button>
+          )}
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               onClick={onClose}
@@ -236,7 +255,13 @@ export const EditFunctionDialog = ({
               variant='contained'
               disabled={loading || showDeleteConfirm}
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading
+                ? isEditMode
+                  ? 'Saving...'
+                  : 'Creating...'
+                : isEditMode
+                  ? 'Save Changes'
+                  : 'Create Function'}
             </Button>
           </Box>
         </DialogActions>

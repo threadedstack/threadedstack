@@ -4,24 +4,14 @@ import { Page } from '@TAF/pages/Page/Page'
 import { useOrgs } from '@TAF/state/selectors'
 import { useParams, useNavigate } from 'react-router'
 import { setActiveOrgId } from '@TAF/state/accessors'
-import { ContentCopy as ContentCopyIcon } from '@mui/icons-material'
 import { fetchOrg, updateOrg, deleteOrg } from '@TAF/actions/orgs'
 import {
-  Box,
-  Card,
-  Alert,
-  Dialog,
-  Button,
-  Divider,
-  TextField,
-  Typography,
-  IconButton,
-  DialogTitle,
-  CardContent,
-  DialogContent,
-  DialogActions,
-  CircularProgress,
-} from '@mui/material'
+  SettingsFormCard,
+  InfoCard,
+  DangerZoneCard,
+  DeleteConfirmDialog,
+} from '@TAF/components/Settings'
+import { Box, Alert, Typography, CircularProgress } from '@mui/material'
 
 export type TOrgSettings = {}
 
@@ -40,7 +30,6 @@ export const OrgSettings = (props: TOrgSettings) => {
   const [originalDescription, setOriginalDescription] = useState('')
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [confirmName, setConfirmName] = useState('')
 
   useEffect(() => {
     if (orgId) {
@@ -97,7 +86,6 @@ export const OrgSettings = (props: TOrgSettings) => {
 
   const onDeleteClick = () => {
     setDeleteDialogOpen(true)
-    setConfirmName('')
   }
 
   const onDelete = async () => {
@@ -113,14 +101,9 @@ export const OrgSettings = (props: TOrgSettings) => {
     }
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    setSuccess('Copied to clipboard')
+  const onCopySuccess = (message: string) => {
+    setSuccess(message)
     setTimeout(() => setSuccess(null), 2000)
-  }
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleString()
   }
 
   return (
@@ -160,158 +143,59 @@ export const OrgSettings = (props: TOrgSettings) => {
 
       {!loading && org && (
         <>
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant='h6'>General Settings</Typography>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextField
-                  fullWidth
-                  value={name}
-                  label='Org Name'
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <TextField
-                  rows={3}
-                  multiline
-                  fullWidth
-                  label='Description'
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button
-                    onClick={onSave}
-                    variant='contained'
-                    disabled={!hasChanges || saving}
-                  >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <SettingsFormCard
+            fields={[
+              {
+                name: 'name',
+                label: 'Org Name',
+                value: name,
+                onChange: setName,
+              },
+              {
+                name: 'description',
+                label: 'Description',
+                value: description,
+                onChange: setDescription,
+                multiline: true,
+                rows: 3,
+              },
+            ]}
+            onSave={onSave}
+            hasChanges={hasChanges}
+            saving={saving}
+          />
 
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant='h6'>Org Information</Typography>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ mb: 2 }}>
-                <Typography
-                  variant='subtitle2'
-                  color='text.secondary'
-                >
-                  Org ID
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography
-                    variant='body2'
-                    fontFamily='monospace'
-                  >
-                    {org.id}
-                  </Typography>
-                  <IconButton
-                    size='small'
-                    onClick={() => copyToClipboard(org.id)}
-                  >
-                    <ContentCopyIcon fontSize='small' />
-                  </IconButton>
-                </Box>
-              </Box>
-              {org.createdAt && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography
-                    variant='subtitle2'
-                    color='text.secondary'
-                  >
-                    Created
-                  </Typography>
-                  <Typography variant='body2'>{formatDate(org.createdAt)}</Typography>
-                </Box>
-              )}
-              {org.updatedAt && (
-                <Box>
-                  <Typography
-                    variant='subtitle2'
-                    color='text.secondary'
-                  >
-                    Last Updated
-                  </Typography>
-                  <Typography variant='body2'>{formatDate(org.updatedAt)}</Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+          <InfoCard
+            title='Org Information'
+            items={[
+              { label: 'Org ID', value: org.id, copyable: true },
+              ...(org.createdAt
+                ? [{ label: 'Created', value: org.createdAt, isDate: true }]
+                : []),
+              ...(org.updatedAt
+                ? [{ label: 'Last Updated', value: org.updatedAt, isDate: true }]
+                : []),
+            ]}
+            onCopy={onCopySuccess}
+          />
 
-          <Card sx={{ border: '1px solid', borderColor: 'error.main' }}>
-            <CardContent>
-              <Typography
-                variant='h6'
-                color='error'
-              >
-                Danger Zone
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <Box>
-                  <Typography variant='body1'>Delete this org</Typography>
-                  <Typography
-                    variant='body2'
-                    color='text.secondary'
-                  >
-                    Once deleted, this action cannot be undone. All projects and data will
-                    be lost.
-                  </Typography>
-                </Box>
-                <Button
-                  variant='outlined'
-                  color='error'
-                  onClick={onDeleteClick}
-                >
-                  Delete Org
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
+          <DangerZoneCard
+            title='Delete this org'
+            description='Once deleted, this action cannot be undone. All projects and data will be lost.'
+            buttonLabel='Delete Org'
+            onAction={onDeleteClick}
+          />
         </>
       )}
 
-      <Dialog
+      <DeleteConfirmDialog
         open={deleteDialogOpen}
+        entityName={org?.name}
+        entityType='Org'
+        warningText='This will permanently delete all associated projects, secrets, and configurations.'
+        onConfirm={onDelete}
         onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Delete Org?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete <strong>{org?.name}</strong>? This will
-            permanently delete all associated projects, secrets, and configurations.
-          </Typography>
-          <TextField
-            fullWidth
-            sx={{ mt: 2 }}
-            value={confirmName}
-            label='Type org name to confirm'
-            onChange={(e) => setConfirmName(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button
-            color='error'
-            variant='contained'
-            onClick={onDelete}
-            disabled={confirmName !== org?.name}
-          >
-            Delete Org
-          </Button>
-        </DialogActions>
-      </Dialog>
+      />
     </Page>
   )
 }

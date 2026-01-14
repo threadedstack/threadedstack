@@ -10,17 +10,21 @@ import { useProjects, useConfigs } from '@TAF/state/selectors'
 import { fetchProject, updateProject, deleteProject } from '@TAF/actions/projects'
 import { setActiveOrgId, setActiveprojectId } from '@TAF/state/accessors'
 import {
+  SettingsFormCard,
+  InfoCard,
+  DangerZoneCard,
+  DeleteConfirmDialog,
+} from '@TAF/components/Settings'
+import {
   Add as AddIcon,
   Edit as EditIcon,
   Clear as ClearIcon,
   Search as SearchIcon,
-  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import {
   Box,
   Card,
   Alert,
-  Dialog,
   Table,
   Button,
   Divider,
@@ -33,9 +37,6 @@ import {
   Typography,
   IconButton,
   CardContent,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   InputAdornment,
   TableContainer,
   CircularProgress,
@@ -61,7 +62,6 @@ export const ProjectSettings = (props: TProjectSettings) => {
   const [originalBranch, setOriginalBranch] = useState('')
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [confirmName, setConfirmName] = useState('')
 
   const [createConfigDialogOpen, setCreateConfigDialogOpen] = useState(false)
   const [editConfigDialogOpen, setEditConfigDialogOpen] = useState(false)
@@ -153,7 +153,6 @@ export const ProjectSettings = (props: TProjectSettings) => {
 
   const onDeleteClick = () => {
     setDeleteDialogOpen(true)
-    setConfirmName('')
   }
 
   const onDelete = async () => {
@@ -169,14 +168,9 @@ export const ProjectSettings = (props: TProjectSettings) => {
     }
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    setSuccess('Copied to clipboard')
+  const onCopySuccess = (message: string) => {
+    setSuccess(message)
     setTimeout(() => setSuccess(null), 2000)
-  }
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleString()
   }
 
   const onCreateConfig = () => {
@@ -233,116 +227,48 @@ export const ProjectSettings = (props: TProjectSettings) => {
 
       {!loading && project && (
         <>
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant='h6'>General Settings</Typography>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextField
-                  label='Project Name'
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label='Git URL'
-                  value={gitUrl}
-                  onChange={(e) => setGitUrl(e.target.value)}
-                  fullWidth
-                  placeholder='https://github.com/username/project.git'
-                />
-                <TextField
-                  label='Branch'
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  fullWidth
-                  placeholder='main'
-                />
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button
-                    variant='contained'
-                    onClick={onSave}
-                    disabled={!hasChanges || saving}
-                  >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <SettingsFormCard
+            fields={[
+              {
+                name: 'name',
+                label: 'Project Name',
+                value: name,
+                onChange: setName,
+              },
+              {
+                name: 'gitUrl',
+                label: 'Git URL',
+                value: gitUrl,
+                onChange: setGitUrl,
+                placeholder: 'https://github.com/username/project.git',
+              },
+              {
+                name: 'branch',
+                label: 'Branch',
+                value: branch,
+                onChange: setBranch,
+                placeholder: 'main',
+              },
+            ]}
+            onSave={onSave}
+            hasChanges={hasChanges}
+            saving={saving}
+          />
 
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant='h6'>Project Information</Typography>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ mb: 2 }}>
-                <Typography
-                  variant='subtitle2'
-                  color='text.secondary'
-                >
-                  Project ID
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography
-                    variant='body2'
-                    fontFamily='monospace'
-                  >
-                    {project.id}
-                  </Typography>
-                  <IconButton
-                    size='small'
-                    onClick={() => copyToClipboard(project.id)}
-                  >
-                    <ContentCopyIcon fontSize='small' />
-                  </IconButton>
-                </Box>
-              </Box>
-              <Box sx={{ mb: 2 }}>
-                <Typography
-                  variant='subtitle2'
-                  color='text.secondary'
-                >
-                  Org ID
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography
-                    variant='body2'
-                    fontFamily='monospace'
-                  >
-                    {project.orgId}
-                  </Typography>
-                  <IconButton
-                    size='small'
-                    onClick={() => copyToClipboard(project.orgId)}
-                  >
-                    <ContentCopyIcon fontSize='small' />
-                  </IconButton>
-                </Box>
-              </Box>
-              {project.createdAt && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography
-                    variant='subtitle2'
-                    color='text.secondary'
-                  >
-                    Created
-                  </Typography>
-                  <Typography variant='body2'>{formatDate(project.createdAt)}</Typography>
-                </Box>
-              )}
-              {project.updatedAt && (
-                <Box>
-                  <Typography
-                    variant='subtitle2'
-                    color='text.secondary'
-                  >
-                    Last Updated
-                  </Typography>
-                  <Typography variant='body2'>{formatDate(project.updatedAt)}</Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+          <InfoCard
+            title='Project Information'
+            items={[
+              { label: 'Project ID', value: project.id, copyable: true },
+              { label: 'Org ID', value: project.orgId, copyable: true },
+              ...(project.createdAt
+                ? [{ label: 'Created', value: project.createdAt, isDate: true }]
+                : []),
+              ...(project.updatedAt
+                ? [{ label: 'Last Updated', value: project.updatedAt, isDate: true }]
+                : []),
+            ]}
+            onCopy={onCopySuccess}
+          />
 
           <Card sx={{ mb: 3 }}>
             <CardContent>
@@ -475,75 +401,23 @@ export const ProjectSettings = (props: TProjectSettings) => {
             </CardContent>
           </Card>
 
-          <Card sx={{ border: '1px solid', borderColor: 'error.main' }}>
-            <CardContent>
-              <Typography
-                variant='h6'
-                color='error'
-              >
-                Danger Zone
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <Box>
-                  <Typography variant='body1'>Delete this project</Typography>
-                  <Typography
-                    variant='body2'
-                    color='text.secondary'
-                  >
-                    Once deleted, this action cannot be undone. All data will be lost.
-                  </Typography>
-                </Box>
-                <Button
-                  variant='outlined'
-                  color='error'
-                  onClick={onDeleteClick}
-                >
-                  Delete Project
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
+          <DangerZoneCard
+            title='Delete this project'
+            description='Once deleted, this action cannot be undone. All data will be lost.'
+            buttonLabel='Delete Project'
+            onAction={onDeleteClick}
+          />
         </>
       )}
 
-      <Dialog
+      <DeleteConfirmDialog
         open={deleteDialogOpen}
+        entityName={project?.name}
+        entityType='Project'
+        warningText='This will permanently delete all associated endpoints, functions, secrets, and configurations.'
+        onConfirm={onDelete}
         onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Delete Project?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete <strong>{project?.name}</strong>? This will
-            permanently delete all associated endpoints, functions, secrets, and
-            configurations.
-          </Typography>
-          <TextField
-            label='Type project name to confirm'
-            value={confirmName}
-            onChange={(e) => setConfirmName(e.target.value)}
-            fullWidth
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button
-            color='error'
-            variant='contained'
-            disabled={confirmName !== project?.name}
-            onClick={onDelete}
-          >
-            Delete Project
-          </Button>
-        </DialogActions>
-      </Dialog>
+      />
 
       {projectId && (
         <CreateConfigDialog

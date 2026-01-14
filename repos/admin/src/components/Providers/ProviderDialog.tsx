@@ -2,7 +2,7 @@ import type { Provider, TProviderType } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
 import { ProviderTypes } from '@TAF/constants/providers'
-import { updateProvider, deleteProvider } from '@TAF/actions/providers'
+import { createProvider, updateProvider, deleteProvider } from '@TAF/actions/providers'
 import {
   Box,
   Alert,
@@ -18,19 +18,23 @@ import {
   DialogActions,
 } from '@mui/material'
 
-export type TEditProviderDialog = {
+export type TProviderDialog = {
   open: boolean
-  provider: Provider | null
+  orgId: string
+  provider?: Provider | null
   onClose: () => void
   onSuccess?: () => void
 }
 
-export const EditProviderDialog = ({
+export const ProviderDialog = ({
   open,
+  orgId,
   provider,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TEditProviderDialog) => {
+}: TProviderDialog) => {
+  const isEditMode = Boolean(provider)
+
   const [name, setName] = useState('')
   const [type, setType] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
@@ -38,6 +42,7 @@ export const EditProviderDialog = ({
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
+  // Pre-populate form in edit mode
   useEffect(() => {
     if (provider) {
       const options = provider.options || {}
@@ -46,26 +51,29 @@ export const EditProviderDialog = ({
       setBaseUrl(options.baseUrl || '')
       setError(null)
       setShowDeleteConfirm(false)
-    }
-  }, [provider])
-
-  const onClose = () => {
-    if (!loading) {
+    } else {
+      // Reset form in create mode
       setName('')
       setType('')
       setBaseUrl('')
       setError(null)
       setShowDeleteConfirm(false)
-      onCloseCB?.()
     }
+  }, [provider])
+
+  const onClose = () => {
+    if (loading) return
+
+    setName('')
+    setType('')
+    setBaseUrl('')
+    setError(null)
+    setShowDeleteConfirm(false)
+    onCloseCB?.()
   }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!provider) {
-      return
-    }
 
     if (!name.trim()) {
       setError('Provider name is required')
@@ -80,20 +88,26 @@ export const EditProviderDialog = ({
     setLoading(true)
     setError(null)
 
-    // Store name and baseUrl in options field since Provider model uses options
     const providerType = type as TProviderType
-    const result = await updateProvider(provider.id, {
+    const providerData = {
       type: providerType,
       options: {
         name: name.trim(),
         ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
       },
-    })
+    }
+
+    const result =
+      isEditMode && provider
+        ? await updateProvider(provider.id, providerData)
+        : await createProvider({ orgId, ...providerData })
 
     setLoading(false)
 
     if (result.error) {
-      setError('Failed to update provider. Please try again.')
+      setError(
+        `Failed to ${isEditMode ? 'update' : 'create'} provider. Please try again.`
+      )
     } else {
       onSuccessCB?.()
       onClose()
@@ -101,9 +115,7 @@ export const EditProviderDialog = ({
   }
 
   const onDelete = async () => {
-    if (!provider) {
-      return
-    }
+    if (!provider) return
 
     setLoading(true)
     setError(null)
@@ -129,7 +141,7 @@ export const EditProviderDialog = ({
       fullWidth
     >
       <form onSubmit={onSubmit}>
-        <DialogTitle>Edit Provider</DialogTitle>
+        <DialogTitle>{isEditMode ? 'Edit Provider' : 'Create New Provider'}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             {error && (
@@ -141,7 +153,7 @@ export const EditProviderDialog = ({
               </Alert>
             )}
 
-            {showDeleteConfirm && (
+            {isEditMode && showDeleteConfirm && (
               <Alert
                 severity='warning'
                 action={
@@ -215,14 +227,22 @@ export const EditProviderDialog = ({
             />
           </Box>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
-          <Button
-            color='error'
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={loading || showDeleteConfirm}
-          >
-            Delete
-          </Button>
+        <DialogActions
+          sx={{
+            justifyContent: isEditMode ? 'space-between' : 'flex-end',
+            px: 3,
+            pb: 2,
+          }}
+        >
+          {isEditMode && (
+            <Button
+              color='error'
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={loading || showDeleteConfirm}
+            >
+              Delete
+            </Button>
+          )}
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               onClick={onClose}
@@ -235,7 +255,13 @@ export const EditProviderDialog = ({
               variant='contained'
               disabled={loading || showDeleteConfirm}
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading
+                ? isEditMode
+                  ? 'Saving...'
+                  : 'Creating...'
+                : isEditMode
+                  ? 'Save Changes'
+                  : 'Create Provider'}
             </Button>
           </Box>
         </DialogActions>

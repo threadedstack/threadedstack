@@ -2,7 +2,7 @@ import type { Secret } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
 import { ConfirmDeleteAlert } from '@TAF/components'
-import { updateSecret, deleteSecret } from '@TAF/actions/secrets'
+import { createSecret, updateSecret, deleteSecret } from '@TAF/actions/secrets'
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
@@ -10,8 +10,8 @@ import {
 import {
   Box,
   Alert,
-  Dialog,
   Button,
+  Dialog,
   TextField,
   IconButton,
   DialogTitle,
@@ -20,21 +20,28 @@ import {
   InputAdornment,
 } from '@mui/material'
 
-export type TEditSecretDialog = {
+export type TSecretDialog = {
   open: boolean
-  secret: Secret | null
+  orgId?: string
+  projectId?: string
+  secret?: Secret | null
   onClose: () => void
   onSuccess?: () => void
 }
 
-export const EditSecretDialog = ({
+export const SecretDialog = ({
   open,
+  orgId,
+  projectId,
   secret,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TEditSecretDialog) => {
+}: TSecretDialog) => {
+  const isEditMode = !!secret
+
   const [name, setName] = useState('')
   const [value, setValue] = useState('')
+  const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showValue, setShowValue] = useState(false)
@@ -44,6 +51,14 @@ export const EditSecretDialog = ({
     if (secret) {
       setName(secret.hashKey || secret.name || '')
       setValue('')
+      setDescription(secret.description || '')
+      setError(null)
+      setShowValue(false)
+      setShowDeleteConfirm(false)
+    } else {
+      setName('')
+      setValue('')
+      setDescription('')
       setError(null)
       setShowValue(false)
       setShowDeleteConfirm(false)
@@ -54,6 +69,7 @@ export const EditSecretDialog = ({
     if (!loading) {
       setName('')
       setValue('')
+      setDescription('')
       setError(null)
       setShowValue(false)
       setShowDeleteConfirm(false)
@@ -64,31 +80,63 @@ export const EditSecretDialog = ({
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!secret) {
+    if (!name.trim()) {
+      setError('Secret name is required')
       return
     }
 
-    if (!name.trim()) {
-      setError('Secret name is required')
+    if (!isEditMode && !value.trim()) {
+      setError('Secret value is required')
       return
     }
 
     setLoading(true)
     setError(null)
 
-    const updateData: { name?: string; value?: string } = {
-      name: name.trim(),
+    let result: { error?: string } | undefined
+
+    if (isEditMode && secret) {
+      const updateData: {
+        name?: string
+        value?: string
+        description?: string
+      } = {
+        name: name.trim(),
+      }
+
+      const val = value.trim()
+      if (val) updateData.value = val
+
+      const desc = description.trim()
+      if (desc) updateData.description = desc
+
+      result = await updateSecret(secret.id, updateData)
+    } else {
+      const params: {
+        name: string
+        value: string
+        orgId?: string
+        projectId?: string
+        description?: string
+      } = {
+        name: name.trim(),
+        value: value.trim(),
+        description: description.trim() || undefined,
+      }
+
+      if (projectId) {
+        params.projectId = projectId
+      } else if (orgId) {
+        params.orgId = orgId
+      }
+
+      result = await createSecret(params)
     }
-
-    const val = value.trim()
-    if (val) updateData.value = val
-
-    const result = await updateSecret(secret.id, updateData)
 
     setLoading(false)
 
-    if (result.error) {
-      setError('Failed to update secret. Please try again.')
+    if (result?.error) {
+      setError(`Failed to ${isEditMode ? 'update' : 'create'} secret. Please try again.`)
     } else {
       onSuccessCB?.()
       onClose()
@@ -120,13 +168,13 @@ export const EditSecretDialog = ({
 
   return (
     <Dialog
-      fullWidth
       open={open}
-      maxWidth='sm'
       onClose={onClose}
+      maxWidth='sm'
+      fullWidth
     >
       <form onSubmit={onSubmit}>
-        <DialogTitle>Edit Secret</DialogTitle>
+        <DialogTitle>{isEditMode ? 'Edit Secret' : 'Create New Secret'}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             {error && (
@@ -138,7 +186,7 @@ export const EditSecretDialog = ({
               </Alert>
             )}
 
-            {showDeleteConfirm && (
+            {isEditMode && showDeleteConfirm && (
               <ConfirmDeleteAlert
                 loading={loading}
                 onConfirm={onDelete}
@@ -148,25 +196,32 @@ export const EditSecretDialog = ({
             )}
 
             <TextField
-              required
-              fullWidth
               autoFocus
-              value={name}
-              disabled={loading}
               label='Secret Name'
               placeholder='Enter secret name (e.g., API_KEY)'
+              value={name}
               onChange={(e) => setName(e.target.value)}
+              required
+              fullWidth
+              disabled={loading}
             />
 
             <TextField
-              fullWidth
-              value={value}
-              disabled={loading}
-              label='New Secret Value'
+              label={isEditMode ? 'New Secret Value' : 'Secret Value'}
+              placeholder={
+                isEditMode
+                  ? 'Enter new value (leave empty to keep current)'
+                  : 'Enter secret value'
+              }
               type={showValue ? 'text' : 'password'}
+              value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder='Enter new value (leave empty to keep current)'
-              helperText='Leave empty to keep the current value'
+              required={!isEditMode}
+              fullWidth
+              disabled={loading}
+              helperText={
+                isEditMode ? 'Leave empty to keep the current value' : undefined
+              }
               InputProps={{
                 endAdornment: (
                   <InputAdornment position='end'>
@@ -182,29 +237,50 @@ export const EditSecretDialog = ({
                 ),
               }}
             />
+
+            <TextField
+              label='Description'
+              placeholder='Enter description (optional)'
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              multiline
+              rows={3}
+              fullWidth
+              disabled={loading}
+            />
           </Box>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
-          <Button
-            color='error'
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={loading || showDeleteConfirm}
-          >
-            Delete
-          </Button>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+        <DialogActions
+          sx={isEditMode ? { justifyContent: 'space-between', px: 3, pb: 2 } : undefined}
+        >
+          {isEditMode && (
             <Button
-              disabled={loading}
+              color='error'
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={loading || showDeleteConfirm}
+            >
+              Delete
+            </Button>
+          )}
+          <Box sx={{ display: 'flex', gap: 1, ml: isEditMode ? 'auto' : 0 }}>
+            <Button
               onClick={onClose}
+              disabled={loading}
             >
               Cancel
             </Button>
             <Button
               type='submit'
               variant='contained'
-              disabled={loading || showDeleteConfirm}
+              disabled={loading || (isEditMode && showDeleteConfirm)}
             >
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading
+                ? isEditMode
+                  ? 'Saving...'
+                  : 'Creating...'
+                : isEditMode
+                  ? 'Save Changes'
+                  : 'Create Secret'}
             </Button>
           </Box>
         </DialogActions>

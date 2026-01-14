@@ -1,50 +1,42 @@
 import { useState } from 'react'
-import { createFunction } from '@TAF/actions/functions'
+import { createProject } from '@TAF/actions/projects'
 import {
   Box,
   Alert,
   Dialog,
   Button,
-  MenuItem,
   TextField,
   DialogTitle,
   DialogContent,
   DialogActions,
 } from '@mui/material'
 
-export type TCreateFunctionDialog = {
+export type TCreateProjectDialog = {
   open: boolean
-  projectId: string
+  orgId: string
   onClose: () => void
   onSuccess?: () => void
 }
 
-// TODO: move to domain repo, figure out actually allow languages
-const LANGUAGE_OPTIONS = [
-  { value: 'python', label: 'Python' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'javascript', label: 'JavaScript' },
-]
-
-export const CreateFunctionDialog = ({
+export const CreateProjectDialog = ({
   open,
-  projectId,
+  orgId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TCreateFunctionDialog) => {
+}: TCreateProjectDialog) => {
   const [name, setName] = useState('')
-  const [language, setLanguage] = useState('typescript')
-  const [description, setDescription] = useState('')
+  const [gitUrl, setGitUrl] = useState('')
+  const [branch, setBranch] = useState('main')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const onClose = () => {
     if (!loading) {
       setName('')
-      setLanguage('typescript')
-      setDescription('')
+      setGitUrl('')
+      setBranch('main')
       setError(null)
-      onCloseCB?.()
+      onCloseCB()
     }
   }
 
@@ -52,25 +44,24 @@ export const CreateFunctionDialog = ({
     e.preventDefault()
 
     if (!name.trim()) {
-      setError('Function name is required')
+      setError('Project name is required')
       return
     }
 
     setLoading(true)
     setError(null)
 
-    const result = await createFunction({
-      projectId,
-      code: '',
+    const result = await createProject({
       name: name.trim(),
-      runtime: language,
-      description: description.trim() || undefined,
+      orgId,
+      gitUrl: gitUrl.trim() || undefined,
+      branch: branch.trim() || 'main',
     })
 
     setLoading(false)
 
     if (result.error) {
-      setError('Failed to create function. Please try again.')
+      setError('Failed to create project. Please try again.')
     } else {
       onClose()
       onSuccessCB?.()
@@ -85,7 +76,7 @@ export const CreateFunctionDialog = ({
       fullWidth
     >
       <form onSubmit={onSubmit}>
-        <DialogTitle>Create New Function</DialogTitle>
+        <DialogTitle>Create New Project</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             {error && (
@@ -99,8 +90,8 @@ export const CreateFunctionDialog = ({
 
             <TextField
               autoFocus
-              label='Function Name'
-              placeholder='Enter function name'
+              label='Project Name'
+              placeholder='Enter project name'
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -109,31 +100,19 @@ export const CreateFunctionDialog = ({
             />
 
             <TextField
-              select
-              label='Language'
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              required
+              label='Git URL'
+              placeholder='https://github.com/user/repo.git (optional)'
+              value={gitUrl}
+              onChange={(e) => setGitUrl(e.target.value)}
               fullWidth
               disabled={loading}
-            >
-              {LANGUAGE_OPTIONS.map((option) => (
-                <MenuItem
-                  key={option.value}
-                  value={option.value}
-                >
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
 
             <TextField
-              label='Description'
-              placeholder='Enter function description (optional)'
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              multiline
-              rows={3}
+              label='Branch'
+              placeholder='main'
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
               fullWidth
               disabled={loading}
             />
@@ -151,7 +130,7 @@ export const CreateFunctionDialog = ({
             variant='contained'
             disabled={loading}
           >
-            {loading ? 'Creating...' : 'Create Function'}
+            {loading ? 'Creating...' : 'Create Project'}
           </Button>
         </DialogActions>
       </form>
