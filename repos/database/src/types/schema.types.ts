@@ -101,6 +101,11 @@ export type TDBApiRes<M extends BaseModel | BaseModel[]> = {
   error?: Error
 }
 
+export type TDBApiResType<T> = {
+  data?: T
+  error?: Error
+}
+
 export interface IDBApi<M extends BaseModel, I extends TDBEntityInsert> {
   create: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
   list: (opts: TDBSelectOpts) => Promise<TDBApiRes<M[]>>

@@ -2,13 +2,15 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { ApiKey } from '@tdsk/domain'
+import { ApiKey, EPermAction, EPermResource } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { generateApiKey } from '@TBE/utils/auth/generateApiKey'
 import { validateApiKey } from '@TBE/utils/auth/validateApiKey'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * POST /api-keys - Generate a new API key
+ * Requires admin+ role in the org
  */
 export const createApiKey: TEndpointConfig = {
   path: `/`,
@@ -22,6 +24,11 @@ export const createApiKey: TEndpointConfig = {
       res.status(400).json({ error })
       return
     }
+
+    // Check permission - requires admin+
+    await checkPermission(req, EPermAction.create, EPermResource.apiKey, {
+      orgId,
+    })
 
     try {
       const { key, hash, prefix } = generateApiKey()

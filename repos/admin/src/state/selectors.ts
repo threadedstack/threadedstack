@@ -1,19 +1,32 @@
+import type { Atom } from 'jotai'
 import type { atomWithReset } from 'jotai/utils'
+import type { Organization, Project } from '@tdsk/domain'
 
 import { useResetAtom } from 'jotai/utils'
 
 import { useAtom } from 'jotai'
 import { userState } from '@TAF/state/user'
+import { noOp } from '@keg-hub/jsutils/noOp'
 import { sidebarOpenState } from '@TAF/state/app'
 import { themeTypeState } from '@TAF/state/theme'
 import { providersState } from '@TAF/state/providers'
-import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
+import { configsState, activeConfigIdState } from '@TAF/state/configs'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
-import { configsState, activeConfigIdState } from '@TAF/state/configs'
-import { orgsState, orgUsersState, activeOrgIdState } from '@TAF/state/orgs'
+import {
+  projectsState,
+  activeProjectState,
+  activeProjectIdState,
+} from '@TAF/state/projects'
+import {
+  orgsState,
+  orgUsersState,
+  activeOrgState,
+  activeOrgIdState,
+  activeOrgRoleState,
+} from '@TAF/state/orgs'
 
 const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
   const [current, setCurrent] = useAtom(state)
@@ -24,6 +37,11 @@ const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
     typeof setCurrent,
     typeof resetCurrent,
   ]
+}
+
+const useDerivedState = <T = any>(state: Atom<T>) => {
+  const [current, setCurrent] = useAtom(state)
+  return [current, setCurrent, noOp] as [T, typeof setCurrent, typeof noOp]
 }
 
 export const useUser = () => useRecState(userState)
@@ -45,3 +63,6 @@ export const useConfigs = () => useRecState(configsState)
 export const useActiveConfigId = () => useRecState(activeConfigIdState)
 export const useApiKeys = () => useRecState(apiKeysState)
 export const useActiveApiKeyId = () => useRecState(activeApiKeyIdState)
+export const useActiveOrgRole = () => useRecState(activeOrgRoleState)
+export const useActiveOrg = () => useDerivedState<Organization>(activeOrgState)
+export const useActiveProject = () => useDerivedState<Project>(activeProjectState)

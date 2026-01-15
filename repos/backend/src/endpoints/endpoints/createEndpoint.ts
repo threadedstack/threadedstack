@@ -2,11 +2,13 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Endpoint } from '@tdsk/domain'
+import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
 import { HttpMethods } from '@TBE/constants/values'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * POST /endpoints - Create a new endpoint
+ * Requires member+ role in project's org
  */
 export const createEndpoint: TEndpointConfig = {
   path: `/`,
@@ -43,6 +45,11 @@ export const createEndpoint: TEndpointConfig = {
       res.status(400).json({ error: `Endpoint projectId is required` })
       return
     }
+
+    // Check permission - requires member+
+    await checkPermission(req, EPermAction.create, EPermResource.endpoint, {
+      projectId,
+    })
 
     // Validate HTTP method
     const lower = method.toLowerCase()

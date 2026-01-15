@@ -16,7 +16,13 @@ The **proxy** repo (`@tdsk/proxy`) serves as the **Auth Gateway** and single ent
 - **Logging**: Request/response logging with Winston integration
 - **Signal Handling**: Graceful shutdown on SIGINT, SIGTERM, SIGQUIT
 
-**Current Status**: The proxy is in early development stage. Core scaffolding is in place with logger setup and signal handling, but the main proxy server implementation is pending (marked as TODO).
+**Current Status**: The proxy is **fully implemented** as of January 2026. It includes:
+- **JWKS-based JWT validation** via jose library (integrates with Neon Auth)
+- **http-proxy-middleware** for backend forwarding
+- **Full middleware chain**: Logger, CORS, Auth, Proxy, Error handling
+- **Endpoints**: `/health`, `/auth/me`, `/auth/logout`
+
+**IMPORTANT NOTE**: Authentication is now **client-side via Neon Auth**. The proxy only validates JWT tokens using JWKS - it does not handle login/register/refresh. Those are managed by the Admin SPA directly with Neon Auth.
 
 ## Directory Structure
 

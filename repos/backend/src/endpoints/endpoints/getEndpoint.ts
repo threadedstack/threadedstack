@@ -2,9 +2,12 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * GET /endpoints/:id - Get endpoint by ID
+ * Requires member+ role in project's org
  */
 export const getEndpoint: TEndpointConfig = {
   path: `/:id`,
@@ -23,6 +26,11 @@ export const getEndpoint: TEndpointConfig = {
       res.status(404).json({ error: `Endpoint not found` })
       return
     }
+
+    // Check permission based on endpoint's projectId
+    await checkPermission(req, EPermAction.read, EPermResource.endpoint, {
+      projectId: data.projectId,
+    })
 
     res.status(200).json({ data })
   },

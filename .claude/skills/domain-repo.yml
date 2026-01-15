@@ -1,7 +1,7 @@
 ---
 name: "Threaded Stack - Domain Repo"
 description: "Knowledge base for the shared types, models, and utilities repo"
-version: "1.0.0"
+version: "1.1.0"
 tags: ["typescript", "types", "models", "domain", "shared", "utilities"]
 ---
 # Domain Repo Skill
@@ -11,11 +11,12 @@ tags: ["typescript", "types", "models", "domain", "shared", "utilities"]
 The `@tdsk/domain` repo is the **shared foundation** for the Threaded Stack monorepo. It provides:
 
 - **Type definitions** for Express APIs, authentication, providers, and helpers
-- **Model classes** for core entities (User, Team, Repo, Provider)
+- **Model classes** for core entities (Organization, Project, ApiKey, Secret, Endpoint, Function, Role, Provider, User)
 - **Utility functions** for crypto, time, async handling, and data manipulation
 - **API helpers** for Express router wrapping, CORS, auth headers, and error handling
 - **Environment loading** utilities using `@keg-hub/parse-config`
 - **Custom error handling** with the `Exception` class
+
 
 This repo is consumed by `backend`, `proxy`, and `admin` repos as the single source of truth for shared logic.
 
@@ -167,24 +168,86 @@ class User extends Base {
 }
 ```
 
-### Team Model
+### Organization Model
 
 ```typescript
-class Team extends Base {
+class Organization extends Base {
   name: string
   description?: string
 }
 ```
 
-### Repo Model
+### Project Model
 
 ```typescript
-class Repo extends Base {
+class Project extends Base {
   name: string
-  teamId: string
+  orgId: string         // Organization ID (renamed from teamId)
   gitUrl?: string
   branch: string = 'main'
   meta: Record<string, any> = {}
+}
+```
+
+### ApiKey Model
+
+```typescript
+class ApiKey extends Base {
+  name: string
+  key?: string          // Only returned on creation (hashed in DB)
+  orgId: string
+  scopes: string[] = [] // Permission scopes (e.g., ['read:secrets', 'write:endpoints'])
+  rateLimit?: number    // Requests per minute
+  expiresAt?: string | Date
+  lastUsedAt?: string | Date
+}
+```
+
+### Secret Model
+
+```typescript
+class Secret extends Base {
+  name: string
+  value?: string        // Decrypted value (only when requested)
+  orgId?: string        // Exclusive arc: org OR project OR provider
+  projectId?: string
+  providerId?: string
+}
+```
+
+### Endpoint Model
+
+```typescript
+class Endpoint extends Base {
+  projectId: string
+  name: string
+  proxyUrl?: string
+  proxyMethod: string = 'GET'
+  proxyHeaders: Record<string, string> = {}
+  proxyOptions: Record<string, any> = {}
+  public: boolean = false
+}
+```
+
+### Function Model
+
+```typescript
+class Function extends Base {
+  endpointId: string
+  name: string
+  code?: string
+  runtime: string = 'typescript'
+  configuration: Record<string, any> = {}
+}
+```
+
+### Role Model
+
+```typescript
+class Role extends Base {
+  userId: string
+  orgId: string
+  role: string = 'member'  // 'owner' | 'admin' | 'member' | 'viewer'
 }
 ```
 
@@ -192,9 +255,11 @@ class Repo extends Base {
 
 ```typescript
 class Provider extends Base {
-  teamId?: string       // Exclusive arc: team OR user
+  orgId?: string        // Exclusive arc: org OR user OR project
   userId?: string
+  projectId?: string
   type: TProviderType   // 'ai' | 'git' | 'auth' | 'storage'
+  name: string
   options: Record<string, any> = {}
 }
 ```
@@ -363,8 +428,9 @@ All types use TypeScript generics for flexibility:
 
 ### Exclusive Arc Pattern
 
-The `Provider` model implements the exclusive arc pattern:
-- `teamId` OR `userId` (not both)
+Multiple models implement the exclusive arc pattern:
+- `Provider`: `orgId` XOR `userId` XOR `projectId`
+- `Secret`: `orgId` XOR `projectId` XOR `providerId`
 - Database enforces this with constraints
 - Matches the broader schema pattern used in `database` repo
 

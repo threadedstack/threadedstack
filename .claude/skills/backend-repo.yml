@@ -1,7 +1,7 @@
 ---
 name: "Threaded Stack - Backend Repo"
 description: "Knowledge base for the backend Core API repo"
-version: "1.0.0"
+version: "1.1.0"
 tags: ["express", "nodejs", "api", "websocket", "backend"]
 ---
 # Backend Repo Skill
@@ -10,7 +10,7 @@ tags: ["express", "nodejs", "api", "websocket", "backend"]
 
 The **Backend** repo (`repos/backend`) serves as the Core API server for Threaded Stack. It is built on Express 5 and acts as the central orchestration layer for:
 
-- **Admin CRUD operations** - User, team, and configuration management
+- **Admin CRUD operations** - Organization, project, user, API key, secret, endpoint, and provider management
 - **Proxy Engine** - Secure API proxying with secret injection and header transforms
 - **FaaS (Functions-as-a-Service)** - Serverless compute execution
 - **AI Engine** - LLM proxy with RAG and streaming capabilities
@@ -98,6 +98,13 @@ repos/backend/
 - **`src/endpoints/base/base.ts`** - Base endpoint returning status message
 - **`src/endpoints/base/health.ts`** - Health check endpoint
 - **`src/endpoints/auth/auth.ts`** - Authentication endpoint structure
+- **`src/endpoints/orgs/**`** - Organizations CRUD with member management
+- **`src/endpoints/users/**`** - Users CRUD operations
+- **`src/endpoints/projects/**`** - Projects CRUD (renamed from repos)
+- **`src/endpoints/apiKeys/**`** - API Keys with generation, scoping, rate limiting
+- **`src/endpoints/secrets/**`** - Secrets with AES-256-GCM encryption
+- **`src/endpoints/endpoints/**`** - Endpoint definitions CRUD
+- **`src/endpoints/providers/**`** - Provider configurations
 
 ### Utilities
 - **`src/utils/logger.ts`** - Winston logger configured from config
@@ -165,9 +172,61 @@ The middleware stack is set up in this critical order:
 
 All admin API routes are mounted under the admin path prefix (configured via `TDSK_BE_API_ADMIN_PATH`, default `/_`):
 
+**Organization Management:**
+- **GET `/_/orgs`** - List all organizations for user
+- **GET `/_/orgs/:id`** - Get organization by ID
+- **POST `/_/orgs`** - Create new organization
+- **PUT `/_/orgs/:id`** - Update organization
+- **DELETE `/_/orgs/:id`** - Delete organization
+- **GET `/_/orgs/:id/members`** - List organization members
+- **POST `/_/orgs/:id/members`** - Add member to organization
+- **DELETE `/_/orgs/:id/members/:userId`** - Remove member from organization
+
+**User Management:**
+- **GET `/_/users`** - List users
+- **GET `/_/users/:id`** - Get user by ID
+- **POST `/_/users`** - Create user
+- **PUT `/_/users/:id`** - Update user
+- **DELETE `/_/users/:id`** - Delete user
+
+**Project Management:**
+- **GET `/_/projects`** - List projects (optionally by org)
+- **GET `/_/projects/:id`** - Get project by ID
+- **POST `/_/projects`** - Create project
+- **PUT `/_/projects/:id`** - Update project
+- **DELETE `/_/projects/:id`** - Delete project
+
+**API Key Management:**
+- **GET `/_/api-keys`** - List API keys
+- **GET `/_/api-keys/:id`** - Get API key by ID
+- **POST `/_/api-keys`** - Generate new API key
+- **PUT `/_/api-keys/:id`** - Update API key (name, scopes, rate limits)
+- **DELETE `/_/api-keys/:id`** - Revoke API key
+
+**Secret Management:**
+- **GET `/_/secrets`** - List secrets (by org or project scope)
+- **GET `/_/secrets/:id`** - Get secret by ID
+- **POST `/_/secrets`** - Create encrypted secret
+- **PUT `/_/secrets/:id`** - Update secret
+- **DELETE `/_/secrets/:id`** - Delete secret
+
+**Endpoint Management:**
+- **GET `/_/endpoints`** - List endpoints
+- **GET `/_/endpoints/:id`** - Get endpoint by ID
+- **POST `/_/endpoints`** - Create endpoint
+- **PUT `/_/endpoints/:id`** - Update endpoint
+- **DELETE `/_/endpoints/:id`** - Delete endpoint
+
+**Provider Management:**
+- **GET `/_/providers`** - List providers
+- **GET `/_/providers/:id`** - Get provider by ID
+- **POST `/_/providers`** - Create provider
+- **PUT `/_/providers/:id`** - Update provider
+- **DELETE `/_/providers/:id`** - Delete provider
+
+**Base Routes:**
 - **GET `/_/`** - Base endpoint, returns status message
 - **GET `/_/health`** - Health check endpoint
-- **USE `/_/auth/*`** - Authentication routes (nested)
 
 Routes are protected by JWT authentication middleware except those in `AuthIgnore` list (`/`, `/health`).
 
@@ -260,7 +319,7 @@ Endpoints can specify middleware arrays that are composed:
 
 ```typescript
 {
-  path: '/admin',
+  path: '/_',
   middleware: [express.json(), authenticate],
   endpoints: { /* nested */ }
 }

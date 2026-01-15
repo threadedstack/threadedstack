@@ -113,8 +113,8 @@ docker (group)
 
 kube (group)
   ├── secret (group)
-  │   ├── auth (command)
   │   ├── tdsk (command)
+  │   ├── docker (command)
   │   └── database (command)
   ├── namespace (command)
   ├── ingress (command)
@@ -168,9 +168,12 @@ pnpm tdsk kube secret --name db-creds --file ./secrets/database.json
 
 # Multiple secrets
 pnpm tdsk kube secret --name app-config --secrets API_KEY:xxx,DB_URL:yyy
+
+# Docker registry secret (for pulling private images)
+pnpm tdsk kube secret docker --env prod --namespace production
 ```
 - Aliases: `kubectl`, `kb`, `kcl`
-- Sub-commands: `auth`, `tdsk`, `database` (preset configurations)
+- Sub-commands: `docker`, `tdsk`, `database` (preset configurations)
 - Options: `--name`, `--key`, `--value`, `--file`, `--files`, `--secrets`, `--keyvalue`, `--namespace`, `--literal`
 - Creates temporary files for secret values, then cleans up
 
@@ -516,8 +519,8 @@ pnpm tdsk docker build --context api --tag v2.0.0 --push
 # Create database secret from file
 pnpm tdsk kube secret database --env prod --namespace production
 
-# Create auth secret with preset values
-pnpm tdsk kube secret auth --env staging
+# Create Docker registry secret for pulling private images
+pnpm tdsk kube secret docker --env staging
 
 # Create custom secret
 pnpm tdsk kube secret --name app-config --secrets API_KEY:xxx,DB_URL:yyy

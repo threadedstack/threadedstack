@@ -3,9 +3,12 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
+import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * DELETE /api-keys/:id - Revoke/delete an API key
+ * Requires admin+ role
  */
 export const deleteApiKey: TEndpointConfig = {
   path: `/:id`,
@@ -25,6 +28,11 @@ export const deleteApiKey: TEndpointConfig = {
       res.status(404).json({ error: `API key not found` })
       return
     }
+
+    // Check permission based on API key's orgId - requires admin+
+    await checkPermission(req, EPermAction.delete, EPermResource.apiKey, {
+      orgId: existing.orgId,
+    })
 
     const { error } = await db.services.apiKey.revoke(id)
 

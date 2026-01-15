@@ -2,12 +2,14 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Endpoint } from '@tdsk/domain'
+import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { HttpMethods } from '@TBE/constants/values'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * PUT /endpoints/:id - Update an existing endpoint
+ * Requires member+ role
  */
 export const updateEndpoint: TEndpointConfig = {
   path: `/:id`,
@@ -29,6 +31,11 @@ export const updateEndpoint: TEndpointConfig = {
       res.status(404).json({ error: `Endpoint not found` })
       return
     }
+
+    // Check permission based on endpoint's projectId - requires member+
+    await checkPermission(req, EPermAction.update, EPermResource.endpoint, {
+      projectId: existing.projectId,
+    })
 
     // Validate HTTP method if provided
     if (method) {

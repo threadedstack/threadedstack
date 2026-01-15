@@ -2,11 +2,13 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { ApiKey } from '@tdsk/domain'
+import { ApiKey, EPermAction, EPermResource } from '@tdsk/domain'
 import { validateExpiresAt, validateApiScopes } from '@TBE/utils/auth/validateApiKey'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * PUT /api-keys/:id - Update an API key
+ * Requires admin+ role
  */
 export const updateApiKey: TEndpointConfig = {
   path: `/:id`,
@@ -27,6 +29,11 @@ export const updateApiKey: TEndpointConfig = {
       res.status(404).json({ error: `API key not found` })
       return
     }
+
+    // Check permission based on API key's orgId - requires admin+
+    await checkPermission(req, EPermAction.update, EPermResource.apiKey, {
+      orgId: existing.orgId,
+    })
 
     if (scopes) {
       const { valid, error } = validateApiScopes(scopes)

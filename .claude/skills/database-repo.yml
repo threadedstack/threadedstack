@@ -1,7 +1,7 @@
 ---
 name: "Threaded Stack - Database Repo"
 description: "Knowledge base for the database ORM & migrations repo"
-version: "1.0.0"
+version: "1.1.0"
 tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon"]
 ---
 # Database Repo Skill
@@ -16,6 +16,7 @@ The `repos/database` repository provides the **ORM layer and migration system** 
 - Provide type-safe database services (CRUD operations)
 - Implement polymorphic relationships via "Exclusive Arc" pattern
 - Handle database connection pooling and configuration
+- Convert database records to domain models (Organization, Project, ApiKey, etc.)
 
 **Database Provider:** Neon.com (PostgreSQL)
 **ORM:** Drizzle ORM v0.45.1
@@ -115,30 +116,35 @@ repos/database/
 
 ### Core Tables
 
-**12 main tables** organized by domain:
+**14 main tables** organized by domain:
 
-#### User & Team Management
+#### User & Organization Management
 - **`users`**: User accounts with Neon Auth integration
   - Fields: id, email, first, last, displayName, provider, photoUrl, timestamps
   - Unique index on email
-  - Relations: teams (via roles), assets, threads, providers
+  - Relations: organizations (via roles), assets, threads, providers
 
-- **`teams`**: Organizations/workspaces
+- **`organizations`**: Organizations/workspaces (renamed from `teams`)
   - Fields: id, name, description, timestamps
-  - Relations: users (via roles), repos, assets, secrets, configs, providers
+  - Relations: users (via roles), projects, assets, secrets, configs, providers, apiKeys
 
-- **`roles`**: Many-to-many user-team relationships
-  - Fields: id, userId, teamId, role, timestamps
-  - Implements user team membership
+- **`roles`**: Many-to-many user-organization relationships
+  - Fields: id, userId, orgId, role, timestamps
+  - Implements user organization membership
 
-#### Repository & Code Management
-- **`repos`**: Project repositories
-  - Fields: id, name, gitUrl, branch, teamId, meta (jsonb), timestamps
-  - Relations: team, endpoints, functions, assets, secrets, configs, providers
+- **`api_keys`**: API key management (NEW)
+  - Fields: id, name, key (hashed), orgId, scopes (jsonb), rateLimit, expiresAt, lastUsedAt, timestamps
+  - Relations: organization
+  - Features: Scoped permissions, rate limiting, expiration
+
+#### Project & Code Management
+- **`projects`**: Project repositories (renamed from `repos`)
+  - Fields: id, name, gitUrl, branch, orgId, meta (jsonb), timestamps
+  - Relations: organization, endpoints, functions, assets, secrets, configs, providers
 
 - **`endpoints`**: API proxy endpoints
-  - Fields: id, repoId, proxyUrl, proxyMethod, proxyHeaders (jsonb), proxyOptions (jsonb), public (boolean), timestamps
-  - Relations: repo, functions
+  - Fields: id, projectId, proxyUrl, proxyMethod, proxyHeaders (jsonb), proxyOptions (jsonb), public (boolean), timestamps
+  - Relations: project, functions
 
 - **`functions`**: FaaS function definitions
   - Fields: id, endpointId, code, runtime, configuration, timestamps
@@ -146,14 +152,15 @@ repos/database/
 
 #### Configuration & Secrets
 - **`configs`**: Configuration data (polymorphic - Exclusive Arc)
-  - Fields: id, data (jsonb), userId?, teamId?, repoId?, timestamps
-  - Constraint: Exactly ONE of userId/teamId/repoId must be set
-  - Relations: user, team, repo
+  - Fields: id, data (jsonb), userId?, orgId?, projectId?, timestamps
+  - Constraint: Exactly ONE of userId/orgId/projectId must be set
+  - Relations: user, organization, project
 
 - **`secrets`**: Encrypted secrets (polymorphic - Exclusive Arc)
-  - Fields: id, name, hashKey, encryptedValue, teamId?, repoId?, timestamps
-  - Constraint: Exactly ONE of teamId/repoId must be set
-  - Relations: team, repo
+  - Fields: id, name, hashKey, encryptedValue, orgId?, projectId?, providerId?, timestamps
+  - Constraint: Exactly ONE of orgId/projectId/providerId must be set
+  - Relations: organization, project, provider
+  - Encryption: AES-256-GCM with HKDF key derivation
 
 #### AI & Chat Features
 - **`threads`**: Chat conversation threads
@@ -180,7 +187,7 @@ repos/database/
 ### Implementation Pattern
 
 ```typescript
-// Example: secrets table belongs to EITHER team OR repo (not both)
+// Example: secrets table belongs to EITHER org OR project OR provider (not multiple)
 export const secrets = pgTable(
   'secrets',
   {
@@ -190,16 +197,20 @@ export const secrets = pgTable(
     encryptedValue: text('encrypted_value').notNull(),
 
     // Nullable foreign keys
-    teamId: uuid('team_id').references(() => teams.id, { onDelete: 'cascade' }),
-    repoId: uuid('repo_id').references(() => repos.id, { onDelete: 'cascade' }),
+    orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+    providerId: uuid('provider_id').references(() => providers.id, { onDelete: 'cascade' }),
   },
   (table) => [
     // Database constraint: exactly ONE must be set
     check(
       'secret_scope_check',
       sql`
-        (${table.teamId} IS NOT NULL AND ${table.repoId} IS NULL) OR
-        (${table.teamId} IS NULL AND ${table.repoId} IS NOT NULL)
+        (
+          (${table.orgId} IS NOT NULL)::int +
+          (${table.projectId} IS NOT NULL)::int +
+          (${table.providerId} IS NOT NULL)::int
+        ) = 1
       `
     ),
   ]
@@ -208,26 +219,29 @@ export const secrets = pgTable(
 
 ### Tables Using Exclusive Arc
 
-1. **`secrets`**: teamId XOR repoId
-2. **`configs`**: userId XOR teamId XOR repoId
-3. **`assets`**: userId XOR teamId XOR repoId
-4. **`providers`**: userId XOR teamId XOR repoId
+1. **`secrets`**: orgId XOR projectId XOR providerId
+2. **`configs`**: userId XOR orgId XOR projectId
+3. **`assets`**: userId XOR orgId XOR projectId
+4. **`providers`**: userId XOR orgId XOR projectId
 
 ### Constraint SQL Pattern
 
 ```sql
--- Two-way exclusive arc (e.g., secrets)
+-- Three-way exclusive arc (e.g., secrets)
 CHECK (
-  (team_id IS NOT NULL AND repo_id IS NULL) OR
-  (team_id IS NULL AND repo_id IS NOT NULL)
+  (
+    (org_id IS NOT NULL)::int +
+    (project_id IS NOT NULL)::int +
+    (provider_id IS NOT NULL)::int
+  ) = 1
 )
 
 -- Three-way exclusive arc (e.g., configs)
 CHECK (
   (
     (user_id IS NOT NULL)::int +
-    (team_id IS NOT NULL)::int +
-    (repo_id IS NOT NULL)::int
+    (org_id IS NOT NULL)::int +
+    (project_id IS NOT NULL)::int
   ) = 1
 )
 ```
@@ -245,7 +259,7 @@ CHECK (
 ```
 ┌──────────────────────────────────────┐
 │  Consumer Repos (backend, admin)    │  Import services
-│  db.services.team.create()          │
+│  db.services.org.create()           │
 └─────────────┬────────────────────────┘
               │
 ┌─────────────▼────────────────────────┐
@@ -293,7 +307,21 @@ export const database = (cfg: TDBConfig = config) => {
 import { database } from '@TDB/database'
 
 const db = database()
-const { data, error } = await db.services.team.create({ name: 'My Team' })
+const { data, error } = await db.services.org.create({ name: 'My Organization' })
+```
+
+### Model Conversion Pattern
+
+Services now include methods to convert database records to domain models:
+
+```typescript
+// Service returns database type + toModel() for domain conversion
+const { data } = await db.services.org.get(orgId)
+const orgModel = db.services.org.toModel(data)  // Returns Organization instance
+
+// Or use toModels() for arrays
+const { data: orgs } = await db.services.org.list()
+const orgModels = db.services.org.toModels(orgs)  // Returns Organization[]
 ```
 
 ## Logic Flow
@@ -304,11 +332,11 @@ const { data, error } = await db.services.team.create({ name: 'My Team' })
 Client Request → Service Method → Drizzle Query → PostgreSQL → Response
 ```
 
-**Example: Create Team**
+**Example: Create Organization**
 
 ```typescript
 // 1. Client calls service
-const { data, error } = await db.services.team.create({
+const { data, error } = await db.services.org.create({
   name: 'Acme Corp',
   description: 'Our company'
 })
@@ -328,12 +356,15 @@ create = async (data: I): Promise<TDBApiRes<S>> => {
 }
 
 // 3. Drizzle translates to SQL
-INSERT INTO teams (id, name, description, created_at, updated_at)
+INSERT INTO organizations (id, name, description, created_at, updated_at)
 VALUES (uuid_generate_v4(), 'Acme Corp', 'Our company', now(), now())
 RETURNING *;
 
 // 4. PostgreSQL executes and returns row
 // 5. Service returns { data: { id, name, description, ... } }
+
+// 6. Optionally convert to domain model
+const org = db.services.org.toModel(data)  // Returns Organization instance
 ```
 
 ### Migration Flow
@@ -390,16 +421,38 @@ export const teams = pgTable('teams', {
 All services extend Base class for consistent CRUD API:
 
 ```typescript
-// src/services/team.ts
-export class Team extends Base<typeof teams, TDBTeamSelect, TDBTeamInsert> {
-  constructor(opts: TTeamOpts) {
-    super({ ...opts, schema: teams })
+// src/services/org.ts
+export class Org extends Base<typeof organizations, TDBOrgSelect, TDBOrgInsert> {
+  constructor(opts: TOrgOpts) {
+    super({ ...opts, schema: organizations })
   }
 
   // Inherits: create, get, list, update, upsert, delete
-  // Can add custom methods here
+  // Model conversion methods
+  toModel(data: TDBOrgSelect): Organization
+  toModels(data: TDBOrgSelect[]): Organization[]
+
+  // Custom methods for org-specific operations
+  listMembers(orgId: string): Promise<TDBApiRes<TDBRoleSelect[]>>
+  addMember(orgId: string, userId: string, role: string): Promise<TDBApiRes<TDBRoleSelect>>
+  removeMember(orgId: string, userId: string): Promise<TDBApiRes<boolean>>
 }
 ```
+
+**Available Services:**
+- `org` - Organization CRUD + member management
+- `user` - User CRUD
+- `project` - Project CRUD (renamed from repo)
+- `apiKey` - API key generation and management
+- `secret` - Encrypted secret CRUD
+- `endpoint` - Endpoint CRUD
+- `function` - Function CRUD
+- `provider` - Provider CRUD
+- `role` - Role assignments
+- `config` - Configuration data
+- `asset` - Asset/file management
+- `thread` - Chat thread CRUD
+- `message` - Chat message CRUD
 
 ### 3. Type Inference Pattern
 
@@ -407,15 +460,20 @@ Types are automatically inferred from schemas:
 
 ```typescript
 // src/types/schema.types.ts
-export type TDBTeamSelect = typeof teams.$inferSelect
-export type TDBTeamInsert = typeof teams.$inferInsert
+export type TDBOrgSelect = typeof organizations.$inferSelect
+export type TDBOrgInsert = typeof organizations.$inferInsert
+export type TDBProjectSelect = typeof projects.$inferSelect
+export type TDBProjectInsert = typeof projects.$inferInsert
+export type TDBApiKeySelect = typeof apiKeys.$inferSelect
+export type TDBApiKeyInsert = typeof apiKeys.$inferInsert
+// ... etc for all tables
 
 // Consumer usage - fully type-safe
-const teamData: TDBTeamInsert = {
-  name: 'Team A',
+const orgData: TDBOrgInsert = {
+  name: 'Organization A',
   description: 'Description'
 }
-const result: TDBApiRes<TDBTeamSelect> = await db.services.team.create(teamData)
+const result: TDBApiRes<TDBOrgSelect> = await db.services.org.create(orgData)
 ```
 
 ### 4. Relation Definition Pattern
@@ -424,13 +482,15 @@ Drizzle relations are defined separately from table schemas:
 
 ```typescript
 // Define table
-export const teams = pgTable('teams', { ...base, name: text('name') })
+export const organizations = pgTable('organizations', { ...base, name: text('name') })
 
 // Define relations separately
-export const teamsRelations = relations(teams, ({ many }) => ({
-  users: many(roles),     // teams have many users via roles
-  repos: many(repos),     // teams have many repos
-  secrets: many(secrets), // teams have many secrets
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  users: many(roles),       // orgs have many users via roles
+  projects: many(projects), // orgs have many projects
+  secrets: many(secrets),   // orgs have many secrets
+  apiKeys: many(apiKeys),   // orgs have many API keys
+  providers: many(providers), // orgs have many providers
 }))
 ```
 
@@ -439,11 +499,11 @@ export const teamsRelations = relations(teams, ({ many }) => ({
 Foreign keys use `onDelete: 'cascade'` to maintain referential integrity:
 
 ```typescript
-repoId: uuid('repo_id')
-  .references(() => repos.id, { onDelete: 'cascade' })
+projectId: uuid('project_id')
+  .references(() => projects.id, { onDelete: 'cascade' })
   .notNull()
 
-// When repo is deleted, all related endpoints are automatically deleted
+// When project is deleted, all related endpoints are automatically deleted
 ```
 
 ### 6. JSONB for Flexible Data
@@ -451,7 +511,7 @@ repoId: uuid('repo_id')
 Complex/dynamic data stored as JSONB:
 
 ```typescript
-export const repos = pgTable('repos', {
+export const projects = pgTable('projects', {
   ...base,
   meta: jsonb('meta'),           // Arbitrary metadata
   name: text('name').notNull(),
@@ -461,6 +521,11 @@ export const endpoints = pgTable('endpoints', {
   ...base,
   proxyHeaders: jsonb('proxy_headers'),  // Dynamic headers
   proxyOptions: jsonb('proxy_options'),  // Dynamic options
+})
+
+export const apiKeys = pgTable('api_keys', {
+  ...base,
+  scopes: jsonb('scopes'),       // Array of permission scopes
 })
 ```
 

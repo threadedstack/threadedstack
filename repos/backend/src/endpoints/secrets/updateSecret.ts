@@ -2,16 +2,20 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import {
   Secret,
   deriveKey,
+  EPermAction,
   encryptValue,
+  EPermResource,
   createHashKey,
   encodeEncrypted,
 } from '@tdsk/domain'
 
 /**
  * PUT /secrets/:id - Update an existing secret
+ * Requires admin+ role
  */
 export const updateSecret: TEndpointConfig = {
   path: `/:id`,
@@ -32,6 +36,12 @@ export const updateSecret: TEndpointConfig = {
       res.status(404).json({ error: `Secret not found` })
       return
     }
+
+    // Check permission based on secret's scope - requires admin+
+    await checkPermission(req, EPermAction.update, EPermResource.secret, {
+      orgId: existing.orgId,
+      projectId: existing.projectId,
+    })
 
     try {
       const update = new Secret({ id })

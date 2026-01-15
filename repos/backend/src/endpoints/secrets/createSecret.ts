@@ -8,10 +8,14 @@ import {
   encryptValue,
   createHashKey,
   encodeEncrypted,
+  EPermAction,
+  EPermResource,
 } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * POST /secrets - Create a new secret
+ * Requires admin+ role in the org/project
  */
 export const createSecret: TEndpointConfig = {
   path: `/`,
@@ -47,6 +51,12 @@ export const createSecret: TEndpointConfig = {
       })
       return
     }
+
+    // Check permission - requires admin+
+    await checkPermission(req, EPermAction.create, EPermResource.secret, {
+      orgId,
+      projectId,
+    })
 
     try {
       // Derive encryption key using the owner's ID

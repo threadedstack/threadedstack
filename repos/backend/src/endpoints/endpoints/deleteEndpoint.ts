@@ -2,9 +2,12 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * DELETE /endpoints/:id - Delete an endpoint
+ * Requires admin+ role
  */
 export const deleteEndpoint: TEndpointConfig = {
   path: `/:id`,
@@ -24,6 +27,11 @@ export const deleteEndpoint: TEndpointConfig = {
       res.status(404).json({ error: `Endpoint not found` })
       return
     }
+
+    // Check permission based on endpoint's projectId - requires admin+
+    await checkPermission(req, EPermAction.delete, EPermResource.endpoint, {
+      projectId: existing.projectId,
+    })
 
     const { data, error } = await db.services.endpoint.delete(id)
 

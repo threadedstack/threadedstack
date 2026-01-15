@@ -2,9 +2,12 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * DELETE /secrets/:id - Delete a secret
+ * Requires admin+ role
  */
 export const deleteSecret: TEndpointConfig = {
   path: `/:id`,
@@ -24,6 +27,12 @@ export const deleteSecret: TEndpointConfig = {
       res.status(404).json({ error: `Secret not found` })
       return
     }
+
+    // Check permission based on secret's scope - requires admin+
+    await checkPermission(req, EPermAction.delete, EPermResource.secret, {
+      orgId: existing.orgId,
+      projectId: existing.projectId,
+    })
 
     const { error } = await db.services.secret.delete(id)
 

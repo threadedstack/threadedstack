@@ -22,7 +22,12 @@ import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
-import { orgsState, orgUsersState, activeOrgIdState } from '@TAF/state/orgs'
+import {
+  orgsState,
+  orgUsersState,
+  activeOrgIdState,
+  activeOrgRoleState,
+} from '@TAF/state/orgs'
 
 export const store = createStore()
 
@@ -50,6 +55,10 @@ export const setOrgs = (orgs: Record<string, Organization>) => store.set(orgsSta
 export const getActiveOrgId = () => store.get(activeOrgIdState)
 export const resetActiveOrgId = () => store.set(activeOrgIdState, undefined)
 export const setActiveOrgId = (id: string) => store.set(activeOrgIdState, id)
+
+export const getActiveOrgRole = () => store.get(activeOrgRoleState)
+export const resetActiveOrgRole = () => store.set(activeOrgRoleState, undefined)
+export const setActiveOrgRole = (role: string) => store.set(activeOrgRoleState, role)
 
 export const getProjects = () => store.get(projectsState)
 export const resetProjects = () => store.set(projectsState, undefined)

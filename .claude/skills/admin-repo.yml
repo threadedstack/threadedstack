@@ -8,7 +8,7 @@ tags: ["react", "vite", "mui", "jotai", "frontend", "admin-dashboard"]
 
 ## Overview
 
-The **Admin** repo (`repos/admin`) is the Single Page Application (SPA) dashboard for Threaded Stack. It provides the primary user interface for managing teams, repositories, providers, secrets, endpoints, and other platform resources. Built with modern React tooling, it uses Vite for blazing-fast HMR, MUI for UI components, and Jotai for lightweight state management.
+The **Admin** repo (`repos/admin`) is the Single Page Application (SPA) dashboard for Threaded Stack. It provides the primary user interface for managing **organizations**, **projects**, API keys, providers, secrets, endpoints, and other platform resources. Built with modern React tooling, it uses Vite for blazing-fast HMR, MUI for UI components, and Jotai for lightweight state management.
 
 **Key Characteristics:**
 - **Type**: Frontend SPA Dashboard
@@ -52,9 +52,21 @@ repos/admin/
     │   ├── Home/                 # Home page (dashboard)
     │   ├── Login/                # Login page (OAuth flows)
     │   ├── Account/              # User account settings
-    │   ├── Teams/                # Team management
-    │   ├── Repos/                # Repository management
-    │   ├── Providers/            # API provider management
+    │   ├── Orgs/                 # Organization management (renamed from Teams)
+    │   │   ├── Orgs.tsx          # Organizations list
+    │   │   ├── Org.tsx           # Single org dashboard
+    │   │   ├── OrgUsers.tsx      # Org user management
+    │   │   ├── OrgSecrets.tsx    # Org-level secrets
+    │   │   ├── OrgProviders.tsx  # Org-level providers
+    │   │   ├── OrgApiKeys.tsx    # API key management
+    │   │   └── OrgProjects.tsx   # Projects within org
+    │   ├── Projects/             # Project management (renamed from Repos)
+    │   │   ├── Projects.tsx      # Projects list
+    │   │   ├── Project.tsx       # Single project dashboard
+    │   │   ├── ProjectEndpoints.tsx   # Project endpoints
+    │   │   ├── ProjectSecrets.tsx     # Project-level secrets
+    │   │   ├── ProjectProviders.tsx   # Project-level providers
+    │   │   └── ProjectFunctions.tsx   # Project functions
     │   └── Page/                 # Base page component
     ├── components/               # Reusable UI components
     │   ├── Sidebar/              # Collapsible navigation sidebar
@@ -68,9 +80,13 @@ repos/admin/
     │   ├── user.ts               # User state atom
     │   ├── theme.ts              # Theme type state (light/dark)
     │   ├── app.ts                # App-level state (sidebar open)
-    │   ├── teams.ts              # Teams state + active team ID
-    │   ├── repos.ts              # Repos state + active repo ID
-    │   └── providers.ts          # Providers state
+    │   ├── orgs.ts               # Organizations state + active org ID
+    │   ├── projects.ts           # Projects state + active project ID
+    │   ├── providers.ts          # Providers state
+    │   ├── apiKeys.ts            # API keys state
+    │   ├── secrets.ts            # Secrets state
+    │   ├── endpoints.ts          # Endpoints state
+    │   └── functions.ts          # Functions state
     ├── services/                 # Singleton service classes
     │   ├── auth.ts               # Auth service (Neon Auth wrapper)
     │   ├── nav.ts                # Navigation service (routing utils)
@@ -135,19 +151,27 @@ Uses React Router 7's `createBrowserRouter` with:
 ```typescript
 enum ERoutePath {
   Home = `/`,
-  Teams = `/teams`,
-  Team = `/teams/:teamId`,
-  Repos = `/repos`,
-  Repo = `/repos/:repoId`,
-  Providers = `/providers`,
-  Secrets = `/secrets`,
+  Orgs = `/orgs`,
+  Org = `/orgs/:orgId`,
+  OrgUsers = `/orgs/:orgId/users`,
+  OrgSecrets = `/orgs/:orgId/secrets`,
+  OrgProviders = `/orgs/:orgId/providers`,
+  OrgSettings = `/orgs/:orgId/settings`,
+  OrgApiKeys = `/orgs/:orgId/api-keys`,  // NEW
+  OrgProjects = `/orgs/:orgId/projects`,
+  // Project routes (nested under orgs)
+  Project = `/orgs/:orgId/projects/:projectId`,
+  ProjectEndpoints = `/orgs/:orgId/projects/:projectId/endpoints`,
+  ProjectSecrets = `/orgs/:orgId/projects/:projectId/secrets`,
+  ProjectProviders = `/orgs/:orgId/projects/:projectId/providers`,
+  ProjectFunctions = `/orgs/:orgId/projects/:projectId/functions`,
+  ProjectSettings = `/orgs/:orgId/projects/:projectId/settings`,
+  // Other routes
   Settings = `/settings`,
   Profile = `/profile`,
   Auth = `/auth`,
   Login = `/auth/:pathname`,
   Account = `/account/:pathname`,
-  Endpoints = `/applications/:appId/endpoints`,
-  Endpoint = `/applications/:appId/endpoints/:endpointId`,
   ApiTokens = `/api-tokens`,
   AI = `/ai`,
   AIAgents = `/ai/agents`,
@@ -155,6 +179,8 @@ enum ERoutePath {
   Star = `*`
 }
 ```
+
+**Note**: Projects are now **nested under organizations** in the URL structure.
 
 ### State Management (Jotai)
 
@@ -171,11 +197,20 @@ export const store = createStore()
 - `themeTypeState` - Theme mode (light/dark)
 - `sidebarOpenState` - Sidebar expanded/collapsed
 - `userState` - Current authenticated user
-- `teamsState` - All teams (Record<id, Team>)
-- `activeTeamIdState` - Selected team ID
-- `reposState` - All repos (Record<id, Repo>)
-- `activeRepoIdState` - Selected repo ID
+- `orgsState` - All organizations (Record<id, Organization>)
+- `activeOrgIdState` - Selected organization ID
+- `orgUsersState` - Users in current org (Record<string, User[]>)
+- `projectsState` - All projects (Record<id, Project>)
+- `activeProjectIdState` - Selected project ID
 - `providersState` - API providers (Record<id, Provider>)
+- `secretsState` - Secrets (Record<id, Secret>)
+- `activeSecretIdState` - Selected secret ID
+- `apiKeysState` - API keys (Record<id, ApiKey>)
+- `activeApiKeyIdState` - Selected API key ID
+- `endpointsState` - Endpoints (Record<id, Endpoint>)
+- `activeEndpointIdState` - Selected endpoint ID
+- `functionsState` - Functions (Record<id, Function>)
+- `activeFunctionIdState` - Selected function ID
 
 **Accessors**:
 ```typescript
@@ -1129,6 +1164,18 @@ const data = await myService.getData()
 
 ---
 
-**Last Updated**: 2026-01-07
-**Version**: 1.0.0
+**Last Updated**: 2026-01-15
+**Version**: 1.1.0
 **Maintainer**: ThreadedStack Team
+
+## Changelog
+
+### v1.1.0 (2026-01-15)
+- **Breaking**: Teams renamed to Organizations (orgs)
+- **Breaking**: Repos renamed to Projects
+- **New**: API Keys management at org level
+- **New**: Secrets management at org and project levels
+- **New**: Endpoints and Functions at project level
+- **New**: User invitation and role management for orgs
+- **New**: Nested routing - Projects are under Organizations
+- **New**: Multiple new state atoms for all new entities

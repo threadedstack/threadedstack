@@ -366,18 +366,31 @@ The platform solves three key problems:
 ```
 Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External APIs/DB
                 ↓
-         Auth: /auth/*
-         Admin: /_/* → Backend Admin API
+         Health: /health (public)
+         Auth: /auth/me, /auth/logout
+         Admin: /admin/* → Backend Admin API
+            ├── /admin/orgs/*      - Organizations CRUD
+            ├── /admin/users/*     - Users CRUD
+            ├── /admin/projects/*  - Projects CRUD
+            ├── /admin/api-keys/*  - API Keys CRUD
+            ├── /admin/secrets/*   - Secrets CRUD (encrypted)
+            ├── /admin/endpoints/* - Endpoints CRUD
+            └── /admin/providers/* - Providers CRUD
          Proxy: /proxy/* → Backend Proxy Engine
          FaaS: /faas/* → Backend Compute Engine
          AI: /ai/* → Backend AI Engine
 ```
 
+**Authentication Flow**:
+- Client-side auth via Neon Auth (social login)
+- Proxy validates JWT using JWKS from Neon
+- Protected routes require valid JWT token
+
 ### Workspace Structure (`repos/`)
 
 | Directory | Role | Tech | Skill |
 |-----------|------|------|-------|
-| `proxy/` | Auth Gateway - single entry point for all external traffic | Express, JWT, http-proxy | `.claude/skills/proxy-repo.yml` |
+| `proxy/` | Auth Gateway - JWT/JWKS validation, backend proxying | Express 5, jose, http-proxy-middleware | `.claude/skills/proxy-repo.yml` |
 | `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/backend-repo.yml` |
 | `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/admin-repo.yml` |
 | `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/database-repo.yml` |
@@ -399,14 +412,14 @@ Load the relevant skill when working on a specific repo:
 ### Available Skills
 | Skill File | Contents |
 |------------|----------|
-| `admin-repo.yml` | React/Vite architecture, Jotai state, MUI theming, Neon Auth, routing patterns |
-| `backend-repo.yml` | Express 5 API structure, middleware patterns, route organization, WebSocket setup |
-| `cli-repo.yml` | CLI command structure, DevOps orchestration, task system, Docker/K8s integration |
-| `components-repo.yml` | 30+ React components, 25+ hooks, Monaco editor integration, MUI patterns |
-| `database-repo.yml` | Drizzle ORM patterns, schema definitions, Exclusive Arc pattern, migrations |
-| `domain-repo.yml` | TypeScript types, models, crypto utilities, Express helpers, error handling |
-| `logger-repo.yml` | Winston configuration, transports, secret redaction, Express middleware |
-| `proxy-repo.yml` | Auth gateway architecture, JWT handling, route forwarding, middleware chain |
+| `admin-repo.yml` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services |
+| `backend-repo.yml` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware |
+| `cli-repo.yml` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
+| `components-repo.yml` | 30+ React components, 25+ hooks, Monaco editor, Confirm loading state |
+| `database-repo.yml` | Drizzle ORM, organizations/projects schemas, apiKeys table, model converters |
+| `domain-repo.yml` | Organization/Project/ApiKey/Secret/Endpoint/Function models, crypto utilities |
+| `logger-repo.yml` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
+| `proxy-repo.yml` | JWKS auth validation, http-proxy-middleware backend forwarding, full implementation |
 
 ### Database & Authentication
 
@@ -420,9 +433,9 @@ Load the relevant skill when working on a specific repo:
 
 ### Database Schema (Exclusive Arc Pattern)
 
-Key tables: `orgs`, `users`, `projects`, `endpoints`, `functions`, `configs`, `providers`, `secrets`, `roles`, `threads`, `messages`, `assets`
+Key tables: `organizations`, `users`, `projects`, `endpoints`, `functions`, `configs`, `providers`, `secrets`, `api_keys`, `roles`, `threads`, `messages`, `assets`
 
-Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR Repo (not both).
+Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR Project OR Provider (exactly one, not multiple).
 
 ## Common Commands
 

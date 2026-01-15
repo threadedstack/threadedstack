@@ -1,6 +1,10 @@
-import { useUser } from '@TAF/state/selectors'
+import { usePermissions } from './usePermissions'
 
+/**
+ * Simple hook to check if user is admin or higher
+ * @deprecated Use usePermissions() for more granular checks
+ */
 export const useIsAdmin = () => {
-  const [user] = useUser()
-  return user?.role === `admin`
+  const { isAdmin } = usePermissions()
+  return isAdmin
 }

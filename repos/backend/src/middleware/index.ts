@@ -1,3 +1,4 @@
+export * from './authorize'
 export * from './setupAuth'
 export * from './setupProxy'
 export * from './setupServer'

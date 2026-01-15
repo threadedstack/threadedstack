@@ -474,7 +474,7 @@ Each repo loads envs in `src/constants/envs.ts` or via scripts in `scripts/loadE
 | `express` | Web framework (v5) |
 | `express-async-handler` | Async error handling |
 | `http-proxy-middleware` | Proxy requests |
-| `jsonwebtoken` | JWT handling |
+| `jose` | JWT/JWKS validation |
 | `cors` | CORS middleware |
 | `winston` | Logging |
 
@@ -497,21 +497,36 @@ Each repo loads envs in `src/constants/envs.ts` or via scripts in `scripts/loadE
 
 ## Current Project State
 
-### Completed Features (Epic 1 Progress)
+### Completed Features (Epic 1)
 - Monorepo structure with pnpm workspaces
-- Database schemas for all entities (orgs, users, projects, etc.)
-- Database models with CRUD operations
-- Basic backend server structure with Express 5
-- Admin UI skeleton with MUI theming and routing
-- Login page with social auth buttons (GitHub, GitLab, Google, Vercel)
-- Sidebar navigation structure
+- Database schemas: `organizations`, `users`, `projects`, `api_keys`, `secrets`, `endpoints`, `functions`, `roles`, etc.
+- Database services with CRUD operations and domain model conversion
+- Backend API endpoints fully implemented:
+  - `/admin/orgs/*` - Organizations with member management
+  - `/admin/users/*` - Users CRUD
+  - `/admin/projects/*` - Projects CRUD (renamed from repos)
+  - `/admin/api-keys/*` - API keys with generation, scoping, rate limiting
+  - `/admin/secrets/*` - Secrets with AES-256-GCM encryption
+  - `/admin/endpoints/*` - Endpoints CRUD
+  - `/admin/providers/*` - Providers (partial)
+- Proxy server fully implemented:
+  - JWKS-based JWT validation via Neon Auth (jose library)
+  - http-proxy-middleware backend forwarding
+  - Health check, /auth/me, /auth/logout endpoints
+- Admin UI with complete routing:
+  - Organizations with nested Projects navigation
+  - API Keys management at org level
+  - Secrets management at org and project levels
+  - User invitation and role management
+  - Providers management
+- Domain models: Organization, Project, ApiKey, Secret, Endpoint, Function, Role, Provider
+
 
 ### In Progress / Not Started
-- Auth flow integration with Neon Auth
-- Backend API endpoints (Orgs, Users, Projects CRUD)
-- Admin pages for Orgs and Projects management
-- Proxy server forwarding logic
-- Protected route wrappers
+- Provider endpoints business logic (stubs exist)
+- Permission system based on user roles (RBAC)
+- FaaS execution (Epic 3)
+- AI features and integrations (Epic 4)
 
 ---
 

@@ -82,11 +82,22 @@ repos/logger/
 ### Utilities
 
 **`src/utils/buildLogger.ts`** - Winston Factory
-- Creates Winston logger instances
+- Creates Winston logger instances via `buildLogger()` (general use) or `buildApiLogger()` (API services)
 - Transports: Console only (configurable)
 - Formatters: `simple`, `json`, `prettyPrint` (dev), `timestamp`, `label`
 - Filters OPTIONS requests from logs
 - Singleton pattern for default logger
+
+**`buildApiLogger()`** - Factory for API-specific loggers:
+```typescript
+// Creates a pre-configured logger for API services
+const logger = buildApiLogger({
+  label: 'Backend API',
+  level: 'info',
+  pretty: true,  // Enable pretty printing in dev
+  silent: false,
+})
+```
 
 **`src/utils/safeReplacer.ts`** - Secret Redaction
 - Redacts sensitive data from logs: passwords, tokens, API keys, secrets, credit cards
@@ -429,7 +440,7 @@ pnpm clean                 # Remove node_modules
 export { Logger, Log } from './logger'              // CLI Logger
 export { ApiLogger, setupLogger } from './apiLogger' // API Logger
 export { setupLoggerReq, setupLoggerErr } from './middleware' // Middleware
-export { buildLogger } from './utils/buildLogger'   // Factory
+export { buildLogger, buildApiLogger } from './utils/buildLogger' // Factories
 export { levels, levelMap } from './utils/levels'   // Levels
 export { colors } from './utils/colors'             // Colors
 export { stripColors } from './utils/stripColors'   // Utilities
