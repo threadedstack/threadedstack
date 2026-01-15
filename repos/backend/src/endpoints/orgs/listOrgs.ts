@@ -21,7 +21,6 @@ export const listOrgs: TEndpointConfig = {
       return
     }
 
-    // Check if user is super admin
     const userRole = await getUserRole(req, {})
     const isSuper = isSuperAdmin(userRole)
 
@@ -38,7 +37,6 @@ export const listOrgs: TEndpointConfig = {
       return
     }
 
-    // Get user's org IDs
     const { data: orgIds, error: orgIdsError } =
       await db.services.role.getUserOrgs(userId)
 

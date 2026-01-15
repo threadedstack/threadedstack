@@ -73,7 +73,11 @@ export class Base<
 
   list = async (opts?: TDBSelectOpts): Promise<TDBApiRes<M[]>> => {
     try {
-      // TODO: Expand this to handle `opts` for limit/offset
+      /**
+       * TODO: Expand this to handle `opts` for limit/offset
+       * Need a dynamic way to add a where clause, i.e. `WHERE org.id in (ids)`
+       * This is needed for roles and permissions
+       */
       const resp = await this.db.select().from(this.table as TTableSchema)
       return { data: resp.map((item) => this.model(item)) as M[] }
     } catch (error: any) {

@@ -1,5 +1,5 @@
 import type { TRequest } from '@TBE/types'
-import type { EPermAction, EPermResource } from '@tdsk/domain'
+import type { User, EPermAction, EPermResource } from '@tdsk/domain'
 
 import { Exception } from '@TBE/utils/errors/exception'
 import {
@@ -16,6 +16,23 @@ export type TPermissionContext = {
   resourceId?: string
 }
 
+// TODO: Need to add way for users to create orgs
+// If the user creates the org, then they are a super admin of that org
+// If invite to org, it's what ever permissions is given to them on invite
+
+/**
+ * Need to change this, do not want to allow and admin user to see all orgs
+ * Major security issue
+ */
+export const isNeonAdmin = (user: User) => {
+  // Check if user is super admin (platform-wide)
+  // If the role directly on the auth user is admin, then they are a super user
+  // This can only be set within the Neon Auth UI
+  // It is a role field managed by Neon and on the Threaded-Stack app
+  // It is for Threaded-Stack Admin only
+  if (user?.role === ERoleType.admin) return true
+}
+
 /**
  * Get user`s effective role for the given context
  * Checks org-level and project-level roles, returns highest
@@ -27,13 +44,10 @@ export const getUserRole = async (
   const { db } = req.app.locals
   const userId = req.user?.id
 
-  if (!userId) {
-    return ERoleType.viewer // Unauthenticated
-  }
+  if (!userId) return ERoleType.viewer
 
-  // Check if user is super admin (platform-wide)
-  // This would typically be stored in the user record or a separate admin table
-  // For now, we`ll check via a specific role entry with no org/project
+  // Check if user is super admin (platform-wide), can only be set within the Neon Auth UI
+  if (isNeonAdmin(req.user)) return ERoleType.super
 
   const roles: ERoleType[] = []
 
@@ -51,9 +65,7 @@ export const getUserRole = async (
       userId,
       context.projectId
     )
-    if (projectRole?.type) {
-      roles.push(projectRole.type as ERoleType)
-    }
+    if (projectRole?.type) roles.push(projectRole.type as ERoleType)
   }
 
   // Return highest role, or viewer if no roles found
@@ -73,19 +85,16 @@ export const checkPermission = async (
   const userRole = await getUserRole(req, context)
 
   // Super admins can do anything
-  if (isSuperAdmin(userRole)) {
-    return
-  }
+  if (isSuperAdmin(userRole)) return
 
   const result = canPerform(userRole, action, resource)
 
-  if (!result.allowed) {
+  if (!result.allowed)
     throw new Exception(
       403,
       result.reason || `Permission denied: cannot ${action} ${resource}`,
       `FORBIDDEN`
     )
-  }
 }
 
 /**
@@ -96,15 +105,15 @@ export const requireOrgMember = async (req: TRequest, orgId: string): Promise<vo
   const { db } = req.app.locals
   const userId = req.user?.id
 
-  if (!userId) {
-    throw new Exception(401, `Authentication required`, `UNAUTHORIZED`)
-  }
+  // TODO: remove this - update my user to be super-admin of threaded stack org
+  if (isNeonAdmin(req.user)) return
+
+  if (!userId) throw new Exception(401, `Authentication required`, `UNAUTHORIZED`)
 
   const { data: isMember } = await db.services.role.isOrgMember(userId, orgId)
 
-  if (!isMember) {
+  if (!isMember)
     throw new Exception(403, `You are not a member of this organization`, `FORBIDDEN`)
-  }
 }
 
 /**
@@ -118,15 +127,14 @@ export const requireProjectMember = async (
   const { db } = req.app.locals
   const userId = req.user?.id
 
-  if (!userId) {
-    throw new Exception(401, `Authentication required`, `UNAUTHORIZED`)
-  }
+  if (isNeonAdmin(req.user)) return
+
+  if (!userId) throw new Exception(401, `Authentication required`, `UNAUTHORIZED`)
 
   const { data: isMember } = await db.services.role.isProjectMember(userId, projectId)
 
-  if (!isMember) {
+  if (!isMember)
     throw new Exception(403, `You are not a member of this project`, `FORBIDDEN`)
-  }
 }
 
 /**
@@ -140,11 +148,10 @@ export const requireMinRole = async (
 ): Promise<void> => {
   const userRole = await getUserRole(req, context)
 
-  if (!hasMinRole(userRole, requiredRole)) {
+  if (!hasMinRole(userRole, requiredRole))
     throw new Exception(
       403,
       `This action requires ${requiredRole} role or higher`,
       `FORBIDDEN`
     )
-  }
 }
