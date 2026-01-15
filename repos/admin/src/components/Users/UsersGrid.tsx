@@ -1,12 +1,12 @@
-import type { TUserWithRole } from './Users'
+import type { User } from '@tdsk/domain'
 
 import { Grid } from '@mui/material'
 import { UserCard } from './UserCard'
 
 export type TUsersGrid = {
-  users: TUserWithRole[]
-  onEditRole: (user: TUserWithRole) => void
-  onRemoveUser: (user: TUserWithRole) => void
+  users: User[]
+  onEditRole: (user: User) => void
+  onRemoveUser: (user: User) => void
 }
 
 export const UsersGrid = ({ users, onEditRole, onRemoveUser }: TUsersGrid) => {

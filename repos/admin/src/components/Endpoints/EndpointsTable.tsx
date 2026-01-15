@@ -14,9 +14,9 @@ import {
 } from '@mui/material'
 import {
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Lock as PrivateIcon,
   Public as PublicIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material'
 
 export type TEndpointsTable = {

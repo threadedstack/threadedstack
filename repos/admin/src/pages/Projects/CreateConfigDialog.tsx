@@ -1,18 +1,16 @@
 import { useState } from 'react'
+import { Dialog } from '@tdsk/components'
 import { createConfig } from '@TAF/actions/configs'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 import {
   Box,
-  Alert,
-  Dialog,
   Button,
   Select,
   MenuItem,
   TextField,
   InputLabel,
   FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from '@mui/material'
 
 export type TCreateConfigDialog = {
@@ -113,19 +111,18 @@ export const CreateConfigDialog = ({
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>Create Configuration</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title='Create Configuration'
+      content={
+        <form
+          id='create-config-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             <TextField
@@ -190,23 +187,27 @@ export const CreateConfigDialog = ({
               }
             />
           </Box>
-        </DialogContent>
-        <DialogActions>
+        </form>
+      }
+      actions={
+        <>
           <Button
             onClick={onClose}
             disabled={loading}
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             type='submit'
+            form='create-config-form'
             variant='contained'
-            disabled={loading}
+            loading={loading}
+            loadingText='Creating...'
           >
-            {loading ? 'Creating...' : 'Create Config'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+            Create Config
+          </LoadingButton>
+        </>
+      }
+    />
   )
 }

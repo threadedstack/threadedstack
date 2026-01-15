@@ -1,15 +1,9 @@
 import { useState } from 'react'
+import { Box, Button, TextField } from '@mui/material'
+import { Dialog } from '@tdsk/components'
 import { createProject } from '@TAF/actions/projects'
-import {
-  Box,
-  Alert,
-  Dialog,
-  Button,
-  TextField,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
 export type TCreateOrgProjectDialog = {
   open: boolean
@@ -73,19 +67,18 @@ export const CreateOrgProjectDialog = ({
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>Create New Project</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title='Create New Project'
+      content={
+        <form
+          id='create-org-project-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             <TextField
@@ -117,23 +110,27 @@ export const CreateOrgProjectDialog = ({
               disabled={loading}
             />
           </Box>
-        </DialogContent>
-        <DialogActions>
+        </form>
+      }
+      actions={
+        <>
           <Button
             onClick={onClose}
             disabled={loading}
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             type='submit'
+            form='create-org-project-form'
             variant='contained'
-            disabled={loading}
+            loading={loading}
+            loadingText='Creating...'
           >
-            {loading ? 'Creating...' : 'Create Project'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+            Create Project
+          </LoadingButton>
+        </>
+      }
+    />
   )
 }

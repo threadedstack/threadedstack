@@ -10,6 +10,10 @@ const listUsers: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
   action: async (req: Request, res: Response): Promise<void> => {
+    // TODO: update user roles based on the org and project the users are loaded for
+    // Add permissions check
+    // Need to add middleware to set the org and project
+
     const { db } = req.app.locals
     const { data, error } = await db.services.user.list()
 
@@ -29,6 +33,10 @@ const getUser: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Get,
   action: async (req: Request, res: Response): Promise<void> => {
+    // TODO: update user role based on the org and project the users are loaded for
+    // Add permissions check
+    // Need to add middleware to set the org and project
+
     const { id } = req.params
     const { db } = req.app.locals
     const { data, error } = await db.services.user.get(id)
@@ -54,6 +62,10 @@ const createUser: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
   action: async (req: Request, res: Response): Promise<void> => {
+    // TODO: update user role based on the org and project the users are loaded for
+    // Add permissions check
+    // Need to add middleware to set the org and project
+
     const { db } = req.app.locals
     const userData = req.body
 
@@ -80,6 +92,10 @@ const updateUser: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
   action: async (req: Request, res: Response): Promise<void> => {
+    // TODO: update user role based on the org and project the users are loaded for
+    // Add permissions check
+    // Need to add middleware to set the org and project
+
     const { id } = req.params
     const { db } = req.app.locals
     const userData = req.body
@@ -116,6 +132,10 @@ const deleteUser: TEndpointConfig = {
   method: EPMethod.Delete,
   action: async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params
+    // TODO: update user role based on the org and project the users are loaded for
+    // Add permissions check
+    // Need to add middleware to set the org and project
+
     const { db } = req.app.locals
 
     // Check if user exists first

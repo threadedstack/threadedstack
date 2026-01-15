@@ -9,6 +9,7 @@ import { CreateConfigDialog } from './CreateConfigDialog'
 import { useProjects, useConfigs } from '@TAF/state/selectors'
 import { fetchProject, updateProject, deleteProject } from '@TAF/actions/projects'
 import { setActiveOrgId, setActiveprojectId } from '@TAF/state/accessors'
+import { LoadingSpinner, ErrorAlert } from '@TAF/components'
 import {
   SettingsFormCard,
   InfoCard,
@@ -39,13 +40,13 @@ import {
   CardContent,
   InputAdornment,
   TableContainer,
-  CircularProgress,
 } from '@mui/material'
 
 export type TProjectSettings = {}
 
 export const ProjectSettings = (props: TProjectSettings) => {
   const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>()
+
   const navigate = useNavigate()
   const [projects] = useProjects()
   const [configs] = useConfigs()
@@ -201,19 +202,14 @@ export const ProjectSettings = (props: TProjectSettings) => {
         </Typography>
       </Box>
 
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
+      {loading && <LoadingSpinner />}
 
       {error && (
-        <Alert
-          severity='error'
+        <ErrorAlert
+          message={error}
+          onClose={() => setError(null)}
           sx={{ mb: 3 }}
-        >
-          {error}
-        </Alert>
+        />
       )}
 
       {success && (
@@ -261,10 +257,16 @@ export const ProjectSettings = (props: TProjectSettings) => {
               { label: 'Project ID', value: project.id, copyable: true },
               { label: 'Org ID', value: project.orgId, copyable: true },
               ...(project.createdAt
-                ? [{ label: 'Created', value: project.createdAt, isDate: true }]
+                ? [{ label: 'Created', value: String(project.createdAt), isDate: true }]
                 : []),
               ...(project.updatedAt
-                ? [{ label: 'Last Updated', value: project.updatedAt, isDate: true }]
+                ? [
+                    {
+                      label: 'Last Updated',
+                      value: String(project.updatedAt),
+                      isDate: true,
+                    },
+                  ]
                 : []),
             ]}
             onCopy={onCopySuccess}

@@ -1,19 +1,14 @@
+import type { TRoleType } from '@tdsk/domain'
+
 import { useState } from 'react'
-import { usersApi } from '@TAF/services'
-import {
-  Box,
-  Alert,
-  Button,
-  Select,
-  Dialog,
-  MenuItem,
-  TextField,
-  InputLabel,
-  FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material'
+import { ERoleType } from '@tdsk/domain'
+import { Box, Button } from '@mui/material'
+import { AuthRoles } from '@TAF/constants/values'
+import { isEmail } from '@keg-hub/jsutils/isEmail'
+import { inviteToOrg } from '@TAF/actions/users/inviteToOrg'
+import { Dialog, TextInput, SelectInput } from '@tdsk/components'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
 export type TInviteUserDialog = {
   open: boolean
@@ -22,6 +17,7 @@ export type TInviteUserDialog = {
   onSuccess: () => void
 }
 
+// TODO: Add checks if current user has admin permission to invite other users
 export const InviteUserDialog = ({
   open,
   orgId,
@@ -29,14 +25,14 @@ export const InviteUserDialog = ({
   onSuccess: onSuccessCB,
 }: TInviteUserDialog) => {
   const [email, setEmail] = useState('')
-  const [roleType, setRoleType] = useState<'admin' | 'basic'>('basic')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [roleType, setRoleType] = useState<TRoleType>(ERoleType.basic)
 
   const onClose = () => {
     if (!loading) {
       setEmail('')
-      setRoleType('basic')
+      setRoleType(ERoleType.basic)
       setError(null)
       onCloseCB?.()
     }
@@ -46,28 +42,24 @@ export const InviteUserDialog = ({
     e.preventDefault()
 
     if (!email.trim()) {
-      setError('Email is required')
+      setError(`Email is required`)
       return
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address')
+    if (!isEmail(email)) {
+      setError(`Please enter a valid email address`)
       return
     }
 
     setLoading(true)
     setError(null)
 
-    const resp = await usersApi.inviteToOrg(orgId, {
-      email: email.trim(),
-      roleType,
-    })
+    const resp = await inviteToOrg(orgId, email.trim(), roleType)
 
     setLoading(false)
 
     if (resp.error) {
-      setError(resp.error.message || 'Failed to invite user. Please try again.')
+      setError(resp.error.message || `Failed to invite user. Please try again.`)
     } else {
       onSuccessCB?.()
     }
@@ -75,70 +67,65 @@ export const InviteUserDialog = ({
 
   return (
     <Dialog
-      fullWidth
       open={open}
       maxWidth='sm'
       onClose={onClose}
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>Invite User to Organization</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title='Invite User to Organization'
+      content={
+        <form
+          id='invite-user-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
-            <TextField
-              autoFocus
-              label='Email Address'
-              type='email'
-              placeholder='user@example.com'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+            <TextInput
               required
               fullWidth
+              type='email'
+              value={email}
+              id='user-email'
               disabled={loading}
+              label='Email Address'
+              placeholder='user@example.com'
+              onChange={(e) => setEmail(e.target.value)}
             />
 
-            <FormControl
-              fullWidth
+            <SelectInput
+              id='user-role'
+              label='Role'
+              value={roleType}
+              items={AuthRoles}
               disabled={loading}
-            >
-              <InputLabel id='role-select-label'>Role</InputLabel>
-              <Select
-                labelId='role-select-label'
-                id='role-select'
-                value={roleType}
-                label='Role'
-                onChange={(e) => setRoleType(e.target.value as 'admin' | 'basic')}
-              >
-                <MenuItem value='basic'>Basic - Standard access</MenuItem>
-                <MenuItem value='admin'>Admin - Full org management</MenuItem>
-              </Select>
-            </FormControl>
+              onChange={(e) => setRoleType(e.target.value as TRoleType)}
+            />
           </Box>
-        </DialogContent>
-        <DialogActions>
+        </form>
+      }
+      actions={
+        <>
           <Button
             onClick={onClose}
             disabled={loading}
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             type='submit'
+            loading={loading}
             variant='contained'
-            disabled={loading}
+            form='invite-user-form'
+            loadingText='Inviting...'
           >
-            {loading ? 'Inviting...' : 'Send Invite'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+            Send Invite
+          </LoadingButton>
+        </>
+      }
+    />
   )
 }

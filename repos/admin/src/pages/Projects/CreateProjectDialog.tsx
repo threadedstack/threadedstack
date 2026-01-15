@@ -1,22 +1,20 @@
 import { useState, useEffect } from 'react'
+import { ife } from '@keg-hub/jsutils/ife'
+import { Dialog } from '@tdsk/components'
+import { useOrgs } from '@TAF/state/selectors'
+import { fetchOrgs } from '@TAF/actions/orgs'
+import { createProject } from '@TAF/actions/projects'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 import {
   Box,
-  Alert,
   Select,
-  Dialog,
   Button,
   MenuItem,
   TextField,
   InputLabel,
   FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from '@mui/material'
-import { ife } from '@keg-hub/jsutils/ife'
-import { createProject } from '@TAF/actions/projects'
-import { fetchOrgs } from '@TAF/actions/orgs'
-import { useOrgs } from '@TAF/state/selectors'
 
 export type TCreateProjectDialog = {
   open: boolean
@@ -86,19 +84,18 @@ export const CreateProjectDialog = ({ open, onClose }: TCreateProjectDialog) => 
       open={open}
       onClose={handleClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={handleSubmit}>
-        <DialogTitle>Create New Project</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title='Create New Project'
+      content={
+        <form
+          id='create-project-form'
+          onSubmit={handleSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             <TextField
@@ -161,23 +158,28 @@ export const CreateProjectDialog = ({ open, onClose }: TCreateProjectDialog) => 
               disabled={loading}
             />
           </Box>
-        </DialogContent>
-        <DialogActions>
+        </form>
+      }
+      actions={
+        <>
           <Button
             onClick={handleClose}
             disabled={loading}
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             type='submit'
+            form='create-project-form'
             variant='contained'
-            disabled={loading || orgsArray.length === 0}
+            loading={loading}
+            disabled={orgsArray.length === 0}
+            loadingText='Creating...'
           >
-            {loading ? 'Creating...' : 'Create Project'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+            Create Project
+          </LoadingButton>
+        </>
+      }
+    />
   )
 }

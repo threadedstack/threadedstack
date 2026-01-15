@@ -1,15 +1,9 @@
 import { useState } from 'react'
+import { Box, Button, TextField } from '@mui/material'
+import { Dialog } from '@tdsk/components'
 import { createOrg } from '@TAF/actions/orgs'
-import {
-  Box,
-  Alert,
-  Dialog,
-  Button,
-  TextField,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
 export type TCreateOrgDialog = {
   open: boolean
@@ -61,19 +55,18 @@ export const CreateOrgDialog = ({ open, onClose }: TCreateOrgDialog) => {
       open={open}
       onClose={handleClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={handleSubmit}>
-        <DialogTitle>New Organization</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title='New Organization'
+      content={
+        <form
+          id='create-org-form'
+          onSubmit={handleSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             <TextField
@@ -98,23 +91,27 @@ export const CreateOrgDialog = ({ open, onClose }: TCreateOrgDialog) => {
               disabled={loading}
             />
           </Box>
-        </DialogContent>
-        <DialogActions>
+        </form>
+      }
+      actions={
+        <>
           <Button
             onClick={handleClose}
             disabled={loading}
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             type='submit'
+            form='create-org-form'
             variant='contained'
-            disabled={loading}
+            loading={loading}
+            loadingText='Creating...'
           >
-            {loading ? 'Creating...' : 'Create'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+            Create
+          </LoadingButton>
+        </>
+      }
+    />
   )
 }

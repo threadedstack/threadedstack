@@ -3,20 +3,11 @@ import type { Provider, TProviderType } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
 import { ProviderTypes } from '@TAF/constants/providers'
 import { createProvider, updateProvider, deleteProvider } from '@TAF/actions/providers'
-import {
-  Box,
-  Alert,
-  Select,
-  Button,
-  Dialog,
-  MenuItem,
-  TextField,
-  InputLabel,
-  FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material'
+import { Box, Button } from '@mui/material'
+import { Dialog, TextInput, SelectInput } from '@tdsk/components'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
 
 export type TProviderDialog = {
   open: boolean
@@ -138,52 +129,31 @@ export const ProviderDialog = ({
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>{isEditMode ? 'Edit Provider' : 'Create New Provider'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title={isEditMode ? 'Edit Provider' : 'Create New Provider'}
+      content={
+        <form
+          id='provider-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             {isEditMode && showDeleteConfirm && (
-              <Alert
-                severity='warning'
-                action={
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      color='inherit'
-                      size='small'
-                      onClick={() => setShowDeleteConfirm(false)}
-                      disabled={loading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      color='inherit'
-                      size='small'
-                      onClick={onDelete}
-                      disabled={loading}
-                    >
-                      {loading ? 'Deleting...' : 'Confirm'}
-                    </Button>
-                  </Box>
-                }
-              >
-                Are you sure you want to delete "
-                {provider?.options?.name || 'this provider'}"?
-              </Alert>
+              <ConfirmDeleteAlert
+                deleting={loading}
+                onConfirm={onDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+                itemName={provider?.options?.name || 'this provider'}
+              />
             )}
 
-            <TextField
-              autoFocus
+            <TextInput
+              id='provider-name'
               label='Provider Name'
               placeholder='Enter provider name'
               value={name}
@@ -193,47 +163,37 @@ export const ProviderDialog = ({
               disabled={loading}
             />
 
-            <FormControl
-              fullWidth
+            <SelectInput
+              id='provider-type'
+              label='Provider Type'
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              items={ProviderTypes}
               required
               disabled={loading}
-            >
-              <InputLabel id='provider-type-label'>Provider Type</InputLabel>
-              <Select
-                labelId='provider-type-label'
-                value={type}
-                label='Provider Type'
-                onChange={(e) => setType(e.target.value)}
-              >
-                {ProviderTypes.map((providerType) => (
-                  <MenuItem
-                    key={providerType.value}
-                    value={providerType.value}
-                  >
-                    {providerType.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            />
 
-            <TextField
+            <TextInput
+              id='provider-base-url'
               label='Base URL'
               placeholder='https://api.example.com (optional)'
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               fullWidth
               disabled={loading}
-              helperText='Optional: Custom API base URL for the provider'
             />
           </Box>
-        </DialogContent>
-        <DialogActions
-          sx={{
-            justifyContent: isEditMode ? 'space-between' : 'flex-end',
-            px: 3,
-            pb: 2,
-          }}
-        >
+        </form>
+      }
+      actionProps={{
+        sx: {
+          justifyContent: isEditMode ? 'space-between' : 'flex-end',
+          px: 3,
+          pb: 2,
+        },
+      }}
+      actions={
+        <>
           {isEditMode && (
             <Button
               color='error'
@@ -250,22 +210,19 @@ export const ProviderDialog = ({
             >
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               type='submit'
+              form='provider-form'
               variant='contained'
-              disabled={loading || showDeleteConfirm}
+              loading={loading}
+              disabled={showDeleteConfirm}
+              loadingText={isEditMode ? 'Saving...' : 'Creating...'}
             >
-              {loading
-                ? isEditMode
-                  ? 'Saving...'
-                  : 'Creating...'
-                : isEditMode
-                  ? 'Save Changes'
-                  : 'Create Provider'}
-            </Button>
+              {isEditMode ? 'Save Changes' : 'Create Provider'}
+            </LoadingButton>
           </Box>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </>
+      }
+    />
   )
 }

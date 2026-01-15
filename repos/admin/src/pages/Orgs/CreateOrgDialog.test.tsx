@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { screen, fireEvent, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
 import { CreateOrgDialog } from './CreateOrgDialog'
 import * as orgsActions from '@TAF/actions/orgs'
 
@@ -10,7 +11,7 @@ vi.mock('@TAF/actions/orgs', () => ({
 
 describe('CreateOrgDialog', () => {
   it('should render dialog when open', () => {
-    render(
+    renderWithTheme(
       <CreateOrgDialog
         open={true}
         onClose={vi.fn()}
@@ -22,7 +23,7 @@ describe('CreateOrgDialog', () => {
   })
 
   it('should not render when closed', () => {
-    render(
+    renderWithTheme(
       <CreateOrgDialog
         open={false}
         onClose={vi.fn()}
@@ -33,7 +34,7 @@ describe('CreateOrgDialog', () => {
   })
 
   it('should show error when submitting with empty name', async () => {
-    render(
+    renderWithTheme(
       <CreateOrgDialog
         open={true}
         onClose={vi.fn()}
@@ -44,8 +45,8 @@ describe('CreateOrgDialog', () => {
     const nameInput = screen.getByPlaceholderText('Enter organization name')
     fireEvent.change(nameInput, { target: { value: '' } })
 
-    // Submit the form directly to bypass browser validation
-    const form = screen.getByText('Create').closest('form')
+    // Submit the form directly by ID to bypass browser validation
+    const form = document.getElementById('create-org-form')
     fireEvent.submit(form!)
 
     await waitFor(() => {
@@ -55,7 +56,7 @@ describe('CreateOrgDialog', () => {
 
   it('should call createOrg with correct data', async () => {
     const onClose = vi.fn()
-    render(
+    renderWithTheme(
       <CreateOrgDialog
         open={true}
         onClose={onClose}

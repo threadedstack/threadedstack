@@ -44,7 +44,7 @@ describe('OrgSecrets', () => {
   it('should render the orgm secrets page', async () => {
     render(<OrgSecrets />)
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Org Secrets' })).toBeDefined()
+      expect(screen.getByRole('heading', { name: 'Secrets' })).toBeDefined()
     })
   })
 })

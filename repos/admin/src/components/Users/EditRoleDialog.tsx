@@ -1,45 +1,24 @@
-import type { TUserWithRole } from './Users'
+import type { User, TRoleType } from '@tdsk/domain'
 
-import { usersApi } from '@TAF/services'
+import { ERoleType } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
-import {
-  Box,
-  Alert,
-  Avatar,
-  Select,
-  Button,
-  Dialog,
-  MenuItem,
-  Typography,
-  InputLabel,
-  FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material'
+import { AuthRoles } from '@TAF/constants/values'
+import { Dialog, SelectInput } from '@tdsk/components'
+import { getInitials } from '@TAF/utils/user/getInitials'
+import { updateOrgRole } from '@TAF/actions/users/updateOrgRole'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { Box, Alert, Avatar, Button, Typography } from '@mui/material'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
 export type TEditRoleDialog = {
+  user: User
   open: boolean
   orgId: string
-  user: TUserWithRole
   onClose: () => void
   onSuccess: () => void
 }
 
-const getInitials = (user: TUserWithRole) => {
-  if (user.first && user.last) {
-    return `${user.first[0]}${user.last[0]}`.toUpperCase()
-  }
-  if (user.displayName) {
-    const parts = user.displayName.split(' ')
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-    }
-    return user.displayName.substring(0, 2).toUpperCase()
-  }
-  return 'U'
-}
-
+// TODO: Add checks if current user has admin permission to edit other users roles
 export const EditRoleDialog = ({
   open,
   user,
@@ -47,14 +26,14 @@ export const EditRoleDialog = ({
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
 }: TEditRoleDialog) => {
-  const [roleType, setRoleType] = useState<'admin' | 'basic'>(
-    user.roleType === 'admin' ? 'admin' : 'basic'
+  const [roleType, setRoleType] = useState<TRoleType>(
+    user.role === ERoleType.admin ? ERoleType.admin : ERoleType.basic
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setRoleType(user.roleType === 'admin' ? 'admin' : 'basic')
+    setRoleType(user.role === ERoleType.admin ? ERoleType.admin : ERoleType.basic)
   }, [user])
 
   const onClose = () => {
@@ -67,15 +46,10 @@ export const EditRoleDialog = ({
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!user.roleId) {
-      setError('Role ID is missing')
-      return
-    }
-
     setLoading(true)
     setError(null)
 
-    const resp = await usersApi.updateRole(orgId, user.roleId, roleType)
+    const resp = await updateOrgRole(orgId, user.id, roleType)
 
     setLoading(false)
 
@@ -91,29 +65,28 @@ export const EditRoleDialog = ({
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>Edit User Role</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title='Edit User Role'
+      content={
+        <form
+          id='edit-role-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             <Box
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
                 p: 2,
-                bgcolor: 'action.hover',
+                gap: 2,
+                display: 'flex',
                 borderRadius: 1,
+                alignItems: 'center',
+                bgcolor: 'action.hover',
               }}
             >
               <Avatar
@@ -138,44 +111,40 @@ export const EditRoleDialog = ({
               </Box>
             </Box>
 
-            <FormControl
-              fullWidth
+            <SelectInput
+              id='role-edit'
+              label='Role'
+              value={roleType}
+              items={AuthRoles}
               disabled={loading}
-            >
-              <InputLabel id='role-edit-label'>Role</InputLabel>
-              <Select
-                labelId='role-edit-label'
-                id='role-edit'
-                value={roleType}
-                label='Role'
-                onChange={(e) => setRoleType(e.target.value as 'admin' | 'basic')}
-              >
-                <MenuItem value='basic'>Basic - Standard access</MenuItem>
-                <MenuItem value='admin'>Admin - Full org management</MenuItem>
-              </Select>
-            </FormControl>
+              onChange={(e) => setRoleType(e.target.value as TRoleType)}
+            />
 
             <Alert severity='info'>
               Note: Super admin roles cannot be modified through this interface.
             </Alert>
           </Box>
-        </DialogContent>
-        <DialogActions>
+        </form>
+      }
+      actions={
+        <>
           <Button
             onClick={onClose}
             disabled={loading}
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             type='submit'
+            form='edit-role-form'
             variant='contained'
-            disabled={loading}
+            loading={loading}
+            loadingText='Saving...'
           >
-            {loading ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+            Save Changes
+          </LoadingButton>
+        </>
+      }
+    />
   )
 }

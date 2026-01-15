@@ -22,10 +22,10 @@ export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) =>
   const navigate = useNavigate()
   const [providers] = useProviders()
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
 
   useEffect(() => {
     if (orgId) {

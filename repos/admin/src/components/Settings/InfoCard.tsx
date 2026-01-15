@@ -1,6 +1,5 @@
-import { useState } from 'react'
-import { Box, Card, CardContent, Divider, IconButton, Typography } from '@mui/material'
-import { ContentCopy as ContentCopyIcon } from '@mui/icons-material'
+import { Box, Card, CardContent, Divider, Typography } from '@mui/material'
+import { ClipboardCopy, useCopyToClipboard } from '@tdsk/components'
 
 export type TInfoItem = {
   label: string
@@ -19,13 +18,15 @@ const formatDate = (date: string | Date): string => {
   return new Date(date).toLocaleString()
 }
 
+/**
+ * InfoCard - Displays a list of label-value pairs with optional copy functionality
+ * Uses ClipboardCopy and useCopyToClipboard from @tdsk/components
+ */
 export const InfoCard = ({ title, items, onCopy }: TInfoCard) => {
-  const [copiedValue, setCopiedValue] = useState<string | null>(null)
+  const { onCopyToClipBoard } = useCopyToClipboard()
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedValue(text)
-    setTimeout(() => setCopiedValue(null), 2000)
+  const handleCopy = (text: string) => {
+    onCopyToClipBoard(text)
     onCopy?.('Copied to clipboard')
   }
 
@@ -53,12 +54,7 @@ export const InfoCard = ({ title, items, onCopy }: TInfoCard) => {
                 >
                   {item.isDate ? formatDate(item.value) : item.value}
                 </Typography>
-                <IconButton
-                  size='small'
-                  onClick={() => copyToClipboard(item.value)}
-                >
-                  <ContentCopyIcon fontSize='small' />
-                </IconButton>
+                <ClipboardCopy value={item.value} />
               </Box>
             ) : (
               <Typography variant='body2'>

@@ -14,10 +14,11 @@
       "vite/client"
     ],
     "paths": {
+      "@ROOT": ["../../"],
       "@TAF/*": ["src/*"],
       "@TAF": ["src"],
-
-      "@ROOT": ["../../"],
+      "@TAF/scripts/*": ["scripts/*"],
+      "@TAF/scripts": ["scripts"],
       "@TSC/*": ["../components/src/*"],
       "@TSC": ["../components/src"],
       "@tdsk/components": ["../components/src"],

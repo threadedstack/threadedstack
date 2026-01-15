@@ -7,9 +7,8 @@ import Divider from '@mui/material/Divider'
 import { useCallback, useMemo } from 'react'
 import MenuItem from '@mui/material/MenuItem'
 import { useUser } from '@TAF/state/selectors'
-import { Tooltip, dims } from '@tdsk/components'
+import { IconButton, dims } from '@tdsk/components'
 import { Link as RouterLink } from 'react-router'
-import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
@@ -161,14 +160,13 @@ export const Settings = (props: TSettings) => {
 
   return (
     <SettingsContainer>
-      <Tooltip title='Admin Settings'>
-        <IconButton
-          onClick={onOpenSettings}
-          sx={{ p: 0 }}
-        >
-          <Avatar {...avatarProps} />
-        </IconButton>
-      </Tooltip>
+      <IconButton
+        tooltip='Admin Settings'
+        onClick={onOpenSettings}
+        sx={{ p: 0 }}
+      >
+        <Avatar {...avatarProps} />
+      </IconButton>
       <SettingMenu
         {...props}
         user={user}

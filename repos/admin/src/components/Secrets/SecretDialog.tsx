@@ -7,18 +7,10 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material'
-import {
-  Box,
-  Alert,
-  Button,
-  Dialog,
-  TextField,
-  IconButton,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  InputAdornment,
-} from '@mui/material'
+import { Box, Button, IconButton, InputAdornment } from '@mui/material'
+import { Dialog, TextInput } from '@tdsk/components'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
 export type TSecretDialog = {
   open: boolean
@@ -171,31 +163,30 @@ export const SecretDialog = ({
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>{isEditMode ? 'Edit Secret' : 'Create New Secret'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title={isEditMode ? 'Edit Secret' : 'Create New Secret'}
+      content={
+        <form
+          id='secret-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             {isEditMode && showDeleteConfirm && (
               <ConfirmDeleteAlert
-                loading={loading}
+                deleting={loading}
                 onConfirm={onDelete}
                 onCancel={() => setShowDeleteConfirm(false)}
                 itemName={secret?.hashKey || secret?.name || ''}
               />
             )}
 
-            <TextField
+            <TextInput
               autoFocus
               label='Secret Name'
               placeholder='Enter secret name (e.g., API_KEY)'
@@ -206,7 +197,7 @@ export const SecretDialog = ({
               disabled={loading}
             />
 
-            <TextField
+            <TextInput
               label={isEditMode ? 'New Secret Value' : 'Secret Value'}
               placeholder={
                 isEditMode
@@ -219,40 +210,38 @@ export const SecretDialog = ({
               required={!isEditMode}
               fullWidth
               disabled={loading}
-              helperText={
-                isEditMode ? 'Leave empty to keep the current value' : undefined
+              endAdornment={
+                <InputAdornment position='end'>
+                  <IconButton
+                    onClick={toggleValueVisibility}
+                    edge='end'
+                    disabled={loading}
+                    aria-label={showValue ? 'Hide secret value' : 'Show secret value'}
+                  >
+                    {showValue ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  </IconButton>
+                </InputAdornment>
               }
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position='end'>
-                    <IconButton
-                      onClick={toggleValueVisibility}
-                      edge='end'
-                      disabled={loading}
-                      aria-label={showValue ? 'Hide secret value' : 'Show secret value'}
-                    >
-                      {showValue ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
             />
 
-            <TextField
+            <TextInput
               label='Description'
               placeholder='Enter description (optional)'
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              multiline
-              rows={3}
+              textarea
+              minRows={3}
               fullWidth
               disabled={loading}
             />
           </Box>
-        </DialogContent>
-        <DialogActions
-          sx={isEditMode ? { justifyContent: 'space-between', px: 3, pb: 2 } : undefined}
-        >
+        </form>
+      }
+      actionProps={
+        isEditMode ? { sx: { justifyContent: 'space-between', px: 3, pb: 2 } } : undefined
+      }
+      actions={
+        <>
           {isEditMode && (
             <Button
               color='error'
@@ -269,22 +258,19 @@ export const SecretDialog = ({
             >
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               type='submit'
+              form='secret-form'
               variant='contained'
-              disabled={loading || (isEditMode && showDeleteConfirm)}
+              loading={loading}
+              disabled={isEditMode && showDeleteConfirm}
+              loadingText={isEditMode ? 'Saving...' : 'Creating...'}
             >
-              {loading
-                ? isEditMode
-                  ? 'Saving...'
-                  : 'Creating...'
-                : isEditMode
-                  ? 'Save Changes'
-                  : 'Create Secret'}
-            </Button>
+              {isEditMode ? 'Save Changes' : 'Create Secret'}
+            </LoadingButton>
           </Box>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </>
+      }
+    />
   )
 }

@@ -1,34 +1,24 @@
 import { Add as AddIcon } from '@mui/icons-material'
-import { Card, Button, Typography, CardContent, CardActions } from '@mui/material'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 
 export type TNoOrgs = {
   onCreate?: (evt: any) => void
 }
 
+/**
+ * NoOrgs - Empty state for organizations list
+ * Uses the shared EmptyState component
+ */
 export const NoOrgs = (props: TNoOrgs) => {
   const { onCreate } = props
 
   return (
-    <Card>
-      <CardContent>
-        <Typography
-          color='text.secondary'
-          align='center'
-          sx={{ mb: 2 }}
-        >
-          No organizations yet. Create your first organization to get started.
-        </Typography>
-      </CardContent>
-      <CardActions sx={{ justifyContent: 'center', pb: 2 }}>
-        <Button
-          color='primary'
-          variant='contained'
-          onClick={onCreate}
-          startIcon={<AddIcon />}
-        >
-          Create
-        </Button>
-      </CardActions>
-    </Card>
+    <EmptyState
+      message='No organizations yet. Create your first organization to get started.'
+      actionLabel='Create'
+      actionIcon={<AddIcon />}
+      onAction={onCreate}
+      actionVariant='contained'
+    />
   )
 }

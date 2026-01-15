@@ -79,5 +79,5 @@ export type TOAuthConfig = {
   /** Additional parameters to send with token request */
   additionalParams?: Record<string, string>
   /** How to send credentials: 'header' (Basic auth) or 'body' (form params) */
-  credentialStyle?: 'header' | 'body'
+  credentialStyle?: `header` | `body`
 }

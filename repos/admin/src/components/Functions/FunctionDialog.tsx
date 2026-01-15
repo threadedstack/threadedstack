@@ -1,17 +1,11 @@
 import { useState, useEffect } from 'react'
 import type { Function as TDFunction } from '@tdsk/domain'
 import { createFunction, updateFunction, deleteFunction } from '@TAF/actions/functions'
-import {
-  Box,
-  Alert,
-  Dialog,
-  Button,
-  MenuItem,
-  TextField,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material'
+import { Box, Button } from '@mui/material'
+import { Dialog, TextInput, SelectInput } from '@tdsk/components'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
 
 export type TFunctionDialog = {
   open: boolean
@@ -140,52 +134,31 @@ export const FunctionDialog = ({
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>{isEditMode ? 'Edit Function' : 'Create New Function'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title={isEditMode ? 'Edit Function' : 'Create New Function'}
+      content={
+        <form
+          id='function-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             {isEditMode && showDeleteConfirm && (
-              <Alert
-                severity='warning'
-                action={
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      color='inherit'
-                      size='small'
-                      onClick={() => setShowDeleteConfirm(false)}
-                      disabled={loading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      color='inherit'
-                      size='small'
-                      onClick={onDelete}
-                      disabled={loading}
-                    >
-                      {loading ? 'Deleting...' : 'Confirm'}
-                    </Button>
-                  </Box>
-                }
-              >
-                Are you sure you want to delete "{func?.name || 'this function'}
-                "?
-              </Alert>
+              <ConfirmDeleteAlert
+                deleting={loading}
+                onConfirm={onDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+                itemName={func?.name || 'this function'}
+              />
             )}
 
-            <TextField
-              autoFocus
+            <TextInput
+              id='function-name'
               label='Function Name'
               placeholder='Enter function name'
               value={name}
@@ -195,45 +168,35 @@ export const FunctionDialog = ({
               disabled={loading}
             />
 
-            <TextField
-              select
+            <SelectInput
+              id='function-language'
               label='Language'
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
+              items={LANGUAGE_OPTIONS}
               required
-              fullWidth
               disabled={loading}
-            >
-              {LANGUAGE_OPTIONS.map((option) => (
-                <MenuItem
-                  key={option.value}
-                  value={option.value}
-                >
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
 
-            <TextField
+            <TextInput
+              id='function-description'
               label='Description'
               placeholder='Enter function description (optional)'
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              multiline
-              rows={3}
+              textarea
+              minRows={3}
               fullWidth
               disabled={loading}
-              helperText={
-                isEditMode
-                  ? 'Optional: Brief description of what this function does'
-                  : undefined
-              }
             />
           </Box>
-        </DialogContent>
-        <DialogActions
-          sx={isEditMode ? { justifyContent: 'space-between', px: 3, pb: 2 } : undefined}
-        >
+        </form>
+      }
+      actionProps={
+        isEditMode ? { sx: { justifyContent: 'space-between', px: 3, pb: 2 } } : undefined
+      }
+      actions={
+        <>
           {isEditMode && (
             <Button
               color='error'
@@ -250,22 +213,19 @@ export const FunctionDialog = ({
             >
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               type='submit'
+              form='function-form'
               variant='contained'
-              disabled={loading || showDeleteConfirm}
+              loading={loading}
+              disabled={showDeleteConfirm}
+              loadingText={isEditMode ? 'Saving...' : 'Creating...'}
             >
-              {loading
-                ? isEditMode
-                  ? 'Saving...'
-                  : 'Creating...'
-                : isEditMode
-                  ? 'Save Changes'
-                  : 'Create Function'}
-            </Button>
+              {isEditMode ? 'Save Changes' : 'Create Function'}
+            </LoadingButton>
           </Box>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </>
+      }
+    />
   )
 }

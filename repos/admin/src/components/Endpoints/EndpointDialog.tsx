@@ -1,22 +1,13 @@
 import type { Endpoint } from '@tdsk/domain'
+
 import { useState, useEffect } from 'react'
+import { Box, Alert, Button } from '@mui/material'
+import { HttpMethods } from '@TAF/constants/values'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { Dialog, TextInput, SelectInput, SwitchInput } from '@tdsk/components'
 import { createEndpoint, updateEndpoint, deleteEndpoint } from '@TAF/actions/endpoints'
-import {
-  Box,
-  Alert,
-  Select,
-  Switch,
-  Button,
-  Dialog,
-  MenuItem,
-  TextField,
-  InputLabel,
-  FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControlLabel,
-} from '@mui/material'
+import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
 
 export type TEndpointDialog = {
   open: boolean
@@ -26,53 +17,44 @@ export type TEndpointDialog = {
   onSuccess?: () => void
 }
 
-// TODO: move to domain repo constants enum
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as const
+export const EndpointDialog = (props: TEndpointDialog) => {
+  const { open, endpoint, projectId, onClose: onCloseCB, onSuccess: onSuccessCB } = props
 
-export const EndpointDialog = ({
-  open,
-  projectId,
-  endpoint,
-  onClose: onCloseCB,
-  onSuccess: onSuccessCB,
-}: TEndpointDialog) => {
   const isEditMode = Boolean(endpoint)
 
   const [name, setName] = useState('')
   const [path, setPath] = useState('')
-  const [method, setMethod] = useState<string>('GET')
-  const [publicEndpoint, setPublicEndpoint] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [method, setMethod] = useState<string>(`GET`)
   const [error, setError] = useState<string | null>(null)
+  const [publicEndpoint, setPublicEndpoint] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // Pre-populate form with endpoint data in edit mode
   useEffect(() => {
     if (endpoint) {
       setName(endpoint.name || '')
       setPath(endpoint.url || '')
-      setMethod(endpoint.method || 'GET')
+      setMethod(endpoint.method || `GET`)
       setPublicEndpoint(endpoint.public || false)
       setError(null)
       setShowDeleteConfirm(false)
     } else {
-      // Reset form in create mode
       setName('')
       setPath('')
-      setMethod('GET')
-      setPublicEndpoint(false)
       setError(null)
+      setMethod(`GET`)
+      setPublicEndpoint(false)
       setShowDeleteConfirm(false)
     }
   }, [endpoint])
 
   const onClose = () => {
     if (!loading) {
-      setName('')
-      setPath('')
-      setMethod('GET')
-      setPublicEndpoint(false)
+      setName(``)
+      setPath(``)
       setError(null)
+      setMethod(`GET`)
+      setPublicEndpoint(false)
       setShowDeleteConfirm(false)
       onCloseCB?.()
     }
@@ -118,8 +100,8 @@ export const EndpointDialog = ({
 
     if (result.error) {
       const errorMessage = isEditMode
-        ? 'Failed to update endpoint. Please try again.'
-        : 'Failed to create endpoint. Please try again.'
+        ? `Failed to update endpoint. Please try again.`
+        : `Failed to create endpoint. Please try again.`
       setError(result.error.message || errorMessage)
     } else {
       onClose()
@@ -128,9 +110,7 @@ export const EndpointDialog = ({
   }
 
   const onDelete = async () => {
-    if (!endpoint) {
-      return
-    }
+    if (!endpoint) return
 
     setLoading(true)
     setError(null)
@@ -140,7 +120,7 @@ export const EndpointDialog = ({
     setLoading(false)
 
     if (result.error) {
-      setError(result.error.message || 'Failed to delete endpoint. Please try again.')
+      setError(result.error.message || `Failed to delete endpoint. Please try again.`)
       setShowDeleteConfirm(false)
     } else {
       onSuccessCB?.()
@@ -153,120 +133,102 @@ export const EndpointDialog = ({
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>{isEditMode ? 'Edit Endpoint' : 'Create New Endpoint'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title={isEditMode ? 'Edit Endpoint' : 'Create New Endpoint'}
+      content={
+        <form
+          id='endpoint-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             {showDeleteConfirm && (
-              <Alert
-                severity='warning'
-                action={
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      color='inherit'
-                      size='small'
-                      onClick={() => setShowDeleteConfirm(false)}
-                      disabled={loading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      color='inherit'
-                      size='small'
-                      onClick={onDelete}
-                      disabled={loading}
-                    >
-                      {loading ? 'Deleting...' : 'Confirm'}
-                    </Button>
-                  </Box>
-                }
-              >
-                Are you sure you want to delete "{name}"?
-              </Alert>
+              <ConfirmDeleteAlert
+                deleting={loading}
+                onConfirm={onDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+                itemName={name}
+              />
             )}
 
-            <TextField
-              autoFocus
+            <TextInput
+              required
+              fullWidth
+              value={name}
+              id='endpoint-name'
+              disabled={loading}
               label='Endpoint Name'
               placeholder='Enter endpoint name'
-              value={name}
               onChange={(e) => setName(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-              helperText='A descriptive name for this endpoint'
-            />
-
-            <TextField
-              label='Proxy URL'
-              placeholder='https://api.example.com/v1/users'
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-              helperText='The URL to proxy requests to'
-            />
-
-            <FormControl
-              fullWidth
-              required
-              disabled={loading}
-            >
-              <InputLabel id='method-select-label'>HTTP Method</InputLabel>
-              <Select
-                labelId='method-select-label'
-                value={method}
-                label='HTTP Method'
-                onChange={(e) => setMethod(e.target.value)}
-              >
-                {HTTP_METHODS.map((m) => (
-                  <MenuItem
-                    key={m}
-                    value={m}
-                  >
-                    {m}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={publicEndpoint}
-                  onChange={(e) => setPublicEndpoint(e.target.checked)}
-                  disabled={loading}
-                />
-              }
-              label='Public Endpoint'
             />
             <Box sx={{ ml: 4, mt: -1 }}>
               <Alert
                 severity='info'
                 sx={{ fontSize: '0.875rem' }}
               >
+                A descriptive name for this endpoint
+              </Alert>
+            </Box>
+
+            <TextInput
+              required
+              fullWidth
+              value={path}
+              id='endpoint-url'
+              label='Proxy URL'
+              disabled={loading}
+              placeholder='https://api.example.com/v1/users'
+              onChange={(e) => setPath(e.target.value)}
+            />
+            <Box sx={{ ml: 4, mt: -1 }}>
+              <Alert
+                severity='info'
+                sx={{ fontSize: '0.875rem' }}
+              >
+                The URL to proxy requests to
+              </Alert>
+            </Box>
+
+            <SelectInput
+              required
+              value={method}
+              id='method-select'
+              disabled={loading}
+              label='HTTP Method'
+              onChange={(e) => setMethod(e.target.value)}
+              items={HttpMethods.map((m) => ({ value: m, label: m }))}
+            />
+
+            <SwitchInput
+              disabled={loading}
+              id='public-endpoint'
+              label='Public Endpoint'
+              checked={publicEndpoint}
+              onChange={(e, checked) => setPublicEndpoint(checked)}
+            />
+            <Box sx={{ ml: 4, mt: -1 }}>
+              <Alert
+                severity='info'
+                sx={{ fontSize: `0.875rem` }}
+              >
                 {publicEndpoint
-                  ? 'This endpoint will be accessible without authentication'
-                  : 'This endpoint will require authentication to access'}
+                  ? `This endpoint will be accessible without authentication`
+                  : `This endpoint will require authentication to access`}
               </Alert>
             </Box>
           </Box>
-        </DialogContent>
-        <DialogActions
-          sx={isEditMode ? { justifyContent: 'space-between', px: 3, pb: 2 } : undefined}
-        >
+        </form>
+      }
+      actionProps={
+        isEditMode ? { sx: { justifyContent: 'space-between', px: 3, pb: 2 } } : undefined
+      }
+      actions={
+        <>
           {isEditMode && (
             <Button
               color='error'
@@ -289,22 +251,19 @@ export const EndpointDialog = ({
             >
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               type='submit'
+              loading={loading}
               variant='contained'
-              disabled={loading || showDeleteConfirm}
+              form='endpoint-form'
+              disabled={showDeleteConfirm}
+              loadingText={isEditMode ? `Saving...` : `Creating...`}
             >
-              {loading
-                ? isEditMode
-                  ? 'Saving...'
-                  : 'Creating...'
-                : isEditMode
-                  ? 'Save Changes'
-                  : 'Create Endpoint'}
-            </Button>
+              {isEditMode ? `Save Changes` : `Create Endpoint`}
+            </LoadingButton>
           </Box>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </>
+      }
+    />
   )
 }

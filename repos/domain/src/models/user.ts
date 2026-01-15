@@ -1,12 +1,13 @@
 import { Base } from './base'
+import type { TRoleType } from '@TDM/types'
 
 export class User extends Base {
   first: string
   last: string
   email?: string
   image: string
-  role?: string
   name?: string
+  role?: TRoleType
   banned?: boolean
   provider?: string
   banReason?: string

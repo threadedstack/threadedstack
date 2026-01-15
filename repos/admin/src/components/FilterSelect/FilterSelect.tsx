@@ -1,5 +1,5 @@
-import { FormControl, InputLabel, Select, MenuItem } from '@mui/material'
 import type { SxProps, Theme } from '@mui/material'
+import { SelectInput } from '@tdsk/components'
 
 export type TFilterOption = {
   value: string
@@ -8,53 +8,43 @@ export type TFilterOption = {
 
 export type TFilterSelect = {
   id: string
-  label: string
   value: string
-  onChange: (value: string) => void
-  options: TFilterOption[]
+  label?: string
+  hidden?: boolean
   allLabel?: string
-  size?: 'small' | 'medium'
-  sx?: SxProps<Theme>
   disabled?: boolean
-  minWidth?: number
+  sx?: SxProps<Theme>
+  options: TFilterOption[]
+  size?: 'small' | 'medium'
+  onChange: (value: string) => void
 }
 
 export const FilterSelect = ({
   id,
+  sx,
   label,
   value,
-  onChange,
+  hidden,
   options,
-  allLabel = 'All',
+  onChange,
   size = 'small',
-  sx,
+  allLabel = 'All',
   disabled = false,
-  minWidth = 120,
 }: TFilterSelect) => {
+  const items = [{ value: 'all', label: allLabel }, ...options]
+
   return (
-    <FormControl
+    <SelectInput
+      sx={sx}
+      id={id}
       size={size}
-      sx={{ minWidth, ...sx }}
+      items={items}
+      label={label}
+      value={value}
+      hidden={hidden}
       disabled={disabled}
-    >
-      <InputLabel id={`${id}-label`}>{label}</InputLabel>
-      <Select
-        labelId={`${id}-label`}
-        value={value}
-        label={label}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <MenuItem value='all'>{allLabel}</MenuItem>
-        {options.map((option) => (
-          <MenuItem
-            key={option.value}
-            value={option.value}
-          >
-            {option.label}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+      onChange={(e) => onChange(e.target.value)}
+    />
   )
 }
 

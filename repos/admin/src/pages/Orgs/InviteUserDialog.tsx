@@ -1,18 +1,16 @@
 import { useState } from 'react'
+import { Dialog } from '@tdsk/components'
 import { usersApi } from '@TAF/services'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 import {
   Box,
-  Alert,
   Button,
   Select,
-  Dialog,
   MenuItem,
   TextField,
   InputLabel,
   FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from '@mui/material'
 
 export type TInviteUserDialog = {
@@ -75,22 +73,21 @@ export const InviteUserDialog = ({
 
   return (
     <Dialog
-      fullWidth
       open={open}
-      maxWidth='sm'
       onClose={onClose}
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>Invite User to Organization</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      maxWidth='sm'
+      title='Invite User to Organization'
+      content={
+        <form
+          id='invite-user-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             <TextField
@@ -122,23 +119,27 @@ export const InviteUserDialog = ({
               </Select>
             </FormControl>
           </Box>
-        </DialogContent>
-        <DialogActions>
+        </form>
+      }
+      actions={
+        <>
           <Button
             onClick={onClose}
             disabled={loading}
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             type='submit'
+            form='invite-user-form'
             variant='contained'
-            disabled={loading}
+            loading={loading}
+            loadingText='Inviting...'
           >
-            {loading ? 'Inviting...' : 'Send Invite'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+            Send Invite
+          </LoadingButton>
+        </>
+      }
+    />
   )
 }

@@ -1,5 +1,6 @@
 export * from './init'
 export * from './auth'
+export * as usersActions from './users'
 export * as secretsActions from './secrets'
 export * as apiKeysActions from './apiKeys'
 export * as configsActions from './configs'

@@ -3,23 +3,25 @@ import type { TNavCtx } from '@TAF/types'
 import type { ERoutePath } from '@TAF/types'
 
 export const buildNavRoute = (ctx: TNavCtx, route: ERoutePath) => {
-  return route
-    .split(`/`)
-    .map((section) => {
-      if (!section.startsWith(`:`)) return section
+  const parts = route.split(`/`)
+  const replaced = []
 
-      const key = section.slice(1)
+  for (const part of parts) {
+    if (!part.startsWith(`:`)) {
+      replaced.push(part)
+      continue
+    }
 
-      if (ctx[key] === undefined) {
-        console.warn(
-          `[NAV ERROR] Found route key ${key}, but it does not existing in context.`
-        )
-        return section
-      }
+    const key = part.slice(1)
+    if (ctx[key] === undefined) {
+      console.warn(`[NAV ERROR] Route key ${key} missing, does not exist in context.`)
+      return `#`
+    }
 
-      return String(ctx[key])
-    })
-    .join(`/`)
+    replaced.push(String(ctx[key]))
+  }
+
+  return replaced.join(`/`)
 }
 
 export const buildRoute = (route: ERoutePath) => (ctx: TNavCtx) =>

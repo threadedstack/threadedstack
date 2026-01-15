@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
 import { ProjectSettings } from './ProjectSettings'
 import * as accessors from '@TAF/state/accessors'
 
@@ -67,14 +68,14 @@ describe('ProjectSettings', () => {
   })
 
   it('should render the project settings page', async () => {
-    render(<ProjectSettings />)
+    renderWithTheme(<ProjectSettings />)
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Project Settings' })).toBeDefined()
     })
   })
 
   it('should display the org and project IDs', async () => {
-    render(<ProjectSettings />)
+    renderWithTheme(<ProjectSettings />)
     await waitFor(() => {
       expect(screen.getByText('project-456')).toBeDefined()
       expect(screen.getByText('org-123')).toBeDefined()
@@ -82,14 +83,14 @@ describe('ProjectSettings', () => {
   })
 
   it('should call setActiveOrgId with orgId', async () => {
-    render(<ProjectSettings />)
+    renderWithTheme(<ProjectSettings />)
     await waitFor(() => {
       expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-123')
     })
   })
 
   it('should call setActiveprojectId with projectId', async () => {
-    render(<ProjectSettings />)
+    renderWithTheme(<ProjectSettings />)
     await waitFor(() => {
       expect(accessors.setActiveprojectId).toHaveBeenCalledWith('project-456')
     })

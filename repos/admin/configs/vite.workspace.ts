@@ -74,6 +74,9 @@ export const config = {
     watch: false,
     environment: `jsdom`,
     setupFiles: `./scripts/setupTests.ts`,
+    alias: {
+      [`@tdsk/components`]: path.join(rootDir, `../components/src`),
+    },
     server: {
       deps: {
         inline: [`mui-image-alter`],

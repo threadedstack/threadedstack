@@ -1,12 +1,6 @@
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Divider,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Card, CardContent, Divider, Typography } from '@mui/material'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { TextInput } from '@tdsk/components'
 
 export type TFormField = {
   name: string
@@ -40,25 +34,29 @@ export const SettingsFormCard = ({
         <Divider sx={{ my: 2 }} />
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {fields.map((field) => (
-            <TextField
+            <TextInput
               key={field.name}
+              name={field.name}
               fullWidth
               label={field.label}
               value={field.value}
               onChange={(e) => field.onChange(e.target.value)}
-              multiline={field.multiline}
-              rows={field.rows}
+              textarea={field.multiline}
+              minRows={field.rows}
+              maxRows={field.rows}
               placeholder={field.placeholder}
             />
           ))}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
+            <LoadingButton
               variant='contained'
               onClick={onSave}
-              disabled={!hasChanges || saving}
+              loading={saving}
+              disabled={!hasChanges}
+              loadingText='Saving...'
             >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
+              Save Changes
+            </LoadingButton>
           </Box>
         </Box>
       </CardContent>

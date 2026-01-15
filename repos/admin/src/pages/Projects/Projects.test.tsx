@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
 import { Projects } from './Projects'
 
 vi.mock('react-router', () => ({
@@ -28,7 +29,7 @@ describe('Projects', () => {
   })
 
   it('should render the projects page', async () => {
-    render(<Projects />)
+    renderWithTheme(<Projects />)
 
     await waitFor(() => {
       expect(screen.getByText('Projects')).toBeDefined()

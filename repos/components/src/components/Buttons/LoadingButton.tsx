@@ -43,7 +43,7 @@ const LoadingButton = TooltipHoc<TLoadingButton, HTMLButtonElement>(
       <Button
         {...rest}
         ref={ref}
-        onClick={(evt) => !loading && onClick(evt)}
+        onClick={(evt) => !loading && onClick?.(evt)}
         startIcon={
           loading ? (
             LoadingIcon ? (

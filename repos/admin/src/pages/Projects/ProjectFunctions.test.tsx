@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
 import { ProjectFunctions } from './ProjectFunctions'
 import * as accessors from '@TAF/state/accessors'
 
@@ -43,21 +44,21 @@ describe('ProjectFunctions', () => {
   })
 
   it('should render the project functions page', async () => {
-    render(<ProjectFunctions />)
+    renderWithTheme(<ProjectFunctions />)
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Project Functions' })).toBeDefined()
     })
   })
 
   it('should call setActiveOrgId with orgId', async () => {
-    render(<ProjectFunctions />)
+    renderWithTheme(<ProjectFunctions />)
     await waitFor(() => {
       expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-123')
     })
   })
 
   it('should call setActiveprojectId with projectId', async () => {
-    render(<ProjectFunctions />)
+    renderWithTheme(<ProjectFunctions />)
     await waitFor(() => {
       expect(accessors.setActiveprojectId).toHaveBeenCalledWith('project-456')
     })

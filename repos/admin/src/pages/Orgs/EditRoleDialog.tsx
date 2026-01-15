@@ -8,15 +8,14 @@ import {
   Avatar,
   Select,
   Button,
-  Dialog,
   MenuItem,
   Typography,
   InputLabel,
   FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from '@mui/material'
+import { Dialog } from '@tdsk/components'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
 export type TEditRoleDialog = {
   open: boolean
@@ -91,19 +90,18 @@ export const EditRoleDialog = ({
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>Edit User Role</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title='Edit User Role'
+      content={
+        <form
+          id='edit-role-page-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             <Box
@@ -159,23 +157,27 @@ export const EditRoleDialog = ({
               Note: Super admin roles cannot be modified through this interface.
             </Alert>
           </Box>
-        </DialogContent>
-        <DialogActions>
+        </form>
+      }
+      actions={
+        <>
           <Button
             onClick={onClose}
             disabled={loading}
           >
             Cancel
           </Button>
-          <Button
+          <LoadingButton
             type='submit'
+            form='edit-role-page-form'
             variant='contained'
-            disabled={loading}
+            loading={loading}
+            loadingText='Saving...'
           >
-            {loading ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+            Save Changes
+          </LoadingButton>
+        </>
+      }
+    />
   )
 }

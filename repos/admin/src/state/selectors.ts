@@ -7,13 +7,13 @@ import { userState } from '@TAF/state/user'
 import { sidebarOpenState } from '@TAF/state/app'
 import { themeTypeState } from '@TAF/state/theme'
 import { providersState } from '@TAF/state/providers'
-import { orgsState, activeOrgIdState } from '@TAF/state/orgs'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
+import { orgsState, orgUsersState, activeOrgIdState } from '@TAF/state/orgs'
 
 const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
   const [current, setCurrent] = useAtom(state)
@@ -32,6 +32,7 @@ export const useThemeType = () => useRecState(themeTypeState)
 export const useSidebarOpen = () => useRecState(sidebarOpenState)
 export const useOrgs = () => useRecState(orgsState)
 export const useActiveOrgId = () => useRecState(activeOrgIdState)
+export const useOrgUsers = () => useRecState(orgUsersState)
 export const useProjects = () => useRecState(projectsState)
 export const useActiveprojectId = () => useRecState(activeProjectIdState)
 export const useSecrets = () => useRecState(secretsState)

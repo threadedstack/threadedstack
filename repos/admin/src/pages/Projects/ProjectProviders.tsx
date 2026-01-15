@@ -10,9 +10,9 @@ export const ProjectProviders = (props: TProjectProviders) => {
   return (
     <Page className='tdsk-project-providers-page'>
       <Providers
+        readOnly
         orgId={orgId}
         projectId={projectId}
-        readOnly
       />
     </Page>
   )

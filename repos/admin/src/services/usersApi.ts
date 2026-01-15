@@ -151,7 +151,7 @@ export class UsersApi extends BaseApi {
    */
   async inviteToOrg(
     orgId: string,
-    data: { email: string; roleType: string }
+    data: { email: string; role: string }
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.post<{ success: boolean }>({
       data,

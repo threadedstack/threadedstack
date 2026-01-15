@@ -67,6 +67,7 @@ export const OrgNavItems: TNavItem[] = [
     text: `AI`,
     Icon: <AutoAwesomeIcon />,
     to: buildRoute(ERoutePath.OrgAi),
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
     text: `Settings`,
@@ -80,7 +81,7 @@ export const OrgNavItems: TNavItem[] = [
 export const ProjectNavItems: TNavItem[] = [
   {
     text: `Endpoints`,
-    to: buildRoute(ERoutePath.ProjectEndpoint),
+    to: buildRoute(ERoutePath.ProjectEndpoints),
     Icon: <EndpointIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
@@ -103,13 +104,13 @@ export const ProjectNavItems: TNavItem[] = [
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
-    text: `Project Ai`,
+    text: `AI`,
     to: buildRoute(ERoutePath.ProjectAi),
     Icon: <AutoAwesomeIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
-    text: `Project Settings`,
+    text: `Settings`,
     to: buildRoute(ERoutePath.ProjectSettings),
     Icon: <SettingsIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,

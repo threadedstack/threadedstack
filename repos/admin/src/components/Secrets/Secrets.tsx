@@ -131,7 +131,7 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
             variant='body2'
             fontWeight='medium'
           >
-            {secret.hashKey || secret.name}
+            {secret.name || secret.hashKey}
           </Typography>
         </Box>
       ),
@@ -198,12 +198,10 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
     },
   ]
 
-  const pageTitle = isProjectContext ? 'Project Secrets' : 'Org Secrets'
-
   return (
     <>
       <PageHeader
-        title={pageTitle}
+        title='Secrets'
         count={secretsCount}
         countLabel='secret'
         actionLabel='Create Secret'

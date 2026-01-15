@@ -16,13 +16,13 @@ import { userState } from '@TAF/state/user'
 import { providersState } from '@TAF/state/providers'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
 import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
-import { orgsState, activeOrgIdState } from '@TAF/state/orgs'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
+import { orgsState, orgUsersState, activeOrgIdState } from '@TAF/state/orgs'
 
 export const store = createStore()
 
@@ -37,6 +37,11 @@ export const setSidebarOpen = (status: boolean) => store.set(sidebarOpenState, s
 export const getUser = () => store.get(userState)
 export const resetUser = () => store.set(userState, undefined)
 export const setUser = (user: User) => store.set(userState, user)
+
+export const getOrgUsers = () => store.get(orgUsersState)
+export const resetOrgUsers = () => store.set(orgUsersState, undefined)
+export const setOrgUsers = (orgUsers: Record<string, User[]>) =>
+  store.set(orgUsersState, orgUsers)
 
 export const getOrgs = () => store.get(orgsState)
 export const resetOrgs = () => store.set(orgsState, undefined)

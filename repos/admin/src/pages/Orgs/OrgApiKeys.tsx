@@ -7,8 +7,9 @@ import { useApiKeys } from '@TAF/state/selectors'
 import { setActiveOrgId } from '@TAF/state/accessors'
 import { CreateApiKeyDialog } from './CreateApiKeyDialog'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
-import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Box, Typography, Chip, IconButton, Tooltip } from '@mui/material'
+import { useEffect, useState, useMemo } from 'react'
+import { Box, Typography, Chip } from '@mui/material'
+import { IconButton, useCopyToClipboard } from '@tdsk/components'
 import {
   Add as AddIcon,
   VpnKey as KeyIcon,
@@ -109,9 +110,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
     setSelectedApiKey(null)
   }
 
-  const copyToClipboard = useCallback((text: string) => {
-    navigator.clipboard.writeText(text)
-  }, [])
+  const { onCopyToClipBoard } = useCopyToClipboard()
 
   const filteredApiKeys = useMemo(() => {
     const keysArray = apiKeys ? Object.values(apiKeys) : []
@@ -171,17 +170,16 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
           >
             {apiKey.keyPrefix}...
           </Typography>
-          <Tooltip title='Copy prefix'>
-            <IconButton
-              size='small'
-              onClick={(e) => {
-                e.stopPropagation()
-                copyToClipboard(apiKey.keyPrefix)
-              }}
-            >
-              <CopyIcon fontSize='small' />
-            </IconButton>
-          </Tooltip>
+          <IconButton
+            size='small'
+            tooltip='Copy prefix'
+            Icon={CopyIcon}
+            iconProps={{ fontSize: 'small' }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onCopyToClipBoard(apiKey.keyPrefix)
+            }}
+          />
         </Box>
       ),
     },

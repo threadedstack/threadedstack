@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
 import { ProjectEndpoints } from './ProjectEndpoints'
 import * as accessors from '@TAF/state/accessors'
 
@@ -43,7 +44,7 @@ describe('ProjectEndpoints', () => {
   })
 
   it('should render the project endpoints page', async () => {
-    render(<ProjectEndpoints />)
+    renderWithTheme(<ProjectEndpoints />)
     await waitFor(() => {
       // The PageHeader renders the title "Endpoints"
       expect(screen.getByRole('heading', { name: 'Endpoints' })).toBeDefined()
@@ -52,21 +53,21 @@ describe('ProjectEndpoints', () => {
 
   it('should display the org and project IDs', async () => {
     // The component checks if empty and displays EmptyState
-    render(<ProjectEndpoints />)
+    renderWithTheme(<ProjectEndpoints />)
     await waitFor(() => {
       expect(screen.getByText('No endpoints found for this project.')).toBeDefined()
     })
   })
 
   it('should call setActiveOrgId with orgId', async () => {
-    render(<ProjectEndpoints />)
+    renderWithTheme(<ProjectEndpoints />)
     await waitFor(() => {
       expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-123')
     })
   })
 
   it('should call setActiveprojectId with projectId', async () => {
-    render(<ProjectEndpoints />)
+    renderWithTheme(<ProjectEndpoints />)
     await waitFor(() => {
       expect(accessors.setActiveprojectId).toHaveBeenCalledWith('project-456')
     })

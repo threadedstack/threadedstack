@@ -7,21 +7,14 @@ import { NoProjects } from '@TAF/components/Projects/NoProjects'
 import { ProjectsGrid } from '@TAF/components/Projects/ProjectsGrid'
 import { CreateProjectDialog } from '@TAF/components/Projects/CreateProjectDialog'
 import {
-  Add as AddIcon,
-  Clear as ClearIcon,
-  Search as SearchIcon,
-} from '@mui/icons-material'
-import {
-  Box,
-  Card,
-  Button,
-  TextField,
-  IconButton,
-  Typography,
-  CardContent,
-  InputAdornment,
-  CircularProgress,
-} from '@mui/material'
+  SearchBar,
+  PageHeader,
+  ErrorAlert,
+  EmptyState,
+  LoadingSpinner,
+} from '@TAF/components'
+import { Add as AddIcon } from '@mui/icons-material'
+import { Box } from '@mui/material'
 
 export type TProjects = {
   orgId: string
@@ -107,92 +100,39 @@ export const Projects = (props: TProjects) => {
 
   return (
     <>
-      <Box
-        sx={{
-          mb: 3,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography
-            variant='h4'
-            component='h1'
-          >
-            Organization Projects
-          </Typography>
-          <Typography color='text.secondary'>
-            {projectsCount} project{projectsCount !== 1 ? 's' : ''}
-          </Typography>
-        </Box>
-        <Button
-          variant='contained'
-          color='primary'
-          startIcon={<AddIcon />}
-          onClick={onCreate}
-        >
-          Create Project
-        </Button>
-      </Box>
+      <PageHeader
+        title='Organization Projects'
+        count={projectsCount}
+        countLabel='project'
+        actionLabel='Create Project'
+        actionIcon={<AddIcon />}
+        onAction={onCreate}
+      />
 
       {!loading && projectsCount > 0 && (
         <Box sx={{ mb: 3 }}>
-          <TextField
-            placeholder='Search projects by name, URL, or branch...'
+          <SearchBar
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            size='small'
-            fullWidth
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position='start'>
-                  <SearchIcon color='action' />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery && (
-                <InputAdornment position='end'>
-                  <IconButton
-                    size='small'
-                    onClick={() => setSearchQuery('')}
-                    edge='end'
-                  >
-                    <ClearIcon />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
+            onChange={setSearchQuery}
+            placeholder='Search projects by name, URL, or branch...'
           />
         </Box>
       )}
 
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
+      {loading && <LoadingSpinner />}
 
       {error && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography color='error'>Error loading projects: {error.message}</Typography>
-          </CardContent>
-        </Card>
+        <ErrorAlert
+          message={`Error loading projects: ${error.message}`}
+          onClose={() => setError(null)}
+          sx={{ mb: 3 }}
+        />
       )}
 
       {!loading && !error && projectsCount === 0 && <NoProjects onCreate={onCreate} />}
 
       {!loading && !error && projectsCount > 0 && filteredProjects.length === 0 && (
-        <Card>
-          <CardContent>
-            <Typography
-              color='text.secondary'
-              align='center'
-            >
-              No projects match your search query.
-            </Typography>
-          </CardContent>
-        </Card>
+        <EmptyState message='No projects match your search query.' />
       )}
 
       {!loading && !error && filteredProjects.length > 0 && (

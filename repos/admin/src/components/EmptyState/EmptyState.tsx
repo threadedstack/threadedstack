@@ -1,22 +1,26 @@
-import { Card, CardContent, Typography, Button, Box } from '@mui/material'
 import type { ReactNode } from 'react'
 import type { SxProps, Theme } from '@mui/material'
+import { Card, CardContent, Typography, Button, Box } from '@mui/material'
 
 export type TEmptyState = {
   message: string
-  actionLabel?: string
-  actionIcon?: ReactNode
-  onAction?: () => void
   sx?: SxProps<Theme>
+  actionLabel?: string
+  onAction?: () => void
+  actionIcon?: ReactNode
+  actionVariant?: 'contained' | 'outlined' | 'text'
 }
 
-export const EmptyState = ({
-  message,
-  actionLabel,
-  actionIcon,
-  onAction,
-  sx,
-}: TEmptyState) => {
+export const EmptyState = (props: TEmptyState) => {
+  const {
+    sx,
+    message,
+    onAction,
+    actionIcon,
+    actionLabel,
+    actionVariant = 'outlined',
+  } = props
+
   return (
     <Card sx={sx}>
       <CardContent>
@@ -29,7 +33,7 @@ export const EmptyState = ({
         {actionLabel && onAction && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
             <Button
-              variant='outlined'
+              variant={actionVariant}
               startIcon={actionIcon}
               onClick={onAction}
             >

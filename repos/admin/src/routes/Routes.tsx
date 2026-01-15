@@ -11,7 +11,7 @@ const Account = lazy(() => import('@TAF/pages/Account/Account'))
 const Settings = lazy(() => import('@TAF/pages/Settings/Settings'))
 
 // Org pages
-const OrgSelect = lazy(() => import('@TAF/pages/Orgs/Orgs'))
+const Orgs = lazy(() => import('@TAF/pages/Orgs/Orgs'))
 const Org = lazy(() => import('@TAF/pages/Orgs/Org'))
 const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
 const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
@@ -72,7 +72,7 @@ export const Routes = createBrowserRouter([
       // Org selection route
       {
         path: 'orgs',
-        Component: () => <SuspensePage Component={OrgSelect} />,
+        Component: () => <SuspensePage Component={Orgs} />,
       },
       // Nested org routes
       {

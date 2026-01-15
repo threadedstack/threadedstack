@@ -1,59 +1,71 @@
 import type { SxProps, Theme } from '@mui/material'
 
-import { TextField, InputAdornment, IconButton } from '@mui/material'
+import { InputAdornment, IconButton } from '@mui/material'
 import { Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material'
+import { TextInput } from '@tdsk/components'
 
 export type TSearchBar = {
+  id?: string
   value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  fullWidth?: boolean
-  size?: 'small' | 'medium'
-  sx?: SxProps<Theme>
   disabled?: boolean
   autoFocus?: boolean
+  fullWidth?: boolean
+  sx?: SxProps<Theme>
+  placeholder?: string
+  size?: 'small' | 'medium'
+  onBlur?: (value: string) => void
+  onChange: (value: string) => void
 }
 
-export const SearchBar = ({
-  value,
-  onChange,
-  placeholder = 'Search...',
-  fullWidth = true,
-  size = 'small',
-  sx,
-  disabled = false,
-  autoFocus = false,
-}: TSearchBar) => {
+export const SearchBar = (props: TSearchBar) => {
+  const {
+    sx,
+    value,
+    onBlur,
+    onChange,
+    size = 'small',
+    disabled = false,
+    fullWidth = true,
+    autoFocus = false,
+    placeholder = 'Search...',
+    id = `tdsk-search-component`,
+  } = props
+
   return (
-    <TextField
-      placeholder={placeholder}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
+    <TextInput
+      id={id}
+      sx={sx}
       size={size}
-      fullWidth={fullWidth}
+      value={value}
       disabled={disabled}
       autoFocus={autoFocus}
-      sx={sx}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position='start'>
-            <SearchIcon color='action' />
-          </InputAdornment>
-        ),
-        endAdornment: value ? (
+      fullWidth={fullWidth}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur ? (e) => onBlur?.(e.target.value) : undefined}
+      startAdornment={
+        <InputAdornment
+          position='start'
+          sx={{ pl: 1 }}
+        >
+          <SearchIcon color='action' />
+        </InputAdornment>
+      }
+      endAdornment={
+        value ? (
           <InputAdornment position='end'>
             <IconButton
-              size='small'
-              onClick={() => onChange('')}
               edge='end'
+              size='small'
               disabled={disabled}
               aria-label='Clear search'
+              onClick={() => onChange('')}
             >
               <ClearIcon />
             </IconButton>
           </InputAdornment>
-        ) : null,
-      }}
+        ) : null
+      }
     />
   )
 }

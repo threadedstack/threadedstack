@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
 import { OrgUsers } from './OrgUsers'
 import * as accessors from '@TAF/state/accessors'
 
@@ -45,21 +46,21 @@ describe('OrgUsers', () => {
   })
 
   it('should render the org users page', async () => {
-    render(<OrgUsers />)
+    renderWithTheme(<OrgUsers />)
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Org Users' })).toBeDefined()
     })
   })
 
   it('should call setActiveOrgId with orgId', async () => {
-    render(<OrgUsers />)
+    renderWithTheme(<OrgUsers />)
     await waitFor(() => {
       expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-123')
     })
   })
 
   it('should render empty state when no users', async () => {
-    render(<OrgUsers />)
+    renderWithTheme(<OrgUsers />)
     await waitFor(() => {
       expect(
         screen.getByText('No org members yet. Invite users to this org to get started.')

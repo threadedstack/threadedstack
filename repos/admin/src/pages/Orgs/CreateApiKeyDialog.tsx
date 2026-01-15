@@ -1,28 +1,24 @@
 import type { TApiKeyScope } from '@tdsk/domain'
 
 import { useState } from 'react'
+import { Dialog, ClipboardCopy } from '@tdsk/components'
 import { createApiKey } from '@TAF/actions/apiKeys'
 import { ApiKeyScopes } from '@TAF/constants/values'
-import { ContentCopy as CopyIcon, Check as CheckIcon } from '@mui/icons-material'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 import {
   Box,
   Paper,
   Alert,
   Button,
-  Dialog,
   Select,
-  Tooltip,
   MenuItem,
   Checkbox,
   FormGroup,
   TextField,
   InputLabel,
   Typography,
-  IconButton,
   FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   FormControlLabel,
 } from '@mui/material'
 
@@ -43,7 +39,6 @@ export const CreateApiKeyDialog = (props: TCreateApiKeyDialog) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generatedKey, setGeneratedKey] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
   const onScopeChange = (scope: TApiKeyScope) => {
     setScopes((prev) =>
@@ -93,14 +88,6 @@ export const CreateApiKeyDialog = (props: TCreateApiKeyDialog) => {
     }
   }
 
-  const onCopy = () => {
-    if (generatedKey) {
-      navigator.clipboard.writeText(generatedKey)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
   const onClose = () => {
     // Only allow closing if we haven't generated a key yet
     // or if the user has explicitly acknowledged the key
@@ -112,7 +99,6 @@ export const CreateApiKeyDialog = (props: TCreateApiKeyDialog) => {
     setExpiresIn('')
     setError(null)
     setGeneratedKey(null)
-    setCopied(false)
     onCloseCB?.()
   }
 
@@ -127,62 +113,55 @@ export const CreateApiKeyDialog = (props: TCreateApiKeyDialog) => {
         open={open}
         onClose={() => {}}
         maxWidth='sm'
-        fullWidth
-      >
-        <DialogTitle>API Key Generated</DialogTitle>
-        <DialogContent>
-          <Alert
-            severity='warning'
-            sx={{ mb: 3 }}
-          >
-            <Typography variant='body2'>
-              Make sure to copy your API key now. You won't be able to see it again!
-            </Typography>
-          </Alert>
+        title='API Key Generated'
+        content={
+          <>
+            <Alert
+              severity='warning'
+              sx={{ mb: 3 }}
+            >
+              <Typography variant='body2'>
+                Make sure to copy your API key now. You won't be able to see it again!
+              </Typography>
+            </Alert>
 
-          <Paper
-            variant='outlined'
-            sx={{
-              p: 2,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              backgroundColor: 'grey.50',
-            }}
-          >
-            <Typography
-              variant='body2'
-              fontFamily='monospace'
+            <Paper
+              variant='outlined'
               sx={{
-                flex: 1,
-                wordBreak: 'break-all',
-                fontSize: '0.875rem',
+                p: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                backgroundColor: 'grey.50',
               }}
             >
-              {generatedKey}
-            </Typography>
-            <Tooltip title={copied ? 'Copied!' : 'Copy to clipboard'}>
-              <IconButton
-                onClick={onCopy}
-                color={copied ? 'success' : 'default'}
+              <Typography
+                variant='body2'
+                fontFamily='monospace'
+                sx={{
+                  flex: 1,
+                  wordBreak: 'break-all',
+                  fontSize: '0.875rem',
+                }}
               >
-                {copied ? <CheckIcon /> : <CopyIcon />}
-              </IconButton>
-            </Tooltip>
-          </Paper>
+                {generatedKey}
+              </Typography>
+              <ClipboardCopy value={generatedKey} />
+            </Paper>
 
-          <Typography
-            variant='caption'
-            color='text.secondary'
-            sx={{ display: 'block', mt: 2 }}
-          >
-            Use this key in the Authorization header:{' '}
-            <code>
-              Authorization: Bearer {'{'}your_key{'}'}
-            </code>
-          </Typography>
-        </DialogContent>
-        <DialogActions>
+            <Typography
+              variant='caption'
+              color='text.secondary'
+              sx={{ display: 'block', mt: 2 }}
+            >
+              Use this key in the Authorization header:{' '}
+              <code>
+                Authorization: Bearer {'{'}your_key{'}'}
+              </code>
+            </Typography>
+          </>
+        }
+        actions={
           <Button
             onClick={onDone}
             variant='contained'
@@ -190,8 +169,8 @@ export const CreateApiKeyDialog = (props: TCreateApiKeyDialog) => {
           >
             Done
           </Button>
-        </DialogActions>
-      </Dialog>
+        }
+      />
     )
   }
 
@@ -200,96 +179,99 @@ export const CreateApiKeyDialog = (props: TCreateApiKeyDialog) => {
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <DialogTitle>Generate API Key</DialogTitle>
-      <DialogContent>
-        {error && (
-          <Alert
-            severity='error'
+      title='Generate API Key'
+      content={
+        <>
+          {error && (
+            <ErrorAlert
+              message={error}
+              onClose={() => setError(null)}
+              sx={{ mb: 2 }}
+            />
+          )}
+
+          <TextField
+            autoFocus
+            margin='dense'
+            label='Key Name'
+            fullWidth
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder='e.g., Production API Key'
+            helperText='A descriptive name to identify this key'
             sx={{ mb: 2 }}
-          >
-            {error}
-          </Alert>
-        )}
+          />
 
-        <TextField
-          autoFocus
-          margin='dense'
-          label='Key Name'
-          fullWidth
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder='e.g., Production API Key'
-          helperText='A descriptive name to identify this key'
-          sx={{ mb: 2 }}
-        />
+          <Box sx={{ mb: 2 }}>
+            <Typography
+              variant='subtitle2'
+              gutterBottom
+            >
+              Scopes
+            </Typography>
+            <FormGroup row>
+              {ApiKeyScopes.map((scope) => (
+                <FormControlLabel
+                  key={scope}
+                  control={
+                    <Checkbox
+                      checked={scopes.includes(scope)}
+                      onChange={() => onScopeChange(scope)}
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant='body2'>{scope}</Typography>
+                      <Typography
+                        variant='caption'
+                        color='text.secondary'
+                      >
+                        {scope === 'read' && 'Read-only access to resources'}
+                        {scope === 'write' && 'Create and update resources'}
+                        {scope === 'admin' && 'Full administrative access'}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              ))}
+            </FormGroup>
+          </Box>
 
-        <Box sx={{ mb: 2 }}>
-          <Typography
-            variant='subtitle2'
-            gutterBottom
+          <FormControl
+            fullWidth
+            margin='dense'
           >
-            Scopes
-          </Typography>
-          <FormGroup row>
-            {ApiKeyScopes.map((scope) => (
-              <FormControlLabel
-                key={scope}
-                control={
-                  <Checkbox
-                    checked={scopes.includes(scope)}
-                    onChange={() => onScopeChange(scope)}
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant='body2'>{scope}</Typography>
-                    <Typography
-                      variant='caption'
-                      color='text.secondary'
-                    >
-                      {scope === 'read' && 'Read-only access to resources'}
-                      {scope === 'write' && 'Create and update resources'}
-                      {scope === 'admin' && 'Full administrative access'}
-                    </Typography>
-                  </Box>
-                }
-              />
-            ))}
-          </FormGroup>
-        </Box>
-
-        <FormControl
-          fullWidth
-          margin='dense'
-        >
-          <InputLabel>Expiration</InputLabel>
-          <Select
-            value={expiresIn}
-            onChange={(e) => setExpiresIn(e.target.value)}
-            label='Expiration'
+            <InputLabel>Expiration</InputLabel>
+            <Select
+              value={expiresIn}
+              onChange={(e) => setExpiresIn(e.target.value)}
+              label='Expiration'
+            >
+              <MenuItem value=''>Never expires</MenuItem>
+              <MenuItem value='7'>7 days</MenuItem>
+              <MenuItem value='30'>30 days</MenuItem>
+              <MenuItem value='90'>90 days</MenuItem>
+              <MenuItem value='180'>180 days</MenuItem>
+              <MenuItem value='365'>1 year</MenuItem>
+            </Select>
+          </FormControl>
+        </>
+      }
+      actions={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <LoadingButton
+            onClick={onSubmit}
+            variant='contained'
+            loading={loading}
+            disabled={!name.trim() || scopes.length === 0}
+            loadingText='Generating...'
           >
-            <MenuItem value=''>Never expires</MenuItem>
-            <MenuItem value='7'>7 days</MenuItem>
-            <MenuItem value='30'>30 days</MenuItem>
-            <MenuItem value='90'>90 days</MenuItem>
-            <MenuItem value='180'>180 days</MenuItem>
-            <MenuItem value='365'>1 year</MenuItem>
-          </Select>
-        </FormControl>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          onClick={onSubmit}
-          variant='contained'
-          disabled={loading || !name.trim() || scopes.length === 0}
-        >
-          {loading ? 'Generating...' : 'Generate Key'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+            Generate Key
+          </LoadingButton>
+        </>
+      }
+    />
   )
 }
 

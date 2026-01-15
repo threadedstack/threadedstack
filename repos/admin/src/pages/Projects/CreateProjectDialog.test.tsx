@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
 import { CreateProjectDialog } from './CreateProjectDialog'
 
 vi.mock('@TAF/state/selectors', () => ({
@@ -16,7 +17,7 @@ vi.mock('@TAF/actions/orgs', () => ({
 
 describe('CreateProjectDialog', () => {
   it('should render the create project dialog when open', () => {
-    render(
+    renderWithTheme(
       <CreateProjectDialog
         open={true}
         onClose={vi.fn()}
@@ -26,7 +27,7 @@ describe('CreateProjectDialog', () => {
   })
 
   it('should not render when closed', () => {
-    const { container } = render(
+    const { container } = renderWithTheme(
       <CreateProjectDialog
         open={false}
         onClose={vi.fn()}

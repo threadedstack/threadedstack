@@ -1,20 +1,18 @@
 import type { Config } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
+import { Dialog } from '@tdsk/components'
 import { ConfirmDeleteAlert } from '@TAF/components'
 import { updateConfig, deleteConfig } from '@TAF/actions/configs'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 import {
   Box,
-  Alert,
-  Dialog,
   Button,
   Select,
   MenuItem,
   TextField,
   InputLabel,
   FormControl,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from '@mui/material'
 
 export type TEditConfigDialog = {
@@ -147,19 +145,18 @@ export const EditConfigDialog = ({
       open={open}
       onClose={onClose}
       maxWidth='sm'
-      fullWidth
-    >
-      <form onSubmit={onSubmit}>
-        <DialogTitle>Edit Configuration</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+      title='Edit Configuration'
+      content={
+        <form
+          id='edit-config-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
-              <Alert
-                severity='error'
+              <ErrorAlert
+                message={error}
                 onClose={() => setError(null)}
-              >
-                {error}
-              </Alert>
+              />
             )}
 
             {showDeleteConfirm && (
@@ -167,7 +164,7 @@ export const EditConfigDialog = ({
                 itemName={config?.id || 'Config'}
                 onCancel={() => setShowDeleteConfirm(false)}
                 onConfirm={onDelete}
-                loading={loading}
+                deleting={loading}
               />
             )}
 
@@ -233,8 +230,11 @@ export const EditConfigDialog = ({
               }
             />
           </Box>
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
+        </form>
+      }
+      actionProps={{ sx: { justifyContent: 'space-between', px: 3, pb: 2 } }}
+      actions={
+        <>
           <Button
             color='error'
             onClick={() => setShowDeleteConfirm(true)}
@@ -249,16 +249,19 @@ export const EditConfigDialog = ({
             >
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               type='submit'
+              form='edit-config-form'
               variant='contained'
-              disabled={loading || showDeleteConfirm}
+              loading={loading}
+              disabled={showDeleteConfirm}
+              loadingText='Saving...'
             >
-              {loading ? 'Saving...' : 'Save Changes'}
-            </Button>
+              Save Changes
+            </LoadingButton>
           </Box>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </>
+      }
+    />
   )
 }

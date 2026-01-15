@@ -5,13 +5,14 @@ import { useOrgs } from '@TAF/state/selectors'
 import { useParams, useNavigate } from 'react-router'
 import { setActiveOrgId } from '@TAF/state/accessors'
 import { fetchOrg, updateOrg, deleteOrg } from '@TAF/actions/orgs'
+import { LoadingSpinner, ErrorAlert } from '@TAF/components'
 import {
   SettingsFormCard,
   InfoCard,
   DangerZoneCard,
   DeleteConfirmDialog,
 } from '@TAF/components/Settings'
-import { Box, Alert, Typography, CircularProgress } from '@mui/material'
+import { Box, Alert, Typography } from '@mui/material'
 
 export type TOrgSettings = {}
 
@@ -117,19 +118,14 @@ export const OrgSettings = (props: TOrgSettings) => {
         </Typography>
       </Box>
 
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
+      {loading && <LoadingSpinner />}
 
       {error && (
-        <Alert
-          severity='error'
+        <ErrorAlert
+          message={error}
+          onClose={() => setError(null)}
           sx={{ mb: 3 }}
-        >
-          {error}
-        </Alert>
+        />
       )}
 
       {success && (
@@ -170,10 +166,10 @@ export const OrgSettings = (props: TOrgSettings) => {
             items={[
               { label: 'Org ID', value: org.id, copyable: true },
               ...(org.createdAt
-                ? [{ label: 'Created', value: org.createdAt, isDate: true }]
+                ? [{ label: 'Created', value: String(org.createdAt), isDate: true }]
                 : []),
               ...(org.updatedAt
-                ? [{ label: 'Last Updated', value: org.updatedAt, isDate: true }]
+                ? [{ label: 'Last Updated', value: String(org.updatedAt), isDate: true }]
                 : []),
             ]}
             onCopy={onCopySuccess}

@@ -1,68 +1,36 @@
 import type { User } from '@tdsk/domain'
 
-import { usersApi } from '@TAF/services'
-import { EditRoleDialog } from './EditRoleDialog'
-import { NoUsers } from './NoUsers'
-import { UsersGrid } from './UsersGrid'
-import { useEffect, useState, useMemo } from 'react'
-import { InviteUserDialog } from './InviteUserDialog'
-import { setActiveOrgId } from '@TAF/state/accessors'
-import { SearchBar, PageHeader, FilterSelect, LoadingSpinner } from '@TAF/components'
-import { PersonAdd as PersonAddIcon } from '@mui/icons-material'
 import { Box, Alert } from '@mui/material'
+import { useState, useEffect } from 'react'
+import { AllAuthRoles } from '@TAF/constants/values'
+import { useActiveOrgId } from '@TAF/state/selectors'
+import { NoUsers } from '@TAF/components/Users/NoUsers'
+import { UsersGrid } from '@TAF/components/Users/UsersGrid'
+import { useOrgUsersList } from '@TAF/hooks/org/useOrgUsersList'
+import { PersonAdd as PersonAddIcon } from '@mui/icons-material'
+import { EditRoleDialog } from '@TAF/components/Users/EditRoleDialog'
+import { useLocalSearch } from '@TAF/hooks/components/useLocalSearch'
+import { InviteUserDialog } from '@TAF/components/Users/InviteUserDialog'
+import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
+import {
+  SearchBar,
+  PageHeader,
+  ErrorAlert,
+  FilterSelect,
+  LoadingSpinner,
+} from '@TAF/components'
 
-export type TUserWithRole = User & {
-  roleId?: string
-  roleType?: 'super' | 'admin' | 'basic'
-}
+export type TUsers = {}
 
-export type TUsers = {
-  orgId: string
-}
-
-// TODO: move to domain repo
-const ROLE_FILTER_OPTIONS = [
-  { value: 'super', label: 'Super Admin' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'basic', label: 'Basic' },
-]
-
-export const Users = ({ orgId }: TUsers) => {
-  const [users, setUsers] = useState<TUserWithRole[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+export const Users = (props: TUsers) => {
+  const [orgId] = useActiveOrgId()
+  const [roleFilter, setRoleFilter] = useState<string>('all')
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<TUserWithRole | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState<string>('all')
 
-  useEffect(() => {
-    if (orgId) {
-      setActiveOrgId(orgId)
-    }
-  }, [orgId])
-
-  const loadUsers = async () => {
-    if (!orgId) return
-
-    setLoading(true)
-    setError(null)
-
-    const resp = await usersApi.listByOrg(orgId)
-
-    if (resp.error) {
-      setError(resp.error)
-    } else {
-      setUsers(resp.data || [])
-    }
-
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    loadUsers()
-  }, [orgId])
+  const [removingUser, setRemovingUser] = useState<User | null>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const { users, error, loading, setError, loadUsers, removeUser } = useOrgUsersList()
 
   const onOpenInviteDialog = () => {
     setInviteDialogOpen(true)
@@ -77,7 +45,7 @@ export const Users = ({ orgId }: TUsers) => {
     onCloseInviteDialog()
   }
 
-  const onOpenEditRole = (user: TUserWithRole) => {
+  const onOpenEditRole = (user: User) => {
     setSelectedUser(user)
     setEditRoleDialogOpen(true)
   }
@@ -92,76 +60,57 @@ export const Users = ({ orgId }: TUsers) => {
     onCloseEditRole()
   }
 
-  const onRemoveUser = async (user: TUserWithRole) => {
-    const displayName = user.displayName || user.email || 'this user'
+  const { items, query, onChange, onSearch } = useLocalSearch<User>({
+    items: users,
+    onQuery: (query, current, initial) => {
+      const cleaned = query.trim().toLowerCase()
+      if (!cleaned) return initial
 
-    if (
-      !window.confirm(`Are you sure you want to remove "${displayName}" from this org?`)
-    ) {
-      return
-    }
+      let filtered = initial
 
-    if (!orgId || !user.roleId) return
+      if (roleFilter !== `all`)
+        filtered = filtered.filter((user) => user.role === roleFilter)
 
-    const resp = await usersApi.removeFromOrg(orgId, user.roleId)
-
-    if (resp.error) {
-      setError(resp.error)
-    } else {
-      loadUsers()
-    }
-  }
-
-  // Filter users based on search query and role filter
-  const filteredUsers = useMemo(() => {
-    let filtered = users
-
-    // Apply role filter
-    if (roleFilter !== 'all') {
-      filtered = filtered.filter((user) => user.roleType === roleFilter)
-    }
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
         (user) =>
-          user.displayName?.toLowerCase().includes(query) ||
-          user.email?.toLowerCase().includes(query) ||
-          user.first?.toLowerCase().includes(query) ||
-          user.last?.toLowerCase().includes(query)
+          user.displayName?.toLowerCase().includes(cleaned) ||
+          user.email?.toLowerCase().includes(cleaned) ||
+          user.first?.toLowerCase().includes(cleaned) ||
+          user.last?.toLowerCase().includes(cleaned)
       )
-    }
 
-    return filtered
-  }, [users, searchQuery, roleFilter])
+      return filtered
+    },
+  })
+
+  useEffect(() => onSearch(), [roleFilter])
 
   return (
     <>
       <PageHeader
-        title='Org Users'
         count={users.length}
         countLabel='member'
         actionLabel='Invite User'
+        title='Organization Users'
         actionIcon={<PersonAddIcon />}
         onAction={onOpenInviteDialog}
       />
 
       {!loading && users.length > 0 && (
-        <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+        <Box sx={{ mb: 5, display: 'flex', gap: 2 }}>
           <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder='Search users by name or email...'
             sx={{ flex: 1 }}
+            value={query}
+            id='user-search-bar'
+            onChange={onChange}
+            placeholder='Search users by name or email...'
           />
           <FilterSelect
             id='role-filter'
-            label='Role'
             value={roleFilter}
-            onChange={setRoleFilter}
-            options={ROLE_FILTER_OPTIONS}
             allLabel='All Roles'
+            options={AllAuthRoles}
+            onChange={setRoleFilter}
           />
         </Box>
       )}
@@ -169,28 +118,26 @@ export const Users = ({ orgId }: TUsers) => {
       {loading && <LoadingSpinner />}
 
       {error && (
-        <Alert
-          severity='error'
-          sx={{ mb: 3 }}
+        <ErrorAlert
+          message={`Error loading users: ${error}`}
           onClose={() => setError(null)}
-        >
-          Error loading users: {error.message}
-        </Alert>
+          sx={{ mb: 3 }}
+        />
       )}
 
       {!loading && !error && users.length === 0 && (
         <NoUsers onInvite={onOpenInviteDialog} />
       )}
 
-      {!loading && !error && users.length > 0 && filteredUsers.length === 0 && (
+      {!loading && !error && users.length > 0 && items.length === 0 && (
         <Alert severity='info'>No users match your search or filter criteria.</Alert>
       )}
 
-      {!loading && !error && filteredUsers.length > 0 && (
+      {!loading && !error && items.length > 0 && (
         <UsersGrid
-          users={filteredUsers}
+          users={items}
           onEditRole={onOpenEditRole}
-          onRemoveUser={onRemoveUser}
+          onRemoveUser={(user) => setRemovingUser(user)}
         />
       )}
 
@@ -203,11 +150,22 @@ export const Users = ({ orgId }: TUsers) => {
 
       {selectedUser && (
         <EditRoleDialog
-          user={selectedUser}
           orgId={orgId}
+          user={selectedUser}
           onClose={onCloseEditRole}
           open={editRoleDialogOpen}
           onSuccess={onEditRoleSuccess}
+        />
+      )}
+
+      {removingUser && (
+        <ConfirmDeleteAlert
+          deleting={loading}
+          title={`Remove user?`}
+          itemName={removingUser.displayName}
+          onConfirm={() => removeUser(removingUser)}
+          onCancel={() => setRemovingUser(undefined)}
+          text={`Are you sure you want to remove "${removingUser.displayName}" from the organization?`}
         />
       )}
     </>

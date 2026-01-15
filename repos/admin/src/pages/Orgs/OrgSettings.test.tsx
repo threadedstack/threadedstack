@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
 import { OrgSettings } from './OrgSettings'
 import * as accessors from '@TAF/state/accessors'
 
@@ -57,21 +58,21 @@ describe('OrgSettings', () => {
   })
 
   it('should render the org settings page', async () => {
-    render(<OrgSettings />)
+    renderWithTheme(<OrgSettings />)
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Org Settings' })).toBeDefined()
     })
   })
 
   it('should display the org ID', async () => {
-    render(<OrgSettings />)
+    renderWithTheme(<OrgSettings />)
     await waitFor(() => {
       expect(screen.getByText('org-abc')).toBeDefined()
     })
   })
 
   it('should call setActiveOrgId with orgId', async () => {
-    render(<OrgSettings />)
+    renderWithTheme(<OrgSettings />)
     await waitFor(() => {
       expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-abc')
     })

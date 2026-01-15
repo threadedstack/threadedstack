@@ -1,9 +1,8 @@
-import { OrgProjects } from './OrgProjects'
-import { makeTheme } from '@tdsk/components'
-import * as accessors from '@TAF/state/accessors'
-import { ThemeProvider } from '@mui/material/styles'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
+import { OrgProjects } from './OrgProjects'
+import * as accessors from '@TAF/state/accessors'
 
 vi.mock('react-router', () => ({
   useParams: () => ({ orgId: 'org-def' }),
@@ -14,6 +13,7 @@ vi.mock('@TAF/state/selectors', () => ({
   useUser: () => [{}, vi.fn()],
   useProjects: () => [{}, vi.fn()],
   useThemeType: () => [undefined, vi.fn(), vi.fn()],
+  useActiveOrgId: () => ['org-def', vi.fn()],
 }))
 
 vi.mock('@TAF/state/accessors', () => ({
@@ -25,43 +25,34 @@ vi.mock('@TAF/actions/projects', () => ({
   deleteProject: vi.fn(() => ({})),
 }))
 
-const renderPage = () => {
-  const theme = makeTheme(`light`)
-  render(
-    <ThemeProvider theme={theme}>
-      <OrgProjects />
-    </ThemeProvider>
-  )
-}
-
 describe('OrgProjects', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('should render the org projects page', async () => {
-    renderPage()
+    renderWithTheme(<OrgProjects />)
     await waitFor(() => {
       expect(screen.getByText('Organization Projects')).toBeDefined()
     })
   })
 
   it('should call setActiveOrgId with orgId', async () => {
-    renderPage()
+    renderWithTheme(<OrgProjects />)
     await waitFor(() => {
       expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-def')
     })
   })
 
   it('should render the Create Project button', async () => {
-    renderPage()
+    renderWithTheme(<OrgProjects />)
     await waitFor(() => {
       expect(screen.getByText('Create Project')).toBeDefined()
     })
   })
 
   it('should render empty state when no projects', async () => {
-    renderPage()
+    renderWithTheme(<OrgProjects />)
     await waitFor(() => {
       expect(screen.getByText(/No projects yet/)).toBeDefined()
     })

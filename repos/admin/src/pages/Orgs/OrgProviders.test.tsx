@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '../../../scripts/testUtils'
 import { OrgProviders } from './OrgProviders'
 import * as accessors from '@TAF/state/accessors'
 
@@ -42,21 +43,21 @@ describe('OrgProviders', () => {
   })
 
   it('should render the org providers page', async () => {
-    render(<OrgProviders />)
+    renderWithTheme(<OrgProviders />)
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Org Providers' })).toBeDefined()
     })
   })
 
   it('should call setActiveOrgId with orgId', async () => {
-    render(<OrgProviders />)
+    renderWithTheme(<OrgProviders />)
     await waitFor(() => {
       expect(accessors.setActiveOrgId).toHaveBeenCalledWith('org-789')
     })
   })
 
   it('should render empty state when no providers', async () => {
-    render(<OrgProviders />)
+    renderWithTheme(<OrgProviders />)
     await waitFor(() => {
       expect(
         screen.getByText('No providers yet. Create your first provider to get started.')

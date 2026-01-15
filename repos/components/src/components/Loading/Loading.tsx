@@ -1,3 +1,4 @@
+import type { SxProps } from '@mui/material'
 import type { CSSProperties, ComponentProps, ReactNode } from 'react'
 
 import { Text } from '@TSC/components/Text'
@@ -13,8 +14,8 @@ export type TLoading = ComponentProps<typeof CircularProgress> & {
   fixed?: boolean
   centered?: boolean
   hideSpinner?: boolean
-  messageSx?: CSSProperties | CSSProperties[]
-  containerSx?: CSSProperties | CSSProperties[]
+  messageSx?: SxProps | SxProps[]
+  containerSx?: SxProps | SxProps[]
   textVariant?: `h1` | `h2` | `h3` | `h4` | `h5` | `h6` | `body1` | `body2`
   pos?: `before` | `after`
 }
