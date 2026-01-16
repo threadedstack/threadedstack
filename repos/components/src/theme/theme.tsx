@@ -1,46 +1,45 @@
-import { BreakpointsOptions } from '@mui/material'
+import type { Theme } from '@mui/material'
+import type { TTSTheme, TThemeColors, TThemeType } from '@TSC/types'
+
+import { dims } from '@TSC/theme/dims'
+import { gutter } from '@TSC/theme/gutter'
+import { white, colors } from '@TSC/theme/colors'
 import createTheme from '@mui/material/styles/createTheme'
-import { gutter } from './gutter'
-import { grey, white, colors } from './colors'
 
 const typography = {
   fontFamily: ['Ubuntu', 'serif'].join(','),
 }
 
-const components = (isDark?: boolean) => {
+const components = (colors: TThemeColors) => {
   return {
     MuiPaper: {
       styleOverrides: {
         root: {
-          backgroundColor: isDark ? colors.dark.background : colors.light.background,
+          backgroundColor: colors.background,
         },
       },
     },
     MuiTypography: {
       styleOverrides: {
         root: {
-          color: isDark ? colors.dark.primaryForeground : colors.light.primaryForeground,
+          color: colors.primaryForeground,
         },
       },
     },
     MuiAccordion: {
       styleOverrides: {
         root: {
-          backgroundColor: isDark ? colors.dark.background : colors.light.background,
+          backgroundColor: colors.background,
         },
         heading: {
-          backgroundColor: isDark
-            ? colors.dark.headerBackground
-            : colors.light.headerBackground,
+          backgroundColor: colors.headerBackground,
         },
       },
     },
     MuiAccordionSummary: {
       styleOverrides: {
         root: {
-          backgroundColor: isDark
-            ? colors.dark.headerBackground
-            : colors.light.headerBackground,
+          backgroundColor: colors.headerBackground,
         },
         content: {
           margin: `0px`,
@@ -49,10 +48,17 @@ const components = (isDark?: boolean) => {
     },
     MuiButton: {
       defaultProps: {
-        disableElevation: true,
         disableRipple: true,
+        //disableElevation: true,
         sx: {
+          opacity: 0.95,
           textTransform: `none`,
+          boxShadow: `0px 0px 0px 0px transparent`,
+          transition: `opacity 0.2s ease, box-shadow 0.2s ease`,
+          [`&:hover`]: {
+            opacity: 1,
+            boxShadow: `0px 2px 4px -1px rgba(0,0,0,0.2), 0px 2px 3px 0px rgba(0,0,0,0.14), 0px 1px 5px 0px rgba(0,0,0,0.12)`,
+          },
         },
       },
     },
@@ -73,7 +79,7 @@ const components = (isDark?: boolean) => {
       styleOverrides: {
         input: {
           [`&::placeholder`]: {
-            color: isDark ? grey[500] : grey[700],
+            color: colors.placeholder,
           },
         },
       },
@@ -82,7 +88,7 @@ const components = (isDark?: boolean) => {
       styleOverrides: {
         input: {
           [`&::placeholder`]: {
-            color: isDark ? grey[500] : grey[700],
+            color: colors.placeholder,
           },
         },
       },
@@ -92,16 +98,16 @@ const components = (isDark?: boolean) => {
         sx: {
           m: 0,
           fontWeight: 400,
-          color: grey[500],
+          color: colors.grey[500],
         },
       },
     },
     MuiTooltip: {
       styleOverrides: {
         tooltip: {
+          color: colors.foreground,
+          backgroundColor: colors.background,
           padding: `${gutter.tpx} ${gutter.px}`,
-          color: isDark ? colors.dark.foreground : colors.light.foreground,
-          backgroundColor: isDark ? colors.dark.background : colors.light.background,
         },
       },
     },
@@ -113,107 +119,70 @@ const success = {
   main: colors.states.success,
 }
 
-const darkTheme = (breakpoints?: BreakpointsOptions) =>
-  createTheme({
-    typography,
-    breakpoints: breakpoints,
-    components: components(true),
-    palette: {
-      mode: `dark`,
-      success,
-      colors: colors.dark,
-      border: {
-        muted: colors.grey[800],
-        section: colors.grey[800],
-        default: colors.dark.border,
-        highlight: colors.primary[600],
-      },
-      editor: {
-        background: colors.editor.dark.background,
-        rbackground: colors.editor.dark.rbackground,
-      },
-      background: {
-        muted: colors.grey[875],
-        paper: colors.dark.paper,
-        default: colors.dark.background,
-        input: colors.dark.inputBackground,
-        header: colors.dark.headerBackground,
-        section: colors.dark.sectionBackground,
-      },
-      primary: {
-        dark: colors.primary[800],
-        light: colors.primary[50],
-        main: colors.dark.primary,
-        contrastText: colors.dark.primaryForeground,
-      },
-      secondary: {
-        dark: colors.grey[500],
-        light: colors.grey[100],
-        main: colors.dark.secondary,
-        contrastText: colors.dark.secondaryForeground,
-      },
-      error: {
-        main: colors.dark.destructive,
-        contrastText: colors.dark.destructiveForeground,
-      },
-      text: {
-        primary: colors.dark.foreground,
-        secondary: colors.dark.mutedForeground,
-      },
-      divider: colors.dark.border,
-    },
-  })
+const breakpoints = {
+  values: {
+    xs: 0,
+    sm: 375,
+    md: 720,
+    lg: 1280,
+    xl: 1536,
+  },
+}
 
-const lightTheme = (breakpoints?: BreakpointsOptions) =>
+const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
   createTheme({
+    dims,
+    gutter,
     typography,
-    breakpoints: breakpoints,
-    components: components(),
+    breakpoints,
+    components: components(colors),
     palette: {
-      mode: `light`,
+      mode,
       success,
-      colors: colors.light,
+      colors,
       border: {
         muted: colors.grey[25],
         section: colors.grey[50],
-        default: colors.light.border,
+        default: colors.border,
         highlight: colors.primary[100],
       },
       editor: {
-        background: colors.editor.light.background,
-        rbackground: colors.editor.light.rbackground,
+        background: colors.editor.background,
+        rbackground: colors.editor.rbackground,
       },
       background: {
         muted: colors.grey[10],
-        paper: colors.light.paper,
-        default: colors.light.background,
-        input: colors.light.inputBackground,
-        header: colors.light.headerBackground,
-        section: colors.light.sectionBackground,
+        paper: colors.paper,
+        default: colors.background,
+        input: colors.inputBackground,
+        header: colors.headerBackground,
+        section: colors.sectionBackground,
       },
       primary: {
         dark: colors.primary[800],
         light: colors.primary[300],
-        main: colors.light.primary,
-        contrastText: colors.light.contrastText,
+        main: colors.primary,
+        contrastText: colors.contrastText,
       },
       secondary: {
         dark: colors.grey[700],
         light: colors.grey[200],
-        main: colors.light.secondary,
-        contrastText: colors.light.mutedForeground,
+        main: colors.secondary,
+        contrastText: colors.mutedForeground,
       },
       error: {
-        main: colors.light.destructive,
-        contrastText: colors.light.destructiveForeground,
+        main: colors.destructive,
+        contrastText: colors.destructiveForeground,
       },
-      divider: colors.light.border,
+      divider: colors.border,
       text: {
-        primary: colors.light.foreground,
-        secondary: colors.light.mutedForeground,
+        primary: colors.foreground,
+        secondary: colors.mutedForeground,
       },
     },
   })
 
-export const makeTheme = (variant: `dark` | `light`, breakpoints?: BreakpointsOptions) =>
-  variant === `dark` ? darkTheme(breakpoints) : lightTheme(breakpoints)
+export const makeTheme = (theme: TTSTheme): Theme => {
+  const { type } = theme
+  return buildTheme(type, { ...colors[type], ...theme[type] })
+}

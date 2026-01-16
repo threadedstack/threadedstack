@@ -35,7 +35,22 @@ export const primary = {
   900: `#152E64`,
 }
 
+export const editor = {
+  light: {
+    background: white,
+    rbackground: grey[5],
+    gbackground: grey[25],
+  },
+  dark: {
+    background: grey[925],
+    rbackground: grey[900],
+    gbackground: grey[850],
+  },
+}
+
 const dark = {
+  grey,
+  editor: editor.dark,
   background: grey[875],
   foreground: grey[100],
   paper: grey[850],
@@ -55,6 +70,7 @@ const dark = {
   headerBackground: grey[900],
   border: grey[825],
   input: grey[800],
+  placeholder: grey[500],
   ring: primary[500],
   shadowColor: grey[900],
   shadowContrast: grey[875],
@@ -64,6 +80,8 @@ const dark = {
 }
 
 const light = {
+  grey,
+  editor: editor.light,
   background: grey[0],
   foreground: grey[900],
   paper: grey[25],
@@ -85,6 +103,7 @@ const light = {
   input: grey[200],
   ring: primary[500],
   shadowColor: grey[50],
+  placeholder: grey[700],
   shadowContrast: grey[25],
   shadow: `0px 1px 1px 0px ${grey[50]}`,
   shadowAlt: `0px 0px 0px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 2px -1px rgba(0,0,0,0.12)`,
@@ -98,19 +117,6 @@ const states = {
   warning: `#ef6b05`,
   disabled: grey[300],
   danger: `#d33d3d`,
-}
-
-const editor = {
-  light: {
-    background: white,
-    rbackground: grey[5],
-    gbackground: grey[25],
-  },
-  dark: {
-    background: grey[925],
-    rbackground: grey[900],
-    gbackground: grey[850],
-  },
 }
 
 export const colors = {

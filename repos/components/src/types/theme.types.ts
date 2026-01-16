@@ -1,4 +1,62 @@
+import type { grey, editor } from '@TSC/theme/colors'
+import type { dims } from '@TSC/theme/dims'
+import type { gutter } from '@TSC/theme/gutter'
+
+export enum EThemeType {
+  dark = `dark`,
+  light = `light`,
+}
+
+export type TThemeType = `${EThemeType}`
+
+export type TThemeColors = {
+  background?: string
+  foreground?: string
+  paper?: string
+  primary?: string
+  primaryForeground?: string
+  contrastText?: string
+  secondary?: string
+  secondaryForeground?: string
+  muted?: string
+  mutedForeground?: string
+  accent?: string
+  accentForeground?: string
+  destructive?: string
+  destructiveForeground?: string
+  inputBackground?: string
+  sectionBackground?: string
+  headerBackground?: string
+  border?: string
+  input?: string
+  placeholder?: string
+  ring?: string
+  shadowColor?: string
+  shadowContrast?: string
+  shadow?: string
+  shadowAlt?: string
+  shadowPaper?: string
+  grey?: typeof grey
+  editor?: (typeof editor)[`light`]
+}
+
+export type TTSTheme = {
+  type?: TThemeType
+  dark?: TThemeColors
+  light?: TThemeColors
+}
+
 declare module '@mui/material/styles' {
+  interface Theme {
+    dims?: typeof dims
+    gutter?: typeof gutter
+  }
+
+  interface ThemeOptions {
+    dims?: typeof dims
+    gutter?: typeof gutter
+  }
+
   interface Border {
     muted?: string
     section?: string
@@ -20,44 +78,17 @@ declare module '@mui/material/styles' {
     input?: string
   }
 
-  interface Colors {
-    background?: string
-    foreground?: string
-    paper?: string
-    primary?: string
-    primaryForeground?: string
-    secondary?: string
-    secondaryForeground?: string
-    muted?: string
-    mutedForeground?: string
-    accent?: string
-    accentForeground?: string
-    destructive?: string
-    destructiveForeground?: string
-    inputBackground?: string
-    headerBackground?: string
-    sectionBackground?: string
-    border?: string
-    input?: string
-    ring?: string
-    shadow?: string
-    shadowAlt?: string
-    shadowColor?: string
-    shadowPaper?: string
-    shadowContrast?: string
-  }
-
   interface Palette {
     border: Border
     editor: Editor
-    colors: Colors
+    colors: TThemeColors
     background: TypeBackground
   }
 
   interface PaletteOptions {
     border?: Border
     editor?: Editor
-    colors: Colors
+    colors: TThemeColors
   }
 }
 
