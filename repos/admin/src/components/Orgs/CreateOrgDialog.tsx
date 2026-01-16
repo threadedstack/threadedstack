@@ -1,20 +1,39 @@
+import type { CSSProperties } from 'react'
+
 import { useState } from 'react'
+import { Box } from '@mui/material'
+import { styled } from '@mui/material/styles'
 import { createOrg } from '@TAF/actions/orgs'
 import { Add as AddIcon } from '@mui/icons-material'
-import { Box, Button } from '@mui/material'
-import { Dialog, TextInput } from '@tdsk/components'
+import { Button, Dialog, TextInput } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
+const CreateBox = styled(Box)`
+  display: flex;
+  justify-content: end;
+`
+
 export type TCreateOrgDialog = {
   open: boolean
+  sx?: CSSProperties
   createText?: string
   onClose: () => void
+  createSx?: CSSProperties
+  createBtnSx?: CSSProperties
   onCreate?: (evt: any) => void
 }
 
 export const CreateOrgDialog = (props: TCreateOrgDialog) => {
-  const { open, onCreate, onClose: onCloseCB, createText = `Create` } = props
+  const {
+    sx,
+    open,
+    createSx,
+    onCreate,
+    createBtnSx,
+    onClose: onCloseCB,
+    createText = `Create`,
+  } = props
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -58,21 +77,23 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
   return (
     <>
       {onCreate && (
-        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+        <CreateBox sx={createSx}>
           <Button
             color='primary'
-            variant='outlined'
-            startIcon={<AddIcon />}
+            sx={createBtnSx}
             onClick={onCreate}
+            variant='contained'
+            Icon={<AddIcon />}
           >
             {createText}
           </Button>
-        </Box>
+        </CreateBox>
       )}
       <Dialog
+        sx={sx}
         open={open}
-        onClose={onClose}
         maxWidth='sm'
+        onClose={onClose}
         title='New Organization'
         data-testid='create-org-dialog'
         content={

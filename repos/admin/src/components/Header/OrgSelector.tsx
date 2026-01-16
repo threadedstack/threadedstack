@@ -8,7 +8,7 @@ import { useOrgs, useActiveOrgId, useActiveOrg } from '@TAF/state/selectors'
 import {
   Add as AddIcon,
   Check as CheckIcon,
-  Business as OrgIcon,
+  GridView as OrgIcon,
   Search as SearchIcon,
   ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material'

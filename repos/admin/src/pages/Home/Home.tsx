@@ -1,5 +1,7 @@
+import Box from '@mui/material/Box'
+import { Text } from '@tdsk/components'
 import { Page } from '@TAF/pages/Page/Page'
-import { Box, Typography } from '@mui/material'
+import Container from '@mui/material/Container'
 import { Orgs } from '@TAF/components/Orgs/Orgs'
 
 export type THome = {}
@@ -7,20 +9,25 @@ export type THome = {}
 export const Home = (props: THome) => {
   return (
     <Page className='tdsk-home-page'>
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          variant='h4'
-          component='h1'
-          gutterBottom
-        >
-          Your Organizations
-        </Typography>
-        <Typography color='text.secondary'>
-          Choose an organization to continue or create a new one
-        </Typography>
-      </Box>
+      <Container
+        maxWidth='lg'
+        disableGutters
+      >
+        <Box sx={{ mb: 1 }}>
+          <Text
+            variant='h5'
+            component='h1'
+            gutterBottom
+          >
+            Your Organizations
+          </Text>
+          <Text color='text.secondary'>
+            Choose an organization to continue or create a new one
+          </Text>
+        </Box>
 
-      <Orgs />
+        <Orgs />
+      </Container>
     </Page>
   )
 }

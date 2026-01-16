@@ -195,7 +195,7 @@ const lightTheme = (breakpoints?: BreakpointsOptions) =>
         dark: colors.primary[800],
         light: colors.primary[300],
         main: colors.light.primary,
-        contrastText: colors.light.primaryForeground,
+        contrastText: colors.light.contrastText,
       },
       secondary: {
         dark: colors.grey[700],

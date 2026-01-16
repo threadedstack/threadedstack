@@ -1,23 +1,29 @@
 import type { Organization } from '@tdsk/domain'
 
 import { useState } from 'react'
+import { cls } from '@keg-hub/jsutils/cls'
+import { styled } from '@mui/material/styles'
+import OrgIcon from '@mui/icons-material/GridView'
 import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
-import {
-  Group as OrgIcon,
-  Delete as DeleteIcon,
-  ArrowForward as SelectIcon,
-} from '@mui/icons-material'
-import {
-  Box,
-  Card,
-  Chip,
-  Tooltip,
-  useTheme,
-  IconButton,
-  Typography,
-  CardContent,
-  CardActions,
-} from '@mui/material'
+
+import { Box, Card, Chip, useTheme, Typography, CardContent } from '@mui/material'
+
+const CardOrg = styled(Card)(({ theme }) => {
+  return `
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    transition: all 0.2s;
+  
+    &.active {
+      2px solid ${theme.palette.primary.main};
+    }
+  
+    &:hover {
+      box-shadow: 3;
+      transform: translateY(-4px);
+    }
+  `
+})
 
 export type TOrgCard = {
   active?: boolean
@@ -43,19 +49,9 @@ export const OrgCard = (props: TOrgCard) => {
 
   return (
     <>
-      <Card
-        sx={{
-          cursor: `pointer`,
-          transition: `all 0.2s`,
-          border: active
-            ? `2px solid ${theme.palette.primary.main}`
-            : `1px solid rgba(0, 0, 0, 0.12)`,
-          [`&:hover`]: {
-            transform: `translateY(-4px)`,
-            boxShadow: 3,
-          },
-        }}
+      <CardOrg
         onClick={() => onSelect?.(org.id)}
+        className={cls(`tdsk-org-card`, active && `active`)}
       >
         <CardContent>
           <Box sx={{ display: `flex`, alignItems: `center`, mb: 1 }}>
@@ -89,36 +85,7 @@ export const OrgCard = (props: TOrgCard) => {
             ID: {org.id}
           </Typography>
         </CardContent>
-        <CardActions sx={{ justifyContent: `space-between`, px: 2, pb: 2 }}>
-          {(showDelete && (
-            <Tooltip title='Delete Org'>
-              <IconButton
-                size='small'
-                color='error'
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setDeleting(true)
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
-            </Tooltip>
-          )) ||
-            null}
-          <Tooltip title={active ? `Continue with Org` : `Select Org`}>
-            <IconButton
-              size='small'
-              color='primary'
-              onClick={(e) => {
-                e.stopPropagation()
-                onSelect?.(org.id)
-              }}
-            >
-              <SelectIcon />
-            </IconButton>
-          </Tooltip>
-        </CardActions>
-      </Card>
+      </CardOrg>
 
       {showDelete && deleting && (
         <ConfirmDeleteAlert

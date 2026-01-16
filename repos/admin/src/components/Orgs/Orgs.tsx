@@ -1,11 +1,12 @@
+import Box from '@mui/material/Box'
 import { useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
+import { Loading } from '@tdsk/components'
 import { NoOrgs } from '@TAF/components/Orgs/NoOrgs'
 import { setActiveOrgId } from '@TAF/state/accessors'
 import { fetchOrgs } from '@TAF/actions/orgs/fetchOrgs'
 import { deleteOrg } from '@TAF/actions/orgs/deleteOrg'
 import { OrgsGrid } from '@TAF/components/Orgs/OrgsGrid'
-import { Card, Typography, CardContent } from '@mui/material'
 import { useOrgs, useActiveOrgId } from '@TAF/state/selectors'
 import { useIsAdmin } from '@TAF/hooks/permissions/useIsAdmin'
 import { CreateOrgDialog } from '@TAF/components/Orgs/CreateOrgDialog'
@@ -43,29 +44,26 @@ export const Orgs = (props: TOrgs) => {
   return (
     <>
       {loading ? (
-        <Card>
-          <CardContent>
-            <Typography align='center'>Loading...</Typography>
-          </CardContent>
-        </Card>
+        <Box pt='40px'>
+          <Loading full />
+        </Box>
       ) : (
         <>
           {orgsArray.length === 0 ? (
             <NoOrgs onCreate={onCreate} />
           ) : (
             <>
+              <CreateOrgDialog
+                open={creating}
+                onCreate={onCreate}
+                onClose={() => setCreating(false)}
+              />
               <OrgsGrid
                 orgs={orgsArray}
                 showDelete={admin}
                 onDelete={onDelete}
                 onSelect={onSelect}
                 activeOrgId={activeOrgId}
-              />
-
-              <CreateOrgDialog
-                open={creating}
-                onCreate={onCreate}
-                onClose={() => setCreating(false)}
               />
             </>
           )}
