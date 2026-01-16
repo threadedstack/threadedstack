@@ -62,13 +62,11 @@ export const Orgs = (props: TOrgs) => {
                 activeOrgId={activeOrgId}
               />
 
-              {admin && (
-                <CreateOrgDialog
-                  open={creating}
-                  onCreate={onCreate}
-                  onClose={() => setCreating(false)}
-                />
-              )}
+              <CreateOrgDialog
+                open={creating}
+                onCreate={onCreate}
+                onClose={() => setCreating(false)}
+              />
             </>
           )}
         </>

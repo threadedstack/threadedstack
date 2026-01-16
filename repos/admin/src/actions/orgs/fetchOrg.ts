@@ -1,7 +1,7 @@
 import type { Organization } from '@tdsk/domain'
 
 import { orgsApi } from '@TAF/services'
-import { setOrgs, getOrgs } from '@TAF/state/accessors'
+import { setOrgs, getOrgs, setActiveOrgRole } from '@TAF/state/accessors'
 
 export type TFetchOrgResult = {
   error?: Error
@@ -16,9 +16,12 @@ export const fetchOrg = async (id: string): Promise<TFetchOrgResult> => {
   }
 
   if (resp.data) {
-    // Update orgs state with the fetched org
     const currentOrgs = getOrgs() || {}
     setOrgs({ ...currentOrgs, [resp.data.id]: resp.data })
+
+    // Set the active org role if it's provided by the backend
+    if (`userRole` in resp.data && resp.data.userRole)
+      setActiveOrgRole(resp.data.userRole as string)
   }
 
   return { org: resp.data }

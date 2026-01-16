@@ -6,6 +6,7 @@ import { EThemeType } from '@TAF/types'
 import { useActiveOrgId } from '@TAF/state/selectors'
 import { SBLogo } from '@TAF/components/Sidebar/SBLogo'
 import { Settings } from '@TAF/components/Header/Settings'
+import { BreadcrumbNav } from '@TAF/components/Header/BreadcrumbNav'
 import { useStateReset } from '@TAF/hooks/components/useReset'
 import { useThemeToggle } from '@TAF/hooks/theme/useThemeToggle'
 import DarkModeIcon from '@mui/icons-material/DarkModeOutlined'
@@ -44,6 +45,7 @@ export const Header = (props: THeaderProps) => {
     >
       <HeaderToolbar>
         {(!orgId && <SBLogo full />) || null}
+        {orgId && <BreadcrumbNav />}
         <Box flex={1} />
         <ToggleThemeAction
           onClick={() => onThemeToggle()}

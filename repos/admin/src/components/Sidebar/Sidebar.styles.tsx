@@ -4,16 +4,7 @@ import Drawer from '@mui/material/Drawer'
 import type Typography from '@mui/material/Typography'
 import MuiIconButton from '@mui/material/IconButton'
 import { SidebarWidthOpen, SidebarWidthClosed } from '@TAF/constants/values'
-import {
-  cmx,
-  dims,
-  Text,
-  List,
-  colors,
-  gutter,
-  ListItem,
-  IconButton,
-} from '@tdsk/components'
+import { cmx, Text, List, colors, gutter, ListItem, IconButton } from '@tdsk/components'
 
 export const SideDrawer = styled(Drawer, {
   shouldForwardProp: (prop) => prop !== `open`,
@@ -63,20 +54,8 @@ export const LogoText = styled(Text)(
 `
 ) as typeof Typography
 
-export const SBToggleBox = styled(Box)`
-  width: 0px;
-  height: 0px;
-  z-index: 1300;
-  position: relative;
-`
-
-export const SBToggleBtn = styled(IconButton)(({ theme }) => {
-  return `
-    position: absolute;
-    transition: left 0.4s ease;
-    top: ${(dims.header.height - 40) / 2}px;
-  `
-})
+export const SBToggleBox = styled(Box)``
+export const SBToggleBtn = styled(IconButton)``
 
 export const NavList = styled(List)`
   padding: 0px;

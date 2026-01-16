@@ -4,11 +4,13 @@ import { createOrg } from './createOrg'
 
 const mockSetOrgs = vi.fn()
 const mockGetOrgs = vi.fn()
+const mockSetActiveOrgRole = vi.fn()
 const mockOrgsCreate = vi.fn()
 
 vi.mock('@TAF/state/accessors', () => ({
   setOrgs: (...args: any[]) => mockSetOrgs(...args),
   getOrgs: () => mockGetOrgs(),
+  setActiveOrgRole: (...args: any[]) => mockSetActiveOrgRole(...args),
 }))
 
 vi.mock('@TAF/services', () => ({
