@@ -1,6 +1,5 @@
 import type { orgs } from '@TDB/schemas/orgs'
 import type { users } from '@TDB/schemas/users'
-import type { projects } from '@TDB/schemas/projects'
 import type { roles } from '@TDB/schemas/roles'
 import type { assets } from '@TDB/schemas/assets'
 import type { apiKeys } from '@TDB/schemas/apiKeys'
@@ -8,9 +7,11 @@ import type { configs } from '@TDB/schemas/configs'
 import type { secrets } from '@TDB/schemas/secrets'
 import type { threads } from '@TDB/schemas/threads'
 import type { messages } from '@TDB/schemas/messages'
+import type { projects } from '@TDB/schemas/projects'
 import type { endpoints } from '@TDB/schemas/endpoints'
 import type { providers } from '@TDB/schemas/providers'
 import type { functions } from '@TDB/schemas/functions'
+import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import type { TAnyObj, TKeyLike, Base as BaseModel } from '@tdsk/domain'
 
 type TInferDateProps<T extends TAnyObj = TAnyObj, D extends TKeyLike = TKeyLike> = Omit<
@@ -92,8 +93,30 @@ export type TDBEntityInsert =
   | TDBProviderInsert
   | TDBFunctionInsert
 
-export type TDBSelectOpts = {
-  [key: string]: any
+type TTableWithId = {
+  id: any
+}
+
+export type TTableSchema = PgTableWithColumns<any> & TTableWithId
+
+export type TDBOrderDirection = 'asc' | 'desc'
+
+export type TDBQueryOpts<T extends Record<string, any> = Record<string, any>> = {
+  /**
+   * Where clause conditions
+   * - Single value: exact match (uses eq)
+   * - Array of values: match any (uses inArray)
+   * - undefined/null: no filter for that field
+   */
+  where?: {
+    [K in keyof T]?: T[K] | T[K][] | null
+  }
+  limit?: number
+  offset?: number
+  orderBy?: {
+    column: string
+    direction?: TDBOrderDirection
+  }
 }
 
 export type TDBApiRes<M extends BaseModel | BaseModel[]> = {
@@ -107,10 +130,10 @@ export type TDBApiResType<T> = {
 }
 
 export interface IDBApi<M extends BaseModel, I extends TDBEntityInsert> {
-  create: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
-  list: (opts: TDBSelectOpts) => Promise<TDBApiRes<M[]>>
-  get: (id: string, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
-  update: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
-  upsert: (data: I, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
-  delete: (id: string, opts: TDBSelectOpts) => Promise<TDBApiRes<M>>
+  create: (data: I, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
+  list: (opts?: TDBQueryOpts) => Promise<TDBApiRes<M[]>>
+  get: (id: string, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
+  update: (data: I, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
+  upsert: (data: I, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
+  delete: (id: string, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
 }

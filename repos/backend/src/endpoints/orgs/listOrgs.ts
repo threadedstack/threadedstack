@@ -2,12 +2,13 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { isSuperAdmin } from '@tdsk/domain'
+import { isSuperAdmin, ERoleType } from '@tdsk/domain'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
 
 /**
  * GET /orgs - List all orgs
  * Only returns orgs where user is a member (super admins see all)
+ * Each org includes the user's role for that org
  */
 export const listOrgs: TEndpointConfig = {
   path: `/`,
@@ -24,6 +25,23 @@ export const listOrgs: TEndpointConfig = {
     const userRole = await getUserRole(req, {})
     const isSuper = isSuperAdmin(userRole)
 
+    // Get all user roles to map orgId -> role type
+    const { data: userRoles, error: rolesError } =
+      await db.services.role.getUserRoles(userId)
+
+    if (rolesError) {
+      res.status(500).json({ error: rolesError.message })
+      return
+    }
+
+    // Create map of orgId -> role type
+    const orgRoleMap = new Map<string, ERoleType>()
+    userRoles?.forEach((role) => {
+      if (role.orgId && role.type) {
+        orgRoleMap.set(role.orgId, role.type as ERoleType)
+      }
+    })
+
     if (isSuper) {
       // Super admins can see all orgs
       const { data, error } = await db.services.org.list()
@@ -33,7 +51,15 @@ export const listOrgs: TEndpointConfig = {
         return
       }
 
-      res.status(200).json({ data })
+      // Attach user role to each org (super for all orgs)
+      const orgsWithRoles = data?.map((org) => ({
+        ...org,
+        // TODO: may want to switch this so it's always ERoleType.super
+        // Otherwise super users won't be super for orgs they are invited to
+        userRole: orgRoleMap.get(org.id) || ERoleType.super,
+      }))
+
+      res.status(200).json({ data: orgsWithRoles })
       return
     }
 
@@ -45,16 +71,23 @@ export const listOrgs: TEndpointConfig = {
       return
     }
 
-    // Fetch only orgs the user is a member of
-    const { data: allOrgs, error: listError } = await db.services.org.list()
+    // Fetch only orgs the user is a member of using DB filtering
+    const { data: userOrgs, error: listError } = await db.services.org.list({
+      where: { id: orgIds },
+    })
 
     if (listError) {
       res.status(500).json({ error: listError.message })
       return
     }
 
-    const userOrgs = allOrgs?.filter((org) => orgIds?.includes(org.id)) || []
+    // Attach user role to each org
+    const orgsWithRoles =
+      userOrgs?.map((org) => ({
+        ...org,
+        userRole: orgRoleMap.get(org.id) || ERoleType.viewer,
+      })) || []
 
-    res.status(200).json({ data: userOrgs })
+    res.status(200).json({ data: orgsWithRoles })
   },
 }

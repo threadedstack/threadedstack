@@ -1,10 +1,10 @@
 import type { Base as BaseModel } from '@tdsk/domain'
-import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type {
   IDBApi,
   TDBApiRes,
-  TDBSelectOpts,
+  TDBQueryOpts,
+  TTableSchema,
   TDBEntitySelect,
   TDBEntityInsert,
 } from '@TDB/types'
@@ -12,12 +12,7 @@ import type {
 import { eq } from 'drizzle-orm'
 import { logger } from '@TDB/utils/logger'
 import { DBIdError } from '@TDB/utils/error/error'
-
-type TTableWithId = {
-  id: any
-}
-
-type TTableSchema = PgTableWithColumns<any> & TTableWithId
+import { buildQuery } from '@TDB/utils/database/buildQuery'
 
 export type TBase = {
   db: NodePgDatabase
@@ -48,7 +43,7 @@ export class Base<
     return data as unknown as M
   }
 
-  create = async (data: I, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
+  create = async (data: I, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
     try {
       const resp = await this.db.insert(this.table).values(data).returning()
 
@@ -58,7 +53,7 @@ export class Base<
     }
   }
 
-  get = async (id: string, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
+  get = async (id: string, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
     try {
       const resp = await this.db
         .select()
@@ -71,21 +66,19 @@ export class Base<
     }
   }
 
-  list = async (opts?: TDBSelectOpts): Promise<TDBApiRes<M[]>> => {
+  list = async (opts?: TDBQueryOpts): Promise<TDBApiRes<M[]>> => {
     try {
-      /**
-       * TODO: Expand this to handle `opts` for limit/offset
-       * Need a dynamic way to add a where clause, i.e. `WHERE org.id in (ids)`
-       * This is needed for roles and permissions
-       */
-      const resp = await this.db.select().from(this.table as TTableSchema)
+      let query = this.db.select().from(this.table as TTableSchema)
+      query = buildQuery(query, this.table, opts)
+
+      const resp = await query
       return { data: resp.map((item) => this.model(item)) as M[] }
     } catch (error: any) {
       return { error }
     }
   }
 
-  update = async (data: I, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
+  update = async (data: I, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
     try {
       const id = data.id
       !id && DBIdError.throw()
@@ -102,7 +95,7 @@ export class Base<
     }
   }
 
-  upsert = async (data: I, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
+  upsert = async (data: I, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
     try {
       const id = data.id
       !id && DBIdError.throw()
@@ -122,7 +115,7 @@ export class Base<
     }
   }
 
-  delete = async (id: string, opts?: TDBSelectOpts): Promise<TDBApiRes<M>> => {
+  delete = async (id: string, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
     try {
       const resp = await this.db
         .delete(this.table)

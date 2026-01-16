@@ -2,12 +2,12 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { ERoleType, EPermAction, EPermResource } from '@tdsk/domain'
+import { ERoleType } from '@tdsk/domain'
+import { logger } from '@TDB/utils/logger'
 
 /**
  * POST /orgs - Create a new org
- * Any authenticated user can create an org (member+ permission)
+ * Any authenticated user can create an org
  * Creator is automatically assigned 'owner' role
  */
 export const createOrg: TEndpointConfig = {
@@ -19,7 +19,7 @@ export const createOrg: TEndpointConfig = {
     const userId = req.user?.id
 
     if (!userId) {
-      res.status(401).json({ error: 'Authentication required' })
+      res.status(401).json({ error: `Authentication required` })
       return
     }
 
@@ -28,9 +28,6 @@ export const createOrg: TEndpointConfig = {
       return
     }
 
-    // Check permission (member+ can create orgs)
-    await checkPermission(req, EPermAction.create, EPermResource.org)
-
     const { data, error } = await db.services.org.create(orgData)
 
     if (error) {
@@ -38,7 +35,7 @@ export const createOrg: TEndpointConfig = {
       return
     }
 
-    // Automatically add creator as owner
+    // Automatically add user creator as owner
     if (data?.id) {
       const { error: roleError } = await db.services.role.create({
         userId,
@@ -46,10 +43,7 @@ export const createOrg: TEndpointConfig = {
         type: ERoleType.owner,
       })
 
-      if (roleError) {
-        // Log error but don't fail the org creation
-        console.error('Failed to assign owner role:', roleError)
-      }
+      roleError && logger.error('Failed to assign owner role:', roleError)
     }
 
     res.status(201).json({ data })

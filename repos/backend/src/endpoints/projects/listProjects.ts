@@ -19,34 +19,30 @@ export const listProjects: TEndpointConfig = {
     const userId = req.user?.id
 
     if (!userId) {
-      res.status(401).json({ error: 'Authentication required' })
+      res.status(401).json({ error: `Authentication required` })
       return
     }
 
-    // Check if user is super admin
     const userRole = await getUserRole(req, {})
-    const isSuperAdmin = userRole === ERoleType.superAdmin
 
-    // Get all projects
-    const { data, error } = await db.services.project.list()
+    // Super admins see everything with DB filtering
+    // TODO: need to figure out if super users actually see everything
+    // This is a security issue and probably not a good idea
+    if (userRole === ERoleType.super) {
+      const { data, error } = orgId
+        ? await db.services.project.list({ where: { orgId: orgId as string } })
+        : await db.services.project.list()
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
-
-    let projects = data || []
-
-    // Super admins see everything
-    if (isSuperAdmin) {
-      if (orgId) {
-        projects = projects.filter((p: any) => p.orgId === orgId)
+      if (error) {
+        res.status(500).json({ error: error.message })
+        return
       }
-      res.status(200).json({ data: projects })
+
+      res.status(200).json({ data: data || [] })
       return
     }
 
-    // Regular users: get their orgs and filter projects
+    // Regular users: get their orgs and filter projects at DB level
     const { data: userOrgIds } = await db.services.role.getUserOrgs(userId)
 
     if (!userOrgIds || userOrgIds.length === 0) {
@@ -54,14 +50,14 @@ export const listProjects: TEndpointConfig = {
       return
     }
 
-    // Filter projects to only those in user's orgs
-    projects = projects.filter((p: any) => userOrgIds.includes(p.orgId))
+    const whereClause = orgId ? { orgId: orgId } : { orgId: userOrgIds }
+    const { data, error } = await db.services.project.list({ where: whereClause })
 
-    // Further filter by orgId if provided
-    if (orgId) {
-      projects = projects.filter((p: any) => p.orgId === orgId)
+    if (error) {
+      res.status(500).json({ error: error.message })
+      return
     }
 
-    res.status(200).json({ data: projects })
+    res.status(200).json({ data: data || [] })
   },
 }
