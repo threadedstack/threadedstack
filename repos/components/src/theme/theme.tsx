@@ -49,16 +49,10 @@ const components = (colors: TThemeColors) => {
     MuiButton: {
       defaultProps: {
         disableRipple: true,
-        //disableElevation: true,
         sx: {
-          opacity: 0.95,
           textTransform: `none`,
           boxShadow: `0px 0px 0px 0px transparent`,
           transition: `opacity 0.2s ease, box-shadow 0.2s ease`,
-          [`&:hover`]: {
-            opacity: 1,
-            boxShadow: `0px 2px 4px -1px rgba(0,0,0,0.2), 0px 2px 3px 0px rgba(0,0,0,0.14), 0px 1px 5px 0px rgba(0,0,0,0.12)`,
-          },
         },
       },
     },
@@ -151,10 +145,10 @@ const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
         rbackground: colors.editor.rbackground,
       },
       background: {
-        muted: colors.grey[10],
         paper: colors.paper,
         default: colors.background,
         input: colors.inputBackground,
+        muted: colors.mutedBackground,
         header: colors.headerBackground,
         section: colors.sectionBackground,
       },

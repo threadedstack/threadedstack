@@ -5,6 +5,7 @@ import { Box } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import { createOrg } from '@TAF/actions/orgs'
 import { Add as AddIcon } from '@mui/icons-material'
+import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { Button, Dialog, TextInput } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
@@ -82,7 +83,7 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
             color='primary'
             sx={createBtnSx}
             onClick={onCreate}
-            variant='contained'
+            variant='outlined'
             Icon={<AddIcon />}
           >
             {createText}
@@ -92,9 +93,14 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
       <Dialog
         sx={sx}
         open={open}
-        maxWidth='sm'
+        maxWidth='md'
         onClose={onClose}
-        title='New Organization'
+        title={
+          <>
+            <OrgIcon text />
+            New Organization
+          </>
+        }
         data-testid='create-org-dialog'
         content={
           <form
@@ -111,26 +117,26 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
 
               <TextInput
                 autoFocus
-                id='create-org-name'
-                label='Organization Name'
-                placeholder='Enter organization name'
-                value={name}
-                onChange={(e) => setName(e.target.value)}
                 required
                 fullWidth
+                value={name}
+                label='Name'
                 disabled={loading}
+                id='create-org-name'
+                placeholder='Enter organization name'
+                onChange={(e) => setName(e.target.value)}
               />
 
               <TextInput
+                textarea
+                fullWidth
+                minRows={3}
+                disabled={loading}
                 label='Description'
+                value={description}
                 id='create-org-description'
                 placeholder='Enter organization description (optional)'
-                value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                textarea
-                minRows={3}
-                fullWidth
-                disabled={loading}
               />
             </Box>
           </form>
@@ -138,6 +144,7 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
         actions={
           <>
             <Button
+              color='error'
               onClick={onClose}
               disabled={loading}
             >
@@ -146,8 +153,8 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
             <LoadingButton
               type='submit'
               form='create-org-form'
-              variant='contained'
               loading={loading}
+              variant='contained'
               loadingText='Creating...'
             >
               Create

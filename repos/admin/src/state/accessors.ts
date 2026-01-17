@@ -66,7 +66,7 @@ export const setProjects = (projects: Record<string, Project>) =>
   store.set(projectsState, projects)
 
 export const getActiveprojectId = () => store.get(activeProjectIdState)
-export const resetActiveprojectId = () => store.set(activeProjectIdState, undefined)
+export const resetActiveProjectId = () => store.set(activeProjectIdState, undefined)
 export const setActiveprojectId = (id: string) => store.set(activeProjectIdState, id)
 
 export const getProviders = () => store.get(providersState)

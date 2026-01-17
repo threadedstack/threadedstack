@@ -3,7 +3,7 @@ import type { Organization } from '@tdsk/domain'
 import { useState } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
 import { styled } from '@mui/material/styles'
-import OrgIcon from '@mui/icons-material/GridView'
+import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
 
 import { Box, Card, Chip, useTheme, Typography, CardContent } from '@mui/material'
@@ -55,7 +55,7 @@ export const OrgCard = (props: TOrgCard) => {
       >
         <CardContent>
           <Box sx={{ display: `flex`, alignItems: `center`, mb: 1 }}>
-            <OrgIcon sx={{ mr: 1, color: `primary.main` }} />
+            <OrgIcon text />
             <Typography
               variant='h6'
               component='h2'

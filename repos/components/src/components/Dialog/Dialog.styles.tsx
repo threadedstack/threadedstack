@@ -9,10 +9,10 @@ import MDialogTitle from '@mui/material/DialogTitle'
 export const DialogContent = styled(MDialogContent)(({ theme }) => {
   return `
     position: relative;
-    padding: ${gutter.mpx};
-    padding-top: ${gutter.px};
-    padding-bottom: ${gutter.hpx};
     background-color: ${theme.palette.background.section};
+    &.tdsk-dialog-content {
+      padding: ${gutter.rpx} ${gutter.mpx};
+    }
   `
 })
 
@@ -21,7 +21,8 @@ export const DialogTitle = styled(MDialogTitle)(({ theme }) => {
     display: flex;
     font-weight: bold;
     align-items: center;
-    background-color: ${theme.palette.background.muted};
+    padding: ${gutter.cpx} ${gutter.px};
+    background-color: ${theme.palette.background.header};
     border-bottom: 1px solid ${theme.palette.border.default};
     & .tdsk-dialog-title-icon {
       display: inline-flex;
@@ -34,11 +35,10 @@ export const DialogTitle = styled(MDialogTitle)(({ theme }) => {
 
 export const DialogActions = styled(MDialogActions)(({ theme }) => {
   return `
-    position: sticky; 
     bottom: 0;
-    padding: ${gutter.px};
-    background-color: ${theme.palette.background.muted};
-    border-top: 1px solid ${theme.palette.border.default};
+    position: sticky; 
+    padding: ${gutter.cpx} ${gutter.px};
+    background-color: ${theme.palette.background.section};
   `
 })
 

@@ -12,7 +12,7 @@ export const SideDrawer = styled(Drawer, {
   [`& .MuiDrawer-paper`]: {
     position: `relative`,
     whiteSpace: `nowrap`,
-    backgroundColor: theme.palette.background.section,
+    backgroundColor: theme.palette.background.header,
     width: SidebarWidthOpen,
     transition: theme.transitions.create(`width`, {
       easing: theme.transitions.easing.sharp,

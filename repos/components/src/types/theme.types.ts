@@ -20,6 +20,7 @@ export type TThemeColors = {
   secondaryForeground?: string
   muted?: string
   mutedForeground?: string
+  mutedBackground?: string
   accent?: string
   accentForeground?: string
   destructive?: string

@@ -5,16 +5,14 @@ import type { DialogContentProps } from '@mui/material/DialogContent'
 import type { DialogTitleProps } from '@mui/material/DialogTitle'
 import type { ReactNode } from 'react'
 
+import Box from '@mui/material/Box'
+import { cls } from '@keg-hub/jsutils/cls'
+import MDialog from '@mui/material/Dialog'
 import {
+  DialogTitle,
   DialogActions,
   DialogContent,
-  DialogTitle,
 } from '@TSC/components/Dialog/Dialog.styles'
-import { cls } from '@keg-hub/jsutils/cls'
-import Box from '@mui/material/Box'
-import MDialog from '@mui/material/Dialog'
-import grey from '@mui/material/colors/grey'
-import { colors } from '@TSC/theme/colors'
 
 export type DialogProps = {
   title?: ReactNode
@@ -65,7 +63,14 @@ export const Dialog = (props: DialogProps) => {
           </DialogTitle>
         ) : null}
 
-        {content ? <DialogContent {...contentProps}>{content}</DialogContent> : null}
+        {content ? (
+          <DialogContent
+            {...contentProps}
+            className={cls(`tdsk-dialog-content`, contentProps?.className)}
+          >
+            {content}
+          </DialogContent>
+        ) : null}
 
         {actions ? (
           <DialogActions

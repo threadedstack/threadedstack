@@ -1,0 +1,27 @@
+import type { ComponentProps, CSSProperties } from 'react'
+
+import GridView from '@mui/icons-material/GridView'
+
+export type TOrgIcon = ComponentProps<typeof GridView> & {
+  text?: boolean
+}
+
+const style = {
+  default: {
+    color: `primary.main`,
+  },
+  text: {
+    mr: 1,
+  },
+}
+
+export const OrgIcon = (props: TOrgIcon) => {
+  const { text, sx, ...rest } = props
+
+  return (
+    <GridView
+      {...rest}
+      sx={[style.default, text ? style.text : undefined, sx] as CSSProperties[]}
+    />
+  )
+}

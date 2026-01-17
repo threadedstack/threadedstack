@@ -108,11 +108,15 @@ export const InputText = styled(TextField)(({ theme }) => {
     color: ${theme.palette.colors.primaryForeground};
 
     & input::placeholder {
+      opacity: 1;
       font-size: 14px;
+      color: ${theme.palette.colors.placeholder};
     }
 
     & textarea::placeholder {
+      opacity: 1;
       font-size: 14px;
+      color: ${theme.palette.colors.placeholder};
     }
 
     & fieldset {
@@ -129,11 +133,15 @@ export const OutlinedInput = styled(MOutlinedInput)(({ theme }) => {
     color: ${theme.palette.colors.primaryForeground};
 
     & input::placeholder {
+      opacity: 1;
       font-size: 14px;
+      color: ${theme.palette.colors.placeholder};
     }
 
     & textarea::placeholder {
+      opacity: 1;
       font-size: 14px;
+      color: ${theme.palette.colors.placeholder};
     }
 
     & fieldset {
@@ -147,9 +155,6 @@ export const Textarea = styled((props) => (
     <TextareaAutosize {...props} />
   </TextareaContainer>
 ))(({ theme }) => {
-  const isDark = theme.palette.mode === `dark`
-  const color = isDark ? grey[700] : grey[200]
-
   return `
     width: 100%;
     font: inherit;
@@ -177,16 +182,14 @@ export const Textarea = styled((props) => (
     }
     
     &::placeholder {
-      color: ${color};
+      opacity: 1;
       font-size: 14px;
+      color: ${theme.palette.colors.placeholder};
     }
-
-    
   `
 }) as TTextarea
 
 export const Tags = styled(MuiChipsInput)(({ theme }) => {
-  const isDark = theme.palette.mode === `dark`
   return `
     background: ${theme.palette.background.muted};
     color: ${theme.palette.colors.primaryForeground};
@@ -202,11 +205,15 @@ export const Tags = styled(MuiChipsInput)(({ theme }) => {
     }
     
     & input::placeholder {
+      opacity: 1;
       font-size: 14px;
+      color: ${theme.palette.colors.placeholder};
     }
 
     & textarea::placeholder {
+      opacity: 1;
       font-size: 14px;
+      color: ${theme.palette.colors.placeholder};
     }
   `
 })

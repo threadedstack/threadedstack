@@ -100,7 +100,7 @@ export const DefGroupHeader = styled(Box)(
   padding: ${gutter.qpx} ${gutter.hpx};
   border-top-left-radius: ${dims.border.ipx};
   border-top-right-radius: ${dims.border.ipx};
-  background-color: ${theme.palette.background.section};
+  background-color: ${theme.palette.background.header};
 `
 )
 

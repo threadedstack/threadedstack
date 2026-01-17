@@ -6,11 +6,11 @@ import { EThemeType } from '@TAF/types'
 import { useActiveOrgId } from '@TAF/state/selectors'
 import { SBLogo } from '@TAF/components/Sidebar/SBLogo'
 import { Settings } from '@TAF/components/Header/Settings'
-import { BreadcrumbNav } from '@TAF/components/Header/BreadcrumbNav'
 import { useStateReset } from '@TAF/hooks/components/useReset'
 import { useThemeToggle } from '@TAF/hooks/theme/useThemeToggle'
 import DarkModeIcon from '@mui/icons-material/DarkModeOutlined'
 import LightModeIcon from '@mui/icons-material/LightModeOutlined'
+import { Breadcrumbs } from '@TAF/components/Breadcrumbs/Breadcrumbs'
 
 import {
   AppHeader,
@@ -44,8 +44,7 @@ export const Header = (props: THeaderProps) => {
       className='tsdk-app-header'
     >
       <HeaderToolbar>
-        {(!orgId && <SBLogo full />) || null}
-        {orgId && <BreadcrumbNav />}
+        {(!orgId && <SBLogo full />) || <Breadcrumbs />}
         <Box flex={1} />
         <ToggleThemeAction
           onClick={() => onThemeToggle()}
