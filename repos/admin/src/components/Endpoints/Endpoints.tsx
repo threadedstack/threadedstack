@@ -1,25 +1,22 @@
 import type { Endpoint } from '@tdsk/domain'
 
-import { useEffect, useState, useMemo } from 'react'
 import { Box } from '@mui/material'
-import { Add as AddIcon } from '@mui/icons-material'
+import { ife } from '@keg-hub/jsutils/ife'
 import { useEndpoints } from '@TAF/state/selectors'
-import { fetchEndpoints, deleteEndpoint } from '@TAF/actions/endpoints'
-import { setActiveOrgId, setActiveprojectId } from '@TAF/state/accessors'
-import {
-  SearchBar,
-  FilterSelect,
-  PageHeader,
-  EmptyState,
-  LoadingSpinner,
-} from '@TAF/components'
-import { EndpointsTable } from './EndpointsTable'
-import { EndpointDialog } from './EndpointDialog'
+import { Add as AddIcon } from '@mui/icons-material'
+import { useEffect, useState, useMemo } from 'react'
+import { useActiveProjectId } from '@TAF/state/selectors'
+import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
+import { PageHeader } from '@TAF/components/PageHeader/PageHeader'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { fetchEndpoints } from '@TAF/actions/endpoints/fetchEndpoints'
+import { deleteEndpoint } from '@TAF/actions/endpoints/deleteEndpoint'
+import { FilterSelect } from '@TAF/components/FilterSelect/FilterSelect'
+import { EndpointsTable } from '@TAF/components/Endpoints/EndpointsTable'
+import { EndpointDialog } from '@TAF/components/Endpoints/EndpointDialog'
+import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
 
-export type TEndpoints = {
-  projectId: string
-  orgId?: string
-}
+export type TEndpoints = {}
 
 // TODO: move to domain repo
 const METHOD_FILTER_OPTIONS = [
@@ -35,28 +32,26 @@ const VISIBILITY_FILTER_OPTIONS = [
   { value: 'private', label: 'Private' },
 ]
 
-export const Endpoints = ({ projectId, orgId }: TEndpoints) => {
+export const Endpoints = (props: TEndpoints) => {
   const [endpoints] = useEndpoints()
+  const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [methodFilter, setMethodFilter] = useState<string>('all')
   const [visibilityFilter, setVisibilityFilter] = useState<string>('all')
+  const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null)
 
   useEffect(() => {
-    if (orgId) setActiveOrgId(orgId)
-    if (projectId) setActiveprojectId(projectId)
-  }, [orgId, projectId])
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!projectId) return
-      setLoading(true)
-      await fetchEndpoints({ projectId })
-      setLoading(false)
-    }
-    loadData()
+    projectId &&
+      ife(async () => {
+        try {
+          setLoading(true)
+          await fetchEndpoints({ projectId })
+        } finally {
+          setLoading(false)
+        }
+      })
   }, [projectId])
 
   const filteredEndpoints = useMemo(() => {
@@ -121,9 +116,7 @@ export const Endpoints = ({ projectId, orgId }: TEndpoints) => {
   }
 
   const onDialogSuccess = async () => {
-    if (projectId) {
-      await fetchEndpoints({ projectId })
-    }
+    projectId && (await fetchEndpoints({ projectId }))
   }
 
   return (

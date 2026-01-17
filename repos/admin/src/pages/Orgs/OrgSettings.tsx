@@ -1,88 +1,81 @@
+import type { Organization } from '@tdsk/domain'
+
 import { ERoutePath } from '@TAF/types'
-import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
+import { ife } from '@keg-hub/jsutils/ife'
 import { Page } from '@TAF/pages/Page/Page'
-import { useOrgs } from '@TAF/state/selectors'
-import { useParams, useNavigate } from 'react-router'
-import { setActiveOrgId } from '@TAF/state/accessors'
-import { fetchOrg, updateOrg, deleteOrg } from '@TAF/actions/orgs'
+import { useEffect, useState, useRef } from 'react'
+import { Box, Alert, Typography } from '@mui/material'
+import { fetchOrg } from '@TAF/actions/orgs/api/fetchOrg'
+import { updateOrg } from '@TAF/actions/orgs/api/updateOrg'
+import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import { LoadingSpinner, ErrorAlert } from '@TAF/components'
+import { useActiveOrgId, useActiveOrg } from '@TAF/state/selectors'
 import {
-  SettingsFormCard,
   InfoCard,
   DangerZoneCard,
+  SettingsFormCard,
   DeleteConfirmDialog,
 } from '@TAF/components/Settings'
-import { Box, Alert, Typography } from '@mui/material'
 
 export type TOrgSettings = {}
 
 export const OrgSettings = (props: TOrgSettings) => {
-  const { orgId } = useParams<{ orgId: string }>()
+  const [org] = useActiveOrg()
   const navigate = useNavigate()
-  const [orgs] = useOrgs()
+  const [orgId] = useActiveOrgId()
+
+  const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
-
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [originalName, setOriginalName] = useState('')
-  const [originalDescription, setOriginalDescription] = useState('')
-
+  const [localOrg, setLocalOrg] = useState<Organization>(org)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
-    if (orgId) {
-      setActiveOrgId(orgId)
-    }
-  }, [orgId])
+    localOrg !== org && setLocalOrg(org)
+  }, [org])
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!orgId) return
+    !org &&
+      orgId &&
+      ife(async () => {
+        if (!orgId) return
 
-      setLoading(true)
-      setError(null)
+        try {
+          setLoading(true)
+          setError(null)
 
-      const orgResult = await fetchOrg(orgId)
+          const orgResult = await fetchOrg(orgId)
+          orgResult.error && setError(orgResult.error.message)
+        } catch (err) {
+          setError(err.message)
+        } finally {
+          setLoading(false)
+        }
+      })
+  }, [org, orgId])
 
-      if (orgResult.error) {
-        setError(orgResult.error.message)
-      } else if (orgResult.org) {
-        setName(orgResult.org.name || '')
-        setDescription(orgResult.org.description || '')
-        setOriginalName(orgResult.org.name || '')
-        setOriginalDescription(orgResult.org.description || '')
-      }
-
-      setLoading(false)
-    }
-
-    loadData()
-  }, [orgId])
-
-  const org = orgs && orgId ? orgs[orgId] : null
-  const hasChanges = name !== originalName || description !== originalDescription
+  const hasChanges =
+    org?.name !== localOrg?.name || org?.description !== localOrg?.description
 
   const onSave = async () => {
     if (!orgId || !hasChanges) return
 
-    setSaving(true)
-    setError(null)
-    setSuccess(null)
+    try {
+      setSaving(true)
+      setError(null)
+      setSuccess(null)
 
-    const result = await updateOrg(orgId, { name, description })
-
-    if (result.error) {
-      setError(result.error.message)
-    } else {
-      setSuccess('Org updated successfully')
-      setOriginalName(name)
-      setOriginalDescription(description)
+      const result = await updateOrg(orgId, localOrg)
+      result.error
+        ? setError(result.error.message)
+        : setSuccess(`Org updated successfully`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
     }
-
-    setSaving(false)
   }
 
   const onDeleteClick = () => {
@@ -114,7 +107,7 @@ export const OrgSettings = (props: TOrgSettings) => {
           variant='h5'
           component='h1'
         >
-          Org Settings
+          Settings
         </Typography>
       </Box>
 
@@ -122,9 +115,9 @@ export const OrgSettings = (props: TOrgSettings) => {
 
       {error && (
         <ErrorAlert
+          sx={{ mb: 3 }}
           message={error}
           onClose={() => setError(null)}
-          sx={{ mb: 3 }}
         />
       )}
 
@@ -140,57 +133,59 @@ export const OrgSettings = (props: TOrgSettings) => {
       {!loading && org && (
         <>
           <SettingsFormCard
-            fields={[
-              {
-                name: 'name',
-                label: 'Org Name',
-                value: name,
-                onChange: setName,
-              },
-              {
-                name: 'description',
-                label: 'Description',
-                value: description,
-                onChange: setDescription,
-                multiline: true,
-                rows: 3,
-              },
-            ]}
+            saving={saving}
+            title='General'
             onSave={onSave}
             hasChanges={hasChanges}
-            saving={saving}
+            fields={[
+              {
+                name: `name`,
+                label: `Name`,
+                value: localOrg?.name ?? ``,
+                onChange: (name: string) => setLocalOrg({ ...localOrg, name }),
+              },
+              {
+                rows: 3,
+                multiline: true,
+                name: `description`,
+                label: `Description`,
+                value: localOrg?.description ?? ``,
+                onChange: (description: string) =>
+                  setLocalOrg({ ...localOrg, description }),
+              },
+            ]}
           />
 
           <InfoCard
-            title='Org Information'
+            title='Metadata'
+            onCopy={onCopySuccess}
             items={[
-              { label: 'Org ID', value: org.id, copyable: true },
+              { label: `ID`, value: org.id, copyable: true },
               ...(org.createdAt
-                ? [{ label: 'Created', value: String(org.createdAt), isDate: true }]
+                ? [{ label: `Created`, value: String(org.createdAt), isDate: true }]
                 : []),
               ...(org.updatedAt
-                ? [{ label: 'Last Updated', value: String(org.updatedAt), isDate: true }]
+                ? [{ label: `Last Updated`, value: String(org.updatedAt), isDate: true }]
                 : []),
             ]}
-            onCopy={onCopySuccess}
           />
 
           <DangerZoneCard
-            title='Delete this org'
-            description='Once deleted, this action cannot be undone. All projects and data will be lost.'
-            buttonLabel='Delete Org'
+            buttonLabel='Delete'
             onAction={onDeleteClick}
+            title='Delete this organization'
+            description='Once deleted, this action cannot be undone. All projects and data will be lost.'
           />
         </>
       )}
 
       <DeleteConfirmDialog
-        open={deleteDialogOpen}
-        entityName={org?.name}
-        entityType='Org'
-        warningText='This will permanently delete all associated projects, secrets, and configurations.'
         onConfirm={onDelete}
+        entityName={org?.name}
+        open={deleteDialogOpen}
+        entityType='Organization'
         onClose={() => setDeleteDialogOpen(false)}
+        warningText='This will permanently delete all associated projects, secrets, and configurations.'
       />
     </Page>
   )

@@ -8,7 +8,7 @@ import { EditConfigDialog } from './EditConfigDialog'
 import { CreateConfigDialog } from './CreateConfigDialog'
 import { useProjects, useConfigs } from '@TAF/state/selectors'
 import { fetchProject, updateProject, deleteProject } from '@TAF/actions/projects'
-import { setActiveOrgId, setActiveprojectId } from '@TAF/state/accessors'
+import { setActiveOrgId, setActiveProjectId } from '@TAF/state/accessors'
 import { LoadingSpinner, ErrorAlert } from '@TAF/components'
 import {
   SettingsFormCard,
@@ -73,7 +73,7 @@ export const ProjectSettings = (props: TProjectSettings) => {
 
   useEffect(() => {
     if (orgId) setActiveOrgId(orgId)
-    if (projectId) setActiveprojectId(projectId)
+    if (projectId) setActiveProjectId(projectId)
   }, [orgId, projectId])
 
   useEffect(() => {

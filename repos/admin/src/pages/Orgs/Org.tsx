@@ -4,30 +4,21 @@ import { useEffect, useState } from 'react'
 import { useOrgs } from '@TAF/state/selectors'
 import { useParams, useNavigate } from 'react-router'
 import { setActiveOrgId } from '@TAF/state/accessors'
-import { fetchOrg, deleteOrg } from '@TAF/actions/orgs'
+import { fetchOrg } from '@TAF/actions/orgs/api/fetchOrg'
+import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
-  ArrowBack as BackIcon,
   PersonAdd as AddMemberIcon,
 } from '@mui/icons-material'
-import {
-  Box,
-  Card,
-  Button,
-  Divider,
-  Tooltip,
-  IconButton,
-  Typography,
-  CardContent,
-} from '@mui/material'
+import { Box, Card, Button, Divider, Typography, CardContent } from '@mui/material'
 
 export type TOrg = {}
 
 export const Org = (props: TOrg) => {
-  const { orgId } = useParams<{ orgId: string }>()
-  const navigate = useNavigate()
   const [orgs] = useOrgs()
+  const navigate = useNavigate()
+  const { orgId } = useParams<{ orgId: string }>()
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -48,19 +39,13 @@ export const Org = (props: TOrg) => {
 
   const org = orgId && orgs ? orgs[orgId] : undefined
 
-  const handleBack = () => {
-    navigate(ERoutePath.Orgs)
-  }
-
-  const handleDelete = async () => {
+  const onDelete = async () => {
     if (!org || !orgId) return
     if (!window.confirm(`Are you sure you want to delete org "${org.name}"?`)) {
       return
     }
     const result = await deleteOrg(orgId)
-    if (!result.error) {
-      navigate(ERoutePath.Orgs)
-    }
+    !result.error && navigate(ERoutePath.Orgs)
   }
 
   if (loading) {
@@ -78,7 +63,7 @@ export const Org = (props: TOrg) => {
           <CardContent>
             <Typography color='error'>Org not found</Typography>
             <Button
-              onClick={handleBack}
+              onClick={() => navigate(ERoutePath.Orgs)}
               sx={{ mt: 2 }}
             >
               Back to Orgs
@@ -92,11 +77,6 @@ export const Org = (props: TOrg) => {
   return (
     <Page className='tdsk-org-page'>
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Tooltip title='Back to Orgs'>
-          <IconButton onClick={handleBack}>
-            <BackIcon />
-          </IconButton>
-        </Tooltip>
         <Typography
           variant='h4'
           component='h1'
@@ -107,7 +87,6 @@ export const Org = (props: TOrg) => {
         <Button
           variant='outlined'
           startIcon={<EditIcon />}
-          disabled
         >
           Edit
         </Button>
@@ -115,7 +94,7 @@ export const Org = (props: TOrg) => {
           variant='outlined'
           color='error'
           startIcon={<DeleteIcon />}
-          onClick={handleDelete}
+          onClick={onDelete}
         >
           Delete
         </Button>

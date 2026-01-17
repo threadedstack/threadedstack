@@ -3,22 +3,22 @@ import {
   useOrgs,
   useProjects,
   useActiveOrgId,
-  useActiveprojectId,
+  useActiveProjectId,
 } from '@TAF/state/selectors'
 
 export const useActiveNavData = () => {
   const [orgs] = useOrgs()
   const [projects] = useProjects()
   const [activeOrgId] = useActiveOrgId()
-  const [activeprojectId] = useActiveprojectId()
+  const [activeProjectId] = useActiveProjectId()
 
   return useMemo(
     () => ({
       orgId: activeOrgId,
       org: activeOrgId && orgs?.[activeOrgId],
-      projectId: activeprojectId,
-      project: activeprojectId && projects?.[activeprojectId],
+      projectId: activeProjectId,
+      project: activeProjectId && projects?.[activeProjectId],
     }),
-    [orgs, projects, activeOrgId, activeprojectId]
+    [orgs, projects, activeOrgId, activeProjectId]
   )
 }

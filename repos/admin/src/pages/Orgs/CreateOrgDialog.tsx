@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Box, Button, TextField } from '@mui/material'
 import { Dialog } from '@tdsk/components'
-import { createOrg } from '@TAF/actions/orgs'
+import { Box, Button, TextField } from '@mui/material'
+import { createOrg } from '@TAF/actions/orgs/api/createOrg'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 

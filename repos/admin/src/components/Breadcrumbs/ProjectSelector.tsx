@@ -3,12 +3,12 @@ import type { Project } from '@tdsk/domain'
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { cls } from '@keg-hub/jsutils/cls'
-import { setActiveprojectId } from '@TAF/state/accessors'
+import { setActiveProjectId } from '@TAF/state/accessors'
 import {
   useProjects,
   useActiveOrgId,
-  useActiveprojectId,
   useActiveProject,
+  useActiveProjectId,
 } from '@TAF/state/selectors'
 import {
   Add as AddIcon,
@@ -42,7 +42,7 @@ export const ProjectSelector = (props: TProjectSelector) => {
   const [projects] = useProjects()
   const [activeOrgId] = useActiveOrgId()
   const [activeProject] = useActiveProject()
-  const [activeProjectId] = useActiveprojectId()
+  const [activeProjectId] = useActiveProjectId()
   const [searchQuery, setSearchQuery] = useState('')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
@@ -58,7 +58,7 @@ export const ProjectSelector = (props: TProjectSelector) => {
   }
 
   const onSelectProject = (project: Project) => {
-    setActiveprojectId(project.id)
+    setActiveProjectId(project.id)
     navigate(`/orgs/${activeOrgId}/projects/${project.id}`)
     onClose()
   }

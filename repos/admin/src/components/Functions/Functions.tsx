@@ -1,47 +1,45 @@
 import type { Function as TDFunction } from '@tdsk/domain'
-import { useEffect, useState, useMemo } from 'react'
+
+import { Box } from '@mui/material'
+import { ife } from '@keg-hub/jsutils/ife'
+import { Add as AddIcon } from '@mui/icons-material'
 import { useFunctions } from '@TAF/state/selectors'
-import { NoFunctions } from './NoFunctions'
-import { FunctionsGrid } from './FunctionsGrid'
-import { fetchFunctions, deleteFunction } from '@TAF/actions/functions'
-import { FunctionDialog } from './FunctionDialog'
-import { setActiveOrgId, setActiveprojectId } from '@TAF/state/accessors'
+import { useEffect, useState, useMemo } from 'react'
+import { useActiveProjectId } from '@TAF/state/selectors'
+import { NoFunctions } from '@TAF/components/Functions/NoFunctions'
+import { deleteFunction } from '@TAF/actions/functions/deleteFunction'
+import { fetchFunctions } from '@TAF/actions/functions/fetchFunctions'
+import { FunctionsGrid } from '@TAF/components/Functions/FunctionsGrid'
+import { FunctionDialog } from '@TAF/components/Functions/FunctionDialog'
 import {
   SearchBar,
-  FilterSelect,
   PageHeader,
   EmptyState,
+  FilterSelect,
   LoadingSpinner,
 } from '@TAF/components'
-import { Add as AddIcon } from '@mui/icons-material'
-import { Box } from '@mui/material'
 
-export type TFunctions = {
-  projectId: string
-  orgId?: string
-}
+export type TFunctions = {}
 
-export const Functions = ({ projectId, orgId }: TFunctions) => {
+export const Functions = (props: TFunctions) => {
   const [functions] = useFunctions()
+  const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedFunction, setSelectedFunction] = useState<TDFunction | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [languageFilter, setLanguageFilter] = useState<string>('all')
+  const [selectedFunction, setSelectedFunction] = useState<TDFunction | null>(null)
 
   useEffect(() => {
-    if (orgId) setActiveOrgId(orgId)
-    if (projectId) setActiveprojectId(projectId)
-  }, [orgId, projectId])
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!projectId) return
-      setLoading(true)
-      await fetchFunctions({ projectId })
-      setLoading(false)
-    }
-    loadData()
+    projectId &&
+      ife(async () => {
+        try {
+          setLoading(true)
+          await fetchFunctions({ projectId })
+        } finally {
+          setLoading(false)
+        }
+      })
   }, [projectId])
 
   const filteredFunctions = useMemo(() => {
@@ -128,18 +126,18 @@ export const Functions = ({ projectId, orgId }: TFunctions) => {
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder='Search functions by name...'
             sx={{ flex: 1, minWidth: 200 }}
+            placeholder='Search functions by name...'
           />
           {languageFilterOptions.length > 1 && (
             <FilterSelect
-              id='language-filter'
               label='Language'
+              id='language-filter'
               value={languageFilter}
+              allLabel='All Languages'
+              sx={{ minWidth: `140px` }}
               onChange={setLanguageFilter}
               options={languageFilterOptions}
-              allLabel='All Languages'
-              minWidth={140}
             />
           )}
         </Box>

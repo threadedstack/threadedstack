@@ -3,7 +3,7 @@ import { Page } from '@TAF/pages/Page/Page'
 import { useProjects } from '@TAF/state/selectors'
 import { useParams, useNavigate } from 'react-router'
 import { fetchProject, deleteProject } from '@TAF/actions/projects'
-import { setActiveOrgId, setActiveprojectId } from '@TAF/state/accessors'
+import { setActiveOrgId, setActiveProjectId } from '@TAF/state/accessors'
 import {
   Edit as EditIcon,
   Folder as ProjectIcon,
@@ -32,7 +32,7 @@ export const Project = (props: TProject) => {
 
   useEffect(() => {
     if (orgId) setActiveOrgId(orgId)
-    if (projectId) setActiveprojectId(projectId)
+    if (projectId) setActiveProjectId(projectId)
   }, [orgId, projectId])
 
   useEffect(() => {

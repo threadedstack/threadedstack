@@ -1,32 +1,28 @@
+import { TextInput } from '@tdsk/components'
 import { Box, Card, CardContent, Divider, Typography } from '@mui/material'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
-import { TextInput } from '@tdsk/components'
 
 export type TFormField = {
   name: string
   label: string
   value: string
-  onChange: (value: string) => void
-  multiline?: boolean
   rows?: number
+  multiline?: boolean
   placeholder?: string
+  onChange: (value: string) => void
 }
 
 export type TSettingsFormCard = {
   title?: string
-  fields: TFormField[]
+  saving: boolean
   onSave: () => void
   hasChanges: boolean
-  saving: boolean
+  fields: TFormField[]
 }
 
-export const SettingsFormCard = ({
-  title = 'General Settings',
-  fields,
-  onSave,
-  hasChanges,
-  saving,
-}: TSettingsFormCard) => {
+export const SettingsFormCard = (props: TSettingsFormCard) => {
+  const { fields, onSave, saving, hasChanges, title = `Settings` } = props
+
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
@@ -35,16 +31,17 @@ export const SettingsFormCard = ({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {fields.map((field) => (
             <TextInput
+              fullWidth
               key={field.name}
               name={field.name}
-              fullWidth
               label={field.label}
               value={field.value}
-              onChange={(e) => field.onChange(e.target.value)}
-              textarea={field.multiline}
               minRows={field.rows}
               maxRows={field.rows}
+              textarea={field.multiline}
               placeholder={field.placeholder}
+              id={`tdsk-settings-${field.name}`}
+              onChange={(e) => field.onChange(e.target.value)}
             />
           ))}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>

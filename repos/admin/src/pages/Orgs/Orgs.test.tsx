@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
-import { renderWithTheme } from '../../../scripts/testUtils'
 import { OrgsPage as Orgs } from './Orgs'
-import * as orgsActions from '@TAF/actions/orgs'
+import { screen, waitFor } from '@testing-library/react'
+import { renderWithTheme } from '@TAF/scripts/testUtils'
+import { fetchOrgs } from '@TAF/actions/orgs/api/fetchOrgs'
+import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock the router
 vi.mock('react-router', () => ({
@@ -36,10 +37,10 @@ vi.mock('@TAF/hooks/permissions/useIsAdmin', () => ({
 }))
 
 // Mock the actions
-vi.mock('@TAF/actions/orgs/fetchOrgs', () => ({
+vi.mock('@TAF/actions/orgs/api/fetchOrgs', () => ({
   fetchOrgs: vi.fn().mockResolvedValue({}),
 }))
-vi.mock('@TAF/actions/orgs/deleteOrg', () => ({
+vi.mock('@TAF/actions/orgs/api/deleteOrg', () => ({
   deleteOrg: vi.fn().mockResolvedValue({}),
 }))
 
@@ -62,7 +63,7 @@ describe('Orgs', () => {
     renderWithTheme(<Orgs />)
 
     await waitFor(() => {
-      expect(orgsActions.fetchOrgs).toHaveBeenCalled()
+      expect(fetchOrgs).toHaveBeenCalled()
     })
   })
 

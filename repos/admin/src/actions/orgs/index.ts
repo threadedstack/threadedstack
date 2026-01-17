@@ -1,5 +1,2 @@
-export * from './fetchOrgs'
-export * from './fetchOrg'
-export * from './createOrg'
-export * from './updateOrg'
-export * from './deleteOrg'
+export * from './api'
+export * from './local'
