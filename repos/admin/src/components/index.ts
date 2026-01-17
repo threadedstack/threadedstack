@@ -1,4 +1,5 @@
 export * from './Secrets'
+export * from './AppError'
 export * from './ItemCard'
 export * from './CardGrid'
 export * from './SearchBar'

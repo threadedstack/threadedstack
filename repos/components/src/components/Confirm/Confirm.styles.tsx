@@ -37,7 +37,7 @@ export const ConfirmHeaderIcon = styled(ErrorIcon)(({ theme }) => {
     width: 28px;
     height: 28px;
     margin-right: ${gutter.hpx};
-    fill: ${colors.states.danger};
+    fill: ${theme.palette.colors.states.danger};
   `
 })
 

@@ -156,11 +156,13 @@ export const ErrorSection = styled(Box)`
   padding-bottom: ${gutter.size * 3}px;
 `
 
-export const ErrorTitle = styled(Text)`
-  font-size: 18px;
-  font-weight: bold;
-  color: ${colors.states.danger};
-`
+export const ErrorTitle = styled(Text)(({ theme }) => {
+  return `
+    font-size: 18px;
+    font-weight: bold;
+    color: ${theme.palette.colors.states.danger};
+  `
+})
 
 export const ErrorText = styled(Text)`
   font-size: 14px;

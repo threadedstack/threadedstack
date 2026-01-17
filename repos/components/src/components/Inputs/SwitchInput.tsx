@@ -111,7 +111,7 @@ const StyledSwitchInput = styled((props: MSwitchProps) => (
         ...dims.checked,
         color: '#fff',
         [`& + .MuiSwitch-track`]: {
-          backgroundColor: colors.states.success,
+          backgroundColor: theme.palette.colors.states.success,
           opacity: 1,
           border: 0,
         },

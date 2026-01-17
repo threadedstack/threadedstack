@@ -3,7 +3,7 @@ import type { TTSTheme, TThemeColors, TThemeType } from '@TSC/types'
 
 import { dims } from '@TSC/theme/dims'
 import { gutter } from '@TSC/theme/gutter'
-import { white, colors } from '@TSC/theme/colors'
+import { white, colors as DefColors } from '@TSC/theme/colors'
 import createTheme from '@mui/material/styles/createTheme'
 
 const typography = {
@@ -108,11 +108,6 @@ const components = (colors: TThemeColors) => {
   }
 }
 
-const success = {
-  contrastText: white,
-  main: colors.states.success,
-}
-
 const breakpoints = {
   values: {
     xs: 0,
@@ -132,8 +127,11 @@ const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
     components: components(colors),
     palette: {
       mode,
-      success,
       colors,
+      success: {
+        contrastText: white,
+        main: colors.states.success,
+      },
       border: {
         muted: colors.grey[25],
         section: colors.grey[50],
@@ -178,5 +176,5 @@ const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
 
 export const makeTheme = (theme: TTSTheme): Theme => {
   const { type } = theme
-  return buildTheme(type, { ...colors[type], ...theme[type] })
+  return buildTheme(type, { ...DefColors[type], ...theme[type] })
 }

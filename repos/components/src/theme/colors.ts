@@ -48,9 +48,28 @@ export const editor = {
   },
 }
 
+const states = {
+  dark: {
+    info: primary[400],
+    success: `#2cb67d`,
+    //warning: `#f4a261`,
+    warning: `#ef6b05`,
+    disabled: grey[300],
+    danger: `#d33d3d`,
+  },
+  light: {
+    info: primary[400],
+    success: `#2cb67d`,
+    warning: `#ef6b05`,
+    disabled: grey[300],
+    danger: `#d33d3d`,
+  },
+}
+
 const dark = {
   grey,
   editor: editor.dark,
+  states: states.dark,
   background: grey[875],
   foreground: grey[100],
   paper: grey[850],
@@ -82,6 +101,7 @@ const dark = {
 
 const light = {
   grey,
+  states: states.light,
   editor: editor.light,
   background: grey[0],
   foreground: grey[900],
@@ -110,15 +130,6 @@ const light = {
   shadow: `0px 1px 1px 0px ${grey[50]}`,
   shadowAlt: `0px 0px 0px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 2px -1px rgba(0,0,0,0.12)`,
   shadowPaper: `0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12)`,
-}
-
-const states = {
-  info: primary[400],
-  success: `#2cb67d`,
-  //warning: `#f4a261`,
-  warning: `#ef6b05`,
-  disabled: grey[300],
-  danger: `#d33d3d`,
 }
 
 export const colors = {

@@ -39,6 +39,13 @@ export type TThemeColors = {
   shadowPaper?: string
   grey?: typeof grey
   editor?: (typeof editor)[`light`]
+  states: {
+    info: string
+    danger: string
+    success: string
+    warning: string
+    disabled: string
+  }
 }
 
 export type TTSTheme = {
