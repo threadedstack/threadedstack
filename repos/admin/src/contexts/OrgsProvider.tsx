@@ -11,11 +11,11 @@ export type TOrgProvider = {
 
 export const OrgProvider = (props: TOrgProvider) => {
   const data = useOrgsState()
-  const { org, error } = data
+  const { orgs, error } = data
 
   return (
     <OrgsContext.Provider value={data}>
-      {org ? (
+      {orgs ? (
         <MemoChildren>{props.children}</MemoChildren>
       ) : error ? (
         <AppError message={error} />
