@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { useProjects } from '@TAF/state/selectors'
 import { CreateProjectDialog } from './CreateProjectDialog'
-import { fetchProjects, deleteProject } from '@TAF/actions/projects'
+import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
+import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import {
   Add as AddIcon,
   Delete as DeleteIcon,

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { useProjects } from '@TAF/state/selectors'
 import { useParams, useNavigate } from 'react-router'
-import { fetchProject, deleteProject } from '@TAF/actions/projects'
+import { fetchProject } from '@TAF/actions/projects/api/fetchProject'
+import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { setActiveOrgId, setActiveProjectId } from '@TAF/state/accessors'
 import {
   Edit as EditIcon,

@@ -3,8 +3,8 @@ import { ife } from '@keg-hub/jsutils/ife'
 import { Dialog } from '@tdsk/components'
 import { useOrgs } from '@TAF/state/selectors'
 import { fetchOrgs } from '@TAF/actions/orgs/api'
-import { createProject } from '@TAF/actions/projects'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { createProject } from '@TAF/actions/projects/api/createProject'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 import {
   Box,

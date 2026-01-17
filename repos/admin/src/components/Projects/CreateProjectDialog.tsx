@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { createProject } from '@TAF/actions/projects'
 import { Box, Button } from '@mui/material'
 import { Dialog, TextInput } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { createProject } from '@TAF/actions/projects/api/createProject'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
 export type TCreateProjectDialog = {
@@ -38,7 +38,7 @@ export const CreateProjectDialog = ({
     e.preventDefault()
 
     if (!name.trim()) {
-      setError('Project name is required')
+      setError(`Project name is required`)
       return
     }
 
@@ -55,7 +55,7 @@ export const CreateProjectDialog = ({
     setLoading(false)
 
     if (result.error) {
-      setError('Failed to create project. Please try again.')
+      setError(`Failed to create project. Please try again.`)
     } else {
       onClose()
       onSuccessCB?.()
@@ -83,7 +83,8 @@ export const CreateProjectDialog = ({
 
             <TextInput
               autoFocus
-              label='Project Name'
+              label='Name'
+              id='tdsk-project-name'
               placeholder='Enter project name'
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -93,21 +94,23 @@ export const CreateProjectDialog = ({
             />
 
             <TextInput
-              label='Git URL'
-              placeholder='https://github.com/user/repo.git (optional)'
-              value={gitUrl}
-              onChange={(e) => setGitUrl(e.target.value)}
               fullWidth
+              label='Git URL'
+              value={gitUrl}
               disabled={loading}
+              id='tdsk-project-git-url'
+              onChange={(e) => setGitUrl(e.target.value)}
+              placeholder='https://github.com/user/repo.git (optional)'
             />
 
             <TextInput
-              label='Branch'
-              placeholder='main'
-              value={branch}
-              onChange={(e) => setBranch(e.target.value)}
               fullWidth
+              label='Branch'
+              value={branch}
               disabled={loading}
+              id='tdsk-project-branch'
+              onChange={(e) => setBranch(e.target.value)}
+              placeholder='Enter git branch name (i.e. main)'
             />
           </Box>
         </form>
@@ -122,10 +125,10 @@ export const CreateProjectDialog = ({
           </Button>
           <LoadingButton
             type='submit'
-            form='create-project-form'
-            variant='contained'
             loading={loading}
+            variant='contained'
             loadingText='Creating...'
+            form='create-project-form'
           >
             Create Project
           </LoadingButton>

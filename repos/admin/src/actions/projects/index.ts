@@ -1,5 +1,2 @@
-export * from './fetchProjects'
-export * from './fetchProject'
-export * from './createProject'
-export * from './updateProject'
-export * from './deleteProject'
+export * from './api'
+export * from './local'

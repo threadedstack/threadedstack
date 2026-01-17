@@ -6,14 +6,16 @@ import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { EditConfigDialog } from './EditConfigDialog'
 import { CreateConfigDialog } from './CreateConfigDialog'
-import { useProjects, useConfigs } from '@TAF/state/selectors'
-import { fetchProject, updateProject, deleteProject } from '@TAF/actions/projects'
-import { setActiveOrgId, setActiveProjectId } from '@TAF/state/accessors'
 import { LoadingSpinner, ErrorAlert } from '@TAF/components'
+import { useProjects, useConfigs } from '@TAF/state/selectors'
+import { fetchProject } from '@TAF/actions/projects/api/fetchProject'
+import { updateProject } from '@TAF/actions/projects/api/updateProject'
+import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
+import { setActiveOrgId, setActiveProjectId } from '@TAF/state/accessors'
 import {
-  SettingsFormCard,
   InfoCard,
   DangerZoneCard,
+  SettingsFormCard,
   DeleteConfirmDialog,
 } from '@TAF/components/Settings'
 import {
