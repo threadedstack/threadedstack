@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
-import { OrgContext } from '@TAF/contexts/OrgContext'
+import { OrgsContext } from '@TAF/contexts/OrgsContext'
 import { MemoChildren, Loading } from '@tdsk/components'
-import { useOrgState } from '@TAF/hooks/org/useOrgState'
+import { useOrgsState } from '@TAF/hooks/org/useOrgsState'
 import { AppError } from '@TAF/components/AppError/AppError'
 
 export type TOrgProvider = {
@@ -10,11 +10,11 @@ export type TOrgProvider = {
 }
 
 export const OrgProvider = (props: TOrgProvider) => {
-  const data = useOrgState()
+  const data = useOrgsState()
   const { org, error } = data
 
   return (
-    <OrgContext.Provider value={data}>
+    <OrgsContext.Provider value={data}>
       {org ? (
         <MemoChildren>{props.children}</MemoChildren>
       ) : error ? (
@@ -25,6 +25,6 @@ export const OrgProvider = (props: TOrgProvider) => {
           full
         />
       )}
-    </OrgContext.Provider>
+    </OrgsContext.Provider>
   )
 }

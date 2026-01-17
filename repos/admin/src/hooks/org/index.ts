@@ -1,2 +1,2 @@
-export * from './useOrgState'
+export * from './useOrgsState'
 export * from './useOrgUsersList'

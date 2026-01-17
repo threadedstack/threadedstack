@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { ife } from '@keg-hub/jsutils/ife'
+import { useOrgs } from '@TAF/state/selectors'
 import { useEffectOnce } from '@tdsk/components'
 import { fetchOrgs } from '@TAF/actions/orgs/api/fetchOrgs'
-import { useOrgs, useActiveOrg } from '@TAF/state/selectors'
 
-export const useOrgState = () => {
+export const useOrgsState = () => {
   const [orgs] = useOrgs()
-  const [org] = useActiveOrg()
   const [error, setError] = useState<string>()
   const [loading, setLoading] = useState<boolean>()
 
@@ -28,7 +27,7 @@ export const useOrgState = () => {
   })
 
   return {
-    org,
+    orgs,
     error,
     loading,
   }
