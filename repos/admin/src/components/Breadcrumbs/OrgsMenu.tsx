@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
 import { useOrgs } from '@TAF/state/selectors'
 import { getOrgInitials } from '@TAF/utils/org/getOrgInitials'
-import { switchActiveOrg } from '@TAF/actions/orgs/local/switchActiveOrg'
+import { setOrgActive } from '@TAF/actions/orgs/local/setOrgActive'
 import {
   Add as AddIcon,
   Check as CheckIcon,
@@ -245,7 +245,7 @@ export const OrgsMenu = (props: TOrgsMenu) => {
 
   const onSelectOrg = (org: Organization) => {
     onClose?.()
-    switchActiveOrg(org.id)
+    setOrgActive(org.id)
   }
 
   const onCreateOrg = () => {

@@ -1,24 +1,24 @@
 import type { Provider } from '@tdsk/domain'
 
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router'
 import { Box, Alert, Button } from '@mui/material'
 import { useProviders } from '@TAF/state/selectors'
+import { useActiveOrgId } from '@TAF/state/selectors'
 import { fetchProviders } from '@TAF/actions/providers'
-import { setActiveOrgId } from '@TAF/state/accessors'
 import { ProvidersGrid } from '@TAF/components/Providers/ProvidersGrid'
 import { NoProviders } from '@TAF/components/Providers/NoProviders'
 import { ProviderDialog } from '@TAF/components/Providers/ProviderDialog'
 import { Add as AddIcon, Settings as SettingsIcon } from '@mui/icons-material'
 import { SearchBar, PageHeader, LoadingSpinner, ErrorAlert } from '@TAF/components'
-import { useNavigate } from 'react-router'
 
 export type TProviders = {
-  orgId?: string
   projectId?: string
   readOnly?: boolean
 }
 
-export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) => {
+export const Providers = ({ projectId, readOnly = false }: TProviders) => {
+  const [orgId] = useActiveOrgId()
   const navigate = useNavigate()
   const [providers] = useProviders()
   const [loading, setLoading] = useState(true)
@@ -26,12 +26,6 @@ export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) =>
   const [dialogOpen, setDialogOpen] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
-
-  useEffect(() => {
-    if (orgId) {
-      setActiveOrgId(orgId)
-    }
-  }, [orgId])
 
   useEffect(() => {
     const loadProviders = async () => {

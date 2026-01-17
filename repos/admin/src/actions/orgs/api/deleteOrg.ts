@@ -1,6 +1,6 @@
 import { orgsApi } from '@TAF/services'
-import { nav } from '@TAF/services/nav'
-import { setOrgs, getOrgs, getActiveOrgId, setActiveOrgId } from '@TAF/state/accessors'
+import { unsetActiveOrg } from '@TAF/actions/orgs/local/unsetActiveOrg'
+import { setOrgs, getOrgs, getActiveOrgId } from '@TAF/state/accessors'
 
 export type TDeleteOrgResult = {
   success?: boolean
@@ -10,9 +10,7 @@ export type TDeleteOrgResult = {
 export const deleteOrg = async (id: string): Promise<TDeleteOrgResult> => {
   const resp = await orgsApi.delete(id)
 
-  if (resp.error) {
-    return { error: resp.error }
-  }
+  if (resp.error) return { error: resp.error }
 
   // Remove org from state
   const currentOrgs = getOrgs() || {}
@@ -20,10 +18,7 @@ export const deleteOrg = async (id: string): Promise<TDeleteOrgResult> => {
   setOrgs(remainingOrgs)
 
   const activeId = getActiveOrgId()
-  if (activeId === id) {
-    setActiveOrgId(undefined)
-    nav.home()
-  }
+  if (activeId === id) unsetActiveOrg()
 
   return { success: true }
 }

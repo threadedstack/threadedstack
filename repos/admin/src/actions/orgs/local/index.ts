@@ -1,1 +1,1 @@
-export * from './switchActiveOrg'
+export * from './setOrgActive'

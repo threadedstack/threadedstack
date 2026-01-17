@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { useProjects } from '@TAF/state/selectors'
 import { Add as AddIcon } from '@mui/icons-material'
 import { useEffect, useState, useMemo } from 'react'
-import { setActiveOrgId } from '@TAF/state/accessors'
+import { useActiveOrgId } from '@TAF/state/selectors'
 import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
 import { NoProjects } from '@TAF/components/Projects/NoProjects'
 import { PageHeader } from '@TAF/components/PageHeader/PageHeader'
@@ -15,25 +15,16 @@ import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
 import { CreateProjectDialog } from '@TAF/components/Projects/CreateProjectDialog'
 
-export type TProjects = {
-  orgId: string
-}
+export type TProjects = {}
 
 export const Projects = (props: TProjects) => {
-  const { orgId } = props
   const navigate = useNavigate()
+  const [orgId] = useActiveOrgId()
   const [projects] = useProjects()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-
-  // Sync active org with prop
-  useEffect(() => {
-    if (orgId) {
-      setActiveOrgId(orgId)
-    }
-  }, [orgId])
 
   // Load org projects
   useEffect(() => {

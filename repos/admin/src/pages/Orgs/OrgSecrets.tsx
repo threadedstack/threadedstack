@@ -1,19 +1,11 @@
-import { useParams } from 'react-router'
-import { useEffect } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
+import { useActiveOrgId } from '@TAF/state/selectors'
 import { Secrets } from '@TAF/components/Secrets/Secrets'
-import { setActiveOrgId } from '@TAF/state/accessors'
 
 export type TOrgSecrets = {}
 
 export const OrgSecrets = (props: TOrgSecrets) => {
-  const { orgId } = useParams<{ orgId: string }>()
-
-  useEffect(() => {
-    if (orgId) {
-      setActiveOrgId(orgId)
-    }
-  }, [orgId])
+  const [orgId] = useActiveOrgId()
 
   return (
     <Page className='tdsk-org-secrets-page'>

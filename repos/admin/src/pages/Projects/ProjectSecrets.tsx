@@ -1,16 +1,17 @@
 import { useParams } from 'react-router'
 import { useEffect } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
+import { useActiveOrgId } from '@TAF/state/selectors'
 import { Secrets } from '@TAF/components/Secrets/Secrets'
-import { setActiveOrgId, setActiveProjectId } from '@TAF/state/accessors'
+import { setActiveProjectId } from '@TAF/state/accessors'
 
 export type TProjectSecrets = {}
 
 export const ProjectSecrets = (props: TProjectSecrets) => {
-  const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>()
+  const [orgId] = useActiveOrgId()
+  const { projectId } = useParams<{ projectId: string }>()
 
   useEffect(() => {
-    if (orgId) setActiveOrgId(orgId)
     if (projectId) setActiveProjectId(projectId)
   }, [orgId, projectId])
 

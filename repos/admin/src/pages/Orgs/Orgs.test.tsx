@@ -32,8 +32,10 @@ vi.mock('@TAF/state/selectors', () => ({
 }))
 
 // Mock permissions hook used by Orgs component
-vi.mock('@TAF/hooks/permissions/useIsAdmin', () => ({
-  useIsAdmin: () => true,
+vi.mock('@TAF/hooks/permissions/usePermissions', () => ({
+  usePermissions: () => {
+    isAdmin: true
+  },
 }))
 
 // Mock the actions

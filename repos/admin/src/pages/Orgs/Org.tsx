@@ -1,59 +1,29 @@
 import { ERoutePath } from '@TAF/types'
+import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
-import { useEffect, useState } from 'react'
-import { useOrgs } from '@TAF/state/selectors'
-import { useParams, useNavigate } from 'react-router'
-import { setActiveOrgId } from '@TAF/state/accessors'
-import { fetchOrg } from '@TAF/actions/orgs/api/fetchOrg'
+import { useActiveOrg } from '@TAF/state/selectors'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
+import { Box, Card, Button, Divider, Typography, CardContent } from '@mui/material'
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   PersonAdd as AddMemberIcon,
 } from '@mui/icons-material'
-import { Box, Card, Button, Divider, Typography, CardContent } from '@mui/material'
 
 export type TOrg = {}
 
 export const Org = (props: TOrg) => {
-  const [orgs] = useOrgs()
+  const [org] = useActiveOrg()
   const navigate = useNavigate()
-  const { orgId } = useParams<{ orgId: string }>()
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (orgId) {
-      setActiveOrgId(orgId)
-    }
-  }, [orgId])
-
-  useEffect(() => {
-    const loadOrg = async () => {
-      if (!orgId) return
-      setLoading(true)
-      await fetchOrg(orgId)
-      setLoading(false)
-    }
-    loadOrg()
-  }, [orgId])
-
-  const org = orgId && orgs ? orgs[orgId] : undefined
 
   const onDelete = async () => {
-    if (!org || !orgId) return
+    if (!org?.id) return
+    // TODO: fix this to use Confirm Model
     if (!window.confirm(`Are you sure you want to delete org "${org.name}"?`)) {
       return
     }
-    const result = await deleteOrg(orgId)
+    const result = await deleteOrg(org.id)
     !result.error && navigate(ERoutePath.Orgs)
-  }
-
-  if (loading) {
-    return (
-      <Page className='tdsk-org-page'>
-        <Typography>Loading org...</Typography>
-      </Page>
-    )
   }
 
   if (!org) {

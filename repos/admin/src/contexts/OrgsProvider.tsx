@@ -5,11 +5,11 @@ import { MemoChildren, Loading } from '@tdsk/components'
 import { useOrgsState } from '@TAF/hooks/org/useOrgsState'
 import { AppError } from '@TAF/components/AppError/AppError'
 
-export type TOrgProvider = {
+export type TOrgsProvider = {
   children: ReactNode
 }
 
-export const OrgProvider = (props: TOrgProvider) => {
+export const OrgsProvider = (props: TOrgsProvider) => {
   const data = useOrgsState()
   const { orgs, error } = data
 

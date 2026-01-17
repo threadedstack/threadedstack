@@ -1,15 +1,14 @@
 import type { ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { useParams } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { useApiKeys } from '@TAF/state/selectors'
-import { setActiveOrgId } from '@TAF/state/accessors'
-import { CreateApiKeyDialog } from './CreateApiKeyDialog'
-import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
 import { useEffect, useState, useMemo } from 'react'
+import { useActiveOrgId } from '@TAF/state/selectors'
 import { Box, Typography, Chip } from '@mui/material'
+import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
 import { IconButton, useCopyToClipboard } from '@tdsk/components'
+import { CreateApiKeyDialog } from '@TAF/pages/Orgs/CreateApiKeyDialog'
 import {
   Add as AddIcon,
   VpnKey as KeyIcon,
@@ -30,20 +29,14 @@ import {
 export type TOrgApiKeys = {}
 
 export const OrgApiKeys = (props: TOrgApiKeys) => {
-  const { orgId } = useParams<{ orgId: string }>()
   const [apiKeys] = useApiKeys()
+  const [orgId] = useActiveOrgId()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-
-  useEffect(() => {
-    if (orgId) {
-      setActiveOrgId(orgId)
-    }
-  }, [orgId])
 
   // Load org API keys
   useEffect(() => {
