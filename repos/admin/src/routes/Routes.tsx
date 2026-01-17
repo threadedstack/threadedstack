@@ -11,9 +11,11 @@ const Account = lazy(() => import('@TAF/pages/Account/Account'))
 const Settings = lazy(() => import('@TAF/pages/Settings/Settings'))
 
 // Org pages
-const Orgs = lazy(() => import('@TAF/pages/Orgs/Orgs'))
+
 const Org = lazy(() => import('@TAF/pages/Orgs/Org'))
+const Orgs = lazy(() => import('@TAF/pages/Orgs/Orgs'))
 const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
+const OrgsLoader = lazy(() => import('@TAF/pages/Orgs/OrgsLoader'))
 const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
@@ -21,6 +23,7 @@ const OrgProjects = lazy(() => import('@TAF/pages/Orgs/OrgProjects'))
 
 // Project pages
 const Project = lazy(() => import('@TAF/pages/Projects/Project'))
+const ProjectsLoader = lazy(() => import('@TAF/pages/Projects/ProjectsLoader'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
 const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
 const ProjectProviders = lazy(() => import('@TAF/pages/Projects/ProjectProviders'))
@@ -52,16 +55,13 @@ export const Routes = createBrowserRouter([
       />
     ),
     Component: () => (
-      <Suspense
-        fallback={
-          <Loading
-            fixed
-            full
-          />
-        }
-      >
-        <Layout />
-      </Suspense>
+      <SuspensePage
+        Component={() => (
+          <OrgsLoader>
+            <Layout />
+          </OrgsLoader>
+        )}
+      />
     ),
     children: [
       // Home route - Org selection at root
@@ -103,11 +103,20 @@ export const Routes = createBrowserRouter([
           // Project selection for this org
           {
             path: 'projects',
-            Component: () => <SuspensePage Component={OrgProjects} />,
+            Component: () => (
+              <SuspensePage
+                Component={() => (
+                  <ProjectsLoader>
+                    <OrgProjects />
+                  </ProjectsLoader>
+                )}
+              />
+            ),
           },
           // Nested project routes under org
           {
             path: 'projects/:projectId',
+            Component: () => <SuspensePage Component={ProjectsLoader} />,
             children: [
               // Project dashboard
               {

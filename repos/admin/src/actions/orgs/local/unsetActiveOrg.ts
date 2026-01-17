@@ -1,7 +1,9 @@
 import { nav } from '@TAF/services/nav'
-import { setActiveOrgId } from '@TAF/state/accessors'
+import { resetActiveOrgId } from '@TAF/state/accessors'
+import { unsetActiveProject } from '@TAF/actions/projects/local/unsetActiveProject'
 
 export const unsetActiveOrg = () => {
-  setActiveOrgId(undefined)
+  unsetActiveProject()
+  resetActiveOrgId()
   nav.home()
 }

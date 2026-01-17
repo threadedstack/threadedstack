@@ -10,10 +10,7 @@ export type TFetchProjectResult = {
 
 export const fetchProject = async (projectId: string): Promise<TFetchProjectResult> => {
   const resp = await projectsApi.get(projectId)
-
-  if (resp.error) {
-    return { error: resp.error }
-  }
+  if (resp.error) return { error: resp.error }
 
   if (resp.data) {
     // Update projects state with the fetched project

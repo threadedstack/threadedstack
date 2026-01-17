@@ -26,9 +26,11 @@ export const Sidebar = (props: TSidebar) => {
         <SideDrawer
           open={open}
           variant='permanent'
+          className='tdsk-admin-sidebar'
           onClick={() => !open && setOpen(true)}
         >
           <Toolbar
+            className='tdsk-admin-toolbar'
             sx={{
               display: `flex`,
               alignItems: `center`,

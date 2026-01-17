@@ -15,6 +15,8 @@ export const useOrgsState = () => {
       error && setError(undefined)
       const resp = await fetchOrgs()
       resp.error && setError(resp.error.message)
+    } catch (err) {
+      setError(err.message)
     } finally {
       setLoading(false)
     }
