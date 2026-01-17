@@ -72,7 +72,7 @@ export const NavItem = styled(ListItem)`
   align-items: center;
   justify-content: center;
   background-color: transparent;
-  padding: ${gutter.tpx} ${gutter.tpx};
+  padding: ${gutter.hpx} ${gutter.tpx};
   transition: opacity 0.4s ease, color 0.4s ease, background-color 0.4s ease;
 
   &:hover {

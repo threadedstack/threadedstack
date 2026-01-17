@@ -83,7 +83,7 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
             color='primary'
             sx={createBtnSx}
             onClick={onCreate}
-            variant='outlined'
+            variant='contained'
             Icon={<AddIcon />}
           >
             {createText}
