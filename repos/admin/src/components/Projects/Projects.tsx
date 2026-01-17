@@ -13,6 +13,7 @@ import { ProjectsGrid } from '@TAF/components/Projects/ProjectsGrid'
 import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
+import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
 import { CreateProjectDialog } from '@TAF/components/Projects/CreateProjectDialog'
 
 export type TProjects = {}
@@ -58,9 +59,7 @@ export const Projects = (props: TProjects) => {
     await fetchProjects({ orgId })
   }
 
-  const onViewProject = (projectId: string) => {
-    navigate(`/orgs/${orgId}/projects/${projectId}`)
-  }
+  const onSelectProject = (projectId: string) => setProjectActive(projectId)
 
   const onDeleteProject = async (projectId: string) => {
     await deleteProject(projectId)
@@ -127,17 +126,17 @@ export const Projects = (props: TProjects) => {
 
       {!loading && !error && filteredProjects.length > 0 && (
         <ProjectsGrid
-          projects={filteredProjects}
           showDelete={true}
+          projects={filteredProjects}
+          onSelect={onSelectProject}
           onDelete={onDeleteProject}
-          onView={onViewProject}
         />
       )}
 
       {orgId && (
         <CreateProjectDialog
-          open={dialogOpen}
           orgId={orgId}
+          open={dialogOpen}
           onClose={onDialogClose}
           onSuccess={onDialogSuccess}
         />

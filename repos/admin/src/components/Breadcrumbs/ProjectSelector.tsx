@@ -1,9 +1,9 @@
 import type { Project } from '@tdsk/domain'
 
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router'
 import { cls } from '@keg-hub/jsutils/cls'
-import { setActiveProjectId } from '@TAF/state/accessors'
+import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
+
 import {
   useProjects,
   useActiveOrgId,
@@ -38,7 +38,6 @@ export type TProjectSelector = {
 export const ProjectSelector = (props: TProjectSelector) => {
   const { className, onCreateProject: onCreateProjectCB } = props
 
-  const navigate = useNavigate()
   const [projects] = useProjects()
   const [activeOrgId] = useActiveOrgId()
   const [activeProject] = useActiveProject()
@@ -58,9 +57,8 @@ export const ProjectSelector = (props: TProjectSelector) => {
   }
 
   const onSelectProject = (project: Project) => {
-    setActiveProjectId(project.id)
-    navigate(`/orgs/${activeOrgId}/projects/${project.id}`)
     onClose()
+    setProjectActive(project.id)
   }
 
   const onCreateProject = () => {

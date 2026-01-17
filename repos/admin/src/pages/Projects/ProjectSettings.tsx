@@ -1,18 +1,17 @@
 import type { Config } from '@tdsk/domain'
 
+import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { fetchConfigs } from '@TAF/actions/configs'
 import { useEffect, useState, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router'
 import { EditConfigDialog } from './EditConfigDialog'
-import { useActiveOrgId } from '@TAF/state/selectors'
-import { setActiveProjectId } from '@TAF/state/accessors'
 import { CreateConfigDialog } from './CreateConfigDialog'
 import { LoadingSpinner, ErrorAlert } from '@TAF/components'
 import { useProjects, useConfigs } from '@TAF/state/selectors'
 import { fetchProject } from '@TAF/actions/projects/api/fetchProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
+import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
 import {
   InfoCard,
   DangerZoneCard,
@@ -47,16 +46,16 @@ import {
 
 export type TProjectSettings = {}
 
+// TODO: clean this up to work like Org settings
 export const ProjectSettings = (props: TProjectSettings) => {
-  const { projectId } = useParams<{ projectId: string }>()
-
   const navigate = useNavigate()
   const [configs] = useConfigs()
   const [projects] = useProjects()
   const [orgId] = useActiveOrgId()
+  const [projectId] = useActiveProjectId()
+  const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
 
   const [name, setName] = useState('')
@@ -74,10 +73,6 @@ export const ProjectSettings = (props: TProjectSettings) => {
 
   const [configSearchQuery, setConfigSearchQuery] = useState('')
   const [configTypeFilter, setConfigTypeFilter] = useState<string>('all')
-
-  useEffect(() => {
-    if (projectId) setActiveProjectId(projectId)
-  }, [projectId])
 
   useEffect(() => {
     const loadData = async () => {

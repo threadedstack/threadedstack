@@ -22,11 +22,11 @@ export type TProjectCard = {
   project: Project
   showDelete?: boolean
   onDelete?: (projectId: string) => void
-  onView?: (projectId: string) => void
+  onSelect?: (projectId: string) => void
 }
 
 export const ProjectCard = (props: TProjectCard) => {
-  const { project, onDelete, onView, showDelete } = props
+  const { project, onDelete, onSelect, showDelete } = props
 
   const [deleted, setDeleted] = useState<boolean>(false)
   const [deleting, setDeleting] = useState<boolean>(false)
@@ -48,7 +48,7 @@ export const ProjectCard = (props: TProjectCard) => {
             boxShadow: 3,
           },
         }}
-        onClick={() => onView?.(project.id)}
+        onClick={() => onSelect?.(project.id)}
       >
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -96,7 +96,7 @@ export const ProjectCard = (props: TProjectCard) => {
               color='primary'
               onClick={(e) => {
                 e.stopPropagation()
-                onView?.(project.id)
+                onSelect?.(project.id)
               }}
             >
               <ViewIcon />

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
-import { useParams, useNavigate } from 'react-router'
-import { setActiveProjectId } from '@TAF/state/accessors'
-import { useProjects, useActiveOrgId } from '@TAF/state/selectors'
-import { fetchProject } from '@TAF/actions/projects/api/fetchProject'
+import { useNavigate } from 'react-router'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
+import {
+  useActiveOrgId,
+  useActiveProject,
+  useActiveProjectId,
+} from '@TAF/state/selectors'
 import {
   Edit as EditIcon,
   Folder as ProjectIcon,
@@ -26,27 +27,10 @@ import {
 export type TProject = {}
 
 export const Project = (props: TProject) => {
-  const [orgId] = useActiveOrgId()
   const navigate = useNavigate()
-  const [projects] = useProjects()
-  const [loading, setLoading] = useState(true)
-  const { projectId } = useParams<{ projectId: string }>()
-
-  useEffect(() => {
-    if (projectId) setActiveProjectId(projectId)
-  }, [orgId, projectId])
-
-  useEffect(() => {
-    const loadProject = async () => {
-      if (!projectId) return
-      setLoading(true)
-      await fetchProject(projectId)
-      setLoading(false)
-    }
-    loadProject()
-  }, [projectId])
-
-  const project = projectId && projects ? projects[projectId] : undefined
+  const [orgId] = useActiveOrgId()
+  const [project] = useActiveProject()
+  const [projectId] = useActiveProjectId()
 
   const handleBack = () => {
     navigate(`/orgs/${orgId}/projects`)
@@ -61,14 +45,6 @@ export const Project = (props: TProject) => {
     if (!result.error) {
       navigate(`/orgs/${orgId}/projects`)
     }
-  }
-
-  if (loading) {
-    return (
-      <Page className='tdsk-project-page'>
-        <Typography>Loading project...</Typography>
-      </Page>
-    )
   }
 
   if (!project) {

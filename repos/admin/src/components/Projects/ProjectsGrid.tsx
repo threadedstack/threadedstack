@@ -6,11 +6,11 @@ export type TProjectsGrid = {
   showDelete?: boolean
   projects: Project[]
   onDelete?: (projectId: string) => void
-  onView?: (projectId: string) => void
+  onSelect?: (projectId: string) => void
 }
 
 export const ProjectsGrid = (props: TProjectsGrid) => {
-  const { projects, onDelete, onView, showDelete } = props
+  const { projects, onDelete, onSelect, showDelete } = props
 
   return (
     <Grid
@@ -28,7 +28,7 @@ export const ProjectsGrid = (props: TProjectsGrid) => {
           <ProjectCard
             project={project}
             onDelete={onDelete}
-            onView={onView}
+            onSelect={onSelect}
             showDelete={showDelete}
           />
         </Grid>
