@@ -1,5 +1,5 @@
-import { loadEnvs } from '@tdsk/domain'
 import { toNum, toBool } from '@keg-hub/jsutils'
+import { loadEnvs, parsePayPlans } from '@tdsk/domain'
 import { buildProxyUrl } from '@TBE/utils/proxy/buildProxyUrl'
 
 const nodeEnv = process.env.NODE_ENV || `local`
@@ -38,6 +38,10 @@ const {
   TDSK_DB_PROJECT_ID,
   TDSK_DB_PUBLIC_KEY,
   TDSK_LOG_LEVEL = `info`,
+  TDSK_PAY_TYPE,
+  TDSK_PAY_PLANS,
+  TDSK_PAY_ACCESS_TOKEN,
+  TDSK_PAY_WEBHOOK_SECRET,
 } = process.env
 
 const enableSSL = nodeEnv !== `production` && toBool(TDSK_BE_ENABLE_SSL)
@@ -91,5 +95,11 @@ export const config = {
     level: TDSK_BE_LOG_LEVEL ?? TDSK_LOG_LEVEL,
     pretty: toBool(TDSK_BE_LOGGER_PRETTY) ?? false,
     silent: toBool(TDSK_BE_LOGGER_SILENT) ?? false,
+  },
+  payments: {
+    type: TDSK_PAY_TYPE,
+    token: TDSK_PAY_ACCESS_TOKEN,
+    wbhSecret: TDSK_PAY_WEBHOOK_SECRET,
+    plans: parsePayPlans(TDSK_PAY_PLANS),
   },
 }

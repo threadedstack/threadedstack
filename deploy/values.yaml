@@ -212,3 +212,10 @@ env:
   TDSK_AD_MOUNT_PATH: .:/tdsk/app
   TDSK_AD_IMAGE_FROM: node:20-alpine3.17
   TDSK_AD_IMAGE: 'ghcr.io/threadedstack/tdsk-admin'
+
+
+  # ---- Payments ENVs --- #
+  TDSK_PAY_TYPE:
+  TDSK_PAY_PLANS:
+  TDSK_PAY_ACCESS_TOKEN:
+  TDSK_PAY_WEBHOOK_SECRET:

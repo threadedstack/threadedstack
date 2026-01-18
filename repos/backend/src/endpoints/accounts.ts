@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { adminPath } from '@tdsk/domain'
 import { orgs } from '@TBE/endpoints/orgs'
 import { users } from '@TBE/endpoints/users'
+import { payments } from './payments/payments'
 import { base } from '@TBE/endpoints/base/base'
 import { auth } from '@TBE/endpoints/auth/auth'
 import { secrets } from '@TBE/endpoints/secrets'
@@ -28,6 +29,7 @@ export const accounts: TEndpointBuilder = (config) => {
       health,
       apiKeys,
       secrets,
+      payments,
       projects,
       providers,
       endpoints,

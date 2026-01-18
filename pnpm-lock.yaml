@@ -193,6 +193,9 @@ importers:
       '@keg-hub/parse-config':
         specifier: 2.1.0
         version: 2.1.0
+      '@polar-sh/express':
+        specifier: 0.6.3
+        version: 0.6.3(express@5.1.0)
       '@tdsk/database':
         specifier: workspace:*
         version: link:../database
@@ -250,6 +253,9 @@ importers:
       winston:
         specifier: 3.17.0
         version: 3.17.0
+      zod:
+        specifier: 4.3.5
+        version: 4.3.5
     devDependencies:
       '@biomejs/biome':
         specifier: 2.1.2
@@ -1572,7 +1578,7 @@ packages:
       tailwindcss: '>=3.0.0'
       zod: '>=3.0.0'
 
-  '@drizzle-org/brocli@0.10.2':
+  '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
 
   '@effect/schema@0.71.1':
@@ -1987,7 +1993,7 @@ packages:
     os: [freebsd]
 
   '@esbuild/freebsd-arm64@0.24.2':
-    resolution: {integrity: sha512-UN8HXjtJ0k/Mj6a9+5u6+2eZ2ERD7Edt1Q9IZiB5UZAIdPnVKDoG7mdTVGhHJIeEml60JorgR3qhsr1r8gXvg==}
+    resolution: {integrity: sha512-UN8HXjtJ0k/Mj6a9+5u6+2eZ2ERD7Edt1Q9IZiB5UZAIdPnVKDoG7mdTVGhHJIeEml60JteamR3qhsr1r8gXvg==}
     engines: {node: '>=18'}
     cpu: [arm64]
     os: [freebsd]
@@ -3633,6 +3639,18 @@ packages:
     resolution: {integrity: sha512-c83qWb22rNRuB0UaVCI0uRPNRr8Z0FWnEIvT47jiHAmOIUHbBOg5XvV7pM5x+rKn9HRpjxquDbXYSXr3fAKFcw==}
     engines: {node: '>=12'}
 
+  '@polar-sh/adapter-utils@0.4.3':
+    resolution: {integrity: sha512-9xjOyaAVWRFaFZKkSdZr8J6i5LToUoFKeoczXCEu6+uxAhKmkjA3Qlc8otI4be1DSouWgrYB/VUGHOW7dIgCuQ==}
+
+  '@polar-sh/express@0.6.3':
+    resolution: {integrity: sha512-+yS8GecVgrWX0Zpil7Uv0GIYgPeNz9SCg95cWVEVsWxQUwShpywEKtqgL72HI4zb75RC650TJNGthRwmGmD7hw==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      express: ^4.21.2
+
+  '@polar-sh/sdk@0.42.2':
+    resolution: {integrity: sha512-dmm/ySQZQfFbeO8x/1sgcFdkgYOXAc/Sgu0nHj4hhHxrEVbI2axvm4jV/SCpCbm0MvoY+bsbHFP8n8MUaQaCgQ==}
+
   '@popperjs/core@2.11.8':
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
 
@@ -4549,6 +4567,9 @@ packages:
   '@sindresorhus/merge-streams@4.0.0':
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
+
+  '@stablelib/base64@1.0.1':
+    resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -6298,6 +6319,9 @@ packages:
   fast-querystring@1.1.2:
     resolution: {integrity: sha512-g6KuKWmFXc0fID8WWH0jit4g0AGBoJhCkJMb1RmbsSEUNvQ+ZC8D6CUZ+GtF8nMzSPXnhiePyyqqipzNNEnHjg==}
 
+  fast-sha256@1.3.0:
+    resolution: {integrity: sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ==}
+
   fast-uri@2.4.0:
     resolution: {integrity: sha512-ypuAmmMKInk5q7XcepxlnUWDLWv4GFtaJqAzWKqn62IpQ3pejtr5dTVbt3vwqVaMKmkNR55sTT+CqUKIaT21BA==}
 
@@ -7841,7 +7865,7 @@ packages:
       - libnpmpack
       - libnpmpublish
       - libnpmsearch
-      - libnpmorg
+      - libnpmteam
       - libnpmversion
       - make-fetch-happen
       - minimatch
@@ -7913,7 +7937,7 @@ packages:
       - libnpmpack
       - libnpmpublish
       - libnpmsearch
-      - libnpmorg
+      - libnpmteam
       - libnpmversion
       - make-fetch-happen
       - minimatch
@@ -9131,6 +9155,9 @@ packages:
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
 
+  standardwebhooks@1.0.0:
+    resolution: {integrity: sha512-BbHGOQK9olHPMvQNHWul6MYlrRTAOKn03rOe4A8O3CLWhNf4YHBqq2HJKKC+sfqpxiBY52pNeesD6jIiLDz8jg==}
+
   state-local@1.0.7:
     resolution: {integrity: sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==}
 
@@ -10079,6 +10106,9 @@ packages:
 
   zod@4.1.12:
     resolution: {integrity: sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==}
+
+  zod@4.3.5:
+    resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
 
 snapshots:
 
@@ -11894,7 +11924,7 @@ snapshots:
       - '@types/react'
       - '@types/react-dom'
 
-  '@drizzle-org/brocli@0.10.2': {}
+  '@drizzle-team/brocli@0.10.2': {}
 
   '@effect/schema@0.71.1(effect@3.6.5)':
     dependencies:
@@ -13698,6 +13728,21 @@ snapshots:
       '@pnpm/network.ca-file': 1.0.2
       config-chain: 1.1.13
 
+  '@polar-sh/adapter-utils@0.4.3':
+    dependencies:
+      '@polar-sh/sdk': 0.42.2
+
+  '@polar-sh/express@0.6.3(express@5.1.0)':
+    dependencies:
+      '@polar-sh/adapter-utils': 0.4.3
+      '@polar-sh/sdk': 0.42.2
+      express: 5.1.0
+
+  '@polar-sh/sdk@0.42.2':
+    dependencies:
+      standardwebhooks: 1.0.0
+      zod: 4.3.5
+
   '@popperjs/core@2.11.8': {}
 
   '@prisma/instrumentation@6.11.1(@opentelemetry/api@1.9.0)':
@@ -14627,6 +14672,8 @@ snapshots:
   '@sindresorhus/merge-streams@2.3.0': {}
 
   '@sindresorhus/merge-streams@4.0.0': {}
+
+  '@stablelib/base64@1.0.1': {}
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -16130,7 +16177,7 @@ snapshots:
 
   drizzle-kit@0.31.8:
     dependencies:
-      '@drizzle-org/brocli': 0.10.2
+      '@drizzle-team/brocli': 0.10.2
       '@esbuild-kit/esm-loader': 2.6.5
       esbuild: 0.25.12
       esbuild-register: 3.6.0(esbuild@0.25.12)
@@ -16703,6 +16750,8 @@ snapshots:
   fast-querystring@1.1.2:
     dependencies:
       fast-decode-uri-component: 1.0.1
+
+  fast-sha256@1.3.0: {}
 
   fast-uri@2.4.0: {}
 
@@ -19552,6 +19601,11 @@ snapshots:
 
   stackback@0.0.2: {}
 
+  standardwebhooks@1.0.0:
+    dependencies:
+      '@stablelib/base64': 1.0.1
+      fast-sha256: 1.3.0
+
   state-local@1.0.7: {}
 
   static-extend@0.1.2:
@@ -20588,3 +20642,5 @@ snapshots:
   yoctocolors@2.1.2: {}
 
   zod@4.1.12: {}
+
+  zod@4.3.5: {}
