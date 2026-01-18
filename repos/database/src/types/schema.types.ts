@@ -2,6 +2,7 @@ import type { orgs } from '@TDB/schemas/orgs'
 import type { users } from '@TDB/schemas/users'
 import type { roles } from '@TDB/schemas/roles'
 import type { assets } from '@TDB/schemas/assets'
+import type { quotas } from '@TDB/schemas/quotas'
 import type { apiKeys } from '@TDB/schemas/apiKeys'
 import type { configs } from '@TDB/schemas/configs'
 import type { secrets } from '@TDB/schemas/secrets'
@@ -9,8 +10,9 @@ import type { threads } from '@TDB/schemas/threads'
 import type { messages } from '@TDB/schemas/messages'
 import type { projects } from '@TDB/schemas/projects'
 import type { endpoints } from '@TDB/schemas/endpoints'
-import type { providers } from '@TDB/schemas/providers'
 import type { functions } from '@TDB/schemas/functions'
+import type { providers } from '@TDB/schemas/providers'
+import type { subscriptions } from '@TDB/schemas/subscriptions'
 import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import type { TAnyObj, TKeyLike, Base as BaseModel } from '@tdsk/domain'
 
@@ -32,6 +34,8 @@ export type TDBUserSelect = TInferDates<typeof users.$inferSelect>
 export type TDBUserInsert = TInferDates<typeof users.$inferInsert>
 export type TDBRoleSelect = TInferDates<typeof roles.$inferSelect>
 export type TDBRoleInsert = TInferDates<typeof roles.$inferInsert>
+export type TDBQuotaSelect = TInferDates<typeof quotas.$inferSelect>
+export type TDBQuotaInsert = TInferDates<typeof quotas.$inferInsert>
 export type TDBAssetSelect = TInferDates<typeof assets.$inferSelect>
 export type TDBAssetInsert = TInferDates<typeof assets.$inferInsert>
 export type TDBConfigSelect = TInferDates<typeof configs.$inferSelect>
@@ -50,6 +54,8 @@ export type TDBProviderSelect = TInferDates<typeof providers.$inferSelect>
 export type TDBProviderInsert = TInferDates<typeof providers.$inferInsert>
 export type TDBFunctionSelect = TInferDates<typeof functions.$inferSelect>
 export type TDBFunctionInsert = TInferDates<typeof functions.$inferInsert>
+export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
+export type TDBSubscriptionInsert = TInferDates<typeof subscriptions.$inferInsert>
 
 export type TDBApiKeySelect = TInferDateProps<
   typeof apiKeys.$inferSelect,
@@ -64,34 +70,38 @@ export type TDBApiKeyInsert = Partial<
 >
 
 export type TDBEntitySelect =
-  | TDBUserSelect
   | TDBOrgSelect
-  | TDBProjectSelect
+  | TDBUserSelect
   | TDBRoleSelect
   | TDBAssetSelect
+  | TDBQuotaSelect
   | TDBApiKeySelect
   | TDBConfigSelect
   | TDBSecretSelect
   | TDBThreadSelect
+  | TDBProjectSelect
   | TDBMessageSelect
   | TDBEndpointSelect
   | TDBProviderSelect
   | TDBFunctionSelect
+  | TDBSubscriptionSelect
 
 export type TDBEntityInsert =
-  | TDBUserInsert
   | TDBOrgInsert
-  | TDBProjectInsert
+  | TDBUserInsert
   | TDBRoleInsert
   | TDBAssetInsert
+  | TDBQuotaInsert
   | TDBApiKeyInsert
   | TDBConfigInsert
   | TDBSecretInsert
   | TDBThreadInsert
+  | TDBProjectInsert
   | TDBMessageInsert
   | TDBEndpointInsert
   | TDBProviderInsert
   | TDBFunctionInsert
+  | TDBSubscriptionInsert
 
 type TTableWithId = {
   id: any
