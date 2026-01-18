@@ -1,34 +1,39 @@
-import type { Project } from '@tdsk/domain'
-
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
-import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
+import { Button, Text } from '@tdsk/components'
+import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
+import { ProjectsMenu } from '@TAF/components/Breadcrumbs/ProjectsMenu'
 
 import {
-  useProjects,
   useActiveOrgId,
   useActiveProject,
   useActiveProjectId,
 } from '@TAF/state/selectors'
-import {
-  Add as AddIcon,
-  Check as CheckIcon,
-  Search as SearchIcon,
-  Folder as ProjectIcon,
-  ExpandMore as ExpandMoreIcon,
-} from '@mui/icons-material'
-import {
-  Box,
-  Menu,
-  Button,
-  Divider,
-  MenuItem,
-  TextField,
-  Typography,
-  ListItemIcon,
-  ListItemText,
-  InputAdornment,
-} from '@mui/material'
+import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
+
+const styles = {
+  icon: {
+    fontSize: 18,
+  },
+  text: {
+    fontWeight: 500,
+    maxWidth: 150,
+    overflow: `hidden`,
+    whiteSpace: `nowrap`,
+    textOverflow: `ellipsis`,
+  },
+  button: {
+    color: `text.primary`,
+    textTransform: `none`,
+    [`&.open .MuiButton-endIcon`]: {
+      transform: `rotate(180deg)`,
+    },
+    [`& .MuiButton-endIcon`]: {
+      transform: `rotate(0deg)`,
+      transition: `transform 0.2s ease`,
+    },
+  },
+}
 
 export type TProjectSelector = {
   className?: string
@@ -36,13 +41,12 @@ export type TProjectSelector = {
 }
 
 export const ProjectSelector = (props: TProjectSelector) => {
-  const { className, onCreateProject: onCreateProjectCB } = props
+  const { className, onCreateProject } = props
 
-  const [projects] = useProjects()
   const [activeOrgId] = useActiveOrgId()
+  const [query, setQuery] = useState('')
   const [activeProject] = useActiveProject()
   const [activeProjectId] = useActiveProjectId()
-  const [searchQuery, setSearchQuery] = useState('')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   const open = Boolean(anchorEl)
@@ -53,248 +57,41 @@ export const ProjectSelector = (props: TProjectSelector) => {
 
   const onClose = () => {
     setAnchorEl(null)
-    setSearchQuery('')
+    setQuery('')
   }
-
-  const onSelectProject = (project: Project) => {
-    onClose()
-    setProjectActive(project.id)
-  }
-
-  const onCreateProject = () => {
-    onClose()
-    onCreateProjectCB?.()
-  }
-
-  // Filter projects to only show those belonging to the active org
-  const orgProjects = useMemo(() => {
-    if (!projects || !activeOrgId) return []
-    return Object.values(projects).filter((project) => project.orgId === activeOrgId)
-  }, [projects, activeOrgId])
-
-  const filteredProjects = useMemo(() => {
-    if (!searchQuery.trim()) return orgProjects
-    const query = searchQuery.toLowerCase()
-    return orgProjects.filter(
-      (project) =>
-        project.name?.toLowerCase().includes(query) ||
-        project.branch?.toLowerCase().includes(query)
-    )
-  }, [orgProjects, searchQuery])
-
-  const getProjectInitials = (name: string) => {
-    if (!name) return '?'
-    const words = name.split(' ')
-    if (words.length >= 2) {
-      return `${words[0][0]}${words[1][0]}`.toUpperCase()
-    }
-    return name.slice(0, 2).toUpperCase()
-  }
-
-  if (!activeOrgId) return null
 
   return (
-    <>
-      <Button
-        onClick={onClick}
-        className={cls('tdsk-project-selector', className)}
-        endIcon={<ExpandMoreIcon />}
-        sx={{
-          textTransform: 'none',
-          color: 'text.primary',
-          '& .MuiButton-endIcon': {
-            transition: 'transform 0.2s ease',
-            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-          },
-        }}
-      >
-        <Box
-          sx={{
-            mr: 1,
-            width: 28,
-            height: 28,
-            borderRadius: 1,
-            display: 'flex',
-            fontWeight: 600,
-            fontSize: '12px',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: activeProject ? 'secondary.main' : 'grey.400',
-            color: activeProject ? 'secondary.contrastText' : 'text.primary',
-          }}
+    (activeOrgId && (
+      <>
+        <Button
+          onClick={onClick}
+          sx={styles.button}
+          EndIcon={<ExpandMoreIcon />}
+          className={cls(`tdsk-project-selector`, open && `open`, className)}
         >
-          {activeProject ? (
-            getProjectInitials(activeProject.name)
-          ) : (
-            <ProjectIcon sx={{ fontSize: 16 }} />
-          )}
-        </Box>
-        <Typography
-          variant='body2'
-          sx={{
-            maxWidth: 150,
-            fontWeight: 500,
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {activeProject?.name || 'Select Project'}
-        </Typography>
-      </Button>
+          <ProjectIcon
+            text
+            sx={styles.icon}
+          />
+          <Text
+            variant='body2'
+            sx={styles.text}
+          >
+            {activeProject?.name || `Select Project`}
+          </Text>
+        </Button>
 
-      <Menu
-        anchorEl={anchorEl}
-        open={open}
-        onClose={onClose}
-        slotProps={{
-          paper: {
-            sx: {
-              minWidth: 280,
-              maxWidth: 320,
-              maxHeight: 400,
-            },
-          },
-        }}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-      >
-        {orgProjects.length > 3 && (
-          <Box sx={{ px: 1, py: 0.5 }}>
-            <TextField
-              size='small'
-              fullWidth
-              placeholder='Search projects...'
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoFocus
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position='start'>
-                      <SearchIcon
-                        fontSize='small'
-                        sx={{ color: 'text.secondary' }}
-                      />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  fontSize: '14px',
-                },
-              }}
-            />
-          </Box>
-        )}
-
-        {orgProjects.length > 3 && <Divider sx={{ my: 0.5 }} />}
-
-        <Box sx={{ maxHeight: 250, overflow: 'auto' }}>
-          {orgProjects.length === 0 && (
-            <MenuItem disabled>
-              <Typography
-                variant='body2'
-                color='text.secondary'
-              >
-                No projects in this organization
-              </Typography>
-            </MenuItem>
-          )}
-
-          {filteredProjects.length === 0 && searchQuery && orgProjects.length > 0 && (
-            <MenuItem disabled>
-              <Typography
-                variant='body2'
-                color='text.secondary'
-              >
-                No projects found
-              </Typography>
-            </MenuItem>
-          )}
-
-          {filteredProjects.map((project) => (
-            <MenuItem
-              key={project.id}
-              onClick={() => onSelectProject(project)}
-              selected={project.id === activeProjectId}
-              sx={{
-                py: 1,
-                '&.Mui-selected': {
-                  bgcolor: 'action.selected',
-                },
-              }}
-            >
-              <ListItemIcon>
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor:
-                      project.id === activeProjectId ? 'secondary.main' : 'grey.300',
-                    color:
-                      project.id === activeProjectId
-                        ? 'secondary.contrastText'
-                        : 'text.primary',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                  }}
-                >
-                  {getProjectInitials(project.name)}
-                </Box>
-              </ListItemIcon>
-              <ListItemText
-                primary={project.name}
-                secondary={project.branch ? `Branch: ${project.branch}` : undefined}
-                primaryTypographyProps={{
-                  sx: {
-                    overflow: `hidden`,
-                    whiteSpace: `nowrap`,
-                    textOverflow: `ellipsis`,
-                    fontWeight: project.id === activeProjectId ? 600 : 400,
-                  },
-                }}
-                secondaryTypographyProps={{
-                  sx: {
-                    fontSize: `12px`,
-                    overflow: `hidden`,
-                    whiteSpace: `nowrap`,
-                    textOverflow: `ellipsis`,
-                  },
-                }}
-              />
-              {project.id === activeProjectId && (
-                <CheckIcon
-                  fontSize='small'
-                  color='secondary'
-                />
-              )}
-            </MenuItem>
-          ))}
-        </Box>
-
-        {(onCreateProjectCB && <Divider sx={{ my: 0.5 }} />) || null}
-        {(onCreateProjectCB && (
-          <MenuItem onClick={onCreateProject}>
-            <ListItemIcon>
-              <AddIcon fontSize='small' />
-            </ListItemIcon>
-            <ListItemText primary='Create Project' />
-          </MenuItem>
-        )) ||
-          null}
-      </Menu>
-    </>
+        <ProjectsMenu
+          open={open}
+          query={query}
+          onClose={onClose}
+          anchorEl={anchorEl}
+          setQuery={setQuery}
+          activeProjectId={activeProjectId}
+          onCreateProject={onCreateProject}
+        />
+      </>
+    )) ||
+    null
   )
 }

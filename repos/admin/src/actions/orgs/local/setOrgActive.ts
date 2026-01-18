@@ -9,10 +9,12 @@ export const setOrgActive = (
   force?: boolean
 ) => {
   const current = getActiveOrgId()
-  if (!force && current === orgId)
-    return toast.info(`Info`, { description: `Organization is already active.` })
+  if (!force && current === orgId) {
+    toast.info(`Info`, { description: `Organization is already active.` })
+  } else {
+    unsetActiveProject()
+    setActiveOrgId(orgId)
+  }
 
-  unsetActiveProject()
-  setActiveOrgId(orgId)
   navigate && nav.to(`/orgs/${orgId}/projects`)
 }

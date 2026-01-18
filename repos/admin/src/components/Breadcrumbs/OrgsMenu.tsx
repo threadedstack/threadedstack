@@ -3,7 +3,7 @@ import type { Organization } from '@tdsk/domain'
 import { useMemo } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
 import { useOrgs } from '@TAF/state/selectors'
-import { getOrgInitials } from '@TAF/utils/org/getOrgInitials'
+import { getInitials } from '@TAF/utils/text/getInitials'
 import { setOrgActive } from '@TAF/actions/orgs/local/setOrgActive'
 import {
   Add as AddIcon,
@@ -127,7 +127,7 @@ const OrgItem = (props: TOrgItem) => {
           sx={styles.items.initials}
           className={cls(active && `active`)}
         >
-          {getOrgInitials(org.name)}
+          {getInitials(org.name)}
         </Box>
       </ListItemIcon>
       <ListItemText

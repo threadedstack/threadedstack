@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { useProjects } from '@TAF/state/selectors'
 import { CreateProjectDialog } from './CreateProjectDialog'
+import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
-  Folder as ProjectIcon,
 } from '@mui/icons-material'
 import {
   Box,

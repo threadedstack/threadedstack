@@ -2,6 +2,7 @@ import { ERoutePath } from '@TAF/types'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { useActiveOrg } from '@TAF/state/selectors'
+import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import { Box, Card, Button, Divider, Typography, CardContent } from '@mui/material'
 import {
@@ -47,6 +48,7 @@ export const Org = (props: TOrg) => {
   return (
     <Page className='tdsk-org-page'>
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <OrgIcon sx={{ color: 'text.secondary' }} />
         <Typography
           variant='h4'
           component='h1'

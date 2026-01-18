@@ -12,10 +12,10 @@ export const setProjectActive = (
   force?: boolean
 ) => {
   const current = getActiveProjectId()
-  if (!force && current === projectId)
-    return toast.info(`Info`, { description: `Project is already active.` })
+  !force && current === projectId
+    ? toast.info(`Info`, { description: `Project is already active.` })
+    : setActiveProjectId(projectId)
 
-  setActiveProjectId(projectId)
   if (!navigate) return
 
   const orgId = getActiveOrgId()

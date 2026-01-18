@@ -4,9 +4,9 @@ import { ERoutePath } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
 import { signout } from '@TAF/actions/auth/local/signout'
+import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 
 import {
-  Apps as AppsIcon,
   Build as ToolIcon,
   Code as FunctionIcon,
   Lock as SecretIcon,
@@ -42,7 +42,7 @@ export const OrgNavItems: TNavItem[] = [
   {
     text: `Projects`,
     to: buildRoute(ERoutePath.OrgProjects),
-    Icon: <AppsIcon />,
+    Icon: <ProjectIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {

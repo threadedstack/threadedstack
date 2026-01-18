@@ -1,12 +1,9 @@
 import type { Project } from '@tdsk/domain'
 
 import { useState } from 'react'
+import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
-import {
-  Folder as ProjectIcon,
-  Delete as DeleteIcon,
-  Visibility as ViewIcon,
-} from '@mui/icons-material'
+import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-material'
 import {
   Box,
   Card,

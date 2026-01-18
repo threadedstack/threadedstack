@@ -1,4 +1,4 @@
-export const getOrgInitials = (name: string) => {
+export const getInitials = (name: string) => {
   if (!name) return `?`
   const words = name.split(' ')
   return words.length >= 2

@@ -1,5 +1,6 @@
 import { Page } from '@TAF/pages/Page/Page'
 import { useNavigate } from 'react-router'
+import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import {
   useActiveOrgId,
@@ -8,7 +9,6 @@ import {
 } from '@TAF/state/selectors'
 import {
   Edit as EditIcon,
-  Folder as ProjectIcon,
   Delete as DeleteIcon,
   ArrowBack as BackIcon,
 } from '@mui/icons-material'
@@ -68,11 +68,6 @@ export const Project = (props: TProject) => {
   return (
     <Page className='tdsk-project-page'>
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Tooltip title='Back to Projects'>
-          <IconButton onClick={handleBack}>
-            <BackIcon />
-          </IconButton>
-        </Tooltip>
         <ProjectIcon sx={{ color: 'text.secondary' }} />
         <Typography
           variant='h4'
