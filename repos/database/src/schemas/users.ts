@@ -8,6 +8,7 @@ import { roles } from '@TDB/schemas/roles'
 import { assets } from '@TDB/schemas/assets'
 import { threads } from '@TDB/schemas/threads'
 import { providers } from '@TDB/schemas/providers'
+import { subscriptions } from '@TDB/schemas/subscriptions'
 import { pgSchema, text, timestamp, boolean, uuid } from 'drizzle-orm/pg-core'
 
 const authSchema = pgSchema(`neon_auth`)
@@ -26,10 +27,11 @@ export const users = authSchema.table(`user`, {
   updatedAt: timestamp(`updatedAt`, { mode: `string` }).notNull(),
 })
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   orgs: many(roles),
   roles: many(roles),
   assets: many(assets),
   threads: many(threads),
   providers: many(providers),
+  subscription: one(subscriptions),
 }))
