@@ -10,11 +10,13 @@ import { noOp } from '@keg-hub/jsutils/noOp'
 import { sidebarOpenState } from '@TAF/state/app'
 import { themeTypeState } from '@TAF/state/theme'
 import { providersState } from '@TAF/state/providers'
+import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
+import { paymentPlansState, currentSubscriptionState } from '@TAF/state/subscriptions'
 import {
   projectsState,
   activeProjectState,
@@ -73,3 +75,9 @@ export const useActiveConfigId = () => useRecState(activeConfigIdState)
 
 export const useApiKeys = () => useRecState(apiKeysState)
 export const useActiveApiKeyId = () => useRecState(activeApiKeyIdState)
+
+export const usePaymentPlans = () => useRecState(paymentPlansState)
+export const useSubscription = () => useRecState(currentSubscriptionState)
+
+export const useOrgQuota = () => useRecState(orgQuotaState)
+export const useOrgLimits = () => useRecState(orgLimitsState)

@@ -119,39 +119,39 @@ Exported actions:
 ### ✅ Subscriptions State (`/repos/admin/src/state/accessors.ts`)
 
 **Atoms:**
-- `currentSubscriptionAtom` (line 40-42)
-- `paymentPlansAtom` (line 40-42)
+- `currentSubscriptionState` (line 40-42)
+- `paymentPlansState` (line 40-42)
 
 **Accessors:**
 ```typescript
 // Lines 147-156
-export const getCurrentSubscription = () => store.get(currentSubscriptionAtom)
-export const resetCurrentSubscription = () => store.set(currentSubscriptionAtom, null)
+export const getCurrentSubscription = () => store.get(currentSubscriptionState)
+export const resetCurrentSubscription = () => store.set(currentSubscriptionState, null)
 export const setCurrentSubscription = (subscription: TSubscriptionData | null) =>
-  store.set(currentSubscriptionAtom, subscription)
+  store.set(currentSubscriptionState, subscription)
 
-export const getPaymentPlans = () => store.get(paymentPlansAtom)
-export const resetPaymentPlans = () => store.set(paymentPlansAtom, [])
-export const setPaymentPlans = (plans: TPlanData[]) => store.set(paymentPlansAtom, plans)
+export const getPaymentPlans = () => store.get(paymentPlansState)
+export const resetPaymentPlans = () => store.set(paymentPlansState, [])
+export const setPaymentPlans = (plans: TPlanData[]) => store.set(paymentPlansState, plans)
 ```
 
 ### ✅ Quotas State (`/repos/admin/src/state/accessors.ts`)
 
 **Atoms:**
-- `orgQuotaAtom` (line 44-46)
-- `orgLimitsAtom` (line 44-46)
+- `orgQuotaState` (line 44-46)
+- `orgLimitsState` (line 44-46)
 
 **Accessors:**
 ```typescript
 // Lines 157-165
-export const getOrgQuota = () => store.get(orgQuotaAtom)
-export const resetOrgQuota = () => store.set(orgQuotaAtom, undefined)
-export const setOrgQuota = (quota: TQuotaData | undefined) => store.set(orgQuotaAtom, quota)
+export const getOrgQuota = () => store.get(orgQuotaState)
+export const resetOrgQuota = () => store.set(orgQuotaState, undefined)
+export const setOrgQuota = (quota: TQuotaData | undefined) => store.set(orgQuotaState, quota)
 
-export const getOrgLimits = () => store.get(orgLimitsAtom)
-export const resetOrgLimits = () => store.set(orgLimitsAtom, undefined)
+export const getOrgLimits = () => store.get(orgLimitsState)
+export const resetOrgLimits = () => store.set(orgLimitsState, undefined)
 export const setOrgLimits = (limits: TLimitsData | undefined) =>
-  store.set(orgLimitsAtom, limits)
+  store.set(orgLimitsState, limits)
 ```
 
 **Status:** ✅ All required state accessors present
@@ -208,11 +208,11 @@ export const setOrgLimits = (limits: TLimitsData | undefined) =>
 import { fetchOrgQuota, fetchOrgLimits } from '@TAF/actions'
 
 // 2. Import state atoms
-import { orgQuotaAtom, orgLimitsAtom } from '@TAF/state/quotas'
+import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 
 // 3. Use atoms with Jotai hooks
-const usage = useAtomValue(orgQuotaAtom)
-const limits = useAtomValue(orgLimitsAtom)
+const usage = useAtomValue(orgQuotaState)
+const limits = useAtomValue(orgLimitsState)
 
 // 4. Call actions (which update atoms internally)
 const [usageResp, limitsResp] = await Promise.all([

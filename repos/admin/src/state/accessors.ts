@@ -1,4 +1,10 @@
-import type { EThemeType } from '@TAF/types'
+import type {
+  TPlanData,
+  EThemeType,
+  TQuotaData,
+  TLimitsData,
+  TSubscriptionData,
+} from '@TAF/types'
 import type {
   User,
   Project,
@@ -16,18 +22,20 @@ import { userState } from '@TAF/state/user'
 import { providersState } from '@TAF/state/providers'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
 import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
-import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
+import { configsState, activeConfigIdState } from '@TAF/state/configs'
+import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
-import { configsState, activeConfigIdState } from '@TAF/state/configs'
 import {
   orgsState,
   orgUsersState,
   activeOrgIdState,
   activeOrgRoleState,
 } from '@TAF/state/orgs'
+import { paymentPlansState, currentSubscriptionState } from '@TAF/state/subscriptions'
+import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 
 export const store = createStore()
 
@@ -127,3 +135,24 @@ export const removeApiKey = (id: string) => {
 export const getActiveApiKeyId = () => store.get(activeApiKeyIdState)
 export const resetActiveApiKeyId = () => store.set(activeApiKeyIdState, undefined)
 export const setActiveApiKeyId = (id: string) => store.set(activeApiKeyIdState, id)
+
+// Subscriptions
+export const getCurrentSubscription = () => store.get(currentSubscriptionState)
+export const resetCurrentSubscription = () => store.set(currentSubscriptionState, null)
+export const setCurrentSubscription = (subscription: TSubscriptionData | null) =>
+  store.set(currentSubscriptionState, subscription)
+
+export const getPaymentPlans = () => store.get(paymentPlansState)
+export const resetPaymentPlans = () => store.set(paymentPlansState, [])
+export const setPaymentPlans = (plans: TPlanData[]) => store.set(paymentPlansState, plans)
+
+// Quotas
+export const getOrgQuota = () => store.get(orgQuotaState)
+export const resetOrgQuota = () => store.set(orgQuotaState, undefined)
+export const setOrgQuota = (quota: TQuotaData | undefined) =>
+  store.set(orgQuotaState, quota)
+
+export const getOrgLimits = () => store.get(orgLimitsState)
+export const resetOrgLimits = () => store.set(orgLimitsState, undefined)
+export const setOrgLimits = (limits: TLimitsData | undefined) =>
+  store.set(orgLimitsState, limits)

@@ -9,9 +9,9 @@ const Home = lazy(() => import('@TAF/pages/Home/Home'))
 const Login = lazy(() => import('@TAF/pages/Login/Login'))
 const Account = lazy(() => import('@TAF/pages/Account/Account'))
 const Settings = lazy(() => import('@TAF/pages/Settings/Settings'))
+const Billing = lazy(() => import('@TAF/pages/Billing/Billing'))
 
 // Org pages
-
 const Org = lazy(() => import('@TAF/pages/Orgs/Org'))
 const Orgs = lazy(() => import('@TAF/pages/Orgs/Orgs'))
 const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
@@ -20,6 +20,7 @@ const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
 const OrgProjects = lazy(() => import('@TAF/pages/Orgs/OrgProjects'))
+const OrgUsage = lazy(() => import('@TAF/pages/Orgs/OrgUsage'))
 
 // Project pages
 const Project = lazy(() => import('@TAF/pages/Projects/Project'))
@@ -74,6 +75,11 @@ export const Routes = createBrowserRouter([
         path: 'orgs',
         Component: () => <SuspensePage Component={Orgs} />,
       },
+      // Billing route
+      {
+        path: 'billing',
+        Component: () => <SuspensePage Component={Billing} />,
+      },
       // Nested org routes
       {
         path: 'orgs/:orgId',
@@ -99,6 +105,10 @@ export const Routes = createBrowserRouter([
           {
             path: 'settings',
             Component: () => <SuspensePage Component={OrgSettings} />,
+          },
+          {
+            path: 'usage',
+            Component: () => <SuspensePage Component={OrgUsage} />,
           },
           // Project selection for this org
           {

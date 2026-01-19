@@ -70,14 +70,14 @@ Successfully integrated Polar.sh payment plans with the Threaded Stack platform,
 #### 2. **State Management** (`repos/admin/src/state/`)
 
 **`subscriptions.ts`**:
-- `currentSubscriptionAtom` - Current user subscription
-- `paymentPlansAtom` - Available payment plans
-- `subscriptionLoadingAtom`, `plansLoadingAtom` - Loading states
+- `currentSubscriptionState` - Current user subscription
+- `paymentPlansState` - Available payment plans
+- `subscriptionLoadingState`, `plansLoadingState` - Loading states
 
 **`quotas.ts`**:
-- `orgQuotaAtom` - Organization quota usage
-- `orgLimitsAtom` - Organization quota limits
-- `quotaLoadingAtom` - Loading state
+- `orgQuotaState` - Organization quota usage
+- `orgLimitsState` - Organization quota limits
+- `quotaLoadingState` - Loading state
 
 #### 3. **UI Components** (`repos/admin/src/components/Billing/`)
 

@@ -8,12 +8,14 @@ import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 
 import {
   Build as ToolIcon,
-  Code as FunctionIcon,
   Lock as SecretIcon,
   Api as EndpointIcon,
   Person as PersonIcon,
+  Code as FunctionIcon,
   Logout as LogoutIcon,
+  BarChart as UsageIcon,
   Settings as SettingsIcon,
+  CreditCard as BillingIcon,
   CloudQueue as ProviderIcon,
   AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material'
@@ -24,6 +26,12 @@ export const HeaderSettingsItems = [
     Icon: PersonIcon,
     id: `tdsk-settings-nav-settings`,
     onClick: async () => nav.to(ERoutePath.Profile),
+  },
+  {
+    label: `Billing`,
+    Icon: BillingIcon,
+    id: `tdsk-settings-nav-billing`,
+    onClick: async () => nav.to(ERoutePath.Billing),
   },
   {
     divider: true,
@@ -67,6 +75,12 @@ export const OrgNavItems: TNavItem[] = [
     text: `AI`,
     Icon: <AutoAwesomeIcon />,
     to: buildRoute(ERoutePath.OrgAi),
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  {
+    text: `Usage`,
+    to: buildRoute(ERoutePath.OrgUsage),
+    Icon: <UsageIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
