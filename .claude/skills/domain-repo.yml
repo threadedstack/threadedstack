@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Domain Repo"
 description: "Knowledge base for the shared types, models, and utilities repo"
-version: "1.1.0"
-tags: ["typescript", "types", "models", "domain", "shared", "utilities"]
+version: "1.2.0"
+tags: ["typescript", "types", "models", "domain", "shared", "utilities", "payments"]
 ---
 # Domain Repo Skill
 
@@ -36,15 +36,28 @@ repos/domain/
 │   │   ├── user.ts             # User model with name parsing
 │   │   ├── team.ts             # Team model
 │   │   ├── repo.ts             # Repo model with gitUrl, branch
-│   │   └── provider.ts         # Provider model (ai/git/auth/storage)
+│   │   ├── provider.ts         # Provider model (ai/git/auth/storage)
+│   │   └── plan.ts             # Plan model for payment plans
 │   ├── types/            # TypeScript type definitions
 │   │   ├── endpoint.types.ts   # Express types: TApp, TRequest, TResponse, TRouter
 │   │   ├── provider.types.ts   # EProvider enum (ai/git/auth/storage)
 │   │   ├── helpers.types.ts    # Generic helpers: TAnyCB, TValueOf, EStatus, EContainerState
 │   │   ├── errors.types.ts     # Error handling types
+│   │   ├── payments.types.ts   # Payment plan types
 │   │   └── pc.types.ts         # Parse-config module declarations
 │   ├── utils/            # Utility functions
-│   │   ├── crypto.ts           # AES-256-GCM encryption/decryption, key derivation (HKDF)
+│   │   ├── crypto/             # Crypto utilities
+│   │   │   ├── crypto.ts       # AES-256-GCM encryption/decryption
+│   │   │   ├── generateKey.ts  # Key generation
+│   │   │   └── index.ts
+│   │   ├── payments/           # Payment utilities
+│   │   │   ├── parsePayPlans.ts    # Parse payment plan configs
+│   │   │   ├── rawPlanToMeta.ts    # Convert raw to typed metadata
+│   │   │   └── index.ts
+│   │   ├── permissions/        # Permission utilities (reorganized v1.2)
+│   │   │   ├── permissions.ts
+│   │   │   ├── permissions.test.ts
+│   │   │   └── index.ts
 │   │   ├── time.ts             # Timestamp utility
 │   │   ├── asBool.ts           # Boolean conversion
 │   │   ├── shortId.ts          # Short ID generation
@@ -262,6 +275,32 @@ class Provider extends Base {
   name: string
   options: Record<string, any> = {}
 }
+```
+
+### Plan Model
+
+```typescript
+class Plan {
+  id: string
+  name: string
+  metadata: TPayPlanMeta  // Typed metadata with numeric values
+
+  constructor(opts: TPlanOpts) {
+    // Auto-converts raw metadata to typed metadata
+  }
+}
+
+// Usage:
+const plan = new Plan({
+  id: 'prod_123',
+  name: 'pro',
+  metadata: {
+    price: '29',
+    runtime: '3600',
+    projects: '50'
+  }
+})
+// plan.metadata = { price: 29, runtime: 3600, projects: 50 }
 ```
 
 ## Utilities
@@ -677,6 +716,26 @@ describe('asBool', () => {
   })
 })
 ```
+
+---
+
+**Last Updated**: 2026-01-18
+**Version**: 1.2.0
+
+## Changelog
+
+### v1.2.0 (2026-01-18)
+- **New**: `Plan` model for payment plans with metadata conversion
+- **New**: `payments.types.ts` - Payment plan types (TPayPlanRaw, TPayPlanMeta, TPayPlans)
+- **New**: `utils/payments/` - Payment utilities (parsePayPlans, rawPlanToMeta)
+- **Refactor**: Crypto utilities moved to `utils/crypto/` subdirectory
+- **Refactor**: Permissions utilities moved to `utils/permissions/` subdirectory
+- **New**: `rawPlanToMeta()` - Converts raw string metadata to typed numbers
+
+### v1.1.0 (Previous)
+- Base models and types
+- Crypto utilities
+- Express API helpers
 
 ## Future Enhancements
 

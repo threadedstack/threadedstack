@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Backend Repo"
 description: "Knowledge base for the backend Core API repo"
-version: "1.1.0"
-tags: ["express", "nodejs", "api", "websocket", "backend"]
+version: "1.2.0"
+tags: ["express", "nodejs", "api", "websocket", "backend", "payments", "polar"]
 ---
 # Backend Repo Skill
 
@@ -35,11 +35,14 @@ repos/backend/
 │   ├── endpoints/           # API route definitions
 │   │   ├── auth/           # Authentication endpoints
 │   │   ├── base/           # Base/health endpoints
+│   │   ├── payments/       # Payment endpoints
+│   │   ├── subscriptions/  # Subscription endpoints
+│   │   ├── quotas/         # Quota endpoints
 │   │   ├── accounts.ts     # Main accounts routes (/_/*)
 │   │   ├── endpoints.ts    # Endpoint registry
 │   │   └── index.ts
 │   ├── middleware/          # Express middleware setup
-│   │   ├── setupAuth.ts    # JWT authentication
+│   │   ├── setupAuth.ts    # JWT authentication + ensureSubscription
 │   │   ├── setupEndpoints.ts # Dynamic route builder
 │   │   ├── setupErrorHandler.ts # Error handling
 │   │   ├── setupProxy.ts   # Proxy to Auth-Proxy
@@ -50,6 +53,11 @@ repos/backend/
 │   │   ├── router.ts       # Async router wrapper
 │   │   ├── server.ts       # HTTP/HTTPS server creation
 │   │   └── index.ts
+│   ├── services/            # Service layer
+│   │   └── payments/       # Payment services
+│   │       ├── polarService.ts # Polar.sh API integration (340 lines)
+│   │       ├── polarService.test.ts # 42 passing tests
+│   │       └── index.ts
 │   ├── types/               # TypeScript type definitions
 │   │   ├── endpoints.types.ts # Endpoint configs
 │   │   ├── proxy.types.ts  # Proxy configuration
@@ -105,6 +113,10 @@ repos/backend/
 - **`src/endpoints/secrets/**`** - Secrets with AES-256-GCM encryption
 - **`src/endpoints/endpoints/**`** - Endpoint definitions CRUD
 - **`src/endpoints/providers/**`** - Provider configurations
+- **`src/endpoints/subscriptions/**`** - Subscription management
+- **`src/endpoints/quotas/**`** - Quota checking and limits
+- **`src/endpoints/payments/**`** - Payment processing and webhooks
+- **`src/services/payments/polarService.ts`** - Polar.sh integration
 
 ### Utilities
 - **`src/utils/logger.ts`** - Winston logger configured from config
@@ -223,6 +235,21 @@ All admin API routes are mounted under the admin path prefix (configured via `TD
 - **POST `/_/providers`** - Create provider
 - **PUT `/_/providers/:id`** - Update provider
 - **DELETE `/_/providers/:id`** - Delete provider
+
+**Subscription Management:**
+- **GET `/_/subscriptions/current`** - Get current user subscription
+- **GET `/_/subscriptions/plans`** - List available payment plans
+- **POST `/_/subscriptions/checkout`** - Create checkout session
+- **POST `/_/subscriptions/portal`** - Create customer portal session
+- **DELETE `/_/subscriptions/current`** - Cancel subscription
+
+**Quota Management:**
+- **GET `/_/quotas/:orgId`** - Get current period usage
+- **GET `/_/quotas/:orgId/limits`** - Get plan limits from owner's subscription
+- **POST `/_/quotas/:orgId/check`** - Check if action would exceed quota
+
+**Payment Processing:**
+- **POST `/_/payments/webhook`** - Polar.sh webhook handler
 
 **Base Routes:**
 - **GET `/_/`** - Base endpoint, returns status message
@@ -494,6 +521,10 @@ Key environment variables loaded from `deploy/values.*.yml`:
 | `TDSK_DB_URL` | Database URL | - |
 | `TDSK_DB_JWT_SCRT` | JWT secret | - |
 | `TDSK_BE_LOGGER_LEVEL` | Log level | `info` |
+| `TDSK_PAY_TYPE` | Payment provider type | `polar` |
+| `TDSK_PAY_ACCESS_TOKEN` | Polar API token | - |
+| `TDSK_PAY_WEBHOOK_SECRET` | Polar webhook secret | - |
+| `TDSK_PAY_PLANS` | Payment plan product IDs | - |
 
 ## Development Notes
 
@@ -526,3 +557,25 @@ The `pnpm start` command watches multiple packages:
 - `../../database/src` - Database package
 
 Changes to any of these trigger automatic rebuild and server restart.
+
+---
+
+**Last Updated:** 2026-01-18
+**Version:** 1.2.0
+
+### Changelog
+
+#### v1.2.0 (2026-01-18)
+- **New**: Payment integration via Polar.sh
+- **New**: `PolarService` class with complete API integration (340 lines, 42 tests passing)
+- **New**: Subscription endpoints (`/subscriptions/*`)
+- **New**: Quota endpoints (`/quotas/*`)
+- **New**: Payment webhook handler (`/payments/webhook`)
+- **New**: `ensureSubscription` middleware for free-tier auto-assignment
+- **New**: Methods: `fetchPlans()`, `createCheckoutSession()`, `cancelSubscription()`, `validateWebhookSignature()`
+- **New**: Environment variables for Polar configuration
+
+#### v1.1.0 (Previous)
+- Organizations and Projects CRUD
+- API Keys and Secrets management
+- Endpoint and Provider management

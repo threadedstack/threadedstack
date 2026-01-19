@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Database Repo"
 description: "Knowledge base for the database ORM & migrations repo"
-version: "1.1.0"
-tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon"]
+version: "1.2.0"
+tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas", "subscriptions"]
 ---
 # Database Repo Skill
 
@@ -59,6 +59,8 @@ repos/database/
 │   │   ├── teams.ts       # Team/organization
 │   │   ├── threads.ts     # Chat threads
 │   │   ├── users.ts       # User accounts
+│   │   ├── quotas.ts      # Quota tracking
+│   │   ├── subscriptions.ts # User subscriptions
 │   │   └── index.ts       # Schema exports
 │   ├── services/          # Service layer (CRUD API)
 │   │   ├── base.ts        # Base service class
@@ -74,6 +76,8 @@ repos/database/
 │   │   ├── team.ts        # Team service
 │   │   ├── thread.ts      # Thread service
 │   │   ├── user.ts        # User service
+│   │   ├── quota.ts       # Quota service
+│   │   ├── subscription.ts # Subscription service
 │   │   └── index.ts       # Service exports
 │   ├── types/             # TypeScript types
 │   │   ├── db.types.ts    # Database utility types
@@ -179,6 +183,16 @@ repos/database/
 - **`assets`**: File and asset storage
   - Fields: id, name, type, url, metadata, userId?, teamId?, repoId?, timestamps
   - Relations: user, team, repo
+
+- **`quotas`**: Organization quota tracking
+  - Fields: id, orgId, period (YYYY-MM), price, retention, organizations, projects, members, endpoints, threads, messages, functionCalls, runtime, orgSecrets, projectSecrets, timestamps
+  - Relations: organization
+  - Purpose: Track resource usage per org per month
+
+- **`subscriptions`**: User subscription tracking
+  - Fields: id, userId, tier, status, polarId, polarCustomerId, polarPriceId, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, timestamps
+  - Relations: user
+  - Purpose: Track user payment plans and Polar.sh integration
 
 ## Exclusive Arc Pattern
 
@@ -453,6 +467,8 @@ export class Org extends Base<typeof organizations, TDBOrgSelect, TDBOrgInsert> 
 - `asset` - Asset/file management
 - `thread` - Chat thread CRUD
 - `message` - Chat message CRUD
+- `quota` - Quota tracking with `findByOrgAndPeriod()`, `increment()` methods
+- `subscription` - Subscription CRUD with `findByUser()`, `create()` methods
 
 ### 3. Type Inference Pattern
 
@@ -886,6 +902,22 @@ kill -9 <pid>
 
 ---
 
-**Last Updated:** 2026-01-07
+**Last Updated:** 2026-01-18
+**Version:** 1.2.0
 **Maintained By:** Lance Tipton
 **License:** ISC (Private)
+
+## Changelog
+
+### v1.2.0 (2026-01-18)
+- **New**: `quotas` table - Tracks org resource usage (12 resource types)
+- **New**: `subscriptions` table - Tracks user payment plans and Polar integration
+- **New**: Quota service with `findByOrgAndPeriod()`, `increment()` methods
+- **New**: Subscription service with `findByUser()`, `create()` methods
+- **New**: Role service method `getOrgOwner()` for finding org owners
+- **Updated**: Quotas schema aligned 1:1 with `TPayPlanMeta` type from domain
+
+### v1.1.0 (Previous)
+- Organizations and Projects schemas
+- API Keys and Secrets management
+- Polymorphic relationships (Exclusive Arc pattern)

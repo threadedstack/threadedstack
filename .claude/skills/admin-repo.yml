@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Admin Repo"
 description: "Knowledge base for the admin SPA dashboard repo"
-version: "1.0.0"
-tags: ["react", "vite", "mui", "jotai", "frontend", "admin-dashboard"]
+version: "1.2.0"
+tags: ["react", "vite", "mui", "jotai", "frontend", "admin-dashboard", "billing", "quotas"]
 ---
 # Admin Repo Skill
 
@@ -157,7 +157,8 @@ enum ERoutePath {
   OrgSecrets = `/orgs/:orgId/secrets`,
   OrgProviders = `/orgs/:orgId/providers`,
   OrgSettings = `/orgs/:orgId/settings`,
-  OrgApiKeys = `/orgs/:orgId/api-keys`,  // NEW
+  OrgApiKeys = `/orgs/:orgId/api-keys`,
+  OrgUsage = `/orgs/:orgId/usage`,       // NEW v1.2
   OrgProjects = `/orgs/:orgId/projects`,
   // Project routes (nested under orgs)
   Project = `/orgs/:orgId/projects/:projectId`,
@@ -166,6 +167,8 @@ enum ERoutePath {
   ProjectProviders = `/orgs/:orgId/projects/:projectId/providers`,
   ProjectFunctions = `/orgs/:orgId/projects/:projectId/functions`,
   ProjectSettings = `/orgs/:orgId/projects/:projectId/settings`,
+  // Billing & subscription routes
+  Billing = `/billing`,
   // Other routes
   Settings = `/settings`,
   Profile = `/profile`,
@@ -211,6 +214,13 @@ export const store = createStore()
 - `activeEndpointIdState` - Selected endpoint ID
 - `functionsState` - Functions (Record<id, Function>)
 - `activeFunctionIdState` - Selected function ID
+- `currentSubscriptionAtom` - Current user subscription
+- `paymentPlansAtom` - Available payment plans
+- `subscriptionLoadingAtom` - Subscription loading state
+- `plansLoadingAtom` - Plans loading state
+- `orgQuotaAtom` - Organization quota usage
+- `orgLimitsAtom` - Organization quota limits
+- `quotaLoadingAtom` - Quota loading state
 
 **Accessors**:
 ```typescript
@@ -1164,11 +1174,23 @@ const data = await myService.getData()
 
 ---
 
-**Last Updated**: 2026-01-15
-**Version**: 1.1.0
+**Last Updated**: 2026-01-18
+**Version**: 1.2.0
 **Maintainer**: ThreadedStack Team
 
 ## Changelog
+
+### v1.2.0 (2026-01-18)
+- **New**: Billing & Subscriptions - Payment plans via Polar.sh
+- **New**: Quota Management - Track org resource usage (12 resource types)
+- **New**: `subscriptionsApi.ts` - API service for subscriptions (current, plans, checkout, portal, cancel)
+- **New**: `quotasApi.ts` - API service for quotas (get usage, limits, check)
+- **New**: `/billing` page - Subscription management with plan cards and checkout flow
+- **New**: `/orgs/:orgId/usage` page - Quota usage tracking with progress bars
+- **New**: `Billing/` components - `PlanCard`, `CurrentPlan`, `QuotaUsage`
+- **New**: State atoms for subscriptions and quotas (Jotai)
+- **New**: Actions for subscriptions and quotas API integration
+- **New**: Integration with backend payment endpoints
 
 ### v1.1.0 (2026-01-15)
 - **Breaking**: Teams renamed to Organizations (orgs)

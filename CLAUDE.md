@@ -359,6 +359,7 @@ The platform solves three key problems:
 1. **Fragmented stacks** - Replaces stitching together Vercel + Lambda + LangChain + Vault
 2. **Security gaps** - Secrets are injected server-side; AI never sees API keys
 3. **Context management** - Built-in RAG and memory management for LLM applications
+4, **Billing & Quotas** - Tiered subscription plans (free/basic/developer/pro) via Polar.sh with usage quota tracking for 12 resource types
 
 ## Architecture
 
@@ -368,14 +369,17 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
                 ↓
          Health: /health (public)
          Auth: /auth/me, /auth/logout
-         Admin: /admin/* → Backend Admin API
-            ├── /admin/orgs/*      - Organizations CRUD
-            ├── /admin/users/*     - Users CRUD
-            ├── /admin/projects/*  - Projects CRUD
-            ├── /admin/api-keys/*  - API Keys CRUD
-            ├── /admin/secrets/*   - Secrets CRUD (encrypted)
-            ├── /admin/endpoints/* - Endpoints CRUD
-            └── /admin/providers/* - Providers CRUD
+         Admin: /_/* → Backend Admin API
+            ├── /_/orgs/*      - Organizations CRUD
+            ├── /_/users/*     - Users CRUD
+            ├── /_/projects/*  - Projects CRUD
+            ├── /_/api-keys/*  - API Keys CRUD
+            ├── /_/secrets/*   - Secrets CRUD (encrypted)
+            ├── /_/endpoints/* - Endpoints CRUD
+            ├── /_/providers/* - Providers CRUD
+            ├── /_/subscriptions/* - Subscription management
+            ├── /_/quotas/*    - Quota tracking
+            └── /_/payments/*  - Payment webhooks
          Proxy: /proxy/* → Backend Proxy Engine
          FaaS: /faas/* → Backend Compute Engine
          AI: /ai/* → Backend AI Engine
@@ -412,12 +416,12 @@ Load the relevant skill when working on a specific repo:
 ### Available Skills
 | Skill File | Contents |
 |------------|----------|
-| `admin-repo.yml` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services |
-| `backend-repo.yml` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware |
+| `admin-repo.yml` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services, Billing pages/components, Quota tracking |
+| `backend-repo.yml` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, Subscription/Quota/Payment endpoints, PolarService (340 lines, 42 tests) |
 | `cli-repo.yml` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
 | `components-repo.yml` | 30+ React components, 25+ hooks, Monaco editor, Confirm loading state |
-| `database-repo.yml` | Drizzle ORM, organizations/projects schemas, apiKeys table, model converters |
-| `domain-repo.yml` | Organization/Project/ApiKey/Secret/Endpoint/Function models, crypto utilities |
+| `database-repo.yml` | Drizzle ORM, organizations/projects schemas, apiKeys table, model converters, quotas/subscriptions tables |
+| `domain-repo.yml` | Organization/Project/ApiKey/Secret/Endpoint/Function models, crypto utilities, Plan model, payment types (TPayPlanMeta) |
 | `logger-repo.yml` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
 | `proxy-repo.yml` | JWKS auth validation, http-proxy-middleware backend forwarding, full implementation |
 
@@ -433,9 +437,11 @@ Load the relevant skill when working on a specific repo:
 
 ### Database Schema (Exclusive Arc Pattern)
 
-Key tables: `organizations`, `users`, `projects`, `endpoints`, `functions`, `configs`, `providers`, `secrets`, `api_keys`, `roles`, `threads`, `messages`, `assets`
+Key tables: `organizations`, `users`, `projects`, `endpoints`, `functions`, `configs`, `providers`, `secrets`, `api_keys`, `roles`, `threads`, `messages`, `assets`, `quotas`, `subscriptions`
 
 Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR Project OR Provider (exactly one, not multiple).
+- `quotas` - Org resource usage tracking (12 resource types: projects, members, endpoints, threads, messages, functionCalls, runtime, orgSecrets, projectSecrets, organizations, price, retention)
+- `subscriptions` - User payment plans and Polar.sh integration (tier, status, polarId, polarCustomerId)
 
 ## Common Commands
 
