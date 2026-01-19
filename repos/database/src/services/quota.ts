@@ -5,6 +5,20 @@ import { Base } from '@TDB/services/base'
 import { quotas } from '@TDB/schemas/quotas'
 import { eq, and, sql } from 'drizzle-orm'
 
+type TIncrementKey = keyof Pick<
+  TDBQuotaSelect,
+  | 'organizations'
+  | 'projects'
+  | 'members'
+  | 'endpoints'
+  | 'threads'
+  | 'messages'
+  | 'functionCalls'
+  | 'runtime'
+  | 'orgSecrets'
+  | 'projectSecrets'
+>
+
 export type TQuotaOpts = {
   db: NodePgDatabase
 }
@@ -31,25 +45,18 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
   }
 
   /**
+   * Find quota by organization and period
+   * Alias for getUsage to match endpoint usage
+   */
+  async findByOrgAndPeriod(orgId: string, period: string) {
+    return this.getUsage(orgId, period)
+  }
+
+  /**
    * Increment a usage counter safely using SQL atomic update
    */
-  async increment(
-    orgId: string,
-    period: string,
-    key: keyof Pick<
-      TDBQuotaSelect,
-      'functionCalls' | 'functionDurationMs' | 'threads' | 'messages' | 'storageBytes'
-    >,
-    amount = 1
-  ) {
+  async increment(orgId: string, period: string, key: TIncrementKey, amount = 1) {
     try {
-      // Need to cast the key for safe SQL interpolation/column selection if dynamic
-      // But since we know the schema, we can try to use the column object if we can map string key to column
-      // However, Base class uses TTableSchema which is generic.
-      // Drizzle doesn't easily support dynamic column updates via variable key without some mapping.
-      // For now, let's use the explicit column from the imported schema 'quotas' to be safe,
-      // OR use the one from this.table if we trust the type.
-
       const column = this.table[key]
       if (!column) throw new Error(`Invalid quota key: ${key}`)
 
@@ -67,6 +74,44 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
             [key]: sql`${column} + ${amount}`,
           },
         })
+        .returning()
+
+      return { data }
+    } catch (err: unknown) {
+      return { error: err as Error }
+    }
+  }
+
+  /**
+   * Initialize usage tracking for a new period with plan snapshot
+   * Records what the user signed up for (price/retention) and starts usage at 0
+   */
+  async initializePeriod(
+    orgId: string,
+    period: string,
+    price: number,
+    retention: number
+  ) {
+    try {
+      const [data] = await this.db
+        .insert(this.table)
+        .values({
+          orgId,
+          price,
+          period,
+          retention,
+          members: 0,
+          threads: 0,
+          runtime: 0,
+          messages: 0,
+          projects: 0,
+          endpoints: 0,
+          orgSecrets: 0,
+          organizations: 0,
+          functionCalls: 0,
+          projectSecrets: 0,
+        })
+        .onConflictDoNothing()
         .returning()
 
       return { data }

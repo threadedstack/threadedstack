@@ -38,6 +38,7 @@ const {
   TDSK_DB_PROJECT_ID,
   TDSK_DB_PUBLIC_KEY,
   TDSK_LOG_LEVEL = `info`,
+  TDSK_PAY_URL,
   TDSK_PAY_TYPE,
   TDSK_PAY_PLANS,
   TDSK_PAY_ACCESS_TOKEN,
@@ -98,6 +99,7 @@ export const config = {
   },
   payments: {
     type: TDSK_PAY_TYPE,
+    url: TDSK_PAY_URL,
     token: TDSK_PAY_ACCESS_TOKEN,
     wbhSecret: TDSK_PAY_WEBHOOK_SECRET,
     plans: parsePayPlans(TDSK_PAY_PLANS),

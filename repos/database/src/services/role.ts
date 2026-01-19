@@ -78,6 +78,23 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
   }
 
   /**
+   * Get org owner role
+   */
+  async getOrgOwner(orgId: string): Promise<TDBApiRes<RoleModel>> {
+    try {
+      const result = await this.db
+        .select()
+        .from(roles)
+        .where(and(eq(roles.orgId, orgId), eq(roles.type, 'owner')))
+        .limit(1)
+
+      return { data: result[0] ? this.model(result[0]) : undefined }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
    * Get all members of a project with their roles
    */
   async getProjectMembers(projectId: string): Promise<TDBApiRes<RoleModel[]>> {
