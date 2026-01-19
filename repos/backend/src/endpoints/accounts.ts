@@ -14,15 +14,16 @@ import { apiKeys } from '@TBE/endpoints/apiKeys'
 import { projects } from '@TBE/endpoints/projects'
 import { health } from '@TBE/endpoints/base/health'
 import { authenticate } from '@TBE/middleware/setupAuth'
+import { subscriptions } from '@TBE/endpoints/subscriptions'
 import { providers } from '@TBE/endpoints/providers/providers'
 import { endpoints } from '@TBE/endpoints/endpoints/endpoints'
-import { subscriptions } from '@TBE/endpoints/subscriptions'
+import { setupSubscription } from '@TBE/middleware/setupSubscription'
 
-export const accounts: TEndpointBuilder = (config) => {
+export const accounts: TEndpointBuilder = (app) => {
   return {
     method: EPMethod.Use,
-    path: adminPath(config.server),
-    middleware: [express.json(), authenticate],
+    path: adminPath(app.locals.config.server),
+    middleware: [express.json(), authenticate, setupSubscription],
     endpoints: {
       auth,
       base,

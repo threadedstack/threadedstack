@@ -1,5 +1,6 @@
 import type { Router } from 'express'
 import type {
+  TApp,
   TEndpoint,
   TBEConfig,
   TEndpointsConfig,
@@ -27,14 +28,14 @@ const isValid = (router: Router, name: string, endpoint: TEndpointConfig) => {
   return true
 }
 
-const buildEndpoint = (router: Router, config: TBEConfig, endpoint: TEndpointConfig) => {
+const buildEndpoint = (app: TApp, router: Router, endpoint: TEndpointConfig) => {
   const { path, proxy, action, method, middleware = [], endpoints: children } = endpoint
 
   method === EPMethod.Use
     ? router.use(
         path,
         ...middleware,
-        buildEndpoints(createAsyncRouter(), config, children, path)
+        buildEndpoints(app, createAsyncRouter(), children, path)
       )
     : method === EPMethod.Proxy
       ? router.use(path, ...middleware, endpointProxy(endpoint))
@@ -44,21 +45,21 @@ const buildEndpoint = (router: Router, config: TBEConfig, endpoint: TEndpointCon
 }
 
 const buildEndpoints = (
+  app: TApp,
   router: Router,
-  config: TBEConfig,
   eps: TEndpointsConfig,
   parentPath?: string
 ) => {
   isObj<TEndpointsConfig>(eps) &&
     Object.entries(eps).forEach(([name, ep]: [string, TEndpoint]) => {
-      const endpoint = isFunc<TEndpointBuilder>(ep) ? ep(config) : ep
-      isValid(router, name, endpoint) && buildEndpoint(router, config, endpoint)
+      const endpoint = isFunc<TEndpointBuilder>(ep) ? ep(app) : ep
+      isValid(router, name, endpoint) && buildEndpoint(app, router, endpoint)
       endpoint.public &&
-        config.proxy.publicRoutes.push(`${parentPath || ``}${endpoint.path}`)
+        app.locals.config.proxy.publicRoutes.push(`${parentPath || ``}${endpoint.path}`)
     })
 
   return router
 }
 
-export const setupEndpoints = (router: Router, config: TBEConfig) =>
-  buildEndpoints(router, config, endpoints)
+export const setupEndpoints = (app: TApp, router: Router) =>
+  buildEndpoints(app, router, endpoints)

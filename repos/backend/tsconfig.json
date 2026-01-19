@@ -62,6 +62,7 @@
     "configs",
     "scripts",
     "../logger/src",
-    "../domain/src"
+    "../domain/src",
+    "../database/src"
   ]
 }

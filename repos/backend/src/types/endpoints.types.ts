@@ -1,7 +1,7 @@
 import type { NextFunction } from 'express'
 import type { TResponse } from '@tdsk/domain'
 import type { router } from '@TBE/server/router'
-import type { TBEConfig, TRequest } from '@TBE/types/backend.types'
+import type { TBEConfig, TRequest, TApp } from '@TBE/types/backend.types'
 import type { RequestHandler, Options } from 'http-proxy-middleware'
 
 export type TConfigProxy = Options
@@ -25,7 +25,7 @@ export type TEndpointConfig = {
   method: keyof Pick<typeof router, TMethodType> | EPMethod
 }
 
-export type TEndpointBuilder = (config: TBEConfig) => TEndpointConfig
+export type TEndpointBuilder = (app: TApp) => TEndpointConfig
 
 export type TEndpoint = TEndpointConfig | TEndpointBuilder
 

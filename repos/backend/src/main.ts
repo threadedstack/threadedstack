@@ -6,17 +6,19 @@ import { initServer } from '@TBE/server/server'
 import { setupProxy } from '@TBE/middleware/setupProxy'
 import { setupServer } from '@TBE/middleware/setupServer'
 import { setupLogger } from '@TBE/middleware/setupLogger'
+import { PolarService } from '@TBE/services/payments/polar'
 import { setupDatabase } from '@TBE/middleware/setupDatabase'
 import { setupEndpoints } from '@TBE/middleware/setupEndpoints'
 import { setupErrorHandler } from '@TBE/middleware/setupErrorHandler'
 
 export const main = (config: TBEConfig) => {
   app.locals.config = config
+  app.locals.payments = new PolarService(config.payments)
 
   setupLogger(app)
   setupServer(app, router)
   setupDatabase(app)
-  setupEndpoints(router, config)
+  setupEndpoints(app, router)
   //setupProxy(app, router)
   setupErrorHandler(app)
 
