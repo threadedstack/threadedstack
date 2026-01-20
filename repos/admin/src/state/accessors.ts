@@ -1,4 +1,4 @@
-import type { EThemeType, TQuotaData, TLimitsData, TSubscriptionData } from '@TAF/types'
+import type { EThemeType, TQuotaData, TLimitsData } from '@TAF/types'
 import type {
   User,
   Plan,
@@ -8,6 +8,7 @@ import type {
   ApiKey,
   Provider,
   Endpoint,
+  Subscription,
   Organization,
   Function as TDFunction,
 } from '@tdsk/domain'
@@ -133,7 +134,7 @@ export const setActiveApiKeyId = (id: string) => store.set(activeApiKeyIdState, 
 
 export const getSubscription = () => store.get(subscriptionState)
 export const resetSubscription = () => store.set(subscriptionState, null)
-export const setSubscription = (subscription: TSubscriptionData | null) =>
+export const setSubscription = (subscription: Subscription | null) =>
   store.set(subscriptionState, subscription)
 
 export const getPaymentPlans = () => store.get(paymentPlansState)

@@ -4,11 +4,10 @@ import type {
   TCheckoutData,
   TPortalSession,
   TCheckoutSession,
-  TSubscriptionData,
 } from '@TAF/types'
 
-import { Plan } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
+import { Plan, Subscription } from '@tdsk/domain'
 
 /**
  * Subscriptions API Service
@@ -27,15 +26,18 @@ export class SubscriptionsApi extends BaseApi {
    * Get current user's subscription
    * @returns Current subscription data
    */
-  async current(): Promise<TApiRes<TSubscriptionData>> {
-    const resp = await this.api.get<TSubscriptionData>({
+  async current(): Promise<TApiRes<Subscription>> {
+    const resp = await this.api.get<Subscription>({
       path: `${this.path}/current`,
       queryKey: this.cache.current(),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load subscription`))
 
-    return resp
+    return {
+      ...resp,
+      data: new Subscription(resp.data),
+    }
   }
 
   /**

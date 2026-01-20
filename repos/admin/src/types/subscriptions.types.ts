@@ -1,20 +1,3 @@
-import type { TPayPlanMeta } from '@tdsk/domain'
-
-/**
- * Subscription data structure
- */
-export type TSubscriptionData = {
-  userId: string
-  tier: string
-  status: string
-  polarId?: string
-  polarPriceId?: string
-  polarCustomerId?: string
-  currentPeriodStart?: string
-  currentPeriodEnd?: string
-  cancelAtPeriodEnd?: boolean
-}
-
 /**
  * Checkout data structure for creating a checkout session
  */

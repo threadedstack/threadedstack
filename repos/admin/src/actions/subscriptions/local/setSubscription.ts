@@ -1,4 +1,4 @@
-import type { TSubscriptionData } from '@TAF/types'
+import type { Subscription } from '@tdsk/domain'
 import { setSubscription as setSub } from '@TAF/state/accessors'
 
-export const setSubscription = (sub: TSubscriptionData) => setSub(sub)
+export const setSubscription = (sub: Subscription) => setSub(sub)
