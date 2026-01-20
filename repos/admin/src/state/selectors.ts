@@ -16,7 +16,7 @@ import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
-import { paymentPlansState, currentSubscriptionState } from '@TAF/state/subscriptions'
+import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import {
   projectsState,
   activeProjectState,
@@ -77,7 +77,7 @@ export const useApiKeys = () => useRecState(apiKeysState)
 export const useActiveApiKeyId = () => useRecState(activeApiKeyIdState)
 
 export const usePaymentPlans = () => useRecState(paymentPlansState)
-export const useSubscription = () => useRecState(currentSubscriptionState)
+export const useSubscription = () => useRecState(subscriptionState)
 
 export const useOrgQuota = () => useRecState(orgQuotaState)
 export const useOrgLimits = () => useRecState(orgLimitsState)

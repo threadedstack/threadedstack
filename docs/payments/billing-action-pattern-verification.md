@@ -119,16 +119,16 @@ Exported actions:
 ### ✅ Subscriptions State (`/repos/admin/src/state/accessors.ts`)
 
 **Atoms:**
-- `currentSubscriptionState` (line 40-42)
+- `subscriptionState` (line 40-42)
 - `paymentPlansState` (line 40-42)
 
 **Accessors:**
 ```typescript
 // Lines 147-156
-export const getCurrentSubscription = () => store.get(currentSubscriptionState)
-export const resetCurrentSubscription = () => store.set(currentSubscriptionState, null)
-export const setCurrentSubscription = (subscription: TSubscriptionData | null) =>
-  store.set(currentSubscriptionState, subscription)
+export const getSubscription = () => store.get(subscriptionState)
+export const resetSubscription = () => store.set(subscriptionState, null)
+export const setSubscription = (subscription: TSubscriptionData | null) =>
+  store.set(subscriptionState, subscription)
 
 export const getPaymentPlans = () => store.get(paymentPlansState)
 export const resetPaymentPlans = () => store.set(paymentPlansState, [])

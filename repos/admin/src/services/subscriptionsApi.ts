@@ -1,6 +1,5 @@
 import type {
   TApiRes,
-  TPlanData,
   TApiCacheKeys,
   TCheckoutData,
   TPortalSession,
@@ -8,6 +7,7 @@ import type {
   TSubscriptionData,
 } from '@TAF/types'
 
+import { Plan } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
 
 /**
@@ -42,8 +42,8 @@ export class SubscriptionsApi extends BaseApi {
    * Get available payment plans
    * @returns List of payment plans
    */
-  async plans(): Promise<TApiRes<TPlanData[]>> {
-    const resp = await this.api.get<TPlanData[]>({
+  async plans(): Promise<TApiRes<Plan[]>> {
+    const resp = await this.api.get<Plan[]>({
       path: `${this.path}/plans`,
       queryKey: this.cache.plans(),
       staleTime: 5 * 60 * 1000, // Cache plans for 5 minutes
@@ -51,7 +51,10 @@ export class SubscriptionsApi extends BaseApi {
 
     resp.error && (await this._onError(resp.error, `Failed to load payment plans`))
 
-    return resp
+    return {
+      ...resp,
+      data: resp.data.map((item) => new Plan(item)),
+    }
   }
 
   /**

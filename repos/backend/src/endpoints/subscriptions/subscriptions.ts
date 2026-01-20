@@ -12,9 +12,9 @@ export const subscriptions: TEndpointConfig = {
   method: EPMethod.Use,
   endpoints: {
     getPlans,
-    getCurrentSubscription,
     createCheckout,
-    createPortalSession,
     cancelSubscription,
+    createPortalSession,
+    getCurrentSubscription,
   },
 }

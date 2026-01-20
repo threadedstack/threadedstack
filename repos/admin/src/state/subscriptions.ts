@@ -1,12 +1,6 @@
-import type { TSubscriptionData, TPlanData } from '@TAF/types'
+import type { Plan } from '@tdsk/domain'
+import type { TSubscriptionData } from '@TAF/types'
 import { atomWithReset } from 'jotai/utils'
 
-/**
- * Current user subscription state
- */
-export const currentSubscriptionState = atomWithReset<TSubscriptionData | null>(null)
-
-/**
- * Available payment plans state
- */
-export const paymentPlansState = atomWithReset<TPlanData[]>([])
+export const paymentPlansState = atomWithReset<Plan[]>(undefined)
+export const subscriptionState = atomWithReset<TSubscriptionData | null>(null)

@@ -1,12 +1,7 @@
-import type {
-  TPlanData,
-  EThemeType,
-  TQuotaData,
-  TLimitsData,
-  TSubscriptionData,
-} from '@TAF/types'
+import type { EThemeType, TQuotaData, TLimitsData, TSubscriptionData } from '@TAF/types'
 import type {
   User,
+  Plan,
   Project,
   Config,
   Secret,
@@ -34,7 +29,7 @@ import {
   activeOrgIdState,
   activeOrgRoleState,
 } from '@TAF/state/orgs'
-import { paymentPlansState, currentSubscriptionState } from '@TAF/state/subscriptions'
+import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 
 export const store = createStore()
@@ -136,17 +131,15 @@ export const getActiveApiKeyId = () => store.get(activeApiKeyIdState)
 export const resetActiveApiKeyId = () => store.set(activeApiKeyIdState, undefined)
 export const setActiveApiKeyId = (id: string) => store.set(activeApiKeyIdState, id)
 
-// Subscriptions
-export const getCurrentSubscription = () => store.get(currentSubscriptionState)
-export const resetCurrentSubscription = () => store.set(currentSubscriptionState, null)
-export const setCurrentSubscription = (subscription: TSubscriptionData | null) =>
-  store.set(currentSubscriptionState, subscription)
+export const getSubscription = () => store.get(subscriptionState)
+export const resetSubscription = () => store.set(subscriptionState, null)
+export const setSubscription = (subscription: TSubscriptionData | null) =>
+  store.set(subscriptionState, subscription)
 
 export const getPaymentPlans = () => store.get(paymentPlansState)
 export const resetPaymentPlans = () => store.set(paymentPlansState, [])
-export const setPaymentPlans = (plans: TPlanData[]) => store.set(paymentPlansState, plans)
+export const setPaymentPlans = (plans: Plan[]) => store.set(paymentPlansState, plans)
 
-// Quotas
 export const getOrgQuota = () => store.get(orgQuotaState)
 export const resetOrgQuota = () => store.set(orgQuotaState, undefined)
 export const setOrgQuota = (quota: TQuotaData | undefined) =>

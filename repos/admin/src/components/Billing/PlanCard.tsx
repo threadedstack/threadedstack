@@ -1,4 +1,4 @@
-import type { TPlanData } from '@TAF/types'
+import type { Plan } from '@tdsk/domain'
 
 import {
   Box,
@@ -33,7 +33,7 @@ const StyledCard = styled(Card)(({ theme }) => ({
 }))
 
 export type TPlanCardProps = {
-  plan: TPlanData
+  plan: Plan
   currentTier?: string
   onUpgrade: (planId: string) => void
   loading?: boolean

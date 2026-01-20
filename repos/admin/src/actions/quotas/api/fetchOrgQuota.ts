@@ -1,5 +1,5 @@
-import { setOrgQuota } from '@TAF/state/accessors'
 import { quotasApi } from '@TAF/services/quotasApi'
+import { setOrgQuota } from '@TAF/actions/quotas/local/setOrgQuota'
 
 /**
  * Fetch organization quota usage and update state
@@ -7,6 +7,8 @@ import { quotasApi } from '@TAF/services/quotasApi'
  */
 export const fetchOrgQuota = async (orgId: string) => {
   const resp = await quotasApi.get({ orgId })
+  if (resp.error) return resp
+
   resp.data && setOrgQuota(resp.data)
 
   return resp

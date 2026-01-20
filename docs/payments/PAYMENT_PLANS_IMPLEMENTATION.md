@@ -70,7 +70,7 @@ Successfully integrated Polar.sh payment plans with the Threaded Stack platform,
 #### 2. **State Management** (`repos/admin/src/state/`)
 
 **`subscriptions.ts`**:
-- `currentSubscriptionState` - Current user subscription
+- `subscriptionState` - Current user subscription
 - `paymentPlansState` - Available payment plans
 - `subscriptionLoadingState`, `plansLoadingState` - Loading states
 
@@ -196,7 +196,7 @@ Successfully integrated Polar.sh payment plans with the Threaded Stack platform,
 **New**:
 - `repos/backend/src/services/payments/polarService.ts` (340 lines)
 - `repos/backend/src/services/payments/polarService.test.ts` (42 tests)
-- `repos/backend/src/endpoints/subscriptions/getCurrentSubscription.ts`
+- `repos/backend/src/endpoints/subscriptions/getSubscription.ts`
 - `repos/backend/src/endpoints/subscriptions/getPlans.ts`
 - `repos/backend/src/endpoints/subscriptions/createCheckout.ts`
 - `repos/backend/src/endpoints/subscriptions/createPortalSession.ts`

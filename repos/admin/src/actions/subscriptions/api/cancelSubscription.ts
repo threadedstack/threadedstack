@@ -1,6 +1,5 @@
-import { store } from '@TAF/state'
 import { subscriptionsApi } from '@TAF/services/subscriptionsApi'
-import { currentSubscriptionState } from '@TAF/state/subscriptions'
+import { setSubscription } from '@TAF/actions/subscriptions/local/setSubscription'
 
 /**
  * Cancel current subscription
@@ -8,13 +7,11 @@ import { currentSubscriptionState } from '@TAF/state/subscriptions'
  */
 export const cancelSubscription = async () => {
   const resp = await subscriptionsApi.cancel()
+  if (resp.error) return resp
 
   if (resp.data?.success) {
-    // Refresh subscription to get updated cancelAtPeriodEnd flag
     const currentResp = await subscriptionsApi.current()
-    if (currentResp.data) {
-      store.set(currentSubscriptionState, currentResp.data)
-    }
+    currentResp.data && setSubscription(currentResp.data)
   }
 
   return resp

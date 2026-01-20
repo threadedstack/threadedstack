@@ -16,15 +16,6 @@ export type TSubscriptionData = {
 }
 
 /**
- * Payment plan data structure
- */
-export type TPlanData = {
-  id: string
-  name: string
-  metadata: TPayPlanMeta
-}
-
-/**
  * Checkout data structure for creating a checkout session
  */
 export type TCheckoutData = {
