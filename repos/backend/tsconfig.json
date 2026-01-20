@@ -3,6 +3,7 @@
     "extraFileExtensions": ["json"]
   },
   "compilerOptions": {
+    "rootDir": "../../",
     "baseUrl": ".",
     "outDir": "./dist",
     "target": "esnext",

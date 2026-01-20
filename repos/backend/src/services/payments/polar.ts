@@ -1,103 +1,88 @@
-import type { TApp } from '@TBE/types'
-import type { Plan } from '@tdsk/domain'
-import type { TPayPlanMeta, TPayPlanRaw } from '@tdsk/domain'
+import type { TPayPlanMeta } from '@tdsk/domain'
+import type {
+  TApp,
+  TPlanResp,
+  TPolarConfig,
+  TPolarProduct,
+  TPolarCustomer,
+  TPolarPortalSession,
+  TPolarCheckoutSession,
+} from '@TBE/types'
 
+import crypto from 'node:crypto'
+import { Plan } from '@tdsk/domain'
+import { API } from '@TBE/services/api'
 import { logger } from '@TBE/utils/logger'
-import { Plan as PlanModel } from '@tdsk/domain'
-
-export type TPolarConfig = {
-  token: string
-  url: string
-  wbhSecret: string
-  plans: Record<string, string>
-}
-
-export type TPolarProduct = {
-  id: string
-  name: string
-  metadata: TPayPlanRaw
-}
-
-export type TPolarCustomer = {
-  id: string
-  email: string
-  metadata?: Record<string, string>
-}
-
-export type TPolarCheckoutSession = {
-  id: string
-  url: string
-  customer_id: string
-}
-
-export type TPolarPortalSession = {
-  url: string
-}
+import { Exception } from '@TBE/utils/errors/exception'
 
 /**
  * Service for interacting with Polar.sh payment API
  */
 export class PolarService {
+  #api: API
+
   private token: string
   private baseUrl: string
   private wbhSecret: string
   private plans: Record<string, string>
 
   constructor(config: TPolarConfig) {
+    if (!config.token) throw new Exception(500, `Polar access token is required`)
+
     this.baseUrl = config.url
     this.token = config.token
     this.plans = config.plans
     this.wbhSecret = config.wbhSecret
 
-    if (!this.token) {
-      throw new Error('Polar access token is required')
-    }
+    this.#api = new API({
+      url: config.url,
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        [`Content-Type`]: `application/json`,
+      },
+    })
   }
 
   /**
    * Fetch all configured payment plans from Polar API
    * Uses product IDs from config to fetch product details
    */
-  fetchPlans = async (): Promise<{ data?: Plan[]; error?: Error }> => {
+  fetchPlans = async (): Promise<TPlanResp> => {
     try {
-      const productIds = Object.values(this.plans).filter((id) => id && !id.includes('='))
+      const productIds = Object.values(this.plans).filter((id) => id && !id.includes(`=`))
 
-      if (productIds.length === 0) {
+      if (productIds.length === 0)
         return {
-          error: new Error('No product IDs configured in TDSK_PAY_PLANS'),
+          error: new Exception(404, `No product IDs configured in TDSK_PAY_PLANS`),
         }
-      }
 
       const plans: Plan[] = []
 
       for (const productId of productIds) {
         const result = await this.fetchProduct(productId)
 
-        if (result.error) {
-          logger.error(`Failed to fetch product ${productId}:`, result.error)
+        if (result.error || !result.data) {
+          logger.error(`Failed to fetch product ${productId}:`, result?.error)
           continue
         }
 
-        if (result.data) {
-          // Find the tier name for this product ID
-          const tierName =
-            Object.entries(this.plans).find(([_, id]) => id === productId)?.[0] ||
-            productId
+        // Find the tier name for this product ID
+        const tierName =
+          Object.entries(this.plans).find(([_, id]) => id === productId)?.[0] || productId
 
-          plans.push(
-            new PlanModel({
-              id: result.data.id,
-              name: tierName,
-              metadata: result.data.metadata,
-            })
-          )
-        }
+        plans.push(
+          new Plan({
+            name: tierName,
+            id: result.data.id,
+            metadata: result.data.metadata,
+          })
+        )
       }
 
       return { data: plans }
     } catch (err: unknown) {
-      logger.error('Failed to fetch plans:', err)
-      return { error: err as Error }
+      logger.error(`Failed to fetch plans:`, err)
+      return { error: new Exception(500, (err as Error).message) }
     }
   }
 
@@ -106,29 +91,10 @@ export class PolarService {
    */
   fetchProduct = async (
     productId: string
-  ): Promise<{ data?: TPolarProduct; error?: Error }> => {
-    try {
-      const response = await fetch(`${this.baseUrl}/products/${productId}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        return {
-          error: new Error(`Polar API error: ${response.status} ${errorText}`),
-        }
-      }
-
-      const data = (await response.json()) as TPolarProduct
-      return { data }
-    } catch (err: unknown) {
-      logger.error(`Failed to fetch product ${productId}:`, err)
-      return { error: err as Error }
-    }
+  ): Promise<{ data?: TPolarProduct; error?: Exception }> => {
+    return await this.#api.get<TPolarProduct>({
+      path: `/products/${productId}`,
+    })
   }
 
   /**
@@ -137,30 +103,23 @@ export class PolarService {
    */
   getPlanLimits = async (
     productId: string
-  ): Promise<{ data?: TPayPlanMeta; error?: Error }> => {
-    try {
-      const result = await this.fetchProduct(productId)
+  ): Promise<{ data?: TPayPlanMeta; error?: Exception }> => {
+    const resp = await this.fetchProduct(productId)
 
-      if (result.error) {
-        return { error: result.error }
-      }
+    if (resp.error) return { error: resp.error }
 
-      if (!result.data) {
-        return { error: new Error('Product not found') }
-      }
-
-      // Convert raw metadata to typed metadata
-      const plan = new PlanModel({
-        id: result.data.id,
-        name: result.data.name,
-        metadata: result.data.metadata,
-      })
-
-      return { data: plan.metadata }
-    } catch (err: unknown) {
-      logger.error(`Failed to get plan limits for ${productId}:`, err)
-      return { error: err as Error }
+    if (!resp.data) {
+      return { error: new Exception(404, `Product not found`) }
     }
+
+    // Convert raw metadata to typed metadata
+    const plan = new Plan({
+      id: resp.data.id,
+      name: resp.data.name,
+      metadata: resp.data.metadata,
+    })
+
+    return { data: plan.metadata }
   }
 
   /**
@@ -169,59 +128,24 @@ export class PolarService {
   getOrCreateCustomer = async (
     email: string,
     userId: string
-  ): Promise<{ data?: TPolarCustomer; error?: Error }> => {
-    try {
-      // Try to find existing customer
-      const findResponse = await fetch(
-        `${this.baseUrl}/customers?email=${encodeURIComponent(email)}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${this.token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      )
+  ): Promise<{ data?: TPolarCustomer; error?: Exception }> => {
+    const resp = await this.#api.get<TPolarCustomer[]>({
+      data: { email },
+      path: `/customers`,
+    })
+    if (resp.error) return { error: resp.error }
 
-      if (findResponse.ok) {
-        const customers = (await findResponse.json()) as {
-          data: TPolarCustomer[]
-        }
-        if (customers.data && customers.data.length > 0) {
-          return { data: customers.data[0] }
-        }
-      }
+    if (resp.data && resp.data.length > 0) return { data: resp.data[0] }
 
-      // Create new customer if not found
-      const createResponse = await fetch(`${this.baseUrl}/customers`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
+    return await this.#api.post<TPolarCustomer>({
+      path: `/customers`,
+      data: {
+        email,
+        metadata: {
+          userId,
         },
-        body: JSON.stringify({
-          email,
-          metadata: {
-            userId,
-          },
-        }),
-      })
-
-      if (!createResponse.ok) {
-        const errorText = await createResponse.text()
-        return {
-          error: new Error(
-            `Failed to create customer: ${createResponse.status} ${errorText}`
-          ),
-        }
-      }
-
-      const data = (await createResponse.json()) as TPolarCustomer
-      return { data }
-    } catch (err: unknown) {
-      logger.error('Failed to get or create customer:', err)
-      return { error: err as Error }
-    }
+      },
+    })
   }
 
   /**
@@ -233,40 +157,17 @@ export class PolarService {
     userId: string,
     successUrl: string,
     cancelUrl: string
-  ): Promise<{ data?: TPolarCheckoutSession; error?: Error }> => {
-    try {
-      const response = await fetch(`${this.baseUrl}/checkout/sessions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          price_id: priceId,
-          customer_id: customerId,
-          success_url: successUrl,
-          cancel_url: cancelUrl,
-          metadata: {
-            userId,
-          },
-        }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        return {
-          error: new Error(
-            `Failed to create checkout session: ${response.status} ${errorText}`
-          ),
-        }
-      }
-
-      const data = (await response.json()) as TPolarCheckoutSession
-      return { data }
-    } catch (err: unknown) {
-      logger.error('Failed to create checkout session:', err)
-      return { error: err as Error }
-    }
+  ): Promise<{ data?: TPolarCheckoutSession; error?: Exception }> => {
+    return await this.#api.post<TPolarCheckoutSession>({
+      path: `/checkout/sessions`,
+      data: {
+        price_id: priceId,
+        metadata: { userId },
+        cancel_url: cancelUrl,
+        customer_id: customerId,
+        success_url: successUrl,
+      },
+    })
   }
 
   /**
@@ -275,33 +176,10 @@ export class PolarService {
   createCustomerPortalSession = async (
     customerId: string
   ): Promise<{ data?: TPolarPortalSession; error?: Error }> => {
-    try {
-      const response = await fetch(`${this.baseUrl}/portal/sessions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customer_id: customerId,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        return {
-          error: new Error(
-            `Failed to create portal session: ${response.status} ${errorText}`
-          ),
-        }
-      }
-
-      const data = (await response.json()) as TPolarPortalSession
-      return { data }
-    } catch (err: unknown) {
-      logger.error('Failed to create portal session:', err)
-      return { error: err as Error }
-    }
+    return await this.#api.post<TPolarPortalSession>({
+      data: { customer_id: customerId },
+      path: `/portal/sessions`,
+    })
   }
 
   /**
@@ -314,16 +192,15 @@ export class PolarService {
   ): boolean => {
     try {
       // Polar uses a simple HMAC-SHA256 signature
-      const crypto = require('node:crypto')
       const signedPayload = `${timestamp}.${payload}`
       const expectedSignature = crypto
-        .createHmac('sha256', this.wbhSecret)
+        .createHmac(`sha256`, this.wbhSecret)
         .update(signedPayload)
-        .digest('hex')
+        .digest(`hex`)
 
       return signature === expectedSignature
     } catch (err: unknown) {
-      logger.error('Failed to validate webhook signature:', err)
+      logger.error(`Failed to validate webhook signature:`, err)
       return false
     }
   }
@@ -334,32 +211,11 @@ export class PolarService {
   cancelSubscription = async (
     subscriptionId: string
   ): Promise<{ data?: { success: boolean }; error?: Error }> => {
-    try {
-      const response = await fetch(
-        `${this.baseUrl}/subscriptions/${subscriptionId}/cancel`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${this.token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      )
+    const resp = await this.#api.post({
+      path: `/subscriptions/${subscriptionId}/cancel`,
+    })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        return {
-          error: new Error(
-            `Failed to cancel subscription: ${response.status} ${errorText}`
-          ),
-        }
-      }
-
-      return { data: { success: true } }
-    } catch (err: unknown) {
-      logger.error('Failed to cancel subscription:', err)
-      return { error: err as Error }
-    }
+    return resp.error ? { error: resp.error } : { data: { success: true } }
   }
 
   /**
@@ -367,15 +223,12 @@ export class PolarService {
    */
   webhook = async (app: TApp, payload: any) => {
     const db = app.locals.db
-    const config = app.locals.config
+    const payments = app.locals.payments
 
     if (!db) {
       logger.error(`Database not initialized in app.locals`)
       return { error: new Error(`Database not initialized`) }
     }
-
-    const subService = db.services.subscription
-    const polarService = new PolarService(config.payments)
 
     try {
       switch (payload.type) {
@@ -389,26 +242,26 @@ export class PolarService {
             logger.warn(
               `Received subscription event without userId in metadata: ${sub.id}`
             )
-            return { error: new Error('Missing userId in metadata') }
+            return { error: new Error(`Missing userId in metadata`) }
           }
 
           // Determine tier from product ID
-          const tier = polarService.getTierForProductId(sub.product_id) || 'free'
+          const tier = payments.getTierForProductId(sub.product_id) || `free`
 
-          const result = await subService.upsert({
+          const result = await db.services.subscription.upsert({
+            tier: tier,
             userId: userId,
             polarId: sub.id,
-            polarCustomerId: sub.customer_id,
-            polarPriceId: sub.price_id,
             status: sub.status,
-            tier: tier,
-            currentPeriodStart: sub.current_period_start,
+            polarPriceId: sub.price_id,
+            polarCustomerId: sub.customer_id,
             currentPeriodEnd: sub.current_period_end,
             cancelAtPeriodEnd: sub.cancel_at_period_end,
+            currentPeriodStart: sub.current_period_start,
           })
 
           if (result.error) {
-            logger.error('Failed to upsert subscription:', result.error)
+            logger.error(`Failed to upsert subscription:`, result.error)
             return { error: result.error }
           }
 
@@ -423,19 +276,19 @@ export class PolarService {
 
           if (!userId) {
             logger.warn(`Received subscription cancelled event without userId: ${sub.id}`)
-            return { error: new Error('Missing userId in metadata') }
+            return { error: new Error(`Missing userId in metadata`) }
           }
 
-          const result = await subService.upsert({
+          const result = await db.services.subscription.upsert({
+            tier: `free`,
             userId: userId,
             polarId: sub.id,
-            status: 'cancelled',
-            tier: 'free',
+            status: `cancelled`,
             cancelAtPeriodEnd: true,
           })
 
           if (result.error) {
-            logger.error('Failed to cancel subscription:', result.error)
+            logger.error(`Failed to cancel subscription:`, result.error)
             return { error: result.error }
           }
 
