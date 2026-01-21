@@ -129,11 +129,12 @@ describe(`PolarService`, () => {
         },
       ]
 
+      // Note: Plan order matches config.plans object key order (pro, free, basic, developer)
       mockFetch
-        .mockResolvedValueOnce({ ok: true, json: async () => mockProducts[0] })
-        .mockResolvedValueOnce({ ok: true, json: async () => mockProducts[1] })
-        .mockResolvedValueOnce({ ok: true, json: async () => mockProducts[2] })
-        .mockResolvedValueOnce({ ok: true, json: async () => mockProducts[3] })
+        .mockResolvedValueOnce({ ok: true, json: async () => mockProducts[3] }) // pro
+        .mockResolvedValueOnce({ ok: true, json: async () => mockProducts[0] }) // free
+        .mockResolvedValueOnce({ ok: true, json: async () => mockProducts[1] }) // basic
+        .mockResolvedValueOnce({ ok: true, json: async () => mockProducts[2] }) // developer
 
       const service = new PolarService(mockConfig)
       const { data, error } = await service.fetchPlans()
@@ -141,12 +142,13 @@ describe(`PolarService`, () => {
       expect(error).toBeUndefined()
       expect(data).toBeDefined()
       expect(data).toHaveLength(4)
-      expect(data![0].name).toBe(`free`)
-      expect(data![0].metadata.projects).toBe(1)
-      expect(data![0].metadata.price).toBe(0)
-      expect(data![1].name).toBe(`basic`)
-      expect(data![2].name).toBe(`developer`)
-      expect(data![3].name).toBe(`pro`)
+      expect(data![0].name).toBe(`pro`)
+      expect(data![0].metadata.runtime).toBe(300)
+      expect(data![1].name).toBe(`free`)
+      expect(data![1].metadata.projects).toBe(1)
+      expect(data![1].metadata.price).toBe(0)
+      expect(data![2].name).toBe(`basic`)
+      expect(data![3].name).toBe(`developer`)
       expect(mockFetch).toHaveBeenCalledTimes(4)
     })
 
@@ -296,6 +298,7 @@ describe(`PolarService`, () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 404,
+        statusText: `Not Found`,
         text: async () => `Product not found`,
       })
 
@@ -304,7 +307,7 @@ describe(`PolarService`, () => {
 
       expect(data).toBeUndefined()
       expect(error).toBeDefined()
-      expect(error?.message).toBe(`Polar API error: 404 Product not found`)
+      expect(error?.message).toBe(`Status: 404 - Product not found`)
     })
 
     it(`should handle network errors`, async () => {
@@ -494,7 +497,9 @@ describe(`PolarService`, () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => ({ data: [existingCustomer] }),
+        text: async () => JSON.stringify({ data: [existingCustomer] }),
       })
 
       const service = new PolarService(mockConfig)
@@ -512,12 +517,14 @@ describe(`PolarService`, () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
+        statusText: `Internal Server Error`,
         text: async () => `Server error`,
       })
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: `cus_123`, email: `test@example.com` }),
+        text: async () => JSON.stringify({ id: `cus_123`, email: `test@example.com` }),
       })
 
       const service = new PolarService(mockConfig)
@@ -526,20 +533,22 @@ describe(`PolarService`, () => {
         `user_123`
       )
 
-      // Should still create customer even if find fails
-      expect(error).toBeUndefined()
-      expect(data).toBeDefined()
+      // New api.ts behavior: returns error for failed find call
+      expect(error).toBeDefined()
+      expect(error?.message).toBe(`Status: 500 - Server error`)
     })
 
     it(`should handle API errors on create`, async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ data: [] }),
+        text: async () => JSON.stringify({ data: [] }),
       })
 
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 400,
+        statusText: `Bad Request`,
         text: async () => `Invalid email`,
       })
 
@@ -548,8 +557,7 @@ describe(`PolarService`, () => {
 
       expect(data).toBeUndefined()
       expect(error).toBeDefined()
-      expect(error?.message).toContain(`Failed to create customer`)
-      expect(error?.message).toContain(`400`)
+      expect(error?.message).toBe(`Status: 400 - Invalid email`)
     })
 
     it(`should handle network errors`, async () => {
@@ -577,7 +585,9 @@ describe(`PolarService`, () => {
 
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => mockSession,
+        text: async () => JSON.stringify(mockSession),
       })
 
       const service = new PolarService(mockConfig)
@@ -597,13 +607,17 @@ describe(`PolarService`, () => {
           Authorization: `Bearer polar_test_token_123`,
           [`Content-Type`]: `application/json`,
         },
-        body: JSON.stringify({
-          price_id: `price_123`,
-          customer_id: `cus_123`,
-          success_url: `https://app.test/success`,
-          cancel_url: `https://app.test/cancel`,
-          metadata: { userId: `user_123` },
-        }),
+        body: expect.stringContaining(`"price_id":"price_123"`),
+      })
+      // Check all expected fields are present in body
+      const callArg = (mockFetch as any).mock.calls[0][1].body
+      const bodyObj = JSON.parse(callArg)
+      expect(bodyObj).toEqual({
+        price_id: `price_123`,
+        customer_id: `cus_123`,
+        success_url: `https://app.test/success`,
+        cancel_url: `https://app.test/cancel`,
+        metadata: { userId: `user_123` },
       })
     })
 
@@ -650,8 +664,7 @@ describe(`PolarService`, () => {
 
       expect(data).toBeUndefined()
       expect(error).toBeDefined()
-      expect(error?.message).toContain(`Failed to create checkout session`)
-      expect(error?.message).toContain(`400`)
+      expect(error?.message).toBe(`Status: 400 - Invalid price ID`)
     })
 
     it(`should handle network errors`, async () => {
@@ -727,8 +740,7 @@ describe(`PolarService`, () => {
 
       expect(data).toBeUndefined()
       expect(error).toBeDefined()
-      expect(error?.message).toContain(`Failed to create portal session`)
-      expect(error?.message).toContain(`404`)
+      expect(error?.message).toBe(`Status: 404 - Customer not found`)
     })
 
     it(`should handle network errors`, async () => {
@@ -745,7 +757,11 @@ describe(`PolarService`, () => {
 
   describe(`cancelSubscription`, () => {
     it(`should cancel subscription by ID`, async () => {
-      mockFetch.mockResolvedValue({ ok: true })
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+        text: async () => '',
+      })
 
       const service = new PolarService(mockConfig)
       const { data, error } = await service.cancelSubscription(`sub_123`)
@@ -776,8 +792,7 @@ describe(`PolarService`, () => {
 
       expect(data).toBeUndefined()
       expect(error).toBeDefined()
-      expect(error?.message).toContain(`Failed to cancel subscription`)
-      expect(error?.message).toContain(`404`)
+      expect(error?.message).toBe(`Status: 404 - Subscription not found`)
     })
 
     it(`should handle network errors`, async () => {

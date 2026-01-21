@@ -129,13 +129,15 @@ export class PolarService {
     email: string,
     userId: string
   ): Promise<{ data?: TPolarCustomer; error?: Exception }> => {
-    const resp = await this.#api.get<TPolarCustomer[]>({
+    const resp = await this.#api.get<{ data: TPolarCustomer[] }>({
       data: { email },
       path: `/customers`,
     })
     if (resp.error) return { error: resp.error }
 
-    if (resp.data && resp.data.length > 0) return { data: resp.data[0] }
+    // Polar API returns { data: [customers] }, so unwrap the array
+    const customers = resp.data?.data || []
+    if (customers.length > 0) return { data: customers[0] }
 
     return await this.#api.post<TPolarCustomer>({
       path: `/customers`,

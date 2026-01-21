@@ -566,29 +566,12 @@ export const apiKeys = pgTable('api_keys', {
 
 ### Drizzle Kit Commands
 ```bash
-# Generate migration from schema changes
-pnpm generate
-
-# Run pending migrations against database
-pnpm migrate
 
 # Introspect existing database schema
 pnpm introspect
 
 # Push schema changes without migrations (dev only)
 pnpm push
-
-# Open Drizzle Studio web UI (localhost:4983)
-pnpm studio
-
-# Upgrade migration files to latest format
-pnpm up
-
-# Check migration files for issues
-pnpm check
-
-# Drop migration files
-pnpm drop
 
 # Export schema as TypeScript/SQL
 pnpm export
@@ -601,16 +584,6 @@ pnpm dk <command>
 ```bash
 # Run utility script with aliases
 pnpm script
-
-# Linting with Biome
-pnpm lint          # Auto-fix issues
-pnpm lint:ci       # CI mode (fail on errors)
-pnpm lint:staged   # Lint staged files only
-
-# Formatting with Biome
-pnpm format        # Auto-format code
-pnpm format:ci     # CI mode (fail on errors)
-pnpm format:staged # Format staged files only
 
 # Testing with Vitest
 pnpm test
@@ -850,48 +823,6 @@ pnpm studio
 - Store secrets encrypted in `secrets` table
 - Use Neon's built-in security features
 
-## Troubleshooting
-
-### Common Issues
-
-**Migration generation fails:**
-```bash
-# Check schema syntax
-pnpm biome:lint src/schemas/
-
-# Verify path aliases
-cat configs/aliases.ts
-
-# Check drizzle config
-cat configs/drizzle.config.ts
-```
-
-**Connection errors:**
-```bash
-# Verify environment variables
-echo $TDSK_DB_URL
-
-# Test connection manually
-psql $TDSK_DB_URL
-```
-
-**Type errors in consumers:**
-```bash
-# Rebuild database types
-cd repos/database && pnpm build
-
-# Verify exports
-cat dist/index.d.ts
-```
-
-**Studio won't start:**
-```bash
-# Check port 4983 is available
-lsof -i :4983
-
-# Kill existing process if needed
-kill -9 <pid>
-```
 
 ## Related Documentation
 

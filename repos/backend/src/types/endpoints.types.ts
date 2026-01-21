@@ -1,7 +1,7 @@
 import type { NextFunction } from 'express'
 import type { TResponse } from '@tdsk/domain'
 import type { router } from '@TBE/server/router'
-import type { TBEConfig, TRequest, TApp } from '@TBE/types/backend.types'
+import type { TRequest, TApp } from '@TBE/types/backend.types'
 import type { RequestHandler, Options } from 'http-proxy-middleware'
 
 export type TConfigProxy = Options

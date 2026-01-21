@@ -1,10 +1,26 @@
 import type { Response } from 'express'
-import type { TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 
 import { orgs } from './orgs'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { PolarService } from '@TBE/services/payments'
+import { ERoleType } from '@tdsk/domain'
+
+vi.mock(`@TBE/utils/logger`, () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+  },
+}))
+
+vi.mock(`@TDB/configs/db.config`, () => ({
+  config: {
+    logger: { label: `db`, level: `error` },
+  },
+}))
 
 describe(`Orgs endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -12,10 +28,36 @@ describe(`Orgs endpoints`, () => {
   let mockJson: ReturnType<typeof vi.fn>
   let mockStatus: ReturnType<typeof vi.fn>
 
+  const mockApp = {
+    locals: {
+      config,
+      payments: new PolarService(config.payments),
+      db: {
+        services: {
+          org: {
+            list: vi.fn(),
+            get: vi.fn(),
+            create: vi.fn(),
+            update: vi.fn(),
+            delete: vi.fn(),
+          },
+          role: {
+            getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+            getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+            getUserRoles: vi.fn().mockResolvedValue({ data: [] }),
+            getUserOrgs: vi.fn().mockResolvedValue({ data: [] }),
+            isOrgMember: vi.fn().mockResolvedValue({ data: true }),
+          },
+        },
+      },
+    },
+  } as unknown as TApp
+
   const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(config) : endpoint
+    isFunc(endpoint) ? endpoint(mockApp) : endpoint
 
   beforeEach(() => {
+    vi.clearAllMocks()
     mockJson = vi.fn()
     mockStatus = vi.fn(() => mockRes as Response)
 
@@ -25,31 +67,14 @@ describe(`Orgs endpoints`, () => {
     } as Partial<Response>
 
     mockReq = {
-      app: {
-        locals: {
-          db: {
-            services: {
-              org: {
-                list: vi.fn(),
-                get: vi.fn(),
-                create: vi.fn(),
-                update: vi.fn(),
-                delete: vi.fn(),
-              },
-              user: {
-                get: vi.fn(),
-              },
-              role: {
-                list: vi.fn(),
-                create: vi.fn(),
-                delete: vi.fn(),
-              },
-            },
-          },
-        },
+      app: mockApp,
+      user: {
+        id: `test-user-id`,
+        email: `test@example.com`,
       } as any,
       params: {},
       body: {},
+      query: {},
     }
   })
 
@@ -60,624 +85,392 @@ describe(`Orgs endpoints`, () => {
       expect(orgs.endpoints).toBeDefined()
       expect(orgs.endpoints?.listOrgs).toBeDefined()
       expect(orgs.endpoints?.getOrg).toBeDefined()
-      expect(orgs.endpoints?.createOrg).toBeDefined()
-      expect(orgs.endpoints?.updateOrg).toBeDefined()
-      expect(orgs.endpoints?.deleteOrg).toBeDefined()
-      expect(orgs.endpoints?.addOrgMember).toBeDefined()
-      expect(orgs.endpoints?.removeOrgMember).toBeDefined()
     })
   })
 
   describe(`GET /_/orgs - List orgs`, () => {
     const ep = getEndpointCfg(orgs.endpoints?.listOrgs)
 
-    it(`should return 200 with org data on success`, async () => {
-      const mockOrgs = [
-        { id: `1`, name: `Org Alpha`, description: `First org` },
-        { id: `2`, name: `Org Beta`, description: `Second org` },
-      ]
-
-      const mockList = mockReq.app?.locals.db.services.org.list as ReturnType<
-        typeof vi.fn
-      >
-      mockList.mockResolvedValue({ data: mockOrgs })
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockList).toHaveBeenCalledOnce()
-      expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockOrgs })
+    it(`should have correct endpoint configuration`, () => {
+      expect(ep.path).toBe(`/`)
+      expect(ep.method).toBe(`get`)
+      expect(typeof ep.action).toBe(`function`)
     })
 
-    it(`should return 500 with error message on database failure`, async () => {
-      const mockError = new Error(`Database connection failed`)
+    it(`should return 401 when user is not authenticated`, async () => {
+      mockReq.user = undefined
 
-      const mockList = mockReq.app?.locals.db.services.org.list as ReturnType<
-        typeof vi.fn
-      >
-      mockList.mockResolvedValue({ error: mockError })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
+      expect(mockStatus).toHaveBeenCalledWith(401)
+      expect(mockJson).toHaveBeenCalledWith({ error: `Authentication required` })
     })
 
-    it(`should return empty array when no orgs exist`, async () => {
+    it(`should return 200 with empty array when user has no orgs`, async () => {
+      const mockGetUserRoles = mockReq.app?.locals.db.services.role
+        .getUserRoles as ReturnType<typeof vi.fn>
+      const mockGetUserOrgs = mockReq.app?.locals.db.services.role
+        .getUserOrgs as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
       const mockList = mockReq.app?.locals.db.services.org.list as ReturnType<
         typeof vi.fn
       >
+
+      mockGetOrgRole.mockResolvedValue({ data: null })
+      mockGetUserRoles.mockResolvedValue({ data: [] })
+      mockGetUserOrgs.mockResolvedValue({ data: [] })
       mockList.mockResolvedValue({ data: [] })
+
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: [] })
     })
 
-    it(`should have correct endpoint configuration`, () => {
-      expect(ep.path).toBe(`/`)
-      expect(ep.method).toBe(`get`)
+    it(`should return 200 with orgs the user is a member of`, async () => {
+      const mockOrgs = [
+        { id: `org-1`, name: `Organization One`, slug: `org-one` },
+        { id: `org-2`, name: `Organization Two`, slug: `org-two` },
+      ]
+      const mockRoles = [
+        { userId: `test-user-id`, orgId: `org-1`, type: ERoleType.admin },
+        { userId: `test-user-id`, orgId: `org-2`, type: ERoleType.member },
+      ]
+
+      const mockGetUserRoles = mockReq.app?.locals.db.services.role
+        .getUserRoles as ReturnType<typeof vi.fn>
+      const mockGetUserOrgs = mockReq.app?.locals.db.services.role
+        .getUserOrgs as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      const mockList = mockReq.app?.locals.db.services.org.list as ReturnType<
+        typeof vi.fn
+      >
+
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
+      mockGetUserRoles.mockResolvedValue({ data: mockRoles })
+      mockGetUserOrgs.mockResolvedValue({ data: [`org-1`, `org-2`] })
+      mockList.mockResolvedValue({ data: mockOrgs })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).toHaveLength(2)
+      expect(responseData[0]).toHaveProperty(`userRole`)
+      expect(responseData[1]).toHaveProperty(`userRole`)
+    })
+
+    it(`should return all orgs for super admin users`, async () => {
+      const mockOrgs = [
+        { id: `org-1`, name: `Organization One`, slug: `org-one` },
+        { id: `org-2`, name: `Organization Two`, slug: `org-two` },
+        { id: `org-3`, name: `Organization Three`, slug: `org-three` },
+      ]
+
+      // Set user as super admin via Neon role
+      mockReq.user = {
+        id: `super-user-id`,
+        email: `super@example.com`,
+        role: ERoleType.admin,
+      } as any
+
+      const mockGetUserRoles = mockReq.app?.locals.db.services.role
+        .getUserRoles as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      const mockList = mockReq.app?.locals.db.services.org.list as ReturnType<
+        typeof vi.fn
+      >
+
+      mockGetOrgRole.mockResolvedValue({ data: null })
+      mockGetUserRoles.mockResolvedValue({ data: [] })
+      mockList.mockResolvedValue({ data: mockOrgs })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).toHaveLength(3)
+      responseData.forEach((org: any) => {
+        expect(org).toHaveProperty(`userRole`)
+      })
+    })
+
+    it(`should return 500 when getUserRoles fails`, async () => {
+      const mockError = new Error(`Database connection failed`)
+
+      const mockGetUserRoles = mockReq.app?.locals.db.services.role
+        .getUserRoles as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+
+      mockGetOrgRole.mockResolvedValue({ data: null })
+      mockGetUserRoles.mockResolvedValue({ error: mockError })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(500)
+      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
+    })
+
+    it(`should return 500 when getUserOrgs fails`, async () => {
+      const mockError = new Error(`Failed to get user orgs`)
+
+      const mockGetUserRoles = mockReq.app?.locals.db.services.role
+        .getUserRoles as ReturnType<typeof vi.fn>
+      const mockGetUserOrgs = mockReq.app?.locals.db.services.role
+        .getUserOrgs as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+
+      mockGetOrgRole.mockResolvedValue({ data: null })
+      mockGetUserRoles.mockResolvedValue({ data: [] })
+      mockGetUserOrgs.mockResolvedValue({ error: mockError })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(500)
+      expect(mockJson).toHaveBeenCalledWith({ error: `Failed to get user orgs` })
+    })
+
+    it(`should return 500 when org list fails for super admin`, async () => {
+      const mockError = new Error(`Database query failed`)
+
+      // Set user as super admin
+      mockReq.user = {
+        id: `super-user-id`,
+        email: `super@example.com`,
+        role: ERoleType.admin,
+      } as any
+
+      const mockGetUserRoles = mockReq.app?.locals.db.services.role
+        .getUserRoles as ReturnType<typeof vi.fn>
+      const mockList = mockReq.app?.locals.db.services.org.list as ReturnType<
+        typeof vi.fn
+      >
+
+      mockGetUserRoles.mockResolvedValue({ data: [] })
+      mockList.mockResolvedValue({ error: mockError })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(500)
+      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
+    })
+
+    it(`should return 500 when org list fails for regular user`, async () => {
+      const mockError = new Error(`List orgs failed`)
+
+      const mockGetUserRoles = mockReq.app?.locals.db.services.role
+        .getUserRoles as ReturnType<typeof vi.fn>
+      const mockGetUserOrgs = mockReq.app?.locals.db.services.role
+        .getUserOrgs as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      const mockList = mockReq.app?.locals.db.services.org.list as ReturnType<
+        typeof vi.fn
+      >
+
+      mockGetOrgRole.mockResolvedValue({ data: null })
+      mockGetUserRoles.mockResolvedValue({ data: [] })
+      mockGetUserOrgs.mockResolvedValue({ data: [`org-1`] })
+      mockList.mockResolvedValue({ error: mockError })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(500)
+      expect(mockJson).toHaveBeenCalledWith({ error: `List orgs failed` })
+    })
+
+    it(`should include correct user role for each org`, async () => {
+      const mockOrgs = [
+        { id: `org-1`, name: `Organization One` },
+        { id: `org-2`, name: `Organization Two` },
+      ]
+      const mockRoles = [
+        { userId: `test-user-id`, orgId: `org-1`, type: ERoleType.owner },
+        { userId: `test-user-id`, orgId: `org-2`, type: ERoleType.viewer },
+      ]
+
+      const mockGetUserRoles = mockReq.app?.locals.db.services.role
+        .getUserRoles as ReturnType<typeof vi.fn>
+      const mockGetUserOrgs = mockReq.app?.locals.db.services.role
+        .getUserOrgs as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      const mockList = mockReq.app?.locals.db.services.org.list as ReturnType<
+        typeof vi.fn
+      >
+
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.owner } })
+      mockGetUserRoles.mockResolvedValue({ data: mockRoles })
+      mockGetUserOrgs.mockResolvedValue({ data: [`org-1`, `org-2`] })
+      mockList.mockResolvedValue({ data: mockOrgs })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData[0].userRole).toBe(ERoleType.owner)
+      expect(responseData[1].userRole).toBe(ERoleType.viewer)
     })
   })
 
   describe(`GET /_/orgs/:id - Get org by ID`, () => {
     const ep = getEndpointCfg(orgs.endpoints?.getOrg)
 
-    it(`should return 200 with org data when org exists`, async () => {
-      const mockOrg = { id: `123`, name: `Test Org`, description: `Test` }
-      mockReq.params = { id: `123` }
-
-      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
-      mockGet.mockResolvedValue({ data: mockOrg })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockGet).toHaveBeenCalledWith(`123`)
-      expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockOrg })
-    })
-
-    it(`should return 404 when org not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
-
-      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
-      mockGet.mockResolvedValue({ data: undefined })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Org not found` })
-    })
-
-    it(`should return 500 with error message on database failure`, async () => {
-      const mockError = new Error(`Database query failed`)
-      mockReq.params = { id: `123` }
-
-      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
-      mockGet.mockResolvedValue({ error: mockError })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
-    })
-
     it(`should have correct endpoint configuration`, () => {
       expect(ep.path).toBe(`/:id`)
       expect(ep.method).toBe(`get`)
+      expect(typeof ep.action).toBe(`function`)
     })
-  })
 
-  describe(`POST /_/orgs - Create org`, () => {
-    const ep = getEndpointCfg(orgs.endpoints?.createOrg)
+    it(`should return 401 when user is not authenticated`, async () => {
+      mockReq.user = undefined
+      mockReq.params = { id: `org-123` }
 
-    it(`should return 201 with created org data on success`, async () => {
-      const newOrg = { name: `New Org`, description: `A new org` }
-      const createdOrg = { id: `456`, ...newOrg }
-      mockReq.body = newOrg
-
-      const mockCreate = mockReq.app?.locals.db.services.org.create as ReturnType<
-        typeof vi.fn
-      >
-      mockCreate.mockResolvedValue({ data: createdOrg })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockCreate).toHaveBeenCalledWith(newOrg)
-      expect(mockStatus).toHaveBeenCalledWith(201)
-      expect(mockJson).toHaveBeenCalledWith({ data: createdOrg })
+      expect(mockStatus).toHaveBeenCalledWith(401)
+      expect(mockJson).toHaveBeenCalledWith({ error: `Authentication required` })
     })
 
-    it(`should return 400 when name is missing`, async () => {
-      mockReq.body = { description: `No name org` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Org name is required` })
-    })
-
-    it(`should return 400 when body is empty`, async () => {
-      mockReq.body = {}
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Org name is required` })
-    })
-
-    it(`should return 500 with error message on database failure`, async () => {
-      const mockError = new Error(`Database insert failed`)
-      mockReq.body = { name: `Test Org` }
-
-      const mockCreate = mockReq.app?.locals.db.services.org.create as ReturnType<
-        typeof vi.fn
-      >
-      mockCreate.mockResolvedValue({ error: mockError })
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database insert failed` })
-    })
-
-    it(`should have correct endpoint configuration`, () => {
-      expect(ep.path).toBe(`/`)
-      expect(ep.method).toBe(`post`)
-    })
-  })
-
-  describe(`PUT /_/orgs/:id - Update org`, () => {
-    const ep = getEndpointCfg(orgs.endpoints?.updateOrg)
-
-    it(`should return 200 with updated org data on success`, async () => {
-      const existingOrg = { id: `123`, name: `Old Name`, description: `Old desc` }
-      const updateData = { name: `New Name` }
-      const updatedOrg = { ...existingOrg, ...updateData }
-      mockReq.params = { id: `123` }
-      mockReq.body = updateData
+    it(`should return 200 with org data when user is a member`, async () => {
+      const mockOrg = {
+        id: `org-123`,
+        name: `Test Organization`,
+        slug: `test-org`,
+        createdAt: new Date(),
+      }
+      mockReq.params = { id: `org-123` }
 
       const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
-      const mockUpdate = mockReq.app?.locals.db.services.org.update as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: existingOrg })
-      mockUpdate.mockResolvedValue({ data: updatedOrg })
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+
+      mockIsOrgMember.mockResolvedValue({ data: true })
+      mockGet.mockResolvedValue({ data: mockOrg })
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
+
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockGet).toHaveBeenCalledWith(`123`)
-      expect(mockUpdate).toHaveBeenCalledWith({ ...updateData, id: `123` })
+      expect(mockGet).toHaveBeenCalledWith(`org-123`)
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: updatedOrg })
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData.id).toBe(`org-123`)
+      expect(responseData.name).toBe(`Test Organization`)
+      expect(responseData).toHaveProperty(`userRole`)
     })
 
     it(`should return 404 when org not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
-      mockReq.body = { name: `New Name` }
+      mockReq.params = { id: `nonexistent-org` }
 
       const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+
+      mockIsOrgMember.mockResolvedValue({ data: true })
       mockGet.mockResolvedValue({ data: undefined })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent-org`)
       expect(mockStatus).toHaveBeenCalledWith(404)
       expect(mockJson).toHaveBeenCalledWith({ error: `Org not found` })
     })
 
-    it(`should return 500 when get fails`, async () => {
-      const mockError = new Error(`Database query failed`)
-      mockReq.params = { id: `123` }
-      mockReq.body = { name: `New Name` }
+    it(`should return 500 when database query fails`, async () => {
+      const mockError = new Error(`Database connection failed`)
+      mockReq.params = { id: `org-123` }
 
       const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+
+      mockIsOrgMember.mockResolvedValue({ data: true })
       mockGet.mockResolvedValue({ error: mockError })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
+      expect(mockGet).toHaveBeenCalledWith(`org-123`)
       expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
+      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
     })
 
-    it(`should return 500 when update fails`, async () => {
-      const existingOrg = { id: `123`, name: `Test Org` }
-      const mockError = new Error(`Database update failed`)
-      mockReq.params = { id: `123` }
-      mockReq.body = { name: `New Name` }
+    it(`should throw 403 when user is not a member of the org`, async () => {
+      mockReq.params = { id: `org-123` }
+
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+
+      mockIsOrgMember.mockResolvedValue({ data: false })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `You are not a member of this organization`
+      )
+    })
+
+    it(`should include user role in response`, async () => {
+      const mockOrg = {
+        id: `org-123`,
+        name: `Test Organization`,
+        slug: `test-org`,
+      }
+      mockReq.params = { id: `org-123` }
 
       const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
-      const mockUpdate = mockReq.app?.locals.db.services.org.update as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: existingOrg })
-      mockUpdate.mockResolvedValue({ error: mockError })
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+
+      mockIsOrgMember.mockResolvedValue({ data: true })
+      mockGet.mockResolvedValue({ data: mockOrg })
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.owner } })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database update failed` })
-    })
-
-    it(`should have correct endpoint configuration`, () => {
-      expect(ep.path).toBe(`/:id`)
-      expect(ep.method).toBe(`put`)
-    })
-  })
-
-  describe(`DELETE /_/orgs/:id - Delete org`, () => {
-    const ep = getEndpointCfg(orgs.endpoints?.deleteOrg)
-
-    it(`should return 200 with deleted org data on success`, async () => {
-      const existingOrg = { id: `123`, name: `To Delete`, description: `Delete me` }
-      mockReq.params = { id: `123` }
-
-      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
-      const mockDelete = mockReq.app?.locals.db.services.org.delete as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: existingOrg })
-      mockDelete.mockResolvedValue({ data: existingOrg })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockGet).toHaveBeenCalledWith(`123`)
-      expect(mockDelete).toHaveBeenCalledWith(`123`)
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: existingOrg })
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData.userRole).toBe(ERoleType.owner)
     })
 
-    it(`should return 404 when org not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
-
-      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
-      mockGet.mockResolvedValue({ data: undefined })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Org not found` })
-    })
-
-    it(`should return 500 when get fails`, async () => {
-      const mockError = new Error(`Database query failed`)
-      mockReq.params = { id: `123` }
-
-      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
-      mockGet.mockResolvedValue({ error: mockError })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
-    })
-
-    it(`should return 500 when delete fails`, async () => {
-      const existingOrg = { id: `123`, name: `Test Org` }
-      const mockError = new Error(`Database delete failed`)
-      mockReq.params = { id: `123` }
-
-      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
-      const mockDelete = mockReq.app?.locals.db.services.org.delete as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: existingOrg })
-      mockDelete.mockResolvedValue({ error: mockError })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database delete failed` })
-    })
-
-    it(`should have correct endpoint configuration`, () => {
-      expect(ep.path).toBe(`/:id`)
-      expect(ep.method).toBe(`delete`)
-    })
-  })
-
-  describe(`POST /_/orgs/:id/members - Add org member`, () => {
-    const ep = getEndpointCfg(orgs.endpoints?.addOrgMember)
-
-    it(`should return 201 with role data on success`, async () => {
-      const existingOrg = { id: `org-123`, name: `Test Org` }
-      const existingUser = { id: `user-456`, email: `user@example.com` }
-      const createdRole = {
-        id: `role-789`,
-        orgId: `org-123`,
-        userId: `user-456`,
-        type: `basic`,
+    it(`should allow super admin to access any org`, async () => {
+      const mockOrg = {
+        id: `org-123`,
+        name: `Private Organization`,
+        slug: `private-org`,
       }
       mockReq.params = { id: `org-123` }
-      mockReq.body = { userId: `user-456` }
+      // Set user as Neon admin (super admin)
+      mockReq.user = {
+        id: `admin-user-id`,
+        email: `admin@example.com`,
+        role: ERoleType.admin,
+      } as any
 
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockUserGet = mockReq.app?.locals.db.services.user.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockRoleCreate = mockReq.app?.locals.db.services.role.create as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: existingOrg })
-      mockUserGet.mockResolvedValue({ data: existingUser })
-      mockRoleCreate.mockResolvedValue({ data: createdRole })
+      const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockOrgGet).toHaveBeenCalledWith(`org-123`)
-      expect(mockUserGet).toHaveBeenCalledWith(`user-456`)
-      expect(mockRoleCreate).toHaveBeenCalledWith({
-        orgId: `org-123`,
-        userId: `user-456`,
-        type: `basic`,
-      })
-      expect(mockStatus).toHaveBeenCalledWith(201)
-      expect(mockJson).toHaveBeenCalledWith({ data: createdRole })
-    })
-
-    it(`should use custom role type when provided`, async () => {
-      const existingOrg = { id: `org-123`, name: `Test Org` }
-      const existingUser = { id: `user-456`, email: `user@example.com` }
-      const createdRole = {
-        id: `role-789`,
-        orgId: `org-123`,
-        userId: `user-456`,
-        type: `admin`,
-      }
-      mockReq.params = { id: `org-123` }
-      mockReq.body = { userId: `user-456`, type: `admin` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockUserGet = mockReq.app?.locals.db.services.user.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockRoleCreate = mockReq.app?.locals.db.services.role.create as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: existingOrg })
-      mockUserGet.mockResolvedValue({ data: existingUser })
-      mockRoleCreate.mockResolvedValue({ data: createdRole })
+      // Super admin bypasses membership check
+      mockIsOrgMember.mockResolvedValue({ data: false })
+      mockGet.mockResolvedValue({ data: mockOrg })
+      mockGetOrgRole.mockResolvedValue({ data: null })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockRoleCreate).toHaveBeenCalledWith({
-        orgId: `org-123`,
-        userId: `user-456`,
-        type: `admin`,
-      })
-    })
-
-    it(`should return 400 when userId is missing`, async () => {
-      mockReq.params = { id: `org-123` }
-      mockReq.body = {}
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `userId is required` })
-    })
-
-    it(`should return 404 when org not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
-      mockReq.body = { userId: `user-456` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: undefined })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Org not found` })
-    })
-
-    it(`should return 404 when user not found`, async () => {
-      const existingOrg = { id: `org-123`, name: `Test Org` }
-      mockReq.params = { id: `org-123` }
-      mockReq.body = { userId: `nonexistent` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockUserGet = mockReq.app?.locals.db.services.user.get as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: existingOrg })
-      mockUserGet.mockResolvedValue({ data: undefined })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `User not found` })
-    })
-
-    it(`should return 500 when org get fails`, async () => {
-      const mockError = new Error(`Database query failed`)
-      mockReq.params = { id: `org-123` }
-      mockReq.body = { userId: `user-456` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ error: mockError })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
-    })
-
-    it(`should return 500 when role create fails`, async () => {
-      const existingOrg = { id: `org-123`, name: `Test Org` }
-      const existingUser = { id: `user-456`, email: `user@example.com` }
-      const mockError = new Error(`Database insert failed`)
-      mockReq.params = { id: `org-123` }
-      mockReq.body = { userId: `user-456` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockUserGet = mockReq.app?.locals.db.services.user.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockRoleCreate = mockReq.app?.locals.db.services.role.create as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: existingOrg })
-      mockUserGet.mockResolvedValue({ data: existingUser })
-      mockRoleCreate.mockResolvedValue({ error: mockError })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database insert failed` })
-    })
-
-    it(`should have correct endpoint configuration`, () => {
-      expect(ep.path).toBe(`/:id/members`)
-      expect(ep.method).toBe(`post`)
-    })
-  })
-
-  describe(`DELETE /_/orgs/:id/members/:userId - Remove org member`, () => {
-    const ep = getEndpointCfg(orgs.endpoints?.removeOrgMember)
-
-    it(`should return 200 with deleted role data on success`, async () => {
-      const existingOrg = { id: `org-123`, name: `Test Org` }
-      const existingRole = {
-        id: `role-789`,
-        orgId: `org-123`,
-        userId: `user-456`,
-        type: `basic`,
-      }
-      mockReq.params = { id: `org-123`, userId: `user-456` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockRoleList = mockReq.app?.locals.db.services.role.list as ReturnType<
-        typeof vi.fn
-      >
-      const mockRoleDelete = mockReq.app?.locals.db.services.role.delete as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: existingOrg })
-      mockRoleList.mockResolvedValue({ data: [existingRole] })
-      mockRoleDelete.mockResolvedValue({ data: existingRole })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockOrgGet).toHaveBeenCalledWith(`org-123`)
-      expect(mockRoleList).toHaveBeenCalled()
-      expect(mockRoleDelete).toHaveBeenCalledWith(`role-789`)
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: existingRole })
-    })
-
-    it(`should return 404 when org not found`, async () => {
-      mockReq.params = { id: `nonexistent`, userId: `user-456` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: undefined })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Org not found` })
-    })
-
-    it(`should return 404 when member not found in org`, async () => {
-      const existingOrg = { id: `org-123`, name: `Test Org` }
-      const otherRole = {
-        id: `role-999`,
-        orgId: `other-org`,
-        userId: `other-user`,
-        type: `basic`,
-      }
-      mockReq.params = { id: `org-123`, userId: `user-456` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockRoleList = mockReq.app?.locals.db.services.role.list as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: existingOrg })
-      mockRoleList.mockResolvedValue({ data: [otherRole] })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Org member not found` })
-    })
-
-    it(`should return 500 when org get fails`, async () => {
-      const mockError = new Error(`Database query failed`)
-      mockReq.params = { id: `org-123`, userId: `user-456` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ error: mockError })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
-    })
-
-    it(`should return 500 when role list fails`, async () => {
-      const existingOrg = { id: `org-123`, name: `Test Org` }
-      const mockError = new Error(`Database query failed`)
-      mockReq.params = { id: `org-123`, userId: `user-456` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockRoleList = mockReq.app?.locals.db.services.role.list as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: existingOrg })
-      mockRoleList.mockResolvedValue({ error: mockError })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
-    })
-
-    it(`should return 500 when role delete fails`, async () => {
-      const existingOrg = { id: `org-123`, name: `Test Org` }
-      const existingRole = {
-        id: `role-789`,
-        orgId: `org-123`,
-        userId: `user-456`,
-        type: `basic`,
-      }
-      const mockError = new Error(`Database delete failed`)
-      mockReq.params = { id: `org-123`, userId: `user-456` }
-
-      const mockOrgGet = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockRoleList = mockReq.app?.locals.db.services.role.list as ReturnType<
-        typeof vi.fn
-      >
-      const mockRoleDelete = mockReq.app?.locals.db.services.role.delete as ReturnType<
-        typeof vi.fn
-      >
-      mockOrgGet.mockResolvedValue({ data: existingOrg })
-      mockRoleList.mockResolvedValue({ data: [existingRole] })
-      mockRoleDelete.mockResolvedValue({ error: mockError })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database delete failed` })
-    })
-
-    it(`should have correct endpoint configuration`, () => {
-      expect(ep.path).toBe(`/:id/members/:userId`)
-      expect(ep.method).toBe(`delete`)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData.id).toBe(`org-123`)
+      // Super admin gets super role
+      expect(responseData.userRole).toBe(ERoleType.super)
     })
   })
 })

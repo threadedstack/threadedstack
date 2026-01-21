@@ -1,14 +1,14 @@
 import type { Response } from 'express'
-import type { TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
+import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { apiKeys } from './apiKeys'
 import { ApiKey } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { PolarService } from '@TBE/services/payments'
 
-// Mock the logger
-vi.mock('@TBE/utils/logger', () => ({
+vi.mock(`@TBE/utils/logger`, () => ({
   logger: {
     error: vi.fn(),
     warn: vi.fn(),
@@ -23,8 +23,30 @@ describe(`API Keys endpoints`, () => {
   let mockStatus: ReturnType<typeof vi.fn>
   let mockSetHeader: ReturnType<typeof vi.fn>
 
+  const mockApp = {
+    locals: {
+      config,
+      payments: new PolarService(config.payments),
+      db: {
+        services: {
+          apiKey: {
+            list: vi.fn(),
+            get: vi.fn(),
+            create: vi.fn(),
+            update: vi.fn(),
+            revoke: vi.fn(),
+          },
+          role: {
+            getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+            getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+          },
+        },
+      },
+    },
+  } as unknown as TApp
+
   const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(config) : endpoint
+    isFunc(endpoint) ? endpoint(mockApp) : endpoint
 
   beforeEach(() => {
     mockJson = vi.fn()
@@ -38,24 +60,14 @@ describe(`API Keys endpoints`, () => {
     } as Partial<Response>
 
     mockReq = {
-      app: {
-        locals: {
-          db: {
-            services: {
-              apiKey: {
-                list: vi.fn(),
-                get: vi.fn(),
-                create: vi.fn(),
-                update: vi.fn(),
-                revoke: vi.fn(),
-              },
-            },
-          },
-        },
+      app: mockApp,
+      user: {
+        id: `test-user-id`,
+        email: `test@example.com`,
       } as any,
       params: {},
       body: {},
-      query: {},
+      query: { orgId: `org-1` },
     }
   })
 
@@ -111,7 +123,7 @@ describe(`API Keys endpoints`, () => {
       // Verify keyHash is not included in response
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData[0].keyHash).toBe(undefined)
-      expect(responseData[0]).toHaveProperty('keyPrefix', 'tdsk_prod')
+      expect(responseData[0]).toHaveProperty(`keyPrefix`, `tdsk_prod`)
     })
 
     it(`should filter by orgId when provided`, async () => {
@@ -141,7 +153,7 @@ describe(`API Keys endpoints`, () => {
 
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
-      expect(responseData[0].orgId).toBe('org-1')
+      expect(responseData[0].orgId).toBe(`org-1`)
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -230,9 +242,9 @@ describe(`API Keys endpoints`, () => {
 
       // Verify the raw key is returned
       const response = mockJson.mock.calls[0][0]
-      expect(response.data).toHaveProperty('key')
+      expect(response.data).toHaveProperty(`key`)
       expect(response.data.key).toMatch(/^tdsk_/)
-      expect(response.warning).toContain('not be shown again')
+      expect(response.warning).toContain(`not be shown again`)
     })
 
     it(`should return 400 when name is missing`, async () => {

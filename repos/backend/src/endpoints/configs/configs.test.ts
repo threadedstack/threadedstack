@@ -1,11 +1,12 @@
 import type { Response } from 'express'
-import type { TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
+import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { configs } from './configs'
 import { Config } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { PolarService } from '@TBE/services/payments'
 
 describe(`Configs endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -13,8 +14,32 @@ describe(`Configs endpoints`, () => {
   let mockJson: ReturnType<typeof vi.fn>
   let mockStatus: ReturnType<typeof vi.fn>
 
+  const buildApp = () => {
+    return {
+      locals: {
+        config,
+        payments: new PolarService(config.payments),
+        db: {
+          services: {
+            config: {
+              list: vi.fn(),
+              get: vi.fn(),
+              create: vi.fn(),
+              update: vi.fn(),
+              delete: vi.fn(),
+            },
+            role: {
+              getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+              getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+            },
+          },
+        },
+      },
+    } as unknown as TApp
+  }
+
   const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(config) : endpoint
+    isFunc(endpoint) ? endpoint(buildApp()) : endpoint
 
   beforeEach(() => {
     mockJson = vi.fn()
@@ -26,20 +51,10 @@ describe(`Configs endpoints`, () => {
     } as Partial<Response>
 
     mockReq = {
-      app: {
-        locals: {
-          db: {
-            services: {
-              config: {
-                list: vi.fn(),
-                get: vi.fn(),
-                create: vi.fn(),
-                update: vi.fn(),
-                delete: vi.fn(),
-              },
-            },
-          },
-        },
+      app: buildApp(),
+      user: {
+        id: `test-user-id`,
+        email: `test@example.com`,
       } as any,
       params: {},
       body: {},
@@ -67,13 +82,13 @@ describe(`Configs endpoints`, () => {
       const mockConfigs = [
         new Config({
           id: `1`,
-          data: { theme: 'dark' },
+          data: { theme: `dark` },
           orgId: `org-1`,
           createdAt: new Date(),
         }),
         new Config({
           id: `2`,
-          data: { lang: 'en' },
+          data: { lang: `en` },
           projectId: `project-1`,
           createdAt: new Date(),
         }),
@@ -92,7 +107,7 @@ describe(`Configs endpoints`, () => {
       expect(mockJson).toHaveBeenCalled()
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
-      expect(responseData[0].orgId).toBe('org-1')
+      expect(responseData[0].orgId).toBe(`org-1`)
     })
 
     it(`should return 400 when no scope parameter provided`, async () => {
@@ -101,7 +116,7 @@ describe(`Configs endpoints`, () => {
 
       expect(mockStatus).toHaveBeenCalledWith(400)
       expect(mockJson).toHaveBeenCalledWith({
-        error: 'orgId, projectId, or userId query parameter required',
+        error: `orgId, projectId, or userId query parameter required`,
       })
     })
 
@@ -120,7 +135,7 @@ describe(`Configs endpoints`, () => {
 
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
-      expect(responseData[0].projectId).toBe('project-1')
+      expect(responseData[0].projectId).toBe(`project-1`)
     })
 
     it(`should return 500 on database error`, async () => {
@@ -144,7 +159,7 @@ describe(`Configs endpoints`, () => {
     it(`should return 200 with config when found`, async () => {
       const mockConfig = new Config({
         id: `123`,
-        data: { setting: 'value' },
+        data: { setting: `value` },
         orgId: `org-1`,
       })
       mockReq.params = { id: `123` }
@@ -180,10 +195,10 @@ describe(`Configs endpoints`, () => {
     const ep = getEndpointCfg(configs.endpoints?.createConfig)
 
     it(`should return 201 with created config on success`, async () => {
-      const newConfig = { data: { key: 'value' }, orgId: `org-123` }
+      const newConfig = { data: { key: `value` }, orgId: `org-123` }
       const createdConfig = new Config({
         id: `456`,
-        data: { key: 'value' },
+        data: { key: `value` },
         orgId: `org-123`,
       })
       mockReq.body = newConfig
@@ -208,7 +223,7 @@ describe(`Configs endpoints`, () => {
     })
 
     it(`should return 400 when no scope is provided`, async () => {
-      mockReq.body = { data: { key: 'value' } }
+      mockReq.body = { data: { key: `value` } }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
@@ -219,7 +234,7 @@ describe(`Configs endpoints`, () => {
 
     it(`should return 400 when multiple scopes are provided`, async () => {
       mockReq.body = {
-        data: { key: 'value' },
+        data: { key: `value` },
         orgId: `org-1`,
         projectId: `project-1`,
       }
@@ -238,13 +253,13 @@ describe(`Configs endpoints`, () => {
     it(`should return 200 with updated config on success`, async () => {
       const existingConfig = new Config({
         id: `123`,
-        data: { old: 'value' },
+        data: { old: `value` },
         orgId: `org-1`,
       })
-      const updateData = { data: { new: 'value' } }
+      const updateData = { data: { new: `value` } }
       const updatedConfig = new Config({
         id: `123`,
-        data: { new: 'value' },
+        data: { new: `value` },
         orgId: `org-1`,
       })
       mockReq.params = { id: `123` }
@@ -267,7 +282,7 @@ describe(`Configs endpoints`, () => {
 
     it(`should return 404 when config not found`, async () => {
       mockReq.params = { id: `nonexistent` }
-      mockReq.body = { data: { new: 'value' } }
+      mockReq.body = { data: { new: `value` } }
 
       const mockGet = mockReq.app?.locals.db.services.config.get as ReturnType<
         typeof vi.fn
@@ -287,7 +302,7 @@ describe(`Configs endpoints`, () => {
     it(`should return 200 with success on delete`, async () => {
       const existingConfig = new Config({
         id: `123`,
-        data: { to: 'delete' },
+        data: { to: `delete` },
         orgId: `org-1`,
       })
       mockReq.params = { id: `123` }

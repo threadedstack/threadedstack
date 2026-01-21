@@ -1,19 +1,48 @@
 import type { Response } from 'express'
-import type { TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
+import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { projects } from './projects'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { PolarService } from '@TBE/services/payments'
 
 describe(`Endpoint projects`, () => {
   let mockReq: Partial<TRequest>
   let mockRes: Partial<Response>
   let mockJson: ReturnType<typeof vi.fn>
   let mockStatus: ReturnType<typeof vi.fn>
+  const buildApp = () => {
+    return {
+      locals: {
+        config,
+        payments: new PolarService(config.payments),
+        db: {
+          services: {
+            project: {
+              list: vi.fn(),
+              get: vi.fn(),
+              create: vi.fn(),
+              update: vi.fn(),
+              delete: vi.fn(),
+            },
+            role: {
+              getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+              getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+              getUserOrgs: vi
+                .fn()
+                .mockResolvedValue({ data: [{ id: `org-1`, name: `Org 1` }] }),
+              isOrgMember: vi.fn().mockResolvedValue({ data: true }),
+              isProjectMember: vi.fn().mockResolvedValue({ data: true }),
+            },
+          },
+        },
+      },
+    } as unknown as TApp
+  }
 
   const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(config) : endpoint
+    isFunc(endpoint) ? endpoint(buildApp()) : endpoint
 
   beforeEach(() => {
     mockJson = vi.fn()
@@ -25,20 +54,10 @@ describe(`Endpoint projects`, () => {
     } as Partial<Response>
 
     mockReq = {
-      app: {
-        locals: {
-          db: {
-            services: {
-              Project: {
-                list: vi.fn(),
-                get: vi.fn(),
-                create: vi.fn(),
-                update: vi.fn(),
-                delete: vi.fn(),
-              },
-            },
-          },
-        },
+      app: buildApp(),
+      user: {
+        id: `test-user-id`,
+        email: `test@example.com`,
       } as any,
       params: {},
       body: {},
@@ -48,7 +67,7 @@ describe(`Endpoint projects`, () => {
 
   describe(`Parent Project configuration`, () => {
     it(`should have correct configuration`, () => {
-      expect(projects.path).toBe(`/Projects`)
+      expect(projects.path).toBe(`/projects`)
       expect(projects.method).toBe(`use`)
       expect(projects.endpoints).toBeDefined()
       expect(projects.endpoints?.listProjects).toBeDefined()
@@ -68,14 +87,12 @@ describe(`Endpoint projects`, () => {
           id: `1`,
           name: `Get Users`,
           url: `https://api.example.com/users`,
-          method: `GET`,
           projectId: `project-1`,
         },
         {
           id: `2`,
           name: `Create User`,
           url: `https://api.example.com/users`,
-          method: `POST`,
           projectId: `project-1`,
         },
       ]
@@ -91,12 +108,11 @@ describe(`Endpoint projects`, () => {
       expect(mockJson).toHaveBeenCalledWith({ data: mockProjects })
     })
 
-    it(`should filter by projectId when provided`, async () => {
+    it(`should filter by orgId when provided`, async () => {
       const mockProjects = [
-        { id: `1`, name: `EP1`, url: `u1`, method: `GET`, projectId: `project-1` },
-        { id: `2`, name: `EP2`, url: `u2`, method: `GET`, projectId: `project-2` },
+        { id: `1`, name: `EP1`, url: `u1`, projectId: `project-1`, orgId: `org-1` },
       ]
-      mockReq.query = { projectId: `project-1` }
+      mockReq.query = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
         typeof vi.fn
@@ -104,9 +120,9 @@ describe(`Endpoint projects`, () => {
       mockList.mockResolvedValue({ data: mockProjects })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      const responseData = mockJson.mock.calls[0][0].data
-      expect(responseData).toHaveLength(1)
-      expect(responseData[0].projectId).toBe('project-1')
+      expect(mockList).toHaveBeenCalledWith({ where: { orgId: `org-1` } })
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({ data: mockProjects })
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -131,7 +147,6 @@ describe(`Endpoint projects`, () => {
         id: `123`,
         name: `Get Users`,
         url: `https://api.example.com/users`,
-        method: `GET`,
         projectId: `project-1`,
       }
       mockReq.params = { id: `123` }
@@ -168,9 +183,9 @@ describe(`Endpoint projects`, () => {
 
     it(`should return 201 with created Project on success`, async () => {
       const newProject = {
+        orgId: `org-1`,
         name: `New Project`,
         url: `https://api.example.com/new`,
-        method: `GET`,
         projectId: `project-123`,
       }
       const createdProject = { id: `456`, ...newProject }
@@ -189,8 +204,8 @@ describe(`Endpoint projects`, () => {
 
     it(`should return 400 when name is missing`, async () => {
       mockReq.body = {
+        orgId: `org-1`,
         url: `https://api.example.com`,
-        method: `GET`,
         projectId: `project-1`,
       }
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -200,53 +215,28 @@ describe(`Endpoint projects`, () => {
     })
 
     it(`should return 400 when url is missing`, async () => {
-      mockReq.body = { name: `Test`, method: `GET`, projectId: `project-1` }
+      mockReq.body = { orgId: `org-1`, name: `Test`, projectId: `project-1` }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
       expect(mockJson).toHaveBeenCalledWith({ error: `Project URL is required` })
     })
 
-    it(`should return 400 when method is missing`, async () => {
-      mockReq.body = {
-        name: `Test`,
-        url: `https://api.example.com`,
-        projectId: `project-1`,
-      }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Project method is required` })
-    })
-
     it(`should return 400 when projectId is missing`, async () => {
-      mockReq.body = { name: `Test`, url: `https://api.example.com`, method: `GET` }
+      mockReq.body = { orgId: `org-1`, name: `Test`, url: `https://api.example.com` }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(400)
       expect(mockJson).toHaveBeenCalledWith({ error: `Project projectId is required` })
     })
 
-    it(`should return 400 when method is invalid`, async () => {
-      mockReq.body = {
-        name: `Test`,
-        url: `https://api.example.com`,
-        method: `INVALID`,
-        projectId: `project-1`,
-      }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson.mock.calls[0][0].error).toContain(`Invalid HTTP method`)
-    })
-
     it(`should accept headers and options`, async () => {
       const newProject = {
+        orgId: `org-1`,
         name: `New Project`,
         url: `https://api.example.com/new`,
-        method: `POST`,
         projectId: `project-123`,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { [`Content-Type`]: `application/json` },
         options: { timeout: 5000 },
       }
       const createdProject = { id: `456`, ...newProject }
@@ -260,7 +250,7 @@ describe(`Endpoint projects`, () => {
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          headers: { 'Content-Type': 'application/json' },
+          headers: { [`Content-Type`]: `application/json` },
           options: { timeout: 5000 },
         })
       )
@@ -275,8 +265,9 @@ describe(`Endpoint projects`, () => {
         id: `123`,
         name: `Old Name`,
         url: `https://old.api.com`,
-        method: `GET`,
+
         projectId: `project-1`,
+        orgId: `org-1`,
       }
       const updateData = { name: `New Name` }
       const updatedProject = { ...existingProject, ...updateData }
@@ -313,28 +304,6 @@ describe(`Endpoint projects`, () => {
       expect(mockStatus).toHaveBeenCalledWith(404)
       expect(mockJson).toHaveBeenCalledWith({ error: `Project not found` })
     })
-
-    it(`should return 400 when method is invalid`, async () => {
-      const existingProject = {
-        id: `123`,
-        name: `Test`,
-        url: `https://api.com`,
-        method: `GET`,
-        projectId: `project-1`,
-      }
-      mockReq.params = { id: `123` }
-      mockReq.body = { method: `INVALID` }
-
-      const mockGet = mockReq.app?.locals.db.services.project.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: existingProject })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson.mock.calls[0][0].error).toContain(`Invalid HTTP method`)
-    })
   })
 
   describe(`DELETE /_/Projects/:id - Delete Project`, () => {
@@ -345,8 +314,9 @@ describe(`Endpoint projects`, () => {
         id: `123`,
         name: `To Delete`,
         url: `https://api.com`,
-        method: `GET`,
+
         projectId: `project-1`,
+        orgId: `org-1`,
       }
       mockReq.params = { id: `123` }
 

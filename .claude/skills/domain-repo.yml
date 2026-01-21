@@ -589,16 +589,6 @@ Environment loading follows precedence:
 All commands use PNPM:
 
 ```bash
-# Linting (Biome)
-pnpm lint               # Lint with auto-fix
-pnpm lint:ci            # Lint in CI (error level)
-pnpm lint:staged        # Lint staged files only
-
-# Formatting (Biome)
-pnpm format             # Format with auto-fix
-pnpm format:ci          # Format in CI (error level)
-pnpm format:staged      # Format staged files only
-
 # Testing (Vitest)
 pnpm test               # Run tests
 

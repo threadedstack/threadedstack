@@ -452,12 +452,6 @@ pnpm install
 # Run unit tests via vitest
 pnpm test
 
-# Run code formatting via biome
-pnpm format
-
-# Run code linting via biome
-pnpm lint
-
 # Sync package versions
 pnpm sync
 
@@ -471,32 +465,25 @@ pnpm clean:full
 ```bash
 pnpm start          # Dev server
 pnpm build          # Production build
-pnpm lint           # Biome lint
-pnpm format         # Biome format
+pnpm test           # Vitest tests
 ```
 
 **Backend** (`repos/backend/`)
 ```bash
 pnpm start          # Dev with watch (watches domain/logger/database)
 pnpm build          # Production build
-pnpm lint           # Biome lint
-pnpm format         # Biome format
+pnpm test           # Vitest tests
 ```
 
 **Proxy** (`repos/proxy/`)
 ```bash
 pnpm start          # Dev with watch
 pnpm test           # Vitest tests
-pnpm lint           # Biome lint
-pnpm format         # Biome format
 ```
 
 **Database** (`repos/database/`)
 ```bash
-pnpm generate       # Generate migrations
-pnpm migrate        # Run migrations
-pnpm push           # Push schema to DB
-pnpm studio         # Open Drizzle Studio
+pnpm test           # Vitest tests
 ```
 
 ## Development Phases
@@ -517,4 +504,4 @@ The project follows a phased rollout:
 
 **Environment Variables**: Loaded via `@keg-hub/parse-config` from `deploy/values.*.yml` (local, dev, prod).
 
-**Linting**: All repos use Biome for linting and formatting.
+**Linting**: All repos use Biome for linting and formatting. It runs automatically and should not be run manually.

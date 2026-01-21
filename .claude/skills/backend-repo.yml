@@ -450,17 +450,6 @@ pnpm clean:nm       # Remove node_modules
 pnpm clean:full     # Clean dist + node_modules
 ```
 
-### Code Quality
-
-```bash
-pnpm lint           # Biome lint with auto-fix
-pnpm format         # Biome format with auto-fix
-pnpm lint:ci        # Lint for CI (errors only, changed files)
-pnpm format:ci      # Format for CI (errors only, changed files)
-pnpm lint:staged    # Lint staged files (for pre-commit)
-pnpm format:staged  # Format staged files (for pre-commit)
-```
-
 ### Testing
 
 ```bash

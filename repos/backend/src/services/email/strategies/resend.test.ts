@@ -105,7 +105,9 @@ describe(`ResendStrategy`, () => {
     it(`should handle API errors`, async () => {
       const mockResponse = {
         ok: false,
+        status: 401,
         statusText: `Bad Request`,
+        text: async () => `Invalid API key`,
         json: async () => ({ message: `Invalid API key` }),
       }
 
@@ -137,7 +139,7 @@ describe(`ResendStrategy`, () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toBeInstanceOf(Error)
-      expect(result.error?.message).toBe(`Network error`)
+      expect(result.error?.message).toContain(`Network error`)
     })
   })
 })

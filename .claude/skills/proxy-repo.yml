@@ -325,16 +325,6 @@ pnpm clean:full         # Remove dist/ and node_modules/
 
 # Testing
 pnpm test               # Run tests (vitest run)
-pnpm test:watch         # Run tests in watch mode
-
-# Linting/Formatting
-pnpm lint               # Lint and fix (biome)
-pnpm format             # Format and fix (biome)
-pnpm lint:ci            # Lint with errors (CI)
-pnpm format:ci          # Format with errors (CI)
-pnpm lint:staged        # Lint staged files (pre-commit)
-pnpm format:staged      # Format staged files (pre-commit)
-```
 
 ## Integration Points
 

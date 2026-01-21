@@ -1,24 +1,24 @@
 import type { Response } from 'express'
-import type { TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
+import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { secrets } from './secrets'
 import { Secret } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { PolarService } from '@TBE/services/payments'
 
-// Mock the crypto utilities from domain
-vi.mock('@tdsk/domain', async () => {
-  const actual = await vi.importActual('@tdsk/domain')
+vi.mock(`@tdsk/domain`, async () => {
+  const actual = await vi.importActual(`@tdsk/domain`)
   return {
     ...actual,
-    deriveKey: vi.fn().mockResolvedValue(Buffer.alloc(32, 'key')),
+    deriveKey: vi.fn().mockResolvedValue(Buffer.alloc(32, `key`)),
     encryptValue: vi.fn().mockResolvedValue({
-      iv: Buffer.alloc(12, 'iv'),
-      authTag: Buffer.alloc(16, 'tag'),
-      encrypted: Buffer.from('encrypted'),
+      iv: Buffer.alloc(12, `iv`),
+      authTag: Buffer.alloc(16, `tag`),
+      encrypted: Buffer.from(`encrypted`),
     }),
-    decryptValue: vi.fn().mockResolvedValue('decrypted-value'),
+    decryptValue: vi.fn().mockResolvedValue(`decrypted-value`),
   }
 })
 
@@ -27,9 +27,34 @@ describe(`Secrets endpoints`, () => {
   let mockRes: Partial<Response>
   let mockJson: ReturnType<typeof vi.fn>
   let mockStatus: ReturnType<typeof vi.fn>
+  const buildApp = () => {
+    return {
+      locals: {
+        config,
+        payments: new PolarService(config.payments),
+        db: {
+          services: {
+            secret: {
+              list: vi.fn(),
+              get: vi.fn(),
+              create: vi.fn(),
+              update: vi.fn(),
+              delete: vi.fn(),
+            },
+            role: {
+              getOrgRole: vi.fn().mockResolvedValue({ data: { type: `member` } }),
+              getProjectRole: vi.fn().mockResolvedValue({ data: { type: `member` } }),
+              isOrgMember: vi.fn().mockResolvedValue({ data: true }),
+              isProjectMember: vi.fn().mockResolvedValue({ data: true }),
+            },
+          },
+        },
+      },
+    } as unknown as TApp
+  }
 
   const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(config) : endpoint
+    isFunc(endpoint) ? endpoint(buildApp()) : endpoint
 
   beforeEach(() => {
     mockJson = vi.fn()
@@ -41,20 +66,10 @@ describe(`Secrets endpoints`, () => {
     } as Partial<Response>
 
     mockReq = {
-      app: {
-        locals: {
-          db: {
-            services: {
-              secret: {
-                list: vi.fn(),
-                get: vi.fn(),
-                create: vi.fn(),
-                update: vi.fn(),
-                delete: vi.fn(),
-              },
-            },
-          },
-        },
+      app: buildApp(),
+      user: {
+        id: `test-user-id`,
+        email: `test@example.com`,
       } as any,
       params: {},
       body: {},
@@ -97,6 +112,7 @@ describe(`Secrets endpoints`, () => {
           createdAt: new Date(),
         }),
       ]
+      mockReq.query = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
         typeof vi.fn
@@ -109,7 +125,7 @@ describe(`Secrets endpoints`, () => {
       // Should not include encryptedValue in response
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData[0].encryptedValue).toBe(undefined)
-      expect(responseData[0]).toHaveProperty('name', 'API_KEY')
+      expect(responseData[0]).toHaveProperty(`name`, `API_KEY`)
     })
 
     it(`should filter by orgId when provided`, async () => {
@@ -139,11 +155,12 @@ describe(`Secrets endpoints`, () => {
 
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
-      expect(responseData[0].orgId).toBe('org-1')
+      expect(responseData[0].orgId).toBe(`org-1`)
     })
 
     it(`should return 500 with error message on database failure`, async () => {
       const mockError = new Error(`Database connection failed`)
+      mockReq.query = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
         typeof vi.fn
@@ -168,6 +185,7 @@ describe(`Secrets endpoints`, () => {
         encryptedValue: `encrypted`,
       })
       mockReq.params = { id: `123` }
+      mockReq.body = {}
 
       const mockGet = mockReq.app?.locals.db.services.secret.get as ReturnType<
         typeof vi.fn
@@ -202,6 +220,11 @@ describe(`Secrets endpoints`, () => {
     const ep = getEndpointCfg(secrets.endpoints?.createSecret)
 
     it(`should return 201 with created secret metadata on success`, async () => {
+      // Override role to admin for create operation
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
       const newSecret = { name: `NEW_KEY`, value: `secret-value`, orgId: `org-123` }
       const createdSecret = new Secret({
         id: `456`,
@@ -271,6 +294,11 @@ describe(`Secrets endpoints`, () => {
     const ep = getEndpointCfg(secrets.endpoints?.updateSecret)
 
     it(`should return 200 with updated secret metadata on success`, async () => {
+      // Override role to admin for update operation
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
       const existingSecret = new Secret({
         id: `123`,
         name: `OLD_KEY`,
@@ -318,6 +346,11 @@ describe(`Secrets endpoints`, () => {
     const ep = getEndpointCfg(secrets.endpoints?.deleteSecret)
 
     it(`should return 200 with success on delete`, async () => {
+      // Override role to admin for delete operation
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
       const existingSecret = new Secret({
         id: `123`,
         name: `TO_DELETE`,

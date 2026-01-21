@@ -28,31 +28,43 @@ export class ResendStrategy extends BaseEmailStrategy {
   }
 
   async send(options: TSendEmailOptions): Promise<TEmailResult> {
-    const to = this.to(options.to)
-    const from = this.from(options.from)
+    try {
+      const to = this.to(options.to)
+      const from = this.from(options.from)
 
-    const payload = {
-      to,
-      from,
-      html: options.html,
-      subject: options.subject,
-      ...(options.text && { text: options.text }),
-    }
+      const payload = {
+        to,
+        from,
+        html: options.html,
+        subject: options.subject,
+        ...(options.text && { text: options.text }),
+      }
 
-    const { data, error } = await this.#api.post({ data: payload })
+      const { data, error } = await this.#api.post({ data: payload })
 
-    if (error) throw new Error(`Resend API error: ${error.message}`)
+      if (error) {
+        return {
+          success: false,
+          error: new Error(`Resend API error: ${error.message}`),
+        }
+      }
 
-    logger.info(`[RESEND STRATEGY] Email sent successfully:`, {
-      from,
-      to: options.to,
-      messageId: data.id,
-      subject: options.subject,
-    })
+      logger.info(`[RESEND STRATEGY] Email sent successfully:`, {
+        from,
+        to: options.to,
+        messageId: data.id,
+        subject: options.subject,
+      })
 
-    return {
-      success: true,
-      messageId: data.id,
+      return {
+        success: true,
+        messageId: data.id,
+      }
+    } catch (err: unknown) {
+      return {
+        success: false,
+        error: err instanceof Error ? err : new Error(String(err)),
+      }
     }
   }
 }

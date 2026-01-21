@@ -1,11 +1,12 @@
 import type { Response } from 'express'
-import type { TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
+import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { functions } from './functions'
-import { Function as TDFunction } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { PolarService } from '@TBE/services/payments'
+import { Function as TDFunction } from '@tdsk/domain'
 
 describe(`Functions endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -13,8 +14,32 @@ describe(`Functions endpoints`, () => {
   let mockJson: ReturnType<typeof vi.fn>
   let mockStatus: ReturnType<typeof vi.fn>
 
+  const buildApp = () => {
+    return {
+      locals: {
+        config,
+        payments: new PolarService(config.payments),
+        db: {
+          services: {
+            function: {
+              list: vi.fn(),
+              get: vi.fn(),
+              create: vi.fn(),
+              update: vi.fn(),
+              delete: vi.fn(),
+            },
+            role: {
+              getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+              getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+            },
+          },
+        },
+      },
+    } as unknown as TApp
+  }
+
   const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(config) : endpoint
+    isFunc(endpoint) ? endpoint(buildApp()) : endpoint
 
   beforeEach(() => {
     mockJson = vi.fn()
@@ -26,20 +51,10 @@ describe(`Functions endpoints`, () => {
     } as Partial<Response>
 
     mockReq = {
-      app: {
-        locals: {
-          db: {
-            services: {
-              function: {
-                list: vi.fn(),
-                get: vi.fn(),
-                create: vi.fn(),
-                update: vi.fn(),
-                delete: vi.fn(),
-              },
-            },
-          },
-        },
+      app: buildApp(),
+      user: {
+        id: `test-user-id`,
+        email: `test@example.com`,
       } as any,
       params: {},
       body: {},

@@ -412,8 +412,6 @@ const saveTempSecret = (value: string) => {
 | `pnpm start` | Build in watch mode and run on changes |
 | `pnpm cli` | Run CLI directly with esbuild-register (dev mode) |
 | `pnpm test` | Run vitest tests |
-| `pnpm lint` | Run Biome linting with auto-fix |
-| `pnpm format` | Run Biome formatting with auto-fix |
 | `pnpm clean` | Remove node_modules |
 
 ### Using the CLI

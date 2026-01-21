@@ -1,19 +1,44 @@
 import type { Response } from 'express'
-import type { TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
+import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { endpoints } from './endpoints'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { PolarService } from '@TBE/services/payments'
 
 describe(`Endpoints endpoints`, () => {
   let mockReq: Partial<TRequest>
   let mockRes: Partial<Response>
   let mockJson: ReturnType<typeof vi.fn>
   let mockStatus: ReturnType<typeof vi.fn>
+  const buildApp = () => {
+    return {
+      locals: {
+        config,
+        payments: new PolarService(config.payments),
+        db: {
+          services: {
+            endpoint: {
+              list: vi.fn(),
+              get: vi.fn(),
+              create: vi.fn(),
+              update: vi.fn(),
+              delete: vi.fn(),
+            },
+            role: {
+              getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+              getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+              isProjectMember: vi.fn().mockResolvedValue({ data: true }),
+            },
+          },
+        },
+      },
+    } as unknown as TApp
+  }
 
   const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(config) : endpoint
+    isFunc(endpoint) ? endpoint(buildApp()) : endpoint
 
   beforeEach(() => {
     mockJson = vi.fn()
@@ -25,24 +50,14 @@ describe(`Endpoints endpoints`, () => {
     } as Partial<Response>
 
     mockReq = {
-      app: {
-        locals: {
-          db: {
-            services: {
-              endpoint: {
-                list: vi.fn(),
-                get: vi.fn(),
-                create: vi.fn(),
-                update: vi.fn(),
-                delete: vi.fn(),
-              },
-            },
-          },
-        },
+      app: buildApp(),
+      user: {
+        id: `test-user-id`,
+        email: `test@example.com`,
       } as any,
       params: {},
       body: {},
-      query: {},
+      query: { projectId: `project-1` },
     }
   })
 
@@ -106,7 +121,7 @@ describe(`Endpoints endpoints`, () => {
 
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
-      expect(responseData[0].projectId).toBe('project-1')
+      expect(responseData[0].projectId).toBe(`project-1`)
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -246,7 +261,7 @@ describe(`Endpoints endpoints`, () => {
         url: `https://api.example.com/new`,
         method: `POST`,
         projectId: `project-123`,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { [`Content-Type`]: `application/json` },
         options: { timeout: 5000 },
       }
       const createdEndpoint = { id: `456`, ...newEndpoint }
@@ -260,7 +275,7 @@ describe(`Endpoints endpoints`, () => {
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          headers: { 'Content-Type': 'application/json' },
+          headers: { [`Content-Type`]: `application/json` },
           options: { timeout: 5000 },
         })
       )

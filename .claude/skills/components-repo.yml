@@ -380,22 +380,6 @@ pnpm clean:full         # Clean everything
 pnpm test               # Run vitest tests
 ```
 
-### Code Quality
-```bash
-pnpm lint               # Lint with Biome (--write)
-pnpm format             # Format with Biome (--write)
-pnpm lint:ci            # Lint for CI (error level)
-pnpm format:ci          # Format check for CI
-pnpm lint:staged        # Lint staged files (git hooks)
-pnpm format:staged      # Format staged files (git hooks)
-```
-
-### Low-Level Commands
-```bash
-pnpm biome              # Run Biome CLI directly
-pnpm biome:lint         # Biome lint
-pnpm biome:format       # Biome format
-```
 
 ## Integration Points
 

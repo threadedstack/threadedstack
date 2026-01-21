@@ -768,7 +768,6 @@ const Layout = () => {
 - **esbuild-register** (3.5.0) - Runtime TS transpilation
 
 ### Dev Tools
-- **@biomejs/biome** (2.1.2) - Linter + formatter
 - **typescript** (5.3.3) - Type checking
 - **vitest** (1.4.0) - Unit testing framework
 - **@testing-library/react** (14.2.1) - React testing utilities
@@ -794,17 +793,6 @@ pnpm preview         # Preview production build
 ```bash
 pnpm build           # Production build to /dist
 pnpm types           # Type check (tsc -b)
-```
-
-### Code Quality
-```bash
-pnpm lint            # Run Biome linter (with --write)
-pnpm format          # Run Biome formatter (with --write)
-pnpm lint:ci         # Lint for CI (--changed, error on issues)
-pnpm format:ci       # Format for CI (--changed, error on issues)
-pnpm lint:staged     # Lint staged files (for pre-commit hooks)
-pnpm format:staged   # Format staged files (for pre-commit hooks)
-pnpm biome           # Run Biome directly
 ```
 
 ### Testing

@@ -43,7 +43,9 @@ export class API {
     path: string = ``,
     params?: string | Record<string, any>
   ) => {
-    const built = `${url.replace(/\/$/, ``)}/${path.replace(/^\//, ``)}`
+    const baseUrlClean = url.replace(/\/$/, ``)
+    const pathClean = path.replace(/^\//, ``)
+    const built = pathClean ? `${baseUrlClean}/${pathClean}` : baseUrlClean
     if (!params) return built
     if (isObj(params)) return `${built}${objToQuery(params)}`
     return `${built}?${params.replace(/^\?/, ``)}`
@@ -75,11 +77,12 @@ export class API {
     const [error, res] = await limbo<TFetchResp<T>, Exception>(
       fetch(url, rest)
         .then(async (res) => {
+          if (res.status >= 400) {
+            const text = res.text ? await res.text() : res.statusText || `Request failed`
+            return { error: this.#err(opts.error, res.status, text) }
+          }
+
           const data = opts.responseType !== `text` ? await res.json() : await res.text()
-
-          if (res.status >= 400)
-            return { error: this.#err(opts.error, res.status, res.statusText) }
-
           return { data }
         })
         .catch((error) => ({ error: this.#err(error.message, 500) }))

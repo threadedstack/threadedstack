@@ -399,18 +399,6 @@ pnpm build                 # Compile with tsup → dist/log/
 # Testing
 pnpm test                  # Run vitest tests
 
-# Code Quality
-pnpm lint                  # Biome lint + auto-fix
-pnpm format                # Biome format + auto-fix
-pnpm lint:ci               # Lint for CI (error on issues)
-pnpm format:ci             # Format check for CI
-pnpm lint:staged           # Lint staged files (pre-commit)
-pnpm format:staged         # Format staged files (pre-commit)
-
-# Biome Direct
-pnpm biome:lint            # Biome lint (manual)
-pnpm biome:format          # Biome format (manual)
-
 # Clean
 pnpm clean                 # Remove node_modules
 ```
