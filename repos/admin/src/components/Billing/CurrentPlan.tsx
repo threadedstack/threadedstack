@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { createPortalSession } from '@TAF/actions'
+import { wordCaps } from '@keg-hub/jsutils/wordCaps'
 import { CheckCircle as CheckIcon } from '@mui/icons-material'
 import { usePaymentPlans, useSubscription } from '@TAF/state/selectors'
 import {
@@ -99,7 +100,7 @@ export const CurrentPlan = (props: TCurrentPlan) => {
                 variant='h5'
                 gutterBottom
               >
-                {currentPlan?.name || subscription.tier}
+                {wordCaps(currentPlan?.name || subscription.tier)}
               </Typography>
               <Chip
                 label={subscription.status}
