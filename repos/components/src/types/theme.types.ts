@@ -1,4 +1,4 @@
-import type { grey, editor } from '@TSC/theme/colors'
+import type { grey, editor, border } from '@TSC/theme/colors'
 import type { dims } from '@TSC/theme/dims'
 import type { gutter } from '@TSC/theme/gutter'
 
@@ -28,7 +28,6 @@ export type TThemeColors = {
   inputBackground?: string
   sectionBackground?: string
   headerBackground?: string
-  border?: string
   input?: string
   placeholder?: string
   ring?: string
@@ -39,6 +38,7 @@ export type TThemeColors = {
   shadowPaper?: string
   grey?: typeof grey
   editor?: (typeof editor)[`light`]
+  border?: (typeof border)[`light`]
   states: {
     info: string
     danger: string

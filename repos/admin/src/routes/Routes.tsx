@@ -9,6 +9,7 @@ const Home = lazy(() => import('@TAF/pages/Home/Home'))
 const Login = lazy(() => import('@TAF/pages/Login/Login'))
 const Account = lazy(() => import('@TAF/pages/Account/Account'))
 const Settings = lazy(() => import('@TAF/pages/Settings/Settings'))
+const Profile = lazy(() => import('@TAF/pages/Profile/Profile'))
 const Billing = lazy(() => import('@TAF/pages/Billing/Billing'))
 
 // Org pages
@@ -162,6 +163,11 @@ export const Routes = createBrowserRouter([
       {
         path: 'settings',
         Component: () => <SuspensePage Component={Settings} />,
+      },
+      // Profile route
+      {
+        path: 'profile',
+        Component: () => <SuspensePage Component={Profile} />,
       },
     ],
   },

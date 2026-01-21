@@ -1,6 +1,24 @@
-import { TextInput } from '@tdsk/components'
+import { TextInput, Button } from '@tdsk/components'
+import SaveIcon from '@mui/icons-material/Save'
+import CancelIcon from '@mui/icons-material/Cancel'
 import { Box, Card, CardContent, Divider, Typography } from '@mui/material'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+
+const styles = {
+  card: { mb: 3 },
+  divider: { my: 2 },
+  inputs: {
+    gap: 2,
+    display: `flex`,
+    flexDirection: `column`,
+  },
+  actions: {
+    mt: 2,
+    gap: 2,
+    display: `flex`,
+    justifyContent: `flex-end`,
+  },
+}
 
 export type TFormField = {
   name: string
@@ -15,20 +33,32 @@ export type TFormField = {
 export type TSettingsFormCard = {
   title?: string
   saving: boolean
+  resetText?: string
+  saveText?: string
   onSave: () => void
+  onReset?: () => void
   hasChanges: boolean
   fields: TFormField[]
 }
 
 export const SettingsFormCard = (props: TSettingsFormCard) => {
-  const { fields, onSave, saving, hasChanges, title = `Settings` } = props
+  const {
+    fields,
+    onSave,
+    onReset,
+    saving,
+    hasChanges,
+    saveText = `Save`,
+    resetText = `Reset`,
+    title = `Settings`,
+  } = props
 
   return (
-    <Card sx={{ mb: 3 }}>
+    <Card sx={styles.card}>
       <CardContent>
         <Typography variant='h6'>{title}</Typography>
-        <Divider sx={{ my: 2 }} />
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Divider sx={styles.divider} />
+        <Box sx={styles.inputs}>
           {fields.map((field) => (
             <TextInput
               fullWidth
@@ -44,15 +74,30 @@ export const SettingsFormCard = (props: TSettingsFormCard) => {
               onChange={(e) => field.onChange(e.target.value)}
             />
           ))}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Box sx={styles.actions}>
+            {(onReset && (
+              <Button
+                color='warning'
+                onClick={onReset}
+                variant='outlined'
+                Icon={<CancelIcon />}
+                disabled={!hasChanges}
+              >
+                {resetText}
+              </Button>
+            )) ||
+              null}
+
             <LoadingButton
-              variant='contained'
+              color='success'
               onClick={onSave}
               loading={saving}
+              Icon={<SaveIcon />}
+              variant='contained'
               disabled={!hasChanges}
               loadingText='Saving...'
             >
-              Save Changes
+              {saveText}
             </LoadingButton>
           </Box>
         </Box>

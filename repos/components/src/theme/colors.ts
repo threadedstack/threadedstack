@@ -66,8 +66,24 @@ const states = {
   },
 }
 
+export const border = {
+  dark: {
+    muted: grey[800],
+    section: grey[800],
+    default: grey[825],
+    highlight: primary[600],
+  },
+  light: {
+    muted: grey[25],
+    section: grey[50],
+    default: grey[50],
+    highlight: primary[100],
+  },
+}
+
 const dark = {
   grey,
+  border: border.dark,
   editor: editor.dark,
   states: states.dark,
   background: grey[875],
@@ -88,7 +104,6 @@ const dark = {
   inputBackground: grey[900],
   headerBackground: grey[900],
   mutedBackground: grey[900],
-  border: grey[825],
   input: grey[800],
   placeholder: grey[600],
   ring: primary[500],
@@ -101,6 +116,7 @@ const dark = {
 
 const light = {
   grey,
+  border: border.light,
   states: states.light,
   editor: editor.light,
   background: grey[0],
@@ -121,7 +137,6 @@ const light = {
   inputBackground: grey[5],
   sectionBackground: grey[0],
   headerBackground: grey[10],
-  border: grey[50],
   input: grey[200],
   ring: primary[500],
   shadowColor: grey[50],

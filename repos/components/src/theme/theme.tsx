@@ -132,12 +132,7 @@ const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
         contrastText: white,
         main: colors.states.success,
       },
-      border: {
-        muted: colors.grey[25],
-        section: colors.grey[50],
-        default: colors.border,
-        highlight: colors.primary[100],
-      },
+      border: colors.border,
       editor: {
         background: colors.editor.background,
         rbackground: colors.editor.rbackground,
@@ -166,7 +161,7 @@ const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
         main: colors.destructive,
         contrastText: colors.destructiveForeground,
       },
-      divider: colors.border,
+      divider: colors.border.default,
       text: {
         primary: colors.foreground,
         secondary: colors.mutedForeground,

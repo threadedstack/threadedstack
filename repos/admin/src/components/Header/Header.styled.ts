@@ -35,7 +35,7 @@ export const Menu = styled(MuiMenu)(({ theme }) => {
     & .MuiPaper-root {
       min-width: 200px;
       box-shadow: ${theme.palette.colors.shadowAlt};
-      border: 1px solid ${theme.palette.border.muted};
+      border: 1px solid ${theme.palette.border.section};
     }
   `
 })

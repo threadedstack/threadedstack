@@ -1,8 +1,7 @@
-import type { ButtonProps } from '@mui/material'
+import type { TLoadingButton } from '@tdsk/components'
 import { LoadingButton as SharedLoadingButton } from '@tdsk/components'
 
-export type TLoadingButton = ButtonProps & {
-  loading?: boolean
+export type TLoadButton = TLoadingButton & {
   loadingText?: string
 }
 
@@ -16,7 +15,7 @@ export const LoadingButton = ({
   children,
   disabled,
   ...props
-}: TLoadingButton) => {
+}: TLoadButton) => {
   const displayText = loading && loadingText ? loadingText : children
 
   return (
