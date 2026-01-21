@@ -4,22 +4,26 @@ import type { Router, Express, Request, Response, NextFunction } from 'express'
 type TCfg = Record<string, any>
 type TDB = Record<string, any>
 type TPay = Record<string, any>
+type TEmail = Record<string, any>
 
 export type TAppLocals<
   C extends TCfg = TCfg,
   D extends TDB = TDB,
   P extends TPay = TPay,
+  E extends TEmail = TEmail,
 > = {
   db: D
   config: C
   payments: P
+  email?: E
 }
 
 export type TApp<
   C extends TCfg = TCfg,
   D extends TDB = TDB,
   P extends TPay = TPay,
-  L = TAppLocals<C, D, P>,
+  E extends TEmail = TEmail,
+  L = TAppLocals<C, D, P, E>,
 > = Express & {
   locals: L
 }

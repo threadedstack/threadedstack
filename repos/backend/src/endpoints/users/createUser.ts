@@ -2,11 +2,12 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import type { Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { ERoleType, EPermAction, EPermResource, isSuperAdmin } from '@tdsk/domain'
+import { ERoleType, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
- * POST /users - Create a new user (invite user to org)
+ * POST /_/users - Create a new user (invite user to org)
  * Requires admin+ role in the org
  * Request should include orgId and initial role
  */
@@ -18,43 +19,29 @@ export const createUser: TEndpointConfig = {
     const userData = req.body
     const { orgId, role: initialRole } = userData
 
-    if (!userData || !userData.email) {
-      res.status(400).json({ error: 'Email is required' })
-      return
-    }
+    if (!orgId) throw new Exception(400, `orgId is required to invite users`)
 
-    if (!orgId) {
-      res.status(400).json({ error: 'orgId is required to invite users' })
-      return
-    }
+    if (!userData || !userData.email) throw new Exception(400, `Email is required`)
 
-    // Check permission to create users in this org
     await checkPermission(req, EPermAction.create, EPermResource.user, { orgId })
 
-    // Create the user
     const { data, error } = await db.services.user.create(userData)
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     // Create role for the user in the org
     if (data?.id) {
-      const { error: roleError } = await db.services.role.create({
+      const result = await db.services.role.create({
         userId: data.id,
         orgId,
         type: initialRole || ERoleType.member,
       })
 
-      if (roleError) {
-        res
-          .status(500)
-          .json({
-            error: `User created but role assignment failed: ${roleError.message}`,
-          })
-        return
-      }
+      if (result.error)
+        throw new Exception(
+          500,
+          `User created but role assignment failed: ${result.error.message}`
+        )
     }
 
     res.status(201).json({ data })

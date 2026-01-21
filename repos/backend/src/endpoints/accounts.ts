@@ -13,10 +13,13 @@ import { secrets } from '@TBE/endpoints/secrets'
 import { apiKeys } from '@TBE/endpoints/apiKeys'
 import { projects } from '@TBE/endpoints/projects'
 import { health } from '@TBE/endpoints/base/health'
+import { invitations } from './invitations/invitations'
 import { authenticate } from '@TBE/middleware/setupAuth'
+import { configs } from '@TBE/endpoints/configs/configs'
 import { subscriptions } from '@TBE/endpoints/subscriptions'
 import { providers } from '@TBE/endpoints/providers/providers'
 import { endpoints } from '@TBE/endpoints/endpoints/endpoints'
+import { functions } from '@TBE/endpoints/functions/functions'
 import { setupSubscription } from '@TBE/middleware/setupSubscription'
 
 export const accounts: TEndpointBuilder = (app) => {
@@ -33,10 +36,13 @@ export const accounts: TEndpointBuilder = (app) => {
       quotas,
       apiKeys,
       secrets,
+      configs,
       payments,
       projects,
+      functions,
       providers,
       endpoints,
+      invitations,
       subscriptions,
     },
   }

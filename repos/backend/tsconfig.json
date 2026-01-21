@@ -19,7 +19,6 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "ignoreDeprecations": "6.0",
     "moduleResolution": "bundler",
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
@@ -32,7 +31,7 @@
       "@TBE/public/*": ["public/*"],
       "@TBE/": ["src"],
       "@TBE/*": ["src/*"],
-      
+
       "@TDM": ["../domain/src"],
       "@TDM/*": ["../domain/src/*"],
       "@tdsk/domain": ["../domain/src"],

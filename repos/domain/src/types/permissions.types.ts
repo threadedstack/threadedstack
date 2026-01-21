@@ -9,11 +9,11 @@
  * Role types hierarchy (highest to lowest)
  */
 export enum ERoleType {
-  super = 'super', // Platform admin - full access across all orgs/projects
-  owner = 'owner', // Org/Project creator - can delete/transfer ownership
-  admin = 'admin', // Can manage members, settings, secrets
-  member = 'member', // Can create/edit resources
-  viewer = 'viewer', // Read-only access
+  super = `super`, // Platform admin - full access across all orgs/projects
+  owner = `owner`, // Org/Project creator - can delete/transfer ownership
+  admin = `admin`, // Can manage members, settings, secrets
+  member = `member`, // Can create/edit resources
+  viewer = `viewer`, // Read-only access
 }
 
 export type TRoleType = `${ERoleType}`
@@ -22,34 +22,36 @@ export type TRoleType = `${ERoleType}`
  * Permission actions that can be performed on resources
  */
 export enum EPermAction {
-  create = 'create', // Create new resources
-  read = 'read', // View/list resources
-  update = 'update', // Modify existing resources
-  delete = 'delete', // Delete resources
-  manage = 'manage', // Manage members, settings, advanced operations
+  create = `create`, // Create new resources
+  read = `read`, // View/list resources
+  update = `update`, // Modify existing resources
+  delete = `delete`, // Delete resources
+  manage = `manage`, // Manage members, settings, advanced operations
 }
 
 /**
  * Resources that can be protected by the RBAC system
  */
 export enum EPermResource {
-  org = 'org', // Organization
-  project = 'project', // Project within an org
-  user = 'user', // User accounts
-  secret = 'secret', // API secrets/credentials
-  apiKey = 'apiKey', // API keys for external access
-  endpoint = 'endpoint', // Proxy endpoints
-  provider = 'provider', // External service providers
-  function = 'function', // Serverless functions (FaaS)
+  org = `org`, // Organization
+  project = `project`, // Project within an org
+  user = `user`, // User accounts
+  role = `role`, // User roles and permissions
+  secret = `secret`, // API secrets/credentials
+  apiKey = `apiKey`, // API keys for external access
+  endpoint = `endpoint`, // Proxy endpoints
+  provider = `provider`, // External service providers
+  config = `config`, // Configuration data
+  function = `function`, // Serverless functions (FaaS)
 }
 
 /**
  * Scope where permission applies
  */
 export enum EPermScope {
-  global = 'global', // Platform-wide (super admin only)
-  org = 'org', // Organization level
-  project = 'project', // Project level
+  global = `global`, // Platform-wide (super admin only)
+  org = `org`, // Organization level
+  project = `project`, // Project level
 }
 
 /**

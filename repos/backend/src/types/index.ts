@@ -1,5 +1,6 @@
 export * from './api.types'
 export * from './envs.types'
+export * from './email.types'
 export * from './polar.types'
 export * from './token.types'
 export * from './errors.types'

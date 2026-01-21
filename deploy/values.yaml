@@ -220,3 +220,20 @@ env:
   TDSK_PAY_PLANS:
   TDSK_PAY_ACCESS_TOKEN:
   TDSK_PAY_WEBHOOK_SECRET:
+
+
+  # ---- Email ENVs --- #
+  # Email provider type - 'resend' | 'mailgun' | 'console'
+  TDSK_EMAIL_TYPE: console
+  TDSK_EMAIL_USER:
+  TDSK_EMAIL_PASS:
+  TDSK_EMAIL_HOST:
+  TDSK_EMAIL_PORT:
+  TDSK_EMAIL_SECURE:
+  TDSK_EMAIL_API_KEY:
+
+  # Default from address for all emails
+  TDSK_EMAIL_FROM: noreply@threadedstack.dev
+
+
+

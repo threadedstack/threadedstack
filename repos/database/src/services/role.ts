@@ -1,10 +1,10 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type { TDBRoleSelect, TDBRoleInsert, TDBApiRes, TDBApiResType } from '@TDB/types'
 
-import { eq, and, isNotNull } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { roles } from '@TDB/schemas/roles'
 import { Role as RoleModel } from '@tdsk/domain'
+import { eq, and, isNotNull } from 'drizzle-orm'
 
 export type TRoleOpts = {
   db: NodePgDatabase

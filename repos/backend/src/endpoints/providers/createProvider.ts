@@ -2,12 +2,12 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Provider, EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception } from '@TBE/utils/errors/exception'
+import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { HttpMethods } from '@TBE/constants/values'
 
 /**
- * POST /providers - Create a new provider
+ * POST /_/providers - Create a new provider
  * Requires orgId or projectId in body
  * Requires admin+ role in that scope
  */
@@ -20,24 +20,17 @@ export const createProvider: TEndpointConfig = {
     const { orgId, projectId } = providerData
 
     // Validate Exclusive Arc: must have exactly one of orgId, projectId
-    if (!orgId && !projectId) {
-      res
-        .status(400)
-        .json({
-          error:
-            'Provider must belong to an org or project (orgId or projectId required)',
-        })
-      return
-    }
+    if (!orgId && !projectId)
+      throw new Exception(
+        400,
+        `Provider must belong to an org or project (orgId or projectId required)`
+      )
 
-    if (orgId && projectId) {
-      res
-        .status(400)
-        .json({
-          error: 'Provider cannot belong to both org and project (provide only one)',
-        })
-      return
-    }
+    if (orgId && projectId)
+      throw new Exception(
+        400,
+        `Provider cannot belong to both org and project (provide only one)`
+      )
 
     // Check permission to create providers in this scope
     await checkPermission(req, EPermAction.create, EPermResource.provider, {
@@ -48,10 +41,7 @@ export const createProvider: TEndpointConfig = {
     // Create the provider
     const { data, error } = await db.services.provider.create(providerData)
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(201).json({ data })
   },

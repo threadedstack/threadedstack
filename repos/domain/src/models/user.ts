@@ -7,10 +7,10 @@ export class User extends Base {
   email?: string
   image: string
   name?: string
-  role?: TRoleType
   banned?: boolean
   provider?: string
   banReason?: string
+  role?: TRoleType | string
   emailVerified?: boolean
   banExpires?: string | Date
 

@@ -1,3 +1,4 @@
+import type { EEmailType } from '@TBE/types'
 import { toNum, toBool } from '@keg-hub/jsutils'
 import { loadEnvs, parsePayPlans } from '@tdsk/domain'
 import { buildProxyUrl } from '@TBE/utils/proxy/buildProxyUrl'
@@ -43,6 +44,17 @@ const {
   TDSK_PAY_PLANS,
   TDSK_PAY_ACCESS_TOKEN,
   TDSK_PAY_WEBHOOK_SECRET,
+  // TODO: figure out how this should be resolved - used for links in emails
+  TDSK_FRONTEND_URL,
+
+  TDSK_EMAIL_TYPE,
+  TDSK_EMAIL_FROM,
+  TDSK_EMAIL_HOST,
+  TDSK_EMAIL_PORT,
+  TDSK_EMAIL_USER,
+  TDSK_EMAIL_PASS,
+  TDSK_EMAIL_SECURE,
+  TDSK_EMAIL_API_KEY,
 } = process.env
 
 const enableSSL = nodeEnv !== `production` && toBool(TDSK_BE_ENABLE_SSL)
@@ -53,6 +65,7 @@ if (enableSSL && (!TDSK_BE_SSL_CERT || !TDSK_BE_SSL_KEY))
   )
 
 export const config = {
+  frontendUrl: TDSK_FRONTEND_URL || 'http://localhost:3000',
   server: {
     enableSSL,
     port: toNum(TDSK_BE_PORT),
@@ -103,5 +116,19 @@ export const config = {
     token: TDSK_PAY_ACCESS_TOKEN,
     wbhSecret: TDSK_PAY_WEBHOOK_SECRET,
     plans: parsePayPlans(TDSK_PAY_PLANS),
+  },
+  email: {
+    from: TDSK_EMAIL_FROM,
+    apiKey: TDSK_EMAIL_API_KEY,
+    type: TDSK_EMAIL_TYPE as EEmailType,
+    smtp: TDSK_EMAIL_HOST
+      ? {
+          host: TDSK_EMAIL_HOST,
+          user: TDSK_EMAIL_USER || ``,
+          pass: TDSK_EMAIL_PASS || ``,
+          port: toNum(TDSK_EMAIL_PORT) || 587,
+          secure: toBool(TDSK_EMAIL_SECURE) || false,
+        }
+      : undefined,
   },
 }

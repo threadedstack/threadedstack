@@ -13,6 +13,7 @@ import type { endpoints } from '@TDB/schemas/endpoints'
 import type { functions } from '@TDB/schemas/functions'
 import type { providers } from '@TDB/schemas/providers'
 import type { subscriptions } from '@TDB/schemas/subscriptions'
+import type { invitations } from '@TDB/schemas/invitations'
 import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import type { TAnyObj, TKeyLike, Base as BaseModel } from '@tdsk/domain'
 
@@ -57,6 +58,17 @@ export type TDBFunctionInsert = TInferDates<typeof functions.$inferInsert>
 export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
 export type TDBSubscriptionInsert = TInferDates<typeof subscriptions.$inferInsert>
 
+export type TDBInvitationSelect = TInferDateProps<
+  typeof invitations.$inferSelect,
+  `createdAt` | `updatedAt` | `expiresAt` | `acceptedAt` | `revokedAt`
+>
+export type TDBInvitationInsert = Partial<
+  TInferDateProps<
+    typeof invitations.$inferInsert,
+    `createdAt` | `updatedAt` | `expiresAt` | `acceptedAt` | `revokedAt`
+  >
+>
+
 export type TDBApiKeySelect = TInferDateProps<
   typeof apiKeys.$inferSelect,
   `createdAt` | `updatedAt` | `expiresAt` | `lastUsedAt`
@@ -85,6 +97,7 @@ export type TDBEntitySelect =
   | TDBProviderSelect
   | TDBFunctionSelect
   | TDBSubscriptionSelect
+  | TDBInvitationSelect
 
 export type TDBEntityInsert =
   | TDBOrgInsert
@@ -102,6 +115,7 @@ export type TDBEntityInsert =
   | TDBProviderInsert
   | TDBFunctionInsert
   | TDBSubscriptionInsert
+  | TDBInvitationInsert
 
 type TTableWithId = {
   id: any
@@ -109,7 +123,7 @@ type TTableWithId = {
 
 export type TTableSchema = PgTableWithColumns<any> & TTableWithId
 
-export type TDBOrderDirection = 'asc' | 'desc'
+export type TDBOrderDirection = `asc` | `desc`
 
 export type TDBQueryOpts<T extends Record<string, any> = Record<string, any>> = {
   /**

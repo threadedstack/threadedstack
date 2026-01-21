@@ -8,6 +8,7 @@ import { configs } from '@TDB/schemas/configs'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { text, pgTable } from 'drizzle-orm/pg-core'
+import { invitations } from '@TDB/schemas/invitations'
 
 export const orgs = pgTable(`organizations`, {
   ...base,
@@ -23,4 +24,5 @@ export const orgsRelations = relations(orgs, ({ many }) => ({
   configs: many(configs),
   projects: many(projects),
   providers: many(providers),
+  invitations: many(invitations),
 }))
