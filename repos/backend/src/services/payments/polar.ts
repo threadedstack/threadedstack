@@ -20,24 +20,20 @@ import { Exception } from '@TBE/utils/errors/exception'
  */
 export class PolarService {
   #api: API
-
-  private token: string
-  private baseUrl: string
-  private wbhSecret: string
+  #wbhSecret: string
+  #cache: Map<string, { data: TPolarProduct }> = new Map()
   private plans: Record<string, string>
 
   constructor(config: TPolarConfig) {
     if (!config.token) throw new Exception(500, `Polar access token is required`)
 
-    this.baseUrl = config.url
-    this.token = config.token
     this.plans = config.plans
-    this.wbhSecret = config.wbhSecret
+    this.#wbhSecret = config.wbhSecret
 
     this.#api = new API({
       url: config.url,
       headers: {
-        Authorization: `Bearer ${this.token}`,
+        Authorization: `Bearer ${config.token}`,
         [`Content-Type`]: `application/json`,
       },
     })
@@ -50,7 +46,6 @@ export class PolarService {
   fetchPlans = async (): Promise<TPlanResp> => {
     try {
       const productIds = Object.values(this.plans).filter((id) => id && !id.includes(`=`))
-
       if (productIds.length === 0)
         return {
           error: new Exception(404, `No product IDs configured in TDSK_PAY_PLANS`),
@@ -66,15 +61,17 @@ export class PolarService {
           continue
         }
 
-        // Find the tier name for this product ID
-        const tierName =
-          Object.entries(this.plans).find(([_, id]) => id === productId)?.[0] || productId
-
         plans.push(
           new Plan({
-            name: tierName,
             id: result.data.id,
+            name: result.data.name,
             metadata: result.data.metadata,
+            description: result.data.description,
+            recurring: {
+              active: result.data?.is_recurring,
+              interval: result.data?.recurring_interval,
+              count: result.data?.recurring_interval_count,
+            },
           })
         )
       }
@@ -92,9 +89,14 @@ export class PolarService {
   fetchProduct = async (
     productId: string
   ): Promise<{ data?: TPolarProduct; error?: Exception }> => {
-    return await this.#api.get<TPolarProduct>({
+    if (this.#cache.has(productId)) return this.#cache.get(productId)
+
+    const resp = await this.#api.get<TPolarProduct>({
       path: `/products/${productId}`,
     })
+
+    if (resp.data) this.#cache.set(productId, { data: resp.data })
+    return resp
   }
 
   /**
@@ -117,6 +119,12 @@ export class PolarService {
       id: resp.data.id,
       name: resp.data.name,
       metadata: resp.data.metadata,
+      description: resp.data.description,
+      recurring: {
+        active: resp.data?.is_recurring,
+        interval: resp.data?.recurring_interval,
+        count: resp.data?.recurring_interval_count,
+      },
     })
 
     return { data: plan.metadata }
@@ -196,7 +204,7 @@ export class PolarService {
       // Polar uses a simple HMAC-SHA256 signature
       const signedPayload = `${timestamp}.${payload}`
       const expectedSignature = crypto
-        .createHmac(`sha256`, this.wbhSecret)
+        .createHmac(`sha256`, this.#wbhSecret)
         .update(signedPayload)
         .digest(`hex`)
 

@@ -13,7 +13,6 @@ export const parsePayPlans = (plans: string = ``) => {
     if (acc[id]) throw new Error(`Pay plan id "${id}" for name "${name}" is duplicated`)
 
     acc[name] = id
-    acc[id] = name
 
     return acc
   }, {} as TPayPlans)
