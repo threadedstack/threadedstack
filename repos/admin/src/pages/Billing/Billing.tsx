@@ -43,11 +43,9 @@ export const Billing = (props: TBilling) => {
   const [upgradeLoading, setUpgradeLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Read state from atoms
   const [plans] = usePaymentPlans()
   const [subscription] = useSubscription()
 
-  // Handle success/cancelled params from Polar redirect
   useEffect(() => {
     const success = searchParams.get('success')
     const cancelled = searchParams.get('cancelled')
@@ -99,11 +97,11 @@ export const Billing = (props: TBilling) => {
     loadData()
   }, [])
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const onTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue)
   }
 
-  const handleUpgrade = async (planId: string) => {
+  const onUpgrade = async (planId: string) => {
     try {
       setUpgradeLoading(true)
 
@@ -117,7 +115,6 @@ export const Billing = (props: TBilling) => {
         return
       }
 
-      // Redirect to Polar checkout
       window.location.href = data.url
     } catch (err: any) {
       toast.error('Checkout Error', { description: err.message })
@@ -161,7 +158,7 @@ export const Billing = (props: TBilling) => {
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
               <Tabs
                 value={tabValue}
-                onChange={handleTabChange}
+                onChange={onTabChange}
                 aria-label='billing tabs'
               >
                 <Tab
@@ -221,7 +218,7 @@ export const Billing = (props: TBilling) => {
                       <PlanCard
                         plan={plan}
                         currentTier={subscription?.tier}
-                        onUpgrade={handleUpgrade}
+                        onUpgrade={onUpgrade}
                         loading={upgradeLoading}
                       />
                     </Grid>

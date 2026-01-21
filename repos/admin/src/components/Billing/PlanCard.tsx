@@ -1,36 +1,49 @@
 import type { Plan } from '@tdsk/domain'
 
+import { useMemo } from 'react'
+import { Button } from '@tdsk/components'
+import { styled } from '@mui/material/styles'
+import { CheckCircle } from '@mui/icons-material'
+import { wordCaps } from '@keg-hub/jsutils/wordCaps'
+import ArrowCircleUpIcon from '@mui/icons-material/ArrowCircleUp'
 import {
   Box,
   Card,
   Chip,
   List,
-  Button,
+  Divider,
   ListItem,
   Typography,
   CardContent,
   CardActions,
   ListItemText,
 } from '@mui/material'
-import { styled } from '@mui/material/styles'
-import { CheckCircle } from '@mui/icons-material'
 
 const StyledCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  transition: 'all 0.2s',
-  border: '1px solid rgba(0, 0, 0, 0.12)',
+  height: `100%`,
+  display: `flex`,
+  flexDirection: `column`,
+  transition: `all 0.2s`,
+  border: `2px solid rgba(0, 0, 0, 0.12)`,
 
-  '&:hover': {
+  [`&:hover`]: {
     boxShadow: theme.shadows[4],
-    transform: 'translateY(-4px)',
+    transform: `translateY(-1px)`,
   },
 
-  '&.current': {
+  [`&.current`]: {
     border: `2px solid ${theme.palette.primary.main}`,
   },
 }))
+
+const StyledDivider = styled(Divider)(({ theme }) => {
+  return {
+    opacity: 0.1,
+    marginTop: theme.spacing(2),
+    marginBottom: theme.spacing(2),
+    borderColor: theme.palette.border.alt,
+  }
+})
 
 export type TPlanCardProps = {
   plan: Plan
@@ -52,28 +65,38 @@ const formatRuntime = (seconds: number): string => {
  * Format number with commas
  */
 const formatNumber = (num: number): string => {
-  if (num === -1) return 'Unlimited'
-  return num.toLocaleString()
+  if (!num) return `Unknown`
+  if (num === -1) return `Unlimited`
+  return num?.toLocaleString?.()
+}
+
+const usePlanFeatures = (plan: Plan) => {
+  return useMemo(() => {
+    if (!plan?.metadata) return []
+
+    const { metadata } = plan
+    return [
+      { label: `Organizations`, value: formatNumber(metadata.organizations) },
+      { label: `Projects`, value: formatNumber(metadata.projects) },
+      { label: `Team Members`, value: formatNumber(metadata.members) },
+      { label: `Endpoints`, value: formatNumber(metadata.endpoints) },
+      { label: `Function Calls`, value: formatNumber(metadata.functionCalls) },
+      { label: `Runtime`, value: formatRuntime(metadata.runtime) },
+      { label: `Threads`, value: formatNumber(metadata.threads) },
+      { label: `Messages`, value: formatNumber(metadata.messages) },
+      { label: `Org Secrets`, value: formatNumber(metadata.orgSecrets) },
+      { label: `Project Secrets`, value: formatNumber(metadata.projectSecrets) },
+      { label: `Data Retention`, value: `${metadata.retention} months` },
+    ]
+  }, [plan.metadata])
 }
 
 export const PlanCard = (props: TPlanCardProps) => {
-  const { plan, currentTier, onUpgrade, loading = false } = props
-  const { metadata } = plan
-  const isCurrent = currentTier?.toLowerCase() === plan.name.toLowerCase()
+  const { plan, onUpgrade, currentTier, loading = false } = props
 
-  const features = [
-    { label: 'Organizations', value: formatNumber(metadata.organizations) },
-    { label: 'Projects', value: formatNumber(metadata.projects) },
-    { label: 'Team Members', value: formatNumber(metadata.members) },
-    { label: 'Endpoints', value: formatNumber(metadata.endpoints) },
-    { label: 'Function Calls', value: formatNumber(metadata.functionCalls) },
-    { label: 'Runtime', value: formatRuntime(metadata.runtime) },
-    { label: 'Threads', value: formatNumber(metadata.threads) },
-    { label: 'Messages', value: formatNumber(metadata.messages) },
-    { label: 'Org Secrets', value: formatNumber(metadata.orgSecrets) },
-    { label: 'Project Secrets', value: formatNumber(metadata.projectSecrets) },
-    { label: 'Data Retention', value: `${metadata.retention} months` },
-  ]
+  const { metadata } = plan
+  const features = usePlanFeatures(plan)
+  const isCurrent = currentTier?.toLowerCase() === plan.name.toLowerCase()
 
   return (
     <StyledCard className={isCurrent ? 'current' : ''}>
@@ -84,7 +107,7 @@ export const PlanCard = (props: TPlanCardProps) => {
             component='h3'
             sx={{ flexGrow: 1 }}
           >
-            {plan.name}
+            {wordCaps(plan.name)}
           </Typography>
           {isCurrent && (
             <Chip
@@ -94,6 +117,8 @@ export const PlanCard = (props: TPlanCardProps) => {
             />
           )}
         </Box>
+
+        <StyledDivider />
 
         <Typography
           variant='h4'
@@ -139,9 +164,11 @@ export const PlanCard = (props: TPlanCardProps) => {
         <Button
           fullWidth
           size='large'
-          variant={isCurrent ? 'outlined' : 'contained'}
-          onClick={() => onUpgrade(plan.id)}
+          color='success'
+          Icon={<ArrowCircleUpIcon />}
           disabled={isCurrent || loading}
+          onClick={() => onUpgrade(plan.id)}
+          variant={isCurrent ? 'outlined' : 'contained'}
         >
           {loading ? 'Processing...' : isCurrent ? 'Current Plan' : 'Upgrade'}
         </Button>

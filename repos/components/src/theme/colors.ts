@@ -68,12 +68,14 @@ const states = {
 
 export const border = {
   dark: {
+    alt: grey[50],
     muted: grey[800],
     section: grey[800],
     default: grey[825],
     highlight: primary[600],
   },
   light: {
+    alt: grey[825],
     muted: grey[25],
     section: grey[50],
     default: grey[50],
