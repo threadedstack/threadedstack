@@ -62,8 +62,8 @@ export const UserCard = (props: TUserCard) => {
         >
           <Chip
             size='small'
-            color={getRoleColor(user.role)}
-            label={(user.role || ERoleType.basic)?.toUpperCase()}
+            color={getRoleColor(user.role as ERoleType)}
+            label={(user.role || ERoleType.viewer)?.toUpperCase()}
           />
           <Typography
             variant='caption'
@@ -80,7 +80,7 @@ export const UserCard = (props: TUserCard) => {
               size='small'
               color='primary'
               onClick={() => onEditRole(user)}
-              disabled={authUser.role === ERoleType.basic}
+              disabled={authUser.role === ERoleType.viewer}
             >
               <EditIcon />
             </IconButton>

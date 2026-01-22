@@ -27,12 +27,12 @@ export const InviteUserDialog = ({
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [roleType, setRoleType] = useState<TRoleType>(ERoleType.basic)
+  const [roleType, setRoleType] = useState<TRoleType>(ERoleType.viewer)
 
   const onClose = () => {
     if (!loading) {
       setEmail('')
-      setRoleType(ERoleType.basic)
+      setRoleType(ERoleType.viewer)
       setError(null)
       onCloseCB?.()
     }

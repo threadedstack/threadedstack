@@ -9,18 +9,20 @@ export type TCreateEndpointInput = {
   method: string
   projectId: string
   description?: string
+  options?: Record<string, any>
   config?: Record<string, any>
+  headers?: Record<string, string>
 }
 
 export type TCreateEndpointResult = {
-  endpoint?: Endpoint
+  data?: Endpoint
   error?: Error
 }
 
 export const createEndpoint = async (
-  input: TCreateEndpointInput
+  ep: Partial<Endpoint>
 ): Promise<TCreateEndpointResult> => {
-  const resp = await endpointsApi.create(input)
+  const resp = await endpointsApi.create(ep)
 
   if (resp.error) {
     return { error: resp.error }
@@ -32,5 +34,5 @@ export const createEndpoint = async (
     setEndpoints({ ...currentEndpoints, [resp.data.id]: resp.data })
   }
 
-  return { endpoint: resp.data }
+  return resp
 }

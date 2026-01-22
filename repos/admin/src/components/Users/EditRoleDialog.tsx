@@ -27,13 +27,13 @@ export const EditRoleDialog = ({
   onSuccess: onSuccessCB,
 }: TEditRoleDialog) => {
   const [roleType, setRoleType] = useState<TRoleType>(
-    user.role === ERoleType.admin ? ERoleType.admin : ERoleType.basic
+    user.role === ERoleType.admin ? ERoleType.admin : ERoleType.viewer
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setRoleType(user.role === ERoleType.admin ? ERoleType.admin : ERoleType.basic)
+    setRoleType(user.role === ERoleType.admin ? ERoleType.admin : ERoleType.viewer)
   }, [user])
 
   const onClose = () => {

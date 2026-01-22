@@ -1,3 +1,18 @@
+export enum EEPAuthTypes {
+  apikey = `apikey`,
+  basic = `basic`,
+  bearer = `bearer`,
+}
+
+export type TEPAuthType = `${EEPAuthTypes}`
+
+export enum EEPCredentialOpts {
+  body = `body`,
+  header = `header`,
+}
+
+export type TEPCredentialOpts = `${EEPCredentialOpts}`
+
 /**
  * Cached token with metadata
  */
@@ -40,18 +55,48 @@ export type TDomainWhitelistConfig = {
   logBlocked?: boolean
 }
 
+// TODO: update TEndpointOpts type to use this
+export type TEndpointRetryOpts = {
+  /** Number of times to retry the request */
+  retries?: number
+  /** Initial delay in milliseconds before first retry (default: 1000) */
+  delay?: number
+  /** Maximum delay in milliseconds for retry backoff (default: 30000) */
+  max?: number
+  /** Backoff multiplier for exponential backoff (default: 2) */
+  backoffMultiplier?: number
+  /** Whether to use exponential backoff (default: true) */
+  exponentialBackoff?: boolean
+}
+
+export type TEndpointAuth = {
+  secretName?: string
+  headerName?: string
+  type?: `bearer` | `basic` | `apikey`
+}
+
 export type TEndpointOpts = {
   timeout?: number
-  retries?: number
   pathRegex?: string
   oauth?: TOAuthConfig
+  auth?: TEndpointAuth
+
+  // TODO: update to use retry object instead of flat properties
+  //retry: TEndpointRetryOpts
+
+  /** Number of times to retry the request */
+  retries?: number
+  /** Initial delay in milliseconds before first retry (default: 1000) */
+  retryDelay?: number
+  /** Maximum delay in milliseconds for retry backoff (default: 30000) */
+  retryMaxDelay?: number
+  /** Backoff multiplier for exponential backoff (default: 2) */
+  retryBackoffMultiplier?: number
+  /** Whether to use exponential backoff (default: true) */
+  retryExponentialBackoff?: boolean
+
   transform?: TBodyTransformConfig
   domainWhitelist?: TDomainWhitelistConfig
-  auth?: {
-    secretName?: string
-    headerName?: string
-    type?: `bearer` | `basic` | `apikey`
-  }
 }
 
 /**
