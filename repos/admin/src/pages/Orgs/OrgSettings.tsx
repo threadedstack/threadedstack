@@ -26,7 +26,7 @@ export const OrgSettings = (props: TOrgSettings) => {
   const [orgId] = useActiveOrgId()
 
   const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [localOrg, setLocalOrg] = useState<Organization>(org)

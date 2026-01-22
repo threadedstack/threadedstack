@@ -20,6 +20,7 @@ export type TCreateOrgDialog = {
   sx?: CSSProperties
   createText?: string
   onClose: () => void
+  hideCreate?: boolean
   createSx?: CSSProperties
   createBtnSx?: CSSProperties
   onCreate?: (evt: any) => void
@@ -31,6 +32,7 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
     open,
     createSx,
     onCreate,
+    hideCreate,
     createBtnSx,
     onClose: onCloseCB,
     createText = `Create`,
@@ -77,7 +79,7 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
 
   return (
     <>
-      {onCreate && (
+      {!hideCreate && onCreate && (
         <CreateBox sx={createSx}>
           <Button
             color='primary'

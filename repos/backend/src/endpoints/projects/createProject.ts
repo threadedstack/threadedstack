@@ -1,7 +1,7 @@
 import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
-import { EPMethod, EAPIMethod } from '@TBE/types'
+import { EPMethod } from '@TBE/types'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -14,7 +14,7 @@ export const createProject: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, name, url, projectId, ...projectData } = req.body
+    const { orgId, name, ...projectData } = req.body
 
     if (!orgId) {
       res.status(400).json({ error: `orgId is required` })
@@ -27,24 +27,13 @@ export const createProject: TEndpointConfig = {
       return
     }
 
-    if (!url) {
-      res.status(400).json({ error: `Project URL is required` })
-      return
-    }
-
-    if (!projectId) {
-      res.status(400).json({ error: `Project projectId is required` })
-      return
-    }
-
     // Check permission - user must be member of org to create project
     await checkPermission(req, EPermAction.create, EPermResource.project, { orgId })
 
     // Create the project
     const { data, error } = await db.services.project.create({
       name,
-      url,
-      projectId,
+      meta: {},
       ...projectData,
       orgId,
     })

@@ -2,7 +2,7 @@ import { Add as AddIcon } from '@mui/icons-material'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 
 export type TNoOrgs = {
-  onCreate?: (evt: any) => void
+  onCreate?: (evt?: any) => void
 }
 
 /**

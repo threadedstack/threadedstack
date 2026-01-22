@@ -43,7 +43,12 @@ export const createOrg: TEndpointConfig = {
         type: ERoleType.owner,
       })
 
-      roleError && logger.error('Failed to assign owner role:', roleError)
+      if (roleError) {
+        logger.error(`Failed to assign owner role:`, roleError)
+        await db.services.org.delete(data.id)
+        res.status(500).json({ error: `Failed to assign owner role to organization` })
+        return
+      }
     }
 
     res.status(201).json({ data })

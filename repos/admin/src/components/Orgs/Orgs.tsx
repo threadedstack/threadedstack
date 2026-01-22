@@ -22,18 +22,20 @@ export const Orgs = (props: TOrgs) => {
   const onSelect = (orgId: string) => setOrgActive(orgId)
 
   const orgsArray = orgs ? Object.values(orgs) : []
+  const noOrgs = orgsArray.length === 0
 
   return (
     <>
-      {orgsArray.length === 0 ? (
+      <CreateOrgDialog
+        open={creating}
+        hideCreate={noOrgs}
+        onCreate={onCreate}
+        onClose={() => setCreating(false)}
+      />
+      {noOrgs ? (
         <NoOrgs onCreate={onCreate} />
       ) : (
         <>
-          <CreateOrgDialog
-            open={creating}
-            onCreate={onCreate}
-            onClose={() => setCreating(false)}
-          />
           <OrgsGrid
             orgs={orgsArray}
             onDelete={onDelete}

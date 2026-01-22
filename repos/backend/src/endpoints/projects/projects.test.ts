@@ -86,14 +86,12 @@ describe(`Endpoint projects`, () => {
         {
           id: `1`,
           name: `Get Users`,
-          url: `https://api.example.com/users`,
-          projectId: `project-1`,
+          gitUrl: `https://api.example.com/users`,
         },
         {
           id: `2`,
           name: `Create User`,
-          url: `https://api.example.com/users`,
-          projectId: `project-1`,
+          gitUrl: `https://api.example.com/users`,
         },
       ]
 
@@ -109,9 +107,7 @@ describe(`Endpoint projects`, () => {
     })
 
     it(`should filter by orgId when provided`, async () => {
-      const mockProjects = [
-        { id: `1`, name: `EP1`, url: `u1`, projectId: `project-1`, orgId: `org-1` },
-      ]
+      const mockProjects = []
       mockReq.query = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
@@ -146,8 +142,7 @@ describe(`Endpoint projects`, () => {
       const mockProject = {
         id: `123`,
         name: `Get Users`,
-        url: `https://api.example.com/users`,
-        projectId: `project-1`,
+        gitUrl: `https://api.example.com/users`,
       }
       mockReq.params = { id: `123` }
 
@@ -185,8 +180,7 @@ describe(`Endpoint projects`, () => {
       const newProject = {
         orgId: `org-1`,
         name: `New Project`,
-        url: `https://api.example.com/new`,
-        projectId: `project-123`,
+        gitUrl: `https://api.example.com/new`,
       }
       const createdProject = { id: `456`, ...newProject }
       mockReq.body = newProject
@@ -205,8 +199,7 @@ describe(`Endpoint projects`, () => {
     it(`should return 400 when name is missing`, async () => {
       mockReq.body = {
         orgId: `org-1`,
-        url: `https://api.example.com`,
-        projectId: `project-1`,
+        gitUrl: `https://api.example.com`,
       }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -214,28 +207,11 @@ describe(`Endpoint projects`, () => {
       expect(mockJson).toHaveBeenCalledWith({ error: `Project name is required` })
     })
 
-    it(`should return 400 when url is missing`, async () => {
-      mockReq.body = { orgId: `org-1`, name: `Test`, projectId: `project-1` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Project URL is required` })
-    })
-
-    it(`should return 400 when projectId is missing`, async () => {
-      mockReq.body = { orgId: `org-1`, name: `Test`, url: `https://api.example.com` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Project projectId is required` })
-    })
-
     it(`should accept headers and options`, async () => {
       const newProject = {
         orgId: `org-1`,
         name: `New Project`,
-        url: `https://api.example.com/new`,
-        projectId: `project-123`,
+        gitUrl: `https://api.example.com/new`,
         headers: { [`Content-Type`]: `application/json` },
         options: { timeout: 5000 },
       }
@@ -264,9 +240,8 @@ describe(`Endpoint projects`, () => {
       const existingProject = {
         id: `123`,
         name: `Old Name`,
-        url: `https://old.api.com`,
+        gitUrl: `https://old.api.com`,
 
-        projectId: `project-1`,
         orgId: `org-1`,
       }
       const updateData = { name: `New Name` }
@@ -313,9 +288,8 @@ describe(`Endpoint projects`, () => {
       const existingProject = {
         id: `123`,
         name: `To Delete`,
-        url: `https://api.com`,
+        gitUrl: `https://api.com`,
 
-        projectId: `project-1`,
         orgId: `org-1`,
       }
       mockReq.params = { id: `123` }

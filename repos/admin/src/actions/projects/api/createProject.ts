@@ -20,9 +20,7 @@ export const createProject = async (
 ): Promise<TCreateProjectResult> => {
   const resp = await projectsApi.create(input)
 
-  if (resp.error) {
-    return { error: resp.error }
-  }
+  if (resp.error) return { error: resp.error }
 
   if (resp.data) {
     // Update projects state with the new project
