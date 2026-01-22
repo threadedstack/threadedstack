@@ -7,7 +7,7 @@ import { white, colors as DefColors } from '@TSC/theme/colors'
 import createTheme from '@mui/material/styles/createTheme'
 
 const typography = {
-  fontFamily: ['Ubuntu', 'serif'].join(','),
+  fontFamily: [`Ubuntu`, `serif`].join(`,`),
 }
 
 const components = (colors: TThemeColors) => {
@@ -92,7 +92,7 @@ const components = (colors: TThemeColors) => {
         sx: {
           m: 0,
           fontWeight: 400,
-          color: colors.grey[500],
+          color: colors.grey?.[500],
         },
       },
     },
@@ -130,12 +130,12 @@ const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
       colors,
       success: {
         contrastText: white,
-        main: colors.states.success,
+        main: colors?.states?.success,
       },
       border: colors.border,
       editor: {
-        background: colors.editor.background,
-        rbackground: colors.editor.rbackground,
+        background: colors.editor?.background,
+        rbackground: colors.editor?.rbackground,
       },
       background: {
         paper: colors.paper,
@@ -146,14 +146,14 @@ const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
         section: colors.sectionBackground,
       },
       primary: {
-        dark: colors.primary[800],
-        light: colors.primary[300],
+        dark: colors.primary?.[800],
+        light: colors.primary?.[300],
         main: colors.primary,
         contrastText: colors.contrastText,
       },
       secondary: {
-        dark: colors.grey[700],
-        light: colors.grey[200],
+        dark: colors.grey?.[700],
+        light: colors.grey?.[200],
         main: colors.secondary,
         contrastText: colors.mutedForeground,
       },
@@ -161,7 +161,7 @@ const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
         main: colors.destructive,
         contrastText: colors.destructiveForeground,
       },
-      divider: colors.border.default,
+      divider: colors.border?.default,
       text: {
         primary: colors.foreground,
         secondary: colors.mutedForeground,

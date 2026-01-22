@@ -251,6 +251,7 @@ describe(`OrgNavItems`, () => {
         `Secrets`,
         `Providers`,
         `AI`,
+        `Usage`,
         `Settings`,
       ]
       const actualItems = OrgNavItems.map((item) => item.text)
