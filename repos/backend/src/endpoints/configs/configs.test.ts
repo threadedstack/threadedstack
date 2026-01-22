@@ -6,7 +6,7 @@ import { configs } from './configs'
 import { Config } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
-import { PolarService } from '@TBE/services/payments'
+import { PaymentsService } from '@TBE/services/payments'
 
 describe(`Configs endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -18,7 +18,7 @@ describe(`Configs endpoints`, () => {
     return {
       locals: {
         config,
-        payments: new PolarService(config.payments),
+        payments: new PaymentsService(config.payments),
         db: {
           services: {
             config: {

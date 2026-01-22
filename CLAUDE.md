@@ -313,7 +313,7 @@ Message 4: Write "file.js"
 - Restore context
 - Export workflows
 
-## Advanced Features (v2.0.0)
+## Advanced Features
 
 - 🚀 Automatic Topology Selection
 - ⚡ Parallel Execution (2.8-4.4x speed)
@@ -394,14 +394,14 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 
 | Directory | Role | Tech | Skill |
 |-----------|------|------|-------|
-| `proxy/` | Auth Gateway - JWT/JWKS validation, backend proxying | Express 5, jose, http-proxy-middleware | `.claude/skills/proxy-repo.yml` |
-| `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/backend-repo.yml` |
-| `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/admin-repo.yml` |
-| `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/database-repo.yml` |
-| `domain/` | Shared types, models, utilities | TypeScript | `.claude/skills/domain-repo.yml` |
-| `components/` | Shared React components/hooks | React, MUI | `.claude/skills/components-repo.yml` |
-| `logger/` | Winston-based logging service | Winston | `.claude/skills/logger-repo.yml` |
-| `cli/` | Developer CLI for project management | Node.js | `.claude/skills/cli-repo.yml` |
+| `proxy/` | Auth Gateway - JWT/JWKS validation, backend proxying | Express 5, jose, http-proxy-middleware | `.claude/skills/proxy/SKILL.md` |
+| `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/backend/SKILL.md` |
+| `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/admin/SKILL.md` |
+| `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/database/SKILL.md` |
+| `domain/` | Shared types, models, utilities | TypeScript | `.claude/skills/domain/SKILL.md` |
+| `components/` | Shared React components/hooks | React, MUI | `.claude/skills/components/SKILL.md` |
+| `logger/` | Winston-based logging service | Winston | `.claude/skills/logger/SKILL.md` |
+| `cli/` | Developer CLI for project management | Node.js | `.claude/skills/cli/SKILL.md` |
 
 ## Sub-Repo Skills
 
@@ -409,21 +409,21 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 
 ### How to Use Skills
 Load the relevant skill when working on a specific repo:
-- Working on admin UI? → Read `.claude/skills/admin-repo.yml` first
-- Adding API endpoints? → Read `.claude/skills/backend-repo.yml` first
-- Modifying database schema? → Read `.claude/skills/database-repo.yml` first
+- Working on admin UI? → Read `.claude/skills/admin/SKILL.md` first
+- Adding API endpoints? → Read ``.claude/skills/backend/SKILL.md` first
+- Modifying database schema? → Read `.claude/skills/database/SKILL.md` first
 
 ### Available Skills
 | Skill File | Contents |
 |------------|----------|
-| `admin-repo.yml` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services, Billing pages/components, Quota tracking |
-| `backend-repo.yml` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, Subscription/Quota/Payment endpoints, PolarService (340 lines, 42 tests) |
-| `cli-repo.yml` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
-| `components-repo.yml` | 30+ React components, 25+ hooks, Monaco editor, Confirm loading state |
-| `database-repo.yml` | Drizzle ORM, organizations/projects schemas, apiKeys table, model converters, quotas/subscriptions tables |
-| `domain-repo.yml` | Organization/Project/ApiKey/Secret/Endpoint/Function models, crypto utilities, Plan model, payment types (TPayPlanMeta) |
-| `logger-repo.yml` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
-| `proxy-repo.yml` | JWKS auth validation, http-proxy-middleware backend forwarding, full implementation |
+| `admin/SKILL.md` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services, Billing pages/components, Quota tracking |
+| `backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, Subscription/Quota/Payment endpoints, PaymentsService |
+| `cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
+| `components/SKILL.md` | 30+ React components, 25+ hooks, Monaco editor, Confirm loading state |
+| `database/SKILL.md` | Drizzle ORM, organizations/projects schemas, apiKeys table, model converters, quotas/subscriptions tables |
+| `domain/SKILL.md` | Organization/Project/ApiKey/Secret/Endpoint/Function models, crypto utilities, Plan model, payment types (TPayPlanMeta) |
+| `logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
+| `proxy/SKILL.md` | JWKS auth validation, http-proxy-middleware backend forwarding, full implementation |
 
 ### Database & Authentication
 

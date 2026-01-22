@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { invitations } from './invitations'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
-import { PolarService } from '@TBE/services/payments'
+import { PaymentsService } from '@TBE/services/payments'
 import { ERoleType, Invitation } from '@tdsk/domain'
 
 vi.mock(`@TBE/utils/logger`, () => ({
@@ -29,7 +29,7 @@ describe(`Invitations endpoints`, () => {
   const mockApp = {
     locals: {
       config,
-      payments: new PolarService(config.payments),
+      payments: new PaymentsService(config.payments),
       db: {
         services: {
           invitation: {

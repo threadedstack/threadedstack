@@ -13,8 +13,8 @@ import {
 
 export type TInviteService = {
   db: TDatabase
-  email: EmailService
   config: TBEConfig
+  email: EmailService
 }
 
 type TExistingUser = {

@@ -6,7 +6,7 @@ import { apiKeys } from './apiKeys'
 import { ApiKey } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
-import { PolarService } from '@TBE/services/payments'
+import { PaymentsService } from '@TBE/services/payments'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: {
@@ -26,7 +26,7 @@ describe(`API Keys endpoints`, () => {
   const mockApp = {
     locals: {
       config,
-      payments: new PolarService(config.payments),
+      payments: new PaymentsService(config.payments),
       db: {
         services: {
           apiKey: {

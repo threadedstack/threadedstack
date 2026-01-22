@@ -6,18 +6,20 @@ import type { User } from '@tdsk/domain'
 import { subscriptions } from './subscriptions'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
-import { PolarService } from '@TBE/services/payments'
+import { PaymentsService } from '@TBE/services/payments/payments'
 
-// Mock PolarService
-vi.mock('@TBE/services/payments', () => ({
-  PolarService: vi.fn().mockImplementation(() => ({
-    fetchPlans: vi.fn().mockResolvedValue({ data: [] }),
-    fetchProduct: vi.fn().mockResolvedValue({ data: null }),
-    getOrCreateCustomer: vi.fn().mockResolvedValue({ data: null }),
-    createCheckoutSession: vi.fn().mockResolvedValue({ data: null }),
-    createCustomerPortalSession: vi.fn().mockResolvedValue({ data: null }),
-    cancelSubscription: vi.fn().mockResolvedValue({ data: { success: true } }),
-    getProductIdForTier: vi.fn().mockReturnValue(null),
+// Mock PaymentsService
+vi.mock('@TBE/services/payments/payments', () => ({
+  PaymentsService: vi.fn().mockImplementation(() => ({
+    service: {
+      fetchPlans: vi.fn().mockResolvedValue({ data: [] }),
+      fetchProduct: vi.fn().mockResolvedValue({ data: null }),
+      ensureCustomer: vi.fn().mockResolvedValue({ data: null }),
+      createCheckout: vi.fn().mockResolvedValue({ data: null }),
+      createPortal: vi.fn().mockResolvedValue({ data: null }),
+      cancelSubscription: vi.fn().mockResolvedValue({ data: { success: true } }),
+      getProductIdForTier: vi.fn().mockReturnValue(null),
+    },
   })),
 }))
 
@@ -43,7 +45,7 @@ describe('Subscription endpoints', () => {
         },
       },
       config: config,
-      payments: new PolarService(config.payments),
+      payments: new PaymentsService({ ...config.payments, type: `console` }),
     },
   } as unknown as TApp
 
@@ -159,32 +161,11 @@ describe('Subscription endpoints', () => {
     const ep = getEndpointCfg(subscriptions.endpoints?.getPlans)
 
     it('should return 200 with plans data on success', async () => {
-      const mockPlans = [
-        {
-          id: 'plan_free',
-          name: 'free',
-          metadata: {
-            requests: 100,
-            users: 1,
-            storage: 100,
-          },
-        },
-        {
-          id: 'plan_basic',
-          name: 'basic',
-          metadata: {
-            requests: 1000,
-            users: 5,
-            storage: 1000,
-          },
-        },
-      ]
-
-      // Note: PolarService is instantiated in the endpoint,
+      // Note: PaymentsService is instantiated in the endpoint,
       // so we can't directly mock the instance. This test validates structure only.
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      // Verify response structure (actual data depends on PolarService mock)
+      // Verify response structure (actual data depends on PaymentsService mock)
       expect(mockStatus).toHaveBeenCalled()
       expect(mockJson).toHaveBeenCalled()
     })
@@ -263,7 +244,7 @@ describe('Subscription endpoints', () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      // Verify endpoint was called (actual behavior depends on PolarService mock)
+      // Verify endpoint was called (actual behavior depends on PaymentsService mock)
       expect(mockStatus).toHaveBeenCalled()
       expect(mockJson).toHaveBeenCalled()
     })
@@ -347,7 +328,7 @@ describe('Subscription endpoints', () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockFindByUser).toHaveBeenCalledWith('user_123')
-      // Verify endpoint was called (actual behavior depends on PolarService mock)
+      // Verify endpoint was called (actual behavior depends on PaymentsService mock)
       expect(mockStatus).toHaveBeenCalled()
       expect(mockJson).toHaveBeenCalled()
     })
@@ -431,7 +412,7 @@ describe('Subscription endpoints', () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockFindByUser).toHaveBeenCalledWith('user_123')
-      // Verify endpoint was called (actual behavior depends on PolarService mock)
+      // Verify endpoint was called (actual behavior depends on PaymentsService mock)
       expect(mockStatus).toHaveBeenCalled()
       expect(mockJson).toHaveBeenCalled()
     })

@@ -5,22 +5,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { quotas } from './quotas'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
-import { PolarService } from '@TBE/services/payments'
+import { PaymentsService } from '@TBE/services/payments'
 
-// Mock PolarService
+// Mock PaymentsService
 vi.mock('@TBE/services/payments', () => ({
-  PolarService: vi.fn().mockImplementation(() => ({
-    getProductIdForTier: vi.fn((tier: string) => {
-      const tiers: Record<string, string> = {
-        free: 'prod_free_123',
-        basic: 'prod_basic_456',
-        developer: 'prod_dev_789',
-        pro: 'prod_pro_000',
-      }
-      return tiers[tier]
-    }),
-    getPlanLimits: vi.fn().mockResolvedValue({ data: null }),
-    fetchProduct: vi.fn().mockResolvedValue({ data: null }),
+  PaymentsService: vi.fn().mockImplementation(() => ({
+    service: {
+      getProductIdForTier: vi.fn((tier: string) => {
+        const tiers: Record<string, string> = {
+          free: 'prod_free_123',
+          basic: 'prod_basic_456',
+          developer: 'prod_dev_789',
+          pro: 'prod_pro_000',
+        }
+        return tiers[tier]
+      }),
+      getPlanLimits: vi.fn().mockResolvedValue({ data: null }),
+      fetchProduct: vi.fn().mockResolvedValue({ data: null }),
+    },
   })),
 }))
 
@@ -47,7 +49,7 @@ describe('Quota Endpoints', () => {
         },
       },
       config: config,
-      payments: new PolarService(config.payments),
+      payments: new PaymentsService(config.payments),
     },
   } as unknown as TApp
 
@@ -246,11 +248,13 @@ describe('Quota Endpoints', () => {
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
 
-      // Mock PolarService instance methods
-      const MockedPolarService = PolarService as any
-      MockedPolarService.mockImplementationOnce(() => ({
-        fetchProduct: vi.fn().mockResolvedValue({ data: mockProduct }),
-        getPlanLimits: vi.fn().mockResolvedValue({ data: mockLimits }),
+      // Mock PaymentsService instance methods
+      const MockedPaymentsService = PaymentsService as any
+      MockedPaymentsService.mockImplementationOnce(() => ({
+        service: {
+          fetchProduct: vi.fn().mockResolvedValue({ data: mockProduct }),
+          getPlanLimits: vi.fn().mockResolvedValue({ data: mockLimits }),
+        },
       }))
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -291,11 +295,13 @@ describe('Quota Endpoints', () => {
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: null }) // No subscription
 
-      // Mock PolarService instance methods
-      const MockedPolarService = PolarService as any
-      MockedPolarService.mockImplementationOnce(() => ({
-        getProductIdForTier: vi.fn().mockReturnValue('prod_free_123'),
-        getPlanLimits: vi.fn().mockResolvedValue({ data: mockFreeLimits }),
+      // Mock PaymentsService instance methods
+      const MockedPaymentsService = PaymentsService as any
+      MockedPaymentsService.mockImplementationOnce(() => ({
+        service: {
+          getProductIdForTier: vi.fn().mockReturnValue('prod_free_123'),
+          getPlanLimits: vi.fn().mockResolvedValue({ data: mockFreeLimits }),
+        },
       }))
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -394,10 +400,12 @@ describe('Quota Endpoints', () => {
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
 
-      // Mock PolarService instance methods
-      const MockedPolarService = PolarService as any
-      MockedPolarService.mockImplementationOnce(() => ({
-        getPlanLimits: vi.fn().mockResolvedValue({ data: { projects: 5 } }),
+      // Mock PaymentsService instance methods
+      const MockedPaymentsService = PaymentsService as any
+      MockedPaymentsService.mockImplementationOnce(() => ({
+        service: {
+          getPlanLimits: vi.fn().mockResolvedValue({ data: { projects: 5 } }),
+        },
       }))
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -436,10 +444,12 @@ describe('Quota Endpoints', () => {
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
 
-      // Mock PolarService instance methods
-      const MockedPolarService = PolarService as any
-      MockedPolarService.mockImplementationOnce(() => ({
-        getPlanLimits: vi.fn().mockResolvedValue({ data: { projects: 5 } }),
+      // Mock PaymentsService instance methods
+      const MockedPaymentsService = PaymentsService as any
+      MockedPaymentsService.mockImplementationOnce(() => ({
+        service: {
+          getPlanLimits: vi.fn().mockResolvedValue({ data: { projects: 5 } }),
+        },
       }))
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -477,10 +487,12 @@ describe('Quota Endpoints', () => {
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
 
-      // Mock PolarService instance methods
-      const MockedPolarService = PolarService as any
-      MockedPolarService.mockImplementationOnce(() => ({
-        getPlanLimits: vi.fn().mockResolvedValue({ data: { projects: 5 } }),
+      // Mock PaymentsService instance methods
+      const MockedPaymentsService = PaymentsService as any
+      MockedPaymentsService.mockImplementationOnce(() => ({
+        service: {
+          getPlanLimits: vi.fn().mockResolvedValue({ data: { projects: 5 } }),
+        },
       }))
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -552,10 +564,12 @@ describe('Quota Endpoints', () => {
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
 
-      // Mock PolarService instance methods - no limit for invalid_resource
-      const MockedPolarService = PolarService as any
-      MockedPolarService.mockImplementationOnce(() => ({
-        getPlanLimits: vi.fn().mockResolvedValue({ data: { projects: 5 } }),
+      // Mock PaymentsService instance methods - no limit for invalid_resource
+      const MockedPaymentsService = PaymentsService as any
+      MockedPaymentsService.mockImplementationOnce(() => ({
+        service: {
+          getPlanLimits: vi.fn().mockResolvedValue({ data: { projects: 5 } }),
+        },
       }))
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -605,10 +619,12 @@ describe('Quota Endpoints', () => {
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: null }) // No subscription
 
-      // Mock PolarService.getProductIdForTier to return undefined
-      const MockedPolarService = PolarService as any
-      MockedPolarService.mockImplementationOnce(() => ({
-        getProductIdForTier: vi.fn().mockReturnValue(undefined),
+      // Mock PaymentsService.getProductIdForTier to return undefined
+      const MockedPaymentsService = PaymentsService as any
+      MockedPaymentsService.mockImplementationOnce(() => ({
+        service: {
+          getProductIdForTier: vi.fn().mockReturnValue(undefined),
+        },
       }))
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -635,12 +651,14 @@ describe('Quota Endpoints', () => {
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
 
-      // Mock PolarService.getPlanLimits to return error
-      const MockedPolarService = PolarService as any
-      MockedPolarService.mockImplementationOnce(() => ({
-        getPlanLimits: vi
-          .fn()
-          .mockResolvedValue({ error: new Error('Failed to fetch plan limits') }),
+      // Mock PaymentsService.getPlanLimits to return error
+      const MockedPaymentsService = PaymentsService as any
+      MockedPaymentsService.mockImplementationOnce(() => ({
+        service: {
+          getPlanLimits: vi
+            .fn()
+            .mockResolvedValue({ error: new Error('Failed to fetch plan limits') }),
+        },
       }))
 
       await ep.action(mockReq as TRequest, mockRes as Response)

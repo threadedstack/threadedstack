@@ -6,7 +6,7 @@ import { secrets } from './secrets'
 import { Secret } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
-import { PolarService } from '@TBE/services/payments'
+import { PaymentsService } from '@TBE/services/payments'
 
 vi.mock(`@tdsk/domain`, async () => {
   const actual = await vi.importActual(`@tdsk/domain`)
@@ -31,7 +31,7 @@ describe(`Secrets endpoints`, () => {
     return {
       locals: {
         config,
-        payments: new PolarService(config.payments),
+        payments: new PaymentsService(config.payments),
         db: {
           services: {
             secret: {

@@ -3,8 +3,6 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
-import { PolarService } from '@TBE/services/payments'
-import { config } from '@TBE/configs/backend.config'
 
 /**
  * GET /quotas/:orgId/limits - Get plan limits for an organization
@@ -15,7 +13,7 @@ export const getOrgLimits: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
-    const { db } = req.app.locals
+    const { db, payments } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) {
@@ -47,15 +45,14 @@ export const getOrgLimits: TEndpointConfig = {
 
     // If no subscription, use free tier limits
     if (!subResult.data || !subResult.data.polarPriceId) {
-      const polarService = new PolarService(config.payments)
-      const freeProductId = polarService.getProductIdForTier('free')
+      const freeProductId = payments.service.getProductIdForTier('free')
 
       if (!freeProductId) {
         res.status(500).json({ error: 'Free tier not configured' })
         return
       }
 
-      const limitsResult = await polarService.getPlanLimits(freeProductId)
+      const limitsResult = await payments.service.getPlanLimits(freeProductId)
       if (limitsResult.error || !limitsResult.data) {
         res.status(500).json({
           error: limitsResult.error?.message || 'Failed to fetch limits',
@@ -68,8 +65,7 @@ export const getOrgLimits: TEndpointConfig = {
     }
 
     // Fetch limits from Polar using product ID
-    const polarService = new PolarService(config.payments)
-    const productResult = await polarService.fetchProduct(subResult.data.polarPriceId)
+    const productResult = await payments.service.fetchProduct(subResult.data.polarPriceId)
 
     if (productResult.error || !productResult.data) {
       res.status(500).json({
@@ -78,7 +74,7 @@ export const getOrgLimits: TEndpointConfig = {
       return
     }
 
-    const limitsResult = await polarService.getPlanLimits(productResult.data.id)
+    const limitsResult = await payments.service.getPlanLimits(productResult.data.id)
 
     if (limitsResult.error || !limitsResult.data) {
       res.status(500).json({

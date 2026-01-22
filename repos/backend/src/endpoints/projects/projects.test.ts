@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { projects } from './projects'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
-import { PolarService } from '@TBE/services/payments'
+import { PaymentsService } from '@TBE/services/payments'
 
 describe(`Endpoint projects`, () => {
   let mockReq: Partial<TRequest>
@@ -16,7 +16,7 @@ describe(`Endpoint projects`, () => {
     return {
       locals: {
         config,
-        payments: new PolarService(config.payments),
+        payments: new PaymentsService(config.payments),
         db: {
           services: {
             project: {

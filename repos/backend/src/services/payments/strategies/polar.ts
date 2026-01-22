@@ -2,11 +2,11 @@ import type { TPayPlanMeta } from '@tdsk/domain'
 import type {
   TApp,
   TPlanResp,
-  TPolarConfig,
-  TPolarProduct,
-  TPolarCustomer,
-  TPolarPortalSession,
-  TPolarCheckoutSession,
+  TPayConfig,
+  TPayProduct,
+  TPayCustomer,
+  TPayPortalSession,
+  TPayCheckoutSession,
 } from '@TBE/types'
 
 import crypto from 'node:crypto'
@@ -14,22 +14,22 @@ import { Plan } from '@tdsk/domain'
 import { API } from '@TBE/services/api'
 import { logger } from '@TBE/utils/logger'
 import { Exception } from '@TBE/utils/errors/exception'
+import { BaseService } from '@TBE/services/payments/strategies/base'
 
 /**
  * Service for interacting with Polar.sh payment API
  */
-export class PolarService {
+export class PolarService extends BaseService {
   #api: API
   #wbhSecret: string
-  #cache: Map<string, { data: TPolarProduct }> = new Map()
-  private plans: Record<string, string>
+  #cache: Map<string, { data: TPayProduct }> = new Map()
 
-  constructor(config: TPolarConfig) {
-    if (!config.token) throw new Exception(500, `Polar access token is required`)
+  constructor(config: TPayConfig) {
+    if (!config.token) throw new Exception(500, `Payments access token is required`)
 
-    this.plans = config.plans
+    super(config)
+
     this.#wbhSecret = config.wbhSecret
-
     this.#api = new API({
       url: config.url,
       headers: {
@@ -88,10 +88,10 @@ export class PolarService {
    */
   fetchProduct = async (
     productId: string
-  ): Promise<{ data?: TPolarProduct; error?: Exception }> => {
+  ): Promise<{ data?: TPayProduct; error?: Exception }> => {
     if (this.#cache.has(productId)) return this.#cache.get(productId)
 
-    const resp = await this.#api.get<TPolarProduct>({
+    const resp = await this.#api.get<TPayProduct>({
       path: `/products/${productId}`,
     })
 
@@ -133,11 +133,11 @@ export class PolarService {
   /**
    * Get or create a customer in Polar
    */
-  getOrCreateCustomer = async (
+  ensureCustomer = async (
     email: string,
     userId: string
-  ): Promise<{ data?: TPolarCustomer; error?: Exception }> => {
-    const resp = await this.#api.get<{ data: TPolarCustomer[] }>({
+  ): Promise<{ data?: TPayCustomer; error?: Exception }> => {
+    const resp = await this.#api.get<{ data: TPayCustomer[] }>({
       data: { email },
       path: `/customers`,
     })
@@ -147,7 +147,7 @@ export class PolarService {
     const customers = resp.data?.data || []
     if (customers.length > 0) return { data: customers[0] }
 
-    return await this.#api.post<TPolarCustomer>({
+    return await this.#api.post<TPayCustomer>({
       path: `/customers`,
       data: {
         email,
@@ -161,14 +161,14 @@ export class PolarService {
   /**
    * Create a checkout session for a subscription
    */
-  createCheckoutSession = async (
+  createCheckout = async (
     priceId: string,
     customerId: string,
     userId: string,
     successUrl: string,
     cancelUrl: string
-  ): Promise<{ data?: TPolarCheckoutSession; error?: Exception }> => {
-    return await this.#api.post<TPolarCheckoutSession>({
+  ): Promise<{ data?: TPayCheckoutSession; error?: Exception }> => {
+    return await this.#api.post<TPayCheckoutSession>({
       path: `/checkout/sessions`,
       data: {
         price_id: priceId,
@@ -183,10 +183,10 @@ export class PolarService {
   /**
    * Create a customer portal session for managing subscription
    */
-  createCustomerPortalSession = async (
+  createPortal = async (
     customerId: string
-  ): Promise<{ data?: TPolarPortalSession; error?: Error }> => {
-    return await this.#api.post<TPolarPortalSession>({
+  ): Promise<{ data?: TPayPortalSession; error?: Error }> => {
+    return await this.#api.post<TPayPortalSession>({
       data: { customer_id: customerId },
       path: `/portal/sessions`,
     })
@@ -195,11 +195,7 @@ export class PolarService {
   /**
    * Validate webhook signature from Polar
    */
-  validateWebhookSignature = (
-    payload: string,
-    signature: string,
-    timestamp: string
-  ): boolean => {
+  validateWebhook = (payload: string, signature: string, timestamp: string): boolean => {
     try {
       // Polar uses a simple HMAC-SHA256 signature
       const signedPayload = `${timestamp}.${payload}`
@@ -256,7 +252,7 @@ export class PolarService {
           }
 
           // Determine tier from product ID
-          const tier = payments.getTierForProductId(sub.product_id) || `free`
+          const tier = payments.service.getTierForProductId(sub.product_id) || `free`
 
           const result = await db.services.subscription.upsert({
             tier: tier,

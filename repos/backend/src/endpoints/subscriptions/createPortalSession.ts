@@ -2,8 +2,6 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { PolarService } from '@TBE/services/payments'
-import { config } from '@TBE/configs/backend.config'
 
 /**
  * POST /subscriptions/portal - Create a customer portal session
@@ -12,7 +10,7 @@ export const createPortalSession: TEndpointConfig = {
   path: `/portal`,
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db } = req.app.locals
+    const { db, payments } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) {
@@ -34,8 +32,7 @@ export const createPortalSession: TEndpointConfig = {
       return
     }
 
-    const polarService = new PolarService(config.payments)
-    const portalResult = await polarService.createCustomerPortalSession(
+    const portalResult = await payments.service.createPortal(
       subResult.data.polarCustomerId
     )
 

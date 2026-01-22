@@ -215,6 +215,7 @@ env:
 
 
   # ---- Payments ENVs --- #
+  # Email provider type - 'polar' | 'console'
   TDSK_PAY_TYPE:
   TDSK_PAY_URL:
   TDSK_PAY_PLANS:
@@ -231,6 +232,7 @@ env:
   TDSK_EMAIL_PORT:
   TDSK_EMAIL_SECURE:
   TDSK_EMAIL_API_KEY:
+  TDSK_EMAIL_API_HOST:
 
   # Default from address for all emails
   TDSK_EMAIL_FROM: noreply@threadedstack.dev

@@ -29,12 +29,17 @@ export type TEmailConfig = {
   from: string
 
   /**
-   * API key for Resend
+   * API key for Email provider
    */
   apiKey?: string
 
   /**
-   * SMTP configuration for Mailgun
+   * API key for Email provider
+   */
+  apiHost?: string
+
+  /**
+   * SMTP configuration for Email provider
    */
   smtp?: {
     host: string

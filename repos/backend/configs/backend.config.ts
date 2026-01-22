@@ -1,4 +1,4 @@
-import type { EEmailType } from '@TBE/types'
+import type { EEmailType, EPayType } from '@TBE/types'
 import { toNum, toBool } from '@keg-hub/jsutils'
 import { loadEnvs, parsePayPlans } from '@tdsk/domain'
 import { buildProxyUrl } from '@TBE/utils/proxy/buildProxyUrl'
@@ -55,6 +55,7 @@ const {
   TDSK_EMAIL_PASS,
   TDSK_EMAIL_SECURE,
   TDSK_EMAIL_API_KEY,
+  TDSK_EMAIL_API_HOST,
 } = process.env
 
 const enableSSL = nodeEnv !== `production` && toBool(TDSK_BE_ENABLE_SSL)
@@ -111,15 +112,16 @@ export const config = {
     silent: toBool(TDSK_BE_LOGGER_SILENT) ?? false,
   },
   payments: {
-    type: TDSK_PAY_TYPE,
     url: TDSK_PAY_URL,
     token: TDSK_PAY_ACCESS_TOKEN,
+    type: TDSK_PAY_TYPE as EPayType,
     wbhSecret: TDSK_PAY_WEBHOOK_SECRET,
     plans: parsePayPlans(TDSK_PAY_PLANS),
   },
   email: {
     from: TDSK_EMAIL_FROM,
     apiKey: TDSK_EMAIL_API_KEY,
+    apiHost: TDSK_EMAIL_API_HOST,
     type: TDSK_EMAIL_TYPE as EEmailType,
     smtp: TDSK_EMAIL_HOST
       ? {

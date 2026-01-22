@@ -2,8 +2,6 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { PolarService } from '@TBE/services/payments'
-import { config } from '@TBE/configs/backend.config'
 
 /**
  * POST /subscriptions/checkout - Create a checkout session
@@ -13,7 +11,7 @@ export const createCheckout: TEndpointConfig = {
   path: `/checkout`,
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db } = req.app.locals
+    const { payments } = req.app.locals
     const userId = req.user?.id
     const userEmail = req.user?.email
 
@@ -31,17 +29,15 @@ export const createCheckout: TEndpointConfig = {
       return
     }
 
-    const polarService = new PolarService(config.payments)
-
     // Get product ID for tier
-    const productId = polarService.getProductIdForTier(tier)
+    const productId = payments.service.getProductIdForTier(tier)
     if (!productId) {
       res.status(400).json({ error: `Invalid tier: ${tier}` })
       return
     }
 
     // Get product to find price ID
-    const productResult = await polarService.fetchProduct(productId)
+    const productResult = await payments.service.fetchProduct(productId)
     if (productResult.error || !productResult.data) {
       res.status(500).json({
         error: productResult.error?.message || 'Failed to fetch product',
@@ -50,7 +46,7 @@ export const createCheckout: TEndpointConfig = {
     }
 
     // Create or get customer
-    const customerResult = await polarService.getOrCreateCustomer(userEmail, userId)
+    const customerResult = await payments.service.ensureCustomer(userEmail, userId)
     if (customerResult.error || !customerResult.data) {
       res.status(500).json({
         error: customerResult.error?.message || 'Failed to create customer',
@@ -61,7 +57,7 @@ export const createCheckout: TEndpointConfig = {
     // Create checkout session
     // Note: This assumes product has a price_id field - adjust based on actual Polar API
     const priceId = productResult.data.id // Using product ID as price ID for now
-    const checkoutResult = await polarService.createCheckoutSession(
+    const checkoutResult = await payments.service.createCheckout(
       priceId,
       customerResult.data.id,
       userId,

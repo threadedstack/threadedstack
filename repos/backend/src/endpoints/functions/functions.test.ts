@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { functions } from './functions'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
-import { PolarService } from '@TBE/services/payments'
+import { PaymentsService } from '@TBE/services/payments'
 import { Function as TDFunction } from '@tdsk/domain'
 
 describe(`Functions endpoints`, () => {
@@ -18,7 +18,7 @@ describe(`Functions endpoints`, () => {
     return {
       locals: {
         config,
-        payments: new PolarService(config.payments),
+        payments: new PaymentsService(config.payments),
         db: {
           services: {
             function: {

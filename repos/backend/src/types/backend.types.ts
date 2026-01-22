@@ -2,14 +2,14 @@ import type { TDatabase } from '@tdsk/database'
 import type { TApp as TEApp } from '@tdsk/domain'
 import type { TRequest as TReq } from '@tdsk/domain'
 import type { config } from '@TBE/configs/backend.config'
-import type { EmailService } from '@TBE/services/email'
-import type { PolarService } from '@TBE/services/payments/polar'
+import type { EmailService } from '@TBE/services/email/email'
+import type { PaymentsService } from '@TBE/services/payments/payments'
 
 export type { TResponse } from '@tdsk/domain'
 
 export type TBEConfig = typeof config
 export type TReqParams = Record<string, any>
-export type TApp = TEApp<TBEConfig, TDatabase, PolarService, EmailService>
+export type TApp = TEApp<TBEConfig, TDatabase, PaymentsService, EmailService>
 
 export type TRequest<
   ReqParams extends TReqParams = TReqParams,

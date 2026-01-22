@@ -4,8 +4,8 @@ import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { users } from './users'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
-import { PolarService } from '@TBE/services/payments'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { PaymentsService } from '@TBE/services/payments/payments'
 
 describe(`Users endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -15,7 +15,7 @@ describe(`Users endpoints`, () => {
   const mockApp = {
     locals: {
       config,
-      payments: new PolarService(config.payments),
+      payments: new PaymentsService({ ...config.payments, type: `console` }),
       db: {
         services: {
           user: {

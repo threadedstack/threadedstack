@@ -26,10 +26,10 @@ import { ConsoleStrategy } from '@TBE/services/email/strategies/console'
  * - Console (development logging)
  */
 export class EmailService {
-  private strategy: IEmailStrategy
+  private service: IEmailStrategy
 
   constructor(config: TEmailConfig) {
-    this.strategy = this.createStrategy(config)
+    this.service = this.setup(config)
     const type = config.type || `console`
     logger.info(`[EMAIL SERVICE] Initialized with provider type "${type}"`)
   }
@@ -37,7 +37,7 @@ export class EmailService {
   /**
    * Create the appropriate email strategy based on configuration
    */
-  private createStrategy(config: TEmailConfig): IEmailStrategy {
+  private setup(config: TEmailConfig): IEmailStrategy {
     switch (config.type) {
       case `resend`:
         if (!config.apiKey)
@@ -64,7 +64,7 @@ export class EmailService {
    * Send email via configured provider strategy
    */
   async send(options: TSendEmailOptions): Promise<TEmailResult> {
-    return this.strategy.send(options)
+    return this.service.send(options)
   }
 
   /**

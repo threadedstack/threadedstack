@@ -1,17 +1,17 @@
 import type {
-  TPolarConfig,
-  TPolarProduct,
-  TPolarCustomer,
-  TPolarPortalSession,
-  TPolarCheckoutSession,
-} from './polar'
+  TPayConfig,
+  TPayProduct,
+  TPayCustomer,
+  TPayPortalSession,
+  TPayCheckoutSession,
+} from '@TBE/types'
 
 import * as crypto from 'node:crypto'
 import { PolarService } from './polar'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 describe(`PolarService`, () => {
-  const mockConfig: TPolarConfig = {
+  const mockConfig: TPayConfig = {
     token: `polar_test_token_123`,
     url: `https://api.polar.test`,
     wbhSecret: `whsec_test_secret_456`,
@@ -41,7 +41,7 @@ describe(`PolarService`, () => {
     it(`should throw error if token is missing`, () => {
       const invalidConfig = { ...mockConfig, token: `` }
       expect(() => new PolarService(invalidConfig)).toThrow(
-        `Polar access token is required`
+        `Payments access token is required`
       )
     })
 
@@ -54,7 +54,7 @@ describe(`PolarService`, () => {
 
   describe(`fetchPlans`, () => {
     it(`should fetch all configured plans`, async () => {
-      const mockProducts: TPolarProduct[] = [
+      const mockProducts: TPayProduct[] = [
         {
           id: `prod_free_123`,
           name: `Free Plan`,
@@ -142,13 +142,13 @@ describe(`PolarService`, () => {
       expect(error).toBeUndefined()
       expect(data).toBeDefined()
       expect(data).toHaveLength(4)
-      expect(data![0].name).toBe(`pro`)
+      expect(data![0].name).toBe(`Pro Plan`)
       expect(data![0].metadata.runtime).toBe(300)
-      expect(data![1].name).toBe(`free`)
+      expect(data![1].name).toBe(`Free Plan`)
       expect(data![1].metadata.projects).toBe(1)
       expect(data![1].metadata.price).toBe(0)
-      expect(data![2].name).toBe(`basic`)
-      expect(data![3].name).toBe(`developer`)
+      expect(data![2].name).toBe(`Basic Plan`)
+      expect(data![3].name).toBe(`Developer Plan`)
       expect(mockFetch).toHaveBeenCalledTimes(4)
     })
 
@@ -188,7 +188,7 @@ describe(`PolarService`, () => {
     })
 
     it(`should return Plan objects with parsed metadata`, async () => {
-      const mockProduct: TPolarProduct = {
+      const mockProduct: TPayProduct = {
         id: `prod_basic_456`,
         name: `Basic Plan`,
         metadata: {
@@ -256,7 +256,7 @@ describe(`PolarService`, () => {
 
   describe(`fetchProduct`, () => {
     it(`should fetch product by ID`, async () => {
-      const mockProduct: TPolarProduct = {
+      const mockProduct: TPayProduct = {
         id: `prod_test_123`,
         name: `Test Product`,
         metadata: {
@@ -321,8 +321,8 @@ describe(`PolarService`, () => {
       expect(error?.message).toBe(`Connection timeout`)
     })
 
-    it(`should return TPolarProduct structure`, async () => {
-      const mockProduct: TPolarProduct = {
+    it(`should return TPayProduct structure`, async () => {
+      const mockProduct: TPayProduct = {
         id: `prod_test`,
         name: `Test`,
         metadata: {
@@ -355,7 +355,7 @@ describe(`PolarService`, () => {
 
   describe(`getPlanLimits`, () => {
     it(`should return TPayPlanMeta structure`, async () => {
-      const mockProduct: TPolarProduct = {
+      const mockProduct: TPayProduct = {
         id: `prod_test`,
         name: `Test Plan`,
         metadata: {
@@ -387,7 +387,7 @@ describe(`PolarService`, () => {
     })
 
     it(`should parse raw metadata correctly`, async () => {
-      const mockProduct: TPolarProduct = {
+      const mockProduct: TPayProduct = {
         id: `prod_test`,
         name: `Test`,
         metadata: {
@@ -446,9 +446,9 @@ describe(`PolarService`, () => {
     })
   })
 
-  describe(`getOrCreateCustomer`, () => {
+  describe(`ensureCustomer`, () => {
     it(`should create new customer if not exists`, async () => {
-      const mockCustomer: TPolarCustomer = {
+      const mockCustomer: TPayCustomer = {
         id: `cus_new_123`,
         email: `new@example.com`,
         metadata: { userId: `user_123` },
@@ -467,10 +467,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.getOrCreateCustomer(
-        `new@example.com`,
-        `user_123`
-      )
+      const { data, error } = await service.ensureCustomer(`new@example.com`, `user_123`)
 
       expect(error).toBeUndefined()
       expect(data).toEqual(mockCustomer)
@@ -489,7 +486,7 @@ describe(`PolarService`, () => {
     })
 
     it(`should return existing customer`, async () => {
-      const existingCustomer: TPolarCustomer = {
+      const existingCustomer: TPayCustomer = {
         id: `cus_existing_456`,
         email: `existing@example.com`,
         metadata: { userId: `user_456` },
@@ -503,7 +500,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.getOrCreateCustomer(
+      const { data, error } = await service.ensureCustomer(
         `existing@example.com`,
         `user_456`
       )
@@ -528,10 +525,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.getOrCreateCustomer(
-        `test@example.com`,
-        `user_123`
-      )
+      const { data, error } = await service.ensureCustomer(`test@example.com`, `user_123`)
 
       // New api.ts behavior: returns error for failed find call
       expect(error).toBeDefined()
@@ -553,7 +547,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.getOrCreateCustomer(`invalid`, `user_123`)
+      const { data, error } = await service.ensureCustomer(`invalid`, `user_123`)
 
       expect(data).toBeUndefined()
       expect(error).toBeDefined()
@@ -564,10 +558,7 @@ describe(`PolarService`, () => {
       mockFetch.mockRejectedValue(new Error(`Network timeout`))
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.getOrCreateCustomer(
-        `test@example.com`,
-        `user_123`
-      )
+      const { data, error } = await service.ensureCustomer(`test@example.com`, `user_123`)
 
       expect(data).toBeUndefined()
       expect(error).toBeDefined()
@@ -575,9 +566,9 @@ describe(`PolarService`, () => {
     })
   })
 
-  describe(`createCheckoutSession`, () => {
+  describe(`createCheckout`, () => {
     it(`should create checkout session with correct params`, async () => {
-      const mockSession: TPolarCheckoutSession = {
+      const mockSession: TPayCheckoutSession = {
         id: `cs_test_123`,
         url: `https://polar.test/checkout/cs_test_123`,
         customer_id: `cus_123`,
@@ -591,7 +582,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.createCheckoutSession(
+      const { data, error } = await service.createCheckout(
         `price_123`,
         `cus_123`,
         `user_123`,
@@ -622,7 +613,7 @@ describe(`PolarService`, () => {
     })
 
     it(`should return session with URL`, async () => {
-      const mockSession: TPolarCheckoutSession = {
+      const mockSession: TPayCheckoutSession = {
         id: `cs_456`,
         url: `https://polar.test/checkout/cs_456`,
         customer_id: `cus_456`,
@@ -634,7 +625,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data } = await service.createCheckoutSession(
+      const { data } = await service.createCheckout(
         `price_456`,
         `cus_456`,
         `user_456`,
@@ -654,7 +645,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.createCheckoutSession(
+      const { data, error } = await service.createCheckout(
         `invalid_price`,
         `cus_123`,
         `user_123`,
@@ -671,7 +662,7 @@ describe(`PolarService`, () => {
       mockFetch.mockRejectedValue(new Error(`Connection failed`))
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.createCheckoutSession(
+      const { data, error } = await service.createCheckout(
         `price_123`,
         `cus_123`,
         `user_123`,
@@ -685,9 +676,9 @@ describe(`PolarService`, () => {
     })
   })
 
-  describe(`createCustomerPortalSession`, () => {
+  describe(`createPortal`, () => {
     it(`should create portal session`, async () => {
-      const mockPortalSession: TPolarPortalSession = {
+      const mockPortalSession: TPayPortalSession = {
         url: `https://polar.test/portal/session_123`,
       }
 
@@ -697,7 +688,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.createCustomerPortalSession(`cus_123`)
+      const { data, error } = await service.createPortal(`cus_123`)
 
       expect(error).toBeUndefined()
       expect(data).toEqual(mockPortalSession)
@@ -712,7 +703,7 @@ describe(`PolarService`, () => {
     })
 
     it(`should return URL`, async () => {
-      const mockPortalSession: TPolarPortalSession = {
+      const mockPortalSession: TPayPortalSession = {
         url: `https://polar.test/portal/session_456`,
       }
 
@@ -722,7 +713,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data } = await service.createCustomerPortalSession(`cus_456`)
+      const { data } = await service.createPortal(`cus_456`)
 
       expect(data).toHaveProperty(`url`)
       expect(data?.url).toBe(`https://polar.test/portal/session_456`)
@@ -736,7 +727,7 @@ describe(`PolarService`, () => {
       })
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.createCustomerPortalSession(`cus_nonexistent`)
+      const { data, error } = await service.createPortal(`cus_nonexistent`)
 
       expect(data).toBeUndefined()
       expect(error).toBeDefined()
@@ -747,7 +738,7 @@ describe(`PolarService`, () => {
       mockFetch.mockRejectedValue(new Error(`Network error`))
 
       const service = new PolarService(mockConfig)
-      const { data, error } = await service.createCustomerPortalSession(`cus_123`)
+      const { data, error } = await service.createPortal(`cus_123`)
 
       expect(data).toBeUndefined()
       expect(error).toBeDefined()
@@ -807,7 +798,7 @@ describe(`PolarService`, () => {
     })
   })
 
-  describe(`validateWebhookSignature`, () => {
+  describe(`validateWebhook`, () => {
     it(`should validate correct HMAC-SHA256 signature`, () => {
       const payload = `{"event": "subscription.created", "data": {}}`
       const timestamp = `1234567890`
@@ -818,11 +809,7 @@ describe(`PolarService`, () => {
         .digest(`hex`)
 
       const service = new PolarService(mockConfig)
-      const isValid = service.validateWebhookSignature(
-        payload,
-        expectedSignature,
-        timestamp
-      )
+      const isValid = service.validateWebhook(payload, expectedSignature, timestamp)
 
       expect(isValid).toBe(true)
     })
@@ -833,11 +820,7 @@ describe(`PolarService`, () => {
       const invalidSignature = `invalid_signature_abc123`
 
       const service = new PolarService(mockConfig)
-      const isValid = service.validateWebhookSignature(
-        payload,
-        invalidSignature,
-        timestamp
-      )
+      const isValid = service.validateWebhook(payload, invalidSignature, timestamp)
 
       expect(isValid).toBe(false)
     })
@@ -854,11 +837,7 @@ describe(`PolarService`, () => {
         .digest(`hex`)
 
       const service = new PolarService(mockConfig)
-      const isValid = service.validateWebhookSignature(
-        tamperedPayload,
-        signature,
-        timestamp
-      )
+      const isValid = service.validateWebhook(tamperedPayload, signature, timestamp)
 
       expect(isValid).toBe(false)
     })
@@ -875,11 +854,7 @@ describe(`PolarService`, () => {
         .digest(`hex`)
 
       const service = new PolarService(mockConfig)
-      const isValid = service.validateWebhookSignature(
-        payload,
-        signature,
-        tamperedTimestamp
-      )
+      const isValid = service.validateWebhook(payload, signature, tamperedTimestamp)
 
       expect(isValid).toBe(false)
     })
@@ -888,11 +863,7 @@ describe(`PolarService`, () => {
       const service = new PolarService(mockConfig)
 
       // Pass invalid data that might cause crypto errors
-      const isValid = service.validateWebhookSignature(
-        null as any,
-        undefined as any,
-        `` as any
-      )
+      const isValid = service.validateWebhook(null as any, undefined as any, `` as any)
 
       expect(isValid).toBe(false)
     })

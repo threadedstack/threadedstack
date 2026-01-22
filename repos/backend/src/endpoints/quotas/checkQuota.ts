@@ -3,8 +3,6 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
-import { PolarService } from '@TBE/services/payments'
-import { config } from '@TBE/configs/backend.config'
 
 /**
  * POST /quotas/:orgId/check - Check if action is within quota limits
@@ -16,7 +14,7 @@ export const checkQuota: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { resource, amount = 1 } = req.body
-    const { db } = req.app.locals
+    const { db, payments } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) {
@@ -59,21 +57,18 @@ export const checkQuota: TEndpointConfig = {
     let productId: string | undefined
 
     if (!subResult.data || !subResult.data.polarPriceId) {
-      // Free tier
-      const polarService = new PolarService(config.payments)
-      productId = polarService.getProductIdForTier('free')
+      productId = payments.service.getProductIdForTier(`free`)
     } else {
       productId = subResult.data.polarPriceId
     }
 
     if (!productId) {
-      res.status(500).json({ error: 'Product not configured' })
+      res.status(500).json({ error: `Product not configured` })
       return
     }
 
     // Fetch limits
-    const polarService = new PolarService(config.payments)
-    const limitsResult = await polarService.getPlanLimits(productId)
+    const limitsResult = await payments.service.getPlanLimits(productId)
 
     if (limitsResult.error || !limitsResult.data) {
       res.status(500).json({
