@@ -239,3 +239,8 @@ env:
 
 
 
+  # ---- Agent ENVs --- #
+  TDSK_AG_LOG_LEVEL:
+  TDSK_AG_LOGGER_PRETTY:
+  TDSK_AG_LOGGER_SILENT:
+  
