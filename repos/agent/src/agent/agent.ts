@@ -1,6 +1,8 @@
-import type { TMessage } from '@TAG/types'
+import type { TMessage, TLLMProvider } from '@TAG/types'
 import { Context } from '@TAG/agent/context'
 import { getProvider } from '@TAG/agent/provider'
+// @ts-ignore - The compiler doesn't know about this virtual module yet
+import { getEnvironment } from 'wasi:cli/environment@0.2.0'
 
 // These would be imported from WASM component in actual implementation
 // For now, we'll define the interface
@@ -8,12 +10,17 @@ declare const onToken: (token: string) => void
 declare const executeShell: (cmd: string, args: string[]) => string
 declare const webSearch: (query: string) => string
 
-const ctx = new Context({
-  max: Number(process.env.AGENT_MAX_TOKENS) || 100000,
-})
-
 // Simple in-memory history for this WASM instance run
 const history: TMessage[] = []
+
+const getEnvs = (envs: string[]) => {
+  const loaded = {} as Record<string, string>
+  const data = getEnvironment() as [string, string][]
+  for (const [k, v] of data) {
+    if (envs.includes(k)) loaded[k] = v
+  }
+  return loaded
+}
 
 /**
  * Main entry point for WASM agent
@@ -22,12 +29,24 @@ const history: TMessage[] = []
 export const processRequest = async (prompt: string): Promise<void> => {
   try {
     // Get provider configuration from environment (injected by Host)
+    const envs = getEnvs([
+      `AGENT_URL`,
+      `AGENT_MODEL`,
+      `AGENT_PATH`,
+      `AGENT_API_KEY`,
+      `AGENT_PROVIDER`,
+      `AGENT_MAX_TOKENS`,
+    ])
+
+    const max = envs.AGENT_MAX_TOKENS
+    const ctx = new Context({ max: max ? Number.parseInt(max, 10) : 100000 })
+
     const provider = getProvider({
-      url: process.env.AGENT_URL || '',
-      model: process.env.AGENT_MODEL || '',
-      key: process.env.AGENT_API_KEY || '',
-      type: (process.env.AGENT_PROVIDER as any) || 'openai',
-      path: process.env.AGENT_PATH,
+      url: envs.AGENT_URL || ``,
+      path: envs.AGENT_PATH || ``,
+      model: envs.AGENT_MODEL || ``,
+      key: envs.AGENT_API_KEY || ``,
+      type: envs.AGENT_PROVIDER as TLLMProvider,
     })
 
     history.push({ role: 'user', content: prompt })

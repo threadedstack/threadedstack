@@ -6,12 +6,12 @@ import { promises as fs } from 'node:fs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.join(dirname, `..`)
-const outdir = path.join(rootDir, `dist`)
-const entry = path.join(rootDir, `src/index.ts`)
+const outdir = path.join(rootDir, `dist/agent`)
+const agent = path.join(rootDir, `src/agent/agent.ts`)
 
 const getExternal = () => {
   return [
-    `openai`,
+    `wasi:cli/environment@0.2.0`,
     ...Object.keys(packcfg.dependencies || {}),
     ...Object.keys(packcfg.devDependencies || {}),
   ].filter((name) => !name.startsWith(`@tdsk`) && !name.startsWith(`@keg-hub`))
@@ -27,9 +27,9 @@ export default defineConfig(async () => {
     sourcemap: true,
     splitting: false,
     outDir: outdir,
-    format: [`cjs`],
+    format: [`esm`],
     noExternal: [/(.*)/],
-    entry: [entry],
+    entry: [agent],
     esbuildOptions: (options, context) => {
       options && (options.external = getExternal())
     },
