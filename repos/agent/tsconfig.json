@@ -24,6 +24,10 @@
     "forceConsistentCasingInFileNames": true,
     "paths": {
 
+      "@TAG/root": ["./"],
+      "@TAG/root/*": ["./*"],
+      "@TAG/dist": ["./dist"],
+      "@TAG/dist/*": ["./dist/*"],
       "@TAG/configs": ["./configs"],
       "@TAG/configs/*": ["./configs/*"],
       "@TAG/": ["./src"],

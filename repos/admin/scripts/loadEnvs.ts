@@ -4,7 +4,7 @@ import { homedir } from 'node:os'
 import { addToProcess } from './addToProcess'
 import { loadConfigs } from '@keg-hub/parse-config'
 
-const { NODE_ENV, TDSK_REPO_ROOT_DIR, TDSK_REPO_DEPLOY_DIR } = process.env
+const { NODE_ENV } = process.env
 
 const nodeEnv = NODE_ENV || `local`
 const aliases = hq.get(`webpack`)

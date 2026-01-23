@@ -1,10 +1,19 @@
+/**
+ * @module tsagent
+ * TODO: clean up and refactor
+ * Move tools to own files
+ * Clean up wasmImports object
+ */
+
 import type { TTSAgentOpts, TInitOpts } from '@TAG/types'
+import type { TSandboxExecution } from '@TAG/types/sandbox.types'
 
 import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { Mutex } from '@TAG/services/mutex'
 import { WasmBridge } from '@TAG/services/wasm'
+import { Sandbox } from '@TAG/services/sandbox'
 import { Executor } from '@TAG/services/executor'
 
 /**
@@ -22,9 +31,11 @@ export class TSAgent {
   mutex: Mutex
   exec: Executor
   bridge: WasmBridge
+  sandbox: Sandbox
 
   constructor(opts?: TTSAgentOpts) {
     this.temp = opts?.tempDir ?? os.tmpdir()
+    this.sandbox = new Sandbox()
     this.mutex = new Mutex(opts?.mutex)
     this.exec = new Executor(opts?.exec)
     this.bridge = new WasmBridge(opts?.bridge)
@@ -38,64 +49,229 @@ export class TSAgent {
    * Flow:
    * 1. Acquire mutex lock for projectId (prevent concurrent access)
    * 2. Create/ensure project directory exists
-   * 3. Mount VFS (map host directory to WASM /data)
-   * 4. Instantiate WASM with capabilities (tools, HTTP, env vars)
-   * 5. Execute agent's processRequest function
+   * 3. Initialize WasmBridge with VFS mounts and capabilities
+   * 4. Execute agent's processRequest function via WasmBridge
+   * 5. Cleanup WASM resources
    * 6. Release lock (CRITICAL - always happens via finally)
    */
   run = async (opts: TInitOpts): Promise<void> => {
-    const { prompt, config, projectId, onTokenCallback } = opts
-
+    const { prompt, config, projectId, onToken, history } = opts
     const projectDir = path.resolve(this.temp, projectId)
+
     let releaseLock: (() => void) | undefined
 
     try {
-      // 1. Acquire Lock - Ensures serial execution per project
+      // 1. Acquire mutex lock for this project (serial execution)
       releaseLock = await this.mutex.acquire(projectId)
 
       // 2. Ensure project directory exists
       await fs.mkdir(projectDir, { recursive: true })
 
-      // 3. Initialize WASM with full bridge setup
-      // This would use preview2-shim to:
-      // - Mount VFS (projectDir -> /data)
-      // - Inject WASI capabilities (filesystem, clocks, HTTP)
-      // - Provide tool implementations (executeShell, webSearch)
-      // - Inject environment variables (LLM config)
+      // 2.5. Register custom tools if provided
+      if (config.tools?.custom) {
+        for (const customTool of config.tools.custom) this.sandbox.tools.add(customTool)
+      }
 
+      // 3. Build WASM imports object with Host Bridge capabilities
+      // TODO: move these to their own files
+      // Figure out how to import and use dynamically
       const wasmImports = {
-        // Tool implementations
-        'local:agent/imports': {
-          onToken: (t: string) => onTokenCallback(t),
+        onToken: (token: string) => onToken(token),
+        executeShell: async (cmd: string, args: string[]): Promise<string> => {
+          try {
+            return await this.exec.exec(cmd, args, projectDir)
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            return `[Error] ${msg}`
+          }
         },
-        'local:agent/tools': {
-          executeShell: (c: string, a: string[]) => this.exec.exec(c, a, projectDir),
-          webSearch: (q: string) => 'Search Not Implemented', // TODO: Implement
+        webSearch: (query: string) => {
+          // TODO: Implement web search via MCP or external API
+          return '[Search] Web search not yet implemented'
         },
-        // Environment variables for WASM guest
-        'wasi:cli/environment': {
-          getEnvironment: () => ({
-            AGENT_URL: config.url,
-            AGENT_PATH: config.path,
-            AGENT_MODEL: config.model,
-            AGENT_API_KEY: config.apiKey,
-            AGENT_PROVIDER: config.provider,
-            AGENT_MAX_TOKENS: String(config.maxTokens ?? 100000),
-          }),
+
+        // Filesystem operations
+        readFile: async (filePath: string): Promise<string> => {
+          try {
+            const fullPath = path.resolve(projectDir, filePath)
+            // Security check: ensure path is within project directory
+            if (!fullPath.startsWith(projectDir)) {
+              throw new Error('Access denied: Path outside project directory')
+            }
+            const content = await fs.readFile(fullPath, 'utf-8')
+            return content
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            throw new Error(`Failed to read file: ${msg}`)
+          }
+        },
+
+        writeFile: async (filePath: string, content: string): Promise<string> => {
+          try {
+            const fullPath = path.resolve(projectDir, filePath)
+            // Security check: ensure path is within project directory
+            if (!fullPath.startsWith(projectDir)) {
+              throw new Error('Access denied: Path outside project directory')
+            }
+            // Ensure parent directory exists
+            await fs.mkdir(path.dirname(fullPath), { recursive: true })
+            await fs.writeFile(fullPath, content, 'utf-8')
+            return `Successfully wrote ${content.length} bytes to ${filePath}`
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            throw new Error(`Failed to write file: ${msg}`)
+          }
+        },
+
+        listDirectory: async (dirPath: string): Promise<string[]> => {
+          try {
+            const fullPath = path.resolve(projectDir, dirPath)
+            // Security check: ensure path is within project directory
+            if (!fullPath.startsWith(projectDir)) {
+              throw new Error('Access denied: Path outside project directory')
+            }
+            const entries = await fs.readdir(fullPath, { withFileTypes: true })
+            return entries.map((entry) => {
+              const prefix = entry.isDirectory() ? '[DIR] ' : ''
+              return `${prefix}${entry.name}`
+            })
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            throw new Error(`Failed to list directory: ${msg}`)
+          }
+        },
+
+        deleteFile: async (filePath: string): Promise<string> => {
+          try {
+            const fullPath = path.resolve(projectDir, filePath)
+            // Security check: ensure path is within project directory
+            if (!fullPath.startsWith(projectDir)) {
+              throw new Error('Access denied: Path outside project directory')
+            }
+            await fs.unlink(fullPath)
+            return `Successfully deleted ${filePath}`
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            throw new Error(`Failed to delete file: ${msg}`)
+          }
+        },
+
+        createDirectory: async (dirPath: string): Promise<string> => {
+          try {
+            const fullPath = path.resolve(projectDir, dirPath)
+            // Security check: ensure path is within project directory
+            if (!fullPath.startsWith(projectDir)) {
+              throw new Error('Access denied: Path outside project directory')
+            }
+            await fs.mkdir(fullPath, { recursive: true })
+            return `Successfully created directory ${dirPath}`
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            throw new Error(`Failed to create directory: ${msg}`)
+          }
+        },
+
+        fileExists: async (filePath: string): Promise<boolean> => {
+          try {
+            const fullPath = path.resolve(projectDir, filePath)
+            // Security check: ensure path is within project directory
+            if (!fullPath.startsWith(projectDir)) {
+              return false
+            }
+            await fs.access(fullPath)
+            return true
+          } catch {
+            return false
+          }
+        },
+
+        getFileStats: async (filePath: string): Promise<string> => {
+          try {
+            const fullPath = path.resolve(projectDir, filePath)
+            // Security check: ensure path is within project directory
+            if (!fullPath.startsWith(projectDir)) {
+              throw new Error('Access denied: Path outside project directory')
+            }
+            const stats = await fs.stat(fullPath)
+            return JSON.stringify({
+              size: stats.size,
+              isFile: stats.isFile(),
+              isDirectory: stats.isDirectory(),
+              modified: stats.mtime.toISOString(),
+              created: stats.birthtime.toISOString(),
+            })
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            throw new Error(`Failed to get file stats: ${msg}`)
+          }
+        },
+
+        // Custom tool execution
+        executeCustomTool: async (
+          toolName: string,
+          argsJson: string
+        ): Promise<string> => {
+          try {
+            const tool = this.sandbox.tools.get(toolName)
+            if (!tool) {
+              throw new Error(`Custom tool "${toolName}" not found`)
+            }
+
+            const args = JSON.parse(argsJson)
+            const execution: TSandboxExecution = {
+              tool,
+              arguments: args,
+              projectDir,
+            }
+
+            const result = await this.sandbox.execute(execution)
+
+            if (!result.success) {
+              throw new Error(result.error || 'Unknown execution error')
+            }
+
+            return result.output
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            throw new Error(`Failed to execute custom tool: ${msg}`)
+          }
+        },
+        vfsMounts: {
+          '/data': projectDir, // Mount project directory as /data in WASM guest
+        },
+        config: {
+          AGENT_URL: config.url,
+          AGENT_PATH: config.path || '',
+          AGENT_MODEL: config.model,
+          AGENT_API_KEY: config.apiKey,
+          AGENT_PROVIDER: config.provider,
+          AGENT_MAX_TOKENS: config.maxTokens || 100000,
+          AGENT_TOOLS_ALLOW: config.tools?.allow
+            ? JSON.stringify(config.tools.allow)
+            : '',
+          AGENT_TOOLS_DISALLOW: config.tools?.disallow
+            ? JSON.stringify(config.tools.disallow)
+            : '',
+          AGENT_INITIAL_HISTORY: history ? JSON.stringify(history) : '',
+          AGENT_CUSTOM_TOOLS: config.tools?.custom
+            ? JSON.stringify(config.tools.custom)
+            : '',
         },
       }
 
-      // 4. Call WASM agent (stub - actual implementation requires compiled WASM)
-      // const { processRequest } = await this.bridge.initialize(wasmImports)
-      // await processRequest(prompt)
+      // 4. Initialize fresh WASM instance with VFS mounts and capabilities
+      const instance = await this.bridge.init(wasmImports)
 
-      // Temporary implementation until WASM is compiled:
-      onTokenCallback('[Agent] WASM agent not yet compiled. Run build script first.\n')
-      onTokenCallback(`[Agent] Would process prompt: ${prompt}\n`)
-    } catch (err: any) {
-      console.error(`[TSAgent Error] ${err.message}`)
-      onTokenCallback(`[Error] ${err.message}\n`)
-      throw err
+      // 5. Execute the agent request (streams tokens via onToken callback)
+      await instance.prompt(prompt)
+
+      // 6. Cleanup WASM resources
+      await this.bridge.cleanup()
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown error in WASM agent execution'
+      onToken(`[Error] ${message}\n`)
+      throw error
     } finally {
       // CRITICAL: Always release lock, even on error
       if (releaseLock) releaseLock()

@@ -1,4 +1,7 @@
 import type {
+  TMessage,
+  TToolCall,
+  TLLMResponse,
   TLLMProvider,
   TLLMBaseOpts,
   ILLMProvider,
@@ -26,7 +29,21 @@ class BaseProvider implements ILLMProvider {
   /**
    * Default implementation for OpenAI-compatible APIs
    */
-  async complete(sys: string, usr: string): Promise<string> {
+  async complete(
+    system: string,
+    messages: TMessage[],
+    tools: any[]
+  ): Promise<TLLMResponse> {
+    const formattedMessages = [
+      { role: 'system', content: system },
+      ...messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        ...(m.tool_call_id && { tool_call_id: m.tool_call_id }),
+        ...(m.tool_calls && { tool_calls: m.tool_calls }),
+      })),
+    ]
+
     const response = await fetch(`${this.url}${this.path ?? ''}`, {
       method: 'POST',
       headers: {
@@ -34,11 +51,10 @@ class BaseProvider implements ILLMProvider {
         Authorization: `Bearer ${this.key}`,
       },
       body: JSON.stringify({
+        tools,
         model: this.model,
-        messages: [
-          { role: 'system', content: sys },
-          { role: 'user', content: usr },
-        ],
+        tool_choice: 'auto',
+        messages: formattedMessages,
       }),
     })
 
@@ -47,7 +63,17 @@ class BaseProvider implements ILLMProvider {
     }
 
     const data = await response.json()
-    return data.choices?.[0]?.message?.content || JSON.stringify(data)
+    const choice = data.choices?.[0]
+
+    if (!choice) {
+      throw new Error('No response from LLM')
+    }
+
+    return {
+      finish_reason: choice.finish_reason,
+      content: choice.message?.content || '',
+      tool_calls: choice.message?.tool_calls,
+    }
   }
 }
 
@@ -83,7 +109,30 @@ class Anthropic extends BaseProvider {
   /**
    * Anthropic uses a different API format
    */
-  async complete(system: string, user: string): Promise<string> {
+  async complete(
+    system: string,
+    messages: TMessage[],
+    tools: any[]
+  ): Promise<TLLMResponse> {
+    const formattedMessages = messages.map((m) => {
+      if (m.role === 'tool') {
+        return {
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: m.tool_call_id,
+              content: m.content,
+            },
+          ],
+        }
+      }
+      return {
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      }
+    })
+
     const response = await fetch(`${this.url}${this.path ?? ''}`, {
       method: 'POST',
       headers: {
@@ -92,10 +141,11 @@ class Anthropic extends BaseProvider {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        system: system,
+        system,
         max_tokens: 4096,
         model: this.model,
-        messages: [{ role: 'user', content: user }],
+        messages: formattedMessages,
+        tools,
       }),
     })
 
@@ -104,7 +154,25 @@ class Anthropic extends BaseProvider {
     }
 
     const data = await response.json()
-    return data.content[0].text
+
+    // Convert Anthropic tool_use to OpenAI format
+    const content = data.content.find((c: any) => c.type === 'text')?.text || ''
+    const toolUses = data.content.filter((c: any) => c.type === 'tool_use')
+
+    const tool_calls = toolUses.map((use: any) => ({
+      id: use.id,
+      type: 'function' as const,
+      function: {
+        name: use.name,
+        arguments: JSON.stringify(use.input),
+      },
+    }))
+
+    return {
+      content,
+      tool_calls: tool_calls.length > 0 ? tool_calls : undefined,
+      finish_reason: data.stop_reason === 'tool_use' ? 'tool_calls' : 'stop',
+    }
   }
 }
 
@@ -117,8 +185,8 @@ class Grok extends BaseProvider {
       ...opts,
       type: 'grok',
       model: opts.model ?? 'grok-beta',
-      path: opts.path ?? '/v1/chat/completions',
       url: opts.url ?? 'https://api.x.ai',
+      path: opts.path ?? '/v1/chat/completions',
     })
   }
 }

@@ -397,6 +397,7 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `proxy/` | Auth Gateway - JWT/JWKS validation, backend proxying | Express 5, jose, http-proxy-middleware | `.claude/skills/proxy/SKILL.md` |
 | `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/backend/SKILL.md` |
 | `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/admin/SKILL.md` |
+| `agent/` | AI Agent Backend - WASM isolation, LLM orchestration | TypeScript, WebAssembly, componentize-js | `.claude/skills/agent/SKILL.md` |
 | `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/database/SKILL.md` |
 | `domain/` | Shared types, models, utilities | TypeScript | `.claude/skills/domain/SKILL.md` |
 | `components/` | Shared React components/hooks | React, MUI | `.claude/skills/components/SKILL.md` |
@@ -410,13 +411,15 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 ### How to Use Skills
 Load the relevant skill when working on a specific repo:
 - Working on admin UI? → Read `.claude/skills/admin/SKILL.md` first
-- Adding API endpoints? → Read ``.claude/skills/backend/SKILL.md` first
+- Adding API endpoints? → Read `.claude/skills/backend/SKILL.md` first
+- Building AI agents? → Read `.claude/skills/agent/SKILL.md` first
 - Modifying database schema? → Read `.claude/skills/database/SKILL.md` first
 
 ### Available Skills
 | Skill File | Contents |
 |------------|----------|
 | `admin/SKILL.md` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services, Billing pages/components, Quota tracking |
+| `agent/SKILL.md` | WASM AI agent, Host-Guest architecture, WasmBridge, TSAgent, Mutex, Executor, Provider abstraction, ReAct loop, Security layers, Build pipeline |
 | `backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, Subscription/Quota/Payment endpoints, PaymentsService |
 | `cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
 | `components/SKILL.md` | 30+ React components, 25+ hooks, Monaco editor, Confirm loading state |

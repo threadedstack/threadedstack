@@ -2,10 +2,6 @@
 
 A headless AI coding agent backend built with WebAssembly for maximum isolation and security.
 
-> **Status**: 🚧 Implementation complete - WASM compilation pending
->
-> The TypeScript implementation is complete. To enable full WASM functionality, run `pnpm build:wasm` after compiling the main project.
-
 ## Architecture
 
 ```
@@ -26,6 +22,8 @@ Node.js Host (TSAgent)
 - **⚡ Concurrency**: Mutex ensures serial execution per project
 - **🌐 Provider Agnostic**: OpenAI, Anthropic, Grok, or custom LLMs
 - **📁 VFS Mounting**: Safe filesystem access via WASI
+- **💬 Conversation History**: Resume previous conversations seamlessly
+- **🔧 Custom Tools**: Extend with user-supplied code in isolated WASM sandboxes
 
 ## Building
 
@@ -46,27 +44,107 @@ This runs three steps:
 
 ## Usage
 
+### Basic Usage
+
 ```typescript
 import { TSAgent } from '@tdsk/agent'
 
 const agent = new TSAgent({
-  tempDir: '/tmp/agents',
+  tempDir: `/tmp/agents`,
   mutex: { maxLocks: 100 },
   exec: { timeout: 10000 }
 })
 
 await agent.run({
-  prompt: 'Create a new React component',
-  projectId: 'my-project',
+  projectId: `my-project`,
+  prompt: `Create a new React component`,
+  onToken: (token) => console.log(token),
   config: {
-    provider: 'openai',
+    model: `gpt-4o`,
+    provider: `openai`,
+    url: `https://api.openai.com`
     apiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o',
-    url: 'https://api.openai.com'
   },
-  onTokenCallback: (token) => console.log(token)
 })
 ```
+
+### Resuming Conversations
+
+Pass previous conversation messages to continue where you left off:
+
+```typescript
+import type { TMessage } from '@tdsk/agent'
+
+// Store your conversation history
+const conversation: TMessage[] = [
+  { role: `user`, content: `What is the capital of France?` },
+  { role: `assistant`, content: `The capital of France is Paris.` }
+]
+
+// Resume the conversation with full context
+await agent.run({
+  projectId: `my-project`,
+  // Pass previous messages
+  history: conversation,
+  prompt: `How many people live there?`,
+  onToken: (token) => console.log(token),
+  config: {
+    model: `gpt-4o`,
+    provider: `openai`,
+    url: `https://api.openai.com`,
+    apiKey: process.env.OPENAI_API_KEY,
+  },
+})
+```
+
+See [Conversation History Documentation](./docs/CONVERSATION_HISTORY.md) for detailed examples and best practices.
+
+### Custom Tools
+
+Extend the agent with your own user-supplied code that runs in isolated WASM sandboxes:
+
+```typescript
+import { TSAgent, type TSandboxMetadata } from '@tdsk/agent'
+
+// Define a custom tool
+const weatherTool: TSandboxMetadata = {
+  name: 'getWeather',
+  description: 'Get current weather for a city',
+  language: 'javascript',
+  code: `
+    async function toolFunction(args) {
+      const { city } = args;
+      // Your custom logic here
+      return JSON.stringify({ city, temp: 72, conditions: 'Sunny' });
+    }
+  `,
+  parameters: {
+    type: 'object',
+    properties: {
+      city: { type: 'string', description: 'City name' }
+    },
+    required: ['city']
+  }
+}
+
+// Use the custom tool
+await agent.run({
+  prompt: `What is the weather in San Francisco?`,
+  projectId: `my-project`,
+  onToken: (token) => console.log(token),
+  config: {
+    model: `gpt-4o`,
+    provider: `openai`,
+    url: `https://api.openai.com`,
+    apiKey: process.env.OPENAI_API_KEY!,
+    tools: {
+      custom: [weatherTool] // Register custom tools
+    }
+  },
+})
+```
+
+See [Custom Tools Documentation](./docs/CUSTOM_TOOLS.md) for comprehensive guide and examples.
 
 ## Security Model
 
@@ -84,46 +162,4 @@ await agent.run({
 
 ## WIT Interface
 
-See `world.wit` for the WASM Component Model interface definition.
-
-## Development Status
-
-- ✅ Type definitions complete
-- ✅ Mutex implementation
-- ✅ Executor with security validation
-- ✅ Context management
-- ✅ LLM provider abstractions (OpenAI, Anthropic, Grok)
-- ✅ Agent ReAct loop
-- ✅ TSAgent host wrapper
-- ✅ Build scripts
-- ✅ WIT interface definition
-- 🚧 WASM compilation (requires `pnpm build:wasm`)
-- 🚧 VFS mounting in WasmBridge (preview2-shim integration)
-- 🚧 Web search tool implementation
-
-## File Structure
-
-```
-repos/agent/
-├── src/
-│   ├── agent/           # WASM Guest code
-│   │   ├── agent.ts     # Main ReAct loop
-│   │   ├── context.ts   # Token management
-│   │   └── provider.ts  # LLM providers
-│   ├── services/        # Host services
-│   │   ├── mutex.ts     # Concurrency control
-│   │   ├── executor.ts  # Secure command execution
-│   │   └── wasm.ts      # WASM bridge
-│   ├── types/           # TypeScript definitions
-│   ├── constants/       # Security constants
-│   ├── tsagent.ts       # Main export
-│   └── index.ts
-├── scripts/
-│   ├── build.ts         # TS -> WASM build
-│   └── transpile.ts     # WASM -> JS bindings
-└── world.wit            # WASM interface definition
-```
-
-## License
-
-MIT
+See `wit/world.wit` for the WASM Component Model interface definition.
