@@ -6,7 +6,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "dlw": "pnpm tsx scripts/wit.ts",
     "build": "tsup-node --config configs/tsup.config.ts",
+    "build:wasm": "pnpm build && pnpm tsx scripts/build.ts && pnpm tsx scripts/transpile.ts",
     "clean": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",
     "clean:full": "pnpm clean && pnpm clean:nm",
@@ -24,6 +26,9 @@
     "test": "vitest run --config configs/vitest.config.ts"
   },
   "dependencies": {
+    "@bytecodealliance/componentize-js": "0.19.3",
+    "@bytecodealliance/jco": "1.15.4",
+    "@bytecodealliance/preview2-shim": "0.17.6",
     "@keg-hub/jsutils": "^10.0.0",
     "@keg-hub/parse-config": "2.1.0",
     "@tdsk/database": "workspace:*",

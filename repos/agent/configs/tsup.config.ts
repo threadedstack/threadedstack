@@ -8,6 +8,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.join(dirname, `..`)
 const outdir = path.join(rootDir, `dist`)
 const entry = path.join(rootDir, `src/index.ts`)
+const agent = path.join(rootDir, `src/agent/agent.ts`)
 
 const getExternal = () => {
   return [
@@ -28,8 +29,8 @@ export default defineConfig(async () => {
     splitting: false,
     outDir: outdir,
     format: [`cjs`],
-    entry: [entry],
     noExternal: [/(.*)/],
+    entry: [entry, agent],
     esbuildOptions: (options, context) => {
       options && (options.external = getExternal())
     },
