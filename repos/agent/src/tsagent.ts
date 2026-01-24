@@ -15,6 +15,7 @@ import { Mutex } from '@TAG/services/mutex'
 import { WasmBridge } from '@TAG/services/wasm'
 import { Sandbox } from '@TAG/services/sandbox'
 import { Executor } from '@TAG/services/executor'
+import { SubAgentManager } from '@TAG/services/subagent'
 
 /**
  * TSAgent - Main Agent class exported from this package
@@ -32,6 +33,7 @@ export class TSAgent {
   exec: Executor
   bridge: WasmBridge
   sandbox: Sandbox
+  subAgentManager: SubAgentManager
 
   constructor(opts?: TTSAgentOpts) {
     this.temp = opts?.tempDir ?? os.tmpdir()
@@ -39,6 +41,11 @@ export class TSAgent {
     this.mutex = new Mutex(opts?.mutex)
     this.exec = new Executor(opts?.exec)
     this.bridge = new WasmBridge(opts?.bridge)
+    this.subAgentManager = new SubAgentManager({
+      maxSubAgents: 5,
+      idleTimeout: 300000,
+      defaultQueueSize: 100,
+    })
   }
 
   /**
@@ -236,6 +243,101 @@ export class TSAgent {
             throw new Error(`Failed to execute custom tool: ${msg}`)
           }
         },
+
+        // Sub-agent orchestration
+        spawnSubAgent: async (subAgentId: string, prompt: string): Promise<string> => {
+          try {
+            await this.subAgentManager.spawn({
+              subAgentId,
+              prompt,
+              config, // Inherit parent config
+              onToken: (token) => {
+                // Forward sub-agent tokens to parent with prefix
+                onToken(`[SubAgent:${subAgentId}] ${token}`)
+              },
+            })
+            return JSON.stringify({
+              success: true,
+              subAgentId,
+              message: `Sub-agent ${subAgentId} spawned successfully`,
+            })
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            return JSON.stringify({
+              success: false,
+              subAgentId,
+              error: msg,
+            })
+          }
+        },
+
+        sendMessageToSubAgent: async (
+          subAgentId: string,
+          message: string
+        ): Promise<string> => {
+          try {
+            await this.subAgentManager.sendMessage(subAgentId, {
+              type: 'prompt',
+              content: message,
+              timestamp: Date.now(),
+            })
+            return JSON.stringify({
+              success: true,
+              subAgentId,
+              message: `Message sent to ${subAgentId}`,
+            })
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            return JSON.stringify({
+              success: false,
+              subAgentId,
+              error: msg,
+            })
+          }
+        },
+
+        receiveMessageFromSubAgent: async (subAgentId: string): Promise<string> => {
+          try {
+            const messages = await this.subAgentManager.receiveMessage(subAgentId, 1)
+            if (messages.length === 0) {
+              return JSON.stringify({
+                success: true,
+                subAgentId,
+                message: null,
+              })
+            }
+            return JSON.stringify({
+              success: true,
+              subAgentId,
+              message: messages[0],
+            })
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            return JSON.stringify({
+              success: false,
+              subAgentId,
+              error: msg,
+            })
+          }
+        },
+
+        terminateSubAgent: async (subAgentId: string): Promise<string> => {
+          try {
+            await this.subAgentManager.terminate(subAgentId)
+            return JSON.stringify({
+              success: true,
+              subAgentId,
+              message: `Sub-agent ${subAgentId} terminated successfully`,
+            })
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error)
+            return JSON.stringify({
+              success: false,
+              subAgentId,
+              error: msg,
+            })
+          }
+        },
         vfsMounts: {
           '/data': projectDir, // Mount project directory as /data in WASM guest
         },
@@ -289,9 +391,10 @@ export class TSAgent {
   }
 
   /**
-   * Cleanup all resources
+   * Cleanup all resources including sub-agents
    */
   cleanup = async (): Promise<void> => {
+    await this.subAgentManager.cleanup()
     this.mutex.clearAll()
     await this.bridge.cleanup()
   }

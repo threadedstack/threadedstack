@@ -6,7 +6,6 @@
 
 import type {
   TSandboxResult,
-  TSandboxLanguage,
   TSandboxExecution,
   IToolSandboxModule,
 } from '@TAG/types/sandbox.types'
@@ -17,6 +16,7 @@ import { Tools } from '@TAG/services/tools'
 
 export type TSandboxOpts = {
   sandboxPath?: string
+  module?: IToolSandboxModule | null
 }
 
 /**
@@ -33,13 +33,14 @@ export type TSandboxOpts = {
  * - No access to Node.js APIs or environment
  */
 export class Sandbox {
+  tools: Tools
   // Path to compiled WASM sandbox component
   #sandboxPath: string
-  tools: Tools
   #module: IToolSandboxModule | null = null
 
   constructor(opts?: TSandboxOpts) {
     this.tools = new Tools()
+    this.#module = opts?.module
     this.#sandboxPath = opts?.sandboxPath || join(paths.dist, `wasm/sandbox.js`)
   }
 

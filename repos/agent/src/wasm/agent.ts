@@ -27,6 +27,18 @@ declare const executeCustomTool: (
   argsJson: string
 ) => string | Promise<string>
 
+// Sub-agent orchestration
+declare const spawnSubAgent: (
+  subAgentId: string,
+  prompt: string
+) => string | Promise<string>
+declare const sendMessageToSubAgent: (
+  subAgentId: string,
+  message: string
+) => string | Promise<string>
+declare const receiveMessageFromSubAgent: (subAgentId: string) => string | Promise<string>
+declare const terminateSubAgent: (subAgentId: string) => string | Promise<string>
+
 const getEnvs = (envs: string[]) => {
   const loaded = {} as Record<string, string>
   const data = getEnvironment() as [string, string][]
@@ -145,6 +157,39 @@ const executeTool = async (toolCall: TToolCall): Promise<string> => {
       return stats
     }
 
+    // Sub-agent orchestration tools
+    if (name === `spawnSubAgent`) {
+      const { subAgentId, prompt } = args
+      onToken(`\n[Tool: spawnSubAgent] Spawning sub-agent: ${subAgentId}\n`)
+      const result = await spawnSubAgent(subAgentId, prompt)
+      onToken(`[Result] ${result}\n`)
+      return result
+    }
+
+    if (name === `sendMessageToSubAgent`) {
+      const { subAgentId, message } = args
+      onToken(`\n[Tool: sendMessageToSubAgent] Sending to ${subAgentId}\n`)
+      const result = await sendMessageToSubAgent(subAgentId, message)
+      onToken(`[Result] ${result}\n`)
+      return result
+    }
+
+    if (name === `receiveMessageFromSubAgent`) {
+      const { subAgentId } = args
+      onToken(`\n[Tool: receiveMessageFromSubAgent] Receiving from ${subAgentId}\n`)
+      const result = await receiveMessageFromSubAgent(subAgentId)
+      onToken(`[Message]\n${result}\n`)
+      return result
+    }
+
+    if (name === `terminateSubAgent`) {
+      const { subAgentId } = args
+      onToken(`\n[Tool: terminateSubAgent] Terminating: ${subAgentId}\n`)
+      const result = await terminateSubAgent(subAgentId)
+      onToken(`[Result] ${result}\n`)
+      return result
+    }
+
     // Check if this is a custom tool (not a built-in tool)
     // Custom tools are identified by not being in the built-in tool list
     const builtInTools = [
@@ -157,6 +202,10 @@ const executeTool = async (toolCall: TToolCall): Promise<string> => {
       `executeShell`,
       `listDirectory`,
       `createDirectory`,
+      `spawnSubAgent`,
+      `terminateSubAgent`,
+      `sendMessageToSubAgent`,
+      `receiveMessageFromSubAgent`,
     ]
 
     if (!builtInTools.includes(name)) {

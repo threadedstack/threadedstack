@@ -4,8 +4,15 @@ export const AllowedCommands = new Set([
   `echo`,
   `grep`,
   `npm`,
+  `pnpm`,
+  `yarn`,
+  `pip`,
+  `pdm`,
+  `uv`,
   `cat`,
   `rm`,
+  `mv`,
+  `cp`,
   `mkdir`,
 ])
 

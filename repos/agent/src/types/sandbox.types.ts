@@ -3,7 +3,7 @@
  * These tools run in isolated WASM sandboxes for security
  */
 
-export type TSandboxLanguage = `javascript`
+import type { TFunLanguage, EFunLanguage } from '@tdsk/domain'
 
 /**
  * Metadata for a custom tool defined by the user
@@ -13,8 +13,11 @@ export type TSandboxMetadata = {
   name: string
   /** Human-readable description for the LLM */
   description: string
-  /** Programming language of the tool code */
-  language: TSandboxLanguage
+  /**
+    Programming language of the tool code
+    * TODO: Update this to use the TFunLanguage from `@tdsk/domain` once they are all supported
+  */
+  language: `${EFunLanguage.javascript}`
   /** Source code for the tool (must be a function) */
   code: string
   /** JSON schema for tool parameters */
