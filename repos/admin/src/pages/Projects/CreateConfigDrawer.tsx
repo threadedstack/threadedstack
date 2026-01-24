@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Dialog } from '@tdsk/components'
+import { Drawer } from '@tdsk/components'
 import { createConfig } from '@TAF/actions/configs'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
@@ -13,7 +13,7 @@ import {
   FormControl,
 } from '@mui/material'
 
-export type TCreateConfigDialog = {
+export type TCreateConfigDrawer = {
   open: boolean
   projectId: string
   onClose: () => void
@@ -27,12 +27,12 @@ const CONFIG_TYPES = [
   { value: 'boolean', label: 'Boolean' },
 ]
 
-export const CreateConfigDialog = ({
+export const CreateConfigDrawer = ({
   open,
   projectId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TCreateConfigDialog) => {
+}: TCreateConfigDrawer) => {
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
   const [type, setType] = useState('string')
@@ -107,88 +107,10 @@ export const CreateConfigDialog = ({
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onClose={onClose}
-      maxWidth='sm'
       title='Create Configuration'
-      content={
-        <form
-          id='create-config-form'
-          onSubmit={onSubmit}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error && (
-              <ErrorAlert
-                message={error}
-                onClose={() => setError(null)}
-              />
-            )}
-
-            <TextField
-              autoFocus
-              label='Configuration Key'
-              placeholder='Enter key (e.g., MAX_RETRIES)'
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-            />
-
-            <FormControl
-              fullWidth
-              disabled={loading}
-            >
-              <InputLabel id='config-type-label'>Type</InputLabel>
-              <Select
-                labelId='config-type-label'
-                value={type}
-                label='Type'
-                onChange={(e) => setType(e.target.value)}
-              >
-                {CONFIG_TYPES.map((configType) => (
-                  <MenuItem
-                    key={configType.value}
-                    value={configType.value}
-                  >
-                    {configType.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
-              label='Value'
-              placeholder={
-                type === 'json'
-                  ? '{"key": "value"}'
-                  : type === 'boolean'
-                    ? 'true or false'
-                    : type === 'number'
-                      ? '123'
-                      : 'Enter value'
-              }
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-              multiline={type === 'json'}
-              rows={type === 'json' ? 3 : 1}
-              helperText={
-                type === 'json'
-                  ? 'Enter valid JSON'
-                  : type === 'boolean'
-                    ? 'Enter true or false'
-                    : type === 'number'
-                      ? 'Enter a numeric value'
-                      : ''
-              }
-            />
-          </Box>
-        </form>
-      }
       actions={
         <>
           <Button
@@ -208,6 +130,82 @@ export const CreateConfigDialog = ({
           </LoadingButton>
         </>
       }
-    />
+    >
+      <form
+        id='create-config-form'
+        onSubmit={onSubmit}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {error && (
+            <ErrorAlert
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
+
+          <TextField
+            autoFocus
+            label='Configuration Key'
+            placeholder='Enter key (e.g., MAX_RETRIES)'
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            required
+            fullWidth
+            disabled={loading}
+          />
+
+          <FormControl
+            fullWidth
+            disabled={loading}
+          >
+            <InputLabel id='config-type-label'>Type</InputLabel>
+            <Select
+              labelId='config-type-label'
+              value={type}
+              label='Type'
+              onChange={(e) => setType(e.target.value)}
+            >
+              {CONFIG_TYPES.map((configType) => (
+                <MenuItem
+                  key={configType.value}
+                  value={configType.value}
+                >
+                  {configType.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            label='Value'
+            placeholder={
+              type === 'json'
+                ? '{"key": "value"}'
+                : type === 'boolean'
+                  ? 'true or false'
+                  : type === 'number'
+                    ? '123'
+                    : 'Enter value'
+            }
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            required
+            fullWidth
+            disabled={loading}
+            multiline={type === 'json'}
+            rows={type === 'json' ? 3 : 1}
+            helperText={
+              type === 'json'
+                ? 'Enter valid JSON'
+                : type === 'boolean'
+                  ? 'Enter true or false'
+                  : type === 'number'
+                    ? 'Enter a numeric value'
+                    : ''
+            }
+          />
+        </Box>
+      </form>
+    </Drawer>
   )
 }

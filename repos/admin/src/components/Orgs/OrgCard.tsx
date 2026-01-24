@@ -3,9 +3,8 @@ import type { Organization } from '@tdsk/domain'
 import { useState } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
 import { styled } from '@mui/material/styles'
+import { ConfirmDelete } from '@tdsk/components'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
-import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
-
 import { Box, Card, Chip, useTheme, Typography, CardContent } from '@mui/material'
 
 const CardOrg = styled(Card)(({ theme }) => {
@@ -88,7 +87,7 @@ export const OrgCard = (props: TOrgCard) => {
       </CardOrg>
 
       {showDelete && deleting && (
-        <ConfirmDeleteAlert
+        <ConfirmDelete
           deleting={deleted}
           itemName={org?.name}
           onCancel={onDeleteCancel}

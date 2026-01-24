@@ -53,6 +53,7 @@ interface IInput {
   className?: string
   required?: boolean
   description?: string
+  helperText?: string
   depends?: TInputDepend
   size?: `small` | `medium`
   notificationsProps?: NotificationCountProps

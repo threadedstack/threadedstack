@@ -2,7 +2,7 @@ import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import { styled, darken, alpha } from '@mui/material/styles'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
-import { dims, Text, grey, colors, TSIcon, gutter, LoadingButton } from '@tdsk/components'
+import { Text, grey, colors, TSIcon, gutter, LoadingButton } from '@tdsk/components'
 
 export const LoginContainer = styled(Box)(({ theme }) => {
   const isDark = theme.palette.mode === 'dark'
@@ -66,6 +66,7 @@ export const LoginContainer = styled(Box)(({ theme }) => {
 
 export const LoginContent = styled(Box)(({ theme }) => {
   const isDark = theme.palette.mode === 'dark'
+
   return `
     z-index: 1;
     width: 90%;
@@ -74,7 +75,7 @@ export const LoginContent = styled(Box)(({ theme }) => {
     position: relative;
     overflow: hidden;
     backdrop-filter: blur(20px);
-    border-radius: ${dims.border.tpx};
+    border-radius: ${theme.dims.border.tpx};
     border: 1px solid ${isDark ? alpha(grey[700], 0.3) : alpha(grey[200], 0.5)};
     background: ${
       isDark
@@ -185,7 +186,7 @@ export const GgLoginButton = styled(LoadingButton)(({ theme }) => {
     font-size: 15px;
     font-weight: 600;
     text-transform: none;
-    border-radius: ${dims.border.tpx};
+    border-radius: ${theme.dims.border.tpx};
     background: #34A853;
     border: 1px solid ${alpha('#fff', 0.1)};
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -207,7 +208,6 @@ export const GgLoginButton = styled(LoadingButton)(({ theme }) => {
 })
 
 export const GhLoginButton = styled(LoadingButton)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
   return `
     width: 100%;
     height: 52px;
@@ -216,7 +216,7 @@ export const GhLoginButton = styled(LoadingButton)(({ theme }) => {
     font-weight: 600;
     text-transform: none;
     background: ${darken(`#909692`, 0.2)};
-    border-radius: ${dims.border.tpx};
+    border-radius: ${theme.dims.border.tpx};
     border: 1px solid ${alpha('#fff', 0.08)};
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -237,7 +237,6 @@ export const GhLoginButton = styled(LoadingButton)(({ theme }) => {
 })
 
 export const GlLoginButton = styled(LoadingButton)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
   return `
     width: 100%;
     height: 52px;
@@ -246,7 +245,7 @@ export const GlLoginButton = styled(LoadingButton)(({ theme }) => {
     font-weight: 600;
     text-transform: none;
     background: #fc6d27;
-    border-radius: ${dims.border.tpx};
+    border-radius: ${theme.dims.border.tpx};
     border: 1px solid ${alpha('#fff', 0.1)};
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -267,8 +266,6 @@ export const GlLoginButton = styled(LoadingButton)(({ theme }) => {
 })
 
 export const VrLoginButton = styled(LoadingButton)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
-
   return `
     width: 100%;
     height: 52px;
@@ -276,7 +273,7 @@ export const VrLoginButton = styled(LoadingButton)(({ theme }) => {
     font-size: 15px;
     font-weight: 600;
     text-transform: none;
-    border-radius: ${dims.border.tpx};
+    border-radius: ${theme.dims.border.tpx};
     background: #2E2E2E;
     border: 1px solid ${alpha('#fff', 0.08)};
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -313,7 +310,7 @@ export const ErrorSection = styled(Box)(({ theme }) => {
     flex-direction: column;
     padding: ${gutter.tpx};
     margin-top: ${gutter.px};
-    border-radius: ${dims.border.tpx};
+    border-radius: ${theme.dims.border.tpx};
     background: ${
       isDark
         ? alpha(theme.palette.colors.states.danger, 0.12)

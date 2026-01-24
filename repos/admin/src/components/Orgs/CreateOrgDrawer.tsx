@@ -6,7 +6,7 @@ import { styled } from '@mui/material/styles'
 import { Add as AddIcon } from '@mui/icons-material'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { createOrg } from '@TAF/actions/orgs/api/createOrg'
-import { Button, Dialog, TextInput } from '@tdsk/components'
+import { Button, Drawer, TextInput } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
@@ -15,23 +15,25 @@ const CreateBox = styled(Box)`
   justify-content: end;
 `
 
-export type TCreateOrgDialog = {
+export type TCreateOrgDrawer = {
   open: boolean
   sx?: CSSProperties
   createText?: string
   onClose: () => void
   hideCreate?: boolean
   createSx?: CSSProperties
+  actionsSx?: CSSProperties
   createBtnSx?: CSSProperties
   onCreate?: (evt: any) => void
 }
 
-export const CreateOrgDialog = (props: TCreateOrgDialog) => {
+export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
   const {
     sx,
     open,
     createSx,
     onCreate,
+    actionsSx,
     hideCreate,
     createBtnSx,
     onClose: onCloseCB,
@@ -92,10 +94,9 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
           </Button>
         </CreateBox>
       )}
-      <Dialog
+      <Drawer
         sx={sx}
         open={open}
-        maxWidth='md'
         onClose={onClose}
         title={
           <>
@@ -104,45 +105,7 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
           </>
         }
         data-testid='create-org-dialog'
-        content={
-          <form
-            id='create-org-form'
-            onSubmit={onSubmit}
-          >
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {error && (
-                <ErrorAlert
-                  message={error}
-                  onClose={() => setError(null)}
-                />
-              )}
-
-              <TextInput
-                autoFocus
-                required
-                fullWidth
-                value={name}
-                label='Name'
-                disabled={loading}
-                id='create-org-name'
-                placeholder='Enter organization name'
-                onChange={(e) => setName(e.target.value)}
-              />
-
-              <TextInput
-                textarea
-                fullWidth
-                minRows={3}
-                disabled={loading}
-                label='Description'
-                value={description}
-                id='create-org-description'
-                placeholder='Enter organization description (optional)'
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </Box>
-          </form>
-        }
+        actionsSx={actionsSx}
         actions={
           <>
             <Button
@@ -163,7 +126,45 @@ export const CreateOrgDialog = (props: TCreateOrgDialog) => {
             </LoadingButton>
           </>
         }
-      />
+      >
+        <form
+          id='create-org-form'
+          onSubmit={onSubmit}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {error && (
+              <ErrorAlert
+                message={error}
+                onClose={() => setError(null)}
+              />
+            )}
+
+            <TextInput
+              autoFocus
+              required
+              fullWidth
+              value={name}
+              label='Name'
+              disabled={loading}
+              id='create-org-name'
+              placeholder='Enter organization name'
+              onChange={(e) => setName(e.target.value)}
+            />
+
+            <TextInput
+              textarea
+              fullWidth
+              minRows={3}
+              disabled={loading}
+              label='Description'
+              value={description}
+              id='create-org-description'
+              placeholder='Enter organization description (optional)'
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </Box>
+        </form>
+      </Drawer>
     </>
   )
 }

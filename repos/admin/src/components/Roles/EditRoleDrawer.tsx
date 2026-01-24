@@ -1,16 +1,16 @@
 import type { User, TRoleType } from '@tdsk/domain'
 
 import { ERoleType } from '@tdsk/domain'
+import { Drawer } from '@tdsk/components'
 import { useState, useEffect } from 'react'
-import { AuthRoles } from '@TAF/constants/values'
-import { Dialog, SelectInput } from '@tdsk/components'
 import { getInitials } from '@TAF/utils/user/getInitials'
+import { RoleSelect } from '@TAF/components/Roles/RoleSelect'
 import { updateOrgRole } from '@TAF/actions/users/updateOrgRole'
+import { Box, Avatar, Button, Typography } from '@mui/material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { Box, Alert, Avatar, Button, Typography } from '@mui/material'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
-export type TEditRoleDialog = {
+export type TEditRoleDrawer = {
   user: User
   open: boolean
   orgId: string
@@ -19,13 +19,13 @@ export type TEditRoleDialog = {
 }
 
 // TODO: Add checks if current user has admin permission to edit other users roles
-export const EditRoleDialog = ({
+export const EditRoleDrawer = ({
   open,
   user,
   orgId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TEditRoleDialog) => {
+}: TEditRoleDrawer) => {
   const [roleType, setRoleType] = useState<TRoleType>(
     user.role === ERoleType.admin ? ERoleType.admin : ERoleType.viewer
   )
@@ -61,71 +61,10 @@ export const EditRoleDialog = ({
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onClose={onClose}
-      maxWidth='sm'
       title='Edit User Role'
-      content={
-        <form
-          id='edit-role-form'
-          onSubmit={onSubmit}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error && (
-              <ErrorAlert
-                message={error}
-                onClose={() => setError(null)}
-              />
-            )}
-
-            <Box
-              sx={{
-                p: 2,
-                gap: 2,
-                display: 'flex',
-                borderRadius: 1,
-                alignItems: 'center',
-                bgcolor: 'action.hover',
-              }}
-            >
-              <Avatar
-                src={user.image}
-                sx={{ width: 48, height: 48 }}
-              >
-                {getInitials(user)}
-              </Avatar>
-              <Box>
-                <Typography
-                  variant='subtitle1'
-                  fontWeight='medium'
-                >
-                  {user.displayName}
-                </Typography>
-                <Typography
-                  variant='body2'
-                  color='text.secondary'
-                >
-                  {user.email}
-                </Typography>
-              </Box>
-            </Box>
-
-            <SelectInput
-              id='role-edit'
-              label='Role'
-              value={roleType}
-              items={AuthRoles}
-              disabled={loading}
-              onChange={(e) => setRoleType(e.target.value as TRoleType)}
-            />
-
-            <Alert severity='info'>
-              Note: Super admin roles cannot be modified through this interface.
-            </Alert>
-          </Box>
-        </form>
-      }
       actions={
         <>
           <Button
@@ -145,6 +84,59 @@ export const EditRoleDialog = ({
           </LoadingButton>
         </>
       }
-    />
+    >
+      <form
+        id='edit-role-form'
+        onSubmit={onSubmit}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {error && (
+            <ErrorAlert
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
+
+          <Box
+            sx={{
+              p: 2,
+              gap: 2,
+              display: 'flex',
+              borderRadius: 1,
+              alignItems: 'center',
+              bgcolor: 'action.hover',
+            }}
+          >
+            <Avatar
+              src={user.image}
+              sx={{ width: 48, height: 48 }}
+            >
+              {getInitials(user)}
+            </Avatar>
+            <Box>
+              <Typography
+                variant='subtitle1'
+                fontWeight='medium'
+              >
+                {user.displayName}
+              </Typography>
+              <Typography
+                variant='body2'
+                color='text.secondary'
+              >
+                {user.email}
+              </Typography>
+            </Box>
+          </Box>
+
+          <RoleSelect
+            showAlert
+            disabled={loading}
+            roleType={roleType}
+            onChange={(e) => setRoleType(e.target.value as TRoleType)}
+          />
+        </Box>
+      </form>
+    </Drawer>
   )
 }

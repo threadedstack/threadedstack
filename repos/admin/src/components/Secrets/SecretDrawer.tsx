@@ -1,57 +1,56 @@
 import type { Secret } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
-import { ConfirmDeleteAlert } from '@TAF/components'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { ConfirmDelete, Drawer, TextInput } from '@tdsk/components'
+import { Box, Button, IconButton, InputAdornment } from '@mui/material'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 import { createSecret, updateSecret, deleteSecret } from '@TAF/actions/secrets'
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material'
-import { Box, Button, IconButton, InputAdornment } from '@mui/material'
-import { Dialog, TextInput } from '@tdsk/components'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
-export type TSecretDialog = {
+export type TSecretDrawer = {
   open: boolean
   orgId?: string
   projectId?: string
-  secret?: Secret | null
   onClose: () => void
+  secret?: Secret | null
   onSuccess?: () => void
 }
 
-export const SecretDialog = ({
+export const SecretDrawer = ({
   open,
   orgId,
-  projectId,
   secret,
+  projectId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TSecretDialog) => {
+}: TSecretDrawer) => {
   const isEditMode = !!secret
 
   const [name, setName] = useState('')
   const [value, setValue] = useState('')
-  const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [description, setDescription] = useState('')
   const [showValue, setShowValue] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
     if (secret) {
-      setName(secret.hashKey || secret.name || '')
-      setValue('')
-      setDescription(secret.description || '')
+      setValue(``)
       setError(null)
       setShowValue(false)
       setShowDeleteConfirm(false)
+      setDescription(secret.description || ``)
+      setName(secret.hashKey || secret.name || ``)
     } else {
-      setName('')
-      setValue('')
-      setDescription('')
+      setName(``)
+      setValue(``)
       setError(null)
+      setDescription(``)
       setShowValue(false)
       setShowDeleteConfirm(false)
     }
@@ -59,10 +58,10 @@ export const SecretDialog = ({
 
   const onClose = () => {
     if (!loading) {
-      setName('')
-      setValue('')
-      setDescription('')
+      setName(``)
+      setValue(``)
       setError(null)
+      setDescription(``)
       setShowValue(false)
       setShowDeleteConfirm(false)
       onCloseCB?.()
@@ -73,19 +72,19 @@ export const SecretDialog = ({
     e.preventDefault()
 
     if (!name.trim()) {
-      setError('Secret name is required')
+      setError(`Secret name is required`)
       return
     }
 
     if (!isEditMode && !value.trim()) {
-      setError('Secret value is required')
+      setError(`Secret value is required`)
       return
     }
 
     setLoading(true)
     setError(null)
 
-    let result: { error?: string } | undefined
+    let result: { error?: Error } | undefined
 
     if (isEditMode && secret) {
       const updateData: {
@@ -128,7 +127,9 @@ export const SecretDialog = ({
     setLoading(false)
 
     if (result?.error) {
-      setError(`Failed to ${isEditMode ? 'update' : 'create'} secret. Please try again.`)
+      const action = isEditMode ? `update` : `create`
+      const msg = result.error?.message || `Please try again.`
+      setError(`Failed to ${action} secret. ${msg}`)
     } else {
       onSuccessCB?.()
       onClose()
@@ -146,8 +147,9 @@ export const SecretDialog = ({
     setLoading(false)
 
     if (result.error) {
-      setError('Failed to delete secret. Please try again.')
       setShowDeleteConfirm(false)
+      const msg = result.error?.message || `Please try again.`
+      setError(`Failed to delete secret. ${msg}`)
     } else {
       onSuccessCB?.()
       onClose()
@@ -159,86 +161,12 @@ export const SecretDialog = ({
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onClose={onClose}
-      maxWidth='sm'
       title={isEditMode ? 'Edit Secret' : 'Create New Secret'}
-      content={
-        <form
-          id='secret-form'
-          onSubmit={onSubmit}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error && (
-              <ErrorAlert
-                message={error}
-                onClose={() => setError(null)}
-              />
-            )}
-
-            {isEditMode && showDeleteConfirm && (
-              <ConfirmDeleteAlert
-                deleting={loading}
-                onConfirm={onDelete}
-                onCancel={() => setShowDeleteConfirm(false)}
-                itemName={secret?.hashKey || secret?.name || ''}
-              />
-            )}
-
-            <TextInput
-              autoFocus
-              label='Secret Name'
-              placeholder='Enter secret name (e.g., API_KEY)'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-            />
-
-            <TextInput
-              label={isEditMode ? 'New Secret Value' : 'Secret Value'}
-              placeholder={
-                isEditMode
-                  ? 'Enter new value (leave empty to keep current)'
-                  : 'Enter secret value'
-              }
-              type={showValue ? 'text' : 'password'}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              required={!isEditMode}
-              fullWidth
-              disabled={loading}
-              endAdornment={
-                <InputAdornment position='end'>
-                  <IconButton
-                    onClick={toggleValueVisibility}
-                    edge='end'
-                    disabled={loading}
-                    aria-label={showValue ? 'Hide secret value' : 'Show secret value'}
-                  >
-                    {showValue ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                  </IconButton>
-                </InputAdornment>
-              }
-            />
-
-            <TextInput
-              label='Description'
-              placeholder='Enter description (optional)'
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              textarea
-              minRows={3}
-              fullWidth
-              disabled={loading}
-            />
-          </Box>
-        </form>
-      }
-      actionProps={
-        isEditMode ? { sx: { justifyContent: 'space-between', px: 3, pb: 2 } } : undefined
+      actionsSx={
+        isEditMode ? { justifyContent: 'space-between', px: 3, pb: 2 } : undefined
       }
       actions={
         <>
@@ -271,6 +199,81 @@ export const SecretDialog = ({
           </Box>
         </>
       }
-    />
+    >
+      <form
+        id='secret-form'
+        onSubmit={onSubmit}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {error && (
+            <ErrorAlert
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
+
+          {isEditMode && showDeleteConfirm && (
+            <ConfirmDelete
+              deleting={loading}
+              onConfirm={onDelete}
+              onCancel={() => setShowDeleteConfirm(false)}
+              itemName={secret?.hashKey || secret?.name || ''}
+            />
+          )}
+
+          <TextInput
+            required
+            fullWidth
+            autoFocus
+            value={name}
+            disabled={loading}
+            label='Secret Name'
+            id='tdsk-secret-name-input'
+            placeholder='Enter secret name (e.g., API_KEY)'
+            onChange={(e) => setName(e.target.value)}
+          />
+
+          <TextInput
+            fullWidth
+            value={value}
+            disabled={loading}
+            required={!isEditMode}
+            id='tdsk-secret-value-input'
+            type={showValue ? 'text' : 'password'}
+            onChange={(e) => setValue(e.target.value)}
+            label={isEditMode ? 'New Secret Value' : 'Secret Value'}
+            placeholder={
+              isEditMode
+                ? 'Enter new value (leave empty to keep current)'
+                : 'Enter secret value'
+            }
+            endAdornment={
+              <InputAdornment position='end'>
+                <IconButton
+                  onClick={toggleValueVisibility}
+                  edge='end'
+                  disabled={loading}
+                  aria-label={showValue ? 'Hide secret value' : 'Show secret value'}
+                >
+                  {showValue ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                </IconButton>
+              </InputAdornment>
+            }
+          />
+
+          <TextInput
+            textarea
+            fullWidth
+            minRows={3}
+            disabled={loading}
+            label='Description'
+            value={description}
+            id='tdsk-secret-description-input'
+            placeholder='Enter description (optional)'
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </Box>
+      </form>
+    </Drawer>
   )
 }

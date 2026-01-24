@@ -41,8 +41,10 @@ export const CheckboxInput = (props: TCheckboxInput) => {
     className,
     labelClass,
     checkboxSx,
-    labelPlacement,
+    helperText,
+    description,
     checkboxClass,
+    labelPlacement,
     ...rest
   } = props
 

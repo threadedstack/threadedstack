@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Box } from '@mui/material'
 import { useActiveOrgId } from '@TAF/state/selectors'
-import { OrgSelector } from '@TAF/components/Breadcrumbs/OrgSelector'
 import { ChevronRight as SeparatorIcon } from '@mui/icons-material'
-import { CreateOrgDialog } from '@TAF/components/Orgs/CreateOrgDialog'
+import { OrgSelector } from '@TAF/components/Breadcrumbs/OrgSelector'
+import { CreateOrgDrawer } from '@TAF/components/Orgs/CreateOrgDrawer'
 import { ProjectSelector } from '@TAF/components/Breadcrumbs/ProjectSelector'
-import { CreateProjectDialog } from '@TAF/components/Projects/CreateProjectDialog'
+import { CreateProjectDrawer } from '@TAF/components/Projects/CreateProjectDrawer'
 
 export type TBreadcrumbs = {
   className?: string
@@ -41,13 +41,13 @@ export const Breadcrumbs = (props: TBreadcrumbs) => {
       />
       <ProjectSelector onCreateProject={onCreateProject} />
 
-      <CreateOrgDialog
+      <CreateOrgDrawer
         open={createOrgOpen}
         onClose={() => setCreateOrgOpen(false)}
       />
 
       {activeOrgId && (
-        <CreateProjectDialog
+        <CreateProjectDrawer
           orgId={activeOrgId}
           open={createProjectOpen}
           onClose={() => setCreateProjectOpen(false)}

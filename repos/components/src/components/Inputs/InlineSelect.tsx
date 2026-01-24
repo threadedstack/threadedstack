@@ -53,9 +53,10 @@ export const InlineSelect = (props: TInlineSelect): JSX.Element => {
     required,
     className,
     capitalize,
-    description,
+    helperText,
     showAmount = 3,
     disabled = false,
+    description = helperText,
   } = props
 
   const isDarkMode = useIsDarkMode()

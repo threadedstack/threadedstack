@@ -2,16 +2,16 @@ import type { User } from '@tdsk/domain'
 
 import { Box, Alert } from '@mui/material'
 import { useState, useEffect } from 'react'
+import { ConfirmDelete } from '@tdsk/components'
 import { AllAuthRoles } from '@TAF/constants/values'
 import { useActiveOrgId } from '@TAF/state/selectors'
 import { NoUsers } from '@TAF/components/Users/NoUsers'
 import { UsersGrid } from '@TAF/components/Users/UsersGrid'
 import { useOrgUsersList } from '@TAF/hooks/org/useOrgUsersList'
 import { PersonAdd as PersonAddIcon } from '@mui/icons-material'
-import { EditRoleDialog } from '@TAF/components/Users/EditRoleDialog'
+import { EditRoleDrawer } from '@TAF/components/Roles/EditRoleDrawer'
 import { useLocalSearch } from '@TAF/hooks/components/useLocalSearch'
-import { InviteUserDialog } from '@TAF/components/Users/InviteUserDialog'
-import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
+import { InviteUserDrawer } from '@TAF/components/Users/InviteUserDrawer'
 import {
   SearchBar,
   PageHeader,
@@ -141,7 +141,7 @@ export const Users = (props: TUsers) => {
         />
       )}
 
-      <InviteUserDialog
+      <InviteUserDrawer
         orgId={orgId}
         open={inviteDialogOpen}
         onSuccess={onInviteSuccess}
@@ -149,7 +149,7 @@ export const Users = (props: TUsers) => {
       />
 
       {selectedUser && (
-        <EditRoleDialog
+        <EditRoleDrawer
           orgId={orgId}
           user={selectedUser}
           onClose={onCloseEditRole}
@@ -158,16 +158,15 @@ export const Users = (props: TUsers) => {
         />
       )}
 
-      {removingUser && (
-        <ConfirmDeleteAlert
-          deleting={loading}
-          title={`Remove user?`}
-          itemName={removingUser.displayName}
-          onConfirm={() => removeUser(removingUser)}
-          onCancel={() => setRemovingUser(undefined)}
-          text={`Are you sure you want to remove "${removingUser.displayName}" from the organization?`}
-        />
-      )}
+      <ConfirmDelete
+        deleting={loading}
+        title={`Remove user?`}
+        open={Boolean(removingUser)}
+        itemName={removingUser.displayName}
+        onConfirm={() => removeUser(removingUser)}
+        onCancel={() => setRemovingUser(undefined)}
+        text={`Are you sure you want to remove "${removingUser.displayName}" from the organization?`}
+      />
     </>
   )
 }

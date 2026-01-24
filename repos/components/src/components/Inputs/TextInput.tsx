@@ -57,13 +57,14 @@ export const TextInput = ({
   inputClass,
   labelClass,
   noLabelDim,
+  helperText,
   placeholder,
   autoSelect,
-  description,
   endAdornment,
   defaultValue,
   startAdornment,
-  size = 'small',
+  size = `small`,
+  description = helperText,
   ...rest
 }: TTextInput): JSX.Element => {
   const theme = useTheme()

@@ -1,8 +1,8 @@
 import type { Project } from '@tdsk/domain'
 
 import { useState } from 'react'
+import { ConfirmDelete } from '@tdsk/components'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
-import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
 import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-material'
 import {
   Box,
@@ -117,7 +117,7 @@ export const ProjectCard = (props: TProjectCard) => {
       </Card>
 
       {showDelete && deleting && (
-        <ConfirmDeleteAlert
+        <ConfirmDelete
           deleting={deleted}
           itemName={project?.name}
           onCancel={onDeleteCancel}

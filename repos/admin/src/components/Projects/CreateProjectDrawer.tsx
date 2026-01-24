@@ -1,23 +1,23 @@
 import { useState } from 'react'
 import { Box, Button } from '@mui/material'
-import { Dialog, TextInput } from '@tdsk/components'
+import { Drawer, TextInput } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { createProject } from '@TAF/actions/projects/api/createProject'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
-export type TCreateProjectDialog = {
+export type TCreateProjectDrawer = {
   open: boolean
   orgId: string
   onClose: () => void
   onSuccess?: () => void
 }
 
-export const CreateProjectDialog = ({
+export const CreateProjectDrawer = ({
   open,
   orgId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TCreateProjectDialog) => {
+}: TCreateProjectDrawer) => {
   const [name, setName] = useState('')
   const [gitUrl, setGitUrl] = useState('')
   const [branch, setBranch] = useState('main')
@@ -63,58 +63,10 @@ export const CreateProjectDialog = ({
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onClose={onClose}
-      maxWidth='sm'
       title='Create New Project'
-      content={
-        <form
-          id='create-project-form'
-          onSubmit={onSubmit}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error && (
-              <ErrorAlert
-                message={error}
-                onClose={() => setError(null)}
-              />
-            )}
-
-            <TextInput
-              autoFocus
-              label='Name'
-              id='tdsk-project-name'
-              placeholder='Enter project name'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-            />
-
-            <TextInput
-              fullWidth
-              label='Git URL'
-              value={gitUrl}
-              disabled={loading}
-              id='tdsk-project-git-url'
-              onChange={(e) => setGitUrl(e.target.value)}
-              placeholder='https://github.com/user/repo.git (optional)'
-            />
-
-            <TextInput
-              fullWidth
-              label='Branch'
-              value={branch}
-              disabled={loading}
-              id='tdsk-project-branch'
-              onChange={(e) => setBranch(e.target.value)}
-              placeholder='Enter git branch name (i.e. main)'
-            />
-          </Box>
-        </form>
-      }
       actions={
         <>
           <Button
@@ -134,6 +86,52 @@ export const CreateProjectDialog = ({
           </LoadingButton>
         </>
       }
-    />
+    >
+      <form
+        id='create-project-form'
+        onSubmit={onSubmit}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {error && (
+            <ErrorAlert
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
+
+          <TextInput
+            autoFocus
+            label='Name'
+            id='tdsk-project-name'
+            placeholder='Enter project name'
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            fullWidth
+            disabled={loading}
+          />
+
+          <TextInput
+            fullWidth
+            label='Git URL'
+            value={gitUrl}
+            disabled={loading}
+            id='tdsk-project-git-url'
+            onChange={(e) => setGitUrl(e.target.value)}
+            placeholder='https://github.com/user/repo.git (optional)'
+          />
+
+          <TextInput
+            fullWidth
+            label='Branch'
+            value={branch}
+            disabled={loading}
+            id='tdsk-project-branch'
+            onChange={(e) => setBranch(e.target.value)}
+            placeholder='Enter git branch name (i.e. main)'
+          />
+        </Box>
+      </form>
+    </Drawer>
   )
 }

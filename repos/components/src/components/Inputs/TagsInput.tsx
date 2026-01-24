@@ -29,9 +29,10 @@ const TagsInput = (props: TagsInputProps): JSX.Element => {
     required,
     className,
     capitalize,
-    description,
+    helperText,
     oneTagPerLine,
     size = `small`,
+    description = helperText,
     ...rest
   } = props
 

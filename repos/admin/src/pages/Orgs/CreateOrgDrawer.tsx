@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Dialog } from '@tdsk/components'
-import { Box, Button, TextField } from '@mui/material'
+import { Drawer, Button } from '@tdsk/components'
+import { Box, TextField } from '@mui/material'
 import { createOrg } from '@TAF/actions/orgs/api/createOrg'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
@@ -51,51 +51,14 @@ export const CreateOrgDialog = ({ open, onClose }: TCreateOrgDialog) => {
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onClose={handleClose}
-      maxWidth='sm'
       title='New Organization'
-      content={
-        <form
-          id='create-org-form'
-          onSubmit={handleSubmit}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error && (
-              <ErrorAlert
-                message={error}
-                onClose={() => setError(null)}
-              />
-            )}
-
-            <TextField
-              autoFocus
-              label='Organization Name'
-              placeholder='Enter organization name'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-            />
-
-            <TextField
-              label='Description'
-              placeholder='Enter organization description (optional)'
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              multiline
-              rows={3}
-              fullWidth
-              disabled={loading}
-            />
-          </Box>
-        </form>
-      }
       actions={
         <>
           <Button
+            color='error'
             onClick={handleClose}
             disabled={loading}
           >
@@ -112,6 +75,42 @@ export const CreateOrgDialog = ({ open, onClose }: TCreateOrgDialog) => {
           </LoadingButton>
         </>
       }
-    />
+    >
+      <form
+        id='create-org-form'
+        onSubmit={handleSubmit}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {error && (
+            <ErrorAlert
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
+
+          <TextField
+            autoFocus
+            label='Organization Name'
+            placeholder='Enter organization name'
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            fullWidth
+            disabled={loading}
+          />
+
+          <TextField
+            label='Description'
+            placeholder='Enter organization description (optional)'
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            multiline
+            rows={3}
+            fullWidth
+            disabled={loading}
+          />
+        </Box>
+      </form>
+    </Drawer>
   )
 }

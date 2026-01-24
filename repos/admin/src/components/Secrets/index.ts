@@ -1,2 +1,2 @@
 export * from './Secrets'
-export * from './SecretDialog'
+export * from './SecretDrawer'

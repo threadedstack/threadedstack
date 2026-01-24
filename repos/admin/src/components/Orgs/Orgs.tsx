@@ -5,7 +5,7 @@ import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import { useOrgs, useActiveOrgId } from '@TAF/state/selectors'
 import { setOrgActive } from '@TAF/actions/orgs/local/setOrgActive'
 import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
-import { CreateOrgDialog } from '@TAF/components/Orgs/CreateOrgDialog'
+import { CreateOrgDrawer } from '@TAF/components/Orgs/CreateOrgDrawer'
 
 export type TOrgs = {}
 
@@ -26,7 +26,7 @@ export const Orgs = (props: TOrgs) => {
 
   return (
     <>
-      <CreateOrgDialog
+      <CreateOrgDrawer
         open={creating}
         hideCreate={noOrgs}
         onCreate={onCreate}

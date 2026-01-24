@@ -13,7 +13,7 @@ import { fetchEndpoints } from '@TAF/actions/endpoints/fetchEndpoints'
 import { deleteEndpoint } from '@TAF/actions/endpoints/deleteEndpoint'
 import { FilterSelect } from '@TAF/components/FilterSelect/FilterSelect'
 import { EndpointsTable } from '@TAF/components/Endpoints/EndpointsTable'
-import { EndpointDialog } from '@TAF/components/Endpoints/EndpointDialog'
+import { EndpointDrawer } from '@TAF/components/Endpoints/EndpointDrawer'
 import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
 
 export type TEndpoints = {}
@@ -36,8 +36,11 @@ export const Endpoints = (props: TEndpoints) => {
   const [endpoints] = useEndpoints()
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // TODO: figure out where to render deleteError
+  const [deleteError, setDeleteError] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [methodFilter, setMethodFilter] = useState<string>('all')
   const [visibilityFilter, setVisibilityFilter] = useState<string>('all')
   const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null)
@@ -90,14 +93,9 @@ export const Endpoints = (props: TEndpoints) => {
     ? Object.values(endpoints).filter((e) => e.projectId === projectId).length
     : 0
 
-  const onDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete endpoint "${name}"?`)) {
-      return
-    }
+  const onDelete = async (id: string) => {
     const result = await deleteEndpoint(id)
-    if (result.error) {
-      alert(`Failed to delete endpoint: ${result.error.message}`)
-    }
+    result.error && setDeleteError(`Failed to delete endpoint: ${result.error.message}`)
   }
 
   const onCreate = () => {
@@ -174,21 +172,22 @@ export const Endpoints = (props: TEndpoints) => {
 
       {!loading && filteredEndpoints.length > 0 && (
         <EndpointsTable
-          endpoints={filteredEndpoints}
           onEdit={onEdit}
           onDelete={onDelete}
+          endpoints={filteredEndpoints}
         />
       )}
 
-      {projectId && (
-        <EndpointDialog
+      {(projectId && (
+        <EndpointDrawer
           open={dialogOpen}
           projectId={projectId}
           onClose={onDialogClose}
           endpoint={selectedEndpoint}
           onSuccess={onDialogSuccess}
         />
-      )}
+      )) ||
+        null}
     </>
   )
 }

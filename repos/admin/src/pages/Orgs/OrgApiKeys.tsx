@@ -7,8 +7,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { useActiveOrgId } from '@TAF/state/selectors'
 import { Box, Typography, Chip } from '@mui/material'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
-import { IconButton, useCopyToClipboard } from '@tdsk/components'
-import { CreateApiKeyDialog } from '@TAF/pages/Orgs/CreateApiKeyDialog'
+import { CreateApiKeyDrawer } from '@TAF/pages/Orgs/CreateApiKeyDrawer'
+import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
 import {
   Add as AddIcon,
   VpnKey as KeyIcon,
@@ -23,7 +23,6 @@ import {
   EmptyState,
   LoadingSpinner,
   ActionIconButton,
-  ConfirmDeleteAlert,
 } from '@TAF/components'
 
 export type TOrgApiKeys = {}
@@ -290,7 +289,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
       )}
 
       {orgId && (
-        <CreateApiKeyDialog
+        <CreateApiKeyDrawer
           orgId={orgId}
           open={createDialogOpen}
           onClose={onDialogClose}
@@ -299,7 +298,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
       )}
 
       {deleteDialogOpen && (
-        <ConfirmDeleteAlert
+        <ConfirmDelete
           confirmText='Revoke'
           onCancel={onDeleteCancel}
           onConfirm={onDeleteConfirm}

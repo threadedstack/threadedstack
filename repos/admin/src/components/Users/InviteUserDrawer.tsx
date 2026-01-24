@@ -6,11 +6,11 @@ import { Box, Button } from '@mui/material'
 import { AuthRoles } from '@TAF/constants/values'
 import { isEmail } from '@keg-hub/jsutils/isEmail'
 import { inviteToOrg } from '@TAF/actions/users/inviteToOrg'
-import { Dialog, TextInput, SelectInput } from '@tdsk/components'
+import { Drawer, TextInput, SelectInput } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 
-export type TInviteUserDialog = {
+export type TInviteUserDrawer = {
   open: boolean
   orgId: string
   onClose: () => void
@@ -18,12 +18,12 @@ export type TInviteUserDialog = {
 }
 
 // TODO: Add checks if current user has admin permission to invite other users
-export const InviteUserDialog = ({
+export const InviteUserDrawer = ({
   open,
   orgId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TInviteUserDialog) => {
+}: TInviteUserDrawer) => {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,47 +66,10 @@ export const InviteUserDialog = ({
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
-      maxWidth='sm'
       onClose={onClose}
       title='Invite User to Organization'
-      content={
-        <form
-          id='invite-user-form'
-          onSubmit={onSubmit}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error && (
-              <ErrorAlert
-                message={error}
-                onClose={() => setError(null)}
-              />
-            )}
-
-            <TextInput
-              required
-              fullWidth
-              type='email'
-              value={email}
-              id='user-email'
-              disabled={loading}
-              label='Email Address'
-              placeholder='user@example.com'
-              onChange={(e) => setEmail(e.target.value)}
-            />
-
-            <SelectInput
-              id='user-role'
-              label='Role'
-              value={roleType}
-              items={AuthRoles}
-              disabled={loading}
-              onChange={(e) => setRoleType(e.target.value as TRoleType)}
-            />
-          </Box>
-        </form>
-      }
       actions={
         <>
           <Button
@@ -126,6 +89,41 @@ export const InviteUserDialog = ({
           </LoadingButton>
         </>
       }
-    />
+    >
+      <form
+        id='invite-user-form'
+        onSubmit={onSubmit}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {error && (
+            <ErrorAlert
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
+
+          <TextInput
+            required
+            fullWidth
+            type='email'
+            value={email}
+            id='user-email'
+            disabled={loading}
+            label='Email Address'
+            placeholder='user@example.com'
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <SelectInput
+            id='user-role'
+            label='Role'
+            value={roleType}
+            items={AuthRoles}
+            disabled={loading}
+            onChange={(e) => setRoleType(e.target.value as TRoleType)}
+          />
+        </Box>
+      </form>
+    </Drawer>
   )
 }

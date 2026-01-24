@@ -22,9 +22,10 @@ const SliderInput = (props: SliderInputProps) => {
     setField,
     hasError,
     disabled,
-    className,
-    description,
     required,
+    className,
+    helperText,
+    description = helperText,
     ...sliderProps
   } = props
 

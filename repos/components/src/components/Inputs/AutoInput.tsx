@@ -70,9 +70,10 @@ const AutoInput = (props: TAutoInput) => {
     disabled,
     className,
     capitalize,
+    helperText,
     optionClass,
-    description,
     oneTagPerLine,
+    description = helperText,
     size = `small`,
     ...rest
   } = props

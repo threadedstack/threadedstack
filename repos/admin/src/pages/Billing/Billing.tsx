@@ -200,7 +200,7 @@ export const Billing = (props: TBilling) => {
                 </Typography>
               </Box>
 
-              {plans.length === 0 ? (
+              {plans?.length === 0 ? (
                 <Alert severity='info'>No plans available at this time.</Alert>
               ) : (
                 <Grid

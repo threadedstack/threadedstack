@@ -77,6 +77,26 @@ export class SecretsApi extends BaseApi {
   }
 
   /**
+   * Update existing secret
+   * @param id - Provider ID
+   * @param data - Updated secret data
+   * @returns Updated secret
+   */
+  async update(id: string, data: Partial<Secret>): Promise<TApiRes<Secret>> {
+    const resp = await this.api.put<Secret>({
+      data,
+      path: `${this.path}/${id}`,
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to update Secret`))
+
+    return {
+      ...resp,
+      data: resp.data ? new Secret(resp.data) : undefined,
+    }
+  }
+
+  /**
    * Delete secret
    * @param id - Secret ID
    * @returns Success status

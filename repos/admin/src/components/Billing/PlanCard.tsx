@@ -39,8 +39,8 @@ const StyledCard = styled(Card)(({ theme }) => ({
 const StyledDivider = styled(Divider)(({ theme }) => {
   return {
     opacity: 0.1,
-    marginTop: theme.spacing(2),
-    marginBottom: theme.spacing(2),
+    marginTop: theme.gutter(2),
+    marginBottom: theme.gutter(2),
     borderColor: theme.palette.border.alt,
   }
 })

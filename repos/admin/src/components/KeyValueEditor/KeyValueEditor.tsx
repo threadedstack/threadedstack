@@ -1,7 +1,9 @@
 import type { Secret } from '@tdsk/domain'
+import type { TKeyValuePair } from '@TAF/types'
 
 import { useState } from 'react'
 import { TextInput } from '@tdsk/components'
+import { templates } from '@TAF/services/templates'
 import { Add as AddIcon, Key as KeyIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import {
   Box,
@@ -13,12 +15,6 @@ import {
   Typography,
   Autocomplete,
 } from '@mui/material'
-
-export type TKeyValuePair = {
-  id: string
-  key: string
-  value: string
-}
 
 export type TKeyValueEditorProps = {
   label?: string
@@ -43,23 +39,23 @@ export type TKeyValueEditorProps = {
  */
 export const KeyValueEditor = (props: TKeyValueEditorProps) => {
   const {
-    label = `Key-Value Pairs`,
     pairs,
     disabled,
     onChange,
     secrets = [],
     keyPlaceholder = `Key`,
+    label = `Key-Value Pairs`,
     enableSecretReferences = true,
-    valuePlaceholder = `Value or {{secret-name}}`,
+    valuePlaceholder = `Value or ${templates.regex.open}secret-name${templates.regex.close}`,
   } = props
 
   const [activeAutocomplete, setActiveAutocomplete] = useState<string | null>(null)
 
   const addPair = () => {
     const newPair: TKeyValuePair = {
-      id: `kv-${Date.now()}`,
       key: ``,
       value: ``,
+      id: `kv-${Date.now()}`,
     }
     onChange([...pairs, newPair])
   }
@@ -76,23 +72,11 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
     onChange(pairs.map((p) => (p.id === id ? { ...p, value } : p)))
   }
 
-  // Extract secret name from {{secret-name}} pattern
-  const extractSecretName = (value: string): string | null => {
-    const match = value.match(/\{\{([^}]+)\}\}/)
-    return match ? match[1] : null
-  }
-
-  // Check if value contains secret reference
-  const hasSecretReference = (value: string): boolean => {
-    return /\{\{[^}]+\}\}/.test(value)
-  }
-
   // Get autocomplete options when typing {{
   const getAutocompleteOptions = (value: string): string[] => {
-    if (!enableSecretReferences || !value.includes('{{')) return []
+    if (!enableSecretReferences || !templates.includes(value)) return []
 
-    // Extract the partial secret name after {{
-    const match = value.match(/\{\{([^}]*)$/)
+    const match = templates.match(value)
     if (!match) return []
 
     const partialName = match[1].toLowerCase()
@@ -101,21 +85,17 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
       .map((s) => s.name || s.hashKey || ``)
   }
 
-  const handleValueChange = (id: string, newValue: string, oldValue: string) => {
-    // Check if user just typed {{
-    if (newValue.includes(`{{`) && !oldValue.includes(`{{`)) {
-      setActiveAutocomplete(id)
-    } else if (!newValue.includes(`{{`)) {
-      setActiveAutocomplete(null)
-    }
+  const onValueChange = (id: string, newValue: string, oldValue: string) => {
+    templates.includes(newValue) && !templates.includes(oldValue)
+      ? setActiveAutocomplete(id)
+      : setActiveAutocomplete(null)
 
     updateValue(id, newValue)
   }
 
-  const handleSecretSelect = (id: string, currentValue: string, secretName: string) => {
-    // Replace the partial secret reference with complete one
-    const beforeBraces = currentValue.substring(0, currentValue.lastIndexOf(`{{`))
-    const newValue = `${beforeBraces}{{${secretName}}}`
+  const onSecretSelect = (id: string, currentValue: string, secretName: string) => {
+    const before = templates.before(currentValue)
+    const newValue = `${before}${templates.wrap(secretName)}`
     updateValue(id, newValue)
     setActiveAutocomplete(null)
   }
@@ -124,9 +104,9 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
     <Box>
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: `flex`,
+          alignItems: `center`,
+          justifyContent: `space-between`,
           mb: 1,
         }}
       >
@@ -141,7 +121,7 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
             size='small'
             onClick={addPair}
             disabled={disabled}
-            sx={{ color: 'primary.main' }}
+            sx={{ color: `primary.main` }}
           >
             <AddIcon fontSize='small' />
           </IconButton>
@@ -167,7 +147,7 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {pairs.map((pair) => {
-            const secretName = extractSecretName(pair.value)
+            const secretName = templates.extract(pair.value)
             const autocompleteOptions =
               activeAutocomplete === pair.id ? getAutocompleteOptions(pair.value) : []
 
@@ -177,42 +157,38 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
                 variant='outlined'
                 sx={{
                   p: 1.5,
-                  display: 'flex',
-                  alignItems: 'flex-start',
                   gap: 1,
+                  display: `flex`,
+                  alignItems: `flex-start`,
                 }}
               >
                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {/* Key input */}
                   <TextInput
-                    size='small'
                     fullWidth
-                    id={`${pair.id}-key`}
+                    size='small'
                     value={pair.key}
                     disabled={disabled}
+                    id={`${pair.id}-key`}
                     placeholder={keyPlaceholder}
                     onChange={(e) => updateKey(pair.id, e.target.value)}
                   />
 
-                  {/* Value input with autocomplete */}
                   {activeAutocomplete === pair.id && autocompleteOptions.length > 0 ? (
                     <Autocomplete
                       freeSolo
                       size='small'
-                      options={autocompleteOptions}
                       value={pair.value}
                       disabled={disabled}
-                      onChange={(_, value) => {
-                        if (value) {
-                          handleSecretSelect(pair.id, pair.value, value)
-                        }
-                      }}
+                      options={autocompleteOptions}
+                      onChange={(_, value) =>
+                        value && onSecretSelect(pair.id, pair.value, value)
+                      }
                       renderInput={(params) => (
                         <TextField
                           {...params}
                           placeholder={valuePlaceholder}
                           onChange={(e) =>
-                            handleValueChange(pair.id, e.target.value, pair.value)
+                            onValueChange(pair.id, e.target.value, pair.value)
                           }
                         />
                       )}
@@ -220,25 +196,25 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
                   ) : (
                     <Box sx={{ position: 'relative' }}>
                       <TextInput
-                        size='small'
                         fullWidth
-                        id={`${pair.id}-value`}
+                        size='small'
                         value={pair.value}
                         disabled={disabled}
+                        id={`${pair.id}-value`}
                         placeholder={valuePlaceholder}
                         onChange={(e) =>
-                          handleValueChange(pair.id, e.target.value, pair.value)
+                          onValueChange(pair.id, e.target.value, pair.value)
                         }
                       />
                       {enableSecretReferences && secretName && (
                         <Box sx={{ mt: 0.5 }}>
                           <Chip
                             size='small'
-                            icon={<KeyIcon fontSize='small' />}
-                            label={`Secret: ${secretName}`}
                             color='primary'
                             variant='outlined'
                             sx={{ fontSize: '0.75rem' }}
+                            label={`Secret: ${secretName}`}
+                            icon={<KeyIcon fontSize='small' />}
                           />
                         </Box>
                       )}
@@ -246,12 +222,11 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
                   )}
                 </Box>
 
-                {/* Delete button */}
                 <Tooltip title='Remove this pair'>
                   <IconButton
                     size='small'
-                    onClick={() => removePair(pair.id)}
                     disabled={disabled}
+                    onClick={() => removePair(pair.id)}
                     sx={{ color: 'error.main', mt: 0.5 }}
                   >
                     <DeleteIcon fontSize='small' />

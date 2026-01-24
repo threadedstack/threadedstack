@@ -1,7 +1,13 @@
+/**
+ * TODO: refactor this component.
+ * Update component to use `@tdsk/components` form inputs like TextInput, and SelectInput
+ * Configs can be Objects only, there are not different configs type like string/number/boolean
+ * Update to use KeyValueEditor for `config.data` properties
+ */
+
 import type { Config } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
-import { Dialog } from '@tdsk/components'
-import { ConfirmDeleteAlert } from '@TAF/components'
+import { ConfirmDelete, Drawer } from '@tdsk/components'
 import { updateConfig, deleteConfig } from '@TAF/actions/configs'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
@@ -15,7 +21,7 @@ import {
   FormControl,
 } from '@mui/material'
 
-export type TEditConfigDialog = {
+export type TEditConfigDrawer = {
   open: boolean
   config: Config | null
   onClose: () => void
@@ -29,12 +35,9 @@ const CONFIG_TYPES = [
   { value: 'json', label: 'JSON' },
 ]
 
-export const EditConfigDialog = ({
-  open,
-  config,
-  onClose: onCloseCB,
-  onSuccess: onSuccessCB,
-}: TEditConfigDialog) => {
+export const EditConfigDrawer = (props: TEditConfigDrawer) => {
+  const { open, config, onClose: onCloseCB, onSuccess: onSuccessCB } = props
+
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
   const [type, setType] = useState('string')
@@ -141,98 +144,11 @@ export const EditConfigDialog = ({
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onClose={onClose}
-      maxWidth='sm'
       title='Edit Configuration'
-      content={
-        <form
-          id='edit-config-form'
-          onSubmit={onSubmit}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error && (
-              <ErrorAlert
-                message={error}
-                onClose={() => setError(null)}
-              />
-            )}
-
-            {showDeleteConfirm && (
-              <ConfirmDeleteAlert
-                itemName={config?.id || 'Config'}
-                onCancel={() => setShowDeleteConfirm(false)}
-                onConfirm={onDelete}
-                deleting={loading}
-              />
-            )}
-
-            <TextField
-              autoFocus
-              label='Configuration Key'
-              placeholder='Enter key (e.g., MAX_RETRIES)'
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-            />
-
-            <FormControl
-              fullWidth
-              disabled={loading}
-            >
-              <InputLabel id='config-type-label'>Type</InputLabel>
-              <Select
-                labelId='config-type-label'
-                value={type}
-                label='Type'
-                onChange={(e) => setType(e.target.value)}
-              >
-                {CONFIG_TYPES.map((configType) => (
-                  <MenuItem
-                    key={configType.value}
-                    value={configType.value}
-                  >
-                    {configType.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
-              label='Value'
-              placeholder={
-                type === 'json'
-                  ? '{"key": "value"}'
-                  : type === 'boolean'
-                    ? 'true or false'
-                    : type === 'number'
-                      ? '123'
-                      : 'Enter value'
-              }
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-              multiline={type === 'json'}
-              rows={type === 'json' ? 3 : 1}
-              helperText={
-                type === 'json'
-                  ? 'Enter valid JSON'
-                  : type === 'boolean'
-                    ? 'Enter true or false'
-                    : type === 'number'
-                      ? 'Enter a numeric value'
-                      : ''
-              }
-            />
-          </Box>
-        </form>
-      }
-      actionProps={{ sx: { justifyContent: 'space-between', px: 3, pb: 2 } }}
+      actionsSx={{ justifyContent: 'space-between', px: 3, pb: 2 }}
       actions={
         <>
           <Button
@@ -262,6 +178,91 @@ export const EditConfigDialog = ({
           </Box>
         </>
       }
-    />
+    >
+      <form
+        id='edit-config-form'
+        onSubmit={onSubmit}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {error && (
+            <ErrorAlert
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
+
+          {showDeleteConfirm && (
+            <ConfirmDelete
+              itemName={config?.id || 'Config'}
+              onCancel={() => setShowDeleteConfirm(false)}
+              onConfirm={onDelete}
+              deleting={loading}
+            />
+          )}
+
+          <TextField
+            autoFocus
+            required
+            fullWidth
+            value={key}
+            disabled={loading}
+            label='Configuration Key'
+            placeholder='Enter key (e.g., MAX_RETRIES)'
+            onChange={(e) => setKey(e.target.value)}
+          />
+
+          <FormControl
+            fullWidth
+            disabled={loading}
+          >
+            <InputLabel id='config-type-label'>Type</InputLabel>
+            <Select
+              labelId='config-type-label'
+              value={type}
+              label='Type'
+              onChange={(e) => setType(e.target.value)}
+            >
+              {CONFIG_TYPES.map((configType) => (
+                <MenuItem
+                  key={configType.value}
+                  value={configType.value}
+                >
+                  {configType.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            label='Value'
+            placeholder={
+              type === 'json'
+                ? '{"key": "value"}'
+                : type === 'boolean'
+                  ? 'true or false'
+                  : type === 'number'
+                    ? '123'
+                    : 'Enter value'
+            }
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            required
+            fullWidth
+            disabled={loading}
+            multiline={type === 'json'}
+            rows={type === 'json' ? 3 : 1}
+            helperText={
+              type === 'json'
+                ? 'Enter valid JSON'
+                : type === 'boolean'
+                  ? 'Enter true or false'
+                  : type === 'number'
+                    ? 'Enter a numeric value'
+                    : ''
+            }
+          />
+        </Box>
+      </form>
+    </Drawer>
   )
 }

@@ -5,18 +5,14 @@ import { useNavigate } from 'react-router'
 import { ife } from '@keg-hub/jsutils/ife'
 import { Page } from '@TAF/pages/Page/Page'
 import { useEffect, useState } from 'react'
+import { ConfirmDelete } from '@tdsk/components'
 import { Box, Alert, Typography } from '@mui/material'
 import { fetchOrg } from '@TAF/actions/orgs/api/fetchOrg'
 import { updateOrg } from '@TAF/actions/orgs/api/updateOrg'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import { LoadingSpinner, ErrorAlert } from '@TAF/components'
 import { useActiveOrgId, useActiveOrg } from '@TAF/state/selectors'
-import {
-  InfoCard,
-  DangerZoneCard,
-  SettingsFormCard,
-  DeleteConfirmDialog,
-} from '@TAF/components/Settings'
+import { InfoCard, DangerZoneCard, SettingsFormCard } from '@TAF/components/Settings'
 
 export type TOrgSettings = {}
 
@@ -179,13 +175,13 @@ export const OrgSettings = (props: TOrgSettings) => {
         </>
       )}
 
-      <DeleteConfirmDialog
+      <ConfirmDelete
         onConfirm={onDelete}
-        entityName={org?.name}
+        itemName={org?.name}
         open={deleteDialogOpen}
-        entityType='Organization'
-        onClose={() => setDeleteDialogOpen(false)}
-        warningText='This will permanently delete all associated projects, secrets, and configurations.'
+        title='Delete Organization?'
+        onCancel={() => setDeleteDialogOpen(false)}
+        warnText='This will permanently delete all associated projects, secrets, and configurations.'
       />
     </Page>
   )

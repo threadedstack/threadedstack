@@ -2,22 +2,18 @@ import type { Config } from '@tdsk/domain'
 
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
+import { ConfirmDelete } from '@tdsk/components'
 import { fetchConfigs } from '@TAF/actions/configs'
 import { useEffect, useState, useMemo } from 'react'
-import { EditConfigDialog } from './EditConfigDialog'
-import { CreateConfigDialog } from './CreateConfigDialog'
+import { EditConfigDrawer } from './EditConfigDrawer'
+import { CreateConfigDrawer } from './CreateConfigDrawer'
 import { LoadingSpinner, ErrorAlert } from '@TAF/components'
 import { useProjects, useConfigs } from '@TAF/state/selectors'
 import { fetchProject } from '@TAF/actions/projects/api/fetchProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
-import {
-  InfoCard,
-  DangerZoneCard,
-  SettingsFormCard,
-  DeleteConfirmDialog,
-} from '@TAF/components/Settings'
+import { InfoCard, DangerZoneCard, SettingsFormCard } from '@TAF/components/Settings'
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -402,40 +398,40 @@ export const ProjectSettings = (props: TProjectSettings) => {
           </Card>
 
           <DangerZoneCard
-            title='Delete this project'
-            description='Once deleted, this action cannot be undone. All data will be lost.'
-            buttonLabel='Delete Project'
             onAction={onDeleteClick}
+            title='Delete this project'
+            buttonLabel='Delete Project'
+            description='Once deleted, this action cannot be undone. All data will be lost.'
           />
         </>
       )}
 
-      <DeleteConfirmDialog
-        open={deleteDialogOpen}
-        entityName={project?.name}
-        entityType='Project'
-        warningText='This will permanently delete all associated endpoints, functions, secrets, and configurations.'
+      <ConfirmDelete
         onConfirm={onDelete}
-        onClose={() => setDeleteDialogOpen(false)}
+        title='Delete Project?'
+        open={deleteDialogOpen}
+        itemName={project?.name}
+        onCancel={() => setDeleteDialogOpen(false)}
+        warnText='This will permanently delete all associated endpoints, functions, secrets, and configurations.'
       />
 
       {projectId && (
-        <CreateConfigDialog
-          open={createConfigDialogOpen}
+        <CreateConfigDrawer
           projectId={projectId}
-          onClose={() => setCreateConfigDialogOpen(false)}
+          open={createConfigDialogOpen}
           onSuccess={onCreateConfigSuccess}
+          onClose={() => setCreateConfigDialogOpen(false)}
         />
       )}
 
-      <EditConfigDialog
-        open={editConfigDialogOpen}
+      <EditConfigDrawer
         config={selectedConfig}
+        open={editConfigDialogOpen}
+        onSuccess={onEditConfigSuccess}
         onClose={() => {
           setEditConfigDialogOpen(false)
           setSelectedConfig(null)
         }}
-        onSuccess={onEditConfigSuccess}
       />
     </Page>
   )

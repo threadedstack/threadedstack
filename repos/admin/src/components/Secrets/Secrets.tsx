@@ -1,21 +1,19 @@
 import type { Secret } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { useEffect, useState, useMemo } from 'react'
-import { Box, Typography, Chip } from '@mui/material'
 import { useSecrets } from '@TAF/state/selectors'
 import { fetchSecrets } from '@TAF/actions/secrets'
+import { useEffect, useState, useMemo } from 'react'
+import { Box, Typography, Chip } from '@mui/material'
+import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
+import { DataTable } from '@TAF/components/DataTable/DataTable'
+import { PageHeader } from '@TAF/components/PageHeader/PageHeader'
+import { SecretDrawer } from '@TAF/components/Secrets/SecretDrawer'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import { Key as KeyIcon, Add as AddIcon, Edit as EditIcon } from '@mui/icons-material'
-import {
-  SearchBar,
-  DataTable,
-  PageHeader,
-  ErrorAlert,
-  EmptyState,
-  LoadingSpinner,
-  ActionIconButton,
-} from '@TAF/components'
-import { SecretDialog } from './SecretDialog'
 
 export type TSecrets = {
   orgId?: string
@@ -252,7 +250,7 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
       )}
 
       {(orgId || projectId) && (
-        <SecretDialog
+        <SecretDrawer
           open={dialogOpen}
           orgId={orgId}
           projectId={projectId}

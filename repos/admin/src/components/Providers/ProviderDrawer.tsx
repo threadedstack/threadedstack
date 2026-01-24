@@ -1,15 +1,14 @@
 import type { Provider, TProviderType } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
-import { ProviderTypes } from '@TAF/constants/providers'
-import { createProvider, updateProvider, deleteProvider } from '@TAF/actions/providers'
 import { Box, Button } from '@mui/material'
-import { Dialog, TextInput, SelectInput } from '@tdsk/components'
+import { ProviderTypes } from '@TAF/constants/providers'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
-import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
+import { ConfirmDelete, Drawer, TextInput, SelectInput } from '@tdsk/components'
+import { createProvider, updateProvider, deleteProvider } from '@TAF/actions/providers'
 
-export type TProviderDialog = {
+export type TProviderDrawer = {
   open: boolean
   orgId: string
   provider?: Provider | null
@@ -17,13 +16,13 @@ export type TProviderDialog = {
   onSuccess?: () => void
 }
 
-export const ProviderDialog = ({
+export const ProviderDrawer = ({
   open,
   orgId,
   provider,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-}: TProviderDialog) => {
+}: TProviderDrawer) => {
   const isEditMode = Boolean(provider)
 
   const [name, setName] = useState('')
@@ -125,72 +124,14 @@ export const ProviderDialog = ({
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onClose={onClose}
-      maxWidth='sm'
       title={isEditMode ? 'Edit Provider' : 'Create New Provider'}
-      content={
-        <form
-          id='provider-form'
-          onSubmit={onSubmit}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {error && (
-              <ErrorAlert
-                message={error}
-                onClose={() => setError(null)}
-              />
-            )}
-
-            {isEditMode && showDeleteConfirm && (
-              <ConfirmDeleteAlert
-                deleting={loading}
-                onConfirm={onDelete}
-                onCancel={() => setShowDeleteConfirm(false)}
-                itemName={provider?.options?.name || 'this provider'}
-              />
-            )}
-
-            <TextInput
-              id='provider-name'
-              label='Provider Name'
-              placeholder='Enter provider name'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              fullWidth
-              disabled={loading}
-            />
-
-            <SelectInput
-              id='provider-type'
-              label='Provider Type'
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              items={ProviderTypes}
-              required
-              disabled={loading}
-            />
-
-            <TextInput
-              id='provider-base-url'
-              label='Base URL'
-              placeholder='https://api.example.com (optional)'
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-              fullWidth
-              disabled={loading}
-            />
-          </Box>
-        </form>
-      }
-      actionProps={{
-        sx: {
-          justifyContent: isEditMode ? 'space-between' : 'flex-end',
-          px: 3,
-          pb: 2,
-        },
+      actionsSx={{
+        justifyContent: isEditMode ? 'space-between' : 'flex-end',
+        px: 3,
+        pb: 2,
       }}
       actions={
         <>
@@ -223,6 +164,60 @@ export const ProviderDialog = ({
           </Box>
         </>
       }
-    />
+    >
+      <form
+        id='provider-form'
+        onSubmit={onSubmit}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {error && (
+            <ErrorAlert
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
+
+          {isEditMode && showDeleteConfirm && (
+            <ConfirmDelete
+              deleting={loading}
+              onConfirm={onDelete}
+              onCancel={() => setShowDeleteConfirm(false)}
+              itemName={provider?.options?.name || 'this provider'}
+            />
+          )}
+
+          <TextInput
+            id='provider-name'
+            label='Provider Name'
+            placeholder='Enter provider name'
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            fullWidth
+            disabled={loading}
+          />
+
+          <SelectInput
+            id='provider-type'
+            label='Provider Type'
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            items={ProviderTypes}
+            required
+            disabled={loading}
+          />
+
+          <TextInput
+            id='provider-base-url'
+            label='Base URL'
+            placeholder='https://api.example.com (optional)'
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            fullWidth
+            disabled={loading}
+          />
+        </Box>
+      </form>
+    </Drawer>
   )
 }

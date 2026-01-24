@@ -31,8 +31,9 @@ const InputStateHandler = (props: InputStateHandlerProps): JSX.Element => {
     className,
     noLabelDim,
     labelClass,
-    description,
+    helperText,
     notificationsProps,
+    description = helperText,
   } = props
 
   return (

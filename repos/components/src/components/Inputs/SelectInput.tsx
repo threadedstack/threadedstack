@@ -89,13 +89,14 @@ export const SelectInput = (props: TSelectInput): JSX.Element => {
     required,
     capitalize,
     inputProps,
-    description,
+    helperText,
     selected = [],
     renderLabel,
     size = `small`,
     disabled = false,
     onItemMouseEnter,
     onItemMouseLeave,
+    description = helperText,
     placeholder = `Select`,
     ...rest
   } = props

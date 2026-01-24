@@ -2,10 +2,10 @@ import { useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { useProjects } from '@TAF/state/selectors'
-import { CreateProjectDialog } from './CreateProjectDialog'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
+import { CreateProjectDrawer } from '@TAF/pages/Projects/CreateProjectDrawer'
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -178,7 +178,7 @@ export const Projects = (props: TProjects) => {
         </Grid>
       )}
 
-      <CreateProjectDialog
+      <CreateProjectDrawer
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
       />

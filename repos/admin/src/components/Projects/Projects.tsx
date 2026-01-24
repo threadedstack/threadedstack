@@ -14,7 +14,7 @@ import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
 import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
-import { CreateProjectDialog } from '@TAF/components/Projects/CreateProjectDialog'
+import { CreateProjectDrawer } from '@TAF/components/Projects/CreateProjectDrawer'
 
 export type TProjects = {}
 
@@ -134,7 +134,7 @@ export const Projects = (props: TProjects) => {
       )}
 
       {orgId && (
-        <CreateProjectDialog
+        <CreateProjectDrawer
           orgId={orgId}
           open={dialogOpen}
           onClose={onDialogClose}

@@ -6,9 +6,9 @@ import { Box, Alert, Button } from '@mui/material'
 import { useProviders } from '@TAF/state/selectors'
 import { useActiveOrgId } from '@TAF/state/selectors'
 import { fetchProviders } from '@TAF/actions/providers'
-import { ProvidersGrid } from '@TAF/components/Providers/ProvidersGrid'
 import { NoProviders } from '@TAF/components/Providers/NoProviders'
-import { ProviderDialog } from '@TAF/components/Providers/ProviderDialog'
+import { ProvidersGrid } from '@TAF/components/Providers/ProvidersGrid'
+import { ProviderDrawer } from '@TAF/components/Providers/ProviderDrawer'
 import { Add as AddIcon, Settings as SettingsIcon } from '@mui/icons-material'
 import { SearchBar, PageHeader, LoadingSpinner, ErrorAlert } from '@TAF/components'
 
@@ -179,7 +179,7 @@ export const Providers = ({ projectId, readOnly = false }: TProviders) => {
       )}
 
       {orgId && !readOnly && (
-        <ProviderDialog
+        <ProviderDrawer
           open={dialogOpen}
           orgId={orgId}
           provider={selectedProvider}

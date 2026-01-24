@@ -10,7 +10,7 @@ import { NoFunctions } from '@TAF/components/Functions/NoFunctions'
 import { deleteFunction } from '@TAF/actions/functions/deleteFunction'
 import { fetchFunctions } from '@TAF/actions/functions/fetchFunctions'
 import { FunctionsGrid } from '@TAF/components/Functions/FunctionsGrid'
-import { FunctionDialog } from '@TAF/components/Functions/FunctionDialog'
+import { FunctionDrawer } from '@TAF/components/Functions/FunctionDrawer'
 import {
   SearchBar,
   PageHeader,
@@ -157,7 +157,7 @@ export const Functions = (props: TFunctions) => {
       )}
 
       {projectId && (
-        <FunctionDialog
+        <FunctionDrawer
           open={dialogOpen}
           projectId={projectId}
           func={selectedFunction}

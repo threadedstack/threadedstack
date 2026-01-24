@@ -10,6 +10,7 @@ export const secrets = pgTable(
   {
     ...base,
     name: text(`name`).notNull(),
+    description: text(`description`),
     hashKey: text(`hash_key`).notNull(),
     encryptedValue: text(`encrypted_value`).notNull(),
     orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),

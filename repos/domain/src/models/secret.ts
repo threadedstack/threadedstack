@@ -8,6 +8,7 @@ export class Secret extends Base {
   hashKey: string
   projectId?: string
   providerId?: string
+  description?: string
   encryptedValue: string
 
   constructor(secret: Partial<Secret>) {

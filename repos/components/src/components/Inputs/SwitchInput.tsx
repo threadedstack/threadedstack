@@ -34,8 +34,9 @@ const SwitchInput = (props: SwitchInputProps): JSX.Element => {
     inputClass,
     inputProps,
     labelClass,
-    description,
+    helperText,
     onMouseDown,
+    description = helperText,
   } = props
 
   return (
