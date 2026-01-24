@@ -8,29 +8,28 @@ import { Button } from '@TSC/components/Buttons/Button'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 
-export const ConfirmDialog = styled(Dialog)`
-  background-image: none;
-`
-
-export const ConfirmDialogActions = styled(DialogActions)(({ theme }) => {
+export const ConfirmDialog = styled(Dialog)(({ theme }) => {
   return `
-    padding: ${gutter.px};
-    justify-content: space-between;
-    background-color: ${theme.palette.background.input};
-    border-top: 1px solid ${theme.palette.border.default};
+    background-image: none;
+    & .MuiPaper-root {
+      border-radius: ${theme.dims.border.tpx};
+    }
   `
 })
 
 export const ConfirmCancelBtn = styled(Button)``
 
-export const ConfirmContent = styled(DialogContent)`
-  display: flex;
-  min-height: 100px;
-  align-items: start;
-  flex-direction: column;
-  justify-content: center;
-  box-sizing: border-box;
-`
+export const ConfirmContent = styled(DialogContent)(({ theme }) => {
+  return `
+    display: flex;
+    min-height: 100px;
+    align-items: start;
+    flex-direction: column;
+    justify-content: center;
+    box-sizing: border-box;
+    background-color: ${theme.palette.background.paper};
+  `
+})
 
 export const ConfirmHeaderIcon = styled(ErrorIcon)(({ theme }) => {
   return `
@@ -47,5 +46,13 @@ export const ConfirmTitle = styled(DialogTitle)(({ theme }) => {
     align-items: center; 
     background-color: ${theme.palette.background.input};
     border-bottom: 1px solid ${theme.palette.border.default};
+  `
+})
+
+export const ConfirmDialogActions = styled(DialogActions)(({ theme }) => {
+  return `
+    padding: ${gutter.px};
+    justify-content: space-between;
+    background-color: ${theme.palette.background.paper};
   `
 })

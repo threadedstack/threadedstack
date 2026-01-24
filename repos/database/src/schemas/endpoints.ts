@@ -8,7 +8,7 @@ export const endpoints = pgTable(`endpoints`, {
   ...base,
   url: text(`url`),
   name: text(`name`),
-  path: text(`name`),
+  path: text(`path`),
   headers: jsonb(`headers`),
   options: jsonb(`options`),
   public: boolean(`public`).default(false),
