@@ -7,7 +7,6 @@
     "outDir": "./dist",
     "target": "esnext",
     "module": "esnext",
-    "strict": true,
     "noEmit": true,
     "allowJs": true,
     "sourceMap": true,

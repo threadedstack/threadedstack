@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { EFunLanguage } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Function as TDFunction, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -16,11 +17,11 @@ export const createFunction: TEndpointConfig = {
     const { db } = req.app.locals
     const {
       name,
-      description,
       content,
       language,
       projectId,
       endpointId,
+      description,
       defaultArgs,
       dependencies,
     } = req.body
@@ -40,11 +41,6 @@ export const createFunction: TEndpointConfig = {
       return
     }
 
-    if (!endpointId) {
-      res.status(400).json({ error: `Endpoint ID is required` })
-      return
-    }
-
     // Check permission - requires admin+
     await checkPermission(req, EPermAction.create, EPermResource.function, {
       projectId,
@@ -57,7 +53,7 @@ export const createFunction: TEndpointConfig = {
         projectId,
         endpointId,
         description,
-        language: language || 'typescript',
+        language: language || EFunLanguage.typescript,
         ...(defaultArgs && { defaultArgs }),
         ...(dependencies && { dependencies }),
       })

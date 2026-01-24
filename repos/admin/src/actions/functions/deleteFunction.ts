@@ -9,9 +9,7 @@ export type TDeleteFunctionResult = {
 export const deleteFunction = async (id: string): Promise<TDeleteFunctionResult> => {
   const resp = await functionsApi.delete(id)
 
-  if (resp.error) {
-    return { error: resp.error }
-  }
+  if (resp.error) return { error: resp.error }
 
   // Remove function from state
   const currentFunctions = getFunctions() || {}

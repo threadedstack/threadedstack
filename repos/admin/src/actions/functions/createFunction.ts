@@ -3,28 +3,20 @@ import type { Function as TDFunction } from '@tdsk/domain'
 import { functionsApi } from '@TAF/services'
 import { setFunctions, getFunctions } from '@TAF/state/accessors'
 
-export type TCreateFunctionInput = {
+export type TCreateFunctionInput = Omit<
+  Partial<TDFunction>,
+  `name` | `content` | `language` | `projectId`
+> & {
   name: string
+  content: string
+  language: string
   projectId: string
-  code: string
-  runtime?: string
-  description?: string
-  config?: Record<string, any>
 }
 
-export type TCreateFunctionResult = {
-  function?: TDFunction
-  error?: Error
-}
-
-export const createFunction = async (
-  input: TCreateFunctionInput
-): Promise<TCreateFunctionResult> => {
+export const createFunction = async (input: Partial<TDFunction>) => {
   const resp = await functionsApi.create(input)
 
-  if (resp.error) {
-    return { error: resp.error }
-  }
+  if (resp.error) return { error: resp.error }
 
   if (resp.data) {
     // Update functions state with the new function
@@ -32,5 +24,5 @@ export const createFunction = async (
     setFunctions({ ...currentFunctions, [resp.data.id]: resp.data })
   }
 
-  return { function: resp.data }
+  return resp
 }

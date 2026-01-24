@@ -131,7 +131,9 @@ const useOnEditorMount = (props: THMonaco) => {
       editor.onDidBlurEditorText(() => {
         onBlurText?.(editor, monaco)
 
-        placeholder && !Boolean(editor.getValue()) && togglePlaceholder(editor, true)
+        placeholder &&
+          !Boolean(editor.getValue()?.trim()) &&
+          togglePlaceholder(editor, true)
       })
 
     editor.onDidContentSizeChange(updateHeight)

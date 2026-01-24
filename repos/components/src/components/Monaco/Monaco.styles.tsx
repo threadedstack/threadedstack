@@ -146,5 +146,9 @@ export const MonacoPlaceholder = styled(Box)(({ theme }) => {
     padding: ${gutter.px};
     background-color: transparent;
     color: ${isDark ? grey[700] : grey[300]};
+    
+    &.line-numbers {
+      left: 30px;
+    }
   `
 })

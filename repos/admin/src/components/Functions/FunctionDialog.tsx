@@ -1,98 +1,104 @@
-import { useState, useEffect } from 'react'
 import type { Function as TDFunction } from '@tdsk/domain'
-import { createFunction, updateFunction, deleteFunction } from '@TAF/actions/functions'
+
+import { EFunLanguage } from '@tdsk/domain'
+import { useState, useEffect } from 'react'
 import { Box, Button } from '@mui/material'
+import { Code } from '@TAF/components/Code/Code'
+import { LanguageOpts } from '@TAF/constants/values'
 import { Dialog, TextInput, SelectInput } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { createFunction, updateFunction, deleteFunction } from '@TAF/actions/functions'
 import { ConfirmDeleteAlert } from '@TAF/components/ConfirmDeleteAlert/ConfirmDeleteAlert'
 
 export type TFunctionDialog = {
   open: boolean
   projectId: string
-  func?: TDFunction | null
   onClose: () => void
   onSuccess?: () => void
+  func?: TDFunction | null
 }
 
-// TODO: move to domain repo, figure out actually allowed languages
-const LANGUAGE_OPTIONS = [
-  { value: 'python', label: 'Python' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'javascript', label: 'JavaScript' },
-]
+/**
+ * TODO: Add the following function properties as editable
+  //content: string
+  //endpointId: string
+  //branch: string = `main`
+  //defaultArgs?: Record<string, any>
+  //dependencies?: Record<string, any>
+ */
 
 export const FunctionDialog = ({
   open,
-  projectId,
   func,
+  projectId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
 }: TFunctionDialog) => {
   const isEditMode = Boolean(func)
 
-  const [name, setName] = useState('')
-  const [language, setLanguage] = useState('typescript')
-  const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
+  const [name, setName] = useState(func?.name || ``)
+  const [loaded, setLoaded] = useState(Boolean(func?.id))
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [description, setDescription] = useState(func?.description || ``)
+  const [content, setContent] = useState(func?.content || `\n\n\n\n\n\n`)
+  const [language, setLanguage] = useState(func?.language || EFunLanguage.typescript)
 
-  // Pre-populate form in edit mode
   useEffect(() => {
-    if (func) {
-      setName(func.name || '')
-      setLanguage(func.language || 'typescript')
-      setDescription(func.description || '')
-      setError(null)
-      setShowDeleteConfirm(false)
-    } else {
-      setName('')
-      setLanguage('typescript')
-      setDescription('')
-      setError(null)
-      setShowDeleteConfirm(false)
-    }
-  }, [func])
+    if (!func || loaded) return
+
+    setLoaded(true)
+    setName(func.name || ``)
+    setDescription(func.description || ``)
+    setContent(func?.content || `\n\n\n\n\n\n`)
+    setLanguage(func.language || EFunLanguage.typescript)
+    setError(null)
+    setShowDeleteConfirm(false)
+  }, [func, loaded])
 
   const onClose = () => {
-    if (!loading) {
-      setName('')
-      setLanguage('typescript')
-      setDescription('')
-      setError(null)
-      setShowDeleteConfirm(false)
-      onCloseCB?.()
-    }
+    if (loading) return
+
+    setName(``)
+    setError(null)
+    setContent(``)
+    setLoaded(false)
+    setDescription(``)
+    setLanguage(`typescript`)
+    setShowDeleteConfirm(false)
+    onCloseCB?.()
   }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!name.trim()) {
-      setError('Function name is required')
+      setError(`Function name is required`)
       return
     }
 
     if (!language) {
-      setError('Language is required')
+      setError(`Language is required`)
       return
     }
 
-    setLoading(true)
     setError(null)
+    setLoading(true)
 
     const result = isEditMode
       ? await updateFunction(func?.id, {
           name: name.trim(),
-          runtime: language,
+          content,
+          language,
           description: description.trim() || undefined,
         })
       : await createFunction({
           projectId,
-          code: '',
+          content,
+          language,
           name: name.trim(),
-          runtime: language,
           description: description.trim() || undefined,
         })
 
@@ -100,7 +106,7 @@ export const FunctionDialog = ({
 
     if (result.error) {
       setError(
-        `Failed to ${isEditMode ? 'update' : 'create'} function. Please try again.`
+        `Failed to ${isEditMode ? `update` : `create`} function. Please try again.`
       )
     } else {
       onClose()
@@ -109,9 +115,7 @@ export const FunctionDialog = ({
   }
 
   const onDelete = async () => {
-    if (!func) {
-      return
-    }
+    if (!func) return
 
     setLoading(true)
     setError(null)
@@ -121,7 +125,7 @@ export const FunctionDialog = ({
     setLoading(false)
 
     if (result.error) {
-      setError('Failed to delete function. Please try again.')
+      setError(`Failed to delete function. Please try again.`)
       setShowDeleteConfirm(false)
     } else {
       onSuccessCB?.()
@@ -132,9 +136,9 @@ export const FunctionDialog = ({
   return (
     <Dialog
       open={open}
+      maxWidth='lg'
       onClose={onClose}
-      maxWidth='sm'
-      title={isEditMode ? 'Edit Function' : 'Create New Function'}
+      title={isEditMode ? `Edit Function` : `Create New Function`}
       content={
         <form
           id='function-form'
@@ -173,21 +177,32 @@ export const FunctionDialog = ({
               label='Language'
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              items={LANGUAGE_OPTIONS}
+              items={LanguageOpts}
               required
               disabled={loading}
             />
 
             <TextInput
-              id='function-description'
-              label='Description'
-              placeholder='Enter function description (optional)'
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
               textarea
-              minRows={3}
               fullWidth
+              minRows={3}
               disabled={loading}
+              label='Description'
+              value={description}
+              id='function-description'
+              placeholder='Enter function description (optional)'
+              onChange={(e) => setDescription(e.target.value)}
+            />
+
+            <Code
+              required
+              label='Content'
+              disabled={loading}
+              language={language}
+              id='function-content'
+              defaultValue={content || `\n\n\n\n\n\n`}
+              onChange={(data: string) => setContent(data)}
+              placeholder={`The ${language} code....`}
             />
           </Box>
         </form>

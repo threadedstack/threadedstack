@@ -67,11 +67,11 @@ export const Functions = (props: TFunctions) => {
   const languageFilterOptions = useMemo(() => {
     if (!functions || !projectId) return []
     const languages = new Set<string>()
+
     Object.values(functions)
       .filter((func) => func.projectId === projectId)
-      .forEach((func) => {
-        if (func.language) languages.add(func.language)
-      })
+      .forEach((func) => func.language && languages.add(func.language))
+
     return Array.from(languages)
       .sort()
       .map((lang) => ({ value: lang, label: lang }))
@@ -82,13 +82,10 @@ export const Functions = (props: TFunctions) => {
     : 0
 
   const onDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete function "${name}"?`)) {
-      return
-    }
+    if (!window.confirm(`Are you sure you want to delete function "${name}"?`)) return
+
     const result = await deleteFunction(id)
-    if (result.error) {
-      alert(`Failed to delete function: ${result.error.message}`)
-    }
+    if (result.error) alert(`Failed to delete function: ${result.error.message}`)
   }
 
   const onCreate = () => {

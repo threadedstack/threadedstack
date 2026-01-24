@@ -3,28 +3,10 @@ import type { Function as TDFunction } from '@tdsk/domain'
 import { functionsApi } from '@TAF/services'
 import { setFunctions, getFunctions } from '@TAF/state/accessors'
 
-export type TUpdateFunctionInput = {
-  name?: string
-  code?: string
-  runtime?: string
-  description?: string
-  config?: Record<string, any>
-}
-
-export type TUpdateFunctionResult = {
-  function?: TDFunction
-  error?: Error
-}
-
-export const updateFunction = async (
-  id: string,
-  input: TUpdateFunctionInput
-): Promise<TUpdateFunctionResult> => {
+export const updateFunction = async (id: string, input: Partial<TDFunction>) => {
   const resp = await functionsApi.update(id, input)
 
-  if (resp.error) {
-    return { error: resp.error }
-  }
+  if (resp.error) return { error: resp.error }
 
   if (resp.data) {
     // Update functions state with the updated function
@@ -32,5 +14,5 @@ export const updateFunction = async (
     setFunctions({ ...currentFunctions, [resp.data.id]: resp.data })
   }
 
-  return { function: resp.data }
+  return resp
 }

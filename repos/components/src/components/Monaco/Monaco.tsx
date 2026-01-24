@@ -14,6 +14,7 @@ export type TMonaco = THMonaco & {
   title?: ReactNode
   content?: string
   hidden?: boolean
+  required?: boolean
   disabled?: boolean
   className?: string
   editorCls?: string
@@ -45,6 +46,7 @@ export const Monaco = (props: TMonaco) => {
         MonacoClass,
         props.className,
         props.hidden && `hidden`,
+        props.required && `required`,
         props.noLineNum && `no-editor-line-num`
       )}
     >
@@ -61,8 +63,12 @@ export const Monaco = (props: TMonaco) => {
       )}
       {props.placeholder && (
         <MonacoPlaceholder
-          sx={{ display: value || defaultValue ? `none` : `initial` }}
-          className={cls(MonacoPlaceholderClass, props.hidden && `hidden`)}
+          sx={{ display: (value || defaultValue)?.trim() ? `none` : `initial` }}
+          className={cls(
+            MonacoPlaceholderClass,
+            props.hidden && `hidden`,
+            options.lineNumbers !== `off` && `line-numbers`
+          )}
         >
           {props.placeholder}
         </MonacoPlaceholder>

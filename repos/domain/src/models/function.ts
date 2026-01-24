@@ -1,4 +1,5 @@
 import { Base } from './base'
+import { EFunLanguage } from '@TDM/types'
 
 export class Function extends Base {
   name: string
@@ -7,9 +8,9 @@ export class Function extends Base {
   endpointId: string
   description?: string
   branch: string = `main`
-  language: string = 'typescript'
   defaultArgs?: Record<string, any>
   dependencies?: Record<string, any>
+  language: string = EFunLanguage.typescript
 
   constructor(func: Partial<Function>) {
     super()

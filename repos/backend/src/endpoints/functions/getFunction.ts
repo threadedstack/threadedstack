@@ -24,7 +24,7 @@ export const getFunction: TEndpointConfig = {
     }
 
     if (!func) {
-      res.status(404).json({ error: 'Function not found' })
+      res.status(404).json({ error: `Function not found` })
       return
     }
 

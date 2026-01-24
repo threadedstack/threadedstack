@@ -1,8 +1,10 @@
+import { capitalize } from '@keg-hub/jsutils/capitalize'
 import {
   ERoleType,
-  EApiKeyScope,
   EHttpMethod,
   EEPAuthTypes,
+  EFunLanguage,
+  EApiKeyScope,
   EEPCredentialOpts,
 } from '@tdsk/domain'
 
@@ -40,3 +42,8 @@ export const CredentialOpts = [
   { value: EEPCredentialOpts.body, label: `Body (Form Params)` },
   { value: EEPCredentialOpts.header, label: `Header (Basic Auth)` },
 ]
+
+export const LanguageOpts = Object.values(EFunLanguage).map((value) => ({
+  value,
+  label: capitalize(value),
+}))

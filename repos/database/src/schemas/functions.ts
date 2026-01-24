@@ -1,20 +1,20 @@
 import { relations } from 'drizzle-orm'
-import { projects } from '@TDB/schemas/projects'
+import { EFunLanguage } from '@tdsk/domain'
 import { base } from '@TDB/utils/schema/base'
+import { projects } from '@TDB/schemas/projects'
 import { endpoints } from '@TDB/schemas/endpoints'
 import { uuid, text, jsonb, varchar, pgTable } from 'drizzle-orm/pg-core'
 
 export const functions = pgTable(`functions`, {
   ...base,
   name: text(`name`).notNull(),
-  description: text(`name`),
-  defaultArgs: jsonb(`default_args`),
+  description: text(`description`),
   content: text(`content`).notNull(),
-  dependencies: jsonb(`dependencies`),
-  language: varchar(`language`, { length: 50 }).default(`typescript`),
-  endpointId: uuid(`endpoint_id`)
-    .references(() => endpoints.id, { onDelete: `cascade` })
-    .notNull(),
+  branch: text(`branch`).default(`main`),
+  defaultArgs: jsonb(`default_args`).default([]),
+  dependencies: jsonb(`dependencies`).default({}),
+  language: varchar(`language`, { length: 50 }).default(EFunLanguage.typescript),
+  endpointId: uuid(`endpoint_id`).references(() => endpoints.id, { onDelete: `cascade` }),
   projectId: uuid(`project_id`)
     .references(() => projects.id, { onDelete: `cascade` })
     .notNull(),

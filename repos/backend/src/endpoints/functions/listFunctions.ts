@@ -19,7 +19,7 @@ export const listFunctions: TEndpointConfig = {
 
     // projectId is required
     if (!projectId) {
-      res.status(400).json({ error: 'projectId query parameter required' })
+      res.status(400).json({ error: `projectId query parameter required` })
       return
     }
 

@@ -5,11 +5,7 @@ import type { TRequest, TApp } from '@TBE/types/backend.types'
 import type { RequestHandler, Options } from 'http-proxy-middleware'
 
 export type TConfigProxy = Options
-export type TEndpointMethod = (
-  req?: TRequest,
-  res?: TResponse,
-  next?: NextFunction
-) => void
+export type TEndpointMethod = (req: TRequest, res: TResponse, next?: NextFunction) => void
 export type TRequestHandler = RequestHandler | TEndpointMethod
 
 export type TMethodType = `get` | `put` | `post` | `patch` | `delete` | `all` | `use`

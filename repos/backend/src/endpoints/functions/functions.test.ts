@@ -38,12 +38,12 @@ describe(`Functions endpoints`, () => {
     } as unknown as TApp
   }
 
-  const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(buildApp()) : endpoint
+  const getEndpointCfg = (endpoint?: TEndpoint): TEndpointConfig =>
+    isFunc(endpoint) ? endpoint(buildApp()) : (endpoint as TEndpointConfig)
 
   beforeEach(() => {
     mockJson = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as any
 
     mockRes = {
       status: mockStatus,
