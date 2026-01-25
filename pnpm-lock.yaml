@@ -214,6 +214,9 @@ importers:
       module-alias:
         specifier: 2.2.3
         version: 2.2.3
+      tsx:
+        specifier: 4.21.0
+        version: 4.21.0
     devDependencies:
       '@biomejs/biome':
         specifier: 2.1.2
@@ -699,6 +702,9 @@ importers:
       module-alias:
         specifier: 2.2.3
         version: 2.2.3
+      tsx:
+        specifier: 4.21.0
+        version: 4.21.0
       vite-plugin-node-polyfills:
         specifier: 0.25.0
         version: 0.25.0(rollup@4.55.1)(vite@6.3.5(@types/node@20.17.16)(jiti@2.6.1)(terser@5.43.1)(tsx@4.21.0)(yaml@2.7.0))
