@@ -4,31 +4,45 @@
  * TODO: Should be merged with the actual function definitions
  */
 
-import type { TToolCall, TToolDefinition, TSandboxMetadata } from '@TAG/types'
+import type { TOnToken, TToolCall, TToolDefinition, TSandboxMetadata } from '@TAG/types'
 
 import { ToolDefinitions } from '@TAG/tools/definitions'
+
 /**
- * These will be be imported from WASM component in actual implementation
- * For now, we only define the interface to avoid type errors
+ * Imported by WASM at runtime, declare as noop's so we can reference them
  * TODO: replace these when the real functions are moved into the tools
  */
-import {
-  onToken,
-  readFile,
-  shellExec,
-  webSearch,
-  writeFile,
-  deleteFile,
-  fileExists,
-  getFileStats,
-  spawnSubAgent,
-  listDirectory,
-  createDirectory,
-  executeCustomTool,
-  terminateSubAgent,
-  sendMessageToSubAgent,
-  receiveMessageFromSubAgent,
-} from '@TAG/types'
+declare const webSearch: (query: string) => string
+declare const shellExec: (cmd: string, args: string[]) => string | Promise<string>
+
+// Filesystem operations
+declare const readFile: (path: string) => string | Promise<string>
+declare const deleteFile: (path: string) => string | Promise<string>
+declare const fileExists: (path: string) => boolean | Promise<boolean>
+declare const getFileStats: (path: string) => string | Promise<string>
+declare const createDirectory: (path: string) => string | Promise<string>
+declare const listDirectory: (path: string) => string[] | Promise<string[]>
+declare const writeFile: (path: string, content: string) => string | Promise<string>
+
+// Custom tool execution
+declare const executeCustomTool: (
+  toolName: string,
+  argsJson: string
+) => string | Promise<string>
+
+// Sub-agent orchestration
+declare const spawnSubAgent: (
+  subAgentId: string,
+  prompt: string
+) => string | Promise<string>
+declare const sendMessageToSubAgent: (
+  subAgentId: string,
+  message: string
+) => string | Promise<string>
+declare const receiveMessageFromSubAgent: (subAgentId: string) => string | Promise<string>
+declare const terminateSubAgent: (subAgentId: string) => string | Promise<string>
+
+/** ------ End WASM imports ------ */
 
 export class GuestTools {
   constructor() {}
@@ -91,7 +105,7 @@ export class GuestTools {
   /**
    * Execute a tool call and return the result
    */
-  call = async (toolCall: TToolCall): Promise<string> => {
+  call = async (onToken: TOnToken, toolCall: TToolCall): Promise<string> => {
     const { name, arguments: argsJson } = toolCall.function
 
     try {

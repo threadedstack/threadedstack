@@ -1,12 +1,13 @@
 import type { TMessage, TLLMProvider } from '@TAG/types'
 
-import { onToken } from '@TAG/types'
 import { Context } from '@TAG/wasm/context'
 import { GuestTools } from '@TAG/tools/guest'
 import { getProvider } from '@TAG/wasm/provider'
-
 // @ts-ignore - The compiler doesn't know about this virtual module yet
 import { getEnvironment } from 'wasi:cli/environment@0.2.0'
+
+// Imported by WASM at runtime, so define noop so we can reference it
+declare const onToken: (token: string) => void
 
 const getEnvs = (envs: string[]) => {
   const loaded = {} as Record<string, string>
@@ -151,7 +152,7 @@ Use tools when needed to accomplish tasks. When you're done and have provided a 
       onToken(`\n[Agent] Executing ${response.tool_calls.length} tool(s)...\n`)
 
       for (const toolCall of response.tool_calls) {
-        const toolResult = await tools.call(toolCall)
+        const toolResult = await tools.call(onToken, toolCall)
 
         // Add tool result to history
         history.push({
