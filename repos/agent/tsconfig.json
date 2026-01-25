@@ -33,6 +33,11 @@
       "@TAG/": ["./src"],
       "@TAG/*": ["./src/*"],
 
+      "@TSH": ["../shell/src"],
+      "@TSH/*": ["../shell/src/*"],
+      "@tdsk/shell": ["../shell/src"],
+      "@tdsk/shell/*": ["../shell/src/*"],
+
       "@TDM": ["../domain/src"],
       "@TDM/*": ["../domain/src/*"],
       "@tdsk/domain": ["../domain/src"],

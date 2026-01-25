@@ -25,6 +25,10 @@ export type TToolDefinition = {
  * These are registered with the LLM so it knows what tools it can use
  */
 export const TOOL_DEFINITIONS: Record<string, TToolDefinition> = {
+  /**
+   * TODO: replace with a tool that uses the `Shell` exported from the `@tdsk/shell` repo
+   * **IMPORTANT** - The tool must run within the isolated wasm container.
+   */
   executeShell: {
     type: `function`,
     function: {

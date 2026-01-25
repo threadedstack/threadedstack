@@ -208,6 +208,9 @@ importers:
       '@tdsk/logger':
         specifier: workspace:*
         version: link:../logger
+      '@tdsk/shell':
+        specifier: workspace:*
+        version: link:../shell
       alias-hq:
         specifier: 6.2.2
         version: 6.2.2(@babel/preset-env@7.26.7(@babel/core@7.28.5))
