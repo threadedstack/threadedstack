@@ -1,8 +1,8 @@
 /** @module tools */
 
-import type { TSandboxMetadata } from '@TAG/types/sandbox.types'
+import type { TSandboxMetadata } from '@TAG/types'
 
-export class Tools {
+export class HostTools {
   #tools: Map<string, TSandboxMetadata>
 
   constructor() {

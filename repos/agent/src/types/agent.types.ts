@@ -1,3 +1,4 @@
+import type { TToolCall } from './tools.types'
 import type { TMutexOpts } from './mutex.types'
 import type { TWasmBridgeOpts } from './wasm.types'
 import type { TExecutorOpts } from './executor.types'
@@ -9,21 +10,6 @@ export type TMessage = {
   content: string
   tool_call_id?: string
   tool_calls?: TToolCall[]
-}
-
-export type TToolCall = {
-  id: string
-  type: `function`
-  function: {
-    name: string
-    arguments: string
-  }
-}
-
-export type TToolResult = {
-  tool_call_id: string
-  output: string
-  error?: string
 }
 
 export type TLLMProvider = `openai` | `gemini` | `anthropic` | `grok` | `zai`

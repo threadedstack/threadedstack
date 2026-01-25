@@ -12,7 +12,7 @@ import type {
 
 import { join } from 'node:path'
 import { paths } from '@TAG/utils/paths'
-import { Tools } from '@TAG/services/tools'
+import { HostTools } from '@TAG/tools/host'
 
 export type TSandboxOpts = {
   sandboxPath?: string
@@ -33,13 +33,13 @@ export type TSandboxOpts = {
  * - No access to Node.js APIs or environment
  */
 export class Sandbox {
-  tools: Tools
+  tools: HostTools
   // Path to compiled WASM sandbox component
   #sandboxPath: string
   #module: IToolSandboxModule | null = null
 
   constructor(opts?: TSandboxOpts) {
-    this.tools = new Tools()
+    this.tools = new HostTools()
     this.#module = opts?.module
     this.#sandboxPath = opts?.sandboxPath || join(paths.dist, `wasm/sandbox.js`)
   }
