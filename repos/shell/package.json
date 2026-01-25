@@ -6,13 +6,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "pnpm build:app && pnpm build:shell",
+    "build": "pnpm build:app",
     "build:app": "tsup-node --config configs/tsup.config.ts",
-    "build:shell": "pnpm build:wasm shell",
-    "build:wasm": "pnpm tsx scripts/wasm/build.ts",
-    "wasm:deps": "pnpm tsx scripts/wasm/deps.ts",
-    "postinstall": "pnpm wasm:deps && pnpm emsdk:setup",
-    "emsdk:setup": "pnpm tsx scripts/wasm/emsdk.ts",
     "clean": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",
     "clean:full": "pnpm clean && pnpm clean:nm",
@@ -36,10 +31,10 @@
     "@tdsk/logger": "workspace:*",
     "@zenfs/core": "^1.0.5",
     "alias-hq": "6.2.2",
+    "just-bash": "2.5.5",
     "module-alias": "2.2.3",
     "tsx": "4.21.0",
-    "vite-plugin-node-polyfills": "0.25.0",
-    "web-streams-polyfill": "^4.0.0"
+    "vite-plugin-node-polyfills": "0.25.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",

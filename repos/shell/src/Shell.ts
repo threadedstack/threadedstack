@@ -1,5 +1,5 @@
 /**
- * TODO: Build out Shell class for using Toybox and Dash
+ * TODO: Build out Shell class using just-bash
  */
 
 import type { TShellCfg } from '@TSH/types'

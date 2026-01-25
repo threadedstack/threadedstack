@@ -7,8 +7,8 @@ export default defineConfig({
     lib: {
       entry: `src/index.ts`,
       name: `TDSKShell`,
-      formats: [`es`, `umd`],
-      fileName: (format) => `shell.${format}.js`,
+      formats: [`es`],
+      fileName: (format) => `shell.js`,
     },
     target: `esnext`,
     sourcemap: true,
@@ -25,7 +25,7 @@ export default defineConfig({
   },
   plugins: [
     nodePolyfills({
-      include: [`buffer`, `process`, `util`, `stream`, `events`],
+      include: [`buffer`, `process`, `util`, `stream`, `events`, `os`, `path`],
       globals: {
         Buffer: true,
         global: true,
@@ -33,16 +33,4 @@ export default defineConfig({
       },
     }),
   ],
-  server: {
-    headers: {
-      [`Cross-Origin-Opener-Policy`]: `same-origin`,
-      [`Cross-Origin-Embedder-Policy`]: `require-corp`,
-    },
-  },
-  preview: {
-    headers: {
-      [`Cross-Origin-Opener-Policy`]: `same-origin`,
-      [`Cross-Origin-Embedder-Policy`]: `require-corp`,
-    },
-  },
 } as UserConfig)
