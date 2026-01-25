@@ -1,2 +1,5 @@
-export * from './paths'
 export * from './logger'
+export * from './paths'
+export * from './platform'
+export * from './filesystem'
+export * from './streams'

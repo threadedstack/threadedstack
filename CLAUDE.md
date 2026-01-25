@@ -398,6 +398,7 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/backend/SKILL.md` |
 | `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/admin/SKILL.md` |
 | `agent/` | AI Agent Backend - WASM isolation, LLM orchestration | TypeScript, WebAssembly, componentize-js | `.claude/skills/agent/SKILL.md` |
+| `shell/` | Cross-Platform Virtual Shell - bash execution, filesystem abstraction | TypeScript, just-bash, ZenFS | `.claude/skills/shell/SKILL.md` |
 | `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/database/SKILL.md` |
 | `domain/` | Shared types, models, utilities | TypeScript | `.claude/skills/domain/SKILL.md` |
 | `components/` | Shared React components/hooks | React, MUI | `.claude/skills/components/SKILL.md` |
@@ -413,6 +414,7 @@ Load the relevant skill when working on a specific repo:
 - Working on admin UI? → Read `.claude/skills/admin/SKILL.md` first
 - Adding API endpoints? → Read `.claude/skills/backend/SKILL.md` first
 - Building AI agents? → Read `.claude/skills/agent/SKILL.md` first
+- Building shell environments? → Read `.claude/skills/shell/SKILL.md` first
 - Modifying database schema? → Read `.claude/skills/database/SKILL.md` first
 
 ### Available Skills
@@ -427,6 +429,7 @@ Load the relevant skill when working on a specific repo:
 | `domain/SKILL.md` | Organization/Project/ApiKey/Secret/Endpoint/Function models, crypto utilities, Plan model, payment types (TPayPlanMeta) |
 | `logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
 | `proxy/SKILL.md` | JWKS auth validation, http-proxy-middleware backend forwarding, full implementation |
+| `shell/SKILL.md` | Cross-platform virtual shell environment, Shell class API, just-bash integration, ZenFS backends (Node.js/Browser/Bun), StreamManager, Platform detection, cwd persistence pattern, Test suite (140/149 passing) |
 
 ### Database & Authentication
 
