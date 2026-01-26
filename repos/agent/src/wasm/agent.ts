@@ -1,8 +1,10 @@
 import type { TMessage, TLLMProvider } from '@TAG/types'
 
+import { logger } from '@TAG/wasm/logger'
 import { Context } from '@TAG/wasm/context'
 import { GuestTools } from '@TAG/tools/guest'
 import { getProvider } from '@TAG/wasm/provider'
+
 // @ts-ignore - The compiler doesn't know about this virtual module yet
 import { getEnvironment } from 'wasi:cli/environment@0.2.0'
 

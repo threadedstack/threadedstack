@@ -9,11 +9,11 @@ import type {
 import { EPlatform } from '@TSH/types'
 import {
   logger,
-  detectPlatform,
   getHomeDir,
+  StreamManager,
+  detectPlatform,
   createFileSystem,
   validateFileSystem,
-  StreamManager,
 } from '@TSH/utils'
 
 /**

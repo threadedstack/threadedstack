@@ -5,24 +5,16 @@ import { promises as fs } from 'node:fs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.join(dirname, `..`)
-const outdir = path.join(rootDir, `dist`)
 
 type TWasmModule = `agent` | `sandbox`
 const WasmModules = [`agent`, `sandbox`]
 
 const locations = (name: `agent` | `sandbox`) => {
   return {
-    name,
     root: rootDir,
-    witin: `world.wit`,
-    jsname: `${name}.js`,
     outdir: `dist/wasm`,
-    witdir: path.join(rootDir, `wit/`),
-    jsout: `dist/wasm/${name}.js`,
-    wasmout: `dist/wasm/${name}.wasm`,
     tsout: path.join(rootDir, `dist/${name}`),
     tsin: path.join(rootDir, `src/wasm/${name}.ts`),
-    jsin: path.join(rootDir, `dist/${name}/${name}.js`),
   }
 }
 
@@ -33,7 +25,7 @@ export default defineConfig(async () => {
 
   const paths = locations(mod)
 
-  await fs.rm(outdir, { recursive: true, force: true })
+  await fs.rm(paths.outdir, { recursive: true, force: true })
 
   return {
     clean: true,

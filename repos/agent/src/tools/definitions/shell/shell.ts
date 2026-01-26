@@ -1,26 +1,47 @@
-import type { TToolDefGroup } from '@TAG/types'
+import type { TShellCfg, TShellState } from '@TAG/types'
+import { Bash } from 'just-bash'
+import { logger } from '@TAG/wasm/logger'
+import { StreamManager } from '@TAG/tools/definitions/shell/streams'
+import { getHomeDir } from '@TAG/tools/definitions/shell/utils/getHomeDir'
 
-export const ShellTools: TToolDefGroup = {
-  shellExec: {
-    type: `function`,
-    function: {
-      name: `shellExec`,
-      description: `Execute a shell command in the project directory. Use this to run commands like ls, cat, mkdir, git, npm, etc.`,
-      parameters: {
-        type: `object`,
-        properties: {
-          command: {
-            type: `string`,
-            description: `The command to execute (e.g., "ls", "git", "npm")`,
-          },
-          args: {
-            type: `array`,
-            items: { type: `string` },
-            description: `Command arguments as an array (e.g., ["status"], ["-la"])`,
-          },
-        },
-        required: [`command`, `args`],
-      },
-    },
-  },
+export class Shell {
+  client: Bash
+  config: TShellCfg
+  state: TShellState
+  streams: StreamManager
+
+  constructor(opts: TShellCfg) {
+    this.client = new Bash()
+
+    this.config = {
+      home: getHomeDir(opts.home),
+      options: opts.options || {},
+      verbose: opts.verbose ?? false,
+      persistent: opts.persistent ?? true,
+    }
+
+    this.state = {
+      bash: null,
+      executionCount: 0,
+      initialized: false,
+      home: this.config.home,
+    }
+
+    logger.info(`Shell created`, {
+      home: this.state.home,
+      options: this.config,
+    })
+  }
+
+  init = () => {
+    if (this.state.initialized) return logger.warn(`Shell already initialized`)
+
+    try {
+      logger.info(`Initializing shell`)
+
+      this.streams = new StreamManager()
+    } catch (err) {}
+  }
+
+  exec = async () => {}
 }
