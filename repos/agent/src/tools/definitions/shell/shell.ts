@@ -1,4 +1,6 @@
 import type { TShellCfg, TShellState } from '@TAG/types'
+import type { TExecData } from '@TAG/tools/definitions/shell/definition'
+
 import { Bash } from 'just-bash'
 import { logger } from '@TAG/wasm/logger'
 import { StreamManager } from '@TAG/tools/definitions/shell/streams'
@@ -43,5 +45,12 @@ export class Shell {
     } catch (err) {}
   }
 
-  exec = async () => {}
+  exec = async (data: TExecData) => {
+    // TODO: validate if this is even needed
+    //const args: ParseEntry[] = shellQuote.parse(data.command)
+    console.log(`------- data -------`)
+    console.log(data)
+
+    return data
+  }
 }

@@ -8,7 +8,7 @@ export type TToolDefinition = {
     parameters: {
       type: `object`
       properties: Record<string, any>
-      required: string[]
+      required: readonly string[]
     }
   }
 }

@@ -44,11 +44,14 @@
     "alias-hq": "6.2.2",
     "just-bash": "2.5.5",
     "module-alias": "2.2.3",
+    "shell-quote": "1.8.3",
     "tsx": "4.21.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
     "@types/node": "^20.11.16",
+    "@types/shell-quote": "1.7.5",
+    "json-schema-to-ts": "3.1.1",
     "rimraf": "6.0.1",
     "tsup": "8.3.0",
     "typescript": "5.7.3",
