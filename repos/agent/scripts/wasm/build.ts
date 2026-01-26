@@ -39,30 +39,15 @@ const buildPaths = (name: `agent` | `sandbox`) => {
   }
 }
 
-const fromTS = async (paths: Record<string, string>) => {
+const fromTS = async (name: string, paths: Record<string, string>) => {
   console.log(`📝 Compiling TypeScript to JavaScript...\n`)
 
   return new Promise((resolve, reject) => {
-    const tsup = spawn(
-      `npx`,
-      [
-        `tsup`,
-        paths.tsin,
-        `--format`,
-        `esm`,
-        `--outDir`,
-        paths.tsout,
-        `--target`,
-        `esnext`,
-        `--clean`,
-        `--external`,
-        `wasi:cli/environment@0.2.0`,
-      ],
-      {
-        cwd: paths.root,
-        stdio: `inherit`,
-      }
-    )
+    const tsup = spawn(`pnpm`, [`build:module`], {
+      cwd: paths.root,
+      stdio: `inherit`,
+      env: { ...process.env, WASM_MODULE_NAME: name },
+    })
 
     tsup.on(`close`, (code) => {
       if (code === 0) {
@@ -136,7 +121,7 @@ ife(async () => {
 
   const paths = buildPaths(name)
 
-  await fromTS(paths)
+  await fromTS(name, paths)
   await toWasm(paths)
   await toJS(paths)
 })
