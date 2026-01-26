@@ -7,7 +7,7 @@ import { getOptionValue } from "./internal/options";
 import { isAnyArrayBuffer, isArrayBufferView } from "./internal/util/types";
 import {
   timing_safe_equal,
-} from "_node:crypto";
+} from "./internal/crypto/crypto";
 function timingSafeEqual(a, b) {
   if (!isAnyArrayBuffer(a) && !isArrayBufferView(a)) {
     throw new ERR_INVALID_ARG_TYPE("buf1", ["ArrayBuffer", "Buffer", "TypedArray", "DataView"], a);

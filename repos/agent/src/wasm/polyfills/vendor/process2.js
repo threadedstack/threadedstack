@@ -2,7 +2,7 @@ function unimplemented(name) {
   throw new Error('Node.js process ' + name + ' is not supported');
 }
 
-var title = 'wasmedge_quickjs';
+var title = 'tdsk_wasm';
 var arch = 'wasm';
 var platform = 'wasi';
 var env = globalThis.env || {};

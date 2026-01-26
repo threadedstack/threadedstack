@@ -19,7 +19,7 @@ import {
   isStringObject,
   isSymbolObject,
   isTypedArray,
-} from "./types.js";
+} from "./types";
 
 import { Buffer } from "buffer";
 import {

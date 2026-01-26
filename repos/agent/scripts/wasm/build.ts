@@ -51,44 +51,65 @@ const fromTS = async (name: string, paths: Record<string, string>) => {
       bundle: true,
       format: `esm`,
       target: `esnext`,
+      // Use browser platform for WASM - polyfills Node.js globals
+      // Need to add Node fs polyfill
       //platform: `node`,
-      platform: `browser`, // Use browser platform for WASM - polyfills Node.js globals
+      platform: `browser`,
       tsconfig: join(paths.root, `tsconfig.json`),
       // Bundle everything except WASI imports and Node.js-only packages
-      external: [
-        `wasi:*`,
-        //`colors`,
-        //`node:fs`,
-        //`node:path`,
-        //`node:os`,
-      ],
+      external: [`wasi:*`],
       logLevel: `info`,
-      // Use browser builds of packages when available
       mainFields: [`browser`, `module`, `main`],
       conditions: [`browser`, `module`, `import`],
       // Alias packages for WASM compatibility
       alias: {
         //[`just-bash`]: join(rootDir, `./node_modules/just-bash/dist/bundle/index.js`),
+        [`sprintf-js`]: join(rootDir, `./node_modules/sprintf-js/src/sprintf.js`),
+
         [`assert`]: join(rootDir, `src/wasm/polyfills/vendor/assert.js`),
         [`node:assert`]: join(rootDir, `src/wasm/polyfills/vendor/assert.js`),
         [`buffer`]: join(rootDir, `src/wasm/polyfills/vendor/buffer.js`),
         [`node:buffer`]: join(rootDir, `src/wasm/polyfills/vendor/buffer.js`),
         [`crypto`]: join(rootDir, `src/wasm/polyfills/vendor/crypto.js`),
         [`node:crypto`]: join(rootDir, `src/wasm/polyfills/vendor/crypto.js`),
+        [`encoding`]: join(rootDir, `src/wasm/polyfills/vendor/encoding.js`),
+        [`node:encoding`]: join(rootDir, `src/wasm/polyfills/vendor/encoding.js`),
         [`events`]: join(rootDir, `src/wasm/polyfills/vendor/events.js`),
         [`node:events`]: join(rootDir, `src/wasm/polyfills/vendor/events.js`),
-        [`stream`]: join(rootDir, `src/wasm/polyfills/vendor/stream.js`),
-        [`node:stream`]: join(rootDir, `src/wasm/polyfills/vendor/stream.js`),
-        [`sprintf-js`]: join(rootDir, `./node_modules/sprintf-js/src/sprintf.js`),
+        [`os`]: join(rootDir, `src/wasm/polyfills/vendor/os.js`),
+        [`node:os`]: join(rootDir, `src/wasm/polyfills/vendor/os.js`),
+        [`path`]: join(rootDir, `src/wasm/polyfills/vendor/path.js`),
+        [`node:path`]: join(rootDir, `src/wasm/polyfills/vendor/path.js`),
         [`process`]: join(rootDir, `src/wasm/polyfills/vendor/process2.js`),
         [`node:process`]: join(rootDir, `src/wasm/polyfills/vendor/process2.js`),
-        [`zlib`]: join(rootDir, `./node_modules/browserify-zlib/lib/index.js`),
-        [`node:zlib`]: join(rootDir, `./node_modules/browserify-zlib/lib/index.js`),
+        [`punycode`]: join(rootDir, `src/wasm/polyfills/vendor/punycode.js`),
+        [`node:punycode`]: join(rootDir, `src/wasm/polyfills/vendor/punycode.js`),
+        [`querystring`]: join(rootDir, `src/wasm/polyfills/vendor/querystring.js`),
+        [`node:querystring`]: join(rootDir, `src/wasm/polyfills/vendor/querystring.js`),
+
+        [`stream/promises`]: join(
+          rootDir,
+          `src/wasm/polyfills/vendor/stream/promises.js`
+        ),
+        [`node:stream/promises`]: join(
+          rootDir,
+          `src/wasm/polyfills/vendor/stream/promises.js`
+        ),
+
+        [`stream`]: join(rootDir, `src/wasm/polyfills/vendor/stream.js`),
+        [`node:stream`]: join(rootDir, `src/wasm/polyfills/vendor/stream.js`),
+
         [`string_decoder`]: join(rootDir, `src/wasm/polyfills/vendor/string_decoder.js`),
         [`node:string_decoder`]: join(
           rootDir,
           `src/wasm/polyfills/vendor/string_decoder.js`
         ),
+        [`timers`]: join(rootDir, `src/wasm/polyfills/vendor/timers.js`),
+        [`node:timers`]: join(rootDir, `src/wasm/polyfills/vendor/timers.js`),
+        [`vm`]: join(rootDir, `src/wasm/polyfills/vendor/vm.js`),
+        [`node:vm`]: join(rootDir, `src/wasm/polyfills/vendor/vm.js`),
+        [`zlib`]: join(rootDir, `./node_modules/browserify-zlib/lib/index.js`),
+        [`node:zlib`]: join(rootDir, `./node_modules/browserify-zlib/lib/index.js`),
       },
     })
     console.log(`✅ TypeScript compilation complete!\n`)
