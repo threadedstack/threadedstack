@@ -12,14 +12,14 @@ export class Shell {
   state: TShellState
   streams: StreamManager
 
-  constructor(opts: TShellCfg) {
+  constructor(opts?: TShellCfg) {
     this.client = new Bash()
 
     this.config = {
-      home: getHomeDir(opts.home),
-      options: opts.options || {},
-      verbose: opts.verbose ?? false,
-      persistent: opts.persistent ?? true,
+      home: getHomeDir(opts?.home),
+      options: opts?.options || {},
+      verbose: opts?.verbose ?? false,
+      persistent: opts?.persistent ?? true,
     }
 
     this.state = {
@@ -45,12 +45,15 @@ export class Shell {
     } catch (err) {}
   }
 
-  exec = async (data: TExecData) => {
-    // TODO: validate if this is even needed
-    //const args: ParseEntry[] = shellQuote.parse(data.command)
-    console.log(`------- data -------`)
-    console.log(data)
+  exec = async (data: TExecData, cmd?: string) => {
+    const command = cmd ?? `${data.command} ${data.args.join(` `)}`
+    const result = await this.client.exec(command)
+    console.log(`------- Command RESULT -------`)
+    console.log(result.stdout)
+    console.log(result.exitCode)
+    console.log(result.env)
+    console.log(`------- Command RESULT -------`)
 
-    return data
+    return result.stdout
   }
 }

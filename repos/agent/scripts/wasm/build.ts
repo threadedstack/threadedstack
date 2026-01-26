@@ -11,6 +11,7 @@
  *   pnpm build:wasm sandbox
  */
 
+import { build } from 'esbuild'
 import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
 import { spawn } from 'node:child_process'
@@ -40,25 +41,61 @@ const buildPaths = (name: `agent` | `sandbox`) => {
 }
 
 const fromTS = async (name: string, paths: Record<string, string>) => {
-  console.log(`📝 Compiling TypeScript to JavaScript...\n`)
+  console.log(`📝 Compiling TypeScript to JavaScript with esbuild...\n`)
 
-  return new Promise((resolve, reject) => {
-    const tsup = spawn(`pnpm`, [`build:module`], {
-      cwd: paths.root,
-      stdio: `inherit`,
-      env: { ...process.env, WASM_MODULE_NAME: name },
+  try {
+    await build({
+      entryPoints: [paths.tsin],
+      outfile: paths.jsin,
+      minify: false,
+      bundle: true,
+      format: `esm`,
+      target: `esnext`,
+      //platform: `node`,
+      platform: `browser`, // Use browser platform for WASM - polyfills Node.js globals
+      tsconfig: join(paths.root, `tsconfig.json`),
+      // Bundle everything except WASI imports and Node.js-only packages
+      external: [
+        `wasi:*`,
+        //`colors`,
+        //`node:fs`,
+        //`node:path`,
+        //`node:os`,
+      ],
+      logLevel: `info`,
+      // Use browser builds of packages when available
+      mainFields: [`browser`, `module`, `main`],
+      conditions: [`browser`, `module`, `import`],
+      // Alias packages for WASM compatibility
+      alias: {
+        //[`just-bash`]: join(rootDir, `./node_modules/just-bash/dist/bundle/index.js`),
+        [`assert`]: join(rootDir, `src/wasm/polyfills/vendor/assert.js`),
+        [`node:assert`]: join(rootDir, `src/wasm/polyfills/vendor/assert.js`),
+        [`buffer`]: join(rootDir, `src/wasm/polyfills/vendor/buffer.js`),
+        [`node:buffer`]: join(rootDir, `src/wasm/polyfills/vendor/buffer.js`),
+        [`crypto`]: join(rootDir, `src/wasm/polyfills/vendor/crypto.js`),
+        [`node:crypto`]: join(rootDir, `src/wasm/polyfills/vendor/crypto.js`),
+        [`events`]: join(rootDir, `src/wasm/polyfills/vendor/events.js`),
+        [`node:events`]: join(rootDir, `src/wasm/polyfills/vendor/events.js`),
+        [`stream`]: join(rootDir, `src/wasm/polyfills/vendor/stream.js`),
+        [`node:stream`]: join(rootDir, `src/wasm/polyfills/vendor/stream.js`),
+        [`sprintf-js`]: join(rootDir, `./node_modules/sprintf-js/src/sprintf.js`),
+        [`process`]: join(rootDir, `src/wasm/polyfills/vendor/process2.js`),
+        [`node:process`]: join(rootDir, `src/wasm/polyfills/vendor/process2.js`),
+        [`zlib`]: join(rootDir, `./node_modules/browserify-zlib/lib/index.js`),
+        [`node:zlib`]: join(rootDir, `./node_modules/browserify-zlib/lib/index.js`),
+        [`string_decoder`]: join(rootDir, `src/wasm/polyfills/vendor/string_decoder.js`),
+        [`node:string_decoder`]: join(
+          rootDir,
+          `src/wasm/polyfills/vendor/string_decoder.js`
+        ),
+      },
     })
-
-    tsup.on(`close`, (code) => {
-      if (code === 0) {
-        console.log(`✅ TypeScript compilation complete!\n`)
-        resolve(void 0)
-      } else {
-        console.error(`❌ TypeScript compilation failed with code ${code}`)
-        reject(new Error(`TypeScript compilation failed`))
-      }
-    })
-  })
+    console.log(`✅ TypeScript compilation complete!\n`)
+  } catch (error: any) {
+    console.error(`❌ TypeScript compilation failed:`, error.message)
+    throw new Error(`TypeScript compilation failed`)
+  }
 }
 
 const toJS = async (paths: Record<string, string>) => {

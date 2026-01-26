@@ -10,7 +10,13 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["src/**", "scripts/**", "package.json", "configs/**"]
+    "includes": [
+      "src/**",
+      "scripts/**",
+      "package.json",
+      "configs/**",
+      "!src/wasm/polyfills/**"
+    ]
   },
   "formatter": {
     "enabled": true,

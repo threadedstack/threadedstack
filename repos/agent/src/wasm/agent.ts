@@ -1,3 +1,5 @@
+import '@TAG/wasm/polyfills/vendor/global'
+
 import type { TMessage, TLLMProvider } from '@TAG/types'
 
 import { logger } from '@TAG/wasm/logger'
@@ -72,8 +74,6 @@ export const processRequest = async (prompt: string): Promise<void> => {
       `AGENT_INITIAL_HISTORY`,
     ])
 
-    const tools = new GuestTools()
-
     // Restore conversation history if provided
     const history = restoreHistory(envs)
 
@@ -89,25 +89,33 @@ export const processRequest = async (prompt: string): Promise<void> => {
     })
 
     // Get tool configuration from environment
-    const allowList = envs.AGENT_TOOLS_ALLOW
+    const allowedTools = envs.AGENT_TOOLS_ALLOW
       ? JSON.parse(envs.AGENT_TOOLS_ALLOW)
       : undefined
-    const disallowList = envs.AGENT_TOOLS_DISALLOW
+    const disabledTools = envs.AGENT_TOOLS_DISALLOW
       ? JSON.parse(envs.AGENT_TOOLS_DISALLOW)
       : undefined
     const customTools = envs.AGENT_CUSTOM_TOOLS
       ? JSON.parse(envs.AGENT_CUSTOM_TOOLS)
       : undefined
 
+    const tools = new GuestTools({
+      history,
+      provider,
+      customTools,
+      allowedTools,
+      disabledTools,
+    })
+
     // Get filtered tool definitions based on allow/disallow lists
-    const definitions = tools.get(allowList, disallowList, customTools)
+    const definitions = tools.list()
 
     // Convert to appropriate format based on provider
     const formatted =
       envs.AGENT_PROVIDER === `anthropic` ? tools.asAnthropic(definitions) : definitions
 
     // Add user prompt to history
-    history.push({ role: 'user', content: prompt })
+    history.push({ role: `user`, content: prompt })
 
     const systemPrompt = `You are a helpful coding agent with access to tools.
 
@@ -132,9 +140,7 @@ Use tools when needed to accomplish tasks. When you're done and have provided a 
       const response = await provider.complete(system, messages, formatted)
 
       // Stream AI's text response if present
-      if (response.content) {
-        onToken(`\n${response.content}\n`)
-      }
+      response.content && onToken(`\n${response.content}\n`)
 
       // Add assistant message to history
       history.push({

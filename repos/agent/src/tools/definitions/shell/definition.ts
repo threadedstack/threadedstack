@@ -2,7 +2,6 @@ import type { FromSchema } from 'json-schema-to-ts'
 import type { TToolDefGroup } from '@TAG/types'
 
 export type TExecData = FromSchema<typeof ExecParams>
-
 export const ExecParams = {
   type: `object`,
   properties: {

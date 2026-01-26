@@ -211,15 +211,24 @@ importers:
       alias-hq:
         specifier: 6.2.2
         version: 6.2.2(@babel/preset-env@7.26.7(@babel/core@7.28.5))
+      browserify-zlib:
+        specifier: 0.2.0
+        version: 0.2.0
+      esbuild:
+        specifier: 0.27.2
+        version: 0.27.2
+      events:
+        specifier: 3.3.0
+        version: 3.3.0
       just-bash:
         specifier: 2.5.5
         version: 2.5.5
       module-alias:
         specifier: 2.2.3
         version: 2.2.3
-      shell-quote:
-        specifier: 1.8.3
-        version: 1.8.3
+      sprintf-js:
+        specifier: 1.1.3
+        version: 1.1.3
       tsx:
         specifier: 4.21.0
         version: 4.21.0
@@ -6020,20 +6029,12 @@ packages:
     resolution: {integrity: sha512-A+Fezp4zxnit6FanDmv9EqXNAi3vt9DWp51/71UEhXukb7QUuvtv9344h91dyAxuTLoSYJFU299qzR3tzwPAhw==}
     engines: {node: '>=6'}
 
-  call-bind-apply-helpers@1.0.1:
-    resolution: {integrity: sha512-BhYE+WDaywFg2TBWYNXAE+8B1ATnThNBqXHP5nQu0jWJdVvY2hvkpyB3qOmtmDePiS5/BDQ8wASEWGMWRG148g==}
-    engines: {node: '>= 0.4'}
-
   call-bind-apply-helpers@1.0.2:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
     engines: {node: '>= 0.4'}
 
   call-bind@1.0.8:
     resolution: {integrity: sha512-oKlSFMcMwpUg2ednkhQ454wfWiU/ul3CkJe/PEHcTKuiX6RpbehUiFMXu13HalGZxfUwCQzZG747YXBn1im9ww==}
-    engines: {node: '>= 0.4'}
-
-  call-bound@1.0.3:
-    resolution: {integrity: sha512-YTd+6wGlNlPxSuri7Y6X8tY2dmm12UMH66RpKMhiX6rsk5wXXnYgbUcOt8kiS31/AjfoTOvCsE+w8nZQLQnzHA==}
     engines: {node: '>= 0.4'}
 
   call-bound@1.0.4:
@@ -7317,10 +7318,6 @@ packages:
 
   get-func-name@2.0.2:
     resolution: {integrity: sha512-8vXOvuE167CtIc3OyItco7N/dpRtBbYOsPsXCz7X/PMnlGjYjSGuZJgM1Y7mmew7BKf9BqvLX2tnOVy1BBUsxQ==}
-
-  get-intrinsic@1.2.7:
-    resolution: {integrity: sha512-VW6Pxhsrk0KAOqs3WEd0klDiF/+V7gQOpAvY1jVU/LHmaD/kQO4523aiJuikX/QAKYiW6x8Jh+RJej1almdtCA==}
-    engines: {node: '>= 0.4'}
 
   get-intrinsic@1.3.0:
     resolution: {integrity: sha512-9fSjSaos/fRIVIp+xSJlE6lfwhES7LNtKaCBIamHsjr2na1BiABJPo0mOjjz8GJDURarmCPGqaiVg5mfjb98CQ==}
@@ -9741,11 +9738,6 @@ packages:
     resolution: {integrity: sha512-ZuF55hVUQaaczgOIwqWzkEcEidmlD/xl44x1UZnhOXcYuFN2S6+rcxpG+C1N3So0wvNI3DmJICUFfu2SxhBmvg==}
     deprecated: https://github.com/lydell/resolve-url#deprecated
 
-  resolve@1.22.10:
-    resolution: {integrity: sha512-NPRy+/ncIMeDlTAsuqwKIiferiawhefFJtkNSW0qZJEqMEb+qBt/77B/jGeeek+F0uOeN05CDa6HXbbIgtVX4w==}
-    engines: {node: '>= 0.4'}
-    hasBin: true
-
   resolve@1.22.11:
     resolution: {integrity: sha512-RfqAvLnMl313r7c9oclB1HhUEAezcpLjz95wFH4LVuhk9JF/r22qmVP9AMmOU4vMX7Q8pN8jwNg/CSpdFnMjTQ==}
     engines: {node: '>= 0.4'}
@@ -9967,10 +9959,6 @@ packages:
 
   shell-exec@1.0.2:
     resolution: {integrity: sha512-jyVd+kU2X+mWKMmGhx4fpWbPsjvD53k9ivqetutVW/BQ+WIZoDoP4d8vUMGezV6saZsiNoW2f9GIhg9Dondohg==}
-
-  shell-quote@1.8.3:
-    resolution: {integrity: sha512-ObmnIF4hXNg1BqhnHmgbDETF8dLPCggZWBjkQfhZpbszZnYur5DUljTcCHii5LC3J5E0yeO/1LIMyH+UvHQgyw==}
-    engines: {node: '>= 0.4'}
 
   shimmer@1.2.1:
     resolution: {integrity: sha512-sQTKC1Re/rM6XyFM6fIAGHRPVGvyXfgzIDvzoq608vM+jeyVD0Tu1E6Np0Kc2zAIFWIj963V2800iF/9LPieQw==}
@@ -17165,7 +17153,7 @@ snapshots:
 
   array-buffer-byte-length@1.0.2:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       is-array-buffer: 3.0.5
 
   array-ify@1.0.0: {}
@@ -17239,7 +17227,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.26.7
       cosmiconfig: 7.1.0
-      resolve: 1.22.10
+      resolve: 1.22.11
 
   babel-plugin-polyfill-corejs2@0.4.14(@babel/core@7.27.1):
     dependencies:
@@ -17515,11 +17503,6 @@ snapshots:
 
   cachedir@2.3.0: {}
 
-  call-bind-apply-helpers@1.0.1:
-    dependencies:
-      es-errors: 1.3.0
-      function-bind: 1.1.2
-
   call-bind-apply-helpers@1.0.2:
     dependencies:
       es-errors: 1.3.0
@@ -17527,15 +17510,10 @@ snapshots:
 
   call-bind@1.0.8:
     dependencies:
-      call-bind-apply-helpers: 1.0.1
+      call-bind-apply-helpers: 1.0.2
       es-define-property: 1.0.1
-      get-intrinsic: 1.2.7
+      get-intrinsic: 1.3.0
       set-function-length: 1.2.2
-
-  call-bound@1.0.3:
-    dependencies:
-      call-bind-apply-helpers: 1.0.1
-      get-intrinsic: 1.2.7
 
   call-bound@1.0.4:
     dependencies:
@@ -18070,7 +18048,7 @@ snapshots:
       array-buffer-byte-length: 1.0.2
       call-bind: 1.0.8
       es-get-iterator: 1.1.3
-      get-intrinsic: 1.2.7
+      get-intrinsic: 1.3.0
       is-arguments: 1.2.0
       is-array-buffer: 3.0.5
       is-date-object: 1.1.0
@@ -18222,7 +18200,7 @@ snapshots:
 
   dunder-proto@1.0.1:
     dependencies:
-      call-bind-apply-helpers: 1.0.1
+      call-bind-apply-helpers: 1.0.2
       es-errors: 1.3.0
       gopd: 1.2.0
 
@@ -18305,7 +18283,7 @@ snapshots:
   es-get-iterator@1.1.3:
     dependencies:
       call-bind: 1.0.8
-      get-intrinsic: 1.2.7
+      get-intrinsic: 1.3.0
       has-symbols: 1.1.0
       is-arguments: 1.2.0
       is-map: 2.0.3
@@ -19069,19 +19047,6 @@ snapshots:
 
   get-func-name@2.0.2: {}
 
-  get-intrinsic@1.2.7:
-    dependencies:
-      call-bind-apply-helpers: 1.0.1
-      es-define-property: 1.0.1
-      es-errors: 1.3.0
-      es-object-atoms: 1.1.1
-      function-bind: 1.1.2
-      get-proto: 1.0.1
-      gopd: 1.2.0
-      has-symbols: 1.1.0
-      hasown: 2.0.2
-      math-intrinsics: 1.1.0
-
   get-intrinsic@1.3.0:
     dependencies:
       call-bind-apply-helpers: 1.0.2
@@ -19527,14 +19492,14 @@ snapshots:
 
   is-arguments@1.2.0:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       has-tostringtag: 1.0.2
 
   is-array-buffer@3.0.5:
     dependencies:
       call-bind: 1.0.8
-      call-bound: 1.0.3
-      get-intrinsic: 1.2.7
+      call-bound: 1.0.4
+      get-intrinsic: 1.3.0
 
   is-arrayish@0.2.1: {}
 
@@ -19550,7 +19515,7 @@ snapshots:
 
   is-boolean-object@1.2.2:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       has-tostringtag: 1.0.2
 
   is-buffer@1.1.6: {}
@@ -19567,7 +19532,7 @@ snapshots:
 
   is-date-object@1.1.0:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       has-tostringtag: 1.0.2
 
   is-descriptor@0.1.7:
@@ -19617,7 +19582,7 @@ snapshots:
 
   is-number-object@1.1.1:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       has-tostringtag: 1.0.2
 
   is-number@3.0.0:
@@ -19648,7 +19613,7 @@ snapshots:
 
   is-regex@1.2.1:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       gopd: 1.2.0
       has-tostringtag: 1.0.2
       hasown: 2.0.2
@@ -19659,7 +19624,7 @@ snapshots:
 
   is-shared-array-buffer@1.0.4:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
 
   is-standalone-pwa@0.1.1: {}
 
@@ -19671,12 +19636,12 @@ snapshots:
 
   is-string@1.1.1:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       has-tostringtag: 1.0.2
 
   is-symbol@1.1.1:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       has-symbols: 1.1.0
       safe-regex-test: 1.1.0
 
@@ -19706,8 +19671,8 @@ snapshots:
 
   is-weakset@2.0.4:
     dependencies:
-      call-bound: 1.0.3
-      get-intrinsic: 1.2.7
+      call-bound: 1.0.4
+      get-intrinsic: 1.3.0
 
   is-what@5.5.0: {}
 
@@ -20206,7 +20171,7 @@ snapshots:
 
   md5.js@1.3.5:
     dependencies:
-      hash-base: 3.0.5
+      hash-base: 3.1.2
       inherits: 2.0.4
       safe-buffer: 5.2.1
 
@@ -20520,7 +20485,7 @@ snapshots:
   normalize-package-data@2.5.0:
     dependencies:
       hosted-git-info: 2.8.9
-      resolve: 1.22.10
+      resolve: 1.22.11
       semver: 5.7.2
       validate-npm-package-license: 3.0.4
 
@@ -20599,7 +20564,7 @@ snapshots:
   object.assign@4.1.7:
     dependencies:
       call-bind: 1.0.8
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       define-properties: 1.2.1
       es-object-atoms: 1.1.1
       has-symbols: 1.1.0
@@ -21459,12 +21424,6 @@ snapshots:
 
   resolve-url@0.2.1: {}
 
-  resolve@1.22.10:
-    dependencies:
-      is-core-module: 2.16.1
-      path-parse: 1.0.7
-      supports-preserve-symlinks-flag: 1.0.0
-
   resolve@1.22.11:
     dependencies:
       is-core-module: 2.16.1
@@ -21762,7 +21721,7 @@ snapshots:
       define-data-property: 1.1.4
       es-errors: 1.3.0
       function-bind: 1.1.2
-      get-intrinsic: 1.2.7
+      get-intrinsic: 1.3.0
       gopd: 1.2.0
       has-property-descriptors: 1.0.2
 
@@ -21802,8 +21761,6 @@ snapshots:
 
   shell-exec@1.0.2: {}
 
-  shell-quote@1.8.3: {}
-
   shimmer@1.2.1: {}
 
   side-channel-list@1.0.0:
@@ -21813,16 +21770,16 @@ snapshots:
 
   side-channel-map@1.0.1:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       es-errors: 1.3.0
-      get-intrinsic: 1.2.7
+      get-intrinsic: 1.3.0
       object-inspect: 1.13.3
 
   side-channel-weakmap@1.0.2:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       es-errors: 1.3.0
-      get-intrinsic: 1.2.7
+      get-intrinsic: 1.3.0
       object-inspect: 1.13.3
       side-channel-map: 1.0.1
 
@@ -22494,7 +22451,7 @@ snapshots:
 
   typed-array-buffer@1.0.3:
     dependencies:
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       es-errors: 1.3.0
       is-typed-array: 1.1.15
 
@@ -22987,7 +22944,7 @@ snapshots:
     dependencies:
       available-typed-arrays: 1.0.7
       call-bind: 1.0.8
-      call-bound: 1.0.3
+      call-bound: 1.0.4
       for-each: 0.3.4
       gopd: 1.2.0
       has-tostringtag: 1.0.2

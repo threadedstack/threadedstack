@@ -2,6 +2,7 @@ export type TOnToken = (token: string) => void
 
 export type TToolDefinition = {
   type: `function`
+  method?: (...args: any) => any
   function: {
     name: string
     description: string

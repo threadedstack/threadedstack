@@ -1,7 +1,5 @@
 import type { TShellStreams } from '@TAG/types'
-import type { Readable, Writable } from 'node:stream'
 
-import { PassThrough } from 'node:stream'
 import { logger } from '@TAG/wasm/logger'
 
 export type TStreamBuffers = {
@@ -11,54 +9,52 @@ export type TStreamBuffers = {
 
 /**
  * StreamManager handles I/O streams for shell execution
- * Provides stdin/stdout/stderr streams with buffering and event handling
+ * Provides stdin/stdout/stderr streams with buffering using Web Streams API
  */
 export class StreamManager {
-  #stdin: Writable
-  #stdout: Readable
-  #stderr: Readable
+  #stdin: WritableStream<Uint8Array>
+  #stdinWriter: WritableStreamDefaultWriter<Uint8Array> | null = null
+  #stdout: ReadableStream<Uint8Array>
+  #stderr: ReadableStream<Uint8Array>
   #destroyed = false
   #buffers: TStreamBuffers = {
     stdout: [],
     stderr: [],
   }
+  #abortController: AbortController
 
   constructor() {
-    // Create pass-through streams for I/O
-    this.#stdin = new PassThrough()
-    this.#stdout = new PassThrough()
-    this.#stderr = new PassThrough()
+    this.#abortController = new AbortController()
 
-    // Set up buffering for stdout
-    this.#stdout.on(`data`, (chunk) => {
-      if (!this.#destroyed) {
-        const text = chunk.toString()
-        this.#buffers.stdout.push(text)
-        logger.debug(`stdout:`, text.trim())
-      }
-    })
+    // Create stdin as a writable stream
+    const stdinTransform = new TransformStream<Uint8Array, Uint8Array>()
+    this.#stdin = stdinTransform.writable
 
-    // Set up buffering for stderr
-    this.#stderr.on(`data`, (chunk) => {
-      if (!this.#destroyed) {
-        const text = chunk.toString()
-        this.#buffers.stderr.push(text)
-        logger.debug(`stderr:`, text.trim())
-      }
+    // Create stdout with buffering
+    const stdoutTransform = new TransformStream<Uint8Array, Uint8Array>({
+      transform: (chunk, controller) => {
+        if (!this.#destroyed) {
+          const text = new TextDecoder().decode(chunk)
+          this.#buffers.stdout.push(text)
+          logger.debug(`stdout:`, text.trim())
+          controller.enqueue(chunk)
+        }
+      },
     })
+    this.#stdout = stdoutTransform.readable
 
-    // Handle stream errors
-    this.#stdin.on(`error`, (error) => {
-      logger.error(`stdin error`, { error })
+    // Create stderr with buffering
+    const stderrTransform = new TransformStream<Uint8Array, Uint8Array>({
+      transform: (chunk, controller) => {
+        if (!this.#destroyed) {
+          const text = new TextDecoder().decode(chunk)
+          this.#buffers.stderr.push(text)
+          logger.debug(`stderr:`, text.trim())
+          controller.enqueue(chunk)
+        }
+      },
     })
-
-    this.#stdout.on(`error`, (error) => {
-      logger.error(`stdout error`, { error })
-    })
-
-    this.#stderr.on(`error`, (error) => {
-      logger.error(`stderr error`, { error })
-    })
+    this.#stderr = stderrTransform.readable
   }
 
   /**
@@ -106,50 +102,70 @@ export class StreamManager {
    * Writes data to stdin
    * @param data - Data to write
    */
-  write(data: string): void {
+  async write(data: string): Promise<void> {
     if (this.#destroyed) {
       throw new Error(`Cannot write to destroyed StreamManager`)
     }
 
-    this.#stdin.write(data)
+    if (!this.#stdinWriter) {
+      this.#stdinWriter = this.#stdin.getWriter()
+    }
+
+    const encoder = new TextEncoder()
+    await this.#stdinWriter.write(encoder.encode(data))
   }
 
   /**
    * Writes a line to stdin (adds newline)
    * @param line - Line to write
    */
-  writeLine(line: string): void {
-    this.write(`${line}\n`)
+  async writeLine(line: string): Promise<void> {
+    await this.write(`${line}\n`)
   }
 
   /**
    * Ends the stdin stream
    */
-  endInput(): void {
-    if (!this.#destroyed) {
-      this.#stdin.end()
+  async endInput(): Promise<void> {
+    if (!this.#destroyed && this.#stdinWriter) {
+      await this.#stdinWriter.close()
+      this.#stdinWriter = null
     }
   }
 
   /**
    * Destroys all streams and cleans up resources
    */
-  destroy(): void {
+  async destroy(): Promise<void> {
     if (this.#destroyed) {
       return
     }
 
     this.#destroyed = true
+    this.#abortController.abort()
 
-    // Remove all listeners
-    this.#stdin.removeAllListeners()
-    this.#stdout.removeAllListeners()
-    this.#stderr.removeAllListeners()
+    // Close stdin writer if open
+    if (this.#stdinWriter) {
+      try {
+        await this.#stdinWriter.close()
+      } catch (error) {
+        logger.error(`Error closing stdin writer`, { error })
+      }
+      this.#stdinWriter = null
+    }
 
-    // Destroy streams
-    this.#stdin.destroy()
-    this.#stdout.destroy()
-    this.#stderr.destroy()
+    // Cancel streams
+    try {
+      await this.#stdout.cancel()
+    } catch (error) {
+      logger.error(`Error canceling stdout`, { error })
+    }
+
+    try {
+      await this.#stderr.cancel()
+    } catch (error) {
+      logger.error(`Error canceling stderr`, { error })
+    }
 
     // Clear buffers
     this.#buffers.stdout = []
@@ -171,10 +187,14 @@ export class StreamManager {
    * @returns Fresh streams for a new command
    */
   createCommandStreams(): TShellStreams {
+    const stdinTransform = new TransformStream<Uint8Array, Uint8Array>()
+    const stdoutTransform = new TransformStream<Uint8Array, Uint8Array>()
+    const stderrTransform = new TransformStream<Uint8Array, Uint8Array>()
+
     return {
-      stdin: new PassThrough(),
-      stdout: new PassThrough(),
-      stderr: new PassThrough(),
+      stdin: stdinTransform.writable,
+      stdout: stdoutTransform.readable,
+      stderr: stderrTransform.readable,
     }
   }
 }

@@ -1,5 +1,4 @@
 import type { Bash, BashOptions } from 'just-bash'
-import type { Readable, Writable } from 'node:stream'
 
 export type TShellCfg = {
   /**
@@ -48,7 +47,7 @@ export type TShellState = {
 }
 
 export type TShellStreams = {
-  stdin: Writable
-  stdout: Readable
-  stderr: Readable
+  stdin: WritableStream<Uint8Array>
+  stdout: ReadableStream<Uint8Array>
+  stderr: ReadableStream<Uint8Array>
 }

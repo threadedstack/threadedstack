@@ -18,7 +18,7 @@ const getExternal = () => {
 }
 
 export default defineConfig(async () => {
-  await fs.rm(outdir, { recursive: true, force: true })
+  //await fs.rm(outdir, { recursive: true, force: true })
 
   return {
     clean: true,
