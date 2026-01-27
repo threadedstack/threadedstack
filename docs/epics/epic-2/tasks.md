@@ -172,9 +172,14 @@ The Admin UI is fully implemented and calling `/secrets` and `/endpoints` backen
 - [x] **TASK-5.2.4**: Write tests for secret decryption in proxy context (`secretResolver.test.ts`)
 
 ### 5.3 Integration Tests
-- [ ] **TASK-5.3.1**: Write integration test: Create endpoint → Create secret → Proxy request
-- [ ] **TASK-5.3.2**: Write integration test: API key authentication flow
-- [ ] **TASK-5.3.3**: Write integration test: OAuth client credentials flow
+- [] **TASK-5.3.1**: Write integration test: Create endpoint → Create secret → Proxy request (CODE WRITTEN, NOT EXECUTED)
+- [] **TASK-5.3.2**: Write integration test: API key authentication flow (CODE WRITTEN, NOT EXECUTED)
+- [] **TASK-5.3.3**: Write integration test: OAuth client credentials flow (CODE WRITTEN, NOT EXECUTED)
+
+**⚠️ INTEGRATION TESTING IMPLEMENTATION COMPLETE, EXECUTION BLOCKED**: Comprehensive integration test code and database seeds have been implemented at:
+- `repos/backend/src/endpoints/proxy/__tests__/proxy.integration.test.ts` (430 lines, 17 tests)
+- `repos/database/src/seeds/integration.ts` (237 lines)
+- `repos/database/scripts/loadIntegrationSeeds.ts` (32 lines)
 
 ---
 
@@ -183,11 +188,12 @@ The Admin UI is fully implemented and calling `/secrets` and `/endpoints` backen
 - [x] User can create an Endpoint via the Admin UI - ProjectEndpoints.tsx + CreateEndpointDialog.tsx
 - [x] User can create and attach a Secret to an Endpoint - OrgSecrets.tsx + header injection via `{{SECRET_NAME}}`
 - [x] User can generate an API Key for M2M authentication - OrgApiKeys.tsx + CreateApiKeyDialog.tsx
-- [x] Proxy validates API Key or OAuth credentials - apiKeyAuth.ts middleware, oauthClient.ts
-- [x] Proxy successfully injects headers from secrets - headerMerger.ts + secretResolver.ts
-- [x] Proxy performs body transformations when configured - bodyTransformer.ts
-- [x] Proxy streams response from target URL back to client - proxyEngine.ts using Readable.fromWeb
-- [x] All new endpoints have test coverage - 258 backend tests pass
+- [] Proxy validates API Key or OAuth credentials - apiKeyAuth.ts middleware, oauthClient.ts
+- [] Proxy successfully injects headers from secrets - headerMerger.ts + secretResolver.ts
+- [] Proxy performs body transformations when configured - bodyTransformer.ts
+- [] Proxy streams response from target URL back to client - proxyEngine.ts using Readable.fromWeb
+- [] All new endpoints have test coverage - 258 backend tests pass
+- [] **E2E integration tests prove proxy engine works** - Code written but not executed (blocked by DB credentials)
 
 ---
 
@@ -240,44 +246,6 @@ The Admin UI is fully implemented and calling `/secrets` and `/endpoints` backen
    - Advanced endpoint config (headers/options UI)
    - Endpoint testing tool
 
----
+## Dependencies
 
-## File Structure Reference
-
-### Backend (to be created)
-```
-repos/backend/src/
-├── endpoints/
-│   ├── secrets/
-│   │   ├── secrets.ts      # CRUD endpoints
-│   │   └── index.ts
-│   ├── endpoints/
-│   │   ├── endpoints.ts    # CRUD endpoints (rename from proxyEndpoints)
-│   │   └── index.ts
-│   └── apiKeys/
-│       ├── apiKeys.ts      # CRUD endpoints
-│       └── index.ts
-├── middleware/
-│   └── proxyEngine.ts      # Main proxy logic
-└── utils/
-    └── proxy/
-        ├── headerMerger.ts
-        ├── bodyTransformer.ts
-        └── secretResolver.ts
-```
-
-### Database (to be created)
-```
-repos/database/src/
-├── schemas/
-│   └── apiKeys.ts          # New schema
-└── services/
-    └── apiKey.ts           # New service
-```
-
-### Domain (to be created)
-```
-repos/domain/src/
-└── models/
-    └── apiKey.ts           # New model
-```
+- **Epic 1**: Base Setup (Auth, Users, Orgs, basic UI)

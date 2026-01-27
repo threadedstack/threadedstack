@@ -1,9 +1,20 @@
 import { loadEnvs } from '@tdsk/domain'
 import { buildDBUrl } from '@TDB/utils/database/buildDBUrl'
 
+const nodeEnv = process.env.NODE_ENV || `local`
+const envs = loadEnvs({
+  name: `tdsk`,
+  override: nodeEnv === `local`,
+})
+
 const {
+  TDSK_DB_URL,
+  TDSK_DB_NAME,
+  TDSK_DB_TYPE,
+  TDSK_DB_PROTO,
   TDSK_DB_USER,
   TDSK_DB_PASS,
+  TDSK_DB_DIALECT,
   TDSK_DB_JWT_SCRT,
   TDSK_DB_SRV_ROLE,
   TDSK_DB_PUBLIC_KEY,
@@ -11,15 +22,7 @@ const {
   TDSK_DB_LOG_LEVEL,
   TDSK_LOG_LEVEL = `info`,
   TDSK_DB_LOG_LABEL = `TDSK - Database`,
-} = process.env
-
-const nodeEnv = process.env.NODE_ENV || `local`
-const envs = loadEnvs({
-  name: `tdsk`,
-  override: nodeEnv === `local`,
-})
-
-const { TDSK_DB_URL, TDSK_DB_NAME, TDSK_DB_TYPE, TDSK_DB_PROTO, TDSK_DB_DIALECT } = envs
+} = envs
 
 export const config = {
   type: TDSK_DB_TYPE,

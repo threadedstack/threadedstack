@@ -4,7 +4,6 @@
   },
   "compilerOptions": {
     "rootDir": "../../",
-    "baseUrl": ".",
     "outDir": "./dist",
     "target": "esnext",
     "module": "esnext",
@@ -19,7 +18,6 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "ignoreDeprecations": "6.0",
     "moduleResolution": "bundler",
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
@@ -27,12 +25,12 @@
     "paths": {
 
       "@TDB/root": ["./"],
-      "@TDB": ["./src"],
-      "@TDB/*": ["./src/*"],
       "@TDB/configs": ["./configs"],
       "@TDB/configs/*": ["./configs/*"],
       "@TDB/drizzle": ["./drizzle"],
       "@TDB/drizzle/*": ["./drizzle/*"],
+      "@TDB": ["./src"],
+      "@TDB/*": ["./src/*"],
 
       "@tdsk/logger": ["../logger/src"],
       "@tdsk/logger/*": ["../logger/src/*"],
@@ -45,10 +43,10 @@
       "@ROOT": ["../../"],
       "@ROOT/*": ["../../*"],
 
-      "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
-      "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"],
-      "@keg-hub/jsutils/src/node": ["node_modules/@keg-hub/jsutils/build/esm/node"],
-      "@keg-hub/jsutils/src/node/*": ["node_modules/@keg-hub/jsutils/build/esm/node"]
+      "@keg-hub/jsutils": ["./node_modules/@keg-hub/jsutils/build/esm"],
+      "@keg-hub/jsutils/*": ["./node_modules/@keg-hub/jsutils/build/esm/*"],
+      "@keg-hub/jsutils/src/node": ["./node_modules/@keg-hub/jsutils/build/esm/node"],
+      "@keg-hub/jsutils/src/node/*": ["./node_modules/@keg-hub/jsutils/build/esm/node"]
     }
   },
   "include": [
