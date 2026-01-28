@@ -172,7 +172,7 @@ env:
   TDSK_BE_PORT: 5885
 
   # Backend URL overrides the TDSK_BE_HOST and TDSK_BE_PORT envs
-  TDSK_BE_URL: 0.0.0.0:5885
+  TDSK_BE_URL: http://0.0.0.0:5885
 
   # Admin API path for the proxy backend
   # All other paths are forwarded to configured endpoints

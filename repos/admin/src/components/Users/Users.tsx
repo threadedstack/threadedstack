@@ -73,10 +73,10 @@ export const Users = (props: TUsers) => {
 
       filtered = filtered.filter(
         (user) =>
-          user.displayName?.toLowerCase().includes(cleaned) ||
-          user.email?.toLowerCase().includes(cleaned) ||
-          user.first?.toLowerCase().includes(cleaned) ||
-          user.last?.toLowerCase().includes(cleaned)
+          user?.displayName?.toLowerCase().includes(cleaned) ||
+          user?.email?.toLowerCase().includes(cleaned) ||
+          user?.first?.toLowerCase().includes(cleaned) ||
+          user?.last?.toLowerCase().includes(cleaned)
       )
 
       return filtered
@@ -162,10 +162,10 @@ export const Users = (props: TUsers) => {
         deleting={loading}
         title={`Remove user?`}
         open={Boolean(removingUser)}
-        itemName={removingUser.displayName}
+        itemName={removingUser?.displayName}
         onConfirm={() => removeUser(removingUser)}
         onCancel={() => setRemovingUser(undefined)}
-        text={`Are you sure you want to remove "${removingUser.displayName}" from the organization?`}
+        text={`Are you sure you want to remove "${removingUser?.displayName}" from the organization?`}
       />
     </>
   )
