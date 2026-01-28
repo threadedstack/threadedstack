@@ -1,0 +1,43 @@
+{
+  # Global options
+  admin ${TDSK_CADDY_ADMIN_HOST}:${TDSK_CADDY_ADMIN_PORT}
+
+  # Configure PostgreSQL storage for certificates
+  storage postgresql {
+    dsn {$TDSK_DB_URL}
+    # Connection settings
+    max_open_conns 25
+    max_idle_conns 5
+    conn_max_lifetime 300s
+  }
+
+  # On-Demand TLS configuration
+  on_demand_tls {
+    # Ask the proxy service if a domain is allowed
+    ask http://${TDSK_PX_URL}/domains/validate
+  }
+
+  # ACME configuration (Let's Encrypt)
+  acme {
+    email {$TDSK_CADDY_ACME_EMAIL:admin@threadedstack.dev}
+    ca https://acme-v02.api.letsencrypt.org/directory
+    ca_root
+    dns_ttl 300
+    resolvers 1.1.1.1:53 8.8.8.8:53
+  }
+}
+
+# Block :443 - Handle HTTPS with on-demand TLS
+:443 {
+  tls {
+    on_demand
+  }
+
+  # Reverse proxy to the main application
+  reverse_proxy ${TDSK_PX_URL}
+}
+
+# Health check endpoint
+:2019 {
+  # Admin interface is already enabled via global options
+}

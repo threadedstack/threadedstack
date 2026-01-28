@@ -11,7 +11,10 @@ import type {
 
 import { eq } from 'drizzle-orm'
 import { logger } from '@TDB/utils/logger'
-import { DBIdError } from '@TDB/utils/error/error'
+import { isObj } from '@keg-hub/jsutils/isObj'
+import { isStr } from '@keg-hub/jsutils/isStr'
+import { exists } from '@keg-hub/jsutils/exists'
+import { DBIdError, DBValueError } from '@TDB/utils/error/error'
 import { buildQuery } from '@TDB/utils/database/buildQuery'
 
 export type TBase = {
@@ -47,6 +50,36 @@ export class Base<
     try {
       const resp = await this.db.insert(this.table).values(data).returning()
 
+      return { data: this.model(resp[0]) as M }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  by = async (
+    prop: string | Record<string, any>,
+    value?: any | TDBQueryOpts,
+    opts?: TDBQueryOpts
+  ): Promise<TDBApiRes<M>> => {
+    let property: string
+    if (isStr(prop)) property = prop
+    else {
+      property = prop[Object.keys(prop)[0]]
+      if (isObj(value) && !opts) opts = value as TDBQueryOpts
+      value = prop[property]
+    }
+
+    if (!exists(value)) {
+      const owner = this.constructor.name
+      return { error: new DBValueError(`${owner}.by`) }
+    }
+
+    try {
+      const resp = await this.db
+        .select()
+        .from(this.table as TTableSchema)
+        .where(eq(this.table[property], value))
+        .limit(1)
       return { data: this.model(resp[0]) as M }
     } catch (error: any) {
       return { error }
@@ -122,7 +155,7 @@ export class Base<
         .where(eq(this.table.id, id))
         .returning()
 
-      return { data: resp[0] as M }
+      return { data: this.model(resp[0]) as M }
     } catch (error: any) {
       return { error }
     }

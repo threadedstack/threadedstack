@@ -38,10 +38,15 @@ export type TJWKSConfig = {
   jwksUrl: string
 }
 
+export type TDomainsConfig = {
+  prewarmHeader: string
+}
+
 export type TProxyConfig = {
   jwt: TJwtConfig
-  server: TServerConfig
-  backend: TBackendConfig
-  logger: TLoggerConfig
   jwks: TJWKSConfig
+  server: TServerConfig
+  logger: TLoggerConfig
+  backend: TBackendConfig
+  domains: TDomainsConfig
 }

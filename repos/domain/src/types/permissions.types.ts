@@ -42,6 +42,7 @@ export enum EPermResource {
   endpoint = `endpoint`, // Proxy endpoints
   provider = `provider`, // External service providers
   config = `config`, // Configuration data
+  domain = `domain`, // User registered custom domains
   function = `function`, // Serverless functions (FaaS)
 }
 

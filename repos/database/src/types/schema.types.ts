@@ -7,14 +7,15 @@ import type { apiKeys } from '@TDB/schemas/apiKeys'
 import type { configs } from '@TDB/schemas/configs'
 import type { secrets } from '@TDB/schemas/secrets'
 import type { threads } from '@TDB/schemas/threads'
+import type { domains } from '@TDB/schemas/domains'
 import type { messages } from '@TDB/schemas/messages'
 import type { projects } from '@TDB/schemas/projects'
 import type { endpoints } from '@TDB/schemas/endpoints'
 import type { functions } from '@TDB/schemas/functions'
 import type { providers } from '@TDB/schemas/providers'
-import type { subscriptions } from '@TDB/schemas/subscriptions'
 import type { invitations } from '@TDB/schemas/invitations'
 import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
+import type { subscriptions } from '@TDB/schemas/subscriptions'
 import type { TAnyObj, TKeyLike, Base as BaseModel } from '@tdsk/domain'
 
 type TInferDateProps<T extends TAnyObj = TAnyObj, D extends TKeyLike = TKeyLike> = Omit<
@@ -81,6 +82,18 @@ export type TDBApiKeyInsert = Partial<
   >
 >
 
+export type TDBDomainsSelect = TInferDateProps<
+  typeof domains.$inferSelect,
+  `createdAt` | `updatedAt` | `verifiedAt` | `sslExpiresAt`
+>
+
+export type TDBDomainsInsert = Partial<
+  TInferDateProps<
+    typeof domains.$inferInsert,
+    `createdAt` | `updatedAt` | `verifiedAt` | `sslExpiresAt`
+  >
+>
+
 export type TDBEntitySelect =
   | TDBOrgSelect
   | TDBUserSelect
@@ -91,6 +104,7 @@ export type TDBEntitySelect =
   | TDBConfigSelect
   | TDBSecretSelect
   | TDBThreadSelect
+  | TDBDomainsSelect
   | TDBProjectSelect
   | TDBMessageSelect
   | TDBEndpointSelect
@@ -109,6 +123,7 @@ export type TDBEntityInsert =
   | TDBConfigInsert
   | TDBSecretInsert
   | TDBThreadInsert
+  | TDBDomainsInsert
   | TDBProjectInsert
   | TDBMessageInsert
   | TDBEndpointInsert

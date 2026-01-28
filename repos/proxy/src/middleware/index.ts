@@ -1,5 +1,6 @@
+export * from './setupAuth'
 export * from './setupServer'
 export * from './setupProxy'
 export * from './setupLogger'
+export * from './setupPrewarm'
 export * from './setupErrorHandler'
-export * from './setupAuth'

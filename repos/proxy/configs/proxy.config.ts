@@ -29,6 +29,7 @@ const {
   TDSK_BE_PORT,
   TDSK_BE_HEADER_KEY,
   TDSK_BE_HEADER_VALUE,
+  TDSK_CADDY_PREWARM_HEADER,
   TDSK_BE_API_ADMIN_PATH = `_`,
   TDSK_AUTH_JWKS = ``,
   TDSK_LOG_LEVEL = `info`,
@@ -64,6 +65,9 @@ export const config: TProxyConfig = {
           cert: TDSK_PX_SSL_CERT,
         }
       : undefined,
+  },
+  domains: {
+    prewarmHeader: TDSK_CADDY_PREWARM_HEADER,
   },
   backend: {
     url: backendUrl(),

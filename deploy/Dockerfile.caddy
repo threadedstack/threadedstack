@@ -1,0 +1,22 @@
+# Builder stage for compiling Caddy with PostgreSQL storage plugin
+FROM caddy:builder AS builder
+
+# Install xcaddy
+RUN xcaddy build \
+    --with github.com/dmarcwise/caddy-storage-postgresql \
+    --output /usr/bin/caddy
+
+# Final stage using Alpine
+FROM caddy:2-alpine
+
+# Copy compiled Caddy from builder
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+
+# Copy Caddyfile
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+
+# Default port for HTTPS
+EXPOSE 443
+
+# Run Caddy
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile"]

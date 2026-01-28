@@ -56,6 +56,11 @@ const {
   TDSK_EMAIL_SECURE,
   TDSK_EMAIL_API_KEY,
   TDSK_EMAIL_API_HOST,
+
+  // The deployed proxy host url
+  // New domains are validated against this URL to ensure the CName is configured properly
+  TDSK_CADDY_PX_HOST,
+  TDSK_CADDY_PREWARM_HEADER,
 } = process.env
 
 const enableSSL = nodeEnv !== `production` && toBool(TDSK_BE_ENABLE_SSL)
@@ -132,5 +137,9 @@ export const config = {
           secure: toBool(TDSK_EMAIL_SECURE) || false,
         }
       : undefined,
+  },
+  domains: {
+    proxyHost: TDSK_CADDY_PX_HOST,
+    prewarmHeader: TDSK_CADDY_PREWARM_HEADER,
   },
 }

@@ -1,7 +1,7 @@
 import type { Router } from 'express'
 import type { TProxyApp } from '@TPX/types'
 
-import { health, logout, me } from '@TPX/endpoints'
+import { health, logout, me, validate } from '@TPX/endpoints'
 
 /**
  * TODO: fix this so path are defined next to actual endpoint
@@ -9,6 +9,7 @@ import { health, logout, me } from '@TPX/endpoints'
  */
 export const setupEndpoints = (app: TProxyApp, router: Router) => {
   router.get(`/health`, health)
-  router.post(`/auth/logout`, logout(app))
   router.get(`/auth/me`, me(app))
+  router.post(`/auth/logout`, logout(app))
+  router.get(`/domains/validate`, validate)
 }

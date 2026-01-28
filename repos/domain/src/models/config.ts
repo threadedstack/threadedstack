@@ -6,8 +6,8 @@ export class Config extends Base {
   projectId?: string
   data: Record<string, any>
 
-  constructor(endpoint: Partial<Config>) {
+  constructor(config: Partial<Config>) {
     super()
-    Object.assign(this, endpoint)
+    Object.assign(this, config)
   }
 }

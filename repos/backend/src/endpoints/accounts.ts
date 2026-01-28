@@ -11,6 +11,7 @@ import { base } from '@TBE/endpoints/base/base'
 import { auth } from '@TBE/endpoints/auth/auth'
 import { secrets } from '@TBE/endpoints/secrets'
 import { apiKeys } from '@TBE/endpoints/apiKeys'
+import { domains } from '@TBE/endpoints/domains'
 import { projects } from '@TBE/endpoints/projects'
 import { health } from '@TBE/endpoints/base/health'
 import { invitations } from './invitations/invitations'
@@ -35,6 +36,7 @@ export const accounts: TEndpointBuilder = (app) => {
       health,
       quotas,
       apiKeys,
+      domains,
       secrets,
       configs,
       payments,

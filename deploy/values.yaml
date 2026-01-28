@@ -46,7 +46,7 @@ env:
   TDSK_LOG_HANDLE_EXCEPTION: true
 
 # ---- Proxy ENVs ---- #
-  TDSK_PX_URL:
+  TDSK_PX_URL: 0.0.0.0:7118
   TDSK_PX_PORT: 7118
   TDSK_PX_HOST: 0.0.0.0
   TDSK_PX_SECURE_PORT: 443
@@ -93,6 +93,23 @@ env:
   TDSK_CR_SECRET_ENV: ""
   TDSK_CR_SECRET_VALUE_PATH: ""
 
+# --- Caddy (On-Demand TLS) ENVs --- #
+  # Email for Let's Encrypt certificate notifications
+  TDSK_CADDY_ACME_EMAIL: admin@threadedstack.dev
+
+  # Ingress hostname for DNS verification
+  # Should match the proxy url in deployed environments
+  # Set as a different ENV when running locally
+  TDSK_CADDY_PX_HOST: proxy.threadedstack.dev
+
+  # Caddy configuration
+  TDSK_CADDY_PORT: 443
+  TDSK_CADDY_ADMIN_PORT: 2019
+  TDSK_CADDY_ADMIN_HOST: localhost
+
+  # Header that tells the proxy the request if a cert prewarm request
+  # When set, the proxy will intercept the proxy request, and request a cert from lets encrypt
+  TDSK_CADDY_PREWARM_HEADER: x-threaded-stack-prewarm
 
 # --- Database Envs --- #
 
@@ -155,7 +172,7 @@ env:
   TDSK_BE_PORT: 5885
 
   # Backend URL overrides the TDSK_BE_HOST and TDSK_BE_PORT envs
-  TDSK_BE_URL:
+  TDSK_BE_URL: 0.0.0.0:5885
 
   # Admin API path for the proxy backend
   # All other paths are forwarded to configured endpoints
@@ -237,10 +254,7 @@ env:
   # Default from address for all emails
   TDSK_EMAIL_FROM: noreply@threadedstack.dev
 
-
-
   # ---- Agent ENVs --- #
   TDSK_AG_LOG_LEVEL:
   TDSK_AG_LOGGER_PRETTY:
   TDSK_AG_LOGGER_SILENT:
-  
