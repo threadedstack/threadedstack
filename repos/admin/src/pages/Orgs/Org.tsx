@@ -6,12 +6,13 @@ import { ConfirmDelete } from '@tdsk/components'
 import { useActiveOrg } from '@TAF/state/selectors'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
-import { Box, Card, Button, Divider, Typography, CardContent } from '@mui/material'
+import { EditOrgDrawer } from '@TAF/components/Orgs/EditOrgDrawer'
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   PersonAdd as AddMemberIcon,
 } from '@mui/icons-material'
+import { Box, Card, Button, Divider, Typography, CardContent } from '@mui/material'
 
 export type TOrg = {}
 
@@ -19,9 +20,13 @@ export const Org = (props: TOrg) => {
   const [org] = useActiveOrg()
   const navigate = useNavigate()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false)
 
+  const onEditClick = () => setEditDrawerOpen(true)
+  const onEditSuccess = () => setEditDrawerOpen(false)
   const onDeleteClick = () => setDeleteDialogOpen(true)
   const onDeleteCancel = () => setDeleteDialogOpen(false)
+  const onEditDrawerClose = () => setEditDrawerOpen(false)
 
   const onDelete = async () => {
     if (!org?.id) return
@@ -62,6 +67,7 @@ export const Org = (props: TOrg) => {
         <Button
           variant='outlined'
           startIcon={<EditIcon />}
+          onClick={onEditClick}
         >
           Edit
         </Button>
@@ -190,6 +196,13 @@ export const Org = (props: TOrg) => {
         onCancel={onDeleteCancel}
         title='Delete Organization?'
         warnText='This will permanently delete the organization and all its associated projects, endpoints, functions, and secrets.'
+      />
+
+      <EditOrgDrawer
+        org={org}
+        open={editDrawerOpen}
+        onSuccess={onEditSuccess}
+        onClose={onEditDrawerClose}
       />
     </Page>
   )
