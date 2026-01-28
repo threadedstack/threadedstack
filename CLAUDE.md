@@ -492,6 +492,11 @@ pnpm test           # Vitest tests
 pnpm test           # Vitest tests
 ```
 
+### Commands Notes
+
+* Linting and formatting are automatically, so `lint` and `format` command should be ignored.
+
+
 ## Development Phases
 
 The project follows a phased rollout:

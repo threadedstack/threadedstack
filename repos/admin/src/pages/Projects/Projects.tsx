@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router'
 import { useEffect, useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
+import { ConfirmDelete } from '@tdsk/components'
 import { useProjects } from '@TAF/state/selectors'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
@@ -28,9 +29,14 @@ export type TProjects = {}
 
 export const Projects = (props: TProjects) => {
   const navigate = useNavigate()
-  const [projects, setProjectsState] = useProjects()
+  const [projects] = useProjects()
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [projectToDelete, setProjectToDelete] = useState<{
+    id: string
+    name: string
+  } | null>(null)
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -41,19 +47,25 @@ export const Projects = (props: TProjects) => {
     loadProjects()
   }, [])
 
-  const handleCreateClick = () => {
-    setCreateDialogOpen(true)
+  const onCreateClick = () => setCreateDialogOpen(true)
+
+  const onViewProject = (projectId: string) => navigate(`/projects/${projectId}`)
+
+  const onDeleteProject = (projectId: string, projectName: string) => {
+    setProjectToDelete({ id: projectId, name: projectName })
+    setDeleteDialogOpen(true)
   }
 
-  const handleViewProject = (projectId: string) => {
-    navigate(`/projects/${projectId}`)
+  const onDeleteConfirm = async () => {
+    if (!projectToDelete) return
+    await deleteProject(projectToDelete.id)
+    setDeleteDialogOpen(false)
+    setProjectToDelete(null)
   }
 
-  const handleDeleteProject = async (projectId: string, projectName: string) => {
-    if (!window.confirm(`Are you sure you want to delete project "${projectName}"?`)) {
-      return
-    }
-    await deleteProject(projectId)
+  const onDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setProjectToDelete(null)
   }
 
   const projectsArray = projects ? Object.values(projects) : []
@@ -78,7 +90,7 @@ export const Projects = (props: TProjects) => {
           variant='contained'
           color='primary'
           startIcon={<AddIcon />}
-          onClick={handleCreateClick}
+          onClick={onCreateClick}
         >
           Create Project
         </Button>
@@ -157,7 +169,7 @@ export const Projects = (props: TProjects) => {
                     <IconButton
                       size='small'
                       color='primary'
-                      onClick={() => handleViewProject(project.id)}
+                      onClick={() => onViewProject(project.id)}
                     >
                       <ViewIcon />
                     </IconButton>
@@ -166,7 +178,7 @@ export const Projects = (props: TProjects) => {
                     <IconButton
                       size='small'
                       color='error'
-                      onClick={() => handleDeleteProject(project.id, project.name)}
+                      onClick={() => onDeleteProject(project.id, project.name)}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -181,6 +193,15 @@ export const Projects = (props: TProjects) => {
       <CreateProjectDrawer
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
+      />
+
+      <ConfirmDelete
+        title='Delete Project?'
+        open={deleteDialogOpen}
+        onCancel={onDeleteCancel}
+        onConfirm={onDeleteConfirm}
+        itemName={projectToDelete?.name}
+        warnText='This will permanently delete the project and all its associated resources.'
       />
     </Page>
   )

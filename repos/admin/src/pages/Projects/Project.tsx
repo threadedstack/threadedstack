@@ -1,5 +1,7 @@
-import { Page } from '@TAF/pages/Page/Page'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { Page } from '@TAF/pages/Page/Page'
+import { ConfirmDelete } from '@tdsk/components'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import {
@@ -12,17 +14,7 @@ import {
   Delete as DeleteIcon,
   ArrowBack as BackIcon,
 } from '@mui/icons-material'
-import {
-  Box,
-  Card,
-  Chip,
-  Button,
-  Divider,
-  Tooltip,
-  Typography,
-  IconButton,
-  CardContent,
-} from '@mui/material'
+import { Box, Card, Chip, Button, Divider, Typography, CardContent } from '@mui/material'
 
 export type TProject = {}
 
@@ -31,21 +23,20 @@ export const Project = (props: TProject) => {
   const [orgId] = useActiveOrgId()
   const [project] = useActiveProject()
   const [projectId] = useActiveProjectId()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-  const handleBack = () => {
-    navigate(`/orgs/${orgId}/projects`)
-  }
+  const onBack = () => navigate(`/orgs/${orgId}/projects`)
 
-  const handleDelete = async () => {
+  const onDeleteClick = () => setDeleteDialogOpen(true)
+
+  const onDelete = async () => {
     if (!project || !projectId) return
-    if (!window.confirm(`Are you sure you want to delete project "${project.name}"?`)) {
-      return
-    }
     const result = await deleteProject(projectId)
-    if (!result.error) {
-      navigate(`/orgs/${orgId}/projects`)
-    }
+    !result.error && navigate(`/orgs/${orgId}/projects`)
+    setDeleteDialogOpen(false)
   }
+
+  const onDeleteCancel = () => setDeleteDialogOpen(false)
 
   if (!project) {
     return (
@@ -54,8 +45,8 @@ export const Project = (props: TProject) => {
           <CardContent>
             <Typography color='error'>Project not found</Typography>
             <Button
-              onClick={handleBack}
               sx={{ mt: 2 }}
+              onClick={onBack}
             >
               Back to Projects
             </Button>
@@ -84,10 +75,10 @@ export const Project = (props: TProject) => {
           Edit
         </Button>
         <Button
-          variant='outlined'
           color='error'
+          variant='outlined'
+          onClick={onDeleteClick}
           startIcon={<DeleteIcon />}
-          onClick={handleDelete}
         >
           Delete
         </Button>
@@ -229,6 +220,15 @@ export const Project = (props: TProject) => {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDelete
+        onConfirm={onDelete}
+        title='Delete Project?'
+        open={deleteDialogOpen}
+        itemName={project?.name}
+        onCancel={onDeleteCancel}
+        warnText='This will permanently delete the project and all its associated endpoints, functions, secrets, and configurations.'
+      />
     </Page>
   )
 }

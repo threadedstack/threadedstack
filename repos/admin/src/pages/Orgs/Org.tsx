@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { ERoutePath } from '@TAF/types'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
+import { ConfirmDelete } from '@tdsk/components'
 import { useActiveOrg } from '@TAF/state/selectors'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
@@ -16,15 +18,16 @@ export type TOrg = {}
 export const Org = (props: TOrg) => {
   const [org] = useActiveOrg()
   const navigate = useNavigate()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+  const onDeleteClick = () => setDeleteDialogOpen(true)
+  const onDeleteCancel = () => setDeleteDialogOpen(false)
 
   const onDelete = async () => {
     if (!org?.id) return
-    // TODO: fix this to use Confirm Model
-    if (!window.confirm(`Are you sure you want to delete org "${org.name}"?`)) {
-      return
-    }
     const result = await deleteOrg(org.id)
     !result.error && navigate(ERoutePath.Orgs)
+    setDeleteDialogOpen(false)
   }
 
   if (!org) {
@@ -63,10 +66,10 @@ export const Org = (props: TOrg) => {
           Edit
         </Button>
         <Button
-          variant='outlined'
           color='error'
+          variant='outlined'
+          onClick={onDeleteClick}
           startIcon={<DeleteIcon />}
-          onClick={onDelete}
         >
           Delete
         </Button>
@@ -179,6 +182,15 @@ export const Org = (props: TOrg) => {
           </Typography>
         </CardContent>
       </Card>
+
+      <ConfirmDelete
+        onConfirm={onDelete}
+        itemName={org?.name}
+        open={deleteDialogOpen}
+        onCancel={onDeleteCancel}
+        title='Delete Organization?'
+        warnText='This will permanently delete the organization and all its associated projects, endpoints, functions, and secrets.'
+      />
     </Page>
   )
 }

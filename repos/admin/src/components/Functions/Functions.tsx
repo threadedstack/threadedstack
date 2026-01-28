@@ -2,6 +2,7 @@ import type { Function as TDFunction } from '@tdsk/domain'
 
 import { Box } from '@mui/material'
 import { ife } from '@keg-hub/jsutils/ife'
+import { ConfirmDelete } from '@tdsk/components'
 import { Add as AddIcon } from '@mui/icons-material'
 import { useFunctions } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
@@ -29,6 +30,11 @@ export const Functions = (props: TFunctions) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [languageFilter, setLanguageFilter] = useState<string>('all')
   const [selectedFunction, setSelectedFunction] = useState<TDFunction | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [functionToDelete, setFunctionToDelete] = useState<{
+    id: string
+    name: string
+  } | null>(null)
 
   useEffect(() => {
     projectId &&
@@ -81,11 +87,22 @@ export const Functions = (props: TFunctions) => {
     ? Object.values(functions).filter((f) => f.projectId === projectId).length
     : 0
 
-  const onDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete function "${name}"?`)) return
+  const onDelete = (id: string, name: string) => {
+    setFunctionToDelete({ id, name })
+    setDeleteDialogOpen(true)
+  }
 
-    const result = await deleteFunction(id)
-    if (result.error) alert(`Failed to delete function: ${result.error.message}`)
+  const onDeleteConfirm = async () => {
+    if (!functionToDelete) return
+
+    const result = await deleteFunction(functionToDelete.id)
+    setDeleteDialogOpen(false)
+    !result.error && setFunctionToDelete(null)
+  }
+
+  const onDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setFunctionToDelete(null)
   }
 
   const onCreate = () => {
@@ -165,6 +182,15 @@ export const Functions = (props: TFunctions) => {
           onSuccess={onDialogSuccess}
         />
       )}
+
+      <ConfirmDelete
+        open={deleteDialogOpen}
+        title='Delete Function?'
+        onCancel={onDeleteCancel}
+        onConfirm={onDeleteConfirm}
+        itemName={functionToDelete?.name}
+        warnText='This will permanently delete the function and all its associated configuration.'
+      />
     </>
   )
 }
