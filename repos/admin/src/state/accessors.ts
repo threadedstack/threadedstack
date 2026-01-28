@@ -2,10 +2,11 @@ import type { EThemeType, TQuotaData, TLimitsData } from '@TAF/types'
 import type {
   User,
   Plan,
-  Project,
   Config,
   Secret,
   ApiKey,
+  Domain,
+  Project,
   Provider,
   Endpoint,
   Subscription,
@@ -19,6 +20,7 @@ import { providersState } from '@TAF/state/providers'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
 import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
+import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
@@ -86,6 +88,15 @@ export const setSecrets = (secrets: Record<string, Secret>) =>
 export const getActiveSecretId = () => store.get(activeSecretIdState)
 export const resetActiveSecretId = () => store.set(activeSecretIdState, undefined)
 export const setActiveSecretId = (id: string) => store.set(activeSecretIdState, id)
+
+export const getDomains = () => store.get(domainsState)
+export const resetDomains = () => store.set(domainsState, undefined)
+export const setDomains = (domains: Record<string, Domain>) =>
+  store.set(domainsState, domains)
+
+export const getActiveDomainId = () => store.get(activeDomainIdState)
+export const resetActiveDomainId = () => store.set(activeDomainIdState, undefined)
+export const setActiveDomainId = (id: string) => store.set(activeDomainIdState, id)
 
 export const getEndpoints = () => store.get(endpointsState)
 export const resetEndpoints = () => store.set(endpointsState, undefined)

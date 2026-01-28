@@ -1,8 +1,8 @@
 import '../scripts/registerPaths'
 
 import path from 'node:path'
-import { loadConfig } from './frontend.config'
 import react from '@vitejs/plugin-react-swc'
+import { loadConfig } from './frontend.config'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 import { svgrComponent } from 'vite-plugin-svgr-component'
 
@@ -74,9 +74,7 @@ export const config = {
     watch: false,
     environment: `jsdom`,
     setupFiles: `./scripts/setupTests.ts`,
-    alias: {
-      [`@tdsk/components`]: path.join(rootDir, `../components/src`),
-    },
+    alias: aliases,
     server: {
       deps: {
         inline: [`mui-image-alter`],

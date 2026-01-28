@@ -1,11 +1,12 @@
-import { useParams } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { Providers } from '@TAF/components/Providers/Providers'
+import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
 
 export type TProjectProviders = {}
 
 export const ProjectProviders = (props: TProjectProviders) => {
-  const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>()
+  const [orgId] = useActiveOrgId()
+  const [projectId] = useActiveProjectId()
 
   return (
     <Page className='tdsk-project-providers-page'>

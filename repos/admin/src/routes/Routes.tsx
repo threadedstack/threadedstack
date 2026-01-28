@@ -18,6 +18,7 @@ const Orgs = lazy(() => import('@TAF/pages/Orgs/Orgs'))
 const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
 const OrgsLoader = lazy(() => import('@TAF/pages/Orgs/OrgsLoader'))
 const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
+const OrgDomains = lazy(() => import('@TAF/pages/Orgs/OrgDomains'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
 const OrgProjects = lazy(() => import('@TAF/pages/Orgs/OrgProjects'))
@@ -28,6 +29,7 @@ const Project = lazy(() => import('@TAF/pages/Projects/Project'))
 const ProjectsLoader = lazy(() => import('@TAF/pages/Projects/ProjectsLoader'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
 const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
+const ProjectDomains = lazy(() => import('@TAF/pages/Projects/ProjectDomains'))
 const ProjectProviders = lazy(() => import('@TAF/pages/Projects/ProjectProviders'))
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
@@ -100,6 +102,10 @@ export const Routes = createBrowserRouter([
             Component: () => <SuspensePage Component={OrgSecrets} />,
           },
           {
+            path: 'domains',
+            Component: () => <SuspensePage Component={OrgDomains} />,
+          },
+          {
             path: 'providers',
             Component: () => <SuspensePage Component={OrgProviders} />,
           },
@@ -142,6 +148,10 @@ export const Routes = createBrowserRouter([
               {
                 path: 'secrets',
                 Component: () => <SuspensePage Component={ProjectSecrets} />,
+              },
+              {
+                path: 'domains',
+                Component: () => <SuspensePage Component={ProjectDomains} />,
               },
               {
                 path: 'providers',

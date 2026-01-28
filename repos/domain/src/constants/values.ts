@@ -94,4 +94,11 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.delete]: ERoleType.owner, // Only owner can delete roles
     [EPermAction.manage]: ERoleType.admin,
   },
+  [EPermResource.domain]: {
+    [EPermAction.create]: ERoleType.admin, // Creating domain requires admin
+    [EPermAction.read]: ERoleType.member,
+    [EPermAction.update]: ERoleType.admin,
+    [EPermAction.delete]: ERoleType.admin,
+    [EPermAction.manage]: ERoleType.admin,
+  },
 }

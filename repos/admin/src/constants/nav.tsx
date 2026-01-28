@@ -7,6 +7,7 @@ import { signout } from '@TAF/actions/auth/local/signout'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 
 import {
+  Dns as DnsIcon,
   Build as ToolIcon,
   Lock as SecretIcon,
   Api as EndpointIcon,
@@ -78,6 +79,12 @@ export const OrgNavItems: TNavItem[] = [
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
+    text: `Domains`,
+    to: buildRoute(ERoutePath.OrgDomains),
+    Icon: <DnsIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  {
     text: `Usage`,
     to: buildRoute(ERoutePath.OrgUsage),
     Icon: <UsageIcon />,
@@ -122,6 +129,12 @@ export const ProjectNavItems: TNavItem[] = [
     to: buildRoute(ERoutePath.ProjectAi),
     Icon: <AutoAwesomeIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
+  {
+    text: `Domains`,
+    to: buildRoute(ERoutePath.ProjectDomains),
+    Icon: <DnsIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
     text: `Settings`,

@@ -12,6 +12,7 @@ import { themeTypeState } from '@TAF/state/theme'
 import { providersState } from '@TAF/state/providers'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
+import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
 import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
@@ -63,6 +64,9 @@ export const useActiveProject = () => useDerivedState<Project>(activeProjectStat
 
 export const useSecrets = () => useRecState(secretsState)
 export const useActiveSecretId = () => useRecState(activeSecretIdState)
+
+export const useDomains = () => useRecState(domainsState)
+export const useActiveDomainId = () => useRecState(activeDomainIdState)
 
 export const useEndpoints = () => useRecState(endpointsState)
 export const useActiveEndpointId = () => useRecState(activeEndpointIdState)

@@ -1,4 +1,4 @@
-import type { TAccordionAction } from '@TSC/types'
+import type { TAccordionAction, TMuiColor, TMuiVariant } from '@TSC/types'
 
 import { cls } from '@keg-hub/jsutils/cls'
 import { AccordionInfoAction } from '@TSC/components/Accordion/AccordionInfoAction'
@@ -59,6 +59,8 @@ export const AccordionAction = (props: TAccordionActionComp) => {
           {...rest}
           onClick={onClick}
           disabled={disabled || loading}
+          color={rest.color as TMuiColor}
+          variant={rest.variant as TMuiVariant}
         >
           {text}
         </AccordionActionButton>

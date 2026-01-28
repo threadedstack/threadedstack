@@ -5,6 +5,7 @@ import type {
   ReactElement,
   ReactNode,
 } from 'react'
+import { ButtonProps } from '@mui/material/Button'
 
 type TRElProps = Record<string, any>
 export type TReactEl<P extends TRElProps = TRElProps> =
@@ -67,3 +68,6 @@ export type TSize = {
   width?: number
   height?: number
 }
+
+export type TMuiColor = ButtonProps[`color`]
+export type TMuiVariant = ButtonProps[`variant`]

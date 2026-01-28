@@ -1,14 +1,7 @@
-import type { TConfig } from '@TAF/state/configs'
-
 import { configsApi } from '@TAF/services'
 import { setConfigs, getConfigs } from '@TAF/state/accessors'
 
-export type TFetchConfigResult = {
-  config?: TConfig
-  error?: Error
-}
-
-export const fetchConfig = async (id: string): Promise<TFetchConfigResult> => {
+export const fetchConfig = async (id: string) => {
   const resp = await configsApi.get(id)
 
   if (resp.error) {
@@ -21,5 +14,5 @@ export const fetchConfig = async (id: string): Promise<TFetchConfigResult> => {
     setConfigs({ ...currentConfigs, [resp.data.id]: resp.data })
   }
 
-  return { config: resp.data }
+  return resp
 }
