@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import {
   Secret,
@@ -24,33 +25,21 @@ export const createSecret: TEndpointConfig = {
     const { db } = req.app.locals
     const { name, value, orgId, projectId, providerId } = req.body
 
-    if (!name) {
-      res.status(400).json({ error: `Secret name is required` })
-      return
-    }
-
-    if (!value) {
-      res.status(400).json({ error: `Secret value is required` })
-      return
-    }
+    if (!name) throw new Exception(400, `Secret name is required`)
+    if (!value) throw new Exception(400, `Secret value is required`)
 
     const hasOrg = !!orgId
     const hasProject = !!projectId
     const hasProvider = !!providerId
 
-    if (!hasOrg && !hasProject && !hasProvider) {
-      res
-        .status(400)
-        .json({ error: `Secret must belong to an org, project, or provider` })
-      return
-    }
+    if (!hasOrg && !hasProject && !hasProvider)
+      throw new Exception(400, `Secret must belong to an org, project, or provider`)
 
-    if ((hasOrg && hasProject) || (hasOrg && hasProvider && hasProject)) {
-      res.status(400).json({
-        error: `Secret can only belong to one of: org, project, or provider (exclusive arc)`,
-      })
-      return
-    }
+    if ((hasOrg && hasProject) || (hasOrg && hasProvider && hasProject))
+      throw new Exception(
+        400,
+        `Secret can only belong to one of: org, project, or provider`
+      )
 
     // Check permission - requires admin+
     await checkPermission(req, EPermAction.create, EPermResource.secret, {
@@ -77,12 +66,14 @@ export const createSecret: TEndpointConfig = {
       })
 
       const { data, error } = await db.services.secret.create(secret)
-      error
-        ? res.status(500).json({ error: error.message })
-        : res.status(201).json({ data: data.sanitize() })
+      if (error) throw new Exception(500, error.message)
+
+      res.status(201).json({ data: data.sanitize() })
     } catch (err) {
+      if (err instanceof Exception) throw err
+
       const message = err instanceof Error ? err.message : `Failed to encrypt secret`
-      res.status(500).json({ error: message })
+      throw new Exception(500, message)
     }
   },
 }

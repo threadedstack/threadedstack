@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * DELETE /_/invitations/:invitationId - Revoke an invitation
@@ -19,24 +20,15 @@ export const revokeInvitation: TEndpointConfig = {
     const { invitationId } = req.params
     const user = req.user
 
-    if (!user) {
-      res.status(401).json({ error: 'You must be logged in to revoke an invitation' })
-      return
-    }
+    if (!user) throw new Exception(401, `You must be logged in to revoke an invitation`)
 
     // Get the invitation
     const { data: invitation, error: invitationError } =
       await db.services.invitation.get(invitationId)
 
-    if (invitationError) {
-      res.status(500).json({ error: invitationError.message })
-      return
-    }
+    if (invitationError) throw new Exception(500, invitationError.message)
 
-    if (!invitation) {
-      res.status(404).json({ error: 'Invitation not found' })
-      return
-    }
+    if (!invitation) throw new Exception(404, `Invitation not found`)
 
     // Check permission - requires admin+ in the org
     await checkPermission(req, EPermAction.delete, EPermResource.role, {
@@ -44,37 +36,28 @@ export const revokeInvitation: TEndpointConfig = {
     })
 
     // Validate invitation can be revoked
-    if (invitation.isRevoked()) {
-      res.status(400).json({ error: 'This invitation has already been revoked' })
-      return
-    }
+    if (invitation.isRevoked())
+      throw new Exception(400, `This invitation has already been revoked`)
 
-    if (invitation.isAccepted()) {
-      res.status(400).json({
-        error:
-          'This invitation has already been accepted. Use the role management endpoints to remove the user.',
-      })
-      return
-    }
+    if (invitation.isAccepted())
+      throw new Exception(
+        400,
+        `This invitation has already been accepted. Use the role management endpoints to remove the user.`
+      )
 
-    if (invitation.isExpired()) {
-      res.status(400).json({ error: 'This invitation has already expired' })
-      return
-    }
+    if (invitation.isExpired())
+      throw new Exception(400, `This invitation has already expired`)
 
     // Revoke the invitation
     const { data: revokedInvitation, error: revokeError } =
       await db.services.invitation.revoke(invitationId, user.id)
 
-    if (revokeError) {
-      res.status(500).json({ error: revokeError.message })
-      return
-    }
+    if (revokeError) throw new Exception(500, revokeError.message)
 
     res.status(200).json({
       success: true,
       data: revokedInvitation,
-      message: 'Invitation revoked successfully',
+      message: `Invitation revoked successfully`,
     })
   },
 }

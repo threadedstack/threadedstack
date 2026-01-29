@@ -3,6 +3,7 @@ import type { Secret } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission, getUserRole } from '@TBE/utils/auth/checkPermission'
 import { EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
 
@@ -17,11 +18,8 @@ export const listSecrets: TEndpointConfig = {
     const { db } = req.app.locals
     const { orgId, projectId } = req.query
 
-    // Require orgId or projectId
-    if (!orgId && !projectId) {
-      res.status(400).json({ error: 'orgId or projectId query parameter required' })
-      return
-    }
+    if (!orgId && !projectId)
+      throw new Exception(400, `orgId or projectId query parameter required`)
 
     // Check permission based on scope
     await checkPermission(req, EPermAction.read, EPermResource.secret, {
@@ -31,10 +29,7 @@ export const listSecrets: TEndpointConfig = {
 
     const { data, error } = await db.services.secret.list()
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     // Filter by orgId or projectId if provided
     let secrets: Secret[] = data || []

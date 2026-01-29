@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -18,10 +19,8 @@ export const listProviders: TEndpointConfig = {
     const orgId = req.query.orgId as string | undefined
     const projectId = req.query.projectId as string | undefined
 
-    if (!orgId && !projectId) {
-      res.status(400).json({ error: 'orgId or projectId query parameter required' })
-      return
-    }
+    if (!orgId && !projectId)
+      throw new Exception(400, `orgId or projectId query parameter required`)
 
     // Check permission to read providers in this scope
     await checkPermission(req, EPermAction.read, EPermResource.provider, {
@@ -30,12 +29,11 @@ export const listProviders: TEndpointConfig = {
     })
 
     // List providers for the specified scope
-    const { data, error } = await db.services.provider.list({ orgId, projectId })
+    const { data, error } = await db.services.provider.list({
+      where: { orgId, projectId },
+    })
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data: data || [] })
   },

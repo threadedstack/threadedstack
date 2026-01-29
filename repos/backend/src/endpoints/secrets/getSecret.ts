@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission, getUserRole } from '@TBE/utils/auth/checkPermission'
 import { EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
 
@@ -15,17 +16,10 @@ export const getSecret: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
+
     const { data, error } = await db.services.secret.get(id)
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
-
-    if (!data) {
-      res.status(404).json({ error: `Secret not found` })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
+    if (!data) throw new Exception(404, `Secret not found`)
 
     // Determine scope from secret's exclusive arc
     const orgId = data.orgId

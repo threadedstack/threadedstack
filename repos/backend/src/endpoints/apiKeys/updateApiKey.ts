@@ -2,9 +2,10 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { ApiKey, EPermAction, EPermResource } from '@tdsk/domain'
-import { validateExpiresAt, validateApiScopes } from '@TBE/utils/auth/validateApiKey'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { validateExpiresAt, validateApiScopes } from '@TBE/utils/auth/validateApiKey'
 
 /**
  * PUT /api-keys/:id - Update an API key
@@ -21,13 +22,11 @@ export const updateApiKey: TEndpointConfig = {
     const { data: existing, error: getError } = await db.services.apiKey.get(id)
 
     if (getError) {
-      res.status(500).json({ error: getError.message })
-      return
+      throw new Exception(500, getError.message)
     }
 
     if (!existing) {
-      res.status(404).json({ error: `API key not found` })
-      return
+      throw new Exception(404, `API key not found`)
     }
 
     // Check permission based on API key's orgId - requires admin+
@@ -38,16 +37,14 @@ export const updateApiKey: TEndpointConfig = {
     if (scopes) {
       const { valid, error } = validateApiScopes(scopes)
       if (!valid || error) {
-        res.status(400).json({ error: error || `Invalid scopes.` })
-        return
+        throw new Exception(400, error || `Invalid scopes.`)
       }
     }
 
     if (expiresAt) {
       const { valid, error } = validateExpiresAt(expiresAt)
       if (!valid || error) {
-        res.status(400).json({ error: error || `Invalid expiration date` })
-        return
+        throw new Exception(400, error || `Invalid expiration date`)
       }
     }
 
@@ -63,12 +60,14 @@ export const updateApiKey: TEndpointConfig = {
 
       const { data, error } = await db.services.apiKey.update(update)
 
-      error
-        ? res.status(500).json({ error: error.message })
-        : res.status(200).json({ data: data.sanitize() })
+      if (error) {
+        throw new Exception(500, error.message)
+      }
+
+      res.status(200).json({ data: data.sanitize() })
     } catch (err) {
       const message = err instanceof Error ? err.message : `Failed to update API key`
-      res.status(500).json({ error: message })
+      throw new Exception(500, message)
     }
   },
 }

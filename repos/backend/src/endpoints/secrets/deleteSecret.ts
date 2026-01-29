@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -17,16 +18,8 @@ export const deleteSecret: TEndpointConfig = {
     const { db } = req.app.locals
 
     const { data: existing, error: getError } = await db.services.secret.get(id)
-
-    if (getError) {
-      res.status(500).json({ error: getError.message })
-      return
-    }
-
-    if (!existing) {
-      res.status(404).json({ error: `Secret not found` })
-      return
-    }
+    if (getError) throw new Exception(500, getError.message)
+    if (!existing) throw new Exception(404, `Secret not found`)
 
     // Check permission based on secret's scope - requires admin+
     await checkPermission(req, EPermAction.delete, EPermResource.secret, {
@@ -35,9 +28,8 @@ export const deleteSecret: TEndpointConfig = {
     })
 
     const { error } = await db.services.secret.delete(id)
+    if (error) throw new Exception(500, error.message)
 
-    error
-      ? res.status(500).json({ error: error.message })
-      : res.status(200).json({ data: { success: true, id } })
+    res.status(200).json({ data: { success: true, id } })
   },
 }

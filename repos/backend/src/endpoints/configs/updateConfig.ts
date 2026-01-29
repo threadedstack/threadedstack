@@ -1,9 +1,10 @@
 import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
-import { Config, EPermAction, EPermResource } from '@tdsk/domain'
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Config, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * PUT /_/configs/:id - Update config
@@ -17,32 +18,26 @@ export const updateConfig: TEndpointConfig = {
     const { id } = req.params
     const { data } = req.body
 
-    const { data: existingConfig, error: fetchError } = await db.services.config.get(id)
+    const { data: existing, error: fetchError } = await db.services.config.get(id)
 
-    if (fetchError) {
-      res.status(500).json({ error: fetchError.message })
-      return
-    }
+    if (fetchError) throw new Exception(500, fetchError.message)
 
-    if (!existingConfig) {
-      res.status(404).json({ error: 'Config not found' })
-      return
-    }
+    if (!existing) throw new Exception(404, `Config not found`)
 
     // Check permission
     await checkPermission(req, EPermAction.update, EPermResource.config, {
-      orgId: existingConfig.orgId,
-      projectId: existingConfig.projectId,
+      orgId: existing.orgId,
+      projectId: existing.projectId,
     })
 
     const config = new Config({
-      ...existingConfig,
+      ...existing,
       ...(data && { data }),
     })
 
-    const { data: updatedConfig, error } = await db.services.config.update(config)
-    error
-      ? res.status(500).json({ error: error.message })
-      : res.status(200).json({ data: updatedConfig })
+    const { data: updated, error } = await db.services.config.update(config)
+    if (error) throw new Exception(500, error.message)
+
+    res.status(200).json({ data: updated })
   },
 }

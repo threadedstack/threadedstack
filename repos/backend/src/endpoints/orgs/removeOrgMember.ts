@@ -21,10 +21,7 @@ export const removeOrgMember: TEndpointConfig = {
     const { db } = req.app.locals
     const currentUserId = req.user?.id
 
-    if (!currentUserId) {
-      res.status(401).json({ error: 'Authentication required' })
-      return
-    }
+    if (!currentUserId) throw new Exception(401, `Authentication required`)
 
     // Check permission (requires admin+ to manage members)
     await checkPermission(req, EPermAction.manage, EPermResource.org, { orgId })
@@ -32,55 +29,37 @@ export const removeOrgMember: TEndpointConfig = {
     // Check if org exists
     const { data: existingOrg, error: orgError } = await db.services.org.get(orgId)
 
-    if (orgError) {
-      res.status(500).json({ error: orgError.message })
-      return
-    }
+    if (orgError) throw new Exception(500, orgError.message)
 
-    if (!existingOrg) {
-      res.status(404).json({ error: `Org not found` })
-      return
-    }
+    if (!existingOrg) throw new Exception(404, `Org not found`)
 
     // Get the target user's role
     const { data: targetRole, error: targetRoleError } =
       await db.services.role.getOrgRole(userId, orgId)
 
-    if (targetRoleError) {
-      res.status(500).json({ error: targetRoleError.message })
-      return
-    }
+    if (targetRoleError) throw new Exception(500, targetRoleError.message)
 
-    if (!targetRole) {
-      res.status(404).json({ error: `Org member not found` })
-      return
-    }
+    if (!targetRole) throw new Exception(404, `Org member not found`)
 
     // Prevent removing owners
-    if (targetRole.type === ERoleType.owner) {
+    if (targetRole.type === ERoleType.owner)
       throw new Exception(
         403,
-        'Cannot remove owner from organization. Transfer ownership first.',
-        'FORBIDDEN'
+        `Cannot remove owner from organization. Transfer ownership first.`,
+        `FORBIDDEN`
       )
-    }
 
     // Check if current user can manage this role
     const currentUserRole = await getUserRole(req, { orgId })
-    if (!canManageRole(currentUserRole, targetRole.type as ERoleType)) {
+    if (!canManageRole(currentUserRole, targetRole.type as ERoleType))
       throw new Exception(
         403,
-        'You cannot remove members with equal or higher roles than your own.',
-        'FORBIDDEN'
+        `You cannot remove members with equal or higher roles than your own.`,
+        `FORBIDDEN`
       )
-    }
 
     const { data, error } = await db.services.role.delete(targetRole.id)
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

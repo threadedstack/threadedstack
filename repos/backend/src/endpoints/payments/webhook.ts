@@ -10,7 +10,7 @@ export const webhook: TEndpointBuilder = (app) => {
     action: Webhooks({
       webhookSecret: app.locals.config.payments.wbhSecret,
       onPayload: async (payload) => {
-        await app.locals.payments.webhook(app, payload)
+        await app.locals.payments.service.webhook(app, payload)
       },
     }),
   }

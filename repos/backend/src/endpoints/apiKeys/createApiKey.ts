@@ -2,10 +2,11 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { ApiKey, EPermAction, EPermResource } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
+import { Exception } from '@TBE/utils/errors/exception'
 import { generateApiKey } from '@TBE/utils/auth/generateApiKey'
 import { validateApiKey } from '@TBE/utils/auth/validateApiKey'
+import { ApiKey, EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -21,8 +22,7 @@ export const createApiKey: TEndpointConfig = {
 
     const { valid, error } = validateApiKey(req.body)
     if (!valid || error) {
-      res.status(400).json({ error })
-      return
+      throw new Exception(400, error)
     }
 
     // Check permission - requires admin+
@@ -47,8 +47,7 @@ export const createApiKey: TEndpointConfig = {
       const { data, error } = await db.services.apiKey.create(apiKeyData)
 
       if (error) {
-        res.status(500).json({ error: error.message })
-        return
+        throw new Exception(500, error.message)
       }
 
       logger.info({
@@ -69,7 +68,7 @@ export const createApiKey: TEndpointConfig = {
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : `Failed to create API key`
-      res.status(500).json({ error: message })
+      throw new Exception(500, message)
     }
   },
 }

@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 
 /**
  * GET /subscriptions/current - Get current user's subscription
@@ -13,30 +14,19 @@ export const getCurrentSubscription: TEndpointConfig = {
     const { db } = req.app.locals
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
 
     const { data, error } = await db.services.subscription.findByUser(userId)
+    if (error) throw new Exception(500, error.message)
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
-
-    if (!data) {
-      // No subscription found - user is on free tier
-      res.status(200).json({
-        data: {
-          userId,
-          tier: 'free',
-          status: 'active',
-        },
-      })
-      return
-    }
-
-    res.status(200).json({ data })
+    data
+      ? res.status(200).json({ data })
+      : res.status(200).json({
+          data: {
+            userId,
+            tier: `free`,
+            status: `active`,
+          },
+        })
   },
 }

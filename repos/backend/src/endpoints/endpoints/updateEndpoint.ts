@@ -2,10 +2,11 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { HttpMethods } from '@TBE/constants/values'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * PUT /endpoints/:id - Update an existing endpoint
@@ -18,19 +19,21 @@ export const updateEndpoint: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const { name, url, method, headers = {}, options = {}, public: isPublic } = req.body
+    const {
+      name,
+      url,
+      path,
+      method,
+      headers = {},
+      options = {},
+      public: isPublic,
+    } = req.body
 
     const { data: existing, error: getError } = await db.services.endpoint.get(id)
 
-    if (getError) {
-      res.status(500).json({ error: getError.message })
-      return
-    }
+    if (getError) throw new Exception(500, getError.message)
 
-    if (!existing) {
-      res.status(404).json({ error: `Endpoint not found` })
-      return
-    }
+    if (!existing) throw new Exception(404, `Endpoint not found`)
 
     // Check permission based on endpoint's projectId - requires member+
     await checkPermission(req, EPermAction.update, EPermResource.endpoint, {
@@ -40,30 +43,24 @@ export const updateEndpoint: TEndpointConfig = {
     // Validate HTTP method if provided
     if (method) {
       const lower = method.toLowerCase()
-      if (!HttpMethods.includes(lower)) {
-        res.status(400).json({
-          error: `Invalid HTTP method. Must be one of: ${HttpMethods.join(', ')}`,
-        })
-        return
-      }
+      if (!HttpMethods.includes(lower))
+        throw new Exception(
+          400,
+          `Invalid HTTP method. Must be one of: ${HttpMethods.join(', ')}`
+        )
     }
 
     // Validate headers is an object if provided
-    if (headers && !isObj(headers)) {
-      res.status(400).json({ error: `Headers must be an object` })
-      return
-    }
+    if (headers && !isObj(headers)) throw new Exception(400, `Headers must be an object`)
 
     // Validate options is an object if provided
-    if (options && !isObj(options)) {
-      res.status(400).json({ error: `Options must be an object` })
-      return
-    }
+    if (options && !isObj(options)) throw new Exception(400, `Options must be an object`)
 
     const updateData = new Endpoint({ id })
 
     if (url !== undefined) updateData.url = url
     if (name !== undefined) updateData.name = name
+    if (path !== undefined) updateData.path = path
     if (headers !== undefined) updateData.headers = headers
     if (options !== undefined) updateData.options = options
     if (isPublic !== undefined) updateData.public = isPublic
@@ -71,10 +68,7 @@ export const updateEndpoint: TEndpointConfig = {
 
     const { data, error } = await db.services.endpoint.update(updateData)
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

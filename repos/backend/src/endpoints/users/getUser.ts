@@ -3,6 +3,7 @@ import type { Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
 import { isSuperAdmin } from '@tdsk/domain'
+import { Exception } from '@TBE/utils/errors/exception'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -36,23 +37,13 @@ export const getUser: TEndpointConfig = {
       const sharedOrgs =
         currentUserOrgs?.filter((orgId) => targetUserOrgs?.includes(orgId)) || []
 
-      if (sharedOrgs.length === 0) {
-        res.status(403).json({ error: 'You do not have permission to view this user' })
-        return
-      }
+      if (sharedOrgs.length === 0)
+        throw new Exception(403, `You do not have permission to view this user`)
     }
 
     const { data, error } = await db.services.user.get(id)
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
-
-    if (!data) {
-      res.status(404).json({ error: 'User not found' })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
+    if (!data) throw new Exception(404, `User not found`)
 
     res.status(200).json({ data })
   },

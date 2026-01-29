@@ -1,8 +1,9 @@
-import type { ApiKey } from '@tdsk/domain'
 import type { Response } from 'express'
+import type { ApiKey } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -19,8 +20,7 @@ export const listApiKeys: TEndpointConfig = {
 
     // Require orgId for API keys (they belong to orgs)
     if (!orgId) {
-      res.status(400).json({ error: 'orgId query parameter required' })
-      return
+      throw new Exception(400, 'orgId query parameter required')
     }
 
     // Check permission - requires admin+
@@ -31,8 +31,7 @@ export const listApiKeys: TEndpointConfig = {
     const { data, error } = await db.services.apiKey.list()
 
     if (error) {
-      res.status(500).json({ error: error.message })
-      return
+      throw new Exception(500, error.message)
     }
 
     let keys = data || []

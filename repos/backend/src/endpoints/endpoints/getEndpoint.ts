@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -17,15 +18,9 @@ export const getEndpoint: TEndpointConfig = {
     const { db } = req.app.locals
     const { data, error } = await db.services.endpoint.get(id)
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
-    if (!data) {
-      res.status(404).json({ error: `Endpoint not found` })
-      return
-    }
+    if (!data) throw new Exception(404, `Endpoint not found`)
 
     // Check permission based on endpoint's projectId
     await checkPermission(req, EPermAction.read, EPermResource.endpoint, {

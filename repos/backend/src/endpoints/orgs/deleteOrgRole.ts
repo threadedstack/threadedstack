@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * DELETE /_/orgs/:orgId/roles/:roleId - Remove user from org
@@ -23,29 +24,16 @@ export const deleteOrgRole: TEndpointConfig = {
 
     // Get existing role
     const { data: existingRole, error: fetchError } = await db.services.role.get(roleId)
-
-    if (fetchError) {
-      res.status(500).json({ error: fetchError.message })
-      return
-    }
-
-    if (!existingRole) {
-      res.status(404).json({ error: 'Role not found' })
-      return
-    }
+    if (fetchError) throw new Exception(500, fetchError.message)
+    if (!existingRole) throw new Exception(404, `Role not found`)
 
     // Verify role belongs to this org
-    if (existingRole.orgId !== orgId) {
-      res.status(400).json({ error: 'Role does not belong to this organization' })
-      return
-    }
+    if (existingRole.orgId !== orgId)
+      throw new Exception(400, `Role does not belong to this organization`)
 
     const { error: deleteError } = await db.services.role.delete(roleId)
 
-    if (deleteError) {
-      res.status(500).json({ error: deleteError.message })
-      return
-    }
+    if (deleteError) throw new Exception(500, deleteError.message)
 
     res.status(200).json({ success: true })
   },

@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { ERoleType } from '@tdsk/domain'
 import { logger } from '@TDB/utils/logger'
+import { Exception } from '@TBE/utils/errors/exception'
 
 /**
  * POST /orgs - Create a new org
@@ -18,22 +19,13 @@ export const createOrg: TEndpointConfig = {
     const orgData = req.body
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
 
-    if (!orgData || !orgData.name) {
-      res.status(400).json({ error: `Org name is required` })
-      return
-    }
+    if (!orgData || !orgData.name) throw new Exception(400, `Org name is required`)
 
     const { data, error } = await db.services.org.create(orgData)
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     // Automatically add user creator as owner
     if (data?.id) {
@@ -46,8 +38,7 @@ export const createOrg: TEndpointConfig = {
       if (roleError) {
         logger.error(`Failed to assign owner role:`, roleError)
         await db.services.org.delete(data.id)
-        res.status(500).json({ error: `Failed to assign owner role to organization` })
-        return
+        throw new Exception(500, `Failed to assign owner role to organization`)
       }
     }
 

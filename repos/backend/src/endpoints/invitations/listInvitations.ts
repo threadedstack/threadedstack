@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -18,25 +19,20 @@ export const listInvitations: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
-    const { status = 'pending' } = req.query
+    const { status = `pending` } = req.query
 
     // Check permission - requires admin+ in the org
     await checkPermission(req, EPermAction.read, EPermResource.role, { orgId })
 
     let invitations
-    if (status === 'pending') {
+    // TODO: make status an enum
+    if (status === `pending`) {
       const { data, error } = await db.services.invitation.getPendingByOrg(orgId)
-      if (error) {
-        res.status(500).json({ error: error.message })
-        return
-      }
+      if (error) throw new Exception(500, error.message)
       invitations = data
     } else {
       const { data, error } = await db.services.invitation.getAllByOrg(orgId)
-      if (error) {
-        res.status(500).json({ error: error.message })
-        return
-      }
+      if (error) throw new Exception(500, error.message)
 
       invitations = status === `all` ? data : data?.filter((inv) => inv.status === status)
     }

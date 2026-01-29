@@ -3,8 +3,9 @@ import type { Config } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * GET /_/configs - List all configs
@@ -18,12 +19,8 @@ export const listConfigs: TEndpointConfig = {
     const { orgId, projectId, userId } = req.query
 
     // Require at least one scope
-    if (!orgId && !projectId && !userId) {
-      res
-        .status(400)
-        .json({ error: 'orgId, projectId, or userId query parameter required' })
-      return
-    }
+    if (!orgId && !projectId && !userId)
+      throw new Exception(400, `An orgId, projectId, or userId query parameter required`)
 
     // Check permission based on scope
     await checkPermission(req, EPermAction.read, EPermResource.config, {
@@ -33,10 +30,7 @@ export const listConfigs: TEndpointConfig = {
 
     const { data, error } = await db.services.config.list()
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     // Filter by scope if provided
     let configs: Config[] = data || []

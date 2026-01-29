@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -17,15 +18,8 @@ export const checkQuota: TEndpointConfig = {
     const { db, payments } = req.app.locals
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
-
-    if (!resource) {
-      res.status(400).json({ error: `Missing required field: resource` })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
+    if (!resource) throw new Exception(400, `Missing required field: resource`)
 
     // Check membership
     await requireOrgMember(req, orgId)
@@ -42,12 +36,8 @@ export const checkQuota: TEndpointConfig = {
     // Get org owner through roles table
     const ownerRole = await db.services.role.getOrgOwner(orgId)
 
-    if (ownerRole.error || !ownerRole.data) {
-      res.status(500).json({
-        error: ownerRole.error?.message || 'Org owner not found',
-      })
-      return
-    }
+    if (ownerRole.error || !ownerRole.data)
+      throw new Exception(500, ownerRole.error?.message || `Org owner not found`)
 
     const ownerId = ownerRole.data.userId
 
@@ -62,27 +52,16 @@ export const checkQuota: TEndpointConfig = {
       productId = subResult.data.polarPriceId
     }
 
-    if (!productId) {
-      res.status(500).json({ error: `Product not configured` })
-      return
-    }
+    if (!productId) throw new Exception(500, `Product not configured`)
 
     // Fetch limits
     const limitsResult = await payments.service.getPlanLimits(productId)
 
-    if (limitsResult.error || !limitsResult.data) {
-      res.status(500).json({
-        error: limitsResult.error?.message || 'Failed to fetch limits',
-      })
-      return
-    }
+    if (limitsResult.error || !limitsResult.data)
+      throw new Exception(500, limitsResult.error?.message || `Failed to fetch limits`)
 
     const limit = limitsResult.data[resource]
-
-    if (limit === undefined) {
-      res.status(400).json({ error: `Invalid resource: ${resource}` })
-      return
-    }
+    if (limit === undefined) throw new Exception(400, `Invalid resource: ${resource}`)
 
     const allowed = currentUsage + amount <= limit
 

@@ -1,9 +1,11 @@
 import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
+import type { TDBApiRes } from '@TDB/types'
 
 import dns from 'node:dns'
 import { EPMethod } from '@TBE/types'
 import { Domain } from '@tdsk/domain'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -29,15 +31,10 @@ export const createDomain: TEndpointConfig = {
       sslCertificate,
     } = req.body
 
-    if (!domain) {
-      res.status(400).json({ error: `Domain is required` })
-      return
-    }
+    if (!domain) throw new Exception(400, `Domain is required`)
 
-    if (!orgId && !projectId) {
-      res.status(400).json({ error: `Either orgId or projectId is required` })
-      return
-    }
+    if (!orgId && !projectId)
+      throw new Exception(400, `Either orgId or projectId is required`)
 
     // Check permission
     if (orgId) {
@@ -45,10 +42,8 @@ export const createDomain: TEndpointConfig = {
     } else if (projectId) {
       // Get project to find orgId
       const { data: project } = await db.services.project.get(projectId)
-      if (!project) {
-        res.status(404).json({ error: `Project not found` })
-        return
-      }
+      if (!project) throw new Exception(404, `Project not found`)
+
       await checkPermission(req, EPermAction.create, EPermResource.domain, {
         orgId: project.orgId,
       })
@@ -78,23 +73,22 @@ export const createDomain: TEndpointConfig = {
           record.endsWith(`.${config.domains.proxyHost}`)
       )
 
-      if (!pointsToIngress) {
-        res.status(400).json({
-          error: `Domain must point to ${config.domains.proxyHost}`,
-          currentRecords: records,
-        })
-        return
-      }
+      if (!pointsToIngress)
+        throw new Exception(
+          400,
+          `Domain must point to ${config.domains.proxyHost}. Current records: ${records.join(', ')}`
+        )
     } catch (error: any) {
-      res.status(400).json({
-        details: error.message,
-        error: `DNS verification failed. Please ensure your domain is configured correctly.`,
-      })
-      return
+      if (error instanceof Exception) throw error
+
+      throw new Exception(
+        400,
+        `DNS verification failed: ${error.message}. Please ensure your domain is configured correctly.`
+      )
     }
 
     // Step 2: Create domain in database
-    const { data: record, error } = await db.services.domain.create(
+    const createResult = await db.services.domain.create(
       new Domain({
         orgId,
         domain,
@@ -106,10 +100,14 @@ export const createDomain: TEndpointConfig = {
       })
     )
 
-    if (error) {
-      res.status(404).json({ error: error?.message || `Domain "${domain}" not found!` })
-      return
+    if (createResult.error) {
+      throw new Exception(500, createResult.error?.message || `Failed to create domain`)
     }
+
+    // Type guard: if there's no error, data must exist
+    const record = (createResult as TDBApiRes<Domain>).data
+
+    if (!record) throw new Exception(500, `Failed to create domain`)
 
     // Step 3: Trigger certificate pre-warming
     // This makes an HTTPS request to the domain to trigger Caddy's on-demand TLS

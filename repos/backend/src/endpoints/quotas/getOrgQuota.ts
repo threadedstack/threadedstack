@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -15,10 +16,7 @@ export const getOrgQuota: TEndpointConfig = {
     const { db } = req.app.locals
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
 
     // Check membership
     await requireOrgMember(req, orgId)
@@ -28,35 +26,27 @@ export const getOrgQuota: TEndpointConfig = {
     const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
     const { data, error } = await db.services.quota.findByOrgAndPeriod(orgId, period)
+    if (error) throw new Exception(500, error.message)
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
-
-    if (!data) {
-      // No quota record yet - return zeros
-      res.status(200).json({
-        data: {
-          orgId,
-          period,
-          price: 0,
-          retention: 0,
-          organizations: 0,
-          projects: 0,
-          members: 0,
-          endpoints: 0,
-          threads: 0,
-          messages: 0,
-          functionCalls: 0,
-          runtime: 0,
-          orgSecrets: 0,
-          projectSecrets: 0,
-        },
-      })
-      return
-    }
-
-    res.status(200).json({ data })
+    data
+      ? res.status(200).json({ data })
+      : res.status(200).json({
+          data: {
+            orgId,
+            period,
+            price: 0,
+            members: 0,
+            threads: 0,
+            runtime: 0,
+            messages: 0,
+            projects: 0,
+            retention: 0,
+            endpoints: 0,
+            orgSecrets: 0,
+            organizations: 0,
+            functionCalls: 0,
+            projectSecrets: 0,
+          },
+        })
   },
 }

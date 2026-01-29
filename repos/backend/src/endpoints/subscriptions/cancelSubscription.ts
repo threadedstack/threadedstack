@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 
 /**
  * DELETE /subscriptions/current - Cancel current subscription
@@ -13,36 +14,25 @@ export const cancelSubscription: TEndpointConfig = {
     const { db, payments } = req.app.locals
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
 
     // Get user's subscription
     const subResult = await db.services.subscription.findByUser(userId)
-    if (subResult.error) {
-      res.status(500).json({ error: subResult.error.message })
-      return
-    }
+    if (subResult.error) throw new Exception(500, subResult.error.message)
 
-    if (!subResult.data || !subResult.data.polarId) {
-      res.status(404).json({
-        error: `No active subscription found`,
-      })
-      return
-    }
+    if (!subResult.data || !subResult.data.polarId)
+      throw new Exception(404, `No active subscription found`)
 
     const cancelResult = await payments.service.cancelSubscription(subResult.data.polarId)
 
-    if (cancelResult.error) {
-      res.status(500).json({
-        error: cancelResult.error.message || 'Failed to cancel subscription',
-      })
-      return
-    }
+    if (cancelResult.error)
+      throw new Exception(
+        500,
+        cancelResult.error.message || `Failed to cancel subscription`
+      )
 
     res.status(200).json({
-      data: { message: 'Subscription cancelled successfully' },
+      data: { message: `Subscription cancelled successfully` },
     })
   },
 }

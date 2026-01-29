@@ -2,9 +2,11 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
+import { isObj } from '@keg-hub/jsutils/isObj'
 import { HttpMethods } from '@TBE/constants/values'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * POST /endpoints - Create a new endpoint
@@ -18,6 +20,7 @@ export const createEndpoint: TEndpointConfig = {
     const {
       name,
       url,
+      path,
       method,
       projectId,
       headers = {},
@@ -26,25 +29,13 @@ export const createEndpoint: TEndpointConfig = {
     } = req.body
 
     // Validate required fields
-    if (!name) {
-      res.status(400).json({ error: `Endpoint name is required` })
-      return
-    }
+    if (!name) throw new Exception(400, `Endpoint name is required`)
 
-    if (!url) {
-      res.status(400).json({ error: `Endpoint URL is required` })
-      return
-    }
+    if (!url) throw new Exception(400, `Endpoint URL is required`)
 
-    if (!method) {
-      res.status(400).json({ error: `Endpoint method is required` })
-      return
-    }
+    if (!method) throw new Exception(400, `Endpoint method is required`)
 
-    if (!projectId) {
-      res.status(400).json({ error: `Endpoint projectId is required` })
-      return
-    }
+    if (!projectId) throw new Exception(400, `Endpoint projectId is required`)
 
     // Check permission - requires member+
     await checkPermission(req, EPermAction.create, EPermResource.endpoint, {
@@ -53,28 +44,20 @@ export const createEndpoint: TEndpointConfig = {
 
     // Validate HTTP method
     const lower = method.toLowerCase()
-    if (!HttpMethods.includes(lower)) {
-      res.status(400).json({
-        error: `Invalid HTTP method. Must be one of: ${HttpMethods.join(', ')}`,
-      })
-      return
-    }
+    if (!HttpMethods.includes(lower))
+      throw new Exception(
+        400,
+        `Invalid HTTP method. Must be one of: ${HttpMethods.join(', ')}`
+      )
 
-    // Validate headers is an object if provided
-    if (headers && typeof headers !== 'object') {
-      res.status(400).json({ error: `Headers must be an object` })
-      return
-    }
+    if (headers && isObj(headers)) throw new Exception(400, `Headers must be an object`)
 
-    // Validate options is an object if provided
-    if (options && typeof options !== 'object') {
-      res.status(400).json({ error: `Options must be an object` })
-      return
-    }
+    if (options && isObj(options)) throw new Exception(400, `Options must be an object`)
 
     const endpointData = new Endpoint({
       name,
       url,
+      path,
       projectId,
       method: lower,
       ...(headers && { headers }),
@@ -83,11 +66,7 @@ export const createEndpoint: TEndpointConfig = {
     })
 
     const { data, error } = await db.services.endpoint.create(endpointData)
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(201).json({ data })
   },

@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -20,15 +21,9 @@ export const updateProject: TEndpointConfig = {
     // First get the project to find its orgId
     const { data: existing, error: getError } = await db.services.project.get(id)
 
-    if (getError) {
-      res.status(500).json({ error: getError.message })
-      return
-    }
+    if (getError) throw new Exception(500, getError.message)
 
-    if (!existing) {
-      res.status(404).json({ error: 'Project not found' })
-      return
-    }
+    if (!existing) throw new Exception(404, `Project not found`)
 
     // Check permission - user must be member of org to update project
     await checkPermission(req, EPermAction.update, EPermResource.project, {
@@ -36,12 +31,8 @@ export const updateProject: TEndpointConfig = {
     })
 
     // Update the project
-    const { data, error } = await db.services.project.update(id, updates)
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    const { data, error } = await db.services.project.update({ ...updates, id })
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

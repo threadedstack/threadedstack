@@ -1,9 +1,10 @@
 import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
-import { Config, EPermAction, EPermResource } from '@tdsk/domain'
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Config, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * POST /_/configs - Create a new config
@@ -16,26 +17,17 @@ export const createConfig: TEndpointConfig = {
     const { db } = req.app.locals
     const { data, orgId, projectId, userId } = req.body
 
-    if (!data) {
-      res.status(400).json({ error: `Config data is required` })
-      return
-    }
+    if (!data) throw new Exception(400, `Config data is required`)
 
     const hasOrg = !!orgId
     const hasProject = !!projectId
     const hasUser = !!userId
 
-    if (!hasOrg && !hasProject && !hasUser) {
-      res.status(400).json({ error: `Config must belong to an org, project, or user` })
-      return
-    }
+    if (!hasOrg && !hasProject && !hasUser)
+      throw new Exception(400, `Config must belong to an org, project, or user`)
 
-    if ((hasOrg && hasProject) || (hasOrg && hasUser) || (hasProject && hasUser)) {
-      res.status(400).json({
-        error: `Config can only belong to one of: org, project, or user (exclusive arc)`,
-      })
-      return
-    }
+    if ((hasOrg && hasProject) || (hasOrg && hasUser) || (hasProject && hasUser))
+      throw new Exception(400, `Config can only belong to one of: org, project, or user`)
 
     // Check permission - requires admin+
     await checkPermission(req, EPermAction.create, EPermResource.config, {
@@ -52,12 +44,13 @@ export const createConfig: TEndpointConfig = {
       })
 
       const { data: createdConfig, error } = await db.services.config.create(config)
-      error
-        ? res.status(500).json({ error: error.message })
-        : res.status(201).json({ data: createdConfig })
+      if (error) throw new Exception(500, error.message)
+
+      res.status(201).json({ data: createdConfig })
     } catch (err) {
+      if (err instanceof Exception) throw err
       const message = err instanceof Error ? err.message : `Failed to create config`
-      res.status(500).json({ error: message })
+      throw new Exception(500, message)
     }
   },
 }

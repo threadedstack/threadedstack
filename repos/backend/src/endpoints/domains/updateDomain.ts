@@ -1,8 +1,11 @@
 import type { Response } from 'express'
+import type { TDBApiRes } from '@TDB/types'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
+import { Exception } from '@TBE/utils/errors/exception'
+import type { Domain } from '@tdsk/domain'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -26,18 +29,11 @@ export const updateDomain: TEndpointConfig = {
       sslCertificate,
     } = req.body
 
-    if (!domain) {
-      res.status(400).json({ error: `Domain parameter is required` })
-      return
-    }
+    if (!domain) throw new Exception(400, `Domain parameter is required`)
 
     // Get the domain first to check permissions
     const { data: record, error } = await db.services.domain.by({ domain })
-
-    if (error) {
-      res.status(404).json({ error: error?.message || `Domain "${domain}" not found!` })
-      return
-    }
+    if (error) throw new Exception(404, error?.message || `Domain "${domain}" not found!`)
 
     // Check permission
     if (record.orgId) {
@@ -54,7 +50,7 @@ export const updateDomain: TEndpointConfig = {
       }
     }
 
-    const { data, error: uperr } = await db.services.domain.update(
+    const updateResult = await db.services.domain.update(
       cleanColl({
         id: record.id,
         verified,
@@ -65,10 +61,15 @@ export const updateDomain: TEndpointConfig = {
       })
     )
 
-    uperr
-      ? res
-          .status(400)
-          .json({ error: uperr?.message || `Only verification status can be updated` })
-      : res.status(200).json({ data })
+    if (updateResult.error)
+      throw new Exception(
+        400,
+        updateResult.error?.message || `Only verification status can be updated`
+      )
+
+    // Type guard: if there's no error, data must exist
+    const data = (updateResult as TDBApiRes<Domain>).data
+
+    res.status(200).json({ data })
   },
 }

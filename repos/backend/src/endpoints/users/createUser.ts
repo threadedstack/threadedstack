@@ -19,24 +19,13 @@ export const createUser: TEndpointConfig = {
     const userData = req.body
     const { orgId, role: initialRole } = userData
 
-    if (!orgId) {
-      res.status(400).json({ error: `orgId is required to invite users` })
-      return
-    }
-
-    if (!userData || !userData.email) {
-      res.status(400).json({ error: `Email is required` })
-      return
-    }
+    if (!orgId) throw new Exception(400, `orgId is required to invite users`)
+    if (!userData || !userData.email) throw new Exception(400, `Email is required`)
 
     await checkPermission(req, EPermAction.create, EPermResource.user, { orgId })
 
     const { data, error } = await db.services.user.create(userData)
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     // Create role for the user in the org
     if (data?.id) {
@@ -46,14 +35,11 @@ export const createUser: TEndpointConfig = {
         type: initialRole || ERoleType.member,
       })
 
-      if (result.error) {
-        res
-          .status(500)
-          .json({
-            error: `User created but role assignment failed: ${result.error.message}`,
-          })
-        return
-      }
+      if (result.error)
+        throw new Exception(
+          500,
+          `User created but role assignment failed: ${result.error.message}`
+        )
     }
 
     res.status(201).json({ data })

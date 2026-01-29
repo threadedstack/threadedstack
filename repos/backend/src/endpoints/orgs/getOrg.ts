@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { requireOrgMember, getUserRole } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -17,25 +18,14 @@ export const getOrg: TEndpointConfig = {
     const { db } = req.app.locals
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
 
     // Check membership first
     await requireOrgMember(req, orgId)
 
     const { data, error } = await db.services.org.get(orgId)
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
-
-    if (!data) {
-      res.status(404).json({ error: `Org not found` })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
+    if (!data) throw new Exception(404, `Org not found`)
 
     // Get user's role for this org
     const userRole = await getUserRole(req, { orgId })

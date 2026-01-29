@@ -21,15 +21,8 @@ export const addOrgMember: TEndpointConfig = {
     const { userId, type = ERoleType.member } = req.body
     const currentUserId = req.user?.id
 
-    if (!currentUserId) {
-      res.status(401).json({ error: 'Authentication required' })
-      return
-    }
-
-    if (!userId) {
-      res.status(400).json({ error: `userId is required` })
-      return
-    }
+    if (!currentUserId) throw new Exception(401, `Authentication required`)
+    if (!userId) throw new Exception(400, `userId is required`)
 
     // Check permission (requires admin+ to manage members)
     await checkPermission(req, EPermAction.manage, EPermResource.org, { orgId })
@@ -38,39 +31,26 @@ export const addOrgMember: TEndpointConfig = {
     const currentUserRole = await getUserRole(req, { orgId })
     const targetRole = type as ERoleType
 
-    if (!canManageRole(currentUserRole, targetRole)) {
+    if (!canManageRole(currentUserRole, targetRole))
       throw new Exception(
         403,
         `You cannot add a member with ${targetRole} role. You can only add members with roles below your own.`,
-        'FORBIDDEN'
+        `FORBIDDEN`
       )
-    }
 
     // Check if org exists
     const { data: existingOrg, error: orgError } = await db.services.org.get(orgId)
 
-    if (orgError) {
-      res.status(500).json({ error: orgError.message })
-      return
-    }
+    if (orgError) throw new Exception(500, orgError.message)
 
-    if (!existingOrg) {
-      res.status(404).json({ error: `Org not found` })
-      return
-    }
+    if (!existingOrg) throw new Exception(404, `Org not found`)
 
     // Check if user exists
     const { data: existingUser, error: userError } = await db.services.user.get(userId)
 
-    if (userError) {
-      res.status(500).json({ error: userError.message })
-      return
-    }
+    if (userError) throw new Exception(500, userError.message)
 
-    if (!existingUser) {
-      res.status(404).json({ error: `User not found` })
-      return
-    }
+    if (!existingUser) throw new Exception(404, `User not found`)
 
     // Create role (org membership)
     const { data, error } = await db.services.role.create({
@@ -79,10 +59,7 @@ export const addOrgMember: TEndpointConfig = {
       type: targetRole,
     })
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(201).json({ data })
   },

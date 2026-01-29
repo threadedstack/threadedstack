@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Function as TDFunction, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -19,15 +20,9 @@ export const updateFunction: TEndpointConfig = {
 
     const { data: existingFunc, error: fetchError } = await db.services.function.get(id)
 
-    if (fetchError) {
-      res.status(500).json({ error: fetchError.message })
-      return
-    }
+    if (fetchError) throw new Exception(500, fetchError.message)
 
-    if (!existingFunc) {
-      res.status(404).json({ error: 'Function not found' })
-      return
-    }
+    if (!existingFunc) throw new Exception(404, `Function not found`)
 
     // Check permission
     await checkPermission(req, EPermAction.update, EPermResource.function, {
@@ -45,8 +40,7 @@ export const updateFunction: TEndpointConfig = {
     })
 
     const { data, error } = await db.services.function.update(func)
-    error
-      ? res.status(500).json({ error: error.message })
-      : res.status(200).json({ data })
+    if (error) throw new Exception(500, error.message)
+    res.status(200).json({ data })
   },
 }

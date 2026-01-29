@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { addEndpointHeaders } from '@TBE/utils/proxy'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { RetryService, ProxyService } from '@TBE/services/proxy'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
@@ -37,25 +38,18 @@ export const endpoint: TEndpointConfig = {
     // Extract the remaining path after /:projectId/:endpointId/
     const proxyPath = req.params[0] || ''
 
-    if (!projectId || !endpointId) {
-      res.status(400).json({ error: `Project ID and Endpoint ID are required` })
-      return
-    }
+    if (!projectId || !endpointId)
+      throw new Exception(400, `Project ID and Endpoint ID are required`)
 
     // Fetch endpoint from database
     const { data: endpoint, error: fetchError } =
       await db.services.endpoint.get(endpointId)
 
-    if (fetchError || !endpoint) {
-      res.status(404).json({ error: `Endpoint not found` })
-      return
-    }
+    if (fetchError || !endpoint) throw new Exception(404, `Endpoint not found`)
 
     // Verify endpoint belongs to the specified project
-    if (endpoint.projectId !== projectId) {
-      res.status(403).json({ error: `Endpoint does not belong to this project` })
-      return
-    }
+    if (endpoint.projectId !== projectId)
+      throw new Exception(403, `Endpoint does not belong to this project`)
 
     // Check permissions unless endpoint is public
     if (!endpoint.public) {
@@ -64,18 +58,16 @@ export const endpoint: TEndpointConfig = {
           projectId,
         })
       } catch (error) {
-        res.status(403).json({ error: `Insufficient permissions to use this endpoint` })
-        return
+        throw new Exception(403, `Insufficient permissions to use this endpoint`)
       }
     }
 
     // Validate HTTP method matches (if endpoint specifies a method)
-    if (endpoint.method && endpoint.method.toLowerCase() !== req.method.toLowerCase()) {
-      res.status(405).json({
-        error: `Method ${req.method} not allowed. Endpoint accepts ${endpoint.method.toUpperCase()}`,
-      })
-      return
-    }
+    if (endpoint.method && endpoint.method.toLowerCase() !== req.method.toLowerCase())
+      throw new Exception(
+        405,
+        `Method ${req.method} not allowed. Endpoint accepts ${endpoint.method.toUpperCase()}`
+      )
 
     // Fetch secrets for this project (for secret replacement)
     const { data: secrets = [] } = await db.services.secret.list()
@@ -112,9 +104,8 @@ export const endpoint: TEndpointConfig = {
               proxyReq: async (proxyReq, request, response) => {
                 try {
                   // Apply endpoint headers with secret replacement
-                  if (endpoint.headers) {
+                  if (endpoint.headers)
                     addEndpointHeaders(proxyReq, endpoint.headers, secrets)
-                  }
 
                   // Extract request origin for domain whitelist validation
                   const requestOrigin = request.headers.origin || request.headers.referer
@@ -130,7 +121,7 @@ export const endpoint: TEndpointConfig = {
 
                   logger.debug(`Proxying ${request.method} ${targetUrl}`)
                 } catch (error) {
-                  logger.error('Error in proxyReq handler:', error)
+                  logger.error(`Error in proxyReq handler:`, error)
                   reject(error)
                 }
               },
@@ -167,7 +158,7 @@ export const endpoint: TEndpointConfig = {
 
                     return responseBuffer
                   } catch (error) {
-                    logger.error('Error in proxyRes handler:', error)
+                    logger.error(`Error in proxyRes handler:`, error)
                     return responseBuffer
                   }
                 }
@@ -240,21 +231,20 @@ export const endpoint: TEndpointConfig = {
 
         if (!res.headersSent) {
           const statusCode = (req as any).__proxyStatusCode || 502
-          res.status(statusCode).json({
-            error: 'Proxy failed after retries',
-            message: lastError instanceof Error ? lastError.message : 'Unknown error',
-            retries: retryService.config.maxRetries,
-          })
+          const errorMessage =
+            lastError instanceof Error ? lastError.message : 'Unknown error'
+          throw new Exception(statusCode, `Proxy failed after retries: ${errorMessage}`)
         }
       }
     } catch (error) {
       logger.error(`Error setting up proxy:`, error)
 
-      if (!res.headersSent)
-        res.status(500).json({
-          error: `Failed to setup proxy`,
-          message: error instanceof Error ? error.message : `Unknown error`,
-        })
+      if (!res.headersSent) {
+        if (error instanceof Exception) throw error
+
+        const errorMessage = error instanceof Error ? error.message : `Unknown error`
+        throw new Exception(500, `Failed to setup proxy: ${errorMessage}`)
+      }
     }
   },
 }

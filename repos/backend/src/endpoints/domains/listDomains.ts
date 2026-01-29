@@ -3,8 +3,9 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { ERoleType } from '@tdsk/domain'
-import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import { isStr } from '@keg-hub/jsutils/isStr'
+import { Exception } from '@TBE/utils/errors/exception'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 
 /**
  * GET /domains - List all domains for an organization or project
@@ -19,17 +20,10 @@ export const listDomains: TEndpointConfig = {
     const { orgId, projectId } = req.query
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
 
-    if (!orgId && !projectId) {
-      res
-        .status(400)
-        .json({ error: 'Either orgId or projectId query parameter is required' })
-      return
-    }
+    if (!orgId && !projectId)
+      throw new Exception(400, `Either orgId or projectId query parameter is required`)
 
     const userRole = await getUserRole(req, {})
 
@@ -46,26 +40,19 @@ export const listDomains: TEndpointConfig = {
       if (isStr(projectId)) {
         // For project domains, verify user has access to the project
         const { data: project } = await db.services.project.get(projectId)
-        if (!project) {
-          res.status(404).json({ error: `Project not found` })
-          return
-        }
+        if (!project) throw new Exception(404, `Project not found`)
 
         // Check if user is member of the project's org
         const { data: orgIds } = await db.services.role.getUserOrgs(userId)
-        if (!orgIds?.length || !orgIds.includes(project.orgId)) {
-          res.status(403).json({ error: `Access denied` })
-          return
-        }
+        if (!orgIds?.length || !orgIds.includes(project.orgId))
+          throw new Exception(403, `Access denied`)
 
         domains = await db.services.domain.list({ where: { projectId } })
       } else if (isStr(orgId)) {
         // For org domains, verify user is member of the org
         const { data: orgIds } = await db.services.role.getUserOrgs(userId)
-        if (!orgIds?.length || !orgIds.includes(orgId)) {
-          res.status(403).json({ error: `Access denied` })
-          return
-        }
+        if (!orgIds?.length || !orgIds.includes(orgId))
+          throw new Exception(403, `Access denied`)
 
         domains = await db.services.domain.list({ where: { orgId } })
       }

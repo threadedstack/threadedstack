@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { ERoleType } from '@tdsk/domain'
+import { Exception } from '@TBE/utils/errors/exception'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -18,10 +19,7 @@ export const listProjects: TEndpointConfig = {
     const { orgId } = req.query
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
 
     const userRole = await getUserRole(req, {})
 
@@ -33,10 +31,7 @@ export const listProjects: TEndpointConfig = {
         ? await db.services.project.list({ where: { orgId: orgId as string } })
         : await db.services.project.list()
 
-      if (error) {
-        res.status(500).json({ error: error.message })
-        return
-      }
+      if (error) throw new Exception(500, error.message)
 
       res.status(200).json({ data: data || [] })
       return
@@ -52,11 +47,7 @@ export const listProjects: TEndpointConfig = {
 
     const whereClause = orgId ? { orgId: orgId } : { orgId: userOrgIds }
     const { data, error } = await db.services.project.list({ where: whereClause })
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data: data || [] })
   },

@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * DELETE /_/configs/:id - Delete config
@@ -19,13 +20,11 @@ export const deleteConfig: TEndpointConfig = {
     const { data: config, error: fetchError } = await db.services.config.get(id)
 
     if (fetchError) {
-      res.status(500).json({ error: fetchError.message })
-      return
+      throw new Exception(500, fetchError.message)
     }
 
     if (!config) {
-      res.status(404).json({ error: 'Config not found' })
-      return
+      throw new Exception(404, 'Config not found')
     }
 
     // Check permission
@@ -35,8 +34,8 @@ export const deleteConfig: TEndpointConfig = {
     })
 
     const { error } = await db.services.config.delete(id)
-    error
-      ? res.status(500).json({ error: error.message })
-      : res.status(200).json({ success: true })
+    if (error) throw new Exception(500, error.message)
+
+    res.status(200).json({ success: true })
   },
 }

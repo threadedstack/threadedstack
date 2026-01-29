@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { EFunLanguage } from '@tdsk/domain'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Function as TDFunction, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -26,20 +27,9 @@ export const createFunction: TEndpointConfig = {
       dependencies,
     } = req.body
 
-    if (!name) {
-      res.status(400).json({ error: `Function name is required` })
-      return
-    }
-
-    if (!content) {
-      res.status(400).json({ error: `Function content is required` })
-      return
-    }
-
-    if (!projectId) {
-      res.status(400).json({ error: `Project ID is required` })
-      return
-    }
+    if (!name) throw new Exception(400, `Function name is required`)
+    if (!projectId) throw new Exception(400, `Project ID is required`)
+    if (!content) throw new Exception(400, `Function content is required`)
 
     // Check permission - requires admin+
     await checkPermission(req, EPermAction.create, EPermResource.function, {
@@ -59,12 +49,13 @@ export const createFunction: TEndpointConfig = {
       })
 
       const { data, error } = await db.services.function.create(func)
-      error
-        ? res.status(500).json({ error: error.message })
-        : res.status(201).json({ data })
+      if (error) throw new Exception(500, error.message)
+      res.status(201).json({ data })
     } catch (err) {
+      if (err instanceof Exception) throw err
+
       const message = err instanceof Error ? err.message : `Failed to create function`
-      res.status(500).json({ error: message })
+      throw new Exception(500, message)
     }
   },
 }

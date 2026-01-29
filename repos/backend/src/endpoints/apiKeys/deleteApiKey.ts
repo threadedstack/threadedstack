@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -20,13 +21,11 @@ export const deleteApiKey: TEndpointConfig = {
     const { data: existing, error: getError } = await db.services.apiKey.get(id)
 
     if (getError) {
-      res.status(500).json({ error: getError.message })
-      return
+      throw new Exception(500, getError.message)
     }
 
     if (!existing) {
-      res.status(404).json({ error: `API key not found` })
-      return
+      throw new Exception(404, `API key not found`)
     }
 
     // Check permission based on API key's orgId - requires admin+
@@ -37,8 +36,7 @@ export const deleteApiKey: TEndpointConfig = {
     const { error } = await db.services.apiKey.revoke(id)
 
     if (error) {
-      res.status(500).json({ error: error.message })
-      return
+      throw new Exception(500, error.message)
     }
 
     logger.info({

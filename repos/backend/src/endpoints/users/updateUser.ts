@@ -2,6 +2,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import type { Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -21,25 +22,17 @@ export const updateUser: TEndpointConfig = {
     const currentUserId = req.user?.id
     const orgId = userData.orgId as string | undefined
 
-    // Check if user exists first
     const { data: existingUser, error: getError } = await db.services.user.get(id)
+    if (getError) throw new Exception(500, getError.message)
 
-    if (getError) {
-      res.status(500).json({ error: getError.message })
-      return
-    }
-
-    if (!existingUser) {
-      res.status(404).json({ error: 'User not found' })
-      return
-    }
+    if (!existingUser) throw new Exception(404, `User not found`)
 
     // Users can update themselves
     const isOwnProfile = currentUserId === id
 
     if (isOwnProfile) {
       // Allow self-update (limited fields - role cannot be changed here)
-      const allowedFields = ['name', 'avatar', 'email', 'metadata']
+      const allowedFields = [`name`, `avatar`, `email`, `metadata`]
       const filteredData = Object.keys(userData)
         .filter((key) => allowedFields.includes(key))
         .reduce((obj, key) => {
@@ -49,10 +42,7 @@ export const updateUser: TEndpointConfig = {
 
       const { data, error } = await db.services.user.update({ ...filteredData, id })
 
-      if (error) {
-        res.status(500).json({ error: error.message })
-        return
-      }
+      if (error) throw new Exception(500, error.message)
 
       res.status(200).json({ data })
       return
@@ -64,7 +54,7 @@ export const updateUser: TEndpointConfig = {
     } else {
       // Find a shared org to check permissions
       const { data: currentUserOrgs } = await db.services.role.getUserOrgs(
-        currentUserId || ''
+        currentUserId || ``
       )
       const { data: targetUserOrgs } = await db.services.role.getUserOrgs(id)
 
@@ -72,8 +62,7 @@ export const updateUser: TEndpointConfig = {
         currentUserOrgs?.filter((org) => targetUserOrgs?.includes(org)) || []
 
       if (sharedOrgs.length === 0) {
-        res.status(403).json({ error: 'You do not have permission to update this user' })
-        return
+        throw new Exception(403, `You do not have permission to update this user`)
       }
 
       // Check admin permission in first shared org
@@ -83,11 +72,7 @@ export const updateUser: TEndpointConfig = {
     }
 
     const { data, error } = await db.services.user.update({ ...userData, id })
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

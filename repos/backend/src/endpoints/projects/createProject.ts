@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -16,16 +17,10 @@ export const createProject: TEndpointConfig = {
     const { db } = req.app.locals
     const { orgId, name, ...projectData } = req.body
 
-    if (!orgId) {
-      res.status(400).json({ error: `orgId is required` })
-      return
-    }
+    if (!orgId) throw new Exception(400, `orgId is required`)
 
     // Validate required fields
-    if (!name) {
-      res.status(400).json({ error: `Project name is required` })
-      return
-    }
+    if (!name) throw new Exception(400, `Project name is required`)
 
     // Check permission - user must be member of org to create project
     await checkPermission(req, EPermAction.create, EPermResource.project, { orgId })
@@ -38,10 +33,7 @@ export const createProject: TEndpointConfig = {
       orgId,
     })
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(201).json({ data })
   },

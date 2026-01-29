@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import {
   Secret,
@@ -26,16 +27,8 @@ export const updateSecret: TEndpointConfig = {
     const { name, value } = req.body
 
     const { data: existing, error: getError } = await db.services.secret.get(id)
-
-    if (getError) {
-      res.status(500).json({ error: getError.message })
-      return
-    }
-
-    if (!existing) {
-      res.status(404).json({ error: `Secret not found` })
-      return
-    }
+    if (getError) throw new Exception(500, getError.message)
+    if (!existing) throw new Exception(404, `Secret not found`)
 
     // Check permission based on secret's scope - requires admin+
     await checkPermission(req, EPermAction.update, EPermResource.secret, {
@@ -60,12 +53,14 @@ export const updateSecret: TEndpointConfig = {
 
       const { data, error } = await db.services.secret.update(update)
 
-      error
-        ? res.status(500).json({ error: error.message })
-        : res.status(200).json({ data: data.sanitize() })
+      if (error) throw new Exception(500, error.message)
+
+      res.status(200).json({ data: data.sanitize() })
     } catch (err) {
+      if (err instanceof Exception) throw err
+
       const message = err instanceof Error ? err.message : `Failed to update secret`
-      res.status(500).json({ error: message })
+      throw new Exception(500, message)
     }
   },
 }

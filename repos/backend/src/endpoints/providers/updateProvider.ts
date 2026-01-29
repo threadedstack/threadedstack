@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { Provider, EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { isObj } from '@keg-hub/jsutils/isObj'
@@ -22,16 +23,8 @@ export const updateProvider: TEndpointConfig = {
 
     // Get existing provider to find its scope
     const { data: existingProvider, error: getError } = await db.services.provider.get(id)
-
-    if (getError) {
-      res.status(500).json({ error: getError.message })
-      return
-    }
-
-    if (!existingProvider) {
-      res.status(404).json({ error: 'Provider not found' })
-      return
-    }
+    if (getError) throw new Exception(500, getError.message)
+    if (!existingProvider) throw new Exception(404, `Provider not found`)
 
     // Check permission based on provider's scope
     const context = {
@@ -44,10 +37,7 @@ export const updateProvider: TEndpointConfig = {
     // Update the provider
     const { data, error } = await db.services.provider.update({ ...providerData, id })
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

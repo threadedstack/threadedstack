@@ -2,10 +2,10 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@TBE/utils/errors/exception'
-import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 import type { ERoleType } from '@tdsk/domain'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource, canManageRole } from '@tdsk/domain'
+import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * PUT /orgs/:id/members/:userId - Update member role in an org
@@ -21,15 +21,9 @@ export const updateMemberRole: TEndpointConfig = {
     const { type: newRoleType } = req.body
     const currentUserId = req.user?.id
 
-    if (!currentUserId) {
-      res.status(401).json({ error: 'Authentication required' })
-      return
-    }
+    if (!currentUserId) throw new Exception(401, `Authentication required`)
 
-    if (!newRoleType) {
-      res.status(400).json({ error: 'Role type is required' })
-      return
-    }
+    if (!newRoleType) throw new Exception(400, `Role type is required`)
 
     // Check permission (requires admin+ to manage members)
     await checkPermission(req, EPermAction.manage, EPermResource.org, { orgId })
@@ -39,36 +33,27 @@ export const updateMemberRole: TEndpointConfig = {
     const targetRole = newRoleType as ERoleType
 
     // Cannot promote to or above your own role
-    if (!canManageRole(currentUserRole, targetRole)) {
+    if (!canManageRole(currentUserRole, targetRole))
       throw new Exception(
         403,
         `You cannot assign ${targetRole} role. You can only assign roles below your own.`,
-        'FORBIDDEN'
+        `FORBIDDEN`
       )
-    }
 
     // Get the target user's current role
-    const { data: existingRole, error: roleError } = await db.services.role.getOrgRole(
+    const { error: roleError, data: existing } = await db.services.role.getOrgRole(
       userId,
       orgId
     )
-
-    if (roleError) {
-      res.status(500).json({ error: roleError.message })
-      return
-    }
-
-    if (!existingRole) {
-      res.status(404).json({ error: 'Org member not found' })
-      return
-    }
+    if (roleError) throw new Exception(500, roleError.message)
+    if (!existing) throw new Exception(404, `Org member not found`)
 
     // Check if current user can manage the target's current role
-    if (!canManageRole(currentUserRole, existingRole.type as ERoleType)) {
+    if (!canManageRole(currentUserRole, existing.type as ERoleType)) {
       throw new Exception(
         403,
-        'You cannot modify roles of members with equal or higher roles than your own.',
-        'FORBIDDEN'
+        `You cannot modify roles of members with equal or higher roles than your own.`,
+        `FORBIDDEN`
       )
     }
 
@@ -79,10 +64,7 @@ export const updateMemberRole: TEndpointConfig = {
       targetRole
     )
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

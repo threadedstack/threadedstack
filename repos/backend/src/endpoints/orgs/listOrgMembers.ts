@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -20,10 +21,7 @@ export const listOrgMembers: TEndpointConfig = {
 
     const { data, error } = await db.services.role.getOrgMembers(orgId)
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

@@ -3,6 +3,7 @@ import type { Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
 import { isSuperAdmin } from '@tdsk/domain'
+import { Exception } from '@TBE/utils/errors/exception'
 import { getUserRole, requireOrgMember } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -22,24 +23,16 @@ export const listUsers: TEndpointConfig = {
     const userRole = await getUserRole(req, {})
     const isSuper = isSuperAdmin(userRole)
 
-    if (!isSuper && !orgId) {
-      res.status(400).json({ error: 'orgId query parameter required' })
-      return
-    }
+    if (!isSuper && !orgId) throw new Exception(400, `orgId query parameter required`)
 
     // If orgId provided, verify user is member of that org
-    if (orgId) {
-      await requireOrgMember(req, orgId)
-    }
+    if (orgId) await requireOrgMember(req, orgId)
 
     // List users with roles in the specified org
     if (orgId) {
       const { data: roleData, error: roleError } =
         await db.services.role.getOrgMembers(orgId)
-      if (roleError) {
-        res.status(500).json({ error: roleError.message })
-        return
-      }
+      if (roleError) throw new Exception(500, roleError.message)
 
       // Get full user details for each member
       const userIds = roleData?.map((r) => r.userId) || []
@@ -58,10 +51,7 @@ export const listUsers: TEndpointConfig = {
 
     // Super admin: list all users
     const { data, error } = await db.services.user.list()
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })
   },

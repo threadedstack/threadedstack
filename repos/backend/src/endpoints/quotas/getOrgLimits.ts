@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -16,10 +17,7 @@ export const getOrgLimits: TEndpointConfig = {
     const { db, payments } = req.app.locals
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
 
     // Check membership
     await requireOrgMember(req, orgId)
@@ -27,38 +25,24 @@ export const getOrgLimits: TEndpointConfig = {
     // Get org owner through roles table
     const ownerRole = await db.services.role.getOrgOwner(orgId)
 
-    if (ownerRole.error || !ownerRole.data) {
-      res.status(500).json({
-        error: ownerRole.error?.message || 'Org owner not found',
-      })
-      return
-    }
+    if (ownerRole.error || !ownerRole.data)
+      throw new Exception(500, ownerRole.error?.message || `Org owner not found`)
 
     const ownerId = ownerRole.data.userId
 
     // Get owner's subscription
     const subResult = await db.services.subscription.findByUser(ownerId)
-    if (subResult.error) {
-      res.status(500).json({ error: subResult.error.message })
-      return
-    }
+    if (subResult.error) throw new Exception(500, subResult.error.message)
 
     // If no subscription, use free tier limits
     if (!subResult.data || !subResult.data.polarPriceId) {
-      const freeProductId = payments.service.getProductIdForTier('free')
+      const freeProductId = payments.service.getProductIdForTier(`free`)
 
-      if (!freeProductId) {
-        res.status(500).json({ error: 'Free tier not configured' })
-        return
-      }
+      if (!freeProductId) throw new Exception(500, `Free tier not configured`)
 
       const limitsResult = await payments.service.getPlanLimits(freeProductId)
-      if (limitsResult.error || !limitsResult.data) {
-        res.status(500).json({
-          error: limitsResult.error?.message || 'Failed to fetch limits',
-        })
-        return
-      }
+      if (limitsResult.error || !limitsResult.data)
+        throw new Exception(500, limitsResult.error?.message || `Failed to fetch limits`)
 
       res.status(200).json({ data: limitsResult.data })
       return
@@ -67,21 +51,13 @@ export const getOrgLimits: TEndpointConfig = {
     // Fetch limits from Polar using product ID
     const productResult = await payments.service.fetchProduct(subResult.data.polarPriceId)
 
-    if (productResult.error || !productResult.data) {
-      res.status(500).json({
-        error: productResult.error?.message || 'Failed to fetch product',
-      })
-      return
-    }
+    if (productResult.error || !productResult.data)
+      throw new Exception(500, productResult.error?.message || `Failed to fetch product`)
 
     const limitsResult = await payments.service.getPlanLimits(productResult.data.id)
 
-    if (limitsResult.error || !limitsResult.data) {
-      res.status(500).json({
-        error: limitsResult.error?.message || 'Failed to fetch limits',
-      })
-      return
-    }
+    if (limitsResult.error || !limitsResult.data)
+      throw new Exception(500, limitsResult.error?.message || `Failed to fetch limits`)
 
     res.status(200).json({ data: limitsResult.data })
   },

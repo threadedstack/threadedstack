@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * GET /_/configs/:id - Get config by ID
@@ -18,15 +19,9 @@ export const getConfig: TEndpointConfig = {
 
     const { data: config, error } = await db.services.config.get(id)
 
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
-    if (!config) {
-      res.status(404).json({ error: 'Config not found' })
-      return
-    }
+    if (!config) throw new Exception(404, `Config not found`)
 
     // Check permission based on config scope
     await checkPermission(req, EPermAction.read, EPermResource.config, {

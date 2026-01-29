@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -16,17 +17,10 @@ export const getDomain: TEndpointConfig = {
     const { domain } = req.params
     const { db } = req.app.locals
 
-    if (!domain) {
-      res.status(400).json({ error: 'Domain parameter is required' })
-      return
-    }
+    if (!domain) throw new Exception(400, `Domain parameter is required`)
 
     const { data: record, error } = await db.services.domain.by({ domain })
-
-    if (error) {
-      res.status(404).json({ error: error?.message || `Domain "${domain}" not found!` })
-      return
-    }
+    if (error) throw new Exception(404, error?.message || `Domain "${domain}" not found!`)
 
     // Check permission based on whether domain belongs to org or project
     if (record.orgId) {
@@ -35,12 +29,13 @@ export const getDomain: TEndpointConfig = {
       })
     } else if (record.projectId) {
       // Get project to find orgId
-      const { data: project } = await db.services.project.get(record.projectId)
-      if (project) {
+      const { data: project, error } = await db.services.project.get(record.projectId)
+      if (error) throw new Exception(404, error?.message)
+
+      if (project)
         await checkPermission(req, EPermAction.read, EPermResource.domain, {
           orgId: project.orgId,
         })
-      }
     }
 
     res.status(200).json({ data: record })

@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 
 /**
  * POST /subscriptions/checkout - Create a checkout session
@@ -15,44 +16,29 @@ export const createCheckout: TEndpointConfig = {
     const userId = req.user?.id
     const userEmail = req.user?.email
 
-    if (!userId || !userEmail) {
-      res.status(401).json({ error: `Authentication required` })
-      return
-    }
+    if (!userId || !userEmail) throw new Exception(401, `Authentication required`)
 
     const { tier, successUrl, cancelUrl } = req.body
 
-    if (!tier || !successUrl || !cancelUrl) {
-      res.status(400).json({
-        error: `Missing required fields: tier, successUrl, cancelUrl`,
-      })
-      return
-    }
+    if (!tier || !successUrl || !cancelUrl)
+      throw new Exception(400, `Missing required fields: tier, successUrl, cancelUrl`)
 
     // Get product ID for tier
     const productId = payments.service.getProductIdForTier(tier)
-    if (!productId) {
-      res.status(400).json({ error: `Invalid tier: ${tier}` })
-      return
-    }
+    if (!productId) throw new Exception(400, `Invalid tier: ${tier}`)
 
     // Get product to find price ID
     const productResult = await payments.service.fetchProduct(productId)
-    if (productResult.error || !productResult.data) {
-      res.status(500).json({
-        error: productResult.error?.message || 'Failed to fetch product',
-      })
-      return
-    }
+    if (productResult.error || !productResult.data)
+      throw new Exception(500, productResult.error?.message || `Failed to fetch product`)
 
     // Create or get customer
     const customerResult = await payments.service.ensureCustomer(userEmail, userId)
-    if (customerResult.error || !customerResult.data) {
-      res.status(500).json({
-        error: customerResult.error?.message || 'Failed to create customer',
-      })
-      return
-    }
+    if (customerResult.error || !customerResult.data)
+      throw new Exception(
+        500,
+        customerResult.error?.message || `Failed to create customer`
+      )
 
     // Create checkout session
     // Note: This assumes product has a price_id field - adjust based on actual Polar API
@@ -65,12 +51,11 @@ export const createCheckout: TEndpointConfig = {
       cancelUrl
     )
 
-    if (checkoutResult.error || !checkoutResult.data) {
-      res.status(500).json({
-        error: checkoutResult.error?.message || 'Failed to create checkout session',
-      })
-      return
-    }
+    if (checkoutResult.error || !checkoutResult.data)
+      throw new Exception(
+        500,
+        checkoutResult.error?.message || `Failed to create checkout session`
+      )
 
     res.status(200).json({ data: checkoutResult.data })
   },

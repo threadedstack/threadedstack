@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -18,16 +19,8 @@ export const deleteProject: TEndpointConfig = {
 
     // First get the project to find its orgId
     const { data: existing, error: getError } = await db.services.project.get(id)
-
-    if (getError) {
-      res.status(500).json({ error: getError.message })
-      return
-    }
-
-    if (!existing) {
-      res.status(404).json({ error: `Project not found` })
-      return
-    }
+    if (getError) throw new Exception(500, getError.message)
+    if (!existing) throw new Exception(404, `Project not found`)
 
     // Check permission - user must be admin of org to delete project
     await checkPermission(req, EPermAction.delete, EPermResource.project, {
@@ -36,11 +29,7 @@ export const deleteProject: TEndpointConfig = {
 
     // Delete the project
     const { data, error } = await db.services.project.delete(id)
-
-    if (error) {
-      res.status(500).json({ error: error.message })
-      return
-    }
+    if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data: { success: true, id } })
   },
