@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
 import { Button, Text } from '@tdsk/components'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
-import { ProjectsMenu } from '@TAF/components/Breadcrumbs/ProjectsMenu'
+import { ProjectsMenu } from '@TAF/components/Projects/ProjectsMenu'
 
 import {
   useActiveOrgId,

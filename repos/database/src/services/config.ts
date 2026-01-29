@@ -1,12 +1,8 @@
-import type { TDatabase, TDBConfigSelect, TDBConfigInsert } from '@TDB/types'
+import type { TServiceOpts, TDBConfigSelect, TDBConfigInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { configs } from '@TDB/schemas/configs'
 import { Config as ConfigModel } from '@tdsk/domain'
-
-export type TConfigOpts = {
-  db: TDatabase
-}
 
 export class Config extends Base<
   typeof configs,
@@ -14,7 +10,7 @@ export class Config extends Base<
   TDBConfigInsert,
   ConfigModel
 > {
-  constructor(opts: TConfigOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: configs })
   }
   model = (data: TDBConfigSelect) => new ConfigModel(data)

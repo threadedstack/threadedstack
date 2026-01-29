@@ -1,13 +1,9 @@
-import type { TDatabase, TDBApiKeySelect, TDBApiKeyInsert } from '@TDB/types'
+import type { TServiceOpts, TDBApiKeySelect, TDBApiKeyInsert } from '@TDB/types'
 
 import { eq } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { apiKeys } from '@TDB/schemas/apiKeys'
 import { ApiKey as ApiKeyModel } from '@tdsk/domain'
-
-export type TApiKeyOpts = {
-  db: TDatabase
-}
 
 export class ApiKey extends Base<
   typeof apiKeys,
@@ -15,7 +11,7 @@ export class ApiKey extends Base<
   TDBApiKeyInsert,
   ApiKeyModel
 > {
-  constructor(opts: TApiKeyOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: apiKeys })
   }
 

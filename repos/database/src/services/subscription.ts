@@ -1,20 +1,20 @@
-import type { TDatabase, TDBSubscriptionSelect, TDBSubscriptionInsert } from '@TDB/types'
+import type {
+  TServiceOpts,
+  TDBSubscriptionSelect,
+  TDBSubscriptionInsert,
+} from '@TDB/types'
 
 import { eq } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { subscriptions } from '@TDB/schemas/subscriptions'
 import { Subscription as SubscriptionModel } from '@tdsk/domain'
 
-export type TSubscriptionOpts = {
-  db: TDatabase
-}
-
 export class Subscription extends Base<
   typeof subscriptions,
   TDBSubscriptionSelect,
   TDBSubscriptionInsert
 > {
-  constructor(opts: TSubscriptionOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: subscriptions })
   }
 

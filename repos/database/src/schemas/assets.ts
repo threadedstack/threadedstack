@@ -1,10 +1,10 @@
 import { sql, relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
-import { projects } from '@TDB/schemas/projects'
 import { base } from '@TDB/utils/schema/base'
 import { threads } from '@TDB/schemas/threads'
 import { messages } from '@TDB/schemas/messages'
+import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { uuid, text, jsonb, check, pgTable } from 'drizzle-orm/pg-core'
 

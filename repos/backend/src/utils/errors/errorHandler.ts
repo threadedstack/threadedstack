@@ -1,5 +1,7 @@
-import { Exception } from './exception'
 import type { NextFunction, Request, Response } from 'express'
+import { Exception } from './exception'
+import { logger } from '@TBE/utils/logger'
+import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 
 export const errorHandler = function errorHandler(
   error: Exception,
@@ -9,13 +11,15 @@ export const errorHandler = function errorHandler(
 ): void {
   const isCustomEx = error instanceof Exception
 
-  const errorCode = error.errorCode
+  const code = error.errorCode
+  const message = error.message
   const status = isCustomEx ? error.status : 500
-  const message = error.message || `Something went wrong`
+
+  logger.error(error.stack, cleanColl({ status, code, message }))
 
   res.status(status).json({
+    code,
     status,
     message,
-    errorCode,
   })
 }

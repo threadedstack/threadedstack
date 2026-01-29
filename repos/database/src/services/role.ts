@@ -1,6 +1,6 @@
 import type {
-  TDatabase,
   TDBApiRes,
+  TServiceOpts,
   TDBRoleSelect,
   TDBRoleInsert,
   TDBApiResType,
@@ -11,12 +11,8 @@ import { roles } from '@TDB/schemas/roles'
 import { Role as RoleModel } from '@tdsk/domain'
 import { eq, and, isNotNull } from 'drizzle-orm'
 
-export type TRoleOpts = {
-  db: TDatabase
-}
-
 export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleModel> {
-  constructor(opts: TRoleOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: roles })
   }
 

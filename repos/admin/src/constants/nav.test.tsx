@@ -2,7 +2,7 @@ import type { TNavCtx } from '@TAF/types'
 
 import { describe, it, expect } from 'vitest'
 import { getDynamicNav } from '@TAF/utils/nav/getDynamicNav'
-import { OrgNavItems, ProjectNavItems, GlobalNavItems, BottomNavItems } from './nav'
+import { OrgNavItems, ProjectNavItems, BottomNavItems } from './nav'
 
 describe(`getDynamicNav`, () => {
   describe(`with no context`, () => {
@@ -16,11 +16,6 @@ describe(`getDynamicNav`, () => {
       const config = getDynamicNav({})
       expect(config.bottomItems.length).toBeGreaterThan(0)
       expect(config.bottomItems).toBe(BottomNavItems)
-    })
-
-    it(`should have global items in first section`, () => {
-      const config = getDynamicNav({})
-      expect(config.sections[0].items).toBe(GlobalNavItems)
     })
 
     it(`should not include org or project sections`, () => {

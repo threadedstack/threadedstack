@@ -1,5 +1,5 @@
 import type {
-  TDatabase,
+  TServiceOpts,
   TDBQueryOpts,
   TDBDomainsSelect,
   TDBDomainsInsert,
@@ -12,17 +12,9 @@ import { isStr } from '@keg-hub/jsutils/isStr'
 import { certificates } from '@TDB/schemas/certificates'
 import { Domain as DomainModel, Certificate as CertModel } from '@tdsk/domain'
 
-export type TDomainOpts = {
-  db: TDatabase
-}
-
 export type TValidCert = {
   error?: Error
   data?: CertModel
-}
-
-export type TDomainWithCerts = TDBDomainsSelect & {
-  certificates: (typeof certificates.$inferSelect)[]
 }
 
 /**
@@ -34,7 +26,7 @@ export class DomainService extends Base<
   TDBDomainsInsert,
   DomainModel
 > {
-  constructor(opts: TDomainOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: domains })
   }
   model = (data: TDBDomainsSelect) => new DomainModel(data)
@@ -48,15 +40,37 @@ export class DomainService extends Base<
   }
 
   async create(data: TDBDomainsInsert) {
-    // TODO: if sslCertificate exist, then create a new certificate in the certificates table
-    // if the certificate if manually uploaded i.e. `data.sslCertificate` exists
-    return await super.create(data)
+    // Create the domain record first
+    const result = await super.create(data)
+
+    // If SSL certificate was manually uploaded, save it to certificates table
+    if (data.sslCertificate && result.data) {
+      const { error } = await this.#customCert(
+        result.data.domain,
+        data.sslCertificate,
+        data.sslPrivateKey
+      )
+      if (error) return { error }
+    }
+
+    return result
   }
 
   async update(data: TDBDomainsInsert) {
-    // TODO: if sslCertificate exist, then create a new certificate in the certificates table
-    // if the certificate if manually uploaded i.e. `data.sslCertificate` exists
-    return await super.update(data)
+    // Update the domain record first
+    const result = await super.update(data)
+
+    // If SSL certificate was manually uploaded, save it to certificates table
+    if (data.sslCertificate && result.data) {
+      const { error } = await this.#customCert(
+        result.data.domain,
+        data.sslCertificate,
+        data.sslPrivateKey
+      )
+      if (error) return { error }
+    }
+
+    return result
   }
 
   /**
@@ -65,6 +79,84 @@ export class DomainService extends Base<
   async by(prop: string | Record<string, any>, value?: any | TDBQueryOpts) {
     const data = isStr(prop) ? { [prop]: value } : prop
     return await super.by(data, { with: { certificates: true } })
+  }
+
+  /**
+   * Save a manually uploaded SSL certificate to the certificates table
+   * Follows the same pattern as Caddy's certmagic storage for compatibility
+   *
+   * Caddy stores certificates in a hierarchical structure:
+   * - For domain "example.com":
+   *   - Directory entry: ("", "example.com", false)
+   *   - Certificate file: ("example.com", "example.com.crt", true, <cert_data>)
+   *   - Private key file: ("example.com", "example.com.key", true, <key_data>)
+   *
+   * @param domain - Domain name (e.g., 'example.com')
+   * @param certificate - SSL certificate PEM string
+   * @param privateKey - SSL private key PEM string (optional)
+   */
+  async #customCert(domain: string, certificate: string, privateKey?: string) {
+    try {
+      // Use a transaction to ensure atomicity
+      await this.db.transaction(async (tx) => {
+        // Step 1: Create directory entry for the domain
+        // This mimics Caddy's behavior of creating directory structures
+        await tx
+          .insert(certificates)
+          .values({
+            parent: '',
+            name: domain,
+            isFile: false,
+            value: null,
+            modified: new Date(),
+          })
+          .onConflictDoNothing()
+
+        // Step 2: Create certificate file entry
+        const certBuffer = Buffer.from(certificate, 'utf-8')
+        await tx
+          .insert(certificates)
+          .values({
+            parent: domain,
+            name: `${domain}.crt`,
+            isFile: true,
+            value: certBuffer,
+            modified: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: [certificates.parent, certificates.name],
+            set: {
+              value: certBuffer,
+              modified: new Date(),
+            },
+          })
+
+        // Step 3: Create private key file entry (if provided)
+        if (privateKey) {
+          const keyBuffer = Buffer.from(privateKey, 'utf-8')
+          await tx
+            .insert(certificates)
+            .values({
+              parent: domain,
+              name: `${domain}.key`,
+              isFile: true,
+              value: keyBuffer,
+              modified: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: [certificates.parent, certificates.name],
+              set: {
+                value: keyBuffer,
+                modified: new Date(),
+              },
+            })
+        }
+      })
+
+      return { success: true }
+    } catch (error: any) {
+      return { error }
+    }
   }
 
   /**

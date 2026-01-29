@@ -1,14 +1,13 @@
-import type { PgSelectBase } from 'drizzle-orm/pg-core'
+import type { SQL } from 'drizzle-orm'
 import type { TDBQueryOpts, TTableSchema } from '@TDB/types'
 
 import { isArr } from '@keg-hub/jsutils/isArr'
-import type { SQL } from 'drizzle-orm'
-import { eq, and, inArray, asc, desc } from 'drizzle-orm'
-
-type TQuery = PgSelectBase<any, any, any>
+import { eq, inArray, asc, desc } from 'drizzle-orm'
 
 export const addWhere = (table: TTableSchema, opts: TDBQueryOpts) => {
   const conditions: SQL[] = []
+
+  if (!opts?.where) return conditions
 
   for (const [key, value] of Object.entries(opts.where)) {
     if (value === undefined || value === null) continue
@@ -30,25 +29,4 @@ export const addOrderBy = (table: TTableSchema, opts: TDBQueryOpts) => {
 
   const orderFn = opts.orderBy.direction === `desc` ? desc : asc
   return orderFn(column)
-}
-
-export const buildQuery = <Q extends TQuery = TQuery>(
-  query: Q,
-  table: TTableSchema,
-  opts: TDBQueryOpts
-) => {
-  if (opts?.where) {
-    const conditions = addWhere(table, opts)
-    if (conditions.length > 0) query = query.where(and(...conditions)) as any
-  }
-
-  if (opts?.orderBy?.column) {
-    const ordered = addOrderBy(table, opts)
-    query = query.orderBy(ordered) as any
-  }
-
-  if (opts?.limit !== undefined) query = query.limit(opts.limit) as any
-  if (opts?.offset !== undefined) query = query.offset(opts.offset) as any
-
-  return query
 }

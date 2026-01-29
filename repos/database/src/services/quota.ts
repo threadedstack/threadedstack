@@ -1,4 +1,4 @@
-import type { TDatabase, TDBQuotaSelect, TDBQuotaInsert } from '@TDB/types'
+import type { TServiceOpts, TDBQuotaSelect, TDBQuotaInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { quotas } from '@TDB/schemas/quotas'
@@ -18,12 +18,8 @@ type TIncrementKey = keyof Pick<
   | 'projectSecrets'
 >
 
-export type TQuotaOpts = {
-  db: TDatabase
-}
-
 export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
-  constructor(opts: TQuotaOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: quotas })
   }
 

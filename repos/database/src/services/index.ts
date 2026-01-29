@@ -1,5 +1,4 @@
 export { Org as org } from './org'
-export { Base as base } from './base'
 export { Role as role } from './role'
 export { User as user } from './user'
 export { Asset as asset } from './asset'

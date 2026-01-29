@@ -2,9 +2,10 @@ import type { Domain } from '@tdsk/domain'
 
 import { isDomain } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
-import { Box, Button, Typography } from '@mui/material'
+import { Upload as UploadIcon } from '@mui/icons-material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { ConfirmDelete, Drawer, TextInput } from '@tdsk/components'
+import { Box, Button, Typography, IconButton } from '@mui/material'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 import { createDomain, updateDomain, deleteDomain } from '@TAF/actions/domains/api'
 
@@ -75,9 +76,7 @@ export const DomainDrawer = ({
     let result: { error?: Error } | undefined
 
     if (isEditMode && domain) {
-      const updateData: Partial<Domain> = {
-        domain: domainName.trim(),
-      }
+      const updateData: Partial<Domain> = { domain: domainName.trim() }
 
       const key = sslPrivateKey.trim()
       if (key) updateData.sslPrivateKey = key
@@ -87,9 +86,7 @@ export const DomainDrawer = ({
 
       result = await updateDomain(domain.id, updateData)
     } else {
-      const params: Partial<Domain> = {
-        domain: domainName.trim(),
-      }
+      const params: Partial<Domain> = { domain: domainName.trim() }
 
       const key = sslPrivateKey.trim()
       if (key) params.sslPrivateKey = key
@@ -136,6 +133,36 @@ export const DomainDrawer = ({
       onSuccessCB?.()
       onClose()
     }
+  }
+
+  const onCertificateFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const content = event.target?.result as string
+      if (content) {
+        setSslCertificate(content)
+      }
+    }
+    reader.onerror = () => setError(`Failed to read certificate file. Please try again.`)
+    reader.readAsText(file)
+  }
+
+  const onPrivateKeyFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const content = event.target?.result as string
+      if (content) {
+        setSslPrivateKey(content)
+      }
+    }
+    reader.onerror = () => setError(`Failed to read private key file. Please try again.`)
+    reader.readAsText(file)
   }
 
   return (
@@ -235,29 +262,78 @@ export const DomainDrawer = ({
 
           {isEditMode && (
             <>
-              <TextInput
-                fullWidth
-                textarea
-                minRows={3}
-                disabled={loading}
-                value={sslPrivateKey}
-                label='SSL Private Key'
-                id='tdsk-ssl-private-key-input'
-                placeholder='Paste SSL private key (optional)'
-                onChange={(e) => setSslPrivateKey(e.target.value)}
-              />
+              <Box>
+                <TextInput
+                  fullWidth
+                  textarea
+                  minRows={3}
+                  disabled={loading}
+                  value={sslPrivateKey}
+                  label='SSL Private Key'
+                  id='tdsk-ssl-private-key-input'
+                  placeholder='Paste SSL private key (optional) or upload file'
+                  onChange={(e) => setSslPrivateKey(e.target.value)}
+                  endAdornment={
+                    <IconButton
+                      component='label'
+                      disabled={loading}
+                      sx={{ position: 'absolute', right: 8, top: 8 }}
+                    >
+                      <UploadIcon />
+                      <input
+                        type='file'
+                        accept='.key,.pem'
+                        hidden
+                        onChange={onPrivateKeyFileUpload}
+                      />
+                    </IconButton>
+                  }
+                />
+                <Typography
+                  variant='caption'
+                  color='text.secondary'
+                  sx={{ display: 'block', mt: 0.5 }}
+                >
+                  Upload a .key or .pem file, or paste the private key content above
+                </Typography>
+              </Box>
 
-              <TextInput
-                fullWidth
-                textarea
-                minRows={3}
-                disabled={loading}
-                value={sslCertificate}
-                label='SSL Certificate'
-                id='tdsk-ssl-certificate-input'
-                placeholder='Paste SSL certificate (optional)'
-                onChange={(e) => setSslCertificate(e.target.value)}
-              />
+              <Box>
+                <TextInput
+                  fullWidth
+                  textarea
+                  minRows={3}
+                  disabled={loading}
+                  value={sslCertificate}
+                  label='SSL Certificate'
+                  id='tdsk-ssl-certificate-input'
+                  placeholder='Paste SSL certificate (optional) or upload file'
+                  onChange={(e) => setSslCertificate(e.target.value)}
+                  endAdornment={
+                    <IconButton
+                      component='label'
+                      disabled={loading}
+                      sx={{ position: 'absolute', right: 8, top: 8 }}
+                    >
+                      <UploadIcon />
+                      <input
+                        type='file'
+                        accept='.crt,.pem,.cert'
+                        hidden
+                        onChange={onCertificateFileUpload}
+                      />
+                    </IconButton>
+                  }
+                />
+                <Typography
+                  variant='caption'
+                  color='text.secondary'
+                  sx={{ display: 'block', mt: 0.5 }}
+                >
+                  Upload a .crt, .pem, or .cert file, or paste the certificate content
+                  above
+                </Typography>
+              </Box>
             </>
           )}
         </Box>

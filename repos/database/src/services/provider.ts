@@ -1,12 +1,8 @@
-import type { TDatabase, TDBProviderSelect, TDBProviderInsert } from '@TDB/types'
+import type { TServiceOpts, TDBProviderSelect, TDBProviderInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { providers } from '@TDB/schemas/providers'
 import { Provider as ProviderModel } from '@tdsk/domain'
-
-export type TProviderOpts = {
-  db: TDatabase
-}
 
 export class Provider extends Base<
   typeof providers,
@@ -14,7 +10,7 @@ export class Provider extends Base<
   TDBProviderInsert,
   ProviderModel
 > {
-  constructor(opts: TProviderOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: providers })
   }
   model = (data: TDBProviderSelect) => {

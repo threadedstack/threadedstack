@@ -1,11 +1,14 @@
-import { Toolbar, Divider } from '@mui/material'
+import { useState } from 'react'
 import { dims } from '@tdsk/components'
+import { Toolbar, Divider, Box } from '@mui/material'
 import { SBLogo } from '@TAF/components/Sidebar/SBLogo'
-import { SBSection } from '@TAF/components/Sidebar/SBSection'
 import { useDynamicNav } from '@TAF/hooks/nav/useDynamicNav'
 import { SBNavList } from '@TAF/components/Sidebar/SBNavList'
+import { SBSection } from '@TAF/components/Sidebar/SBSection'
 import { ChevronLeft, ChevronRight } from '@mui/icons-material'
 import { useActiveOrgId, useSidebarOpen } from '@TAF/state/selectors'
+import { SBProjectSelector } from '@TAF/components/Sidebar/SBProjectSelector'
+import { CreateProjectDrawer } from '@TAF/components/Projects/CreateProjectDrawer'
 import {
   SideDrawer,
   SBToggleBox,
@@ -18,7 +21,10 @@ export type TSidebar = {}
 export const Sidebar = (props: TSidebar) => {
   const [orgId] = useActiveOrgId()
   const [open, setOpen] = useSidebarOpen()
+  const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const { config, context } = useDynamicNav()
+
+  const onCreateProject = () => setCreateProjectOpen(true)
 
   return (
     (orgId && (
@@ -54,22 +60,33 @@ export const Sidebar = (props: TSidebar) => {
               null}
           </Toolbar>
 
-          {config.sections.map((section) => {
+          {config.sections.map((section, idx) => {
             if (section.visible && !section.visible(context)) return null
 
             return (
-              <SBSection
-                open={open}
-                id={section.id}
-                key={section.id}
-                context={context}
-                headerTo={section.to}
-                items={section.items}
-                defaultExpanded={true}
-                header={section.header}
-              />
+              <>
+                {(idx && (
+                  <Box sx={{ px: 0.5, my: 1 }}>{(!open && <Divider />) || null}</Box>
+                )) ||
+                  null}
+                <SBSection
+                  open={open}
+                  id={section.id}
+                  key={section.id}
+                  context={context}
+                  headerTo={section.to}
+                  items={section.items}
+                  defaultExpanded={true}
+                  header={section.header}
+                />
+              </>
             )
           })}
+
+          <SBProjectSelector
+            open={open}
+            onCreateProject={onCreateProject}
+          />
 
           <SBNavListSpacer />
           <Divider />
@@ -79,6 +96,14 @@ export const Sidebar = (props: TSidebar) => {
             context={context}
             items={config.bottomItems}
           />
+
+          {orgId && (
+            <CreateProjectDrawer
+              orgId={orgId}
+              open={createProjectOpen}
+              onClose={() => setCreateProjectOpen(false)}
+            />
+          )}
         </SideDrawer>
       </>
     )) ||

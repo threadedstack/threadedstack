@@ -17,14 +17,14 @@ const filterOptionsReq = () => {
 }
 
 const getFormatter = (label: string) => {
-  return process.env.NODE_ENV !== 'production'
+  return process.env.NODE_ENV !== `production`
     ? combine(
         filterOptionsReq(),
         timestamp(),
         logLabel({ label }),
         simple(),
         json(),
-        prettyPrint({ colorize: true })
+        prettyPrint({ depth: 10, colorize: true })
       )
     : combine(filterOptionsReq(), splat(), timestamp(), logLabel({ label }), json())
 }

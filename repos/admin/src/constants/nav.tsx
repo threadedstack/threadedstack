@@ -43,9 +43,6 @@ export const HeaderSettingsItems = [
   },
 ]
 
-// Global navigation items (always visible)
-export const GlobalNavItems: TNavItem[] = []
-
 // Org-scoped navigation items
 export const OrgNavItems: TNavItem[] = [
   {

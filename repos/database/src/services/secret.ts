@@ -1,12 +1,8 @@
-import type { TDatabase, TDBSecretSelect, TDBSecretInsert } from '@TDB/types'
+import type { TServiceOpts, TDBSecretSelect, TDBSecretInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { secrets } from '@TDB/schemas/secrets'
 import { Secret as SecretModel } from '@tdsk/domain'
-
-export type TSecretOpts = {
-  db: TDatabase
-}
 
 export class Secret extends Base<
   typeof secrets,
@@ -14,7 +10,7 @@ export class Secret extends Base<
   TDBSecretInsert,
   SecretModel
 > {
-  constructor(opts: TSecretOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: secrets })
   }
 

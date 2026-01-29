@@ -9,13 +9,13 @@ import type {
   TDBEntityInsert,
 } from '@TDB/types'
 
-import { eq, and } from 'drizzle-orm'
 import { logger } from '@TDB/utils/logger'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { exists } from '@keg-hub/jsutils/exists'
+import { eq, and, getTableName } from 'drizzle-orm'
+import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
 import { DBError, DBIdError, DBValueError } from '@TDB/utils/error/error'
-import { addWhere, buildQuery, addOrderBy } from '@TDB/utils/database/buildQuery'
 
 export type TBase = {
   db: TDatabase
@@ -30,6 +30,7 @@ export class Base<
   M extends BaseModel = BaseModel,
 > implements IDBApi<M, I>
 {
+  name: string
   table: TTable
   db: TDatabase
   config: Record<string, any>
@@ -38,11 +39,13 @@ export class Base<
     this.db = opts.db
     this.table = opts.table
     this.config = opts.config || {}
+    this.name = getTableName(this.table)
   }
 
   model = (data: S, ...args: any[]): M => {
-    const owner = this.constructor.name
-    logger.error(`Warning, the ${owner} class should override this function!`)
+    logger.error(
+      `Warning, the ${this.constructor.name} class should override this function!`
+    )
     return data as unknown as M
   }
 
@@ -58,8 +61,8 @@ export class Base<
 
   async by(
     prop: string | Record<string, any>,
-    value?: any | TDBQueryOpts,
-    opts?: TDBQueryOpts
+    value?: any | Pick<TDBQueryOpts, `with`>,
+    opts?: Pick<TDBQueryOpts, `with`>
   ): Promise<TDBApiRes<M>> {
     let property: string
     if (isStr(prop)) property = prop
@@ -72,35 +75,39 @@ export class Base<
     if (!exists(value)) return { error: new DBValueError(`${this.constructor.name}.by`) }
 
     try {
-      const row = await this.db.query[this.table.name].findFirst({
+      const row = await this.db.query[this.name].findFirst({
         with: opts?.with,
         where: eq(this.table[property], value),
       })
 
-      return row ? { data: this.model(row) } : { error: new DBError(`Domain not found`) }
+      return row
+        ? { data: this.model(row) }
+        : { error: new DBError(`${this.constructor.name} not found`) }
     } catch (error: any) {
       return { error }
     }
   }
 
-  async get(id: string, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> {
+  async get(id: string, opts?: Pick<TDBQueryOpts, `with`>): Promise<TDBApiRes<M>> {
     try {
-      const row = await this.db.query[this.table.name].findFirst({
+      const row = await this.db.query[this.name].findFirst({
         with: opts?.with,
         where: eq(this.table.id, id),
       })
 
-      return row ? { data: this.model(row) } : { error: new DBError(`Domain not found`) }
+      return row
+        ? { data: this.model(row) }
+        : { error: new DBError(`${this.constructor.name} not found`) }
     } catch (error: any) {
       return { error }
     }
   }
 
-  async list(opts?: TDBQueryOpts): Promise<TDBApiRes<M[]>> {
+  async list(opts: TDBQueryOpts = {}): Promise<TDBApiRes<M[]>> {
     const { where, limit, offset, orderBy } = opts
 
     try {
-      const found = await this.db.query[this.table.name].findMany({
+      const found = await this.db.query[this.name].findMany({
         limit,
         offset,
         with: opts.with,
@@ -133,7 +140,7 @@ export class Base<
     }
   }
 
-  async upsert(data: I, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> {
+  async upsert(data: I): Promise<TDBApiRes<M>> {
     try {
       const id = data.id
       !id && DBIdError.throw()
@@ -153,7 +160,7 @@ export class Base<
     }
   }
 
-  async delete(id: string, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> {
+  async delete(id: string): Promise<TDBApiRes<M>> {
     try {
       const resp = await this.db
         .delete(this.table)

@@ -1,12 +1,8 @@
-import type { TDatabase, TDBThreadSelect, TDBThreadInsert } from '@TDB/types'
+import type { TServiceOpts, TDBThreadSelect, TDBThreadInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { threads } from '@TDB/schemas/threads'
 import { Thread as ThreadModel } from '@tdsk/domain'
-
-export type TThreadOpts = {
-  db: TDatabase
-}
 
 export class Thread extends Base<
   typeof threads,
@@ -14,7 +10,7 @@ export class Thread extends Base<
   TDBThreadInsert,
   ThreadModel
 > {
-  constructor(opts: TThreadOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: threads })
   }
 

@@ -2,12 +2,7 @@ import type { TNavCtx, TDynamicNavConfig } from '@TAF/types'
 
 import { ERoutePath } from '@TAF/types'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
-import {
-  OrgNavItems,
-  GlobalNavItems,
-  BottomNavItems,
-  ProjectNavItems,
-} from '@TAF/constants/nav'
+import { OrgNavItems, BottomNavItems, ProjectNavItems } from '@TAF/constants/nav'
 
 /**
  * Get dynamic navigation configuration based on context
@@ -16,11 +11,6 @@ import {
  */
 export const getDynamicNav = (context: TNavCtx): TDynamicNavConfig => {
   const sections = []
-
-  sections.push({
-    id: `global`,
-    items: GlobalNavItems,
-  })
 
   if (context.orgId) {
     sections.push({
@@ -32,7 +22,7 @@ export const getDynamicNav = (context: TNavCtx): TDynamicNavConfig => {
     })
   }
 
-  if (context.orgId && context.projectId) {
+  if (context.orgId) {
     sections.push({
       id: `project`,
       items: ProjectNavItems,

@@ -1,6 +1,6 @@
 import type {
   TDBApiRes,
-  TDatabase,
+  TServiceOpts,
   TDBApiResType,
   TDBInvitationSelect,
   TDBInvitationInsert,
@@ -11,17 +11,13 @@ import { Base } from '@TDB/services/base'
 import { invitations } from '@TDB/schemas/invitations'
 import { EInviteStatus, Invitation as InvitationModel } from '@tdsk/domain'
 
-export type TInvitationOpts = {
-  db: TDatabase
-}
-
 export class Invitation extends Base<
   typeof invitations,
   TDBInvitationSelect,
   TDBInvitationInsert,
   InvitationModel
 > {
-  constructor(opts: TInvitationOpts) {
+  constructor(opts: TServiceOpts) {
     super({ ...opts, table: invitations })
   }
 

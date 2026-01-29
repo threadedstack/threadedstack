@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { isSuperAdmin, ERoleType } from '@tdsk/domain'
+import { Exception } from '@TBE/utils/errors/exception'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -17,10 +18,7 @@ export const listOrgs: TEndpointConfig = {
     const { db } = req.app.locals
     const userId = req.user?.id
 
-    if (!userId) {
-      res.status(401).json({ error: 'Authentication required' })
-      return
-    }
+    if (!userId) throw new Exception(401, `Authentication required`)
 
     const userRole = await getUserRole(req, {})
     const isSuper = isSuperAdmin(userRole)
@@ -29,10 +27,7 @@ export const listOrgs: TEndpointConfig = {
     const { data: userRoles, error: rolesError } =
       await db.services.role.getUserRoles(userId)
 
-    if (rolesError) {
-      res.status(500).json({ error: rolesError.message })
-      return
-    }
+    if (rolesError) throw new Exception(500, rolesError.message)
 
     // Create map of orgId -> role type
     const orgRoleMap = new Map<string, ERoleType>()
@@ -46,10 +41,7 @@ export const listOrgs: TEndpointConfig = {
       // Super admins can see all orgs
       const { data, error } = await db.services.org.list()
 
-      if (error) {
-        res.status(500).json({ error: error.message })
-        return
-      }
+      if (error) throw new Exception(500, error.message)
 
       // Attach user role to each org (super for all orgs)
       const orgsWithRoles = data?.map((org) => ({
@@ -66,20 +58,14 @@ export const listOrgs: TEndpointConfig = {
     const { data: orgIds, error: orgIdsError } =
       await db.services.role.getUserOrgs(userId)
 
-    if (orgIdsError) {
-      res.status(500).json({ error: orgIdsError.message })
-      return
-    }
+    if (orgIdsError) throw new Exception(500, orgIdsError.message)
 
     // Fetch only orgs the user is a member of using DB filtering
     const { data: userOrgs, error: listError } = await db.services.org.list({
       where: { id: orgIds },
     })
 
-    if (listError) {
-      res.status(500).json({ error: listError.message })
-      return
-    }
+    if (listError) throw new Exception(500, listError.message)
 
     // Attach user role to each org
     const orgsWithRoles =
