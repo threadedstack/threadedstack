@@ -5,6 +5,7 @@ import {
   EEPAuthTypes,
   EFunLanguage,
   EApiKeyScope,
+  EEPVisibility,
   EEPCredentialOpts,
 } from '@tdsk/domain'
 
@@ -13,6 +14,7 @@ export const SidebarWidthOpen = 240
 export const SidebarWidthClosed = 60
 export const HttpMethods = Object.keys(EHttpMethod)
 export const ApiKeyScopes = Object.values(EApiKeyScope)
+export const EPVisibility = Object.values(EEPVisibility)
 
 export const AllAuthRoles = [
   {
@@ -47,3 +49,17 @@ export const LanguageOpts = Object.values(EFunLanguage).map((value) => ({
   value,
   label: capitalize(value),
 }))
+
+export const HttpMethodOps = HttpMethods.map((method) => {
+  return {
+    label: method,
+    value: method.toLowerCase(),
+  }
+})
+
+export const EPVisibilityOpts = EPVisibility.map((value) => {
+  return {
+    value,
+    label: capitalize(value),
+  }
+})

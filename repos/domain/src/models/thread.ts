@@ -7,6 +7,8 @@ export class Thread extends Base {
   configId?: string
   providerId?: string
   userId: string
+  projectId?: string
+  orgId?: string
 
   constructor(thread: Partial<Thread>) {
     super()

@@ -1,3 +1,8 @@
+export enum EEPVisibility {
+  public = `public`,
+  private = `private`,
+}
+
 export enum EEPAuthTypes {
   apikey = `apikey`,
   basic = `basic`,

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { dims } from '@tdsk/components'
 import { Toolbar, Divider, Box } from '@mui/material'
 import { SBLogo } from '@TAF/components/Sidebar/SBLogo'
@@ -64,7 +64,7 @@ export const Sidebar = (props: TSidebar) => {
             if (section.visible && !section.visible(context)) return null
 
             return (
-              <>
+              <Fragment key={section.id}>
                 {(idx && (
                   <Box sx={{ px: 0.5, my: 1 }}>{(!open && <Divider />) || null}</Box>
                 )) ||
@@ -79,14 +79,14 @@ export const Sidebar = (props: TSidebar) => {
                   defaultExpanded={true}
                   header={section.header}
                 />
-              </>
+              </Fragment>
             )
           })}
 
-          <SBProjectSelector
+          {/*<SBProjectSelector
             open={open}
             onCreateProject={onCreateProject}
-          />
+          />*/}
 
           <SBNavListSpacer />
           <Divider />

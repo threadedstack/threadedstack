@@ -7,6 +7,8 @@ export class Message extends Base {
   content: Record<string, any>
   threadId: string
   meta?: Record<string, any>
+  projectId?: string
+  orgId?: string
 
   constructor(message: Partial<Message>) {
     super()

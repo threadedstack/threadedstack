@@ -17,9 +17,8 @@ export const updateEndpoint = async (
   if (resp.error) return { error: resp.error }
 
   if (resp.data) {
-    // Update endpoints state with the updated endpoint
-    const currentEndpoints = getEndpoints() || {}
-    setEndpoints({ ...currentEndpoints, [resp.data.id]: resp.data })
+    const endpoints = getEndpoints() || {}
+    setEndpoints({ ...endpoints, [resp.data.id]: resp.data })
   }
 
   return resp

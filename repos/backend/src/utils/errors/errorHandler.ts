@@ -18,8 +18,6 @@ export const errorHandler = function errorHandler(
   logger.error(error.stack, cleanColl({ status, code, message }))
 
   res.status(status).json({
-    code,
-    status,
-    message,
+    error: message,
   })
 }

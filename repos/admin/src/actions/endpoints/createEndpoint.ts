@@ -24,14 +24,11 @@ export const createEndpoint = async (
 ): Promise<TCreateEndpointResult> => {
   const resp = await endpointsApi.create(ep)
 
-  if (resp.error) {
-    return { error: resp.error }
-  }
+  if (resp.error) return { error: resp.error }
 
   if (resp.data) {
-    // Update endpoints state with the new endpoint
-    const currentEndpoints = getEndpoints() || {}
-    setEndpoints({ ...currentEndpoints, [resp.data.id]: resp.data })
+    const endpoints = getEndpoints() || {}
+    setEndpoints({ ...endpoints, [resp.data.id]: resp.data })
   }
 
   return resp

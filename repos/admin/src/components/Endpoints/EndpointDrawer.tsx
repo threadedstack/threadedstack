@@ -8,7 +8,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
-import { HttpMethods, AuthTypes, CredentialOpts } from '@TAF/constants/values'
+import { HttpMethodOps, AuthTypes, CredentialOpts } from '@TAF/constants/values'
 import { ConfirmDelete, TextInput, SelectInput, SwitchInput } from '@tdsk/components'
 import { createEndpoint, updateEndpoint, deleteEndpoint } from '@TAF/actions/endpoints'
 import {
@@ -36,9 +36,9 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   const isEditMode = Boolean(endpoint)
 
   // Basic fields
-  const [url, setUrl] = useState('')
-  const [name, setName] = useState('')
-  const [path, setPath] = useState('')
+  const [url, setUrl] = useState(``)
+  const [name, setName] = useState(``)
+  const [path, setPath] = useState(``)
   const [loading, setLoading] = useState(false)
   const [method, setMethod] = useState<string>(`Get`)
   const [error, setError] = useState<string | null>(null)
@@ -49,29 +49,29 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   const [headerPairs, setHeaderPairs] = useState<TKeyValuePair[]>([])
 
   // Options - Basic
-  const [timeout, setTimeout] = useState<string>('')
-  const [retries, setRetries] = useState<string>('')
-  const [pathRegex, setPathRegex] = useState('')
+  const [pathRegex, setPathRegex] = useState(``)
+  const [retries, setRetries] = useState<string>(``)
+  const [timeout, setEPTimeout] = useState<string>(``)
 
   // Options - Retry Configuration
-  const [retryDelay, setRetryDelay] = useState<string>('')
-  const [retryMaxDelay, setRetryMaxDelay] = useState<string>('')
-  const [retryBackoffMultiplier, setRetryBackoffMultiplier] = useState<string>('')
+  const [retryDelay, setRetryDelay] = useState<string>(``)
+  const [retryMaxDelay, setRetryMaxDelay] = useState<string>(``)
+  const [retryBackoffMultiplier, setRetryBackoffMultiplier] = useState<string>(``)
   const [retryExponentialBackoff, setRetryExponentialBackoff] = useState(true)
 
   // Options - Auth
   const [authEnabled, setAuthEnabled] = useState(false)
-  const [authType, setAuthType] = useState<'bearer' | 'basic' | 'apikey'>('bearer')
-  const [authSecretName, setAuthSecretName] = useState('')
-  const [authHeaderName, setAuthHeaderName] = useState('')
+  const [authType, setAuthType] = useState<`bearer` | `basic` | `apikey`>(`bearer`)
+  const [authSecretName, setAuthSecretName] = useState(``)
+  const [authHeaderName, setAuthHeaderName] = useState(``)
 
   // Options - OAuth
   const [oauthEnabled, setOauthEnabled] = useState(false)
-  const [oauthTokenUrl, setOauthTokenUrl] = useState('')
-  const [oauthClientId, setOauthClientId] = useState('')
-  const [oauthClientSecret, setOauthClientSecret] = useState('')
-  const [oauthScopes, setOauthScopes] = useState('')
-  const [oauthCredentialStyle, setOauthCredentialStyle] = useState<'header' | 'body'>(
+  const [oauthTokenUrl, setOauthTokenUrl] = useState(``)
+  const [oauthClientId, setOauthClientId] = useState(``)
+  const [oauthClientSecret, setOauthClientSecret] = useState(``)
+  const [oauthScopes, setOauthScopes] = useState(``)
+  const [oauthCredentialStyle, setOauthCredentialStyle] = useState<`header` | `body`>(
     'header'
   )
   const [oauthParams, setOauthParams] = useState<TKeyValuePair[]>([])
@@ -96,7 +96,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       setName(endpoint.name || '')
       setUrl(endpoint.url || '')
       setPath(endpoint.path || '')
-      setMethod(endpoint.method || `Get`)
+      setMethod(endpoint.method || `get`)
       setPublicEndpoint(endpoint.public || false)
       setError(null)
       setShowDeleteConfirm(false)
@@ -116,37 +116,37 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       const opts = endpoint.options || {}
 
       // Basic options
-      setTimeout(opts.timeout?.toString() || '')
-      setRetries(opts.retries?.toString() || '')
-      setPathRegex(opts.pathRegex || '')
+      setEPTimeout(opts.timeout?.toString() || ``)
+      setRetries(opts.retries?.toString() || ``)
+      setPathRegex(opts.pathRegex || ``)
 
       // Retry configuration
-      setRetryDelay(opts.retryDelay?.toString() || '')
-      setRetryMaxDelay(opts.retryMaxDelay?.toString() || '')
-      setRetryBackoffMultiplier(opts.retryBackoffMultiplier?.toString() || '')
+      setRetryDelay(opts.retryDelay?.toString() || ``)
+      setRetryMaxDelay(opts.retryMaxDelay?.toString() || ``)
+      setRetryBackoffMultiplier(opts.retryBackoffMultiplier?.toString() || ``)
       setRetryExponentialBackoff(opts.retryExponentialBackoff !== false)
 
       // Auth options
       if (opts.auth) {
         setAuthEnabled(true)
-        setAuthType(opts.auth.type || 'bearer')
-        setAuthSecretName(opts.auth.secretName || '')
-        setAuthHeaderName(opts.auth.headerName || '')
+        setAuthType(opts.auth.type || `bearer`)
+        setAuthSecretName(opts.auth.secretName || ``)
+        setAuthHeaderName(opts.auth.headerName || ``)
       } else {
         setAuthEnabled(false)
-        setAuthType('bearer')
-        setAuthSecretName('')
-        setAuthHeaderName('')
+        setAuthType(`bearer`)
+        setAuthSecretName(``)
+        setAuthHeaderName(``)
       }
 
       // OAuth options
       if (opts.oauth) {
         setOauthEnabled(true)
-        setOauthTokenUrl(opts.oauth.tokenUrl || '')
-        setOauthClientId(opts.oauth.clientId || '')
-        setOauthClientSecret(opts.oauth.clientSecret || '')
-        setOauthScopes(opts.oauth.scopes?.join(', ') || '')
-        setOauthCredentialStyle(opts.oauth.credentialStyle || 'header')
+        setOauthTokenUrl(opts.oauth.tokenUrl || ``)
+        setOauthClientId(opts.oauth.clientId || ``)
+        setOauthClientSecret(opts.oauth.clientSecret || ``)
+        setOauthScopes(opts.oauth.scopes?.join(`, `) || ``)
+        setOauthCredentialStyle(opts.oauth.credentialStyle || `header`)
 
         const oauthPairs: TKeyValuePair[] = Object.entries(
           opts.oauth.additionalParams || {}
@@ -158,11 +158,11 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
         setOauthParams(oauthPairs)
       } else {
         setOauthEnabled(false)
-        setOauthTokenUrl('')
-        setOauthClientId('')
-        setOauthClientSecret('')
-        setOauthScopes('')
-        setOauthCredentialStyle('header')
+        setOauthTokenUrl(``)
+        setOauthClientId(``)
+        setOauthClientSecret(``)
+        setOauthScopes(``)
+        setOauthCredentialStyle(`header`)
         setOauthParams([])
       }
 
@@ -178,47 +178,47 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       // Domain whitelist options
       if (opts.domainWhitelist) {
         setWhitelistEnabled(true)
-        setWhitelistDomains(opts.domainWhitelist.allowedDomains?.join(', ') || '')
+        setWhitelistDomains(opts.domainWhitelist.allowedDomains?.join(`, `) || ``)
         setWhitelistEnforce(opts.domainWhitelist.enforceWhitelist !== false)
         setWhitelistLogBlocked(opts.domainWhitelist.logBlocked !== false)
       } else {
         setWhitelistEnabled(false)
-        setWhitelistDomains('')
+        setWhitelistDomains(``)
         setWhitelistEnforce(true)
         setWhitelistLogBlocked(true)
       }
     } else {
       // Reset all fields
-      setUrl('')
-      setName('')
-      setPath('')
+      setUrl(``)
+      setName(``)
+      setPath(``)
       setError(null)
-      setMethod(`Get`)
+      setMethod(`get`)
       setPublicEndpoint(false)
       setShowDeleteConfirm(false)
       setHeaderPairs([])
-      setTimeout('')
-      setRetries('')
-      setPathRegex('')
-      setRetryDelay('')
-      setRetryMaxDelay('')
-      setRetryBackoffMultiplier('')
+      setEPTimeout(``)
+      setRetries(``)
+      setPathRegex(``)
+      setRetryDelay(``)
+      setRetryMaxDelay(``)
+      setRetryBackoffMultiplier(``)
       setRetryExponentialBackoff(true)
       setAuthEnabled(false)
-      setAuthType('bearer')
-      setAuthSecretName('')
-      setAuthHeaderName('')
+      setAuthType(`bearer`)
+      setAuthSecretName(``)
+      setAuthHeaderName(``)
       setOauthEnabled(false)
-      setOauthTokenUrl('')
-      setOauthClientId('')
-      setOauthClientSecret('')
-      setOauthScopes('')
-      setOauthCredentialStyle('header')
+      setOauthTokenUrl(``)
+      setOauthClientId(``)
+      setOauthClientSecret(``)
+      setOauthScopes(``)
+      setOauthCredentialStyle(`header`)
       setOauthParams([])
       setTransformEnabled(false)
       setTransformInjectSecrets(false)
       setWhitelistEnabled(false)
-      setWhitelistDomains('')
+      setWhitelistDomains(``)
       setWhitelistEnforce(true)
       setWhitelistLogBlocked(true)
     }
@@ -230,32 +230,32 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       setName(``)
       setPath(``)
       setError(null)
-      setMethod(`Get`)
+      setMethod(`get`)
       setPublicEndpoint(false)
       setShowDeleteConfirm(false)
       setHeaderPairs([])
-      setTimeout('')
-      setRetries('')
-      setPathRegex('')
-      setRetryDelay('')
-      setRetryMaxDelay('')
-      setRetryBackoffMultiplier('')
+      setEPTimeout(``)
+      setRetries(``)
+      setPathRegex(``)
+      setRetryDelay(``)
+      setRetryMaxDelay(``)
+      setRetryBackoffMultiplier(``)
       setRetryExponentialBackoff(true)
       setAuthEnabled(false)
-      setAuthType('bearer')
-      setAuthSecretName('')
-      setAuthHeaderName('')
+      setAuthType(`bearer`)
+      setAuthSecretName(``)
+      setAuthHeaderName(``)
       setOauthEnabled(false)
-      setOauthTokenUrl('')
-      setOauthClientId('')
-      setOauthClientSecret('')
-      setOauthScopes('')
-      setOauthCredentialStyle('header')
+      setOauthTokenUrl(``)
+      setOauthClientId(``)
+      setOauthClientSecret(``)
+      setOauthScopes(``)
+      setOauthCredentialStyle(`header`)
       setOauthParams([])
       setTransformEnabled(false)
       setTransformInjectSecrets(false)
       setWhitelistEnabled(false)
-      setWhitelistDomains('')
+      setWhitelistDomains(``)
       setWhitelistEnforce(true)
       setWhitelistLogBlocked(true)
       onCloseCB?.()
@@ -266,12 +266,12 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
     e.preventDefault()
 
     if (!name.trim()) {
-      setError('Endpoint name is required')
+      setError(`Endpoint name is required`)
       return
     }
 
     if (!path.trim()) {
-      setError('Proxy URL is required')
+      setError(`Proxy URL is required`)
       return
     }
 
@@ -514,12 +514,12 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
 
             <SelectInput
               required
-              value={method}
               id='method-select'
               disabled={loading}
               label='HTTP Method'
+              items={HttpMethodOps}
+              value={method.toLowerCase()}
               onChange={(e) => setMethod(e.target.value)}
-              items={HttpMethods.map((m) => ({ value: m, label: m }))}
             />
 
             <SwitchInput
@@ -607,7 +607,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
                   label='Timeout (ms)'
                   disabled={loading}
                   placeholder='30000'
-                  onChange={(e) => setTimeout(e.target.value)}
+                  onChange={(e) => setEPTimeout(e.target.value)}
                 />
                 <TextInput
                   fullWidth
