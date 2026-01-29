@@ -110,8 +110,8 @@ export type TDBEntitySelect =
   | TDBEndpointSelect
   | TDBProviderSelect
   | TDBFunctionSelect
-  | TDBSubscriptionSelect
   | TDBInvitationSelect
+  | TDBSubscriptionSelect
 
 export type TDBEntityInsert =
   | TDBOrgInsert
@@ -129,8 +129,8 @@ export type TDBEntityInsert =
   | TDBEndpointInsert
   | TDBProviderInsert
   | TDBFunctionInsert
-  | TDBSubscriptionInsert
   | TDBInvitationInsert
+  | TDBSubscriptionInsert
 
 type TTableWithId = {
   id: any
@@ -152,6 +152,7 @@ export type TDBQueryOpts<T extends Record<string, any> = Record<string, any>> = 
   }
   limit?: number
   offset?: number
+  with?: Record<string, boolean>
   orderBy?: {
     column: string
     direction?: TDBOrderDirection

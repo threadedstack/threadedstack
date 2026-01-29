@@ -1,5 +1,4 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type { TDBUserSelect, TDBUserInsert } from '@TDB/types'
+import type { TDatabase, TDBUserSelect, TDBUserInsert } from '@TDB/types'
 
 import { eq, and } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
@@ -7,7 +6,7 @@ import { users } from '@TDB/schemas/users'
 import { User as UserModel } from '@tdsk/domain'
 
 export type TUserOpts = {
-  db: NodePgDatabase
+  db: TDatabase
 }
 
 export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert, UserModel> {

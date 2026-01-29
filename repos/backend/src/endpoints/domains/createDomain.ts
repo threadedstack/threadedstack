@@ -18,7 +18,16 @@ export const createDomain: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, config } = req.app.locals
-    const { domain, orgId, projectId } = req.body
+    const {
+      domain,
+      orgId,
+      projectId,
+      // For manually uploaded SSL certificates
+      sslEnabled,
+      sslExpiresAt,
+      sslPrivateKey,
+      sslCertificate,
+    } = req.body
 
     if (!domain) {
       res.status(400).json({ error: `Domain is required` })
@@ -87,9 +96,13 @@ export const createDomain: TEndpointConfig = {
     // Step 2: Create domain in database
     const { data: record, error } = await db.services.domain.create(
       new Domain({
-        domain,
         orgId,
+        domain,
         projectId,
+        sslEnabled,
+        sslExpiresAt,
+        sslPrivateKey,
+        sslCertificate,
       })
     )
 
@@ -109,14 +122,19 @@ export const createDomain: TEndpointConfig = {
         },
         // Timeout after 10 seconds (certificate generation can take 5-10s)
         signal: AbortSignal.timeout(10000),
-      }).catch((err) => {
-        // Log error but don`t fail the request
-        // The certificate might still be generated
-        console.warn(`Pre-warm request failed (this may be normal):`, err.message)
       })
+        .then(async (res) => {
+          if (res.status >= 400) {
+            const text = res.text ? await res.text() : res.statusText || `Request failed`
+            return console.warn(`Pre-warm request failed (this may be normal):`, text)
+          }
 
-      // Mark domain as verified after pre-warm
-      await db.services.domain.verified(domain)
+          // Mark domain as verified after pre-warm
+          await db.services.domain.verified(domain)
+        })
+        .catch((err) =>
+          console.warn(`Pre-warm request failed (this may be normal):`, err.message)
+        )
     } catch (error) {
       console.error(`Error during pre-warm:`, error)
       // Don't fail the request, the certificate will be generated on first real request

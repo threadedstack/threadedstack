@@ -7,11 +7,7 @@ import { eq, and, inArray, asc, desc } from 'drizzle-orm'
 
 type TQuery = PgSelectBase<any, any, any>
 
-const addWhere = <Q extends TQuery = TQuery>(
-  query: Q,
-  table: TTableSchema,
-  opts: TDBQueryOpts
-) => {
+export const addWhere = (table: TTableSchema, opts: TDBQueryOpts) => {
   const conditions: SQL[] = []
 
   for (const [key, value] of Object.entries(opts.where)) {
@@ -25,23 +21,15 @@ const addWhere = <Q extends TQuery = TQuery>(
       : conditions.push(eq(column, value))
   }
 
-  if (conditions.length > 0) query = query.where(and(...conditions)) as any
-
-  return query
+  return conditions
 }
 
-const addOrderBy = <Q extends TQuery = TQuery>(
-  query: Q,
-  table: TTableSchema,
-  opts: TDBQueryOpts
-) => {
+export const addOrderBy = (table: TTableSchema, opts: TDBQueryOpts) => {
   const column = table[opts.orderBy.column]
-  if (column) {
-    const orderFn = opts.orderBy.direction === 'desc' ? desc : asc
-    query = query.orderBy(orderFn(column)) as any
-  }
+  if (!column) return
 
-  return query
+  const orderFn = opts.orderBy.direction === `desc` ? desc : asc
+  return orderFn(column)
 }
 
 export const buildQuery = <Q extends TQuery = TQuery>(
@@ -49,8 +37,15 @@ export const buildQuery = <Q extends TQuery = TQuery>(
   table: TTableSchema,
   opts: TDBQueryOpts
 ) => {
-  if (opts?.where) query = addWhere(query, table, opts)
-  if (opts?.orderBy?.column) query = addOrderBy(query, table, opts)
+  if (opts?.where) {
+    const conditions = addWhere(table, opts)
+    if (conditions.length > 0) query = query.where(and(...conditions)) as any
+  }
+
+  if (opts?.orderBy?.column) {
+    const ordered = addOrderBy(table, opts)
+    query = query.orderBy(ordered) as any
+  }
 
   if (opts?.limit !== undefined) query = query.limit(opts.limit) as any
   if (opts?.offset !== undefined) query = query.offset(opts.offset) as any

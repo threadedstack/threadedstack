@@ -6,7 +6,7 @@ import { base } from '@TDB/utils/schema/base'
 import { uuid, jsonb, check, pgTable } from 'drizzle-orm/pg-core'
 
 export const configs = pgTable(
-  'configs',
+  `configs`,
   {
     ...base,
     data: jsonb(`data`).notNull(),
@@ -15,7 +15,6 @@ export const configs = pgTable(
     projectId: uuid(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
   },
   (table) => [
-    // CHANGE: Array syntax
     check(
       `config_owner_check`,
       sql`

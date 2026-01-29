@@ -1,7 +1,8 @@
 /**
- * IMPORTANT - Do not import the '@TDB/schemas/users'
- * It is managed by neon, not drizzle so should not be included in migrations
- * It only exists so it can be read, so it's not included here
+ * IMPORTANT - Do not import '@TDB/schemas/users' OR '@TDB/schemas/certificates'
+ * These schemas are not managed by drizzle so should not be included in migrations
+ * The Users table managed by neon and the certificates table by caddy.
+ * The schemas exists so they can be read, but they should not be included in other database operations.
  */
 
 export { orgs } from '@TDB/schemas/orgs'

@@ -1,5 +1,4 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type { TDBQuotaSelect, TDBQuotaInsert } from '@TDB/types'
+import type { TDatabase, TDBQuotaSelect, TDBQuotaInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { quotas } from '@TDB/schemas/quotas'
@@ -20,7 +19,7 @@ type TIncrementKey = keyof Pick<
 >
 
 export type TQuotaOpts = {
-  db: NodePgDatabase
+  db: TDatabase
 }
 
 export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {

@@ -2,6 +2,7 @@ import type * as DBservices from '@TDB/services'
 import type { Config as DBConfig } from 'drizzle-kit'
 import type { config } from '@TDB/configs/db.config'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type * as schema from '@TDB/schemas'
 
 export type TDBDialect = DBConfig[`dialect`]
 
@@ -22,6 +23,6 @@ export type TDBServices = {
   [K in keyof typeof DBservices]: InstanceType<(typeof DBservices)[K]>
 }
 
-export type TDatabase = NodePgDatabase & {
+export type TDatabase = NodePgDatabase<typeof schema> & {
   services: TDBServices
 }

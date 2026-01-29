@@ -1,12 +1,11 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type { TDBEndpointSelect, TDBEndpointInsert } from '@TDB/types'
+import type { TDatabase, TDBEndpointSelect, TDBEndpointInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { endpoints } from '@TDB/schemas/endpoints'
 import { Endpoint as EndpointModel } from '@tdsk/domain'
 
 export type TEndpointOpts = {
-  db: NodePgDatabase
+  db: TDatabase
 }
 
 export class Endpoint extends Base<

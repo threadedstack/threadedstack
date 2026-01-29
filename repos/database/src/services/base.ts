@@ -1,7 +1,7 @@
 import type { Base as BaseModel } from '@tdsk/domain'
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type {
   IDBApi,
+  TDatabase,
   TDBApiRes,
   TDBQueryOpts,
   TTableSchema,
@@ -9,16 +9,16 @@ import type {
   TDBEntityInsert,
 } from '@TDB/types'
 
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { logger } from '@TDB/utils/logger'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { exists } from '@keg-hub/jsutils/exists'
-import { DBIdError, DBValueError } from '@TDB/utils/error/error'
-import { buildQuery } from '@TDB/utils/database/buildQuery'
+import { DBError, DBIdError, DBValueError } from '@TDB/utils/error/error'
+import { addWhere, buildQuery, addOrderBy } from '@TDB/utils/database/buildQuery'
 
 export type TBase = {
-  db: NodePgDatabase
+  db: TDatabase
   table: TTableSchema
   config?: Record<string, any>
 }
@@ -31,7 +31,7 @@ export class Base<
 > implements IDBApi<M, I>
 {
   table: TTable
-  db: NodePgDatabase
+  db: TDatabase
   config: Record<string, any>
 
   constructor(opts: TBase) {
@@ -46,7 +46,7 @@ export class Base<
     return data as unknown as M
   }
 
-  create = async (data: I, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
+  async create(data: I): Promise<TDBApiRes<M>> {
     try {
       const resp = await this.db.insert(this.table).values(data).returning()
 
@@ -56,11 +56,11 @@ export class Base<
     }
   }
 
-  by = async (
+  async by(
     prop: string | Record<string, any>,
     value?: any | TDBQueryOpts,
     opts?: TDBQueryOpts
-  ): Promise<TDBApiRes<M>> => {
+  ): Promise<TDBApiRes<M>> {
     let property: string
     if (isStr(prop)) property = prop
     else {
@@ -69,49 +69,54 @@ export class Base<
       value = prop[property]
     }
 
-    if (!exists(value)) {
-      const owner = this.constructor.name
-      return { error: new DBValueError(`${owner}.by`) }
-    }
+    if (!exists(value)) return { error: new DBValueError(`${this.constructor.name}.by`) }
 
     try {
-      const resp = await this.db
-        .select()
-        .from(this.table as TTableSchema)
-        .where(eq(this.table[property], value))
-        .limit(1)
-      return { data: this.model(resp[0]) as M }
+      const row = await this.db.query[this.table.name].findFirst({
+        with: opts?.with,
+        where: eq(this.table[property], value),
+      })
+
+      return row ? { data: this.model(row) } : { error: new DBError(`Domain not found`) }
     } catch (error: any) {
       return { error }
     }
   }
 
-  get = async (id: string, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
+  async get(id: string, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> {
     try {
-      const resp = await this.db
-        .select()
-        .from(this.table as TTableSchema)
-        .where(eq(this.table.id, id))
+      const row = await this.db.query[this.table.name].findFirst({
+        with: opts?.with,
+        where: eq(this.table.id, id),
+      })
 
-      return { data: this.model(resp[0]) as M }
+      return row ? { data: this.model(row) } : { error: new DBError(`Domain not found`) }
     } catch (error: any) {
       return { error }
     }
   }
 
-  list = async (opts?: TDBQueryOpts): Promise<TDBApiRes<M[]>> => {
-    try {
-      let query = this.db.select().from(this.table as TTableSchema)
-      query = buildQuery(query, this.table, opts)
+  async list(opts?: TDBQueryOpts): Promise<TDBApiRes<M[]>> {
+    const { where, limit, offset, orderBy } = opts
 
-      const resp = await query
-      return { data: resp.map((item) => this.model(item)) as M[] }
+    try {
+      const found = await this.db.query[this.table.name].findMany({
+        limit,
+        offset,
+        with: opts.with,
+        orderBy: orderBy ? addOrderBy(this.table, opts) : undefined,
+        where: where ? and(...addWhere(this.table, opts)) : undefined,
+      })
+
+      return found?.length
+        ? { data: found.map((row) => this.model(row)) as M[] }
+        : { data: [] }
     } catch (error: any) {
       return { error }
     }
   }
 
-  update = async (data: I, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
+  async update(data: I): Promise<TDBApiRes<M>> {
     try {
       const id = data.id
       !id && DBIdError.throw()
@@ -128,7 +133,7 @@ export class Base<
     }
   }
 
-  upsert = async (data: I, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
+  async upsert(data: I, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> {
     try {
       const id = data.id
       !id && DBIdError.throw()
@@ -148,7 +153,7 @@ export class Base<
     }
   }
 
-  delete = async (id: string, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> => {
+  async delete(id: string, opts?: TDBQueryOpts): Promise<TDBApiRes<M>> {
     try {
       const resp = await this.db
         .delete(this.table)

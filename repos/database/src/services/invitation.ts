@@ -1,6 +1,6 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type {
   TDBApiRes,
+  TDatabase,
   TDBApiResType,
   TDBInvitationSelect,
   TDBInvitationInsert,
@@ -12,7 +12,7 @@ import { invitations } from '@TDB/schemas/invitations'
 import { EInviteStatus, Invitation as InvitationModel } from '@tdsk/domain'
 
 export type TInvitationOpts = {
-  db: NodePgDatabase
+  db: TDatabase
 }
 
 export class Invitation extends Base<

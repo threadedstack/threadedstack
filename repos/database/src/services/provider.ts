@@ -1,12 +1,11 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type { TDBProviderSelect, TDBProviderInsert } from '@TDB/types'
+import type { TDatabase, TDBProviderSelect, TDBProviderInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { providers } from '@TDB/schemas/providers'
 import { Provider as ProviderModel } from '@tdsk/domain'
 
 export type TProviderOpts = {
-  db: NodePgDatabase
+  db: TDatabase
 }
 
 export class Provider extends Base<

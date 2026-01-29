@@ -1,12 +1,11 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type { TDBConfigSelect, TDBConfigInsert } from '@TDB/types'
+import type { TDatabase, TDBConfigSelect, TDBConfigInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { configs } from '@TDB/schemas/configs'
 import { Config as ConfigModel } from '@tdsk/domain'
 
 export type TConfigOpts = {
-  db: NodePgDatabase
+  db: TDatabase
 }
 
 export class Config extends Base<

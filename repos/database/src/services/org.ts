@@ -1,12 +1,11 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type { TDBOrgSelect, TDBOrgInsert } from '@TDB/types'
+import type { TDatabase, TDBOrgSelect, TDBOrgInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
 import { orgs } from '@TDB/schemas/orgs'
 import { Organization as OrgModel } from '@tdsk/domain'
 
 export type TOrgOpts = {
-  db: NodePgDatabase
+  db: TDatabase
 }
 
 export class Org extends Base<typeof orgs, TDBOrgSelect, TDBOrgInsert, OrgModel> {

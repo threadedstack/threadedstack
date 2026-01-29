@@ -1,5 +1,4 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type { TDBApiKeySelect, TDBApiKeyInsert } from '@TDB/types'
+import type { TDatabase, TDBApiKeySelect, TDBApiKeyInsert } from '@TDB/types'
 
 import { eq } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
@@ -7,7 +6,7 @@ import { apiKeys } from '@TDB/schemas/apiKeys'
 import { ApiKey as ApiKeyModel } from '@tdsk/domain'
 
 export type TApiKeyOpts = {
-  db: NodePgDatabase
+  db: TDatabase
 }
 
 export class ApiKey extends Base<

@@ -30,8 +30,8 @@ export const apiKeys = pgTable(
   },
   (table) => [
     index(`api_keys_org_id_idx`).on(table.orgId),
-    index(`api_keys_project_id_idx`).on(table.projectId),
     index(`api_keys_key_hash_idx`).on(table.keyHash),
+    index(`api_keys_project_id_idx`).on(table.projectId),
   ]
 )
 

@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -14,12 +15,19 @@ export const updateDomain: TEndpointConfig = {
   path: `/:domain`,
   method: EPMethod.Patch,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { domain } = req.params
-    const { verified } = req.body
     const { db } = req.app.locals
+    const { domain } = req.params
+    const {
+      verified,
+      // For manually uploaded SSL certificates
+      sslEnabled,
+      sslExpiresAt,
+      sslPrivateKey,
+      sslCertificate,
+    } = req.body
 
     if (!domain) {
-      res.status(400).json({ error: 'Domain parameter is required' })
+      res.status(400).json({ error: `Domain parameter is required` })
       return
     }
 
@@ -46,12 +54,21 @@ export const updateDomain: TEndpointConfig = {
       }
     }
 
-    // Update verification status if requested
-    if (verified === true) {
-      const updated = await db.services.domain.verified(domain)
-      res.status(200).json({ data: updated })
-    } else {
-      res.status(400).json({ error: `Only verification status can be updated` })
-    }
+    const { data, error: uperr } = await db.services.domain.update(
+      cleanColl({
+        id: record.id,
+        verified,
+        sslEnabled,
+        sslExpiresAt,
+        sslPrivateKey,
+        sslCertificate,
+      })
+    )
+
+    uperr
+      ? res
+          .status(400)
+          .json({ error: uperr?.message || `Only verification status can be updated` })
+      : res.status(200).json({ data })
   },
 }

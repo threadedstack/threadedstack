@@ -1,5 +1,4 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type { TDBSubscriptionSelect, TDBSubscriptionInsert } from '@TDB/types'
+import type { TDatabase, TDBSubscriptionSelect, TDBSubscriptionInsert } from '@TDB/types'
 
 import { eq } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
@@ -7,7 +6,7 @@ import { subscriptions } from '@TDB/schemas/subscriptions'
 import { Subscription as SubscriptionModel } from '@tdsk/domain'
 
 export type TSubscriptionOpts = {
-  db: NodePgDatabase
+  db: TDatabase
 }
 
 export class Subscription extends Base<

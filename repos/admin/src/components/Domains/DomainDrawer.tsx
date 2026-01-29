@@ -218,8 +218,17 @@ export const DomainDrawer = ({
                 color='text.secondary'
                 sx={{ display: 'block', mb: 1 }}
               >
-                After adding your domain, you&apos;ll need to configure its DNS records to
-                point to our servers. SSL certificates will be automatically provisioned.
+                After adding your domain, you'll need to configure its DNS records to
+                point to our servers. SSL certificates will be automatically provisioned
+                using{' '}
+                <a
+                  href='https://letsencrypt.org/'
+                  target='_blank'
+                  rel='noopener'
+                >
+                  Let's Encrypt
+                </a>
+                . Or upload them manually to use existing SSL certificates.
               </Typography>
             </Box>
           )}
@@ -230,8 +239,8 @@ export const DomainDrawer = ({
                 fullWidth
                 textarea
                 minRows={3}
-                value={sslPrivateKey}
                 disabled={loading}
+                value={sslPrivateKey}
                 label='SSL Private Key'
                 id='tdsk-ssl-private-key-input'
                 placeholder='Paste SSL private key (optional)'
@@ -242,8 +251,8 @@ export const DomainDrawer = ({
                 fullWidth
                 textarea
                 minRows={3}
-                value={sslCertificate}
                 disabled={loading}
+                value={sslCertificate}
                 label='SSL Certificate'
                 id='tdsk-ssl-certificate-input'
                 placeholder='Paste SSL certificate (optional)'
