@@ -75,30 +75,18 @@ export const DomainDrawer = ({
 
     let result: { error?: Error } | undefined
 
+    const params: Partial<Domain> = { domain: domainName.trim() }
+    const key = sslPrivateKey.trim()
+    if (key) params.sslPrivateKey = key
+
+    const cert = sslCertificate.trim()
+    if (cert) params.sslCertificate = cert
+
     if (isEditMode && domain) {
-      const updateData: Partial<Domain> = { domain: domainName.trim() }
-
-      const key = sslPrivateKey.trim()
-      if (key) updateData.sslPrivateKey = key
-
-      const cert = sslCertificate.trim()
-      if (cert) updateData.sslCertificate = cert
-
-      result = await updateDomain(domain.id, updateData)
+      result = await updateDomain(domain.id, params)
     } else {
-      const params: Partial<Domain> = { domain: domainName.trim() }
-
-      const key = sslPrivateKey.trim()
-      if (key) params.sslPrivateKey = key
-
-      const cert = sslCertificate.trim()
-      if (cert) params.sslCertificate = cert
-
-      if (projectId) {
-        params.projectId = projectId
-      } else if (orgId) {
-        params.orgId = orgId
-      }
+      if (projectId) params.projectId = projectId
+      else if (orgId) params.orgId = orgId
 
       result = await createDomain(params)
     }
@@ -260,82 +248,77 @@ export const DomainDrawer = ({
             </Box>
           )}
 
-          {isEditMode && (
-            <>
-              <Box>
-                <TextInput
-                  fullWidth
-                  textarea
-                  minRows={3}
+          <Box>
+            <TextInput
+              fullWidth
+              textarea
+              minRows={3}
+              disabled={loading}
+              value={sslPrivateKey}
+              label='SSL Private Key'
+              id='tdsk-ssl-private-key-input'
+              placeholder='Paste SSL private key (optional) or upload file'
+              onChange={(e) => setSslPrivateKey(e.target.value)}
+              endAdornment={
+                <IconButton
+                  component='label'
                   disabled={loading}
-                  value={sslPrivateKey}
-                  label='SSL Private Key'
-                  id='tdsk-ssl-private-key-input'
-                  placeholder='Paste SSL private key (optional) or upload file'
-                  onChange={(e) => setSslPrivateKey(e.target.value)}
-                  endAdornment={
-                    <IconButton
-                      component='label'
-                      disabled={loading}
-                      sx={{ position: 'absolute', right: 8, top: 8 }}
-                    >
-                      <UploadIcon />
-                      <input
-                        type='file'
-                        accept='.key,.pem'
-                        hidden
-                        onChange={onPrivateKeyFileUpload}
-                      />
-                    </IconButton>
-                  }
-                />
-                <Typography
-                  variant='caption'
-                  color='text.secondary'
-                  sx={{ display: 'block', mt: 0.5 }}
+                  sx={{ position: 'absolute', right: 8, top: 8 }}
                 >
-                  Upload a .key or .pem file, or paste the private key content above
-                </Typography>
-              </Box>
+                  <UploadIcon />
+                  <input
+                    type='file'
+                    accept='.key,.pem'
+                    hidden
+                    onChange={onPrivateKeyFileUpload}
+                  />
+                </IconButton>
+              }
+            />
+            <Typography
+              variant='caption'
+              color='text.secondary'
+              sx={{ display: 'block', mt: 0.5 }}
+            >
+              Upload a .key or .pem file, or paste the private key content above
+            </Typography>
+          </Box>
 
-              <Box>
-                <TextInput
-                  fullWidth
-                  textarea
-                  minRows={3}
+          <Box>
+            <TextInput
+              fullWidth
+              textarea
+              minRows={3}
+              disabled={loading}
+              value={sslCertificate}
+              label='SSL Certificate'
+              id='tdsk-ssl-certificate-input'
+              placeholder='Paste SSL certificate (optional) or upload file'
+              onChange={(e) => setSslCertificate(e.target.value)}
+              endAdornment={
+                <IconButton
+                  component='label'
                   disabled={loading}
-                  value={sslCertificate}
-                  label='SSL Certificate'
-                  id='tdsk-ssl-certificate-input'
-                  placeholder='Paste SSL certificate (optional) or upload file'
-                  onChange={(e) => setSslCertificate(e.target.value)}
-                  endAdornment={
-                    <IconButton
-                      component='label'
-                      disabled={loading}
-                      sx={{ position: 'absolute', right: 8, top: 8 }}
-                    >
-                      <UploadIcon />
-                      <input
-                        type='file'
-                        accept='.crt,.pem,.cert'
-                        hidden
-                        onChange={onCertificateFileUpload}
-                      />
-                    </IconButton>
-                  }
-                />
-                <Typography
-                  variant='caption'
-                  color='text.secondary'
-                  sx={{ display: 'block', mt: 0.5 }}
+                  sx={{ position: 'absolute', right: 8, top: 8 }}
                 >
-                  Upload a .crt, .pem, or .cert file, or paste the certificate content
-                  above
-                </Typography>
-              </Box>
-            </>
-          )}
+                  <UploadIcon />
+                  <input
+                    type='file'
+                    accept='.crt,.pem,.cert'
+                    hidden
+                    onChange={onCertificateFileUpload}
+                  />
+                </IconButton>
+              }
+            />
+            <Typography
+              variant='caption'
+              color='text.secondary'
+              sx={{ display: 'block', mt: 0.5 }}
+            >
+              Upload a .crt, .pem, or .cert file, or paste the certificate content above
+            </Typography>
+          </Box>
         </Box>
       </form>
     </Drawer>
