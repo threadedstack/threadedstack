@@ -26,13 +26,15 @@ const OrgUsage = lazy(() => import('@TAF/pages/Orgs/OrgUsage'))
 
 // Project pages
 const Project = lazy(() => import('@TAF/pages/Projects/Project'))
+const ProjectAgents = lazy(() => import('@TAF/pages/Projects/ProjectAgents'))
 const ProjectsLoader = lazy(() => import('@TAF/pages/Projects/ProjectsLoader'))
-const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
 const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
 const ProjectDomains = lazy(() => import('@TAF/pages/Projects/ProjectDomains'))
+const ProjectThreads = lazy(() => import('@TAF/pages/Projects/ProjectThreads'))
+const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
 const ProjectProviders = lazy(() => import('@TAF/pages/Projects/ProjectProviders'))
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
-const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
+const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
 
 // Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
@@ -160,6 +162,14 @@ export const Routes = createBrowserRouter([
               {
                 path: 'functions',
                 Component: () => <SuspensePage Component={ProjectFunctions} />,
+              },
+              {
+                path: 'agents',
+                Component: () => <SuspensePage Component={ProjectAgents} />,
+              },
+              {
+                path: 'threads',
+                Component: () => <SuspensePage Component={ProjectThreads} />,
               },
               {
                 path: 'settings',

@@ -1,26 +1,28 @@
 import type { TKeyValuePair } from '@TAF/types'
-import type { Endpoint, TEndpointOpts } from '@tdsk/domain'
+import type {
+  Endpoint,
+  TEndpointOpts,
+  TEndpointType,
+  TFaaSEndpointConfig,
+  TProxyEndpointConfig,
+  TAgentEndpointConfig,
+} from '@tdsk/domain'
 
 import { Drawer } from '@tdsk/components'
 import { useState, useEffect } from 'react'
-import { getSecrets } from '@TAF/state/accessors'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
+import { EEndpointType } from '@tdsk/domain'
+import { EndpointTypeOpts } from '@TAF/constants/values'
+import { getSecrets, getFunctions } from '@TAF/state/accessors'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { EndpointAgent } from '@TAF/components/Endpoints/EndpointAgent'
+import { EndpointFaas } from '@TAF/components/Endpoints/EndpointFaas'
+import { EndpointProxy } from '@TAF/components/Endpoints/EndpointProxy'
+import { createEndpoint } from '@TAF/actions/endpoints/api/createEndpoint'
+import { updateEndpoint } from '@TAF/actions/endpoints/api/updateEndpoint'
+import { deleteEndpoint } from '@TAF/actions/endpoints/api/deleteEndpoint'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
-import { HttpMethodOps, AuthTypes, CredentialOpts } from '@TAF/constants/values'
-import { ConfirmDelete, TextInput, SelectInput, SwitchInput } from '@tdsk/components'
-import { createEndpoint, updateEndpoint, deleteEndpoint } from '@TAF/actions/endpoints'
-import {
-  Box,
-  Alert,
-  Chip,
-  Button,
-  Accordion,
-  Typography,
-  AccordionSummary,
-  AccordionDetails,
-} from '@mui/material'
+import { TextInput, SelectInput, SwitchInput, ConfirmDelete } from '@tdsk/components'
+import { Box, Alert, Button } from '@mui/material'
 
 export type TEndpointDrawer = {
   open: boolean
@@ -35,6 +37,9 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
 
   const isEditMode = Boolean(endpoint)
 
+  // Endpoint type
+  const [endpointType, setEndpointType] = useState<TEndpointType>(EEndpointType.proxy)
+
   // Basic fields
   const [url, setUrl] = useState(``)
   const [name, setName] = useState(``)
@@ -45,61 +50,174 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   const [publicEndpoint, setPublicEndpoint] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // Headers
+  // Headers (proxy only)
   const [headerPairs, setHeaderPairs] = useState<TKeyValuePair[]>([])
 
-  // Options - Basic
+  // Options - Basic (proxy only)
   const [pathRegex, setPathRegex] = useState(``)
   const [retries, setRetries] = useState<string>(``)
   const [timeout, setEPTimeout] = useState<string>(``)
 
-  // Options - Retry Configuration
+  // Options - Retry Configuration (proxy only)
   const [retryDelay, setRetryDelay] = useState<string>(``)
   const [retryMaxDelay, setRetryMaxDelay] = useState<string>(``)
   const [retryBackoffMultiplier, setRetryBackoffMultiplier] = useState<string>(``)
   const [retryExponentialBackoff, setRetryExponentialBackoff] = useState(true)
 
-  // Options - Auth
+  // Options - Auth (proxy only)
   const [authEnabled, setAuthEnabled] = useState(false)
   const [authType, setAuthType] = useState<`bearer` | `basic` | `apikey`>(`bearer`)
   const [authSecretName, setAuthSecretName] = useState(``)
   const [authHeaderName, setAuthHeaderName] = useState(``)
 
-  // Options - OAuth
+  // Options - OAuth (proxy only)
   const [oauthEnabled, setOauthEnabled] = useState(false)
   const [oauthTokenUrl, setOauthTokenUrl] = useState(``)
   const [oauthClientId, setOauthClientId] = useState(``)
   const [oauthClientSecret, setOauthClientSecret] = useState(``)
   const [oauthScopes, setOauthScopes] = useState(``)
   const [oauthCredentialStyle, setOauthCredentialStyle] = useState<`header` | `body`>(
-    'header'
+    `header`
   )
   const [oauthParams, setOauthParams] = useState<TKeyValuePair[]>([])
 
-  // Options - Transform
+  // Options - Transform (proxy only)
   const [transformEnabled, setTransformEnabled] = useState(false)
   const [transformInjectSecrets, setTransformInjectSecrets] = useState(false)
 
-  // Options - Domain Whitelist
+  // Options - Domain Whitelist (proxy only)
   const [whitelistEnabled, setWhitelistEnabled] = useState(false)
   const [whitelistDomains, setWhitelistDomains] = useState('')
   const [whitelistEnforce, setWhitelistEnforce] = useState(true)
   const [whitelistLogBlocked, setWhitelistLogBlocked] = useState(true)
 
-  // Get available secrets for autocomplete
+  // FAAS-specific fields
+  const [functionId, setFunctionId] = useState(``)
+  const [faasMemory, setFaasMemory] = useState<string>(``)
+  const [faasTimeout, setFaasTimeout] = useState<string>(``)
+  const [faasSecrets, setFaasSecrets] = useState<string[]>([])
+  const [faasEnvVars, setFaasEnvVars] = useState<TKeyValuePair[]>([])
+  const [faasArguments, setFaasArguments] = useState<TKeyValuePair[]>([])
+
+  // Agent-specific fields
+  const [agentId, setAgentId] = useState(``)
+  const [agentModel, setAgentModel] = useState(``)
+  const [agentTools, setAgentTools] = useState<string[]>([])
+  const [agentSecrets, setAgentSecrets] = useState<string[]>([])
+  const [agentSystemPrompt, setAgentSystemPrompt] = useState(``)
+  const [agentMaxTokens, setAgentMaxTokens] = useState<string>(``)
+  const [agentEnvVars, setAgentEnvVars] = useState<TKeyValuePair[]>([])
+
+  // Get available resources
   const secretsMap = getSecrets()
   const availableSecrets = secretsMap ? Object.values(secretsMap) : []
 
+  const functionsMap = getFunctions()
+  const availableFunctions = functionsMap ? Object.values(functionsMap) : []
+
   useEffect(() => {
     if (endpoint) {
+      // Set endpoint type
+      setEndpointType(endpoint.type || EEndpointType.proxy)
+
       // Basic fields
-      setName(endpoint.name || '')
-      setUrl(endpoint.url || '')
-      setPath(endpoint.path || '')
+      setName(endpoint.name || ``)
+      setUrl(endpoint.url || ``)
+      setPath(endpoint.path || ``)
       setMethod(endpoint.method || `get`)
       setPublicEndpoint(endpoint.public || false)
       setError(null)
       setShowDeleteConfirm(false)
+
+      // Type-specific configurations
+      let opts = endpoint.options
+
+      // Proxy only configuration
+      if (endpoint.type === EEndpointType.proxy) {
+        opts = endpoint.options as TProxyEndpointConfig
+        if (opts.transform) {
+          setTransformEnabled(true)
+          setTransformInjectSecrets(opts.transform.injectSecrets || false)
+        } else {
+          setTransformEnabled(false)
+          setTransformInjectSecrets(false)
+        }
+      }
+
+      // FAAS only configuration
+      if (endpoint.type === EEndpointType.faas) {
+        opts = endpoint.options as TFaaSEndpointConfig
+        setFunctionId(opts.functionId || ``)
+
+        const argPairs: TKeyValuePair[] = Object.entries(opts.arguments || {}).map(
+          ([key, value], index) => ({
+            id: `faas-arg-${index}-${Date.now()}`,
+            key,
+            value: String(value),
+          })
+        )
+        setFaasArguments(argPairs)
+
+        const envPairs: TKeyValuePair[] = Object.entries(opts.envVars || {}).map(
+          ([key, value]: [string, string], index) => ({
+            id: `faas-env-${index}-${Date.now()}`,
+            key,
+            value,
+          })
+        )
+        setFaasEnvVars(envPairs)
+
+        setFaasSecrets(opts.secrets || [])
+        setFaasTimeout(opts.timeout?.toString() || '')
+        setFaasMemory(opts.memory?.toString() || '')
+      } else {
+        setFunctionId(``)
+        setFaasArguments([])
+        setFaasEnvVars([])
+        setFaasSecrets([])
+        setFaasTimeout(``)
+        setFaasMemory(``)
+      }
+
+      // Agent configuration
+      if (endpoint.type === EEndpointType.agent) {
+        opts = endpoint.options as TAgentEndpointConfig
+
+        setAgentId(opts.agentId || '')
+
+        if (opts.overrides) {
+          setAgentSystemPrompt(opts.overrides.systemPrompt || '')
+          setAgentModel(opts.overrides.model || '')
+          setAgentMaxTokens(opts.overrides.maxTokens?.toString() || '')
+          setAgentTools(opts.overrides.tools || [])
+
+          const agentEnvPairs: TKeyValuePair[] = Object.entries(
+            opts.overrides.envVars || {}
+          ).map(([key, value]: [string, string], index) => ({
+            id: `agent-env-${index}-${Date.now()}`,
+            key,
+            value,
+          }))
+          setAgentEnvVars(agentEnvPairs)
+
+          setAgentSecrets(opts.overrides.secrets || [])
+        } else {
+          setAgentSystemPrompt(``)
+          setAgentModel(``)
+          setAgentMaxTokens(``)
+          setAgentTools([])
+          setAgentEnvVars([])
+          setAgentSecrets([])
+        }
+      } else {
+        setAgentId(``)
+        setAgentSystemPrompt(``)
+        setAgentModel(``)
+        setAgentMaxTokens(``)
+        setAgentTools([])
+        setAgentEnvVars([])
+        setAgentSecrets([])
+      }
 
       // Convert headers object to array of pairs
       const headers = endpoint.headers || {}
@@ -113,20 +231,14 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       setHeaderPairs(pairs)
 
       // Options
-      const opts = endpoint.options || {}
-
-      // Basic options
       setEPTimeout(opts.timeout?.toString() || ``)
       setRetries(opts.retries?.toString() || ``)
       setPathRegex(opts.pathRegex || ``)
-
-      // Retry configuration
       setRetryDelay(opts.retryDelay?.toString() || ``)
       setRetryMaxDelay(opts.retryMaxDelay?.toString() || ``)
       setRetryBackoffMultiplier(opts.retryBackoffMultiplier?.toString() || ``)
       setRetryExponentialBackoff(opts.retryExponentialBackoff !== false)
 
-      // Auth options
       if (opts.auth) {
         setAuthEnabled(true)
         setAuthType(opts.auth.type || `bearer`)
@@ -139,7 +251,6 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
         setAuthHeaderName(``)
       }
 
-      // OAuth options
       if (opts.oauth) {
         setOauthEnabled(true)
         setOauthTokenUrl(opts.oauth.tokenUrl || ``)
@@ -166,16 +277,6 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
         setOauthParams([])
       }
 
-      // Transform options
-      if (opts.transform) {
-        setTransformEnabled(true)
-        setTransformInjectSecrets(opts.transform.injectSecrets || false)
-      } else {
-        setTransformEnabled(false)
-        setTransformInjectSecrets(false)
-      }
-
-      // Domain whitelist options
       if (opts.domainWhitelist) {
         setWhitelistEnabled(true)
         setWhitelistDomains(opts.domainWhitelist.allowedDomains?.join(`, `) || ``)
@@ -194,6 +295,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       setPath(``)
       setError(null)
       setMethod(`get`)
+      setEndpointType(EEndpointType.proxy)
       setPublicEndpoint(false)
       setShowDeleteConfirm(false)
       setHeaderPairs([])
@@ -221,6 +323,23 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       setWhitelistDomains(``)
       setWhitelistEnforce(true)
       setWhitelistLogBlocked(true)
+
+      // Reset FAAS fields
+      setFunctionId(``)
+      setFaasArguments([])
+      setFaasEnvVars([])
+      setFaasSecrets([])
+      setFaasTimeout(``)
+      setFaasMemory(``)
+
+      // Reset Agent fields
+      setAgentId(``)
+      setAgentSystemPrompt(``)
+      setAgentModel(``)
+      setAgentMaxTokens(``)
+      setAgentTools([])
+      setAgentEnvVars([])
+      setAgentSecrets([])
     }
   }, [endpoint])
 
@@ -233,6 +352,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       setMethod(`get`)
       setPublicEndpoint(false)
       setShowDeleteConfirm(false)
+      setEndpointType(EEndpointType.proxy)
       setHeaderPairs([])
       setEPTimeout(``)
       setRetries(``)
@@ -258,6 +378,19 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       setWhitelistDomains(``)
       setWhitelistEnforce(true)
       setWhitelistLogBlocked(true)
+      setFunctionId(``)
+      setFaasArguments([])
+      setFaasEnvVars([])
+      setFaasSecrets([])
+      setFaasTimeout(``)
+      setFaasMemory(``)
+      setAgentId(``)
+      setAgentSystemPrompt(``)
+      setAgentModel(``)
+      setAgentMaxTokens(``)
+      setAgentTools([])
+      setAgentEnvVars([])
+      setAgentSecrets([])
       onCloseCB?.()
     }
   }
@@ -265,15 +398,19 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name.trim()) {
-      setError(`Endpoint name is required`)
-      return
-    }
+    if (!name.trim()) return setError(`Endpoint name is required`)
 
-    if (!path.trim()) {
-      setError(`Proxy URL is required`)
-      return
-    }
+    if (!path.trim()) return setError(`Endpoint path is required`)
+
+    // Type-specific validation
+    if (endpointType === EEndpointType.faas && !functionId)
+      return setError(`Please select a function for FAAS endpoints`)
+
+    if (endpointType === EEndpointType.agent && !agentId)
+      return setError(`Please select an agent for agent endpoints`)
+
+    if (endpointType === EEndpointType.proxy && !url.trim())
+      return setError(`Proxy URL is required for proxy endpoints`)
 
     setLoading(true)
     setError(null)
@@ -287,21 +424,76 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
     })
 
     // Build options object
-    const options: TEndpointOpts = {}
+    const options = { type: endpointType } as TEndpointOpts<TEndpointType>
 
-    // Basic options
+    // Type-specific configurations
+    if (endpointType === EEndpointType.proxy) {
+      if (transformEnabled) {
+        Object.assign(options, {
+          transform: {
+            injectSecrets: transformInjectSecrets,
+          },
+        })
+      }
+    } else if (endpointType === EEndpointType.faas) {
+      const faasArgs: Record<string, any> = {}
+      faasArguments.forEach((pair) => {
+        if (pair.key.trim() && pair.value.trim()) {
+          try {
+            faasArgs[pair.key.trim()] = JSON.parse(pair.value.trim())
+          } catch {
+            faasArgs[pair.key.trim()] = pair.value.trim()
+          }
+        }
+      })
+
+      const faasEnv: Record<string, string> = {}
+      faasEnvVars.forEach((pair) => {
+        if (pair.key.trim() && pair.value.trim()) {
+          faasEnv[pair.key.trim()] = pair.value.trim()
+        }
+      })
+
+      Object.assign(options, {
+        functionId: functionId,
+        secrets: faasSecrets.length > 0 ? faasSecrets : undefined,
+        envVars: Object.keys(faasEnv).length > 0 ? faasEnv : undefined,
+        memory: faasMemory ? Number.parseInt(faasMemory, 10) : undefined,
+        arguments: Object.keys(faasArgs).length > 0 ? faasArgs : undefined,
+        timeout: faasTimeout ? Number.parseInt(faasTimeout, 10) : undefined,
+      })
+    } else if (endpointType === EEndpointType.agent) {
+      const agentEnv: Record<string, string> = {}
+      agentEnvVars.forEach((pair) => {
+        if (pair.key.trim() && pair.value.trim()) {
+          agentEnv[pair.key.trim()] = pair.value.trim()
+        }
+      })
+
+      Object.assign(options, {
+        agentId: agentId,
+        overrides: {
+          systemPrompt: agentSystemPrompt || undefined,
+          model: agentModel || undefined,
+          maxTokens: agentMaxTokens ? Number.parseInt(agentMaxTokens, 10) : undefined,
+          tools: agentTools.length > 0 ? agentTools : undefined,
+          envVars: Object.keys(agentEnv).length > 0 ? agentEnv : undefined,
+          secrets: agentSecrets.length > 0 ? agentSecrets : undefined,
+        },
+      })
+    }
+
+    // General proxy configuration
     if (timeout) options.timeout = Number.parseInt(timeout, 10)
     if (retries) options.retries = Number.parseInt(retries, 10)
     if (pathRegex) options.pathRegex = pathRegex
 
-    // Retry configuration
     if (retryDelay) options.retryDelay = Number.parseInt(retryDelay, 10)
     if (retryMaxDelay) options.retryMaxDelay = Number.parseInt(retryMaxDelay, 10)
     if (retryBackoffMultiplier)
       options.retryBackoffMultiplier = Number.parseFloat(retryBackoffMultiplier)
     if (retries) options.retryExponentialBackoff = retryExponentialBackoff
 
-    // Auth options
     if (authEnabled) {
       options.auth = {
         type: authType,
@@ -310,7 +502,6 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       }
     }
 
-    // OAuth options
     if (oauthEnabled && oauthTokenUrl && oauthClientId && oauthClientSecret) {
       const additionalParams: Record<string, string> = {}
       oauthParams.forEach((pair) => {
@@ -335,15 +526,6 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       }
     }
 
-    // Transform options
-    if (transformEnabled) {
-      options.transform = {
-        injectSecrets: transformInjectSecrets,
-        // Note: rules would need a separate complex UI component
-      }
-    }
-
-    // Domain whitelist options
     if (whitelistEnabled && whitelistDomains) {
       options.domainWhitelist = {
         allowedDomains: whitelistDomains
@@ -366,6 +548,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
             name: name.trim(),
             path: path.trim(),
             public: publicEndpoint,
+            type: endpointType,
           })
         : await createEndpoint({
             method,
@@ -376,6 +559,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
             name: name.trim(),
             path: path.trim(),
             public: publicEndpoint,
+            type: endpointType,
           })
 
     setLoading(false)
@@ -490,6 +674,16 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
               onChange={(e) => setName(e.target.value)}
             />
 
+            <SelectInput
+              required
+              id='endpoint-type'
+              label='Endpoint Type'
+              value={endpointType}
+              items={EndpointTypeOpts}
+              disabled={loading || isEditMode}
+              onChange={(e) => setEndpointType(e.target.value as TEndpointType)}
+            />
+
             <TextInput
               required
               fullWidth
@@ -501,26 +695,108 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
               onChange={(e) => setPath(e.target.value)}
             />
 
-            <TextInput
-              required
-              fullWidth
-              value={url}
-              id='endpoint-url'
-              label='Proxy URL'
-              disabled={loading}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder='https://api.example.com/v1/users'
-            />
+            {/* Type-specific configuration */}
+            {endpointType === EEndpointType.proxy && (
+              <EndpointProxy
+                loading={loading}
+                url={url}
+                method={method}
+                timeout={timeout}
+                retries={retries}
+                authType={authType}
+                onUrlChange={setUrl}
+                pathRegex={pathRegex}
+                headers={headerPairs}
+                retryDelay={retryDelay}
+                oauthScopes={oauthScopes}
+                oauthParams={oauthParams}
+                authEnabled={authEnabled}
+                onMethodChange={setMethod}
+                oauthEnabled={oauthEnabled}
+                onRetriesChange={setRetries}
+                oauthTokenUrl={oauthTokenUrl}
+                oauthClientId={oauthClientId}
+                retryMaxDelay={retryMaxDelay}
+                onTimeoutChange={setEPTimeout}
+                onAuthTypeChange={setAuthType}
+                authSecretName={authSecretName}
+                authHeaderName={authHeaderName}
+                onHeadersChange={setHeaderPairs}
+                onPathRegexChange={setPathRegex}
+                onRetryDelayChange={setRetryDelay}
+                whitelistEnabled={whitelistEnabled}
+                whitelistDomains={whitelistDomains}
+                whitelistEnforce={whitelistEnforce}
+                availableSecrets={availableSecrets}
+                transformEnabled={transformEnabled}
+                onOauthParamsChange={setOauthParams}
+                onOauthScopesChange={setOauthScopes}
+                onAuthEnabledChange={setAuthEnabled}
+                oauthClientSecret={oauthClientSecret}
+                onOauthEnabledChange={setOauthEnabled}
+                onOauthTokenUrlChange={setOauthTokenUrl}
+                onOauthClientIdChange={setOauthClientId}
+                onRetryMaxDelayChange={setRetryMaxDelay}
+                whitelistLogBlocked={whitelistLogBlocked}
+                onAuthSecretNameChange={setAuthSecretName}
+                onAuthHeaderNameChange={setAuthHeaderName}
+                oauthCredentialStyle={oauthCredentialStyle}
+                onWhitelistEnabledChange={setWhitelistEnabled}
+                onWhitelistDomainsChange={setWhitelistDomains}
+                onWhitelistEnforceChange={setWhitelistEnforce}
+                onTransformEnabledChange={setTransformEnabled}
+                transformInjectSecrets={transformInjectSecrets}
+                retryBackoffMultiplier={retryBackoffMultiplier}
+                onOauthClientSecretChange={setOauthClientSecret}
+                retryExponentialBackoff={retryExponentialBackoff}
+                onWhitelistLogBlockedChange={setWhitelistLogBlocked}
+                onOauthCredentialStyleChange={setOauthCredentialStyle}
+                onTransformInjectSecretsChange={setTransformInjectSecrets}
+                onRetryBackoffMultiplierChange={setRetryBackoffMultiplier}
+                onRetryExponentialBackoffChange={setRetryExponentialBackoff}
+              />
+            )}
 
-            <SelectInput
-              required
-              id='method-select'
-              disabled={loading}
-              label='HTTP Method'
-              items={HttpMethodOps}
-              value={method.toLowerCase()}
-              onChange={(e) => setMethod(e.target.value)}
-            />
+            {endpointType === EEndpointType.faas && (
+              <EndpointFaas
+                loading={loading}
+                memory={faasMemory}
+                timeout={faasTimeout}
+                envVars={faasEnvVars}
+                secrets={faasSecrets}
+                functionId={functionId}
+                arguments={faasArguments}
+                onMemoryChange={setFaasMemory}
+                onEnvVarsChange={setFaasEnvVars}
+                onSecretsChange={setFaasSecrets}
+                onTimeoutChange={setFaasTimeout}
+                onFunctionIdChange={setFunctionId}
+                availableSecrets={availableSecrets}
+                onArgumentsChange={setFaasArguments}
+                availableFunctions={availableFunctions}
+              />
+            )}
+
+            {endpointType === EEndpointType.agent && (
+              <EndpointAgent
+                loading={loading}
+                agentId={agentId}
+                model={agentModel}
+                tools={agentTools}
+                envVars={agentEnvVars}
+                secrets={agentSecrets}
+                maxTokens={agentMaxTokens}
+                onAgentIdChange={setAgentId}
+                onModelChange={setAgentModel}
+                onToolsChange={setAgentTools}
+                systemPrompt={agentSystemPrompt}
+                onEnvVarsChange={setAgentEnvVars}
+                onSecretsChange={setAgentSecrets}
+                availableSecrets={availableSecrets}
+                onMaxTokensChange={setAgentMaxTokens}
+                onSystemPromptChange={setAgentSystemPrompt}
+              />
+            )}
 
             <SwitchInput
               disabled={loading}
@@ -540,463 +816,6 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
               </Alert>
             </Box>
           </Box>
-
-          {/* Advanced Configuration */}
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                variant='subtitle1'
-                fontWeight={500}
-              >
-                Headers
-              </Typography>
-              {headerPairs.length > 0 && (
-                <Chip
-                  size='small'
-                  label={headerPairs.length}
-                  sx={{ ml: 1 }}
-                />
-              )}
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <KeyValueEditor
-                  pairs={headerPairs}
-                  disabled={loading}
-                  secrets={availableSecrets}
-                  keyPlaceholder='Header Name'
-                  valuePlaceholder='Header Value or {{secret-name}}'
-                  enableSecretReferences={true}
-                  onChange={setHeaderPairs}
-                />
-                <Alert
-                  severity='info'
-                  sx={{ fontSize: '0.875rem' }}
-                >
-                  Custom headers included in proxied requests. Use {'{{'} and {'}}'} to
-                  reference secrets.
-                </Alert>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                variant='subtitle1'
-                fontWeight={500}
-              >
-                Basic Options
-              </Typography>
-              {(timeout || retries || pathRegex) && (
-                <Chip
-                  size='small'
-                  label='Configured'
-                  color='primary'
-                  sx={{ ml: 1 }}
-                />
-              )}
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextInput
-                  fullWidth
-                  type='number'
-                  value={timeout}
-                  id='endpoint-timeout'
-                  label='Timeout (ms)'
-                  disabled={loading}
-                  placeholder='30000'
-                  onChange={(e) => setEPTimeout(e.target.value)}
-                />
-                <TextInput
-                  fullWidth
-                  type='number'
-                  value={retries}
-                  id='endpoint-retries'
-                  label='Max Retries'
-                  disabled={loading}
-                  placeholder='3'
-                  onChange={(e) => setRetries(e.target.value)}
-                />
-
-                {retries && Number.parseInt(retries, 10) > 0 && (
-                  <>
-                    <Typography
-                      variant='body2'
-                      sx={{ mt: 1, fontWeight: 500 }}
-                    >
-                      Retry Configuration
-                    </Typography>
-                    <TextInput
-                      fullWidth
-                      type='number'
-                      value={retryDelay}
-                      disabled={loading}
-                      placeholder='1000'
-                      id='endpoint-retry-delay'
-                      label='Initial Retry Delay (ms)'
-                      onChange={(e) => setRetryDelay(e.target.value)}
-                    />
-                    <TextInput
-                      fullWidth
-                      type='number'
-                      disabled={loading}
-                      placeholder='30000'
-                      value={retryMaxDelay}
-                      id='endpoint-retry-max-delay'
-                      label='Max Retry Delay (ms)'
-                      onChange={(e) => setRetryMaxDelay(e.target.value)}
-                    />
-                    <TextInput
-                      fullWidth
-                      type='number'
-                      placeholder='2'
-                      disabled={loading}
-                      label='Backoff Multiplier'
-                      value={retryBackoffMultiplier}
-                      id='endpoint-retry-backoff-multiplier'
-                      onChange={(e) => setRetryBackoffMultiplier(e.target.value)}
-                    />
-                    <SwitchInput
-                      disabled={loading}
-                      label='Exponential Backoff'
-                      id='retry-exponential-backoff'
-                      checked={retryExponentialBackoff}
-                      onChange={(e, checked) => setRetryExponentialBackoff(checked)}
-                    />
-                    <Alert
-                      severity='info'
-                      sx={{ fontSize: '0.875rem' }}
-                    >
-                      {retryExponentialBackoff
-                        ? `Retry delays increase exponentially (${retryDelay || '1000'}ms → ${
-                            Number.parseInt(retryDelay || '1000', 10) *
-                              Number.parseFloat(retryBackoffMultiplier || '2') || '2000'
-                          }ms → ${
-                            Number.parseInt(retryDelay || '1000', 10) *
-                              Math.pow(
-                                Number.parseFloat(retryBackoffMultiplier || '2'),
-                                2
-                              ) || '4000'
-                          }ms...)`
-                        : `Fixed delay of ${retryDelay || '1000'}ms between retries`}
-                    </Alert>
-                  </>
-                )}
-
-                <TextInput
-                  fullWidth
-                  value={pathRegex}
-                  label='Path Regex'
-                  disabled={loading}
-                  placeholder='/api/v1/.*'
-                  id='endpoint-path-regex'
-                  onChange={(e) => setPathRegex(e.target.value)}
-                />
-                <Alert
-                  severity='info'
-                  sx={{ fontSize: '0.875rem' }}
-                >
-                  Configure request timeout, retry behavior with exponential backoff, and
-                  path pattern matching.
-                </Alert>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                variant='subtitle1'
-                fontWeight={500}
-              >
-                Authentication
-              </Typography>
-              {authEnabled && (
-                <Chip
-                  size='small'
-                  color='primary'
-                  sx={{ ml: 1 }}
-                  label={authType.toUpperCase()}
-                />
-              )}
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <SwitchInput
-                  disabled={loading}
-                  id='auth-enabled'
-                  checked={authEnabled}
-                  label='Enable Authentication'
-                  onChange={(e, checked) => setAuthEnabled(checked)}
-                />
-
-                {authEnabled && (
-                  <>
-                    <SelectInput
-                      id='auth-type'
-                      value={authType}
-                      items={AuthTypes}
-                      disabled={loading}
-                      label='Auth Type'
-                      onChange={(e) => setAuthType(e.target.value as typeof authType)}
-                    />
-                    <TextInput
-                      fullWidth
-                      disabled={loading}
-                      label='Secret Name'
-                      id='auth-secret-name'
-                      value={authSecretName}
-                      placeholder='API_KEY or {{API_KEY}}'
-                      onChange={(e) => setAuthSecretName(e.target.value)}
-                    />
-                    <TextInput
-                      fullWidth
-                      disabled={loading}
-                      label='Header Name'
-                      id='auth-header-name'
-                      value={authHeaderName}
-                      placeholder='Authorization'
-                      onChange={(e) => setAuthHeaderName(e.target.value)}
-                    />
-                  </>
-                )}
-
-                <Alert
-                  severity='info'
-                  sx={{ fontSize: '0.875rem' }}
-                >
-                  Configure authentication using secrets. Secret value will be injected
-                  into the specified header.
-                </Alert>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                variant='subtitle1'
-                fontWeight={500}
-              >
-                OAuth 2.0
-              </Typography>
-              {oauthEnabled && (
-                <Chip
-                  size='small'
-                  label='Enabled'
-                  color='primary'
-                  sx={{ ml: 1 }}
-                />
-              )}
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <SwitchInput
-                  disabled={loading}
-                  id='oauth-enabled'
-                  label='Enable OAuth 2.0'
-                  checked={oauthEnabled}
-                  onChange={(e, checked) => setOauthEnabled(checked)}
-                />
-
-                {oauthEnabled && (
-                  <>
-                    <TextInput
-                      required
-                      fullWidth
-                      value={oauthTokenUrl}
-                      id='oauth-token-url'
-                      label='Token URL'
-                      disabled={loading}
-                      placeholder='https://oauth.example.com/token'
-                      onChange={(e) => setOauthTokenUrl(e.target.value)}
-                    />
-                    <TextInput
-                      required
-                      fullWidth
-                      value={oauthClientId}
-                      id='oauth-client-id'
-                      label='Client ID'
-                      disabled={loading}
-                      placeholder='{{CLIENT_ID}}'
-                      onChange={(e) => setOauthClientId(e.target.value)}
-                    />
-                    <TextInput
-                      required
-                      fullWidth
-                      value={oauthClientSecret}
-                      id='oauth-client-secret'
-                      label='Client Secret'
-                      disabled={loading}
-                      placeholder='{{CLIENT_SECRET}}'
-                      onChange={(e) => setOauthClientSecret(e.target.value)}
-                    />
-                    <TextInput
-                      fullWidth
-                      value={oauthScopes}
-                      id='oauth-scopes'
-                      label='Scopes'
-                      disabled={loading}
-                      placeholder='read, write, admin'
-                      onChange={(e) => setOauthScopes(e.target.value)}
-                    />
-                    <SelectInput
-                      value={oauthCredentialStyle}
-                      id='oauth-credential-style'
-                      disabled={loading}
-                      label='Credential Style'
-                      onChange={(e) =>
-                        setOauthCredentialStyle(
-                          e.target.value as typeof oauthCredentialStyle
-                        )
-                      }
-                      items={CredentialOpts}
-                    />
-
-                    <Typography
-                      variant='body2'
-                      sx={{ mt: 1 }}
-                    >
-                      Additional Parameters
-                    </Typography>
-                    <KeyValueEditor
-                      disabled={loading}
-                      pairs={oauthParams}
-                      onChange={setOauthParams}
-                      secrets={availableSecrets}
-                      enableSecretReferences={true}
-                      keyPlaceholder='Parameter Name'
-                      valuePlaceholder='Parameter Value'
-                    />
-                  </>
-                )}
-
-                <Alert
-                  severity='info'
-                  sx={{ fontSize: '0.875rem' }}
-                >
-                  Configure OAuth 2.0 client credentials flow. Use secret references for
-                  credentials.
-                </Alert>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                variant='subtitle1'
-                fontWeight={500}
-              >
-                Transform
-              </Typography>
-              {transformEnabled && (
-                <Chip
-                  size='small'
-                  label='Enabled'
-                  color='primary'
-                  sx={{ ml: 1 }}
-                />
-              )}
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <SwitchInput
-                  disabled={loading}
-                  id='transform-enabled'
-                  label='Enable Transform'
-                  checked={transformEnabled}
-                  onChange={(e, checked) => setTransformEnabled(checked)}
-                />
-
-                {transformEnabled && (
-                  <SwitchInput
-                    disabled={loading}
-                    id='transform-inject-secrets'
-                    label='Inject Secrets in Body'
-                    checked={transformInjectSecrets}
-                    onChange={(e, checked) => setTransformInjectSecrets(checked)}
-                  />
-                )}
-
-                <Alert
-                  severity='info'
-                  sx={{ fontSize: '0.875rem' }}
-                >
-                  Transform request/response bodies. Secret injection replaces {'{{'} and{' '}
-                  {'}}'} references.
-                </Alert>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                variant='subtitle1'
-                fontWeight={500}
-              >
-                Domain Whitelist
-              </Typography>
-              {whitelistEnabled && (
-                <Chip
-                  size='small'
-                  label='Enabled'
-                  color='primary'
-                  sx={{ ml: 1 }}
-                />
-              )}
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <SwitchInput
-                  disabled={loading}
-                  id='whitelist-enabled'
-                  label='Enable Domain Whitelist'
-                  checked={whitelistEnabled}
-                  onChange={(e, checked) => setWhitelistEnabled(checked)}
-                />
-
-                {whitelistEnabled && (
-                  <>
-                    <TextInput
-                      fullWidth
-                      value={whitelistDomains}
-                      id='whitelist-domains'
-                      label='Allowed Domains'
-                      disabled={loading}
-                      placeholder='example.com, *.api.example.com'
-                      onChange={(e) => setWhitelistDomains(e.target.value)}
-                    />
-                    <SwitchInput
-                      disabled={loading}
-                      id='whitelist-enforce'
-                      label='Enforce Whitelist'
-                      checked={whitelistEnforce}
-                      onChange={(e, checked) => setWhitelistEnforce(checked)}
-                    />
-                    <SwitchInput
-                      disabled={loading}
-                      id='whitelist-log-blocked'
-                      label='Log Blocked Attempts'
-                      checked={whitelistLogBlocked}
-                      onChange={(e, checked) => setWhitelistLogBlocked(checked)}
-                    />
-                  </>
-                )}
-
-                <Alert
-                  severity='info'
-                  sx={{ fontSize: '0.875rem' }}
-                >
-                  Restrict endpoint access to specific domains. Supports wildcards
-                  (*.example.com).
-                </Alert>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
         </Box>
       </form>
     </Drawer>

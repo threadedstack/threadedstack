@@ -49,9 +49,7 @@ export const FunctionDrawer = ({
 
   // Fetch endpoints when the drawer opens
   useEffect(() => {
-    if (open && projectId) {
-      fetchEndpoints({ projectId })
-    }
+    open && projectId && fetchEndpoints({ projectId })
   }, [open, projectId])
 
   // Create endpoint options for the select dropdown
@@ -123,15 +121,8 @@ export const FunctionDrawer = ({
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name.trim()) {
-      setError(`Function name is required`)
-      return
-    }
-
-    if (!language) {
-      setError(`Language is required`)
-      return
-    }
+    if (!name.trim()) return setError(`Function name is required`)
+    if (!language) return setError(`Language is required`)
 
     setError(null)
     setLoading(true)
@@ -155,9 +146,8 @@ export const FunctionDrawer = ({
       dependencyPairs.length > 0
         ? dependencyPairs.reduce(
             (acc, pair) => {
-              if (pair.key.trim() && pair.value.trim()) {
+              if (pair.key.trim() && pair.value.trim())
                 acc[pair.key.trim()] = pair.value.trim()
-              }
               return acc
             },
             {} as Record<string, any>
@@ -177,10 +167,7 @@ export const FunctionDrawer = ({
 
     const result = isEditMode
       ? await updateFunction(func?.id, functionData)
-      : await createFunction({
-          ...functionData,
-          projectId,
-        })
+      : await createFunction({ ...functionData, projectId })
 
     setLoading(false)
 

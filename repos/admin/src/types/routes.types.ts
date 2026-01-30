@@ -6,15 +6,11 @@ export enum ERoutePath {
   Account = `/account/:pathname`,
   Settings = `/settings`,
   Profile = `/profile`,
-  AI = `/ai`,
-  AIAgents = `/ai/agents`,
-  MCPTools = `/ai/mcp-tools`,
   ApiTokens = `/api-tokens`,
 
   // Org routes (top level)
   Orgs = `/orgs`,
   Org = `/orgs/:orgId`,
-  OrgAi = `/orgs/:orgId/ai`,
   OrgUsers = `/orgs/:orgId/users`,
   OrgUsage = `/orgs/:orgId/usage`,
   OrgSecrets = `/orgs/:orgId/secrets`,
@@ -28,7 +24,8 @@ export enum ERoutePath {
 
   // Project routes (nested under org)
   Project = `/orgs/:orgId/projects/:projectId`,
-  ProjectAi = `/orgs/:orgId/projects/:projectId/ai`,
+  ProjectAgents = `/orgs/:orgId/projects/:projectId/agents`,
+  ProjectThreads = `/orgs/:orgId/projects/:projectId/threads`,
   ProjectSecrets = `/orgs/:orgId/projects/:projectId/secrets`,
   ProjectDomains = `/orgs/:orgId/projects/:projectId/domains`,
   ProjectSettings = `/orgs/:orgId/projects/:projectId/settings`,

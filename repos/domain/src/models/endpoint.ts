@@ -6,7 +6,7 @@ type TEPOpts<T extends TEndpointType> = Omit<Partial<Endpoint<T>>, `type`> & {
   type: TEndpointType
 }
 
-export class Endpoint<T extends TEndpointType> extends Base {
+export class Endpoint<T extends TEndpointType = TEndpointType> extends Base {
   type: T
   url: string
   name: string

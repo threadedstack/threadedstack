@@ -3,7 +3,7 @@ import { orgs } from '@TDB/schemas/orgs'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { certificates } from '@TDB/schemas/certificates'
-import { uniqueIndex, pgTable, text, timestamp, boolean } from 'drizzle-orm/pg-core'
+import { uuid, uniqueIndex, pgTable, text, timestamp, boolean } from 'drizzle-orm/pg-core'
 
 /**
  * Domains table for custom user domains
@@ -32,8 +32,8 @@ export const domains = pgTable(
     sslEnabled: boolean(`ssl_enabled`).notNull().default(false),
     // Domain ownership via Exclusive Arc pattern
     // Only one of these should be set
-    orgId: text(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
-    projectId: text(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
+    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
+    projectId: uuid(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
   },
   (table) => [uniqueIndex(`domains_org_id_domain_idx`).on(table.orgId, table.domain)]
 )

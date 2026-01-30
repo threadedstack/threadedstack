@@ -24,7 +24,7 @@ export const ToolsSelector = (props: TToolsSelector) => {
         disabled={loading}
         noOptionsText='No tools available'
         options={AvailableTools.map((t) => t.value)}
-        onChange={(_, newValue) => onChange(newValue)}
+        onChange={(_, updates) => onChange(updates)}
         getOptionLabel={(option) => {
           const tool = AvailableTools.find((t) => t.value === option)
           return tool ? tool.label : option

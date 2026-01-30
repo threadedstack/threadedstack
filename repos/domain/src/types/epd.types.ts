@@ -120,8 +120,10 @@ export type TOAuthConfig = {
 }
 
 export type TSharedEndpointOpts<
-  T extends Record<string, unknown> = Record<string, unknown>,
-> = T & {
+  T extends TEndpointType = TEndpointType,
+  P extends Record<string, unknown> = Record<string, unknown>,
+> = P & {
+  type: T
   /** Proxy-specific configuration (legacy support) */
   timeout?: number
   pathRegex?: string
@@ -149,55 +151,64 @@ export type TSharedEndpointOpts<
 /**
  * FaaS endpoint configuration
  */
-export type TFaaSEndpointConfig = TSharedEndpointOpts<{
-  /** Function ID to call */
-  functionId: string
-  /** Arguments to pass to the function */
-  arguments?: Record<string, any>
-  /** Environment variables to expose to the function */
-  envVars?: Record<string, string>
-  /** Secret IDs to expose to the function (by ID) */
-  secrets?: string[]
-  /** Execution timeout in milliseconds */
-  timeout?: number
-  /** Maximum memory allocation in MB */
-  memory?: number
-}>
+export type TFaaSEndpointConfig = TSharedEndpointOpts<
+  EEndpointType.faas,
+  {
+    /** Function ID to call */
+    functionId: string
+    /** Arguments to pass to the function */
+    arguments?: Record<string, any>
+    /** Environment variables to expose to the function */
+    envVars?: Record<string, string>
+    /** Secret IDs to expose to the function (by ID) */
+    secrets?: string[]
+    /** Execution timeout in milliseconds */
+    timeout?: number
+    /** Maximum memory allocation in MB */
+    memory?: number
+  }
+>
 
 /**
  * Agent endpoint configuration
  */
-export type TAgentEndpointConfig = TSharedEndpointOpts<{
-  /** Agent ID to use for this endpoint */
-  agentId: string
-  /** Optional overrides for this specific endpoint */
-  overrides?: {
-    /** Override system prompt */
-    systemPrompt?: string
-    /** Override model */
-    model?: string
-    /** Override max tokens */
-    maxTokens?: number
-    /** Override tools */
-    tools?: string[]
-    /** Additional environment variables */
-    envVars?: Record<string, string>
-    /** Additional secrets (by ID) */
-    secrets?: string[]
+export type TAgentEndpointConfig = TSharedEndpointOpts<
+  EEndpointType.agent,
+  {
+    /** Agent ID to use for this endpoint */
+    agentId: string
+    /** Optional overrides for this specific endpoint */
+    overrides?: {
+      /** Override system prompt */
+      systemPrompt?: string
+      /** Override model */
+      model?: string
+      /** Override max tokens */
+      maxTokens?: number
+      /** Override tools */
+      tools?: string[]
+      /** Additional environment variables */
+      envVars?: Record<string, string>
+      /** Additional secrets (by ID) */
+      secrets?: string[]
+    }
   }
-}>
+>
 
 /**
  * Proxy endpoint configuration (existing functionality)
  */
-export type TProxyEndpointConfig = TSharedEndpointOpts<{
-  /** Target URL for proxying */
-  url: string
-  /** HTTP method */
-  method?: string
-  /** Transform configuration */
-  transform?: TBodyTransformConfig
-}>
+export type TProxyEndpointConfig = TSharedEndpointOpts<
+  EEndpointType.proxy,
+  {
+    /** Target URL for proxying */
+    url: string
+    /** HTTP method */
+    method?: string
+    /** Transform configuration */
+    transform?: TBodyTransformConfig
+  }
+>
 
 export type TEPOptsSwitch<T extends `${EEndpointType}`> =
   T extends `${EEndpointType.proxy}`
@@ -206,4 +217,4 @@ export type TEPOptsSwitch<T extends `${EEndpointType}`> =
       ? TFaaSEndpointConfig
       : TAgentEndpointConfig
 
-export type TEndpointOpts<T extends `${TEndpointType}`> = TEPOptsSwitch<T>
+export type TEndpointOpts<T extends TEndpointType> = TEPOptsSwitch<T>

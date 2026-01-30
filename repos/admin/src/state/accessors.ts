@@ -2,10 +2,14 @@ import type { EThemeType, TQuotaData, TLimitsData } from '@TAF/types'
 import type {
   User,
   Plan,
+  Asset,
+  Agent,
   Config,
   Secret,
   ApiKey,
   Domain,
+  Thread,
+  Message,
   Project,
   Provider,
   Endpoint,
@@ -34,6 +38,10 @@ import {
 } from '@TAF/state/orgs'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
+import { threadsState, activeThreadIdState } from '@TAF/state/threads'
+import { messagesState, activeMessageIdState } from '@TAF/state/messages'
+import { assetsState, activeAssetIdState } from '@TAF/state/assets'
+import { agentsState, activeAgentIdState } from '@TAF/state/agents'
 
 export const store = createStore()
 
@@ -161,3 +169,37 @@ export const getOrgLimits = () => store.get(orgLimitsState)
 export const resetOrgLimits = () => store.set(orgLimitsState, undefined)
 export const setOrgLimits = (limits: TLimitsData | undefined) =>
   store.set(orgLimitsState, limits)
+
+export const getThreads = () => store.get(threadsState)
+export const resetThreads = () => store.set(threadsState, undefined)
+export const setThreads = (threads: Record<string, Thread>) =>
+  store.set(threadsState, threads)
+
+export const getActiveThreadId = () => store.get(activeThreadIdState)
+export const resetActiveThreadId = () => store.set(activeThreadIdState, undefined)
+export const setActiveThreadId = (id: string) => store.set(activeThreadIdState, id)
+
+export const getMessages = () => store.get(messagesState)
+export const resetMessages = () => store.set(messagesState, undefined)
+export const setMessages = (messages: Record<string, Message>) =>
+  store.set(messagesState, messages)
+
+export const getActiveMessageId = () => store.get(activeMessageIdState)
+export const resetActiveMessageId = () => store.set(activeMessageIdState, undefined)
+export const setActiveMessageId = (id: string) => store.set(activeMessageIdState, id)
+
+export const getAssets = () => store.get(assetsState)
+export const resetAssets = () => store.set(assetsState, undefined)
+export const setAssets = (assets: Record<string, Asset>) => store.set(assetsState, assets)
+
+export const getActiveAssetId = () => store.get(activeAssetIdState)
+export const resetActiveAssetId = () => store.set(activeAssetIdState, undefined)
+export const setActiveAssetId = (id: string) => store.set(activeAssetIdState, id)
+
+export const getAgents = () => store.get(agentsState)
+export const resetAgents = () => store.set(agentsState, undefined)
+export const setAgents = (agents: Record<string, Agent>) => store.set(agentsState, agents)
+
+export const getActiveAgentId = () => store.get(activeAgentIdState)
+export const resetActiveAgentId = () => store.set(activeAgentIdState, undefined)
+export const setActiveAgentId = (id: string) => store.set(activeAgentIdState, id)

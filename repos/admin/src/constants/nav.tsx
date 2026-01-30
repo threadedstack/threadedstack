@@ -70,12 +70,6 @@ export const OrgNavItems: TNavItem[] = [
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
-    text: `AI`,
-    Icon: <AutoAwesomeIcon />,
-    to: buildRoute(ERoutePath.OrgAi),
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
     text: `Domains`,
     to: buildRoute(ERoutePath.OrgDomains),
     Icon: <DnsIcon />,
@@ -122,8 +116,14 @@ export const ProjectNavItems: TNavItem[] = [
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
-    text: `AI`,
-    to: buildRoute(ERoutePath.ProjectAi),
+    text: `Agents`,
+    to: buildRoute(ERoutePath.ProjectAgents),
+    Icon: <AutoAwesomeIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
+  {
+    text: `Threads`,
+    to: buildRoute(ERoutePath.ProjectThreads),
     Icon: <AutoAwesomeIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
@@ -144,10 +144,4 @@ export const ProjectNavItems: TNavItem[] = [
 // Bottom navigation items (always visible)
 export const BottomNavItems: TNavItem[] = [
   { to: ERoutePath.Settings, text: `Settings`, Icon: <SettingsIcon /> },
-]
-
-// AI navigation items
-export const AINavItems: TNavItem[] = [
-  { to: ERoutePath.AIAgents, text: `AI Agents`, Icon: <AutoAwesomeIcon /> },
-  { to: ERoutePath.MCPTools, text: `MCP Tools`, Icon: <ToolIcon /> },
 ]
