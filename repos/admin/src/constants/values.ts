@@ -6,6 +6,7 @@ import {
   EFunLanguage,
   EApiKeyScope,
   EEPVisibility,
+  EEndpointType,
   EEPCredentialOpts,
 } from '@tdsk/domain'
 
@@ -63,3 +64,8 @@ export const EPVisibilityOpts = EPVisibility.map((value) => {
     label: capitalize(value),
   }
 })
+
+export const EndpointTypeOpts = Object.values(EEndpointType).map((value) => ({
+  value,
+  label: capitalize(value),
+}))
