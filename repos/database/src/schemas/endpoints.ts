@@ -13,6 +13,7 @@ export const endpoints = pgTable(`endpoints`, {
   options: jsonb(`options`),
   public: boolean(`public`).default(false),
   method: varchar(`method`, { length: 10 }).default(`GET`),
+  type: varchar(`type`, { length: 10 }).notNull().default(`proxy`),
   projectId: uuid(`project_id`)
     .references(() => projects.id, { onDelete: `cascade` })
     .notNull(),

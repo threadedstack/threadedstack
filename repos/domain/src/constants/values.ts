@@ -38,6 +38,13 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.delete]: ERoleType.admin, // Only admins can delete projects
     [EPermAction.manage]: ERoleType.admin, // Manage project settings/members
   },
+  [EPermResource.agent]: {
+    [EPermAction.create]: ERoleType.member, // Members can create agents in projects
+    [EPermAction.read]: ERoleType.viewer,
+    [EPermAction.update]: ERoleType.member,
+    [EPermAction.delete]: ERoleType.member,
+    [EPermAction.manage]: ERoleType.member,
+  },
   [EPermResource.secret]: {
     [EPermAction.create]: ERoleType.admin,
     [EPermAction.read]: ERoleType.member, // Members can see secret names (not values)

@@ -1,6 +1,7 @@
 import { orgs } from '@TDB/schemas/orgs'
 import { base } from '@TDB/utils/schema/base'
 import { sql, relations } from 'drizzle-orm'
+import { agents } from '@TDB/schemas/agents'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { uuid, text, check, pgTable } from 'drizzle-orm/pg-core'
@@ -18,14 +19,18 @@ export const secrets = pgTable(
     providerId: uuid(`provider_id`).references(() => providers.id, {
       onDelete: `cascade`,
     }),
+    agentId: uuid(`agent_id`).references(() => agents.id, {
+      onDelete: `cascade`,
+    }),
   },
   (table) => [
     check(
       `secret_scope_check`,
       sql`
-    (${table.orgId} IS NOT NULL AND ${table.projectId} IS NULL) OR 
-    (${table.orgId} IS NULL AND ${table.projectId} IS NOT NULL) OR 
-    (${table.orgId} IS NULL AND ${table.providerId} IS NOT NULL)
+    (${table.orgId} IS NOT NULL AND ${table.projectId} IS NULL AND ${table.providerId} IS NULL AND ${table.agentId} IS NULL) OR
+    (${table.orgId} IS NULL AND ${table.projectId} IS NOT NULL AND ${table.providerId} IS NULL AND ${table.agentId} IS NULL) OR
+    (${table.orgId} IS NULL AND ${table.projectId} IS NULL AND ${table.providerId} IS NOT NULL AND ${table.agentId} IS NULL) OR
+    (${table.orgId} IS NULL AND ${table.projectId} IS NULL AND ${table.providerId} IS NULL AND ${table.agentId} IS NOT NULL)
   `
     ),
   ]
@@ -34,4 +39,5 @@ export const secrets = pgTable(
 export const secretsRelations = relations(secrets, ({ one }) => ({
   org: one(orgs, { fields: [secrets.orgId], references: [orgs.id] }),
   project: one(projects, { fields: [secrets.projectId], references: [projects.id] }),
+  agent: one(agents, { fields: [secrets.agentId], references: [agents.id] }),
 }))

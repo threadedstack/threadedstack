@@ -21,6 +21,8 @@ export type TKeyValueEditorProps = {
   pairs: TKeyValuePair[]
   disabled?: boolean
   placeholder?: string
+  // TODO: fix this - it should be a general array of items, not secrets
+  // That way it can support multiple entity types
   secrets?: Secret[]
   keyPlaceholder?: string
   valuePlaceholder?: string

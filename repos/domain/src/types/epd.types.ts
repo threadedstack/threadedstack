@@ -1,3 +1,14 @@
+/**
+ * Endpoint type enumeration
+ */
+export enum EEndpointType {
+  proxy = `proxy`,
+  faas = `faas`,
+  agent = `agent`,
+}
+
+export type TEndpointType = `${EEndpointType}`
+
 export enum EEPVisibility {
   public = `public`,
   private = `private`,
@@ -80,30 +91,6 @@ export type TEndpointAuth = {
   type?: `bearer` | `basic` | `apikey`
 }
 
-export type TEndpointOpts = {
-  timeout?: number
-  pathRegex?: string
-  oauth?: TOAuthConfig
-  auth?: TEndpointAuth
-
-  // TODO: update to use retry object instead of flat properties
-  //retry: TEndpointRetryOpts
-
-  /** Number of times to retry the request */
-  retries?: number
-  /** Initial delay in milliseconds before first retry (default: 1000) */
-  retryDelay?: number
-  /** Maximum delay in milliseconds for retry backoff (default: 30000) */
-  retryMaxDelay?: number
-  /** Backoff multiplier for exponential backoff (default: 2) */
-  retryBackoffMultiplier?: number
-  /** Whether to use exponential backoff (default: true) */
-  retryExponentialBackoff?: boolean
-
-  transform?: TBodyTransformConfig
-  domainWhitelist?: TDomainWhitelistConfig
-}
-
 /**
  * Result of domain validation
  */
@@ -131,3 +118,92 @@ export type TOAuthConfig = {
   /** How to send credentials: 'header' (Basic auth) or 'body' (form params) */
   credentialStyle?: `header` | `body`
 }
+
+export type TSharedEndpointOpts<
+  T extends Record<string, unknown> = Record<string, unknown>,
+> = T & {
+  /** Proxy-specific configuration (legacy support) */
+  timeout?: number
+  pathRegex?: string
+  oauth?: TOAuthConfig
+  auth?: TEndpointAuth
+  headers?: Record<string, string>
+
+  // TODO: update to use retry object instead of flat properties
+  //retry: TEndpointRetryOpts
+
+  /** Number of times to retry the request */
+  retries?: number
+  /** Initial delay in milliseconds before first retry (default: 1000) */
+  retryDelay?: number
+  /** Maximum delay in milliseconds for retry backoff (default: 30000) */
+  retryMaxDelay?: number
+  /** Backoff multiplier for exponential backoff (default: 2) */
+  retryBackoffMultiplier?: number
+  /** Whether to use exponential backoff (default: true) */
+  retryExponentialBackoff?: boolean
+
+  domainWhitelist?: TDomainWhitelistConfig
+}
+
+/**
+ * FaaS endpoint configuration
+ */
+export type TFaaSEndpointConfig = TSharedEndpointOpts<{
+  /** Function ID to call */
+  functionId: string
+  /** Arguments to pass to the function */
+  arguments?: Record<string, any>
+  /** Environment variables to expose to the function */
+  envVars?: Record<string, string>
+  /** Secret IDs to expose to the function (by ID) */
+  secrets?: string[]
+  /** Execution timeout in milliseconds */
+  timeout?: number
+  /** Maximum memory allocation in MB */
+  memory?: number
+}>
+
+/**
+ * Agent endpoint configuration
+ */
+export type TAgentEndpointConfig = TSharedEndpointOpts<{
+  /** Agent ID to use for this endpoint */
+  agentId: string
+  /** Optional overrides for this specific endpoint */
+  overrides?: {
+    /** Override system prompt */
+    systemPrompt?: string
+    /** Override model */
+    model?: string
+    /** Override max tokens */
+    maxTokens?: number
+    /** Override tools */
+    tools?: string[]
+    /** Additional environment variables */
+    envVars?: Record<string, string>
+    /** Additional secrets (by ID) */
+    secrets?: string[]
+  }
+}>
+
+/**
+ * Proxy endpoint configuration (existing functionality)
+ */
+export type TProxyEndpointConfig = TSharedEndpointOpts<{
+  /** Target URL for proxying */
+  url: string
+  /** HTTP method */
+  method?: string
+  /** Transform configuration */
+  transform?: TBodyTransformConfig
+}>
+
+export type TEPOptsSwitch<T extends `${EEndpointType}`> =
+  T extends `${EEndpointType.proxy}`
+    ? TProxyEndpointConfig
+    : T extends `${EEndpointType.faas}`
+      ? TFaaSEndpointConfig
+      : TAgentEndpointConfig
+
+export type TEndpointOpts<T extends `${TEndpointType}`> = TEPOptsSwitch<T>

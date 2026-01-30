@@ -44,6 +44,7 @@ export enum EPermResource {
   config = `config`, // Configuration data
   domain = `domain`, // User registered custom domains
   function = `function`, // Serverless functions (FaaS)
+  agent = `agent`, // AI agents
 }
 
 /**

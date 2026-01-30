@@ -3,6 +3,7 @@ import type { users } from '@TDB/schemas/users'
 import type { roles } from '@TDB/schemas/roles'
 import type { assets } from '@TDB/schemas/assets'
 import type { quotas } from '@TDB/schemas/quotas'
+import type { agents } from '@TDB/schemas/agents'
 import type { apiKeys } from '@TDB/schemas/apiKeys'
 import type { configs } from '@TDB/schemas/configs'
 import type { secrets } from '@TDB/schemas/secrets'
@@ -54,6 +55,8 @@ export type TDBEndpointSelect = TInferDates<typeof endpoints.$inferSelect>
 export type TDBEndpointInsert = TInferDates<typeof endpoints.$inferInsert>
 export type TDBProviderSelect = TInferDates<typeof providers.$inferSelect>
 export type TDBProviderInsert = TInferDates<typeof providers.$inferInsert>
+export type TDBAgentSelect = TInferDates<typeof agents.$inferSelect>
+export type TDBAgentInsert = TInferDates<typeof agents.$inferInsert>
 export type TDBFunctionSelect = TInferDates<typeof functions.$inferSelect>
 export type TDBFunctionInsert = TInferDates<typeof functions.$inferInsert>
 export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
@@ -99,6 +102,7 @@ export type TDBEntitySelect =
   | TDBUserSelect
   | TDBRoleSelect
   | TDBAssetSelect
+  | TDBAgentSelect
   | TDBQuotaSelect
   | TDBApiKeySelect
   | TDBConfigSelect
@@ -119,6 +123,7 @@ export type TDBEntityInsert =
   | TDBRoleInsert
   | TDBAssetInsert
   | TDBQuotaInsert
+  | TDBAgentInsert
   | TDBApiKeyInsert
   | TDBConfigInsert
   | TDBSecretInsert
