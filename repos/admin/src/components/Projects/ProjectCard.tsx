@@ -3,8 +3,9 @@ import type { Project } from '@tdsk/domain'
 import { useState } from 'react'
 import { styled } from '@mui/material/styles'
 import { ConfirmDelete } from '@tdsk/components'
+import DeleteIcon from '@mui/icons-material/DeleteOutline'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
-import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-material'
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
 import {
   Box,
   Card,
@@ -119,7 +120,7 @@ export const ProjectCard = (props: TProjectCard) => {
                 onSelect?.(project.id)
               }}
             >
-              <ViewIcon />
+              <PlayCircleOutlineIcon />
             </IconButton>
           </Tooltip>
         </CardActions>

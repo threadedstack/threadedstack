@@ -31,10 +31,6 @@ export const Projects = (props: TProjects) => {
     setDialogOpen(false)
   }
 
-  const onDialogSuccess = async () => {
-    await fetchProjects({ orgId })
-  }
-
   const onSelectProject = (projectId: string) => setProjectActive(projectId)
 
   const onDeleteProject = async (projectId: string) => {
@@ -112,7 +108,6 @@ export const Projects = (props: TProjects) => {
           orgId={orgId}
           open={dialogOpen}
           onClose={onDialogClose}
-          onSuccess={onDialogSuccess}
         />
       )}
     </>

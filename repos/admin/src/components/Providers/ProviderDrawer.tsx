@@ -146,6 +146,8 @@ export const ProviderDrawer = ({
           )}
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
+              color='warning'
+              variant='outlined'
               onClick={onClose}
               disabled={loading}
             >

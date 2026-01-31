@@ -177,7 +177,8 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
       actions={
         <>
           <Button
-            color='error'
+            color='warning'
+            variant='outlined'
             onClick={onClose}
           >
             Cancel

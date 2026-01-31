@@ -83,6 +83,8 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
       actions={
         <>
           <Button
+            color='warning'
+            variant='outlined'
             onClick={onClose}
             disabled={loading}
           >

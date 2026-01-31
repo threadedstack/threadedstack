@@ -604,39 +604,40 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       }
       actions={
         <>
-          {isEditMode && (
-            <Button
-              color='error'
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={loading || showDeleteConfirm}
-            >
-              Delete
-            </Button>
-          )}
           <Box
             sx={{
-              display: 'flex',
               gap: 1,
-              ml: isEditMode ? 'auto' : undefined,
+              display: 'flex',
             }}
           >
+            {isEditMode && (
+              <Button
+                color='error'
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={loading || showDeleteConfirm}
+              >
+                Delete
+              </Button>
+            )}
             <Button
+              color='warning'
+              variant='outlined'
               onClick={onClose}
               disabled={loading}
             >
               Cancel
             </Button>
-            <LoadingButton
-              type='submit'
-              loading={loading}
-              variant='contained'
-              form='endpoint-form'
-              disabled={showDeleteConfirm}
-              loadingText={isEditMode ? `Saving...` : `Creating...`}
-            >
-              {isEditMode ? `Save Changes` : `Create Endpoint`}
-            </LoadingButton>
           </Box>
+          <LoadingButton
+            type='submit'
+            loading={loading}
+            variant='contained'
+            form='endpoint-form'
+            disabled={showDeleteConfirm}
+            loadingText={isEditMode ? `Saving...` : `Creating...`}
+          >
+            {isEditMode ? `Save Changes` : `Create Endpoint`}
+          </LoadingButton>
         </>
       }
     >

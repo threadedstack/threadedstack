@@ -109,7 +109,8 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
         actions={
           <>
             <Button
-              color='error'
+              color='warning'
+              variant='outlined'
               onClick={onClose}
               disabled={loading}
             >

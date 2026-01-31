@@ -54,12 +54,13 @@ const DrawerContent = styled(MuiBox)(({ theme }) => ({
 }))
 
 const DrawerActions = styled(MuiBox)(({ theme }) => ({
+  width: `100%`,
   display: `flex`,
   alignItems: `center`,
   gap: theme.gutter.hpx,
-  justifyContent: `flex-end`,
-  borderTop: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.background.header,
+  justifyContent: `space-between`,
+  //borderTop: `1px solid ${theme.palette.divider}`,
+  //backgroundColor: theme.palette.background.header,
   padding: `${theme.gutter.px} ${theme.gutter.mpx}`,
 }))
 

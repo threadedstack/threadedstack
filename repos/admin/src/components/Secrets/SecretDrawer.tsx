@@ -173,6 +173,7 @@ export const SecretDrawer = ({
           {isEditMode && (
             <Button
               color='error'
+              variant='outlined'
               onClick={() => setShowDeleteConfirm(true)}
               disabled={loading || showDeleteConfirm}
             >
@@ -181,6 +182,8 @@ export const SecretDrawer = ({
           )}
           <Box sx={{ display: 'flex', gap: 1, ml: isEditMode ? 'auto' : 0 }}>
             <Button
+              color='warning'
+              variant='outlined'
               onClick={onClose}
               disabled={loading}
             >

@@ -89,7 +89,8 @@ export const EditOrgDrawer = ({
       actions={
         <>
           <Button
-            color='error'
+            color='warning'
+            variant='outlined'
             onClick={onClose}
             disabled={loading}
           >

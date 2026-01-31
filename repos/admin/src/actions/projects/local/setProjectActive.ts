@@ -11,7 +11,7 @@ export const setProjectActive = (
   force?: boolean
 ) => {
   const current = getActiveProjectId()
-  force && current !== projectId && setActiveProjectId(projectId)
+  if (force || current !== projectId) setActiveProjectId(projectId)
 
   if (!navigate) return
 

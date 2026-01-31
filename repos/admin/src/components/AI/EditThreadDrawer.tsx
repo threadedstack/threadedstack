@@ -178,6 +178,7 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
 
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
               <Button
+                color='warning'
                 variant='outlined'
                 onClick={handleClose}
                 disabled={loading}

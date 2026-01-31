@@ -160,6 +160,8 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
           </Button>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
+              color='warning'
+              variant='outlined'
               onClick={onClose}
               disabled={loading}
             >

@@ -174,6 +174,8 @@ export const DomainDrawer = ({
           )}
           <Box sx={{ display: `flex`, gap: 1, ml: isEditMode ? `auto` : 0 }}>
             <Button
+              color='warning'
+              variant='outlined'
               onClick={onClose}
               disabled={loading}
             >

@@ -73,6 +73,8 @@ export const InviteUserDrawer = ({
       actions={
         <>
           <Button
+            color='warning'
+            variant='outlined'
             onClick={onClose}
             disabled={loading}
           >

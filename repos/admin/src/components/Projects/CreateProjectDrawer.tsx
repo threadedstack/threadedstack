@@ -70,6 +70,8 @@ export const CreateProjectDrawer = ({
       actions={
         <>
           <Button
+            color='warning'
+            variant='outlined'
             onClick={onClose}
             disabled={loading}
           >

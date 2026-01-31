@@ -114,6 +114,8 @@ export const CreateConfigDrawer = ({
       actions={
         <>
           <Button
+            color='warning'
+            variant='outlined'
             onClick={onClose}
             disabled={loading}
           >

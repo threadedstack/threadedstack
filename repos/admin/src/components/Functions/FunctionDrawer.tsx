@@ -210,33 +210,36 @@ export const FunctionDrawer = ({
       }
       actions={
         <>
-          {isEditMode && (
-            <Button
-              color='error'
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={loading || showDeleteConfirm}
-            >
-              Delete
-            </Button>
-          )}
           <Box sx={{ display: `flex`, gap: 1 }}>
+            {isEditMode && (
+              <Button
+                color='error'
+                variant='outlined'
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={loading || showDeleteConfirm}
+              >
+                Delete
+              </Button>
+            )}
             <Button
+              color='warning'
+              variant='outlined'
               onClick={onClose}
               disabled={loading}
             >
               Cancel
             </Button>
-            <LoadingButton
-              type='submit'
-              form='function-form'
-              variant='contained'
-              loading={loading}
-              disabled={showDeleteConfirm}
-              loadingText={isEditMode ? `Saving...` : `Creating...`}
-            >
-              {isEditMode ? `Save Changes` : `Create Function`}
-            </LoadingButton>
           </Box>
+          <LoadingButton
+            type='submit'
+            form='function-form'
+            variant='contained'
+            loading={loading}
+            disabled={showDeleteConfirm}
+            loadingText={isEditMode ? `Saving...` : `Creating...`}
+          >
+            {isEditMode ? `Save Changes` : `Create Function`}
+          </LoadingButton>
         </>
       }
     >

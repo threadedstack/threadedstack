@@ -58,7 +58,8 @@ export const CreateOrgDialog = ({ open, onClose }: TCreateOrgDialog) => {
       actions={
         <>
           <Button
-            color='error'
+            color='warning'
+            variant='outlined'
             onClick={handleClose}
             disabled={loading}
           >
