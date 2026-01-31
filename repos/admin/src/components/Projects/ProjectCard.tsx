@@ -1,6 +1,7 @@
 import type { Project } from '@tdsk/domain'
 
 import { useState } from 'react'
+import { styled } from '@mui/material/styles'
 import { ConfirmDelete } from '@tdsk/components'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-material'
@@ -14,6 +15,24 @@ import {
   CardContent,
   CardActions,
 } from '@mui/material'
+
+const CardProj = styled(Card)(({ theme }) => {
+  return `
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-top: 5px solid ${theme.palette.border.dark};
+  
+    &.active {
+      2px solid ${theme.palette.primary.main};
+    }
+  
+    &:hover {
+      box-shadow: 3;
+      transform: translateY(-4px);
+    }
+  `
+})
 
 export type TProjectCard = {
   project: Project
@@ -36,17 +55,7 @@ export const ProjectCard = (props: TProjectCard) => {
 
   return (
     <>
-      <Card
-        sx={{
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: 3,
-          },
-        }}
-        onClick={() => onSelect?.(project.id)}
-      >
+      <CardProj onClick={() => onSelect?.(project.id)}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
             <ProjectIcon sx={{ mr: 1, color: 'text.secondary' }} />
@@ -87,18 +96,6 @@ export const ProjectCard = (props: TProjectCard) => {
           </Typography>
         </CardContent>
         <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-          <Tooltip title='View Project'>
-            <IconButton
-              size='small'
-              color='primary'
-              onClick={(e) => {
-                e.stopPropagation()
-                onSelect?.(project.id)
-              }}
-            >
-              <ViewIcon />
-            </IconButton>
-          </Tooltip>
           {showDelete && (
             <Tooltip title='Delete Project'>
               <IconButton
@@ -113,8 +110,20 @@ export const ProjectCard = (props: TProjectCard) => {
               </IconButton>
             </Tooltip>
           )}
+          <Tooltip title='View Project'>
+            <IconButton
+              size='small'
+              color='primary'
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect?.(project.id)
+              }}
+            >
+              <ViewIcon />
+            </IconButton>
+          </Tooltip>
         </CardActions>
-      </Card>
+      </CardProj>
 
       {showDelete && deleting && (
         <ConfirmDelete

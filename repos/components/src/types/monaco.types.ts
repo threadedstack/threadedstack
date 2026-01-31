@@ -31,6 +31,7 @@ export type THMonaco = EditorProps & {
   onLangChange?: TMonEditorLangCB
   monacoRef?: MutableRefObject<Monaco>
   editorRef?: MutableRefObject<TMonEditor>
+  onCopy?: (value: string, error?: string) => void
   themeLight?: `vs` | `r-light`
   themeDark?: `vs-dark` | `r-dark`
 }

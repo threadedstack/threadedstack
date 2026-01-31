@@ -16,16 +16,16 @@ const Billing = lazy(() => import('@TAF/pages/Billing/Billing'))
 const Org = lazy(() => import('@TAF/pages/Orgs/Org'))
 const Orgs = lazy(() => import('@TAF/pages/Orgs/Orgs'))
 const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
+const OrgUsage = lazy(() => import('@TAF/pages/Orgs/OrgUsage'))
 const OrgsLoader = lazy(() => import('@TAF/pages/Orgs/OrgsLoader'))
 const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgDomains = lazy(() => import('@TAF/pages/Orgs/OrgDomains'))
-const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
-const OrgProjects = lazy(() => import('@TAF/pages/Orgs/OrgProjects'))
-const OrgUsage = lazy(() => import('@TAF/pages/Orgs/OrgUsage'))
+const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 
 // Project pages
 const Project = lazy(() => import('@TAF/pages/Projects/Project'))
+const Projects = lazy(() => import('@TAF/pages/Projects/Projects'))
 const ProjectAgents = lazy(() => import('@TAF/pages/Projects/ProjectAgents'))
 const ProjectsLoader = lazy(() => import('@TAF/pages/Projects/ProjectsLoader'))
 const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
@@ -126,7 +126,7 @@ export const Routes = createBrowserRouter([
               <SuspensePage
                 Component={() => (
                   <ProjectsLoader>
-                    <OrgProjects />
+                    <Projects />
                   </ProjectsLoader>
                 )}
               />

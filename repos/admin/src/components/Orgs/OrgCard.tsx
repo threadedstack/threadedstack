@@ -5,13 +5,14 @@ import { cls } from '@keg-hub/jsutils/cls'
 import { styled } from '@mui/material/styles'
 import { ConfirmDelete } from '@tdsk/components'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
-import { Box, Card, Chip, useTheme, Typography, CardContent } from '@mui/material'
+import { Box, Card, Chip, Typography, CardContent } from '@mui/material'
 
 const CardOrg = styled(Card)(({ theme }) => {
   return `
     cursor: pointer;
-    border: 1px solid rgba(0, 0, 0, 0.12);
     transition: all 0.2s;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-top: 5px solid ${theme.palette.border.dark};
   
     &.active {
       2px solid ${theme.palette.primary.main};
@@ -36,7 +37,6 @@ export type TOrgCard = {
 export const OrgCard = (props: TOrgCard) => {
   const { org, active, onDelete, onSelect, showDelete } = props
 
-  const theme = useTheme()
   const [deleted, setDeleted] = useState<boolean>(false)
   const [deleting, setDeleting] = useState<boolean>(false)
   const onDeleteCancel = () => setDeleting(false)

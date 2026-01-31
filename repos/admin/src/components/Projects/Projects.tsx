@@ -1,8 +1,7 @@
 import { Box } from '@mui/material'
-import { useNavigate } from 'react-router'
+import { useState, useMemo } from 'react'
 import { useProjects } from '@TAF/state/selectors'
 import { Add as AddIcon } from '@mui/icons-material'
-import { useEffect, useState, useMemo } from 'react'
 import { useActiveOrgId } from '@TAF/state/selectors'
 import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
 import { NoProjects } from '@TAF/components/Projects/NoProjects'
@@ -12,40 +11,17 @@ import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ProjectsGrid } from '@TAF/components/Projects/ProjectsGrid'
 import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
-import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
 import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
 import { CreateProjectDrawer } from '@TAF/components/Projects/CreateProjectDrawer'
 
 export type TProjects = {}
 
 export const Projects = (props: TProjects) => {
-  const navigate = useNavigate()
   const [orgId] = useActiveOrgId()
   const [projects] = useProjects()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+  const [searchQuery, setSearchQuery] = useState(``)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-
-  // Load org projects
-  useEffect(() => {
-    const loadProjects = async () => {
-      if (!orgId) return
-
-      setLoading(true)
-      setError(null)
-
-      const result = await fetchProjects({ orgId })
-
-      if (result.error) {
-        setError(result.error)
-      }
-
-      setLoading(false)
-    }
-
-    loadProjects()
-  }, [orgId])
+  const [error, setError] = useState<Error | null>(null)
 
   const onCreate = () => {
     setDialogOpen(true)
@@ -90,15 +66,15 @@ export const Projects = (props: TProjects) => {
   return (
     <>
       <PageHeader
-        title='Organization Projects'
-        count={projectsCount}
-        countLabel='project'
-        actionLabel='Create Project'
-        actionIcon={<AddIcon />}
         onAction={onCreate}
+        countLabel='project'
+        count={projectsCount}
+        actionIcon={<AddIcon />}
+        actionLabel='Create Project'
+        title='Organization Projects'
       />
 
-      {!loading && projectsCount > 0 && (
+      {projectsCount > 0 && (
         <Box sx={{ mb: 3 }}>
           <SearchBar
             value={searchQuery}
@@ -108,8 +84,6 @@ export const Projects = (props: TProjects) => {
         </Box>
       )}
 
-      {loading && <LoadingSpinner />}
-
       {error && (
         <ErrorAlert
           message={`Error loading projects: ${error.message}`}
@@ -118,13 +92,13 @@ export const Projects = (props: TProjects) => {
         />
       )}
 
-      {!loading && !error && projectsCount === 0 && <NoProjects onCreate={onCreate} />}
+      {!error && projectsCount === 0 && <NoProjects onCreate={onCreate} />}
 
-      {!loading && !error && projectsCount > 0 && filteredProjects.length === 0 && (
+      {!error && projectsCount > 0 && filteredProjects.length === 0 && (
         <EmptyState message='No projects match your search query.' />
       )}
 
-      {!loading && !error && filteredProjects.length > 0 && (
+      {!error && filteredProjects.length > 0 && (
         <ProjectsGrid
           showDelete={true}
           projects={filteredProjects}

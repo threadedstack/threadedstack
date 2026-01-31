@@ -1,6 +1,5 @@
 import type { TMonEditorRef, THMonaco, TAccordionAction } from '@TSC/types'
 
-import { toast } from 'sonner'
 import { useMemo } from 'react'
 import { gutter } from '@TSC/theme/gutter'
 import { EEditorActionKey } from '@TSC/types'
@@ -25,7 +24,7 @@ const wrapActions = (
 }
 
 const useCopyToClip = (props: THMonaco) => {
-  const { hideCopy, editorRef } = props
+  const { hideCopy, editorRef, onCopy } = props
 
   const { onCopyToClipBoard } = useCopyToClipboard()
 
@@ -39,10 +38,10 @@ const useCopyToClip = (props: THMonaco) => {
         onClick: async (evt: any) => {
           stopEvent(evt)
           const value = editorRef.current?.getValue()
-          if (!value) return toast.error(`Error`, { description: `Editor not found.` })
+          if (!value) return onCopy?.(undefined, `[Error] Editor not found.`)
 
           onCopyToClipBoard(value)
-          toast.success(`Success`, { description: `Copied to clipboard.` })
+          onCopy?.(value)
         },
       } as TAccordionAction)
     )

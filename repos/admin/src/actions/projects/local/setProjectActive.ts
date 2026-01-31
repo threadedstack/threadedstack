@@ -1,4 +1,3 @@
-import { toast } from 'sonner'
 import { nav } from '@TAF/services/nav'
 import {
   getActiveOrgId,
@@ -12,9 +11,7 @@ export const setProjectActive = (
   force?: boolean
 ) => {
   const current = getActiveProjectId()
-  !force && current === projectId
-    ? toast.info(`Info`, { description: `Project is already active.` })
-    : setActiveProjectId(projectId)
+  force && current !== projectId && setActiveProjectId(projectId)
 
   if (!navigate) return
 
