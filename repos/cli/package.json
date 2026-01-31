@@ -30,7 +30,8 @@
     "@tdsk/logger": "workspace:*",
     "alias-hq": "6.2.4",
     "esbuild": "0.19.3",
-    "esbuild-register": "3.5.0"
+    "esbuild-register": "3.5.0",
+    "tsup": "8.3.0"
   },
   "devDependencies": {
     "@types/node": "22.12.0",

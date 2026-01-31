@@ -94,6 +94,13 @@ env:
   TDSK_CR_SECRET_VALUE_PATH: ""
 
 # --- Caddy (On-Demand TLS) ENVs --- #
+
+  TDSK_CADDY_IMAGE_TAG: latest
+  TDSK_CADDY_DEV_IMAGE_TAG: main
+  TDSK_CADDY_DEPLOYMENT: tdsk-caddy
+  TDSK_CADDY_IMAGE_FROM: 'caddy:builder'
+  TDSK_CADDY_IMAGE: 'ghcr.io/threadedstack/tdsk-caddy'
+
   # Email for Let's Encrypt certificate notifications
   TDSK_CADDY_ACME_EMAIL: admin@threadedstack.dev
 

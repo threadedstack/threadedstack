@@ -41,6 +41,12 @@ const {
   TDSK_AD_IMAGE_TAG = TDSK_IMAGE_TAG,
   TDSK_AD_IMAGE_FROM = TDSK_IMAGE_FROM,
   TDSK_AD_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
+
+  TDSK_CADDY_IMAGE,
+  TDSK_CADDY_DEPLOYMENT,
+  TDSK_CADDY_IMAGE_FROM = `caddy:builder`,
+  TDSK_CADDY_IMAGE_TAG = TDSK_IMAGE_TAG,
+  TDSK_CADDY_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
 } = envs
 
 export const config = {
@@ -57,15 +63,15 @@ export const config = {
       dockerfile: `Dockerfile.proxy`,
       location: path.join(paths.repos, `proxy`),
     },
-    api: {
+    backend: {
       tags: [],
       image: TDSK_BE_IMAGE,
       tag: TDSK_BE_IMAGE_TAG,
       from: TDSK_BE_IMAGE_FROM,
-      dockerfile: `Dockerfile.api`,
+      dockerfile: `Dockerfile.backend`,
       dtag: TDSK_BE_DEV_IMAGE_TAG,
       deployment: TDSK_BE_DEPLOYMENT,
-      location: path.join(paths.repos, `api`),
+      location: path.join(paths.repos, `backend`),
     },
     admin: {
       tags: [],
@@ -76,6 +82,16 @@ export const config = {
       deployment: TDSK_AD_DEPLOYMENT,
       dockerfile: `Dockerfile.admin`,
       location: path.join(paths.repos, `admin`),
+    },
+    caddy: {
+      tags: [],
+      image: TDSK_CADDY_IMAGE,
+      tag: TDSK_CADDY_IMAGE_TAG,
+      from: TDSK_CADDY_IMAGE_FROM,
+      dtag: TDSK_CADDY_DEV_IMAGE_TAG,
+      deployment: TDSK_CADDY_DEPLOYMENT,
+      dockerfile: `Dockerfile.caddy`,
+      location: paths.deploy,
     },
   },
 }
