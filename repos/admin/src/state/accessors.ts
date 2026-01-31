@@ -1,4 +1,11 @@
-import type { EThemeType, TQuotaData, TLimitsData } from '@TAF/types'
+import type {
+  EThemeType,
+  TQuotaData,
+  TLimitsData,
+  TProxyFormState,
+  TFaasFormState,
+  TAgentFormState,
+} from '@TAF/types'
 import type {
   User,
   Plan,
@@ -26,22 +33,29 @@ import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
+import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
+import { assetsState, activeAssetIdState } from '@TAF/state/assets'
+import { agentsState, activeAgentIdState } from '@TAF/state/agents'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
+import { threadsState, activeThreadIdState } from '@TAF/state/threads'
+import { messagesState, activeMessageIdState } from '@TAF/state/messages'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
-import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
+import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
+import { DefFaasState, DefProxyState, DefAgentState } from '@TAF/constants/endpoints'
+import {
+  faasFormState,
+  proxyFormState,
+  agentFormState,
+  endpointsState,
+  activeEndpointIdState,
+} from '@TAF/state/endpoints'
 import {
   orgsState,
   orgUsersState,
   activeOrgIdState,
   activeOrgRoleState,
 } from '@TAF/state/orgs'
-import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
-import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
-import { threadsState, activeThreadIdState } from '@TAF/state/threads'
-import { messagesState, activeMessageIdState } from '@TAF/state/messages'
-import { assetsState, activeAssetIdState } from '@TAF/state/assets'
-import { agentsState, activeAgentIdState } from '@TAF/state/agents'
 
 export const store = createStore()
 
@@ -203,3 +217,18 @@ export const setAgents = (agents: Record<string, Agent>) => store.set(agentsStat
 export const getActiveAgentId = () => store.get(activeAgentIdState)
 export const resetActiveAgentId = () => store.set(activeAgentIdState, undefined)
 export const setActiveAgentId = (id: string) => store.set(activeAgentIdState, id)
+
+// Endpoint Form State Accessors
+export const getProxyFormState = () => store.get(proxyFormState)
+export const resetProxyFormState = () => store.set(proxyFormState, DefProxyState)
+export const setProxyFormState = (state: TProxyFormState) =>
+  store.set(proxyFormState, state)
+
+export const getFaasFormState = () => store.get(faasFormState)
+export const resetFaasFormState = () => store.set(faasFormState, DefFaasState)
+export const setFaasFormState = (state: TFaasFormState) => store.set(faasFormState, state)
+
+export const getAgentFormState = () => store.get(agentFormState)
+export const resetAgentFormState = () => store.set(agentFormState, DefAgentState)
+export const setAgentFormState = (state: TAgentFormState) =>
+  store.set(agentFormState, state)

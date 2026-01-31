@@ -9,7 +9,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import { RenderIcon } from '@TSC/components/RenderType/RenderIcon'
 
 export type TLoadingButton = ButtonProps & {
-  text?: string
+  text?: ReactNode
   loading?: boolean
   loadingSize?: string
   iconProps?: ComponentProps<any>

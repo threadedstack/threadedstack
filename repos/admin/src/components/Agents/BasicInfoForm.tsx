@@ -1,4 +1,5 @@
-import { Box, Stack, TextField, Typography } from '@mui/material'
+import { Box, Stack } from '@mui/material'
+import { Text, TextInput, SelectInput } from '@tdsk/components'
 
 export type TBasicInfoFormProps = {
   name: string
@@ -23,66 +24,59 @@ export const BasicInfoForm = (props: TBasicInfoFormProps) => {
     onDescriptionChange,
   } = props
 
+  const providerOptions = aiProviders.map((provider) => ({
+    label: provider.name,
+    value: provider.id,
+  }))
+
   return (
     <Box>
-      <Typography
+      <Text
         variant='subtitle2'
         sx={{ fontWeight: 600, mb: 2 }}
       >
         Basic Information
-      </Typography>
+      </Text>
       <Stack spacing={2}>
-        <TextField
+        <TextInput
           autoFocus
           required
           fullWidth
           value={name}
+          id='agent-name'
           disabled={loading}
           label='Agent Name'
           placeholder='e.g., Customer Support Bot'
           onChange={(e) => onNameChange(e.target.value)}
         />
 
-        <TextField
-          rows={2}
-          multiline
+        <TextInput
+          textarea
           fullWidth
-          label='Description'
-          placeholder='Describe what this agent does...'
+          minRows={2}
           disabled={loading}
           value={description}
+          label='Description'
+          id='agent-description'
+          placeholder='Describe what this agent does...'
           onChange={(e) => onDescriptionChange(e.target.value)}
         />
 
-        <TextField
-          select
+        <SelectInput
           required
           fullWidth
           disabled={loading}
           label='AI Provider'
+          id='agent-provider'
           value={providerId || ''}
-          placeholder='Select an AI provider'
-          helperText='The AI provider to use for this agent'
+          items={
+            aiProviders.length === 0
+              ? [{ label: 'No AI providers available. Create one first.', value: '' }]
+              : providerOptions
+          }
+          description='The AI provider to use for this agent'
           onChange={(e) => onProviderChange(e.target.value)}
-        >
-          {aiProviders.length === 0 ? (
-            <option
-              disabled
-              value=''
-            >
-              No AI providers available. Create one first.
-            </option>
-          ) : (
-            aiProviders.map((provider) => (
-              <option
-                key={provider.id}
-                value={provider.id}
-              >
-                {provider.name}
-              </option>
-            ))
-          )}
-        </TextField>
+        />
       </Stack>
     </Box>
   )

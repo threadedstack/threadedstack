@@ -1,6 +1,7 @@
 export * from './time'
 export * from './asBool'
 export * from './shortId'
+export * from './splitBy'
 export * from './deepCopy'
 export * from './isDomain'
 export * from './payments'

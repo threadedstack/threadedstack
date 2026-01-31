@@ -1,5 +1,5 @@
-import type { Agent, Secret } from '@tdsk/domain'
 import type { TKeyValuePair } from '@TAF/types'
+import type { Agent, Secret } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
 import { Code } from '@TAF/components/Code'
@@ -7,13 +7,13 @@ import { useSecrets } from '@TAF/state/selectors'
 import { fetchSecrets } from '@TAF/actions/secrets'
 import { MonacoOptions } from '@TAF/constants/monaco'
 import { fetchProviders } from '@TAF/actions/providers'
-import { Drawer, ConfirmDelete } from '@tdsk/components'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { createAgent } from '@TAF/actions/agents/api/createAgent'
 import { updateAgent } from '@TAF/actions/agents/api/updateAgent'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
   BasicInfoForm,
   ToolsSelector,
@@ -21,7 +21,7 @@ import {
   ModelConfigForm,
   AgentSettingsForm,
 } from '@TAF/components/Agents'
-import { Box, Stack, Button, Divider, Typography } from '@mui/material'
+import { Box, Stack, Divider, Typography } from '@mui/material'
 
 export type TAgentDrawer = {
   open: boolean
@@ -137,13 +137,11 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   }, [agent, open])
 
   const onClose = () => {
-    if (!loading) {
-      onCloseCB?.()
-    }
+    !loading && onCloseCB?.()
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSave = async (evt: React.FormEvent) => {
+    evt.preventDefault()
 
     if (!name.trim()) return setError(`Agent name is required`)
     if (!providerId) return setError(`Provider is required`)
@@ -190,7 +188,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     }
   }
 
-  const onDelete = async () => {
+  const onRemove = async () => {
     if (!agent) return
 
     try {
@@ -208,7 +206,11 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   }
 
   const title = agent ? `Edit Agent` : `Create Agent`
-  const isEditing = !!agent
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+    onRemove,
+  })
 
   return (
     <Drawer
@@ -217,44 +219,16 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       title={title}
       actionsSx={{ justifyContent: `space-between`, px: 3, pb: 2 }}
       actions={
-        <>
-          {isEditing && (
-            <Button
-              color='error'
-              disabled={loading || showDeleteConfirm}
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              Delete
-            </Button>
-          )}
-          {!isEditing && <div />}
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              color='warning'
-              variant='outlined'
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <LoadingButton
-              type='submit'
-              form='agent-form'
-              variant='contained'
-              loading={loading}
-              disabled={showDeleteConfirm}
-              loadingText='Saving...'
-            >
-              {isEditing ? `Save Changes` : `Create Agent`}
-            </LoadingButton>
-          </Box>
-        </>
+        <DrawerActions
+          form='agent-form'
+          editing={!!agent}
+          actions={actions}
+          loading={loading}
+          disabled={loading || showDeleteConfirm}
+        />
       }
     >
-      <form
-        id='agent-form'
-        onSubmit={onSubmit}
-      >
+      <form id='agent-form'>
         <Stack spacing={3}>
           {error && (
             <ErrorAlert
@@ -266,7 +240,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
           {showDeleteConfirm && (
             <ConfirmDelete
               deleting={loading}
-              onConfirm={onDelete}
+              onConfirm={onRemove}
               itemName={agent?.name || 'Agent'}
               onCancel={() => setShowDeleteConfirm(false)}
             />

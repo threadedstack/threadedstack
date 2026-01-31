@@ -1,4 +1,5 @@
-import { Box, Stack, Switch, Typography, FormControlLabel } from '@mui/material'
+import { Box, Stack } from '@mui/material'
+import { Text, SwitchInput } from '@tdsk/components'
 
 export type TAgentSettingsFormProps = {
   active: boolean
@@ -13,33 +14,27 @@ export const AgentSettingsForm = (props: TAgentSettingsFormProps) => {
 
   return (
     <Box>
-      <Typography
+      <Text
         variant='subtitle2'
         sx={{ fontWeight: 600, mb: 2 }}
       >
         Agent Settings
-      </Typography>
-      <Stack spacing={1}>
-        <FormControlLabel
+      </Text>
+      <Stack spacing={2}>
+        <SwitchInput
+          id='agent-streaming'
+          disabled={loading}
+          checked={streaming}
           label='Enable Streaming'
-          control={
-            <Switch
-              checked={streaming}
-              onChange={(e) => onStreamingChange(e.target.checked)}
-              disabled={loading}
-            />
-          }
+          onChange={(e, checked) => onStreamingChange(checked)}
         />
 
-        <FormControlLabel
+        <SwitchInput
           label='Active'
-          control={
-            <Switch
-              checked={active}
-              disabled={loading}
-              onChange={(e) => onActiveChange(e.target.checked)}
-            />
-          }
+          checked={active}
+          id='agent-active'
+          disabled={loading}
+          onChange={(e, checked) => onActiveChange(checked)}
         />
       </Stack>
     </Box>

@@ -1,4 +1,5 @@
-import { Box, Stack, TextField, Typography } from '@mui/material'
+import { Box, Stack } from '@mui/material'
+import { Text, TextInput, SliderInput } from '@tdsk/components'
 
 export type TModelConfigForm = {
   model: string
@@ -23,42 +24,48 @@ export const ModelConfigForm = (props: TModelConfigForm) => {
 
   return (
     <Box>
-      <Typography
+      <Text
         variant='subtitle2'
         sx={{ fontWeight: 600, mb: 2 }}
       >
         Model Configuration
-      </Typography>
+      </Text>
       <Stack spacing={2}>
-        <TextField
+        <TextInput
           fullWidth
           label='Model'
           value={model}
+          id='agent-model'
           disabled={loading}
           placeholder='e.g., gpt-4o, claude-3-opus'
           onChange={(e) => onModelChange(e.target.value)}
         />
 
-        <TextField
+        <TextInput
           fullWidth
           type='number'
-          value={maxTokens}
           label='Max Tokens'
           disabled={loading}
-          helperText='Maximum tokens for response generation'
+          id='agent-max-tokens'
+          value={maxTokens.toString()}
+          description='Maximum tokens for response generation'
           onChange={(e) => onMaxTokensChange(Number.parseInt(e.target.value) || 100000)}
         />
 
-        <TextField
-          fullWidth
-          type='number'
-          disabled={loading}
-          value={temperature}
-          label='Temperature'
-          inputProps={{ step: 0.1, min: 0, max: 2 }}
-          helperText='Controls randomness (0.0 - 2.0)'
-          onChange={(e) => onTemperatureChange(Number.parseFloat(e.target.value))}
-        />
+        <Box sx={{ width: '100%' }}>
+          <SliderInput
+            min={0}
+            max={2}
+            step={0.1}
+            disabled={loading}
+            value={temperature}
+            label='Temperature'
+            id='agent-temperature'
+            valueLabelDisplay='auto'
+            description='Controls randomness (0.0 - 2.0)'
+            onChange={(_, value) => onTemperatureChange(value as number)}
+          />
+        </Box>
       </Stack>
     </Box>
   )

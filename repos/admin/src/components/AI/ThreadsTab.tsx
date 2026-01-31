@@ -1,13 +1,16 @@
 import type { Thread } from '@tdsk/domain'
-import {
-  useActiveOrgId,
-  useActiveProjectId,
-  useThreads,
-  useActiveThreadId,
-} from '@TAF/state/selectors'
+import { useState, useEffect, useMemo } from 'react'
+import { Loading, ConfirmDelete } from '@tdsk/components'
 import { fetchThreads } from '@TAF/actions/threads/api/fetchThreads'
 import { deleteThread } from '@TAF/actions/threads/api/deleteThread'
-import { useState, useEffect, useMemo } from 'react'
+import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
+import { CreateThreadDrawer } from '@TAF/components/AI/CreateThreadDrawer'
+import {
+  useThreads,
+  useActiveOrgId,
+  useActiveProjectId,
+  useActiveThreadId,
+} from '@TAF/state/selectors'
 import {
   Box,
   Card,
@@ -33,10 +36,6 @@ import {
   Search as SearchIcon,
   Visibility as ViewIcon,
 } from '@mui/icons-material'
-import { Loading, ConfirmDelete } from '@tdsk/components'
-import { CreateThreadDrawer } from './CreateThreadDrawer'
-import { EditThreadDrawer } from './EditThreadDrawer'
-import { setActiveThreadId } from '@TAF/state/accessors'
 
 export type TThreadsTab = {}
 
@@ -164,12 +163,12 @@ export const ThreadsTab = (props: TThreadsTab) => {
       )}
 
       {error && (
-        <Box
-          component='alert'
-          sx={{ mb: 3, color: 'error.main' }}
+        <Alert
+          severity='error'
+          sx={{ mb: 3 }}
         >
           {error}
-        </Box>
+        </Alert>
       )}
 
       {success && (

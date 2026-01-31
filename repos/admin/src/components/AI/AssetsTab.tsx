@@ -6,9 +6,8 @@ import { useState, useEffect, useMemo } from 'react'
 import {
   Box,
   Card,
-  Alert,
-  Button,
   Table,
+  Alert,
   TableRow,
   TextField,
   TableCell,
@@ -83,7 +82,9 @@ export const AssetsTab = (props: TAssetsTab) => {
       })
     }
 
-    return filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    return filtered.sort(
+      (a, b) => ((b as any).createdAt || 0) - ((a as any).createdAt || 0)
+    )
   }, [assets, projectId, searchQuery, typeFilter])
 
   const totalAssetsCount = useMemo(() => {
@@ -140,12 +141,12 @@ export const AssetsTab = (props: TAssetsTab) => {
       )}
 
       {error && (
-        <Box
-          component='alert'
-          sx={{ mb: 3, color: 'error.main' }}
+        <Alert
+          severity='error'
+          sx={{ mb: 3 }}
         >
           {error}
-        </Box>
+        </Alert>
       )}
 
       {success && (

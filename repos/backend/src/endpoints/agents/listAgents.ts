@@ -43,7 +43,7 @@ export const listAgents: TEndpointConfig = {
       sanitize, // Pass sanitize flag to service
     })
 
-    if (error) throw new Exception(500, error.message)
+    if (error) throw new Exception(500, error)
 
     res.status(200).json({ data: data || [] })
   },

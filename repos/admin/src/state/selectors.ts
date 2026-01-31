@@ -2,9 +2,8 @@ import type { Atom } from 'jotai'
 import type { atomWithReset } from 'jotai/utils'
 import type { Organization, Project } from '@tdsk/domain'
 
-import { useResetAtom } from 'jotai/utils'
-
 import { useAtom } from 'jotai'
+import { useResetAtom } from 'jotai/utils'
 import { userState } from '@TAF/state/user'
 import { noOp } from '@keg-hub/jsutils/noOp'
 import { sidebarOpenState } from '@TAF/state/app'
@@ -19,9 +18,15 @@ import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
-import { endpointsState, activeEndpointIdState } from '@TAF/state/endpoints'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
+import {
+  faasFormState,
+  proxyFormState,
+  agentFormState,
+  endpointsState,
+  activeEndpointIdState,
+} from '@TAF/state/endpoints'
 import {
   projectsState,
   activeProjectState,
@@ -101,3 +106,7 @@ export const useActiveAssetId = () => useRecState(activeAssetIdState)
 
 export const useAgents = () => useRecState(agentsState)
 export const useActiveAgentId = () => useRecState(activeAgentIdState)
+
+export const useProxyFormState = () => useRecState(proxyFormState)
+export const useFaasFormState = () => useRecState(faasFormState)
+export const useAgentFormState = () => useRecState(agentFormState)

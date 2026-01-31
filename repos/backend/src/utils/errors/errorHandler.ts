@@ -11,11 +11,12 @@ export const errorHandler = function errorHandler(
 ): void {
   const isCustomEx = error instanceof Exception
 
-  const code = error.errorCode
+  const code = error.code
   const message = error.message
+  const stack = error.stack || message
   const status = isCustomEx ? error.status : 500
 
-  logger.error(error.stack, cleanColl({ status, code, message }))
+  logger.error(stack, cleanColl({ status, code }))
 
   res.status(status).json({
     error: message,

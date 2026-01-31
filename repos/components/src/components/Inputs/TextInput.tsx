@@ -28,7 +28,7 @@ export type TTextInput = {
   inputRef?: MutableRefObject<HTMLInputElement | HTMLTextAreaElement>
 } & IInput &
   Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> &
-  Pick<TextFieldProps, `multiline` | `slotProps`>
+  Pick<TextFieldProps, `multiline` | `slotProps` | `inputProps`>
 
 export const TextInput = ({
   id,
@@ -60,6 +60,7 @@ export const TextInput = ({
   helperText,
   placeholder,
   autoSelect,
+  inputProps,
   endAdornment,
   defaultValue,
   startAdornment,
@@ -141,6 +142,7 @@ export const TextInput = ({
           disabled={disabled}
           required={required}
           onKeyDown={onKeyDown}
+          inputProps={inputProps}
           placeholder={placeholder}
           defaultValue={defaultValue}
           endAdornment={endAdornment}
@@ -155,9 +157,11 @@ export const TextInput = ({
           )}
           slotProps={{
             input: {
+              ...inputProps,
               sx: {
                 fontWeight: 400,
                 fontSize: `14px`,
+                ...inputProps?.sx,
                 ...inSx,
               },
             },

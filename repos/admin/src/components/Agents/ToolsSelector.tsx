@@ -1,5 +1,18 @@
+import type { HTMLAttributes } from 'react'
+
+import Box from '@mui/material/Box'
+import { cls } from '@keg-hub/jsutils/cls'
 import { AvailableTools } from '@TAF/constants/tools'
-import { Box, Chip, TextField, Typography, Autocomplete } from '@mui/material'
+import Autocomplete from '@mui/material/Autocomplete'
+import { Text, AutoInputText, InputStateHandler } from '@tdsk/components'
+
+const styles = {
+  input: { padding: `0px` },
+  title: { fontWeight: 600, mb: 2 },
+  item: {
+    label: { fontWeight: `medium` },
+  },
+}
 
 export type TToolsSelector = {
   loading: boolean
@@ -7,74 +20,87 @@ export type TToolsSelector = {
   onChange: (tools: string[]) => void
 }
 
+type TToolItem = HTMLAttributes<HTMLLIElement> & {
+  key: any
+  option: string
+  selected?: string[]
+}
+
+const ToolOptions = AvailableTools.map((t) => t.value)
+const toolLabel = (option: string) => {
+  const tool = AvailableTools.find((t) => t.value === option)
+  return tool ? tool.label : option
+}
+
+const ToolItem = (props: TToolItem) => {
+  const { option, selected, ...rest } = props
+  const tool = AvailableTools.find((t) => t.value === option)
+
+  return !selected.includes(tool.value) ? (
+    <li
+      {...rest}
+      key={option}
+    >
+      <Box>
+        <Text
+          variant='body2'
+          sx={styles.item.label}
+        >
+          {tool?.label}
+        </Text>
+        <Text
+          variant='caption'
+          color='text.secondary'
+        >
+          {tool?.description}
+        </Text>
+      </Box>
+    </li>
+  ) : null
+}
+
 export const ToolsSelector = (props: TToolsSelector) => {
   const { loading, onChange, selectedTools } = props
 
   return (
     <Box>
-      <Typography
+      <Text
         variant='subtitle2'
-        sx={{ fontWeight: 600, mb: 2 }}
+        sx={styles.title}
       >
         Available Tools
-      </Typography>
-      <Autocomplete
-        multiple
-        value={selectedTools}
+      </Text>
+      <InputStateHandler
+        id='agent-tools'
         disabled={loading}
-        noOptionsText='No tools available'
-        options={AvailableTools.map((t) => t.value)}
-        onChange={(_, updates) => onChange(updates)}
-        getOptionLabel={(option) => {
-          const tool = AvailableTools.find((t) => t.value === option)
-          return tool ? tool.label : option
-        }}
-        renderTags={(tagValue, getTagProps) =>
-          tagValue.map((option, index) => {
-            const tool = AvailableTools.find((t) => t.value === option)
-            return (
-              <Chip
-                key={option}
-                variant='outlined'
-                label={tool?.label || option}
-                {...getTagProps({ index })}
-              />
-            )
-          })
-        }
-        renderOption={(props, option) => {
-          const tool = AvailableTools.find((t) => t.value === option)
-          return (
-            <li
+        label='Selected Tools'
+        description='Choose which tools this agent access to when running'
+      >
+        <Autocomplete
+          multiple
+          id='agent-tools'
+          className={cls(`tdsk-auto-input`, loading && `disabled`)}
+          value={selectedTools}
+          options={ToolOptions}
+          getOptionLabel={toolLabel}
+          onChange={(_, updates) => onChange(updates)}
+          renderOption={(props, option) => (
+            <ToolItem
               {...props}
               key={option}
-            >
-              <Box>
-                <Typography
-                  variant='body2'
-                  fontWeight='medium'
-                >
-                  {tool?.label}
-                </Typography>
-                <Typography
-                  variant='caption'
-                  color='text.secondary'
-                >
-                  {tool?.description}
-                </Typography>
-              </Box>
-            </li>
-          )
-        }}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label='Tools'
-            placeholder='Select tools for this agent'
-            helperText='Choose which tools this agent can use'
-          />
-        )}
-      />
+              option={option}
+              selected={selectedTools}
+            />
+          )}
+          renderInput={(params) => (
+            <AutoInputText
+              {...params}
+              sx={styles.input}
+              placeholder='Tools...'
+            />
+          )}
+        />
+      </InputStateHandler>
     </Box>
   )
 }

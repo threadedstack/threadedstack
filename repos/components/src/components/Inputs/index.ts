@@ -15,6 +15,11 @@ export { InputContainer } from './InputContainer'
 export { CheckContainer } from './CheckContainer'
 export { InputStateHandler } from './InputStateHandler'
 export { SelectCategoryInput } from './SelectCategoryInput'
+export {
+  Textarea,
+  OutlinedInput,
+  InputText as AutoInputText,
+} from '@TSC/components/Inputs/Inputs.styles'
 
 export type { TTextInput } from './TextInput'
 export type { TagsInputProps } from './TagsInput'
