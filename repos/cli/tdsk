@@ -68,7 +68,9 @@ tdsk(){
     # Set the env so we know a task is coming from the tdsk-cli and not locally
     export TDSK_CLI_TASK_RUNNING=1
     cd $TDSK_CLI_PATH
-    node -r esbuild-register -r $TDSK_CLI_PATH/configs/aliases.ts $TDSK_CLI_PATH/src/index.ts $@
+    # TODO: fix this, esbuild-register doesn't work with "type": "module" in package.json 
+    pnpm cli $@
+    #node -r esbuild-register -r $TDSK_CLI_PATH/configs/aliases.ts $TDSK_CLI_PATH/src/index.ts $@
 
     TASK_RESP="$?"
     # Unset the TDSK_CLI_TASK_RUNNING env
