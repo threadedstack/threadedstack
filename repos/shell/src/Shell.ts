@@ -1,14 +1,15 @@
-import { Bash } from 'just-bash'
 import type { BashOptions } from 'just-bash'
 import type {
-  TShellOptions,
-  TExecutionResult,
-  TShellStreams,
   TShellState,
+  TShellOptions,
+  TShellStreams,
+  TExecutionResult,
 } from '@TSH/types'
+
+import { Bash } from 'just-bash'
 import { EPlatform } from '@TSH/types'
+import { logger } from '@TSH/utils/logger'
 import {
-  logger,
   getHomeDir,
   StreamManager,
   detectPlatform,
@@ -31,7 +32,13 @@ export class Shell {
     this._options = {
       homeDir: options.homeDir || getHomeDir(),
       persistent: options.persistent ?? true,
-      bashOptions: options.bashOptions || {},
+      bashOptions: {
+        ...options?.bashOptions,
+        network: {
+          dangerouslyAllowFullInternetAccess: true,
+          ...options?.bashOptions?.network,
+        },
+      },
       verbose: options.verbose ?? false,
     }
 
@@ -61,14 +68,11 @@ export class Shell {
    * - Initializes just-bash kernel
    * - Sets up stream management
    */
-  async initialize(): Promise<void> {
-    if (this._state.initialized) {
-      logger.warn('Shell already initialized')
-      return
-    }
+  async initialize() {
+    if (this._state.initialized) return logger.warn(`Shell already initialized`)
 
     try {
-      logger.info('Initializing shell', {
+      logger.info(`Initializing shell`, {
         platform: this._state.platform,
         homeDir: this._state.homeDir,
       })

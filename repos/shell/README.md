@@ -156,8 +156,7 @@ This package uses `@TSH/*` prefix for internal path aliasing:
 - `@TSH/*` - Source files (`src/*`)
 - `@TSH/configs/*` - Configuration files
 - `@TSH/root/*` - Repository root
-- `@TDM/*` - Domain types (`@tdsk/domain`)
-- `@TDB/*` - Database access (`@tdsk/database`)
+- `@tdsk/domain` - Domain types (`@tdsk/domain`)
 
 ## Platform Support
 
@@ -193,9 +192,7 @@ This package uses `@TSH/*` prefix for internal path aliasing:
 ## Related Packages
 
 - `@tdsk/domain` - Shared types and models
-- `@tdsk/logger` - Winston-based logging
-- `@tdsk/backend` - Core API server
-- `@tdsk/admin` - Admin dashboard
+
 
 ## License
 

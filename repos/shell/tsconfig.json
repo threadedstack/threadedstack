@@ -38,16 +38,6 @@
       "@tdsk/domain": ["../domain/src"],
       "@tdsk/domain/*": ["../domain/src/*"],
 
-      "@TDB": ["../database/src"],
-      "@TDB/*": ["../database/src/*"],
-      "@TDB/configs": ["../database/configs"],
-      "@TDB/configs/*": ["../database/configs/*"],
-      "@tdsk/database": ["../database/src"],
-      "@tdsk/database/*": ["../database/src/*"],
-
-      "@tdsk/logger": ["../logger/src"],
-      "@tdsk/logger/*": ["../logger/src/*"],
-
       "@ROOT": ["../../"],
       "@ROOT/*": ["../../*"],
       "@TSR/deploy": ["../../deploy"],
