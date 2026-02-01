@@ -1,12 +1,18 @@
 import type { Provider, TProviderType } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
-import { Box, Button } from '@mui/material'
+import { Box } from '@mui/material'
 import { ProviderTypes } from '@TAF/constants/providers'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
-import { ConfirmDelete, Drawer, TextInput, SelectInput } from '@tdsk/components'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createProvider, updateProvider, deleteProvider } from '@TAF/actions/providers'
+import {
+  ConfirmDelete,
+  Drawer,
+  DrawerActions,
+  TextInput,
+  SelectInput,
+} from '@tdsk/components'
 
 export type TProviderDrawer = {
   open: boolean
@@ -62,8 +68,8 @@ export const ProviderDrawer = ({
     onCloseCB?.()
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSave = async (evt: React.FormEvent) => {
+    evt.preventDefault()
 
     if (!name.trim()) {
       setError('Provider name is required')
@@ -104,7 +110,7 @@ export const ProviderDrawer = ({
     }
   }
 
-  const onDelete = async () => {
+  const onRemove = async () => {
     if (!provider) return
 
     setLoading(true)
@@ -123,6 +129,12 @@ export const ProviderDrawer = ({
     }
   }
 
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+    onRemove,
+  })
+
   return (
     <Drawer
       open={open}
@@ -134,43 +146,16 @@ export const ProviderDrawer = ({
         pb: 2,
       }}
       actions={
-        <>
-          {isEditMode && (
-            <Button
-              color='error'
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={loading || showDeleteConfirm}
-            >
-              Delete
-            </Button>
-          )}
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              color='warning'
-              variant='outlined'
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <LoadingButton
-              type='submit'
-              form='provider-form'
-              variant='contained'
-              loading={loading}
-              disabled={showDeleteConfirm}
-              loadingText={isEditMode ? 'Saving...' : 'Creating...'}
-            >
-              {isEditMode ? 'Save Changes' : 'Create Provider'}
-            </LoadingButton>
-          </Box>
-        </>
+        <DrawerActions
+          form='provider-form'
+          editing={isEditMode}
+          actions={actions}
+          loading={loading}
+          disabled={loading || showDeleteConfirm}
+        />
       }
     >
-      <form
-        id='provider-form'
-        onSubmit={onSubmit}
-      >
+      <form id='provider-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert
@@ -182,7 +167,7 @@ export const ProviderDrawer = ({
           {isEditMode && showDeleteConfirm && (
             <ConfirmDelete
               deleting={loading}
-              onConfirm={onDelete}
+              onConfirm={onRemove}
               onCancel={() => setShowDeleteConfirm(false)}
               itemName={provider?.options?.name || 'this provider'}
             />

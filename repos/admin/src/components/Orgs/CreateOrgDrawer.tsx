@@ -6,9 +6,9 @@ import { styled } from '@mui/material/styles'
 import { Add as AddIcon } from '@mui/icons-material'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { createOrg } from '@TAF/actions/orgs/api/createOrg'
-import { Button, Drawer, TextInput } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { Button, Drawer, DrawerActions, TextInput } from '@tdsk/components'
 
 const CreateBox = styled(Box)`
   display: flex;
@@ -54,8 +54,8 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
     }
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSave = async (evt: React.FormEvent) => {
+    evt.preventDefault()
 
     if (!name.trim()) {
       setError('Organization name is required')
@@ -78,6 +78,11 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
       onClose()
     }
   }
+
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
 
   return (
     <>
@@ -107,31 +112,16 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
         data-testid='create-org-dialog'
         actionsSx={actionsSx}
         actions={
-          <>
-            <Button
-              color='warning'
-              variant='outlined'
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <LoadingButton
-              type='submit'
-              form='create-org-form'
-              loading={loading}
-              variant='contained'
-              loadingText='Creating...'
-            >
-              Create
-            </LoadingButton>
-          </>
+          <DrawerActions
+            form='create-org-form'
+            editing={false}
+            actions={actions}
+            loading={loading}
+            disabled={loading}
+          />
         }
       >
-        <form
-          id='create-org-form'
-          onSubmit={onSubmit}
-        >
+        <form id='create-org-form'>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && (
               <ErrorAlert

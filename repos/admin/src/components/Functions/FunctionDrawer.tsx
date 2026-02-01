@@ -3,7 +3,7 @@ import type { Function as TDFunction } from '@tdsk/domain'
 
 import { useAtomValue } from 'jotai'
 import { EFunLanguage } from '@tdsk/domain'
-import { Box, Button } from '@mui/material'
+import { Box } from '@mui/material'
 import { Code } from '@TAF/components/Code/Code'
 import { LanguageOpts } from '@TAF/constants/values'
 import { useState, useEffect, useMemo } from 'react'
@@ -12,9 +12,15 @@ import { fetchEndpoints } from '@TAF/actions/endpoints'
 import { ArrayEditor } from '@TAF/components/ArrayEditor'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
-import { ConfirmDelete, Drawer, TextInput, SelectInput } from '@tdsk/components'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createFunction, updateFunction, deleteFunction } from '@TAF/actions/functions'
+import {
+  ConfirmDelete,
+  Drawer,
+  DrawerActions,
+  TextInput,
+  SelectInput,
+} from '@tdsk/components'
 
 export type TFunctionDrawer = {
   open: boolean
@@ -118,8 +124,8 @@ export const FunctionDrawer = ({
     onCloseCB?.()
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSave = async (evt: React.FormEvent) => {
+    evt.preventDefault()
 
     if (!name.trim()) return setError(`Function name is required`)
     if (!language) return setError(`Language is required`)
@@ -181,7 +187,7 @@ export const FunctionDrawer = ({
     }
   }
 
-  const onDelete = async () => {
+  const onRemove = async () => {
     if (!func) return
 
     setLoading(true)
@@ -200,6 +206,12 @@ export const FunctionDrawer = ({
     }
   }
 
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+    onRemove,
+  })
+
   return (
     <Drawer
       open={open}
@@ -209,44 +221,16 @@ export const FunctionDrawer = ({
         isEditMode ? { justifyContent: `space-between`, px: 3, pb: 2 } : undefined
       }
       actions={
-        <>
-          <Box sx={{ display: `flex`, gap: 1 }}>
-            {isEditMode && (
-              <Button
-                color='error'
-                variant='outlined'
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={loading || showDeleteConfirm}
-              >
-                Delete
-              </Button>
-            )}
-            <Button
-              color='warning'
-              variant='outlined'
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-          </Box>
-          <LoadingButton
-            type='submit'
-            form='function-form'
-            variant='contained'
-            loading={loading}
-            disabled={showDeleteConfirm}
-            loadingText={isEditMode ? `Saving...` : `Creating...`}
-          >
-            {isEditMode ? `Save Changes` : `Create Function`}
-          </LoadingButton>
-        </>
+        <DrawerActions
+          form='function-form'
+          editing={isEditMode}
+          actions={actions}
+          loading={loading}
+          disabled={loading || showDeleteConfirm}
+        />
       }
     >
-      <form
-        id='function-form'
-        onSubmit={onSubmit}
-      >
+      <form id='function-form'>
         <Box sx={{ display: `flex`, flexDirection: `column`, gap: 2 }}>
           {error && (
             <ErrorAlert
@@ -258,7 +242,7 @@ export const FunctionDrawer = ({
           {isEditMode && showDeleteConfirm && (
             <ConfirmDelete
               deleting={loading}
-              onConfirm={onDelete}
+              onConfirm={onRemove}
               onCancel={() => setShowDeleteConfirm(false)}
               itemName={func?.name || `this function`}
             />

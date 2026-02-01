@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Box, Button } from '@mui/material'
-import { Drawer, TextInput } from '@tdsk/components'
+import { Box } from '@mui/material'
+import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { createProject } from '@TAF/actions/projects/api/createProject'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
 export type TCreateProjectDrawer = {
   open: boolean
@@ -34,7 +34,7 @@ export const CreateProjectDrawer = ({
     }
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!name.trim()) {
@@ -62,37 +62,27 @@ export const CreateProjectDrawer = ({
     }
   }
 
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
+
   return (
     <Drawer
       open={open}
       onClose={onClose}
       title='Create New Project'
       actions={
-        <>
-          <Button
-            color='warning'
-            variant='outlined'
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            type='submit'
-            loading={loading}
-            variant='contained'
-            loadingText='Creating...'
-            form='create-project-form'
-          >
-            Create Project
-          </LoadingButton>
-        </>
+        <DrawerActions
+          form='create-project-form'
+          editing={false}
+          actions={actions}
+          loading={loading}
+          disabled={loading || !name.trim()}
+        />
       }
     >
-      <form
-        id='create-project-form'
-        onSubmit={onSubmit}
-      >
+      <form id='create-project-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert

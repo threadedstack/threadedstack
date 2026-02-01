@@ -13,15 +13,15 @@ import { EEndpointType } from '@tdsk/domain'
 import { useState, useEffect, useRef } from 'react'
 import { useFunctions, useSecrets } from '@TAF/state/selectors'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { ProxyEndpointForm } from '@TAF/components/Endpoints/forms'
-import { FaasEndpointForm } from '@TAF/components/Endpoints/forms'
-import { AgentEndpointForm } from '@TAF/components/Endpoints/forms'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createEndpoint } from '@TAF/actions/endpoints/api/createEndpoint'
 import { updateEndpoint } from '@TAF/actions/endpoints/api/updateEndpoint'
 import { deleteEndpoint } from '@TAF/actions/endpoints/api/deleteEndpoint'
+import { FaasEndpoint } from '@TAF/components/Endpoints/Faas/EndpointFass'
 import { EndpointFormBase } from '@TAF/components/Endpoints/EndpointFormBase'
+import { EndpointProxy } from '@TAF/components/Endpoints/Proxy/EndpointProxy'
+import { EndpointAgent } from '@TAF/components/Endpoints/Agent/EndpointAgent'
 
 export type TEndpointDrawer = {
   open: boolean
@@ -278,7 +278,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
           />
 
           {sharedState.endpointType === EEndpointType.proxy && (
-            <ProxyEndpointForm
+            <EndpointProxy
               endpoint={endpoint}
               onValidate={onValidate}
               loading={uiState.loading}
@@ -288,7 +288,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
           )}
 
           {sharedState.endpointType === EEndpointType.faas && (
-            <FaasEndpointForm
+            <FaasEndpoint
               endpoint={endpoint}
               onValidate={onValidate}
               loading={uiState.loading}
@@ -299,7 +299,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
           )}
 
           {sharedState.endpointType === EEndpointType.agent && (
-            <AgentEndpointForm
+            <EndpointAgent
               endpoint={endpoint}
               onValidate={onValidate}
               loading={uiState.loading}

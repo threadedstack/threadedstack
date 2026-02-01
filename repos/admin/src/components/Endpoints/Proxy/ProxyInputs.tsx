@@ -1,16 +1,16 @@
 import type { TKeyValuePair } from '@TAF/types'
 import type { Secret } from '@tdsk/domain'
 
-import { EndpointAuth } from './proxy/EndpointAuth'
-import { EndpointOAuth } from './proxy/EndpointOAuth'
 import { HttpMethodOps } from '@TAF/constants/values'
-import { EndpointHeaders } from './proxy/EndpointHeaders'
 import { TextInput, SelectInput } from '@tdsk/components'
-import { EndpointTransform } from './proxy/EndpointTransform'
-import { EndpointWhitelist } from './proxy/EndpointWhitelist'
-import { EndpointBasicOptions } from './proxy/EndpointBasicOptions'
+import { EndpointAuth } from '@TAF/components/Endpoints/Proxy/EndpointAuth'
+import { EndpointOAuth } from '@TAF/components/Endpoints/Proxy/EndpointOAuth'
+import { EndpointHeaders } from '@TAF/components/Endpoints/Proxy/EndpointHeaders'
+import { EndpointTransform } from '@TAF/components/Endpoints/Proxy/EndpointTransform'
+import { EndpointWhitelist } from '@TAF/components/Endpoints/Proxy/EndpointWhitelist'
+import { EndpointBasicOptions } from '@TAF/components/Endpoints/Proxy/EndpointBasicOptions'
 
-export type TEndpointProxy = {
+export type TProxyInputs = {
   loading: boolean
   // Basic fields
   url: string
@@ -86,7 +86,7 @@ export type TEndpointProxy = {
   availableSecrets: Secret[]
 }
 
-export const EndpointProxy = (props: TEndpointProxy) => {
+export const ProxyInputs = (props: TProxyInputs) => {
   const { loading, availableSecrets } = props
 
   return (

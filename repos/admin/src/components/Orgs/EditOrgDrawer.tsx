@@ -1,12 +1,12 @@
 import type { Organization } from '@tdsk/domain'
 
-import { useState, useEffect } from 'react'
 import { Box } from '@mui/material'
+import { useState, useEffect } from 'react'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { updateOrg } from '@TAF/actions/orgs/api/updateOrg'
-import { Button, Drawer, TextInput } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { Drawer, DrawerActions, TextInput } from '@tdsk/components'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
 export type TEditOrgDrawer = {
   open: boolean
@@ -48,8 +48,8 @@ export const EditOrgDrawer = ({
     onCloseCB?.()
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSave = async (evt: React.FormEvent) => {
+    evt.preventDefault()
 
     if (!org?.id) return setError(`Organization ID is required`)
     if (!name.trim()) return setError(`Organization name is required`)
@@ -74,6 +74,11 @@ export const EditOrgDrawer = ({
     }
   }
 
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
+
   return (
     <Drawer
       open={open}
@@ -87,31 +92,16 @@ export const EditOrgDrawer = ({
       data-testid='edit-org-drawer'
       actionsSx={{ px: 3, pb: 2 }}
       actions={
-        <>
-          <Button
-            color='warning'
-            variant='outlined'
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            type='submit'
-            form='edit-org-form'
-            variant='contained'
-            loading={loading}
-            loadingText='Saving...'
-          >
-            Save Changes
-          </LoadingButton>
-        </>
+        <DrawerActions
+          form='edit-org-form'
+          editing={true}
+          actions={actions}
+          loading={loading}
+          disabled={loading}
+        />
       }
     >
-      <form
-        id='edit-org-form'
-        onSubmit={onSubmit}
-      >
+      <form id='edit-org-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert

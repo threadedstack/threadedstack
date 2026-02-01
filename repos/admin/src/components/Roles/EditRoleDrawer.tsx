@@ -1,14 +1,14 @@
 import type { User, TRoleType } from '@tdsk/domain'
 
 import { ERoleType } from '@tdsk/domain'
-import { Drawer } from '@tdsk/components'
 import { useState, useEffect } from 'react'
+import { Box, Avatar, Typography } from '@mui/material'
+import { Drawer, DrawerActions } from '@tdsk/components'
 import { getInitials } from '@TAF/utils/user/getInitials'
 import { RoleSelect } from '@TAF/components/Roles/RoleSelect'
 import { updateOrgRole } from '@TAF/actions/users/updateOrgRole'
-import { Box, Avatar, Button, Typography } from '@mui/material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
 export type TEditRoleDrawer = {
   user: User
@@ -37,28 +37,30 @@ export const EditRoleDrawer = ({
   }, [user])
 
   const onClose = () => {
-    if (!loading) {
-      setError(null)
-      onCloseCB?.()
-    }
+    if (loading) return
+
+    setError(null)
+    onCloseCB?.()
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
     setLoading(true)
     setError(null)
 
     const resp = await updateOrgRole(orgId, user.id, roleType)
-
     setLoading(false)
 
-    if (resp.error) {
-      setError(resp.error.message || 'Failed to update role. Please try again.')
-    } else {
-      onSuccessCB?.()
-    }
+    resp.error
+      ? setError(resp.error.message || `Failed to update role. Please try again.`)
+      : onSuccessCB?.()
   }
+
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
 
   return (
     <Drawer
@@ -66,31 +68,16 @@ export const EditRoleDrawer = ({
       onClose={onClose}
       title='Edit User Role'
       actions={
-        <>
-          <Button
-            color='warning'
-            variant='outlined'
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            type='submit'
-            form='edit-role-form'
-            variant='contained'
-            loading={loading}
-            loadingText='Saving...'
-          >
-            Save Changes
-          </LoadingButton>
-        </>
+        <DrawerActions
+          editing={true}
+          actions={actions}
+          loading={loading}
+          disabled={loading}
+          form='edit-role-form'
+        />
       }
     >
-      <form
-        id='edit-role-form'
-        onSubmit={onSubmit}
-      >
+      <form id='edit-role-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert
