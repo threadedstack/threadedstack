@@ -1,65 +1,69 @@
-import { useState } from 'react'
 import { Box } from '@mui/material'
-import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
+import { useState, useEffect } from 'react'
+import { ife } from '@keg-hub/jsutils/ife'
+import { useOrgs } from '@TAF/state/selectors'
+import { fetchOrgs } from '@TAF/actions/orgs/api'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
 import { createProject } from '@TAF/actions/projects/api/createProject'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
 export type TCreateProjectDrawer = {
   open: boolean
-  orgId: string
   onClose: () => void
   onSuccess?: () => void
 }
 
-export const CreateProjectDrawer = ({
-  open,
-  orgId,
-  onClose: onCloseCB,
-  onSuccess: onSuccessCB,
-}: TCreateProjectDrawer) => {
-  const [name, setName] = useState('')
-  const [gitUrl, setGitUrl] = useState('')
-  const [branch, setBranch] = useState('main')
+export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
+  const { open, onClose: onCloseCB, onSuccess: onSuccessCB } = props
+
+  const [name, setName] = useState(``)
+  const [orgId, setOrgId] = useState(``)
+  const [gitUrl, setGitUrl] = useState(``)
+  const [branch, setBranch] = useState(`main`)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [orgs] = useOrgs()
+
+  useEffect(() => {
+    open && !orgs && ife(async () => await fetchOrgs())
+  }, [open, orgs])
 
   const onClose = () => {
-    if (!loading) {
-      setName('')
-      setGitUrl('')
-      setBranch('main')
-      setError(null)
-      onCloseCB()
-    }
+    if (loading) return
+
+    setName(``)
+    setOrgId(``)
+    setGitUrl(``)
+    setBranch(`main`)
+    setError(null)
+    onCloseCB?.()
   }
 
   const onSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name.trim()) {
-      setError(`Project name is required`)
-      return
-    }
+    if (!orgId) return setError(`Org selection is required`)
+
+    const short = name.trim()
+    if (!short) return setError(`Project name is required`)
 
     setLoading(true)
     setError(null)
 
     const result = await createProject({
-      name: name.trim(),
       orgId,
+      name: short,
+      branch: branch.trim() || `main`,
       gitUrl: gitUrl.trim() || undefined,
-      branch: branch.trim() || 'main',
     })
 
     setLoading(false)
 
-    if (result.error) {
-      setError(`Failed to create project. Please try again.`)
-    } else {
-      onClose()
-      onSuccessCB?.()
-    }
+    if (result.error) return setError(`Failed to create project. Please try again.`)
+
+    onSuccessCB?.()
+    onClose()
   }
 
   const { actions } = useDrawerActions({
@@ -74,10 +78,10 @@ export const CreateProjectDrawer = ({
       title='Create New Project'
       actions={
         <DrawerActions
-          form='create-project-form'
           editing={false}
           actions={actions}
           loading={loading}
+          form='create-project-form'
           disabled={loading || !name.trim()}
         />
       }
@@ -92,15 +96,15 @@ export const CreateProjectDrawer = ({
           )}
 
           <TextInput
+            required
             autoFocus
+            fullWidth
             label='Name'
+            disabled={loading}
             id='tdsk-project-name'
             placeholder='Enter project name'
             value={name}
             onChange={(e) => setName(e.target.value)}
-            required
-            fullWidth
-            disabled={loading}
           />
 
           <TextInput

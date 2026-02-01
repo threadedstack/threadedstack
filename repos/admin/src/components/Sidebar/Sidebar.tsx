@@ -7,7 +7,6 @@ import { SBNavList } from '@TAF/components/Sidebar/SBNavList'
 import { SBSection } from '@TAF/components/Sidebar/SBSection'
 import { ChevronLeft, ChevronRight } from '@mui/icons-material'
 import { useActiveOrgId, useSidebarOpen } from '@TAF/state/selectors'
-import { SBProjectSelector } from '@TAF/components/Sidebar/SBProjectSelector'
 import { CreateProjectDrawer } from '@TAF/components/Projects/CreateProjectDrawer'
 import {
   SideDrawer,
@@ -83,11 +82,6 @@ export const Sidebar = (props: TSidebar) => {
             )
           })}
 
-          {/*<SBProjectSelector
-            open={open}
-            onCreateProject={onCreateProject}
-          />*/}
-
           <SBNavListSpacer />
           <Divider />
 
@@ -99,7 +93,6 @@ export const Sidebar = (props: TSidebar) => {
 
           {orgId && (
             <CreateProjectDrawer
-              orgId={orgId}
               open={createProjectOpen}
               onClose={() => setCreateProjectOpen(false)}
             />

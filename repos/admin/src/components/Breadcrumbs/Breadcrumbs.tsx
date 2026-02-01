@@ -48,7 +48,6 @@ export const Breadcrumbs = (props: TBreadcrumbs) => {
 
       {activeOrgId && (
         <CreateProjectDrawer
-          orgId={activeOrgId}
           open={createProjectOpen}
           onClose={() => setCreateProjectOpen(false)}
         />

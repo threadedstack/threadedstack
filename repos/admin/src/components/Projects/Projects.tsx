@@ -9,7 +9,6 @@ import { PageHeader } from '@TAF/components/PageHeader/PageHeader'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ProjectsGrid } from '@TAF/components/Projects/ProjectsGrid'
-import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
 import { CreateProjectDrawer } from '@TAF/components/Projects/CreateProjectDrawer'
@@ -105,7 +104,6 @@ export const Projects = (props: TProjects) => {
 
       {orgId && (
         <CreateProjectDrawer
-          orgId={orgId}
           open={dialogOpen}
           onClose={onDialogClose}
         />
