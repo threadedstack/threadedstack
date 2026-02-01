@@ -5,7 +5,7 @@ import { SelectInput } from '@tdsk/components'
 import { Envs } from '@TAF/components/Endpoints/Envs'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
-import { ResourceLimits } from '@TAF/components/Endpoints/Fass/ResourceLimits'
+import { ResourcesLimits } from '@TAF/components/Endpoints/Faas/ResourcesLimits'
 import {
   Box,
   Chip,
@@ -34,7 +34,7 @@ export type TFaasInputs = {
   onEnvVarsChange: (pairs: TKeyValuePair[]) => void
   onSecretsChange: (secrets: string[]) => void
 
-  // Resources
+  // ResourcesLimits
   memory: string
   timeout: string
   onTimeoutChange: (value: string) => void
@@ -143,7 +143,7 @@ export const FaasInputs = (props: TFaasInputs) => {
       </Accordion>
 
       {/* Resource Limits */}
-      <ResourceLimits
+      <ResourcesLimits
         memory={memory}
         timeout={timeout}
         disabled={loading}

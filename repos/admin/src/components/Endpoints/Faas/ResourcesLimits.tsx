@@ -1,7 +1,7 @@
 import { Box, Alert } from '@mui/material'
 import { TextInput } from '@tdsk/components'
 
-export type TResourceLimitsProps = {
+export type TResourcesLimits = {
   timeout: string
   memory: string
   disabled: boolean
@@ -13,7 +13,7 @@ export type TResourceLimitsProps = {
   memoryPlaceholder?: string
 }
 
-export const ResourceLimits = (props: TResourceLimitsProps) => {
+export const ResourcesLimits = (props: TResourcesLimits) => {
   const {
     timeout,
     memory,
