@@ -1,0 +1,4 @@
+package local:shell;
+world shell {
+  export run-bash: func() -> string;
+}

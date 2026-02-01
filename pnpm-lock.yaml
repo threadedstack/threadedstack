@@ -705,6 +705,15 @@ importers:
 
   repos/shell:
     dependencies:
+      '@bytecodealliance/componentize-js':
+        specifier: 0.19.3
+        version: 0.19.3
+      '@bytecodealliance/jco':
+        specifier: 1.15.4
+        version: 1.15.4
+      '@bytecodealliance/preview2-shim':
+        specifier: 0.17.6
+        version: 0.17.6
       '@keg-hub/jsutils':
         specifier: ^10.0.0
         version: 10.0.0
@@ -723,12 +732,18 @@ importers:
       alias-hq:
         specifier: 6.2.2
         version: 6.2.2(@babel/preset-env@7.26.7(@babel/core@7.28.5))
+      esbuild:
+        specifier: 0.27.2
+        version: 0.27.2
       just-bash:
         specifier: 2.5.5
         version: 2.5.5
       module-alias:
         specifier: 2.2.3
         version: 2.2.3
+      pako:
+        specifier: 2.1.0
+        version: 2.1.0
       tsx:
         specifier: 4.21.0
         version: 4.21.0
@@ -8976,6 +8991,9 @@ packages:
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
 
+  pako@2.1.0:
+    resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
+
   papaparse@5.5.3:
     resolution: {integrity: sha512-5QvjGxYVjxO59MGU2lHVYpRWBBtKHnlIAcSe1uNFCkkptUh63NFRj0FJQm7nR67puEruUci/ZkjmEFrjCAyP4A==}
 
@@ -11130,8 +11148,8 @@ snapshots:
 
   '@ampproject/remapping@2.3.0':
     dependencies:
-      '@jridgewell/gen-mapping': 0.3.8
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/gen-mapping': 0.3.13
+      '@jridgewell/trace-mapping': 0.3.31
 
   '@asamuzakjp/css-color@2.8.3':
     dependencies:
@@ -11599,8 +11617,8 @@ snapshots:
     dependencies:
       '@babel/parser': 7.28.5
       '@babel/types': 7.28.5
-      '@jridgewell/gen-mapping': 0.3.8
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/gen-mapping': 0.3.13
+      '@jridgewell/trace-mapping': 0.3.31
       jsesc: 3.1.0
 
   '@babel/generator@7.28.5':
@@ -20635,6 +20653,8 @@ snapshots:
   package-json-from-dist@1.0.1: {}
 
   pako@1.0.11: {}
+
+  pako@2.1.0: {}
 
   papaparse@5.5.3: {}
 
