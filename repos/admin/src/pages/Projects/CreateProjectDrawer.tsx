@@ -1,20 +1,12 @@
 import { useState, useEffect } from 'react'
 import { ife } from '@keg-hub/jsutils/ife'
-import { Drawer } from '@tdsk/components'
 import { useOrgs } from '@TAF/state/selectors'
 import { fetchOrgs } from '@TAF/actions/orgs/api'
+import { Drawer, DrawerActions } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { createProject } from '@TAF/actions/projects/api/createProject'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
-import {
-  Box,
-  Select,
-  Button,
-  MenuItem,
-  TextField,
-  InputLabel,
-  FormControl,
-} from '@mui/material'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { Box, MenuItem, TextField, Select, InputLabel, FormControl } from '@mui/material'
 
 export type TCreateProjectDrawer = {
   open: boolean
@@ -48,10 +40,11 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
     onCloseCB?.()
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!orgId) return setError(`Org selection is required`)
+
     const short = name.trim()
     if (!short) return setError(`Project name is required`)
 
@@ -75,38 +68,27 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
 
   const orgsArray = orgs ? Object.values(orgs) : []
 
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
+
   return (
     <Drawer
       open={open}
       onClose={onClose}
       title='Create New Project'
       actions={
-        <>
-          <Button
-            color='warning'
-            variant='outlined'
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            type='submit'
-            form='create-project-form'
-            variant='contained'
-            loading={loading}
-            disabled={orgsArray.length === 0}
-            loadingText='Creating...'
-          >
-            Create Project
-          </LoadingButton>
-        </>
+        <DrawerActions
+          editing={false}
+          actions={actions}
+          loading={loading}
+          form='create-project-form'
+          disabled={loading || orgsArray.length === 0}
+        />
       }
     >
-      <form
-        id='create-project-form'
-        onSubmit={onSubmit}
-      >
+      <form id='create-project-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert
@@ -117,13 +99,13 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
 
           <TextField
             autoFocus
-            label='Project Name'
-            placeholder='Enter project name'
-            value={name}
-            onChange={(e) => setName(e.target.value)}
             required
             fullWidth
+            value={name}
             disabled={loading}
+            label='Project Name'
+            placeholder='Enter project name'
+            onChange={(e) => setName(e.target.value)}
           />
 
           <FormControl

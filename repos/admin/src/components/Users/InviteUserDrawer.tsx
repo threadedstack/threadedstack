@@ -2,13 +2,13 @@ import type { TRoleType } from '@tdsk/domain'
 
 import { useState } from 'react'
 import { ERoleType } from '@tdsk/domain'
-import { Box, Button } from '@mui/material'
+import { Box } from '@mui/material'
 import { AuthRoles } from '@TAF/constants/values'
 import { isEmail } from '@keg-hub/jsutils/isEmail'
 import { inviteToOrg } from '@TAF/actions/users/inviteToOrg'
-import { Drawer, TextInput, SelectInput } from '@tdsk/components'
+import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
 export type TInviteUserDrawer = {
   open: boolean
@@ -38,7 +38,7 @@ export const InviteUserDrawer = ({
     }
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!email.trim()) {
@@ -65,37 +65,27 @@ export const InviteUserDrawer = ({
     }
   }
 
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
+
   return (
     <Drawer
       open={open}
       onClose={onClose}
       title='Invite User to Organization'
       actions={
-        <>
-          <Button
-            color='warning'
-            variant='outlined'
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            type='submit'
-            loading={loading}
-            variant='contained'
-            form='invite-user-form'
-            loadingText='Inviting...'
-          >
-            Send Invite
-          </LoadingButton>
-        </>
+        <DrawerActions
+          form='invite-user-form'
+          editing={false}
+          actions={actions}
+          loading={loading}
+          disabled={loading || !email.trim()}
+        />
       }
     >
-      <form
-        id='invite-user-form'
-        onSubmit={onSubmit}
-      >
+      <form id='invite-user-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert

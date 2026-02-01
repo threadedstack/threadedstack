@@ -1,19 +1,19 @@
 import type { Thread } from '@tdsk/domain'
-import { updateThread } from '@TAF/actions/threads/api/updateThread'
 import { useState, useEffect } from 'react'
+import { useProviders } from '@TAF/state/selectors'
+import { Close as CloseIcon } from '@mui/icons-material'
+import { Loading, Drawer, DrawerActions } from '@tdsk/components'
+import { updateThread } from '@TAF/actions/threads/api/updateThread'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
   Box,
-  Drawer,
-  Button,
+  Alert,
+  Switch,
   TextField,
   Typography,
   IconButton,
   FormControlLabel,
-  Switch,
 } from '@mui/material'
-import { Close as CloseIcon } from '@mui/icons-material'
-import { Loading } from '@tdsk/components'
-import { useProviders } from '@TAF/state/selectors'
 
 export type TEditThreadDrawerProps = {
   open: boolean
@@ -23,7 +23,7 @@ export type TEditThreadDrawerProps = {
 }
 
 export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
-  const { open, thread, onSuccess, onClose } = props
+  const { open, thread, onSuccess, onClose: onCloseCB } = props
 
   const [providers] = useProviders()
 
@@ -48,7 +48,17 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
       provider.orgId === thread.orgId
   )
 
-  const handleSubmit = async () => {
+  const onClose = () => {
+    if (!loading) {
+      setName('')
+      setPublicThread(false)
+      setSelectedProviderId('')
+      setError(null)
+      onCloseCB?.()
+    }
+  }
+
+  const onSave = async () => {
     if (!thread || !name.trim()) return
 
     setLoading(true)
@@ -69,29 +79,29 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
       setError(result.error.message)
     } else {
       onSuccess()
-      onClose()
+      onCloseCB?.()
     }
 
     setLoading(false)
   }
 
-  const handleClose = () => {
-    if (!loading) {
-      setName('')
-      setPublicThread(false)
-      setSelectedProviderId('')
-      setError(null)
-      onClose()
-    }
-  }
+  const { actions } = useDrawerActions({ onSave, onClose })
 
   if (!thread) return null
 
   return (
     <Drawer
-      anchor='right'
       open={open}
-      onClose={handleClose}
+      onClose={onClose}
+      actions={
+        <DrawerActions
+          editing={true}
+          actions={actions}
+          loading={loading}
+          form='edit-thread-form'
+          disabled={loading || !name.trim()}
+        />
+      }
     >
       <Box sx={{ width: 400, p: 3 }}>
         <Box
@@ -104,7 +114,7 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
         >
           <Typography variant='h6'>Edit Thread</Typography>
           <IconButton
-            onClick={handleClose}
+            onClick={onClose}
             disabled={loading}
           >
             <CloseIcon />
@@ -120,81 +130,62 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
         {!loading && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {error && (
-              <Typography
-                variant='body2'
+              <Alert
                 color='error'
                 sx={{ mb: 2 }}
               >
                 {error}
-              </Typography>
+              </Alert>
             )}
 
-            <TextField
-              label='Thread Name'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              fullWidth
-              required
-              autoFocus
-            />
+            <form id='edit-thread-form'>
+              <TextField
+                label='Thread Name'
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                fullWidth
+                required
+                autoFocus
+              />
 
-            <TextField
-              label='AI Provider (Optional)'
-              value={selectedProviderId}
-              onChange={(e) => setSelectedProviderId(e.target.value)}
-              fullWidth
-              select
-              SelectProps={{
-                native: true,
-              }}
-            >
-              <option value=''>None</option>
-              {projectProviders.map((provider) => (
-                <option
-                  key={provider.id}
-                  value={provider.id}
-                >
-                  {provider.name} ({provider.type})
-                </option>
-              ))}
-            </TextField>
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={publicThread}
-                  onChange={(e) => setPublicThread(e.target.checked)}
-                />
-              }
-              label='Public Thread'
-            />
-
-            <Typography
-              variant='caption'
-              color='text.secondary'
-            >
-              Thread ID: {thread.id}
-            </Typography>
-
-            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-              <Button
-                color='warning'
-                variant='outlined'
-                onClick={handleClose}
-                disabled={loading}
-                sx={{ flex: 1 }}
+              <TextField
+                label='AI Provider (Optional)'
+                value={selectedProviderId}
+                onChange={(e) => setSelectedProviderId(e.target.value)}
+                fullWidth
+                select
+                SelectProps={{
+                  native: true,
+                }}
               >
-                Cancel
-              </Button>
-              <Button
-                variant='contained'
-                onClick={handleSubmit}
-                disabled={loading || !name.trim()}
-                sx={{ flex: 1 }}
+                <option value=''>None</option>
+                {projectProviders.map((provider) => (
+                  <option
+                    key={provider.id}
+                    value={provider.id}
+                  >
+                    {provider.name} ({provider.type})
+                  </option>
+                ))}
+              </TextField>
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={publicThread}
+                    onChange={(e) => setPublicThread(e.target.checked)}
+                  />
+                }
+                label='Public Thread'
+              />
+
+              <Typography
+                variant='caption'
+                color='text.secondary'
               >
-                Save
-              </Button>
-            </Box>
+                Thread ID: {thread.id}
+              </Typography>
+            </form>
           </Box>
         )}
       </Box>

@@ -3,9 +3,9 @@ import type { TApiKeyScope } from '@tdsk/domain'
 import { useState } from 'react'
 import { createApiKey } from '@TAF/actions/apiKeys'
 import { ApiKeyScopes } from '@TAF/constants/values'
-import { Drawer, ClipboardCopy, Button } from '@tdsk/components'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { Drawer, ClipboardCopy, Button, DrawerActions } from '@tdsk/components'
 import {
   Box,
   Paper,
@@ -45,7 +45,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     )
   }
 
-  const onSubmit = async () => {
+  const onSave = async () => {
     if (!name.trim()) {
       setError(`API key name is required`)
       return
@@ -68,38 +68,35 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     }
 
     const result = await createApiKey({
-      name: name.trim(),
-      orgId: projectId ? undefined : orgId,
       projectId,
-      scopes: scopes.join(','),
       expiresAt,
+      name: name.trim(),
+      scopes: scopes.join(','),
+      orgId: projectId ? undefined : orgId,
     })
 
     setLoading(false)
 
-    if (result.error) {
-      setError(result.error.message)
-      return
-    }
-
-    if (result.data?.key) {
-      setGeneratedKey(result.data.key)
-    }
+    if (result.error) return setError(result.error.message)
+    if (result.data?.key) setGeneratedKey(result.data.key)
   }
 
   const onClose = () => {
     // Only allow closing if we haven't generated a key yet
     // or if the user has explicitly acknowledged the key
-    if (generatedKey) {
-      onSuccessCB?.()
-    }
-    setName('')
-    setScopes(['read'])
-    setExpiresIn('')
+    generatedKey && onSuccessCB?.()
+    setName(``)
+    setScopes([`read`])
+    setExpiresIn(``)
     setError(null)
     setGeneratedKey(null)
     onCloseCB?.()
   }
+
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
 
   const onDone = () => {
     onSuccessCB?.()
@@ -114,9 +111,9 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
         title='API Key Generated'
         actions={
           <Button
+            color='primary'
             onClick={onDone}
             variant='contained'
-            color='primary'
           >
             Done
           </Button>
@@ -175,99 +172,90 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
       onClose={onClose}
       title='Generate API Key'
       actions={
-        <>
-          <Button
-            color='warning'
-            variant='outlined'
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            onClick={onSubmit}
-            variant='contained'
-            loading={loading}
-            disabled={!name.trim() || scopes.length === 0}
-            loadingText='Generating...'
-          >
-            Generate Key
-          </LoadingButton>
-        </>
+        <DrawerActions
+          form='api-key-form'
+          editing={false}
+          actions={actions}
+          loading={loading}
+          disabled={!name.trim() || scopes.length === 0}
+        />
       }
     >
-      {error && (
-        <ErrorAlert
-          message={error}
-          onClose={() => setError(null)}
+      <form id='api-key-form'>
+        {error && (
+          <ErrorAlert
+            message={error}
+            onClose={() => setError(null)}
+            sx={{ mb: 2 }}
+          />
+        )}
+
+        <TextField
+          autoFocus
+          fullWidth
+          value={name}
+          margin='dense'
           sx={{ mb: 2 }}
+          label='Key Name'
+          placeholder='e.g., Production API Key'
+          onChange={(e) => setName(e.target.value)}
+          helperText='A descriptive name to identify this key'
         />
-      )}
 
-      <TextField
-        autoFocus
-        margin='dense'
-        label='Key Name'
-        fullWidth
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder='e.g., Production API Key'
-        helperText='A descriptive name to identify this key'
-        sx={{ mb: 2 }}
-      />
+        <Box sx={{ mb: 2 }}>
+          <Typography
+            gutterBottom
+            variant='subtitle2'
+          >
+            Scopes
+          </Typography>
+          <FormGroup row>
+            {ApiKeyScopes.map((scope) => (
+              <FormControlLabel
+                key={scope}
+                control={
+                  <Checkbox
+                    checked={scopes.includes(scope)}
+                    onChange={() => onScopeChange(scope)}
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant='body2'>{scope}</Typography>
+                    <Typography
+                      variant='caption'
+                      color='text.secondary'
+                    >
+                      {scope === `admin` && `Full administrative access`}
+                      {scope === `write` && `Create and update resources`}
+                      {scope === `read` && `Read-only access to resources`}
+                    </Typography>
+                  </Box>
+                }
+              />
+            ))}
+          </FormGroup>
+        </Box>
 
-      <Box sx={{ mb: 2 }}>
-        <Typography
-          variant='subtitle2'
-          gutterBottom
+        <FormControl
+          fullWidth
+          margin='dense'
         >
-          Scopes
-        </Typography>
-        <FormGroup row>
-          {ApiKeyScopes.map((scope) => (
-            <FormControlLabel
-              key={scope}
-              control={
-                <Checkbox
-                  checked={scopes.includes(scope)}
-                  onChange={() => onScopeChange(scope)}
-                />
-              }
-              label={
-                <Box>
-                  <Typography variant='body2'>{scope}</Typography>
-                  <Typography
-                    variant='caption'
-                    color='text.secondary'
-                  >
-                    {scope === 'read' && 'Read-only access to resources'}
-                    {scope === 'write' && 'Create and update resources'}
-                    {scope === 'admin' && 'Full administrative access'}
-                  </Typography>
-                </Box>
-              }
-            />
-          ))}
-        </FormGroup>
-      </Box>
-
-      <FormControl
-        fullWidth
-        margin='dense'
-      >
-        <InputLabel>Expiration</InputLabel>
-        <Select
-          value={expiresIn}
-          onChange={(e) => setExpiresIn(e.target.value)}
-          label='Expiration'
-        >
-          <MenuItem value=''>Never expires</MenuItem>
-          <MenuItem value='7'>7 days</MenuItem>
-          <MenuItem value='30'>30 days</MenuItem>
-          <MenuItem value='90'>90 days</MenuItem>
-          <MenuItem value='180'>180 days</MenuItem>
-          <MenuItem value='365'>1 year</MenuItem>
-        </Select>
-      </FormControl>
+          <InputLabel>Expiration</InputLabel>
+          <Select
+            value={expiresIn}
+            label='Expiration'
+            onChange={(e) => setExpiresIn(e.target.value)}
+          >
+            <MenuItem value=''>Never expires</MenuItem>
+            <MenuItem value='7'>7 days</MenuItem>
+            <MenuItem value='30'>30 days</MenuItem>
+            <MenuItem value='90'>90 days</MenuItem>
+            <MenuItem value='180'>180 days</MenuItem>
+            <MenuItem value='365'>1 year</MenuItem>
+          </Select>
+        </FormControl>
+      </form>
     </Drawer>
   )
 }

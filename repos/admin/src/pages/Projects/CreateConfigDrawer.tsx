@@ -1,17 +1,9 @@
 import { useState } from 'react'
-import { Drawer } from '@tdsk/components'
+import { Box } from '@mui/material'
 import { createConfig } from '@TAF/actions/configs'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
-import {
-  Box,
-  Button,
-  Select,
-  MenuItem,
-  TextField,
-  InputLabel,
-  FormControl,
-} from '@mui/material'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { Drawer, DrawerActions, TextInput, SelectInput } from '@tdsk/components'
 
 export type TCreateConfigDrawer = {
   open: boolean
@@ -20,11 +12,12 @@ export type TCreateConfigDrawer = {
   onSuccess?: () => void
 }
 
+// TODO: fix this - NOT How configs work at all!
 const CONFIG_TYPES = [
-  { value: 'json', label: 'JSON' },
-  { value: 'string', label: 'String' },
-  { value: 'number', label: 'Number' },
-  { value: 'boolean', label: 'Boolean' },
+  { value: `json`, label: `JSON` },
+  { value: `string`, label: `String` },
+  { value: `number`, label: `Number` },
+  { value: `boolean`, label: `Boolean` },
 ]
 
 export const CreateConfigDrawer = ({
@@ -69,23 +62,14 @@ export const CreateConfigDrawer = ({
     }
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!key.trim()) {
-      setError('Configuration key is required')
-      return
-    }
+    if (!key.trim()) return setError('Configuration key is required')
 
-    if (!value.trim()) {
-      setError('Configuration value is required')
-      return
-    }
+    if (!value.trim()) return setError('Configuration value is required')
 
-    if (!validateValue(value, type)) {
-      setError(`Invalid value for type "${type}"`)
-      return
-    }
+    if (!validateValue(value, type)) return setError(`Invalid value for type "${type}"`)
 
     setLoading(true)
     setError(null)
@@ -106,37 +90,27 @@ export const CreateConfigDrawer = ({
     }
   }
 
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
+
   return (
     <Drawer
       open={open}
       onClose={onClose}
       title='Create Configuration'
       actions={
-        <>
-          <Button
-            color='warning'
-            variant='outlined'
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            type='submit'
-            form='create-config-form'
-            variant='contained'
-            loading={loading}
-            loadingText='Creating...'
-          >
-            Create Config
-          </LoadingButton>
-        </>
+        <DrawerActions
+          editing={false}
+          actions={actions}
+          loading={loading}
+          disabled={loading}
+          form='create-config-form'
+        />
       }
     >
-      <form
-        id='create-config-form'
-        onSubmit={onSubmit}
-      >
+      <form id='create-config-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert
@@ -145,40 +119,29 @@ export const CreateConfigDrawer = ({
             />
           )}
 
-          <TextField
+          <TextInput
             autoFocus
-            label='Configuration Key'
-            placeholder='Enter key (e.g., MAX_RETRIES)'
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
             required
             fullWidth
+            value={key}
+            id='config-key'
             disabled={loading}
+            label='Configuration Key'
+            placeholder='Enter key (e.g., MAX_RETRIES)'
+            onChange={(e) => setKey(e.target.value)}
           />
 
-          <FormControl
-            fullWidth
+          <SelectInput
+            label='Type'
+            value={type}
+            id='config-type'
             disabled={loading}
-          >
-            <InputLabel id='config-type-label'>Type</InputLabel>
-            <Select
-              labelId='config-type-label'
-              value={type}
-              label='Type'
-              onChange={(e) => setType(e.target.value)}
-            >
-              {CONFIG_TYPES.map((configType) => (
-                <MenuItem
-                  key={configType.value}
-                  value={configType.value}
-                >
-                  {configType.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            items={CONFIG_TYPES}
+            onChange={(e) => setType(e.target.value)}
+          />
 
-          <TextField
+          <TextInput
+            id='config-value'
             label='Value'
             placeholder={
               type === 'json'
@@ -194,9 +157,9 @@ export const CreateConfigDrawer = ({
             required
             fullWidth
             disabled={loading}
-            multiline={type === 'json'}
-            rows={type === 'json' ? 3 : 1}
-            helperText={
+            textarea={type === 'json'}
+            minRows={type === 'json' ? 3 : 1}
+            description={
               type === 'json'
                 ? 'Enter valid JSON'
                 : type === 'boolean'

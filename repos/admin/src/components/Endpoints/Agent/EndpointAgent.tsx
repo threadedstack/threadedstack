@@ -4,11 +4,11 @@ import type { TAgentEndpointConfig } from '@tdsk/domain'
 import { vep } from '@TAF/utils/endpoints/validators'
 import { useAgentFormState } from '@TAF/hooks/endpoints'
 import { mapAgentStateToConfig } from '@TAF/utils/endpoints'
+import { AgentInputs } from '@TAF/components/Endpoints/Agent/AgentInputs'
 import { useEndpointForm } from '@TAF/hooks/endpoints/useEndpointForm'
-import { EndpointAgent } from '@TAF/components/Endpoints/EndpointAgent'
 import { setAgentEnvVars, setAgentFormField } from '@TAF/actions/endpoints/local'
 
-export const AgentEndpointForm = (props: TEndpointFormProps<TAgentEndpointConfig>) => {
+export const EndpointAgent = (props: TEndpointFormProps<TAgentEndpointConfig>) => {
   const { loading, endpoint, onValidate, onConfigChange, availableSecrets } = props
 
   const state = useAgentFormState(endpoint)
@@ -16,7 +16,7 @@ export const AgentEndpointForm = (props: TEndpointFormProps<TAgentEndpointConfig
   useEndpointForm(state, mapAgentStateToConfig, vep.agent, onConfigChange, onValidate)
 
   return (
-    <EndpointAgent
+    <AgentInputs
       loading={loading}
       model={state.model}
       tools={state.tools}

@@ -3,10 +3,10 @@ import type { Domain } from '@tdsk/domain'
 import { isDomain } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
 import { Upload as UploadIcon } from '@mui/icons-material'
+import { Box, Typography, IconButton } from '@mui/material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { ConfirmDelete, Drawer, TextInput } from '@tdsk/components'
-import { Box, Button, Typography, IconButton } from '@mui/material'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { ConfirmDelete, Drawer, DrawerActions, TextInput } from '@tdsk/components'
 import { createDomain, updateDomain, deleteDomain } from '@TAF/actions/domains/api'
 
 export type TDomainDrawer = {
@@ -62,8 +62,8 @@ export const DomainDrawer = ({
     }
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSave = async (evt: React.FormEvent) => {
+    evt.preventDefault()
 
     if (!isDomain(domainName))
       return setError(
@@ -103,7 +103,7 @@ export const DomainDrawer = ({
     }
   }
 
-  const onDelete = async () => {
+  const onRemove = async () => {
     if (!domain) return
 
     setLoading(true)
@@ -122,6 +122,12 @@ export const DomainDrawer = ({
       onClose()
     }
   }
+
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+    onRemove,
+  })
 
   const onCertificateFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -162,43 +168,16 @@ export const DomainDrawer = ({
         isEditMode ? { justifyContent: `space-between`, px: 3, pb: 2 } : undefined
       }
       actions={
-        <>
-          {isEditMode && (
-            <Button
-              color='error'
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={loading || showDeleteConfirm}
-            >
-              Delete
-            </Button>
-          )}
-          <Box sx={{ display: `flex`, gap: 1, ml: isEditMode ? `auto` : 0 }}>
-            <Button
-              color='warning'
-              variant='outlined'
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <LoadingButton
-              type='submit'
-              form='domain-form'
-              variant='contained'
-              loading={loading}
-              disabled={isEditMode && showDeleteConfirm}
-              loadingText={isEditMode ? `Saving...` : `Adding...`}
-            >
-              {isEditMode ? `Save Changes` : `Add Domain`}
-            </LoadingButton>
-          </Box>
-        </>
+        <DrawerActions
+          form='domain-form'
+          actions={actions}
+          loading={loading}
+          editing={isEditMode}
+          disabled={loading || showDeleteConfirm}
+        />
       }
     >
-      <form
-        id='domain-form'
-        onSubmit={onSubmit}
-      >
+      <form id='domain-form'>
         <Box sx={{ display: `flex`, flexDirection: `column`, gap: 2 }}>
           {error && (
             <ErrorAlert
@@ -210,9 +189,9 @@ export const DomainDrawer = ({
           {isEditMode && showDeleteConfirm && (
             <ConfirmDelete
               deleting={loading}
-              onConfirm={onDelete}
-              onCancel={() => setShowDeleteConfirm(false)}
+              onConfirm={onRemove}
               itemName={domain?.domain || ''}
+              onCancel={() => setShowDeleteConfirm(false)}
             />
           )}
 
@@ -305,9 +284,9 @@ export const DomainDrawer = ({
                 >
                   <UploadIcon />
                   <input
+                    hidden
                     type='file'
                     accept='.crt,.pem,.cert'
-                    hidden
                     onChange={onCertificateFileUpload}
                   />
                 </IconButton>

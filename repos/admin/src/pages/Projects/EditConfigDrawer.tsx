@@ -4,22 +4,20 @@
  * Configs can be Objects only, there are not different configs type like string/number/boolean
  * Update to use KeyValueEditor for `config.data` properties
  */
-
 import type { Config } from '@tdsk/domain'
+
+import { Box } from '@mui/material'
 import { useState, useEffect } from 'react'
-import { ConfirmDelete, Drawer } from '@tdsk/components'
 import { updateConfig, deleteConfig } from '@TAF/actions/configs'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
-  Box,
-  Button,
-  Select,
-  MenuItem,
-  TextField,
-  InputLabel,
-  FormControl,
-} from '@mui/material'
+  ConfirmDelete,
+  Drawer,
+  DrawerActions,
+  TextInput,
+  SelectInput,
+} from '@tdsk/components'
 
 export type TEditConfigDrawer = {
   open: boolean
@@ -28,11 +26,12 @@ export type TEditConfigDrawer = {
   onSuccess?: () => void
 }
 
+// TODO: Fix this - NOT how configs work at all!
 const CONFIG_TYPES = [
-  { value: 'string', label: 'String' },
-  { value: 'number', label: 'Number' },
-  { value: 'boolean', label: 'Boolean' },
-  { value: 'json', label: 'JSON' },
+  { value: `string`, label: `String` },
+  { value: `number`, label: `Number` },
+  { value: `boolean`, label: `Boolean` },
+  { value: `json`, label: `JSON` },
 ]
 
 export const EditConfigDrawer = (props: TEditConfigDrawer) => {
@@ -85,27 +84,18 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
     }
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!config) {
       return
     }
 
-    if (!key.trim()) {
-      setError('Configuration key is required')
-      return
-    }
+    if (!key.trim()) return setError(`Configuration key is required`)
 
-    if (!value.trim()) {
-      setError('Configuration value is required')
-      return
-    }
+    if (!value.trim()) return setError(`Configuration value is required`)
 
-    if (!validateValue(value, type)) {
-      setError(`Invalid value for type "${type}"`)
-      return
-    }
+    if (!validateValue(value, type)) return setError(`Invalid value for type "${type}"`)
 
     setLoading(true)
     setError(null)
@@ -115,17 +105,15 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
     setLoading(false)
 
     if (result.error) {
-      setError('Failed to update configuration. Please try again.')
+      setError(`Failed to update configuration. Please try again.`)
     } else {
       onSuccessCB?.()
       onClose()
     }
   }
 
-  const onDelete = async () => {
-    if (!config) {
-      return
-    }
+  const onRemove = async () => {
+    if (!config) return
 
     setLoading(true)
     setError(null)
@@ -135,13 +123,19 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
     setLoading(false)
 
     if (result.error) {
-      setError('Failed to delete configuration. Please try again.')
+      setError(`Failed to delete configuration. Please try again.`)
       setShowDeleteConfirm(false)
     } else {
       onSuccessCB?.()
       onClose()
     }
   }
+
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+    onRemove,
+  })
 
   return (
     <Drawer
@@ -150,41 +144,16 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
       title='Edit Configuration'
       actionsSx={{ justifyContent: 'space-between', px: 3, pb: 2 }}
       actions={
-        <>
-          <Button
-            color='error'
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={loading || showDeleteConfirm}
-          >
-            Delete
-          </Button>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              color='warning'
-              variant='outlined'
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <LoadingButton
-              type='submit'
-              form='edit-config-form'
-              variant='contained'
-              loading={loading}
-              disabled={showDeleteConfirm}
-              loadingText='Saving...'
-            >
-              Save Changes
-            </LoadingButton>
-          </Box>
-        </>
+        <DrawerActions
+          editing={true}
+          actions={actions}
+          loading={loading}
+          form='edit-config-form'
+          disabled={loading || showDeleteConfirm}
+        />
       }
     >
-      <form
-        id='edit-config-form'
-        onSubmit={onSubmit}
-      >
+      <form id='edit-config-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert
@@ -195,47 +164,36 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
 
           {showDeleteConfirm && (
             <ConfirmDelete
+              deleting={loading}
+              onConfirm={onRemove}
               itemName={config?.id || 'Config'}
               onCancel={() => setShowDeleteConfirm(false)}
-              onConfirm={onDelete}
-              deleting={loading}
             />
           )}
 
-          <TextField
+          <TextInput
             autoFocus
             required
             fullWidth
             value={key}
+            id='config-key'
             disabled={loading}
             label='Configuration Key'
-            placeholder='Enter key (e.g., MAX_RETRIES)'
             onChange={(e) => setKey(e.target.value)}
+            placeholder='Enter key (e.g., MAX_RETRIES)'
           />
 
-          <FormControl
-            fullWidth
+          <SelectInput
+            label='Type'
+            value={type}
+            id='config-type'
             disabled={loading}
-          >
-            <InputLabel id='config-type-label'>Type</InputLabel>
-            <Select
-              labelId='config-type-label'
-              value={type}
-              label='Type'
-              onChange={(e) => setType(e.target.value)}
-            >
-              {CONFIG_TYPES.map((configType) => (
-                <MenuItem
-                  key={configType.value}
-                  value={configType.value}
-                >
-                  {configType.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            items={CONFIG_TYPES}
+            onChange={(e) => setType(e.target.value)}
+          />
 
-          <TextField
+          <TextInput
+            id='config-value'
             label='Value'
             placeholder={
               type === 'json'
@@ -251,9 +209,9 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
             required
             fullWidth
             disabled={loading}
-            multiline={type === 'json'}
-            rows={type === 'json' ? 3 : 1}
-            helperText={
+            textarea={type === 'json'}
+            minRows={type === 'json' ? 3 : 1}
+            description={
               type === 'json'
                 ? 'Enter valid JSON'
                 : type === 'boolean'

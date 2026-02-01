@@ -1,11 +1,11 @@
 import type { Secret } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
+import { Box, IconButton, InputAdornment } from '@mui/material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { ConfirmDelete, Drawer, TextInput } from '@tdsk/components'
-import { Box, Button, IconButton, InputAdornment } from '@mui/material'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createSecret, updateSecret, deleteSecret } from '@TAF/actions/secrets'
+import { ConfirmDelete, Drawer, DrawerActions, TextInput } from '@tdsk/components'
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
@@ -68,8 +68,8 @@ export const SecretDrawer = ({
     }
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSave = async (evt: React.FormEvent) => {
+    evt.preventDefault()
 
     if (!name.trim()) {
       setError(`Secret name is required`)
@@ -136,7 +136,7 @@ export const SecretDrawer = ({
     }
   }
 
-  const onDelete = async () => {
+  const onRemove = async () => {
     if (!secret) return
 
     setLoading(true)
@@ -156,6 +156,12 @@ export const SecretDrawer = ({
     }
   }
 
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+    onRemove,
+  })
+
   const toggleValueVisibility = () => {
     setShowValue((prev) => !prev)
   }
@@ -169,44 +175,16 @@ export const SecretDrawer = ({
         isEditMode ? { justifyContent: 'space-between', px: 3, pb: 2 } : undefined
       }
       actions={
-        <>
-          {isEditMode && (
-            <Button
-              color='error'
-              variant='outlined'
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={loading || showDeleteConfirm}
-            >
-              Delete
-            </Button>
-          )}
-          <Box sx={{ display: 'flex', gap: 1, ml: isEditMode ? 'auto' : 0 }}>
-            <Button
-              color='warning'
-              variant='outlined'
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <LoadingButton
-              type='submit'
-              form='secret-form'
-              variant='contained'
-              loading={loading}
-              disabled={isEditMode && showDeleteConfirm}
-              loadingText={isEditMode ? 'Saving...' : 'Creating...'}
-            >
-              {isEditMode ? 'Save Changes' : 'Create Secret'}
-            </LoadingButton>
-          </Box>
-        </>
+        <DrawerActions
+          form='secret-form'
+          actions={actions}
+          loading={loading}
+          editing={isEditMode}
+          disabled={loading || showDeleteConfirm}
+        />
       }
     >
-      <form
-        id='secret-form'
-        onSubmit={onSubmit}
-      >
+      <form id='secret-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert
@@ -218,7 +196,7 @@ export const SecretDrawer = ({
           {isEditMode && showDeleteConfirm && (
             <ConfirmDelete
               deleting={loading}
-              onConfirm={onDelete}
+              onConfirm={onRemove}
               onCancel={() => setShowDeleteConfirm(false)}
               itemName={secret?.hashKey || secret?.name || ''}
             />

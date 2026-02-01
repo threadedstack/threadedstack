@@ -1,14 +1,14 @@
 import type { TRoleType } from '@tdsk/domain'
 
 import { useState } from 'react'
-import { usersApi } from '@TAF/services'
 import { ERoleType } from '@tdsk/domain'
-import { Drawer } from '@tdsk/components'
+import { Box, TextField } from '@mui/material'
 import { isEmail } from '@keg-hub/jsutils/isEmail'
+import { Drawer, DrawerActions } from '@tdsk/components'
+import { inviteToOrg } from '@TAF/actions/users/inviteToOrg'
 import { RoleSelect } from '@TAF/components/Roles/RoleSelect'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
-import { Box, Button, TextField } from '@mui/material'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
 export type TInviteUserDrawer = {
   open: boolean
@@ -24,9 +24,9 @@ export const InviteUserDrawer = ({
   onSuccess: onSuccessCB,
 }: TInviteUserDrawer) => {
   const [email, setEmail] = useState('')
-  const [roleType, setRoleType] = useState<TRoleType>(ERoleType.viewer)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [roleType, setRoleType] = useState<TRoleType>(ERoleType.viewer)
 
   const onClose = () => {
     if (loading) return
@@ -37,7 +37,7 @@ export const InviteUserDrawer = ({
     onCloseCB?.()
   }
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault()
     const short = email.trim()
 
@@ -47,10 +47,7 @@ export const InviteUserDrawer = ({
     setLoading(true)
     setError(null)
 
-    const resp = await usersApi.inviteToOrg(orgId, {
-      email: short,
-      role: roleType,
-    })
+    const resp = await inviteToOrg(orgId, short, roleType)
 
     setLoading(false)
     if (resp.error)
@@ -60,37 +57,27 @@ export const InviteUserDrawer = ({
     onClose?.()
   }
 
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
+
   return (
     <Drawer
       open={open}
       onClose={onClose}
       title='Invite User to Organization'
       actions={
-        <>
-          <Button
-            color='warning'
-            variant='outlined'
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            type='submit'
-            loading={loading}
-            variant='contained'
-            form='invite-user-form'
-            loadingText='Inviting...'
-          >
-            Send Invite
-          </LoadingButton>
-        </>
+        <DrawerActions
+          form='invite-user-form'
+          editing={false}
+          actions={actions}
+          loading={loading}
+          disabled={loading}
+        />
       }
     >
-      <form
-        id='invite-user-form'
-        onSubmit={onSubmit}
-      >
+      <form id='invite-user-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert
@@ -100,15 +87,15 @@ export const InviteUserDrawer = ({
           )}
 
           <TextField
-            autoFocus
-            label='Email Address'
-            type='email'
-            placeholder='user@example.com'
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             required
             fullWidth
+            autoFocus
+            type='email'
+            value={email}
             disabled={loading}
+            label='Email Address'
+            placeholder='user@example.com'
+            onChange={(e) => setEmail(e.target.value)}
           />
 
           <RoleSelect

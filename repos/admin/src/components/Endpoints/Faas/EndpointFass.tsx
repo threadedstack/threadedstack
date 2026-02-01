@@ -4,7 +4,7 @@ import type { TFaaSEndpointConfig } from '@tdsk/domain'
 import { vep } from '@TAF/utils/endpoints/validators'
 import { useFaasFormState } from '@TAF/hooks/endpoints'
 import { mapFaasStateToConfig } from '@TAF/utils/endpoints'
-import { EndpointFaas } from '@TAF/components/Endpoints/EndpointFaas'
+import { FaasInputs } from '@TAF/components/Endpoints/Faas/FaasInputs'
 import { useEndpointForm } from '@TAF/hooks/endpoints/useEndpointForm'
 import {
   setFaasEnvVars,
@@ -12,7 +12,7 @@ import {
   setFaasFormField,
 } from '@TAF/actions/endpoints/local'
 
-export const FaasEndpointForm = (props: TEndpointFormProps<TFaaSEndpointConfig>) => {
+export const FaasEndpoint = (props: TEndpointFormProps<TFaaSEndpointConfig>) => {
   const {
     loading,
     endpoint,
@@ -27,7 +27,7 @@ export const FaasEndpointForm = (props: TEndpointFormProps<TFaaSEndpointConfig>)
   useEndpointForm(state, mapFaasStateToConfig, vep.faas, onConfigChange, onValidate)
 
   return (
-    <EndpointFaas
+    <FaasInputs
       loading={loading}
       memory={state.memory}
       timeout={state.timeout}

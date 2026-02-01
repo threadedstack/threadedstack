@@ -1,37 +1,34 @@
 import { useState } from 'react'
-import { Drawer, Button } from '@tdsk/components'
-import { Box, TextField } from '@mui/material'
+import { Box } from '@mui/material'
 import { createOrg } from '@TAF/actions/orgs/api/createOrg'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { Drawer, DrawerActions, TextInput } from '@tdsk/components'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
 export type TCreateOrgDialog = {
   open: boolean
   onClose: () => void
 }
 
-export const CreateOrgDialog = ({ open, onClose }: TCreateOrgDialog) => {
+export const CreateOrgDialog = ({ open, onClose: onCloseCB }: TCreateOrgDialog) => {
   const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
+  const [description, setDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const handleClose = () => {
-    if (!loading) {
-      setName('')
-      setDescription('')
-      setError(null)
-      onClose()
-    }
+  const onClose = () => {
+    if (loading) return
+
+    setName('')
+    setError(null)
+    setDescription('')
+    onCloseCB?.()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSave = async (evt: React.FormEvent) => {
+    evt.preventDefault()
 
-    if (!name.trim()) {
-      setError('Organization name is required')
-      return
-    }
+    if (!name.trim()) return setError(`Organization name is required`)
 
     setLoading(true)
     setError(null)
@@ -42,45 +39,32 @@ export const CreateOrgDialog = ({ open, onClose }: TCreateOrgDialog) => {
     })
 
     setLoading(false)
-
-    if (result.error) {
-      setError('Failed to create organization. Please try again.')
-    } else {
-      handleClose()
-    }
+    result.error
+      ? setError(`Failed to create organization. Please try again.`)
+      : onClose()
   }
+
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
 
   return (
     <Drawer
       open={open}
-      onClose={handleClose}
+      onClose={onClose}
       title='New Organization'
       actions={
-        <>
-          <Button
-            color='warning'
-            variant='outlined'
-            onClick={handleClose}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            type='submit'
-            form='create-org-form'
-            variant='contained'
-            loading={loading}
-            loadingText='Creating...'
-          >
-            Create
-          </LoadingButton>
-        </>
+        <DrawerActions
+          editing={false}
+          actions={actions}
+          loading={loading}
+          disabled={loading}
+          form='create-org-form'
+        />
       }
     >
-      <form
-        id='create-org-form'
-        onSubmit={handleSubmit}
-      >
+      <form id='create-org-form'>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
             <ErrorAlert
@@ -89,26 +73,28 @@ export const CreateOrgDialog = ({ open, onClose }: TCreateOrgDialog) => {
             />
           )}
 
-          <TextField
+          <TextInput
             autoFocus
-            label='Organization Name'
-            placeholder='Enter organization name'
-            value={name}
-            onChange={(e) => setName(e.target.value)}
             required
             fullWidth
+            value={name}
+            id='org-name'
             disabled={loading}
+            label='Organization Name'
+            placeholder='Enter organization name'
+            onChange={(e) => setName(e.target.value)}
           />
 
-          <TextField
-            label='Description'
-            placeholder='Enter organization description (optional)'
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            multiline
-            rows={3}
+          <TextInput
+            textarea
             fullWidth
+            minRows={3}
             disabled={loading}
+            value={description}
+            label='Description'
+            id='org-description'
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder='Enter organization description (optional)'
           />
         </Box>
       </form>

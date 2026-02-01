@@ -1,93 +1,99 @@
 import type { Thread } from '@tdsk/domain'
-import { createThread } from '@TAF/actions/threads/api/createThread'
+
 import { useState } from 'react'
+import { useProviders } from '@TAF/state/selectors'
+import { Close as CloseIcon } from '@mui/icons-material'
+import { Loading, Drawer, DrawerActions } from '@tdsk/components'
+import { createThread } from '@TAF/actions/threads/api/createThread'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
   Box,
-  Drawer,
-  Button,
+  Alert,
+  Switch,
   TextField,
   Typography,
   IconButton,
   FormControlLabel,
-  Switch,
 } from '@mui/material'
-import { Close as CloseIcon } from '@mui/icons-material'
-import { Loading } from '@tdsk/components'
-import { useProviders } from '@TAF/state/selectors'
 
 export type TCreateThreadDrawerProps = {
   open: boolean
   orgId: string
   projectId: string
-  onSuccess: () => void
-  onClose: () => void
+  onClose?: () => void
+  onSuccess?: () => void
 }
 
 export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
-  const { open, orgId, projectId, onSuccess, onClose } = props
+  const { open, orgId, projectId, onSuccess, onClose: onCloseCB } = props
 
   const [providers] = useProviders()
 
   const [name, setName] = useState('')
-  const [publicThread, setPublicThread] = useState(false)
-  const [selectedProviderId, setSelectedProviderId] = useState('')
   const [loading, setLoading] = useState(false)
+  const [publicThread, setPublicThread] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedProviderId, setSelectedProviderId] = useState(``)
 
   const projectProviders = Object.values(providers || {}).filter(
     (provider) => provider.projectId === projectId || provider.orgId === orgId
   )
 
-  const handleSubmit = async () => {
-    if (!name.trim()) {
-      setError('Thread name is required')
-      return
-    }
+  const onClose = () => {
+    if (loading) return
+
+    setName(``)
+    setError(null)
+    setPublicThread(false)
+    setSelectedProviderId('')
+    onCloseCB?.()
+  }
+
+  const onSave = async () => {
+    if (!name.trim()) return setError(`Thread name is required`)
 
     setLoading(true)
     setError(null)
 
     const threadData: Partial<Thread> = {
+      projectId,
+      userId: ``,
       name: name.trim(),
       public: publicThread,
-      projectId,
-      userId: '', // Will be set by backend
     }
 
-    if (selectedProviderId) {
-      threadData.providerId = selectedProviderId
-    }
+    if (selectedProviderId) threadData.providerId = selectedProviderId
 
     const result = await createThread(threadData)
-
-    if (result.error) {
-      setError(result.error.message)
-    } else {
-      setName('')
-      setPublicThread(false)
-      setSelectedProviderId('')
-      onSuccess()
-      onClose()
-    }
-
     setLoading(false)
+
+    if (result.error) return setError(result.error.message)
+
+    setName('')
+    setPublicThread(false)
+    setSelectedProviderId('')
+    onSuccess()
+    onCloseCB?.()
   }
 
-  const handleClose = () => {
-    if (!loading) {
-      setName('')
-      setPublicThread(false)
-      setSelectedProviderId('')
-      setError(null)
-      onClose()
-    }
-  }
+  const { actions } = useDrawerActions({
+    onSave,
+    onClose,
+  })
 
   return (
     <Drawer
-      anchor='right'
       open={open}
-      onClose={handleClose}
+      onClose={onClose}
+      actions={
+        <DrawerActions
+          editing={false}
+          actions={actions}
+          loading={loading}
+          form='thread-form'
+          disabled={loading || !name.trim()}
+        />
+      }
     >
       <Box sx={{ width: 400, p: 3 }}>
         <Box
@@ -100,7 +106,7 @@ export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
         >
           <Typography variant='h6'>Create Thread</Typography>
           <IconButton
-            onClick={handleClose}
+            onClick={onClose}
             disabled={loading}
           >
             <CloseIcon />
@@ -116,83 +122,64 @@ export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
         {!loading && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {error && (
-              <Typography
-                variant='body2'
+              <Alert
                 color='error'
                 sx={{ mb: 2 }}
               >
                 {error}
-              </Typography>
+              </Alert>
             )}
 
-            <TextField
-              label='Thread Name'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              fullWidth
-              required
-              placeholder='My AI Conversation'
-              autoFocus
-            />
+            <form id='thread-form'>
+              <TextField
+                required
+                fullWidth
+                autoFocus
+                value={name}
+                label='Thread Name'
+                placeholder='My AI Conversation'
+                onChange={(e) => setName(e.target.value)}
+              />
 
-            <TextField
-              label='AI Provider (Optional)'
-              value={selectedProviderId}
-              onChange={(e) => setSelectedProviderId(e.target.value)}
-              fullWidth
-              select
-              SelectProps={{
-                native: true,
-              }}
-            >
-              <option value=''>None</option>
-              {projectProviders.map((provider) => (
-                <option
-                  key={provider.id}
-                  value={provider.id}
-                >
-                  {provider.name} ({provider.type})
-                </option>
-              ))}
-            </TextField>
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={publicThread}
-                  onChange={(e) => setPublicThread(e.target.checked)}
-                />
-              }
-              label='Public Thread'
-            />
-
-            <Typography
-              variant='caption'
-              color='text.secondary'
-            >
-              Public threads can be accessed by anyone with the thread ID. Private threads
-              require authentication.
-            </Typography>
-
-            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-              <Button
-                color='warning'
-                variant='outlined'
-                onClick={handleClose}
-                disabled={loading}
-                sx={{ flex: 1 }}
+              <TextField
+                select
+                fullWidth
+                value={selectedProviderId}
+                label='AI Provider (Optional)'
+                onChange={(e) => setSelectedProviderId(e.target.value)}
+                SelectProps={{
+                  native: true,
+                }}
               >
-                Cancel
-              </Button>
-              <Button
-                variant='contained'
-                onClick={handleSubmit}
-                disabled={loading || !name.trim()}
-                sx={{ flex: 1 }}
+                <option value=''>None</option>
+                {projectProviders.map((provider) => (
+                  <option
+                    key={provider.id}
+                    value={provider.id}
+                  >
+                    {provider.name} ({provider.type})
+                  </option>
+                ))}
+              </TextField>
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={publicThread}
+                    onChange={(e) => setPublicThread(e.target.checked)}
+                  />
+                }
+                label='Public Thread'
+              />
+
+              <Typography
+                variant='caption'
+                color='text.secondary'
               >
-                Create
-              </Button>
-            </Box>
+                Public threads can be accessed by anyone with the thread ID. Private
+                threads require authentication.
+              </Typography>
+            </form>
           </Box>
         )}
       </Box>
