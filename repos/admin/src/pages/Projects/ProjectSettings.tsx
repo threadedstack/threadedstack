@@ -5,13 +5,13 @@ import { Page } from '@TAF/pages/Page/Page'
 import { ConfirmDelete } from '@tdsk/components'
 import { fetchConfigs } from '@TAF/actions/configs'
 import { useEffect, useState, useMemo } from 'react'
-import { EditConfigDrawer } from './EditConfigDrawer'
 import { LoadingSpinner, ErrorAlert } from '@TAF/components'
 import { useProjects, useConfigs } from '@TAF/state/selectors'
 import { fetchProject } from '@TAF/actions/projects/api/fetchProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
+import { EditConfigDrawer } from '@TAF/components/Projects/EditConfigDrawer'
 import { CreateConfigDrawer } from '@TAF/components/Projects/CreateConfigDrawer'
 import { InfoCard, DangerZoneCard, SettingsFormCard } from '@TAF/components/Settings'
 import {
@@ -415,6 +415,7 @@ export const ProjectSettings = (props: TProjectSettings) => {
         warnText='This will permanently delete all associated endpoints, functions, secrets, and configurations.'
       />
 
+      {/* TODO: Combine CreateConfigDrawer and EditConfigDrawer */}
       {projectId && (
         <CreateConfigDrawer
           projectId={projectId}

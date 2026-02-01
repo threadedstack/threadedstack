@@ -7,7 +7,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useActiveOrgId } from '@TAF/state/selectors'
 import { Box, Typography, Chip } from '@mui/material'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
-import { CreateApiKeyDrawer } from '@TAF/pages/Orgs/CreateApiKeyDrawer'
+import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
 import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
 import {
   Add as AddIcon,
