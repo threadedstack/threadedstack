@@ -7,6 +7,9 @@
 // Build utilities
 export * from './builders/buildWasm'
 
+// Deps install utilities
+export * from './install/install'
+
 // Runtime utilities
 export * from './run/helper'
 

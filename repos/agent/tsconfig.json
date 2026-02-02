@@ -72,6 +72,7 @@
     "src",
     "configs",
     "scripts",
+    "../shell/src",
     "../logger/src",
     "../domain/src",
     "../database/src"

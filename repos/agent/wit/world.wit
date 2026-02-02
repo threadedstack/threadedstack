@@ -1,0 +1,56 @@
+package local:tdsk;
+
+interface tools {
+  // Shell execution is now internal to WASM guest via @tdsk/shell
+  // No longer needs Host Bridge - runs entirely in WASM container
+  web-search: func(query: string) -> string;
+
+  // Filesystem operations
+  file-exists: func(path: string) -> bool;
+  read-file: func(path: string) -> result<string, string>;
+  delete-file: func(path: string) -> result<string, string>;
+  get-file-stats: func(path: string) -> result<string, string>;
+  create-directory: func(path: string) -> result<string, string>;
+  list-directory: func(path: string) -> result<list<string>, string>;
+  write-file: func(path: string, content: string) -> result<string, string>;
+
+  // shell-exec
+
+  // Custom tool execution in isolated WASM sandbox
+  // toolName: unique identifier for the custom tool
+  // argsJson: JSON-stringified arguments from LLM
+  execute-custom-tool: func(tool-name: string, args-json: string) -> result<string, string>;
+
+  // Sub-agent orchestration
+  // Spawn a new sub-agent with a unique ID and initial prompt
+  spawn-sub-agent: func(sub-agent-id: string, prompt: string) -> result<string, string>;
+  // Send a message to a running sub-agent
+  send-message-to-sub-agent: func(sub-agent-id: string, message: string) -> result<string, string>;
+  // Receive a message from a sub-agent (blocking until message available)
+  receive-message-from-sub-agent: func(sub-agent-id: string) -> result<string, string>;
+  // Terminate a running sub-agent and cleanup resources
+  terminate-sub-agent: func(sub-agent-id: string) -> result<string, string>;
+}
+
+interface host-callback {
+  on-token: func(token: string);
+}
+
+world agent {
+  include wasi:cli/imports@0.2.0;
+  import wasi:http/outgoing-handler@0.2.0;
+
+  import tools;
+  import host-callback;
+
+  export process-request: func(prompt: string);
+}
+
+world sandbox {
+  /// Execute user-supplied JavaScript code in isolation
+  ///
+  /// @param code - JavaScript source code containing a toolFunction
+  /// @param args-json - JSON-stringified arguments to pass to toolFunction
+  /// @returns JSON-stringified result (throws on error)
+  export execute-code: func(code: string, args-json: string) -> string;
+}

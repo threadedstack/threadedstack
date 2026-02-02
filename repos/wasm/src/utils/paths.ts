@@ -1,4 +1,4 @@
-import type { TWasmBuildOpts, TResolvedPaths } from '@TWA/types'
+import type { TWasmBuildOpts, TResolvedPaths, TInstallOpts } from '@TWA/types'
 
 import path from 'node:path'
 import { readdir, readFile } from 'node:fs/promises'
@@ -75,7 +75,7 @@ export const resolvePaths = async (
 
 /**
  * Resolve absolute paths for the output files
- 
+ *
  * @param paths - Resolved paths object
  * @returns Absolute paths objects of output paths 
  */

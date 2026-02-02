@@ -57,9 +57,7 @@
     "src",
     "configs",
     "scripts",
-    "../logger/src",
-    "../domain/src",
-    "../database/src"
+    "../domain/src"
   ],
   "exclude": [
     "src/polyfills/process.ts"
