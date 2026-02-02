@@ -5,6 +5,7 @@
 import type { TWasmBuildOpts, TWasmBuildResult } from '@TWA/types'
 
 import { toJS } from '@TWA/builders/toJS'
+import { generate } from '@TWA/run/generate'
 import { fromTS } from '@TWA/builders/fromTS'
 import { toWasm } from '@TWA/builders/toWasm'
 import { resolvePaths } from '@TWA/utils/paths'
@@ -12,10 +13,11 @@ import { resolvePaths } from '@TWA/utils/paths'
 /**
  * Build a complete WASM module from TypeScript source
  *
- * Orchestrates the three-step build pipeline:
+ * Orchestrates the four-step build pipeline:
  * 1. TypeScript → JavaScript (esbuild)
  * 2. JavaScript → WASM (componentize-js)
  * 3. WASM → JS bindings (jco)
+ * 4. Generate runWasm helper (type-safe runner)
  *
  * @param options - Build configuration options
  * @returns Build result with output paths or error
@@ -28,6 +30,7 @@ import { resolvePaths } from '@TWA/utils/paths'
  *
  * if (result.success) {
  *   console.log(`Built: ${result.jsout}`)
+ *   console.log(`Run helper: ${result.runJsPath}`)
  * } else {
  *   console.error(`Build failed:`, result.error)
  * }
@@ -48,9 +51,13 @@ export const buildWasm = async (options: TWasmBuildOpts): Promise<TWasmBuildResu
   // Step 3: WASM → JS bindings
   const js = await toJS(options, paths)
 
+  // Step 4: Generate runWasm helper
+  const run = await generate(options, paths)
+
   return {
     success: true,
     jsin: ts.jsin,
+    run: run.path,
     jsout: js.jsout,
     wasmout: wasm.wasmout,
   }

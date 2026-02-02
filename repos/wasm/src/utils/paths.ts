@@ -4,19 +4,23 @@ import path from 'node:path'
 import { readdir, readFile } from 'node:fs/promises'
 
 
+export const getWitFile = async (witdir: string) => {
+  const files = await readdir(witdir)
+  const found = files
+    .filter(file => path.extname(file) === `.wit`)
+    .map(file => path.join(witdir, file))
+  
+  return found[0]
+}
+
 export const getWorldName = async (
   options: TWasmBuildOpts,
   paths: TResolvedPaths
 ) => {
   const name = options.world || paths.name
   if(name) return name
-
-  const files = await readdir(paths.witdir)
-  const found = files
-    .filter(file => path.extname(file) === `.wit`)
-    .map(file => path.join(paths.witdir, file))
-
-  return found[0]
+  const found = await getWitFile(paths.witdir)
+  return path.parse(found).name
 }
 
 
@@ -56,11 +60,13 @@ export const resolvePaths = async (
 
   const { root } = options
   const name = await resolveName(options)
+  const witdir = options.witdir || path.join(root, `wit`)
+  const witin = await getWitFile(witdir) || path.join(witdir, `${name}.wit`)
 
   return {
     name,
+    witin,
     root: root,
-    witin: `${name}.wit`,
     jsname: `${name}.js`,
     tsout: path.join(root, `dist`, name),
     witdir: options.witdir || path.join(root, `wit`),

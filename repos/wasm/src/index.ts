@@ -12,6 +12,7 @@ export * from './install/install'
 
 // Runtime utilities
 export * from './run/helper'
+export * from './run/generate'
 
 // Polyfills
 export * from './polyfills'
