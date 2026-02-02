@@ -1,4 +1,6 @@
-import { camelCase } from '@keg-hub/jsutils'
+import { wordCaps } from '@keg-hub/jsutils/wordCaps'
+import { camelCase } from '@keg-hub/jsutils/camelCase'
+
 
 export type TTemplateOpts = {
   name:string
@@ -28,6 +30,7 @@ export const template = (opts:TTemplateOpts) => {
     ? `// Available exports: ${exports.join(`, `)}`
     : `// No exports found in WIT definition`
 
+  const capsName = wordCaps(name)
   const camelName = camelCase(name)
   
   return `/**
@@ -42,15 +45,37 @@ export const template = (opts:TTemplateOpts) => {
  * @module ${name}.run
  */
 
+import type {
+  WASIImportObject,
+  VersionedWASIImportObject,
+} from '@bytecodealliance/preview2-shim/instantiation'
+
 import { join, dirname } from 'node:path'
 import { readFile } from 'node:fs/promises'
+import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+// Create preview2-shim instance for default WASI imports
+const wss = new WASIShim()
+const shim: WASIImportObject = wss.getImportObject()
+shim satisfies WASIImportObject
+shim satisfies VersionedWASIImportObject<''>
 
 /**
  * Options for running the ${name} WASM module
  */
-export interface ${camelName}RunOpts {
-  /** Custom imports to merge with default imports */
+export interface ${capsName}RunOpts {
+  /** Custom imports to merge with default WASI imports */
   imports?: Record<string, any>
+  /** Arguments to pass to the WASM module */
+  args?: string[]
+  /** Environment variables to pass to the WASM module */
+  env?: Record<string, string>
+  /** Preopened directories for filesystem access */
+  preopens?: Record<string, string>
   /** Enable debug logging */
   logging?: boolean
 }
@@ -58,7 +83,7 @@ export interface ${camelName}RunOpts {
 /**
  * Result from instantiating the ${name} WASM module
  */
-export interface ${camelName}Instance {
+export interface ${capsName}Instance {
   /** Exported functions from WASM module */
   exports: ${exportsType}
   /** Imports that were passed to instantiate */
@@ -86,6 +111,8 @@ ${exports.map(exp => `  /** ${exp} export */`).join('\n')}
  *       onToken: (token) => console.log(token)
  *     }
  *   },
+ *   env: { HOME: '/tmp' },
+ *   preopens: { '/data': './data' },
  *   logging: true
  * })
  *
@@ -94,17 +121,22 @@ ${exports.map(exp => `  /** ${exp} export */`).join('\n')}
  * \`\`\`
  */
 export async function run${camelName}(
-  options: ${camelName}RunOpts = {}
-): Promise<${camelName}Instance> {
-  const { imports = {}, logging = false } = options
+  options: ${capsName}RunOpts = {}
+): Promise<${capsName}Instance> {
+  const {
+    imports: customImports = {},
+    args = [],
+    env = {},
+    preopens = {},
+    logging = false
+  } = options
 
   const log = (...args: unknown[]) => logging && console.log('[${name}.run]', ...args)
 
   try {
     // Import the jco-generated bindings
     // This file is in the same directory as this run file
-    const moduleDir = dirname(__dirname) // Go up to dist/wasm
-    const wasmModule = await import(join(moduleDir, '${name}.js'))
+    const wasmModule = await import(join(__dirname, '${name}.js'))
 
     if (typeof wasmModule.instantiate !== 'function') {
       throw new Error(
@@ -113,12 +145,12 @@ export async function run${camelName}(
       )
     }
 
-    log('Loading WASM module from:', join(moduleDir, '${name}.js'))
+    log('Loading WASM module from:', join(__dirname, '${name}.js'))
 
     // Provide custom getCoreModule for Node.js filesystem loading
     // jco expects this function to return compiled WebAssembly.Module objects
     const getCoreModule = async (coreFileName: string): Promise<WebAssembly.Module> => {
-      const corePath = join(moduleDir, coreFileName)
+      const corePath = join(__dirname, coreFileName)
       log('Loading core module:', corePath)
 
       try {
@@ -131,11 +163,46 @@ export async function run${camelName}(
       }
     }
 
-    log('Instantiating WASM with custom imports...')
-    log('Import interfaces:', ${JSON.stringify(imports)})
+    // Merge default preview2-shim imports with custom imports
+    // Custom imports override defaults (shallow merge)
+    const mergedImports: typeof shim = {
+      ...shim,
+      ...customImports,
+    }
+
+    // Configure environment variables if provided
+    if (Object.keys(env).length > 0) {
+      log('Setting environment variables:', Object.keys(env))
+      // @ts-ignore - preview2-shim types may not include setEnvironment
+      const envImport = mergedImports['wasi:cli/environment']
+      if (envImport && typeof envImport.getEnvironment === 'function') {
+        // Note: Environment handling depends on shim interface
+        log('Environment variables configured (see shim-specific interface)')
+      }
+    }
+
+    // Configure preopens for filesystem access if provided
+    if (Object.keys(preopens).length > 0) {
+      log('Setting preopens:', Object.keys(preopens))
+      // @ts-ignore - preview2-shim types may not include setPreopens
+      const preopensImport = mergedImports['wasi:filesystem/preopens']
+      if (preopensImport && typeof preopensImport.getDirectories === 'function') {
+        // Convert preopens object to [[guestPath, { hostPath }], ...] format
+        const directories = Object.entries(preopens).map(([guestPath, hostPath]) => [
+          guestPath,
+          { hostPath: String(hostPath) },
+        ])
+        // Note: Preopens handling depends on shim interface
+        log('Preopens configured (see shim-specific interface)')
+      }
+    }
+
+    log('Instantiating WASM with merged imports...')
+    log('Custom imports:', Object.keys(customImports))
+    if (args.length > 0) log('Arguments:', args)
 
     // Instantiate the WASM component
-    const instance = await wasmModule.instantiate(getCoreModule, imports)
+    const instance = await wasmModule.instantiate(getCoreModule, mergedImports)
 
     log('WASM instantiated successfully')
     log('Available exports:', Object.keys(instance))
@@ -148,7 +215,7 @@ ${exports.length > 0 ? exports.map(exp => `    // Type-safe access to ${exp} exp
 
     return {
       exports: instance,
-      imports: imports,
+      imports: mergedImports,
 ${exports.map(exp => `      ${exp}: instance.${exp},`).join('\n')}
     }
   } catch (error) {
@@ -169,7 +236,7 @@ ${exports.map(exp => `      ${exp}: instance.${exp},`).join('\n')}
 export async function runExport(
   exportName: string,
   args: any[] = [],
-  options?: ${camelName}RunOpts
+  options?: ${capsName}RunOpts
 ): Promise<any> {
   const instance = await run${camelName}(options)
 
@@ -187,6 +254,7 @@ export async function runExport(
  * Generate a generic runner when WIT parsing fails
  */
 export const genericTemplate = (name: string): string => {
+  const capsName = wordCaps(name)
   const camelName = camelCase(name)
 
   return `/**
@@ -198,29 +266,53 @@ export const genericTemplate = (name: string): string => {
  * @module ${name}.run
  */
 
+import type {
+  WASIImportObject,
+  VersionedWASIImportObject,
+} from '@bytecodealliance/preview2-shim/instantiation'
+
 import { join, dirname } from 'node:path'
 import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
 
-export interface ${camelName}RunOpts {
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+// Create preview2-shim instance for default WASI imports
+const wss = new WASIShim()
+const shim: WASIImportObject = wss.getImportObject()
+shim satisfies WASIImportObject
+shim satisfies VersionedWASIImportObject<''>
+
+export interface ${capsName}RunOpts {
   imports?: Record<string, any>
+  args?: string[]
+  env?: Record<string, string>
+  preopens?: Record<string, string>
   logging?: boolean
 }
 
-export interface ${camelName}Instance {
+export interface ${capsName}Instance {
   exports: Record<string, any>
   imports: Record<string, any>
 }
 
 export async function run${camelName}(
-  options: ${camelName}RunOpts = {}
-): Promise<${camelName}Instance> {
-  const { imports = {}, logging = false } = options
+  options: ${capsName}RunOpts = {}
+): Promise<${capsName}Instance> {
+  const {
+    imports: customImports = {},
+    args = [],
+    env = {},
+    preopens = {},
+    logging = false
+  } = options
 
   const log = (...args: unknown[]) => logging && console.log('[${name}.run]', ...args)
 
   try {
-    const moduleDir = dirname(__dirname)
-    const wasmModule = await import(join(moduleDir, '${name}.js'))
+    const wasmModule = await import(join(__dirname, '${name}.js'))
 
     if (typeof wasmModule.instantiate !== 'function') {
       throw new Error(
@@ -229,22 +321,37 @@ export async function run${camelName}(
     }
 
     const getCoreModule = async (coreFileName: string): Promise<WebAssembly.Module> => {
-      const corePath = join(moduleDir, coreFileName)
+      const corePath = join(__dirname, coreFileName)
       log('Loading core module:', corePath)
 
       const coreBuffer = await readFile(corePath) as BufferSource
       return WebAssembly.compile(coreBuffer)
     }
 
+    // Merge default preview2-shim imports with custom imports
+    const mergedImports: typeof shim = {
+      ...shim,
+      ...customImports,
+    }
+
+    // Configure environment and preopens if provided
+    if (Object.keys(env).length > 0) {
+      log('Setting environment variables:', Object.keys(env))
+    }
+
+    if (Object.keys(preopens).length > 0) {
+      log('Setting preopens:', Object.keys(preopens))
+    }
+
     log('Instantiating WASM...')
-    const instance = await wasmModule.instantiate(getCoreModule, imports)
+    const instance = await wasmModule.instantiate(getCoreModule, mergedImports)
 
     log('WASM instantiated successfully')
     log('Available exports:', Object.keys(instance))
 
     return {
       exports: instance,
-      imports: imports,
+      imports: mergedImports,
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

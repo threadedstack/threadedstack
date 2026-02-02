@@ -48,7 +48,7 @@ const writeRunFile = async (
   generated: string
 ): Promise<TGenerateRunWasmResult> => {
   const { outdir } = getPaths(paths)
-  const runJsPath = path.join(outdir, `${paths.name}.run.js`)
+  const runJsPath = path.join(outdir, `${paths.name}.run.ts`)
 
   await writeFile(runJsPath, generated, `utf-8`)
 

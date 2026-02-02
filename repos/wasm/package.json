@@ -20,7 +20,7 @@
   "scripts": {
     "build": "tsup-node --config configs/tsup.config.ts",
     "clean": "rm -rf dist",
-    "check": "tsx scripts/test.ts",
+    "script": "tsx scripts/script.ts",
     "lint": "biome lint --config-path $(pwd)/configs/biome.json --write",
     "format": "biome format --config-path $(pwd)/configs/biome.json --write",
     "test": "vitest run --config configs/vitest.config.ts",

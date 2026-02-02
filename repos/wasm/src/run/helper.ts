@@ -80,7 +80,7 @@ export async function runWasm<T = any>(
   }
 
   // Step 2: Compile WASM files from the same directory
-  const moduleDirResolver = async (url: string): Promise<WebAssembly.Module> => {
+  const getCoreModule = async (url: string): Promise<WebAssembly.Module> => {
     const fileName = url.split('/').pop()
     const filePath = join(moduleDir, fileName!)
 
@@ -124,7 +124,7 @@ export async function runWasm<T = any>(
   // Step 5: Instantiate the WASM component
   let component
   try {
-    component = await instantiate(moduleDirResolver, mergedImports)
+    component = await instantiate(getCoreModule, mergedImports)
   } catch (error) {
     throw new Error(
       `Failed to instantiate WASM module: ${error}`
