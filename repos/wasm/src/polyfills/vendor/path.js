@@ -1,8 +1,9 @@
 import process from 'process';
 import { ERR_INVALID_ARG_TYPE } from './internal/errors';
 
-var exports$1 = {},
-    _dewExec = false;
+var exports$1 = {};
+var _dewExec = false;
+
 function dew() {
   if (_dewExec) { return exports$1; }
   _dewExec = true;

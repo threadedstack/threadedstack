@@ -5,8 +5,20 @@ import { join, dirname } from 'node:path'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-export const injectBanner = async () => {
-  const content = await readFile(join(__dirname, `process.ts`), { encoding: `utf8` })
+type TInjectOpts = {
+  js?:string
+}
+
+const readContent = async (location:string) => {
+  return await readFile(location, { encoding: `utf8` })
+}
+
+const removeExport = (content:string) => {
+  return content.split(`// <---REMOVE ME ---->`).shift()
+}
+
+export const injectBanner = async (opts?:TInjectOpts) => {
+  const content = await readContent(join(__dirname, `vendor/process.js`))
 
   return `
     Math.random = (function() {
@@ -17,6 +29,7 @@ export const injectBanner = async () => {
           return seed / 4294967296
       }
     })()
-    ${content}
+    ${opts?.js || ``}
+    ${removeExport(content)}
   `
 }

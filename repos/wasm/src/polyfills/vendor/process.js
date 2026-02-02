@@ -2,18 +2,18 @@
 // based off https://github.com/defunctzombie/node-process/blob/master/browser.js
 
 function defaultSetTimout() {
-    throw new Error('setTimeout has not been defined')
+  throw new Error('setTimeout has not been defined')
 }
 function defaultClearTimeout() {
-    throw new Error('clearTimeout has not been defined')
+  throw new Error('clearTimeout has not been defined')
 }
 var cachedSetTimeout = defaultSetTimout
 var cachedClearTimeout = defaultClearTimeout
-if (typeof global.setTimeout === 'function') {
-    cachedSetTimeout = setTimeout
+if (typeof globalThis.setTimeout === 'function') {
+  cachedSetTimeout = setTimeout
 }
-if (typeof global.clearTimeout === 'function') {
-    cachedClearTimeout = clearTimeout
+if (typeof globalThis.clearTimeout === 'function') {
+  cachedClearTimeout = clearTimeout
 }
 
 function runTimeout(fun) {
@@ -132,8 +132,8 @@ function Item(fun, array) {
 Item.prototype.run = function() {
     this.fun.apply(null, this.array)
 }
-var title = 'browser'
-var platform = 'browser'
+var title = 'wasm'
+var platform = 'wasm'
 var browser = true
 var env = {}
 var argv = []
@@ -167,7 +167,7 @@ function umask() {
 }
 
 // from https://github.com/kumavis/browser-process-hrtime/blob/master/index.js
-var performance = global.performance || {}
+var performance = globalThis.performance || {}
 var performanceNow =
     performance.now ||
     performance.mozNow ||
@@ -228,8 +228,6 @@ export var process = {
     uptime: uptime,
 }
 
-export default process
-
 // replace process.env.VAR with define
 
 const defines = {}
@@ -245,3 +243,14 @@ Object.keys(defines).forEach((key) => {
         }
     }
 })
+
+// Set globalThis.process instead of using ES module exports
+// This avoids the "import_process2.default.env" issue
+globalThis.process = process;
+
+// <---REMOVE ME ---->
+/**
+ * The `<---REMOVE ME ---->` is used to split the file and remove the export default
+ * If that line is changed, you must also change the code in ../banner.ts
+ */
+export default process

@@ -1,5 +1,3 @@
-import '@TAG/wasm/polyfills/vendor/global'
-
 import type { TMessage, TLLMProvider } from '@TAG/types'
 
 import { logger } from '@TAG/wasm/logger'

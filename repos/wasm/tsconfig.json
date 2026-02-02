@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "checkJs": false,
+    "sourceMap": true,
+    "target": "esnext",
+    "module": "esnext",
+    "declaration": true,
+    "skipLibCheck": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "lib": ["esnext", "dom"],
+    "resolveJsonModule": true,
+    "moduleResolution": "bundler",
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@TWA/root": ["./"],
+      "@TWA/root/*": ["./*"],
+      "@TWA/dist": ["./dist"],
+      "@TWA/dist/*": ["./dist/*"],
+      "@TWA/configs": ["./configs"],
+      "@TWA/configs/*": ["./configs/*"],
+      "@TWA/": ["./src"],
+      "@TWA/*": ["./src/*"],
+
+      "@ROOT": ["../../"],
+      "@ROOT/*": ["../../*"],
+      "@TSR/deploy": ["../../deploy"],
+      "@TSR/deploy/*": ["../../deploy/*"],
+      "@keg-hub/jsutils": ["./node_modules/@keg-hub/jsutils/build/esm"],
+      "@keg-hub/jsutils/*": ["./node_modules/@keg-hub/jsutils/build/esm/*"],
+      "@keg-hub/jsutils/src/node": ["./node_modules/@keg-hub/jsutils/build/esm/node"],
+      "@keg-hub/jsutils/src/node/*": ["./node_modules/@keg-hub/jsutils/build/esm/node"]
+
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "dist",
+    "__tests__",
+    "node_modules",
+    "src/polyfills/vendor"
+  ]
+}

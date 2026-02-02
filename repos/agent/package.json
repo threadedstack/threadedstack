@@ -31,14 +31,12 @@
     "test": "vitest run --config configs/vitest.config.ts"
   },
   "dependencies": {
-    "@bytecodealliance/componentize-js": "0.19.3",
-    "@bytecodealliance/jco": "1.15.4",
-    "@bytecodealliance/preview2-shim": "0.17.6",
     "@keg-hub/jsutils": "^10.0.0",
     "@keg-hub/parse-config": "2.1.0",
     "@tdsk/database": "workspace:*",
     "@tdsk/domain": "workspace:*",
     "@tdsk/logger": "workspace:*",
+    "@tdsk/wasm": "workspace:*",
     "alias-hq": "6.2.2",
     "browserify-zlib": "0.2.0",
     "esbuild": "0.27.2",

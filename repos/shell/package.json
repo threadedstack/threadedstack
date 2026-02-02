@@ -29,12 +29,10 @@
   "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
-    "@bytecodealliance/componentize-js": "0.19.3",
-    "@bytecodealliance/jco": "1.15.4",
-    "@bytecodealliance/preview2-shim": "0.17.6",
     "@keg-hub/jsutils": "^10.0.0",
     "@keg-hub/parse-config": "2.1.0",
     "@tdsk/domain": "workspace:*",
+    "@tdsk/wasm": "workspace:*",
     "@types/node": "^20.11.16",
     "alias-hq": "6.2.2",
     "esbuild": "0.27.2",
