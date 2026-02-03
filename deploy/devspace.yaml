@@ -247,10 +247,14 @@ deployments:
               value: ${TDSK_CADDY_ACME_EMAIL}
             - name: TDSK_CADDY_PX_HOST
               value: ${TDSK_CADDY_PX_HOST}
+              
             volumeMounts:
-            - name: caddy-config
-              mountPath: /etc/caddy
-              subPath: Caddyfile
+              - containerPath: /etc/caddy
+                volume:
+                  readOnly: true
+                  name: caddy-config
+                  subPath: Caddyfile
+
             ports:
             - containerPort: ${TDSK_CADDY_PORT}
               protocol: TCP
@@ -332,11 +336,10 @@ deployments:
       chart:
         name: ./
       valuesFiles:
+        - ./values.empty.yaml
         - ./values.yaml
         - ./values.${NODE_ENV}.yaml
       values:
-        litellm:
-          enabled: false
         containers:
           - name: ${TDSK_BE_DEPLOYMENT}
             image: ${TDSK_BE_IMAGE}:${TDSK_BE_IMAGE_TAG}
@@ -404,7 +407,6 @@ deployments:
                   key: role
                   name: ${TDSK_KUBE_SCRT_DB_CFG}
                   optional: true
-                  
         service:
           name: ${TDSK_BE_DEPLOYMENT}
           ports:
@@ -464,7 +466,7 @@ dev:
   tdsk-backend:
     labelSelector:
       app.kubernetes.io/component: ${TDSK_BE_DEPLOYMENT}
-    devImage: ghcr.io/threadedstack/tdsk-app:latest
+    devImage: ghcr.io/threadedstack/tdsk-backend:latest
     logs: {}
     sync:
       - path: ../:/tdsk
@@ -500,11 +502,11 @@ dev:
 # Use profile to dynamically set options based on the environment
 profiles:
 - name: local
-  patches:
-  - op: replace
-    path: deployments.tdsk-proxy.helm.values.containers[0].image
-    value: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
-  - op: replace
-    path: deployments.tdsk-backend.helm.values.containers[0].image
-    value: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
+  #patches:
+  #- op: replace
+  #  path: deployments.tdsk-proxy.helm.values.containers[0].image
+  #  value: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
+  #- op: replace
+  #  path: deployments.tdsk-backend.helm.values.containers[0].image
+  #  value: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
 - name: production

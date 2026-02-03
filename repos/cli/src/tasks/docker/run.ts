@@ -54,6 +54,28 @@ export const run: TTask = {
       example: `CUSTOM_ENV:custom-value,OTHER_ENV:other-value`,
       description: `Key/Value pairs of ENVs to add to the docker process`,
     },
+    name: {
+      alias: [`n`],
+      description: `Custom name for the container, defaults to image name`,
+    },
+    remove: {
+      alias: [`rm`],
+      default: true,
+      type: `boolean`,
+      description: `Automatically remove the container once stopped`,
+    },
+    attach: {
+      alias: [`at`, `it`],
+      default: true,
+      type: `boolean`,
+      description: `Attach to the container`,
+    },
+    privileged: {
+      alias: [`prv`],
+      default: false,
+      type: `boolean`,
+      description: `Run the container in privileged mode`,
+    },
     log: {
       type: `boolean`,
       description: `Log command before they are run`,

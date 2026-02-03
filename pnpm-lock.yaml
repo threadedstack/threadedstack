@@ -329,6 +329,9 @@ importers:
       serve-favicon:
         specifier: 2.5.1
         version: 2.5.1
+      tsup:
+        specifier: 8.3.0
+        version: 8.3.0(@swc/core@1.10.11)(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.7.3)(yaml@2.8.2)
       winston:
         specifier: 3.17.0
         version: 3.17.0
@@ -378,9 +381,6 @@ importers:
       supertest:
         specifier: ^7.0.0
         version: 7.2.2
-      tsup:
-        specifier: 8.3.0
-        version: 8.3.0(@swc/core@1.10.11)(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.7.3)(yaml@2.8.2)
       typescript:
         specifier: 5.7.3
         version: 5.7.3

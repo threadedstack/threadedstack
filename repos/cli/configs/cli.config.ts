@@ -24,28 +24,36 @@ const {
   TDSK_IMAGE_FROM,
   TDSK_DEV_IMAGE_TAG,
 
+  TDSK_PX_PORT,
   TDSK_PX_IMAGE,
   TDSK_PX_DEPLOYMENT,
+  TDSK_PX_REMOTE_PORT = TDSK_PX_PORT,
   TDSK_PX_IMAGE_TAG = TDSK_IMAGE_TAG,
   TDSK_PX_IMAGE_FROM = TDSK_IMAGE_FROM,
   TDSK_PX_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
 
+  TDSK_BE_PORT,
   TDSK_BE_IMAGE,
   TDSK_BE_DEPLOYMENT,
+  TDSK_BE_REMOTE_PORT = TDSK_BE_PORT,
   TDSK_BE_IMAGE_TAG = TDSK_IMAGE_TAG,
   TDSK_BE_IMAGE_FROM = TDSK_IMAGE_FROM,
   TDSK_BE_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
 
+  TDSK_AD_PORT,
   TDSK_AD_IMAGE,
   TDSK_AD_DEPLOYMENT,
+  TDSK_AD_REMOTE_PORT = TDSK_AD_PORT,
   TDSK_AD_IMAGE_TAG = TDSK_IMAGE_TAG,
   TDSK_AD_IMAGE_FROM = TDSK_IMAGE_FROM,
   TDSK_AD_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
 
+  TDSK_CADDY_PORT,
   TDSK_CADDY_IMAGE,
   TDSK_CADDY_DEPLOYMENT,
   TDSK_CADDY_IMAGE_FROM = `caddy:builder`,
   TDSK_CADDY_IMAGE_TAG = TDSK_IMAGE_TAG,
+  TDSK_CADDY_REMOTE_PORT = TDSK_CADDY_PORT,
   TDSK_CADDY_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
 } = envs
 
@@ -62,6 +70,10 @@ export const config = {
       deployment: TDSK_PX_DEPLOYMENT,
       dockerfile: `Dockerfile.proxy`,
       location: path.join(paths.repos, `proxy`),
+      ports: {
+        host: TDSK_PX_PORT,
+        remote: TDSK_PX_REMOTE_PORT,
+      },
     },
     backend: {
       tags: [],
@@ -72,6 +84,10 @@ export const config = {
       dtag: TDSK_BE_DEV_IMAGE_TAG,
       deployment: TDSK_BE_DEPLOYMENT,
       location: path.join(paths.repos, `backend`),
+      ports: {
+        host: TDSK_BE_PORT,
+        remote: TDSK_BE_REMOTE_PORT,
+      },
     },
     admin: {
       tags: [],
@@ -82,6 +98,10 @@ export const config = {
       deployment: TDSK_AD_DEPLOYMENT,
       dockerfile: `Dockerfile.admin`,
       location: path.join(paths.repos, `admin`),
+      ports: {
+        host: TDSK_AD_PORT,
+        remote: TDSK_AD_REMOTE_PORT,
+      },
     },
     caddy: {
       tags: [],
@@ -92,6 +112,10 @@ export const config = {
       deployment: TDSK_CADDY_DEPLOYMENT,
       dockerfile: `Dockerfile.caddy`,
       location: paths.deploy,
+      ports: {
+        host: TDSK_CADDY_PORT,
+        remote: TDSK_CADDY_REMOTE_PORT,
+      },
     },
   },
 }
