@@ -19,6 +19,7 @@
   },
   "scripts": {
     "build": "tsup-node --config configs/tsup.config.ts",
+    "jco": "jco",
     "clean": "rm -rf dist",
     "script": "tsx scripts/script.ts",
     "lint": "biome lint --config-path $(pwd)/configs/biome.json --write",
@@ -29,20 +30,11 @@
   "dependencies": {
     "@bytecodealliance/componentize-js": "0.19.3",
     "@bytecodealliance/jco": "1.15.4",
-    "@bytecodealliance/preview2-shim": "0.17.6"
-  },
-  "peerDependencies": {
+    "@bytecodealliance/preview2-shim": "0.17.7",
     "@keg-hub/jsutils": "^10.0.0",
-    "esbuild": "^0.27.0",
-    "pako": "2.1.0"
-  },
-  "peerDependenciesMeta": {
-    "@keg-hub/jsutils": {
-      "optional": false
-    },
-    "esbuild": {
-      "optional": false
-    }
+    "esbuild": "0.27.2",
+    "pako": "2.1.0",
+    "unenv": "2.0.0-rc.24"
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",

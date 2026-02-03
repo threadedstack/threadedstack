@@ -17,7 +17,7 @@ import {
   validateByteSource,
   kKeyObject,
   getHashes,
-} from '../crypto/util';
+} from './util';
 
 import {
   createSecretKey,

@@ -33,21 +33,17 @@ export function listFiles() {
 
 export const run = async (command: string): Promise<string> => {
   try {
-    //    console.log(`------- command -------`)
-    //    console.log(command)
-    //
-    //    console.log(`------- globalThis -------`)
-    //    console.log(Object.keys(globalThis))
-    //
-    //    console.log(`------- process.env -------`)
-    //    console.log(process.env)
+    console.log(`------- command -------`)
+    console.log(command)
+
+    console.log(`------- globalThis -------`)
+    console.log(Object.keys(globalThis))
+
+    console.log(`------- process.env -------`)
+    console.log(process.env)
 
     console.log(`------- process.argv -------`)
     console.log(process.argv)
-
-    //console.log(`------- envs -------`)
-    //const envs = getEnvs()
-    //console.log(envs)
 
     //try {
     //  const url = 'https://example.org/products.json'

@@ -4,9 +4,9 @@
 import { Buffer } from "buffer";
 
 /**
- * @typedef {import('../_global.d.ts').ReadableStream
+ * @typedef {import('../_global.ts').ReadableStream
  * } ReadableStream
- * @typedef {import('../_stream.d.ts')} Readable
+ * @typedef {import('../_stream.ts')} Readable
  */
 
 
