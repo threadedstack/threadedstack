@@ -14,7 +14,6 @@
 import type { TWasmBuildOpts, TResolvedPaths } from '@TWA/types'
 
 import path from 'node:path'
-import { getPaths } from '@TWA/utils/paths'
 import { camelCase } from '@keg-hub/jsutils'
 import { parseWit } from '@TWA/run/parseWit'
 import { resolvePaths } from '@TWA/utils/paths'
@@ -47,7 +46,7 @@ const writeRunFile = async (
   paths: TResolvedPaths,
   generated: string
 ): Promise<TGenerateRunWasmResult> => {
-  const { outdir } = getPaths(paths)
+  const { outdir } = paths
   const runJsPath = path.join(outdir, `${paths.name}.run.ts`)
 
   await writeFile(runJsPath, generated, `utf-8`)

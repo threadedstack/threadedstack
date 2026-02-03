@@ -7,7 +7,7 @@ import type { TWasmBuildOpts, TResolvedPaths } from '@TWA/types'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { getPaths, resolvePaths } from '@TWA/utils/paths'
+import { resolvePaths } from '@TWA/utils/paths'
 
 /**
  * Resolves the full path to the jco executable
@@ -51,7 +51,7 @@ export const toJS = async (
 
     paths = paths || await resolvePaths(options)
 
-    const { outdir, wasmout, jsout } = getPaths(paths)
+    const { outdir, wasmout, jsout } = paths
 
     const args = [getJcoPath(), `transpile`, wasmout, `-o`, outdir, `--instantiation`]
     options.quiet && args.push(`--quiet`)

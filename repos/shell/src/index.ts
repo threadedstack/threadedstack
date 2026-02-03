@@ -1,5 +1,5 @@
 // Main Shell class
-export { Shell } from './shell'
+export * from './shell'
 
 // Types
 export type {

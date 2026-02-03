@@ -1,5 +1,7 @@
-// shim for using process in browser
+// shim for using process in browser with a few modifications
 // based off https://github.com/defunctzombie/node-process/blob/master/browser.js
+import { getEnvironment, getArguments, initialCwd } from 'wasi:cli/environment@0.2.0'
+
 
 function defaultSetTimout() {
   throw new Error('setTimeout has not been defined')
@@ -9,12 +11,10 @@ function defaultClearTimeout() {
 }
 var cachedSetTimeout = defaultSetTimout
 var cachedClearTimeout = defaultClearTimeout
-if (typeof globalThis.setTimeout === 'function') {
+if (typeof globalThis.setTimeout === 'function')
   cachedSetTimeout = setTimeout
-}
-if (typeof globalThis.clearTimeout === 'function') {
+if (typeof globalThis.clearTimeout === 'function')
   cachedClearTimeout = clearTimeout
-}
 
 function runTimeout(fun) {
     if (cachedSetTimeout === setTimeout) {
@@ -132,15 +132,13 @@ function Item(fun, array) {
 Item.prototype.run = function() {
     this.fun.apply(null, this.array)
 }
-var title = 'wasm'
-var platform = 'wasm'
-var browser = true
-var env = {}
-var argv = []
-var version = '' // empty string to avoid regexp issues
-var versions = {}
-var release = {}
 var config = {}
+var release = {}
+var versions = {}
+var title = 'wasm'
+var browser = true
+var platform = 'wasm'
+var version = '' // empty string to avoid regexp issues
 
 function noop() {}
 
@@ -152,101 +150,157 @@ var removeListener = noop
 var removeAllListeners = noop
 var emit = noop
 
-function binding(name) {
-    throw new Error('process.binding is not supported')
+const binding = (name) => {
+  throw new Error('process.binding is not supported')
 }
 
-function cwd() {
-    return '/'
+let cwdCache = `/`
+let cwdInit = false
+const cwd = () => {
+  if(!cwdInit) cwdCache = initialCwd()
+  return cwdCache
 }
-function chdir(dir) {
-    throw new Error('process.chdir is not supported')
+
+const chdir = (dir) => {
+  //throw new Error('process.chdir is not supported')
+  cwdCache = `${cwdCache}/${dir.replace(/^\//, ``)}`
 }
-function umask() {
-    return 0
+const umask = () => {
+  return 0
 }
 
 // from https://github.com/kumavis/browser-process-hrtime/blob/master/index.js
 var performance = globalThis.performance || {}
 var performanceNow =
-    performance.now ||
-    performance.mozNow ||
-    performance.msNow ||
-    performance.oNow ||
-    performance.webkitNow ||
-    function() {
-        return new Date().getTime()
-    }
+  performance.now ||
+  performance.mozNow ||
+  performance.msNow ||
+  performance.oNow ||
+  performance.webkitNow ||
+  (() => new Date().getTime())
 
 // generate timestamp or delta
 // see http://nodejs.org/api/process.html#process_process_hrtime
-function hrtime(previousTimestamp) {
-    var clocktime = performanceNow.call(performance) * 1e-3
-    var seconds = Math.floor(clocktime)
-    var nanoseconds = Math.floor((clocktime % 1) * 1e9)
-    if (previousTimestamp) {
-        seconds = seconds - previousTimestamp[0]
-        nanoseconds = nanoseconds - previousTimestamp[1]
-        if (nanoseconds < 0) {
-            seconds--
-            nanoseconds += 1e9
-        }
+const hrtime = (previousTimestamp) => {
+  const clocktime = performanceNow.call(performance) * 1e-3
+  let seconds = Math.floor(clocktime)
+  let nanoseconds = Math.floor((clocktime % 1) * 1e9)
+  if (previousTimestamp) {
+    seconds = seconds - previousTimestamp[0]
+    nanoseconds = nanoseconds - previousTimestamp[1]
+    if (nanoseconds < 0) {
+      seconds--
+      nanoseconds += 1e9
     }
-    return [seconds, nanoseconds]
+  }
+  return [seconds, nanoseconds]
 }
 
-var startTime = new Date()
-function uptime() {
-    var currentTime = new Date()
-    var dif = currentTime - startTime
-    return dif / 1000
+const startTime = new Date()
+const uptime = () => {
+  const currentTime = new Date()
+  const dif = currentTime - startTime
+  return dif / 1000
 }
 
-export var process = {
-    nextTick: nextTick,
-    title: title,
-    browser: browser,
-    env: env,
-    argv: argv,
-    version: version,
-    versions: versions,
-    on: on,
-    addListener: addListener,
-    once: once,
-    off: off,
-    removeListener: removeListener,
-    removeAllListeners: removeAllListeners,
-    emit: emit,
-    binding: binding,
-    cwd: cwd,
-    chdir: chdir,
-    umask: umask,
-    hrtime: hrtime,
-    platform: platform,
-    release: release,
-    config: config,
-    uptime: uptime,
+const env = {}
+let _evnset = false
+
+const envHandler = {
+  get(target, prop) {
+    if(!_evnset){
+      _evnset = true
+      const data = getEnvironment()
+      for (const [k, v] of data)
+        target[k] = v
+    }
+    return target[prop]
+  },
+  set(target, prop, value) {
+    target[prop] = `${value}`
+    return true
+  }
 }
+
+const envProxy = new Proxy(env, envHandler)
+
+
+const processBase = {
+  nextTick,
+  title,
+  browser,
+  argv: [],
+  env: envProxy,
+  version: version,
+  versions: versions,
+  on: on,
+  addListener: addListener,
+  once: once,
+  off: off,
+  removeListener: removeListener,
+  removeAllListeners: removeAllListeners,
+  emit: emit,
+  binding: binding,
+  cwd: cwd,
+  chdir: chdir,
+  umask: umask,
+  hrtime: hrtime,
+  platform: platform,
+  release: release,
+  config: config,
+  uptime: uptime,
+}
+
+
+let argvset = false
+const processHandler = {
+  get(target, prop) {
+    if(prop === `argv`){
+      if(!argvset){
+        argvset = true
+        target[prop] = getArguments()
+      }
+    }
+    if(prop === `env`){
+      if(!_evnset){
+        _evnset = true
+        const data = getEnvironment()
+        for (const [k, v] of data)
+          env[k] = v
+      }
+    }
+
+    return target[prop]
+  },
+  set(target, prop, value) {
+    target[prop] = value
+    return true
+  }
+}
+
+export const process = new Proxy(processBase, processHandler)
+
 
 // replace process.env.VAR with define
-
 const defines = {}
 Object.keys(defines).forEach((key) => {
-    const segs = key.split('.')
-    let target = process
-    for (let i = 0; i < segs.length; i++) {
-        const seg = segs[i]
-        if (i === segs.length - 1) {
-            target[seg] = defines[key]
-        } else {
-            target = target[seg] || (target[seg] = {})
-        }
+  const segs = key.split('.')
+  let target = process
+  for (let i = 0; i < segs.length; i++) {
+    const seg = segs[i]
+    if (i === segs.length - 1) {
+      target[seg] = defines[key]
+    } else {
+      target = target[seg] || (target[seg] = {})
     }
+  }
 })
 
 // Set globalThis.process instead of using ES module exports
 // This avoids the "import_process2.default.env" issue
 globalThis.process = process;
+
+
 
 // <---REMOVE ME ---->
 /**

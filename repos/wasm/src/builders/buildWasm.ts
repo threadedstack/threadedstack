@@ -52,14 +52,14 @@ export const buildWasm = async (options: TWasmBuildOpts): Promise<TWasmBuildResu
   const js = await toJS(options, paths)
 
   // Step 4: Generate runWasm helper
-  const run = await generate(options, paths)
+  //const run = await generate(options, paths)
 
   return {
     success: true,
     jsin: ts.jsin,
-    run: run.path,
-    jsout: js.jsout,
+    //run: run.path,
     wasmout: wasm.wasmout,
-  }
+    jsout: js.jsout,
+  } as any
 
 }

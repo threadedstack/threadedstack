@@ -6,9 +6,8 @@ import type { TResolvedPaths, TWasmBuildOpts } from '@TWA/types'
 
 import { writeFile, mkdir } from 'node:fs/promises'
 import { capitalize } from '@keg-hub/jsutils/capitalize'
+import { resolvePaths, getWorldName } from '@TWA/utils/paths'
 import { componentize } from '@bytecodealliance/componentize-js'
-import { getPaths, resolvePaths, getWorldName } from '@TWA/utils/paths'
-
 
 export interface ToWasmResult {
   wasmout: string
@@ -49,7 +48,7 @@ export const toWasm = async (
 
   !options.quiet && console.log(`💾 Writing WASM component...`)
 
-  const { outdir, wasmout } = getPaths(paths)
+  const { outdir, wasmout } = paths
   await mkdir(outdir, { recursive: true })
   await writeFile(wasmout, component)
 

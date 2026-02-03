@@ -1,5 +1,5 @@
-import process from 'process';
-import { ERR_INVALID_ARG_TYPE } from './internal/errors';
+import process from 'process'
+import { ERR_INVALID_ARG_TYPE } from './internal/errors'
 
 var exports$1 = {};
 var _dewExec = false;
@@ -13,9 +13,9 @@ function dew() {
     if (typeof path !== "string") {
       throw new ERR_INVALID_ARG_TYPE("path", "string", path);
     }
-  } // Resolves . and .. elements in a path with directory names
+  }
 
-
+  // Resolves . and .. elements in a path with directory names
   function normalizeStringPosix(path, allowAboveRoot) {
     var res = "";
     var lastSegmentLength = 0;

@@ -16,6 +16,24 @@ shim satisfies VersionedWASIImportObject<``>
 
 
 /**
+ * Extract module name from file path
+ * e.g., "/path/to/bash.js" -> "bash"
+ */
+function getModuleNameFromPath(modulePath: string): string {
+  const fileName = modulePath.split('/').pop() || ''
+  const moduleName = fileName.replace(/\.(js|ts)$/, '')
+  return moduleName
+}
+
+/**
+ * Capitalize first letter of string
+ */
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+
+/**
  * Run a WASM module with automatic preview2-shim setup
  *
  * This function:
@@ -183,19 +201,3 @@ export async function runWasm<T = any>(
   }
 }
 
-/**
- * Extract module name from file path
- * e.g., "/path/to/bash.js" -> "bash"
- */
-function getModuleNameFromPath(modulePath: string): string {
-  const fileName = modulePath.split('/').pop() || ''
-  const moduleName = fileName.replace(/\.(js|ts)$/, '')
-  return moduleName
-}
-
-/**
- * Capitalize first letter of string
- */
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1)
-}

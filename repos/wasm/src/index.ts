@@ -11,6 +11,7 @@ export * from './builders/buildWasm'
 export * from './install/install'
 
 // Runtime utilities
+export * from './run/init'
 export * from './run/helper'
 export * from './run/generate'
 

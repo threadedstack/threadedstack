@@ -8,10 +8,10 @@
   "scripts": {
     "build": "pnpm build:app",
     "build:app": "tsup-node --config configs/tsup.config.ts",
-    "build:wasm": "pnpm tsx scripts/wasm/build.ts",
+    "build:shell": "pnpm tsx scripts/wasm/build.ts",
     "wasm:deps": " pnpm tsx scripts/wasm/deps.ts",
     "postinstall": "pnpm wasm:deps",
-    "bash": "pnpm tsx scripts/wasm/run.ts",
+    "shell": "pnpm tsx scripts/wasm/run.ts",
     "clean": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",
     "clean:full": "pnpm clean && pnpm clean:nm",
@@ -28,7 +28,9 @@
     "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
     "test": "vitest run --config configs/vitest.config.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@bytecodealliance/preview2-shim": "0.17.7"
+  },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
     "@keg-hub/jsutils": "^10.0.0",

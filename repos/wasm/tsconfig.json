@@ -35,7 +35,10 @@
 
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*",
+    "scripts/**/*"
+  ],
   "exclude": [
     "dist",
     "__tests__",
