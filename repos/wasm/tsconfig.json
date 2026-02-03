@@ -43,6 +43,6 @@
     "dist",
     "__tests__",
     "node_modules",
-    "src/polyfills/vendor"
+    "src/polyfills/vendor/**/*"
   ]
 }
