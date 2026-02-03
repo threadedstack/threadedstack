@@ -6,6 +6,7 @@
     "sourceMap": true,
     "target": "esnext",
     "module": "esnext",
+    "outDir": "./dist",
     "declaration": true,
     "skipLibCheck": true,
     "declarationMap": true,
@@ -40,9 +41,9 @@
     "scripts/**/*"
   ],
   "exclude": [
-    "dist",
     "__tests__",
-    "node_modules",
-    "src/polyfills/vendor/**/*"
+    "./dist/**/*",
+    "./node_modules",
+    "./src/polyfills/vendor/**/*"
   ]
 }

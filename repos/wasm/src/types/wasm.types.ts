@@ -90,7 +90,6 @@ export type TResolvedPaths = {
  * Result from building WASM
  */
 export type TWasmBuildResult = {
-  run: string
   jsin: string
   jsout: string
   wasmout: string

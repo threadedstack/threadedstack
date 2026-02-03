@@ -1,4 +1,4 @@
-export * from './toJS'
-export * from './fromTS'
-export * from './toWasm'
+export * from './jco'
+export * from './esbuild'
+export * from './componentize'
 export * from './buildWasm'

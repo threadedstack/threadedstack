@@ -5,10 +5,9 @@
 import type { TResolvedPaths, TWasmBuildOpts } from '@TWA/types'
 
 import { build } from 'esbuild'
-import { defineEnv } from "unenv"
 import { resolvePaths } from '@TWA/utils/paths'
-import { overrides } from '@TWA/polyfills/inject'
 import { injectBanner } from '@TWA/polyfills/banner'
+import { ImportMap } from '@TWA/polyfills/importMap'
 import { flatUnion } from '@keg-hub/jsutils/flatUnion'
 
 export interface FromTSResult {
@@ -26,7 +25,7 @@ export interface FromTSResult {
  * @param paths - Resolved paths
  * @returns Compilation result with output path
  */
-export async function fromTS(
+export async function esb(
   options: TWasmBuildOpts,
   paths?: TResolvedPaths
 ): Promise<FromTSResult> {
@@ -35,13 +34,13 @@ export async function fromTS(
 
   !options.quiet && console.log(`📝 Compiling TypeScript to JavaScript with esbuild...`)
 
-  const polyfills = defineEnv({})
   const banner = await injectBanner(options?.esbuild?.banner)
+
   const external = flatUnion(
-    [`wasi:*`, ...polyfills.env.external],
+    [`wasi:*`],
+    //[`wasi:*`, `node:*`, ...Object.keys(ImportMap)],
     options?.esbuild?.external
   )
-
 
   await build({
     platform: `neutral`,
@@ -56,16 +55,10 @@ export async function fromTS(
     outfile: paths.jsin,
     tsconfig: paths.tsconfig,
     entryPoints: [paths.tsin],
-    inject: [
-      overrides
-    ],
     banner: {
       js: banner,
     },
-    alias: {
-      ...polyfills.env.alias,
-      ...(options?.esbuild?.alias || {}),
-    },
+    alias: options?.esbuild?.alias || {},
   })
 
   !options.quiet && console.log(`✅ TypeScript compiled: ${paths.jsin}`)

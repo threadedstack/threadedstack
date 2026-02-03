@@ -33,8 +33,7 @@
     "@bytecodealliance/preview2-shim": "0.17.7",
     "@keg-hub/jsutils": "^10.0.0",
     "esbuild": "0.27.2",
-    "pako": "2.1.0",
-    "unenv": "2.0.0-rc.24"
+    "pako": "2.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",

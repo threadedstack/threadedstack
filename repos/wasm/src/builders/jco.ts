@@ -8,6 +8,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { resolvePaths } from '@TWA/utils/paths'
+import { ImportMap } from '@TWA/polyfills/importMap'
 
 /**
  * Resolves the full path to the jco executable
@@ -31,6 +32,13 @@ export interface ToJSResult {
   error?: Error
 }
 
+const buildMap = () => {
+  return Object.entries(ImportMap).reduce((acc, [key, value]) => {
+    acc.push(`--map`, `${key}=${value}`)
+    return acc
+  }, [] as string[])
+}
+
 /**
  * Transpile WASM component to JavaScript bindings with jco
  *
@@ -42,7 +50,7 @@ export interface ToJSResult {
  * @param paths - Resolved paths
  * @returns Promise that resolves when transpilation completes
  */
-export const toJS = async (
+export const jco = async (
   options: TWasmBuildOpts,
   paths?: TResolvedPaths
 ): Promise<ToJSResult> => {
@@ -53,15 +61,23 @@ export const toJS = async (
 
     const { outdir, wasmout, jsout } = paths
 
-    const args = [getJcoPath(), `transpile`, wasmout, `-o`, outdir, `--instantiation`]
+    const args = [
+      getJcoPath(),
+      `transpile`,
+      wasmout,
+      `-o`,
+      outdir,
+      //...buildMap(),
+      `--instantiation`
+    ]
     options.quiet && args.push(`--quiet`)
 
-    const jco = spawn(`node`, args, {
+    const proc = spawn(`node`, args, {
       cwd: paths.root,
       stdio: `inherit`,
     })
 
-    jco.on(`close`, async (code) => {
+    proc.on(`close`, async (code) => {
       if (code === 0) {
         if(!options.quiet){
           console.log(`\n✅ Transpilation complete!`)
@@ -81,7 +97,7 @@ export const toJS = async (
       }
     })
 
-    jco.on(`error`, (error) => {
+    proc.on(`error`, (error) => {
       !options.quiet && console.error(`❌ Failed to start jco process:`, error.message)
       reject(error)
     })

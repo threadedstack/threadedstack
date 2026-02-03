@@ -1,49 +1,15 @@
 import { Bash, ReadWriteFs } from 'just-bash'
 
-// @ts-ignore
-import { getDirectories } from 'wasi:filesystem/preopens@0.2.0'
-// @ts-ignore
-import { Descriptor, PathFlags, DescriptorFlags } from 'wasi:filesystem/types@0.2.0'
-
-export function listFiles() {
-  const preopens = getDirectories()
-
-  for (const [descriptor, path] of preopens) {
-    try {
-      // Some shims require you to open the relative path ""
-      // to get a handle that has 'readdir' capabilities.
-      const dir = descriptor.openAt({ symlinkFollow: true }, '', {
-        read: true,
-        directory: true,
-      })
-
-      const stream = descriptor.readDirectory()
-
-      while (true) {
-        const entry = stream.readEntry()
-        if (!entry) break
-        console.log(`${entry.type}: ${entry.name}`)
-      }
-    } catch (e) {
-      // If openAt("") also fails with no-entry, the shim cannot find /tmp/tdsk on your host.
-      console.error(`Failed at ${path}: ${e.message}`)
-    }
-  }
-}
+import { join } from 'node:path'
+import { dirname } from 'path'
 
 export const run = async (command: string): Promise<string> => {
   try {
-    console.log(`------- command -------`)
-    console.log(command)
-
-    console.log(`------- globalThis -------`)
-    console.log(Object.keys(globalThis))
-
-    console.log(`------- process.env -------`)
-    console.log(process.env)
-
-    console.log(`------- process.argv -------`)
-    console.log(process.argv)
+    const location = join(`/duper`, `file.txt`)
+    console.log(`------- join - location -------`)
+    console.log(location)
+    console.log(`------- dirname - location -------`)
+    console.log(dirname(location))
 
     //try {
     //  const url = 'https://example.org/products.json'

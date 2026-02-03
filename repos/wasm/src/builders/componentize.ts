@@ -25,7 +25,7 @@ export interface ToWasmResult {
  * @param paths - Resolved paths
  * @returns Componentization result with output path
  */
-export const toWasm = async (
+export const componentizeJs = async (
   options: TWasmBuildOpts,
   paths?: TResolvedPaths
 ): Promise<ToWasmResult> => {
