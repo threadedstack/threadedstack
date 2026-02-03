@@ -4,6 +4,8 @@ import type { TRunCmd } from '@TSCL/utils/docker/run'
 import type { TBuildCmd } from '@TSCL/utils/docker/build'
 
 import { run } from '@TSCL/utils/docker/run'
+import { pull } from '@TSCL/utils/docker/pull'
+import { push } from '@TSCL/utils/docker/push'
 import { spawn } from '@TSCL/utils/proc/spawn'
 import { build } from '@TSCL/utils/docker/build'
 import { login } from '@TSCL/utils/docker/login'
@@ -27,6 +29,20 @@ export const docker = {
   run: async (props: TRunCmd) =>
     await cmd({
       args: run(props),
+      log: props?.params?.log,
+      envs: props?.params?.envs,
+      output: props?.params?.log,
+    }),
+  pull: async (props: TRunCmd) =>
+    await cmd({
+      args: pull(props),
+      log: props?.params?.log,
+      envs: props?.params?.envs,
+      output: props?.params?.log,
+    }),
+  push: async (props: TRunCmd) =>
+    await cmd({
+      args: push(props),
       log: props?.params?.log,
       envs: props?.params?.envs,
       output: props?.params?.log,
