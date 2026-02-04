@@ -9,6 +9,8 @@ env:
   TDSK_KUBE_SCRT_DB_CFG: tdsk-db-cfg
   TDSK_KUBE_SCRT_DOC_AUTH: docker-auth
   TDSK_KUBE_SCRT_TLS_NAME: tdsk-tls-secret
+  TDSK_KUBE_SCRT_EMAIL_CFG: tdsk-email-secret
+  TDSK_KUBE_SCRT_PAY_CFG: tdsk-payments-secret
 
   # Production url for threaded stack 
   TDSK_URL: http://threadedstack.com/

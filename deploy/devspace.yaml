@@ -121,6 +121,12 @@ vars:
   TDSK_KUBE_SCRT_MASTER_KEY:
     source: env
     default: tdsk-master-key
+  TDSK_KUBE_SCRT_PAY_CFG:
+    source: env
+    default: tdsk-payments-secret
+  TDSK_KUBE_SCRT_EMAIL_CFG:
+    source: env
+    default: tdsk-email-secret
 
 # ----- Server Configuration ----- #
   TDSK_ALLOWED_HEADERS:
@@ -223,7 +229,6 @@ deployments:
                   key: role
                   name: ${TDSK_KUBE_SCRT_DB_CFG}
                   optional: true
-
           # Caddy sidecar container for on-demand TLS
           - name: caddy
             image: caddy:2-alpine
@@ -235,6 +240,54 @@ deployments:
                   key: url
                   name: ${TDSK_KUBE_SCRT_DB_CFG}
                   optional: false
+            - name: TDSK_DB_TYPE
+              valueFrom:
+                secretKeyRef:
+                  key: type
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: false
+            - name: TDSK_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: name
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: false
+            - name: TDSK_DB_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: key
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_JWT_SCRT
+              valueFrom:
+                secretKeyRef:
+                  key: jwt
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  key: user
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: pass
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: project
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_DB_SRV_ROLE
+              valueFrom:
+                secretKeyRef:
+                  key: role
+                  name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
             - name: TDSK_PX_URL
               value: ${TDSK_PX_URL}
             - name: TDSK_CADDY_ADMIN_HOST
@@ -406,6 +459,85 @@ deployments:
                 secretKeyRef:
                   key: role
                   name: ${TDSK_KUBE_SCRT_DB_CFG}
+                  optional: true
+            - name: TDSK_PAY_URL
+              valueFrom:
+                secretKeyRef:
+                  key: url
+                  name: ${TDSK_KUBE_SCRT_PAY_CFG}
+                  optional: true
+            - name: TDSK_PAY_TYPE
+              valueFrom:
+                secretKeyRef:
+                  key: type
+                  name: ${TDSK_KUBE_SCRT_PAY_CFG}
+                  optional: true
+           - name: TDSK_PAY_PLANS
+              valueFrom:
+                secretKeyRef:
+                  key: plans
+                  name: ${TDSK_KUBE_SCRT_PAY_CFG}
+                  optional: true
+           - name: TDSK_PAY_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: token
+                  name: ${TDSK_KUBE_SCRT_PAY_CFG}
+                  optional: true
+           - name: TDSK_PAY_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: webhook
+                  name: ${TDSK_KUBE_SCRT_PAY_CFG}
+                  optional: true
+
+           - name: TDSK_EMAIL_HOST
+              valueFrom:
+                secretKeyRef:
+                  key: host
+                  name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
+                  optional: true
+           - name: TDSK_EMAIL_TYPE
+              valueFrom:
+                secretKeyRef:
+                  key: type
+                  name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
+                  optional: true
+           - name: TDSK_EMAIL_USER
+              valueFrom:
+                secretKeyRef:
+                  key: user
+                  name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
+                  optional: true
+           - name: TDSK_EMAIL_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: pass
+                  name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
+                  optional: true
+           - name: TDSK_EMAIL_PORT
+              valueFrom:
+                secretKeyRef:
+                  key: port
+                  name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
+                  optional: true
+           - name: TDSK_EMAIL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: key
+                  name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
+                  optional: true
+           - name: TDSK_EMAIL_API_HOST
+              valueFrom:
+                secretKeyRef:
+                  key: api
+                  name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
+                  optional: true
+           - name: TDSK_EMAIL_SECURE
+              valueFrom:
+                secretKeyRef:
+                  key: secure
+                  name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
                   optional: true
         service:
           name: ${TDSK_BE_DEPLOYMENT}
