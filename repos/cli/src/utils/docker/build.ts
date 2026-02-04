@@ -1,12 +1,7 @@
-import type { TCtxCfg, TTaskActionArgs } from '@TSCL/types'
+import type { TCtxCfg, TUtilArgs } from '@TSCL/types'
 
 import { join } from 'node:path'
 import { emptyArr } from '@keg-hub/jsutils/emptyArr'
-
-export type TBuildCmd = TTaskActionArgs & {
-  ctx: TCtxCfg
-  env?: Record<string, string>
-}
 
 const addPlatforms = (platforms: string[] = emptyArr, push?: boolean) => {
   return platforms.length && push ? [`--platform`, platforms.join(`,`)] : emptyArr
@@ -27,7 +22,7 @@ const addTags = (ctx: TCtxCfg, tags: string[], image?: string) => {
   )
 }
 
-export const build = (props: TBuildCmd) => {
+export const build = (props: TUtilArgs) => {
   const { ctx, config, params } = props
 
   const { arm, tag, push, image, platforms } = params

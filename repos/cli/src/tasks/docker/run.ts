@@ -31,6 +31,16 @@ export const run: TTask = {
       alias: [`ctx`, `name`, `type`],
       description: `Context or name to use when resolving the Dockerfile to built`,
     },
+    command: {
+      alias: [`cmd`, `c`],
+      example: `--command /bin/bash`,
+      description: `Command to run in the container. Defaults to /bin/sh for shell access`,
+    },
+    entrypoint: {
+      alias: [`entry`, `ep`],
+      example: `--entrypoint /bin/bash`,
+      description: `Entrypoint to use when the container is run.`,
+    },
     pull: {
       type: `boolean`,
       default: false,
@@ -51,8 +61,14 @@ export const run: TTask = {
     envs: {
       type: `object`,
       alias: [`e`],
-      example: `CUSTOM_ENV:custom-value,OTHER_ENV:other-value`,
+      example: `--envs CUSTOM_ENV:custom-value,OTHER_ENV:other-value`,
       description: `Key/Value pairs of ENVs to add to the docker process`,
+    },
+    ports: {
+      type: `object`,
+      alias: [`p`],
+      example: `--ports:80:7171,4532:4532`,
+      description: `Key/Value pairs of ports to add to expose from the container`,
     },
     name: {
       alias: [`n`],

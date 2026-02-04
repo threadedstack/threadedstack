@@ -1,31 +1,31 @@
-import type { TCtxCfg, TTaskActionArgs } from '@TSCL/types'
-import { noOpArr } from '@keg-hub/jsutils'
+import type { TUtilArgs } from '@TSCL/types'
 
-export type TRunCmd = TTaskActionArgs & {
-  ctx: TCtxCfg
-  env?: Record<string, string>
-}
+import { emptyArr } from '@keg-hub/jsutils'
+import { addEnvs, addPorts } from '@TSCL/utils/docker/helpers'
 
 export type TDockerPullType = `missing` | `never` | `always`
 
 export type TDockerRunArgs = {
-  name: string
-  remove: boolean
-  attach: boolean
-  privileged: boolean
-  pull: TDockerPullType
+  log?: boolean
+  name?: string
+  remove?: boolean
+  attach?: boolean
+  command?: string
+  entrypoint?: string
+  privileged?: boolean
+  pull?: TDockerPullType
+  envs?: Record<string, string>
+  ports?: Record<string, string>
 }
 
-export const addRunPorts = (props: TRunCmd) => {
-  const { ctx } = props
-  if (!ctx.ports) return []
-
-  return [`-p`, `${ctx.ports.host}:${ctx.ports.remote}`]
+const getRunCmd = (params: TDockerRunArgs) => {
+  const { command } = params
+  return (command && command.split(` `)) || emptyArr
 }
 
-const getRunCmd = (params: Record<string, any>) => {
-  const { cmd } = params
-  return (cmd && cmd.split(' ')) || noOpArr
+const getEntryPoint = (params: TDockerRunArgs) => {
+  const { entrypoint } = params
+  return entrypoint ? [`--entrypoint`, entrypoint] : emptyArr
 }
 
 /**
@@ -52,8 +52,14 @@ export const getRunArgs = ({
   return args
 }
 
-export const run = (props: TRunCmd) => {
-  const args = [...getRunArgs(props.params as TDockerRunArgs), ...addRunPorts(props)]
-
-  return [`run`, ...args, props.ctx.image, getRunCmd(props.params)]
+export const run = (props: TUtilArgs<TDockerRunArgs>) => {
+  return [
+    `run`,
+    ...getRunArgs(props.params),
+    ...addPorts(props),
+    ...addEnvs(props),
+    ...getEntryPoint(props.params),
+    props.ctx.image,
+    ...getRunCmd(props.params),
+  ]
 }

@@ -1,9 +1,4 @@
-import type { TCtxCfg, TTaskActionArgs } from '@TSCL/types'
-
-export type TExecCmd = TTaskActionArgs & {
-  ctx: TCtxCfg
-  env?: Record<string, string>
-}
+import type { TUtilArgs } from '@TSCL/types'
 
 export type TDockerExecArgs = {
   container?: string
@@ -31,7 +26,7 @@ const getExecArgs = ({ attach, detach, workdir, user }: TDockerExecArgs) => {
 /**
  * Builds the docker exec command
  */
-export const exec = (props: TExecCmd) => {
+export const exec = (props: TUtilArgs) => {
   const { ctx, params } = props
 
   const container = params.container || ctx.deployment

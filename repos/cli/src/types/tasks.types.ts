@@ -1,15 +1,15 @@
-import type { TCliCfg } from '@TSCL/types/config.types'
 import type { TValueOf } from '@TSCL/types/helpers.types'
+import type { TCliCfg, TCtxCfg } from '@TSCL/types/config.types'
 
 export type TTaskOptionTypeMap = {
-  str: string
-  string: string
-  num: number
-  number: number
-  bool: boolean
-  boolean: boolean
-  array: any[]
   arr: any[]
+  str: string
+  array: any[]
+  num: number
+  bool: boolean
+  string: string
+  number: number
+  boolean: boolean
   obj: Record<string, any>
   object: Record<string, any>
 }
@@ -18,7 +18,8 @@ export type TTaskOptionType = keyof TTaskOptionTypeMap
 export type TParamValue = TValueOf<TTaskOptionTypeMap>
 
 export type TTaskPMap = {
-  [K: string]: TParamValue
+  //[K: string]: TParamValue
+  [K: string]: any
 }
 
 export type TTaskOption<T extends TTaskPMap = TTaskPMap> = {
@@ -42,7 +43,7 @@ export type TTaskParams = TTParams & {
   env?: string
 }
 
-export type TTaskActionArgs<P extends TTaskParams = TTaskParams> = {
+export type TTaskActionArgs<P extends TTaskPMap = TTaskPMap> = {
   params: P
   task: TTask
   tasks: TTasks
@@ -50,9 +51,7 @@ export type TTaskActionArgs<P extends TTaskParams = TTaskParams> = {
   config?: TCliCfg
 }
 
-export type TTaskAction<T extends TTaskParams = TTaskParams> = <
-  P extends TTaskParams = T,
->(
+export type TTaskAction<T extends TTaskPMap = TTaskPMap> = <P extends TTaskPMap = T>(
   args: TTaskActionArgs<P>
 ) => any
 
@@ -66,3 +65,7 @@ export type TTask<P extends TTaskParams = TTaskParams> = {
 }
 
 export type TTasks = Record<string, TTask>
+
+export type TUtilArgs<T extends TTaskPMap = TTaskPMap> = TTaskActionArgs<T> & {
+  ctx: TCtxCfg
+}

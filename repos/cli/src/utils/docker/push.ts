@@ -1,13 +1,8 @@
-import type { TCtxCfg, TTaskActionArgs } from '@TSCL/types'
+import type { TUtilArgs } from '@TSCL/types'
 
 import { addTags } from '@TSCL/utils/docker/helpers'
 
-export type TPushCmd = TTaskActionArgs & {
-  ctx: TCtxCfg
-  env?: Record<string, string>
-}
-
-export const push = (props: TPushCmd) => {
+export const push = (props: TUtilArgs) => {
   const { ctx, params } = props
   const { tag, image } = params
 

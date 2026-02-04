@@ -1,10 +1,7 @@
-import type { TTaskActionArgs } from '@TSCL/types'
+import type { TUtilArgs, TTaskActionArgs } from '@TSCL/types'
 import type { TSpawn } from '@TSCL/utils/proc/spawn'
-import type { TRunCmd } from '@TSCL/utils/docker/run'
-import type { TPullCmd } from '@TSCL/utils/docker/pull'
-import type { TPushCmd } from '@TSCL/utils/docker/push'
-import type { TExecCmd } from '@TSCL/utils/docker/exec'
-import type { TBuildCmd } from '@TSCL/utils/docker/build'
+
+import type { TDockerRunArgs } from '@TSCL/utils/docker/run'
 
 import { run } from '@TSCL/utils/docker/run'
 import { pull } from '@TSCL/utils/docker/pull'
@@ -23,35 +20,35 @@ export const docker = {
       log: props?.params?.log,
       output: props?.params?.log,
     }),
-  build: async (props: TBuildCmd) =>
+  build: async (props: TUtilArgs) =>
     await cmd({
       args: build(props),
       log: props?.params?.log,
       envs: props?.params?.envs,
       output: props?.params?.log,
     }),
-  run: async (props: TRunCmd) =>
+  run: async (props: TUtilArgs<TDockerRunArgs>) =>
     await cmd({
       args: run(props),
       log: props?.params?.log,
       envs: props?.params?.envs,
       output: props?.params?.log,
     }),
-  exec: async (props: TExecCmd) =>
+  exec: async (props: TUtilArgs) =>
     await cmd({
       args: exec(props),
       log: props?.params?.log,
       envs: props?.params?.envs,
       output: props?.params?.log,
     }),
-  pull: async (props: TPullCmd) =>
+  pull: async (props: TUtilArgs) =>
     await cmd({
       args: pull(props),
       log: props?.params?.log,
       envs: props?.params?.envs,
       output: props?.params?.log,
     }),
-  push: async (props: TPushCmd) =>
+  push: async (props: TUtilArgs) =>
     await cmd({
       args: push(props),
       log: props?.params?.log,
