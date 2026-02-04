@@ -26,7 +26,9 @@ export type TKubeCtl = {
   ): Promise<number>
   create: TCallback<string>
   delete: TKubeDelete<string>
+  describe: TCallback<string>
   useContext: TCallback<string>
+  describePod: TCallback<string>
   getContexts: TCallback<string[]>
   ensureContext: TCallback<string>
   currentContext: TCallback<string>
@@ -247,5 +249,53 @@ kubectl.getPod = resolveArgs<Record<any, any>>(
         .map((val) => (val as string).toLowerCase().trim())
         .includes(context.toLowerCase().trim())
     )
+  }
+)
+
+/**
+ * Describes a kubernetes resource
+ */
+kubectl.describe = resolveArgs<string>(
+  async (props: TTaskActionArgs, args: string | string[]) => {
+    await kubectl.ensureContext(props, args)
+    return new Promise(async (res, rej) => {
+      let output: string = ``
+      let resolved = false
+
+      return await kubectl({
+        ...props.params,
+        stdio: `pipe`,
+        args: [`describe`, ...args],
+        output: props.params?.output ?? true,
+        stderr: Logger.stderr,
+        stdout: (data: string) => {
+          output = data.trim()
+        },
+        close: () => {
+          if (resolved) return
+          resolved = true
+          res(output)
+        },
+        error: (err) => {
+          resolved = true
+          rej(err)
+        },
+        exit: () => {
+          if (resolved) return
+          resolved = true
+          res(output)
+        },
+      })
+    })
+  }
+)
+
+/**
+ * Describes a kubernetes pod
+ */
+kubectl.describePod = resolveArgs<string>(
+  async (props: TTaskActionArgs, args: string | string[]) => {
+    await kubectl.ensureContext(props, args)
+    return await kubectl.describe(props, [`pod`, ...args])
   }
 )

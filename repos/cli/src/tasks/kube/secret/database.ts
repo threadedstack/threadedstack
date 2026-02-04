@@ -2,6 +2,7 @@ import type { TTask, TTaskActionArgs } from '@TSCL/types'
 
 import { Logger } from '@tdsk/logger'
 import { taskError } from '@TSCL/utils/tasks/error'
+import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 
 /**
  * Add kubernetes database config secret for tdsk-db-cfg
@@ -26,19 +27,19 @@ const databaseAct = async (props: TTaskActionArgs) => {
   const { url, name, key, jwt, role, type, user, pass, project, ...secParams } = params
 
   const cfg = {
-    url: url || config.envs.TDSK_DB_URL,
-    type: type || config.envs.TDSK_DB_TYPE,
-    name: name || config.envs.TDSK_DB_NAME,
-    user: user || config.envs.TDSK_DB_USER,
-    pass: pass || config.envs.TDSK_DB_PASS,
-    key: key || config.envs.TDSK_DB_PUBLIC_KEY,
-    jwt: jwt || config.envs.TDSK_DB_JWT_SCRT,
-    role: role || config.envs.TDSK_DB_SRV_ROLE,
-    project: project || config.envs.TDSK_DB_PROJECT_ID,
+    url: url || config.envs.TDSK_DB_URL || undefined,
+    type: type || config.envs.TDSK_DB_TYPE || undefined,
+    name: name || config.envs.TDSK_DB_NAME || undefined,
+    user: user || config.envs.TDSK_DB_USER || undefined,
+    pass: pass || config.envs.TDSK_DB_PASS || undefined,
+    key: key || config.envs.TDSK_DB_PUBLIC_KEY || undefined,
+    jwt: jwt || config.envs.TDSK_DB_JWT_SCRT || undefined,
+    role: role || config.envs.TDSK_DB_SRV_ROLE || undefined,
+    project: project || config.envs.TDSK_DB_PROJECT_ID || undefined,
   }
 
-  ;(!cfg.url || !cfg.name || !cfg.key || !cfg.jwt || !cfg.role) &&
-    taskError(`The path to a firebase service-account JSON file is required`)
+  ;(!cfg.url || !cfg.name || (!cfg.key && !cfg.jwt && !cfg.pass)) &&
+    taskError(`Missing database secret configuration`, undefined, cfg)
 
   params.log && Logger.pair(`Found valid database config values`)
 
@@ -47,7 +48,7 @@ const databaseAct = async (props: TTaskActionArgs) => {
     params: {
       ...secParams,
       name: config.envs.TDSK_KUBE_SCRT_DB_CFG || `tdsk-db-cfg`,
-      secrets: Object.entries(cfg)
+      secrets: Object.entries(cleanColl(cfg))
         .map(([key, value]) => `${key}:${value}`)
         .join(`,`),
     },

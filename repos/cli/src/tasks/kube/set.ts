@@ -1,17 +1,36 @@
 import type { TTask, TTaskAction } from '@TSCL/types'
-import { getCtx } from '@TSCL/utils/config/getCtx'
-import { taskError } from '@TSCL/utils/tasks/error'
+import { kubectl } from '@TSCL/utils/kube/kubectl'
 
-const action: TTaskAction = async (args) => {
+/**
+ * Sets the active kubernetes context
+ * @function
+ * @public
+ * @returns {Void}
+ */
+const setAction: TTaskAction = async (args) => {
   const { params } = args
-  console.log(`TODO - Not implemented`)
+  const { context } = params
+  !context && console.error(`Context is required`)
+
+  await kubectl.useContext(args, context)
 }
 
 export const set: TTask = {
   name: `set`,
   alias: [`use`],
-  action: action,
+  action: setAction,
   example: `pnpm tdsk kube set <options>`,
-  description: ``,
-  options: {},
+  description: `Sets the active kubernetes context`,
+  options: {
+    context: {
+      required: true,
+      alias: [`ctx`, `name`],
+      example: `--context my-context`,
+      description: `Context name to set as active`,
+    },
+    log: {
+      type: `boolean`,
+      description: `Log command before it is run`,
+    },
+  },
 }
