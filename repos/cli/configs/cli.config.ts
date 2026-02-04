@@ -71,8 +71,7 @@ export const config = {
       dockerfile: `Dockerfile.proxy`,
       location: path.join(paths.repos, `proxy`),
       ports: {
-        host: TDSK_PX_PORT,
-        remote: TDSK_PX_REMOTE_PORT,
+        [TDSK_PX_PORT]: TDSK_PX_REMOTE_PORT,
       },
     },
     backend: {
