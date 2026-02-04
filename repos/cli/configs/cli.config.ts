@@ -85,8 +85,7 @@ export const config = {
       deployment: TDSK_BE_DEPLOYMENT,
       location: path.join(paths.repos, `backend`),
       ports: {
-        host: TDSK_BE_PORT,
-        remote: TDSK_BE_REMOTE_PORT,
+        [TDSK_BE_PORT]: TDSK_BE_REMOTE_PORT,
       },
     },
     admin: {
@@ -99,8 +98,7 @@ export const config = {
       dockerfile: `Dockerfile.admin`,
       location: path.join(paths.repos, `admin`),
       ports: {
-        host: TDSK_AD_PORT,
-        remote: TDSK_AD_REMOTE_PORT,
+        [TDSK_AD_PORT]: TDSK_AD_REMOTE_PORT,
       },
     },
     caddy: {
@@ -113,8 +111,12 @@ export const config = {
       dockerfile: `Dockerfile.caddy`,
       location: paths.deploy,
       ports: {
-        host: TDSK_CADDY_PORT,
-        remote: TDSK_CADDY_REMOTE_PORT,
+        // TODO: fix these hard coded port values
+        // Should come from ENVs
+        8080: 80,
+        8443: 443,
+        2019: 2019,
+        [TDSK_CADDY_PORT]: TDSK_CADDY_REMOTE_PORT,
       },
     },
   },

@@ -20,9 +20,14 @@ export const addPorts = (props: TUtilArgs) => {
   const { ctx } = props
   const { ports } = props.params
 
-  const args = ctx.ports ? [`-p`, `${ctx.ports.host}:${ctx.ports.remote}`] : []
+  const args = Object.entries(ctx.ports).reduce((acc, [local, remote]) => {
+    acc.push(`-p`, `${local}:${remote}`)
+    return acc
+  }, [] as string[])
 
-  Object.entries(ports).forEach(([key, val = key]) => args.push(`-p`, `${key}:${val}`))
+  Object.entries(ports).forEach(([local, remote = local]) =>
+    args.push(`-p`, `${local}:${remote}`)
+  )
 
   return args
 }

@@ -1,8 +1,29 @@
-import type { TTask, TTaskActionArgs } from '@TSCL/types'
+import type { TCliCfg, TTask, TTaskActionArgs } from '@TSCL/types'
 
 import { Logger } from '@tdsk/logger'
 import { taskError } from '@TSCL/utils/tasks/error'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
+
+type TSecretCfg = {
+  url: string
+  type: string
+  name: string
+  user: string
+  pass?: string
+  key?: string
+  jwt?: string
+  role?: string
+  aurl?: string
+  project?: string
+}
+
+const addAuthUrl = (config: TCliCfg, secret: TSecretCfg) => {
+  secret.aurl = config.envs.TDSK_DB_AUTH_URL
+    ? config.envs.TDSK_DB_AUTH_URL
+    : `postgresql://${secret.user}:${secret.pass}@${secret.url}`
+
+  return secret
+}
 
 /**
  * Add kubernetes database config secret for tdsk-db-cfg
@@ -26,7 +47,7 @@ const databaseAct = async (props: TTaskActionArgs) => {
 
   const { url, name, key, jwt, role, type, user, pass, project, ...secParams } = params
 
-  const cfg = {
+  const cfg: TSecretCfg = addAuthUrl(config, {
     url: url || config.envs.TDSK_DB_URL || undefined,
     type: type || config.envs.TDSK_DB_TYPE || undefined,
     name: name || config.envs.TDSK_DB_NAME || undefined,
@@ -36,7 +57,7 @@ const databaseAct = async (props: TTaskActionArgs) => {
     jwt: jwt || config.envs.TDSK_DB_JWT_SCRT || undefined,
     role: role || config.envs.TDSK_DB_SRV_ROLE || undefined,
     project: project || config.envs.TDSK_DB_PROJECT_ID || undefined,
-  }
+  })
 
   ;(!cfg.url || !cfg.name || (!cfg.key && !cfg.jwt && !cfg.pass)) &&
     taskError(`Missing database secret configuration`, undefined, cfg)

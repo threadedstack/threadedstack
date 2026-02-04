@@ -33,7 +33,8 @@ env:
 
 # ---- TDSK Shared ENVs ---- #
   TDSK_SH_LOCAL_MOUNT: tdsk-local
-  TDSK_SERVER_ORIGINS: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,proxy.dev.threadedstack.app,http://0.0.0.0'
+  TDSK_SERVER_ORIGINS: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,proxy.dev.threadedstack.app,px.dev.threadedstack.app,proxy.local.threadedstack.app,px.local.threadedstack.app,http://0.0.0.0'
+  TDSK_ALLOWED_HEADERS: 'X-PINGOTHER,Origin,X-Requested-With,Content-Type,Accept,Authorization,AuthToken,x-tdsk-host,x-tdsk-proto,x-tdsk-port,x-tdsk-route,x-tdsk-job-id,x-tdsk-subdomain,x-forwarded-subdomain,x-forwarded-port,x-forwarded-proto,x-forwarded-host,x-forwarded-for'
 
 
   # ---- Logger ENVs ---- #
@@ -108,12 +109,12 @@ env:
   # Ingress hostname for DNS verification
   # Should match the proxy url in deployed environments
   # Set as a different ENV when running locally
-  TDSK_CADDY_PX_HOST: proxy.threadedstack.dev
+  TDSK_CADDY_PX_HOST: px.threadedstack.dev
 
   # Caddy configuration
   TDSK_CADDY_PORT: 443
   TDSK_CADDY_ADMIN_PORT: 2019
-  TDSK_CADDY_ADMIN_HOST: localhost
+  TDSK_CADDY_ADMIN_HOST: 0.0.0.0
 
   # Header that tells the proxy the request if a cert prewarm request
   # When set, the proxy will intercept the proxy request, and request a cert from lets encrypt
@@ -146,6 +147,10 @@ env:
 
   # Url connection string to connect to the database
   TDSK_DB_URL: 
+
+  # Auth Url connection string to connect to the database
+  # WARNING: Contains secrets
+  TDSK_DB_AUTH_URL:
 
   # Public key used to connect to the database if needed
   TDSK_DB_PUBLIC_KEY:

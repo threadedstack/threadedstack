@@ -66,8 +66,10 @@ kubectl.delete = resolveArgs(async (props: TTaskActionArgs, args: string | strin
   return await kubectl({ ...props.params, args: [`delete`, ...args] })
 }) as TKubeDelete
 
-kubectl.delete.pod = async (props: TTaskActionArgs, args: string[]) =>
-  await kubectl.delete(props, [`pod`, ...args])
+kubectl.delete.pod = resolveArgs(async (props: TTaskActionArgs, args: string[]) => {
+  await kubectl.ensureContext(props, args)
+  return await kubectl.delete(props, [`pod`, ...args])
+})
 
 /**
  * Creates a kubernetes object from the passed in args

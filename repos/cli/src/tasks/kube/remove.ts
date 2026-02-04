@@ -1,5 +1,8 @@
 import type { TTask, TTaskAction } from '@TSCL/types'
+
 import { kubectl } from '@TSCL/utils/kube/kubectl'
+import { getCtx } from '@TSCL/utils/config/getCtx'
+import { taskError } from '@TSCL/utils/tasks/error'
 
 /**
  * Deletes kubernetes resources
@@ -9,12 +12,13 @@ import { kubectl } from '@TSCL/utils/kube/kubectl'
  */
 const removeAction: TTaskAction = async (args) => {
   const { params } = args
-  const { resource, name, namespace } = params
-  !resource && console.error(`Resource type is required`)
-  !name && console.error(`Resource name is required`)
+  const ctx = getCtx(args)
+  !ctx && taskError(`Build context name is missing or invalid`)
 
-  const deleteArgs = [name]
-  namespace && deleteArgs.push(`--namespace`, namespace)
+  const { resource } = params
+  !resource && console.error(`Resource type is required`)
+
+  const deleteArgs = [ctx.deployment]
 
   resource === `pod`
     ? await kubectl.delete.pod(args, deleteArgs)
@@ -28,26 +32,17 @@ export const remove: TTask = {
   example: `pnpm tdsk kube remove <options>`,
   description: `Delete kubernetes resources (pods, services, deployments, etc.)`,
   options: {
-    resource: {
+    context: {
+      alias: [`ctx`, `name`, `n`],
       required: true,
+      example: `--context my-pod`,
+      description: `Name of the resource to delete`,
+    },
+    resource: {
+      default: `pod`,
       alias: [`type`, `res`],
       example: `--resource pod`,
       description: `Type of resource to delete`,
-    },
-    name: {
-      required: true,
-      description: `Name of the resource to delete`,
-      example: `--name my-pod`,
-      alias: [`n`],
-    },
-    namespace: {
-      alias: [`ns`],
-      description: `Namespace of the resource`,
-      example: `--namespace my-namespace`,
-    },
-    context: {
-      description: `Kubernetes context to use`,
-      example: `--context my-context`,
     },
     log: {
       type: `boolean`,
