@@ -84,6 +84,15 @@
 	import app_logic
 }
 
+*.localhost, localhost {
+	# Force internal self-signed certs (No ACME, No Validation)
+	tls internal
+
+	# Import the shared logic defined above
+	import app_logic
+}
+
+
 # ---------------------------------------------------------
 # BLOCK 2: Production (Catch-All)
 # Matches everything else (e.g. *.threadedstack.app)
@@ -97,7 +106,3 @@
 	import app_logic
 }
 
-## Health/Admin Port
-#:{$TDSK_CADDY_ADMIN_PORT} {
-#	# Admin interface enabled globally
-#}

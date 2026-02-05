@@ -6,9 +6,9 @@ import { setupAuth } from '@TPX/middleware/setupAuth'
 import { setupProxy } from '@TPX/middleware/setupProxy'
 import { setupLogger } from '@TPX/middleware/setupLogger'
 import { setupServer } from '@TPX/middleware/setupServer'
+import { setupPrewarm } from '@TPX/middleware/setupPrewarm'
 import { setupEndpoints } from '@TPX/middleware/setupEndpoints'
 import { setupErrorHandler } from '@TPX/middleware/setupErrorHandler'
-import { setupPrewarm } from '@TPX/middleware/setupPrewarm'
 
 /**
  * Main proxy server initialization

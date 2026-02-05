@@ -3,4 +3,4 @@ env:
 # ---- General Shared ENVs ---- #
   NODE_ENV: production
   TDSK_KUBE_NAMESPACE: tdsk-production
-  TDSK_HOST_DOMAIN: dev.threadedstack.app
+  TDSK_HOST_DOMAIN: threadedstack.app

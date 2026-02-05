@@ -48,13 +48,17 @@ const {
   TDSK_AD_IMAGE_FROM = TDSK_IMAGE_FROM,
   TDSK_AD_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
 
-  TDSK_CADDY_PORT,
   TDSK_CADDY_IMAGE,
   TDSK_CADDY_DEPLOYMENT,
   TDSK_CADDY_IMAGE_FROM = `caddy:builder`,
   TDSK_CADDY_IMAGE_TAG = TDSK_IMAGE_TAG,
-  TDSK_CADDY_REMOTE_PORT = TDSK_CADDY_PORT,
   TDSK_CADDY_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
+
+  TDSK_CADDY_ADMIN_PORT,
+  TDSK_CADDY_LOCAL_PORT,
+  TDSK_CADDY_SECURE_LOCAL_PORT,
+  TDSK_CADDY_REMOTE_PORT = TDSK_CADDY_LOCAL_PORT,
+  TDSK_CADDY_SECURE_REMOTE_PORT = TDSK_CADDY_SECURE_LOCAL_PORT,
 } = envs
 
 export const config = {
@@ -110,12 +114,9 @@ export const config = {
       dockerfile: `Dockerfile.caddy`,
       location: paths.deploy,
       ports: {
-        // TODO: fix these hard coded port values
-        // Should come from ENVs
-        8080: 80,
-        8443: 443,
-        2019: 2019,
-        [TDSK_CADDY_PORT]: TDSK_CADDY_REMOTE_PORT,
+        [TDSK_CADDY_ADMIN_PORT]: TDSK_CADDY_ADMIN_PORT,
+        [TDSK_CADDY_LOCAL_PORT]: TDSK_CADDY_REMOTE_PORT,
+        [TDSK_CADDY_SECURE_LOCAL_PORT]: TDSK_CADDY_SECURE_REMOTE_PORT,
       },
     },
   },

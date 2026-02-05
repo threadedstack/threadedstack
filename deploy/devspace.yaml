@@ -84,11 +84,21 @@ vars:
 # ----- Caddy Values ----- #
   TDSK_CADDY_ACME_EMAIL:
     source: env
-    default: admin@threadedstack.dev
+    default: admin@threadedstack.app
   TDSK_CADDY_ADMIN_HOST:
     source: env
     default: 0.0.0.0
-  TDSK_CADDY_PORT:
+
+  TDSK_CADDY_LOCAL_PORT:
+    source: env
+    default: 8080
+  TDSK_CADDY_REMOTE_PORT:
+    source: env
+    default: 80
+  TDSK_CADDY_SECURE_LOCAL_PORT:
+    source: env
+    default: 8443
+  TDSK_CADDY_SECURE_REMOTE_PORT:
     source: env
     default: 443
   TDSK_CADDY_ADMIN_PORT:
@@ -96,7 +106,7 @@ vars:
     default: 2019
   TDSK_CADDY_PX_HOST:
     source: env
-    default: proxy.threadedstack.dev
+    default: px.local.threadedstack.app
   TDSK_CADDY_DEPLOYMENT:
     source: env
     default: tdsk-caddy
@@ -109,6 +119,7 @@ vars:
   TDSK_CADDY_TLS_MODE:
     source: env
     default: internal
+
 
 # ----- Backend Values ----- #
   TDSK_BE_DEPLOYMENT:
@@ -150,7 +161,7 @@ vars:
     default: 'X-PINGOTHER,Origin,X-Requested-With,Content-Type,Accept,Authorization,AuthToken,x-tdsk-host,x-tdsk-proto,x-tdsk-port,x-tdsk-route,x-tdsk-job-id,x-tdsk-subdomain,x-forwarded-subdomain,x-forwarded-port,x-forwarded-proto,x-forwarded-host,x-forwarded-for'
   TDSK_SERVER_ORIGINS:
     source: env
-    default: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,proxy.dev.threadedstack.app,px.dev.threadedstack.app,proxy.local.threadedstack.app,px.local.threadedstack.app,http://0.0.0.0'
+    default: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,proxy.dev.threadedstack.app,px.dev.threadedstack.app,px.threadedstack.app,px.local.threadedstack.app,http://0.0.0.0'
 
 
 hooks:
@@ -176,6 +187,8 @@ deployments:
 
   caddy-gateway:
     helm:
+      upgradeArgs:
+        - "--force"
       chart:
         name: ./
       valuesFiles:
@@ -191,8 +204,17 @@ deployments:
               - name: TDSK_PX_DEPLOYMENT
                 value: ${TDSK_PX_DEPLOYMENT}
 
-              - name: TDSK_CADDY_PORT
-                value: ${TDSK_CADDY_PORT}
+              - name: TDSK_CADDY_ADMIN_PORT
+                value: ${TDSK_CADDY_ADMIN_PORT}
+              - name: TDSK_CADDY_LOCAL_PORT
+                value: ${TDSK_CADDY_LOCAL_PORT}
+              - name: TDSK_CADDY_REMOTE_PORT
+                value: ${TDSK_CADDY_REMOTE_PORT}
+              - name: TDSK_CADDY_SECURE_LOCAL_PORT
+                value: ${TDSK_CADDY_SECURE_LOCAL_PORT}
+              - name: TDSK_CADDY_SECURE_REMOTE_PORT
+                value: ${TDSK_CADDY_SECURE_REMOTE_PORT}
+
               - name: TDSK_CADDY_PX_HOST
                 value: ${TDSK_CADDY_PX_HOST}
               - name: TDSK_SERVER_ORIGINS
@@ -203,16 +225,10 @@ deployments:
                 value: ${TDSK_CADDY_TLS_MODE}
               - name: TDSK_CADDY_ADMIN_HOST
                 value: ${TDSK_CADDY_ADMIN_HOST}
-              - name: TDSK_CADDY_ADMIN_PORT
-                value: ${TDSK_CADDY_ADMIN_PORT}
-              - name: TDSK_CADDY_ADMIN_PORT
-                value: ${TDSK_CADDY_ADMIN_PORT}
               - name: TDSK_CADDY_ACME_EMAIL
                 value: ${TDSK_CADDY_ACME_EMAIL}
               - name: TDSK_CADDY_ADMIN_HOST
                 value: ${TDSK_CADDY_ADMIN_HOST}
-              - name: TDSK_CADDY_ADMIN_PORT
-                value: ${TDSK_CADDY_ADMIN_PORT}
               - name: TDSK_DB_AUTH_URL
                 valueFrom:
                   secretKeyRef:
@@ -226,8 +242,8 @@ deployments:
                   name: caddy-config
                   readOnly: true
             ports:
-              - containerPort: 80
-              - containerPort: 443
+              - containerPort: ${TDSK_CADDY_REMOTE_PORT}
+              - containerPort: ${TDSK_CADDY_SECURE_REMOTE_PORT}
         volumes:
           - name: caddy-config
             configMap:
@@ -236,8 +252,14 @@ deployments:
           name: caddy-gateway
           type: LoadBalancer
           ports:
-            - port: 80
-            - port: 443
+            - port: ${TDSK_CADDY_LOCAL_PORT}
+              containerPort: ${TDSK_CADDY_REMOTE_PORT}
+              name: caddy-gateway-insecure
+            - port: ${TDSK_CADDY_SECURE_LOCAL_PORT}
+              containerPort: ${TDSK_CADDY_SECURE_REMOTE_PORT}
+              name: caddy-gateway-secure
+            - port: ${TDSK_CADDY_ADMIN_PORT}
+              name: caddy-gateway-admin
 
   tdsk-proxy:
     helm:
@@ -321,9 +343,6 @@ deployments:
           ports:
             - port: ${TDSK_PX_PORT}
               name: tdsk-proxy
-          annotations:
-            service.beta.kubernetes.io/threaded-stack-default-protocol: http
-            service.beta.kubernetes.io/threaded-stack-port-443: '{"tls-secret-name": "tdsk-tls-secret", "protocol": "https"}'
 
   tdsk-backend:
     helm:
@@ -486,29 +505,38 @@ deployments:
           name: ${TDSK_BE_DEPLOYMENT}
           ports:
             - port: ${TDSK_BE_PORT}
-        ingress:
-          tls: false
-          labels: null
-          name: ${TDSK_BE_DEPLOYMENT}-ingress
-          rules:
-            - host: be.${TDSK_HOST_DOMAIN}
-              serviceName: ${TDSK_BE_DEPLOYMENT}
-              servicePort: ${TDSK_BE_PORT}
-            - host: '*.be.${TDSK_HOST_DOMAIN}'
-              serviceName: ${TDSK_BE_DEPLOYMENT}
-              servicePort: ${TDSK_BE_PORT}
+        #ingress:
+        #  tls: false
+        #  labels: null
+        #  name: ${TDSK_BE_DEPLOYMENT}-ingress
+        #  rules:
+        #    - host: be.${TDSK_HOST_DOMAIN}
+        #      serviceName: ${TDSK_BE_DEPLOYMENT}
+        #      servicePort: ${TDSK_BE_PORT}
+        #    - host: '*.be.${TDSK_HOST_DOMAIN}'
+        #      serviceName: ${TDSK_BE_DEPLOYMENT}
+        #      servicePort: ${TDSK_BE_PORT}
 
 
 # This is a list of `dev` containers that are based on the containers created by your deployments
 dev:
 
   caddy-gateway:
-    imageSelector: ${TDSK_CADDY_IMAGE}:${TDSK_CADDY_IMAGE_TAG}
+    labelSelector:
+      app.kubernetes.io/component: ${TDSK_CADDY_DEPLOYMENT}
+    devImage: ${TDSK_CADDY_IMAGE}:${TDSK_CADDY_IMAGE_TAG}
+    logs: {}
+    sync:
+      - path: ../:/tdsk
+        excludePaths:
+          - .*
+          - '**'
+          - '!/deploy'
     ports:
-      # TODO: Remove these hardcoded ports
-      - port: "8080:80"
-      - port: "8443:443"
-      - port: "2019:2019"
+      - port: "${TDSK_CADDY_LOCAL_PORT}:${TDSK_CADDY_REMOTE_PORT}"
+      - port: "${TDSK_CADDY_SECURE_LOCAL_PORT}:${TDSK_CADDY_SECURE_REMOTE_PORT}"
+      - port: ${TDSK_CADDY_ADMIN_PORT}
+
 
   tdsk-proxy:
     container: tdsk-proxy
@@ -523,15 +551,15 @@ dev:
           - '**'
           - '!/deploy'
           - '!/configs'
-          - '!/repos/proxy'
-          - '!/repos/logger'
           - '!/repos/domain'
-          - '!/tsconfig.json'
           - '!/repos/database'
-          - /repos/proxy/dist
-          - /repos/logger/dist
-          - /repos/domain/dist
+          - '!/repos/logger'
+          - '!/repos/proxy'
+          - '!/tsconfig.json'
           - /repos/database/dist
+          - /repos/domain/dist
+          - /repos/logger/dist
+          - /repos/proxy/dist
           - node_modules
           - node_modules/**
           - deploy/scripts
@@ -541,10 +569,10 @@ dev:
         waitInitialSync: true
         disableDownload: true
         initialSync: mirrorLocal
-    ssh:
-      enabled: true
     ports:
       - port: ${TDSK_PX_PORT}
+    #ssh:
+    #  enabled: true
 
   tdsk-backend:
     labelSelector:
@@ -558,15 +586,21 @@ dev:
           - '**'
           - '!/deploy'
           - '!/configs'
+          - '!/repos/agent'
           - '!/repos/backend'
-          - '!/repos/logger'
-          - '!/repos/domain'
-          - '!/tsconfig.json'
           - '!/repos/database'
+          - '!/repos/domain'
+          - '!/repos/logger'
+          - '!/repos/shell'
+          - '!/repos/wasm'
+          - '!/tsconfig.json'
+          - /repos/agent/dist
           - /repos/backend/dist
-          - /repos/logger/dist
-          - /repos/domain/dist
           - /repos/database/dist
+          - /repos/domain/dist
+          - /repos/logger/dist
+          - /repos/shell/dist
+          - /repos/wasm/dist
           - node_modules
           - node_modules/**
           - deploy/scripts
@@ -576,11 +610,10 @@ dev:
         waitInitialSync: true
         disableDownload: true
         initialSync: mirrorLocal
-    ssh:
-      enabled: true
     ports:
       - port: ${TDSK_BE_PORT}
-
+    #ssh:
+    #  enabled: true
 
 # Use profile to dynamically set options based on the environment
 profiles:
