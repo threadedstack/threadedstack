@@ -5,13 +5,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsdown --config configs/tsdown.config.ts",
+    "build": "tsup-node --config configs/tsup.config.ts",
+    "start": "tsup --config ./configs/tsup.config.ts --watch ./src --watch ./configs --watch ../domain/src --watch ../logger/src --watch ../database/src --onSuccess 'pnpm serve'",
+    "serve": "DEBUG=http-proxy-middleware* node --enable-source-maps dist/index.cjs",
+    "d:build": "tsdown --config configs/tsdown.config.ts",
     "clean": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",
     "clean:full": "pnpm clean && pnpm clean:nm",
     "docker:watch": "pnpm install && pnpm start",
-    "start": "tsdown --config configs/tsdown.config.ts --watch ./src --watch ./configs --watch ../domain/src --watch ../logger/src --watch ../database/src --onSuccess 'pnpm serve'",
-    "serve": "DEBUG=http-proxy-middleware* tsx -r ./configs/aliases.ts --enable-source-maps dist/index.cjs",
+    "d:start": "tsdown --config configs/tsdown.config.ts --watch ./src --watch ./configs --watch ../domain/src --watch ../logger/src --watch ../database/src --onSuccess 'pnpm serve'",
+    "d:serve": "DEBUG=http-proxy-middleware* tsx -r ./configs/aliases.ts --enable-source-maps dist/index.cjs",
     "test": "vitest run --config configs/vitest.config.ts",
     "test:watch": "vitest --config configs/vitest.config.ts",
     "biome": "biome",
@@ -42,7 +45,7 @@
     "jose": "6.1.3",
     "jsonwebtoken": "9.0.2",
     "module-alias": "2.2.3",
-    "tsx": "4.21.0"
+    "tsup": "8.3.6"
   },
   "devDependencies": {
     "@types/cors": "2.8.17",
@@ -50,6 +53,7 @@
     "@types/jsonwebtoken": "9.0.7",
     "@types/node": "22.12.0",
     "tsdown": "0.20.2",
+    "tsx": "4.21.0",
     "vite-tsconfig-paths": "4.3.2",
     "vitest": "1.6.1"
   }

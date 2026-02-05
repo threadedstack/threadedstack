@@ -2,7 +2,6 @@ import type { UserConfig } from 'tsdown'
 
 import path from 'node:path'
 import { fileURLToPath } from 'url'
-import packcfg from '../package.json'
 import { defineConfig } from 'tsdown'
 import { promises as fs } from 'node:fs'
 
