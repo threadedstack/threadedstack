@@ -1,15 +1,7 @@
 import type { TDBAgentInsert } from '@TDB/types'
 
 import { Agent } from '@tdsk/domain'
-import { ProjectIds } from '@TDB/seeds/projects.seed'
-import { ProviderIds } from '@TDB/seeds/providers.seed'
-
-export const AgentIds = {
-  codingAgent: `aaa00000-0000-0000-0000-000000000003`,
-  planningAgent: `aaa00000-0000-0000-0000-000000000001`,
-  supportAgent: `aaa00000-0000-0000-0000-000000000002`,
-  chatAgent: `aaa00000-0000-0000-0000-000000000004`,
-} as const
+import { ProviderIds, ProjectIds, AgentIds } from '@TDB/seeds/ids.seed'
 
 export const agentsSeeds: TDBAgentInsert[] = [
   new Agent({

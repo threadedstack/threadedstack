@@ -1,22 +1,13 @@
 import type { TDBThreadInsert } from '@TDB/types'
 
 import { Thread } from '@tdsk/domain'
-import { UserIds } from '@TDB/seeds/users.seed'
-import { ConfigIds } from '@TDB/seeds/configs.seed'
-import { ProjectIds } from '@TDB/seeds/projects.seed'
-import { ProviderIds } from '@TDB/seeds/providers.seed'
-
-/**
- * Threads Seed Data
- * Chat conversation threads
- */
-
-export const ThreadIds = {
-  memberDev: `c0000000-0000-0000-0000-000000000003`,
-  adminPlanning: `c0000000-0000-0000-0000-000000000001`,
-  adminSupport: `c0000000-0000-0000-0000-000000000002`,
-  viewer: `c0000000-0000-0000-0000-000000000004`,
-} as const
+import {
+  UserIds,
+  ConfigIds,
+  ThreadIds,
+  ProjectIds,
+  ProviderIds,
+} from '@TDB/seeds/ids.seed'
 
 export const threadsSeeds: TDBThreadInsert[] = [
   new Thread({

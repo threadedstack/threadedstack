@@ -1,21 +1,7 @@
 import type { TDBConfigInsert } from '@TDB/types'
+
 import { Config } from '@tdsk/domain'
-import { OrgIds } from '@TDB/seeds/orgs.seed'
-import { UserIds } from '@TDB/seeds/users.seed'
-import { ProjectIds } from '@TDB/seeds/projects.seed'
-
-/**
- * Configs Seed Data
- * Exclusive Arc: userId OR orgId OR projectId (exactly one)
- */
-
-export const ConfigIds = {
-  user: `90000000-0000-0000-0000-000000000001`,
-  acmeOrg: `90000000-0000-0000-0000-000000000002`,
-  acmeApi: `90000000-0000-0000-0000-000000000003`,
-  startup: `90000000-0000-0000-0000-000000000004`,
-  personal: `90000000-0000-0000-0000-000000000005`,
-} as const
+import { OrgIds, UserIds, ProjectIds, ConfigIds } from '@TDB/seeds/ids.seed'
 
 export const configsSeeds: TDBConfigInsert[] = [
   new Config({

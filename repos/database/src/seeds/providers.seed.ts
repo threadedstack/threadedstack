@@ -1,21 +1,7 @@
 import type { TDBProviderInsert } from '@TDB/types'
 
-import { OrgIds } from '@TDB/seeds/orgs.seed'
-import { UserIds } from '@TDB/seeds/users.seed'
 import { Provider, EProvider } from '@tdsk/domain'
-import { ProjectIds } from '@TDB/seeds/projects.seed'
-
-/**
- * Providers Seed Data
- * External API provider configurations
- */
-
-export const ProviderIds = {
-  acmeOpenai: `70000000-0000-0000-0000-000000000001`,
-  acmeAnthropic: `70000000-0000-0000-0000-000000000002`,
-  startupAnthropic: `70000000-0000-0000-0000-000000000003`,
-  personalOpenai: `70000000-0000-0000-0000-000000000004`,
-} as const
+import { OrgIds, UserIds, ProviderIds, ProjectIds } from '@TDB/seeds/ids.seed'
 
 export const providersSeeds: TDBProviderInsert[] = [
   new Provider({

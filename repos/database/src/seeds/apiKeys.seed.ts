@@ -1,20 +1,7 @@
 import type { TDBApiKeyInsert } from '@TDB/types'
 
 import { ApiKey } from '@tdsk/domain'
-import { OrgIds } from '@TDB/seeds/orgs.seed'
-import { ProjectIds } from '@TDB/seeds/projects.seed'
-
-/**
- * API Keys Seed Data
- * Note: keyHash should be a hashed value in production
- */
-
-export const ApiKeyIds = {
-  acmeOrgKey: `60000000-0000-0000-0000-000000000001`,
-  acmeApiProjectKey: `60000000-0000-0000-0000-000000000002`,
-  startupOrgKey: `60000000-0000-0000-0000-000000000003`,
-  personalKey: `60000000-0000-0000-0000-000000000004`,
-} as const
+import { OrgIds, ApiKeyIds, ProjectIds } from '@TDB/seeds/ids.seed'
 
 export const apiKeysSeeds: TDBApiKeyInsert[] = [
   new ApiKey({

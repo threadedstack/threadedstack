@@ -1,21 +1,7 @@
 import type { TDBMessageInsert } from '@TDB/types'
 
 import { Message } from '@tdsk/domain'
-import { ThreadIds } from '@TDB/seeds/threads.seed'
-
-/**
- * Messages Seed Data
- * Chat messages within threads
- */
-
-export const MessageIds = {
-  thread1Msg1: `d0000000-0000-0000-0000-000000000001`,
-  thread1Msg2: `d0000000-0000-0000-0000-000000000002`,
-  thread2Msg1: `d0000000-0000-0000-0000-000000000003`,
-  thread2Msg2: `d0000000-0000-0000-0000-000000000004`,
-  thread3Msg1: `d0000000-0000-0000-0000-000000000005`,
-  thread4Msg1: `d0000000-0000-0000-0000-000000000006`,
-} as const
+import { ThreadIds, MessageIds } from '@TDB/seeds/ids.seed'
 
 export const messagesSeeds: TDBMessageInsert[] = [
   new Message({

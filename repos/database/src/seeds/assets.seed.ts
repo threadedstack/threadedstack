@@ -1,25 +1,15 @@
 import type { TDBAssetInsert } from '@TDB/types'
+
 import { Asset } from '@tdsk/domain'
-import { OrgIds } from '@TDB/seeds/orgs.seed'
-import { UserIds } from '@TDB/seeds/users.seed'
-import { ThreadIds } from '@TDB/seeds/threads.seed'
-import { ProjectIds } from '@TDB/seeds/projects.seed'
-import { MessageIds } from '@TDB/seeds/messages.seed'
-import { ProviderIds } from '@TDB/seeds/providers.seed'
-
-/**
- * Assets Seed Data
- * Exclusive Arc: orgId OR projectId OR userId OR threadId OR messageId (exactly one)
- */
-
-export const AssetIds = {
-  acmeLogo: `e0000000-0000-0000-0000-000000000001`,
-  projectDiagram: `e0000000-0000-0000-0000-000000000002`,
-  userAvatar: `e0000000-0000-0000-0000-000000000003`,
-  threadAttachment: `e0000000-0000-0000-0000-000000000004`,
-  messageImage: `e0000000-0000-0000-0000-000000000005`,
-  providerConfig: `e0000000-0000-0000-0000-000000000006`,
-} as const
+import {
+  OrgIds,
+  UserIds,
+  AssetIds,
+  ThreadIds,
+  ProjectIds,
+  MessageIds,
+  ProviderIds,
+} from '@TDB/seeds/ids.seed'
 
 export const assetsSeeds: TDBAssetInsert[] = [
   new Asset({

@@ -1,23 +1,7 @@
 import type { TDBSecretInsert } from '@TDB/types'
 
 import { Secret } from '@tdsk/domain'
-import { OrgIds } from '@TDB/seeds/orgs.seed'
-import { ProjectIds } from '@TDB/seeds/projects.seed'
-
-/**
- * Secrets Seed Data
- * Exclusive Arc: orgId OR projectId OR providerId (exactly one)
- * Note: encryptedValue should be actual encrypted data in production
- */
-
-export const SecretIds = {
-  acmeDbPassword: `80000000-0000-0000-0000-000000000001`,
-  acmeApiKey: `80000000-0000-0000-0000-000000000002`,
-  acmeProjectSecret: `80000000-0000-0000-0000-000000000003`,
-  startupApiKey: `80000000-0000-0000-0000-000000000004`,
-  providerAnthropicKey: `80000000-0000-0000-0000-000000000005`,
-  personalToken: `80000000-0000-0000-0000-000000000006`,
-} as const
+import { OrgIds, ProjectIds, SecretIds } from '@TDB/seeds/ids.seed'
 
 export const secretsSeeds: TDBSecretInsert[] = [
   new Secret({

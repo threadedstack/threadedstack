@@ -1,16 +1,7 @@
 import type { TDBOrgInsert } from '@TDB/types'
+
 import { Organization } from '@tdsk/domain'
-
-/**
- * Organizations Seed Data
- */
-
-export const OrgIds = {
-  tdsk: `10000000-0000-0000-0000-000000000000`,
-  acme: `10000000-0000-0000-0000-000000000001`,
-  startup: `10000000-0000-0000-0000-000000000002`,
-  personal: `10000000-0000-0000-0000-000000000003`,
-} as const
+import { OrgIds } from '@TDB/seeds/ids.seed'
 
 export const orgsSeeds: TDBOrgInsert[] = [
   new Organization({

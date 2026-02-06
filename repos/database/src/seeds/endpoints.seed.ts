@@ -1,22 +1,8 @@
 import type { TDBEndpointInsert } from '@TDB/types'
 
-import { AgentIds } from '@TDB/seeds/agents.seed'
-import { ProjectIds } from '@TDB/seeds/projects.seed'
-import { FunctionIds } from '@TDB/seeds/functions.seed'
 import { FaaSEndpoint, AgentEndpoint, EEndpointType, ProxyEndpoint } from '@tdsk/domain'
 
-/**
- * Endpoints Seed Data
- */
-
-export const EndpointIds = {
-  acmeApiGoogle: `a0000000-0000-0000-0000-000000000001`,
-  acmeApiUsers: `a0000000-0000-0000-0000-000000000002`,
-  acmeApiValidator: `a0000000-0000-0000-0000-000000000005`,
-  personalTest: `a0000000-0000-0000-0000-000000000005`,
-  acmeApiWebhooks: `a0000000-0000-0000-0000-000000000003`,
-  startupInference: `a0000000-0000-0000-0000-000000000004`,
-} as const
+import { AgentIds, ProjectIds, EndpointIds, FunctionIds } from '@TDB/seeds/ids.seed'
 
 export const endpointsSeeds: TDBEndpointInsert[] = [
   new ProxyEndpoint({

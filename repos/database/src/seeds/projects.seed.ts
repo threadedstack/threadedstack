@@ -1,19 +1,7 @@
 import type { TDBProjectInsert } from '@TDB/types'
 
 import { Project } from '@tdsk/domain'
-import { OrgIds } from '@TDB/seeds/orgs.seed'
-/**
- * Projects Seed Data
- */
-
-export const ProjectIds = {
-  acmeApi: `50000000-0000-0000-0000-000000000001`,
-  acmeMobile: `50000000-0000-0000-0000-000000000002`,
-  acmeWeb: `50000000-0000-0000-0000-000000000003`,
-  startupPlatform: `50000000-0000-0000-0000-000000000004`,
-  startupAi: `50000000-0000-0000-0000-000000000005`,
-  personal: `50000000-0000-0000-0000-000000000006`,
-} as const
+import { OrgIds, ProjectIds } from '@TDB/seeds/ids.seed'
 
 export const projectsSeeds: TDBProjectInsert[] = [
   new Project({

@@ -1,19 +1,7 @@
 import type { TDBSubscriptionInsert } from '@TDB/types'
 
 import { Subscription } from '@tdsk/domain'
-import { UserIds } from '@TDB/seeds/users.seed'
-
-/**
- * Subscriptions Seed Data
- * Each user can have only ONE subscription (unique userId constraint)
- */
-
-export const SubscriptionIds = {
-  owner: `30000000-0000-0000-0000-000000000001`,
-  admin: `30000000-0000-0000-0000-000000000002`,
-  member: `30000000-0000-0000-0000-000000000003`,
-  viewer: `30000000-0000-0000-0000-000000000004`,
-} as const
+import { UserIds, SubscriptionIds } from '@TDB/seeds/ids.seed'
 
 /**
  * TODO: Update these to align with polar ids

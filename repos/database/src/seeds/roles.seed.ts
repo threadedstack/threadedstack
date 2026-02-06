@@ -1,18 +1,7 @@
 import type { TDBRoleInsert } from '@TDB/types'
 
 import { Role } from '@tdsk/domain'
-import { OrgIds } from '@TDB/seeds/orgs.seed'
-import { UserIds } from '@TDB/seeds/users.seed'
-
-export const RoleIds = {
-  ownerAcme: `20000000-0000-0000-0000-000000000001`,
-  adminAcme: `20000000-0000-0000-0000-000000000002`,
-  memberAcme: `20000000-0000-0000-0000-000000000003`,
-  viewerAcme: `20000000-0000-0000-0000-000000000004`,
-  ownerStartup: `20000000-0000-0000-0000-000000000005`,
-  memberStartup: `20000000-0000-0000-0000-000000000006`,
-  ownerPersonal: `20000000-0000-0000-0000-000000000007`,
-} as const
+import { OrgIds, UserIds, RoleIds } from '@TDB/seeds/ids.seed'
 
 export const rolesSeeds: TDBRoleInsert[] = [
   // Acme Corporation roles

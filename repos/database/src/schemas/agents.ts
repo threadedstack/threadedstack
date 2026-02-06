@@ -3,15 +3,7 @@ import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { secrets } from '@TDB/schemas/secrets'
-import {
-  uuid,
-  text,
-  jsonb,
-  varchar,
-  boolean,
-  pgTable,
-  integer,
-} from 'drizzle-orm/pg-core'
+import { uuid, text, jsonb, boolean, pgTable, integer } from 'drizzle-orm/pg-core'
 
 /**
  * Agents table

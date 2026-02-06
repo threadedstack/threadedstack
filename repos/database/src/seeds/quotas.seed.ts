@@ -1,19 +1,7 @@
 import type { TDBQuotaInsert } from '@TDB/types'
 
 import { Quota } from '@tdsk/domain'
-import { OrgIds } from '@TDB/seeds/orgs.seed'
-
-/**
- * Quotas Seed Data
- * Tracks resource usage per org per period
- */
-
-export const QuotaIds = {
-  acme202401: `40000000-0000-0000-0000-000000000001`,
-  acme202402: `40000000-0000-0000-0000-000000000002`,
-  startup202401: `40000000-0000-0000-0000-000000000003`,
-  personal202401: `40000000-0000-0000-0000-000000000004`,
-} as const
+import { OrgIds, QuotaIds } from '@TDB/seeds/ids.seed'
 
 export const quotasSeeds: TDBQuotaInsert[] = [
   new Quota({

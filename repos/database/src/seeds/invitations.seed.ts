@@ -1,20 +1,7 @@
 import type { TDBInvitationInsert } from '@TDB/types'
 
-import { OrgIds } from '@TDB/seeds/orgs.seed'
-import { UserIds } from '@TDB/seeds/users.seed'
 import { EInviteStatus, Invitation } from '@tdsk/domain'
-/**
- * Invitations Seed Data
- * Organization invitation management
- */
-
-export const InvitationIds = {
-  pending: `f0000000-0000-0000-0000-000000000001`,
-  accepted: `f0000000-0000-0000-0000-000000000002`,
-  startup: `f0000000-0000-0000-0000-000000000003`,
-  expired: `f0000000-0000-0000-0000-000000000004`,
-  revoked: `f0000000-0000-0000-0000-000000000005`,
-} as const
+import { OrgIds, UserIds, InvitationIds } from '@TDB/seeds/ids.seed'
 
 export const invitationsSeeds: TDBInvitationInsert[] = [
   new Invitation({

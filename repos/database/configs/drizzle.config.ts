@@ -2,6 +2,8 @@ import hq from 'alias-hq'
 import path from 'node:path'
 import { loadEnvs } from '@tdsk/domain'
 import { defineConfig } from 'drizzle-kit'
+import { getTableName } from 'drizzle-orm'
+import * as schemas from '@TDB/schemas/schemas'
 import { buildDBUrl } from '@TDB/utils/database/buildDBUrl'
 import { getDialect } from '@TDB/utils/database/getDialect'
 
@@ -21,7 +23,19 @@ const {
   TDSK_DB_DIALECT = `postgresql`,
 } = envs
 
+/**
+ * Get all the tables names that should be impacted
+ * Does not included table names that should NOT be managed by drizzle
+ * I.E. `users` and `certificates`
+ */
+const tables = Object.entries(schemas).reduce((acc, [name, table]) => {
+  const tn = getTableName(table as any)
+  tn && acc.push(tn)
+  return acc
+}, [] as string[])
+
 export default defineConfig({
+  tablesFilter: tables,
   schemaFilter: [`public`],
   schema: path.join(aliases[`@TDB`], `schemas`, `schemas.ts`),
   out: path.relative(aliases[`@TDB/root`], aliases[`@TDB/drizzle`]),

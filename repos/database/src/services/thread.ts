@@ -14,5 +14,5 @@ export class Thread extends Base<
     super({ ...opts, table: threads })
   }
 
-  model = (data: TDBThreadSelect) => new ThreadModel(data)
+  model = (data: TDBThreadSelect) => new ThreadModel(data as ThreadModel)
 }
