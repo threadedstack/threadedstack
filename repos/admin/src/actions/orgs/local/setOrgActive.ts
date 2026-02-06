@@ -8,10 +8,10 @@ export const setOrgActive = (
   force?: boolean
 ) => {
   const current = getActiveOrgId()
-  if (force && current !== orgId) {
+  if (force || current !== orgId) {
     unsetActiveProject()
     setActiveOrgId(orgId)
   }
 
-  navigate && nav.to(`/orgs/${orgId}/projects`)
+  if (navigate) orgId ? nav.to(`/orgs/${orgId}/projects`) : nav.to(`/orgs`)
 }
