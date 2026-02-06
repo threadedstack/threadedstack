@@ -25,8 +25,8 @@ export const apiKeysSeeds: TDBApiKeyInsert[] = [
     scopes: `read,write,admin`,
     active: true,
     rateLimit: 1000,
-    expiresAt: new Date(`2025-12-31`).toISOString(),
-    lastUsedAt: new Date(`2024-01-25`).toISOString(),
+    expiresAt: new Date(`2025-12-31`),
+    lastUsedAt: new Date(`2024-01-25`),
   },
   {
     id: API_KEY_IDS.ACME_API_PROJECT_KEY,
@@ -38,8 +38,8 @@ export const apiKeysSeeds: TDBApiKeyInsert[] = [
     scopes: `read,write`,
     active: true,
     rateLimit: 500,
-    expiresAt: new Date(`2024-12-31`).toISOString(),
-    lastUsedAt: new Date(`2024-01-26`).toISOString(),
+    expiresAt: new Date(`2024-12-31`),
+    lastUsedAt: new Date(`2024-01-26`),
   },
   {
     id: API_KEY_IDS.STARTUP_ORG_KEY,
@@ -51,8 +51,8 @@ export const apiKeysSeeds: TDBApiKeyInsert[] = [
     scopes: `read,write`,
     active: true,
     rateLimit: 200,
-    expiresAt: new Date(`2024-06-30`).toISOString(),
-    lastUsedAt: new Date(`2024-01-20`).toISOString(),
+    expiresAt: new Date(`2024-06-30`),
+    lastUsedAt: new Date(`2024-01-20`),
   },
   {
     id: API_KEY_IDS.PERSONAL_KEY,
@@ -64,7 +64,7 @@ export const apiKeysSeeds: TDBApiKeyInsert[] = [
     scopes: `read`,
     active: true,
     rateLimit: 50,
-    expiresAt: null,
-    lastUsedAt: null,
+    expiresAt: undefined,
+    lastUsedAt: undefined,
   },
 ]

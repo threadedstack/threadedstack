@@ -5,7 +5,7 @@ import { clean } from '@TSCL/tasks/devspace/clean'
 import { pickKeys } from '@keg-hub/jsutils/pickKeys'
 import { sharedOpts } from '@TSCL/utils/tasks/options'
 
-const cleanParams = [...Object.keys(clean.options), `env`]
+const cleanParams = [...Object.keys(clean?.options || {}), `env`]
 
 /**
  * Runs a devspace start command and returns the output
@@ -19,7 +19,7 @@ const startAct: TTaskAction = async (args) => {
   params?.use && (await devspace.use(args))
 
   params?.clean &&
-    (await clean.action({ ...args, params: pickKeys(params, cleanParams) }))
+    (await clean?.action?.({ ...args, params: pickKeys(params, cleanParams) }))
 
   await devspace.start(args)
 }
@@ -39,7 +39,6 @@ export const start: TTask = {
     debug: sharedOpts.devspace.debug,
     namespace: sharedOpts.devspace.namespace,
     kubeContext: sharedOpts.devspace.kubeContext,
-
     build: {
       type: `boolean`,
       description: `Adds the "--build" argument to the devspace command`,
@@ -54,8 +53,8 @@ export const start: TTask = {
     },
     clean: {
       type: `boolean`,
-      alias: [`cln`],
       example: `--clean`,
+      alias: [`cln`, `stop`, `st`, `kill`, `k`],
       description: `Cleans the deployment before deploying. Same as running the "clean" task`,
     },
     ...clean.options,

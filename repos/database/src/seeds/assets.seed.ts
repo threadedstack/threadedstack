@@ -114,7 +114,7 @@ export const assetsSeeds: TDBAssetInsert[] = [
   },
   {
     id: AssetIds.providerConfig,
-    orgId: null,
+    orgId: OrgIds.acme,
     projectId: null,
     userId: null,
     threadId: null,

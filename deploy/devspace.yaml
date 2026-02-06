@@ -97,7 +97,7 @@ vars:
     default: 80
   TDSK_CADDY_SECURE_LOCAL_PORT:
     source: env
-    default: 8443
+    default: 443
   TDSK_CADDY_SECURE_REMOTE_PORT:
     source: env
     default: 443

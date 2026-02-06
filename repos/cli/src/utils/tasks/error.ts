@@ -1,6 +1,9 @@
 import { Logger } from '@tdsk/logger'
 import { isStr } from '@keg-hub/jsutils/isStr'
 
+/**
+ * @throws {Error}
+ */
 export const taskError = (
   err: Error | string,
   stack: boolean = true,

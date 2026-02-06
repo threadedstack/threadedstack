@@ -13,7 +13,7 @@ export const OrgIds = {
 
 export const orgsSeeds: TDBOrgInsert[] = [
   {
-    id: OrgIds.acme,
+    id: OrgIds.tdsk,
     name: `Threaded Stack`,
     description: `Developer platform that offers AI Agent management, functions as a service and API request proxying including secure dynamic secret injection`,
   },

@@ -14,7 +14,7 @@ export const SecretIds = {
   acmeApiKey: `80000000-0000-0000-0000-000000000002`,
   acmeProjectSecret: `80000000-0000-0000-0000-000000000003`,
   startupApiKey: `80000000-0000-0000-0000-000000000004`,
-  providerOpenaiKey: `80000000-0000-0000-0000-000000000005`,
+  providerAnthropicKey: `80000000-0000-0000-0000-000000000005`,
   personalToken: `80000000-0000-0000-0000-000000000006`,
 } as const
 
@@ -60,14 +60,14 @@ export const secretsSeeds: TDBSecretInsert[] = [
     providerId: null,
   },
   {
-    id: SecretIds.providerOpenaiKey,
-    name: `OpenAI API Key`,
-    description: `OpenAI API authentication key`,
-    hashKey: `hash_openai_key`,
-    encryptedValue: `encrypted_openai_key_value`,
+    id: SecretIds.providerAnthropicKey,
+    name: `Anthropic API Key`,
+    description: `Anthropic API authentication key`,
+    hashKey: `hash_anthropic_key`,
+    encryptedValue: `encrypted_anthropic_key_value`,
     orgId: null,
-    projectId: null,
-    providerId: ProviderIds.acmeOpenai,
+    projectId: ProjectIds.acmeApi,
+    providerId: null,
   },
   {
     id: SecretIds.personalToken,

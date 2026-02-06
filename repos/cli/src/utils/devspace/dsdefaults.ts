@@ -2,6 +2,7 @@ import type { TTaskActionArgs } from '@TSCL/types'
 
 import path from 'node:path'
 import { exists } from '@keg-hub/jsutils/exists'
+import { taskError } from '@TSCL/utils/tasks/error'
 import { emptyObj } from '@keg-hub/jsutils/emptyObj'
 import { emptyArr } from '@keg-hub/jsutils/emptyArr'
 import { flatUnion } from '@keg-hub/jsutils/flatUnion'
@@ -36,9 +37,13 @@ export const checkCmdArgs = (
 
 const checkConfigPath = (props: TTaskActionArgs) => {
   const { config, params } = props
+  if (!config?.paths?.deploy) taskError(`A deploy directory path is required`)
 
   !params.envs[`DEVSPACE_CONFIG`] &&
-    (params.envs[`DEVSPACE_CONFIG`] = path.join(config.paths.deploy, `devspace.yaml`))
+    (params.envs[`DEVSPACE_CONFIG`] = path.join(
+      config?.paths?.deploy || ``,
+      `devspace.yaml`
+    ))
 
   return { ...props, params }
 }
