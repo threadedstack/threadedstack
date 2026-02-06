@@ -1,7 +1,8 @@
 import type { TDBFunctionInsert } from '@TDB/types'
-import { EFunLanguage } from '@tdsk/domain'
+
 import { ProjectIds } from '@TDB/seeds/projects.seed'
 import { EndpointIds } from '@TDB/seeds/endpoints.seed'
+import { EFunLanguage, Function as TDFunction } from '@tdsk/domain'
 
 /**
  * Functions Seed Data
@@ -15,7 +16,7 @@ export const FunctionIds = {
 } as const
 
 export const functionsSeeds: TDBFunctionInsert[] = [
-  {
+  new TDFunction({
     id: FunctionIds.acmeUserValidator,
     projectId: ProjectIds.acmeApi,
     endpointId: EndpointIds.acmeApiUsers,
@@ -36,11 +37,11 @@ export const functionsSeeds: TDBFunctionInsert[] = [
     dependencies: {
       zod: `^3.22.0`,
     },
-  },
-  {
+  }),
+  new TDFunction({
     id: FunctionIds.acmeAuth,
     projectId: ProjectIds.acmeApi,
-    endpointId: EndpointIds.acmeApiAuth,
+    endpointId: EndpointIds.acmeApiUsers,
     name: `Auth Token Generator`,
     description: `Generates JWT tokens for authenticated users`,
     language: EFunLanguage.typescript,
@@ -55,8 +56,8 @@ export async function generateToken(userId: string) {
     dependencies: {
       jsonwebtoken: `^9.0.0`,
     },
-  },
-  {
+  }),
+  new TDFunction({
     id: FunctionIds.startupAi,
     projectId: ProjectIds.startupAi,
     endpointId: EndpointIds.startupInference,
@@ -76,8 +77,8 @@ def predict(input_data):
       numpy: `>=1.24.0`,
       [`scikit-learn`]: `>=1.3.0`,
     },
-  },
-  {
+  }),
+  new TDFunction({
     id: FunctionIds.personal,
     projectId: ProjectIds.personal,
     endpointId: EndpointIds.personalTest,
@@ -90,5 +91,5 @@ def predict(input_data):
 }`,
     defaultArgs: [],
     dependencies: {},
-  },
+  }),
 ]

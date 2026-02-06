@@ -1,9 +1,9 @@
 import { Base } from './base'
 
 export class Subscription extends Base {
-  userId: string
   tier: string
   status: string
+  userId: string
   polarId?: string
   polarPriceId?: string
   polarCustomerId?: string

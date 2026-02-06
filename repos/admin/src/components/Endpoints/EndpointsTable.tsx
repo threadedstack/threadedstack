@@ -50,7 +50,7 @@ export const EndpointsTable = (props: TEndpointsTable) => {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Method</TableCell>
-              <TableCell>Proxy URL</TableCell>
+              <TableCell>Path</TableCell>
               <TableCell align='center'>Public</TableCell>
               <TableCell align='right'>Actions</TableCell>
             </TableRow>
@@ -79,7 +79,7 @@ export const EndpointsTable = (props: TEndpointsTable) => {
                     wordBreak: 'break-all',
                   }}
                 >
-                  {endpoint.url}
+                  {endpoint.path}
                 </TableCell>
                 <TableCell align='center'>
                   {endpoint.public ? (

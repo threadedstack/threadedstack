@@ -89,13 +89,13 @@ export class PolarService extends BaseService {
   fetchProduct = async (
     productId: string
   ): Promise<{ data?: TPayProduct; error?: Exception }> => {
-    if (this.#cache.has(productId)) return this.#cache.get(productId)
+    if (this.#cache.has(productId)) return this.#cache.get(productId) || {}
 
     const resp = await this.#api.get<TPayProduct>({
       path: `/products/${productId}`,
     })
 
-    if (resp.data) this.#cache.set(productId, { data: resp.data })
+    if (resp?.data) this.#cache.set(productId, { data: resp.data })
     return resp
   }
 
@@ -110,9 +110,7 @@ export class PolarService extends BaseService {
 
     if (resp.error) return { error: resp.error }
 
-    if (!resp.data) {
-      return { error: new Exception(404, `Product not found`) }
-    }
+    if (!resp.data) return { error: new Exception(404, `Product not found`) }
 
     // Convert raw metadata to typed metadata
     const plan = new Plan({
@@ -141,10 +139,10 @@ export class PolarService extends BaseService {
       data: { email },
       path: `/customers`,
     })
-    if (resp.error) return { error: resp.error }
+    if (resp?.error) return { error: resp.error }
 
     // Polar API returns { data: [customers] }, so unwrap the array
-    const customers = resp.data?.data || []
+    const customers = resp?.data?.data || []
     if (customers.length > 0) return { data: customers[0] }
 
     return await this.#api.post<TPayCustomer>({

@@ -64,6 +64,8 @@ const databaseAct = async (props: TTaskActionArgs) => {
 
   params.log && Logger.pair(`Found valid database config values`)
 
+  if (!secretTask?.action) return taskError(`Secret task could not be loaded!`)
+
   await secretTask.action({
     ...props,
     params: {

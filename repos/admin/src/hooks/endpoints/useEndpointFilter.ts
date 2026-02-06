@@ -36,7 +36,7 @@ export const useEndpointFilter = (props: THEndpointFilter) => {
       filtered = filtered.filter(
         (endpoint) =>
           endpoint.name?.toLowerCase().includes(q) ||
-          endpoint.url?.toLowerCase().includes(q) ||
+          endpoint.path?.toLowerCase().includes(q) ||
           endpoint.id?.toLowerCase().includes(q)
       )
     }

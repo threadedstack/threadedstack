@@ -3,24 +3,29 @@ import type { TServiceOpts, TDBQuotaSelect, TDBQuotaInsert } from '@TDB/types'
 import { Base } from '@TDB/services/base'
 import { quotas } from '@TDB/schemas/quotas'
 import { eq, and, sql } from 'drizzle-orm'
+import { Quota as QuotaModel } from '@tdsk/domain'
 
 type TIncrementKey = keyof Pick<
   TDBQuotaSelect,
-  | 'organizations'
-  | 'projects'
   | 'members'
-  | 'endpoints'
   | 'threads'
-  | 'messages'
-  | 'functionCalls'
   | 'runtime'
+  | 'messages'
+  | 'projects'
+  | 'endpoints'
   | 'orgSecrets'
+  | 'organizations'
+  | 'functionCalls'
   | 'projectSecrets'
 >
 
 export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
   constructor(opts: TServiceOpts) {
     super({ ...opts, table: quotas })
+  }
+
+  model = (data: TDBQuotaSelect) => {
+    return new QuotaModel(data as Partial<QuotaModel>)
   }
 
   /**
@@ -33,7 +38,7 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
         .from(this.table)
         .where(and(eq(this.table.orgId, orgId), eq(this.table.period, period)))
 
-      return { data }
+      return { data: this.model(data as TDBQuotaSelect) }
     } catch (err: unknown) {
       return { error: err as Error }
     }
@@ -71,7 +76,7 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
         })
         .returning()
 
-      return { data }
+      return { data: this.model(data as TDBQuotaSelect) }
     } catch (err: unknown) {
       return { error: err as Error }
     }
@@ -109,7 +114,7 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
         .onConflictDoNothing()
         .returning()
 
-      return { data }
+      return { data: this.model(data as TDBQuotaSelect) }
     } catch (err: unknown) {
       return { error: err as Error }
     }

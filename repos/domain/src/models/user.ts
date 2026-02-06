@@ -4,14 +4,14 @@ import type { TRoleType } from '@TDM/types'
 export class User extends Base {
   first: string
   last: string
-  email?: string
   image: string
   name?: string
+  email?: string
   banned?: boolean
   provider?: string
   banReason?: string
-  role?: TRoleType | string
   emailVerified?: boolean
+  role?: TRoleType | string
   banExpires?: string | Date
 
   constructor(usr: Partial<User>) {
@@ -19,7 +19,7 @@ export class User extends Base {
     const { name } = usr
     let last = usr.last
     let first = usr.first
-    if ((name && !first) || !last) {
+    if ((name && !first) || (name && !last)) {
       const [fn, ln] = name.split(` `)
       first = first || fn
       last = last || ln

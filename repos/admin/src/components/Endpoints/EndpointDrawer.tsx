@@ -143,15 +143,13 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
 
     // 3. Build options object based on type
     let options: TEndpointOpts<TEndpointType>
-    let url = ''
     let headers: Record<string, string> = {}
 
     if (sharedState.endpointType === EEndpointType.proxy) {
-      if (!proxyConfigRef.current) {
+      if (!proxyConfigRef.current)
         return setUiState({ ...uiState, error: `Proxy configuration is missing` })
-      }
+
       options = proxyConfigRef.current
-      url = proxyConfigRef.current.url || ``
     } else if (sharedState.endpointType === EEndpointType.faas) {
       if (!faasConfigRef.current)
         return setUiState({ ...uiState, error: `FaaS configuration is missing` })
@@ -172,7 +170,6 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
     const result =
       isEditMode && endpoint
         ? await updateEndpoint(endpoint.id, {
-            url,
             headers,
             options,
             projectId,
@@ -183,7 +180,6 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
             type: sharedState.endpointType,
           })
         : await createEndpoint({
-            url,
             headers,
             options,
             projectId,

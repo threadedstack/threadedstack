@@ -21,7 +21,6 @@ export const updateEndpoint: TEndpointConfig = {
 
     const {
       name,
-      url,
       path,
       type,
       method,
@@ -59,7 +58,6 @@ export const updateEndpoint: TEndpointConfig = {
 
     const updateData = new Endpoint({ id, type: existing.type })
 
-    if (url !== undefined) updateData.url = url
     if (type !== undefined) updateData.type = type
     if (name !== undefined) updateData.name = name
     if (path !== undefined) updateData.path = path

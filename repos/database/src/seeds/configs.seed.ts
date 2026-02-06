@@ -1,4 +1,5 @@
 import type { TDBConfigInsert } from '@TDB/types'
+import { Config } from '@tdsk/domain'
 import { OrgIds } from '@TDB/seeds/orgs.seed'
 import { UserIds } from '@TDB/seeds/users.seed'
 import { ProjectIds } from '@TDB/seeds/projects.seed'
@@ -17,11 +18,11 @@ export const ConfigIds = {
 } as const
 
 export const configsSeeds: TDBConfigInsert[] = [
-  {
+  new Config({
+    orgId: undefined,
     id: ConfigIds.user,
+    projectId: undefined,
     userId: UserIds.owner,
-    orgId: null,
-    projectId: null,
     data: {
       theme: `dark`,
       language: `en`,
@@ -33,12 +34,12 @@ export const configsSeeds: TDBConfigInsert[] = [
         defaultOrg: OrgIds.acme,
       },
     },
-  },
-  {
-    id: ConfigIds.acmeOrg,
-    userId: null,
+  }),
+  new Config({
+    userId: undefined,
     orgId: OrgIds.acme,
-    projectId: null,
+    projectId: undefined,
+    id: ConfigIds.acmeOrg,
     data: {
       billing: {
         plan: `enterprise`,
@@ -53,11 +54,11 @@ export const configsSeeds: TDBConfigInsert[] = [
         advancedAnalytics: true,
       },
     },
-  },
-  {
+  }),
+  new Config({
+    orgId: undefined,
+    userId: undefined,
     id: ConfigIds.acmeApi,
-    userId: null,
-    orgId: null,
     projectId: ProjectIds.acmeApi,
     data: {
       deployment: {
@@ -70,12 +71,12 @@ export const configsSeeds: TDBConfigInsert[] = [
         timeout: 30,
       },
     },
-  },
-  {
+  }),
+  new Config({
+    userId: undefined,
+    projectId: undefined,
     id: ConfigIds.startup,
-    userId: null,
     orgId: OrgIds.startup,
-    projectId: null,
     data: {
       branding: {
         primaryColor: `#007AFF`,
@@ -86,12 +87,12 @@ export const configsSeeds: TDBConfigInsert[] = [
         github: true,
       },
     },
-  },
-  {
+  }),
+  new Config({
+    orgId: undefined,
+    projectId: undefined,
     id: ConfigIds.personal,
     userId: UserIds.viewer,
-    orgId: null,
-    projectId: null,
     data: {
       theme: `light`,
       language: `en`,
@@ -99,5 +100,5 @@ export const configsSeeds: TDBConfigInsert[] = [
         betaFeatures: true,
       },
     },
-  },
+  }),
 ]

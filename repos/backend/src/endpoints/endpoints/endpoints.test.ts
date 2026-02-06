@@ -6,6 +6,7 @@ import { endpoints } from './endpoints'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
+import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
 
 describe(`Endpoints endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -37,12 +38,11 @@ describe(`Endpoints endpoints`, () => {
     } as unknown as TApp
   }
 
-  const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(buildApp()) : endpoint
+  const getEndpointCfg = (ep?: TEndpoint) => getEpCfg(buildApp(), ep)
 
   beforeEach(() => {
     mockJson = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as any
 
     mockRes = {
       status: mockStatus,
@@ -82,16 +82,20 @@ describe(`Endpoints endpoints`, () => {
         {
           id: `1`,
           name: `Get Users`,
-          url: `https://api.example.com/users`,
           method: `GET`,
           projectId: `project-1`,
+          options: {
+            url: `https://api.example.com/users`,
+          },
         },
         {
           id: `2`,
           name: `Create User`,
-          url: `https://api.example.com/users`,
           method: `POST`,
           projectId: `project-1`,
+          options: {
+            url: `https://api.example.com/users`,
+          },
         },
       ]
 
@@ -108,8 +112,8 @@ describe(`Endpoints endpoints`, () => {
 
     it(`should filter by projectId when provided`, async () => {
       const mockEndpoints = [
-        { id: `1`, name: `EP1`, url: `u1`, method: `GET`, projectId: `project-1` },
-        { id: `2`, name: `EP2`, url: `u2`, method: `GET`, projectId: `project-2` },
+        { id: `1`, name: `EP1`, method: `GET`, projectId: `project-1` },
+        { id: `2`, name: `EP2`, method: `GET`, projectId: `project-2` },
       ]
       mockReq.query = { projectId: `project-1` }
 
@@ -145,9 +149,11 @@ describe(`Endpoints endpoints`, () => {
       const mockEndpoint = {
         id: `123`,
         name: `Get Users`,
-        url: `https://api.example.com/users`,
         method: `GET`,
         projectId: `project-1`,
+        options: {
+          url: `https://api.example.com/users`,
+        },
       }
       mockReq.params = { id: `123` }
 
@@ -184,9 +190,11 @@ describe(`Endpoints endpoints`, () => {
     it(`should return 201 with created endpoint on success`, async () => {
       const newEndpoint = {
         name: `New Endpoint`,
-        url: `https://api.example.com/new`,
         method: `GET`,
         projectId: `project-123`,
+        options: {
+          url: `https://api.example.com/new`,
+        },
       }
       const createdEndpoint = { id: `456`, ...newEndpoint }
       mockReq.body = newEndpoint
@@ -204,9 +212,11 @@ describe(`Endpoints endpoints`, () => {
 
     it(`should return 400 when name is missing`, async () => {
       mockReq.body = {
-        url: `https://api.example.com`,
         method: `GET`,
         projectId: `project-1`,
+        options: {
+          url: `https://api.example.com`,
+        },
       }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -225,8 +235,10 @@ describe(`Endpoints endpoints`, () => {
     it(`should return 400 when method is missing`, async () => {
       mockReq.body = {
         name: `Test`,
-        url: `https://api.example.com`,
         projectId: `project-1`,
+        options: {
+          url: `https://api.example.com`,
+        },
       }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -245,9 +257,11 @@ describe(`Endpoints endpoints`, () => {
     it(`should return 400 when method is invalid`, async () => {
       mockReq.body = {
         name: `Test`,
-        url: `https://api.example.com`,
         method: `INVALID`,
         projectId: `project-1`,
+        options: {
+          url: `https://api.example.com`,
+        },
       }
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -258,11 +272,13 @@ describe(`Endpoints endpoints`, () => {
     it(`should accept headers and options`, async () => {
       const newEndpoint = {
         name: `New Endpoint`,
-        url: `https://api.example.com/new`,
         method: `POST`,
         projectId: `project-123`,
         headers: { [`Content-Type`]: `application/json` },
-        options: { timeout: 5000 },
+        options: {
+          timeout: 5000,
+          url: `https://api.example.com/new`,
+        },
       }
       const createdEndpoint = { id: `456`, ...newEndpoint }
       mockReq.body = newEndpoint
@@ -289,9 +305,11 @@ describe(`Endpoints endpoints`, () => {
       const existingEndpoint = {
         id: `123`,
         name: `Old Name`,
-        url: `https://old.api.com`,
         method: `GET`,
         projectId: `project-1`,
+        options: {
+          url: `https://old.api.com`,
+        },
       }
       const updateData = { name: `New Name` }
       const updatedEndpoint = { ...existingEndpoint, ...updateData }
@@ -333,9 +351,11 @@ describe(`Endpoints endpoints`, () => {
       const existingEndpoint = {
         id: `123`,
         name: `Test`,
-        url: `https://api.com`,
         method: `GET`,
         projectId: `project-1`,
+        options: {
+          url: `https://api.com`,
+        },
       }
       mockReq.params = { id: `123` }
       mockReq.body = { method: `INVALID` }
@@ -359,9 +379,11 @@ describe(`Endpoints endpoints`, () => {
       const existingEndpoint = {
         id: `123`,
         name: `To Delete`,
-        url: `https://api.com`,
         method: `GET`,
         projectId: `project-1`,
+        options: {
+          url: `https://api.com`,
+        },
       }
       mockReq.params = { id: `123` }
 

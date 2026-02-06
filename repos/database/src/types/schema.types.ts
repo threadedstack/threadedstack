@@ -33,8 +33,6 @@ type TInferDates<T extends TAnyObj = TAnyObj> = TInferDateProps<
 
 export type TDBOrgSelect = TInferDates<typeof orgs.$inferSelect>
 export type TDBOrgInsert = TInferDates<typeof orgs.$inferInsert>
-export type TDBUserSelect = TInferDates<typeof users.$inferSelect>
-export type TDBUserInsert = TInferDates<typeof users.$inferInsert>
 export type TDBRoleSelect = TInferDates<typeof roles.$inferSelect>
 export type TDBRoleInsert = TInferDates<typeof roles.$inferInsert>
 export type TDBQuotaSelect = TInferDates<typeof quotas.$inferSelect>
@@ -61,6 +59,15 @@ export type TDBFunctionSelect = TInferDates<typeof functions.$inferSelect>
 export type TDBFunctionInsert = TInferDates<typeof functions.$inferInsert>
 export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
 export type TDBSubscriptionInsert = TInferDates<typeof subscriptions.$inferInsert>
+
+export type TDBUserSelect = TInferDateProps<
+  typeof users.$inferSelect,
+  `createdAt` | `updatedAt` | `banExpires`
+>
+export type TDBUserInsert = TInferDateProps<
+  typeof users.$inferInsert,
+  `createdAt` | `updatedAt` | `banExpires`
+>
 
 export type TDBInvitationSelect = TInferDateProps<
   typeof invitations.$inferSelect,

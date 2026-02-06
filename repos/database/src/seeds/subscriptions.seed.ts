@@ -1,5 +1,8 @@
 import type { TDBSubscriptionInsert } from '@TDB/types'
+
+import { Subscription } from '@tdsk/domain'
 import { UserIds } from '@TDB/seeds/users.seed'
+
 /**
  * Subscriptions Seed Data
  * Each user can have only ONE subscription (unique userId constraint)
@@ -12,57 +15,56 @@ export const SubscriptionIds = {
   viewer: `30000000-0000-0000-0000-000000000004`,
 } as const
 
+/**
+ * TODO: Update these to align with polar ids
+ */
 export const subscriptionsSeeds: TDBSubscriptionInsert[] = [
-  {
-    id: SubscriptionIds.owner,
-    userId: UserIds.owner,
+  new Subscription({
     tier: `pro`,
     status: `active`,
-    polarId: `polar_sub_admin_owner_123`,
-    polarCustomerId: `polar_cus_admin_owner_123`,
-    polarPriceId: `polar_price_pro_monthly`,
-    currentPeriodStart: new Date(`2024-01-01`).toISOString(),
-    currentPeriodEnd: new Date(`2024-02-01`).toISOString(),
+    userId: UserIds.owner,
+    id: SubscriptionIds.owner,
     cancelAtPeriodEnd: false,
-    seats: 10,
-  },
-  {
-    id: SubscriptionIds.admin,
-    userId: UserIds.admin,
+    polarId: `polar_sub_admin_owner_123`,
+    polarPriceId: `polar_price_pro_monthly`,
+    polarCustomerId: `polar_cus_admin_owner_123`,
+    currentPeriodEnd: new Date(`2024-02-01`).toISOString(),
+    currentPeriodStart: new Date(`2024-01-01`).toISOString(),
+  }),
+  new Subscription({
     tier: `developer`,
     status: `active`,
+    userId: UserIds.admin,
+    cancelAtPeriodEnd: false,
+    id: SubscriptionIds.admin,
     polarId: `polar_sub_admin_456`,
     polarCustomerId: `polar_cus_admin_456`,
     polarPriceId: `polar_price_developer_monthly`,
-    currentPeriodStart: new Date(`2024-01-15`).toISOString(),
     currentPeriodEnd: new Date(`2024-02-15`).toISOString(),
-    cancelAtPeriodEnd: false,
-    seats: 5,
-  },
-  {
-    id: SubscriptionIds.member,
-    userId: UserIds.member,
+    currentPeriodStart: new Date(`2024-01-15`).toISOString(),
+  }),
+  new Subscription({
     tier: `basic`,
     status: `active`,
+    userId: UserIds.member,
+    cancelAtPeriodEnd: false,
+    id: SubscriptionIds.member,
     polarId: `polar_sub_member_789`,
     polarCustomerId: `polar_cus_member_789`,
     polarPriceId: `polar_price_basic_monthly`,
-    currentPeriodStart: new Date(`2024-01-20`).toISOString(),
     currentPeriodEnd: new Date(`2024-02-20`).toISOString(),
-    cancelAtPeriodEnd: false,
-    seats: 2,
-  },
-  {
-    id: SubscriptionIds.viewer,
-    userId: UserIds.viewer,
+    currentPeriodStart: new Date(`2024-01-20`).toISOString(),
+  }),
+  new Subscription({
     tier: `free`,
     status: `active`,
-    polarId: null,
-    polarCustomerId: null,
-    polarPriceId: null,
-    currentPeriodStart: new Date(`2024-01-01`).toISOString(),
-    currentPeriodEnd: null,
+    polarId: undefined,
+    userId: UserIds.viewer,
+    polarPriceId: undefined,
     cancelAtPeriodEnd: false,
-    seats: 1,
-  },
+    polarCustomerId: undefined,
+    id: SubscriptionIds.viewer,
+    currentPeriodEnd: undefined,
+    currentPeriodStart: new Date(`2024-01-01`).toISOString(),
+  }),
 ]

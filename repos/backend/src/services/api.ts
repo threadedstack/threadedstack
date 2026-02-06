@@ -13,11 +13,16 @@ import { objToQuery } from '@TBE/utils/api/objToQuery'
 import { toFormData } from '@TBE/utils/api/toFormData'
 import { Exception } from '@TBE/utils/errors/exception'
 
-type TApiOpts = Omit<TFetchOpts, `path` | `data` | `method` | `responseType` | `error`>
+type TApiOpts = Omit<
+  TFetchOpts,
+  `path` | `data` | `method` | `responseType` | `error` | `url`
+> & {
+  url: string
+}
 
 export class API {
   baseUrl: string
-  opts: TApiOpts
+  opts: Omit<TApiOpts, `url`>
   headers: Record<string, string>
 
   constructor(opts: TApiOpts) {
@@ -79,7 +84,7 @@ export class API {
         .then(async (res) => {
           if (res.status >= 400) {
             const text = res.text ? await res.text() : res.statusText || `Request failed`
-            return { error: this.#err(opts.error, res.status, text) }
+            return { error: this.#err(opts.error || ``, res.status, text) }
           }
 
           const data = opts.responseType !== `text` ? await res.json() : await res.text()
@@ -88,8 +93,8 @@ export class API {
         .catch((error) => ({ error: this.#err(error.message, 500) }))
     )
 
-    const err = error || res.error
-    return err ? { error: err } : res
+    const err = error || res?.error
+    return err ? { error: err } : { ...res }
   }
 
   get = async <T extends TFetchData = TFetchData>(opts: TFetchMethod) => {

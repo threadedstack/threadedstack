@@ -1,25 +1,30 @@
 import type { TDBEndpointInsert } from '@TDB/types'
+
+import { AgentIds } from '@TDB/seeds/agents.seed'
 import { ProjectIds } from '@TDB/seeds/projects.seed'
+import { FunctionIds } from '@TDB/seeds/functions.seed'
+import { FaaSEndpoint, AgentEndpoint, EEndpointType, ProxyEndpoint } from '@tdsk/domain'
 
 /**
  * Endpoints Seed Data
  */
 
 export const EndpointIds = {
-  acmeApiUsers: `a0000000-0000-0000-0000-000000000001`,
-  acmeApiAuth: `a0000000-0000-0000-0000-000000000002`,
+  acmeApiGoogle: `a0000000-0000-0000-0000-000000000001`,
+  acmeApiUsers: `a0000000-0000-0000-0000-000000000002`,
+  acmeApiValidator: `a0000000-0000-0000-0000-000000000005`,
   personalTest: `a0000000-0000-0000-0000-000000000005`,
   acmeApiWebhooks: `a0000000-0000-0000-0000-000000000003`,
   startupInference: `a0000000-0000-0000-0000-000000000004`,
 } as const
 
 export const endpointsSeeds: TDBEndpointInsert[] = [
-  {
-    id: EndpointIds.acmeApiUsers,
+  new ProxyEndpoint({
+    type: EEndpointType.proxy,
+    id: EndpointIds.acmeApiGoogle,
     projectId: ProjectIds.acmeApi,
-    name: `Users API`,
-    path: `/api/v1/users`,
-    url: `https://api.acme-corp.com/users`,
+    path: `/google`,
+    name: `Google Proxy`,
     method: `GET`,
     public: false,
     headers: {
@@ -27,48 +32,108 @@ export const endpointsSeeds: TDBEndpointInsert[] = [
       [`X-API-Version`]: `v1`,
     },
     options: {
-      timeout: 30000,
       retries: 3,
+      timeout: 30000,
+      type: EEndpointType.proxy,
+      url: `https://google.com`,
     },
-  },
-  {
-    id: EndpointIds.acmeApiAuth,
+  }),
+  new ProxyEndpoint({
+    type: EEndpointType.proxy,
+    id: EndpointIds.acmeApiUsers,
     projectId: ProjectIds.acmeApi,
-    name: `Authentication`,
-    path: `/api/v1/auth`,
-    url: `https://api.acme-corp.com/auth`,
+    name: `Acme Users`,
+    path: `/api/v1/users`,
+    method: `GET`,
+    public: true,
+    headers: {
+      [`Content-Type`]: `application/json`,
+    },
+    options: {
+      retries: 1,
+      timeout: 10000,
+      type: EEndpointType.proxy,
+      url: `https://fake-json-api.mock.beeceptor.com/users`,
+    },
+  }),
+  new ProxyEndpoint({
+    type: EEndpointType.proxy,
+    id: EndpointIds.acmeApiUsers,
+    projectId: ProjectIds.acmeApi,
+    name: `Acme Posts`,
+    path: `/api/v1/posts`,
     method: `POST`,
     public: true,
     headers: {
       [`Content-Type`]: `application/json`,
     },
     options: {
-      timeout: 10000,
       retries: 1,
+      timeout: 10000,
+      method: `POST`,
+      type: EEndpointType.proxy,
+      url: `https://jsonplaceholder.typicode.com/posts/1`,
     },
-  },
-  {
-    id: EndpointIds.acmeApiWebhooks,
-    projectId: ProjectIds.acmeApi,
+  }),
+  new ProxyEndpoint({
+    type: EEndpointType.proxy,
+    id: EndpointIds.personalTest,
+    projectId: ProjectIds.personal,
+    name: `Test Endpoint`,
+    path: `/test`,
+    method: `GET`,
+    public: true,
+    headers: {},
+    options: {
+      method: `PUT`,
+      type: EEndpointType.proxy,
+      url: `https://dummy.restapiexample.com/public/api/v1/update/21`,
+    },
+  }),
+
+  new FaaSEndpoint({
     name: `Webhook Receiver`,
     path: `/api/v1/webhooks`,
-    url: `https://api.acme-corp.com/webhooks`,
+    type: EEndpointType.faas,
+    projectId: ProjectIds.acmeApi,
+    id: EndpointIds.acmeApiWebhooks,
     method: `POST`,
     public: true,
     headers: {
       [`Content-Type`]: `application/json`,
     },
     options: {
-      timeout: 5000,
       retries: 0,
+      timeout: 5000,
+      type: EEndpointType.faas,
+      functionId: FunctionIds.acmeAuth,
     },
-  },
-  {
-    id: EndpointIds.startupInference,
+  }),
+  new FaaSEndpoint({
+    name: `User Validator`,
+    path: `/api/v1/users/validate`,
+    type: EEndpointType.faas,
+    projectId: ProjectIds.acmeApi,
+    id: EndpointIds.acmeApiValidator,
+    method: `POST`,
+    public: true,
+    headers: {
+      [`Content-Type`]: `application/json`,
+    },
+    options: {
+      retries: 0,
+      timeout: 5000,
+      type: EEndpointType.faas,
+      functionId: FunctionIds.acmeUserValidator,
+    },
+  }),
+
+  new AgentEndpoint({
+    type: EEndpointType.agent,
     projectId: ProjectIds.startupAi,
+    id: EndpointIds.startupInference,
     name: `AI Inference`,
     path: `/api/predict`,
-    url: `https://ai.tech-startup.io/predict`,
     method: `POST`,
     public: false,
     headers: {
@@ -76,19 +141,10 @@ export const endpointsSeeds: TDBEndpointInsert[] = [
       [`X-Model-Version`]: `1.0`,
     },
     options: {
-      timeout: 60000,
       retries: 2,
+      timeout: 60000,
+      type: EEndpointType.agent,
+      agentId: AgentIds.codingAgent,
     },
-  },
-  {
-    id: EndpointIds.personalTest,
-    projectId: ProjectIds.personal,
-    name: `Test Endpoint`,
-    path: `/test`,
-    url: `http://localhost:3000/test`,
-    method: `GET`,
-    public: true,
-    headers: null,
-    options: null,
-  },
+  }),
 ]

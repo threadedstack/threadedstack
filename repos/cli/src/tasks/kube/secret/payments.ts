@@ -39,6 +39,8 @@ const paymentsAct = async (props: TTaskActionArgs) => {
 
   params.log && Logger.pair(`Found valid payments config values`)
 
+  if (!secretTask?.action) return taskError(`Secret task could not be loaded!`)
+
   await secretTask.action({
     ...props,
     params: {

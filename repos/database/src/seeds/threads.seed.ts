@@ -1,7 +1,9 @@
 import type { TDBThreadInsert } from '@TDB/types'
 
+import { Thread } from '@tdsk/domain'
 import { UserIds } from '@TDB/seeds/users.seed'
 import { ConfigIds } from '@TDB/seeds/configs.seed'
+import { ProjectIds } from '@TDB/seeds/projects.seed'
 import { ProviderIds } from '@TDB/seeds/providers.seed'
 
 /**
@@ -17,52 +19,56 @@ export const ThreadIds = {
 } as const
 
 export const threadsSeeds: TDBThreadInsert[] = [
-  {
-    id: ThreadIds.adminPlanning,
+  new Thread({
+    public: false,
     userId: UserIds.owner,
-    name: `Q1 Planning Discussion`,
-    public: false,
-    providerId: ProviderIds.acmeOpenai,
+    id: ThreadIds.adminPlanning,
     configId: ConfigIds.acmeOrg,
+    name: `Q1 Planning Discussion`,
+    projectId: ProjectIds.acmeWeb,
+    providerId: ProviderIds.acmeOpenai,
     meta: {
-      tags: [`planning`, `q1-2024`],
       priority: `high`,
+      tags: [`planning`, `q1-2024`],
     },
-  },
-  {
-    id: ThreadIds.adminSupport,
-    userId: UserIds.admin,
-    name: `Customer Support Issues`,
+  }),
+  new Thread({
     public: false,
+    configId: undefined,
+    userId: UserIds.admin,
+    id: ThreadIds.adminSupport,
+    projectId: ProjectIds.acmeApi,
+    name: `Customer Support Issues`,
     providerId: ProviderIds.acmeAnthropic,
-    configId: null,
     meta: {
       tags: [`support`, `urgent`],
       category: `customer-service`,
     },
-  },
-  {
-    id: ThreadIds.memberDev,
-    userId: UserIds.member,
-    name: `API Development Chat`,
+  }),
+  new Thread({
     public: false,
-    providerId: ProviderIds.startupOpenai,
-    configId: null,
+    configId: undefined,
+    userId: UserIds.member,
+    id: ThreadIds.memberDev,
+    name: `API Development Chat`,
+    projectId: ProjectIds.startupPlatform,
+    providerId: ProviderIds.startupAnthropic,
     meta: {
-      tags: [`development`, `api`],
       project: `platform-core`,
+      tags: [`development`, `api`],
     },
-  },
-  {
+  }),
+  new Thread({
+    public: true,
     id: ThreadIds.viewer,
     userId: UserIds.viewer,
     name: `Learning TypeScript`,
-    public: true,
-    providerId: ProviderIds.personalOpenai,
     configId: ConfigIds.personal,
+    projectId: ProjectIds.personal,
+    providerId: ProviderIds.personalOpenai,
     meta: {
-      tags: [`learning`, `typescript`],
       visibility: `public`,
+      tags: [`learning`, `typescript`],
     },
-  },
+  }),
 ]

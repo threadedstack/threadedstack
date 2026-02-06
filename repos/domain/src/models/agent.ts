@@ -10,11 +10,11 @@ export class Agent extends Base {
   maxTokens?: number
   projectId: string
   providerId: string
-  secrets?: Secret[]
   description?: string
   tools: string[] = []
   systemPrompt?: string
   active: boolean = true
+  secrets: Secret[] = []
   envVars: TAgentEnvVars = {}
   environment: TAgentEnvironment = {}
 

@@ -53,7 +53,7 @@ export class Base<
     try {
       const resp = await this.db.insert(this.table).values(data).returning()
 
-      return { data: this.model(resp[0]) as M }
+      return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {
       return { error }
     }
@@ -154,7 +154,7 @@ export class Base<
         })
         .returning()
 
-      return { data: this.model(resp[0]) as M }
+      return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {
       return { error }
     }
@@ -167,7 +167,7 @@ export class Base<
         .where(eq(this.table.id, id))
         .returning()
 
-      return { data: this.model(resp[0]) as M }
+      return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {
       return { error }
     }

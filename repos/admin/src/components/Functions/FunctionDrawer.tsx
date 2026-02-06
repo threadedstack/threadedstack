@@ -65,7 +65,7 @@ export const FunctionDrawer = ({
     return Object.values(endpoints)
       .filter((endpoint) => endpoint.projectId === projectId)
       .map((endpoint) => ({
-        label: `${endpoint.method} ${endpoint.url}`,
+        label: `${endpoint.method} ${endpoint.path}`,
         value: endpoint.id,
       }))
       .sort((a, b) => a.label.localeCompare(b.label))

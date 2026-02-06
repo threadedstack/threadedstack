@@ -1,4 +1,6 @@
 import type { TDBRoleInsert } from '@TDB/types'
+
+import { Role } from '@tdsk/domain'
 import { OrgIds } from '@TDB/seeds/orgs.seed'
 import { UserIds } from '@TDB/seeds/users.seed'
 
@@ -14,62 +16,62 @@ export const RoleIds = {
 
 export const rolesSeeds: TDBRoleInsert[] = [
   // Acme Corporation roles
-  {
+  new Role({
+    type: `owner`,
+    orgId: OrgIds.acme,
+    projectId: undefined,
     id: RoleIds.ownerAcme,
     userId: UserIds.owner,
-    orgId: OrgIds.acme,
-    projectId: null,
-    type: `owner`,
     name: `Organization Owner`,
-  },
-  {
+  }),
+  new Role({
+    type: `admin`,
+    orgId: OrgIds.acme,
+    projectId: undefined,
     id: RoleIds.adminAcme,
     userId: UserIds.admin,
-    orgId: OrgIds.acme,
-    projectId: null,
-    type: `admin`,
     name: `Administrator`,
-  },
-  {
+  }),
+  new Role({
+    type: `member`,
+    name: `Member`,
+    orgId: OrgIds.acme,
+    projectId: undefined,
     id: RoleIds.memberAcme,
     userId: UserIds.member,
-    orgId: OrgIds.acme,
-    projectId: null,
-    type: `member`,
-    name: `Member`,
-  },
-  {
-    id: RoleIds.viewerAcme,
-    userId: UserIds.viewer,
-    orgId: OrgIds.acme,
-    projectId: null,
+  }),
+  new Role({
     type: `viewer`,
     name: `Viewer`,
-  },
+    orgId: OrgIds.acme,
+    projectId: undefined,
+    id: RoleIds.viewerAcme,
+    userId: UserIds.viewer,
+  }),
   // Tech Startup roles
-  {
-    id: RoleIds.ownerStartup,
+  new Role({
+    type: `owner`,
+    projectId: undefined,
     userId: UserIds.owner,
     orgId: OrgIds.startup,
-    projectId: null,
-    type: `owner`,
+    id: RoleIds.ownerStartup,
     name: `Organization Owner`,
-  },
-  {
-    id: RoleIds.memberStartup,
-    userId: UserIds.member,
-    orgId: OrgIds.startup,
-    projectId: null,
+  }),
+  new Role({
     type: `member`,
     name: `Member`,
-  },
+    projectId: undefined,
+    orgId: OrgIds.startup,
+    userId: UserIds.member,
+    id: RoleIds.memberStartup,
+  }),
   // Personal Organization
-  {
-    id: RoleIds.ownerPersonal,
+  new Role({
+    type: `owner`,
+    projectId: undefined,
     userId: UserIds.viewer,
     orgId: OrgIds.personal,
-    projectId: null,
-    type: `owner`,
+    id: RoleIds.ownerPersonal,
     name: `Organization Owner`,
-  },
+  }),
 ]

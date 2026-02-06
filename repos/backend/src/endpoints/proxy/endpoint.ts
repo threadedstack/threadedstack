@@ -6,9 +6,10 @@ import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { addEndpointHeaders } from '@TBE/utils/proxy'
 import { Exception } from '@TBE/utils/errors/exception'
-import { EPermAction, EPermResource } from '@tdsk/domain'
 import { RetryService, ProxyService } from '@TBE/services/proxy'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import type { ProxyEndpoint } from '@tdsk/domain'
+import { EPermAction, EPermResource } from '@tdsk/domain'
 import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware'
 
 // -----------------------------------
@@ -43,8 +44,9 @@ export const endpoint: TEndpointConfig = {
       throw new Exception(400, `Project ID and Endpoint ID are required`)
 
     // Fetch endpoint from database
-    const { data: endpoint, error: fetchError } =
-      await db.services.endpoint.get(endpointId)
+    const { data: ep, error: fetchError } = await db.services.endpoint.get(endpointId)
+    const endpoint = ep as ProxyEndpoint
+    const opts = endpoint.options
 
     if (fetchError || !endpoint) throw new Exception(404, `Endpoint not found`)
 
@@ -64,7 +66,7 @@ export const endpoint: TEndpointConfig = {
     }
 
     // Validate HTTP method matches (if endpoint specifies a method)
-    if (endpoint.method && endpoint.method.toLowerCase() !== req.method.toLowerCase())
+    if (opts.method && opts.method.toLowerCase() !== req.method.toLowerCase())
       throw new Exception(
         405,
         `Method ${req.method} not allowed. Endpoint accepts ${endpoint.method.toUpperCase()}`
@@ -74,25 +76,22 @@ export const endpoint: TEndpointConfig = {
     const { data: secrets = [] } = await db.services.secret.list()
 
     // Construct target URL
-    const targetUrl = `${endpoint.url}/${proxyPath}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`
+    const targetUrl = `${opts.url}/${proxyPath}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`
 
     // Create proxy service instance
     const proxyService = new ProxyService()
 
     try {
-      // Apply endpoint options to proxy configuration
-      const options = (endpoint.options || {}) as TProxyEndpointConfig
-      const proxyConfig = proxyService.applyEndpointOptions(options, secrets)
-
+      const proxyConfig = proxyService.applyEndpointOptions(opts, secrets)
       // Build retry configuration
-      const retryService = new RetryService(req, options)
+      const retryService = new RetryService(req, opts)
 
       // Helper function to execute the proxy request
       const executeProxy = (): Promise<void> => {
         return new Promise((resolve, reject) => {
           // Create proxy middleware
           const proxy = createProxyMiddleware({
-            target: endpoint.url,
+            target: opts.url,
             changeOrigin: true,
             pathRewrite: () => {
               // Rewrite path to remove /proxy/:projectId/:endpointId prefix
@@ -114,7 +113,7 @@ export const endpoint: TEndpointConfig = {
                   // Apply async options (auth, oauth, validations)
                   await proxyService.applyEndpointOptionsAsync(
                     proxyReq,
-                    options,
+                    opts,
                     secrets,
                     requestOrigin,
                     `/${proxyPath}`
@@ -140,14 +139,14 @@ export const endpoint: TEndpointConfig = {
                     }
 
                     // Apply response body transformation
-                    if (options.transform && options.transform.injectSecrets) {
+                    if (opts.transform && opts.transform.injectSecrets) {
                       const responseText = responseBuffer.toString('utf8')
 
                       try {
                         const responseJson = JSON.parse(responseText)
                         const transformed = proxyService.applyTransform(
                           responseJson,
-                          options.transform,
+                          opts.transform,
                           secrets
                         )
                         return JSON.stringify(transformed)

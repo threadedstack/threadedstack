@@ -38,6 +38,7 @@ export class Invitation extends Base {
    * Check if invitation has expired
    */
   isExpired = (): boolean => {
+    if (!this.expiresAt) return false
     return new Date(this.expiresAt) < new Date()
   }
 
@@ -59,6 +60,7 @@ export class Invitation extends Base {
    * Get days until expiration (negative if expired)
    */
   daysUntilExpiration = (): number => {
+    if (!this.expiresAt) return 365
     const diff = new Date(this.expiresAt).getTime() - new Date().getTime()
     return Math.ceil(diff / (1000 * 60 * 60 * 24))
   }

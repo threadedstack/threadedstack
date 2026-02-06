@@ -6,7 +6,6 @@ import { uuid, text, jsonb, varchar, boolean, pgTable } from 'drizzle-orm/pg-cor
 
 export const endpoints = pgTable(`endpoints`, {
   ...base,
-  url: text(`url`),
   name: text(`name`),
   path: text(`path`),
   headers: jsonb(`headers`),

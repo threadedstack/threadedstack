@@ -11,7 +11,7 @@ export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert, UserM
   }
 
   model = (data: TDBUserSelect) => {
-    return new UserModel(data)
+    return new UserModel(data as UserModel)
   }
 
   byEmail = async (email: string) => {
@@ -22,7 +22,7 @@ export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert, UserM
         .where(and(eq(users.email, email)))
         .limit(1)
 
-      return { data: this.model(result[0]) }
+      return { data: this.model(result[0] as TDBUserSelect) }
     } catch (error) {
       return { error }
     }

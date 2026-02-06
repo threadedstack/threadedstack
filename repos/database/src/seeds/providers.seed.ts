@@ -2,6 +2,7 @@ import type { TDBProviderInsert } from '@TDB/types'
 
 import { OrgIds } from '@TDB/seeds/orgs.seed'
 import { UserIds } from '@TDB/seeds/users.seed'
+import { Provider, EProvider } from '@tdsk/domain'
 import { ProjectIds } from '@TDB/seeds/projects.seed'
 
 /**
@@ -12,60 +13,59 @@ import { ProjectIds } from '@TDB/seeds/projects.seed'
 export const ProviderIds = {
   acmeOpenai: `70000000-0000-0000-0000-000000000001`,
   acmeAnthropic: `70000000-0000-0000-0000-000000000002`,
-  startupOpenai: `70000000-0000-0000-0000-000000000003`,
+  startupAnthropic: `70000000-0000-0000-0000-000000000003`,
   personalOpenai: `70000000-0000-0000-0000-000000000004`,
 } as const
 
 export const providersSeeds: TDBProviderInsert[] = [
-  {
+  new Provider({
+    userId: undefined,
+    type: EProvider.ai,
+    orgId: OrgIds.acme,
+    projectId: undefined,
     id: ProviderIds.acmeOpenai,
     name: `OpenAI - Acme Org`,
-    type: `openai`,
-    orgId: OrgIds.acme,
-    userId: null,
-    projectId: null,
     options: {
+      maxTokens: 4096,
+      temperature: 0.7,
       model: `gpt-4-turbo`,
-      temperature: 0.7,
-      maxTokens: 4096,
     },
-  },
-  {
+  }),
+  new Provider({
     id: ProviderIds.acmeAnthropic,
-    name: `Anthropic - Acme Project`,
-    type: `anthropic`,
-    orgId: null,
-    userId: null,
+    type: EProvider.ai,
+    orgId: undefined,
+    userId: undefined,
     projectId: ProjectIds.acmeApi,
+    name: `Anthropic - Acme Project`,
     options: {
-      model: `claude-3-opus-20240229`,
       maxTokens: 4096,
+      model: `claude-3-opus-20240229`,
     },
-  },
-  {
-    id: ProviderIds.startupOpenai,
-    name: `OpenAI - Startup`,
-    type: `openai`,
+  }),
+  new Provider({
+    id: ProviderIds.startupAnthropic,
+    userId: undefined,
+    type: EProvider.ai,
+    projectId: undefined,
     orgId: OrgIds.startup,
-    userId: null,
-    projectId: null,
+    name: `Anthropic - Startup Org`,
     options: {
-      model: `gpt-3.5-turbo`,
-      temperature: 0.5,
-      maxTokens: 2048,
+      maxTokens: 4096,
+      model: `claude-3-opus-20240229`,
     },
-  },
-  {
+  }),
+  new Provider({
     id: ProviderIds.personalOpenai,
-    name: `Personal OpenAI`,
-    type: `openai`,
-    orgId: null,
+    orgId: undefined,
+    type: EProvider.ai,
+    projectId: undefined,
     userId: UserIds.viewer,
-    projectId: null,
+    name: `Personal OpenAI`,
     options: {
-      model: `gpt-3.5-turbo`,
-      temperature: 0.7,
       maxTokens: 1024,
+      temperature: 0.7,
+      model: `gpt-3.5-turbo`,
     },
-  },
+  }),
 ]

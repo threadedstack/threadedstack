@@ -23,9 +23,9 @@ export const initProxyFromEndpoint = (endpoint: Endpoint): TProxyFormState => {
 
   return {
     // Basic fields
-    url: endpoint.url || ``,
-    method: endpoint.method || `get`,
-    headers: objToKV(endpoint.headers || {}, `header`),
+    url: opts.url || ``,
+    method: opts.method || `GET`,
+    headers: objToKV(opts.headers || {}, `header`),
 
     // Basic options
     timeout: opts.timeout?.toString() || ``,
@@ -142,10 +142,10 @@ export const initFaasFromEndpoint = (endpoint: Endpoint): TFaasFormState => {
   const opts = endpoint.options as TFaaSEndpointConfig
 
   return {
+    secrets: opts.secrets || [],
     functionId: opts.functionId || ``,
     memory: opts.memory?.toString() || ``,
     timeout: opts.timeout?.toString() || ``,
-    secrets: opts.secrets || [],
     envVars: objToKV(opts.envVars || {}, `faas-env`),
     arguments: objToKV(opts.arguments || {}, `faas-arg`),
   }

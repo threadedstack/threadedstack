@@ -47,8 +47,8 @@ export type TTaskActionArgs<P extends TTaskPMap = TTaskPMap> = {
   params: P
   task: TTask
   tasks: TTasks
+  config: TCliCfg
   options?: string[]
-  config?: TCliCfg
 }
 
 export type TTaskAction<T extends TTaskPMap = TTaskPMap> = <P extends TTaskPMap = T>(

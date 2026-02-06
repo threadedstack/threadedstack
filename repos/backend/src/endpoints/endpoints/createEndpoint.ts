@@ -19,7 +19,6 @@ export const createEndpoint: TEndpointConfig = {
     const { db } = req.app.locals
     const {
       name,
-      url,
       path,
       type,
       method,
@@ -34,8 +33,6 @@ export const createEndpoint: TEndpointConfig = {
 
     // Validate required fields
     if (!name) throw new Exception(400, `Endpoint name is required`)
-
-    if (!url) throw new Exception(400, `Endpoint URL is required`)
 
     if (!method) throw new Exception(400, `Endpoint method is required`)
 
@@ -60,7 +57,6 @@ export const createEndpoint: TEndpointConfig = {
 
     const endpointData = new Endpoint({
       name,
-      url,
       path,
       type,
       projectId,
