@@ -30,7 +30,6 @@ const {
   TDSK_BE_PUBLIC_ROUTES,
   TDSK_BE_API_ADMIN_PATH,
   TDSK_DB_URL,
-  TDSK_DB_TYPE,
   TDSK_DB_NAME,
   TDSK_DB_USER,
   TDSK_DB_PASS,
@@ -38,17 +37,18 @@ const {
   TDSK_DB_SRV_ROLE,
   TDSK_DB_PROJECT_ID,
   TDSK_DB_PUBLIC_KEY,
+  TDSK_DB_TYPE = `database`,
   TDSK_LOG_LEVEL = `info`,
-  TDSK_PAY_URL,
+
   TDSK_PAY_TYPE,
   TDSK_PAY_PLANS,
-  TDSK_PAY_ACCESS_TOKEN,
-  TDSK_PAY_WEBHOOK_SECRET,
+  TDSK_PAY_URL = ``,
+  TDSK_PAY_WEBHOOK_SECRET = ``,
+  TDSK_PAY_ACCESS_TOKEN = `invalid`,
   // TODO: figure out how this should be resolved - used for links in emails
   TDSK_FRONTEND_URL,
 
   TDSK_EMAIL_TYPE,
-  TDSK_EMAIL_FROM,
   TDSK_EMAIL_HOST,
   TDSK_EMAIL_PORT,
   TDSK_EMAIL_USER,
@@ -56,6 +56,7 @@ const {
   TDSK_EMAIL_SECURE,
   TDSK_EMAIL_API_KEY,
   TDSK_EMAIL_API_HOST,
+  TDSK_EMAIL_FROM = `noreply@threadedstack.com`,
 
   // The deployed proxy host url
   // New domains are validated against this URL to ensure the CName is configured properly

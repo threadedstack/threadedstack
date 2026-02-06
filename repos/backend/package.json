@@ -21,7 +21,8 @@
     "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
     "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
-    "test": "vitest run --config configs/vitest.config.ts"
+    "test": "vitest run --config configs/vitest.config.ts",
+    "types": "tsc --noEmit --pretty"
   },
   "dependencies": {
     "@elastic/ecs-winston-format": "1.5.3",

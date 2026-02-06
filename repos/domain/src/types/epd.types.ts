@@ -217,4 +217,4 @@ export type TEPOptsSwitch<T extends `${EEndpointType}`> =
       ? TFaaSEndpointConfig
       : TAgentEndpointConfig
 
-export type TEndpointOpts<T extends TEndpointType> = TEPOptsSwitch<T>
+export type TEndpointOpts<T extends TEndpointType = EEndpointType> = TEPOptsSwitch<T>

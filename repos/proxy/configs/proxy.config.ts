@@ -1,6 +1,6 @@
 import type { TLogLevel, TProxyConfig } from '@TPX/types'
 
-import { loadEnvs } from '@tdsk/domain'
+import { loadEnvs, inKube } from '@tdsk/domain'
 import { toInt } from '@keg-hub/jsutils/toInt'
 import { toBool } from '@keg-hub/jsutils/toBool'
 
@@ -27,6 +27,7 @@ const {
   TDSK_BE_URL,
   TDSK_BE_HOST,
   TDSK_BE_PORT,
+  TDSK_BE_DEPLOYMENT,
   TDSK_BE_HEADER_KEY,
   TDSK_BE_HEADER_VALUE,
   TDSK_CADDY_PREWARM_HEADER,
@@ -38,11 +39,16 @@ const {
 const enableSSL = NODE_ENV !== `production` && toBool(TDSK_PX_ENABLE_SSL)
 
 const backendUrl = () => {
-  if (TDSK_BE_URL) return new URL(TDSK_BE_URL).toString()
-  if (!TDSK_BE_HOST) throw new Error(`A valid URL or host is required!`)
+  let built: string
 
-  let built = TDSK_BE_HOST
-  if (!TDSK_BE_HOST.startsWith(`http`)) built = `http://${TDSK_BE_HOST}`
+  if (inKube() && TDSK_BE_DEPLOYMENT) built = `http://${TDSK_BE_DEPLOYMENT}`
+  // Only go here if not in kubernetes
+  else {
+    if (TDSK_BE_URL) return new URL(TDSK_BE_URL).toString()
+    if (!TDSK_BE_HOST) throw new Error(`A valid URL or host is required!`)
+    built = TDSK_BE_HOST.startsWith(`http`) ? TDSK_BE_HOST : `http://${TDSK_BE_HOST}`
+  }
+
   if (TDSK_BE_PORT) built = `${built}:${TDSK_BE_PORT}`
 
   return new URL(built).toString()

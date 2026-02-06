@@ -21,12 +21,16 @@ export const createEndpoint: TEndpointConfig = {
       name,
       url,
       path,
+      type,
       method,
       projectId,
       headers = {},
       options = {},
       public: isPublic,
     } = req.body
+
+    // Validate required fields
+    if (!type) throw new Exception(400, `Endpoint type is required`)
 
     // Validate required fields
     if (!name) throw new Exception(400, `Endpoint name is required`)
@@ -58,6 +62,7 @@ export const createEndpoint: TEndpointConfig = {
       name,
       url,
       path,
+      type,
       projectId,
       method: lower,
       ...(headers && { headers }),

@@ -1,11 +1,11 @@
 import type { Response } from 'express'
-import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-
 import type { User } from '@tdsk/domain'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { TApp, TRequest, TEndpoint, TPayConfig } from '@TBE/types'
+
 import { subscriptions } from './subscriptions'
-import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
 import { PaymentsService } from '@TBE/services/payments/payments'
 
 // Mock PaymentsService
@@ -45,16 +45,18 @@ describe('Subscription endpoints', () => {
         },
       },
       config: config,
-      payments: new PaymentsService({ ...config.payments, type: `console` }),
+      payments: new PaymentsService({
+        ...config.payments,
+        type: `console`,
+      } as TPayConfig),
     },
   } as unknown as TApp
 
-  const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(mockApp) : endpoint
+  const getEndpointCfg = (ep?: TEndpoint) => getEpCfg(mockApp, ep)
 
   beforeEach(() => {
     mockJson = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as any
 
     mockRes = {
       status: mockStatus,

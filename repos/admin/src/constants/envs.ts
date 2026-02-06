@@ -15,6 +15,7 @@ export const TDSK_AD_APP_VERSION = ensureEnv(
 export const TDSK_PX_URL = process.env.TDSK_PX_URL
 export const TDSK_PX_PORT = process.env.TDSK_PX_PORT
 export const TDSK_PX_HOST = process.env.TDSK_PX_HOST
+export const TDSK_CADDY_PX_HOST = process.env.TDSK_CADDY_PX_HOST
 export const TDSK_BE_API_ADMIN_PATH = process.env.TDSK_BE_API_ADMIN_PATH
 
 const envPath = process.env.TDSK_AD_BASE_PATH

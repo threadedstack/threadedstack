@@ -1,9 +1,9 @@
 import type { Response } from 'express'
-import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
+import type { TApp, TRequest, TEndpoint } from '@TBE/types'
 
 import { users } from './users'
-import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { PaymentsService } from '@TBE/services/payments/payments'
 
@@ -39,12 +39,11 @@ describe(`Users endpoints`, () => {
     },
   } as any as TApp
 
-  const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(mockApp) : endpoint
+  const getEndpointCfg = (ep?: TEndpoint) => getEpCfg(mockApp, ep)
 
   beforeEach(() => {
     mockJson = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as any
 
     mockRes = {
       json: mockJson,

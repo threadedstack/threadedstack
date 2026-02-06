@@ -1,10 +1,10 @@
 import type { Response } from 'express'
-import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
+import type { TApp, TRequest, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { quotas } from './quotas'
-import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
+import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
 
 describe('Quota Endpoints', () => {
   let mockReq: Partial<TRequest>
@@ -52,15 +52,14 @@ describe('Quota Endpoints', () => {
     },
   } as unknown as TApp
 
-  const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(mockApp) : endpoint
+  const getEndpointCfg = (ep?: TEndpoint) => getEpCfg(mockApp, ep)
 
   const mockUserId = 'user_123'
   const mockOrgId = 'org_123'
 
   beforeEach(() => {
     mockJson = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as any
 
     mockRes = {
       status: mockStatus,
@@ -602,7 +601,7 @@ describe('Quota Endpoints', () => {
       mockFindByUser.mockResolvedValue({ data: null }) // No subscription
 
       // Mock payment service method to return undefined
-      mockGetProductIdForTier.mockReturnValue(undefined)
+      mockGetProductIdForTier.mockReturnValue(undefined as any)
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 

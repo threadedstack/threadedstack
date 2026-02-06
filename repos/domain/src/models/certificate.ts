@@ -6,7 +6,7 @@ export class Certificate {
   // Whether this is a file (true) or directory (false)
   isFile: boolean
   // File content (only for files, NULL for directories)
-  value: Buffer
+  value: Buffer | null
   // Last modification timestamp
   modified: string | Date
 

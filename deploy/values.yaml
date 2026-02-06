@@ -48,11 +48,11 @@ env:
   TDSK_LOG_HANDLE_EXCEPTION: true
 
 # ---- Proxy ENVs ---- #
-  TDSK_PX_URL: http://0.0.0.0:7118
   TDSK_PX_PORT: 7118
   TDSK_PX_HOST: 0.0.0.0
   TDSK_PX_SECURE_PORT: 443
   TDSK_PX_ALLOW_ORIGIN: '*'
+  TDSK_PX_URL: http://0.0.0.0:7118
 
   # Proxy specific log level
   TDSK_PX_LOG_LEVEL:
@@ -104,7 +104,7 @@ env:
   TDSK_CADDY_IMAGE: 'ghcr.io/threadedstack/tdsk-caddy'
 
   # Email for Let's Encrypt certificate notifications
-  TDSK_CADDY_ACME_EMAIL: admin@threadedstack.app
+  TDSK_CADDY_ACME_EMAIL: admin@threadedstack.com
 
   # Ingress hostname for DNS verification
   # Should match the proxy url in deployed environments
@@ -207,11 +207,17 @@ env:
   # SSL Certificate for when SSL handling is enabled
   TDSK_BE_SSL_CERT:
 
+
+  # -------------- TODO INVESTIGATE THIS ---------------- #
   # Default remote server, if no other route matches, the request will be forwarded to this remote
   TDSK_BE_REMOTE: http://localhost
+  #TDSK_BE_REMOTE: http://tdsk-backend
 
   # Default remote port, combined with the `TDSK_BE_REMOTE` env to build the default remote host
   TDSK_BE_REMOTE_PORT: 5886
+  # -------------- TODO INVESTIGATE THIS ---------------- #
+
+
 
   # List of allowed origins to accept requests from
   # Should be a comma separated list of host urls, using * allows all hosts origins
@@ -269,7 +275,7 @@ env:
   TDSK_EMAIL_API_HOST:
 
   # Default from address for all emails
-  TDSK_EMAIL_FROM: noreply@threadedstack.app
+  TDSK_EMAIL_FROM: noreply@threadedstack.com
 
   # ---- Agent ENVs --- #
   TDSK_AG_LOG_LEVEL:

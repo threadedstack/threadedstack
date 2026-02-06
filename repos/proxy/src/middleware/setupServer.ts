@@ -3,6 +3,7 @@ import type { TProxyApp } from '@TPX/types'
 
 import cors from 'cors'
 import express from 'express'
+import { behindLBProxy } from '@tdsk/domain'
 import { ensureArr } from '@keg-hub/jsutils/ensureArr'
 
 /**
@@ -15,12 +16,13 @@ export const setupServer = (app: TProxyApp, router: Router) => {
   app.disable(`x-powered-by`)
   const origins = ensureArr(app.locals.config.server.origins)
 
-  app.use(
-    cors({
-      credentials: true,
-      origin: origins.includes(`*`) ? `*` : origins,
-    })
-  )
+  !behindLBProxy() &&
+    app.use(
+      cors({
+        credentials: true,
+        origin: origins.includes(`*`) ? `*` : origins,
+      })
+    )
 
   app.use(express.urlencoded({ extended: true }))
 

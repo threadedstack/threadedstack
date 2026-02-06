@@ -1,27 +1,27 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { Request } from 'express'
 import type { TEndpointOpts } from '@tdsk/domain'
 
 import { RetryService } from './retryService'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 describe(`RetryService`, () => {
   let mockReq: Request
   let service: RetryService
-  let mockOpts: TEndpointOpts = {}
+  let mockOpts: TEndpointOpts = {} as TEndpointOpts
 
   beforeEach(() => {
-    mockOpts = {}
+    mockOpts = {} as TEndpointOpts
     mockReq = { res: { locals: {} } } as Request
     service = new RetryService(mockReq, mockOpts)
   })
 
   describe(`init`, () => {
     beforeEach(() => {
-      mockReq.res.locals = {}
+      if (mockReq.res) mockReq.res.locals = {}
     })
 
     it(`should return config with maxRetries = 0 when retries not set`, () => {
-      const options: TEndpointOpts = {}
+      const options: TEndpointOpts = {} as TEndpointOpts
       const config = service.setup(options)
 
       expect(config.maxRetries).toBe(0)
@@ -29,14 +29,14 @@ describe(`RetryService`, () => {
     })
 
     it(`should return config with maxRetries = 0 when retries is 0`, () => {
-      const options: TEndpointOpts = { retries: 0 }
+      const options = { retries: 0 } as TEndpointOpts
       const config = service.setup(options)
 
       expect(config.maxRetries).toBe(0)
     })
 
     it(`should use default values when not specified`, () => {
-      const options: TEndpointOpts = { retries: 3 }
+      const options = { retries: 3 } as TEndpointOpts
       const config = service.setup(options)
 
       expect(config.maxRetries).toBe(3)
@@ -47,13 +47,13 @@ describe(`RetryService`, () => {
     })
 
     it(`should use custom retry configuration`, () => {
-      const options: TEndpointOpts = {
+      const options = {
         retries: 5,
         retryDelay: 2000,
         retryMaxDelay: 60000,
         retryBackoffMultiplier: 3,
         retryExponentialBackoff: false,
-      }
+      } as TEndpointOpts
 
       const config = service.setup(options)
 
@@ -65,7 +65,7 @@ describe(`RetryService`, () => {
     })
 
     it(`should default exponentialBackoff to true even when not specified`, () => {
-      const options: TEndpointOpts = { retries: 3 }
+      const options = { retries: 3 } as TEndpointOpts
       const config = service.setup(options)
 
       expect(config.exponentialBackoff).toBe(true)
@@ -74,7 +74,7 @@ describe(`RetryService`, () => {
 
   describe(`retry metadata management`, () => {
     beforeEach(() => {
-      mockReq.res.locals = {}
+      if (mockReq.res) mockReq.res.locals = {}
     })
 
     it(`should initialize retry metadata`, () => {
@@ -144,7 +144,7 @@ describe(`RetryService`, () => {
 
   describe(`shouldRetry`, () => {
     beforeEach(() => {
-      mockReq.res.locals = {}
+      if (mockReq.res) mockReq.res.locals = {}
     })
 
     it(`should return false if metadata is not initialized`, () => {
@@ -215,7 +215,7 @@ describe(`RetryService`, () => {
 
   describe(`delayRetry`, () => {
     beforeEach(() => {
-      mockReq.res.locals = {}
+      if (mockReq.res) mockReq.res.locals = {}
       vi.useFakeTimers()
     })
 
@@ -258,7 +258,7 @@ describe(`RetryService`, () => {
 
   describe(`logStatus`, () => {
     beforeEach(() => {
-      mockReq.res.locals = {}
+      if (mockReq.res) mockReq.res.locals = {}
     })
 
     it(`should not throw if metadata is not initialized`, () => {

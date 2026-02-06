@@ -7,6 +7,7 @@ import { Secret } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
+import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
 
 vi.mock(`@tdsk/domain`, async () => {
   const actual = await vi.importActual(`@tdsk/domain`)
@@ -53,12 +54,11 @@ describe(`Secrets endpoints`, () => {
     } as unknown as TApp
   }
 
-  const getEndpointCfg = (endpoint: TEndpoint): TEndpointConfig =>
-    isFunc(endpoint) ? endpoint(buildApp()) : endpoint
+  const getEndpointCfg = (ep?: TEndpoint) => getEpCfg(buildApp(), ep)
 
   beforeEach(() => {
     mockJson = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as any
 
     mockRes = {
       status: mockStatus,

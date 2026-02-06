@@ -1,10 +1,9 @@
-import type { Router } from 'express'
+import type { TRouter, TReqHandler, TReqHandlerOrRouter } from '@tdsk/domain'
 import type {
   TApp,
   TEndpoint,
-  TBEConfig,
-  TEndpointsConfig,
   TEndpointConfig,
+  TEndpointsConfig,
   TEndpointBuilder,
 } from '@TBE/types'
 
@@ -16,7 +15,15 @@ import { ServerErr } from '@TBE/utils/errors/server'
 import { createAsyncRouter } from '@TBE/server/router'
 import { endpointProxy } from '@TBE/utils/proxy/endpointProxy'
 
-const isValid = (router: Router, name: string, endpoint: TEndpointConfig) => {
+type TEndpointWithRouter = Omit<TEndpointConfig, `action`> & {
+  action: TReqHandlerOrRouter
+}
+
+const isValid = (
+  router: TRouter,
+  name: string,
+  endpoint: TEndpointWithRouter | TEndpointConfig
+) => {
   if (!isObj(endpoint)) return false
 
   if (endpoint.method === EPMethod.Use && !isObj(endpoint.endpoints)) return false
@@ -28,26 +35,30 @@ const isValid = (router: Router, name: string, endpoint: TEndpointConfig) => {
   return true
 }
 
-const buildEndpoint = (app: TApp, router: Router, endpoint: TEndpointConfig) => {
+const buildEndpoint = (
+  app: TApp,
+  router: TRouter,
+  endpoint: TEndpointWithRouter | TEndpointConfig
+) => {
   const { path, proxy, action, method, middleware = [], endpoints: children } = endpoint
 
   method === EPMethod.Use
     ? router.use(
         path,
         ...middleware,
-        buildEndpoints(app, createAsyncRouter(), children, path)
+        buildEndpoints(app, createAsyncRouter(), children, path) as unknown as TReqHandler
       )
     : method === EPMethod.Proxy
-      ? router.use(path, ...middleware, endpointProxy(endpoint))
+      ? router.use(path, ...middleware, endpointProxy(endpoint as TEndpointConfig))
       : isObj(proxy)
-        ? router[method](path, ...middleware, endpointProxy(endpoint))
-        : router[method](path, ...middleware, action)
+        ? router[method](path, ...middleware, endpointProxy(endpoint as TEndpointConfig))
+        : router[method](path, ...middleware, action as TReqHandler)
 }
 
 const buildEndpoints = (
   app: TApp,
-  router: Router,
-  eps: TEndpointsConfig,
+  router: TRouter,
+  eps?: TEndpointsConfig,
   parentPath?: string
 ) => {
   isObj<TEndpointsConfig>(eps) &&
@@ -61,5 +72,5 @@ const buildEndpoints = (
   return router
 }
 
-export const setupEndpoints = (app: TApp, router: Router) =>
+export const setupEndpoints = (app: TApp, router: TRouter) =>
   buildEndpoints(app, router, endpoints)

@@ -1,8 +1,7 @@
 import type { TDatabase } from '@tdsk/database'
-import type { TApp as TEApp } from '@tdsk/domain'
-import type { TRequest as TReq } from '@tdsk/domain'
 import type { config } from '@TBE/configs/backend.config'
 import type { EmailService } from '@TBE/services/email/email'
+import type { TApp as TEApp, TRequest as TReq } from '@tdsk/domain'
 import type { PaymentsService } from '@TBE/services/payments/payments'
 
 export type { TResponse } from '@tdsk/domain'

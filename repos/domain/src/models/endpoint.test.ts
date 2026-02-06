@@ -5,6 +5,7 @@ describe(`Endpoint Model`, () => {
   describe(`constructor`, () => {
     it(`should create an endpoint with required fields`, () => {
       const endpointData = {
+        type: `proxy` as const,
         id: `123e4567-e89b-12d3-a456-426614174000`,
         projectId: `456e4567-e89b-12d3-a456-426614174001`,
         createdAt: `2024-01-01T00:00:00Z`,
@@ -21,6 +22,7 @@ describe(`Endpoint Model`, () => {
 
     it(`should create an endpoint with all optional fields`, () => {
       const endpointData = {
+        type: `proxy` as const,
         id: `123e4567-e89b-12d3-a456-426614174000`,
         projectId: `456e4567-e89b-12d3-a456-426614174001`,
         url: `https://api.example.com/v1/users`,
@@ -36,7 +38,7 @@ describe(`Endpoint Model`, () => {
         public: true,
         createdAt: `2024-01-01T00:00:00Z`,
         updatedAt: `2024-01-01T00:00:00Z`,
-      }
+      } as any
 
       const endpoint = new Endpoint(endpointData)
 
@@ -59,7 +61,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.method).toBe(`GET`)
       expect(endpoint.public).toBe(false)
@@ -77,7 +79,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.method).toBe(`PUT`)
     })
@@ -91,7 +93,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.public).toBe(true)
     })
@@ -110,7 +112,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.headers).toEqual(endpointData.headers)
       expect(Object.keys(endpoint.headers || {})).toHaveLength(4)
@@ -132,7 +134,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.options).toEqual(endpointData.options)
       expect(endpoint.options?.timeout).toBe(10000)
@@ -148,7 +150,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: now,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.createdAt).toBe(now)
       expect(endpoint.updatedAt).toBe(now)
@@ -159,7 +161,7 @@ describe(`Endpoint Model`, () => {
         projectId: `456e4567-e89b-12d3-a456-426614174001`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.projectId).toBe(endpointData.projectId)
       expect(endpoint.method).toBe(`GET`)
@@ -178,7 +180,7 @@ describe(`Endpoint Model`, () => {
           updatedAt: `2024-01-01T00:00:00Z`,
         }
 
-        const endpoint = new Endpoint(endpointData)
+        const endpoint = new Endpoint(endpointData as any)
         expect(endpoint.method).toBe(method)
       })
     })
@@ -193,7 +195,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint).toHaveProperty(`id`)
       expect(endpoint).toHaveProperty(`createdAt`)
@@ -211,7 +213,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.headers).toEqual({})
       expect(Object.keys(endpoint.headers || {})).toHaveLength(0)
@@ -226,7 +228,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.options).toEqual({})
       expect(Object.keys(endpoint.options || {})).toHaveLength(0)
@@ -241,7 +243,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.url).toBeNull()
     })
@@ -268,7 +270,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.url).toContain(`github.com`)
       expect(endpoint.headers?.Accept).toContain(`github`)
@@ -290,7 +292,7 @@ describe(`Endpoint Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const endpoint = new Endpoint(endpointData)
+      const endpoint = new Endpoint(endpointData as any)
 
       expect(endpoint.public).toBe(false)
       expect(endpoint.headers?.Authorization).toContain(`Bearer`)

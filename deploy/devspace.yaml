@@ -84,7 +84,7 @@ vars:
 # ----- Caddy Values ----- #
   TDSK_CADDY_ACME_EMAIL:
     source: env
-    default: admin@threadedstack.app
+    default: admin@threadedstack.com
   TDSK_CADDY_ADMIN_HOST:
     source: env
     default: 0.0.0.0
@@ -199,6 +199,10 @@ deployments:
             image: ${TDSK_CADDY_IMAGE}:${TDSK_CADDY_IMAGE_TAG}
             imagePullPolicy: IfNotPresent
             env:
+              - name: TDSK_WITH_LB_PROXY
+                value: true
+              - name: TDSK_IN_KUBE
+                value: true
               - name: TDSK_PX_PORT
                 value: ${TDSK_PX_PORT}
               - name: TDSK_PX_DEPLOYMENT
@@ -275,68 +279,72 @@ deployments:
             image: ${TDSK_PX_IMAGE}:${TDSK_PX_IMAGE_TAG}
             imagePullPolicy: IfNotPresent
             env:
-            - name: TDSK_SUB_REPO
-              value: proxy
-            - name: TDSK_MASTER_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: token
-                  name: ${TDSK_KUBE_SCRT_MASTER_KEY}
-                  optional: false
-            - name: TDSK_DB_URL
-              valueFrom:
-                secretKeyRef:
-                  key: url
-                  name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: false
-            - name: TDSK_DB_TYPE
-              valueFrom:
-                secretKeyRef:
-                  key: type
-                  name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: false
-            - name: TDSK_DB_NAME
-              valueFrom:
-                secretKeyRef:
-                  key: name
-                  name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: false
-            - name: TDSK_DB_PUBLIC_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: key
-                  name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: true
-            - name: TDSK_DB_JWT_SCRT
-              valueFrom:
-                secretKeyRef:
-                  key: jwt
-                  name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: true
-            - name: TDSK_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  key: user
-                  name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: true
-            - name: TDSK_DB_PASS
-              valueFrom:
-                secretKeyRef:
-                  key: pass
-                  name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: true
-            - name: TDSK_DB_PROJECT_ID
-              valueFrom:
-                secretKeyRef:
-                  key: project
-                  name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: true
-            - name: TDSK_DB_SRV_ROLE
-              valueFrom:
-                secretKeyRef:
-                  key: role
-                  name: ${TDSK_KUBE_SCRT_DB_CFG}
-                  optional: true
+              - name: TDSK_WITH_LB_PROXY
+                value: true
+              - name: TDSK_IN_KUBE
+                value: true
+              - name: TDSK_SUB_REPO
+                value: proxy
+              - name: TDSK_MASTER_KEY
+                valueFrom:
+                  secretKeyRef:
+                    key: token
+                    name: ${TDSK_KUBE_SCRT_MASTER_KEY}
+                    optional: false
+              - name: TDSK_DB_URL
+                valueFrom:
+                  secretKeyRef:
+                    key: url
+                    name: ${TDSK_KUBE_SCRT_DB_CFG}
+                    optional: false
+              - name: TDSK_DB_TYPE
+                valueFrom:
+                  secretKeyRef:
+                    key: type
+                    name: ${TDSK_KUBE_SCRT_DB_CFG}
+                    optional: false
+              - name: TDSK_DB_NAME
+                valueFrom:
+                  secretKeyRef:
+                    key: name
+                    name: ${TDSK_KUBE_SCRT_DB_CFG}
+                    optional: false
+              - name: TDSK_DB_PUBLIC_KEY
+                valueFrom:
+                  secretKeyRef:
+                    key: key
+                    name: ${TDSK_KUBE_SCRT_DB_CFG}
+                    optional: true
+              - name: TDSK_DB_JWT_SCRT
+                valueFrom:
+                  secretKeyRef:
+                    key: jwt
+                    name: ${TDSK_KUBE_SCRT_DB_CFG}
+                    optional: true
+              - name: TDSK_DB_USER
+                valueFrom:
+                  secretKeyRef:
+                    key: user
+                    name: ${TDSK_KUBE_SCRT_DB_CFG}
+                    optional: true
+              - name: TDSK_DB_PASS
+                valueFrom:
+                  secretKeyRef:
+                    key: pass
+                    name: ${TDSK_KUBE_SCRT_DB_CFG}
+                    optional: true
+              - name: TDSK_DB_PROJECT_ID
+                valueFrom:
+                  secretKeyRef:
+                    key: project
+                    name: ${TDSK_KUBE_SCRT_DB_CFG}
+                    optional: true
+              - name: TDSK_DB_SRV_ROLE
+                valueFrom:
+                  secretKeyRef:
+                    key: role
+                    name: ${TDSK_KUBE_SCRT_DB_CFG}
+                    optional: true
 
         service:
           name: ${TDSK_PX_DEPLOYMENT}
@@ -360,6 +368,10 @@ deployments:
             image: ${TDSK_BE_IMAGE}:${TDSK_BE_IMAGE_TAG}
             imagePullPolicy: IfNotPresent
             env:
+              - name: TDSK_WITH_LB_PROXY
+                value: true
+              - name: TDSK_IN_KUBE
+                value: true
               - name: TDSK_SUB_REPO
                 value: backend
               - name: TDSK_MASTER_KEY

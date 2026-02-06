@@ -23,6 +23,7 @@ export const updateEndpoint: TEndpointConfig = {
       name,
       url,
       path,
+      type,
       method,
       headers = {},
       options = {},
@@ -56,9 +57,10 @@ export const updateEndpoint: TEndpointConfig = {
     // Validate options is an object if provided
     if (options && !isObj(options)) throw new Exception(400, `Options must be an object`)
 
-    const updateData = new Endpoint({ id })
+    const updateData = new Endpoint({ id, type: existing.type })
 
     if (url !== undefined) updateData.url = url
+    if (type !== undefined) updateData.type = type
     if (name !== undefined) updateData.name = name
     if (path !== undefined) updateData.path = path
     if (headers !== undefined) updateData.headers = headers

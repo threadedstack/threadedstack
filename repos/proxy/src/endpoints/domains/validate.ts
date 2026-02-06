@@ -15,6 +15,33 @@ export const validate = async (req: Request, res: Response) => {
   try {
     const { domain } = req.query
 
+    console.log(`############################################`)
+    console.log(`------- DOMAIN VALIDATION -------`)
+    console.log(`############################################`)
+    console.log(`\n`)
+    console.log(`------- URLS -------`)
+    console.log(`req.url:`, req.url)
+    console.log(`req.originalUrl:`, req.originalUrl)
+    console.log(`------- URLS -------`)
+    console.log(`\n`)
+    console.log(`############################################`)
+    console.log(`\n`)
+    console.log(`------- BODY / QUERY / PARAMS -------`)
+    console.log(`req.body:`, req.body)
+    console.log(`req.query:`, req.query)
+    console.log(`req.params:`, req.params)
+    console.log(`------- BODY / QUERY / PARAMS -------`)
+    console.log(`\n`)
+    console.log(`############################################`)
+    console.log(`\n`)
+    console.log(`------- HEADERS -------`)
+    console.log(`req.headers:`, req.headers)
+    console.log(`------- HEADERS -------`)
+    console.log(`\n`)
+    console.log(`############################################`)
+    console.log(`------- DOMAIN VALIDATION -------`)
+    console.log(`############################################`)
+
     if (!domain || !isStr(domain)) {
       res.status(400).json({ error: `Domain parameter is required` })
       return

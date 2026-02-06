@@ -1,4 +1,5 @@
 import type { Response } from 'express'
+import type { TProxyEndpointConfig } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
@@ -80,7 +81,7 @@ export const endpoint: TEndpointConfig = {
 
     try {
       // Apply endpoint options to proxy configuration
-      const options = endpoint.options || {}
+      const options = (endpoint.options || {}) as TProxyEndpointConfig
       const proxyConfig = proxyService.applyEndpointOptions(options, secrets)
 
       // Build retry configuration

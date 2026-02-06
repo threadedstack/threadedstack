@@ -63,7 +63,7 @@ export type TRequestHandler = (
   req: TRequest,
   res: TResponse,
   next: NextFunction
-) => void | Promise<void>
+) => void | undefined | Promise<void | undefined>
 
 export type TRouterHandler =
   | Router[`all`]
@@ -82,23 +82,29 @@ export type TErrorHandler = (
   ...args: any
 ) => any
 
-export type TAHandler = (
-  req: TRequest,
-  res: TResponse,
+export type TAHandler<Req = TRequest, Res = TResponse> = (
+  req: Req,
+  res: Res,
   next?: NextFunction
 ) => Promise<any | void> | any | void
 
-export type TReqHandler = TAHandler & {
+export type TReqHandler<Req = TRequest, Res = TResponse> = TAHandler<Req, Res> & {
   errHandler?: TErrorHandler
 }
 
+export type TReqHandlerOrRouter<Req = TRequest, Res = TResponse> =
+  | TReqHandler<Req, Res>
+  | TRouter
+  | undefined
+
 export type TRouter = Omit<
   Router,
-  `all` | `get` | `put` | `post` | `head` | `patch` | `delete` | `options`
+  `all` | `get` | `put` | `post` | `head` | `patch` | `delete` | `options` | `use`
 > & {
   all: (...args: [string, ...TReqHandler[]]) => ReturnType<Router[`all`]>
   get: (...args: [string, ...TReqHandler[]]) => ReturnType<Router[`get`]>
   put: (...args: [string, ...TReqHandler[]]) => ReturnType<Router[`put`]>
+  use: (...args: [string, ...TReqHandler[]]) => ReturnType<Router[`use`]>
   post: (...args: [string, ...TReqHandler[]]) => ReturnType<Router[`post`]>
   head: (...args: [string, ...TReqHandler[]]) => ReturnType<Router[`head`]>
   patch: (...args: [string, ...TReqHandler[]]) => ReturnType<Router[`patch`]>

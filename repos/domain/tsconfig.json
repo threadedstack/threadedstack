@@ -19,6 +19,7 @@
     "moduleResolution": "bundler",
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
+    "strictPropertyInitialization": false,
     "forceConsistentCasingInFileNames": true,
     "paths": {
       "@ROOT": ["../../"],

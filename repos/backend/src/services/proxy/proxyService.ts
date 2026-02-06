@@ -1,7 +1,7 @@
 import type { Secret } from '@tdsk/domain'
-import type { TEndpointOpts, TOAuthConfig } from '@tdsk/domain'
-import type { Options } from 'http-proxy-middleware'
 import type { ClientRequest } from 'http'
+import type { Options } from 'http-proxy-middleware'
+import type { TOAuthConfig, TEndpointOpts, TBodyTransformConfig } from '@tdsk/domain'
 
 import axios from 'axios'
 import { logger } from '@TBE/utils/logger'
@@ -361,11 +361,7 @@ export class ProxyService {
    * @param secrets - Available secrets
    * @returns Transformed body
    */
-  applyTransform(
-    body: any,
-    transform: NonNullable<TEndpointOpts['transform']>,
-    secrets?: Secret[]
-  ): any {
+  applyTransform(body: any, transform: TBodyTransformConfig, secrets?: Secret[]): any {
     if (!transform.injectSecrets || !secrets || secrets.length === 0) {
       return body
     }

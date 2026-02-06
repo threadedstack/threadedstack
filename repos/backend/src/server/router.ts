@@ -1,5 +1,7 @@
 import type { IRouterMatcher, RequestHandler } from 'express'
 
+import type { TRouter } from '@tdsk/domain'
+
 import express from 'express'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import asyncHandler from 'express-async-handler'
@@ -41,7 +43,7 @@ export const createAsyncRouter = () => {
       Async(Delete, endpoint, ...args),
   })
 
-  return Router
+  return Router as unknown as TRouter
 }
 
 /**

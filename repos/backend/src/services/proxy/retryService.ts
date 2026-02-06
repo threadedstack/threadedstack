@@ -19,10 +19,12 @@ class RetryMeta {
    * @param config - Retry configuration
    */
   init(config?: TRetryConfig): void {
+    if (!this.#req?.res?.locals) return
+
     this.#req.res.locals.retryMeta = {
       attempt: 0,
       startTime: Date.now(),
-      maxRetries: config.maxRetries,
+      maxRetries: config?.maxRetries,
     } as TRetryMetadata
   }
 
@@ -57,7 +59,7 @@ class RetryMeta {
  */
 export class RetryService {
   meta: RetryMeta
-  config: TRetryConfig
+  config: TRetryConfig = {} as TRetryConfig
 
   constructor(req: Request, options: TEndpointOpts) {
     this.meta = new RetryMeta(req)

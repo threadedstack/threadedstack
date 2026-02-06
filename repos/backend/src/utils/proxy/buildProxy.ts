@@ -5,6 +5,7 @@ import type { TEndpointConfig, TConfigProxy } from '@TBE/types'
 import { app } from '@TBE/server/app'
 import { isFunc } from '@keg-hub/jsutils'
 import { logger } from '@TBE/utils/logger'
+import { behindLBProxy } from '@tdsk/domain'
 import { proxyError } from '@TBE/utils/proxy/proxyError'
 import { addProxyHeader, addOriginHeader } from '@TBE/utils/proxy/proxyHeaders'
 
@@ -14,7 +15,8 @@ import { addProxyHeader, addOriginHeader } from '@TBE/utils/proxy/proxyHeaders'
  */
 export const buildProxy = (endpoint: TEndpointConfig) => {
   const { path, proxy, originHeader = true } = endpoint
-  const { on, pathRewrite, pathFilter = path, ...rest } = proxy
+
+  const { on, pathRewrite, pathFilter = path, ...rest } = (proxy || {}) as TConfigProxy
 
   return {
     logger,
@@ -32,7 +34,9 @@ export const buildProxy = (endpoint: TEndpointConfig) => {
         if (isFunc(on?.proxyReq)) return on.proxyReq(proxyReq, req, res, options)
       },
       proxyRes: (proxyRes, req, res) => {
-        originHeader && addOriginHeader(proxyRes, req as Request, app.locals.config)
+        !behindLBProxy() &&
+          originHeader &&
+          addOriginHeader(proxyRes, req as Request, app.locals.config)
 
         if (isFunc(on?.proxyRes)) return on.proxyRes(proxyRes, req as Request, res)
       },

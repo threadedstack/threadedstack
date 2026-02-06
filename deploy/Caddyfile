@@ -63,6 +63,10 @@
 	reverse_proxy {$TDSK_PX_DEPLOYMENT}:{$TDSK_PX_PORT} {
 		header_up Authorization {header.Authorization}
 		lb_policy cookie
+
+    header_down -Access-Control-Allow-Origin
+    header_down -Access-Control-Allow-Methods
+    header_down -Access-Control-Allow-Headers
 	}
 
 	# 4. Handle OPTIONS for CORS
