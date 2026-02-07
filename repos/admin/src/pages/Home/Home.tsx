@@ -19,7 +19,7 @@ export const Home = (props: THome) => {
             component='h1'
             gutterBottom
           >
-            Your Organizations
+            Organizations
           </Text>
           <Text color='text.secondary'>
             Choose an organization to continue or create a new one

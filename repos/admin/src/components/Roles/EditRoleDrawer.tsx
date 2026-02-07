@@ -16,6 +16,7 @@ export type TEditRoleDrawer = {
   orgId: string
   onClose: () => void
   onSuccess: () => void
+  onRemove: (user: User) => void
 }
 
 // TODO: Add checks if current user has admin permission to edit other users roles
@@ -23,6 +24,7 @@ export const EditRoleDrawer = ({
   open,
   user,
   orgId,
+  onRemove,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
 }: TEditRoleDrawer) => {
@@ -60,6 +62,7 @@ export const EditRoleDrawer = ({
   const { actions } = useDrawerActions({
     onSave,
     onClose,
+    onRemove: () => onRemove(user),
   })
 
   return (

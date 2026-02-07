@@ -33,9 +33,9 @@ export const EmptyState = (props: TEmptyState) => {
         {actionLabel && onAction && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
             <Button
-              variant={actionVariant}
-              startIcon={actionIcon}
               onClick={onAction}
+              startIcon={actionIcon}
+              variant={actionVariant}
             >
               {actionLabel}
             </Button>

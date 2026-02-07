@@ -26,10 +26,12 @@ const DefActions: Record<string, TDrawerAction> = {
   save: {
     text: `Save`,
     color: `success`,
+    variant: `contained`,
     Icon: SaveOutlinedIcon,
   },
   create: {
     text: `Create`,
+    variant: `contained`,
     Icon: AddCircleOutlineOutlinedIcon,
   },
 }
@@ -75,18 +77,16 @@ export const DrawerActions = (props: TDrawerActions) => {
 
   return (
     <>
-      <Box sx={{ display: `flex`, gap: 1 }}>
-        {editing && (
-          <Button
-            {...remove}
-            disabled={disabled || loading}
-          />
-        )}
+      {editing && (
         <Button
-          {...cancel}
+          {...remove}
           disabled={disabled || loading}
         />
-      </Box>
+      )}
+      <Button
+        {...cancel}
+        disabled={disabled || loading}
+      />
       <LoadingButton
         type={type}
         form={form}

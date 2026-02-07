@@ -229,10 +229,10 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
 
       {!loading && !error && secretsCount === 0 && (
         <EmptyState
-          message='No secrets yet. Create your first secret to get started.'
-          actionLabel='Create Your First Secret'
           actionIcon={<AddIcon />}
           onAction={onCreateSecret}
+          actionLabel='Create Secret'
+          message='No secrets yet. Create your first secret to get started.'
         />
       )}
 

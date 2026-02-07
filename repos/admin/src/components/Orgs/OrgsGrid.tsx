@@ -1,5 +1,6 @@
-import { Grid } from '@mui/material'
 import type { Organization } from '@tdsk/domain'
+
+import { Grid } from '@mui/material'
 import { OrgCard } from '@TAF/components/Orgs/OrgCard'
 
 export type TOrgsGrid = {
@@ -17,6 +18,7 @@ export const OrgsGrid = (props: TOrgsGrid) => {
     <Grid
       container
       spacing={3}
+      sx={{ mt: 1 }}
     >
       {orgs.map((org) => {
         const isActiveOrg = org.id === activeOrgId

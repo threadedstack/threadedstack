@@ -3,13 +3,15 @@ import type { Organization } from '@tdsk/domain'
 import { useState } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
 import { styled } from '@mui/material/styles'
-import { ConfirmDelete } from '@tdsk/components'
+import { ConfirmDelete, Text } from '@tdsk/components'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { Box, Card, Chip, Typography, CardContent } from '@mui/material'
 
 const CardOrg = styled(Card)(({ theme }) => {
   return `
+    height: 160px;
     cursor: pointer;
+    max-height: 160px;
     transition: all 0.2s;
     border: 1px solid rgba(0, 0, 0, 0.12);
     border-top: 5px solid ${theme.palette.border.dark};
@@ -25,6 +27,15 @@ const CardOrg = styled(Card)(({ theme }) => {
   `
 })
 
+const DescText = styled(Text)`
+  overflow: hidden;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+`
+
 export type TOrgCard = {
   active?: boolean
   org: Organization
@@ -37,9 +48,9 @@ export type TOrgCard = {
 export const OrgCard = (props: TOrgCard) => {
   const { org, active, onDelete, onSelect, showDelete } = props
 
+  const onDeleteCancel = () => setDeleting(false)
   const [deleted, setDeleted] = useState<boolean>(false)
   const [deleting, setDeleting] = useState<boolean>(false)
-  const onDeleteCancel = () => setDeleting(false)
   const onDeleteConfirm = () => {
     if (!showDelete) return
     setDeleted(true)
@@ -53,7 +64,7 @@ export const OrgCard = (props: TOrgCard) => {
         className={cls(`tdsk-org-card`, active && `active`)}
       >
         <CardContent>
-          <Box sx={{ display: `flex`, alignItems: `center`, mb: 1 }}>
+          <Box sx={{ display: `flex`, alignItems: `center`, mb: 1.5 }}>
             <OrgIcon text />
             <Typography
               variant='h6'
@@ -70,13 +81,13 @@ export const OrgCard = (props: TOrgCard) => {
               />
             )}
           </Box>
-          <Typography
-            sx={{ mb: 1 }}
+          <DescText
+            sx={{ mb: 1.5 }}
             variant='body2'
             color='text.secondary'
           >
             {org.description || `No description`}
-          </Typography>
+          </DescText>
           <Typography
             variant='caption'
             color='text.secondary'

@@ -58,7 +58,7 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
     evt.preventDefault()
 
     if (!name.trim()) {
-      setError('Organization name is required')
+      setError(`Organization name is required`)
       return
     }
 

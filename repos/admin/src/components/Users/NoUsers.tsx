@@ -9,8 +9,8 @@ export const NoUsers = ({ onInvite }: TNoUsers) => {
   return (
     <EmptyState
       onAction={onInvite}
+      actionLabel='Invite Users'
       actionIcon={<PersonAddIcon />}
-      actionLabel='Invite Your First User'
       message='No org members yet. Invite users to this org to get started.'
     />
   )

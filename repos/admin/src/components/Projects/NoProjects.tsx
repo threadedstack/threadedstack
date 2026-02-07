@@ -16,9 +16,8 @@ export const NoProjects = (props: TNoProjects) => {
     <EmptyState
       message='No projects yet. Create your first project to get started.'
       actionLabel='Create Project'
-      actionIcon={<AddIcon />}
       onAction={onCreate}
-      actionVariant='contained'
+      actionIcon={<AddIcon />}
     />
   )
 }

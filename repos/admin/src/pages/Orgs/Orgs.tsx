@@ -1,5 +1,6 @@
+import Box from '@mui/material/Box'
+import { Text } from '@tdsk/components'
 import { Page } from '@TAF/pages/Page/Page'
-import { Box, Typography } from '@mui/material'
 import { Orgs } from '@TAF/components/Orgs/Orgs'
 
 export type TOrgs = {}
@@ -11,16 +12,19 @@ export const OrgsPage = (props: TOrgs) => {
         sx={{
           mb: 3,
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
+          justifyContent: 'space-between',
         }}
       >
-        <Typography
-          variant='h4'
+        <Text
+          variant='h5'
           component='h1'
         >
           Organizations
-        </Typography>
+        </Text>
+        <Text color='text.secondary'>
+          Choose an organization to continue or create a new one
+        </Text>
       </Box>
 
       <Orgs />

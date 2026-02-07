@@ -60,6 +60,8 @@ export const Users = (props: TUsers) => {
     onCloseEditRole()
   }
 
+  const onRemoveUser = (user: User) => setRemovingUser(user)
+
   const { items, query, onChange, onSearch } = useLocalSearch<User>({
     items: users,
     onQuery: (query, current, initial) => {
@@ -85,15 +87,17 @@ export const Users = (props: TUsers) => {
 
   useEffect(() => onSearch(), [roleFilter])
 
+  const hasUser = Boolean(users.length)
+
   return (
     <>
       <PageHeader
         count={users.length}
         countLabel='member'
-        actionLabel='Invite User'
         title='Organization Users'
-        actionIcon={<PersonAddIcon />}
         onAction={onOpenInviteDialog}
+        actionLabel={hasUser && `Invite User`}
+        actionIcon={hasUser && <PersonAddIcon />}
       />
 
       {!loading && users.length > 0 && (
@@ -137,7 +141,7 @@ export const Users = (props: TUsers) => {
         <UsersGrid
           users={items}
           onEditRole={onOpenEditRole}
-          onRemoveUser={(user) => setRemovingUser(user)}
+          onRemoveUser={onRemoveUser}
         />
       )}
 
@@ -152,6 +156,7 @@ export const Users = (props: TUsers) => {
         <EditRoleDrawer
           orgId={orgId}
           user={selectedUser}
+          onRemove={onRemoveUser}
           onClose={onCloseEditRole}
           open={editRoleDialogOpen}
           onSuccess={onEditRoleSuccess}

@@ -36,7 +36,6 @@ export const Projects = (props: TProjects) => {
     await deleteProject(projectId)
   }
 
-  // Filter projects by orgId and search query
   const filteredProjects = useMemo(() => {
     const orgProjects = projects
       ? Object.values(projects).filter((project) => project.orgId === orgId)
@@ -58,15 +57,17 @@ export const Projects = (props: TProjects) => {
     ? Object.values(projects).filter((project) => project.orgId === orgId).length
     : 0
 
+  const hasProjects = Boolean(projectsCount)
+
   return (
     <>
       <PageHeader
-        onAction={onCreate}
+        title='Projects'
         countLabel='project'
         count={projectsCount}
         actionIcon={<AddIcon />}
-        actionLabel='Create Project'
-        title='Organization Projects'
+        onAction={hasProjects && onCreate}
+        actionLabel={hasProjects && 'Create Project'}
       />
 
       {projectsCount > 0 && (
@@ -96,9 +97,9 @@ export const Projects = (props: TProjects) => {
       {!error && filteredProjects.length > 0 && (
         <ProjectsGrid
           showDelete={true}
-          projects={filteredProjects}
           onSelect={onSelectProject}
           onDelete={onDeleteProject}
+          projects={filteredProjects}
         />
       )}
 

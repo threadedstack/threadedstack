@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { ife } from '@keg-hub/jsutils/ife'
 import { useOrgs } from '@TAF/state/selectors'
 import { fetchOrgs } from '@TAF/actions/orgs/api'
+import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
 import { createProject } from '@TAF/actions/projects/api/createProject'
@@ -75,7 +76,8 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
     <Drawer
       open={open}
       onClose={onClose}
-      title='Create New Project'
+      titleIcon={<ProjectIcon />}
+      title={name || `New Project`}
       actions={
         <DrawerActions
           editing={false}

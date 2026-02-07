@@ -25,7 +25,7 @@ export const PageHeader = (props: TPageHeader) => {
     actionIcon,
     countLabel,
     actionLabel,
-    variant = `h4`,
+    variant = `h5`,
     actionDisabled = false,
   } = props
 
@@ -56,10 +56,10 @@ export const PageHeader = (props: TPageHeader) => {
       </Box>
       {actionLabel && onAction && (
         <Button
-          variant='contained'
           color='primary'
-          startIcon={actionIcon}
           onClick={onAction}
+          variant='contained'
+          startIcon={actionIcon}
           disabled={actionDisabled}
         >
           {actionLabel}
