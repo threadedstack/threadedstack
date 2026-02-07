@@ -35,7 +35,6 @@ const {
   TDSK_BE_PORT,
   TDSK_BE_IMAGE,
   TDSK_BE_DEPLOYMENT,
-  TDSK_BE_REMOTE_PORT = TDSK_BE_PORT,
   TDSK_BE_IMAGE_TAG = TDSK_IMAGE_TAG,
   TDSK_BE_IMAGE_FROM = TDSK_IMAGE_FROM,
   TDSK_BE_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
@@ -88,7 +87,7 @@ export const config = {
       deployment: TDSK_BE_DEPLOYMENT,
       location: path.join(paths.repos, `backend`),
       ports: {
-        [TDSK_BE_PORT]: TDSK_BE_REMOTE_PORT,
+        [TDSK_BE_PORT]: TDSK_BE_PORT,
       },
     },
     admin: {

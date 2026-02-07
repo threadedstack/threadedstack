@@ -195,30 +195,6 @@ env:
   # All other paths are forwarded to configured endpoints
   TDSK_BE_API_ADMIN_PATH: _
 
-  # Enable SSL handling from the server, requires an SSL CA, Key and Certificate
-  TDSK_BE_ENABLE_SSL: 0
-
-  # SSL CA for when SSL handling is enabled
-  TDSK_BE_SSL_CA:
-
-  # SSL Key for when SSL handling is enabled
-  TDSK_BE_SSL_KEY:
-
-  # SSL Certificate for when SSL handling is enabled
-  TDSK_BE_SSL_CERT:
-
-
-  # -------------- TODO INVESTIGATE THIS ---------------- #
-  # Default remote server, if no other route matches, the request will be forwarded to this remote
-  TDSK_BE_REMOTE: http://localhost
-  #TDSK_BE_REMOTE: http://tdsk-backend
-
-  # Default remote port, combined with the `TDSK_BE_REMOTE` env to build the default remote host
-  TDSK_BE_REMOTE_PORT: 5886
-  # -------------- TODO INVESTIGATE THIS ---------------- #
-
-
-
   # List of allowed origins to accept requests from
   # Should be a comma separated list of host urls, using * allows all hosts origins
   TDSK_BE_ALLOW_ORIGIN: '*'

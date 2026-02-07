@@ -15,14 +15,8 @@ loadEnvs({ force: nodeEnv === `local` })
 
 const {
   TDSK_BE_PORT,
-  TDSK_BE_REMOTE,
-  TDSK_BE_SSL_CA,
-  TDSK_BE_SSL_KEY,
-  TDSK_BE_SSL_CERT,
   TDSK_BE_LOG_LEVEL,
-  TDSK_BE_ENABLE_SSL,
   TDSK_BE_HEADER_KEY,
-  TDSK_BE_REMOTE_PORT,
   TDSK_BE_HEADER_VALUE,
   TDSK_BE_ALLOW_ORIGIN,
   TDSK_BE_LOGGER_PRETTY,
@@ -64,32 +58,20 @@ const {
   TDSK_CADDY_PREWARM_HEADER,
 } = process.env
 
-const enableSSL = nodeEnv !== `production` && toBool(TDSK_BE_ENABLE_SSL)
-
-if (enableSSL && (!TDSK_BE_SSL_CERT || !TDSK_BE_SSL_KEY))
-  throw new Error(
-    `SSL is enabled, but missing SSL cert ( TDSK_BE_SSL_CERT ) and or SSL key ( TDSK_BE_SSL_KEY ) envs`
-  )
-
 export const config = {
   frontendUrl: TDSK_FRONTEND_URL || 'http://localhost:3000',
   server: {
-    enableSSL,
     port: toNum(TDSK_BE_PORT),
     label: `TDSK - Backend`,
     environment: process.env.NODE_ENV,
     adminPath: TDSK_BE_API_ADMIN_PATH,
     origins: (TDSK_BE_ALLOW_ORIGIN || '').split(','),
-    certs: {
-      ca: TDSK_BE_SSL_CA,
-      key: TDSK_BE_SSL_KEY,
-      cert: TDSK_BE_SSL_CERT,
-    },
   },
   proxy: {
+    // Validate if this URL field is needed
+    url: ``,
     headerKey: TDSK_BE_HEADER_KEY,
     headerValue: TDSK_BE_HEADER_VALUE,
-    url: buildProxyUrl(TDSK_BE_REMOTE, TDSK_BE_REMOTE_PORT),
     publicRoutes: (TDSK_BE_PUBLIC_ROUTES || ``)
       .split(`,`)
       .map((part) => part.trim())
