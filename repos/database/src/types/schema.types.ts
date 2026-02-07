@@ -152,6 +152,14 @@ export type TTableSchema = PgTableWithColumns<any> & TTableWithId
 
 export type TDBOrderDirection = `asc` | `desc`
 
+export type TDBWithObj = {
+  with?: TDBWithRecord
+  columns?: Record<string, boolean>
+}
+
+export type TDBWithOpt = boolean | TDBWithObj
+export type TDBWithRecord = Record<string, TDBWithOpt>
+
 export type TDBQueryOpts<T extends Record<string, any> = Record<string, any>> = {
   /**
    * Where clause conditions
@@ -164,7 +172,7 @@ export type TDBQueryOpts<T extends Record<string, any> = Record<string, any>> = 
   }
   limit?: number
   offset?: number
-  with?: Record<string, boolean>
+  with?: TDBWithRecord
   orderBy?: {
     column: string
     direction?: TDBOrderDirection

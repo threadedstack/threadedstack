@@ -3,16 +3,24 @@ import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { secrets } from '@TDB/schemas/secrets'
+import { orgs } from '@TDB/schemas/orgs'
+import { agentProjects } from '@TDB/schemas/agentProjects'
 import { uuid, text, jsonb, boolean, pgTable, integer } from 'drizzle-orm/pg-core'
 
 /**
  * Agents table
  * Stores AI agent configurations with provider relationships and agent-specific settings
+ * Agents belong to organizations and can be associated with multiple projects
  */
 export const agents = pgTable(`agents`, {
   ...base,
   name: text(`name`).notNull(),
   description: text(`description`),
+
+  /** Organization this agent belongs to */
+  orgId: uuid(`org_id`)
+    .references(() => orgs.id, { onDelete: `cascade` })
+    .notNull(),
 
   /** Provider relationship - contains LLM API configuration */
   providerId: uuid(`provider_id`)
@@ -52,21 +60,17 @@ export const agents = pgTable(`agents`, {
 
   /** Whether this agent is active and can be used */
   active: boolean(`active`).default(true),
-
-  /** Project this agent belongs to */
-  projectId: uuid(`project_id`)
-    .references(() => projects.id, { onDelete: `cascade` })
-    .notNull(),
 })
 
 export const agentsRelations = relations(agents, ({ one, many }) => ({
+  org: one(orgs, {
+    fields: [agents.orgId],
+    references: [orgs.id],
+  }),
+  secrets: many(secrets),
+  projects: many(agentProjects),
   provider: one(providers, {
     fields: [agents.providerId],
     references: [providers.id],
   }),
-  project: one(projects, {
-    fields: [agents.projectId],
-    references: [projects.id],
-  }),
-  secrets: many(secrets),
 }))

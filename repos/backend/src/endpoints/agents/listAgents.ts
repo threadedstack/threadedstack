@@ -8,8 +8,9 @@ import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * GET /agents - List all agents
- * Filter by projectId query param
- * User must be member of the project
+ * Filter by orgId query param (required)
+ * Optionally filter by projectId query param to get agents for a specific project
+ * User must be member of the organization
  * Secrets are sanitized by default (members see only metadata)
  * Set ?sanitize=false to see full secret values (requires admin+ role)
  */
@@ -18,33 +19,37 @@ export const listAgents: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
+    const orgId = req.query.orgId as string | undefined
     const projectId = req.query.projectId as string | undefined
     const sanitize = req.query.sanitize !== 'false'
 
-    if (!projectId) throw new Exception(400, `projectId query parameter required`)
+    if (!orgId) throw new Exception(400, `orgId query parameter required`)
 
-    // Check permission to read agents in this project
+    // Check permission to read agents in this org
     await checkPermission(req, EPermAction.read, EPermResource.agent, {
-      projectId,
+      orgId,
     })
 
     // If user wants unsanitized secrets, check they have permission
     if (!sanitize) {
-      const userRole = await getUserRole(req, { projectId })
+      const userRole = await getUserRole(req, { orgId })
 
-      if (!canAccessSecretValue(userRole)) {
+      if (!canAccessSecretValue(userRole))
         throw new Exception(403, `Admin or higher role required to view secret values`)
-      }
     }
 
-    // List agents for the specified project (service handles sanitization)
     const { data, error } = await db.services.agent.list({
-      where: { projectId },
-      sanitize, // Pass sanitize flag to service
+      sanitize,
+      where: { orgId },
     })
 
     if (error) throw new Exception(500, error)
 
-    res.status(200).json({ data: data || [] })
+    // Filter by project if specified
+    const filteredData = projectId
+      ? data?.filter((agent) => agent.projects.some((p) => p.id === projectId)) || []
+      : data || []
+
+    res.status(200).json({ data: filteredData })
   },
 }

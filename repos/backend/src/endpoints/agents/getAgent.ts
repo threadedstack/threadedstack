@@ -27,14 +27,14 @@ export const getAgent: TEndpointConfig = {
     if (getError) throw new Exception(404, `Agent not found`)
     if (!agent) throw new Exception(404, `Agent not found`)
 
-    // Check permission to read agents in this project
+    // Check permission to read agents in this org
     await checkPermission(req, EPermAction.read, EPermResource.agent, {
-      projectId: agent.projectId,
+      orgId: agent.orgId,
     })
 
     // If user wants unsanitized secrets, check they have permission
     if (!sanitize) {
-      const userRole = await getUserRole(req, { projectId: agent.projectId })
+      const userRole = await getUserRole(req, { orgId: agent.orgId })
 
       if (!canAccessSecretValue(userRole))
         throw new Exception(403, `Admin or higher role required to view secret values`)

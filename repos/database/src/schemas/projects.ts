@@ -6,6 +6,7 @@ import { secrets } from '@TDB/schemas/secrets'
 import { configs } from '@TDB/schemas/configs'
 import { endpoints } from '@TDB/schemas/endpoints'
 import { providers } from '@TDB/schemas/providers'
+import { agentProjects } from '@TDB/schemas/agentProjects'
 import { uuid, text, jsonb, pgTable } from 'drizzle-orm/pg-core'
 
 export const projects = pgTable(`projects`, {
@@ -25,6 +26,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   configs: many(configs),
   providers: many(providers),
   endpoints: many(endpoints),
+  agents: many(agentProjects),
   org: one(orgs, {
     fields: [projects.orgId],
     references: [orgs.id],

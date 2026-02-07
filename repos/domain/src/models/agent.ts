@@ -3,6 +3,7 @@ import type { TAgentEnvVars, TAgentEnvironment } from '@TDM/types'
 import { Base } from './base'
 import { Secret } from './secret'
 import { Project } from './project'
+import { Provider } from './provider'
 
 export class Agent extends Base {
   name: string
@@ -11,6 +12,7 @@ export class Agent extends Base {
   maxTokens?: number
   orgId: string
   providerId: string
+  provider?: Provider
   description?: string
   tools: string[] = []
   systemPrompt?: string
@@ -22,16 +24,18 @@ export class Agent extends Base {
 
   constructor(agent: Partial<Agent>) {
     super()
+
+    const { secrets, provider, projects, ...rest } = agent
+
     Object.assign(this, {
-      ...agent,
-      // Map secrets array to instantiate Secret objects
+      ...rest,
+      provider: agent.provider instanceof Provider ? provider : new Provider(provider),
       secrets:
-        agent?.secrets?.map((secret) =>
+        secrets?.map((secret) =>
           secret instanceof Secret ? secret : new Secret(secret)
         ) || [],
-      // Map projects array to instantiate Project objects
       projects:
-        agent?.projects?.map((project) =>
+        projects?.map((project) =>
           project instanceof Project ? project : new Project(project)
         ) || [],
     })

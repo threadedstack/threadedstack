@@ -5,6 +5,7 @@ import type {
   TDBApiRes,
   TDBQueryOpts,
   TTableSchema,
+  TDBWithRecord,
   TDBEntitySelect,
   TDBEntityInsert,
 } from '@TDB/types'
@@ -42,6 +43,8 @@ export class Base<
     this.name = getTableName(this.table)
   }
 
+  with = <T extends TDBWithRecord = TDBWithRecord>(opts: T): TDBWithRecord => opts
+
   model = (data: S, ...args: any[]): M => {
     logger.error(
       `Warning, the ${this.constructor.name} class should override this function!`
@@ -76,7 +79,7 @@ export class Base<
 
     try {
       const row = await this.db.query[this.name].findFirst({
-        with: opts?.with,
+        with: this.with(opts?.with),
         where: eq(this.table[property], value),
       })
 
@@ -91,7 +94,7 @@ export class Base<
   async get(id: string, opts?: Pick<TDBQueryOpts, `with`>): Promise<TDBApiRes<M>> {
     try {
       const row = await this.db.query[this.name].findFirst({
-        with: opts?.with,
+        with: this.with(opts?.with),
         where: eq(this.table.id, id),
       })
 
@@ -110,7 +113,7 @@ export class Base<
       const found = await this.db.query[this.name].findMany({
         limit,
         offset,
-        with: opts.with,
+        with: this.with(opts?.with),
         orderBy: orderBy ? addOrderBy(this.table, opts) : undefined,
         where: where ? and(...addWhere(this.table, opts)) : undefined,
       })

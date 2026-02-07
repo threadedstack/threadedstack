@@ -7,6 +7,7 @@ import { secrets } from '@TDB/schemas/secrets'
 import { configs } from '@TDB/schemas/configs'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
+import { agents } from '@TDB/schemas/agents'
 import { text, pgTable } from 'drizzle-orm/pg-core'
 import { invitations } from '@TDB/schemas/invitations'
 
@@ -20,6 +21,7 @@ export const orgsRelations = relations(orgs, ({ many }) => ({
   users: many(roles),
   quotas: many(quotas),
   assets: many(assets),
+  agents: many(agents),
   secrets: many(secrets),
   configs: many(configs),
   projects: many(projects),

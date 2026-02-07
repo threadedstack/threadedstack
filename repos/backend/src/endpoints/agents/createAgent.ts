@@ -8,31 +8,37 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * POST /_/agents - Create a new agent
- * Requires projectId in body
- * Requires admin+ role in that project
+ * Requires orgId in body
+ * Optionally accepts projectIds array to associate with projects
+ * Requires admin+ role in the organization
  */
 export const createAgent: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const agentData = req.body
-    const { projectId, providerId } = agentData
+    const { projectIds = [], ...agent } = req.body
 
     // Validate required fields
-    if (!projectId)
-      throw new Exception(400, `Agent must belong to a project (projectId required)`)
+    if (!agent.orgId)
+      throw new Exception(400, `Agent must belong to an organization (orgId required)`)
 
-    if (!providerId)
+    if (!agent.providerId)
       throw new Exception(400, `Agent must have a provider (providerId required)`)
 
-    // Check permission to create agents in this project
+    // Check permission to create agents in this org
     await checkPermission(req, EPermAction.create, EPermResource.agent, {
-      projectId,
+      orgId: agent.orgId,
     })
 
-    // Create the agent
-    const { data, error } = await db.services.agent.create(agentData)
+    const { data: projects, error: projErr } = projectIds?.length
+      ? await db.services.project.list({ where: { id: projectIds } })
+      : { data: [] }
+
+    if (projErr) throw new Exception(500, projErr.message)
+    if (projects?.length) agent.projects = projects
+
+    const { data, error } = await db.services.agent.create(agent)
 
     if (error) throw new Exception(500, error.message)
 

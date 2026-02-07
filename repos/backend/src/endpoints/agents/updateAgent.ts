@@ -8,28 +8,35 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * PUT /_/agents/:id - Update an agent
+ * Can optionally update project associations by passing projectIds array
  */
 export const updateAgent: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db } = req.app.locals
     const { id } = req.params
-    const agentData = req.body
+    const { db } = req.app.locals
+    const { projectIds = [], ...agent } = req.body
 
     // First get the agent to check permissions
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)
     if (getError) throw new Exception(404, `Agent not found`)
     if (!existingAgent) throw new Exception(404, `Agent not found`)
 
-    // Check permission to update agents in this project
+    // Check permission to update agents in this org
     await checkPermission(req, EPermAction.update, EPermResource.agent, {
-      projectId: existingAgent.projectId,
+      orgId: existingAgent.orgId,
     })
 
-    // Update the agent with id in the data
-    agentData.id = id
-    const { data, error } = await db.services.agent.update(agentData)
+    const { data: projects, error: projErr } = projectIds?.length
+      ? await db.services.project.list({ where: { id: projectIds } })
+      : { data: [] }
+
+    if (projErr) throw new Exception(500, projErr.message)
+
+    agent.id = id
+    if (projects?.length) agent.projects = projects
+    const { data, error } = await db.services.agent.update(agent)
 
     if (error) throw new Exception(500, error.message)
 

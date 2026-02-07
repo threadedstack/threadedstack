@@ -21,9 +21,9 @@ export const deleteAgent: TEndpointConfig = {
     if (getError) throw new Exception(404, `Agent not found`)
     if (!agent) throw new Exception(404, `Agent not found`)
 
-    // Check permission to delete agents in this project
+    // Check permission to delete agents in this org
     await checkPermission(req, EPermAction.delete, EPermResource.agent, {
-      projectId: agent.projectId,
+      orgId: agent.orgId,
     })
 
     // Delete the agent
