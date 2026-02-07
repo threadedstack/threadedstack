@@ -1,9 +1,7 @@
-import type { TDBSecretInsert } from '@TDB/types'
-
 import { Secret } from '@tdsk/domain'
 import { OrgIds, ProjectIds, SecretIds } from '@TDB/seeds/ids.seed'
 
-export const secretsSeeds: TDBSecretInsert[] = [
+export const secretsSeeds: Secret[] = [
   new Secret({
     orgId: OrgIds.acme,
     projectId: undefined,

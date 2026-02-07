@@ -26,6 +26,7 @@
     "drop": "drizzle-kit drop --config=configs/drizzle.config.ts",
     "export": "drizzle-kit export --config=configs/drizzle.config.ts",
     "seed": "tsx -r ./configs/aliases.ts scripts/seed.ts",
+    "purge": "tsx -r ./configs/aliases.ts scripts/purge.ts",
     "biome": "biome",
     "lint": "pnpm biome:lint --write",
     "format": "pnpm biome:format --write",

@@ -1,9 +1,7 @@
-import type { TDBMessageInsert } from '@TDB/types'
-
 import { Message } from '@tdsk/domain'
 import { ThreadIds, MessageIds } from '@TDB/seeds/ids.seed'
 
-export const messagesSeeds: TDBMessageInsert[] = [
+export const messagesSeeds: Message[] = [
   new Message({
     type: `user`,
     id: MessageIds.thread1Msg1,

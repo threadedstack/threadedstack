@@ -1,9 +1,7 @@
-import type { TDBQuotaInsert } from '@TDB/types'
-
 import { Quota } from '@tdsk/domain'
 import { OrgIds, QuotaIds } from '@TDB/seeds/ids.seed'
 
-export const quotasSeeds: TDBQuotaInsert[] = [
+export const quotasSeeds: Quota[] = [
   new Quota({
     projects: 5,
     members: 12,

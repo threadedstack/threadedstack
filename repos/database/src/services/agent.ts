@@ -182,22 +182,39 @@ export class Agent extends Base<
    * Update an agent and manage project associations
    */
   async update(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { id, projects, ...agentData } = data
+    const { projects, ...agent } = data
 
-    if (!id) return { data: null, error: new Error('Agent ID is required for update') }
+    if (!agent.id)
+      return { data: null, error: new Error('Agent ID is required for update') }
 
     // Update the agent
-    const result = await super.update(agentData)
+    const result = await super.update(agent)
 
     // If projectIds are provided, update the associations
     if (result.data && projects?.length) {
       // Delete existing project associations
-      await this.db.delete(agentProjects).where(eq(agentProjects.agentId, id))
+      await this.db.delete(agentProjects).where(eq(agentProjects.agentId, agent.id))
 
-      await this.#relations(id, projects)
+      await this.#relations(agent.id, projects)
 
       // Fetch the agent with projects to return complete data
-      const updated = await this.get(id, opts)
+      const updated = await this.get(agent.id, opts)
+      result.data = updated.data
+    }
+
+    return result
+  }
+
+  async upsert(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
+    const { projects, ...agent } = data
+    const result = await super.upsert(agent)
+
+    // If projectIds are provided, update the associations
+    if (result.data && projects?.length) {
+      await this.#relations(agent.id, projects)
+
+      // Fetch the agent with projects to return complete data
+      const updated = await this.get(agent.id, opts)
       result.data = updated.data
     }
 

@@ -1,9 +1,7 @@
-import type { TDBApiKeyInsert } from '@TDB/types'
-
 import { ApiKey } from '@tdsk/domain'
 import { OrgIds, ApiKeyIds, ProjectIds } from '@TDB/seeds/ids.seed'
 
-export const apiKeysSeeds: TDBApiKeyInsert[] = [
+export const apiKeysSeeds: ApiKey[] = [
   new ApiKey({
     active: true,
     rateLimit: 1000,

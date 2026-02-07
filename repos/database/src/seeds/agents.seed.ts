@@ -1,19 +1,22 @@
-import type { TDBAgentInsert } from '@TDB/types'
-
 import { Agent } from '@tdsk/domain'
-import { ProviderIds, ProjectIds, AgentIds } from '@TDB/seeds/ids.seed'
+import { projectsSeeds } from '@TDB/seeds/projects.seed'
+import { Ids, ProviderIds, AgentIds } from '@TDB/seeds/ids.seed'
 
-export const agentsSeeds: TDBAgentInsert[] = [
+const projects = projectsSeeds.filter((proj) => proj.orgId === Ids.org.acme)
+
+export const agentsSeeds: Agent[] = [
   new Agent({
+    projects,
+    orgId: Ids.org.acme,
     id: AgentIds.codingAgent,
-    projectId: ProjectIds.acmeApi,
     description: `A coding AI Agent`,
     providerId: ProviderIds.acmeAnthropic,
     systemPrompt: `You are a senior software engineer.`,
   }),
   new Agent({
+    projects,
+    orgId: Ids.org.acme,
     id: AgentIds.chatAgent,
-    projectId: ProjectIds.startupAi,
     description: `Conversational AI`,
     providerId: ProviderIds.startupAnthropic,
     systemPrompt: `Answer the users questions.`,

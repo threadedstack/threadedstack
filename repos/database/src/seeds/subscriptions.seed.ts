@@ -1,16 +1,14 @@
-import type { TDBSubscriptionInsert } from '@TDB/types'
-
 import { Subscription } from '@tdsk/domain'
-import { UserIds, SubscriptionIds } from '@TDB/seeds/ids.seed'
+import { Ids, UserIds, SubscriptionIds } from '@TDB/seeds/ids.seed'
 
 /**
  * TODO: Update these to align with polar ids
  */
-export const subscriptionsSeeds: TDBSubscriptionInsert[] = [
+export const subscriptionsSeeds: Subscription[] = [
   new Subscription({
     tier: `pro`,
     status: `active`,
-    userId: UserIds.owner,
+    userId: Ids.super.user,
     id: SubscriptionIds.owner,
     cancelAtPeriodEnd: false,
     polarId: `polar_sub_admin_owner_123`,

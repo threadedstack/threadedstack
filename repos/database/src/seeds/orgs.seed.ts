@@ -1,9 +1,7 @@
-import type { TDBOrgInsert } from '@TDB/types'
-
 import { Organization } from '@tdsk/domain'
 import { OrgIds } from '@TDB/seeds/ids.seed'
 
-export const orgsSeeds: TDBOrgInsert[] = [
+export const orgsSeeds: Organization[] = [
   new Organization({
     id: OrgIds.tdsk,
     name: `Threaded Stack`,

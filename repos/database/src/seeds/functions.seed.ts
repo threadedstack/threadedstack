@@ -1,9 +1,7 @@
-import type { TDBFunctionInsert } from '@TDB/types'
-
 import { EFunLanguage, Function as TDFunction } from '@tdsk/domain'
 import { EndpointIds, FunctionIds, ProjectIds } from '@TDB/seeds/ids.seed'
 
-export const functionsSeeds: TDBFunctionInsert[] = [
+export const functionsSeeds: TDFunction[] = [
   new TDFunction({
     id: FunctionIds.acmeUserValidator,
     projectId: ProjectIds.acmeApi,

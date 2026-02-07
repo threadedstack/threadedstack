@@ -1,9 +1,7 @@
-import type { TDBProviderInsert } from '@TDB/types'
-
 import { Provider, EProvider } from '@tdsk/domain'
 import { OrgIds, UserIds, ProviderIds, ProjectIds } from '@TDB/seeds/ids.seed'
 
-export const providersSeeds: TDBProviderInsert[] = [
+export const providersSeeds: Provider[] = [
   new Provider({
     userId: undefined,
     type: EProvider.ai,

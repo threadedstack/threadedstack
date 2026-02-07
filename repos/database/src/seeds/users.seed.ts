@@ -1,11 +1,9 @@
-import type { TDBUserInsert } from '@TDB/types'
-
 import { User } from '@tdsk/domain'
-import { UserIds } from '@TDB/seeds/ids.seed'
+import { UserIds, Ids } from '@TDB/seeds/ids.seed'
 
-export const userSeeds: TDBUserInsert[] = [
+export const userSeeds: User[] = [
   new User({
-    id: UserIds.owner,
+    id: Ids.super.user,
     name: `Lance Tipton`,
     banExpires: undefined,
     email: `lancetipton04@gmail.com`,

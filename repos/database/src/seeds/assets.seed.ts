@@ -1,7 +1,6 @@
-import type { TDBAssetInsert } from '@TDB/types'
-
 import { Asset } from '@tdsk/domain'
 import {
+  Ids,
   OrgIds,
   UserIds,
   AssetIds,
@@ -11,7 +10,7 @@ import {
   ProviderIds,
 } from '@TDB/seeds/ids.seed'
 
-export const assetsSeeds: TDBAssetInsert[] = [
+export const assetsSeeds: Asset[] = [
   new Asset({
     type: `image/png`,
     userId: undefined,
@@ -28,7 +27,7 @@ export const assetsSeeds: TDBAssetInsert[] = [
       width: 512,
       height: 512,
       size: 45678,
-      uploadedBy: UserIds.owner,
+      uploadedBy: Ids.super.user,
     },
   }),
   new Asset({

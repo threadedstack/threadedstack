@@ -1,16 +1,14 @@
-import type { TDBRoleInsert } from '@TDB/types'
-
 import { Role } from '@tdsk/domain'
-import { OrgIds, UserIds, RoleIds } from '@TDB/seeds/ids.seed'
+import { Ids, OrgIds, UserIds, RoleIds } from '@TDB/seeds/ids.seed'
 
-export const rolesSeeds: TDBRoleInsert[] = [
+export const rolesSeeds: Role[] = [
   // Acme Corporation roles
   new Role({
     type: `owner`,
     orgId: OrgIds.acme,
     projectId: undefined,
     id: RoleIds.ownerAcme,
-    userId: UserIds.owner,
+    userId: Ids.super.user,
     name: `Organization Owner`,
   }),
   new Role({
@@ -41,8 +39,8 @@ export const rolesSeeds: TDBRoleInsert[] = [
   new Role({
     type: `owner`,
     projectId: undefined,
-    userId: UserIds.owner,
     orgId: OrgIds.startup,
+    userId: Ids.super.user,
     id: RoleIds.ownerStartup,
     name: `Organization Owner`,
   }),

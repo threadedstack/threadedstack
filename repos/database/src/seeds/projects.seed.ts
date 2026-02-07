@@ -1,9 +1,7 @@
-import type { TDBProjectInsert } from '@TDB/types'
-
 import { Project } from '@tdsk/domain'
 import { OrgIds, ProjectIds } from '@TDB/seeds/ids.seed'
 
-export const projectsSeeds: TDBProjectInsert[] = [
+export const projectsSeeds: Project[] = [
   new Project({
     orgId: OrgIds.acme,
     id: ProjectIds.acmeApi,

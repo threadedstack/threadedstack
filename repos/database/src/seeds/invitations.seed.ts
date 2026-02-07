@@ -1,9 +1,7 @@
-import type { TDBInvitationInsert } from '@TDB/types'
-
 import { EInviteStatus, Invitation } from '@tdsk/domain'
-import { OrgIds, UserIds, InvitationIds } from '@TDB/seeds/ids.seed'
+import { Ids, OrgIds, UserIds, InvitationIds } from '@TDB/seeds/ids.seed'
 
-export const invitationsSeeds: TDBInvitationInsert[] = [
+export const invitationsSeeds: Invitation[] = [
   new Invitation({
     userId: undefined,
     orgId: OrgIds.acme,
@@ -11,7 +9,7 @@ export const invitationsSeeds: TDBInvitationInsert[] = [
     revokedAt: undefined,
     revokedBy: undefined,
     acceptedAt: undefined,
-    invitedBy: UserIds.owner,
+    invitedBy: Ids.super.user,
     id: InvitationIds.pending,
     email: `newuser@example.com`,
     status: EInviteStatus.pending,
@@ -24,7 +22,7 @@ export const invitationsSeeds: TDBInvitationInsert[] = [
     revokedAt: undefined,
     revokedBy: undefined,
     userId: UserIds.member,
-    invitedBy: UserIds.owner,
+    invitedBy: Ids.super.user,
     id: InvitationIds.accepted,
     email: `member@example.com`,
     token: `invite_token_def456uvw`,
@@ -39,7 +37,7 @@ export const invitationsSeeds: TDBInvitationInsert[] = [
     revokedBy: undefined,
     acceptedAt: undefined,
     orgId: OrgIds.startup,
-    invitedBy: UserIds.owner,
+    invitedBy: Ids.super.user,
     id: InvitationIds.startup,
     status: EInviteStatus.pending,
     email: `developer@example.com`,
@@ -65,8 +63,8 @@ export const invitationsSeeds: TDBInvitationInsert[] = [
     roleType: `member`,
     orgId: OrgIds.acme,
     acceptedAt: undefined,
-    invitedBy: UserIds.owner,
-    revokedBy: UserIds.owner,
+    invitedBy: Ids.super.user,
+    revokedBy: Ids.super.user,
     id: InvitationIds.revoked,
     email: `revoked@example.com`,
     status: EInviteStatus.revoked,

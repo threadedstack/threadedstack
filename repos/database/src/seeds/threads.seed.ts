@@ -1,7 +1,6 @@
-import type { TDBThreadInsert } from '@TDB/types'
-
 import { Thread } from '@tdsk/domain'
 import {
+  Ids,
   UserIds,
   ConfigIds,
   ThreadIds,
@@ -9,10 +8,10 @@ import {
   ProviderIds,
 } from '@TDB/seeds/ids.seed'
 
-export const threadsSeeds: TDBThreadInsert[] = [
+export const threadsSeeds: Thread[] = [
   new Thread({
     public: false,
-    userId: UserIds.owner,
+    userId: Ids.super.user,
     id: ThreadIds.adminPlanning,
     configId: ConfigIds.acmeOrg,
     name: `Q1 Planning Discussion`,

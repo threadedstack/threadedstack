@@ -1,14 +1,12 @@
-import type { TDBConfigInsert } from '@TDB/types'
-
 import { Config } from '@tdsk/domain'
-import { OrgIds, UserIds, ProjectIds, ConfigIds } from '@TDB/seeds/ids.seed'
+import { Ids, OrgIds, UserIds, ProjectIds, ConfigIds } from '@TDB/seeds/ids.seed'
 
-export const configsSeeds: TDBConfigInsert[] = [
+export const configsSeeds: Config[] = [
   new Config({
     orgId: undefined,
     id: ConfigIds.user,
     projectId: undefined,
-    userId: UserIds.owner,
+    userId: Ids.super.user,
     data: {
       theme: `dark`,
       language: `en`,
