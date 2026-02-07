@@ -13,6 +13,7 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
+    "strictNullChecks": false,
     "moduleResolution": "bundler",
     "forceConsistentCasingInFileNames": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
