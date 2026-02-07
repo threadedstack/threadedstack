@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-**Threaded Stack** is a developer platform that unifies authentication, serverless compute (FaaS), and secure API proxying into a single infrastructure. It solves the fragmentation problem developers face when building "Agentic" AI applications: connecting LLMs to real-world tools securely. By acting as the "nervous system" between an AI model and external APIs/databases, Threaded Stack allows orgs to build autonomous software without managing complex AWS/Azure infrastructure.
+**Threaded Stack** is a developer platform that unifies AI sandboxes, serverless compute (FaaS), and secure API proxying into a single infrastructure. It solves the fragmentation problem developers face when building "Agentic" AI applications: connecting LLMs to real-world tools securely. By acting as the "nervous system" between an AI model and external APIs/databases, Threaded Stack allows orgs to build autonomous software without managing complex AWS/Azure infrastructure.
 
 ## 2. The Problem
 
