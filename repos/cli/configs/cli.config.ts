@@ -3,8 +3,8 @@ import path from 'node:path'
 import { loadEnvs } from '@tdsk/domain'
 
 const aliases = hq.get(`webpack`)
-const root = aliases[`@ROOT`]
-const paths = {
+const root: string = aliases[`@ROOT`]
+const paths: Record<string, string> = {
   root,
   temp: path.join(root, `.temp`),
   repos: path.join(root, `repos`),
@@ -20,14 +20,15 @@ const envs = loadEnvs({
 })
 
 const {
+  TDSK_IMAGE,
   TDSK_IMAGE_TAG,
   TDSK_IMAGE_FROM,
   TDSK_DEV_IMAGE_TAG,
+  TDSK_APP_DEPLOYMENT,
 
   TDSK_PX_PORT,
   TDSK_PX_IMAGE,
   TDSK_PX_DEPLOYMENT,
-  TDSK_PX_REMOTE_PORT = TDSK_PX_PORT,
   TDSK_PX_IMAGE_TAG = TDSK_IMAGE_TAG,
   TDSK_PX_IMAGE_FROM = TDSK_IMAGE_FROM,
   TDSK_PX_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
@@ -64,6 +65,23 @@ export const config = {
   envs,
   paths,
   contexts: {
+    app: {
+      tags: [],
+      location: root,
+      image: TDSK_IMAGE,
+      tag: TDSK_IMAGE_TAG,
+      from: TDSK_IMAGE_FROM,
+      dtag: TDSK_DEV_IMAGE_TAG,
+      dockerfile: `Dockerfile.app`,
+      deployment: TDSK_APP_DEPLOYMENT,
+      mounts: {
+        [root]: `/tdsk`,
+      },
+      ports: {
+        [TDSK_BE_PORT]: TDSK_BE_PORT,
+        [TDSK_PX_PORT]: TDSK_PX_PORT,
+      },
+    },
     proxy: {
       tags: [],
       image: TDSK_PX_IMAGE,
@@ -73,8 +91,9 @@ export const config = {
       deployment: TDSK_PX_DEPLOYMENT,
       dockerfile: `Dockerfile.proxy`,
       location: path.join(paths.repos, `proxy`),
+      mounts: {},
       ports: {
-        [TDSK_PX_PORT]: TDSK_PX_REMOTE_PORT,
+        [TDSK_PX_PORT]: TDSK_PX_PORT,
       },
     },
     backend: {
@@ -86,6 +105,7 @@ export const config = {
       dtag: TDSK_BE_DEV_IMAGE_TAG,
       deployment: TDSK_BE_DEPLOYMENT,
       location: path.join(paths.repos, `backend`),
+      mounts: {},
       ports: {
         [TDSK_BE_PORT]: TDSK_BE_PORT,
       },
@@ -99,6 +119,7 @@ export const config = {
       deployment: TDSK_AD_DEPLOYMENT,
       dockerfile: `Dockerfile.admin`,
       location: path.join(paths.repos, `admin`),
+      mounts: {},
       ports: {
         [TDSK_AD_PORT]: TDSK_AD_REMOTE_PORT,
       },
@@ -112,6 +133,7 @@ export const config = {
       deployment: TDSK_CADDY_DEPLOYMENT,
       dockerfile: `Dockerfile.caddy`,
       location: paths.deploy,
+      mounts: {},
       ports: {
         [TDSK_CADDY_ADMIN_PORT]: TDSK_CADDY_ADMIN_PORT,
         [TDSK_CADDY_LOCAL_PORT]: TDSK_CADDY_REMOTE_PORT,

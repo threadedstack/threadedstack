@@ -14,7 +14,7 @@ RUN npm install --global pnpm@9.15.4
 FROM tdsk-base AS tdsk-pnpm
 WORKDIR /tdsk
 COPY .npmrc pnpm-*.yaml ./
-RUN pnpm fetch --prod --no-optional --ignore-scripts
+RUN pnpm fetch --ignore-scripts
 COPY package.json tsconfig* ./
 # ---- End Stage ---- #
 
@@ -22,27 +22,24 @@ COPY package.json tsconfig* ./
 FROM tdsk-pnpm AS tdsk-build
 WORKDIR /tdsk
 ADD repos/logger/package.json ./repos/logger/package.json
-ADD repos/backend/package.json ./repos/backend/package.json
-ADD repos/database/package.json ./repos/database/package.json
 ADD repos/domain/package.json ./repos/domain/package.json
-RUN pnpm install --prod --offline --frozen-lockfile
-ADD repos/backend ./repos/backend
-ADD repos/database ./repos/database
+ADD repos/database/package.json ./repos/database/package.json
+ADD repos/proxy/package.json ./repos/proxy/package.json
+ADD repos/backend/package.json ./repos/backend/package.json
+RUN pnpm install --frozen-lockfile --prefer-offline
+
 ADD repos/logger ./repos/logger
 ADD repos/domain ./repos/domain
-WORKDIR /tdsk/repos/backend
-RUN pnpm build
-RUN pnpm --filter=@tdsk/backend --prod deploy /tdsk-runner/repos/backend
+ADD repos/database ./repos/database
+ADD repos/proxy ./repos/proxy
+ADD repos/backend ./repos/backend
+ADD deploy deploy
 # ---- End Stage ---- #
 
 
 # ---- Run Stage  ---- #
-FROM tdsk-base AS tdsk-runner
+FROM tdsk-build AS tdsk-runner
 WORKDIR /tdsk
-COPY --from=tdsk-build /tdsk-runner /tdsk
-COPY deploy deploy
-COPY .npmrc pnpm-*.yaml ./
-COPY package.json tsconfig* ./
-WORKDIR /tdsk/repos/backend
-ENTRYPOINT ["pnpm", "serve"]
+RUN chmod a+x /tdsk/deploy/initialize.sh
+ENTRYPOINT [ "/tdsk/deploy/initialize.sh" ]
 # ---- End Stage ---- #

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set +e  # Continue on errors
 
 COLOR_BLUE="\033[0;94m"
@@ -12,7 +12,6 @@ tdsk_proxy() {
 
 tdsk_backend(){
   cd /tdsk/repos/backend
-  /bin/bash  /tdsk/repos/backend/supervisor/initialize.sh >> /proc/1/fd/1 &
   pnpm start 2>&1 &
 }
 
@@ -45,5 +44,5 @@ else
   export PATH="./bin:$PATH"
 
   # Open a new shell
-  bash --norc
+  sh --norc
 fi

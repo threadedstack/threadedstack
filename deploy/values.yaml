@@ -15,9 +15,12 @@ env:
   # Production url for threaded stack 
   TDSK_URL: http://threadedstack.com/
 
+
+  # ---- Development Image ENVs ---- #
   TDSK_IMAGE_TAG: latest
   TDSK_DEV_IMAGE_TAG: main
   TDSK_APP_DEPLOYMENT: tdsk-app
+  TDSK_IMAGE_FROM: node:22-alpine3.19
   TDSK_IMAGE: 'ghcr.io/threadedstack/tdsk-app'
 
 # ---- PostHog ENVs ---- #
@@ -176,8 +179,8 @@ env:
   TDSK_BE_IMAGE_TAG: latest
   TDSK_BE_DEV_IMAGE_TAG: main
   TDSK_BE_DEPLOYMENT: tdsk-backend
+  TDSK_BE_IMAGE_FROM: node:22-alpine3.19
   TDSK_BE_IMAGE: 'ghcr.io/threadedstack/tdsk-backend'
-  TDSK_BE_IMAGE_FROM: 'mcr.microsoft.com/playwright:v1.49.1'
 
 
   # ---- Backend ENVs --- #

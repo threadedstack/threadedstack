@@ -1,3 +1,7 @@
+# Bypass the tdsk CLI:
+#  - Run the from the root directory:
+#   DEVSPACE_CONFIG="/Users/LanceTipton/keg-cli/external/apps/threaded-stack/deploy/devspace.yaml" devspace --namespace tdsk-local --kube-context docker-desktop --profile local dev
+
 version: v2beta1
 name: threadedstack
 
@@ -10,7 +14,7 @@ pipelines:
   dev:
     run: |-
       ensure_pull_secrets --all
-      run_pipelines deploy-caddy start-px start-backend
+      run_pipelines start-caddy start-px start-backend
 
   deploy:
     run: |-
@@ -19,7 +23,7 @@ pipelines:
 
   deploy-caddy:
     run: |-
-      create_deployments caddy-gateway
+      create_deployments tdsk-caddy
 
   deploy-px:
     run: |-
@@ -28,6 +32,11 @@ pipelines:
   deploy-backend:
     run: |-
       create_deployments tdsk-backend
+
+  start-caddy:
+    run: |-
+      create_deployments tdsk-caddy
+      start_dev tdsk-caddy
 
   start-px:
     run: |-
@@ -166,6 +175,7 @@ vars:
 
 hooks:
   - events: ["before:deploy"]
+    silent: true
     command: |-
       kubectl create configmap caddy-config --from-file=Caddyfile=./Caddyfile --dry-run=client -o yaml | kubectl apply -f -
 
@@ -177,7 +187,7 @@ images:
     tags:
     - '${TDSK_IMAGE_TAG}'
     - '####-${NODE_ENV}-${devspace.git.commit}'
-    dockerfile: ./Dockerfile
+    dockerfile: ./Dockerfile.app
     context: ../
 
 
@@ -185,7 +195,7 @@ images:
 deployments:
 
 
-  caddy-gateway:
+  tdsk-caddy:
     helm:
       upgradeArgs:
         - "--force"
@@ -253,17 +263,17 @@ deployments:
             configMap:
               name: caddy-config
         service:
-          name: caddy-gateway
+          name: tdsk-caddy
           type: LoadBalancer
           ports:
             - port: ${TDSK_CADDY_LOCAL_PORT}
               containerPort: ${TDSK_CADDY_REMOTE_PORT}
-              name: caddy-gateway-insecure
+              name: tdsk-caddy-insecure
             - port: ${TDSK_CADDY_SECURE_LOCAL_PORT}
               containerPort: ${TDSK_CADDY_SECURE_REMOTE_PORT}
-              name: caddy-gateway-secure
+              name: tdsk-caddy-secure
             - port: ${TDSK_CADDY_ADMIN_PORT}
-              name: caddy-gateway-admin
+              name: tdsk-caddy-admin
 
   tdsk-proxy:
     helm:
@@ -533,7 +543,7 @@ deployments:
 # This is a list of `dev` containers that are based on the containers created by your deployments
 dev:
 
-  caddy-gateway:
+  tdsk-caddy:
     labelSelector:
       app.kubernetes.io/component: ${TDSK_CADDY_DEPLOYMENT}
     devImage: ${TDSK_CADDY_IMAGE}:${TDSK_CADDY_IMAGE_TAG}
@@ -554,7 +564,7 @@ dev:
     container: tdsk-proxy
     labelSelector:
       app.kubernetes.io/component: ${TDSK_PX_DEPLOYMENT}
-    devImage: ghcr.io/threadedstack/tdsk-proxy:latest
+    devImage: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
     logs: {}
     sync:
       - path: ../:/tdsk
@@ -583,13 +593,11 @@ dev:
         initialSync: mirrorLocal
     ports:
       - port: ${TDSK_PX_PORT}
-    #ssh:
-    #  enabled: true
 
   tdsk-backend:
     labelSelector:
       app.kubernetes.io/component: ${TDSK_BE_DEPLOYMENT}
-    devImage: ghcr.io/threadedstack/tdsk-backend:latest
+    devImage: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
     logs: {}
     sync:
       - path: ../:/tdsk
@@ -624,8 +632,6 @@ dev:
         initialSync: mirrorLocal
     ports:
       - port: ${TDSK_BE_PORT}
-    #ssh:
-    #  enabled: true
 
 # Use profile to dynamically set options based on the environment
 profiles:

@@ -47,3 +47,18 @@ export const addEnvs = (props: TUtilArgs) => {
 
   return args
 }
+
+export const addMounts = (props: TUtilArgs) => {
+  const { ctx, params } = props
+  if (!ctx?.mounts) return []
+
+  return Object.entries(ctx.mounts).reduce((acc, [key, value]) => {
+    if (!exists(value)) return acc
+
+    key.startsWith(`!`)
+      ? acc.push(`--mount`, `type=volume,dst=${value}`)
+      : acc.push(`--mount`, `type=bind,src=${key},dst=${value}`)
+
+    return acc
+  }, [] as string[])
+}

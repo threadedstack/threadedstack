@@ -25,7 +25,6 @@ export const devspace = {
         args: [...(props?.params?.dsargs || []), ...start(props)],
       }),
     {
-      build: `-b`,
       debug: `--debug`,
       purge: `--force-purge`,
       deploy: `--force-deploy`,

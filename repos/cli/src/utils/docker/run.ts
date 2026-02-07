@@ -1,7 +1,7 @@
 import type { TUtilArgs } from '@TSCL/types'
 
 import { emptyArr } from '@keg-hub/jsutils'
-import { addEnvs, addPorts } from '@TSCL/utils/docker/helpers'
+import { addEnvs, addPorts, addMounts } from '@TSCL/utils/docker/helpers'
 
 export type TDockerPullType = `missing` | `never` | `always`
 
@@ -39,15 +39,16 @@ export const getRunArgs = ({
   pull,
   privileged,
 }: TDockerRunArgs) => {
-  const args = []
+  const args: string[] = []
   remove && args.push(`--rm`)
   attach && args.push(`-it`)
   name && args.push(`--name`, name)
   privileged && args.push(`--privileged`)
 
-  ;[`missing`, `never`, `always`].includes(pull)
-    ? args.push(`--pull=${pull}`)
-    : args.push(`--pull=never`)
+  if (pull)
+    [`missing`, `never`, `always`].includes(pull)
+      ? args.push(`--pull=${pull}`)
+      : args.push(`--pull=never`)
 
   return args
 }
@@ -56,6 +57,7 @@ export const run = (props: TUtilArgs<TDockerRunArgs>) => {
   return [
     `run`,
     ...getRunArgs(props.params),
+    ...addMounts(props),
     ...addPorts(props),
     ...addEnvs(props),
     ...getEntryPoint(props.params),

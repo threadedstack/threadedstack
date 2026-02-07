@@ -86,7 +86,7 @@ export const dsdefaults =
     updated = checkNodeOpts(updated)
     updated = checkConfigPath(updated)
 
-    if (flags || values) updated = checkCmdArgs(props, flags, values)
+    if (flags || values) updated = checkCmdArgs(updated, flags, values)
 
     return await cb(updated)
   }
