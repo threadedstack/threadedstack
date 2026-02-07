@@ -14,6 +14,7 @@ export type TPayConfig = {
   url: string
   wbhSecret: string
   plans: Record<string, string>
+  environment?: `sandbox` | `production`
 }
 
 export type TPayProduct = {

@@ -57,7 +57,7 @@ export const secretsSeeds: Secret[] = [
     projectId: undefined,
     providerId: undefined,
     orgId: OrgIds.personal,
-    id: SecretIds.personalToken,
+    id: SecretIds.githubToken,
     hashKey: `hash_github_token`,
     description: `Personal GitHub access token`,
     encryptedValue: `encrypted_github_token_value`,

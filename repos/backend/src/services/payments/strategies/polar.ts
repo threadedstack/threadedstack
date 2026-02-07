@@ -11,6 +11,7 @@ import type {
 
 import crypto from 'node:crypto'
 import { Plan } from '@tdsk/domain'
+import { Polar } from '@polar-sh/sdk'
 import { API } from '@TBE/services/api'
 import { logger } from '@TBE/utils/logger'
 import { Exception } from '@TBE/utils/errors/exception'
@@ -21,6 +22,8 @@ import { BaseService } from '@TBE/services/payments/strategies/base'
  */
 export class PolarService extends BaseService {
   #api: API
+  #token: string
+  #service: Polar
   #wbhSecret: string
   #cache: Map<string, { data: TPayProduct }> = new Map()
 
@@ -28,6 +31,11 @@ export class PolarService extends BaseService {
     if (!config.token) throw new Exception(500, `Payments access token is required`)
 
     super(config)
+
+    this.#service = new Polar({
+      accessToken: this.#token,
+      server: config.environment === `production` ? `production` : `sandbox`,
+    })
 
     this.#wbhSecret = config.wbhSecret
     this.#api = new API({
@@ -143,7 +151,7 @@ export class PolarService extends BaseService {
 
     // Polar API returns { data: [customers] }, so unwrap the array
     const customers = resp?.data?.data || []
-    if (customers.length > 0) return { data: customers[0] }
+    if (customers.length) return { data: customers[0] }
 
     return await this.#api.post<TPayCustomer>({
       path: `/customers`,

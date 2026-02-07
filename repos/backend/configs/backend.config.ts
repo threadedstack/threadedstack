@@ -1,7 +1,6 @@
 import type { EEmailType, EPayType } from '@TBE/types'
 import { toNum, toBool } from '@keg-hub/jsutils'
 import { loadEnvs, parsePayPlans } from '@tdsk/domain'
-import { buildProxyUrl } from '@TBE/utils/proxy/buildProxyUrl'
 
 const nodeEnv = process.env.NODE_ENV || `local`
 
@@ -103,6 +102,7 @@ export const config = {
     url: TDSK_PAY_URL,
     token: TDSK_PAY_ACCESS_TOKEN,
     type: TDSK_PAY_TYPE as EPayType,
+    environment: process.env.NODE_ENV,
     wbhSecret: TDSK_PAY_WEBHOOK_SECRET,
     plans: parsePayPlans(TDSK_PAY_PLANS),
   },

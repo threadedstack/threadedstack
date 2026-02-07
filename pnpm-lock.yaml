@@ -269,6 +269,9 @@ importers:
       '@polar-sh/express':
         specifier: 0.6.3
         version: 0.6.3(express@5.1.0)
+      '@polar-sh/sdk':
+        specifier: 0.42.5
+        version: 0.42.5
       '@tdsk/database':
         specifier: workspace:*
         version: link:../database
@@ -3957,8 +3960,8 @@ packages:
     peerDependencies:
       express: ^4.21.2
 
-  '@polar-sh/sdk@0.42.2':
-    resolution: {integrity: sha512-dmm/ySQZQfFbeO8x/1sgcFdkgYOXAc/Sgu0nHj4hhHxrEVbI2axvm4jV/SCpCbm0MvoY+bsbHFP8n8MUaQaCgQ==}
+  '@polar-sh/sdk@0.42.5':
+    resolution: {integrity: sha512-GzC3/ElCtMO55+KeXwFTANlydZzw5qI3DU/F9vAFIsUKuegSmh+Xu03KCL+ct9/imJOvLUQucYhUSsNKqo2j2Q==}
 
   '@popperjs/core@2.11.8':
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
@@ -15154,15 +15157,15 @@ snapshots:
 
   '@polar-sh/adapter-utils@0.4.3':
     dependencies:
-      '@polar-sh/sdk': 0.42.2
+      '@polar-sh/sdk': 0.42.5
 
   '@polar-sh/express@0.6.3(express@5.1.0)':
     dependencies:
       '@polar-sh/adapter-utils': 0.4.3
-      '@polar-sh/sdk': 0.42.2
+      '@polar-sh/sdk': 0.42.5
       express: 5.1.0
 
-  '@polar-sh/sdk@0.42.2':
+  '@polar-sh/sdk@0.42.5':
     dependencies:
       standardwebhooks: 1.0.0
       zod: 4.3.5
