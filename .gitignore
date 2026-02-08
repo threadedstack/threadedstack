@@ -182,5 +182,3 @@ vite.config.ts.timestamp*
 *.sqlite-journal
 *.sqlite-wal
 repos/**/wit/deps
-.claude
-!.claude/skills/**

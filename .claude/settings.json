@@ -12,23 +12,10 @@
       "Bash(tree:*)",
       "Bash(find:*)",
       "Bash(node:*)",
+      "Bash(tsx:*)",
+      "Bash(git:*)",
       "Bash(which:*)",
-      "Bash(pnpm add:*)",
-      "Bash(pnpm test:*)",
-      "Bash(pnpm build:*)",
-      "Bash(npm test:*)",
-      "Bash(git status)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
-      "Bash(git add:*)",
-      "Bash(git push)",
-      "Bash(git tag:*)",
-      "Bash(git commit:*)",
-      "Bash(git config:*)",
-      "Bash(git branch:*)",
-      "Bash(git stash:*)",
-      "Bash(git checkout:*)",
-      "Bash(pnpm exec tsc:*)",
+      "Bash(pnpm:*)",
       "Bash(mcp__happy__change_title:*)",
       "Bash(mkdir -p /Users/LanceTipton/keg-cli/external/apps/threaded-stack/:*)"
     ],
@@ -41,6 +28,17 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"$CLAUDE_FILE_PATH\" in *pnpm-lock.yaml|*.env|*.env.*|*values.production.yaml) echo 'BLOCK: Protected file - do not edit lock files, .env files, or production values directly' >&2; exit 2;; esac"
+          }
+        ]
+      }
+    ]
   },
   "includeCoAuthoredBy": false,
   "enabledMcpjsonServers": []

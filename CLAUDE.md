@@ -29,6 +29,23 @@
   Task("Architect agent", "Design system architecture...", "system-architect")
 ```
 
+### 🔄 Sub-Agent Context Alignment
+
+**USE SUB-AGENTS AGGRESSIVELY** to maintain context alignment and prevent drift:
+
+1. **Decompose work into sub-agents** whenever a task touches 2+ repos or has 2+ independent steps
+2. **Each sub-agent gets a focused scope** — one repo, one concern, one deliverable
+3. **Provide full context in sub-agent prompts** — don't assume the sub-agent knows prior conversation; include file paths, patterns, and acceptance criteria
+4. **Run review sub-agents after implementation** — always spawn a reviewer agent to validate changes before reporting completion
+5. **Use the security-reviewer agent** (`.claude/agents/security-reviewer.md`) for any changes touching auth, secrets, payments, or proxy logic
+
+**When to spawn sub-agents:**
+- Exploring unfamiliar code → `Explore` agent with specific questions
+- Implementing across repos → One `general-purpose` agent per repo
+- Writing tests → Dedicated test-writing agent with repo patterns
+- Code review → `feature-dev:code-reviewer` or security-reviewer agent
+- Research → `Explore` agent to avoid polluting main context with search results
+
 ## Project Overview
 
 
@@ -118,6 +135,14 @@ Load the relevant skill when working on a specific repo:
 | `logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
 | `proxy/SKILL.md` | JWKS auth validation, http-proxy-middleware backend forwarding, full implementation |
 | `shell/SKILL.md` | Cross-platform virtual shell environment, Shell class API, just-bash integration, ZenFS backends (Node.js/Browser/Bun), StreamManager, Platform detection, cwd persistence pattern, Test suite (140/149 passing) |
+| `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |
+
+### Subagents
+
+Custom subagents live in `.claude/agents/`:
+| Agent File | Purpose |
+|------------|---------|
+| `security-reviewer.md` | Security-focused code review for auth, secrets, payments, proxy changes |
 
 ### Database & Authentication
 
@@ -178,7 +203,9 @@ pnpm test           # Vitest tests
 **Database** (`repos/database/`)
 ```bash
 pnpm test           # Vitest tests
+pnpm push           # Push schema to DB (INTERACTIVE - requires manual confirmation)
 ```
+> **Note**: `pnpm push` runs `drizzle-kit push` which is interactive and requires manual confirmation for destructive changes. Claude cannot run this automatically. The user must run it manually from `repos/database/`.
 
 ### Commands Notes
 
