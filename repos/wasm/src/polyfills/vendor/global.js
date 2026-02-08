@@ -44,4 +44,3 @@ globalThis.global = globalThis.global || globalThis
 //performance: [Getter/Setter],
 //fetch: [Function: fetch],
 //crypto: [Getter]
-

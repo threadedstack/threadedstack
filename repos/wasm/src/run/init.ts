@@ -5,7 +5,6 @@ import { readFile } from 'node:fs/promises'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
 
-
 // Types (Adjusted based on your previous code)
 interface InitOpts {
   args?: string[]
@@ -20,12 +19,10 @@ interface InitOpts {
 interface InitResp {
   exports: any
   imports: any
-  [K:string]: (...args:any) => any
+  [K: string]: (...args: any) => any
 }
 
-export const init = async (
-  options: InitOpts
-): Promise<InitResp> => {
+export const init = async (options: InitOpts): Promise<InitResp> => {
   const {
     env = {},
     args = [],
@@ -35,7 +32,6 @@ export const init = async (
     logging = false,
     imports: customImports = {},
   } = options
-
 
   // Step 1: Dynamic import of the WASM module
   const wasmModule = await import(modulePath)
@@ -53,11 +49,11 @@ export const init = async (
     sandbox: {
       enableNetwork: true,
       args: [...process.argv],
-      env: {...process.env} as Record<string, string>,
+      env: { ...process.env } as Record<string, string>,
       preopens: {
-        [`.`]: `/tmp/tdsk`
+        [`.`]: `/tmp/tdsk`,
       },
-    }
+    },
   })
   //const shim = new WASIShim({
   //  sandbox: {
@@ -87,16 +83,13 @@ export const init = async (
     const filePath = join(moduleDir, fileName!)
 
     try {
-      const bytes = await readFile(filePath) as BufferSource
+      const bytes = (await readFile(filePath)) as BufferSource
       return WebAssembly.compile(bytes)
     } catch (error) {
-      throw new Error(
-        `Failed to compile WASM file at ${filePath}: ${error}`
-      )
+      throw new Error(`Failed to compile WASM file at ${filePath}: ${error}`)
     }
   }
 
   // 6. Instantiate
   return await wasmModule.instantiate(getCoreModule, mergedImports)
-
 }

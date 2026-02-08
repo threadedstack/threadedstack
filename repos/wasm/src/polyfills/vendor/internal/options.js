@@ -1,21 +1,21 @@
 // Copyright Joyent and Node contributors. All rights reserved. MIT license.
 
-'use strict';
+'use strict'
 
 function getCLIOptions() {
-  let options = new Map();
-  let aliases = new Map();
-  return { options, aliases };
+  let options = new Map()
+  let aliases = new Map()
+  return { options, aliases }
 }
 function getEmbedderOptionsFromBinding() {
-  return new Map();
+  return new Map()
 }
 
-let warnOnAllowUnauthorized = true;
+let warnOnAllowUnauthorized = true
 
-let optionsMap;
-let aliasesMap;
-let embedderOptions;
+let optionsMap
+let aliasesMap
+let embedderOptions
 
 // getCLIOptions() would serialize the option values from C++ land.
 // It would error if the values are queried before bootstrap is
@@ -23,69 +23,65 @@ let embedderOptions;
 // states into a runtime-independent snapshot.
 function getCLIOptionsFromBinding() {
   if (!optionsMap) {
-    ({ options: optionsMap } = getCLIOptions());
+    ;({ options: optionsMap } = getCLIOptions())
   }
-  return optionsMap;
+  return optionsMap
 }
 
 function getAliasesFromBinding() {
   if (!aliasesMap) {
-    ({ aliases: aliasesMap } = getCLIOptions());
+    ;({ aliases: aliasesMap } = getCLIOptions())
   }
-  return aliasesMap;
+  return aliasesMap
 }
 
 function getEmbedderOptions() {
   if (!embedderOptions) {
-    embedderOptions = getEmbedderOptionsFromBinding();
+    embedderOptions = getEmbedderOptionsFromBinding()
   }
-  return embedderOptions;
+  return embedderOptions
 }
 
 function refreshOptions() {
-  optionsMap = undefined;
-  aliasesMap = undefined;
+  optionsMap = undefined
+  aliasesMap = undefined
 }
 
 function getOptionValue(optionName) {
-  const options = getCLIOptionsFromBinding();
+  const options = getCLIOptionsFromBinding()
   if (optionName.startsWith('--no-')) {
-    const option = options.get('--' + optionName.slice(5));
-    return option && !option.value;
+    const option = options.get('--' + optionName.slice(5))
+    return option && !option.value
   }
-  return options.get(optionName)?.value;
+  return options.get(optionName)?.value
 }
 
 function getAllowUnauthorized() {
-  const allowUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0';
+  const allowUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0'
 
   if (allowUnauthorized && warnOnAllowUnauthorized) {
-    warnOnAllowUnauthorized = false;
+    warnOnAllowUnauthorized = false
     process.emitWarning(
       'Setting the NODE_TLS_REJECT_UNAUTHORIZED ' +
-      'environment variable to \'0\' makes TLS connections ' +
-      'and HTTPS requests insecure by disabling ' +
-      'certificate verification.');
+        "environment variable to '0' makes TLS connections " +
+        'and HTTPS requests insecure by disabling ' +
+        'certificate verification.'
+    )
   }
-  return allowUnauthorized;
+  return allowUnauthorized
 }
 
 export default {
   get options() {
-    return getCLIOptionsFromBinding();
+    return getCLIOptionsFromBinding()
   },
   get aliases() {
-    return getAliasesFromBinding();
+    return getAliasesFromBinding()
   },
   getOptionValue,
   getAllowUnauthorized,
   getEmbedderOptions,
-  refreshOptions
-};
-
-export {
-  getOptionValue,
-  getAllowUnauthorized,
-  getEmbedderOptions,
-  refreshOptions
+  refreshOptions,
 }
+
+export { getOptionValue, getAllowUnauthorized, getEmbedderOptions, refreshOptions }

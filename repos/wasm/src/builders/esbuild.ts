@@ -29,8 +29,7 @@ export async function esb(
   options: TWasmBuildOpts,
   paths?: TResolvedPaths
 ): Promise<FromTSResult> {
-  
-  paths = paths || await resolvePaths(options)
+  paths = paths || (await resolvePaths(options))
 
   !options.quiet && console.log(`📝 Compiling TypeScript to JavaScript with esbuild...`)
 
@@ -67,6 +66,4 @@ export async function esb(
     success: true,
     jsin: paths.jsin,
   }
-
 }
-

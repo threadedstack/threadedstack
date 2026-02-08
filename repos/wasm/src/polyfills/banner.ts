@@ -2,17 +2,14 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
 
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 type TInjectOpts = {
-  js?:string
+  js?: string
 }
 
-
-
-export const injectBanner = async (opts?:TInjectOpts) => {
+export const injectBanner = async (opts?: TInjectOpts) => {
   return `
     Math.random = (function() {
       let seed = 0x12345678

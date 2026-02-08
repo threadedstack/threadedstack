@@ -1,24 +1,34 @@
 // Copyright 2018-2022 the Deno authors. All rights reserved. MIT license.
 // Copyright Joyent, Inc. and Node.js contributors. All rights reserved. MIT license.
 
-import { ERR_CRYPTO_FIPS_FORCED, ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH, ERR_INVALID_ARG_TYPE } from "./internal/errors";
-import { crypto as constants } from "./internal_binding/constants";
-import { getOptionValue } from "./internal/options";
-import { isAnyArrayBuffer, isArrayBufferView } from "./internal/util/types";
 import {
-  timing_safe_equal,
-} from "./internal/crypto/crypto";
+  ERR_CRYPTO_FIPS_FORCED,
+  ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH,
+  ERR_INVALID_ARG_TYPE,
+} from './internal/errors'
+import { crypto as constants } from './internal_binding/constants'
+import { getOptionValue } from './internal/options'
+import { isAnyArrayBuffer, isArrayBufferView } from './internal/util/types'
+import { timing_safe_equal } from './internal/crypto/crypto'
 function timingSafeEqual(a, b) {
   if (!isAnyArrayBuffer(a) && !isArrayBufferView(a)) {
-    throw new ERR_INVALID_ARG_TYPE("buf1", ["ArrayBuffer", "Buffer", "TypedArray", "DataView"], a);
+    throw new ERR_INVALID_ARG_TYPE(
+      'buf1',
+      ['ArrayBuffer', 'Buffer', 'TypedArray', 'DataView'],
+      a
+    )
   }
   if (!isAnyArrayBuffer(b) && !isArrayBufferView(b)) {
-    throw new ERR_INVALID_ARG_TYPE("buf2", ["ArrayBuffer", "Buffer", "TypedArray", "DataView"], b);
+    throw new ERR_INVALID_ARG_TYPE(
+      'buf2',
+      ['ArrayBuffer', 'Buffer', 'TypedArray', 'DataView'],
+      b
+    )
   }
   if (a.byteLength != b.byteLength) {
-    throw new ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH();
+    throw new ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH()
   }
-  return timing_safe_equal(a.buffer, b.buffer);
+  return timing_safe_equal(a.buffer, b.buffer)
 }
 
 import {
@@ -31,10 +41,10 @@ import {
   randomFillSync,
   randomInt,
   randomUUID,
-} from "./internal/crypto/random";
-import { pbkdf2, pbkdf2Sync } from "./internal/crypto/pbkdf2";
-import { scrypt, scryptSync } from "./internal/crypto/scrypt";
-import { hkdf, hkdfSync } from "./internal/crypto/hkdf";
+} from './internal/crypto/random'
+import { pbkdf2, pbkdf2Sync } from './internal/crypto/pbkdf2'
+import { scrypt, scryptSync } from './internal/crypto/scrypt'
+import { hkdf, hkdfSync } from './internal/crypto/hkdf'
 /*import {
   generateKey,
   generateKeyPair,
@@ -46,7 +56,7 @@ import {
   createPublicKey,
   createSecretKey,
   KeyObject,
-} from "./internal/crypto/keys";/*
+} from './internal/crypto/keys' /*
 import {
   DiffieHellman,
   diffieHellman,
@@ -61,7 +71,7 @@ import {
   privateEncrypt,
   publicDecrypt,
   publicEncrypt,
-} from "./internal/crypto/cipher";
+} from './internal/crypto/cipher'
 /*
 import {
   Sign,
@@ -69,26 +79,27 @@ import {
   Verify,
   verifyOneShot,
 } from "./internal/crypto/sig";*/
-import { Hash, Hmac } from "./internal/crypto/hash";/*
+import { Hash, Hmac } from './internal/crypto/hash' /*
 import { X509Certificate } from "./internal/crypto/x509";
-*/import {
+*/
+import {
   getCiphers,
   getCurves,
   getHashes,
   secureHeapUsed,
   setEngine,
-} from "./internal/crypto/util";/*
+} from './internal/crypto/util' /*
 import Certificate from "./internal/crypto/certificate";
 */
-const webcrypto = undefined;
-const fipsForced = getOptionValue("--force-fips");
+const webcrypto = undefined
+const fipsForced = getOptionValue('--force-fips')
 
 function createCipheriv(cipher, key, iv, options) {
-  return new Cipheriv(cipher, key, iv, options);
+  return new Cipheriv(cipher, key, iv, options)
 }
 
 function createDecipheriv(algorithm, key, iv, options) {
-  return new Decipheriv(algorithm, key, iv, options);
+  return new Decipheriv(algorithm, key, iv, options)
 }
 /*
 function createDiffieHellman(sizeOrKey, keyEncoding, generator, generatorEncoding) {
@@ -109,11 +120,11 @@ function createECDH(curve) {
 }
 */
 function createHash(hash, options) {
-  return new Hash(hash, options);
+  return new Hash(hash, options)
 }
 
 function createHmac(hmac, key, options) {
-  return new Hmac(hmac, key, options);
+  return new Hmac(hmac, key, options)
 }
 /*
 function createSign(algorithm, options) {
@@ -126,30 +137,30 @@ function createVerify(algorithm, options) {
 */
 function setFipsForced(val) {
   if (val) {
-    return;
+    return
   }
 
-  throw new ERR_CRYPTO_FIPS_FORCED();
+  throw new ERR_CRYPTO_FIPS_FORCED()
 }
 
 function getFipsForced() {
-  return 1;
+  return 1
 }
 
-Object.defineProperty(constants, "defaultCipherList", {
-  value: getOptionValue("--tls-cipher-list"),
-});
+Object.defineProperty(constants, 'defaultCipherList', {
+  value: getOptionValue('--tls-cipher-list'),
+})
 /*
 const getDiffieHellman = createDiffieHellmanGroup;
 */
 function getFipsCrypto() {
-  throw new Error("crypto.getFipsCrypto is unimplemented")
+  throw new Error('crypto.getFipsCrypto is unimplemented')
 }
 function setFipsCrypto(_val) {
-  throw new Error("crypto.setFipsCrypto is unimplemented")
+  throw new Error('crypto.setFipsCrypto is unimplemented')
 }
-const getFips = fipsForced ? getFipsForced : getFipsCrypto;
-const setFips = fipsForced ? setFipsForced : setFipsCrypto;
+const getFips = fipsForced ? getFipsForced : getFipsCrypto
+const setFips = fipsForced ? setFipsForced : setFipsCrypto
 /*
 const sign = signOneShot;
 const verify = verifyOneShot;
@@ -161,18 +172,18 @@ export default {
   Cipheriv,
   constants,
   createCipheriv,
-  createDecipheriv,/*
+  createDecipheriv /*
   createDiffieHellman,
   createDiffieHellmanGroup,
-  createECDH,*/
+  createECDH,*/,
   createHash,
   createHmac,
   createPrivateKey,
   createPublicKey,
-  createSecretKey,/*
+  createSecretKey /*
   createSign,
-  createVerify,*/
-  Decipheriv,/*
+  createVerify,*/,
+  Decipheriv /*
   DiffieHellman,
   diffieHellman,
   DiffieHellmanGroup,
@@ -180,20 +191,20 @@ export default {
   generateKey,
   generateKeyPair,
   generateKeyPairSync,
-  generateKeySync,*/
+  generateKeySync,*/,
   generatePrime,
   generatePrimeSync,
   getCipherInfo,
   getCiphers,
-  getCurves,/*
-  getDiffieHellman,*/
+  getCurves /*
+  getDiffieHellman,*/,
   getFips,
   getHashes,
   Hash,
   hkdf,
   hkdfSync,
-  Hmac,/*
-  KeyObject,*/
+  Hmac /*
+  KeyObject,*/,
   pbkdf2,
   pbkdf2Sync,
   privateDecrypt,
@@ -209,15 +220,15 @@ export default {
   scryptSync,
   secureHeapUsed,
   setEngine,
-  setFips,/*
+  setFips /*
   Sign,
-  sign,*/
+  sign,*/,
   timingSafeEqual,
   /*Verify,
   verify,
   webcrypto,
   X509Certificate,*/
-};
+}
 
 export {
   /*Certificate,*/
@@ -234,10 +245,10 @@ export {
   createHmac,
   createPrivateKey,
   createPublicKey,
-  createSecretKey,/*
+  createSecretKey /*
   createSign,
-  createVerify,*/
-  Decipheriv,/*
+  createVerify,*/,
+  Decipheriv /*
   DiffieHellman,
   diffieHellman,
   DiffieHellmanGroup,
@@ -245,20 +256,20 @@ export {
   generateKey,
   generateKeyPair,
   generateKeyPairSync,
-  generateKeySync,*/
+  generateKeySync,*/,
   generatePrime,
   generatePrimeSync,
   getCipherInfo,
   getCiphers,
-  getCurves,/*
-  getDiffieHellman,*/
+  getCurves /*
+  getDiffieHellman,*/,
   getFips,
   getHashes,
   Hash,
   hkdf,
   hkdfSync,
-  Hmac,/*
-  KeyObject,*/
+  Hmac /*
+  KeyObject,*/,
   pbkdf2,
   pbkdf2Sync,
   privateDecrypt,
@@ -282,4 +293,4 @@ export {
   verify,*/
   webcrypto,
   /*X509Certificate,*/
-};
+}

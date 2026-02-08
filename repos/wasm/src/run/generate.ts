@@ -30,7 +30,6 @@ export type TGenerateRunWasmResult = {
   success: boolean
 }
 
-
 export type TGenerateOpts = {
   name: string
   exports: string[]
@@ -51,10 +50,12 @@ const writeRunFile = async (
 
   await writeFile(runJsPath, generated, `utf-8`)
 
-  if(!options.quiet){
+  if (!options.quiet) {
     console.log(`\n✅ runWasm helper generated!`)
     console.log(`📦 Import from: ${runJsPath}`)
-    console.log(`🔗 Use: import { run${camelCase(paths.name)} } from './${paths.name}.run.js'`)
+    console.log(
+      `🔗 Use: import { run${camelCase(paths.name)} } from './${paths.name}.run.js'`
+    )
   }
 
   return {
@@ -62,7 +63,6 @@ const writeRunFile = async (
     path: runJsPath,
   }
 }
-
 
 /**
  * Generate the runWasm file for a WASM build
@@ -81,28 +81,31 @@ export const generate = async (
   options: TWasmBuildOpts,
   paths?: TResolvedPaths
 ): Promise<TGenerateRunWasmResult> => {
-
   !options.quiet && console.log(`📝 Generating runWasm helper...`)
 
-  paths = paths || await resolvePaths(options)
-
+  paths = paths || (await resolvePaths(options))
 
   // Parse WIT file to extract exports and imports
   const witContent = await readFile(paths.witin, `utf-8`)
   const world = parseWit(witContent)
 
   if (!world) {
-    !options.quiet && console.warn(`⚠️  No world found in WIT file, generating generic runner`)
+    !options.quiet &&
+      console.warn(`⚠️  No world found in WIT file, generating generic runner`)
 
     // Generate a generic runner without type information
     const built = genericTemplate(paths.name)
     return writeRunFile(options, paths, built)
   }
 
-  if(!options.quiet){
+  if (!options.quiet) {
     console.log(` Found world: ${world.name}`)
-    console.log(` Exports: ${world.exports.length > 0 ? world.exports.join(', ') : `none`}`)
-    console.log(` Import interfaces: ${world.imports.length > 0 ? world.imports.join(`, `) : `none`}`)
+    console.log(
+      ` Exports: ${world.exports.length > 0 ? world.exports.join(', ') : `none`}`
+    )
+    console.log(
+      ` Import interfaces: ${world.imports.length > 0 ? world.imports.join(`, `) : `none`}`
+    )
   }
 
   const generated = template({
@@ -114,7 +117,4 @@ export const generate = async (
 
   // Write the generated file
   return writeRunFile(options, paths, generated)
-
 }
-
-

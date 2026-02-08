@@ -1,43 +1,41 @@
 // LazyTransform is a special type of Transform stream that is lazily loaded.
 // This is used for performance with bi-API-ship: when two APIs are available
 // for the stream, one conventional and one non-conventional.
-'use strict';
+'use strict'
 
-import Transform from './transform';
+import Transform from './transform'
 
-import {
-  getDefaultEncoding
-} from '../crypto/util';
+import { getDefaultEncoding } from '../crypto/util'
 
 export function LazyTransform(options) {
-  this._options = options;
+  this._options = options
 }
-Object.setPrototypeOf(LazyTransform.prototype, Transform.prototype);
-Object.setPrototypeOf(LazyTransform, Transform);
+Object.setPrototypeOf(LazyTransform.prototype, Transform.prototype)
+Object.setPrototypeOf(LazyTransform, Transform)
 
 function makeGetter(name) {
-  return function() {
-    Transform.call(this, this._options);
-    this._writableState.decodeStrings = false;
+  return function () {
+    Transform.call(this, this._options)
+    this._writableState.decodeStrings = false
 
     if (!this._options || !this._options.defaultEncoding) {
-      this._writableState.defaultEncoding = getDefaultEncoding();
+      this._writableState.defaultEncoding = getDefaultEncoding()
     }
 
-    return this[name];
-  };
+    return this[name]
+  }
 }
 
 function makeSetter(name) {
-  return function(val) {
+  return function (val) {
     Object.defineProperty(this, name, {
       __proto__: null,
       value: val,
       enumerable: true,
       configurable: true,
-      writable: true
-    });
-  };
+      writable: true,
+    })
+  }
 }
 
 Object.defineProperties(LazyTransform.prototype, {
@@ -46,13 +44,13 @@ Object.defineProperties(LazyTransform.prototype, {
     get: makeGetter('_readableState'),
     set: makeSetter('_readableState'),
     configurable: true,
-    enumerable: true
+    enumerable: true,
   },
   _writableState: {
     __proto__: null,
     get: makeGetter('_writableState'),
     set: makeSetter('_writableState'),
     configurable: true,
-    enumerable: true
-  }
-});
+    enumerable: true,
+  },
+})

@@ -1,4 +1,3 @@
-
 export type TDownload = {
   /** Override the default wasmtime git tag to use when cloning */
   tag: string
@@ -9,7 +8,7 @@ export type TDownload = {
   /** Override the default path where wit deps will be saved */
   target: string
   /** Disable debug logs */
-  quiet?:boolean
+  quiet?: boolean
 }
 
 export type TInstallOpts = Partial<TDownload> & {
@@ -18,5 +17,3 @@ export type TInstallOpts = Partial<TDownload> & {
   /** WIT directory (default: root/wit) */
   witdir?: string
 }
-
-

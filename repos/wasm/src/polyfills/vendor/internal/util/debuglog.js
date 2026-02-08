@@ -4,55 +4,58 @@
 
 // `debugImpls` and `testEnabled` are deliberately not initialized so any call
 // to `debuglog()` before `initializeDebugEnv()` is called will throw.
-import process from "process"
+import process from 'process'
 
-let debugImpls;
-let testEnabled;
+let debugImpls
+let testEnabled
 
 // `debugEnv` is initial value of process.env.NODE_DEBUG
 function initializeDebugEnv(debugEnv) {
-    debugImpls = Object.create(null);
-    if (debugEnv) {
-        // This is run before any user code, it's OK not to use primordials.
-        debugEnv = debugEnv.replace(/[|\\{}()[\]^$+?.]/g, "\\$&")
-            .replaceAll("*", ".*")
-            .replaceAll(",", "$|^");
-        const debugEnvRegex = new RegExp(`^${debugEnv}$`, "i");
-        testEnabled = (str) => debugEnvRegex.exec(str) !== null;
-    } else {
-        testEnabled = () => false;
-    }
+  debugImpls = Object.create(null)
+  if (debugEnv) {
+    // This is run before any user code, it's OK not to use primordials.
+    debugEnv = debugEnv
+      .replace(/[|\\{}()[\]^$+?.]/g, '\\$&')
+      .replaceAll('*', '.*')
+      .replaceAll(',', '$|^')
+    const debugEnvRegex = new RegExp(`^${debugEnv}$`, 'i')
+    testEnabled = (str) => debugEnvRegex.exec(str) !== null
+  } else {
+    testEnabled = () => false
+  }
 }
 
 // Emits warning when user sets
 // NODE_DEBUG=http or NODE_DEBUG=http2.
 function emitWarningIfNeeded(set) {
-    if ("HTTP" === set || "HTTP2" === set) {
-        console.warn(
-            "Setting the NODE_DEBUG environment variable " +
-            "to '" + set.toLowerCase() + "' can expose sensitive " +
-            "data (such as passwords, tokens and authentication headers) " +
-            "in the resulting log.",
-        );
-    }
+  if ('HTTP' === set || 'HTTP2' === set) {
+    console.warn(
+      'Setting the NODE_DEBUG environment variable ' +
+        "to '" +
+        set.toLowerCase() +
+        "' can expose sensitive " +
+        'data (such as passwords, tokens and authentication headers) ' +
+        'in the resulting log.'
+    )
+  }
 }
 
-const noop = () => { };
+const noop = () => {}
 
 function debuglogImpl(enabled, set) {
-    if (debugImpls[set] === undefined) {
-        if (enabled) {
-            emitWarningIfNeeded(set);
-            debugImpls[set] = function debug(...args) {
-                const msg = args.map((arg) => JSON.stringify(arg)).join(" ");
-                console.error(`[DebugLog] ${msg}`);
-            };
-        } else {
-            debugImpls[set] = noop;
-        }
+  if (debugImpls[set] === undefined) {
+    if (enabled) {
+      emitWarningIfNeeded(set)
+      debugImpls[set] = function debug(...args) {
+        const msg = args.map((arg) => JSON.stringify(arg)).join(' ')
+        console.error(`[DebugLog] ${msg}`)
+      }
+    } else {
+      debugImpls[set] = noop
     }
+  }
 
-    return debugImpls[set];
+  return debugImpls[set]
 }
 
 // debuglogImpl depends on process.pid and process.env.NODE_DEBUG,
@@ -60,46 +63,46 @@ function debuglogImpl(enabled, set) {
 // that may be loaded before these run time states are allowed to
 // be accessed.
 export function debuglog(set, cb) {
-    function init() {
-        set = set.toUpperCase();
-        enabled = testEnabled(set);
+  function init() {
+    set = set.toUpperCase()
+    enabled = testEnabled(set)
+  }
+
+  let debug = (...args) => {
+    init()
+    // Only invokes debuglogImpl() when the debug function is
+    // called for the first time.
+    debug = debuglogImpl(enabled, set)
+
+    if (typeof cb === 'function') {
+      cb(debug)
     }
 
-    let debug = (...args) => {
-        init();
-        // Only invokes debuglogImpl() when the debug function is
-        // called for the first time.
-        debug = debuglogImpl(enabled, set);
+    return debug(...args)
+  }
 
-        if (typeof cb === "function") {
-            cb(debug);
-        }
+  let enabled
+  let test = () => {
+    init()
+    test = () => enabled
+    return enabled
+  }
 
-        return debug(...args);
-    };
+  const logger = (...args) => debug(...args)
 
-    let enabled;
-    let test = () => {
-        init();
-        test = () => enabled;
-        return enabled;
-    };
+  Object.defineProperty(logger, 'enabled', {
+    get() {
+      return test()
+    },
+    configurable: true,
+    enumerable: true,
+  })
 
-    const logger = (...args) => debug(...args);
-
-    Object.defineProperty(logger, "enabled", {
-        get() {
-            return test();
-        },
-        configurable: true,
-        enumerable: true,
-    });
-
-    return logger;
+  return logger
 }
 
-let debugEnv = process.env["NODE_DEBUG"] ?? "";
+let debugEnv = process.env['NODE_DEBUG'] ?? ''
 
-initializeDebugEnv(debugEnv);
+initializeDebugEnv(debugEnv)
 
-export default { debuglog };
+export default { debuglog }

@@ -15,7 +15,7 @@ const getExternal = () => {
 
   return [
     ...peerDeps, // esbuild, @keg-hub/jsutils
-    ...deps,     // @bytecodealliance/* packages
+    ...deps, // @bytecodealliance/* packages
   ].filter((name) => !name.startsWith(`@tdsk`))
 }
 
@@ -28,7 +28,7 @@ export default defineConfig(async () => {
     name: `wasm`,
     sourcemap: true,
     splitting: false,
-    dts: false,  // Disabled due to preview2-shim type issues
+    dts: false, // Disabled due to preview2-shim type issues
     outDir: outdir,
     format: [`esm`, `cjs`],
     noExternal: [/(.*)/],

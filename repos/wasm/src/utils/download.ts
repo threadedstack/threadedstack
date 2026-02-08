@@ -5,7 +5,6 @@ import { join, isAbsolute } from 'node:path'
 import { execSync } from 'node:child_process'
 import { cp, mkdir, rm, readdir, mkdtemp } from 'node:fs/promises'
 
-
 type TDownloadTemp = TDownload & { temp: string }
 type TTargetFallback = {
   witdir: string
@@ -17,15 +16,9 @@ type TTargetFallback = {
  * @param props - Deps download options with temp directory
  * @returns undefined
  */
-const gitClone = async (props:TDownloadTemp) => {
-  const {
-    tag,
-    temp,
-    repo,
-    quiet,
-    source,
-  } = props
-  
+const gitClone = async (props: TDownloadTemp) => {
+  const { tag, temp, repo, quiet, source } = props
+
   const run = (cmd: string) => execSync(cmd, { cwd: temp, stdio: `pipe` })
 
   !quiet && console.log(`Initializing temporary git repo...`)
@@ -41,20 +34,14 @@ const gitClone = async (props:TDownloadTemp) => {
   run(`git pull --depth 1 origin ${tag}`)
 }
 
-
 /**
  * Copies the download wit deps to the configured directory
  * @param props - Deps download options with temp directory
  * @returns undefined
  */
-const copyDeps = async (props:Omit<TDownloadTemp, `repo`|`tag`>) => {
-  const {
-    temp,
-    quiet,
-    source,
-    target,
-  } = props
-  
+const copyDeps = async (props: Omit<TDownloadTemp, `repo` | `tag`>) => {
+  const { temp, quiet, source, target } = props
+
   const sourceDir = join(temp, source)
   const packages = await readdir(sourceDir)
 
@@ -69,25 +56,21 @@ const copyDeps = async (props:Omit<TDownloadTemp, `repo`|`tag`>) => {
   !quiet && console.log(`✅ Success! Dependencies updated.`)
 }
 
-
 /**
  * Downloads the wit deps from the passed in git repo url
  * @param props - Deps download options
  * @returns undefined
  */
-export const download = async (props:TDownload) => {
-  const {
-    quiet,
-    target
-  } = props
-  
+export const download = async (props: TDownload) => {
+  const { quiet, target } = props
+
   !quiet && console.log(`Setup: installing wit deps to ${target}`)
 
   await mkdir(target, { recursive: true })
   const temp = await mkdtemp(join(tmpdir(), `wasi-deps-`))
 
   try {
-    const opts = {...props, temp }
+    const opts = { ...props, temp }
     gitClone(opts)
     await copyDeps(opts)
   } finally {
@@ -95,14 +78,13 @@ export const download = async (props:TDownload) => {
   }
 }
 
-
 /**
  * Resolve the target path when deps should be installed
  *
  * @param opts - Wit deps install options
  * @returns Absolute paths objects of output paths
  */
-export const findTargetDir = (opts:TInstallOpts, fallback:TTargetFallback) => {
+export const findTargetDir = (opts: TInstallOpts, fallback: TTargetFallback) => {
   const { root, target, witdir } = opts
 
   return target

@@ -8,12 +8,10 @@ import { join, dirname } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
 
-
 const wss = new WASIShim()
 const shim: WASIImportObject = wss.getImportObject()
 shim satisfies WASIImportObject
 shim satisfies VersionedWASIImportObject<``>
-
 
 /**
  * Extract module name from file path
@@ -31,7 +29,6 @@ function getModuleNameFromPath(modulePath: string): string {
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
-
 
 /**
  * Run a WASM module with automatic preview2-shim setup
@@ -70,9 +67,7 @@ function capitalize(str: string): string {
  * })
  * ```
  */
-export async function runWasm<T = any>(
-  options: TWasmRunOpts
-): Promise<T> {
+export async function runWasm<T = any>(options: TWasmRunOpts): Promise<T> {
   const {
     modulePath,
     imports: customImports = {},
@@ -93,7 +88,7 @@ export async function runWasm<T = any>(
   if (typeof instantiate !== 'function') {
     throw new Error(
       `WASM module at ${modulePath} does not export an 'instantiate' function. ` +
-      `Make sure the module was built with jco.`
+        `Make sure the module was built with jco.`
     )
   }
 
@@ -103,18 +98,16 @@ export async function runWasm<T = any>(
     const filePath = join(moduleDir, fileName!)
 
     try {
-      const bytes = await readFile(filePath) as BufferSource
+      const bytes = (await readFile(filePath)) as BufferSource
       return WebAssembly.compile(bytes)
     } catch (error) {
-      throw new Error(
-        `Failed to compile WASM file at ${filePath}: ${error}`
-      )
+      throw new Error(`Failed to compile WASM file at ${filePath}: ${error}`)
     }
   }
 
   // Step 3: Merge default imports with custom imports
   // Custom imports override defaults (shallow merge)
-  const mergedImports:typeof shim = {
+  const mergedImports: typeof shim = {
     ...shim,
     ...customImports,
   }
@@ -144,18 +137,16 @@ export async function runWasm<T = any>(
   try {
     component = await instantiate(getCoreModule, mergedImports)
   } catch (error) {
-    throw new Error(
-      `Failed to instantiate WASM module: ${error}`
-    )
+    throw new Error(`Failed to instantiate WASM module: ${error}`)
   }
 
   // Step 6: Find and call the run function
   // Try common patterns: run{Name}(), run(), or use the first exported function
   const moduleName = getModuleNameFromPath(modulePath)
   const possibleRunNames = [
-    `run${capitalize(moduleName)}`,  // e.g., runBash
+    `run${capitalize(moduleName)}`, // e.g., runBash
     `run${moduleName.toUpperCase()}`, // e.g., runBASH
-    'run',                            // Generic run
+    'run', // Generic run
   ]
 
   let runFunction = null
@@ -169,7 +160,7 @@ export async function runWasm<T = any>(
   // If no named run function, try to find any exported function
   if (!runFunction) {
     const exports = Object.keys(component).filter(
-      key => typeof component[key] === 'function'
+      (key) => typeof component[key] === 'function'
     )
 
     if (exports.length === 1) {
@@ -177,27 +168,22 @@ export async function runWasm<T = any>(
     } else if (exports.length > 1) {
       throw new Error(
         `Multiple exported functions found: ${exports.join(', ')}. ` +
-        `Please specify which function to call.`
+          `Please specify which function to call.`
       )
     } else {
       throw new Error(
         `No run function found in WASM module. ` +
-        `Tried: ${possibleRunNames.filter(Boolean).join(', ')}`
+          `Tried: ${possibleRunNames.filter(Boolean).join(', ')}`
       )
     }
   }
 
   // Step 7: Call the run function with args if provided
   try {
-    const result = args.length > 0
-      ? await runFunction(...args)
-      : await runFunction()
+    const result = args.length > 0 ? await runFunction(...args) : await runFunction()
 
     return result as T
   } catch (error) {
-    throw new Error(
-      `WASM run function failed: ${error}`
-    )
+    throw new Error(`WASM run function failed: ${error}`)
   }
 }
-

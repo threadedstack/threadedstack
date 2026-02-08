@@ -11,22 +11,22 @@ export const shimNoop = {
     exitWithCode: noOp,
   },
   'wasi:cli/stderr': {
-    OutputStream:noOp,
+    OutputStream: noOp,
     getStderr: noOp,
   },
   'wasi:cli/stdin': {
-    InputStream:noOp,
+    InputStream: noOp,
     getStdin: noOp,
   },
   'wasi:cli/stdout': {
-    OutputStream:noOp,
+    OutputStream: noOp,
     getStdout: noOp,
   },
   'wasi:cli/terminal-input': {
-    TerminalInput:noOp,
+    TerminalInput: noOp,
   },
   'wasi:cli/terminal-output': {
-    TerminalOutput:noOp,
+    TerminalOutput: noOp,
   },
   'wasi:cli/terminal-stderr': {
     TerminalOutput: noOp,
@@ -37,52 +37,52 @@ export const shimNoop = {
     getTerminalStdin: noOp,
   },
   'wasi:cli/terminal-stdout': {
-    TerminalOutput:noOp,
+    TerminalOutput: noOp,
     getTerminalStdout: noOp,
   },
   'wasi:sockets/instance-network': {
     instanceNetwork: noOp,
   },
   'wasi:sockets/ip-name-lookup': {
-    ResolveAddressStream:noOp,
+    ResolveAddressStream: noOp,
     resolveAddresses: noOp,
   },
   'wasi:sockets/network': {
-    Network:noOp
+    Network: noOp,
   },
   'wasi:sockets/tcp': {
-    TcpSocket:noOp,
+    TcpSocket: noOp,
   },
   'wasi:sockets/tcp-create-socket': {
     createTcpSocket: noOp,
   },
   'wasi:sockets/udp': {
-    UdpSocket:noOp,
-    OutgoingDatagramStream:noOp,
-    IncomingDatagramStream:noOp,
+    UdpSocket: noOp,
+    OutgoingDatagramStream: noOp,
+    IncomingDatagramStream: noOp,
   },
   'wasi:sockets/udp-create-socket': {
     createUdpSocket: noOp,
   },
   'wasi:filesystem/preopens': {
-    Descriptor:noOp,
+    Descriptor: noOp,
     getDirectories: noOp,
   },
   'wasi:filesystem/types': {
-    Descriptor:noOp,
-    DirectoryEntryStream:noOp,
+    Descriptor: noOp,
+    DirectoryEntryStream: noOp,
     filesystemErrorCode: noOp,
   },
   'wasi:io/error': {
-    Error:noOp,
+    Error: noOp,
   },
   'wasi:io/poll': {
-    Pollable:noOp,
+    Pollable: noOp,
     poll: noOp,
   },
   'wasi:io/streams': {
-    InputStream:noOp,
-    OutputStream:noOp,
+    InputStream: noOp,
+    OutputStream: noOp,
   },
   'wasi:random/random': {
     getRandomBytes: noOp,
@@ -106,20 +106,20 @@ export const shimNoop = {
     resolution: noOp,
   },
   'wasi:http/types': {
-    Fields:noOp,
-    IncomingBody:noOp,
-    OutgoingBody:noOp,
-    RequestOptions:noOp,
+    Fields: noOp,
+    IncomingBody: noOp,
+    OutgoingBody: noOp,
+    RequestOptions: noOp,
     httpErrorCode: noOp,
-    FutureTrailers:noOp,
-    IncomingRequest:noOp,
-    OutgoingRequest:noOp,
-    OutgoingResponse:noOp,
-    IncomingResponse:noOp,
-    ResponseOutparam:noOp,
-    FutureIncomingResponse:noOp,
+    FutureTrailers: noOp,
+    IncomingRequest: noOp,
+    OutgoingRequest: noOp,
+    OutgoingResponse: noOp,
+    IncomingResponse: noOp,
+    ResponseOutparam: noOp,
+    FutureIncomingResponse: noOp,
   },
   'wasi:http/outgoing-handler': {
     handle: noOp,
-  }
+  },
 }

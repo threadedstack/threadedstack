@@ -57,7 +57,7 @@ export const jco = async (
   return new Promise(async (resolve, reject) => {
     !options.quiet && console.log(`🔄 Transpiling WASM to JS bindings...`)
 
-    paths = paths || await resolvePaths(options)
+    paths = paths || (await resolvePaths(options))
 
     const { outdir, wasmout, jsout } = paths
 
@@ -68,7 +68,7 @@ export const jco = async (
       `-o`,
       outdir,
       //...buildMap(),
-      `--instantiation`
+      `--instantiation`,
     ]
     options.quiet && args.push(`--quiet`)
 
@@ -79,7 +79,7 @@ export const jco = async (
 
     proc.on(`close`, async (code) => {
       if (code === 0) {
-        if(!options.quiet){
+        if (!options.quiet) {
           console.log(`\n✅ Transpilation complete!`)
           console.log(`📦 Import from: ${jsout}`)
           console.log(`🔗 Use wasmModule.instantiate(imports) to inject capabilities`)
@@ -89,7 +89,6 @@ export const jco = async (
           jsout: jsout,
           success: true,
         })
-
       } else {
         const error = new Error(`jco transpilation failed with exit code ${code}`)
         !options.quiet && console.error(`❌ Transpilation failed:`, error.message)

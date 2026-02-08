@@ -1,38 +1,34 @@
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
 import { camelCase } from '@keg-hub/jsutils/camelCase'
 
-
 export type TTemplateOpts = {
-  name:string
+  name: string
   exports: string[]
   imports: string[]
-  worldName:string
+  worldName: string
 }
 
 /**
  * Generate the runWasm template
  */
-export const template = (opts:TTemplateOpts) => {
-  const {
-    name,
-    imports, 
-    exports,
-    worldName,
-  } = opts
+export const template = (opts: TTemplateOpts) => {
+  const { name, imports, exports, worldName } = opts
 
   // Generate TypeScript type for exports
-  const exportsType = exports.length > 0
-    ? `{\n${exports.map(exp => `  ${exp}: (...args: any[]) => any`).join('\n')}\n}`
-    : `Record<string, any>`
+  const exportsType =
+    exports.length > 0
+      ? `{\n${exports.map((exp) => `  ${exp}: (...args: any[]) => any`).join('\n')}\n}`
+      : `Record<string, any>`
 
   // Generate exports interface comment
-  const exportsComment = exports.length > 0
-    ? `// Available exports: ${exports.join(`, `)}`
-    : `// No exports found in WIT definition`
+  const exportsComment =
+    exports.length > 0
+      ? `// Available exports: ${exports.join(`, `)}`
+      : `// No exports found in WIT definition`
 
   const capsName = wordCaps(name)
   const camelName = camelCase(name)
-  
+
   return `/**
  * Auto-generated runWasm helper for ${name}
  *
@@ -88,7 +84,7 @@ export interface ${capsName}Instance {
   exports: ${exportsType}
   /** Imports that were passed to instantiate */
   imports: Record<string, any>
-${exports.map(exp => `  /** ${exp} export */`).join('\n')}
+${exports.map((exp) => `  /** ${exp} export */`).join('\n')}
   ${exports.join(', ')}: any
 }
 
@@ -207,16 +203,24 @@ export async function run${camelName}(
     log('WASM instantiated successfully')
     log('Available exports:', Object.keys(instance))
 
-${exports.length > 0 ? exports.map(exp => `    // Type-safe access to ${exp} export
+${
+  exports.length > 0
+    ? exports
+        .map(
+          (exp) => `    // Type-safe access to ${exp} export
     if (typeof instance.${exp} !== 'function') {
       throw new Error(\`WASM module missing export: ${exp}\`)
     }
-`).join('\n') : '    // No typed exports found\n'}
+`
+        )
+        .join('\n')
+    : '    // No typed exports found\n'
+}
 
     return {
       exports: instance,
       imports: mergedImports,
-${exports.map(exp => `      ${exp}: instance.${exp},`).join('\n')}
+${exports.map((exp) => `      ${exp}: instance.${exp},`).join('\n')}
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -248,7 +252,6 @@ export async function runExport(
 }
 `
 }
-
 
 /**
  * Generate a generic runner when WIT parsing fails

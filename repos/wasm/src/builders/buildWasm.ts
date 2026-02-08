@@ -35,7 +35,6 @@ import { componentizeJs } from '@TWA/builders/componentize'
  * }
  */
 export const buildWasm = async (options: TWasmBuildOpts): Promise<TWasmBuildResult> => {
-
   // Resolve all paths from options
   const paths = await resolvePaths(options)
 
@@ -56,5 +55,4 @@ export const buildWasm = async (options: TWasmBuildOpts): Promise<TWasmBuildResu
     jsout: js.jsout,
     wasmout: wasm.wasmout,
   }
-
 }

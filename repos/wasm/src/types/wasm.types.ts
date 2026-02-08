@@ -30,15 +30,15 @@ export type TWasmBuildOpts = {
   /** Module name (default: from package.json name) */
   name?: string
   /** TypeScript input file (default: root/src/{name}.ts) */
-  tsin?: string  
+  tsin?: string
   /** TypeScript output file (default: root/dist/{name}.ts) */
-  tsout?:string
+  tsout?: string
   /** JavaScript input file (default: root/dist/{name}.js) */
-  jsin?: string  
+  jsin?: string
   /** JavaScript output file (default: root/dist/wasm/{name}.js) */
-  jsout?:string
+  jsout?: string
   /** Disable debug logs */
-  quiet?:boolean
+  quiet?: boolean
   /** World name for componentize-js (default: name) */
   world?: string
   /** WIT directory (default: root/wit) */
@@ -84,7 +84,6 @@ export type TResolvedPaths = {
   /** JavaScript input file path */
   jsin: string
 }
-
 
 /**
  * Result from building WASM

@@ -1,43 +1,35 @@
 // Copyright Joyent and Node contributors. All rights reserved. MIT license.
-'use strict';
+'use strict'
 
-
-import { crypto } from '../../internal_binding/constants';
-const { ENGINE_METHOD_ALL } = crypto;
-import normalizeHashName from './hashnames';
+import { crypto } from '../../internal_binding/constants'
+const { ENGINE_METHOD_ALL } = crypto
+import normalizeHashName from './hashnames'
 
 import {
   hideStackFrames,
   ERR_INVALID_ARG_TYPE,
   ERR_INVALID_ARG_VALUE,
   ERR_OUT_OF_RANGE,
-} from '../errors';
+} from '../errors'
 
-import {
-  validateArray,
-  validateNumber,
-  validateString
-} from '../validators';
+import { validateArray, validateNumber, validateString } from '../validators'
 
-import { Buffer } from 'buffer';
-import { lazyDOMException } from '../util';
+import { Buffer } from 'buffer'
+import { lazyDOMException } from '../util'
 
-import {
-  isArrayBufferView,
-  isAnyArrayBuffer,
-} from '../util/types';
+import { isArrayBufferView, isAnyArrayBuffer } from '../util/types'
 
-const kHandle = Symbol('kHandle');
-const kKeyObject = Symbol('kKeyObject');
+const kHandle = Symbol('kHandle')
+const kKeyObject = Symbol('kKeyObject')
 
-let defaultEncoding = 'buffer';
+let defaultEncoding = 'buffer'
 
 function setDefaultEncoding(val) {
-  defaultEncoding = val;
+  defaultEncoding = val
 }
 
 function getDefaultEncoding() {
-  return defaultEncoding;
+  return defaultEncoding
 }
 
 // This is here because many functions accepted binary strings without
@@ -45,66 +37,55 @@ function getDefaultEncoding() {
 // to break them unnecessarily.
 function toBuf(val, encoding) {
   if (typeof val === 'string') {
-    if (encoding === 'buffer')
-      encoding = 'utf8';
-    return Buffer.from(val, encoding);
+    if (encoding === 'buffer') encoding = 'utf8'
+    return Buffer.from(val, encoding)
   }
-  return val;
+  return val
 }
 
-const getCiphers = () => ["aes-128-gcm", "aes-256-gcm"];
-const getHashes = () => ["sha256", "sha512", "sha512-256"];
-const getCurves = () => [];
+const getCiphers = () => ['aes-128-gcm', 'aes-256-gcm']
+const getHashes = () => ['sha256', 'sha512', 'sha512-256']
+const getCurves = () => []
 
 function setEngine(id, flags) {
-  validateString(id, 'id');
-  if (flags)
-    validateNumber(flags, 'flags');
-  flags = flags >>> 0;
+  validateString(id, 'id')
+  if (flags) validateNumber(flags, 'flags')
+  flags = flags >>> 0
 
   // Use provided engine for everything by default
-  if (flags === 0)
-    flags = ENGINE_METHOD_ALL;
+  if (flags === 0) flags = ENGINE_METHOD_ALL
 
   /*if (!_setEngine(id, flags))
     throw new ERR_CRYPTO_ENGINE_UNKNOWN(id);*/
 }
 
 const getArrayBufferOrView = hideStackFrames((buffer, name, encoding) => {
-  if (isAnyArrayBuffer(buffer))
-    return buffer;
+  if (isAnyArrayBuffer(buffer)) return buffer
   if (typeof buffer === 'string') {
-    if (encoding === 'buffer')
-      encoding = 'utf8';
-    return Buffer.from(buffer, encoding);
+    if (encoding === 'buffer') encoding = 'utf8'
+    return Buffer.from(buffer, encoding)
   }
   if (!isArrayBufferView(buffer)) {
     throw new ERR_INVALID_ARG_TYPE(
       name,
-      [
-        'string',
-        'ArrayBuffer',
-        'Buffer',
-        'TypedArray',
-        'DataView',
-      ],
+      ['string', 'ArrayBuffer', 'Buffer', 'TypedArray', 'DataView'],
       buffer
-    );
+    )
   }
-  return buffer;
-});
+  return buffer
+})
 
 // The maximum buffer size that we'll support in the WebCrypto impl
-const kMaxBufferLength = (2 ** 31) - 1;
+const kMaxBufferLength = 2 ** 31 - 1
 
 // The EC named curves that we currently support via the Web Crypto API.
 const kNamedCurveAliases = {
   'P-256': 'prime256v1',
   'P-384': 'secp384r1',
   'P-521': 'secp521r1',
-};
+}
 
-const kAesKeyLengths = [128, 192, 256];
+const kAesKeyLengths = [128, 192, 256]
 
 // These are the only algorithms we currently support
 // via the Web Crypto API
@@ -112,100 +93,88 @@ const kAlgorithms = {
   'rsassa-pkcs1-v1_5': 'RSASSA-PKCS1-v1_5',
   'rsa-pss': 'RSA-PSS',
   'rsa-oaep': 'RSA-OAEP',
-  'ecdsa': 'ECDSA',
-  'ecdh': 'ECDH',
+  ecdsa: 'ECDSA',
+  ecdh: 'ECDH',
   'aes-ctr': 'AES-CTR',
   'aes-cbc': 'AES-CBC',
   'aes-gcm': 'AES-GCM',
   'aes-kw': 'AES-KW',
-  'hmac': 'HMAC',
+  hmac: 'HMAC',
   'sha-1': 'SHA-1',
   'sha-256': 'SHA-256',
   'sha-384': 'SHA-384',
   'sha-512': 'SHA-512',
-  'hkdf': 'HKDF',
-  'pbkdf2': 'PBKDF2',
-  'ed25519': 'Ed25519',
-  'ed448': 'Ed448',
-  'x25519': 'X25519',
-  'x448': 'X448',
-};
-const kAlgorithmsKeys = Object.keys(kAlgorithms);
+  hkdf: 'HKDF',
+  pbkdf2: 'PBKDF2',
+  ed25519: 'Ed25519',
+  ed448: 'Ed448',
+  x25519: 'X25519',
+  x448: 'X448',
+}
+const kAlgorithmsKeys = Object.keys(kAlgorithms)
 
 // These are the only export and import formats we currently
 // support via the Web Crypto API
-const kExportFormats = [
-  'raw',
-  'pkcs8',
-  'spki',
-  'jwk'];
+const kExportFormats = ['raw', 'pkcs8', 'spki', 'jwk']
 
 // These are the only hash algorithms we currently support via
 // the Web Crypto API.
-const kHashTypes = [
-  'SHA-1',
-  'SHA-256',
-  'SHA-384',
-  'SHA-512',
-];
+const kHashTypes = ['SHA-1', 'SHA-256', 'SHA-384', 'SHA-512']
 
 function validateMaxBufferLength(data, name) {
   if (data.byteLength > kMaxBufferLength) {
     throw lazyDOMException(
       `${name} must be less than ${kMaxBufferLength + 1} bits`,
-      'OperationError');
+      'OperationError'
+    )
   }
 }
 
 function normalizeAlgorithm(algorithm) {
   if (algorithm != null) {
-    if (typeof algorithm === 'string')
-      algorithm = { name: algorithm };
+    if (typeof algorithm === 'string') algorithm = { name: algorithm }
 
     if (typeof algorithm === 'object') {
-      const { name } = algorithm;
-      if (typeof name !== 'string' ||
+      const { name } = algorithm
+      if (
+        typeof name !== 'string' ||
         !Array.prototype.includes.call(
           kAlgorithmsKeys,
-          String.prototype.toLowerCase.call(name))) {
-        throw lazyDOMException('Unrecognized name.', 'NotSupportedError');
+          String.prototype.toLowerCase.call(name)
+        )
+      ) {
+        throw lazyDOMException('Unrecognized name.', 'NotSupportedError')
       }
-      let { hash } = algorithm;
+      let { hash } = algorithm
       if (hash !== undefined) {
-        hash = normalizeAlgorithm(hash);
+        hash = normalizeAlgorithm(hash)
         if (!Array.prototype.includes.call(kHashTypes, hash.name))
-          throw lazyDOMException('Unrecognized name.', 'NotSupportedError');
+          throw lazyDOMException('Unrecognized name.', 'NotSupportedError')
       }
       const normalized = {
         ...algorithm,
         name: kAlgorithms[String.prototype.toLowerCase.call(name)],
-      };
-      if (hash) {
-        normalized.hash = hash;
       }
-      return normalized;
+      if (hash) {
+        normalized.hash = hash
+      }
+      return normalized
     }
   }
-  throw lazyDOMException('Unrecognized name.', 'NotSupportedError');
+  throw lazyDOMException('Unrecognized name.', 'NotSupportedError')
 }
 
 function hasAnyNotIn(set, checks) {
-  for (const s of set)
-    if (!Array.prototype.includes.call(checks, s))
-      return true;
-  return false;
+  for (const s of set) if (!Array.prototype.includes.call(checks, s)) return true
+  return false
 }
 
 function validateBitLength(length, name, required = false) {
   if (length !== undefined || required) {
-    validateNumber(length, name);
-    if (length < 0)
-      throw new ERR_OUT_OF_RANGE(name, '> 0');
+    validateNumber(length, name)
+    if (length < 0) throw new ERR_OUT_OF_RANGE(name, '> 0')
     if (length % 8) {
-      throw new ERR_INVALID_ARG_VALUE(
-        name,
-        length,
-        'must be a multiple of 8');
+      throw new ERR_INVALID_ARG_VALUE(name, length, 'must be a multiple of 8')
     }
   }
 }
@@ -214,43 +183,41 @@ function validateByteLength(buf, name, target) {
   if (buf.byteLength !== target) {
     throw lazyDOMException(
       `${name} must contain exactly ${target} bytes`,
-      'OperationError');
+      'OperationError'
+    )
   }
 }
 
 const validateByteSource = hideStackFrames((val, name) => {
-  val = toBuf(val);
+  val = toBuf(val)
 
-  if (isAnyArrayBuffer(val) || isArrayBufferView(val))
-    return val;
+  if (isAnyArrayBuffer(val) || isArrayBufferView(val)) return val
 
   throw new ERR_INVALID_ARG_TYPE(
     name,
-    [
-      'string',
-      'ArrayBuffer',
-      'TypedArray',
-      'DataView',
-      'Buffer',
-    ],
-    val);
-});
+    ['string', 'ArrayBuffer', 'TypedArray', 'DataView', 'Buffer'],
+    val
+  )
+})
 
 function onDone(resolve, reject, err, result) {
   if (err) {
     // TODO(@panva): add err as cause to DOMException
-    return reject(lazyDOMException(
-      'The operation failed for an operation-specific reason',
-      'OperationError'));
+    return reject(
+      lazyDOMException(
+        'The operation failed for an operation-specific reason',
+        'OperationError'
+      )
+    )
   }
-  resolve(result);
+  resolve(result)
 }
 
 function jobPromise(job) {
   return new Promise((resolve, reject) => {
-    job.ondone = Function.prototype.bind.call(onDone, job, resolve, reject);
-    job.run();
-  });
+    job.ondone = Function.prototype.bind.call(onDone, job, resolve, reject)
+    job.run()
+  })
 }
 
 // In WebCrypto, the publicExponent option in RSA is represented as a
@@ -261,51 +228,52 @@ function jobPromise(job) {
 // https://github.com/chromium/chromium/blob/HEAD/third_party/blink/public/platform/web_crypto_algorithm_params.h, but ported to JavaScript
 // Returns undefined if the conversion was unsuccessful.
 function bigIntArrayToUnsignedInt(input) {
-  let result = 0;
+  let result = 0
 
   for (let n = 0; n < input.length; ++n) {
-    const n_reversed = input.length - n - 1;
-    if (n_reversed >= 4 && input[n])
-      return;  // Too large
-    result |= input[n] << 8 * n_reversed;
+    const n_reversed = input.length - n - 1
+    if (n_reversed >= 4 && input[n]) return // Too large
+    result |= input[n] << (8 * n_reversed)
   }
 
-  return result;
+  return result
 }
 
 function bigIntArrayToUnsignedBigInt(input) {
-  let result = 0n;
+  let result = 0n
 
   for (let n = 0; n < input.length; ++n) {
-    const n_reversed = input.length - n - 1;
-    result |= BigInt(input[n]) << 8n * BigInt(n_reversed);
+    const n_reversed = input.length - n - 1
+    result |= BigInt(input[n]) << (8n * BigInt(n_reversed))
   }
 
-  return result;
+  return result
 }
 
 function getStringOption(options, key) {
-  let value;
-  if (options && (value = options[key]) != null)
-    validateString(value, `options.${key}`);
-  return value;
+  let value
+  if (options && (value = options[key]) != null) validateString(value, `options.${key}`)
+  return value
 }
 
 function getUsagesUnion(usageSet, ...usages) {
-  const newset = [];
+  const newset = []
   for (let n = 0; n < usages.length; n++) {
-    if (usageSet.has(usages[n]))
-      Array.prototype.push.call(newset, usages[n]);
+    if (usageSet.has(usages[n])) Array.prototype.push.call(newset, usages[n])
   }
-  return newset;
+  return newset
 }
 
 function getHashLength(name) {
   switch (name) {
-    case 'SHA-1': return 160;
-    case 'SHA-256': return 256;
-    case 'SHA-384': return 384;
-    case 'SHA-512': return 512;
+    case 'SHA-1':
+      return 160
+    case 'SHA-256':
+      return 256
+    case 'SHA-384':
+      return 384
+    case 'SHA-512':
+      return 512
   }
 }
 
@@ -318,22 +286,21 @@ const kKeyOps = {
   unwrapKey: 6,
   deriveKey: 7,
   deriveBits: 8,
-};
+}
 
 function validateKeyOps(keyOps, usagesSet) {
-  if (keyOps === undefined) return;
-  validateArray(keyOps, 'keyData.key_ops');
-  let flags = 0;
+  if (keyOps === undefined) return
+  validateArray(keyOps, 'keyData.key_ops')
+  let flags = 0
   for (let n = 0; n < keyOps.length; n++) {
-    const op = keyOps[n];
-    const op_flag = kKeyOps[op];
+    const op = keyOps[n]
+    const op_flag = kKeyOps[op]
     // Skipping unknown key ops
-    if (op_flag === undefined)
-      continue;
+    if (op_flag === undefined) continue
     // Have we seen it already? if so, error
     if (flags & (1 << op_flag))
-      throw lazyDOMException('Duplicate key operation', 'DataError');
-    flags |= (1 << op_flag);
+      throw lazyDOMException('Duplicate key operation', 'DataError')
+    flags |= 1 << op_flag
 
     // TODO(@jasnell): RFC7517 section 4.3 strong recommends validating
     // key usage combinations. Specifically, it says that unrelated key
@@ -343,9 +310,7 @@ function validateKeyOps(keyOps, usagesSet) {
   if (usagesSet !== undefined) {
     for (const use of usagesSet) {
       if (!Array.prototype.includes.call(keyOps, use)) {
-        throw lazyDOMException(
-          'Key operations and usage mismatch',
-          'DataError');
+        throw lazyDOMException('Key operations and usage mismatch', 'DataError')
       }
     }
   }
@@ -373,7 +338,6 @@ export {
   setDefaultEncoding,
   setEngine,
   toBuf,
-
   kHashTypes,
   kNamedCurveAliases,
   kAesKeyLengths,
@@ -393,4 +357,4 @@ export {
   getUsagesUnion,
   getHashLength,
   secureHeapUsed,
-};
+}

@@ -23,4 +23,3 @@ export * from './types'
 
 // Utility functions
 export * from './utils/paths'
-

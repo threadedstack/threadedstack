@@ -12,8 +12,7 @@ const defaults = {
   repo: `https://github.com/bytecodealliance/wasmtime.git`,
 }
 
-
-const check = async (opts:TDownload) => {
+const check = async (opts: TDownload) => {
   try {
     const existing = await readdir(opts.target)
     if (existing.includes(`cli`)) return true
@@ -22,37 +21,33 @@ const check = async (opts:TDownload) => {
   }
 }
 
-const buildOpts = (opts:TInstallOpts):TDownload => {
+const buildOpts = (opts: TInstallOpts): TDownload => {
   const {
     root,
     quiet,
     witdir,
-    tag=defaults.tag,
-    repo=defaults.repo,
-    source=defaults.source,
+    tag = defaults.tag,
+    repo = defaults.repo,
+    source = defaults.source,
   } = opts
-
 
   return {
     tag,
     repo,
     quiet,
     source,
-    target: findTargetDir(opts, defaults)
+    target: findTargetDir(opts, defaults),
   }
-} 
+}
 
-
-export const install = async (opts:TInstallOpts) => {
-
+export const install = async (opts: TInstallOpts) => {
   const options = buildOpts(opts)
   const exists = await check(options)
 
-  if(exists){
+  if (exists) {
     !options.quiet && console.log(`✅ Dependencies already installed. Skipping download.`)
     return true
   }
 
   await download(options)
-
 }

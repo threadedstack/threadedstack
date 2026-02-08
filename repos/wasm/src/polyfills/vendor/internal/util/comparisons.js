@@ -19,14 +19,14 @@ import {
   isStringObject,
   isSymbolObject,
   isTypedArray,
-} from "./types";
+} from './types'
 
-import { Buffer } from "buffer";
+import { Buffer } from 'buffer'
 import {
   getOwnNonIndexProperties,
   ONLY_ENUMERABLE,
   SKIP_SYMBOLS,
-} from "../../internal_binding/util";
+} from '../../internal_binding/util'
 
 const valueType = {
   noIterator: 0,
@@ -35,174 +35,136 @@ const valueType = {
   isMap: 3,
 }
 
-let memo;
+let memo
 
 export function isDeepStrictEqual(val1, val2) {
-  return innerDeepEqual(val1, val2, true);
+  return innerDeepEqual(val1, val2, true)
 }
 export function isDeepEqual(val1, val2) {
-  return innerDeepEqual(val1, val2, false);
+  return innerDeepEqual(val1, val2, false)
 }
 
-function innerDeepEqual(
-  val1,
-  val2,
-  strict,
-  memos = memo,
-) {
+function innerDeepEqual(val1, val2, strict, memos = memo) {
   // Basic case covered by Strict Equality Comparison
   if (val1 === val2) {
-    if (val1 !== 0) return true;
-    return strict ? Object.is(val1, val2) : true;
+    if (val1 !== 0) return true
+    return strict ? Object.is(val1, val2) : true
   }
   if (strict) {
     // Cases where the values are not objects
     // If both values are Not a Number NaN
-    if (typeof val1 !== "object") {
-      return (
-        typeof val1 === "number" && Number.isNaN(val1) && Number.isNaN(val2)
-      );
+    if (typeof val1 !== 'object') {
+      return typeof val1 === 'number' && Number.isNaN(val1) && Number.isNaN(val2)
     }
     // If either value is null
-    if (typeof val2 !== "object" || val1 === null || val2 === null) {
-      return false;
+    if (typeof val2 !== 'object' || val1 === null || val2 === null) {
+      return false
     }
     // If the prototype are not the same
     if (Object.getPrototypeOf(val1) !== Object.getPrototypeOf(val2)) {
-      return false;
+      return false
     }
   } else {
     // Non strict case where values are either null or NaN
-    if (val1 === null || typeof val1 !== "object") {
-      if (val2 === null || typeof val2 !== "object") {
-        return val1 == val2 || (Number.isNaN(val1) && Number.isNaN(val2));
+    if (val1 === null || typeof val1 !== 'object') {
+      if (val2 === null || typeof val2 !== 'object') {
+        return val1 == val2 || (Number.isNaN(val1) && Number.isNaN(val2))
       }
-      return false;
+      return false
     }
-    if (val2 === null || typeof val2 !== "object") {
-      return false;
+    if (val2 === null || typeof val2 !== 'object') {
+      return false
     }
   }
 
-  const val1Tag = Object.prototype.toString.call(val1);
-  const val2Tag = Object.prototype.toString.call(val2);
+  const val1Tag = Object.prototype.toString.call(val1)
+  const val2Tag = Object.prototype.toString.call(val2)
 
   // prototype must be Strictly Equal
-  if (
-    val1Tag !== val2Tag
-  ) {
-    return false;
+  if (val1Tag !== val2Tag) {
+    return false
   }
 
   // handling when values are array
   if (Array.isArray(val1)) {
     // quick rejection cases
     if (!Array.isArray(val2) || val1.length !== val2.length) {
-      return false;
+      return false
     }
-    const filter = strict ? ONLY_ENUMERABLE : ONLY_ENUMERABLE | SKIP_SYMBOLS;
-    const keys1 = getOwnNonIndexProperties(val1, filter);
-    const keys2 = getOwnNonIndexProperties(val2, filter);
+    const filter = strict ? ONLY_ENUMERABLE : ONLY_ENUMERABLE | SKIP_SYMBOLS
+    const keys1 = getOwnNonIndexProperties(val1, filter)
+    const keys2 = getOwnNonIndexProperties(val2, filter)
     if (keys1.length !== keys2.length) {
-      return false;
+      return false
     }
-    return keyCheck(val1, val2, strict, memos, valueType.isArray, keys1);
-  }if (val1Tag === "[object Object]") {
-    return keyCheck(
-      val1,
-      val2,
-      strict,
-      memos,
-      valueType.noIterator,
-    );
-  }if (val1 instanceof Date) {
+    return keyCheck(val1, val2, strict, memos, valueType.isArray, keys1)
+  }
+  if (val1Tag === '[object Object]') {
+    return keyCheck(val1, val2, strict, memos, valueType.noIterator)
+  }
+  if (val1 instanceof Date) {
     if (!(val2 instanceof Date) || val1.getTime() !== val2.getTime()) {
-      return false;
+      return false
     }
   } else if (val1 instanceof RegExp) {
     if (!(val2 instanceof RegExp) || !areSimilarRegExps(val1, val2)) {
-      return false;
+      return false
     }
   } else if (isNativeError(val1) || val1 instanceof Error) {
     // stack may or may not be same, hence it shouldn't be compared
     if (
       // How to handle the type errors here
       (!isNativeError(val2) && !(val2 instanceof Error)) ||
-      (val1).message !== (val2).message ||
-      (val1).name !== (val2).name
+      val1.message !== val2.message ||
+      val1.name !== val2.name
     ) {
-      return false;
+      return false
     }
   } else if (isArrayBufferView(val1)) {
     const TypedArrayPrototypeGetSymbolToStringTag = (val) =>
       Object.getOwnPropertySymbols(val)
         .map((item) => item.toString())
-        .toString();
+        .toString()
     if (
       isTypedArray(val1) &&
       isTypedArray(val2) &&
-      (TypedArrayPrototypeGetSymbolToStringTag(val1) !==
-        TypedArrayPrototypeGetSymbolToStringTag(val2))
+      TypedArrayPrototypeGetSymbolToStringTag(val1) !==
+        TypedArrayPrototypeGetSymbolToStringTag(val2)
     ) {
-      return false;
+      return false
     }
 
     if (!strict && (isFloat32Array(val1) || isFloat64Array(val1))) {
       if (!areSimilarFloatArrays(val1, val2)) {
-        return false;
+        return false
       }
     } else if (!areSimilarTypedArrays(val1, val2)) {
-      return false;
+      return false
     }
-    const filter = strict ? ONLY_ENUMERABLE : ONLY_ENUMERABLE | SKIP_SYMBOLS;
-    const keysVal1 = getOwnNonIndexProperties(val1, filter);
-    const keysVal2 = getOwnNonIndexProperties(val2, filter);
+    const filter = strict ? ONLY_ENUMERABLE : ONLY_ENUMERABLE | SKIP_SYMBOLS
+    const keysVal1 = getOwnNonIndexProperties(val1, filter)
+    const keysVal2 = getOwnNonIndexProperties(val2, filter)
     if (keysVal1.length !== keysVal2.length) {
-      return false;
+      return false
     }
-    return keyCheck(
-      val1,
-      val2,
-      strict,
-      memos,
-      valueType.noIterator,
-      keysVal1,
-    );
+    return keyCheck(val1, val2, strict, memos, valueType.noIterator, keysVal1)
   } else if (isSet(val1)) {
-    if (
-      !isSet(val2) ||
-      (val1).size !== (val2).size
-    ) {
-      return false;
+    if (!isSet(val2) || val1.size !== val2.size) {
+      return false
     }
-    return keyCheck(
-      val1,
-      val2,
-      strict,
-      memos,
-      valueType.isSet,
-    );
+    return keyCheck(val1, val2, strict, memos, valueType.isSet)
   } else if (isMap(val1)) {
-    if (
-      !isMap(val2) ||
-      (val1).size !== (val2).size
-    ) {
-      return false;
+    if (!isMap(val2) || val1.size !== val2.size) {
+      return false
     }
-    return keyCheck(
-      val1,
-      val2,
-      strict,
-      memos,
-      valueType.isMap,
-    );
+    return keyCheck(val1, val2, strict, memos, valueType.isMap)
   } else if (isAnyArrayBuffer(val1)) {
     if (!isAnyArrayBuffer(val2) || !areEqualArrayBuffers(val1, val2)) {
-      return false;
+      return false
     }
   } else if (isBoxedPrimitive(val1)) {
     if (!isEqualBoxedPrimitive(val1, val2)) {
-      return false;
+      return false
     }
   } else if (
     Array.isArray(val2) ||
@@ -216,84 +178,68 @@ function innerDeepEqual(
     isNativeError(val2) ||
     val2 instanceof Error
   ) {
-    return false;
+    return false
   }
-  return keyCheck(
-    val1,
-    val2,
-    strict,
-    memos,
-    valueType.noIterator,
-  );
+  return keyCheck(val1, val2, strict, memos, valueType.noIterator)
 }
 
-function keyCheck(
-  val1,
-  val2,
-  strict,
-  memos,
-  iterationType,
-  aKeys = [],
-) {
+function keyCheck(val1, val2, strict, memos, iterationType, aKeys = []) {
   if (arguments.length === 5) {
-    aKeys = Object.keys(val1);
-    const bKeys = Object.keys(val2);
+    aKeys = Object.keys(val1)
+    const bKeys = Object.keys(val2)
 
     // The pair must have the same number of owned properties.
     if (aKeys.length !== bKeys.length) {
-      return false;
+      return false
     }
   }
 
   // Cheap key test
-  let i = 0;
+  let i = 0
   for (; i < aKeys.length; i++) {
     if (!val2.propertyIsEnumerable(aKeys[i])) {
-      return false;
+      return false
     }
   }
 
   if (strict && arguments.length === 5) {
-    const symbolKeysA = Object.getOwnPropertySymbols(val1);
+    const symbolKeysA = Object.getOwnPropertySymbols(val1)
     if (symbolKeysA.length !== 0) {
-      let count = 0;
+      let count = 0
       for (i = 0; i < symbolKeysA.length; i++) {
-        const key = symbolKeysA[i];
+        const key = symbolKeysA[i]
         if (val1.propertyIsEnumerable(key)) {
           if (!val2.propertyIsEnumerable(key)) {
-            return false;
+            return false
           }
           // added toString here
-          aKeys.push(key.toString());
-          count++;
+          aKeys.push(key.toString())
+          count++
         } else if (val2.propertyIsEnumerable(key)) {
-          return false;
+          return false
         }
       }
-      const symbolKeysB = Object.getOwnPropertySymbols(val2);
+      const symbolKeysB = Object.getOwnPropertySymbols(val2)
       if (
         symbolKeysA.length !== symbolKeysB.length &&
         getEnumerables(val2, symbolKeysB).length !== count
       ) {
-        return false;
+        return false
       }
     } else {
-      const symbolKeysB = Object.getOwnPropertySymbols(val2);
-      if (
-        symbolKeysB.length !== 0 &&
-        getEnumerables(val2, symbolKeysB).length !== 0
-      ) {
-        return false;
+      const symbolKeysB = Object.getOwnPropertySymbols(val2)
+      if (symbolKeysB.length !== 0 && getEnumerables(val2, symbolKeysB).length !== 0) {
+        return false
       }
     }
   }
   if (
     aKeys.length === 0 &&
     (iterationType === valueType.noIterator ||
-      (iterationType === valueType.isArray && (val1).length === 0) ||
-      (val1).size === 0)
+      (iterationType === valueType.isArray && val1.length === 0) ||
+      val1.size === 0)
   ) {
-    return true;
+    return true
   }
 
   if (memos === undefined) {
@@ -301,65 +247,64 @@ function keyCheck(
       val1: new Map(),
       val2: new Map(),
       position: 0,
-    };
+    }
   } else {
-    const val2MemoA = memos.val1.get(val1);
+    const val2MemoA = memos.val1.get(val1)
     if (val2MemoA !== undefined) {
-      const val2MemoB = memos.val2.get(val2);
+      const val2MemoB = memos.val2.get(val2)
       if (val2MemoB !== undefined) {
-        return val2MemoA === val2MemoB;
+        return val2MemoA === val2MemoB
       }
     }
-    memos.position++;
+    memos.position++
   }
 
-  memos.val1.set(val1, memos.position);
-  memos.val2.set(val2, memos.position);
+  memos.val1.set(val1, memos.position)
+  memos.val2.set(val2, memos.position)
 
-  const areEq = objEquiv(val1, val2, strict, aKeys, memos, iterationType);
+  const areEq = objEquiv(val1, val2, strict, aKeys, memos, iterationType)
 
-  memos.val1.delete(val1);
-  memos.val2.delete(val2);
+  memos.val1.delete(val1)
+  memos.val2.delete(val2)
 
-  return areEq;
+  return areEq
 }
 
 function areSimilarRegExps(a, b) {
-  return a.source === b.source && a.flags === b.flags &&
-    a.lastIndex === b.lastIndex;
+  return a.source === b.source && a.flags === b.flags && a.lastIndex === b.lastIndex
 }
 
 // TODO(standvpmnt): add type for arguments
 function areSimilarFloatArrays(arr1, arr2) {
   if (arr1.byteLength !== arr2.byteLength) {
-    return false;
+    return false
   }
   for (let i = 0; i < arr1.byteLength; i++) {
     if (arr1[i] !== arr2[i]) {
-      return false;
+      return false
     }
   }
-  return true;
+  return true
 }
 
 // TODO(standvpmnt): add type for arguments
 function areSimilarTypedArrays(arr1, arr2) {
   if (arr1.byteLength !== arr2.byteLength) {
-    return false;
+    return false
   }
   return (
     Buffer.compare(
       new Uint8Array(arr1.buffer, arr1.byteOffset, arr1.byteLength),
-      new Uint8Array(arr2.buffer, arr2.byteOffset, arr2.byteLength),
+      new Uint8Array(arr2.buffer, arr2.byteOffset, arr2.byteLength)
     ) === 0
-  );
+  )
 }
 // TODO(standvpmnt): add type for arguments
 function areEqualArrayBuffers(buf1, buf2) {
   return (
     buf1.byteLength === buf2.byteLength &&
     Buffer.compare(new Uint8Array(buf1), new Uint8Array(buf2)) === 0
-  );
+  )
 }
 
 // TODO(standvpmnt):  this check of getOwnPropertySymbols and getOwnPropertyNames
@@ -367,298 +312,252 @@ function areEqualArrayBuffers(buf1, buf2) {
 // to catch a scenario wherein the getOwnPropertySymbols and getOwnPropertyNames
 // length is the same(will be very contrived but a possible shortcoming
 function isEqualBoxedPrimitive(a, b) {
-  if (
-    Object.getOwnPropertyNames(a).length !==
-    Object.getOwnPropertyNames(b).length
-  ) {
-    return false;
+  if (Object.getOwnPropertyNames(a).length !== Object.getOwnPropertyNames(b).length) {
+    return false
   }
-  if (
-    Object.getOwnPropertySymbols(a).length !==
-    Object.getOwnPropertySymbols(b).length
-  ) {
-    return false;
+  if (Object.getOwnPropertySymbols(a).length !== Object.getOwnPropertySymbols(b).length) {
+    return false
   }
   if (isNumberObject(a)) {
     return (
       isNumberObject(b) &&
-      Object.is(
-        Number.prototype.valueOf.call(a),
-        Number.prototype.valueOf.call(b),
-      )
-    );
+      Object.is(Number.prototype.valueOf.call(a), Number.prototype.valueOf.call(b))
+    )
   }
   if (isStringObject(a)) {
     return (
       isStringObject(b) &&
-      (String.prototype.valueOf.call(a) === String.prototype.valueOf.call(b))
-    );
+      String.prototype.valueOf.call(a) === String.prototype.valueOf.call(b)
+    )
   }
   if (isBooleanObject(a)) {
     return (
       isBooleanObject(b) &&
-      (Boolean.prototype.valueOf.call(a) === Boolean.prototype.valueOf.call(b))
-    );
+      Boolean.prototype.valueOf.call(a) === Boolean.prototype.valueOf.call(b)
+    )
   }
   if (isBigIntObject(a)) {
     return (
       isBigIntObject(b) &&
-      (BigInt.prototype.valueOf.call(a) === BigInt.prototype.valueOf.call(b))
-    );
+      BigInt.prototype.valueOf.call(a) === BigInt.prototype.valueOf.call(b)
+    )
   }
   if (isSymbolObject(a)) {
     return (
       isSymbolObject(b) &&
-      (Symbol.prototype.valueOf.call(a) ===
-        Symbol.prototype.valueOf.call(b))
-    );
+      Symbol.prototype.valueOf.call(a) === Symbol.prototype.valueOf.call(b)
+    )
   }
   // assert.fail(`Unknown boxed type ${val1}`);
   // return false;
-  throw Error(`Unknown boxed type`);
+  throw Error(`Unknown boxed type`)
 }
 
 function getEnumerables(val, keys) {
-  return keys.filter((key) => val.propertyIsEnumerable(key));
+  return keys.filter((key) => val.propertyIsEnumerable(key))
 }
 
-function objEquiv(
-  obj1,
-  obj2,
-  strict,
-  keys,
-  memos,
-  iterationType,
-) {
-  let i = 0;
+function objEquiv(obj1, obj2, strict, keys, memos, iterationType) {
+  let i = 0
 
   if (iterationType === valueType.isSet) {
     if (!setEquiv(obj1, obj2, strict, memos)) {
-      return false;
+      return false
     }
   } else if (iterationType === valueType.isMap) {
     if (!mapEquiv(obj1, obj2, strict, memos)) {
-      return false;
+      return false
     }
   } else if (iterationType === valueType.isArray) {
     for (; i < obj1.length; i++) {
       if (obj1.hasOwnProperty(i)) {
-        if (
-          !obj2.hasOwnProperty(i) ||
-          !innerDeepEqual(obj1[i], obj2[i], strict, memos)
-        ) {
-          return false;
+        if (!obj2.hasOwnProperty(i) || !innerDeepEqual(obj1[i], obj2[i], strict, memos)) {
+          return false
         }
       } else if (obj2.hasOwnProperty(i)) {
-        return false;
+        return false
       } else {
-        const keys1 = Object.keys(obj1);
+        const keys1 = Object.keys(obj1)
         for (; i < keys1.length; i++) {
-          const key = keys1[i];
+          const key = keys1[i]
           if (
             !obj2.hasOwnProperty(key) ||
             !innerDeepEqual(obj1[key], obj2[key], strict, memos)
           ) {
-            return false;
+            return false
           }
         }
         if (keys1.length !== Object.keys(obj2).length) {
-          return false;
+          return false
         }
         if (keys1.length !== Object.keys(obj2).length) {
-          return false;
+          return false
         }
-        return true;
+        return true
       }
     }
   }
 
   // Expensive test
   for (i = 0; i < keys.length; i++) {
-    const key = keys[i];
+    const key = keys[i]
     if (!innerDeepEqual(obj1[key], obj2[key], strict, memos)) {
-      return false;
+      return false
     }
   }
-  return true;
+  return true
 }
 
-function findLooseMatchingPrimitives(
-  primitive,
-) {
+function findLooseMatchingPrimitives(primitive) {
   switch (typeof primitive) {
-    case "undefined":
-      return null;
-    case "object":
-      return undefined;
-    case "symbol":
-      return false;
-    case "string":
-      primitive = +primitive;
-    case "number":
+    case 'undefined':
+      return null
+    case 'object':
+      return undefined
+    case 'symbol':
+      return false
+    case 'string':
+      primitive = +primitive
+    case 'number':
       if (Number.isNaN(primitive)) {
-        return false;
+        return false
       }
   }
-  return true;
+  return true
 }
 
-function setMightHaveLoosePrim(
-  set1,
-  set2,
-  primitive,
-) {
-  const altValue = findLooseMatchingPrimitives(primitive);
-  if (altValue != null) return altValue;
+function setMightHaveLoosePrim(set1, set2, primitive) {
+  const altValue = findLooseMatchingPrimitives(primitive)
+  if (altValue != null) return altValue
 
-  return set2.has(altValue) && !set1.has(altValue);
+  return set2.has(altValue) && !set1.has(altValue)
 }
 
-function setHasEqualElement(
-  set,
-  val1,
-  strict,
-  memos,
-) {
+function setHasEqualElement(set, val1, strict, memos) {
   for (const val2 of set) {
     if (innerDeepEqual(val1, val2, strict, memos)) {
-      set.delete(val2);
-      return true;
+      set.delete(val2)
+      return true
     }
   }
 
-  return false;
+  return false
 }
 
 function setEquiv(set1, set2, strict, memos) {
-  let set = null;
+  let set = null
   for (const item of set1) {
-    if (typeof item === "object" && item !== null) {
+    if (typeof item === 'object' && item !== null) {
       if (set === null) {
         // What is SafeSet from primordials?
         // set = new SafeSet();
-        set = new Set();
+        set = new Set()
       }
-      set.add(item);
+      set.add(item)
     } else if (!set2.has(item)) {
-      if (strict) return false;
+      if (strict) return false
 
       if (!setMightHaveLoosePrim(set1, set2, item)) {
-        return false;
+        return false
       }
 
       if (set === null) {
-        set = new Set();
+        set = new Set()
       }
-      set.add(item);
+      set.add(item)
     }
   }
 
   if (set !== null) {
     for (const item of set2) {
-      if (typeof item === "object" && item !== null) {
-        if (!setHasEqualElement(set, item, strict, memos)) return false;
+      if (typeof item === 'object' && item !== null) {
+        if (!setHasEqualElement(set, item, strict, memos)) return false
       } else if (
         !strict &&
         !set1.has(item) &&
         !setHasEqualElement(set, item, strict, memos)
       ) {
-        return false;
+        return false
       }
     }
-    return set.size === 0;
+    return set.size === 0
   }
 
-  return true;
+  return true
 }
 
 // TODO(standvpmnt): add types for argument
-function mapMightHaveLoosePrimitive(
-  map1,
-  map2,
-  primitive,
-  item,
-  memos,
-) {
-  const altValue = findLooseMatchingPrimitives(primitive);
+function mapMightHaveLoosePrimitive(map1, map2, primitive, item, memos) {
+  const altValue = findLooseMatchingPrimitives(primitive)
   if (altValue != null) {
-    return altValue;
+    return altValue
   }
-  const curB = map2.get(altValue);
+  const curB = map2.get(altValue)
   if (
     (curB === undefined && !map2.has(altValue)) ||
     !innerDeepEqual(item, curB, false, memo)
   ) {
-    return false;
+    return false
   }
-  return !map1.has(altValue) && innerDeepEqual(item, curB, false, memos);
+  return !map1.has(altValue) && innerDeepEqual(item, curB, false, memos)
 }
 
 function mapEquiv(map1, map2, strict, memos) {
-  let set = null;
+  let set = null
 
   for (const { 0: key, 1: item1 } of map1) {
-    if (typeof key === "object" && key !== null) {
+    if (typeof key === 'object' && key !== null) {
       if (set === null) {
-        set = new Set();
+        set = new Set()
       }
-      set.add(key);
+      set.add(key)
     } else {
-      const item2 = map2.get(key);
+      const item2 = map2.get(key)
       if (
-        (
-          (item2 === undefined && !map2.has(key)) ||
-          !innerDeepEqual(item1, item2, strict, memos)
-        )
+        (item2 === undefined && !map2.has(key)) ||
+        !innerDeepEqual(item1, item2, strict, memos)
       ) {
-        if (strict) return false;
+        if (strict) return false
         if (!mapMightHaveLoosePrimitive(map1, map2, key, item1, memos)) {
-          return false;
+          return false
         }
         if (set === null) {
-          set = new Set();
+          set = new Set()
         }
-        set.add(key);
+        set.add(key)
       }
     }
   }
 
   if (set !== null) {
     for (const { 0: key, 1: item } of map2) {
-      if (typeof key === "object" && key !== null) {
+      if (typeof key === 'object' && key !== null) {
         if (!mapHasEqualEntry(set, map1, key, item, strict, memos)) {
-          return false;
+          return false
         }
       } else if (
-        !strict && (!map1.has(key) ||
-          !innerDeepEqual(map1.get(key), item, false, memos)) &&
+        !strict &&
+        (!map1.has(key) || !innerDeepEqual(map1.get(key), item, false, memos)) &&
         !mapHasEqualEntry(set, map1, key, item, false, memos)
       ) {
-        return false;
+        return false
       }
     }
-    return set.size === 0;
+    return set.size === 0
   }
 
-  return true;
+  return true
 }
 
-function mapHasEqualEntry(
-  set,
-  map,
-  key1,
-  item1,
-  strict,
-  memos
-) {
+function mapHasEqualEntry(set, map, key1, item1, strict, memos) {
   for (const key2 of set) {
     if (
       innerDeepEqual(key1, key2, strict, memos) &&
       innerDeepEqual(item1, map.get(key2), strict, memos)
     ) {
-      set.delete(key2);
-      return true;
+      set.delete(key2)
+      return true
     }
   }
-  return false;
+  return false
 }

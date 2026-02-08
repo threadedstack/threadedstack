@@ -7,4 +7,3 @@ import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
 
 const wss = new WASIShim()
 export const shim = wss.getImportObject() as unknown as _WASIImportObject
-

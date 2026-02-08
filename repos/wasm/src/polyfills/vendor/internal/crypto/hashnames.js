@@ -1,12 +1,12 @@
 // Copyright Joyent and Node contributors. All rights reserved. MIT license.
-'use strict';
+'use strict'
 
-const kHashContextNode = 1;
-const kHashContextWebCrypto = 2;
-const kHashContextJwkRsa = 3;
-const kHashContextJwkRsaPss = 4;
-const kHashContextJwkRsaOaep = 5;
-const kHashContextJwkHmac = 6;
+const kHashContextNode = 1
+const kHashContextWebCrypto = 2
+const kHashContextJwkRsa = 3
+const kHashContextJwkRsaPss = 4
+const kHashContextJwkRsaOaep = 5
+const kHashContextJwkHmac = 6
 
 // WebCrypto and JWK use a bunch of different names for the
 // standard set of SHA-* digest algorithms... which is ... fun.
@@ -45,36 +45,33 @@ const kHashNames = {
     [kHashContextJwkRsaPss]: 'PS512',
     [kHashContextJwkRsaOaep]: 'RSA-OAEP-512',
     [kHashContextJwkHmac]: 'HS512',
-  }
-};
+  },
+}
 
 {
   // Index the aliases
-  const keys = Object.keys(kHashNames);
+  const keys = Object.keys(kHashNames)
   for (let n = 0; n < keys.length; n++) {
-    const contexts = Object.keys(kHashNames[keys[n]]);
+    const contexts = Object.keys(kHashNames[keys[n]])
     for (let i = 0; i < contexts.length; i++) {
-      const alias =
-        String.prototype.toLowerCase.call(kHashNames[keys[n]][contexts[i]]);
-      if (kHashNames[alias] === undefined)
-        kHashNames[alias] = kHashNames[keys[n]];
+      const alias = String.prototype.toLowerCase.call(kHashNames[keys[n]][contexts[i]])
+      if (kHashNames[alias] === undefined) kHashNames[alias] = kHashNames[keys[n]]
     }
   }
 }
 
 function normalizeHashName(name, context = kHashContextNode) {
-  if (typeof name !== 'string')
-    return name;
-  name = String.prototype.toLowerCase.call(name);
-  const alias = kHashNames[name] && kHashNames[name][context];
-  return alias || name;
+  if (typeof name !== 'string') return name
+  name = String.prototype.toLowerCase.call(name)
+  const alias = kHashNames[name] && kHashNames[name][context]
+  return alias || name
 }
 
-normalizeHashName.kContextNode = kHashContextNode;
-normalizeHashName.kContextWebCrypto = kHashContextWebCrypto;
-normalizeHashName.kContextJwkRsa = kHashContextJwkRsa;
-normalizeHashName.kContextJwkRsaPss = kHashContextJwkRsaPss;
-normalizeHashName.kContextJwkRsaOaep = kHashContextJwkRsaOaep;
-normalizeHashName.kContextJwkHmac = kHashContextJwkHmac;
+normalizeHashName.kContextNode = kHashContextNode
+normalizeHashName.kContextWebCrypto = kHashContextWebCrypto
+normalizeHashName.kContextJwkRsa = kHashContextJwkRsa
+normalizeHashName.kContextJwkRsaPss = kHashContextJwkRsaPss
+normalizeHashName.kContextJwkRsaOaep = kHashContextJwkRsaOaep
+normalizeHashName.kContextJwkHmac = kHashContextJwkHmac
 
-export default normalizeHashName;
+export default normalizeHashName

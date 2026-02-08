@@ -5,7 +5,6 @@
  * Supports flexible registration with all, include, exclude, and custom options.
  */
 
-
 import { fileURLToPath } from 'node:url'
 import { join, dirname } from 'node:path'
 
@@ -22,7 +21,6 @@ const vendor = join(__dirname, `vendor`)
  *
  */
 export const ImportMap: Record<string, string> = {
-
   [`assert`]: join(vendor, `assert.js`),
   [`node:assert`]: join(vendor, `assert.js`),
 
@@ -56,7 +54,7 @@ export const ImportMap: Record<string, string> = {
   [`node:querystring`]: join(vendor, `querystring.js`),
 
   [`stream/promises`]: join(vendor, `stream/promises.js`),
-  [`node:stream/promises`]:  join(vendor, `stream/promises.js`),
+  [`node:stream/promises`]: join(vendor, `stream/promises.js`),
 
   [`stream`]: join(vendor, `stream.js`),
   [`node:stream`]: join(vendor, `stream.js`),
@@ -72,5 +70,4 @@ export const ImportMap: Record<string, string> = {
 
   [`zlib`]: join(vendor, `zlib.js`),
   [`node:zlib`]: join(vendor, `zlib.js`),
-
 }

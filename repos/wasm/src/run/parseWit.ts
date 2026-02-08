@@ -1,6 +1,10 @@
 import { camelCase } from '@keg-hub/jsutils'
 
-export type TParseWitResult = { name: string; exports: string[]; imports: string[] } | null
+export type TParseWitResult = {
+  name: string
+  exports: string[]
+  imports: string[]
+} | null
 
 /**
  * Simple WIT file parser to extract world exports
@@ -15,7 +19,6 @@ export type TParseWitResult = { name: string; exports: string[]; imports: string
  */
 export const parseWit = (witContent: string): TParseWitResult => {
   try {
-
     const worldRegex = /world\s+(\w+)\s*\{([^}]+)\}/s
     const worldMatch = witContent.match(worldRegex)
 

@@ -14,7 +14,6 @@ export interface ToWasmResult {
   success: boolean
 }
 
-
 /**
  * Build JavaScript to WASM component with componentize-js
  *
@@ -29,10 +28,9 @@ export const componentizeJs = async (
   options: TWasmBuildOpts,
   paths?: TResolvedPaths
 ): Promise<ToWasmResult> => {
+  paths = paths || (await resolvePaths(options))
 
-  paths = paths || await resolvePaths(options)
-
-  if(!options.quiet){
+  if (!options.quiet) {
     console.log(`🔨 Building WASM ${capitalize(paths.name)} Component...`)
     console.log(`⚙️  Componentizing JavaScript to WASM...`)
   }
@@ -58,5 +56,4 @@ export const componentizeJs = async (
     success: true,
     wasmout: wasmout,
   }
-
 }
