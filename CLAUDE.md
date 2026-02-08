@@ -207,6 +207,114 @@ pnpm push           # Push schema to DB (INTERACTIVE - requires manual confirmat
 ```
 > **Note**: `pnpm push` runs `drizzle-kit push` which is interactive and requires manual confirmation for destructive changes. Claude cannot run this automatically. The user must run it manually from `repos/database/`.
 
+## Service Management (`tdsk` CLI)
+
+**IMPORTANT**: Always use the `tdsk` CLI for service management. Never call `devspace` directly — it won't have the correct env/context setup.
+
+### Service Architecture
+```
+Client → Caddy (:443, TLS) → Proxy (:7118, JWT/JWKS) → Backend (:5885, API)
+                                                              ↓
+                                                         Neon PostgreSQL
+```
+
+| Service | Where | Port | Start Command |
+|---|---|---|---|
+| Caddy (TLS/LB) | K8s (`tdsk-caddy`) | 443, 8080, 2019 | `tdsk dev start --clean` |
+| Proxy (Auth) | K8s (`tdsk-proxy`) | 7118 | `tdsk dev start --clean` |
+| Backend (API) | K8s (`tdsk-backend`) | 5885 | `tdsk dev start --clean` |
+| Admin (SPA) | **Local host** | 5887 | `cd repos/admin && pnpm start` |
+
+> Admin runs locally (Vite dev server), NOT in K8s. Start it **after** k8s services are up.
+
+### Start Services
+```bash
+# Start all K8s services (Caddy, Proxy, Backend)
+tdsk dev start --clean
+
+# Start Admin frontend (separate terminal, after k8s is up)
+cd repos/admin && pnpm start
+```
+
+### Other `tdsk` Commands
+```bash
+tdsk dev log --context proxy --follow      # View proxy logs
+tdsk dev log --context backend --follow    # View backend logs
+tdsk dev enter --context backend --cmd "/bin/sh"  # Shell into pod
+tdsk dev clean --images --cache            # Clean environment
+tdsk dev render                            # Dry-run Helm templates
+tdsk dev use                               # Set kube context/namespace
+tdsk start --context proxy                 # Start repo locally (outside k8s)
+tdsk kube secret database                  # Create DB k8s secret
+tdsk kube secret payments                  # Create payments k8s secret
+tdsk kube secret email                     # Create email k8s secret
+tdsk kube secret docker                    # Create docker auth k8s secret
+tdsk kube secret tdsk                      # Create master key k8s secret
+```
+
+### Config Loading Order
+`@keg-hub/parse-config` merges (later overrides earlier):
+1. `deploy/values.yaml` — Base config (ports, hosts, public settings)
+2. `deploy/values.local.yaml` — Local overrides (`NODE_ENV=local`)
+3. `~/.config/tdsk/values.yaml` — Secrets (DB creds, API keys, master key)
+
+## Validation Workflows
+
+### Health Checks
+```bash
+# Through Caddy SSL
+curl -sf https://local.threadedstack.app/health         # Proxy
+curl -sf https://local.threadedstack.app/_/health        # Backend
+
+# Direct to K8s ports (bypass Caddy)
+curl -sf http://localhost:7118/health                    # Proxy direct
+curl -sf http://localhost:5885/_/health                  # Backend direct
+```
+
+### API Validation
+```bash
+# Direct backend (trusts X-User-* headers)
+curl -s -H "X-User-Id: test-user" http://localhost:5885/_/orgs
+
+# Through Caddy → Proxy (requires valid JWT)
+curl -s -H "Authorization: Bearer <token>" https://local.threadedstack.app/_/orgs
+```
+
+### UI Validation (Playwright MCP)
+```
+1. ToolSearch("select:mcp__playwright__browser_navigate")
+2. browser_navigate → http://localhost:5887
+3. browser_snapshot → accessibility tree
+4. browser_take_screenshot → visual check
+5. browser_click / browser_fill_form → interact
+6. browser_evaluate → check DOM / Jotai atom states
+```
+
+### Build Validation (dependency order)
+```bash
+pnpm --filter @tdsk/domain build
+pnpm --filter @tdsk/database build
+pnpm --filter @tdsk/logger build
+pnpm --filter @tdsk/backend build    # depends on domain, database, logger
+pnpm --filter @tdsk/proxy build      # depends on domain, database, logger
+pnpm --filter @tdsk/admin build      # depends on domain, components
+```
+
+## Autonomous Development Loop
+
+```
+1. UNDERSTAND  — Load skill file, explore codebase
+2. IMPLEMENT   — Write/Edit code
+3. BUILD       — pnpm build (dependency order: domain → database → logger → rest)
+4. TEST        — pnpm test (unit tests, no network needed)
+5. DEPLOY      — tdsk dev start --clean (k8s services)
+5b. FRONTEND   — cd repos/admin && pnpm start (local Vite)
+6. VALIDATE    — curl health checks + Playwright UI
+7. DEBUG       — tdsk dev log --context <svc> --follow
+8. FIX         — Iterate on errors
+9. COMMIT      — Only when user requests
+```
+
 ### Commands Notes
 
 * Linting and formatting are automatically, so `lint` and `format` command should be ignored.
@@ -218,6 +326,20 @@ pnpm push           # Push schema to DB (INTERACTIVE - requires manual confirmat
   - `/scripts` - Utility scripts
   - `/examples` - Example code
 
+
+## Compact Instructions
+
+When compacting context, preserve:
+- Current task goals and acceptance criteria
+- Files modified and their paths
+- Decisions made and rationale
+- Errors encountered and fixes applied
+- Test results (pass/fail counts)
+- Which repos/skills have been loaded
+- Any uncommitted work in progress
+- Task list state (what's done, what's pending)
+
+Before compaction, always write a progress checkpoint to auto memory (`~/.claude/projects/-Users-lancetipton-keg-hub-external-apps-threadedstack/memory/`) so work is never lost even if the session crashes.
 
 ## Key Patterns
 

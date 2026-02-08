@@ -21,10 +21,10 @@
     "forceConsistentCasingInFileNames": true,
     "paths": {
 
-      "@TPX/configs": ["configs"],
-      "@TPX/configs/*": ["configs/*"],
-      "@TPX": ["src"],
-      "@TPX/*": ["src/*"],
+      "@TPX/configs": ["./configs"],
+      "@TPX/configs/*": ["./configs/*"],
+      "@TPX": ["./src"],
+      "@TPX/*": ["./src/*"],
 
       "@TDM": ["../domain/src"],
       "@TDM/*": ["../domain/src/*"],

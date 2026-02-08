@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Proxy Repo"
 description: "Knowledge base for the Auth Gateway proxy repo"
-version: "1.0.0"
-tags: ["express", "jwt", "proxy", "auth", "gateway", "typescript"]
+version: "2.0.0"
+tags: ["express", "jwt", "jwks", "proxy", "auth", "gateway", "typescript", "jose"]
 ---
 # Proxy Repo Skill
 
@@ -10,425 +10,342 @@ tags: ["express", "jwt", "proxy", "auth", "gateway", "typescript"]
 
 The **proxy** repo (`@tdsk/proxy`) serves as the **Auth Gateway** and single entry point for all external traffic in the Threaded Stack platform. It is responsible for:
 
-- **Authentication & Authorization**: JWT validation and token verification
-- **Request Routing**: Forwarding requests to the backend API based on path prefixes
-- **Rate Limiting**: Protecting backend services from abuse
-- **Logging**: Request/response logging with Winston integration
+- **JWT Validation**: JWKS-based token verification via jose library (integrates with Neon Auth)
+- **Request Proxying**: Forwarding authenticated requests to the backend API via http-proxy-middleware
+- **Certificate Pre-warming**: Caddy on_demand_tls integration for domain validation
+- **Request Logging**: Structured request/response logging with timing via Winston
 - **Signal Handling**: Graceful shutdown on SIGINT, SIGTERM, SIGQUIT
 
-**Current Status**: The proxy is **fully implemented** as of January 2026. It includes:
-- **JWKS-based JWT validation** via jose library (integrates with Neon Auth)
-- **http-proxy-middleware** for backend forwarding
-- **Full middleware chain**: Logger, CORS, Auth, Proxy, Error handling
-- **Endpoints**: `/health`, `/auth/me`, `/auth/logout`
+**Current Status**: Fully implemented (~960 lines across 38 source files). All middleware, endpoints, and services are functional.
 
-**IMPORTANT NOTE**: Authentication is now **client-side via Neon Auth**. The proxy only validates JWT tokens using JWKS - it does not handle login/register/refresh. Those are managed by the Admin SPA directly with Neon Auth.
+**Authentication Model**: Client-side via Neon Auth. The proxy only *validates* JWT tokens using JWKS — it does not handle login/register/refresh. Those are managed by the Admin SPA directly with Neon Auth.
 
 ## Directory Structure
 
 ```
 repos/proxy/
-├── configs/                    # Build and linter configurations
-│   ├── aliases.ts             # Path alias setup (alias-hq)
-│   ├── biome.json             # Biome linter/formatter config
-│   ├── proxy.config.ts        # Proxy application config (logger settings)
-│   ├── tsup.config.ts         # Production build config
-│   └── vitest.config.ts       # Test runner config
-├── dist/                       # Build output (CJS bundle)
-├── scripts/                    # Utility scripts
-├── src/                        # Source code
-│   ├── constants/             # Configuration constants
-│   │   ├── envs.ts           # Environment variable exports (LOG_LEVEL)
-│   │   ├── values.ts         # Static values (ProcessSignals)
+├── configs/                          # Build and app configurations
+│   ├── aliases.ts                   # Path alias setup (alias-hq)
+│   ├── biome.json                   # Biome linter/formatter config
+│   ├── proxy.config.ts              # Main proxy config (JWT, Server, Backend, Logger, JWKS, Domains)
+│   ├── proxy.config.test.ts         # Config validation tests (8 tests)
+│   ├── tsup.config.ts              # Production build config (CJS bundle)
+│   ├── tsdown.config.ts            # Alternative build config (tsdown)
+│   └── vitest.config.ts            # Vitest test runner config
+├── scripts/                          # Utility scripts
+│   ├── loadEnvs.ts                  # Environment variable loader from YAML
+│   └── addToProcess.ts             # Helper to inject envs into process.env
+├── src/                              # Source code
+│   ├── constants/                   # Static values
+│   │   ├── values.ts               # ProcessSignals, PublicRoutes, LoggerIgnore
 │   │   └── index.ts
-│   ├── endpoints/             # Route handlers (currently empty stub)
+│   ├── endpoints/                   # Route handlers
+│   │   ├── health.ts               # GET /health — service health check
+│   │   ├── health.test.ts          # Health endpoint test (1 test)
+│   │   ├── auth/
+│   │   │   ├── me.ts               # GET /auth/me — returns JWT user info
+│   │   │   ├── logout.ts           # POST /auth/logout — logout acknowledgment
+│   │   │   └── index.ts
+│   │   ├── domains/
+│   │   │   ├── validate.ts         # GET /domains/validate — Caddy domain validation
+│   │   │   └── index.ts
 │   │   └── index.ts
-│   ├── middleware/            # Express middleware (currently empty stub)
+│   ├── middleware/                   # Express middleware chain
+│   │   ├── setupServer.ts          # CORS, x-powered-by, urlencoded, router mount
+│   │   ├── setupAuth.ts            # JWT validation via JWKS, attaches req.user
+│   │   ├── setupProxy.ts           # http-proxy-middleware → backend forwarding
+│   │   ├── setupLogger.ts          # Request/response logging with timing
+│   │   ├── setupEndpoints.ts       # Route registration (4 endpoints)
+│   │   ├── setupErrorHandler.ts    # Global error handler mount
+│   │   ├── setupPrewarm.ts         # Caddy certificate pre-warming interceptor
 │   │   └── index.ts
-│   ├── server/                # Server initialization (currently empty stub)
+│   ├── server/                      # Server initialization
+│   │   ├── app.ts                  # Express app instance (TProxyApp)
+│   │   ├── router.ts              # Async router (wraps handlers with express-async-handler)
+│   │   ├── server.ts              # HTTP/HTTPS server creation with SSL cert loading
 │   │   └── index.ts
-│   ├── types/                 # TypeScript type definitions
-│   │   ├── envs.types.ts     # TLogLevel type
+│   ├── services/                    # Business logic
+│   │   ├── auth.ts                 # Auth class — JWKS client, token extraction, JWT verification
 │   │   └── index.ts
-│   ├── utils/                 # Utility functions
-│   │   ├── logger.ts         # Winston logger setup
-│   │   ├── logger.test.ts    # Logger tests (stub)
-│   │   ├── signals.ts        # Process signal handlers
+│   ├── types/                       # TypeScript type definitions
+│   │   ├── proxy.types.ts          # TProxyApp = TApp<TProxyConfig>
+│   │   ├── auth.types.ts           # EJWTError, TTokenPayload, TAuthUser, TJWTPayload, TJWTValidationResult
+│   │   ├── config.types.ts         # TJwtConfig, TServerConfig, TBackendConfig, TLoggerConfig, TJWKSConfig, TDomainsConfig, TProxyConfig
+│   │   ├── envs.types.ts           # TLogLevel union type
+│   │   ├── express.types.ts        # Global Express Request.user extension
 │   │   └── index.ts
-│   ├── index.ts               # Entry point (currently empty)
-│   └── proxy.ts               # Main proxy function (TODO)
-├── package.json               # Package metadata and scripts
-└── tsconfig.json              # TypeScript configuration
+│   ├── utils/                       # Utility functions
+│   │   ├── logger.ts               # Winston logger factory via buildApiLogger()
+│   │   ├── logger.test.ts          # Logger test (placeholder)
+│   │   ├── signals.ts              # Graceful shutdown on SIGINT/SIGTERM/SIGQUIT
+│   │   ├── errors/
+│   │   │   ├── errorHandler.ts     # Express error middleware — returns status/message/errorCode
+│   │   │   ├── exception.ts        # Custom Exception class with status code
+│   │   │   └── index.ts
+│   │   └── index.ts
+│   ├── proxy.ts                     # Main orchestrator — wires all middleware in order
+│   ├── start.ts                     # Entry point — calls proxy(config) via ife()
+│   └── index.ts                     # Re-exports start.ts
+├── package.json
+└── tsconfig.json
 ```
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/index.ts` | Application entry point (currently empty stub) |
-| `src/proxy.ts` | Main proxy server logic (TODO - not implemented) |
-| `src/server/index.ts` | Express server setup (empty stub) |
-| `src/middleware/index.ts` | Express middleware definitions (empty stub) |
-| `src/endpoints/index.ts` | Route handlers (empty stub) |
-| `src/utils/logger.ts` | Winston logger configuration using `@tdsk/logger` |
-| `src/utils/signals.ts` | Graceful shutdown signal handlers (SIGINT/SIGTERM/SIGQUIT) |
-| `src/constants/envs.ts` | Environment variable constants (LOG_LEVEL) |
-| `src/constants/values.ts` | Static values (ProcessSignals array) |
-| `src/types/envs.types.ts` | TypeScript type definitions (TLogLevel) |
-| `configs/proxy.config.ts` | Application config (logger level, pretty print, silent mode) |
-| `configs/tsup.config.ts` | Production build configuration (CJS bundle) |
-| `configs/biome.json` | Biome linter and formatter rules |
-| `configs/aliases.ts` | Path alias registration (alias-hq integration) |
-| `package.json` | Dependencies and scripts |
-| `tsconfig.json` | TypeScript compiler options and path aliases |
+| `src/proxy.ts` | Main orchestrator — sets config on app.locals, calls setup functions in order |
+| `src/start.ts` | Entry point — loads config and calls `proxy(config)` |
+| `src/services/auth.ts` | Auth class — JWKS client init via jose, token extraction, JWT verification |
+| `src/middleware/setupAuth.ts` | JWT validation middleware — skips public routes, verifies token, attaches `req.user` |
+| `src/middleware/setupProxy.ts` | http-proxy-middleware — forwards `/_/*` routes to backend with auth headers |
+| `src/middleware/setupServer.ts` | CORS, body parsing, router mount |
+| `src/middleware/setupLogger.ts` | Request/response logging with request IDs and timing |
+| `src/middleware/setupPrewarm.ts` | Caddy certificate pre-warming interceptor |
+| `src/middleware/setupEndpoints.ts` | Route registration for 4 endpoints |
+| `src/server/router.ts` | Async router wrapping HTTP methods with express-async-handler |
+| `src/server/server.ts` | HTTP/HTTPS server creation with SSL cert loading |
+| `src/utils/errors/errorHandler.ts` | Global Express error handler |
+| `src/utils/errors/exception.ts` | Custom Exception class with status code |
+| `src/utils/signals.ts` | Graceful shutdown handlers |
+| `src/constants/values.ts` | ProcessSignals, PublicRoutes, LoggerIgnore |
+| `configs/proxy.config.ts` | Main config — JWT, Server, Backend, Logger, JWKS, Domains |
 
-## Route Mapping (Planned Architecture)
+## Endpoints
 
-The proxy is designed to route requests based on path prefixes:
+| Method | Path | Auth | Handler | Purpose |
+|--------|------|------|---------|---------|
+| GET | `/health` | Public | `health.ts` | Returns `{ status: "ok", service: "auth-proxy", timestamp }` |
+| GET | `/auth/me` | Protected | `auth/me.ts` | Returns decoded JWT user from `req.user` |
+| POST | `/auth/logout` | Protected | `auth/logout.ts` | Logout acknowledgment (client-side auth) |
+| GET | `/domains/validate` | Protected* | `domains/validate.ts` | Caddy on_demand_tls domain validation via DB |
+| `/_/*` | (proxied) | Protected | `setupProxy.ts` | All admin routes forwarded to backend |
 
-| Path Prefix | Destination | Purpose |
-|-------------|-------------|---------|
-| `/auth/*` | Backend Auth API | User authentication endpoints (login, register, token refresh) |
-| `/_/*` | Backend Admin API | Admin CRUD operations (teams, users, repos, endpoints) |
-| `/proxy/*` | Backend Proxy Engine | API proxying with secret injection and transforms |
-| `/faas/*` | Backend Compute Engine | Serverless function execution (WASM sandboxing) |
-| `/ai/*` | Backend AI Engine | LLM proxy, RAG, streaming chat, tool execution |
+*Note: `/domains/validate` is intended for Caddy (unauthenticated) but is NOT in `PublicRoutes` — see AUDIT.md M-2.
 
-**Implementation Status**: Route forwarding is **NOT YET IMPLEMENTED**. The `src/proxy.ts` file contains only a TODO placeholder.
+## Middleware Chain Order
 
-## Authentication Flow (Planned)
+Defined in `src/proxy.ts`:
 
-The proxy will implement JWT-based authentication:
+```
+1. setupLogger      → Request/response logging (skips OPTIONS)
+2. setupServer      → CORS, urlencoded, router mount
+3. setupAuth        → JWT validation via JWKS (skips PublicRoutes)
+4. setupPrewarm     → Caddy cert pre-warming (returns 200 if prewarm header present)
+5. setupEndpoints   → Register /health, /auth/me, /auth/logout, /domains/validate
+6. setupProxy       → http-proxy-middleware for /_/* → backend
+7. setupErrorHandler → Global error handler
+```
 
-1. **Token Validation**:
-   - Extract JWT from `Authorization: Bearer <token>` header
-   - Verify signature using secret key from environment
-   - Decode payload to get user/team context
+## Auth Service (`src/services/auth.ts`)
 
-2. **Route Protection**:
-   - Public routes: `/auth/login`, `/auth/register`
-   - Protected routes: All others require valid JWT
+The `Auth` class manages JWKS-based JWT verification:
 
-3. **Token Injection**:
-   - Attach decoded user context to `req.user`
-   - Forward token to backend in header
+```typescript
+class Auth {
+  constructor(opts: { url: string })  // Initializes JWKS client via jose.createRemoteJWKSet()
+  initialized(): boolean              // Returns true if JWKS client is ready
+  isPublic(path: string): boolean     // Checks path against PublicRoutes
+  extract(req: Request): string|null  // Extracts Bearer token from Authorization header
+  verify(token: string): Promise<TJWTValidationResult>  // Verifies JWT via JWKS
+}
+```
 
-4. **Token Refresh**:
-   - Handle expired tokens via `/auth/refresh` endpoint
-   - Issue new JWT with extended expiry
+Error handling in `verify()` maps jose errors to structured results:
+- `JWTExpired` → `{ valid: false, expired: true, error: "Token expired" }`
+- `JWTClaimValidationFailed` → `{ valid: false, error: "Token claim validation failed: ..." }`
+- `JWSSignatureVerificationFailed` → `{ valid: false, error: "Invalid token signature" }`
 
-**Implementation Status**: Authentication middleware is **NOT YET IMPLEMENTED**.
+## Proxy Forwarding (`src/middleware/setupProxy.ts`)
+
+Uses `http-proxy-middleware` to forward requests to the backend:
+
+- **Target**: Backend URL from config (supports Kubernetes service discovery)
+- **Path Rewrite**: Preserves `req.originalUrl` (backend expects the original URL)
+- **Custom Headers**: Sets `headerKey`/`headerValue` from config (shared secret)
+- **Auth Headers**: Calls `setAuthHeaders(proxyReq, req)` from `@tdsk/domain` to inject `X-User-Id`, `X-Org-Id`, `X-User-Role`, `X-User-Email`
+- **WebSocket**: Enabled (`ws: true`)
+- **Error Handling**: Returns 502 with "Backend service unavailable" on proxy errors
 
 ## Architecture
 
 ### Technology Stack
 
-- **Framework**: Express 4.21.2
-- **Build Tool**: tsup 8.3.6 (production), tsdown (development with watch)
-- **Language**: TypeScript (ESNext target)
-- **Logging**: Winston via `@tdsk/logger`
-- **Testing**: Vitest 1.4.0
-- **Linting/Formatting**: Biome
-- **Authentication**: express-jwt 8.5.1, jsonwebtoken 9.0.2 (not yet integrated)
-- **Rate Limiting**: express-rate-limit 7.5.0 (not yet integrated)
-- **Monitoring**: express-winston 4.2.0 (not yet integrated)
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Express | 5.1.0 | Web framework |
+| jose | 6.1.3 | JWKS-based JWT verification |
+| http-proxy-middleware | 3.0.5 | Backend request proxying |
+| express-async-handler | 1.2.0 | Async route wrapper |
+| cors | 2.8.5 | CORS middleware |
+| Winston | via `@tdsk/logger` | Structured logging |
+| tsup | 8.3.6 | Production bundling (CJS) |
+| tsdown | 0.20.2 | Dev build with watch |
+| Vitest | 1.6.1 | Test runner |
+| Biome | | Linting/formatting |
 
 ### Design Patterns
 
-1. **Path Alias Pattern**:
-   - `@TPX/*` - Proxy repo paths
-   - `@TDM/*` - Domain repo paths
-   - `@TDB/*` - Database repo paths
-   - Uses `alias-hq` + `module-alias` for runtime resolution
+1. **Middleware Chain Pattern**: Each `setup*` function adds middleware to the Express app in a specific order
+2. **Async Router Pattern**: All HTTP methods wrapped with `express-async-handler` for automatic error propagation
+3. **Auth Service Pattern**: Singleton Auth class on `app.locals.auth` for JWKS validation
+4. **Path Alias Pattern**: `@TPX/*` for proxy paths, `@TDM/*` for domain, `@TDB/*` for database
+5. **Config Pattern**: Typed config object loaded from environment variables via `deploy/values.*.yml`
+6. **Signal Handling Pattern**: Graceful shutdown on SIGINT/SIGTERM/SIGQUIT with `server.close()`
 
-2. **Configuration Pattern**:
-   - Environment variables loaded via `@keg-hub/parse-config` from `deploy/values.*.yml`
-   - Config object in `configs/proxy.config.ts` with typed exports
-   - Logger config: level, pretty printing, silent mode
-
-3. **Signal Handling Pattern**:
-   - Graceful shutdown on SIGINT, SIGTERM, SIGQUIT
-   - Close server connections cleanly
-   - Log shutdown events
-
-4. **Logger Pattern**:
-   - Winston logger from `@tdsk/logger` package
-   - Centralized logger setup with tag "TDSK Proxy"
-   - Configurable log level via `TDSK_PX_LOG_LEVEL` env var
-
-5. **Monorepo Workspace Pattern**:
-   - Dependencies on `@tdsk/logger`, `@tdsk/domain`, `@tdsk/database` (workspace packages)
-   - Shared utilities and types across repos
-
-## Logic Flow (Planned)
-
-**Request Handling Flow** (when implemented):
+### Request Flow
 
 ```
-1. Client Request
-   ↓
-2. Express Server (src/server/index.ts)
-   ↓
-3. Middleware Chain (src/middleware/index.ts)
-   - CORS handling
-   - Body parsing (JSON/urlencoded)
-   - Rate limiting (express-rate-limit)
-   - Request logging (express-winston)
-   ↓
-4. JWT Validation (express-jwt)
-   - Extract token from Authorization header
-   - Verify signature
-   - Decode payload → req.user
-   ↓
-5. Route Matching (src/endpoints/index.ts)
-   - Match path prefix (/auth/*, /_/*, /proxy/*, /faas/*, /ai/*)
-   ↓
-6. Proxy Forwarding (src/proxy.ts)
-   - Forward request to backend service
-   - Inject user context in headers
-   - Stream response back to client
-   ↓
-7. Response Logging
-   - Log response status and duration
-   ↓
-8. Client Response
+Client Request
+  ↓
+setupLogger     → Log request (method, path, requestId, IP, UA)
+  ↓
+setupServer     → CORS validation, URL-encoded body parsing
+  ↓
+setupAuth       → Check PublicRoutes → Extract Bearer token → Verify via JWKS → Attach req.user
+  ↓
+setupPrewarm    → If prewarm header present, return 200 early
+  ↓
+setupEndpoints  → Match /health, /auth/me, /auth/logout, /domains/validate
+  ↓
+setupProxy      → Forward /_/* to backend with auth headers
+  ↓
+setupErrorHandler → Catch errors, return status/message/errorCode
+  ↓
+Response logged via setupLogger's res.on('finish') listener
 ```
 
-**Current Status**: Only steps 2 (partial) and 8 are scaffolded. Steps 3-7 are TODO.
+## Configuration
 
-## Key Patterns
-
-### 1. Environment Configuration
+### Config Structure (`configs/proxy.config.ts`)
 
 ```typescript
-// configs/proxy.config.ts
-import { loadEnvs } from '@tdsk/domain'
-
-const envs = loadEnvs({
-  name: `tdsk`,
-  override: NODE_ENV === `local`  // Override with .env.local in dev
-})
-
-export const config = {
-  logger: {
-    label: `TDSK - Proxy`,
-    level: envs.TDSK_PX_LOGGER_LEVEL ?? LOG_LEVEL,
-    pretty: toBool(envs.TDSK_PX_LOGGER_PRETTY) ?? false,
-    silent: toBool(envs.TDSK_PX_LOGGER_SILENT) ?? false
-  }
+config = {
+  jwt: { secret, expiresIn, refreshExpiresIn },    // NOTE: jwt.secret is unused — JWKS used instead
+  server: { port, enableSSL, origins, certs },
+  backend: { url, adminPath, headerKey, headerValue },
+  logger: { label, level, pretty, silent, exceptions, rejections, exitOnError },
+  jwks: { jwksUrl },
+  domains: { prewarmHeader },
 }
 ```
 
-### 2. Logger Setup
+### Environment Variables
 
-```typescript
-// src/utils/logger.ts
-import { ApiLogger, setupLogger } from '@tdsk/logger'
-import { config } from '@TPX/configs/proxy.config'
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `NODE_ENV` | string | `local` | Runtime environment (local/dev/prod) |
+| `TDSK_PX_PORT` | number | `4000` | Server port |
+| `TDSK_PX_ENABLE_SSL` | boolean | `false` | Enable HTTPS (non-production only) |
+| `TDSK_PX_SSL_CA` | string | - | SSL CA certificate file path |
+| `TDSK_PX_SSL_KEY` | string | - | SSL key file path |
+| `TDSK_PX_SSL_CERT` | string | - | SSL cert file path |
+| `TDSK_PX_ALLOW_ORIGIN` | string | `http://localhost:5887` | Comma-separated CORS origins |
+| `TDSK_PX_LOG_LEVEL` | TLogLevel | `info` | Logger verbosity |
+| `TDSK_PX_LOGGER_PRETTY` | boolean | `false` | Pretty-printed logs (dev) |
+| `TDSK_PX_LOGGER_SILENT` | boolean | `false` | Disable all logging |
+| `TDSK_PX_JWT_SECRET` | string | fallback | JWT secret (unused — JWKS used instead) |
+| `TDSK_PX_JWT_EXPIRES_IN` | string | `7d` | JWT expiration (unused — JWKS used instead) |
+| `TDSK_PX_JWT_REFRESH_EXPIRES_IN` | string | `30d` | Refresh expiration (unused — JWKS used instead) |
+| `TDSK_BE_URL` | string | - | Backend URL (direct) |
+| `TDSK_BE_HOST` | string | - | Backend host (fallback) |
+| `TDSK_BE_PORT` | string | - | Backend port |
+| `TDSK_BE_DEPLOYMENT` | string | - | Kubernetes deployment name |
+| `TDSK_BE_HEADER_KEY` | string | - | Custom header key for proxy→backend |
+| `TDSK_BE_HEADER_VALUE` | string | - | Custom header value for proxy→backend |
+| `TDSK_BE_API_ADMIN_PATH` | string | `_` | Admin API path prefix |
+| `TDSK_AUTH_JWKS` | string | `` | JWKS URL for JWT validation (Neon Auth) |
+| `TDSK_CADDY_PREWARM_HEADER` | string | - | Header name for Caddy cert pre-warming |
+| `TDSK_WITH_LB_PROXY` | boolean | - | Skip CORS when behind load balancer |
 
-setupLogger({
-  tag: `TDSK Proxy`,
-  level: config?.logger?.level
-})
+## Integration Points
 
-export { ApiLogger as logger }
-```
+### With Backend (`@tdsk/backend`)
+- **Request Forwarding**: Proxy forwards all `/_/*` routes to backend via http-proxy-middleware
+- **Auth Headers**: `setAuthHeaders()` injects `X-User-Id`, `X-Org-Id`, `X-User-Role`, `X-User-Email`
+- **Backend Secret**: `headerKey`/`headerValue` config provides proxy→backend identity verification
+- **WebSocket**: Proxy forwards WebSocket connections (`ws: true`)
 
-### 3. Signal Handling
+### With Domain (`@tdsk/domain`)
+- `setAuthHeaders` — Sets auth headers on proxied requests
+- `adminPath` — Returns `/_` path prefix for backend routing
+- `behindLBProxy` — Checks if behind load balancer (skip CORS)
+- `loadEnvs` / `inKube` — Environment loading and Kubernetes detection
+- `TApp` — Generic Express app type
+- `TSSLCreds` — SSL certificate file paths type
 
-```typescript
-// src/utils/signals.ts
-export const signals = (server: HTTP | HTTPS) => {
-  ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach((sig) => {
-    process.on(sig, () => {
-      logger.debug(`Received ${sig} signal`)
-      server.close(() => {
-        logger.info(`Server exited`)
-        process.exit(0)
-      })
-    })
-  })
-}
-```
+### With Database (`@tdsk/database`)
+- `database()` — Used in `/domains/validate` endpoint for domain lookup
+- Note: Creates new connection per request (known issue — see AUDIT.md H-2)
 
-### 4. Type Safety
+### With Logger (`@tdsk/logger`)
+- `buildApiLogger()` — Creates Winston logger with label and level
 
-```typescript
-// src/types/envs.types.ts
-export type TLogLevel = `debug` | `info` | `warn` | `error`
-
-// src/constants/envs.ts
-import type { TLogLevel } from '../types'
-export const LOG_LEVEL: TLogLevel =
-  (process.env.TDSK_PX_LOG_LEVEL as TLogLevel) || `info`
-```
-
-### 5. Path Aliases (tsconfig.json)
-
-```json
-{
-  "compilerOptions": {
-    "paths": {
-      "@TPX": ["src"],
-      "@TPX/*": ["src/*"],
-      "@TPX/configs": ["configs"],
-      "@TDM/*": ["../domain/src/*"],
-      "@TDB/*": ["../database/src/*"],
-      "@tdsk/logger": ["../logger/src"]
-    }
-  }
-}
-```
-
-## Dependencies
-
-### Production Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `express` | 4.21.2 | Web server framework |
-| `express-jwt` | 8.5.1 | JWT authentication middleware |
-| `jsonwebtoken` | 9.0.2 | JWT signing and verification |
-| `express-rate-limit` | 7.5.0 | Rate limiting middleware |
-| `express-winston` | 4.2.0 | Request/response logging |
-| `@tdsk/logger` | workspace:* | Winston logger wrapper (monorepo) |
-| `@tdsk/domain` | workspace:* | Shared types and utilities (monorepo) |
-| `@tdsk/database` | workspace:* | Database client and types (monorepo) |
-| `@keg-hub/jsutils` | 10.0.0 | Utility functions (toBool, toInt, etc.) |
-| `@keg-hub/parse-config` | 2.2.0 | Environment variable loader |
-| `alias-hq` | 6.2.4 | Path alias management |
-| `module-alias` | 2.2.3 | Runtime alias resolution |
-| `tsup` | 8.3.6 | TypeScript bundler |
-
-### Development Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `@types/express` | 5.0.0 | Express type definitions |
-| `@types/node` | 22.12.0 | Node.js type definitions |
-| `vitest` | 1.4.0 | Test runner |
-| `vite-tsconfig-paths` | 4.3.1 | Vitest path alias support |
+### With Admin (`@tdsk/admin`)
+- Admin SPA authenticates with Neon Auth, sends JWT to proxy
+- Proxy validates JWT, forwards to backend with auth headers
+- CORS configured to allow admin origin
 
 ## Commands
 
 ```bash
 # Development
-pnpm start              # Start dev server with watch (tsdown)
-pnpm serve              # Run built bundle (node dist/index.cjs)
+pnpm start              # Dev server with watch (tsup, watches src + domain + logger + database)
+pnpm serve              # Run built bundle (node dist/index.cjs with http-proxy-middleware debug)
 
 # Building
 pnpm build              # Production build (tsup → dist/index.cjs)
+pnpm d:build            # Alternative build (tsdown)
 pnpm clean              # Remove dist/
 
 # Testing
-pnpm test               # Run tests (vitest run)
+pnpm test               # Run tests (vitest run) — 10 tests, 3 files
+pnpm test:watch         # Watch mode tests
 ```
 
 ### Commands Notes
+* Linting and formatting run automatically via Biome — `pnpm lint` and `pnpm format` should be ignored.
+* `pnpm start` watches `../domain/src`, `../logger/src`, and `../database/src` for cross-repo changes.
 
-* Linting and formatting are automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
+## Testing
 
+### Current Coverage (10 tests, 3 files)
 
-## Integration Points
+| Test File | Tests | What's Covered |
+|-----------|-------|----------------|
+| `configs/proxy.config.test.ts` | 8 | Config shape, types, defaults, JWKS URL format |
+| `src/endpoints/health.test.ts` | 1 | Health endpoint returns 200 with correct shape |
+| `src/utils/logger.test.ts` | 1 | Placeholder (`expect(true).toBe(true)`) |
 
-### With Backend Repo (`@tdsk/backend`)
+### Coverage Gaps
+- Auth service (0%) — JWKS verification, token extraction
+- Auth middleware (0%) — JWT validation flow
+- Proxy middleware (0%) — Backend forwarding, header injection
+- Error handler (0%) — Error response formatting
+- Domain validation (0%) — DB lookup, error handling
+- Auth endpoints (0%) — /auth/me, /auth/logout
 
-- **Request Forwarding**: Proxy forwards all authenticated requests to backend API
-- **Service Discovery**: Proxy knows backend host/port via `TDSK_BACKEND_URL` env var
-- **Header Injection**: Proxy adds `X-User-Id`, `X-Team-Id` headers from JWT
-- **WebSocket Proxying**: Proxy forwards WebSocket connections for real-time features
+## Path Aliases (tsconfig.json)
 
-### With Database Repo (`@tdsk/database`)
+```json
+{
+  "@TPX": ["src"],
+  "@TPX/*": ["src/*"],
+  "@TPX/configs": ["configs"],
+  "@TPX/configs/*": ["configs/*"],
+  "@TDM/*": ["../domain/src/*"],
+  "@TDB/*": ["../database/src/*"],
+  "@tdsk/domain": ["../domain/src"],
+  "@tdsk/database": ["../database/src"],
+  "@tdsk/logger": ["../logger/src"]
+}
+```
 
-- **User Lookup**: Proxy may query users table for additional auth context
-- **Token Blacklist**: Proxy checks revoked_tokens table for invalidated JWTs
-- **Rate Limit State**: Proxy stores rate limit counters in Redis/Postgres
+## Known Issues
 
-### With Domain Repo (`@tdsk/domain`)
-
-- **Shared Types**: Imports `User`, `Team`, `AuthToken` types
-- **Utilities**: Uses `loadEnvs`, `generateOrigins` helper functions
-- **Validation**: Uses shared Zod schemas for request validation
-
-### With Logger Repo (`@tdsk/logger`)
-
-- **Centralized Logging**: Uses `ApiLogger` and `setupLogger` from logger package
-- **Request Logging**: Integrates express-winston for access logs
-- **Error Logging**: Logs exceptions and rejections to centralized log store
-
-### With Admin Repo (`@tdsk/admin`)
-
-- **API Gateway**: Admin SPA makes all API calls through proxy
-- **Cookie Handling**: Proxy sets httpOnly cookies for JWT tokens
-- **CORS**: Proxy allows admin origin in CORS middleware
-
-## Environment Variables
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `NODE_ENV` | string | `local` | Runtime environment (local/dev/prod) |
-| `TDSK_PX_LOG_LEVEL` | TLogLevel | `info` | Logger verbosity (debug/info/warn/error) |
-| `TDSK_PX_LOGGER_PRETTY` | boolean | `false` | Enable pretty-printed logs (dev) |
-| `TDSK_PX_LOGGER_SILENT` | boolean | `false` | Disable all logging |
-| `TDSK_BACKEND_URL` | string | - | Backend API base URL (planned) |
-| `TDSK_JWT_SECRET` | string | - | JWT signing secret (planned) |
-| `TDSK_JWT_EXPIRES_IN` | string | `7d` | JWT expiration time (planned) |
-
-## TODO: Implementation Tasks
-
-Based on the codebase analysis, the following features need implementation:
-
-1. **Core Proxy Server** (`src/proxy.ts`)
-   - [ ] Implement Express app initialization
-   - [ ] Setup http-proxy or http-proxy-middleware
-   - [ ] Configure target URL routing based on path prefix
-
-2. **Server Setup** (`src/server/index.ts`)
-   - [ ] Create Express server instance
-   - [ ] Bind to port (from env var)
-   - [ ] Integrate signal handlers
-   - [ ] Add health check endpoint
-
-3. **Middleware** (`src/middleware/index.ts`)
-   - [ ] CORS middleware with configurable origins
-   - [ ] Body parsing (json, urlencoded)
-   - [ ] JWT validation middleware (express-jwt)
-   - [ ] Rate limiting middleware
-   - [ ] Request logging middleware (express-winston)
-   - [ ] Error handling middleware
-
-4. **Route Handlers** (`src/endpoints/index.ts`)
-   - [ ] Auth routes (/auth/login, /auth/register, /auth/refresh)
-   - [ ] Admin route proxy (/_/*)
-   - [ ] Proxy route proxy (/proxy/*)
-   - [ ] FaaS route proxy (/faas/*)
-   - [ ] AI route proxy (/ai/*)
-   - [ ] Health check endpoint (/health)
-
-5. **Testing** (`src/**/*.test.ts`)
-   - [ ] Logger tests (currently stub)
-   - [ ] Middleware unit tests
-   - [ ] Integration tests for auth flow
-   - [ ] E2E tests for proxying
-
-6. **Documentation**
-   - [ ] API documentation (OpenAPI/Swagger)
-   - [ ] Architecture diagrams
-   - [ ] Deployment guide
-
-## Development Notes
-
-- **PNPM Required**: The project uses PNPM workspaces (enforced)
-- **No Implementation Yet**: Most files are empty stubs awaiting Phase 2 development
-- **Build Target**: Bundles to single CJS file (`dist/index.cjs`) with source maps
-- **Watch Mode**: `pnpm start` uses tsdown for fast rebuilds on file changes
-- **Path Aliases**: Use `@TPX/*` prefix for imports (not relative paths)
-- **Biome**: All code must pass Biome linting (line width 90, 2-space indent)
-- **Type Safety**: TypeScript strict mode is OFF (allow gradual typing)
-
-## Related Documentation
-
-- [Threaded Stack Overview](../CLAUDE.md)
-- [Backend Repo](../backend/README.md)
-- [Database Schema](../database/README.md)
-- [Domain Types](../domain/README.md)
+See `repos/proxy/AUDIT.md` for full issue catalog (19 issues: 2 critical, 4 high, 7 medium, 6 low). Key items:
+- Missing `express.json()` middleware (C-1)
+- Dead `adminPath` export in utils (C-2)
+- `/domains/validate` not in `PublicRoutes` (M-2)
+- 5 unused dependencies (L-1)
+- ~7% test coverage

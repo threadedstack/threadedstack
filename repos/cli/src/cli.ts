@@ -13,7 +13,7 @@ const loadCfg = async (environment: string) => {
     const mod = await import('@TSCL/configs/cli.config.ts')
     return mod.config
   } catch (err) {
-    taskError(err)
+    taskError(err as Error)
   }
 }
 

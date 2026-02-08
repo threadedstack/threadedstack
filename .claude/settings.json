@@ -1,5 +1,6 @@
 {
   "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "60"
   },
   "permissions": {
     "allow": [
@@ -12,12 +13,16 @@
       "Bash(tree:*)",
       "Bash(find:*)",
       "Bash(node:*)",
-      "Bash(tsx:*)",
       "Bash(git:*)",
       "Bash(which:*)",
       "Bash(pnpm:*)",
-      "Bash(mcp__happy__change_title:*)",
-      "Bash(mkdir -p /Users/LanceTipton/keg-cli/external/apps/threaded-stack/:*)"
+      "Bash(curl:*)",
+      "Bash(kill:*)",
+      "Bash(lsof:*)",
+      "Bash(docker:*)",
+      "Bash(kubectl:*)",
+      "Bash(tdsk:*)",
+      "Bash(npx playwright:*)"
     ],
     "deny": [
       "Bash(rm -rf /)",
