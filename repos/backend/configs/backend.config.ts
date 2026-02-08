@@ -1,4 +1,4 @@
-import type { EEmailType, EPayType } from '@TBE/types'
+import type { EEmailType, EPayType, TPayEnv } from '@TBE/types'
 import { toNum, toBool } from '@keg-hub/jsutils'
 import { loadEnvs, parsePayPlans } from '@tdsk/domain'
 
@@ -102,9 +102,9 @@ export const config = {
     url: TDSK_PAY_URL,
     token: TDSK_PAY_ACCESS_TOKEN,
     type: TDSK_PAY_TYPE as EPayType,
-    environment: process.env.NODE_ENV,
     wbhSecret: TDSK_PAY_WEBHOOK_SECRET,
     plans: parsePayPlans(TDSK_PAY_PLANS),
+    environment: process.env.NODE_ENV as TPayEnv,
   },
   email: {
     from: TDSK_EMAIL_FROM,

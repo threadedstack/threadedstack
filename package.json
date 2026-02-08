@@ -27,7 +27,8 @@
     "format:staged": "pnpm biome:format --staged --write --no-errors-on-unmatched --diagnostic-level=error && pnpm -r format:staged",
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
     "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "types": "tsc --noEmit --pretty && pnpm -r types"
   },
   "keywords": [],
   "author": "",

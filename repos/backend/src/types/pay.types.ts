@@ -8,13 +8,22 @@ export enum EPayType {
 
 export type TPayType = `${EPayType}`
 
+export type TPayEnv =
+  | `sandbox`
+  | `ci`
+  | `test`
+  | `local`
+  | `develop`
+  | `staging`
+  | `production`
+
 export type TPayConfig = {
   type?: TPayType
   token: string
   url: string
   wbhSecret: string
   plans: Record<string, string>
-  environment?: `sandbox` | `production`
+  environment?: TPayEnv
 }
 
 export type TPayProduct = {

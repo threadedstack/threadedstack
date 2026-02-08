@@ -15,7 +15,6 @@ export default defineConfig(async () => {
   return {
     test: {
       globals: true,
-      setupFiles: ['./tests/setup.ts'],
 
       // Run tests in both environments sequentially
       environmentMatchGlobs: [
@@ -29,7 +28,7 @@ export default defineConfig(async () => {
         ['**/*.test.ts', 'node'],
       ],
 
-      include: ['tests/**/*.test.ts'],
+      include: ['src/**/*.test.ts'],
       exclude: ['**/node_modules/**', '**/dist/**'],
 
       // Coverage configuration

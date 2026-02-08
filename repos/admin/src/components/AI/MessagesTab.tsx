@@ -1,11 +1,12 @@
-import type { Message } from '@tdsk/domain'
-import { useActiveOrgId, useActiveProjectId, useMessages } from '@TAF/state/selectors'
-import { fetchMessages } from '@TAF/actions/messages/api/fetchMessages'
+import { Loading, IconButton } from '@tdsk/components'
 import { useState, useEffect, useMemo } from 'react'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { fetchMessages } from '@TAF/actions/messages/api/fetchMessages'
+import { Clear as ClearIcon, Search as SearchIcon } from '@mui/icons-material'
+import { useActiveOrgId, useActiveProjectId, useMessages } from '@TAF/state/selectors'
 import {
   Box,
   Card,
-  Alert,
   Table,
   TableRow,
   TextField,
@@ -18,8 +19,6 @@ import {
   TableContainer,
   Chip,
 } from '@mui/material'
-import { Clear as ClearIcon, Search as SearchIcon } from '@mui/icons-material'
-import { Loading } from '@tdsk/components'
 
 export type TMessagesTab = {}
 
@@ -74,7 +73,9 @@ export const MessagesTab = (props: TMessagesTab) => {
       })
     }
 
-    return filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    return filtered.sort(
+      (a, b) => ((b.createdAt || 0) as any) - ((a.createdAt || 0) as any)
+    )
   }, [messages, projectId, searchQuery, typeFilter])
 
   const totalMessagesCount = useMemo(() => {
@@ -117,12 +118,10 @@ export const MessagesTab = (props: TMessagesTab) => {
       )}
 
       {error && (
-        <Box
-          component='alert'
-          sx={{ mb: 3, color: 'error.main' }}
-        >
-          {error}
-        </Box>
+        <ErrorAlert
+          message={error}
+          onClose={() => setError(null)}
+        />
       )}
 
       {!loading && (

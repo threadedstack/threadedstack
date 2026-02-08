@@ -86,9 +86,7 @@ export const ProjectAgents = (props: TProjectAgents) => {
 
   if (!orgId || !projectId) return null
 
-  const agentsList = Object.values(agents || {}).filter(
-    (agent) => agent.projectId === projectId
-  )
+  const agentsList = Object.values(agents || {}).filter((agent) => agent.orgId === orgId)
 
   return (
     <Page className='tdsk-project-agents-page'>

@@ -24,7 +24,6 @@
     "script": "tsx scripts/script.ts",
     "lint": "biome lint --config-path $(pwd)/configs/biome.json --write",
     "format": "biome format --config-path $(pwd)/configs/biome.json --write",
-    "test": "vitest run --config configs/vitest.config.ts",
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
