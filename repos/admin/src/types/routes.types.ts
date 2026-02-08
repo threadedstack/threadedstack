@@ -2,8 +2,9 @@ export enum ERoutePath {
   // Global routes
   Home = `/`,
   Auth = `/auth`,
-  Login = `/auth/login`,
-  Logout = `/auth/logout`,
+  Signin = `/auth/sign-in`,
+  Signout = `/auth/sign-out`,
+  AuthPage = `/auth/:pathname`,
   Account = `/account/:pathname`,
   Settings = `/settings`,
   Profile = `/profile`,

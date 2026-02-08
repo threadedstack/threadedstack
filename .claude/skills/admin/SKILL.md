@@ -495,7 +495,7 @@ import { nav } from '@TAF/services/nav'
 
 nav.to('/teams')
 nav.is(ERoutePath.Home) // true if on home page
-nav.has(ERoutePath.Login) // true if on any /auth/* route
+nav.has(ERoutePath.Signin) // true if on any /auth/* route
 ```
 
 ### 3. State Updates (Typical CRUD Flow)

@@ -375,16 +375,14 @@ End-to-end action flows:
 
 ### Week 1: Show-Stoppers
 
-1. **Fix logout state leak** (C-I-3, C-A-3, SEC-1) — reset all Jotai atoms on signout
-2. **Fix subscription cancel** (C-S-1, CR-C-1) — change to DELETE `/subscriptions/current`
-3. **Fix roleId/userId mismatch** (C-S-4, C-S-5, C-A-1, C-A-2, CR-C-2) — send roleId to backend
-4. **Fix Billing crash** (C-P-1) — guard `plans?.map()` with fallback to empty array
-5. **Fix Billing loading stuck** (C-P-2) — reset loading on error path
-6. **Add PATCH method** (H-S-10, C-S-3, CR-C-4) — add to `EAPIMethod` and `ApiService`
-7. **Fix `usersApi.me()` path** (C-S-6, CR-C-3) — use `/auth/me` not `/_/auth/me`
-8. **Fix `quotasApi.check()` path** (C-S-2, CR-C-5) — put orgId in URL
-9. **Fix nav.login()** (C-I-2) — use actual login path, not parameterized route template
-10. **Fix Layout auth guard** (C-I-4) — wrap `RedirectToSignIn` in `<SignedOut>`
+1. **Fix subscription cancel** (C-S-1, CR-C-1) — change to DELETE `/subscriptions/current`
+2. **Fix roleId/userId mismatch** (C-S-4, C-S-5, C-A-1, C-A-2, CR-C-2) — send roleId to backend
+3. **Fix Billing crash** (C-P-1) — guard `plans?.map()` with fallback to empty array
+4. **Fix Billing loading stuck** (C-P-2) — reset loading on error path
+5. **Add PATCH method** (H-S-10, C-S-3, CR-C-4) — add to `EAPIMethod` and `ApiService`
+6. **Fix `usersApi.me()` path** (C-S-6, CR-C-3) — use `/auth/me` not `/_/auth/me`
+7. **Fix `quotasApi.check()` path** (C-S-2, CR-C-5) — put orgId in URL
+8.  **Fix Layout auth guard** (C-I-4) — wrap `RedirectToSignIn` in `<SignedOut>`
 
 ### Week 2: Core Functionality
 

@@ -20,7 +20,7 @@ export class NavService {
   not = (loc: ERoutePath) => window.location.pathname !== loc
   has = (loc: ERoutePath) => window.location.pathname.startsWith(loc)
   home = () => this.not(ERoutePath.Home) && this.to(ERoutePath.Home)
-  login = () => !this.has(ERoutePath.Login) && this.to(ERoutePath.Login)
+  signin = () => !this.has(ERoutePath.Signin) && this.to(ERoutePath.Signin)
 }
 
 export const nav = new NavService()

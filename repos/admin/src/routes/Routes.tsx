@@ -8,9 +8,9 @@ import { Navigate, createBrowserRouter } from 'react-router'
 const Home = lazy(() => import('@TAF/pages/Home/Home'))
 const Login = lazy(() => import('@TAF/pages/Login/Login'))
 const Account = lazy(() => import('@TAF/pages/Account/Account'))
-const Settings = lazy(() => import('@TAF/pages/Settings/Settings'))
 const Profile = lazy(() => import('@TAF/pages/Profile/Profile'))
 const Billing = lazy(() => import('@TAF/pages/Billing/Billing'))
+const Settings = lazy(() => import('@TAF/pages/Settings/Settings'))
 
 // Org pages
 const Org = lazy(() => import('@TAF/pages/Orgs/Org'))
@@ -193,8 +193,8 @@ export const Routes = createBrowserRouter([
   },
   // Auth routes outside layout
   {
-    id: ERoutePath.Login,
-    path: ERoutePath.Login,
+    id: ERoutePath.AuthPage,
+    path: ERoutePath.AuthPage,
     Component: () => <SuspensePage Component={Login} />,
   },
   {
