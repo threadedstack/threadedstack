@@ -1,5 +1,43 @@
 import { Secret } from '@tdsk/domain'
+import { encryptSecret } from '@TDB/utils/crypto'
 import { OrgIds, ProjectIds, SecretIds } from '@TDB/seeds/ids.seed'
+
+// Generate encrypted secrets
+const acmeDbPassword = await encryptSecret(
+  `Database Password`,
+  `SuperSecureDbPassword123!`,
+  OrgIds.acme
+)
+
+const acmeApiKey = await encryptSecret(
+  `External API Key`,
+  `test_external_api_key_12345`,
+  OrgIds.acme
+)
+
+const jwtSecret = await encryptSecret(
+  `JWT Secret`,
+  `super_secret_jwt_signing_key`,
+  ProjectIds.acmeApi
+)
+
+const stripeApiKey = await encryptSecret(
+  `Stripe API Key`,
+  `sk_test_stripe_api_key`,
+  OrgIds.startup
+)
+
+const anthropicApiKey = await encryptSecret(
+  `Anthropic API Key`,
+  `sk-ant-test-anthropic-key`,
+  ProjectIds.acmeApi
+)
+
+const githubToken = await encryptSecret(
+  `GitHub Token`,
+  `ghp_test_github_token`,
+  OrgIds.personal
+)
 
 export const secretsSeeds: Secret[] = [
   new Secret({
@@ -7,10 +45,10 @@ export const secretsSeeds: Secret[] = [
     projectId: undefined,
     providerId: undefined,
     name: `Database Password`,
-    hashKey: `hash_acme_db_pwd`,
+    hashKey: acmeDbPassword.hashKey,
     id: SecretIds.acmeDbPassword,
     description: `Production database password`,
-    encryptedValue: `encrypted_acme_db_password_value`,
+    encryptedValue: acmeDbPassword.encryptedValue,
   }),
   new Secret({
     orgId: OrgIds.acme,
@@ -18,18 +56,18 @@ export const secretsSeeds: Secret[] = [
     providerId: undefined,
     name: `External API Key`,
     id: SecretIds.acmeApiKey,
-    hashKey: `hash_acme_api_key`,
+    hashKey: acmeApiKey.hashKey,
     description: `Third-party service API key`,
-    encryptedValue: `encrypted_acme_api_key_value`,
+    encryptedValue: acmeApiKey.encryptedValue,
   }),
   new Secret({
     orgId: undefined,
     name: `JWT Secret`,
     providerId: undefined,
-    hashKey: `hash_acme_jwt`,
+    hashKey: jwtSecret.hashKey,
     projectId: ProjectIds.acmeApi,
     id: SecretIds.acmeProjectSecret,
-    encryptedValue: `encrypted_jwt_secret_value`,
+    encryptedValue: jwtSecret.encryptedValue,
     description: `JWT signing secret for API project`,
   }),
   new Secret({
@@ -38,19 +76,19 @@ export const secretsSeeds: Secret[] = [
     orgId: OrgIds.startup,
     name: `Stripe API Key`,
     id: SecretIds.startupApiKey,
-    hashKey: `hash_startup_stripe`,
+    hashKey: stripeApiKey.hashKey,
     description: `Payment processor API key`,
-    encryptedValue: `encrypted_stripe_key_value`,
+    encryptedValue: stripeApiKey.encryptedValue,
   }),
   new Secret({
     orgId: undefined,
     providerId: undefined,
     name: `Anthropic API Key`,
     projectId: ProjectIds.acmeApi,
-    hashKey: `hash_anthropic_key`,
+    hashKey: anthropicApiKey.hashKey,
     id: SecretIds.providerAnthropicKey,
     description: `Anthropic API authentication key`,
-    encryptedValue: `encrypted_anthropic_key_value`,
+    encryptedValue: anthropicApiKey.encryptedValue,
   }),
   new Secret({
     name: `GitHub Token`,
@@ -58,8 +96,8 @@ export const secretsSeeds: Secret[] = [
     providerId: undefined,
     orgId: OrgIds.personal,
     id: SecretIds.githubToken,
-    hashKey: `hash_github_token`,
+    hashKey: githubToken.hashKey,
     description: `Personal GitHub access token`,
-    encryptedValue: `encrypted_github_token_value`,
+    encryptedValue: githubToken.encryptedValue,
   }),
 ]

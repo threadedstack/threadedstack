@@ -1,4 +1,5 @@
 import { Ids } from '@TDB/seeds/ids.seed'
+import { encryptSecret } from '@TDB/utils/crypto'
 import {
   User,
   Role,
@@ -212,26 +213,45 @@ const providers = {
   }),
 }
 
+// Generate encrypted secrets
+const anthropicSecret = await encryptSecret(
+  `Anthropic API Key`,
+  `sk-ant-test-key-for-seeding`,
+  Ids.project.acmeApi
+)
+
+const databaseSecret = await encryptSecret(
+  `Database Password`,
+  `SuperSecureDbPassword123!`,
+  Ids.project.acmeApi
+)
+
+const githubSecret = await encryptSecret(
+  `GitHub Token`,
+  `ghp_test_github_token_for_seeding`,
+  org.id
+)
+
 const secrets = {
   anthropic: new Secret({
     orgId: undefined,
     providerId: undefined,
     name: `Anthropic API Key`,
-    hashKey: `hash_anthropic_key`,
+    hashKey: anthropicSecret.hashKey,
     projectId: Ids.project.acmeApi,
     id: Ids.secret.providerAnthropicKey,
     description: `Anthropic API authentication key`,
-    encryptedValue: `encrypted_anthropic_key_value`,
+    encryptedValue: anthropicSecret.encryptedValue,
   }),
   database: new Secret({
     orgId: undefined,
     providerId: undefined,
     name: `Database Password`,
-    hashKey: `hash_acme_db_pwd`,
+    hashKey: databaseSecret.hashKey,
     id: Ids.secret.acmeDbPassword,
     projectId: Ids.project.acmeApi,
     description: `Production database password`,
-    encryptedValue: `encrypted_acme_db_password_value`,
+    encryptedValue: databaseSecret.encryptedValue,
   }),
   github: new Secret({
     name: `GitHub Token`,
@@ -239,9 +259,9 @@ const secrets = {
     providerId: undefined,
     orgId: org.id,
     id: Ids.secret.githubToken,
-    hashKey: `hash_github_token`,
+    hashKey: githubSecret.hashKey,
     description: `GitHub PAT`,
-    encryptedValue: `encrypted_github_token_value`,
+    encryptedValue: githubSecret.encryptedValue,
   }),
 }
 
