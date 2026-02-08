@@ -10,7 +10,6 @@
     "build:app": "tsup-node --config configs/tsup.config.ts",
     "build:shell": "pnpm tsx scripts/wasm/build.ts",
     "wasm:deps": " pnpm tsx scripts/wasm/deps.ts",
-    "postinstall": "pnpm wasm:deps",
     "shell": "pnpm tsx scripts/wasm/run.ts",
     "clean": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",

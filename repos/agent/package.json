@@ -13,7 +13,6 @@
     "build:wasm": "pnpm tsx scripts/wasm/build.ts",
     "wasm:deps": " pnpm tsx scripts/wasm/deps.ts",
     "esb": " pnpm tsx scripts/wasm/esbuild.ts agent",
-    "postinstall": "pnpm wasm:deps",
     "clean": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",
     "clean:full": "pnpm clean && pnpm clean:nm",

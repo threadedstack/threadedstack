@@ -50,7 +50,12 @@
       ]
     },
     "onlyBuiltDependencies": [
-      "esbuild"
+      "@mongodb-js/zstd",
+      "@sentry-internal/node-cpu-profiler",
+      "@swc/core",
+      "core-js",
+      "esbuild",
+      "node-liblzma"
     ]
   },
   "config": {
