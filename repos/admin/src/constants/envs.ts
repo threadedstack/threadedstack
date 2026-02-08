@@ -24,8 +24,6 @@ export const TDSK_AD_BASE_PATH = envPath?.startsWith?.(`/`) ? envPath : `/`
 export const Environment = process.env.NODE_ENV || `local`
 
 export const TDSK_AUTH_URL = ensureEnv(process.env.TDSK_AUTH_URL, `TDSK_AUTH_URL`)
-export const TDSK_AUTH_JWKS = ensureEnv(process.env.TDSK_AUTH_JWKS, `TDSK_AUTH_JWKS`)
-
 export const TDSK_AUTH_PROVIDERS = (process.env.TDSK_AUTH_PROVIDERS || `github`).split(
   `,`
 )

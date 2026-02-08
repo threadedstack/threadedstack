@@ -1,4 +1,3 @@
-import { Toaster } from 'sonner'
 import { Routes } from '@TAF/routes/Routes'
 import { RouterProvider } from 'react-router/dom'
 import { useWindowResize } from '@tdsk/components'

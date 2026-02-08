@@ -33,27 +33,20 @@ The admin repo is the primary user-facing SPA dashboard for the Threaded Stack p
 
 Entry point, routing, auth provider, state management, navigation.
 
-#### CRITICAL (4)
+#### CRITICAL (1)
 
 | ID | File | Line | Description |
 |----|------|------|-------------|
-| C-I-1 | `AuthProvider.tsx` | 43 | Untyped `catch` variable — crashes on non-Error throws |
-| C-I-2 | `nav.ts` | 23 | `nav.login()` uses parameterized route `/auth/:pathname` as literal URL — login navigation broken |
-| C-I-3 | `signout.ts` | 4-7 | Logout only resets `userState`; all other state (orgs, projects, secrets, apiKeys, etc.) persists — **SECURITY**: stale data from previous user visible after re-login |
-| C-I-4 | `Layout.tsx` | 18 | `<RedirectToSignIn />` rendered unconditionally alongside `<SignedIn>` — potential infinite redirect loop |
+| C-I-1 | `Layout.tsx` | 18 | `<RedirectToSignIn />` rendered unconditionally alongside `<SignedIn>` — potential infinite redirect loop |
 
-#### HIGH (8)
+#### HIGH (4)
 
 | ID | File | Line | Description |
 |----|------|------|-------------|
-| H-I-1 | `App.tsx` | 1 | `Toaster` imported but never rendered — all toast notifications silently dropped |
-| H-I-2 | `index.tsx` | 20 | `Version` component rendered outside `AuthProvider` children gate |
-| H-I-3 | `AuthProvider.tsx` | 30 | Context value typed as `TAuthCtx` but session can be undefined |
-| H-I-4 | `selectors.ts` | 55-56 | `useDerivedState` returns a setter for a read-only atom |
-| H-I-5 | `OrgsLoader.tsx` | 2 | Unused `Outlet` import |
-| H-I-6 | `subscriptions.ts` | 4 | `paymentPlansState` initialized as `undefined` but reset to `[]` |
-| H-I-7 | `user.ts` | 4 | `defUser` typed as `User` but assigned `undefined` |
-| H-I-8 | `envs.ts` | 27 | `TDSK_AUTH_JWKS` forced required via `ensureEnv` but never used anywhere in admin — crashes app for an unused env |
+| H-I-1 | `AuthProvider.tsx` | 30 | Context value typed as `TAuthCtx` but session can be undefined |
+| H-I-2 | `selectors.ts` | 55-56 | `useDerivedState` returns a setter for a read-only atom |
+| H-I-3 | `subscriptions.ts` | 4 | `paymentPlansState` initialized as `undefined` but reset to `[]` |
+| H-I-4 | `user.ts` | 4 | `defUser` typed as `User` but assigned `undefined` |
 
 #### MEDIUM (11)
 
@@ -301,12 +294,11 @@ Issues where admin interacts incorrectly with other repos (domain, backend, prox
 
 | ID | Severity | Description |
 |----|----------|-------------|
-| SEC-1 | CRITICAL | Logout does not clear state — all org/project/secret data persists from previous user session |
-| SEC-2 | HIGH | SSL private keys displayed in plaintext text inputs (DomainDrawer) — no masking |
-| SEC-3 | HIGH | No permission checks before invite/role operations — any user can invite/change roles |
-| SEC-4 | MEDIUM | `console.log` in production leaks asset data (AssetsTab:131) |
-| SEC-5 | MEDIUM | DangerZoneCard has no confirmation before destructive actions |
-| SEC-6 | LOW | External links missing `noreferrer` attribute |
+| SEC-1 | HIGH | SSL private keys displayed in plaintext text inputs (DomainDrawer) — no masking |
+| SEC-2 | HIGH | No permission checks before invite/role operations — any user can invite/change roles |
+| SEC-3 | MEDIUM | `console.log` in production leaks asset data (AssetsTab:131) |
+| SEC-4 | MEDIUM | DangerZoneCard has no confirmation before destructive actions |
+| SEC-5 | LOW | External links missing `noreferrer` attribute |
 
 ---
 

@@ -40,7 +40,7 @@ export const AuthProvider = (props: TAuthProvider) => {
         session && setSession(session)
       } catch (err) {
         console.error(err)
-        setError(err.message)
+        err?.message && setError(err?.message)
       } finally {
         setLoading(false)
       }

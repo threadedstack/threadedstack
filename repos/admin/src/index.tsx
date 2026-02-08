@@ -16,8 +16,8 @@ createRoot(document.getElementById(`root`)!).render(
     <Provider store={store}>
       <AuthProvider>
         <App />
+        <Version />
       </AuthProvider>
-      <Version />
     </Provider>
   </StrictMode>
 )

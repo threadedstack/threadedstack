@@ -1,7 +1,7 @@
 import { auth } from '@TAF/services/auth'
-import { resetUser } from '@TAF/state/accessors'
+import { reset } from '@TAF/actions/auth/local/reset'
 
 export const signout = async () => {
-  const valid = await auth.signout()
-  resetUser()
+  await auth.signout()
+  reset()
 }

@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { Outlet } from 'react-router'
 import { OrgsProvider } from '@TAF/contexts/OrgsProvider'
 
 export type TOrgsLoader = {
