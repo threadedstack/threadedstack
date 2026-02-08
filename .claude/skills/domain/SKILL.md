@@ -1,0 +1,741 @@
+---
+name: "Threaded Stack - Domain Repo"
+description: "Knowledge base for the shared types, models, and utilities repo"
+version: "1.2.0"
+tags: ["typescript", "types", "models", "domain", "shared", "utilities", "payments"]
+---
+# Domain Repo Skill
+
+## Overview
+
+The `@tdsk/domain` repo is the **shared foundation** for the Threaded Stack monorepo. It provides:
+
+- **Type definitions** for Express APIs, authentication, providers, and helpers
+- **Model classes** for core entities (Organization, Project, ApiKey, Secret, Endpoint, Function, Role, Provider, User)
+- **Utility functions** for crypto, time, async handling, and data manipulation
+- **API helpers** for Express router wrapping, CORS, auth headers, and error handling
+- **Environment loading** utilities using `@keg-hub/parse-config`
+- **Custom error handling** with the `Exception` class
+
+
+This repo is consumed by `backend`, `proxy`, and `admin` repos as the single source of truth for shared logic.
+
+## Directory Structure
+
+```
+repos/domain/
+├── src/
+│   ├── api/              # Express API utilities
+│   │   ├── router.ts           # asyncWrap + getAppRouter for safe route handling
+│   │   ├── setupCors.ts        # CORS configuration helper
+│   │   ├── setupServer.ts      # Express server setup (trust proxy, disable etag)
+│   │   ├── checkAuthHeader.ts  # Auth header validation
+│   │   └── generateOrigins.ts  # Dynamic origin generation
+│   ├── models/           # Domain model classes
+│   │   ├── base.ts             # Base class with id, createdAt, updatedAt
+│   │   ├── user.ts             # User model with name parsing
+│   │   ├── team.ts             # Team model
+│   │   ├── repo.ts             # Repo model with gitUrl, branch
+│   │   ├── provider.ts         # Provider model (ai/git/auth/storage)
+│   │   └── plan.ts             # Plan model for payment plans
+│   ├── types/            # TypeScript type definitions
+│   │   ├── endpoint.types.ts   # Express types: TApp, TRequest, TResponse, TRouter
+│   │   ├── provider.types.ts   # EProvider enum (ai/git/auth/storage)
+│   │   ├── helpers.types.ts    # Generic helpers: TAnyCB, TValueOf, EStatus, EContainerState
+│   │   ├── errors.types.ts     # Error handling types
+│   │   ├── payments.types.ts   # Payment plan types
+│   │   └── pc.types.ts         # Parse-config module declarations
+│   ├── utils/            # Utility functions
+│   │   ├── crypto/             # Crypto utilities
+│   │   │   ├── crypto.ts       # AES-256-GCM encryption/decryption
+│   │   │   ├── generateKey.ts  # Key generation
+│   │   │   └── index.ts
+│   │   ├── payments/           # Payment utilities
+│   │   │   ├── parsePayPlans.ts    # Parse payment plan configs
+│   │   │   ├── rawPlanToMeta.ts    # Convert raw to typed metadata
+│   │   │   └── index.ts
+│   │   ├── permissions/        # Permission utilities (reorganized v1.2)
+│   │   │   ├── permissions.ts
+│   │   │   ├── permissions.test.ts
+│   │   │   └── index.ts
+│   │   ├── time.ts             # Timestamp utility
+│   │   ├── asBool.ts           # Boolean conversion
+│   │   ├── shortId.ts          # Short ID generation
+│   │   ├── deepCopy.ts         # Deep object cloning
+│   │   ├── nextFrame.ts        # Animation frame utilities
+│   │   └── throttleCBLast.ts   # Callback throttling
+│   ├── error/            # Error handling
+│   │   ├── exception.ts        # Exception class with status codes
+│   │   └── overrideErr.ts      # Error override utilities
+│   ├── environment/      # Environment configuration
+│   │   ├── loadEnvs.ts         # Load environment from deploy/values.*.yml
+│   │   └── addToProcess.ts     # Add envs to process.env
+│   ├── constants/        # Constants (currently empty placeholder)
+│   ├── services/         # Services (currently empty placeholder)
+│   ├── index.ts          # Main export (all modules)
+│   └── web.ts            # Web-safe exports (excludes Node.js-specific code)
+├── configs/
+│   ├── aliases.ts        # Path alias setup using alias-hq
+│   ├── biome.json        # Biome linting/formatting config
+│   └── vitest.config.ts  # Vitest testing config
+├── package.json          # Package metadata and scripts
+└── tsconfig.json         # TypeScript configuration with path aliases
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/index.ts` | Main export barrel - exports all modules |
+| `src/web.ts` | Web-safe exports (excludes Node.js stdlib code) |
+| `src/types/endpoint.types.ts` | Express API type definitions (TApp, TRequest, TResponse, TRouter) |
+| `src/models/base.ts` | Base model class with id, createdAt, updatedAt |
+| `src/utils/crypto.ts` | AES-256-GCM encryption with HKDF key derivation |
+| `src/api/router.ts` | Express router wrapper with automatic async error handling |
+| `src/error/exception.ts` | Custom Exception class for structured error handling |
+| `src/environment/loadEnvs.ts` | Environment loading from deploy/values.*.yml files |
+
+## Type Definitions
+
+### Express API Types (`types/endpoint.types.ts`)
+
+**Core Types:**
+- `TApp<C, L>` - Express app with typed locals (config, db)
+- `TRequest<ReqParams, ResBody, ReqBody, ReqQuery, Locals>` - Extended Express request with `auth` property
+- `TResponse<ResBody, Locals>` - Extended Express response with typed locals
+- `TPostReq` - Specialized POST request type
+- `TRouter` - Type-safe Express router with `asyncWrap` integration
+- `TRequestHandler` - Standard request handler signature
+- `TReqHandler` - Request handler with optional error handler
+- `TAsyncWrap` - Async wrapper utility type
+
+**Auth Types:**
+- `TTokenUser` - JWT decoded user: `{ user_id, token, subdomain, username?, status }`
+- `TResLocals` - Response locals: `{ user?, subdomain? }`
+
+### Provider Types (`types/provider.types.ts`)
+
+```typescript
+enum EProvider {
+  ai = 'ai',
+  git = 'git',
+  auth = 'auth',
+  storage = 'storage'
+}
+type TProviderType = `${EProvider}`
+```
+
+### Helper Types (`types/helpers.types.ts`)
+
+**Generic Utilities:**
+- `TAnyCB` - Generic callback type
+- `TValueOf<T>` - Extract value types from object
+- `TCapKeys<T>` - Capitalize object keys
+- `TUserHash` - User hash string type
+
+**Enums:**
+```typescript
+enum EStatus {
+  error, paused, waiting, unknown, pending,
+  started, running, stopped, finished, initialized
+}
+
+enum EContainerState {
+  Error, Missing, Running, Stopped,
+  Creating, Succeeded, Terminated
+}
+```
+
+### Error Types (`types/errors.types.ts`)
+
+```typescript
+type TErrorArgs = [number, string, string?]
+type TErrorMethod = (...args: any[]) => TErrorArgs
+type TErrorItems = Record<string, TErrorArgs | TErrorMethod>
+type TThrowExceptions = Record<string, (...args: any) => void>
+```
+
+## Models
+
+All models extend `Base` class with common fields: `id`, `createdAt`, `updatedAt`.
+
+### User Model
+
+```typescript
+class User extends Base {
+  first: string
+  last: string
+  email?: string
+  image: string
+  role?: string
+  name?: string
+  banned?: boolean
+  provider?: string
+  banReason?: string
+  emailVerified?: boolean
+  banExpires?: string | Date
+
+  constructor(usr: Partial<User>) {
+    // Auto-parses 'name' into 'first' and 'last' if needed
+  }
+}
+```
+
+### Organization Model
+
+```typescript
+class Organization extends Base {
+  name: string
+  description?: string
+}
+```
+
+### Project Model
+
+```typescript
+class Project extends Base {
+  name: string
+  orgId: string         // Organization ID (renamed from teamId)
+  gitUrl?: string
+  branch: string = 'main'
+  meta: Record<string, any> = {}
+}
+```
+
+### ApiKey Model
+
+```typescript
+class ApiKey extends Base {
+  name: string
+  key?: string          // Only returned on creation (hashed in DB)
+  orgId: string
+  scopes: string[] = [] // Permission scopes (e.g., ['read:secrets', 'write:endpoints'])
+  rateLimit?: number    // Requests per minute
+  expiresAt?: string | Date
+  lastUsedAt?: string | Date
+}
+```
+
+### Secret Model
+
+```typescript
+class Secret extends Base {
+  name: string
+  value?: string        // Decrypted value (only when requested)
+  orgId?: string        // Exclusive arc: org OR project OR provider
+  projectId?: string
+  providerId?: string
+}
+```
+
+### Endpoint Model
+
+```typescript
+class Endpoint extends Base {
+  projectId: string
+  name: string
+  proxyUrl?: string
+  proxyMethod: string = 'GET'
+  proxyHeaders: Record<string, string> = {}
+  proxyOptions: Record<string, any> = {}
+  public: boolean = false
+}
+```
+
+### Function Model
+
+```typescript
+class Function extends Base {
+  endpointId: string
+  name: string
+  code?: string
+  runtime: string = 'typescript'
+  configuration: Record<string, any> = {}
+}
+```
+
+### Role Model
+
+```typescript
+class Role extends Base {
+  userId: string
+  orgId: string
+  role: string = 'member'  // 'owner' | 'admin' | 'member' | 'viewer'
+}
+```
+
+### Provider Model
+
+```typescript
+class Provider extends Base {
+  orgId?: string        // Exclusive arc: org OR user OR project
+  userId?: string
+  projectId?: string
+  type: TProviderType   // 'ai' | 'git' | 'auth' | 'storage'
+  name: string
+  options: Record<string, any> = {}
+}
+```
+
+### Plan Model
+
+```typescript
+class Plan {
+  id: string
+  name: string
+  metadata: TPayPlanMeta  // Typed metadata with numeric values
+
+  constructor(opts: TPlanOpts) {
+    // Auto-converts raw metadata to typed metadata
+  }
+}
+
+// Usage:
+const plan = new Plan({
+  id: 'prod_123',
+  name: 'pro',
+  metadata: {
+    price: '29',
+    runtime: '3600',
+    projects: '50'
+  }
+})
+// plan.metadata = { price: 29, runtime: 3600, projects: 50 }
+```
+
+## Utilities
+
+### Crypto (`utils/crypto.ts`)
+
+**AES-256-GCM Encryption with HKDF:**
+
+```typescript
+// Key derivation from user ID + master key
+deriveKey(ref_id: string): Promise<Buffer>
+
+// Encrypt plaintext with derived key
+encryptValue(derivedKey: Buffer, plaintextValue: string): Promise<TEncryptVal>
+// Returns: { iv: Buffer, encrypted: Buffer, authTag: Buffer }
+
+// Decrypt ciphertext
+decryptValue(
+  derivedKey: Buffer,
+  ciphertext: Buffer,
+  iv: Buffer,
+  authTag: Buffer
+): Promise<string>
+
+// PostgreSQL bytea conversion
+bufferToBytea(buffer: Buffer): string  // => "\\x..."
+byteaToBuffer(byteaString: string): Buffer
+```
+
+**Environment Variables:**
+- `TDSK_MASTER_KEY` (required) - Hex-encoded master key for encryption
+
+### Time (`utils/time.ts`)
+
+```typescript
+timestamp(): number  // Date.now()
+```
+
+### Other Utilities
+
+- `asBool(value: any): boolean` - Convert value to boolean
+- `shortId(): string` - Generate short unique ID
+- `deepCopy(obj: any): any` - Deep clone objects
+- `nextFrame(callback: Function): void` - Schedule callback on next animation frame
+- `throttleCBLast(callback: Function, delay: number): Function` - Throttle with last call guarantee
+
+## API Helpers
+
+### Router Wrapper (`api/router.ts`)
+
+**Automatic Async Error Handling:**
+
+```typescript
+// Wraps handler in try/catch, logs errors, sends JSON response
+asyncWrap(handler: TReqHandler): (req, res, next) => Promise<void>
+
+// Creates type-safe router with auto-wrapped handlers
+getAppRouter(router: Router, middleware?: RequestHandler[]): TRouter
+
+// Usage:
+const router = getAppRouter(Router())
+router.get('/users', async (req, res) => {
+  // Errors automatically caught and handled
+  const users = await db.query('SELECT * FROM users')
+  res.json(users)
+})
+```
+
+### Server Setup (`api/setupServer.ts`)
+
+```typescript
+setupServer(app: TApp): void
+// Configures:
+// - app.set('trust proxy', 1)
+// - app.disable('etag')
+// - app.disable('x-powered-by')
+```
+
+### CORS (`api/setupCors.ts`)
+
+Exports CORS configuration helper for Express (implementation details in file).
+
+### Auth Header (`api/checkAuthHeader.ts`)
+
+Exports authentication header validation middleware (implementation details in file).
+
+### Origins (`api/generateOrigins.ts`)
+
+Exports dynamic origin generation for CORS configuration (implementation details in file).
+
+## Error Handling
+
+### Exception Class (`error/exception.ts`)
+
+```typescript
+class Exception extends Error {
+  name: string = 'Exception'
+  stack: string
+  status: number        // HTTP status code
+  message: string
+  code?: string         // Error code
+  details?: TErrDetails // Array of error details
+  __isAuthError?: boolean = false
+
+  constructor(
+    status: number,
+    message: string | Error,
+    code?: string,
+    details?: TErrDetails,
+    stack?: string
+  )
+
+  static throw(
+    status: number,
+    message: string,
+    code?: string,
+    details?: TErrDetails,
+    stack?: string
+  ): never
+}
+
+// Usage:
+Exception.throw(400, 'Invalid input', 'INVALID_INPUT', ['Missing field: email'])
+```
+
+## Environment Loading
+
+### loadEnvs (`environment/loadEnvs.ts`)
+
+Loads environment variables from `deploy/values.*.yml` files using `@keg-hub/parse-config`.
+
+```typescript
+loadEnvs(cfg: TLoadEnvs): Record<string, string>
+
+// Options:
+{
+  env?: string           // 'local' | 'dev' | 'prod' (default: NODE_ENV or 'local')
+  name?: string          // Config name (default: 'tdsk')
+  force?: boolean        // Force reload (default: false)
+  ignore?: string[]      // Keys to ignore
+  override?: boolean     // Override existing process.env
+  locations?: string[]   // Additional config locations
+}
+
+// Searches locations:
+// 1. @ROOT (monorepo root)
+// 2. @ROOT/deploy
+// 3. ~/.config/tdsk
+// 4. Custom locations
+```
+
+### addToProcess (`environment/addToProcess.ts`)
+
+Adds loaded environment variables to `process.env` with optional overrides.
+
+## Architecture
+
+### Type Composition Pattern
+
+All types use TypeScript generics for flexibility:
+- `TApp<C, L>` allows custom config and locals
+- `TRequest<Params, ResBody, ReqBody, Query, Locals>` for full type safety
+- Model classes use `Partial<T>` in constructors for flexible initialization
+
+### Exclusive Arc Pattern
+
+Multiple models implement the exclusive arc pattern:
+- `Provider`: `orgId` XOR `userId` XOR `projectId`
+- `Secret`: `orgId` XOR `projectId` XOR `providerId`
+- Database enforces this with constraints
+- Matches the broader schema pattern used in `database` repo
+
+### Export Strategy
+
+- `src/index.ts` - Full exports (includes Node.js stdlib code)
+- `src/web.ts` - Web-safe exports (excludes `api`, `environment`, `crypto`)
+- Consumers choose based on runtime environment
+
+### Barrel Exports
+
+Each module has an `index.ts` that re-exports all sub-modules:
+- `types/index.ts` exports all type files
+- `models/index.ts` exports all model classes
+- `utils/index.ts` exports all utilities
+- Root `index.ts` exports everything
+
+## Key Patterns
+
+### 1. Async Error Boundary
+
+The `asyncWrap` pattern ensures all route handlers are wrapped in try/catch:
+
+```typescript
+// Before:
+router.get('/users', async (req, res) => {
+  try {
+    const users = await db.query('...')
+    res.json(users)
+  } catch (err) {
+    logger.error(err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// After:
+const router = getAppRouter(Router())
+router.get('/users', async (req, res) => {
+  const users = await db.query('...')
+  res.json(users)
+})
+```
+
+### 2. Type-Safe Express
+
+Custom Express types provide full type safety:
+
+```typescript
+type TRequest<ReqParams, ResBody, ReqBody, ReqQuery, Locals> = {
+  app: TApp            // Typed app with config/db
+  auth?: TTokenUser    // Decoded JWT user
+  params: ReqParams    // Route params
+  body: ReqBody        // Request body
+  query: ReqQuery      // Query params
+  // ...Express Request
+}
+```
+
+### 3. Model Inheritance
+
+All models extend `Base` for consistent timestamps:
+
+```typescript
+class Base {
+  id: string
+  createdAt: string | Date
+  updatedAt: string | Date
+}
+
+// All models get these fields automatically
+class User extends Base { /* ... */ }
+class Team extends Base { /* ... */ }
+```
+
+### 4. Encryption Key Derivation
+
+HKDF (HMAC-based Key Derivation Function) pattern:
+
+```typescript
+// Master key (hex) → HKDF with user ID → 32-byte derived key
+const derivedKey = await deriveKey(userId)
+
+// Each user gets unique encryption key
+const encrypted = await encryptValue(derivedKey, secretValue)
+```
+
+### 5. Environment Cascading
+
+Environment loading follows precedence:
+1. Project-specific: `@ROOT/deploy/values.<env>.yml`
+2. User-specific: `~/.config/tdsk/values.<env>.yml`
+3. Custom locations
+4. Fallback to defaults
+
+## Dependencies
+
+### Production
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@keg-hub/jsutils` | 10.0.0 | Utility functions (isStr, isObj, ensureArr, etc.) |
+| `@keg-hub/parse-config` | 2.2.0 | YAML config loading and templating |
+| `@tdsk/logger` | workspace:* | Winston-based logging (internal) |
+| `alias-hq` | 6.2.4 | Path alias resolution for imports |
+
+### Development
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@types/express` | 5.0.0 | Express type definitions |
+| `@types/node` | 22.12.0 | Node.js type definitions |
+| `vite-tsconfig-paths` | ^4.3.1 | Vite tsconfig paths plugin |
+| `vitest` | ^1.4.0 | Testing framework |
+
+## Commands
+
+All commands use PNPM:
+
+```bash
+# Testing (Vitest)
+pnpm test               # Run tests
+
+# Cleanup
+pnpm clean              # Remove node_modules
+```
+
+### Commands Notes
+
+* Linting and formatting are automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
+
+## Integration Points
+
+### Consumed By
+
+**Backend (`@tdsk/backend`)**:
+- Uses full `index.ts` exports
+- Imports: types, models, api helpers, error handling, environment loading
+- Extends: `TApp`, `TRequest`, `TResponse`, `TRouter`
+- Uses: `asyncWrap`, `setupServer`, `Exception`, `loadEnvs`
+
+**Proxy (`@tdsk/proxy`)**:
+- Uses full `index.ts` exports
+- Imports: types, models, api helpers, crypto utilities
+- Uses: `checkAuthHeader`, `generateOrigins`, `setupCors`, encryption utilities
+
+**Admin (`@tdsk/admin`)**:
+- Uses `web.ts` exports (web-safe only)
+- Imports: types, models, error handling
+- Uses: `Exception`, model classes for client-side state
+
+**Database (`@tdsk/database`)**:
+- Uses model classes for ORM type definitions
+- Imports: `User`, `Team`, `Repo`, `Provider` models
+
+### Path Aliases
+
+All repos can import using these aliases:
+
+```typescript
+import { User, Team } from '@TDM/models'
+import { TRequest, TResponse } from '@TDM/types'
+import { Exception } from '@TDM/error'
+import { encryptValue, decryptValue } from '@TDM/utils/crypto'
+```
+
+**Configured in:**
+- `tsconfig.json` - `paths` mapping
+- `configs/aliases.ts` - Runtime alias resolution via `alias-hq`
+
+### Workspace Protocol
+
+Uses PNPM workspace protocol for internal dependencies:
+
+```json
+{
+  "dependencies": {
+    "@tdsk/logger": "workspace:*"
+  }
+}
+```
+
+This ensures all internal packages use the local workspace version.
+
+## Best Practices
+
+1. **Always use web.ts for frontend** - Prevents Node.js stdlib code in browser bundles
+2. **Use asyncWrap pattern** - Never write try/catch in route handlers manually
+3. **Extend Base model** - All domain models should inherit from Base
+4. **Type-safe requests** - Use TRequest/TResponse with generics for full type safety
+5. **Environment-specific configs** - Use loadEnvs for all environment configuration
+6. **Secure encryption** - Always use HKDF key derivation, never share master key
+7. **Structured errors** - Use Exception class with status codes and details
+8. **Path aliases** - Use @TDM/* imports for consistency across repos
+
+## Security Notes
+
+### Master Key Management
+
+- `TDSK_MASTER_KEY` must be 32 bytes (64 hex characters)
+- Generate with: `openssl rand -hex 32`
+- Store in `.env` files (never commit)
+- Each user gets unique derived key via HKDF
+- Keys are never logged or exposed in errors
+
+### Encryption Algorithm
+
+- **AES-256-GCM** - Authenticated encryption
+- **HKDF-SHA256** - Key derivation function
+- **12-byte IV** - Initialization vector (randomly generated)
+- **16-byte Auth Tag** - GCM authentication tag
+- Protects against tampering and replay attacks
+
+## Testing
+
+Tests use Vitest with config in `configs/vitest.config.ts`:
+
+```bash
+pnpm test               # Run all tests
+pnpm test:watch         # Watch mode (if configured)
+```
+
+Example test structure:
+
+```typescript
+// src/utils/asBool.test.ts
+import { describe, it, expect } from 'vitest'
+import { asBool } from './asBool'
+
+describe('asBool', () => {
+  it('converts truthy values to true', () => {
+    expect(asBool('true')).toBe(true)
+    expect(asBool(1)).toBe(true)
+  })
+
+  it('converts falsy values to false', () => {
+    expect(asBool('false')).toBe(false)
+    expect(asBool(0)).toBe(false)
+  })
+})
+```
+
+---
+
+**Last Updated**: 2026-01-18
+**Version**: 1.2.0
+
+## Changelog
+
+### v1.2.0 (2026-01-18)
+- **New**: `Plan` model for payment plans with metadata conversion
+- **New**: `payments.types.ts` - Payment plan types (TPayPlanRaw, TPayPlanMeta, TPayPlans)
+- **New**: `utils/payments/` - Payment utilities (parsePayPlans, rawPlanToMeta)
+- **Refactor**: Crypto utilities moved to `utils/crypto/` subdirectory
+- **Refactor**: Permissions utilities moved to `utils/permissions/` subdirectory
+- **New**: `rawPlanToMeta()` - Converts raw string metadata to typed numbers
+
+### v1.1.0 (Previous)
+- Base models and types
+- Crypto utilities
+- Express API helpers
+
+## Future Enhancements
+
+Based on empty placeholder modules:
+
+- `services/` - Planned for shared service layer logic
+- `constants/` - Planned for shared constants/enums
+
+These may be expanded in future phases of the project.

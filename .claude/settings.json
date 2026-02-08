@@ -1,0 +1,47 @@
+{
+  "env": {
+  },
+  "permissions": {
+    "allow": [
+      "Bash(pwd)",
+      "Bash(ls:*)",
+      "Bash(sed:*)",
+      "Bash(cat:*)",
+      "Bash(jq:*)",
+      "Bash(tsx:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(node:*)",
+      "Bash(which:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm build:*)",
+      "Bash(npm test:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git push)",
+      "Bash(git tag:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(git branch:*)",
+      "Bash(git stash:*)",
+      "Bash(git checkout:*)",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(mcp__happy__change_title:*)",
+      "Bash(mkdir -p /Users/LanceTipton/keg-cli/external/apps/threaded-stack/:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm biome:lint)",
+      "Bash(pnpm format)",
+      "Bash(pnpm biome:format)"
+    ]
+  },
+  "hooks": {
+  },
+  "includeCoAuthoredBy": false,
+  "enabledMcpjsonServers": []
+}

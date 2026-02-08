@@ -1,0 +1,434 @@
+---
+name: "Threaded Stack - Proxy Repo"
+description: "Knowledge base for the Auth Gateway proxy repo"
+version: "1.0.0"
+tags: ["express", "jwt", "proxy", "auth", "gateway", "typescript"]
+---
+# Proxy Repo Skill
+
+## Overview
+
+The **proxy** repo (`@tdsk/proxy`) serves as the **Auth Gateway** and single entry point for all external traffic in the Threaded Stack platform. It is responsible for:
+
+- **Authentication & Authorization**: JWT validation and token verification
+- **Request Routing**: Forwarding requests to the backend API based on path prefixes
+- **Rate Limiting**: Protecting backend services from abuse
+- **Logging**: Request/response logging with Winston integration
+- **Signal Handling**: Graceful shutdown on SIGINT, SIGTERM, SIGQUIT
+
+**Current Status**: The proxy is **fully implemented** as of January 2026. It includes:
+- **JWKS-based JWT validation** via jose library (integrates with Neon Auth)
+- **http-proxy-middleware** for backend forwarding
+- **Full middleware chain**: Logger, CORS, Auth, Proxy, Error handling
+- **Endpoints**: `/health`, `/auth/me`, `/auth/logout`
+
+**IMPORTANT NOTE**: Authentication is now **client-side via Neon Auth**. The proxy only validates JWT tokens using JWKS - it does not handle login/register/refresh. Those are managed by the Admin SPA directly with Neon Auth.
+
+## Directory Structure
+
+```
+repos/proxy/
+├── configs/                    # Build and linter configurations
+│   ├── aliases.ts             # Path alias setup (alias-hq)
+│   ├── biome.json             # Biome linter/formatter config
+│   ├── proxy.config.ts        # Proxy application config (logger settings)
+│   ├── tsup.config.ts         # Production build config
+│   └── vitest.config.ts       # Test runner config
+├── dist/                       # Build output (CJS bundle)
+├── scripts/                    # Utility scripts
+├── src/                        # Source code
+│   ├── constants/             # Configuration constants
+│   │   ├── envs.ts           # Environment variable exports (LOG_LEVEL)
+│   │   ├── values.ts         # Static values (ProcessSignals)
+│   │   └── index.ts
+│   ├── endpoints/             # Route handlers (currently empty stub)
+│   │   └── index.ts
+│   ├── middleware/            # Express middleware (currently empty stub)
+│   │   └── index.ts
+│   ├── server/                # Server initialization (currently empty stub)
+│   │   └── index.ts
+│   ├── types/                 # TypeScript type definitions
+│   │   ├── envs.types.ts     # TLogLevel type
+│   │   └── index.ts
+│   ├── utils/                 # Utility functions
+│   │   ├── logger.ts         # Winston logger setup
+│   │   ├── logger.test.ts    # Logger tests (stub)
+│   │   ├── signals.ts        # Process signal handlers
+│   │   └── index.ts
+│   ├── index.ts               # Entry point (currently empty)
+│   └── proxy.ts               # Main proxy function (TODO)
+├── package.json               # Package metadata and scripts
+└── tsconfig.json              # TypeScript configuration
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/index.ts` | Application entry point (currently empty stub) |
+| `src/proxy.ts` | Main proxy server logic (TODO - not implemented) |
+| `src/server/index.ts` | Express server setup (empty stub) |
+| `src/middleware/index.ts` | Express middleware definitions (empty stub) |
+| `src/endpoints/index.ts` | Route handlers (empty stub) |
+| `src/utils/logger.ts` | Winston logger configuration using `@tdsk/logger` |
+| `src/utils/signals.ts` | Graceful shutdown signal handlers (SIGINT/SIGTERM/SIGQUIT) |
+| `src/constants/envs.ts` | Environment variable constants (LOG_LEVEL) |
+| `src/constants/values.ts` | Static values (ProcessSignals array) |
+| `src/types/envs.types.ts` | TypeScript type definitions (TLogLevel) |
+| `configs/proxy.config.ts` | Application config (logger level, pretty print, silent mode) |
+| `configs/tsup.config.ts` | Production build configuration (CJS bundle) |
+| `configs/biome.json` | Biome linter and formatter rules |
+| `configs/aliases.ts` | Path alias registration (alias-hq integration) |
+| `package.json` | Dependencies and scripts |
+| `tsconfig.json` | TypeScript compiler options and path aliases |
+
+## Route Mapping (Planned Architecture)
+
+The proxy is designed to route requests based on path prefixes:
+
+| Path Prefix | Destination | Purpose |
+|-------------|-------------|---------|
+| `/auth/*` | Backend Auth API | User authentication endpoints (login, register, token refresh) |
+| `/_/*` | Backend Admin API | Admin CRUD operations (teams, users, repos, endpoints) |
+| `/proxy/*` | Backend Proxy Engine | API proxying with secret injection and transforms |
+| `/faas/*` | Backend Compute Engine | Serverless function execution (WASM sandboxing) |
+| `/ai/*` | Backend AI Engine | LLM proxy, RAG, streaming chat, tool execution |
+
+**Implementation Status**: Route forwarding is **NOT YET IMPLEMENTED**. The `src/proxy.ts` file contains only a TODO placeholder.
+
+## Authentication Flow (Planned)
+
+The proxy will implement JWT-based authentication:
+
+1. **Token Validation**:
+   - Extract JWT from `Authorization: Bearer <token>` header
+   - Verify signature using secret key from environment
+   - Decode payload to get user/team context
+
+2. **Route Protection**:
+   - Public routes: `/auth/login`, `/auth/register`
+   - Protected routes: All others require valid JWT
+
+3. **Token Injection**:
+   - Attach decoded user context to `req.user`
+   - Forward token to backend in header
+
+4. **Token Refresh**:
+   - Handle expired tokens via `/auth/refresh` endpoint
+   - Issue new JWT with extended expiry
+
+**Implementation Status**: Authentication middleware is **NOT YET IMPLEMENTED**.
+
+## Architecture
+
+### Technology Stack
+
+- **Framework**: Express 4.21.2
+- **Build Tool**: tsup 8.3.6 (production), tsdown (development with watch)
+- **Language**: TypeScript (ESNext target)
+- **Logging**: Winston via `@tdsk/logger`
+- **Testing**: Vitest 1.4.0
+- **Linting/Formatting**: Biome
+- **Authentication**: express-jwt 8.5.1, jsonwebtoken 9.0.2 (not yet integrated)
+- **Rate Limiting**: express-rate-limit 7.5.0 (not yet integrated)
+- **Monitoring**: express-winston 4.2.0 (not yet integrated)
+
+### Design Patterns
+
+1. **Path Alias Pattern**:
+   - `@TPX/*` - Proxy repo paths
+   - `@TDM/*` - Domain repo paths
+   - `@TDB/*` - Database repo paths
+   - Uses `alias-hq` + `module-alias` for runtime resolution
+
+2. **Configuration Pattern**:
+   - Environment variables loaded via `@keg-hub/parse-config` from `deploy/values.*.yml`
+   - Config object in `configs/proxy.config.ts` with typed exports
+   - Logger config: level, pretty printing, silent mode
+
+3. **Signal Handling Pattern**:
+   - Graceful shutdown on SIGINT, SIGTERM, SIGQUIT
+   - Close server connections cleanly
+   - Log shutdown events
+
+4. **Logger Pattern**:
+   - Winston logger from `@tdsk/logger` package
+   - Centralized logger setup with tag "TDSK Proxy"
+   - Configurable log level via `TDSK_PX_LOG_LEVEL` env var
+
+5. **Monorepo Workspace Pattern**:
+   - Dependencies on `@tdsk/logger`, `@tdsk/domain`, `@tdsk/database` (workspace packages)
+   - Shared utilities and types across repos
+
+## Logic Flow (Planned)
+
+**Request Handling Flow** (when implemented):
+
+```
+1. Client Request
+   ↓
+2. Express Server (src/server/index.ts)
+   ↓
+3. Middleware Chain (src/middleware/index.ts)
+   - CORS handling
+   - Body parsing (JSON/urlencoded)
+   - Rate limiting (express-rate-limit)
+   - Request logging (express-winston)
+   ↓
+4. JWT Validation (express-jwt)
+   - Extract token from Authorization header
+   - Verify signature
+   - Decode payload → req.user
+   ↓
+5. Route Matching (src/endpoints/index.ts)
+   - Match path prefix (/auth/*, /_/*, /proxy/*, /faas/*, /ai/*)
+   ↓
+6. Proxy Forwarding (src/proxy.ts)
+   - Forward request to backend service
+   - Inject user context in headers
+   - Stream response back to client
+   ↓
+7. Response Logging
+   - Log response status and duration
+   ↓
+8. Client Response
+```
+
+**Current Status**: Only steps 2 (partial) and 8 are scaffolded. Steps 3-7 are TODO.
+
+## Key Patterns
+
+### 1. Environment Configuration
+
+```typescript
+// configs/proxy.config.ts
+import { loadEnvs } from '@tdsk/domain'
+
+const envs = loadEnvs({
+  name: `tdsk`,
+  override: NODE_ENV === `local`  // Override with .env.local in dev
+})
+
+export const config = {
+  logger: {
+    label: `TDSK - Proxy`,
+    level: envs.TDSK_PX_LOGGER_LEVEL ?? LOG_LEVEL,
+    pretty: toBool(envs.TDSK_PX_LOGGER_PRETTY) ?? false,
+    silent: toBool(envs.TDSK_PX_LOGGER_SILENT) ?? false
+  }
+}
+```
+
+### 2. Logger Setup
+
+```typescript
+// src/utils/logger.ts
+import { ApiLogger, setupLogger } from '@tdsk/logger'
+import { config } from '@TPX/configs/proxy.config'
+
+setupLogger({
+  tag: `TDSK Proxy`,
+  level: config?.logger?.level
+})
+
+export { ApiLogger as logger }
+```
+
+### 3. Signal Handling
+
+```typescript
+// src/utils/signals.ts
+export const signals = (server: HTTP | HTTPS) => {
+  ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach((sig) => {
+    process.on(sig, () => {
+      logger.debug(`Received ${sig} signal`)
+      server.close(() => {
+        logger.info(`Server exited`)
+        process.exit(0)
+      })
+    })
+  })
+}
+```
+
+### 4. Type Safety
+
+```typescript
+// src/types/envs.types.ts
+export type TLogLevel = `debug` | `info` | `warn` | `error`
+
+// src/constants/envs.ts
+import type { TLogLevel } from '../types'
+export const LOG_LEVEL: TLogLevel =
+  (process.env.TDSK_PX_LOG_LEVEL as TLogLevel) || `info`
+```
+
+### 5. Path Aliases (tsconfig.json)
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@TPX": ["src"],
+      "@TPX/*": ["src/*"],
+      "@TPX/configs": ["configs"],
+      "@TDM/*": ["../domain/src/*"],
+      "@TDB/*": ["../database/src/*"],
+      "@tdsk/logger": ["../logger/src"]
+    }
+  }
+}
+```
+
+## Dependencies
+
+### Production Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `express` | 4.21.2 | Web server framework |
+| `express-jwt` | 8.5.1 | JWT authentication middleware |
+| `jsonwebtoken` | 9.0.2 | JWT signing and verification |
+| `express-rate-limit` | 7.5.0 | Rate limiting middleware |
+| `express-winston` | 4.2.0 | Request/response logging |
+| `@tdsk/logger` | workspace:* | Winston logger wrapper (monorepo) |
+| `@tdsk/domain` | workspace:* | Shared types and utilities (monorepo) |
+| `@tdsk/database` | workspace:* | Database client and types (monorepo) |
+| `@keg-hub/jsutils` | 10.0.0 | Utility functions (toBool, toInt, etc.) |
+| `@keg-hub/parse-config` | 2.2.0 | Environment variable loader |
+| `alias-hq` | 6.2.4 | Path alias management |
+| `module-alias` | 2.2.3 | Runtime alias resolution |
+| `tsup` | 8.3.6 | TypeScript bundler |
+
+### Development Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@types/express` | 5.0.0 | Express type definitions |
+| `@types/node` | 22.12.0 | Node.js type definitions |
+| `vitest` | 1.4.0 | Test runner |
+| `vite-tsconfig-paths` | 4.3.1 | Vitest path alias support |
+
+## Commands
+
+```bash
+# Development
+pnpm start              # Start dev server with watch (tsdown)
+pnpm serve              # Run built bundle (node dist/index.cjs)
+
+# Building
+pnpm build              # Production build (tsup → dist/index.cjs)
+pnpm clean              # Remove dist/
+
+# Testing
+pnpm test               # Run tests (vitest run)
+```
+
+### Commands Notes
+
+* Linting and formatting are automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
+
+
+## Integration Points
+
+### With Backend Repo (`@tdsk/backend`)
+
+- **Request Forwarding**: Proxy forwards all authenticated requests to backend API
+- **Service Discovery**: Proxy knows backend host/port via `TDSK_BACKEND_URL` env var
+- **Header Injection**: Proxy adds `X-User-Id`, `X-Team-Id` headers from JWT
+- **WebSocket Proxying**: Proxy forwards WebSocket connections for real-time features
+
+### With Database Repo (`@tdsk/database`)
+
+- **User Lookup**: Proxy may query users table for additional auth context
+- **Token Blacklist**: Proxy checks revoked_tokens table for invalidated JWTs
+- **Rate Limit State**: Proxy stores rate limit counters in Redis/Postgres
+
+### With Domain Repo (`@tdsk/domain`)
+
+- **Shared Types**: Imports `User`, `Team`, `AuthToken` types
+- **Utilities**: Uses `loadEnvs`, `generateOrigins` helper functions
+- **Validation**: Uses shared Zod schemas for request validation
+
+### With Logger Repo (`@tdsk/logger`)
+
+- **Centralized Logging**: Uses `ApiLogger` and `setupLogger` from logger package
+- **Request Logging**: Integrates express-winston for access logs
+- **Error Logging**: Logs exceptions and rejections to centralized log store
+
+### With Admin Repo (`@tdsk/admin`)
+
+- **API Gateway**: Admin SPA makes all API calls through proxy
+- **Cookie Handling**: Proxy sets httpOnly cookies for JWT tokens
+- **CORS**: Proxy allows admin origin in CORS middleware
+
+## Environment Variables
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `NODE_ENV` | string | `local` | Runtime environment (local/dev/prod) |
+| `TDSK_PX_LOG_LEVEL` | TLogLevel | `info` | Logger verbosity (debug/info/warn/error) |
+| `TDSK_PX_LOGGER_PRETTY` | boolean | `false` | Enable pretty-printed logs (dev) |
+| `TDSK_PX_LOGGER_SILENT` | boolean | `false` | Disable all logging |
+| `TDSK_BACKEND_URL` | string | - | Backend API base URL (planned) |
+| `TDSK_JWT_SECRET` | string | - | JWT signing secret (planned) |
+| `TDSK_JWT_EXPIRES_IN` | string | `7d` | JWT expiration time (planned) |
+
+## TODO: Implementation Tasks
+
+Based on the codebase analysis, the following features need implementation:
+
+1. **Core Proxy Server** (`src/proxy.ts`)
+   - [ ] Implement Express app initialization
+   - [ ] Setup http-proxy or http-proxy-middleware
+   - [ ] Configure target URL routing based on path prefix
+
+2. **Server Setup** (`src/server/index.ts`)
+   - [ ] Create Express server instance
+   - [ ] Bind to port (from env var)
+   - [ ] Integrate signal handlers
+   - [ ] Add health check endpoint
+
+3. **Middleware** (`src/middleware/index.ts`)
+   - [ ] CORS middleware with configurable origins
+   - [ ] Body parsing (json, urlencoded)
+   - [ ] JWT validation middleware (express-jwt)
+   - [ ] Rate limiting middleware
+   - [ ] Request logging middleware (express-winston)
+   - [ ] Error handling middleware
+
+4. **Route Handlers** (`src/endpoints/index.ts`)
+   - [ ] Auth routes (/auth/login, /auth/register, /auth/refresh)
+   - [ ] Admin route proxy (/_/*)
+   - [ ] Proxy route proxy (/proxy/*)
+   - [ ] FaaS route proxy (/faas/*)
+   - [ ] AI route proxy (/ai/*)
+   - [ ] Health check endpoint (/health)
+
+5. **Testing** (`src/**/*.test.ts`)
+   - [ ] Logger tests (currently stub)
+   - [ ] Middleware unit tests
+   - [ ] Integration tests for auth flow
+   - [ ] E2E tests for proxying
+
+6. **Documentation**
+   - [ ] API documentation (OpenAPI/Swagger)
+   - [ ] Architecture diagrams
+   - [ ] Deployment guide
+
+## Development Notes
+
+- **PNPM Required**: The project uses PNPM workspaces (enforced)
+- **No Implementation Yet**: Most files are empty stubs awaiting Phase 2 development
+- **Build Target**: Bundles to single CJS file (`dist/index.cjs`) with source maps
+- **Watch Mode**: `pnpm start` uses tsdown for fast rebuilds on file changes
+- **Path Aliases**: Use `@TPX/*` prefix for imports (not relative paths)
+- **Biome**: All code must pass Biome linting (line width 90, 2-space indent)
+- **Type Safety**: TypeScript strict mode is OFF (allow gradual typing)
+
+## Related Documentation
+
+- [Threaded Stack Overview](../CLAUDE.md)
+- [Backend Repo](../backend/README.md)
+- [Database Schema](../database/README.md)
+- [Domain Types](../domain/README.md)

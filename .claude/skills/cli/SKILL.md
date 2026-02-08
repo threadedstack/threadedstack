@@ -1,0 +1,578 @@
+---
+name: "Threaded Stack - CLI Repo"
+description: "Knowledge base for the developer CLI repo - DevOps orchestration for Docker, Kubernetes, and DevSpace"
+version: "1.0.0"
+tags: ["cli", "nodejs", "devops", "kubernetes", "docker", "devspace"]
+---
+# CLI Repo Skill
+
+## Overview
+
+The CLI repo (`@tdsk/cli`) is a comprehensive developer CLI tool for managing the Threaded Stack monorepo. It provides unified commands for:
+- **Docker operations**: Building and running containerized applications
+- **Kubernetes management**: Secrets, namespaces, ingress configuration
+- **DevSpace orchestration**: Development environment management
+- **Repository management**: Starting and managing individual repos
+
+The CLI uses a hierarchical task system built on `@keg-hub/args-parse` with support for nested commands, aliases, and options.
+
+## Directory Structure
+
+```
+repos/cli/
+├── configs/               # Build and tool configurations
+│   ├── cli.config.ts     # Main CLI configuration with paths and contexts
+│   ├── aliases.ts        # Path aliases (@TSCL/*)
+│   ├── biome.json        # Linting and formatting config
+│   └── vitest.config.ts  # Test configuration
+├── scripts/              # Helper scripts
+│   ├── loadEnvs.ts       # Environment loading utilities
+│   └── addToProcess.ts   # Process environment helpers
+├── src/
+│   ├── index.ts          # Entry point (exports cli.ts)
+│   ├── cli.ts            # Main CLI runner with argsParse integration
+│   ├── constants/        # Constants and filters (EnvFilter)
+│   ├── types/            # TypeScript definitions
+│   │   ├── tasks.types.ts      # Task system types
+│   │   ├── config.types.ts     # Configuration types
+│   │   ├── kube.types.ts       # Kubernetes types
+│   │   └── tdsk.types.ts       # Project-specific types
+│   ├── tasks/            # Command definitions (hierarchical structure)
+│   │   ├── index.ts      # Task registry
+│   │   ├── docker/       # Docker commands: build, run, login
+│   │   ├── kube/         # Kubernetes commands: secret, namespace, ingress, set, remove
+│   │   ├── devspace/     # DevSpace commands: start, enter, attach, log, clean, use
+│   │   └── repos/        # Repository commands: start
+│   └── utils/            # Utility functions
+│       ├── config/       # Config utilities (getCtx)
+│       ├── devspace/     # DevSpace helpers
+│       ├── docker/       # Docker helpers
+│       ├── kube/         # Kubernetes utilities (kubectl wrapper)
+│       ├── pnpm/         # PNPM command execution
+│       ├── proc/         # Process management (spawn, exec)
+│       ├── tasks/        # Task utilities (find, error, options)
+│       └── helpers/      # General helpers (resolveLocalPath)
+└── dist/                 # Built output
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/cli.ts` | Main CLI entry point - parses args, loads config, executes tasks |
+| `src/tasks/index.ts` | Task registry that exports all command groups |
+| `configs/cli.config.ts` | Configuration with paths, contexts (proxy, api, admin), and environment variables |
+| `src/types/tasks.types.ts` | Core type definitions for task system (TTask, TTasks, TTaskAction) |
+| `src/utils/tasks/find.ts` | Task resolution algorithm for nested commands and aliases |
+| `src/utils/proc/spawn.ts` | Child process spawning utility with enhanced error handling |
+| `src/utils/config/getCtx.ts` | Context resolver for proxy/api/admin repos |
+
+## Architecture
+
+### CLI Execution Flow
+
+1. **Entry Point** (`src/cli.ts`):
+   ```typescript
+   process.argv → find(tasks, args) → argsParse() → loadCfg(env) → task.action()
+   ```
+
+2. **Task Resolution**:
+   - Parse command-line arguments: `['docker', 'build', '--context', 'proxy']`
+   - Find task by name or alias: `docker` → `docker.ts`
+   - Traverse nested tasks: `build` → `docker/build.ts`
+   - Parse remaining args as options: `['--context', 'proxy']`
+
+3. **Configuration Loading**:
+   - Environment determined by `--env` option (default: `local`)
+   - Loads `cli.config.ts` which imports `@tdsk/domain/loadEnvs`
+   - Provides `config.contexts` with repo metadata (paths, images, tags)
+
+4. **Action Execution**:
+   - Task action receives: `{ task, tasks, params, config, options }`
+   - Executes via utility functions: `spawn()`, `kubectl()`, `devspace()`, etc.
+
+### Task System Structure
+
+**Task Definition** (`TTask`):
+```typescript
+{
+  name: string              // Primary command name
+  alias?: string[]          // Alternative names
+  action?: TTaskAction      // Execution function
+  tasks?: TTasks            // Nested sub-commands
+  options?: TTaskOptions    // Command-line options
+}
+```
+
+**Task Hierarchy** (3 levels deep):
+```
+docker (group)
+  ├── build (command)
+  ├── run (command)
+  └── login (command)
+
+kube (group)
+  ├── secret (group)
+  │   ├── tdsk (command)
+  │   ├── docker (command)
+  │   └── database (command)
+  ├── namespace (command)
+  ├── ingress (command)
+  ├── set (command)
+  └── remove (command)
+```
+
+## Available Commands
+
+### Repository Management (`repos`)
+
+**`repos start`** - Start a repository in dev mode
+```bash
+pnpm tdsk repos start --context proxy
+pnpm tdsk repos start --context api --docker  # Run in Docker
+```
+- Aliases: `st`
+- Options: `--context` (proxy/api/admin), `--docker` (containerized mode)
+- Runs: `pnpm start` in repo directory or `docker run` if `--docker` flag
+
+### Docker Commands (`docker`)
+
+**`docker build`** - Build Docker image
+```bash
+pnpm tdsk docker build --context proxy --tag v1.2.3
+```
+- Aliases: `doc`, `dc`
+- Options: `--context`, `--tag`, `--image`, `--from`, `--push`
+- Executes: `docker build` with configured Dockerfile
+
+**`docker run`** - Run Docker container
+```bash
+pnpm tdsk docker run --context api --port 3000:3000
+```
+- Options: `--context`, `--port`, `--detach`, `--env-file`
+
+**`docker login`** - Authenticate with Docker registry
+```bash
+pnpm tdsk docker login --registry ghcr.io
+```
+
+### Kubernetes Commands (`kube`)
+
+**`kube secret`** - Manage Kubernetes secrets
+```bash
+# From value
+pnpm tdsk kube secret --name my-secret --keyvalue key1:value1
+
+# From file
+pnpm tdsk kube secret --name db-creds --file ./secrets/database.json
+
+# Multiple secrets
+pnpm tdsk kube secret --name app-config --secrets API_KEY:xxx,DB_URL:yyy
+
+# Docker registry secret (for pulling private images)
+pnpm tdsk kube secret docker --env prod --namespace production
+```
+- Aliases: `kubectl`, `kb`, `kcl`
+- Sub-commands: `docker`, `tdsk`, `database` (preset configurations)
+- Options: `--name`, `--key`, `--value`, `--file`, `--files`, `--secrets`, `--keyvalue`, `--namespace`, `--literal`
+- Creates temporary files for secret values, then cleans up
+
+**`kube namespace`** - Manage namespaces
+```bash
+pnpm tdsk kube namespace --name dev-environment
+```
+
+**`kube ingress`** - Configure ingress resources
+
+**`kube set`** - Apply Kubernetes configurations
+
+**`kube remove`** - Delete Kubernetes resources
+
+### DevSpace Commands (`devspace`)
+
+**`devspace start`** - Start DevSpace development environment
+```bash
+pnpm tdsk devspace start --build --debug
+```
+- Aliases: `dev`, `ds`
+- Options: `--build`, `--debug`, `--purge`, `--deploy`
+- Executes: `devspace dev` with custom arguments
+
+**`devspace enter`** - Enter running container shell
+```bash
+pnpm tdsk devspace enter --selector name=proxy
+```
+
+**`devspace attach`** - Attach to container process
+
+**`devspace log`** - Stream container logs
+```bash
+pnpm tdsk devspace log --follow --selector name=api
+```
+
+**`devspace clean`** - Clean DevSpace cache and artifacts
+
+**`devspace use`** - Configure DevSpace context and namespace
+```bash
+pnpm tdsk devspace use --namespace dev --context minikube
+```
+
+**`devspace render`** - Render DevSpace manifests without deploying
+
+
+
+## Logic Flow
+
+### 1. Command Parsing Flow
+
+```
+User Input: pnpm tdsk docker build --context proxy --tag v1.0
+
+Step 1: src/cli.ts extracts args
+  → args = ['docker', 'build', '--context', 'proxy', '--tag', 'v1.0']
+
+Step 2: find(tasks, args)
+  → Finds 'docker' task in registry
+  → Navigates to 'docker.build' sub-task
+  → Returns { task: build, options: ['--context', 'proxy', '--tag', 'v1.0'] }
+
+Step 3: argsParse(options, task.options)
+  → Parses options against task definition
+  → Returns params = { context: 'proxy', tag: 'v1.0', env: 'local' }
+
+Step 4: loadCfg(params.env)
+  → Loads config for 'local' environment
+  → Returns config with contexts, paths, envs
+
+Step 5: task.action({ task, tasks, params, config, options })
+  → Executes docker build logic
+  → Uses getCtx() to resolve proxy context
+  → Calls docker.build() utility
+```
+
+### 2. Context Resolution Flow
+
+```typescript
+// User specifies: --context proxy
+getCtx({ params: { context: 'proxy' }, config })
+  → config.contexts['proxy']
+  → Returns:
+    {
+      image: 'ghcr.io/org/proxy',
+      tag: 'latest',
+      location: '/path/to/repos/proxy',
+      dockerfile: 'Dockerfile.proxy',
+      deployment: 'proxy-deployment'
+    }
+```
+
+### 3. Process Spawning Flow
+
+```typescript
+// Spawning a child process
+spawn({
+  cmd: 'docker',
+  args: ['build', '-t', 'proxy:latest', '.'],
+  cwd: '/path/to/repos/proxy',
+  log: true,
+  output: true
+})
+  → Creates child process with stdout/stderr capture
+  → Logs command execution
+  → Handles cleanup on process exit
+  → Returns promise with exit code
+```
+
+## Key Patterns
+
+### 1. Hierarchical Task Definition
+
+Tasks support nested structures with inheritance:
+```typescript
+export const kube: TTask = {
+  name: 'kube',
+  alias: ['kubectl', 'kb'],
+  tasks: {
+    secret: { /* sub-task with its own action */ },
+    namespace: { /* another sub-task */ }
+  }
+}
+```
+
+### 2. Alias Support
+
+Commands can have multiple aliases for convenience:
+```typescript
+alias: ['doc', 'dc']  // 'docker' can be invoked as 'doc' or 'dc'
+```
+
+### 3. Option Parsing
+
+Robust option system with type coercion:
+```typescript
+options: {
+  context: {
+    required: true,
+    alias: ['ctx', 'name'],
+    example: '--context proxy',
+    description: 'Context or name of the repo'
+  },
+  port: {
+    type: 'number',
+    default: 3000
+  },
+  detach: {
+    type: 'boolean',
+    default: false
+  }
+}
+```
+
+### 4. Configuration Contexts
+
+Three main contexts for repos (proxy, api, admin):
+```typescript
+config.contexts = {
+  proxy: {
+    image: 'ghcr.io/org/proxy',
+    tag: 'v1.0.0',
+    location: '/repos/proxy',
+    dockerfile: 'Dockerfile.proxy',
+    deployment: 'proxy-deployment'
+  },
+  // ... api, admin
+}
+```
+
+### 5. Environment Filtering
+
+EnvFilter controls which environment variables are passed to child processes:
+```typescript
+EnvFilter = {
+  starts: ['npm_', 'HOME', 'KEG_', 'AWS'],  // Include vars starting with these
+  ends: ['_PATH', '_PORT'],                  // Include vars ending with these
+  exclude: [],                               // Explicit exclusions
+}
+```
+
+### 6. Process Management
+
+Enhanced spawn wrapper with lifecycle hooks:
+```typescript
+await spawn({
+  cmd: 'kubectl',
+  args: ['create', 'secret', 'generic', 'my-secret'],
+  log: true,           // Log command execution
+  output: true,        // Capture stdout/stderr
+  detached: false,     // Keep process attached
+  envs: { FOO: 'bar' }, // Additional env vars
+  close: (code) => {}, // Cleanup callback
+  error: (err) => {}   // Error handler
+})
+```
+
+### 7. Temporary File Management
+
+For Kubernetes secrets, temporary files are created and cleaned up:
+```typescript
+const saveTempSecret = (value: string) => {
+  const tempFileLoc = path.join(os.tmpdir(), `${uuid()}.txt`)
+  writeFileSync(tempFileLoc, value)
+  return tempFileLoc
+}
+// ... use in kubectl command
+// ... cleanup: rmSync(tempFileLoc)
+```
+
+## Dependencies
+
+### Core Dependencies
+- **`@keg-hub/args-parse`** (10.0.1) - Command-line argument parsing
+- **`@keg-hub/jsutils`** (10.0.0) - JavaScript utility functions (isObj, isArr, deepMerge)
+- **`@keg-hub/parse-config`** (2.2.0) - Configuration file parsing
+- **`alias-hq`** (6.2.4) - Path alias management for imports
+
+### Workspace Dependencies
+- **`@tdsk/domain`** (workspace) - Shared domain types and utilities (loadEnvs)
+- **`@tdsk/logger`** (workspace) - Winston-based logging service
+
+### Build Tools
+- **`esbuild`** (0.19.3) - JavaScript bundler
+- **`esbuild-register`** (3.5.0) - Runtime TypeScript support
+- **`tsup`** - Build tool (via package.json scripts)
+
+### Dev Dependencies
+- **`typescript`** (^5.3.3)
+- **`vitest`** (^1.4.0) - Testing framework
+- **`@types/node`** (22.12.0)
+
+## Available NPM/PNPM Commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm build` | Build CLI with tsup (outputs to `dist/`) |
+| `pnpm start` | Build in watch mode and run on changes |
+| `pnpm cli` | Run CLI directly with esbuild-register (dev mode) |
+| `pnpm test` | Run vitest tests |
+| `pnpm clean` | Remove node_modules |
+
+### Using the CLI
+
+```bash
+# Via PNPM workspace (from monorepo root)
+pnpm tdsk <command> <subcommand> <options>
+
+# Direct execution (from cli directory)
+node dist/index.js <command>
+
+# Dev mode (from cli directory)
+pnpm cli <command>
+```
+
+## Integration Points
+
+### 1. Domain Repo (`@tdsk/domain`)
+- **Import**: `loadEnvs()` function for environment configuration
+- **Usage**: Loads environment variables from `deploy/values.*.yml`
+
+### 2. Logger Repo (`@tdsk/logger`)
+- **Import**: `Logger` service for structured logging
+- **Usage**: `Logger.info()`, `Logger.pair()`, `Logger.stdout()`, `Logger.stderr()`
+
+### 3. Monorepo Structure
+- **Paths**: References root-level `deploy/` and `repos/` directories
+- **Contexts**: Manages three repos: proxy, api, admin
+- **Configuration**: Shares environment variables via `@tdsk/domain`
+
+### 4. Build System
+- **Path Aliases**: Uses `alias-hq` for `@TSCL/*` imports
+- **Configs**: All configs in `configs/` directory (biome, tsup, vitest)
+- **Linting**: Biome configuration shared across monorepo
+
+### 5. External Tools Integration
+- **Docker**: Wraps `docker` CLI for image building and container management
+- **Kubernetes**: Wraps `kubectl` CLI for cluster operations
+- **DevSpace**: Wraps `devspace` CLI for development workflows
+- **PNPM**: Executes workspace commands via `pnpm.run()`
+
+### 6. Environment Management
+- **NODE_ENV**: Set via `--env` option (local/dev/staging/prod)
+- **Deploy Configs**: Reads from `deploy/values.{env}.yml`
+- **Image Tags**: Environment-specific tags (TDSK_PX_IMAGE_TAG, etc.)
+
+## Type System
+
+### Core Task Types
+
+**TTask** - Task definition
+```typescript
+{
+  name: string           // Command name
+  alias?: string[]       // Alternative names
+  action?: TTaskAction   // Execution function
+  tasks?: TTasks         // Nested commands
+  options?: TTaskOptions // CLI options
+}
+```
+
+**TTaskAction** - Task execution function
+```typescript
+<P extends TTaskParams>(args: TTaskActionArgs<P>) => any
+```
+
+**TTaskActionArgs** - Arguments passed to action
+```typescript
+{
+  params: TTaskParams    // Parsed CLI options
+  task: TTask            // Current task definition
+  tasks: TTasks          // All tasks (for delegation)
+  config: TCliCfg        // Loaded configuration
+  options?: string[]     // Unparsed option strings
+}
+```
+
+**TTaskOptions** - Option definitions
+```typescript
+Record<string, {
+  alias?: string[]       // Alternative option names
+  type?: 'string' | 'number' | 'boolean' | 'array' | 'object'
+  default?: any          // Default value
+  required?: boolean     // Is option required
+  example?: string       // Usage example
+  description?: string   // Help text
+}>
+```
+
+## Common Workflows
+
+### Building Docker Images
+```bash
+# Build proxy image with custom tag
+pnpm tdsk docker build --context proxy --tag v2.0.0
+
+# Build and push to registry
+pnpm tdsk docker build --context api --tag v2.0.0 --push
+```
+
+### Managing Kubernetes Secrets
+```bash
+# Create database secret from file
+pnpm tdsk kube secret database --env prod --namespace production
+
+# Create Docker registry secret for pulling private images
+pnpm tdsk kube secret docker --env staging
+
+# Create custom secret
+pnpm tdsk kube secret --name app-config --secrets API_KEY:xxx,DB_URL:yyy
+```
+
+### Starting Development Environment
+```bash
+# Start proxy in Docker
+pnpm tdsk repos start --context proxy --docker
+
+# Start API locally
+pnpm tdsk repos start --context api
+
+# Start DevSpace environment
+pnpm tdsk devspace start --build --debug
+```
+
+### DevSpace Operations
+```bash
+# Start dev environment with fresh build
+pnpm tdsk devspace start --build --purge
+
+# Stream logs
+pnpm tdsk devspace log --follow --selector name=proxy
+
+# Enter container shell
+pnpm tdsk devspace enter --selector app=backend
+
+# Clean all artifacts
+pnpm tdsk devspace clean --all
+```
+
+### Commands Notes
+
+* Linting and formatting are automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
+
+## Error Handling
+
+The CLI implements comprehensive error handling:
+
+1. **Task Not Found**: `taskError()` throws when command doesn't exist
+2. **Missing Options**: Validation for required options
+3. **Process Failures**: Spawn wrapper captures exit codes and stderr
+4. **Config Errors**: Try-catch around config loading
+5. **Cleanup**: Temporary files removed even on error (Kubernetes secrets)
+
+## Future Enhancements
+
+Based on the codebase structure, potential areas for expansion:
+- Additional repo commands (build, test, deploy)
+- Helm chart management integration
+- Terraform/infrastructure commands
+- Database migration commands
+- Monitoring and observability tools
+- Multi-environment deployment pipelines
