@@ -2,7 +2,7 @@ import type { Server as HTTP } from 'http'
 import type { Server as HTTPS } from 'https'
 
 import { logger } from './logger'
-import { sigs } from '../constants/values'
+import { sigs } from '@TBE/constants/values'
 
 export const signals = (server: HTTP | HTTPS) => {
   sigs.forEach((sig) => {

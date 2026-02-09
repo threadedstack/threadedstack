@@ -6,6 +6,7 @@ import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { parsePagination } from '@TBE/utils/pagination'
 
 /**
  * GET /_/configs - List all configs
@@ -28,16 +29,17 @@ export const listConfigs: TEndpointConfig = {
       projectId: projectId as string | undefined,
     })
 
-    const { data, error } = await db.services.config.list()
+    const where: Record<string, string> = {}
+    if (orgId) where.orgId = orgId as string
+    if (projectId) where.projectId = projectId as string
+    if (userId) where.userId = userId as string
+
+    const { limit, offset } = parsePagination(req)
+
+    const { data, error } = await db.services.config.list({ where, limit, offset })
 
     if (error) throw new Exception(500, error.message)
 
-    // Filter by scope if provided
-    let configs: Config[] = data || []
-    if (orgId) configs = configs.filter((c) => c.orgId === orgId)
-    if (projectId) configs = configs.filter((c) => c.projectId === projectId)
-    if (userId) configs = configs.filter((c) => c.userId === userId)
-
-    res.status(200).json({ data: configs })
+    res.status(200).json({ data: data || [], limit, offset })
   },
 }

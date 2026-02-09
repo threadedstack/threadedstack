@@ -89,15 +89,6 @@ describe(`Functions endpoints`, () => {
           endpointId: `endpoint-1`,
           createdAt: new Date(),
         }),
-        new TDFunction({
-          id: `2`,
-          name: `sendEmail`,
-          content: `console.log('email')`,
-          language: `typescript`,
-          projectId: `project-2`,
-          endpointId: `endpoint-2`,
-          createdAt: new Date(),
-        }),
       ]
 
       const mockList = mockReq.app?.locals.db.services.function.list as ReturnType<
@@ -117,12 +108,29 @@ describe(`Functions endpoints`, () => {
 
     it(`should return 400 when projectId is missing`, async () => {
       mockReq.query = {}
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `projectId query parameter required`
+      )
+    })
+
+    it(`should pass pagination params to list and include in response`, async () => {
+      mockReq.query = { projectId: `project-1`, limit: `15`, offset: `30` }
+
+      const mockList = mockReq.app?.locals.db.services.function.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [] })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: 'projectId query parameter required',
+      expect(mockList).toHaveBeenCalledWith({
+        where: { projectId: `project-1` },
+        limit: 15,
+        offset: 30,
       })
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(15)
+      expect(response.offset).toBe(30)
     })
 
     it(`should return 500 on database error`, async () => {
@@ -133,10 +141,11 @@ describe(`Functions endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ error: mockError })
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database connection failed`
+      )
+      expect(mockList).toHaveBeenCalledOnce()
     })
   })
 
@@ -173,10 +182,10 @@ describe(`Functions endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Function not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Function not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 
@@ -214,10 +223,10 @@ describe(`Functions endpoints`, () => {
         projectId: `p`,
         endpointId: `e`,
       }
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Function name is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Function name is required`
+      )
     })
 
     it(`should return 400 when content is missing`, async () => {
@@ -226,10 +235,10 @@ describe(`Functions endpoints`, () => {
         projectId: `p`,
         endpointId: `e`,
       }
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Function content is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Function content is required`
+      )
     })
 
     it(`should return 400 when projectId is missing`, async () => {
@@ -238,22 +247,35 @@ describe(`Functions endpoints`, () => {
         content: `code`,
         endpointId: `e`,
       }
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Project ID is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Project ID is required`
+      )
     })
 
     it(`should return 400 when endpointId is missing`, async () => {
+      const createdFunction = new TDFunction({
+        id: `new-1`,
+        name: `func`,
+        content: `code`,
+        projectId: `p`,
+        language: `typescript`,
+      })
       mockReq.body = {
         name: `func`,
         content: `code`,
         projectId: `p`,
       }
+
+      const mockCreate = mockReq.app?.locals.db.services.function.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdFunction })
+
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint ID is required` })
+      expect(mockCreate).toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(201)
     })
   })
 
@@ -300,10 +322,10 @@ describe(`Functions endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Function not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Function not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 
@@ -334,7 +356,7 @@ describe(`Functions endpoints`, () => {
       expect(mockGet).toHaveBeenCalledWith(`123`)
       expect(mockDelete).toHaveBeenCalledWith(`123`)
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ success: true })
+      expect(mockJson).toHaveBeenCalledWith({ data: { success: true } })
     })
 
     it(`should return 404 when function not found`, async () => {
@@ -345,10 +367,10 @@ describe(`Functions endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Function not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Function not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 })

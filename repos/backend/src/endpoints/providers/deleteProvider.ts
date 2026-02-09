@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * DELETE /providers/:id - Delete a provider
@@ -18,20 +18,18 @@ export const deleteProvider: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
 
-    // Get existing provider to find its scope
-    const { data: existing, error: getError } = await db.services.provider.get(id)
-
-    if (getError) throw new Exception(500, getError.message)
-
-    if (!existing) throw new Exception(404, `Provider not found`)
-
-    // Check permission based on provider's scope
-    const context = {
-      orgId: existing.orgId || undefined,
-      projectId: existing.projectId || undefined,
-    }
-
-    await checkPermission(req, EPermAction.delete, EPermResource.provider, context)
+    await requireResourceWithPermission(
+      req,
+      db.services.provider,
+      id,
+      EPermAction.delete,
+      EPermResource.provider,
+      `Provider`,
+      (provider) => ({
+        orgId: provider.orgId || undefined,
+        projectId: provider.projectId || undefined,
+      })
+    )
 
     // Delete the provider
     const { data, error } = await db.services.provider.delete(id)

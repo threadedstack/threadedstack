@@ -2,9 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * GET /_/functions/:id - Get function by ID
@@ -17,14 +16,14 @@ export const getFunction: TEndpointConfig = {
     const { db } = req.app.locals
     const { id } = req.params
 
-    const { data: func, error } = await db.services.function.get(id)
-    if (error) throw new Exception(500, error.message)
-    if (!func) throw new Exception(404, `Function not found`)
-
-    // Check permission
-    await checkPermission(req, EPermAction.read, EPermResource.function, {
-      projectId: func.projectId,
-    })
+    const func = await requireResourceWithPermission(
+      req,
+      db.services.function,
+      id,
+      EPermAction.read,
+      EPermResource.function,
+      `Function`
+    )
 
     res.status(200).json({ data: func })
   },

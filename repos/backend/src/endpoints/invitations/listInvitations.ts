@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
+import { parsePagination } from '@TBE/utils/pagination'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -24,6 +25,8 @@ export const listInvitations: TEndpointConfig = {
     // Check permission - requires admin+ in the org
     await checkPermission(req, EPermAction.read, EPermResource.role, { orgId })
 
+    const { limit, offset } = parsePagination(req)
+
     let invitations
     // TODO: make status an enum
     if (status === `pending`) {
@@ -38,6 +41,8 @@ export const listInvitations: TEndpointConfig = {
     }
 
     res.status(200).json({
+      limit,
+      offset,
       success: true,
       data: invitations,
     })

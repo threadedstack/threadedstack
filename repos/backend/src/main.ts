@@ -2,11 +2,11 @@ import type { TBEConfig } from '@TBE/types'
 
 import { app } from '@TBE/server/app'
 import { router } from '@TBE/server/router'
+import { signals } from '@TBE/utils/signals'
 import { initServer } from '@TBE/server/server'
-import { setupProxy } from '@TBE/middleware/setupProxy'
+import { EmailService } from '@TBE/services/email'
 import { setupServer } from '@TBE/middleware/setupServer'
 import { setupLogger } from '@TBE/middleware/setupLogger'
-import { EmailService } from '@TBE/services/email'
 import { setupDatabase } from '@TBE/middleware/setupDatabase'
 import { setupEndpoints } from '@TBE/middleware/setupEndpoints'
 import { PaymentsService } from '@TBE/services/payments/payments'
@@ -21,10 +21,10 @@ export const main = (config: TBEConfig) => {
   setupServer(app, router)
   setupDatabase(app)
   setupEndpoints(app, router)
-  //setupProxy(app, router)
   setupErrorHandler(app)
 
   const server = initServer()
+  signals(server)
 
   return {
     app,

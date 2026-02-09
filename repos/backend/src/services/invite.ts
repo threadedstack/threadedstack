@@ -1,10 +1,10 @@
 import type { TBEConfig } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
 import type { User, Organization } from '@tdsk/domain'
-import { EInviteStatus } from '@tdsk/domain'
 import type { EmailService } from '@TBE/services/email'
 
 import { logger } from '@TBE/utils/logger'
+import { EInviteStatus } from '@tdsk/domain'
 import { Exception } from '@TBE/utils/errors/exception'
 import {
   generateInvitationToken,
@@ -112,7 +112,7 @@ export class InviteService {
         invitationUrl: `${frontendUrl}/invitations/accept?token=${token}`,
       })
 
-      !emailSent && console.warn(`Failed to send invitation email to ${email}`)
+      !emailSent && logger.warn(`Failed to send invitation email to ${email}`)
     }
 
     return invite

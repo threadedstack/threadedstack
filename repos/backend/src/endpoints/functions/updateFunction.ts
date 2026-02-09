@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 import { Function as TDFunction, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -16,25 +16,23 @@ export const updateFunction: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { id } = req.params
-    const { name, description, content, language, defaultArgs, dependencies } = req.body
+    const { name, content, language, description, defaultArgs, dependencies } = req.body
 
-    const { data: existingFunc, error: fetchError } = await db.services.function.get(id)
-
-    if (fetchError) throw new Exception(500, fetchError.message)
-
-    if (!existingFunc) throw new Exception(404, `Function not found`)
-
-    // Check permission
-    await checkPermission(req, EPermAction.update, EPermResource.function, {
-      projectId: existingFunc.projectId,
-    })
+    const existingFunc = await requireResourceWithPermission(
+      req,
+      db.services.function,
+      id,
+      EPermAction.update,
+      EPermResource.function,
+      `Function`
+    )
 
     const func = new TDFunction({
       ...existingFunc,
       ...(name && { name }),
-      ...(description !== undefined && { description }),
       ...(content && { content }),
       ...(language && { language }),
+      ...(description !== undefined && { description }),
       ...(defaultArgs !== undefined && { defaultArgs }),
       ...(dependencies !== undefined && { dependencies }),
     })

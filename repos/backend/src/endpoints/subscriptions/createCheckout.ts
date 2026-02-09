@@ -41,8 +41,9 @@ export const createCheckout: TEndpointConfig = {
       )
 
     // Create checkout session
-    // Note: This assumes product has a price_id field - adjust based on actual Polar API
-    const priceId = productResult.data.id // Using product ID as price ID for now
+    // Extract the actual price ID from the product's prices
+    const prices = (productResult.data as any).prices
+    const priceId = prices?.[0]?.id || productResult.data.id
     const checkoutResult = await payments.service.createCheckout(
       priceId,
       customerResult.data.id,

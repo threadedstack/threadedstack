@@ -32,6 +32,9 @@ describe(`Providers endpoints`, () => {
       locals: {
         config,
         payments: new PaymentsService(config.payments),
+        auth: {
+          orgId: `org-1`,
+        },
         db: {
           services: {
             provider: {
@@ -57,7 +60,7 @@ describe(`Providers endpoints`, () => {
   beforeEach(() => {
     mockJson = vi.fn()
     mockSetHeader = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as ReturnType<typeof vi.fn>
 
     mockRes = {
       status: mockStatus,
@@ -119,9 +122,13 @@ describe(`Providers endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockList).toHaveBeenCalledWith({ orgId: `org-1`, projectId: undefined })
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1`, projectId: undefined },
+        limit: 50,
+        offset: 0,
+      })
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockProviders })
+      expect(mockJson).toHaveBeenCalledWith({ data: mockProviders, limit: 50, offset: 0 })
     })
 
     it(`should return 200 with providers for projectId`, async () => {
@@ -142,20 +149,26 @@ describe(`Providers endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockList).toHaveBeenCalledWith({ orgId: undefined, projectId: `proj-1` })
+      expect(mockList).toHaveBeenCalledWith({
+        where: { projectId: `proj-1` },
+        limit: 50,
+        offset: 0,
+      })
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockProviders })
+      expect(mockJson).toHaveBeenCalledWith({ data: mockProviders, limit: 50, offset: 0 })
     })
 
     it(`should return 400 when neither orgId nor projectId provided`, async () => {
+      const app = buildApp()
+      app.locals.auth = {}
       mockReq.query = {}
+      mockReq.app = app
+      const endpoint = providers.endpoints?.listProviders
+      const epl = isFunc(endpoint) ? endpoint(app) : endpoint
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `orgId or projectId query parameter required`,
-      })
+      await expect(epl.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `orgId or projectId query parameter required`
+      )
     })
 
     it(`should return empty array when no providers found`, async () => {
@@ -169,7 +182,26 @@ describe(`Providers endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: [] })
+      expect(mockJson).toHaveBeenCalledWith({ data: [], limit: 50, offset: 0 })
+    })
+
+    it(`should pass pagination params to list and include in response`, async () => {
+      mockReq.query = { orgId: `org-1`, limit: `10`, offset: `20` }
+
+      const mockList = mockReq.app?.locals.db.services.provider.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [] })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1`, projectId: undefined },
+        limit: 10,
+        offset: 20,
+      })
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(10)
+      expect(response.offset).toBe(20)
     })
 
     it(`should return 500 on database error`, async () => {
@@ -180,10 +212,10 @@ describe(`Providers endpoints`, () => {
       >
       mockList.mockResolvedValue({ error: new Error(`Database error`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database error` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database error`
+      )
+      expect(mockList).toHaveBeenCalledOnce()
     })
   })
 
@@ -219,10 +251,10 @@ describe(`Providers endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: null })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Provider not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
 
     it(`should return 500 on database error`, async () => {
@@ -233,10 +265,10 @@ describe(`Providers endpoints`, () => {
       >
       mockGet.mockResolvedValue({ error: new Error(`Database error`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database error` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database error`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`prov-1`)
     })
   })
 
@@ -295,7 +327,7 @@ describe(`Providers endpoints`, () => {
       mockReq.body = { name: `Provider`, type: `ai` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider must belong to an org or project (orgId or projectId required)`
+        `Provider must belong to one of: orgId, projectId`
       )
     })
 
@@ -308,7 +340,7 @@ describe(`Providers endpoints`, () => {
       }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider cannot belong to both org and project (provide only one)`
+        `Provider can only belong to one of: orgId, projectId (exclusive arc)`
       )
     })
 
@@ -375,10 +407,10 @@ describe(`Providers endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: null })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Provider not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
 
     it(`should return 500 on get error`, async () => {
@@ -390,10 +422,10 @@ describe(`Providers endpoints`, () => {
       >
       mockGet.mockResolvedValue({ error: new Error(`Database error`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database error` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database error`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`prov-1`)
     })
 
     it(`should return 500 on update error`, async () => {
@@ -416,10 +448,11 @@ describe(`Providers endpoints`, () => {
       mockGet.mockResolvedValue({ data: existingProvider })
       mockUpdate.mockResolvedValue({ error: new Error(`Update failed`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Update failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Update failed`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`prov-1`)
+      expect(mockUpdate).toHaveBeenCalled()
     })
   })
 
@@ -461,10 +494,10 @@ describe(`Providers endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: null })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Provider not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
 
     it(`should return 500 on get error`, async () => {
@@ -475,10 +508,10 @@ describe(`Providers endpoints`, () => {
       >
       mockGet.mockResolvedValue({ error: new Error(`Database error`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database error` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database error`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`prov-1`)
     })
 
     it(`should return 500 on delete error`, async () => {
@@ -500,10 +533,11 @@ describe(`Providers endpoints`, () => {
       mockGet.mockResolvedValue({ data: existingProvider })
       mockDelete.mockResolvedValue({ error: new Error(`Delete failed`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Delete failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Delete failed`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`prov-1`)
+      expect(mockDelete).toHaveBeenCalledWith(`prov-1`)
     })
   })
 })

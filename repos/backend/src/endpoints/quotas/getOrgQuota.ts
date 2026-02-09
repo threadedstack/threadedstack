@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
+import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 
 /**
  * GET /quotas/:orgId - Get current quota usage for an organization
@@ -22,8 +23,7 @@ export const getOrgQuota: TEndpointConfig = {
     await requireOrgMember(req, orgId)
 
     // Get current period (YYYY-MM format)
-    const now = new Date()
-    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const period = getBillingPeriod()
 
     const { data, error } = await db.services.quota.findByOrgAndPeriod(orgId, period)
     if (error) throw new Exception(500, error.message)

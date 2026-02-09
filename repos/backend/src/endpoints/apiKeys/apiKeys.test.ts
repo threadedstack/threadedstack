@@ -51,7 +51,7 @@ describe(`API Keys endpoints`, () => {
   beforeEach(() => {
     mockJson = vi.fn()
     mockSetHeader = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as ReturnType<typeof vi.fn>
 
     mockRes = {
       status: mockStatus,
@@ -135,13 +135,6 @@ describe(`API Keys endpoints`, () => {
           keyPrefix: `p1`,
           orgId: `org-1`,
         }),
-        new ApiKey({
-          id: `2`,
-          name: `K2`,
-          keyHash: `h2`,
-          keyPrefix: `p2`,
-          orgId: `org-2`,
-        }),
       ]
       mockReq.query = { orgId: `org-1` }
 
@@ -151,9 +144,61 @@ describe(`API Keys endpoints`, () => {
       mockList.mockResolvedValue({ data: mockApiKeys })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 50,
+        offset: 0,
+      })
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
       expect(responseData[0].orgId).toBe(`org-1`)
+    })
+
+    it(`should pass pagination params to list and include in response`, async () => {
+      const mockApiKeys = [
+        new ApiKey({
+          id: `1`,
+          name: `K1`,
+          keyHash: `h1`,
+          keyPrefix: `p1`,
+          orgId: `org-1`,
+        }),
+      ]
+      mockReq.query = { orgId: `org-1`, limit: `10`, offset: `20` }
+
+      const mockList = mockReq.app?.locals.db.services.apiKey.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: mockApiKeys })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 10,
+        offset: 20,
+      })
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(10)
+      expect(response.offset).toBe(20)
+    })
+
+    it(`should cap limit at 200 for pagination`, async () => {
+      mockReq.query = { orgId: `org-1`, limit: `500` }
+
+      const mockList = mockReq.app?.locals.db.services.apiKey.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [] })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 200,
+        offset: 0,
+      })
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(200)
+      expect(response.offset).toBe(0)
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -163,10 +208,9 @@ describe(`API Keys endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ error: mockError })
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database connection failed`
+      )
     })
   })
 
@@ -207,10 +251,10 @@ describe(`API Keys endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `API key not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `API key not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 
@@ -249,38 +293,30 @@ describe(`API Keys endpoints`, () => {
 
     it(`should return 400 when name is missing`, async () => {
       mockReq.body = { orgId: `org-1` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `API key name is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `API key name is required`
+      )
     })
 
     it(`should return 400 when neither orgId nor projectId is provided`, async () => {
       mockReq.body = { name: `KEY` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `API key must belong to an org or project`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `API key must belong to an org or project`
+      )
     })
 
     it(`should return 400 when both orgId and projectId are provided`, async () => {
       mockReq.body = { name: `KEY`, orgId: `org-1`, projectId: `project-1` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `API key can only belong to one of: org or project (exclusive arc)`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `API key can only belong to one of: org or project (exclusive arc)`
+      )
     })
 
     it(`should return 400 when scopes are invalid`, async () => {
       mockReq.body = { name: `KEY`, orgId: `org-1`, scopes: `invalid_scope` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson.mock.calls[0][0].error).toContain(`Invalid scopes`)
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Invalid scopes`
+      )
     })
 
     it(`should accept custom scopes`, async () => {
@@ -338,12 +374,9 @@ describe(`API Keys endpoints`, () => {
     it(`should return 400 when expiration date is in the past`, async () => {
       const pastDate = new Date(Date.now() - 86400000).toISOString()
       mockReq.body = { name: `Expired Key`, orgId: `org-1`, expiresAt: pastDate }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `Expiration date must be in the future`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Expiration date must be in the future`
+      )
     })
   })
 
@@ -389,10 +422,10 @@ describe(`API Keys endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `API key not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `API key not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
 
     it(`should return 400 when scopes are invalid`, async () => {
@@ -412,9 +445,9 @@ describe(`API Keys endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: existingApiKey })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Invalid scopes`
+      )
     })
   })
 
@@ -456,10 +489,10 @@ describe(`API Keys endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `API key not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `API key not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 })

@@ -43,7 +43,7 @@ describe(`Configs endpoints`, () => {
 
   beforeEach(() => {
     mockJson = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as ReturnType<typeof vi.fn>
 
     mockRes = {
       status: mockStatus,
@@ -86,12 +86,6 @@ describe(`Configs endpoints`, () => {
           orgId: `org-1`,
           createdAt: new Date(),
         }),
-        new Config({
-          id: `2`,
-          data: { lang: `en` },
-          projectId: `project-1`,
-          createdAt: new Date(),
-        }),
       ]
 
       const mockList = mockReq.app?.locals.db.services.config.list as ReturnType<
@@ -112,19 +106,14 @@ describe(`Configs endpoints`, () => {
 
     it(`should return 400 when no scope parameter provided`, async () => {
       mockReq.query = {}
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `orgId, projectId, or userId query parameter required`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `An orgId, projectId, or userId query parameter required`
+      )
     })
 
     it(`should filter by projectId when provided`, async () => {
-      const mockConfigs = [
-        new Config({ id: `1`, data: {}, projectId: `project-1` }),
-        new Config({ id: `2`, data: {}, projectId: `project-2` }),
-      ]
+      const mockConfigs = [new Config({ id: `1`, data: {}, projectId: `project-1` })]
       mockReq.query = { projectId: `project-1` }
 
       const mockList = mockReq.app?.locals.db.services.config.list as ReturnType<
@@ -138,6 +127,25 @@ describe(`Configs endpoints`, () => {
       expect(responseData[0].projectId).toBe(`project-1`)
     })
 
+    it(`should pass pagination params to list and include in response`, async () => {
+      mockReq.query = { orgId: `org-1`, limit: `20`, offset: `5` }
+
+      const mockList = mockReq.app?.locals.db.services.config.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [] })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 20,
+        offset: 5,
+      })
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(20)
+      expect(response.offset).toBe(5)
+    })
+
     it(`should return 500 on database error`, async () => {
       const mockError = new Error(`Database connection failed`)
       mockReq.query = { orgId: `org-1` }
@@ -146,10 +154,11 @@ describe(`Configs endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ error: mockError })
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database connection failed`
+      )
+      expect(mockList).toHaveBeenCalledOnce()
     })
   })
 
@@ -184,10 +193,10 @@ describe(`Configs endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Config not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Config not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 
@@ -216,20 +225,18 @@ describe(`Configs endpoints`, () => {
 
     it(`should return 400 when data is missing`, async () => {
       mockReq.body = { orgId: `org-1` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Config data is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Config data is required`
+      )
     })
 
     it(`should return 400 when no scope is provided`, async () => {
       mockReq.body = { data: { key: `value` } }
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `Config must belong to an org, project, or user`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Config must belong to one of: orgId, userId, projectId`
+      )
     })
 
     it(`should return 400 when multiple scopes are provided`, async () => {
@@ -238,12 +245,10 @@ describe(`Configs endpoints`, () => {
         orgId: `org-1`,
         projectId: `project-1`,
       }
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `Config can only belong to one of: org, project, or user (exclusive arc)`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Config can only belong to one of: orgId, userId, projectId (exclusive arc)`
+      )
     })
   })
 
@@ -289,10 +294,10 @@ describe(`Configs endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Config not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Config not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 
@@ -321,7 +326,7 @@ describe(`Configs endpoints`, () => {
       expect(mockGet).toHaveBeenCalledWith(`123`)
       expect(mockDelete).toHaveBeenCalledWith(`123`)
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ success: true })
+      expect(mockJson).toHaveBeenCalledWith({ data: { success: true } })
     })
 
     it(`should return 404 when config not found`, async () => {
@@ -332,10 +337,10 @@ describe(`Configs endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Config not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Config not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 })

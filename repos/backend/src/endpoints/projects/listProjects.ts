@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { ERoleType } from '@tdsk/domain'
 import { Exception } from '@TBE/utils/errors/exception'
+import { parsePagination } from '@TBE/utils/pagination'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -23,17 +24,23 @@ export const listProjects: TEndpointConfig = {
 
     const userRole = await getUserRole(req, {})
 
-    // Super admins see everything with DB filtering
-    // TODO: need to figure out if super users actually see everything
-    // This is a security issue and probably not a good idea
+    const { limit, offset } = parsePagination(req)
+
+    // Note: Super admins intentionally see all projects across all orgs.
+    // This is by design for platform administration. Regular users
+    // are filtered to only see projects in their member orgs.
     if (userRole === ERoleType.super) {
       const { data, error } = orgId
-        ? await db.services.project.list({ where: { orgId: orgId as string } })
-        : await db.services.project.list()
+        ? await db.services.project.list({
+            where: { orgId: orgId as string },
+            limit,
+            offset,
+          })
+        : await db.services.project.list({ limit, offset })
 
       if (error) throw new Exception(500, error.message)
 
-      res.status(200).json({ data: data || [] })
+      res.status(200).json({ data: data || [], limit, offset })
       return
     }
 
@@ -41,14 +48,18 @@ export const listProjects: TEndpointConfig = {
     const { data: userOrgIds } = await db.services.role.getUserOrgs(userId)
 
     if (!userOrgIds || userOrgIds.length === 0) {
-      res.status(200).json({ data: [] })
+      res.status(200).json({ data: [], limit, offset })
       return
     }
 
     const whereClause = orgId ? { orgId: orgId } : { orgId: userOrgIds }
-    const { data, error } = await db.services.project.list({ where: whereClause })
+    const { data, error } = await db.services.project.list({
+      limit,
+      offset,
+      where: whereClause,
+    })
     if (error) throw new Exception(500, error.message)
 
-    res.status(200).json({ data: data || [] })
+    res.status(200).json({ data: data || [], limit, offset })
   },
 }

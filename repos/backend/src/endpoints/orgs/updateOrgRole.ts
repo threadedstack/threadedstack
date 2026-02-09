@@ -41,6 +41,6 @@ export const updateOrgRole: TEndpointConfig = {
 
     if (updateError) throw new Exception(500, updateError.message)
 
-    res.status(200).json({ success: true, data: updatedRole })
+    res.status(200).json({ data: updatedRole })
   },
 }

@@ -25,12 +25,16 @@ export class PolarService extends BaseService {
   #token: string
   #service: Polar
   #wbhSecret: string
-  #cache: Map<string, { data: TPayProduct }> = new Map()
+  #cache: Map<string, { data: TPayProduct; cachedAt: number }> = new Map()
+
+  static readonly CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
   constructor(config: TPayConfig) {
     if (!config.token) throw new Exception(500, `Payments access token is required`)
 
     super(config)
+
+    this.#token = config.token
 
     this.#service = new Polar({
       accessToken: this.#token,
@@ -51,7 +55,7 @@ export class PolarService extends BaseService {
    * Fetch all configured payment plans from Polar API
    * Uses product IDs from config to fetch product details
    */
-  fetchPlans = async (): Promise<TPlanResp> => {
+  async fetchPlans(): Promise<TPlanResp> {
     try {
       const productIds = Object.values(this.plans).filter((id) => id && !id.includes(`=`))
       if (productIds.length === 0)
@@ -60,12 +64,13 @@ export class PolarService extends BaseService {
         }
 
       const plans: Plan[] = []
+      const results = await Promise.all(
+        productIds.map((productId) => this.fetchProduct(productId))
+      )
 
-      for (const productId of productIds) {
-        const result = await this.fetchProduct(productId)
-
+      for (const [idx, result] of results.entries()) {
         if (result.error || !result.data) {
-          logger.error(`Failed to fetch product ${productId}:`, result?.error)
+          logger.error(`Failed to fetch product ${productIds[idx]}:`, result?.error)
           continue
         }
 
@@ -94,16 +99,19 @@ export class PolarService extends BaseService {
   /**
    * Fetch a single product by ID from Polar API
    */
-  fetchProduct = async (
+  async fetchProduct(
     productId: string
-  ): Promise<{ data?: TPayProduct; error?: Exception }> => {
-    if (this.#cache.has(productId)) return this.#cache.get(productId) || {}
+  ): Promise<{ data?: TPayProduct; error?: Exception }> {
+    const cached = this.#cache.get(productId)
+    if (cached && Date.now() - cached.cachedAt < PolarService.CACHE_TTL) {
+      return { data: cached.data }
+    }
 
     const resp = await this.#api.get<TPayProduct>({
       path: `/products/${productId}`,
     })
 
-    if (resp?.data) this.#cache.set(productId, { data: resp.data })
+    if (resp?.data) this.#cache.set(productId, { data: resp.data, cachedAt: Date.now() })
     return resp
   }
 
@@ -111,9 +119,9 @@ export class PolarService extends BaseService {
    * Get plan limits for a given product ID
    * This fetches the product and returns its metadata as TPayPlanMeta
    */
-  getPlanLimits = async (
+  async getPlanLimits(
     productId: string
-  ): Promise<{ data?: TPayPlanMeta; error?: Exception }> => {
+  ): Promise<{ data?: TPayPlanMeta; error?: Exception }> {
     const resp = await this.fetchProduct(productId)
 
     if (resp.error) return { error: resp.error }
@@ -139,10 +147,10 @@ export class PolarService extends BaseService {
   /**
    * Get or create a customer in Polar
    */
-  ensureCustomer = async (
+  async ensureCustomer(
     email: string,
     userId: string
-  ): Promise<{ data?: TPayCustomer; error?: Exception }> => {
+  ): Promise<{ data?: TPayCustomer; error?: Exception }> {
     const resp = await this.#api.get<{ data: TPayCustomer[] }>({
       data: { email },
       path: `/customers`,
@@ -167,13 +175,13 @@ export class PolarService extends BaseService {
   /**
    * Create a checkout session for a subscription
    */
-  createCheckout = async (
+  async createCheckout(
     priceId: string,
     customerId: string,
     userId: string,
     successUrl: string,
     cancelUrl: string
-  ): Promise<{ data?: TPayCheckoutSession; error?: Exception }> => {
+  ): Promise<{ data?: TPayCheckoutSession; error?: Exception }> {
     return await this.#api.post<TPayCheckoutSession>({
       path: `/checkout/sessions`,
       data: {
@@ -189,9 +197,9 @@ export class PolarService extends BaseService {
   /**
    * Create a customer portal session for managing subscription
    */
-  createPortal = async (
+  async createPortal(
     customerId: string
-  ): Promise<{ data?: TPayPortalSession; error?: Error }> => {
+  ): Promise<{ data?: TPayPortalSession; error?: Error }> {
     return await this.#api.post<TPayPortalSession>({
       data: { customer_id: customerId },
       path: `/portal/sessions`,
@@ -200,9 +208,18 @@ export class PolarService extends BaseService {
 
   /**
    * Validate webhook signature from Polar
+   * Uses timing-safe comparison and rejects stale timestamps
    */
-  validateWebhook = (payload: string, signature: string, timestamp: string): boolean => {
+  validateWebhook(payload: string, signature: string, timestamp: string): boolean {
     try {
+      if (!timestamp || !signature) return false
+
+      // Reject stale webhooks (older than 5 minutes)
+      const ts = Number.parseInt(timestamp, 10)
+      if (isNaN(ts)) return false
+      const age = Math.abs(Date.now() / 1000 - ts)
+      if (age > 300) return false
+
       // Polar uses a simple HMAC-SHA256 signature
       const signedPayload = `${timestamp}.${payload}`
       const expectedSignature = crypto
@@ -210,7 +227,11 @@ export class PolarService extends BaseService {
         .update(signedPayload)
         .digest(`hex`)
 
-      return signature === expectedSignature
+      const sigBuf = Buffer.from(signature, `utf8`)
+      const expectedBuf = Buffer.from(expectedSignature, `utf8`)
+
+      if (sigBuf.length !== expectedBuf.length) return false
+      return crypto.timingSafeEqual(sigBuf, expectedBuf)
     } catch (err: unknown) {
       logger.error(`Failed to validate webhook signature:`, err)
       return false
@@ -220,9 +241,9 @@ export class PolarService extends BaseService {
   /**
    * Cancel a subscription
    */
-  cancelSubscription = async (
+  async cancelSubscription(
     subscriptionId: string
-  ): Promise<{ data?: { success: boolean }; error?: Error }> => {
+  ): Promise<{ data?: { success: boolean }; error?: Error }> {
     const resp = await this.#api.post({
       path: `/subscriptions/${subscriptionId}/cancel`,
     })
@@ -233,7 +254,7 @@ export class PolarService extends BaseService {
   /**
    * Webhook handler for Polar.sh subscription events
    */
-  webhook = async (app: TApp, payload: any) => {
+  async webhook(app: TApp, payload: any) {
     const db = app.locals.db
     const payments = app.locals.payments
 
@@ -260,7 +281,7 @@ export class PolarService extends BaseService {
           // Determine tier from product ID
           const tier = payments.service.getTierForProductId(sub.product_id) || `free`
 
-          const result = await db.services.subscription.upsert({
+          const result = await db.services.subscription.upsertByUser({
             tier: tier,
             userId: userId,
             polarId: sub.id,
@@ -291,12 +312,12 @@ export class PolarService extends BaseService {
             return { error: new Error(`Missing userId in metadata`) }
           }
 
-          const result = await db.services.subscription.upsert({
-            tier: `free`,
+          const result = await db.services.subscription.upsertByUser({
             userId: userId,
             polarId: sub.id,
             status: `cancelled`,
             cancelAtPeriodEnd: true,
+            currentPeriodEnd: sub.current_period_end,
           })
 
           if (result.error) {
@@ -316,19 +337,5 @@ export class PolarService extends BaseService {
       logger.error(`Error processing Polar webhook:`, err)
       return { error: err as Error }
     }
-  }
-
-  /**
-   * Get the product ID for a given tier name
-   */
-  getProductIdForTier = (tier: string): string | undefined => {
-    return this.plans[tier.toLowerCase()]
-  }
-
-  /**
-   * Get the tier name for a given product ID
-   */
-  getTierForProductId = (productId: string): string | undefined => {
-    return Object.entries(this.plans).find(([_, id]) => id === productId)?.[0]
   }
 }

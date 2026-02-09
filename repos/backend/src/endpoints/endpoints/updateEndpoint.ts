@@ -5,8 +5,8 @@ import { EPMethod } from '@TBE/types'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { HttpMethods } from '@TBE/constants/values'
 import { Exception } from '@TBE/utils/errors/exception'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * PUT /endpoints/:id - Update an existing endpoint
@@ -29,16 +29,14 @@ export const updateEndpoint: TEndpointConfig = {
       public: isPublic,
     } = req.body
 
-    const { data: existing, error: getError } = await db.services.endpoint.get(id)
-
-    if (getError) throw new Exception(500, getError.message)
-
-    if (!existing) throw new Exception(404, `Endpoint not found`)
-
-    // Check permission based on endpoint's projectId - requires member+
-    await checkPermission(req, EPermAction.update, EPermResource.endpoint, {
-      projectId: existing.projectId,
-    })
+    const existing = await requireResourceWithPermission(
+      req,
+      db.services.endpoint,
+      id,
+      EPermAction.update,
+      EPermResource.endpoint,
+      `Endpoint`
+    )
 
     // Validate HTTP method if provided
     if (method) {

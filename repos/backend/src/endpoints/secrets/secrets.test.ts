@@ -42,6 +42,12 @@ describe(`Secrets endpoints`, () => {
               update: vi.fn(),
               delete: vi.fn(),
             },
+            provider: {
+              get: vi.fn(),
+            },
+            agent: {
+              get: vi.fn(),
+            },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `member` } }),
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `member` } }),
@@ -137,13 +143,6 @@ describe(`Secrets endpoints`, () => {
           orgId: `org-1`,
           encryptedValue: `e`,
         }),
-        new Secret({
-          id: `2`,
-          name: `S2`,
-          hashKey: `h2`,
-          orgId: `org-2`,
-          encryptedValue: `e`,
-        }),
       ]
       mockReq.query = { orgId: `org-1` }
 
@@ -153,9 +152,76 @@ describe(`Secrets endpoints`, () => {
       mockList.mockResolvedValue({ data: mockSecrets })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 50,
+        offset: 0,
+      })
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
       expect(responseData[0].orgId).toBe(`org-1`)
+    })
+
+    it(`should pass pagination params to list and include in response`, async () => {
+      const mockSecrets = [
+        new Secret({
+          id: `1`,
+          name: `S1`,
+          hashKey: `h1`,
+          orgId: `org-1`,
+          encryptedValue: `e`,
+        }),
+      ]
+      mockReq.query = { orgId: `org-1`, limit: `25`, offset: `10` }
+
+      const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: mockSecrets })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 25,
+        offset: 10,
+      })
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(25)
+      expect(response.offset).toBe(10)
+    })
+
+    it(`should filter by agentId when provided`, async () => {
+      const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockAgentGet.mockResolvedValue({ data: { orgId: `org-agent-1` } })
+
+      const mockSecrets = [
+        new Secret({
+          id: `1`,
+          name: `AGENT_SECRET`,
+          hashKey: `h1`,
+          agentId: `agent-1`,
+          encryptedValue: `e`,
+        }),
+      ]
+      mockReq.query = { agentId: `agent-1` }
+
+      const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: mockSecrets })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockAgentGet).toHaveBeenCalledWith(`agent-1`)
+      expect(mockList).toHaveBeenCalledWith({
+        where: { agentId: `agent-1` },
+        limit: 50,
+        offset: 0,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).toHaveLength(1)
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -166,10 +232,9 @@ describe(`Secrets endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ error: mockError })
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database connection failed`
+      )
     })
   })
 
@@ -209,10 +274,10 @@ describe(`Secrets endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Secret not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 
@@ -250,28 +315,23 @@ describe(`Secrets endpoints`, () => {
 
     it(`should return 400 when name is missing`, async () => {
       mockReq.body = { value: `secret`, orgId: `org-1` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Secret name is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret name is required`
+      )
     })
 
     it(`should return 400 when value is missing`, async () => {
       mockReq.body = { name: `KEY`, orgId: `org-1` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Secret value is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret value is required`
+      )
     })
 
-    it(`should return 400 when neither orgId nor projectId is provided`, async () => {
+    it(`should return 400 when no owner field is provided`, async () => {
       mockReq.body = { name: `KEY`, value: `secret` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `Secret must belong to an org, project, or provider`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret must belong to one of: orgId, agentId, projectId, providerId`
+      )
     })
 
     it(`should return 400 when both orgId and projectId are provided`, async () => {
@@ -281,12 +341,117 @@ describe(`Secrets endpoints`, () => {
         orgId: `org-1`,
         projectId: `project-1`,
       }
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret can only belong to one of: orgId, agentId, projectId, providerId (exclusive arc)`
+      )
+    })
+
+    it(`should return 400 when org+provider combination is provided (BUG-004 fix)`, async () => {
+      mockReq.body = {
+        name: `KEY`,
+        value: `secret`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+      }
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret can only belong to one of: orgId, agentId, projectId, providerId (exclusive arc)`
+      )
+    })
+
+    it(`should return 400 when project+provider combination is provided (BUG-004 fix)`, async () => {
+      mockReq.body = {
+        name: `KEY`,
+        value: `secret`,
+        projectId: `project-1`,
+        providerId: `provider-1`,
+      }
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret can only belong to one of: orgId, agentId, projectId, providerId (exclusive arc)`
+      )
+    })
+
+    it(`should return 201 when creating secret with agentId`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
+      const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockAgentGet.mockResolvedValue({ data: { orgId: `org-agent-1` } })
+
+      const createdSecret = new Secret({
+        id: `789`,
+        name: `AGENT_KEY`,
+        hashKey: `hash`,
+        agentId: `agent-123`,
+        encryptedValue: `encrypted`,
+      })
+      mockReq.body = { name: `AGENT_KEY`, value: `agent-secret`, agentId: `agent-123` }
+
+      const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdSecret })
+
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `Secret can only belong to one of: org, project, or provider (exclusive arc)`,
-      })
+      expect(mockAgentGet).toHaveBeenCalledWith(`agent-123`)
+      expect(mockCreate).toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData.encryptedValue).toBe(undefined)
+    })
+
+    it(`should return 400 when agentId + orgId are both provided (exclusive arc)`, async () => {
+      mockReq.body = {
+        name: `KEY`,
+        value: `secret`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      }
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret can only belong to one of: orgId, agentId, projectId, providerId (exclusive arc)`
+      )
+    })
+
+    it(`should return 404 when agent secret references non-existent agent`, async () => {
+      mockReq.body = {
+        name: `KEY`,
+        value: `secret`,
+        agentId: `agent-nonexistent`,
+      }
+
+      const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockAgentGet.mockResolvedValue({ data: null })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Agent not found`
+      )
+    })
+
+    it(`should return 404 when provider secret references non-existent provider (SEC-007 fix)`, async () => {
+      // Override role to admin for create operation
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
+      mockReq.body = {
+        name: `KEY`,
+        value: `secret`,
+        providerId: `provider-nonexistent`,
+      }
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: null })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider not found`
+      )
     })
   })
 
@@ -335,10 +500,10 @@ describe(`Secrets endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Secret not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 
@@ -384,10 +549,10 @@ describe(`Secrets endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Secret not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Secret not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 })

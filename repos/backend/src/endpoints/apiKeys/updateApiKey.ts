@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { ApiKey, EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 import { validateExpiresAt, validateApiScopes } from '@TBE/utils/auth/validateApiKey'
 
 /**
@@ -19,33 +19,23 @@ export const updateApiKey: TEndpointConfig = {
     const { db } = req.app.locals
     const { name, scopes, expiresAt, rateLimit, active } = req.body
 
-    const { data: existing, error: getError } = await db.services.apiKey.get(id)
-
-    if (getError) {
-      throw new Exception(500, getError.message)
-    }
-
-    if (!existing) {
-      throw new Exception(404, `API key not found`)
-    }
-
-    // Check permission based on API key's orgId - requires admin+
-    await checkPermission(req, EPermAction.update, EPermResource.apiKey, {
-      orgId: existing.orgId,
-    })
+    await requireResourceWithPermission(
+      req,
+      db.services.apiKey,
+      id,
+      EPermAction.update,
+      EPermResource.apiKey,
+      `API key`
+    )
 
     if (scopes) {
       const { valid, error } = validateApiScopes(scopes)
-      if (!valid || error) {
-        throw new Exception(400, error || `Invalid scopes.`)
-      }
+      if (!valid || error) throw new Exception(400, error || `Invalid scopes.`)
     }
 
     if (expiresAt) {
       const { valid, error } = validateExpiresAt(expiresAt)
-      if (!valid || error) {
-        throw new Exception(400, error || `Invalid expiration date`)
-      }
+      if (!valid || error) throw new Exception(400, error || `Invalid expiration date`)
     }
 
     try {
@@ -60,9 +50,7 @@ export const updateApiKey: TEndpointConfig = {
 
       const { data, error } = await db.services.apiKey.update(update)
 
-      if (error) {
-        throw new Exception(500, error.message)
-      }
+      if (error) throw new Exception(500, error.message)
 
       res.status(200).json({ data: data.sanitize() })
     } catch (err) {

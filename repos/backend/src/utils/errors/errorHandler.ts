@@ -20,5 +20,6 @@ export const errorHandler = function errorHandler(
 
   res.status(status).json({
     error: message,
+    ...(code && { code }),
   })
 }

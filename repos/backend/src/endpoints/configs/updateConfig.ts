@@ -3,8 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Config, EPermAction, EPermResource } from '@tdsk/domain'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * PUT /_/configs/:id - Update config
@@ -18,17 +18,14 @@ export const updateConfig: TEndpointConfig = {
     const { id } = req.params
     const { data } = req.body
 
-    const { data: existing, error: fetchError } = await db.services.config.get(id)
-
-    if (fetchError) throw new Exception(500, fetchError.message)
-
-    if (!existing) throw new Exception(404, `Config not found`)
-
-    // Check permission
-    await checkPermission(req, EPermAction.update, EPermResource.config, {
-      orgId: existing.orgId,
-      projectId: existing.projectId,
-    })
+    const existing = await requireResourceWithPermission(
+      req,
+      db.services.config,
+      id,
+      EPermAction.update,
+      EPermResource.config,
+      `Config`
+    )
 
     const config = new Config({
       ...existing,

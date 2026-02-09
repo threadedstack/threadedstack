@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { parsePagination } from '@TBE/utils/pagination'
 
 /**
  * GET /endpoints - List all endpoints
@@ -25,13 +26,16 @@ export const listEndpoints: TEndpointConfig = {
       projectId: projectId as string,
     })
 
-    const { data, error } = await db.services.endpoint.list()
+    const { limit, offset } = parsePagination(req)
+
+    const { data, error } = await db.services.endpoint.list({
+      limit,
+      offset,
+      where: { projectId: projectId as string },
+    })
 
     if (error) throw new Exception(500, error.message)
 
-    let eps = data || []
-    if (projectId) eps = eps.filter((e: any) => e.projectId === projectId)
-
-    res.status(200).json({ data: eps })
+    res.status(200).json({ data: data || [], limit, offset })
   },
 }

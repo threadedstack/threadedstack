@@ -117,6 +117,8 @@ describe(`Invitations endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({
         success: true,
         data: mockInvitations,
+        limit: 50,
+        offset: 0,
       })
     })
 
@@ -151,7 +153,34 @@ describe(`Invitations endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({
         success: true,
         data: mockInvitations,
+        limit: 50,
+        offset: 0,
       })
+    })
+
+    it(`should pass pagination params and include in response`, async () => {
+      const mockInvitations = [
+        new Invitation({
+          id: `inv-1`,
+          email: `user1@example.com`,
+          orgId: `org-1`,
+          roleType: ERoleType.member,
+          status: `pending`,
+        }),
+      ]
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { limit: `10`, offset: `20` }
+
+      const mockGetPending = mockReq.app?.locals.db.services.invitation
+        .getPendingByOrg as ReturnType<typeof vi.fn>
+      mockGetPending.mockResolvedValue({ data: mockInvitations })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(10)
+      expect(response.offset).toBe(20)
     })
 
     it(`should filter by specific status when provided`, async () => {
@@ -194,10 +223,9 @@ describe(`Invitations endpoints`, () => {
         .getPendingByOrg as ReturnType<typeof vi.fn>
       mockGetPending.mockResolvedValue({ error: new Error(`Database error`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database error` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database error`
+      )
     })
 
     it(`should return 500 on database error for all`, async () => {
@@ -208,10 +236,9 @@ describe(`Invitations endpoints`, () => {
         .getAllByOrg as ReturnType<typeof vi.fn>
       mockGetAll.mockResolvedValue({ error: new Error(`Database error`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database error` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database error`
+      )
     })
   })
 
@@ -327,22 +354,18 @@ describe(`Invitations endpoints`, () => {
     it(`should return 400 when token is missing`, async () => {
       mockReq.body = {}
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Token is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Token is required`
+      )
     })
 
     it(`should return 401 when user is not logged in`, async () => {
       mockReq.body = { token: `valid-token` }
       mockReq.user = undefined
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(401)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `You must be logged in to accept an invitation`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `You must be logged in to accept an invitation`
+      )
     })
 
     it(`should return 404 when invitation token is invalid`, async () => {
@@ -352,10 +375,10 @@ describe(`Invitations endpoints`, () => {
         .getByToken as ReturnType<typeof vi.fn>
       mockGetByToken.mockResolvedValue({ data: null })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Invalid invitation token` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Invalid invitation token`
+      )
+      expect(mockGetByToken).toHaveBeenCalledWith(`invalid-token`)
     })
 
     it(`should return 400 when invitation is expired`, async () => {
@@ -375,10 +398,9 @@ describe(`Invitations endpoints`, () => {
         .getByToken as ReturnType<typeof vi.fn>
       mockGetByToken.mockResolvedValue({ data: mockInvitation })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `This invitation has expired` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `This invitation has expired`
+      )
     })
 
     it(`should return 400 when invitation is revoked`, async () => {
@@ -398,10 +420,9 @@ describe(`Invitations endpoints`, () => {
         .getByToken as ReturnType<typeof vi.fn>
       mockGetByToken.mockResolvedValue({ data: mockInvitation })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `This invitation has been revoked` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `This invitation has been revoked`
+      )
     })
 
     it(`should return 400 when invitation is already accepted`, async () => {
@@ -421,12 +442,9 @@ describe(`Invitations endpoints`, () => {
         .getByToken as ReturnType<typeof vi.fn>
       mockGetByToken.mockResolvedValue({ data: mockInvitation })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `This invitation has already been accepted`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `This invitation has already been accepted`
+      )
     })
 
     it(`should return 403 when email does not match`, async () => {
@@ -444,12 +462,9 @@ describe(`Invitations endpoints`, () => {
         .getByToken as ReturnType<typeof vi.fn>
       mockGetByToken.mockResolvedValue({ data: mockInvitation })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(403)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `This invitation was sent to other@example.com. You are logged in as test@example.com.`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `This invitation was sent to other@example.com. You are logged in as test@example.com.`
+      )
     })
 
     it(`should return 400 when user is already a member`, async () => {
@@ -471,12 +486,9 @@ describe(`Invitations endpoints`, () => {
       mockGetByToken.mockResolvedValue({ data: mockInvitation })
       mockGetOrgRole.mockResolvedValue({ data: { id: `existing-role` } })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `You are already a member of this organization`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `You are already a member of this organization`
+      )
     })
 
     it(`should return 500 when role creation fails`, async () => {
@@ -502,10 +514,9 @@ describe(`Invitations endpoints`, () => {
       mockGetOrgRole.mockResolvedValue({ data: null })
       mockCreateRole.mockResolvedValue({ error: new Error(`Role creation failed`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Role creation failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Role creation failed`
+      )
     })
 
     it(`should return 500 when getByToken fails`, async () => {
@@ -515,10 +526,9 @@ describe(`Invitations endpoints`, () => {
         .getByToken as ReturnType<typeof vi.fn>
       mockGetByToken.mockResolvedValue({ error: new Error(`Database error`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database error` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database error`
+      )
     })
   })
 
@@ -565,12 +575,9 @@ describe(`Invitations endpoints`, () => {
       mockReq.params = { invitationId: `inv-1` }
       mockReq.user = undefined
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(401)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `You must be logged in to revoke an invitation`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `You must be logged in to revoke an invitation`
+      )
     })
 
     it(`should return 404 when invitation not found`, async () => {
@@ -581,10 +588,9 @@ describe(`Invitations endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: null })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Invitation not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Invitation not found`
+      )
     })
 
     it(`should return 400 when invitation is already revoked`, async () => {
@@ -604,12 +610,9 @@ describe(`Invitations endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: mockInvitation })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `This invitation has already been revoked`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `This invitation has already been revoked`
+      )
     })
 
     it(`should return 400 when invitation is already accepted`, async () => {
@@ -629,12 +632,9 @@ describe(`Invitations endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: mockInvitation })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `This invitation has already been accepted. Use the role management endpoints to remove the user.`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `This invitation has already been accepted. Use the role management endpoints to remove the user.`
+      )
     })
 
     it(`should return 400 when invitation is expired`, async () => {
@@ -654,12 +654,9 @@ describe(`Invitations endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: mockInvitation })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `This invitation has already expired`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `This invitation has already expired`
+      )
     })
 
     it(`should return 500 when get invitation fails`, async () => {
@@ -670,10 +667,9 @@ describe(`Invitations endpoints`, () => {
       >
       mockGet.mockResolvedValue({ error: new Error(`Database error`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database error` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database error`
+      )
     })
 
     it(`should return 500 when revoke fails`, async () => {
@@ -698,10 +694,9 @@ describe(`Invitations endpoints`, () => {
       mockGet.mockResolvedValue({ data: mockInvitation })
       mockRevoke.mockResolvedValue({ error: new Error(`Revoke failed`) })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Revoke failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Revoke failed`
+      )
     })
   })
 })

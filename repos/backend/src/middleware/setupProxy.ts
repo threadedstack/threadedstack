@@ -15,7 +15,7 @@ export const setupProxy = (app: TApp, router: Router) => {
       buildProxy({
         path: `**`,
         originHeader: true,
-        method: EPMethod.all,
+        method: EPMethod.All,
         proxy: {
           ws: true,
           target: new URL(app.locals.config.proxy.url).toString(),

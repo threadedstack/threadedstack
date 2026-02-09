@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { validateExclusiveArc } from '@TBE/utils/validation/exclusiveArc'
 import {
   Secret,
   deriveKey,
@@ -23,33 +24,44 @@ export const createSecret: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { name, value, orgId, projectId, providerId } = req.body
+    const { name, value, orgId, projectId, providerId, agentId } = req.body
 
     if (!name) throw new Exception(400, `Secret name is required`)
     if (!value) throw new Exception(400, `Secret value is required`)
 
-    const hasOrg = !!orgId
-    const hasProject = !!projectId
-    const hasProvider = !!providerId
-
-    if (!hasOrg && !hasProject && !hasProvider)
-      throw new Exception(400, `Secret must belong to an org, project, or provider`)
-
-    if ((hasOrg && hasProject) || (hasOrg && hasProvider && hasProject))
-      throw new Exception(
-        400,
-        `Secret can only belong to one of: org, project, or provider`
-      )
+    const arcFields = [
+      { name: `orgId`, value: orgId },
+      { name: `agentId`, value: agentId },
+      { name: `projectId`, value: projectId },
+      { name: `providerId`, value: providerId },
+    ]
+    const owner = validateExclusiveArc(arcFields, `Secret`)
 
     // Check permission - requires admin+
-    await checkPermission(req, EPermAction.create, EPermResource.secret, {
-      orgId,
-      projectId,
-    })
+    if (owner.name === `providerId`) {
+      // Provider secrets: look up provider to get its orgId for auth context
+      const { data: provider } = await db.services.provider.get(owner.value)
+      if (!provider) throw new Exception(404, `Provider not found`)
+      await checkPermission(req, EPermAction.create, EPermResource.secret, {
+        orgId: provider.orgId,
+      })
+    } else if (owner.name === `agentId`) {
+      // Agent secrets: look up agent to get its orgId for auth context
+      const { data: agent } = await db.services.agent.get(owner.value)
+      if (!agent) throw new Exception(404, `Agent not found`)
+      await checkPermission(req, EPermAction.create, EPermResource.secret, {
+        orgId: agent.orgId,
+      })
+    } else {
+      await checkPermission(req, EPermAction.create, EPermResource.secret, {
+        orgId,
+        projectId,
+      })
+    }
 
     try {
       // Derive encryption key using the owner's ID
-      const refId = orgId || projectId || providerId
+      const refId = owner.value
       const derivedKey = await deriveKey(refId)
 
       const { iv, encrypted, authTag } = await encryptValue(derivedKey, value)
@@ -63,6 +75,7 @@ export const createSecret: TEndpointConfig = {
         ...(orgId && { orgId }),
         ...(projectId && { projectId }),
         ...(providerId && { providerId }),
+        ...(agentId && { agentId }),
       })
 
       const { data, error } = await db.services.secret.create(secret)

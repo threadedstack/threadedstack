@@ -22,15 +22,6 @@ const {
   TDSK_BE_LOGGER_SILENT,
   TDSK_BE_PUBLIC_ROUTES,
   TDSK_BE_API_ADMIN_PATH,
-  TDSK_DB_URL,
-  TDSK_DB_NAME,
-  TDSK_DB_USER,
-  TDSK_DB_PASS,
-  TDSK_DB_JWT_SCRT,
-  TDSK_DB_SRV_ROLE,
-  TDSK_DB_PROJECT_ID,
-  TDSK_DB_PUBLIC_KEY,
-  TDSK_DB_TYPE = `database`,
   TDSK_LOG_LEVEL = `info`,
 
   TDSK_PAY_TYPE,
@@ -38,8 +29,10 @@ const {
   TDSK_PAY_URL = ``,
   TDSK_PAY_WEBHOOK_SECRET = ``,
   TDSK_PAY_ACCESS_TOKEN = `invalid`,
-  // TODO: figure out how this should be resolved - used for links in emails
+  // Frontend URL for email links (invitation emails, password reset, etc.)
+  // Falls back to localhost:5887 for local development
   TDSK_FRONTEND_URL,
+  TDSK_AD_PORT = 5887,
 
   TDSK_EMAIL_TYPE,
   TDSK_EMAIL_HOST,
@@ -58,7 +51,8 @@ const {
 } = process.env
 
 export const config = {
-  frontendUrl: TDSK_FRONTEND_URL || 'http://localhost:3000',
+  // TODO: handle this better
+  frontendUrl: TDSK_FRONTEND_URL || `http://localhost:${TDSK_AD_PORT}`,
   server: {
     port: toNum(TDSK_BE_PORT),
     label: `TDSK - Backend`,
@@ -75,19 +69,6 @@ export const config = {
       .split(`,`)
       .map((part) => part.trim())
       .filter(Boolean),
-  },
-  database: {
-    type: TDSK_DB_TYPE,
-    [TDSK_DB_TYPE]: {
-      url: TDSK_DB_URL,
-      name: TDSK_DB_NAME,
-      user: TDSK_DB_USER,
-      pass: TDSK_DB_PASS,
-      jwt: TDSK_DB_JWT_SCRT,
-      role: TDSK_DB_SRV_ROLE,
-      public: TDSK_DB_PUBLIC_KEY,
-      project: TDSK_DB_PROJECT_ID,
-    },
   },
   logger: {
     label: `TDSK - Backend`,

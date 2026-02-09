@@ -17,9 +17,9 @@ export const deleteUser: TEndpointConfig = {
   method: EPMethod.Delete,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
-    const { db } = req.app.locals
+    const { db, auth } = req.app.locals
     const currentUserId = req.user?.id
-    const orgId = req.query.orgId as string | undefined
+    const orgId = auth.orgId
 
     // Check if user exists first
     const { data: existingUser, error: getError } = await db.services.user.get(id)

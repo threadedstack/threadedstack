@@ -1,5 +1,5 @@
-import type { NextFunction, Router } from 'express'
 import type { TRequest, TResponse, TApp } from '@TBE/types'
+import type { NextFunction, Router, RequestHandler } from 'express'
 
 import { logger } from '@TBE/utils/logger'
 import { fromAuthHeaders } from '@tdsk/domain'
@@ -20,6 +20,7 @@ export const authenticate = async (req: TRequest, res: TResponse, next: NextFunc
     const auth = fromAuthHeaders(req)
     if (!auth.userId) throw Error(`A valid and authorized user is required.`)
 
+    req.app.locals.auth = auth
     const { data: user, error } = await db.services.user.get(auth.userId)
 
     if (error) throw error
@@ -27,12 +28,12 @@ export const authenticate = async (req: TRequest, res: TResponse, next: NextFunc
 
     req.user = user
     next()
-  } catch (err) {
+  } catch (err: any) {
     logger.error(err)
     res.status(401).json({ error: err.message })
   }
 }
 
 export const setupAuth = async (app: TApp, router: Router) => {
-  router.use(authenticate)
+  router.use(authenticate as RequestHandler)
 }

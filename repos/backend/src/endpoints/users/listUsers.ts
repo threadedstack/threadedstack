@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { isSuperAdmin } from '@tdsk/domain'
 import { Exception } from '@TBE/utils/errors/exception'
 import { getUserRole, requireOrgMember } from '@TBE/utils/auth/checkPermission'
+import { parsePagination } from '@TBE/utils/pagination'
 
 /**
  * GET /users - List all users
@@ -16,12 +17,14 @@ export const listUsers: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db } = req.app.locals
-    const orgId = req.query.orgId as string | undefined
+    const { db, auth } = req.app.locals
+    const orgId = auth.orgId
 
     // Check if user is super admin
     const userRole = await getUserRole(req, {})
     const isSuper = isSuperAdmin(userRole)
+
+    const { limit, offset } = parsePagination(req)
 
     if (!isSuper && !orgId) throw new Exception(400, `orgId query parameter required`)
 
@@ -34,25 +37,26 @@ export const listUsers: TEndpointConfig = {
         await db.services.role.getOrgMembers(orgId)
       if (roleError) throw new Exception(500, roleError.message)
 
-      // Get full user details for each member
+      // Get full user details in one query
       const userIds = roleData?.map((r) => r.userId) || []
-      const users = []
-      for (const userId of userIds) {
-        const { data: user } = await db.services.user.get(userId)
-        if (user) {
-          const role = roleData?.find((r) => r.userId === userId)
-          users.push({ ...user, role: role?.type })
-        }
-      }
+      const { data: userList, error: userError } =
+        await db.services.user.getByIds(userIds)
+      if (userError) throw new Exception(500, (userError as Error).message)
 
-      res.status(200).json({ data: users })
+      // Merge role data with user data
+      const users = (userList || []).map((user) => {
+        const role = roleData?.find((r) => r.userId === user.id)
+        return { ...user, role: role?.type }
+      })
+
+      res.status(200).json({ data: users, limit, offset })
       return
     }
 
     // Super admin: list all users
-    const { data, error } = await db.services.user.list()
+    const { data, error } = await db.services.user.list({ limit, offset })
     if (error) throw new Exception(500, error.message)
 
-    res.status(200).json({ data })
+    res.status(200).json({ data, limit, offset })
   },
 }

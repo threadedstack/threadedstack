@@ -5,6 +5,7 @@ import type { TDBApiRes } from '@TDB/types'
 import dns from 'node:dns'
 import { EPMethod } from '@TBE/types'
 import { Domain } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
@@ -109,6 +110,7 @@ export const createDomain: TEndpointConfig = {
 
     if (!record) throw new Exception(500, `Failed to create domain`)
 
+    /** TODO: Extract this out to a Domain service */
     // Step 3: Trigger certificate pre-warming
     // This makes an HTTPS request to the domain to trigger Caddy's on-demand TLS
     try {
@@ -124,17 +126,17 @@ export const createDomain: TEndpointConfig = {
         .then(async (res) => {
           if (res.status >= 400) {
             const text = res.text ? await res.text() : res.statusText || `Request failed`
-            return console.warn(`Pre-warm request failed (this may be normal):`, text)
+            return logger.warn(`Pre-warm request failed (this may be normal): ${text}`)
           }
 
           // Mark domain as verified after pre-warm
           await db.services.domain.verified(domain)
         })
         .catch((err) =>
-          console.warn(`Pre-warm request failed (this may be normal):`, err.message)
+          logger.warn(`Pre-warm request failed (this may be normal): ${err.message}`)
         )
     } catch (error) {
-      console.error(`Error during pre-warm:`, error)
+      logger.error(`Error during pre-warm:`, error)
       // Don't fail the request, the certificate will be generated on first real request
     }
 

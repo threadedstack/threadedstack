@@ -3,10 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
-import { Provider, EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { isObj } from '@keg-hub/jsutils/isObj'
-import { HttpMethods } from '@TBE/constants/values'
+import { EPermAction, EPermResource } from '@tdsk/domain'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * PUT /providers/:id - Update an existing provider
@@ -21,18 +19,18 @@ export const updateProvider: TEndpointConfig = {
     const { db } = req.app.locals
     const providerData = req.body
 
-    // Get existing provider to find its scope
-    const { data: existingProvider, error: getError } = await db.services.provider.get(id)
-    if (getError) throw new Exception(500, getError.message)
-    if (!existingProvider) throw new Exception(404, `Provider not found`)
-
-    // Check permission based on provider's scope
-    const context = {
-      orgId: existingProvider.orgId || undefined,
-      projectId: existingProvider.projectId || undefined,
-    }
-
-    await checkPermission(req, EPermAction.update, EPermResource.provider, context)
+    await requireResourceWithPermission(
+      req,
+      db.services.provider,
+      id,
+      EPermAction.update,
+      EPermResource.provider,
+      `Provider`,
+      (provider) => ({
+        orgId: provider.orgId || undefined,
+        projectId: provider.projectId || undefined,
+      })
+    )
 
     // Update the provider
     const { data, error } = await db.services.provider.update({ ...providerData, id })

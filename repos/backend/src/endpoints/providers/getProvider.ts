@@ -2,9 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * GET /providers/:id - Get provider by ID
@@ -18,17 +17,18 @@ export const getProvider: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const { data, error } = await db.services.provider.get(id)
-    if (error) throw new Exception(500, error.message)
-    if (!data) throw new Exception(404, `Provider not found`)
-
-    // Check permission based on provider's scope (Exclusive Arc pattern)
-    const context = {
-      orgId: data.orgId || undefined,
-      projectId: data.projectId || undefined,
-    }
-
-    await checkPermission(req, EPermAction.read, EPermResource.provider, context)
+    const data = await requireResourceWithPermission(
+      req,
+      db.services.provider,
+      id,
+      EPermAction.read,
+      EPermResource.provider,
+      `Provider`,
+      (provider) => ({
+        orgId: provider.orgId || undefined,
+        projectId: provider.projectId || undefined,
+      })
+    )
 
     res.status(200).json({ data })
   },

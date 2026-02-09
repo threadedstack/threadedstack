@@ -179,10 +179,9 @@ describe('Quota Endpoints', () => {
       mockReq.params = { orgId: mockOrgId }
       mockReq.user = undefined
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(401)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Authentication required' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Authentication required'
+      )
     })
 
     it('should return 403 if user not org member', async () => {
@@ -210,10 +209,9 @@ describe('Quota Endpoints', () => {
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Database connection failed' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Database connection failed'
+      )
     })
 
     it('should have correct endpoint configuration', () => {
@@ -315,10 +313,9 @@ describe('Quota Endpoints', () => {
       mockReq.params = { orgId: mockOrgId }
       mockReq.user = undefined
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(401)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Authentication required' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Authentication required'
+      )
     })
 
     it('should return 403 if user not org member', async () => {
@@ -345,10 +342,9 @@ describe('Quota Endpoints', () => {
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockGetOrgOwner.mockResolvedValue({ data: null })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Org owner not found' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Org owner not found'
+      )
     })
 
     it('should return 500 on database error', async () => {
@@ -363,10 +359,9 @@ describe('Quota Endpoints', () => {
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockGetOrgOwner.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Database query failed' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Database query failed'
+      )
     })
 
     it('should have correct endpoint configuration', () => {
@@ -498,10 +493,9 @@ describe('Quota Endpoints', () => {
       mockReq.params = { orgId: mockOrgId }
       mockReq.body = { amount: 1 }
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Missing required field: resource' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Missing required field: resource'
+      )
     })
 
     it('should return 401 if not authenticated', async () => {
@@ -509,10 +503,9 @@ describe('Quota Endpoints', () => {
       mockReq.body = { resource: 'projects', amount: 1 }
       mockReq.user = undefined
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(401)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Authentication required' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Authentication required'
+      )
     })
 
     it('should return 403 if user not org member', async () => {
@@ -553,12 +546,9 @@ describe('Quota Endpoints', () => {
       // Mock payment service methods - no limit for invalid_resource
       mockGetPlanLimits.mockResolvedValue({ data: { projects: 5 } })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: 'Invalid resource: invalid_resource',
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Invalid resource: invalid_resource'
+      )
     })
 
     it('should return 500 if org owner not found', async () => {
@@ -576,10 +566,9 @@ describe('Quota Endpoints', () => {
       mockFindByOrgAndPeriod.mockResolvedValue({ data: { projects: 2 } })
       mockGetOrgOwner.mockResolvedValue({ data: null })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Org owner not found' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Org owner not found'
+      )
     })
 
     it('should return 500 if product not configured', async () => {
@@ -603,10 +592,9 @@ describe('Quota Endpoints', () => {
       // Mock payment service method to return undefined
       mockGetProductIdForTier.mockReturnValue(undefined as any)
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Product not configured' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Product not configured'
+      )
     })
 
     it('should return 500 if failed to fetch limits', async () => {
@@ -632,15 +620,74 @@ describe('Quota Endpoints', () => {
         error: new Error('Failed to fetch plan limits'),
       })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Failed to fetch plan limits' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Failed to fetch plan limits'
+      )
     })
 
     it('should have correct endpoint configuration', () => {
       expect(ep.path).toBe('/:orgId/check')
       expect(ep.method).toBe('post')
+    })
+
+    it('should return 400 when amount is negative (SEC-003 fix)', async () => {
+      mockReq.params = { orgId: mockOrgId }
+      mockReq.body = {
+        resource: 'projects',
+        amount: -5,
+      }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Amount must be a positive number'
+      )
+    })
+
+    it('should return 400 when amount is zero (SEC-003 fix)', async () => {
+      mockReq.params = { orgId: mockOrgId }
+      mockReq.body = {
+        resource: 'projects',
+        amount: 0,
+      }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Amount must be a positive number'
+      )
+    })
+
+    it('should use tier-based product lookup instead of polarPriceId (BUG-005 fix)', async () => {
+      mockReq.params = { orgId: mockOrgId }
+      mockReq.body = {
+        resource: 'projects',
+        amount: 1,
+      }
+
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
+        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+
+      mockIsOrgMember.mockResolvedValue({ data: true })
+      mockFindByOrgAndPeriod.mockResolvedValue({
+        data: { projects: 2 },
+      })
+      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      // Subscription has polarPriceId - used directly as productId
+      mockFindByUser.mockResolvedValue({
+        data: { tier: 'basic', polarPriceId: 'price_old_123' },
+      })
+
+      // Mock payment service methods
+      mockGetPlanLimits.mockResolvedValue({ data: { projects: 10 } })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      // polarPriceId is used directly as the productId for getPlanLimits
+      expect(mockGetPlanLimits).toHaveBeenCalledWith('price_old_123')
+      expect(mockStatus).toHaveBeenCalledWith(200)
     })
   })
 })

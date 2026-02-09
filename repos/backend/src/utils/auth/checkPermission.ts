@@ -1,5 +1,5 @@
 import type { TRequest } from '@TBE/types'
-import type { User, EPermAction, EPermResource } from '@tdsk/domain'
+import type { EPermAction, EPermResource } from '@tdsk/domain'
 
 import { Exception } from '@TBE/utils/errors/exception'
 import {
@@ -16,23 +16,6 @@ export type TPermissionContext = {
   resourceId?: string
 }
 
-// TODO: Need to add way for users to create orgs
-// If the user creates the org, then they are a super admin of that org
-// If invite to org, it's what ever permissions is given to them on invite
-
-/**
- * Need to change this, do not want to allow and admin user to see all orgs
- * Major security issue
- */
-export const isNeonAdmin = (user: User) => {
-  // Check if user is super admin (platform-wide)
-  // If the role directly on the auth user is admin, then they are a super user
-  // This can only be set within the Neon Auth UI
-  // It is a role field managed by Neon and on the Threaded-Stack app
-  // It is for Threaded-Stack Admin only
-  if (user?.role === ERoleType.admin) return true
-}
-
 /**
  * Get user`s effective role for the given context
  * Checks org-level and project-level roles, returns highest
@@ -45,9 +28,6 @@ export const getUserRole = async (
   const userId = req.user?.id
 
   if (!userId) return ERoleType.viewer
-
-  // Check if user is super admin (platform-wide), can only be set within the Neon Auth UI
-  if (isNeonAdmin(req.user)) return ERoleType.super
 
   const roles: ERoleType[] = []
 
@@ -105,9 +85,6 @@ export const requireOrgMember = async (req: TRequest, orgId: string): Promise<vo
   const { db } = req.app.locals
   const userId = req.user?.id
 
-  // TODO: remove this - update my user to be super-admin of threaded stack org
-  if (isNeonAdmin(req.user)) return
-
   if (!userId) throw new Exception(401, `Authentication required`, `UNAUTHORIZED`)
 
   const { data: isMember } = await db.services.role.isOrgMember(userId, orgId)
@@ -126,8 +103,6 @@ export const requireProjectMember = async (
 ): Promise<void> => {
   const { db } = req.app.locals
   const userId = req.user?.id
-
-  if (isNeonAdmin(req.user)) return
 
   if (!userId) throw new Exception(401, `Authentication required`, `UNAUTHORIZED`)
 

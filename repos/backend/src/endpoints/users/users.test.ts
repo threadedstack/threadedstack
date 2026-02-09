@@ -16,11 +16,15 @@ describe(`Users endpoints`, () => {
     locals: {
       config,
       payments: new PaymentsService({ ...config.payments, type: `console` }),
+      auth: {
+        orgId: `org-1`,
+      },
       db: {
         services: {
           user: {
             list: vi.fn(),
             get: vi.fn(),
+            getByIds: vi.fn(),
             create: vi.fn(),
             update: vi.fn(),
             delete: vi.fn(),
@@ -89,24 +93,25 @@ describe(`Users endpoints`, () => {
 
       const mockGetOrgMembers = mockReq.app?.locals.db.services.role
         .getOrgMembers as ReturnType<typeof vi.fn>
-      const mockGetUser = mockReq.app?.locals.db.services.user.get as ReturnType<
+      const mockGetByIds = mockReq.app?.locals.db.services.user.getByIds as ReturnType<
         typeof vi.fn
       >
 
       mockGetOrgMembers.mockResolvedValueOnce({ data: mockRoles })
-
-      mockGetUser.mockResolvedValueOnce({ data: mockUser1 })
-      mockGetUser.mockResolvedValueOnce({ data: mockUser2 })
+      mockGetByIds.mockResolvedValueOnce({ data: [mockUser1, mockUser2] })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockGetOrgMembers).toHaveBeenCalledWith(`org-1`)
+      expect(mockGetByIds).toHaveBeenCalledWith([`1`, `2`])
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({
         data: [
           { ...mockUser1, role: `member` },
           { ...mockUser2, role: `admin` },
         ],
+        limit: 50,
+        offset: 0,
       })
     })
 
@@ -118,21 +123,48 @@ describe(`Users endpoints`, () => {
 
       mockGetOrgMembers.mockResolvedValueOnce({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database connection failed`
+      )
       expect(mockGetOrgMembers).toHaveBeenCalledWith(`org-1`)
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
     })
 
     it(`should return empty array when no users exist`, async () => {
-      const mockList = mockReq.app?.locals.db.services.user.list as ReturnType<
+      const mockGetOrgMembers = mockReq.app?.locals.db.services.role
+        .getOrgMembers as ReturnType<typeof vi.fn>
+      const mockGetByIds = mockReq.app?.locals.db.services.user.getByIds as ReturnType<
         typeof vi.fn
       >
-      mockList.mockResolvedValueOnce({ data: [] })
+
+      mockGetOrgMembers.mockResolvedValueOnce({ data: [] })
+      mockGetByIds.mockResolvedValueOnce({ data: [] })
+
       await ep.action(mockReq as TRequest, mockRes as Response)
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: [] })
+      expect(mockJson).toHaveBeenCalledWith({ data: [], limit: 50, offset: 0 })
+    })
+
+    it(`should pass pagination params and include in response`, async () => {
+      const mockRoles = [{ userId: `1`, type: `member` }]
+      const mockUser1 = { id: `1`, email: `user1@example.com`, name: `User One` }
+
+      const mockGetOrgMembers = mockReq.app?.locals.db.services.role
+        .getOrgMembers as ReturnType<typeof vi.fn>
+      const mockGetByIds = mockReq.app?.locals.db.services.user.getByIds as ReturnType<
+        typeof vi.fn
+      >
+
+      mockGetOrgMembers.mockResolvedValueOnce({ data: mockRoles })
+      mockGetByIds.mockResolvedValueOnce({ data: [mockUser1] })
+
+      mockReq.query = { orgId: `org-1`, limit: `15`, offset: `10` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(15)
+      expect(response.offset).toBe(10)
     })
 
     it(`should have correct endpoint configuration`, () => {
@@ -150,7 +182,11 @@ describe(`Users endpoints`, () => {
       mockReq.params = { id: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.user.get as ReturnType<typeof vi.fn>
+      const mockGetUserOrgs = mockReq.app?.locals.db.services.role
+        .getUserOrgs as ReturnType<typeof vi.fn>
+
       mockGet.mockResolvedValue({ data: mockUser })
+      mockGetUserOrgs.mockResolvedValue({ data: [`org-1`] })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -163,13 +199,16 @@ describe(`Users endpoints`, () => {
       mockReq.params = { id: `nonexistent` }
 
       const mockGet = mockReq.app?.locals.db.services.user.get as ReturnType<typeof vi.fn>
+      const mockGetUserOrgs = mockReq.app?.locals.db.services.role
+        .getUserOrgs as ReturnType<typeof vi.fn>
+
       mockGet.mockResolvedValue({ data: undefined })
+      mockGetUserOrgs.mockResolvedValue({ data: [`org-1`] })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `User not found`
+      )
       expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `User not found` })
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -177,13 +216,16 @@ describe(`Users endpoints`, () => {
       mockReq.params = { id: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.user.get as ReturnType<typeof vi.fn>
+      const mockGetUserOrgs = mockReq.app?.locals.db.services.role
+        .getUserOrgs as ReturnType<typeof vi.fn>
+
       mockGet.mockResolvedValue({ error: mockError })
+      mockGetUserOrgs.mockResolvedValue({ data: [`org-1`] })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database query failed`
+      )
       expect(mockGet).toHaveBeenCalledWith(`123`)
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
     })
 
     it(`should have correct endpoint configuration`, () => {
@@ -216,21 +258,17 @@ describe(`Users endpoints`, () => {
     it(`should return 400 when email is missing`, async () => {
       mockReq.body = { name: `No Email User`, orgId: `org-1` }
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Email is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Email is required`
+      )
     })
 
     it(`should return 400 when body is empty`, async () => {
       mockReq.body = {}
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: `orgId is required to invite users`,
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `orgId is required to invite users`
+      )
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -242,10 +280,9 @@ describe(`Users endpoints`, () => {
       >
       mockCreate.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database insert failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database insert failed`
+      )
     })
 
     it(`should have correct endpoint configuration`, () => {
@@ -287,11 +324,10 @@ describe(`Users endpoints`, () => {
       const mockGet = mockReq.app?.locals.db.services.user.get as ReturnType<typeof vi.fn>
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `User not found`
+      )
       expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `User not found` })
     })
 
     it(`should return 500 when get fails`, async () => {
@@ -302,16 +338,15 @@ describe(`Users endpoints`, () => {
       const mockGet = mockReq.app?.locals.db.services.user.get as ReturnType<typeof vi.fn>
       mockGet.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database query failed`
+      )
     })
 
     it(`should return 500 when update fails`, async () => {
-      const existingUser = { id: `123`, email: `test@example.com` }
+      const existingUser = { id: `test-user-id`, email: `test@example.com` }
       const mockError = new Error(`Database update failed`)
-      mockReq.params = { id: `123` }
+      mockReq.params = { id: `test-user-id` }
       mockReq.body = { name: `New Name` }
 
       const mockGet = mockReq.app?.locals.db.services.user.get as ReturnType<typeof vi.fn>
@@ -321,10 +356,9 @@ describe(`Users endpoints`, () => {
       mockGet.mockResolvedValue({ data: existingUser })
       mockUpdate.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database update failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database update failed`
+      )
     })
 
     it(`should have correct endpoint configuration`, () => {
@@ -370,11 +404,10 @@ describe(`Users endpoints`, () => {
       const mockGet = mockReq.app?.locals.db.services.user.get as ReturnType<typeof vi.fn>
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `User not found`
+      )
       expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `User not found` })
     })
 
     it(`should return 500 when get fails`, async () => {
@@ -384,10 +417,9 @@ describe(`Users endpoints`, () => {
       const mockGet = mockReq.app?.locals.db.services.user.get as ReturnType<typeof vi.fn>
       mockGet.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database query failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database query failed`
+      )
     })
 
     it(`should return 500 when delete fails`, async () => {
@@ -403,10 +435,9 @@ describe(`Users endpoints`, () => {
       mockGet.mockResolvedValue({ data: existingUser })
       mockDelete.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database delete failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database delete failed`
+      )
     })
 
     it(`should have correct endpoint configuration`, () => {

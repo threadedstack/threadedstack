@@ -46,10 +46,11 @@ export const endpoint: TEndpointConfig = {
     // Fetch endpoint from database
     const { data: ep, error: fetchError } = await db.services.endpoint.get(endpointId)
     const endpoint = ep as ProxyEndpoint
-    const opts = endpoint.options
 
     if (fetchError || !endpoint) throw new Exception(404, `Endpoint not found`)
 
+    const opts = endpoint.options as TProxyEndpointConfig
+    if (!opts?.url) throw new Exception(400, `Endpoint has no proxy configuration`)
     // Verify endpoint belongs to the specified project
     if (endpoint.projectId !== projectId)
       throw new Exception(403, `Endpoint does not belong to this project`)
@@ -86,6 +87,7 @@ export const endpoint: TEndpointConfig = {
       // Build retry configuration
       const retryService = new RetryService(req, opts)
 
+      /** TODO: extract this out into a Proxy service */
       // Helper function to execute the proxy request
       const executeProxy = (): Promise<void> => {
         return new Promise((resolve, reject) => {

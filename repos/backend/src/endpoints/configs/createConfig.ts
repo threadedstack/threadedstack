@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { validateExclusiveArc } from '@TBE/utils/validation/exclusiveArc'
 import { Config, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -19,15 +20,12 @@ export const createConfig: TEndpointConfig = {
 
     if (!data) throw new Exception(400, `Config data is required`)
 
-    const hasOrg = !!orgId
-    const hasProject = !!projectId
-    const hasUser = !!userId
-
-    if (!hasOrg && !hasProject && !hasUser)
-      throw new Exception(400, `Config must belong to an org, project, or user`)
-
-    if ((hasOrg && hasProject) || (hasOrg && hasUser) || (hasProject && hasUser))
-      throw new Exception(400, `Config can only belong to one of: org, project, or user`)
+    const arcFields = [
+      { name: `orgId`, value: orgId },
+      { name: `userId`, value: userId },
+      { name: `projectId`, value: projectId },
+    ]
+    validateExclusiveArc(arcFields, `Config`)
 
     // Check permission - requires admin+
     await checkPermission(req, EPermAction.create, EPermResource.config, {

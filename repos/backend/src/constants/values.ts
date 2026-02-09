@@ -12,11 +12,6 @@ export const LoggerIgnore = {
 
 export const HttpMethods = Object.values(EHttpMethod)
 export const AllowedScopes: string[] = Object.values(EApiKeyScope)
-export const DefUserProxyOpts = {
-  retries: 3,
-  delay: 1000,
-  timeout: 30000,
-}
 
 // Retry on specific HTTP status codes
 // 408: Request Timeout
@@ -38,4 +33,9 @@ export const DefRetryCfg: TRetryConfig = {
   maxDelay: 30000,
   backoffMultiplier: 2,
   exponentialBackoff: true,
+}
+
+export const DBPaging = {
+  max: 200,
+  default: 50,
 }

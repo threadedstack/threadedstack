@@ -3,7 +3,7 @@
     "extraFileExtensions": ["json"]
   },
   "compilerOptions": {
-    "rootDir": "../../",
+    "rootDir": "../",
     "outDir": "./dist",
     "target": "esnext",
     "module": "esnext",

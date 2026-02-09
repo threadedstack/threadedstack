@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { validateExclusiveArc } from '@TBE/utils/validation/exclusiveArc'
 
 /**
  * POST /_/providers - Create a new provider
@@ -20,17 +21,13 @@ export const createProvider: TEndpointConfig = {
     const { orgId, projectId } = providerData
 
     // Validate Exclusive Arc: must have exactly one of orgId, projectId
-    if (!orgId && !projectId)
-      throw new Exception(
-        400,
-        `Provider must belong to an org or project (orgId or projectId required)`
-      )
-
-    if (orgId && projectId)
-      throw new Exception(
-        400,
-        `Provider cannot belong to both org and project (provide only one)`
-      )
+    validateExclusiveArc(
+      [
+        { name: `orgId`, value: orgId },
+        { name: `projectId`, value: projectId },
+      ],
+      `Provider`
+    )
 
     // Check permission to create providers in this scope
     await checkPermission(req, EPermAction.create, EPermResource.provider, {

@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { isSuperAdmin, ERoleType } from '@tdsk/domain'
 import { Exception } from '@TBE/utils/errors/exception'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import { parsePagination } from '@TBE/utils/pagination'
 
 /**
  * GET /orgs - List all orgs
@@ -37,21 +38,24 @@ export const listOrgs: TEndpointConfig = {
       }
     })
 
+    const { limit, offset } = parsePagination(req)
+
     if (isSuper) {
       // Super admins can see all orgs
-      const { data, error } = await db.services.org.list()
+      const { data, error } = await db.services.org.list({ limit, offset })
 
       if (error) throw new Exception(500, error.message)
 
       // Attach user role to each org (super for all orgs)
       const orgsWithRoles = data?.map((org) => ({
         ...org,
-        // TODO: may want to switch this so it's always ERoleType.super
-        // Otherwise super users won't be super for orgs they are invited to
+        // Note: Super admins get their mapped org role if one exists,
+        // otherwise fall back to ERoleType.super. This preserves
+        // per-org role assignments for super admins who are also org members.
         userRole: orgRoleMap.get(org.id) || ERoleType.super,
       }))
 
-      res.status(200).json({ data: orgsWithRoles })
+      res.status(200).json({ data: orgsWithRoles, limit, offset })
       return
     }
 
@@ -62,6 +66,8 @@ export const listOrgs: TEndpointConfig = {
 
     // Fetch only orgs the user is a member of using DB filtering
     const { data: userOrgs, error: listError } = await db.services.org.list({
+      limit,
+      offset,
       where: { id: orgIds },
     })
 
@@ -74,6 +80,6 @@ export const listOrgs: TEndpointConfig = {
         userRole: orgRoleMap.get(org.id) || ERoleType.viewer,
       })) || []
 
-    res.status(200).json({ data: orgsWithRoles })
+    res.status(200).json({ data: orgsWithRoles, limit, offset })
   },
 }

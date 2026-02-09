@@ -9,114 +9,94 @@ import type {
   TPayCheckoutSession,
 } from '@TBE/types'
 
-import { Exception } from '@TBE/utils/errors/exception'
-import { OverrideError } from '@TBE/utils/errors/override'
+import type { Exception } from '@TBE/utils/errors/exception'
 
 /**
- * Service for interacting with Polar.sh payment API
+ * Abstract base service for payment providers.
+ * Subclasses must implement all abstract methods.
  */
-export class BaseService {
+export abstract class BaseService {
   plans: Record<string, string>
 
   constructor(config: TPayConfig) {
-    if (!config.token) throw new Exception(500, `Payments access token is required`)
     this.plans = config.plans
   }
 
   /**
-   * Fetch all configured payment plans from Polar API
+   * Fetch all configured payment plans from the payment provider
    * Uses product IDs from config to fetch product details
    */
-  fetchPlans = async (): Promise<TPlanResp> => {
-    throw new OverrideError(`fetchPlans`)
-  }
+  abstract fetchPlans(): Promise<TPlanResp>
 
   /**
-   * Fetch a single product by ID from Polar API
+   * Fetch a single product by ID from the payment provider
    */
-  fetchProduct = async (
+  abstract fetchProduct(
     productId: string
-  ): Promise<{ data?: TPayProduct; error?: Exception }> => {
-    throw new OverrideError(`fetchProduct`)
-  }
+  ): Promise<{ data?: TPayProduct; error?: Exception }>
 
   /**
    * Get plan limits for a given product ID
    * This fetches the product and returns its metadata as TPayPlanMeta
    */
-  getPlanLimits = async (
+  abstract getPlanLimits(
     productId: string
-  ): Promise<{ data?: TPayPlanMeta; error?: Exception }> => {
-    throw new OverrideError(`getPlanLimits`)
-  }
+  ): Promise<{ data?: TPayPlanMeta; error?: Exception }>
 
   /**
-   * Get or create a customer in Polar
+   * Get or create a customer in the payment provider
    */
-
-  ensureCustomer = async (
+  abstract ensureCustomer(
     email: string,
     userId: string
-  ): Promise<{ data?: TPayCustomer; error?: Exception }> => {
-    throw new OverrideError(`ensureCustomer`)
-  }
+  ): Promise<{ data?: TPayCustomer; error?: Exception }>
 
   /**
    * Create a checkout session for a subscription
    */
-  createCheckout = async (
+  abstract createCheckout(
     priceId: string,
     customerId: string,
     userId: string,
     successUrl: string,
     cancelUrl: string
-  ): Promise<{ data?: TPayCheckoutSession; error?: Exception }> => {
-    throw new OverrideError(`createCheckout`)
-  }
+  ): Promise<{ data?: TPayCheckoutSession; error?: Exception }>
 
   /**
    * Create a customer portal session for managing subscription
    */
-  createPortal = async (
+  abstract createPortal(
     customerId: string
-  ): Promise<{ data?: TPayPortalSession; error?: Error }> => {
-    throw new OverrideError(`createPortal`)
-  }
+  ): Promise<{ data?: TPayPortalSession; error?: Error }>
 
   /**
-   * Validate webhook signature from Polar
+   * Validate webhook signature from the payment provider
    */
-  validateWebhook = (payload: string, signature: string, timestamp: string): boolean => {
-    throw new OverrideError(`validateWebhook`)
-  }
+  abstract validateWebhook(payload: string, signature: string, timestamp: string): boolean
 
   /**
    * Cancel a subscription
    */
-  cancelSubscription = async (
+  abstract cancelSubscription(
     subscriptionId: string
-  ): Promise<{ data?: { success: boolean }; error?: Error }> => {
-    throw new OverrideError(`cancelSubscription`)
-  }
+  ): Promise<{ data?: { success: boolean }; error?: Error }>
 
   /**
-   * Webhook handler for Polar.sh subscription events
+   * Webhook handler for subscription events
    */
-  webhook = async (app: TApp, payload: any): Promise<{ data?: any; error?: Error }> => {
-    throw new OverrideError(`webhook`)
-  }
+  abstract webhook(app: TApp, payload: any): Promise<{ data?: any; error?: Error }>
 
   /**
    * Get the product ID for a given tier name
    */
-  getProductIdForTier = (tier: string): string | undefined => {
+  getProductIdForTier(tier: string): string | undefined {
     return this.plans[tier.toLowerCase()]
   }
 
   /**
    * Get the tier name for a given product ID
    */
-  getTierForProductId = (productId: string): string | undefined => {
+  getTierForProductId(productId: string): string | undefined {
     return Object.entries(this.plans).find(([_, id]) => id === productId)?.[0]
   }
 }

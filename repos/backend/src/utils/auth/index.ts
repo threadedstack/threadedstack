@@ -1,4 +1,5 @@
 export * from './pxToBeHeader'
 export * from './shouldIgnore'
 export * from './checkPermission'
+export * from './getBillingPeriod'
 export * from './generateInvitationToken'

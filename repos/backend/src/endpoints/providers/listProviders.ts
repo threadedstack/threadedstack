@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { parsePagination } from '@TBE/utils/pagination'
 
 /**
  * GET /providers - List all providers
@@ -15,8 +16,8 @@ export const listProviders: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db } = req.app.locals
-    const orgId = req.query.orgId as string | undefined
+    const { db, auth } = req.app.locals
+    const orgId = auth.orgId
     const projectId = req.query.projectId as string | undefined
 
     if (!orgId && !projectId)
@@ -28,13 +29,17 @@ export const listProviders: TEndpointConfig = {
       projectId,
     })
 
+    const { limit, offset } = parsePagination(req)
+
     // List providers for the specified scope
     const { data, error } = await db.services.provider.list({
-      where: { orgId, projectId },
+      where: projectId ? { projectId } : { orgId },
+      limit,
+      offset,
     })
 
     if (error) throw new Exception(500, error.message)
 
-    res.status(200).json({ data: data || [] })
+    res.status(200).json({ data: data || [], limit, offset })
   },
 }

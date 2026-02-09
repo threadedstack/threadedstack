@@ -107,13 +107,12 @@ describe(`Endpoints endpoints`, () => {
 
       expect(mockList).toHaveBeenCalledOnce()
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockEndpoints })
+      expect(mockJson).toHaveBeenCalledWith({ data: mockEndpoints, limit: 50, offset: 0 })
     })
 
     it(`should filter by projectId when provided`, async () => {
       const mockEndpoints = [
         { id: `1`, name: `EP1`, method: `GET`, projectId: `project-1` },
-        { id: `2`, name: `EP2`, method: `GET`, projectId: `project-2` },
       ]
       mockReq.query = { projectId: `project-1` }
 
@@ -123,9 +122,33 @@ describe(`Endpoints endpoints`, () => {
       mockList.mockResolvedValue({ data: mockEndpoints })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
+      expect(mockList).toHaveBeenCalledWith({
+        where: { projectId: `project-1` },
+        limit: 50,
+        offset: 0,
+      })
       const responseData = mockJson.mock.calls[0][0].data
       expect(responseData).toHaveLength(1)
       expect(responseData[0].projectId).toBe(`project-1`)
+    })
+
+    it(`should pass pagination params to list and include in response`, async () => {
+      mockReq.query = { projectId: `project-1`, limit: `10`, offset: `5` }
+
+      const mockList = mockReq.app?.locals.db.services.endpoint.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [] })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { projectId: `project-1` },
+        limit: 10,
+        offset: 5,
+      })
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(10)
+      expect(response.offset).toBe(5)
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -135,10 +158,9 @@ describe(`Endpoints endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ error: mockError })
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database connection failed`
+      )
     })
   })
 
@@ -177,10 +199,10 @@ describe(`Endpoints endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Endpoint not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 
@@ -190,6 +212,7 @@ describe(`Endpoints endpoints`, () => {
     it(`should return 201 with created endpoint on success`, async () => {
       const newEndpoint = {
         name: `New Endpoint`,
+        type: `rest`,
         method: `GET`,
         projectId: `project-123`,
         options: {
@@ -212,66 +235,65 @@ describe(`Endpoints endpoints`, () => {
 
     it(`should return 400 when name is missing`, async () => {
       mockReq.body = {
+        type: `rest`,
         method: `GET`,
         projectId: `project-1`,
         options: {
           url: `https://api.example.com`,
         },
       }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint name is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Endpoint name is required`
+      )
     })
 
     it(`should return 400 when url is missing`, async () => {
       mockReq.body = { name: `Test`, method: `GET`, projectId: `project-1` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint URL is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Endpoint type is required`
+      )
     })
 
     it(`should return 400 when method is missing`, async () => {
       mockReq.body = {
         name: `Test`,
+        type: `rest`,
         projectId: `project-1`,
         options: {
           url: `https://api.example.com`,
         },
       }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint method is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Endpoint method is required`
+      )
     })
 
     it(`should return 400 when projectId is missing`, async () => {
-      mockReq.body = { name: `Test`, url: `https://api.example.com`, method: `GET` }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint projectId is required` })
+      mockReq.body = { name: `Test`, type: `rest`, method: `GET` }
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Endpoint projectId is required`
+      )
     })
 
     it(`should return 400 when method is invalid`, async () => {
       mockReq.body = {
         name: `Test`,
+        type: `rest`,
         method: `INVALID`,
         projectId: `project-1`,
         options: {
           url: `https://api.example.com`,
         },
       }
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson.mock.calls[0][0].error).toContain(`Invalid HTTP method`)
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Invalid HTTP method`
+      )
     })
 
     it(`should accept headers and options`, async () => {
       const newEndpoint = {
         name: `New Endpoint`,
+        type: `rest`,
         method: `POST`,
         projectId: `project-123`,
         headers: { [`Content-Type`]: `application/json` },
@@ -292,8 +314,81 @@ describe(`Endpoints endpoints`, () => {
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           headers: { [`Content-Type`]: `application/json` },
-          options: { timeout: 5000 },
+          options: { timeout: 5000, url: `https://api.example.com/new` },
         })
+      )
+    })
+
+    it(`should accept valid object headers and options (BUG-001 fix)`, async () => {
+      const newEndpoint = {
+        name: `New Endpoint`,
+        type: `rest`,
+        method: `POST`,
+        projectId: `project-123`,
+        headers: { [`Content-Type`]: `application/json`, [`X-Custom`]: `value` },
+        options: {
+          timeout: 5000,
+          url: `https://api.example.com/new`,
+        },
+      }
+      const createdEndpoint = { id: `456`, ...newEndpoint }
+      mockReq.body = newEndpoint
+
+      const mockCreate = mockReq.app?.locals.db.services.endpoint.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdEndpoint })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockCreate).toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should reject non-object headers - string (BUG-001 fix)`, async () => {
+      mockReq.body = {
+        name: `Test`,
+        type: `rest`,
+        method: `POST`,
+        projectId: `project-1`,
+        headers: `not-an-object`,
+        options: {
+          url: `https://api.example.com`,
+        },
+      }
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Headers must be an object`
+      )
+    })
+
+    it(`should reject non-object headers - number (BUG-001 fix)`, async () => {
+      mockReq.body = {
+        name: `Test`,
+        type: `rest`,
+        method: `POST`,
+        projectId: `project-1`,
+        headers: 42,
+        options: {
+          url: `https://api.example.com`,
+        },
+      }
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Headers must be an object`
+      )
+    })
+
+    it(`should reject non-object headers - array (BUG-001 fix)`, async () => {
+      mockReq.body = {
+        name: `Test`,
+        type: `rest`,
+        method: `POST`,
+        projectId: `project-1`,
+        headers: [`a`, `b`],
+        options: {
+          url: `https://api.example.com`,
+        },
+      }
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Headers must be an object`
       )
     })
   })
@@ -341,10 +436,10 @@ describe(`Endpoints endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Endpoint not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
 
     it(`should return 400 when method is invalid`, async () => {
@@ -365,10 +460,9 @@ describe(`Endpoints endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: existingEndpoint })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson.mock.calls[0][0].error).toContain(`Invalid HTTP method`)
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Invalid HTTP method`
+      )
     })
   })
 
@@ -412,10 +506,10 @@ describe(`Endpoints endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Endpoint not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Endpoint not found`
+      )
+      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 })

@@ -134,10 +134,9 @@ describe('Subscription endpoints', () => {
     it('should return 401 when user is not authenticated', async () => {
       mockReq.user = undefined
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(401)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Authentication required' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Authentication required'
+      )
     })
 
     it('should return 500 with error message on database failure', async () => {
@@ -147,10 +146,9 @@ describe('Subscription endpoints', () => {
         .findByUser as ReturnType<typeof vi.fn>
       mockFindByUser.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Database connection failed' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Database connection failed'
+      )
     })
 
     it('should have correct endpoint configuration', () => {
@@ -187,12 +185,9 @@ describe('Subscription endpoints', () => {
         cancelUrl: 'http://localhost:3000/billing?cancelled=true',
       }
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: 'Missing required fields: tier, successUrl, cancelUrl',
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Missing required fields: tier, successUrl, cancelUrl'
+      )
     })
 
     it('should return 400 when successUrl is missing', async () => {
@@ -201,12 +196,9 @@ describe('Subscription endpoints', () => {
         cancelUrl: 'http://localhost:3000/billing?cancelled=true',
       }
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: 'Missing required fields: tier, successUrl, cancelUrl',
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Missing required fields: tier, successUrl, cancelUrl'
+      )
     })
 
     it('should return 400 when cancelUrl is missing', async () => {
@@ -215,12 +207,9 @@ describe('Subscription endpoints', () => {
         successUrl: 'http://localhost:3000/billing?success=true',
       }
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: 'Missing required fields: tier, successUrl, cancelUrl',
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Missing required fields: tier, successUrl, cancelUrl'
+      )
     })
 
     it('should return 401 when user is not authenticated', async () => {
@@ -231,10 +220,9 @@ describe('Subscription endpoints', () => {
         cancelUrl: 'http://localhost:3000/billing?cancelled=true',
       }
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(401)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Authentication required' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Authentication required'
+      )
     })
 
     it('should call checkout flow with valid data', async () => {
@@ -244,16 +232,73 @@ describe('Subscription endpoints', () => {
         cancelUrl: 'http://localhost:3000/billing?cancelled=true',
       }
 
+      const paymentsService = mockReq.app?.locals.payments.service as any
+      paymentsService.getProductIdForTier.mockReturnValue('prod_basic_456')
+      paymentsService.fetchProduct.mockResolvedValue({
+        data: { id: 'prod_basic_456', prices: [{ id: 'price_123', amount: 999 }] },
+      })
+      paymentsService.ensureCustomer.mockResolvedValue({
+        data: { id: 'cust_123' },
+      })
+      paymentsService.createCheckout.mockResolvedValue({
+        data: { url: 'https://checkout.polar.sh/session_123' },
+      })
+
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       // Verify endpoint was called (actual behavior depends on PaymentsService mock)
-      expect(mockStatus).toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalled()
     })
 
     it('should have correct endpoint configuration', () => {
       expect(ep.path).toBe('/checkout')
       expect(ep.method).toBe('post')
+    })
+
+    it('should extract price from product prices array (BUG-005 fix)', async () => {
+      mockReq.body = {
+        tier: 'basic',
+        successUrl: 'http://localhost:3000/billing?success=true',
+        cancelUrl: 'http://localhost:3000/billing?cancelled=true',
+      }
+
+      const paymentsService = mockReq.app?.locals.payments.service as any
+
+      // Mock getProductIdForTier to return a product ID
+      paymentsService.getProductIdForTier.mockReturnValue('prod_basic_456')
+
+      // Mock fetchProduct to return a product with a prices array
+      paymentsService.fetchProduct.mockResolvedValue({
+        data: {
+          id: 'prod_basic_456',
+          name: 'Basic Plan',
+          prices: [{ id: 'price_actual_789', amount: 999 }],
+        },
+      })
+
+      // Mock ensureCustomer
+      paymentsService.ensureCustomer.mockResolvedValue({
+        data: { id: 'cust_123' },
+      })
+
+      // Mock createCheckout
+      paymentsService.createCheckout.mockResolvedValue({
+        data: { url: 'https://checkout.polar.sh/session_123' },
+      })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      // Verify createCheckout was called with the price ID from the prices array,
+      // NOT the product ID
+      expect(paymentsService.createCheckout).toHaveBeenCalledWith(
+        'price_actual_789', // price from prices array, not prod_basic_456
+        'cust_123',
+        'user_123',
+        'http://localhost:3000/billing?success=true',
+        'http://localhost:3000/billing?cancelled=true'
+      )
+      expect(mockStatus).toHaveBeenCalledWith(200)
     })
   })
 
@@ -265,12 +310,9 @@ describe('Subscription endpoints', () => {
         .findByUser as ReturnType<typeof vi.fn>
       mockFindByUser.mockResolvedValue({ data: null })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: 'No active subscription found',
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'No active subscription found'
+      )
     })
 
     it('should return 404 when subscription has no customer ID', async () => {
@@ -285,21 +327,17 @@ describe('Subscription endpoints', () => {
         .findByUser as ReturnType<typeof vi.fn>
       mockFindByUser.mockResolvedValue({ data: mockSubscription })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: 'No active subscription found',
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'No active subscription found'
+      )
     })
 
     it('should return 401 when user is not authenticated', async () => {
       mockReq.user = undefined
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(401)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Authentication required' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Authentication required'
+      )
     })
 
     it('should return 500 when database query fails', async () => {
@@ -309,10 +347,9 @@ describe('Subscription endpoints', () => {
         .findByUser as ReturnType<typeof vi.fn>
       mockFindByUser.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Database query failed' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Database query failed'
+      )
     })
 
     it('should call portal creation with valid subscription', async () => {
@@ -327,11 +364,15 @@ describe('Subscription endpoints', () => {
         .findByUser as ReturnType<typeof vi.fn>
       mockFindByUser.mockResolvedValue({ data: mockSubscription })
 
+      const paymentsService = mockReq.app?.locals.payments.service as any
+      paymentsService.createPortal.mockResolvedValue({
+        data: { url: 'https://portal.polar.sh/session_123' },
+      })
+
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockFindByUser).toHaveBeenCalledWith('user_123')
-      // Verify endpoint was called (actual behavior depends on PaymentsService mock)
-      expect(mockStatus).toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalled()
     })
 
@@ -349,12 +390,9 @@ describe('Subscription endpoints', () => {
         .findByUser as ReturnType<typeof vi.fn>
       mockFindByUser.mockResolvedValue({ data: null })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: 'No active subscription found',
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'No active subscription found'
+      )
     })
 
     it('should return 404 when subscription has no polar ID', async () => {
@@ -369,21 +407,17 @@ describe('Subscription endpoints', () => {
         .findByUser as ReturnType<typeof vi.fn>
       mockFindByUser.mockResolvedValue({ data: mockSubscription })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({
-        error: 'No active subscription found',
-      })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'No active subscription found'
+      )
     })
 
     it('should return 401 when user is not authenticated', async () => {
       mockReq.user = undefined
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(401)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Authentication required' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Authentication required'
+      )
     })
 
     it('should return 500 when database query fails', async () => {
@@ -393,10 +427,9 @@ describe('Subscription endpoints', () => {
         .findByUser as ReturnType<typeof vi.fn>
       mockFindByUser.mockResolvedValue({ error: mockError })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: 'Database query failed' })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Database query failed'
+      )
     })
 
     it('should call cancellation with valid subscription', async () => {

@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
 import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
+import { parsePagination } from '@TBE/utils/pagination'
 
 /**
  * GET /agents - List all agents
@@ -18,10 +19,10 @@ export const listAgents: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db } = req.app.locals
-    const orgId = req.query.orgId as string | undefined
+    const { db, auth } = req.app.locals
+    const orgId = auth.orgId
     const projectId = req.query.projectId as string | undefined
-    const sanitize = req.query.sanitize !== 'false'
+    const sanitize = req.query.sanitize !== `false`
 
     if (!orgId) throw new Exception(400, `orgId query parameter required`)
 
@@ -38,7 +39,11 @@ export const listAgents: TEndpointConfig = {
         throw new Exception(403, `Admin or higher role required to view secret values`)
     }
 
+    const { limit, offset } = parsePagination(req)
+
     const { data, error } = await db.services.agent.list({
+      limit,
+      offset,
       sanitize,
       where: { orgId },
     })
@@ -50,6 +55,6 @@ export const listAgents: TEndpointConfig = {
       ? data?.filter((agent) => agent.projects.some((p) => p.id === projectId)) || []
       : data || []
 
-    res.status(200).json({ data: filteredData })
+    res.status(200).json({ data: filteredData, limit, offset })
   },
 }

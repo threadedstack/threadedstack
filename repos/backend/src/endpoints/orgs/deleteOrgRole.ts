@@ -35,6 +35,6 @@ export const deleteOrgRole: TEndpointConfig = {
 
     if (deleteError) throw new Exception(500, deleteError.message)
 
-    res.status(200).json({ success: true })
+    res.status(200).json({ data: { success: true } })
   },
 }

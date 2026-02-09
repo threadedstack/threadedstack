@@ -3,6 +3,7 @@ import type { ApiKey } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { parsePagination } from '@TBE/utils/pagination'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
@@ -28,18 +29,17 @@ export const listApiKeys: TEndpointConfig = {
       orgId: orgId as string,
     })
 
-    const { data, error } = await db.services.apiKey.list()
+    const { limit, offset } = parsePagination(req)
 
-    if (error) {
-      throw new Exception(500, error.message)
-    }
+    const where: Record<string, string> = { orgId: orgId as string }
+    if (projectId) where.projectId = projectId as string
 
-    let keys = data || []
-    if (orgId) keys = keys.filter((k: any) => k.orgId === orgId)
-    if (projectId) keys = keys.filter((k: any) => k.projectId === projectId)
+    const { data, error } = await db.services.apiKey.list({ where, limit, offset })
 
-    const sanitizedData = keys.map((apiKey: ApiKey) => apiKey.sanitize())
+    if (error) throw new Exception(500, error.message)
 
-    res.status(200).json({ data: sanitizedData })
+    const sanitizedData = (data || []).map((apiKey: ApiKey) => apiKey.sanitize())
+
+    res.status(200).json({ data: sanitizedData, limit, offset })
   },
 }

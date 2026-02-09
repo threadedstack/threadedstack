@@ -5,7 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * DELETE /api-keys/:id - Revoke/delete an API key
@@ -18,26 +18,17 @@ export const deleteApiKey: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const { data: existing, error: getError } = await db.services.apiKey.get(id)
-
-    if (getError) {
-      throw new Exception(500, getError.message)
-    }
-
-    if (!existing) {
-      throw new Exception(404, `API key not found`)
-    }
-
-    // Check permission based on API key's orgId - requires admin+
-    await checkPermission(req, EPermAction.delete, EPermResource.apiKey, {
-      orgId: existing.orgId,
-    })
+    const existing = await requireResourceWithPermission(
+      req,
+      db.services.apiKey,
+      id,
+      EPermAction.delete,
+      EPermResource.apiKey,
+      `API key`
+    )
 
     const { error } = await db.services.apiKey.revoke(id)
-
-    if (error) {
-      throw new Exception(500, error.message)
-    }
+    if (error) throw new Exception(500, error.message)
 
     logger.info({
       apiKeyId: id,

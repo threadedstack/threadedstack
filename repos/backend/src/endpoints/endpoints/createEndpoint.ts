@@ -51,9 +51,9 @@ export const createEndpoint: TEndpointConfig = {
         `Invalid HTTP method. Must be one of: ${HttpMethods.join(', ')}`
       )
 
-    if (headers && isObj(headers)) throw new Exception(400, `Headers must be an object`)
+    if (headers && !isObj(headers)) throw new Exception(400, `Headers must be an object`)
 
-    if (options && isObj(options)) throw new Exception(400, `Options must be an object`)
+    if (options && !isObj(options)) throw new Exception(400, `Options must be an object`)
 
     const endpointData = new Endpoint({
       name,

@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * DELETE /_/functions/:id - Delete function
@@ -17,17 +17,17 @@ export const deleteFunction: TEndpointConfig = {
     const { db } = req.app.locals
     const { id } = req.params
 
-    const { data: func, error: fetchError } = await db.services.function.get(id)
-    if (fetchError) throw new Exception(500, fetchError.message)
-    if (!func) throw new Exception(404, `Function not found`)
-
-    // Check permission
-    await checkPermission(req, EPermAction.delete, EPermResource.function, {
-      projectId: func.projectId,
-    })
+    await requireResourceWithPermission(
+      req,
+      db.services.function,
+      id,
+      EPermAction.delete,
+      EPermResource.function,
+      `Function`
+    )
 
     const { error } = await db.services.function.delete(id)
     if (error) throw new Exception(500, error.message)
-    res.status(200).json({ success: true })
+    res.status(200).json({ data: { success: true } })
   },
 }

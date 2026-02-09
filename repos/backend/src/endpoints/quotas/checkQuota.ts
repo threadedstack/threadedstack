@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
+import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 
 /**
  * POST /quotas/:orgId/check - Check if action is within quota limits
@@ -20,13 +21,14 @@ export const checkQuota: TEndpointConfig = {
 
     if (!userId) throw new Exception(401, `Authentication required`)
     if (!resource) throw new Exception(400, `Missing required field: resource`)
+    if (typeof amount !== 'number' || amount <= 0)
+      throw new Exception(400, `Amount must be a positive number`)
 
     // Check membership
     await requireOrgMember(req, orgId)
 
     // Get current period
-    const now = new Date()
-    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const period = getBillingPeriod()
 
     // Get current usage
     const usageResult = await db.services.quota.findByOrgAndPeriod(orgId, period)

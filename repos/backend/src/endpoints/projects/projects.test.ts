@@ -103,7 +103,7 @@ describe(`Endpoint projects`, () => {
 
       expect(mockList).toHaveBeenCalledOnce()
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockProjects })
+      expect(mockJson).toHaveBeenCalledWith({ data: mockProjects, limit: 50, offset: 0 })
     })
 
     it(`should filter by orgId when provided`, async () => {
@@ -116,9 +116,33 @@ describe(`Endpoint projects`, () => {
       mockList.mockResolvedValue({ data: mockProjects })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockList).toHaveBeenCalledWith({ where: { orgId: `org-1` } })
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 50,
+        offset: 0,
+      })
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockProjects })
+      expect(mockJson).toHaveBeenCalledWith({ data: mockProjects, limit: 50, offset: 0 })
+    })
+
+    it(`should pass pagination params to list and include in response`, async () => {
+      const mockProjects = [{ id: `1`, name: `Project`, gitUrl: `https://example.com` }]
+      mockReq.query = { orgId: `org-1`, limit: `10`, offset: `5` }
+
+      const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: mockProjects })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1` },
+        limit: 10,
+        offset: 5,
+      })
+      const response = mockJson.mock.calls[0][0]
+      expect(response.limit).toBe(10)
+      expect(response.offset).toBe(5)
     })
 
     it(`should return 500 with error message on database failure`, async () => {
@@ -128,10 +152,10 @@ describe(`Endpoint projects`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ error: mockError })
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(500)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Database connection failed` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database connection failed`
+      )
     })
   })
 
@@ -166,10 +190,9 @@ describe(`Endpoint projects`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Project not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Project not found`
+      )
     })
   })
 
@@ -201,10 +224,10 @@ describe(`Endpoint projects`, () => {
         orgId: `org-1`,
         gitUrl: `https://api.example.com`,
       }
-      await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockStatus).toHaveBeenCalledWith(400)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Project name is required` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Project name is required`
+      )
     })
 
     it(`should accept headers and options`, async () => {
@@ -274,10 +297,9 @@ describe(`Endpoint projects`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Project not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Project not found`
+      )
     })
   })
 
@@ -319,10 +341,9 @@ describe(`Endpoint projects`, () => {
       >
       mockGet.mockResolvedValue({ data: undefined })
 
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(404)
-      expect(mockJson).toHaveBeenCalledWith({ error: `Project not found` })
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Project not found`
+      )
     })
   })
 })
