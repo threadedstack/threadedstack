@@ -199,11 +199,12 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
    */
   async removeFromOrg(userId: string, orgId: string): Promise<TDBApiResType<boolean>> {
     try {
-      await this.db
+      const result = await this.db
         .delete(roles)
         .where(and(eq(roles.userId, userId), eq(roles.orgId, orgId)))
+        .returning()
 
-      return { data: true }
+      return { data: result.length > 0 }
     } catch (error: any) {
       return { error }
     }
@@ -217,11 +218,12 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
     projectId: string
   ): Promise<TDBApiResType<boolean>> {
     try {
-      await this.db
+      const result = await this.db
         .delete(roles)
         .where(and(eq(roles.userId, userId), eq(roles.projectId, projectId)))
+        .returning()
 
-      return { data: true }
+      return { data: result.length > 0 }
     } catch (error: any) {
       return { error }
     }

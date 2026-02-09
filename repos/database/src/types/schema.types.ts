@@ -11,6 +11,7 @@ import type { threads } from '@TDB/schemas/threads'
 import type { domains } from '@TDB/schemas/domains'
 import type { messages } from '@TDB/schemas/messages'
 import type { projects } from '@TDB/schemas/projects'
+import type { DBError } from '@TDB/utils/error/error'
 import type { endpoints } from '@TDB/schemas/endpoints'
 import type { functions } from '@TDB/schemas/functions'
 import type { providers } from '@TDB/schemas/providers'
@@ -173,11 +174,15 @@ export type TDBQueryOpts<T extends Record<string, any> = Record<string, any>> = 
   }
 }
 
-export type TDBApiRes<M extends BaseModel | BaseModel[]> =
-  | { data: M; error?: never }
-  | { data?: never; error: Error }
+export type TDBApiRes<M extends BaseModel | BaseModel[]> = {
+  data?: M
+  error?: Error | DBError
+}
 
-export type TDBApiResType<T> = { data: T; error?: never } | { data?: never; error: Error }
+export type TDBApiResType<T> = {
+  data?: T
+  error?: Error | DBError
+}
 
 export interface IDBApi<M extends BaseModel, I extends TDBEntityInsert> {
   create: (data: I, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>

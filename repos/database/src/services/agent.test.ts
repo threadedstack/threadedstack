@@ -1,0 +1,708 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { Agent as AgentService } from './agent'
+
+// Mock the logger to avoid config/db initialization side-effects
+vi.mock(`@TDB/utils/logger`, () => ({
+  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+}))
+
+// Mock drizzle-orm utilities
+vi.mock(`drizzle-orm`, async () => {
+  const actual = await vi.importActual<typeof import('drizzle-orm')>(`drizzle-orm`)
+  return {
+    ...actual,
+    eq: vi.fn((col, val) => ({ col, val, _tag: `eq` })),
+    and: vi.fn((...args) => args),
+    getTableName: vi.fn(() => `agents`),
+  }
+})
+
+// Mock buildQuery helpers (imported by base)
+vi.mock(`@TDB/utils/database/buildQuery`, () => ({
+  addWhere: vi.fn(() => []),
+  addOrderBy: vi.fn(() => []),
+}))
+
+// Mock the agents schema
+vi.mock(`@TDB/schemas/agents`, () => ({
+  agents: {
+    id: { name: `id` },
+    orgId: { name: `org_id` },
+    name: { name: `name` },
+    providerId: { name: `provider_id` },
+  },
+}))
+
+// Mock the agentProjects schema
+vi.mock(`@TDB/schemas/agentProjects`, () => ({
+  agentProjects: {
+    agentId: { name: `agent_id` },
+    projectId: { name: `project_id` },
+    alias: { name: `alias` },
+  },
+}))
+
+// Mock the Agent domain model
+vi.mock(`@tdsk/domain`, async () => {
+  const orig = await vi.importActual(`@tdsk/domain`)
+  return {
+    ...orig,
+    Agent: vi.fn(function MockAgent(data: any) {
+      return {
+        ...data,
+        id: data?.id || `mock-id`,
+        secrets: data?.secrets || [],
+        _isModel: true,
+      }
+    }),
+  }
+})
+
+/**
+ * Creates a mock Drizzle-compatible DB object.
+ * Mirrors the chained API used by the Agent service including
+ * agent_projects junction table operations.
+ */
+const createMockDb = () => {
+  const returningFn = vi.fn()
+  const onConflictDoUpdateFn = vi.fn(() => ({ returning: returningFn }))
+  const onConflictDoNothingFn = vi.fn()
+  const valuesFn = vi.fn(() => ({
+    returning: returningFn,
+    onConflictDoUpdate: onConflictDoUpdateFn,
+    onConflictDoNothing: onConflictDoNothingFn,
+  }))
+  const insertFn = vi.fn(() => ({ values: valuesFn }))
+
+  const whereReturningFn = vi.fn()
+  const whereFn = vi.fn(() => ({ returning: whereReturningFn }))
+  const setFn = vi.fn(() => ({ where: whereFn }))
+  const updateFn = vi.fn(() => ({ set: setFn }))
+
+  const deleteWhereFn = vi.fn()
+  const deleteFn = vi.fn(() => ({ where: deleteWhereFn }))
+
+  const findFirst = vi.fn()
+  const findMany = vi.fn()
+
+  return {
+    db: {
+      insert: insertFn,
+      update: updateFn,
+      delete: deleteFn,
+      query: {
+        agents: { findFirst, findMany },
+      },
+    } as any,
+    returningFn,
+    valuesFn,
+    setFn,
+    whereFn,
+    whereReturningFn,
+    deleteWhereFn,
+    findFirst,
+    findMany,
+    insertFn,
+    onConflictDoNothingFn,
+    onConflictDoUpdateFn,
+    deleteFn,
+  }
+}
+
+describe(`Agent service`, () => {
+  let mocks: ReturnType<typeof createMockDb>
+  let service: AgentService
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    mocks = createMockDb()
+
+    const { Agent } = await import(`./agent`)
+    service = new Agent({
+      db: mocks.db,
+      config: {} as any,
+    })
+  })
+
+  // ---------- with() ----------
+  describe(`with`, () => {
+    it(`should not crash when opts is undefined (CRIT-05)`, () => {
+      const result = service.with(undefined as any)
+
+      expect(result).toBeDefined()
+      expect(result.secrets).toBe(true)
+      expect(result.provider).toBe(true)
+      expect(result.projects).toEqual({ with: { project: true } })
+    })
+
+    it(`should always include secrets, provider, and projects`, () => {
+      const result = service.with({})
+
+      expect(result.secrets).toBe(true)
+      expect(result.provider).toBe(true)
+      expect(result.projects).toEqual({ with: { project: true } })
+    })
+
+    it(`should preserve custom with options (CRIT-06)`, () => {
+      const result = service.with({ org: true })
+
+      expect(result.org).toBe(true)
+      expect(result.secrets).toBe(true)
+      expect(result.provider).toBe(true)
+      expect(result.projects).toEqual({ with: { project: true } })
+    })
+
+    it(`should override projects with nested project relation`, () => {
+      const result = service.with({ projects: { columns: { id: true } } } as any)
+
+      // projects key is always overridden to include { with: { project: true } }
+      expect(result.projects).toEqual({ with: { project: true } })
+    })
+  })
+
+  // ---------- model() ----------
+  describe(`model`, () => {
+    it(`should handle data.projects being undefined (SV-08)`, () => {
+      const data = { id: `agent-1`, name: `TestAgent` } as any
+      const result = service.model(data)
+
+      expect(result).toBeDefined()
+      // @ts-ignore
+      expect(result._isModel).toBe(true)
+    })
+
+    it(`should handle data.projects being null`, () => {
+      const data = { id: `agent-1`, name: `TestAgent`, projects: null } as any
+      const result = service.model(data)
+
+      expect(result).toBeDefined()
+      expect(result._isModel).toBe(true)
+    })
+
+    it(`should handle data.projects being an empty array`, () => {
+      const data = { id: `agent-1`, name: `TestAgent`, projects: [] } as any
+      const result = service.model(data)
+
+      expect(result).toBeDefined()
+      expect(result.projects).toEqual([])
+    })
+
+    it(`should map project links to link.project`, () => {
+      const projA = { id: `p1`, name: `ProjectA` }
+      const projB = { id: `p2`, name: `ProjectB` }
+      const data = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [
+          { agentId: `agent-1`, projectId: `p1`, project: projA },
+          { agentId: `agent-1`, projectId: `p2`, project: projB },
+        ],
+      } as any
+
+      const result = service.model(data)
+
+      expect(result.projects).toEqual([projA, projB])
+    })
+
+    it(`should sanitize secrets by default`, () => {
+      const mockSanitize = vi.fn(() => ({ id: `s1`, value: `****` }))
+      const data = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [{ id: `s1`, value: `secret-val`, sanitize: mockSanitize }],
+      } as any
+
+      // The Agent mock returns data as-is, so secrets will be the input secrets
+      // The model() method then calls secret.sanitize() on each secret
+      const result = service.model(data)
+
+      expect(mockSanitize).toHaveBeenCalledOnce()
+      expect(result.secrets).toEqual([{ id: `s1`, value: `****` }])
+    })
+
+    it(`should skip sanitization when sanitize: false`, () => {
+      const mockSanitize = vi.fn(() => ({ id: `s1`, value: `****` }))
+      const data = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [{ id: `s1`, value: `secret-val`, sanitize: mockSanitize }],
+      } as any
+
+      const result = service.model(data, { sanitize: false })
+
+      expect(mockSanitize).not.toHaveBeenCalled()
+      expect(result.secrets[0].value).toBe(`secret-val`)
+    })
+
+    it(`should not fail when secrets is empty and sanitize is true`, () => {
+      const data = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [],
+      } as any
+
+      const result = service.model(data, { sanitize: true })
+
+      expect(result.secrets).toEqual([])
+    })
+  })
+
+  // ---------- get() ----------
+  describe(`get`, () => {
+    it(`should call super.get with this.with() and return model data`, async () => {
+      const record = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [],
+      }
+      mocks.findFirst.mockResolvedValue(record)
+
+      const result = await service.get(`agent-1`)
+
+      expect(result.data).toBeDefined()
+      expect(result.data._isModel).toBe(true)
+      expect(result.error).toBeUndefined()
+      expect(mocks.findFirst).toHaveBeenCalledOnce()
+    })
+
+    it(`should return error when not found`, async () => {
+      mocks.findFirst.mockResolvedValue(undefined)
+
+      const result = await service.get(`missing-id`)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toContain(`not found`)
+      expect(result.data).toBeUndefined()
+    })
+
+    it(`should pass sanitize: false to second model call in get`, async () => {
+      // Note: super.get() calls this.model(row) first (sanitize defaults to true),
+      // then Agent.get() calls this.model(result.data, { sanitize: false }).
+      // The first model() call always sanitizes since no sanitizeOpts is passed.
+      const mockSanitize: any = vi.fn(function () {
+        return { id: `s1`, value: `****`, sanitize: mockSanitize }
+      })
+      const record = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [{ id: `s1`, value: `real`, sanitize: mockSanitize }],
+      }
+      mocks.findFirst.mockResolvedValue(record)
+
+      const result = await service.get(`agent-1`, { sanitize: false })
+
+      expect(result.data).toBeDefined()
+      // First call from super.get() -> this.model() sanitizes (no opts = default true)
+      // Second call from Agent.get() with sanitize: false skips sanitization
+      // So mockSanitize is called once total (from the first model() invocation)
+      expect(mockSanitize).toHaveBeenCalledTimes(1)
+    })
+
+    it(`should sanitize secrets by default on get`, async () => {
+      // super.get() calls this.model(row) first, then Agent.get() calls
+      // this.model(result.data, { sanitize: true }) again - both sanitize
+      const mockSanitize: any = vi.fn(function () {
+        return { id: `s1`, value: `****`, sanitize: mockSanitize }
+      })
+      const record = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [{ id: `s1`, value: `real`, sanitize: mockSanitize }],
+      }
+      mocks.findFirst.mockResolvedValue(record)
+
+      await service.get(`agent-1`)
+
+      // Called twice: once from super.get() -> model(), once from Agent.get() -> model()
+      expect(mockSanitize).toHaveBeenCalledTimes(2)
+    })
+
+    it(`should not crash when opts is undefined`, async () => {
+      const record = { id: `agent-1`, name: `TestAgent`, projects: [], secrets: [] }
+      mocks.findFirst.mockResolvedValue(record)
+
+      const result = await service.get(`agent-1`)
+
+      expect(result.data).toBeDefined()
+    })
+  })
+
+  // ---------- by() ----------
+  describe(`by`, () => {
+    it(`should handle object argument by({ orgId: 'abc' }) (CRIT-01)`, async () => {
+      const record = {
+        id: `agent-1`,
+        orgId: `abc`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [],
+      }
+      mocks.findFirst.mockResolvedValue(record)
+
+      const result = await service.by({ orgId: `abc` }, { sanitize: true })
+
+      expect(result.data).toBeDefined()
+      expect(result.data._isModel).toBe(true)
+      expect(result.error).toBeUndefined()
+      expect(mocks.findFirst).toHaveBeenCalledOnce()
+    })
+
+    it(`should handle string arguments by('orgId', 'abc')`, async () => {
+      const record = {
+        id: `agent-1`,
+        orgId: `abc`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [],
+      }
+      mocks.findFirst.mockResolvedValue(record)
+
+      const result = await service.by(`orgId`, `abc`, { sanitize: true })
+
+      expect(result.data).toBeDefined()
+      expect(result.data._isModel).toBe(true)
+      expect(result.error).toBeUndefined()
+      expect(mocks.findFirst).toHaveBeenCalledOnce()
+    })
+
+    it(`should return error when not found`, async () => {
+      mocks.findFirst.mockResolvedValue(undefined)
+
+      const result = await service.by({ orgId: `abc` }, { sanitize: true })
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toContain(`not found`)
+    })
+
+    it(`should not call model when normalizedOpts is falsy`, async () => {
+      const record = {
+        id: `agent-1`,
+        orgId: `abc`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [],
+      }
+      mocks.findFirst.mockResolvedValue(record)
+
+      // When passing string args without opts, normalizedOpts is undefined
+      // so the model() call is skipped (if result.data && normalizedOpts)
+      const result = await service.by(`orgId`, `abc`)
+
+      expect(result.data).toBeDefined()
+      // Data should still come from super.by which calls base model()
+      expect(mocks.findFirst).toHaveBeenCalledOnce()
+    })
+  })
+
+  // ---------- list() ----------
+  describe(`list`, () => {
+    it(`should return array of agent models`, async () => {
+      const records = [
+        { id: `agent-1`, name: `A`, projects: [], secrets: [] },
+        { id: `agent-2`, name: `B`, projects: [], secrets: [] },
+      ]
+      mocks.findMany.mockResolvedValue(records)
+
+      const result = await service.list()
+
+      expect(result.data).toHaveLength(2)
+      expect(result.data[0]._isModel).toBe(true)
+      expect(result.data[1]._isModel).toBe(true)
+    })
+
+    it(`should return empty array when nothing found`, async () => {
+      mocks.findMany.mockResolvedValue([])
+
+      const result = await service.list()
+
+      expect(result.data).toEqual([])
+    })
+
+    it(`should sanitize secrets by default on list`, async () => {
+      // super.list() calls this.model(row) first, then Agent.list() calls
+      // this.model(agent, { sanitize }) again - both sanitize by default
+      const mockSanitize: any = vi.fn(function () {
+        return { id: `s1`, value: `****`, sanitize: mockSanitize }
+      })
+      const records = [
+        {
+          id: `agent-1`,
+          name: `A`,
+          projects: [],
+          secrets: [{ id: `s1`, value: `real`, sanitize: mockSanitize }],
+        },
+      ]
+      mocks.findMany.mockResolvedValue(records)
+
+      await service.list()
+
+      // Called twice: once from super.list() -> model(), once from Agent.list() -> model()
+      expect(mockSanitize).toHaveBeenCalledTimes(2)
+    })
+
+    it(`should skip sanitization on second model call when sanitize: false`, async () => {
+      // super.list() calls this.model(row) first (no opts = sanitize true),
+      // then Agent.list() calls this.model(agent, { sanitize: false })
+      const mockSanitize: any = vi.fn(function () {
+        return { id: `s1`, value: `****`, sanitize: mockSanitize }
+      })
+      const records = [
+        {
+          id: `agent-1`,
+          name: `A`,
+          projects: [],
+          secrets: [{ id: `s1`, value: `real`, sanitize: mockSanitize }],
+        },
+      ]
+      mocks.findMany.mockResolvedValue(records)
+
+      await service.list({ sanitize: false })
+
+      // First call from super.list() -> model() sanitizes (default true)
+      // Second call from Agent.list() with sanitize: false skips
+      expect(mockSanitize).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // ---------- create() ----------
+  describe(`create`, () => {
+    it(`should create agent without projects`, async () => {
+      const record = { id: `agent-1`, name: `TestAgent` }
+      mocks.returningFn.mockResolvedValue([record])
+
+      const result = await service.create({
+        name: `TestAgent`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+      } as any)
+
+      expect(result.data).toBeDefined()
+      expect(result.error).toBeUndefined()
+      expect(mocks.insertFn).toHaveBeenCalledOnce()
+    })
+
+    it(`should create agent with projects (calls #relations)`, async () => {
+      const record = { id: `agent-1`, name: `TestAgent` }
+      const fullRecord = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [
+          { agentId: `agent-1`, projectId: `p1`, project: { id: `p1`, name: `Proj` } },
+        ],
+        secrets: [],
+      }
+
+      // First call: super.create returning
+      mocks.returningFn.mockResolvedValueOnce([record])
+      // #relations: insert into agentProjects
+      mocks.onConflictDoNothingFn.mockResolvedValue(undefined)
+      // Second call: this.get() -> findFirst for re-fetching
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      const result = await service.create({
+        name: `TestAgent`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        projects: [{ id: `p1`, name: `Proj` }],
+      } as any)
+
+      expect(result.data).toBeDefined()
+      expect(result.data._isModel).toBe(true)
+      // insert should be called for agent creation and for agentProjects relation
+      expect(mocks.insertFn).toHaveBeenCalled()
+    })
+
+    it(`should skip #relations when projects is empty`, async () => {
+      const record = { id: `agent-1`, name: `TestAgent` }
+      mocks.returningFn.mockResolvedValue([record])
+
+      await service.create({
+        name: `TestAgent`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        projects: [],
+      } as any)
+
+      // Only called once for the agent insert, not for agentProjects
+      expect(mocks.insertFn).toHaveBeenCalledOnce()
+    })
+
+    it(`should return error on db exception`, async () => {
+      mocks.returningFn.mockRejectedValue(new Error(`DB failure`))
+
+      const result = await service.create({
+        name: `TestAgent`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+      } as any)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`DB failure`)
+    })
+  })
+
+  // ---------- update() ----------
+  describe(`update`, () => {
+    it(`should return error when agent.id is missing`, async () => {
+      const result = await service.update({ name: `NoId` } as any)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`Agent ID is required for update`)
+      expect(result.data).toBeNull()
+    })
+
+    it(`should update agent data without projects`, async () => {
+      const record = { id: `agent-1`, name: `Updated` }
+      mocks.whereReturningFn.mockResolvedValue([record])
+
+      const result = await service.update({ id: `agent-1`, name: `Updated` } as any)
+
+      expect(result.data).toBeDefined()
+      expect(result.error).toBeUndefined()
+    })
+
+    it(`should delete old project relations and re-create on update with projects`, async () => {
+      const record = { id: `agent-1`, name: `Updated` }
+      const fullRecord = {
+        id: `agent-1`,
+        name: `Updated`,
+        projects: [
+          { agentId: `agent-1`, projectId: `p2`, project: { id: `p2`, name: `NewProj` } },
+        ],
+        secrets: [],
+      }
+
+      // super.update returning
+      mocks.whereReturningFn.mockResolvedValue([record])
+      // db.delete(agentProjects).where(...)
+      mocks.deleteWhereFn.mockResolvedValue(undefined)
+      // #relations: insert into agentProjects
+      mocks.onConflictDoNothingFn.mockResolvedValue(undefined)
+      // this.get() -> findFirst
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      const result = await service.update({
+        id: `agent-1`,
+        name: `Updated`,
+        projects: [{ id: `p2`, name: `NewProj` }],
+      } as any)
+
+      expect(result.data).toBeDefined()
+      expect(result.data._isModel).toBe(true)
+      // db.delete should be called for clearing old agentProjects
+      expect(mocks.deleteFn).toHaveBeenCalled()
+    })
+  })
+
+  // ---------- upsert() ----------
+  describe(`upsert`, () => {
+    it(`should upsert agent without projects`, async () => {
+      const record = { id: `agent-1`, name: `Upserted` }
+      mocks.returningFn.mockResolvedValue([record])
+
+      const result = await service.upsert({ id: `agent-1`, name: `Upserted` } as any)
+
+      expect(result.data).toBeDefined()
+      expect(result.error).toBeUndefined()
+    })
+
+    it(`should upsert agent with projects (calls #relations)`, async () => {
+      const record = { id: `agent-1`, name: `Upserted` }
+      const fullRecord = {
+        id: `agent-1`,
+        name: `Upserted`,
+        projects: [
+          { agentId: `agent-1`, projectId: `p1`, project: { id: `p1`, name: `Proj` } },
+        ],
+        secrets: [],
+      }
+
+      // super.upsert returning
+      mocks.returningFn.mockResolvedValueOnce([record])
+      // #relations
+      mocks.onConflictDoNothingFn.mockResolvedValue(undefined)
+      // this.get()
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      const result = await service.upsert({
+        id: `agent-1`,
+        name: `Upserted`,
+        projects: [{ id: `p1`, name: `Proj` }],
+      } as any)
+
+      expect(result.data).toBeDefined()
+      expect(result.data._isModel).toBe(true)
+    })
+  })
+
+  // ---------- addProject() ----------
+  describe(`addProject`, () => {
+    it(`should insert into agentProjects and return data`, async () => {
+      const relation = {
+        id: `rel-1`,
+        agentId: `agent-1`,
+        projectId: `p1`,
+        alias: `MyAlias`,
+      }
+      mocks.returningFn.mockResolvedValue([relation])
+
+      const result = await service.addProject(`agent-1`, `p1`, `MyAlias`)
+
+      expect(result.data).toEqual(relation)
+      expect(result.error).toBeNull()
+      expect(mocks.insertFn).toHaveBeenCalledOnce()
+      expect(mocks.valuesFn).toHaveBeenCalledWith({
+        alias: `MyAlias`,
+        agentId: `agent-1`,
+        projectId: `p1`,
+      })
+    })
+
+    it(`should insert without alias`, async () => {
+      const relation = {
+        id: `rel-1`,
+        agentId: `agent-1`,
+        projectId: `p1`,
+        alias: undefined,
+      }
+      mocks.returningFn.mockResolvedValue([relation])
+
+      const result = await service.addProject(`agent-1`, `p1`)
+
+      expect(result.data).toEqual(relation)
+      expect(result.error).toBeNull()
+      expect(mocks.valuesFn).toHaveBeenCalledWith({
+        alias: undefined,
+        agentId: `agent-1`,
+        projectId: `p1`,
+      })
+    })
+  })
+
+  // ---------- removeProject() ----------
+  describe(`removeProject`, () => {
+    it(`should delete from agentProjects matching agent and project`, async () => {
+      mocks.deleteWhereFn.mockResolvedValue(undefined)
+
+      const result = await service.removeProject(`agent-1`, `p1`)
+
+      expect(result.data).toBeNull()
+      expect(result.error).toBeNull()
+      expect(mocks.deleteFn).toHaveBeenCalledOnce()
+      expect(mocks.deleteWhereFn).toHaveBeenCalledOnce()
+    })
+  })
+
+  // ---------- constructor ----------
+  describe(`constructor`, () => {
+    it(`should set sanitize to true by default`, () => {
+      expect(service.sanitize).toBe(true)
+    })
+  })
+})

@@ -1,3 +1,4 @@
+import type { Project as ProjectModel } from '@tdsk/domain'
 import type {
   TDBWithObj,
   TServiceOpts,
@@ -12,9 +13,9 @@ import { eq, and } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { agents } from '@TDB/schemas/agents'
 import { isStr, isObj } from '@keg-hub/jsutils'
-import { agentProjects } from '@TDB/schemas/agentProjects'
-import type { Project as ProjectModel } from '@tdsk/domain'
+import { DBError } from '@TDB/utils/error/error'
 import { Agent as AgentModel } from '@tdsk/domain'
+import { agentProjects } from '@TDB/schemas/agentProjects'
 
 export type TAgentInsertOpts = TDBAgentInsert & {
   projects?: Array<Partial<ProjectModel>>
@@ -64,20 +65,24 @@ export class Agent extends Base<
           project: true,
         },
       },
-    }
+    } as TDBWithRecord
   }
 
   #relations = async (id: string, projects?: Array<Partial<ProjectModel>>) => {
-    for (const proj of projects) {
-      if (!proj?.id) continue
-      await this.db
-        .insert(agentProjects)
-        .values({
-          agentId: id,
-          alias: proj.name,
-          projectId: proj.id,
-        })
-        .onConflictDoNothing()
+    try {
+      for (const proj of projects) {
+        if (!proj?.id) continue
+        await this.db
+          .insert(agentProjects)
+          .values({
+            agentId: id,
+            alias: proj.name,
+            projectId: proj.id,
+          })
+          .onConflictDoNothing()
+      }
+    } catch (error: any) {
+      throw error
     }
   }
 
@@ -88,7 +93,7 @@ export class Agent extends Base<
   model = (data: TAgentSelectOpts, sanitizeOpts?: { sanitize?: boolean }) => {
     const agent = new AgentModel({
       ...data,
-      projects: data.projects.map((link) => link.project),
+      projects: (data.projects || []).map((link) => link.project),
     })
 
     // If sanitize is not explicitly false, sanitize the secrets
@@ -105,7 +110,7 @@ export class Agent extends Base<
    * Supports optional sanitization via opts.sanitize
    */
   async get(id: string, opts?: TAgentQueryOpts) {
-    const result = await super.get(id, { ...opts, with: this.with(opts.with) })
+    const result = await super.get(id, { ...opts, with: this.with(opts?.with) })
 
     // Apply sanitization if data exists
     if (result.data) {
@@ -127,7 +132,10 @@ export class Agent extends Base<
   ) {
     const data = isStr(prop) ? { [prop]: value } : prop
     const normalizedOpts = isObj(value) && !opts ? (value as TAgentQueryOpts) : opts
-    const result = await super.by(data, { ...opts, with: this.with(opts.with) })
+    const result = await super.by(data, {
+      ...normalizedOpts,
+      with: this.with(normalizedOpts?.with),
+    })
 
     // Apply sanitization if data exists
     if (result.data && normalizedOpts) {
@@ -185,7 +193,7 @@ export class Agent extends Base<
     const { projects, ...agent } = data
 
     if (!agent.id)
-      return { data: null, error: new Error('Agent ID is required for update') }
+      return { data: null, error: new DBError(`Agent ID is required for update`) }
 
     // Update the agent
     const result = await super.update(agent)

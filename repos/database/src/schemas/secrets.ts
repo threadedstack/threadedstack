@@ -4,7 +4,7 @@ import { sql, relations } from 'drizzle-orm'
 import { agents } from '@TDB/schemas/agents'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
-import { uuid, text, check, pgTable } from 'drizzle-orm/pg-core'
+import { uuid, text, check, index, pgTable } from 'drizzle-orm/pg-core'
 
 export const secrets = pgTable(
   `secrets`,
@@ -33,11 +33,16 @@ export const secrets = pgTable(
     (${table.orgId} IS NULL AND ${table.projectId} IS NULL AND ${table.providerId} IS NULL AND ${table.agentId} IS NOT NULL)
   `
     ),
+    index(`secrets_org_id_idx`).on(table.orgId),
+    index(`secrets_project_id_idx`).on(table.projectId),
+    index(`secrets_provider_id_idx`).on(table.providerId),
+    index(`secrets_agent_id_idx`).on(table.agentId),
   ]
 )
 
 export const secretsRelations = relations(secrets, ({ one }) => ({
   org: one(orgs, { fields: [secrets.orgId], references: [orgs.id] }),
   project: one(projects, { fields: [secrets.projectId], references: [projects.id] }),
+  provider: one(providers, { fields: [secrets.providerId], references: [providers.id] }),
   agent: one(agents, { fields: [secrets.agentId], references: [agents.id] }),
 }))

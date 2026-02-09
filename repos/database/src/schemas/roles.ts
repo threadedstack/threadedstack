@@ -3,7 +3,7 @@ import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { projects } from '@TDB/schemas/projects'
 import { base } from '@TDB/utils/schema/base'
-import { uuid, text, check, pgTable } from 'drizzle-orm/pg-core'
+import { uuid, text, check, uniqueIndex, pgTable } from 'drizzle-orm/pg-core'
 
 export const roles = pgTable(
   `roles`,
@@ -21,10 +21,12 @@ export const roles = pgTable(
     check(
       `role_scope_check`,
       sql`
-    (${table.orgId} IS NOT NULL AND ${table.projectId} IS NULL) OR 
+    (${table.orgId} IS NOT NULL AND ${table.projectId} IS NULL) OR
     (${table.orgId} IS NULL AND ${table.projectId} IS NOT NULL)
   `
     ),
+    uniqueIndex(`roles_user_org_idx`).on(table.userId, table.orgId),
+    uniqueIndex(`roles_user_project_idx`).on(table.userId, table.projectId),
   ]
 )
 

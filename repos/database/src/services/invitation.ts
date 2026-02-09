@@ -8,6 +8,7 @@ import type {
 
 import { eq, and, lt } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
+import { DBError } from '@TDB/utils/error/error'
 import { invitations } from '@TDB/schemas/invitations'
 import { EInviteStatus, Invitation as InvitationModel } from '@tdsk/domain'
 
@@ -120,6 +121,16 @@ export class Invitation extends Base<
     userId: string
   ): Promise<TDBApiRes<InvitationModel>> {
     try {
+      const existing = await this.db
+        .select()
+        .from(invitations)
+        .where(eq(invitations.id, invitationId))
+        .limit(1)
+
+      if (!existing[0]) return { error: new DBError(`Invitation not found`) }
+      if (existing[0].status !== EInviteStatus.pending)
+        return { error: new DBError(`Invitation is not pending`) }
+
       const result = await this.db
         .update(invitations)
         .set({
@@ -147,6 +158,16 @@ export class Invitation extends Base<
     revokedBy: string
   ): Promise<TDBApiRes<InvitationModel>> {
     try {
+      const existing = await this.db
+        .select()
+        .from(invitations)
+        .where(eq(invitations.id, invitationId))
+        .limit(1)
+
+      if (!existing[0]) return { error: new DBError(`Invitation not found`) }
+      if (existing[0].status !== EInviteStatus.pending)
+        return { error: new DBError(`Invitation is not pending`) }
+
       const result = await this.db
         .update(invitations)
         .set({

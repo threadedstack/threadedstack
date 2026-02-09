@@ -1,8 +1,9 @@
 import type { TServiceOpts, TDBQuotaSelect, TDBQuotaInsert } from '@TDB/types'
 
 import { Base } from '@TDB/services/base'
-import { quotas } from '@TDB/schemas/quotas'
 import { eq, and, sql } from 'drizzle-orm'
+import { quotas } from '@TDB/schemas/quotas'
+import { DBError } from '@TDB/utils/error/error'
 import { Quota as QuotaModel } from '@tdsk/domain'
 
 type TIncrementKey = keyof Pick<
@@ -38,6 +39,8 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
         .from(this.table)
         .where(and(eq(this.table.orgId, orgId), eq(this.table.period, period)))
 
+      if (!data) return { error: new DBError(`Quota not found`) }
+
       return { data: this.model(data as TDBQuotaSelect) }
     } catch (err: unknown) {
       return { error: err as Error }
@@ -57,8 +60,10 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
    */
   async increment(orgId: string, period: string, key: TIncrementKey, amount = 1) {
     try {
+      if (amount <= 0) throw new DBError(`Quota increment amount must be positive`)
+
       const column = this.table[key]
-      if (!column) throw new Error(`Invalid quota key: ${key}`)
+      if (!column) throw new DBError(`Invalid quota key: ${key}`)
 
       const [data] = await this.db
         .insert(this.table)
@@ -113,6 +118,8 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
         })
         .onConflictDoNothing()
         .returning()
+
+      if (!data) return this.getUsage(orgId, period)
 
       return { data: this.model(data as TDBQuotaSelect) }
     } catch (err: unknown) {

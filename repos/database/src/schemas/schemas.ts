@@ -5,7 +5,7 @@
  * The schemas exists so they can be read, but they should not be included in other database operations.
  */
 
-export { configs } from '@TDB/schemas/configs'
+export { configs, configsRelations } from '@TDB/schemas/configs'
 export { orgs, orgsRelations } from '@TDB/schemas/orgs'
 export { roles, rolesRelations } from '@TDB/schemas/roles'
 export { quotas, quotasRelations } from '@TDB/schemas/quotas'

@@ -15,6 +15,8 @@ import { isObj } from '@keg-hub/jsutils/isObj'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { exists } from '@keg-hub/jsutils/exists'
 import { eq, and, getTableName } from 'drizzle-orm'
+import { singular } from '@keg-hub/jsutils/singular'
+import { capitalize } from '@keg-hub/jsutils/capitalize'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
 import { DBError, DBIdError, DBValueError } from '@TDB/utils/error/error'
 
@@ -32,6 +34,7 @@ export class Base<
 > implements IDBApi<M, I>
 {
   name: string
+  title: string
   table: TTable
   db: TDatabase
   config: Record<string, any>
@@ -41,12 +44,13 @@ export class Base<
     this.table = opts.table
     this.config = opts.config || {}
     this.name = getTableName(this.table)
+    this.title = capitalize(singular(this.name))
   }
 
   with = <T extends TDBWithRecord = TDBWithRecord>(opts: T): TDBWithRecord => opts
 
   model = (data: S, ...args: any[]): M => {
-    logger.error(
+    logger.warn(
       `Warning, the ${this.constructor.name} class should override this function!`
     )
     return data as unknown as M
@@ -70,12 +74,12 @@ export class Base<
     let property: string
     if (isStr(prop)) property = prop
     else {
-      property = prop[Object.keys(prop)[0]]
+      property = Object.keys(prop)[0]
       if (isObj(value) && !opts) opts = value as TDBQueryOpts
       value = prop[property]
     }
 
-    if (!exists(value)) return { error: new DBValueError(`${this.constructor.name}.by`) }
+    if (!exists(value)) return { error: new DBValueError(`${this.title}.by`) }
 
     try {
       const row = await this.db.query[this.name].findFirst({
@@ -85,7 +89,7 @@ export class Base<
 
       return row
         ? { data: this.model(row) }
-        : { error: new DBError(`${this.constructor.name} not found`) }
+        : { error: new DBError(`${this.title} not found`) }
     } catch (error: any) {
       return { error }
     }
@@ -100,7 +104,7 @@ export class Base<
 
       return row
         ? { data: this.model(row) }
-        : { error: new DBError(`${this.constructor.name} not found`) }
+        : { error: new DBError(`${this.title} not found`) }
     } catch (error: any) {
       return { error }
     }
@@ -133,9 +137,11 @@ export class Base<
 
       const resp = await this.db
         .update(this.table)
-        .set(data)
+        .set({ ...data, updatedAt: new Date() })
         .where(eq(this.table.id, id))
         .returning()
+
+      if (!resp[0]) return { error: new DBError(`${this.title} not found`) }
 
       return { data: this.model(resp[0]) as M }
     } catch (error: any) {
@@ -157,6 +163,8 @@ export class Base<
         })
         .returning()
 
+      if (!resp[0]) return { error: new DBError(`${this.title} not found`) }
+
       return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {
       return { error }
@@ -169,6 +177,8 @@ export class Base<
         .delete(this.table)
         .where(eq(this.table.id, id))
         .returning()
+
+      if (!resp[0]) return { error: new DBError(`${this.title} not found`) }
 
       return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {

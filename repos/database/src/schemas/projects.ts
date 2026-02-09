@@ -7,18 +7,25 @@ import { configs } from '@TDB/schemas/configs'
 import { endpoints } from '@TDB/schemas/endpoints'
 import { providers } from '@TDB/schemas/providers'
 import { agentProjects } from '@TDB/schemas/agentProjects'
-import { uuid, text, jsonb, pgTable } from 'drizzle-orm/pg-core'
+import { uuid, text, jsonb, uniqueIndex, index, pgTable } from 'drizzle-orm/pg-core'
 
-export const projects = pgTable(`projects`, {
-  ...base,
-  meta: jsonb(`meta`),
-  gitUrl: text(`git_url`),
-  name: text(`name`).notNull(),
-  branch: text(`branch`).default(`main`),
-  orgId: uuid(`org_id`)
-    .references(() => orgs.id, { onDelete: `cascade` })
-    .notNull(),
-})
+export const projects = pgTable(
+  `projects`,
+  {
+    ...base,
+    meta: jsonb(`meta`),
+    gitUrl: text(`git_url`),
+    name: text(`name`).notNull(),
+    branch: text(`branch`).default(`main`),
+    orgId: uuid(`org_id`)
+      .references(() => orgs.id, { onDelete: `cascade` })
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex(`projects_org_name_idx`).on(table.orgId, table.name),
+    index(`projects_org_id_idx`).on(table.orgId),
+  ]
+)
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   assets: many(assets),

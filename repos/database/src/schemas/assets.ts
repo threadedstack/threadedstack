@@ -17,7 +17,9 @@ export const assets = pgTable(
     content: jsonb(`content`),
     name: text(`name`).notNull(),
     type: text(`type`).notNull(),
-    providerId: uuid(`provider_id`).references(() => providers.id),
+    providerId: uuid(`provider_id`).references(() => providers.id, {
+      onDelete: `set null`,
+    }),
     orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
     threadId: uuid(`thread_id`).references(() => threads.id, { onDelete: `cascade` }),

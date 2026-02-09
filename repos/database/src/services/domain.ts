@@ -1,4 +1,5 @@
 import type {
+  TDBApiRes,
   TServiceOpts,
   TDBQueryOpts,
   TDBDomainsSelect,
@@ -50,7 +51,7 @@ export class DomainService extends Base<
         data.sslCertificate,
         data.sslPrivateKey as string
       )
-      if (error) return { error }
+      if (error) return { error } as TDBApiRes<DomainModel>
     }
 
     return result
@@ -67,7 +68,7 @@ export class DomainService extends Base<
         data.sslCertificate,
         data.sslPrivateKey as string
       )
-      if (error) return { error }
+      if (error) return { error } as TDBApiRes<DomainModel>
     }
 
     return result
@@ -197,9 +198,6 @@ export class DomainService extends Base<
   async validate(domain: string): Promise<boolean> {
     const resp = await this.by({ domain })
 
-    console.log(`------- domain validate -------`)
-    console.log(resp)
-
     return !!resp?.data && resp?.data.verified
   }
 
@@ -217,7 +215,7 @@ export class DomainService extends Base<
         .where(eq(domains.domain, domain))
         .returning()
 
-      return { data: this.model(record as TDBDomainsSelect) }
+      return { data: this.model(record) }
     } catch (error: any) {
       return { error }
     }
@@ -228,30 +226,38 @@ export class DomainService extends Base<
    * SSL certificates are stored by Caddy in the caddy_certmagic_objects table
    */
   async enableSSL(domain: string) {
-    const [domainRecord] = await this.db
-      .update(domains)
-      .set({
-        sslEnabled: true,
-      })
-      .where(eq(domains.domain, domain))
-      .returning()
+    try {
+      const [record] = await this.db
+        .update(domains)
+        .set({
+          sslEnabled: true,
+        })
+        .where(eq(domains.domain, domain))
+        .returning()
 
-    return domainRecord
+      return { data: this.model(record) }
+    } catch (error: any) {
+      return { error } as TDBApiRes<DomainModel>
+    }
   }
 
   /**
    * Disable SSL for a domain
    */
   async disableSSL(domain: string) {
-    const [domainRecord] = await this.db
-      .update(domains)
-      .set({
-        sslEnabled: false,
-      })
-      .where(eq(domains.domain, domain))
-      .returning()
+    try {
+      const [record] = await this.db
+        .update(domains)
+        .set({
+          sslEnabled: false,
+        })
+        .where(eq(domains.domain, domain))
+        .returning()
 
-    return domainRecord
+      return { data: this.model(record) }
+    } catch (error: any) {
+      return { error } as TDBApiRes<DomainModel>
+    }
   }
 
   /**
@@ -259,14 +265,14 @@ export class DomainService extends Base<
    */
   delete = async (domain: string) => {
     try {
-      const resp = await this.db
+      const [record] = await this.db
         .delete(domains)
         .where(eq(domains.domain, domain))
         .returning()
 
-      return { data: this.model(resp[0] as TDBDomainsSelect) }
+      return { data: this.model(record) }
     } catch (error: any) {
-      return { error }
+      return { error } as TDBApiRes<DomainModel>
     }
   }
 

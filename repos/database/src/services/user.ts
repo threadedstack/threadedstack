@@ -1,9 +1,17 @@
-import type { TServiceOpts, TDBUserSelect, TDBUserInsert } from '@TDB/types'
+import type {
+  TServiceOpts,
+  TDBUserSelect,
+  TDBUserInsert,
+  TDBApiResType,
+} from '@TDB/types'
 
-import { eq, and } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { users } from '@TDB/schemas/users'
+import { eq, and, inArray } from 'drizzle-orm'
+import { DBError } from '@TDB/utils/error/error'
 import { User as UserModel } from '@tdsk/domain'
+
+type TUserResp = TDBApiResType<UserModel>
 
 export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert, UserModel> {
   constructor(opts: TServiceOpts) {
@@ -22,7 +30,21 @@ export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert, UserM
         .where(and(eq(users.email, email)))
         .limit(1)
 
-      return { data: this.model(result[0] as TDBUserSelect) }
+      if (!result[0]) return { error: new DBError(`User not found`) }
+
+      return { data: this.model(result[0] as TDBUserSelect) } as TUserResp
+    } catch (error) {
+      return { error } as TUserResp
+    }
+  }
+
+  getByIds = async (ids: string[]) => {
+    try {
+      if (!ids.length) return { data: [] }
+
+      const result = await this.db.select().from(users).where(inArray(users.id, ids))
+
+      return { data: result.map((row) => this.model(row as TDBUserSelect)) }
     } catch (error) {
       return { error }
     }

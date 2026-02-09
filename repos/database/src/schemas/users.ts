@@ -21,7 +21,7 @@ export const users = authSchema.table(`user`, {
   role: text(`role`),
   banned: boolean(`banned`),
   banReason: text(`banReason`),
-  banExpires: timestamp(`banReason`),
+  banExpires: timestamp(`banExpires`),
   emailVerified: boolean(`emailVerified`),
   createdAt: timestamp(`createdAt`, { mode: `string` }).notNull(),
   updatedAt: timestamp(`updatedAt`, { mode: `string` }).notNull(),
