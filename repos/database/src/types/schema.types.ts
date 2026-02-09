@@ -73,11 +73,9 @@ export type TDBInvitationSelect = TInferDateProps<
   typeof invitations.$inferSelect,
   `createdAt` | `updatedAt` | `expiresAt` | `acceptedAt` | `revokedAt`
 >
-export type TDBInvitationInsert = Partial<
-  TInferDateProps<
-    typeof invitations.$inferInsert,
-    `createdAt` | `updatedAt` | `expiresAt` | `acceptedAt` | `revokedAt`
-  >
+export type TDBInvitationInsert = TInferDateProps<
+  typeof invitations.$inferInsert,
+  `createdAt` | `updatedAt` | `expiresAt` | `acceptedAt` | `revokedAt`
 >
 
 export type TDBApiKeySelect = TInferDateProps<
@@ -85,11 +83,9 @@ export type TDBApiKeySelect = TInferDateProps<
   `createdAt` | `updatedAt` | `expiresAt` | `lastUsedAt`
 >
 
-export type TDBApiKeyInsert = Partial<
-  TInferDateProps<
-    typeof apiKeys.$inferInsert,
-    `createdAt` | `updatedAt` | `expiresAt` | `lastUsedAt`
-  >
+export type TDBApiKeyInsert = TInferDateProps<
+  typeof apiKeys.$inferInsert,
+  `createdAt` | `updatedAt` | `expiresAt` | `lastUsedAt`
 >
 
 export type TDBDomainsSelect = TInferDateProps<
@@ -97,11 +93,9 @@ export type TDBDomainsSelect = TInferDateProps<
   `createdAt` | `updatedAt` | `verifiedAt` | `sslExpiresAt`
 >
 
-export type TDBDomainsInsert = Partial<
-  TInferDateProps<
-    typeof domains.$inferInsert,
-    `createdAt` | `updatedAt` | `verifiedAt` | `sslExpiresAt`
-  >
+export type TDBDomainsInsert = TInferDateProps<
+  typeof domains.$inferInsert,
+  `createdAt` | `updatedAt` | `verifiedAt` | `sslExpiresAt`
 >
 
 export type TDBEntitySelect =
@@ -179,15 +173,11 @@ export type TDBQueryOpts<T extends Record<string, any> = Record<string, any>> = 
   }
 }
 
-export type TDBApiRes<M extends BaseModel | BaseModel[]> = {
-  data?: M
-  error?: Error
-}
+export type TDBApiRes<M extends BaseModel | BaseModel[]> =
+  | { data: M; error?: never }
+  | { data?: never; error: Error }
 
-export type TDBApiResType<T> = {
-  data?: T
-  error?: Error
-}
+export type TDBApiResType<T> = { data: T; error?: never } | { data?: never; error: Error }
 
 export interface IDBApi<M extends BaseModel, I extends TDBEntityInsert> {
   create: (data: I, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>

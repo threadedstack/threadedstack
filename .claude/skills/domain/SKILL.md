@@ -26,29 +26,51 @@ This repo is consumed by `backend`, `proxy`, and `admin` repos as the single sou
 repos/domain/
 ├── src/
 │   ├── api/              # Express API utilities
-│   │   ├── router.ts           # asyncWrap + getAppRouter for safe route handling
-│   │   ├── setupCors.ts        # CORS configuration helper
-│   │   ├── setupServer.ts      # Express server setup (trust proxy, disable etag)
+│   │   ├── adminPath.ts        # Admin path utilities
+│   │   ├── authHeaders.ts      # Auth header extraction/forwarding
+│   │   ├── behindLBProxy.ts    # Load balancer proxy detection
 │   │   ├── checkAuthHeader.ts  # Auth header validation
-│   │   └── generateOrigins.ts  # Dynamic origin generation
+│   │   └── inKube.ts           # Kubernetes environment detection
 │   ├── models/           # Domain model classes
 │   │   ├── base.ts             # Base class with id, createdAt, updatedAt
 │   │   ├── user.ts             # User model with name parsing
-│   │   ├── team.ts             # Team model
-│   │   ├── repo.ts             # Repo model with gitUrl, branch
+│   │   ├── agent.ts            # Agent model
+│   │   ├── apiKey.ts           # API key model
+│   │   ├── asset.ts            # Asset model
+│   │   ├── certificate.ts      # Certificate model
+│   │   ├── config.ts           # Config model
+│   │   ├── domain.ts           # Domain model
+│   │   ├── endpoint.ts         # Endpoint model
+│   │   ├── function.ts         # Function model
+│   │   ├── invitation.ts       # Invitation model
+│   │   ├── message.ts          # Message model
+│   │   ├── organization.ts     # Organization model
+│   │   ├── plan.ts             # Plan model for payment plans
+│   │   ├── project.ts          # Project model
 │   │   ├── provider.ts         # Provider model (ai/git/auth/storage)
-│   │   └── plan.ts             # Plan model for payment plans
+│   │   ├── quota.ts            # Quota model
+│   │   ├── role.ts             # Role model
+│   │   ├── secret.ts           # Secret model
+│   │   ├── subscription.ts     # Subscription model
+│   │   └── thread.ts           # Thread model
 │   ├── types/            # TypeScript type definitions
+│   │   ├── ai.types.ts         # AI/LLM related types
 │   │   ├── endpoint.types.ts   # Express types: TApp, TRequest, TResponse, TRouter
-│   │   ├── provider.types.ts   # EProvider enum (ai/git/auth/storage)
+│   │   ├── epd.types.ts        # Endpoint data types
+│   │   ├── functions.types.ts  # Function/FaaS types
+│   │   ├── headers.types.ts    # HTTP header types
 │   │   ├── helpers.types.ts    # Generic helpers: TAnyCB, TValueOf, EStatus, EContainerState
-│   │   ├── errors.types.ts     # Error handling types
+│   │   ├── http.types.ts       # HTTP method/request types
+│   │   ├── invitation.types.ts # Invitation types
 │   │   ├── payments.types.ts   # Payment plan types
-│   │   └── pc.types.ts         # Parse-config module declarations
+│   │   ├── permissions.types.ts # Permission enums and types
+│   │   ├── provider.types.ts   # EProvider enum (ai/git/auth/storage)
+│   │   ├── scopes.types.ts     # API scope types
+│   │   └── server.types.ts     # Server configuration types
 │   ├── utils/            # Utility functions
 │   │   ├── crypto/             # Crypto utilities
-│   │   │   ├── crypto.ts       # AES-256-GCM encryption/decryption
-│   │   │   ├── generateKey.ts  # Key generation
+│   │   │   ├── crypto.ts       # AES-256-GCM encryption/decryption (Node.js crypto)
+│   │   │   ├── generateKey.ts  # Key generation (Web Crypto API - browser/edge only)
 │   │   │   └── index.ts
 │   │   ├── payments/           # Payment utilities
 │   │   │   ├── parsePayPlans.ts    # Parse payment plan configs
@@ -61,7 +83,10 @@ repos/domain/
 │   │   ├── time.ts             # Timestamp utility
 │   │   ├── asBool.ts           # Boolean conversion
 │   │   ├── shortId.ts          # Short ID generation
+│   │   ├── splitBy.ts          # String splitting utilities (splitBy, cleanSplit)
 │   │   ├── deepCopy.ts         # Deep object cloning
+│   │   ├── defaultTrue.ts      # Default-to-true boolean conversion (deprecated)
+│   │   ├── isDomain.ts         # Domain name validation
 │   │   ├── nextFrame.ts        # Animation frame utilities
 │   │   └── throttleCBLast.ts   # Callback throttling
 │   ├── error/            # Error handling
@@ -70,8 +95,9 @@ repos/domain/
 │   ├── environment/      # Environment configuration
 │   │   ├── loadEnvs.ts         # Load environment from deploy/values.*.yml
 │   │   └── addToProcess.ts     # Add envs to process.env
-│   ├── constants/        # Constants (currently empty placeholder)
-│   ├── services/         # Services (currently empty placeholder)
+│   ├── constants/        # Constants
+│   │   └── values.ts          # AuthHeaders, RoleHierarchy, PermissionMatrix
+│   ├── services/         # Services (empty placeholder)
 │   ├── index.ts          # Main export (all modules)
 │   └── web.ts            # Web-safe exports (excludes Node.js-specific code)
 ├── configs/
@@ -90,8 +116,8 @@ repos/domain/
 | `src/web.ts` | Web-safe exports (excludes Node.js stdlib code) |
 | `src/types/endpoint.types.ts` | Express API type definitions (TApp, TRequest, TResponse, TRouter) |
 | `src/models/base.ts` | Base model class with id, createdAt, updatedAt |
-| `src/utils/crypto.ts` | AES-256-GCM encryption with HKDF key derivation |
-| `src/api/router.ts` | Express router wrapper with automatic async error handling |
+| `src/utils/crypto/crypto.ts` | AES-256-GCM encryption with HKDF key derivation |
+| `src/api/authHeaders.ts` | Auth header extraction and forwarding utilities |
 | `src/error/exception.ts` | Custom Exception class for structured error handling |
 | `src/environment/loadEnvs.ts` | Environment loading from deploy/values.*.yml files |
 
@@ -349,47 +375,43 @@ timestamp(): number  // Date.now()
 
 ## API Helpers
 
-### Router Wrapper (`api/router.ts`)
-
-**Automatic Async Error Handling:**
+### Admin Path (`api/adminPath.ts`)
 
 ```typescript
-// Wraps handler in try/catch, logs errors, sends JSON response
-asyncWrap(handler: TReqHandler): (req, res, next) => Promise<void>
-
-// Creates type-safe router with auto-wrapped handlers
-getAppRouter(router: Router, middleware?: RequestHandler[]): TRouter
-
-// Usage:
-const router = getAppRouter(Router())
-router.get('/users', async (req, res) => {
-  // Errors automatically caught and handled
-  const users = await db.query('SELECT * FROM users')
-  res.json(users)
-})
+adminPath(config: { adminPath?: string }): string
+// Returns the admin route prefix (default: "/_")
 ```
 
-### Server Setup (`api/setupServer.ts`)
+### Auth Headers (`api/authHeaders.ts`)
 
 ```typescript
-setupServer(app: TApp): void
-// Configures:
-// - app.set('trust proxy', 1)
-// - app.disable('etag')
-// - app.disable('x-powered-by')
+// Forward auth headers from request to proxy request
+setAuthHeaders(pxReq: TClientReq, req: Record<string, any>): void
+
+// Extract auth header values from incoming request
+fromAuthHeaders(req: TReq): Partial<TAuthHeaderObj>
 ```
 
-### CORS (`api/setupCors.ts`)
+### Load Balancer Detection (`api/behindLBProxy.ts`)
 
-Exports CORS configuration helper for Express (implementation details in file).
+```typescript
+behindLBProxy(): boolean
+// Returns true if TDSK_WITH_LB_PROXY env is set (running behind load balancer in k8s)
+```
 
-### Auth Header (`api/checkAuthHeader.ts`)
+### Auth Header Check (`api/checkAuthHeader.ts`)
 
-Exports authentication header validation middleware (implementation details in file).
+```typescript
+checkAuthHeader(authHeader?: string): { access_token: string | undefined }
+// Extracts Bearer token from Authorization header
+```
 
-### Origins (`api/generateOrigins.ts`)
+### Kubernetes Detection (`api/inKube.ts`)
 
-Exports dynamic origin generation for CORS configuration (implementation details in file).
+```typescript
+inKube(): boolean
+// Returns true if running inside Kubernetes (checks TDSK_IN_KUBE or k8s service env vars)
+```
 
 ## Error Handling
 
@@ -476,7 +498,7 @@ Multiple models implement the exclusive arc pattern:
 ### Export Strategy
 
 - `src/index.ts` - Full exports (includes Node.js stdlib code)
-- `src/web.ts` - Web-safe exports (excludes `api`, `environment`, `crypto`)
+- `src/web.ts` - Web-safe exports (excludes `api`, `environment`, `services`)
 - Consumers choose based on runtime environment
 
 ### Barrel Exports
@@ -489,31 +511,7 @@ Each module has an `index.ts` that re-exports all sub-modules:
 
 ## Key Patterns
 
-### 1. Async Error Boundary
-
-The `asyncWrap` pattern ensures all route handlers are wrapped in try/catch:
-
-```typescript
-// Before:
-router.get('/users', async (req, res) => {
-  try {
-    const users = await db.query('...')
-    res.json(users)
-  } catch (err) {
-    logger.error(err)
-    res.status(500).json({ error: err.message })
-  }
-})
-
-// After:
-const router = getAppRouter(Router())
-router.get('/users', async (req, res) => {
-  const users = await db.query('...')
-  res.json(users)
-})
-```
-
-### 2. Type-Safe Express
+### 1. Type-Safe Express
 
 Custom Express types provide full type safety:
 
@@ -528,7 +526,7 @@ type TRequest<ReqParams, ResBody, ReqBody, ReqQuery, Locals> = {
 }
 ```
 
-### 3. Model Inheritance
+### 2. Model Inheritance
 
 All models extend `Base` for consistent timestamps:
 
@@ -541,10 +539,10 @@ class Base {
 
 // All models get these fields automatically
 class User extends Base { /* ... */ }
-class Team extends Base { /* ... */ }
+class Organization extends Base { /* ... */ }
 ```
 
-### 4. Encryption Key Derivation
+### 3. Encryption Key Derivation
 
 HKDF (HMAC-based Key Derivation Function) pattern:
 
@@ -556,7 +554,7 @@ const derivedKey = await deriveKey(userId)
 const encrypted = await encryptValue(derivedKey, secretValue)
 ```
 
-### 5. Environment Cascading
+### 4. Environment Cascading
 
 Environment loading follows precedence:
 1. Project-specific: `@ROOT/deploy/values.<env>.yml`
@@ -607,13 +605,13 @@ pnpm clean              # Remove node_modules
 **Backend (`@tdsk/backend`)**:
 - Uses full `index.ts` exports
 - Imports: types, models, api helpers, error handling, environment loading
-- Extends: `TApp`, `TRequest`, `TResponse`, `TRouter`
-- Uses: `asyncWrap`, `setupServer`, `Exception`, `loadEnvs`
+- Extends: `TApp`, `TRequest`, `TResponse`
+- Uses: `adminPath`, `authHeaders`, `Exception`, `loadEnvs`
 
 **Proxy (`@tdsk/proxy`)**:
 - Uses full `index.ts` exports
 - Imports: types, models, api helpers, crypto utilities
-- Uses: `checkAuthHeader`, `generateOrigins`, `setupCors`, encryption utilities
+- Uses: `checkAuthHeader`, `behindLBProxy`, `inKube`, encryption utilities
 
 **Admin (`@tdsk/admin`)**:
 - Uses `web.ts` exports (web-safe only)
@@ -622,14 +620,14 @@ pnpm clean              # Remove node_modules
 
 **Database (`@tdsk/database`)**:
 - Uses model classes for ORM type definitions
-- Imports: `User`, `Team`, `Repo`, `Provider` models
+- Imports: `User`, `Organization`, `Project`, `Provider` models
 
 ### Path Aliases
 
 All repos can import using these aliases:
 
 ```typescript
-import { User, Team } from '@TDM/models'
+import { User, Organization } from '@TDM/models'
 import { TRequest, TResponse } from '@TDM/types'
 import { Exception } from '@TDM/error'
 import { encryptValue, decryptValue } from '@TDM/utils/crypto'
@@ -656,7 +654,7 @@ This ensures all internal packages use the local workspace version.
 ## Best Practices
 
 1. **Always use web.ts for frontend** - Prevents Node.js stdlib code in browser bundles
-2. **Use asyncWrap pattern** - Never write try/catch in route handlers manually
+2. **Use API helpers** - Leverage `adminPath`, `authHeaders`, `checkAuthHeader` utilities
 3. **Extend Base model** - All domain models should inherit from Base
 4. **Type-safe requests** - Use TRequest/TResponse with generics for full type safety
 5. **Environment-specific configs** - Use loadEnvs for all environment configuration
@@ -735,7 +733,4 @@ describe('asBool', () => {
 
 Based on empty placeholder modules:
 
-- `services/` - Planned for shared service layer logic
-- `constants/` - Planned for shared constants/enums
-
-These may be expanded in future phases of the project.
+- `services/` - Planned for shared service layer logic (currently empty)

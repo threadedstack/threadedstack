@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { sql, relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { projects } from '@TDB/schemas/projects'
@@ -27,3 +27,9 @@ export const configs = pgTable(
     ),
   ]
 )
+
+export const configsRelations = relations(configs, ({ one }) => ({
+  user: one(users, { fields: [configs.userId], references: [users.id] }),
+  org: one(orgs, { fields: [configs.orgId], references: [orgs.id] }),
+  project: one(projects, { fields: [configs.projectId], references: [projects.id] }),
+}))

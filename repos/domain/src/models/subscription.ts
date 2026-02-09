@@ -1,10 +1,12 @@
+import { ESubscriptionTier, ESubscriptionStatus } from '../types/payments.types'
 import { Base } from './base'
 
 export class Subscription extends Base {
-  tier: string
-  status: string
+  tier: string = ESubscriptionTier.free
+  status: string = ESubscriptionStatus.active
   userId: string
   polarId?: string
+  seats: number = 0
   polarPriceId?: string
   polarCustomerId?: string
   currentPeriodEnd?: string

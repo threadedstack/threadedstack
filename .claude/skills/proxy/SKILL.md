@@ -1,7 +1,7 @@
 ---
 name: "Threaded Stack - Proxy Repo"
 description: "Knowledge base for the Auth Gateway proxy repo"
-version: "2.0.0"
+version: "2.1.0"
 tags: ["express", "jwt", "jwks", "proxy", "auth", "gateway", "typescript", "jose"]
 ---
 # Proxy Repo Skill
@@ -27,8 +27,8 @@ repos/proxy/
 ├── configs/                          # Build and app configurations
 │   ├── aliases.ts                   # Path alias setup (alias-hq)
 │   ├── biome.json                   # Biome linter/formatter config
-│   ├── proxy.config.ts              # Main proxy config (JWT, Server, Backend, Logger, JWKS, Domains)
-│   ├── proxy.config.test.ts         # Config validation tests (8 tests)
+│   ├── proxy.config.ts              # Main proxy config (Server, Backend, Logger, JWKS, Domains)
+│   ├── proxy.config.test.ts         # Config validation tests (7 tests)
 │   ├── tsup.config.ts              # Production build config (CJS bundle)
 │   ├── tsdown.config.ts            # Alternative build config (tsdown)
 │   └── vitest.config.ts            # Vitest test runner config
@@ -55,6 +55,7 @@ repos/proxy/
 │   │   ├── setupAuth.ts            # JWT validation via JWKS, attaches req.user
 │   │   ├── setupProxy.ts           # http-proxy-middleware → backend forwarding
 │   │   ├── setupLogger.ts          # Request/response logging with timing
+│   │   ├── setupDatabase.ts        # Database initialization on app.locals.db
 │   │   ├── setupEndpoints.ts       # Route registration (4 endpoints)
 │   │   ├── setupErrorHandler.ts    # Global error handler mount
 │   │   ├── setupPrewarm.ts         # Caddy certificate pre-warming interceptor
@@ -70,13 +71,13 @@ repos/proxy/
 │   ├── types/                       # TypeScript type definitions
 │   │   ├── proxy.types.ts          # TProxyApp = TApp<TProxyConfig>
 │   │   ├── auth.types.ts           # EJWTError, TTokenPayload, TAuthUser, TJWTPayload, TJWTValidationResult
-│   │   ├── config.types.ts         # TJwtConfig, TServerConfig, TBackendConfig, TLoggerConfig, TJWKSConfig, TDomainsConfig, TProxyConfig
+│   │   ├── config.types.ts         # TServerConfig, TBackendConfig, TLoggerConfig, TJWKSConfig, TDomainsConfig, TProxyConfig
 │   │   ├── envs.types.ts           # TLogLevel union type
 │   │   ├── express.types.ts        # Global Express Request.user extension
 │   │   └── index.ts
 │   ├── utils/                       # Utility functions
 │   │   ├── logger.ts               # Winston logger factory via buildApiLogger()
-│   │   ├── logger.test.ts          # Logger test (placeholder)
+│   │   ├── logger.test.ts          # Logger tests (11 tests — creation, API, config)
 │   │   ├── signals.ts              # Graceful shutdown on SIGINT/SIGTERM/SIGQUIT
 │   │   ├── errors/
 │   │   │   ├── errorHandler.ts     # Express error middleware — returns status/message/errorCode
@@ -102,6 +103,7 @@ repos/proxy/
 | `src/middleware/setupServer.ts` | CORS, body parsing, router mount |
 | `src/middleware/setupLogger.ts` | Request/response logging with request IDs and timing |
 | `src/middleware/setupPrewarm.ts` | Caddy certificate pre-warming interceptor |
+| `src/middleware/setupDatabase.ts` | Database initialization on `app.locals.db` |
 | `src/middleware/setupEndpoints.ts` | Route registration for 4 endpoints |
 | `src/server/router.ts` | Async router wrapping HTTP methods with express-async-handler |
 | `src/server/server.ts` | HTTP/HTTPS server creation with SSL cert loading |
@@ -109,7 +111,7 @@ repos/proxy/
 | `src/utils/errors/exception.ts` | Custom Exception class with status code |
 | `src/utils/signals.ts` | Graceful shutdown handlers |
 | `src/constants/values.ts` | ProcessSignals, PublicRoutes, LoggerIgnore |
-| `configs/proxy.config.ts` | Main config — JWT, Server, Backend, Logger, JWKS, Domains |
+| `configs/proxy.config.ts` | Main config — Server, Backend, Logger, JWKS, Domains |
 
 ## Endpoints
 
@@ -118,10 +120,8 @@ repos/proxy/
 | GET | `/health` | Public | `health.ts` | Returns `{ status: "ok", service: "auth-proxy", timestamp }` |
 | GET | `/auth/me` | Protected | `auth/me.ts` | Returns decoded JWT user from `req.user` |
 | POST | `/auth/logout` | Protected | `auth/logout.ts` | Logout acknowledgment (client-side auth) |
-| GET | `/domains/validate` | Protected* | `domains/validate.ts` | Caddy on_demand_tls domain validation via DB |
+| GET | `/domains/validate` | Public | `domains/validate.ts` | Caddy on_demand_tls domain validation via DB |
 | `/_/*` | (proxied) | Protected | `setupProxy.ts` | All admin routes forwarded to backend |
-
-*Note: `/domains/validate` is intended for Caddy (unauthenticated) but is NOT in `PublicRoutes` — see AUDIT.md M-2.
 
 ## Middleware Chain Order
 
@@ -130,11 +130,12 @@ Defined in `src/proxy.ts`:
 ```
 1. setupLogger      → Request/response logging (skips OPTIONS)
 2. setupServer      → CORS, urlencoded, router mount
-3. setupAuth        → JWT validation via JWKS (skips PublicRoutes)
-4. setupPrewarm     → Caddy cert pre-warming (returns 200 if prewarm header present)
-5. setupEndpoints   → Register /health, /auth/me, /auth/logout, /domains/validate
-6. setupProxy       → http-proxy-middleware for /_/* → backend
-7. setupErrorHandler → Global error handler
+3. setupDatabase    → Initialize DB singleton on app.locals.db
+4. setupAuth        → JWT validation via JWKS (skips PublicRoutes)
+5. setupPrewarm     → Caddy cert pre-warming (returns 200 if prewarm header present)
+6. setupEndpoints   → Register /health, /auth/me, /auth/logout, /domains/validate
+7. setupProxy       → http-proxy-middleware for /_/* → backend
+8. setupErrorHandler → Global error handler
 ```
 
 ## Auth Service (`src/services/auth.ts`)
@@ -202,6 +203,8 @@ setupLogger     → Log request (method, path, requestId, IP, UA)
   ↓
 setupServer     → CORS validation, URL-encoded body parsing
   ↓
+setupDatabase   → Initialize DB singleton on app.locals.db
+  ↓
 setupAuth       → Check PublicRoutes → Extract Bearer token → Verify via JWKS → Attach req.user
   ↓
 setupPrewarm    → If prewarm header present, return 200 early
@@ -221,7 +224,6 @@ Response logged via setupLogger's res.on('finish') listener
 
 ```typescript
 config = {
-  jwt: { secret, expiresIn, refreshExpiresIn },    // NOTE: jwt.secret is unused — JWKS used instead
   server: { port, enableSSL, origins, certs },
   backend: { url, adminPath, headerKey, headerValue },
   logger: { label, level, pretty, silent, exceptions, rejections, exitOnError },
@@ -244,9 +246,6 @@ config = {
 | `TDSK_PX_LOG_LEVEL` | TLogLevel | `info` | Logger verbosity |
 | `TDSK_PX_LOGGER_PRETTY` | boolean | `false` | Pretty-printed logs (dev) |
 | `TDSK_PX_LOGGER_SILENT` | boolean | `false` | Disable all logging |
-| `TDSK_PX_JWT_SECRET` | string | fallback | JWT secret (unused — JWKS used instead) |
-| `TDSK_PX_JWT_EXPIRES_IN` | string | `7d` | JWT expiration (unused — JWKS used instead) |
-| `TDSK_PX_JWT_REFRESH_EXPIRES_IN` | string | `30d` | Refresh expiration (unused — JWKS used instead) |
 | `TDSK_BE_URL` | string | - | Backend URL (direct) |
 | `TDSK_BE_HOST` | string | - | Backend host (fallback) |
 | `TDSK_BE_PORT` | string | - | Backend port |
@@ -275,8 +274,8 @@ config = {
 - `TSSLCreds` — SSL certificate file paths type
 
 ### With Database (`@tdsk/database`)
-- `database()` — Used in `/domains/validate` endpoint for domain lookup
-- Note: Creates new connection per request (known issue — see AUDIT.md H-2)
+- `database()` — Initialized once during startup in `setupDatabase()`, stored on `app.locals.db`
+- Used by `/domains/validate` endpoint via `req.app.locals.db`
 
 ### With Logger (`@tdsk/logger`)
 - `buildApiLogger()` — Creates Winston logger with label and level
@@ -299,7 +298,7 @@ pnpm d:build            # Alternative build (tsdown)
 pnpm clean              # Remove dist/
 
 # Testing
-pnpm test               # Run tests (vitest run) — 10 tests, 3 files
+pnpm test               # Run tests (vitest run) — 80 tests, 11 files
 pnpm test:watch         # Watch mode tests
 ```
 
@@ -309,21 +308,21 @@ pnpm test:watch         # Watch mode tests
 
 ## Testing
 
-### Current Coverage (10 tests, 3 files)
+### Current Coverage (80 tests, 11 files)
 
 | Test File | Tests | What's Covered |
 |-----------|-------|----------------|
-| `configs/proxy.config.test.ts` | 8 | Config shape, types, defaults, JWKS URL format |
+| `configs/proxy.config.test.ts` | 7 | Config shape, types, defaults, JWKS URL format |
 | `src/endpoints/health.test.ts` | 1 | Health endpoint returns 200 with correct shape |
-| `src/utils/logger.test.ts` | 1 | Placeholder (`expect(true).toBe(true)`) |
-
-### Coverage Gaps
-- Auth service (0%) — JWKS verification, token extraction
-- Auth middleware (0%) — JWT validation flow
-- Proxy middleware (0%) — Backend forwarding, header injection
-- Error handler (0%) — Error response formatting
-- Domain validation (0%) — DB lookup, error handling
-- Auth endpoints (0%) — /auth/me, /auth/logout
+| `src/endpoints/auth/me.test.ts` | 2 | /auth/me happy path and 401 when no user |
+| `src/endpoints/auth/logout.test.ts` | 1 | /auth/logout success response |
+| `src/endpoints/domains/validate.test.ts` | 4 | Domain validation: 400/403/200/500 cases |
+| `src/services/auth.test.ts` | 15 | Auth class: constructor, isPublic, extract, verify (all branches) |
+| `src/middleware/setupAuth.test.ts` | 10 | Auth middleware: public routes, 401/500 cases, req.user attachment |
+| `src/middleware/setupProxy.test.ts` | 20 | Proxy: path normalization, middleware creation, headers, error handling |
+| `src/middleware/setupLogger.test.ts` | 4 | Request logger: OPTIONS skip, logging, UUID requestId |
+| `src/utils/logger.test.ts` | 11 | Logger creation, API methods, config integration |
+| `src/utils/errors/errorHandler.test.ts` | 5 | Error handler: Exception/Error handling, logging, status codes |
 
 ## Path Aliases (tsconfig.json)
 
@@ -343,9 +342,16 @@ pnpm test:watch         # Watch mode tests
 
 ## Known Issues
 
-See `repos/proxy/AUDIT.md` for full issue catalog (19 issues: 2 critical, 4 high, 7 medium, 6 low). Key items:
-- Missing `express.json()` middleware (C-1)
-- Dead `adminPath` export in utils (C-2)
-- `/domains/validate` not in `PublicRoutes` (M-2)
-- 5 unused dependencies (L-1)
-- ~7% test coverage
+See `repos/proxy/AUDIT.md` for full issue catalog. **All 14 issues fixed (2026-02-08)**:
+- ~~Dead `adminPath` export in utils (C-1)~~ FIXED — removed
+- ~~`express-rate-limit` installed but never configured (H-1)~~ FIXED — removed (Caddy handles rate limiting)
+- ~~Error handler doesn't log errors (H-2)~~ FIXED — added logger.error()
+- ~~Regex bug in pathFilter (M-1)~~ FIXED — corrected regex
+- ~~`/domains/validate` not in PublicRoutes (M-2)~~ FIXED — added to PublicRoutes
+- ~~Unused JWT config (M-3)~~ FIXED — removed entirely
+- ~~Math.random() request IDs (M-4)~~ FIXED — uses crypto.randomUUID()
+- ~~TProxyApp phantom generics (M-5)~~ FIXED — documented as accepted tradeoff
+- ~~5 unused dependencies (L-1)~~ FIXED — all removed
+- ~~Placeholder logger test (L-2)~~ FIXED — 11 real tests
+- ~~me/logout unused _app param (L-3)~~ FIXED — converted to direct handlers
+- ~~Error handler next() (L-4)~~ ACCEPTED — standard pattern

@@ -1,7 +1,7 @@
 ---
 name: "Threaded Stack - Backend Repo"
 description: "Knowledge base for the backend Core API repo"
-version: "1.2.0"
+version: "1.4.0"
 tags: ["express", "nodejs", "api", "websocket", "backend", "payments", "polar"]
 ---
 # Backend Repo Skill
@@ -42,6 +42,7 @@ repos/backend/
 │   │   ├── endpoints.ts    # Endpoint registry
 │   │   └── index.ts
 │   ├── middleware/          # Express middleware setup
+│   │   ├── authorize.ts    # Authorization middleware (12 tests)
 │   │   ├── setupAuth.ts    # JWT authentication + ensureSubscription
 │   │   ├── setupEndpoints.ts # Dynamic route builder
 │   │   ├── setupErrorHandler.ts # Error handling
@@ -56,7 +57,7 @@ repos/backend/
 │   ├── services/            # Service layer
 │   │   └── payments/       # Payment services
 │   │       ├── polarService.ts # Polar.sh API integration (340 lines)
-│   │       ├── polarService.test.ts # 42 passing tests
+│   │       ├── polarService.test.ts # 53 passing tests
 │   │       └── index.ts
 │   ├── types/               # TypeScript type definitions
 │   │   ├── endpoints.types.ts # Endpoint configs
@@ -66,9 +67,14 @@ repos/backend/
 │   │   ├── token.types.ts  # JWT token types
 │   │   └── index.ts
 │   ├── utils/               # Utility functions
-│   │   ├── auth/           # Auth utilities (shouldIgnore, adminPath, parseToken)
+│   │   ├── auth/           # Auth utilities (shouldIgnore, adminPath, parseToken, checkPermission - 20 tests)
+│   │   │   └── requireResource.ts  # requireResourceWithPermission helper (11 tests)
 │   │   ├── errors/         # Error handling (Exception, errorHandler, withEx)
+│   │   ├── validation/      # Validation utilities
+│   │   │   └── exclusiveArc.ts # Exclusive arc validation (13 tests)
 │   │   ├── proxy/          # Proxy utilities (buildProxy, endpointProxy, proxyHeaders)
+│   │   ├── getCurrentPeriod.ts # Billing period utility
+│   │   ├── pagination.ts    # List endpoint pagination (10 tests)
 │   │   ├── helpers.ts      # General utilities
 │   │   ├── logger.ts       # Winston logger instance
 │   │   └── signals.ts      # Process signal handling
@@ -116,7 +122,7 @@ repos/backend/
 - **`src/endpoints/subscriptions/**`** - Subscription management
 - **`src/endpoints/quotas/**`** - Quota checking and limits
 - **`src/endpoints/payments/**`** - Payment processing and webhooks
-- **`src/services/payments/polarService.ts`** - Polar.sh integration
+- **`src/services/payments/polarService.ts`** - Polar.sh integration (53 passing tests)
 
 ### Utilities
 - **`src/utils/logger.ts`** - Winston logger configured from config
@@ -126,6 +132,9 @@ repos/backend/
 - **`src/utils/proxy/endpointProxy.ts`** - Creates proxy for specific endpoints
 - **`src/utils/errors/errorHandler.ts`** - Express error handler middleware
 - **`src/utils/errors/exception.ts`** - Custom Exception class for structured errors
+- **`src/utils/auth/requireResource.ts`** - Permission check + resource fetch helper (11 tests)
+- **`src/utils/validation/exclusiveArc.ts`** - Exclusive arc validation utility (13 tests)
+- **`src/utils/pagination.ts`** - Pagination query parser (default limit=50, max=200) (10 tests)
 
 ## Architecture
 
@@ -138,12 +147,13 @@ start.ts → loads backend.config.ts
   ↓
 main.ts
   ├─ setupLoggerReq(app)          # Request logging
-  ├─ setupServer(app, router)     # DB, CORS, router mount
-  ├─ setupEndpoints(router, config) # Dynamic route building
-  ├─ setupProxy(app, router)      # Fallback proxy
+  ├─ setupDatabase(app)           # DB connection with validation + error handling
+  ├─ setupServer(app, router)     # CORS, router mount
+  ├─ setupEndpoints(router, config) # Dynamic route building (includes setupProxy via EPMethod.All)
   ├─ setupLoggerErr(app)          # Error logging
   ├─ setupErrorHandler(app)       # Error middleware
-  └─ initServer()                 # HTTP/HTTPS server creation
+  ├─ initServer()                 # HTTP/HTTPS server creation
+  └─ signals(server)              # Graceful shutdown handlers
 ```
 
 ### Endpoint Definition Pattern
@@ -185,56 +195,91 @@ The middleware stack is set up in this critical order:
 All admin API routes are mounted under the admin path prefix (configured via `TDSK_BE_API_ADMIN_PATH`, default `/_`):
 
 **Organization Management:**
-- **GET `/_/orgs`** - List all organizations for user
+- **GET `/_/orgs`** - List all organizations for user — Supports ?limit=N&offset=N
 - **GET `/_/orgs/:id`** - Get organization by ID
 - **POST `/_/orgs`** - Create new organization
 - **PUT `/_/orgs/:id`** - Update organization
 - **DELETE `/_/orgs/:id`** - Delete organization
-- **GET `/_/orgs/:id/members`** - List organization members
+- **GET `/_/orgs/:id/members`** - List organization members — Supports ?limit=N&offset=N
 - **POST `/_/orgs/:id/members`** - Add member to organization
 - **DELETE `/_/orgs/:id/members/:userId`** - Remove member from organization
 
 **User Management:**
-- **GET `/_/users`** - List users
+- **GET `/_/users`** - List users — Supports ?limit=N&offset=N
 - **GET `/_/users/:id`** - Get user by ID
 - **POST `/_/users`** - Create user
 - **PUT `/_/users/:id`** - Update user
 - **DELETE `/_/users/:id`** - Delete user
 
 **Project Management:**
-- **GET `/_/projects`** - List projects (optionally by org)
+- **GET `/_/projects`** - List projects (optionally by org) — Supports ?limit=N&offset=N
 - **GET `/_/projects/:id`** - Get project by ID
 - **POST `/_/projects`** - Create project
 - **PUT `/_/projects/:id`** - Update project
 - **DELETE `/_/projects/:id`** - Delete project
 
 **API Key Management:**
-- **GET `/_/api-keys`** - List API keys
+- **GET `/_/api-keys`** - List API keys — Supports ?limit=N&offset=N
 - **GET `/_/api-keys/:id`** - Get API key by ID
 - **POST `/_/api-keys`** - Generate new API key
 - **PUT `/_/api-keys/:id`** - Update API key (name, scopes, rate limits)
 - **DELETE `/_/api-keys/:id`** - Revoke API key
 
 **Secret Management:**
-- **GET `/_/secrets`** - List secrets (by org or project scope)
+- **GET `/_/secrets`** - List secrets (by org or project scope) — Supports ?limit=N&offset=N
 - **GET `/_/secrets/:id`** - Get secret by ID
 - **POST `/_/secrets`** - Create encrypted secret
 - **PUT `/_/secrets/:id`** - Update secret
 - **DELETE `/_/secrets/:id`** - Delete secret
 
 **Endpoint Management:**
-- **GET `/_/endpoints`** - List endpoints
+- **GET `/_/endpoints`** - List endpoints — Supports ?limit=N&offset=N
 - **GET `/_/endpoints/:id`** - Get endpoint by ID
 - **POST `/_/endpoints`** - Create endpoint
 - **PUT `/_/endpoints/:id`** - Update endpoint
 - **DELETE `/_/endpoints/:id`** - Delete endpoint
 
 **Provider Management:**
-- **GET `/_/providers`** - List providers
+- **GET `/_/providers`** - List providers — Supports ?limit=N&offset=N
 - **GET `/_/providers/:id`** - Get provider by ID
 - **POST `/_/providers`** - Create provider
 - **PUT `/_/providers/:id`** - Update provider
 - **DELETE `/_/providers/:id`** - Delete provider
+
+**Agent Management:**
+- **GET `/_/agents`** - List agents — Supports ?limit=N&offset=N
+- **GET `/_/agents/:id`** - Get agent by ID
+- **POST `/_/agents`** - Create agent
+- **PUT `/_/agents/:id`** - Update agent
+- **DELETE `/_/agents/:id`** - Delete agent
+
+**Domain Management:**
+- **GET `/_/domains`** - List domains — Supports ?limit=N&offset=N
+- **GET `/_/domains/:id`** - Get domain by ID
+- **POST `/_/domains`** - Create domain
+- **PUT `/_/domains/:id`** - Update domain
+- **DELETE `/_/domains/:id`** - Delete domain
+
+**Config Management:**
+- **GET `/_/configs`** - List configs — Supports ?limit=N&offset=N
+- **GET `/_/configs/:id`** - Get config by ID
+- **POST `/_/configs`** - Create config
+- **PUT `/_/configs/:id`** - Update config
+- **DELETE `/_/configs/:id`** - Delete config
+
+**Function Management:**
+- **GET `/_/functions`** - List functions — Supports ?limit=N&offset=N
+- **GET `/_/functions/:id`** - Get function by ID
+- **POST `/_/functions`** - Create function
+- **PUT `/_/functions/:id`** - Update function
+- **DELETE `/_/functions/:id`** - Delete function
+
+**Invitation Management:**
+- **GET `/_/invitations`** - List invitations — Supports ?limit=N&offset=N
+- **GET `/_/invitations/:id`** - Get invitation by ID
+- **POST `/_/invitations`** - Create invitation
+- **PUT `/_/invitations/:id/accept`** - Accept invitation
+- **DELETE `/_/invitations/:id`** - Delete invitation
 
 **Subscription Management:**
 - **GET `/_/subscriptions/current`** - Get current user subscription
@@ -359,7 +404,7 @@ Endpoints can be proxied by specifying proxy config:
 ```typescript
 {
   path: '/api',
-  method: EPMethod.all,
+  method: EPMethod.All,
   proxy: {
     target: 'https://external-api.com',
     changeOrigin: true,
@@ -379,7 +424,7 @@ throw new Exception(400, 'Invalid request', 'BAD_REQUEST')
 Caught by global error handler that formats responses:
 
 ```typescript
-res.status(status).json({ status, message, errorCode })
+res.status(status).json({ error: message, ...(code && { code }) })
 ```
 
 ### 6. Path Aliases
@@ -400,6 +445,33 @@ loadEnvs({ force: nodeEnv === 'local' })
 ```
 
 Local development forces override, production uses system env vars.
+
+### 8. Pagination Pattern
+
+All list endpoints support pagination via query parameters:
+
+```typescript
+import { parsePagination } from '@TBE/utils/pagination'
+
+const { limit, offset } = parsePagination(req)
+// limit defaults to 50, max 200; offset defaults to 0
+const { data } = await db.services.X.list({ where: {...}, limit, offset })
+res.status(200).json({ data, limit, offset })
+```
+
+### 9. Permission Helper Pattern
+
+CRUD endpoints use `requireResourceWithPermission()` to reduce boilerplate:
+
+```typescript
+import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
+
+const data = await requireResourceWithPermission(
+  req, db.services.apiKey, id,
+  EPermAction.read, EPermResource.apiKey, 'API key'
+)
+res.status(200).json({ data: data.sanitize() })
+```
 
 ## Dependencies
 
@@ -551,14 +623,37 @@ Changes to any of these trigger automatic rebuild and server restart.
 
 ---
 
-**Last Updated:** 2026-01-18
-**Version:** 1.2.0
+**Last Updated:** 2026-02-08
+**Version:** 1.4.0
 
 ### Changelog
 
+#### v1.4.0 (2026-02-08)
+- **New**: Pagination for all 13 list endpoints (`?limit=N&offset=N`, default 50, max 200)
+- **New**: `requireResourceWithPermission()` helper — eliminates permission boilerplate from ~15 endpoints
+- **New**: `validateExclusiveArc()` utility — centralizes exclusive arc validation
+- **New**: `agentId` scope support in secrets endpoints
+- **Refactored**: BaseService to abstract class (REFACT-003)
+- **Performance**: `fetchPlans()` parallelized with Promise.all
+- **Performance**: PolarService product cache now has 5-minute TTL
+- **New**: 153+ new tests (agents 25, domains 30, middleware 16, error utils 14, proxy utils 19, validation 13, pagination 10, permission 11, plus existing test updates)
+- **Testing**: 584/584 tests passing across 36 test files (was 431/431 across 25 files)
+
+#### v1.3.0 (2026-02-08)
+- **Fixed**: 5 critical bugs (inverted validation, uninitialized token, subscription upsert, exclusive arc, price/product confusion)
+- **Fixed**: 7 security vulnerabilities (Neon admin backdoor removed, timing attack, quota bypass, TOCTOU documented, body auth context removed, webhook replay protection, provider secret auth)
+- **Fixed**: 2 performance issues (DB-level filtering for 5 list endpoints, N+1 batch query for listUsers)
+- **Improved**: EPMethod enum simplified to PascalCase-only variants
+- **Improved**: Delete responses standardized to `{ data: { success: true } }`
+- **Improved**: Error handler includes error `code` in responses
+- **Improved**: Graceful shutdown via signals()
+- **Improved**: Database connection validation on startup
+- **New**: `getCurrentPeriod()` utility for quota period calculation
+- **New**: 85+ new tests (checkPermission, authorize, polar, database services)
+
 #### v1.2.0 (2026-01-18)
 - **New**: Payment integration via Polar.sh
-- **New**: `PolarService` class with complete API integration (340 lines, 42 tests passing)
+- **New**: `PolarService` class with complete API integration (340 lines, 53 tests passing)
 - **New**: Subscription endpoints (`/subscriptions/*`)
 - **New**: Quota endpoints (`/quotas/*`)
 - **New**: Payment webhook handler (`/payments/webhook`)

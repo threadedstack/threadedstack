@@ -146,4 +146,8 @@ ife(async () => {
   console.log(`═══════════════════════════════════════`)
   console.log(``)
   console.log(`✨ Database cleanup complete!`)
+  process.exit(0)
+}).catch((err: any) => {
+  console.error(`Cleanup failed:`, err.message)
+  process.exit(1)
 })

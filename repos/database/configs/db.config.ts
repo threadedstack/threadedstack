@@ -24,6 +24,19 @@ const {
   TDSK_DB_LOG_LABEL = envs.TDSK_DB_LOG_LABEL || `TDSK - Database`,
 } = process.env
 
+const url = buildDBUrl({
+  url: TDSK_DB_URL,
+  name: TDSK_DB_NAME,
+  user: TDSK_DB_USER,
+  pass: TDSK_DB_PASS,
+  proto: TDSK_DB_PROTO,
+})
+
+if (!url)
+  throw new Error(
+    `Database URL is required. Set TDSK_DB_URL or provide TDSK_DB_USER, TDSK_DB_PASS, TDSK_DB_NAME, and TDSK_DB_PROTO environment variables.`
+  )
+
 export const config = {
   type: TDSK_DB_TYPE,
   name: TDSK_DB_NAME,
@@ -35,13 +48,7 @@ export const config = {
   dialect: TDSK_DB_DIALECT,
   public: TDSK_DB_PUBLIC_KEY,
   project: TDSK_DB_PROJECT_ID,
-  url: buildDBUrl({
-    url: TDSK_DB_URL,
-    name: TDSK_DB_NAME,
-    user: TDSK_DB_USER,
-    pass: TDSK_DB_PASS,
-    proto: TDSK_DB_PROTO,
-  }),
+  url,
   logger: {
     label: TDSK_DB_LOG_LABEL,
     level: TDSK_DB_LOG_LEVEL ?? TDSK_LOG_LEVEL,

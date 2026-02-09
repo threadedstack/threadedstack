@@ -13,18 +13,26 @@ export class Invitation extends Base {
   email: string
   orgId: string
   token: string
-  userId: string
+  userId?: string
   roleType: string
-  invitedBy: string
-  revokedBy: string
-  revokedAt: string | Date
-  expiresAt?: string | Date
-  acceptedAt: string | Date
+  invitedBy?: string
+  revokedBy?: string
+  revokedAt?: string | Date
+  expiresAt: string | Date
+  acceptedAt?: string | Date
   status: TInviteStatus | string
 
   constructor(data: Partial<Invitation>) {
     super()
     Object.assign(this, data)
+  }
+
+  /**
+   * Create a sanitized copy without the token field
+   */
+  sanitize() {
+    const { token, ...rest } = Object.assign({}, this)
+    return new Invitation(rest as Partial<Invitation>)
   }
 
   /**

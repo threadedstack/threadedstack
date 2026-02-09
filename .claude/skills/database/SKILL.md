@@ -1,7 +1,7 @@
 ---
 name: "Threaded Stack - Database Repo"
 description: "Knowledge base for the database ORM & migrations repo"
-version: "1.2.0"
+version: "1.4.0"
 tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas", "subscriptions"]
 ---
 # Database Repo Skill
@@ -108,7 +108,7 @@ repos/database/
 |------|---------|
 | `src/database.ts` | Singleton database instance factory with service initialization |
 | `src/schemas/*.ts` | Drizzle table definitions with relations |
-| `src/services/base.ts` | Base service class with CRUD operations (create, get, list, update, upsert, delete) |
+| `src/services/base.ts` | Base service class with CRUD operations (create, get, list, update, upsert, delete). `list()` supports `{ where, limit, offset, orderBy }` for pagination |
 | `src/services/*.ts` | Specific service classes extending Base |
 | `src/types/schema.types.ts` | TypeScript types inferred from schemas (Select/Insert) |
 | `configs/drizzle.config.ts` | Drizzle Kit configuration for migrations |
@@ -318,10 +318,14 @@ export const database = (cfg: TDBConfig = config) => {
 
 **Usage in other repos:**
 ```typescript
-import { database } from '@TDB/database'
+import { database, disconnectDatabase } from '@TDB/database'
 
 const db = database()
 const { data, error } = await db.services.org.create({ name: 'My Organization' })
+
+// Graceful shutdown
+await disconnectDatabase()  // Closes Pool, resets singleton
+// database() after disconnect creates a fresh instance
 ```
 
 ### Model Conversion Pattern
@@ -398,7 +402,7 @@ export const base = {
 // src/utils/schema/timestamps.ts
 export const timestamps = {
   createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }
 
 // Usage in schema
@@ -434,7 +438,7 @@ export class Org extends Base<typeof organizations, TDBOrgSelect, TDBOrgInsert> 
 
 **Available Services:**
 - `org` - Organization CRUD + member management
-- `user` - User CRUD
+- `user` - User CRUD with `byEmail()`, `getByIds()` methods
 - `project` - Project CRUD (renamed from repo)
 - `apiKey` - API key generation and management
 - `secret` - Encrypted secret CRUD
@@ -447,7 +451,7 @@ export class Org extends Base<typeof organizations, TDBOrgSelect, TDBOrgInsert> 
 - `thread` - Chat thread CRUD
 - `message` - Chat message CRUD
 - `quota` - Quota tracking with `findByOrgAndPeriod()`, `increment()` methods
-- `subscription` - Subscription CRUD with `findByUser()`, `create()` methods
+- `subscription` - Subscription CRUD with `findByUser()`, `upsertByUser()`, `create()` methods
 
 ### 3. Type Inference Pattern
 
@@ -633,7 +637,7 @@ const { data: secrets } = await db.services.secret.list({ repoId })
 
 ```typescript
 // Main exports from @tdsk/database
-export { database } from './database'          // Singleton factory
+export { database, disconnectDatabase } from './database'  // Singleton factory + graceful shutdown
 export * from './schemas'                      // All table schemas
 export * from './services'                     // All service classes
 export * from './types'                        // All TypeScript types
@@ -799,12 +803,47 @@ pnpm studio
 
 ---
 
-**Last Updated:** 2026-01-18
-**Version:** 1.2.0
+**Last Updated:** 2026-02-08
+**Version:** 1.4.0
 **Maintained By:** Lance Tipton
 **License:** ISC (Private)
 
 ## Changelog
+
+### v1.3.0 (2026-02-08) — Audit Fix Release
+- **Security**: Quota `increment()` now rejects `amount <= 0` (prevents negative quota bypass)
+- **Fix**: `Base.by()` inverted property check corrected (CRIT-01)
+- **Fix**: `users.banExpires` column mapped to correct `ban_expires` (was `ban_reason`)
+- **Fix**: `configsRelations` export added to schemas barrel
+- **Fix**: `secrets` provider relation corrected
+- **Fix**: `agent.ts` `get()/by()` no longer crash when `opts` is undefined
+- **Fix**: `database.ts` now uses `cfg.url` parameter (was ignoring custom config)
+- **Fix**: `invitations` relation uses correct `relationName`
+- **New**: `disconnectDatabase()` export — closes Pool and resets singleton
+- **New**: Exclusive arc CHECK constraints on `providers` (userId/orgId/projectId) and `domains` (orgId/projectId)
+- **New**: Unique constraints on `roles` (userId+orgId, userId+projectId), `projects` (orgId+name), `endpoints` (projectId+path+method)
+- **New**: `endpoints.path` is now NOT NULL
+- **New**: All 12 `quotas` counter columns are now NOT NULL (with `.default(0)`)
+- **New**: `updatedAt` timestamp is now NOT NULL across all tables
+- **New**: Cascade behaviors: `assets.providerId` → set null, `threads.configId/providerId` → set null, `subscriptions.userId` → cascade
+- **New**: Performance indexes on `projects.orgId`, `functions.projectId/endpointId`, `secrets.orgId/projectId/providerId/agentId`, `threads.userId`, `invitations.orgId/email/status`
+- **Fix**: `Base.update()` auto-sets `updatedAt` on every update
+- **Fix**: `Base.update()/upsert()/delete()` return proper errors when record not found
+- **Fix**: `Base.model()` logs warning when not overridden
+- **Fix**: Agent service guards `data.projects || []` (no crash on undefined)
+- **Fix**: Agent `#relations()` wrapped in try-catch
+- **Fix**: Quota `getUsage()` returns error on null data (was undefined behavior)
+- **Fix**: Quota `initializePeriod()` falls back to `getUsage()` on conflict
+- **Fix**: Subscription/User/Domain/Invitation/Role services: null checks, error handling
+- **Tests**: 133 tests across 8 test files (was ~0% coverage)
+  - `database.test.ts` — singleton, config, disconnect, Pool lifecycle
+  - `base.test.ts` — all CRUD operations, by() fix, updatedAt, null checks
+  - `quota.test.ts` — increment validation, getUsage, initializePeriod
+  - `agent.test.ts` — with(), model(), sanitization, project relations
+  - `buildDBUrl.test.ts` — URL construction, proto, params, auth
+  - `buildQuery.test.ts` — WHERE conditions, ORDER BY
+  - `getDialect.test.ts` — dialect resolution
+  - `error.test.ts` — DBError, DBIdError, DBValueError classes
 
 ### v1.2.0 (2026-01-18)
 - **New**: `quotas` table - Tracks org resource usage (12 resource types)

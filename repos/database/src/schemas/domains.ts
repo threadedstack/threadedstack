@@ -1,9 +1,17 @@
-import { relations } from 'drizzle-orm'
+import { sql, relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { certificates } from '@TDB/schemas/certificates'
-import { uuid, uniqueIndex, pgTable, text, timestamp, boolean } from 'drizzle-orm/pg-core'
+import {
+  uuid,
+  uniqueIndex,
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  check,
+} from 'drizzle-orm/pg-core'
 
 /**
  * Domains table for custom user domains
@@ -35,7 +43,18 @@ export const domains = pgTable(
     orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
     projectId: uuid(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
   },
-  (table) => [uniqueIndex(`domains_org_id_domain_idx`).on(table.orgId, table.domain)]
+  (table) => [
+    uniqueIndex(`domains_org_id_domain_idx`).on(table.orgId, table.domain),
+    check(
+      `domain_owner_check`,
+      sql`
+    (
+      (${table.orgId} IS NOT NULL)::int +
+      (${table.projectId} IS NOT NULL)::int
+    ) = 1
+  `
+    ),
+  ]
 )
 
 export const domainsRelations = relations(domains, ({ one, many }) => ({

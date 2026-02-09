@@ -19,8 +19,8 @@ export class Domain extends Base {
   orgId?: string
   projectId?: string
   domain: string
-  verifiedAt: string | Date
   verified: boolean = false
+  verifiedAt?: string | Date
   sslEnabled: boolean = false
   // For manually uploaded SSL certificates
   sslPrivateKey?: string
@@ -36,7 +36,7 @@ export class Domain extends Base {
         ? domain.sslEnabled
         : exists(domain.sslCertificate)
           ? true
-          : domain.sslEnabled,
+          : false,
       certificates: domain?.certificates?.map((cert) => new Certificate(cert)) || [],
     })
   }

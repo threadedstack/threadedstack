@@ -43,7 +43,10 @@ export const UserCard = (props: TUserCard) => {
               variant='h6'
               component='h3'
             >
-              {user.displayName || `${user.first} ${user.last}`}
+              {user.displayName ||
+                [user.first, user.last].filter(Boolean).join(` `) ||
+                user.email ||
+                `User`}
             </Typography>
             <Typography
               variant='body2'

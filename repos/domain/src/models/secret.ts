@@ -2,10 +2,11 @@ import { Base } from './base'
 import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 
 export class Secret extends Base {
-  value?: any
+  value?: string
   name: string
   orgId?: string
   hashKey: string
+  agentId?: string
   projectId?: string
   providerId?: string
   description?: string

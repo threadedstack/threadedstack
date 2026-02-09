@@ -6,7 +6,8 @@ import * as DBservices from '@TDB/services'
 import { config } from '@TDB/configs/db.config'
 import { drizzle } from 'drizzle-orm/node-postgres'
 
-let _database: TDatabase
+let _pool: Pool | null = null
+let _database: TDatabase | null = null
 
 export const database = (cfg: TDBConfig = config) => {
   if (!_database) {
@@ -16,8 +17,9 @@ export const database = (cfg: TDBConfig = config) => {
      * for consistency, we users by default, but drizzle needs the real name of the table
      */
     const { users, orgs, ...rest } = schema
+    _pool = new Pool({ connectionString: cfg.url })
     _database = drizzle({
-      client: new Pool({ connectionString: config.url }),
+      client: _pool,
       schema: {
         ...rest,
         user: users,
@@ -32,4 +34,12 @@ export const database = (cfg: TDBConfig = config) => {
   }
 
   return _database
+}
+
+export const disconnectDatabase = async () => {
+  if (_pool) {
+    await _pool.end()
+    _pool = null
+  }
+  _database = null
 }

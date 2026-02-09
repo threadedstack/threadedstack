@@ -19,7 +19,7 @@ import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 // ============================================================================
 
 export const initProxyFromEndpoint = (endpoint: Endpoint): TProxyFormState => {
-  const opts = endpoint.options as TProxyEndpointConfig
+  const opts = (endpoint.options || {}) as TProxyEndpointConfig
 
   return {
     // Basic fields
@@ -139,7 +139,7 @@ export const mapProxyStateToConfig = (state: TProxyFormState): TProxyEndpointCon
 // ============================================================================
 
 export const initFaasFromEndpoint = (endpoint: Endpoint): TFaasFormState => {
-  const opts = endpoint.options as TFaaSEndpointConfig
+  const opts = (endpoint.options || {}) as TFaaSEndpointConfig
 
   return {
     secrets: opts.secrets || [],
@@ -174,7 +174,7 @@ export const mapFaasStateToConfig = (state: TFaasFormState): TFaaSEndpointConfig
 // ============================================================================
 
 export const initAgentFromEndpoint = (endpoint: Endpoint): TAgentFormState => {
-  const opts = endpoint.options as TAgentEndpointConfig
+  const opts = (endpoint.options || {}) as TAgentEndpointConfig
 
   return {
     agentId: opts.agentId || ``,

@@ -187,4 +187,8 @@ ife(async () => {
   console.log(`═══════════════════════════════════════`)
   console.log(``)
   console.log(`✨ Database seeding complete!`)
+  process.exit(0)
+}).catch((err: any) => {
+  console.error(`Seeding failed:`, err.message)
+  process.exit(1)
 })

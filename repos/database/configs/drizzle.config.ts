@@ -52,6 +52,7 @@ export default defineConfig({
       name: TDSK_DB_NAME,
       user: TDSK_DB_USER,
       pass: TDSK_DB_PASS,
+      proto: TDSK_DB_PROTO,
     }),
   },
 })

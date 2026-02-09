@@ -94,8 +94,8 @@ export class SubscriptionsApi extends BaseApi {
    * @returns Success status
    */
   async cancel(): Promise<TApiRes<{ success: boolean }>> {
-    const resp = await this.api.post<{ success: boolean }>({
-      path: `${this.path}/cancel`,
+    const resp = await this.api.delete<{ success: boolean }>({
+      path: `${this.path}/current`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to cancel subscription`))

@@ -4,6 +4,9 @@
   },
   "permissions": {
     "allow": [
+      "Edit",
+      "Write",
+      "Read",
       "Bash(pwd)",
       "Bash(ls:*)",
       "Bash(sed:*)",
