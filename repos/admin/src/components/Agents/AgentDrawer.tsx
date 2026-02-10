@@ -8,6 +8,7 @@ import { fetchSecrets } from '@TAF/actions/secrets'
 import { MonacoOptions } from '@TAF/constants/monaco'
 import { fetchProviders } from '@TAF/actions/providers'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
+import { Box, Stack, Divider, Typography } from '@mui/material'
 import { createAgent } from '@TAF/actions/agents/api/createAgent'
 import { updateAgent } from '@TAF/actions/agents/api/updateAgent'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
@@ -21,7 +22,6 @@ import {
   ModelConfigForm,
   AgentSettingsForm,
 } from '@TAF/components/Agents'
-import { Box, Stack, Divider, Typography } from '@mui/material'
 
 export type TAgentDrawer = {
   open: boolean

@@ -1,13 +1,9 @@
-import { Box } from '@mui/material'
 import { useState, useMemo } from 'react'
 import { useProjects } from '@TAF/state/selectors'
-import { Add as AddIcon } from '@mui/icons-material'
 import { useActiveOrgId } from '@TAF/state/selectors'
-import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
 import { NoProjects } from '@TAF/components/Projects/NoProjects'
-import { PageHeader } from '@TAF/components/PageHeader/PageHeader'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { ProjectsGrid } from '@TAF/components/Projects/ProjectsGrid'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
@@ -22,14 +18,9 @@ export const Projects = (props: TProjects) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const onCreate = () => {
-    setDialogOpen(true)
-  }
+  const onCreate = () => setDialogOpen(true)
 
-  const onDialogClose = () => {
-    setDialogOpen(false)
-  }
-
+  const onDialogClose = () => setDialogOpen(false)
   const onSelectProject = (projectId: string) => setProjectActive(projectId)
 
   const onDeleteProject = async (projectId: string) => {
@@ -60,34 +51,19 @@ export const Projects = (props: TProjects) => {
   const hasProjects = Boolean(projectsCount)
 
   return (
-    <>
-      <PageHeader
-        title='Projects'
-        countLabel='project'
-        count={projectsCount}
-        actionIcon={<AddIcon />}
-        onAction={hasProjects && onCreate}
-        actionLabel={hasProjects && 'Create Project'}
-      />
-
-      {projectsCount > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder='Search projects by name, URL, or branch...'
-          />
-        </Box>
-      )}
-
-      {error && (
-        <ErrorAlert
-          message={`Error loading projects: ${error.message}`}
-          onClose={() => setError(null)}
-          sx={{ mb: 3 }}
-        />
-      )}
-
+    <PageLayout
+      searchCount={0}
+      title='Projects'
+      query={searchQuery}
+      countLabel='project'
+      count={projectsCount}
+      error={error?.message}
+      setSearchQuery={setSearchQuery}
+      onAction={hasProjects && onCreate}
+      actionLabel={hasProjects && 'Create Project'}
+      searchPlaceholder='Search projects by name, URL, or branch...'
+      setError={(msg?: string) => setError(msg ? new Error(msg) : undefined)}
+    >
       {!error && projectsCount === 0 && <NoProjects onCreate={onCreate} />}
 
       {!error && projectsCount > 0 && filteredProjects.length === 0 && (
@@ -109,6 +85,6 @@ export const Projects = (props: TProjects) => {
           onClose={onDialogClose}
         />
       )}
-    </>
+    </PageLayout>
   )
 }

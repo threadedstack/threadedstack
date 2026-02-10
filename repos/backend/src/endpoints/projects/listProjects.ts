@@ -16,8 +16,8 @@ export const listProjects: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db } = req.app.locals
-    const { orgId } = req.query
+    const { db, auth } = req.app.locals
+    const orgId = req.query.orgId || auth.orgId
     const userId = req.user?.id
 
     if (!userId) throw new Exception(401, `Authentication required`)

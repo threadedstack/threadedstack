@@ -9,9 +9,9 @@ export type TPageHeader = {
   count?: number
   sx?: SxProps<Theme>
   countLabel?: string
-  actionLabel?: string
-  actionIcon?: ReactNode
   onAction?: () => void
+  actionIcon?: ReactNode
+  actionLabel?: ReactNode
   actionDisabled?: boolean
   variant?: 'h4' | 'h5' | 'h6'
 }

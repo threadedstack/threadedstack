@@ -18,7 +18,6 @@ export const setupServer = (app: TApp, router: TRouter) => {
   !behindLBProxy() &&
     app.use(
       cors({
-        credentials: true,
         origin: origins.includes(`*`) ? `*` : origins,
       })
     )

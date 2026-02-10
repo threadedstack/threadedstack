@@ -21,14 +21,13 @@ import { emptyObj } from '@keg-hub/jsutils/emptyObj'
 import { ApiError } from '@TAF/utils/errors/ApiError'
 import { objToQuery } from '@TAF/utils/api/objToQuery'
 import { deepMerge } from '@keg-hub/jsutils/deepMerge'
-import { validateUrl } from '@TAF/utils/api/validateUrl'
+import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 import { genFormData } from '@TAF/utils/api/genFormData'
 
 export class ApiService {
   base: string
   path?: string = `_`
   mock: typeof fetch
-  #config: TApiService
   options: TApiReq = {
     headers: {
       [`Accept`]: `application/json`,
@@ -38,10 +37,6 @@ export class ApiService {
 
   constructor(cfg: TApiService = emptyObj) {
     this.configure(cfg)
-  }
-
-  get config(): TApiService {
-    return this.#config
   }
 
   #ext = (opts: TApiReq): TApiReqEx => {
@@ -67,6 +62,12 @@ export class ApiService {
     return exists(msg) ? msg : res.statusText || `Request returned ${res.status}`
   }
 
+  headers = (update: Record<string, string>, merge: boolean = true) => {
+    this.options.headers = merge
+      ? cleanColl({ ...this.options.headers, ...update })
+      : update
+  }
+
   bearer = async (auth?: TAuthData) => {
     if (!auth) {
       const { data } = await authClient.getSession()
@@ -87,13 +88,11 @@ export class ApiService {
   }
 
   configure = (cfg: TApiService = emptyObj) => {
-    this.#config = deepMerge(this.#config, cfg)
-    const { url, path, options } = this.#config
+    const { url, path, options = {} } = cfg
 
     if (path) this.path = path
     this.base = apiUrl({ url })
-
-    if (options) this.options = deepMerge<TApiReq>(this.options, options)
+    this.options = deepMerge<TApiReq>(this.options, options)
   }
 
   fetch = async <R extends TApiData = TApiData>(opts: TApiReq): Promise<TApiRes<R>> => {

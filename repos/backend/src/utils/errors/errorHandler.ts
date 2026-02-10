@@ -3,6 +3,8 @@ import { Exception } from './exception'
 import { logger } from '@TBE/utils/logger'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 
+const label = `--------- ERROR STACK ---------\n`
+
 export const errorHandler = function errorHandler(
   error: Exception,
   req: Request,
@@ -13,8 +15,8 @@ export const errorHandler = function errorHandler(
 
   const code = error.code
   const message = error.message
-  const stack = error.stack || message
   const status = isCustomEx ? error.status : 500
+  const stack = `${label}${error.stack || message}\n${label}`
 
   logger.error(stack, cleanColl({ status, code }))
 

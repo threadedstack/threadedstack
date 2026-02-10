@@ -30,3 +30,7 @@ export const fromAuthHeaders = (req: TReq) => {
     {} as Partial<TAuthHeaderObj>
   )
 }
+
+export const getAuthHeader = (req: TReq, name: string) => {
+  return req?.header?.(AuthHeaders[`user.${name}`])
+}

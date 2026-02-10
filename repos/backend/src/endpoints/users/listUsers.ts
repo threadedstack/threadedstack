@@ -18,7 +18,7 @@ export const listUsers: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, auth } = req.app.locals
-    const orgId = auth.orgId
+    const orgId = req.query.orgId || auth.orgId
 
     // Check if user is super admin
     const userRole = await getUserRole(req, {})
