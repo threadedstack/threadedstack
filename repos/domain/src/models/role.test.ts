@@ -36,6 +36,21 @@ describe(`Role model`, () => {
       expect(role.projectId).toBe(`project-1`)
       expect(role.name).toBe(`Test Role`)
     })
+
+    it(`should default to member when type is explicitly undefined`, () => {
+      const role = new Role({ userId: `u1`, type: undefined })
+      expect(role.type).toBe(ERoleType.member)
+    })
+
+    it(`should default to member when type prop is not provided at all`, () => {
+      const role = new Role({ userId: `u1` })
+      expect(role.type).toBe(ERoleType.member)
+    })
+
+    it(`should preserve explicit ERoleType.admin`, () => {
+      const role = new Role({ userId: `u1`, type: ERoleType.admin })
+      expect(role.type).toBe(ERoleType.admin)
+    })
   })
 
   describe(`hasMinRole`, () => {

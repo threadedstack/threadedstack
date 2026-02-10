@@ -1,4 +1,7 @@
 export class Certificate {
+  /** **IMPORTANT** - Used only during test, should not be used at runtime */
+  _isModel?: boolean
+
   // Parent directory/path for the object
   parent: string
   // Object name (e.g., certificate file name)

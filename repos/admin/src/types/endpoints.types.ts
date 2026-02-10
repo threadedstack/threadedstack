@@ -2,6 +2,8 @@ import type { TKeyValuePair } from '@TAF/types'
 import type {
   Secret,
   Endpoint,
+  TEPAuthType,
+  TEPCredential,
   TEndpointType,
   Function as TDFunction,
 } from '@tdsk/domain'
@@ -27,42 +29,42 @@ export type TProxyFormState = {
 
   // Auth
   authEnabled: boolean
-  authType: `bearer` | `basic` | `apikey`
+  authType: TEPAuthType
   authSecretName: string
   authHeaderName: string
 
   // OAuth
+  oauthScopes: string
   oauthEnabled: boolean
   oauthTokenUrl: string
   oauthClientId: string
   oauthClientSecret: string
-  oauthScopes: string
-  oauthCredentialStyle: `header` | `body`
   oauthParams: TKeyValuePair[]
+  oauthCredentialType: TEPCredential
 
   // Transform
   transformEnabled: boolean
   transformInjectSecrets: boolean
 
   // Domain whitelist
-  whitelistEnabled: boolean
   whitelistDomains: string
   whitelistEnforce: boolean
+  whitelistEnabled: boolean
   whitelistLogBlocked: boolean
 }
 
 export type TFaasFormState = {
-  functionId: string
   memory: string
   timeout: string
   secrets: string[]
+  functionId: string
   envVars: TKeyValuePair[]
   arguments: TKeyValuePair[]
 }
 
 export type TAgentFormState = {
-  agentId: string
   model: string
+  agentId: string
   tools: string[]
   secrets: string[]
   maxTokens: string

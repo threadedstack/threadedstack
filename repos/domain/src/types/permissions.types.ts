@@ -45,7 +45,17 @@ export enum EPermResource {
   domain = `domain`, // User registered custom domains
   function = `function`, // Serverless functions (FaaS)
   agent = `agent`, // AI agents
+  subscription = `subscription`, // Subscription plans
+  quota = `quota`, // Usage quotas
+  invitation = `invitation`, // User invitations
+  thread = `thread`, // Conversation threads
+  message = `message`, // Thread messages
+  asset = `asset`, // Uploaded assets
 }
+
+export type TPermAction = `${EPermAction}`
+export type TPermResource = `${EPermResource}`
+export type TPermScope = `${EPermScope}`
 
 /**
  * Scope where permission applies

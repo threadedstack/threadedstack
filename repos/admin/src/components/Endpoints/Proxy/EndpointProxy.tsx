@@ -67,7 +67,7 @@ export const EndpointProxy = (props: TEndpointFormProps<TProxyEndpointConfig>) =
       oauthTokenUrl={state.oauthTokenUrl}
       oauthClientId={state.oauthClientId}
       oauthClientSecret={state.oauthClientSecret}
-      oauthCredentialStyle={state.oauthCredentialStyle}
+      oauthCredentialType={state.oauthCredentialType}
       onOauthParamsChange={(params) => setProxyOAuthParams(params)}
       onOauthScopesChange={(value) => setProxyFormField(`oauthScopes`, value)}
       onOauthEnabledChange={(value) => setProxyFormField(`oauthEnabled`, value)}
@@ -75,7 +75,7 @@ export const EndpointProxy = (props: TEndpointFormProps<TProxyEndpointConfig>) =
       onOauthClientIdChange={(value) => setProxyFormField(`oauthClientId`, value)}
       onOauthClientSecretChange={(value) => setProxyFormField(`oauthClientSecret`, value)}
       onOauthCredentialStyleChange={(value) =>
-        setProxyFormField(`oauthCredentialStyle`, value)
+        setProxyFormField(`oauthCredentialType`, value)
       }
       // Transform
       transformEnabled={state.transformEnabled}

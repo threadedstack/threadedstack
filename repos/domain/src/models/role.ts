@@ -15,8 +15,8 @@ export class Role extends Base {
 
   constructor(role: TRole) {
     super()
-    this.type = (role.type || ERoleType.member) as ERoleType
     Object.assign(this, role)
+    this.type = (this.type ?? ERoleType.member) as ERoleType
   }
 
   /**

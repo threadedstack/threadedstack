@@ -34,8 +34,16 @@ export const hasMinRole = (userRole: ERoleType, requiredRole: ERoleType): boolea
 }
 
 /**
- * Check if a user can perform a specific action on a resource
- * This is the main permission checking function
+ * Check if a user can perform a specific action on a resource.
+ * This is the main permission checking function.
+ *
+ * **Edge cases:**
+ * - **Unknown resources/actions (U-M2):** If `resource` or `action` is not found in the
+ *   `PermissionMatrix`, the function **fails closed** (returns `{ allowed: false }`).
+ *   This is the safe default — unrecognized resource/action combos are denied.
+ * - **Scope parameter (U-M3):** This function does not accept a `scope` parameter.
+ *   All permission checks are purely role-based via `PermissionMatrix`. Org-level vs
+ *   project-level scoping must be handled by the caller before invoking `canPerform`.
  *
  * @param userRole - The user's current role
  * @param action - The action being attempted
@@ -121,8 +129,11 @@ export const canManageRole = (managerRole: ERoleType, targetRole: ERoleType): bo
 }
 
 /**
- * Get all actions allowed for a role on a specific resource
- * Useful for UI - shows what actions are available to current user
+ * Get all actions allowed for a role on a specific resource.
+ * Useful for UI - shows what actions are available to current user.
+ *
+ * **Edge case:** If `resource` is not found in `PermissionMatrix`, returns an empty
+ * array (fails closed — no actions are allowed for unknown resources).
  *
  * @param userRole - The user's current role
  * @param resource - The resource to check

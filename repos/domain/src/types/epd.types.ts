@@ -14,29 +14,20 @@ export enum EEPVisibility {
   private = `private`,
 }
 
-export enum EEPAuthTypes {
-  apikey = `apikey`,
+export enum EEPAuthType {
   basic = `basic`,
+  apikey = `apikey`,
   bearer = `bearer`,
 }
 
-export type TEPAuthType = `${EEPAuthTypes}`
+export type TEPAuthType = `${EEPAuthType}`
 
-export enum EEPCredentialOpts {
+export enum EEPCredential {
   body = `body`,
   header = `header`,
 }
 
-export type TEPCredentialOpts = `${EEPCredentialOpts}`
-
-/**
- * Cached token with metadata
- */
-export type TCachedToken = {
-  accessToken: string
-  expiresAt: number
-  tokenType: string
-}
+export type TEPCredential = `${EEPCredential}`
 
 export enum ETransformType {
   regex = `regex`,
@@ -71,7 +62,7 @@ export type TDomainWhitelistConfig = {
   logBlocked?: boolean
 }
 
-// TODO: update TEndpointOpts type to use this
+/** TODO: update TEndpointOpts type to use this */
 export type TEndpointRetryOpts = {
   /** Number of times to retry the request */
   retries?: number
@@ -88,17 +79,7 @@ export type TEndpointRetryOpts = {
 export type TEndpointAuth = {
   secretName?: string
   headerName?: string
-  type?: `bearer` | `basic` | `apikey`
-}
-
-/**
- * Result of domain validation
- */
-export type TDomainValidationResult = {
-  domain: string
-  reason?: string
-  allowed: boolean
-  matchedPattern?: string
+  type?: TEPAuthType
 }
 
 /**
@@ -116,7 +97,7 @@ export type TOAuthConfig = {
   /** Additional parameters to send with token request */
   additionalParams?: Record<string, string>
   /** How to send credentials: 'header' (Basic auth) or 'body' (form params) */
-  credentialStyle?: `header` | `body`
+  credentialType?: TEPCredential
 }
 
 export type TSharedEndpointOpts<
@@ -162,8 +143,6 @@ export type TFaaSEndpointConfig = TSharedEndpointOpts<
     envVars?: Record<string, string>
     /** Secret IDs to expose to the function (by ID) */
     secrets?: string[]
-    /** Execution timeout in milliseconds */
-    timeout?: number
     /** Maximum memory allocation in MB */
     memory?: number
   }

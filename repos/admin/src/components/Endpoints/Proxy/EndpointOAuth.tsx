@@ -1,5 +1,5 @@
 import type { TKeyValuePair } from '@TAF/types'
-import type { Secret } from '@tdsk/domain'
+import type { Secret, TEPCredential } from '@tdsk/domain'
 
 import { CredentialOpts } from '@TAF/constants/values'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -24,14 +24,14 @@ export type TEndpointOAuthProps = {
   scopes: string
   params: TKeyValuePair[]
   availableSecrets: Secret[]
-  credentialStyle: `header` | `body`
+  credentialType: TEPCredential
   onScopesChange: (value: string) => void
   onEnabledChange: (value: boolean) => void
   onTokenUrlChange: (value: string) => void
   onClientIdChange: (value: string) => void
   onClientSecretChange: (value: string) => void
   onParamsChange: (pairs: TKeyValuePair[]) => void
-  onCredentialStyleChange: (value: `header` | `body`) => void
+  onCredentialStyleChange: (value: TEPCredential) => void
 }
 
 export const EndpointOAuth = (props: TEndpointOAuthProps) => {
@@ -45,7 +45,7 @@ export const EndpointOAuth = (props: TEndpointOAuthProps) => {
     clientSecret,
     onScopesChange,
     onParamsChange,
-    credentialStyle,
+    credentialType,
     availableSecrets,
     onEnabledChange,
     onTokenUrlChange,
@@ -124,12 +124,12 @@ export const EndpointOAuth = (props: TEndpointOAuthProps) => {
                 onChange={(e) => onScopesChange(e.target.value)}
               />
               <SelectInput
-                value={credentialStyle}
+                value={credentialType}
                 id='oauth-credential-style'
                 disabled={loading}
                 label='Credential Style'
                 onChange={(e) =>
-                  onCredentialStyleChange(e.target.value as typeof credentialStyle)
+                  onCredentialStyleChange(e.target.value as typeof credentialType)
                 }
                 items={CredentialOpts}
               />

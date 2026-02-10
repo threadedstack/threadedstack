@@ -138,7 +138,7 @@ options: {
     clientId: '{{CLIENT_ID}}',         // supports secret references
     clientSecret: '{{CLIENT_SECRET}}', // supports secret references
     scopes: ['read', 'write'],
-    credentialStyle: 'header',         // or 'body'
+    credentialType: 'header',         // or 'body'
     additionalParams: {
       'audience': 'https://api.example.com'
     }

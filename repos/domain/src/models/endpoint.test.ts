@@ -299,4 +299,58 @@ describe(`Endpoint Model`, () => {
       expect(endpoint.options?.url).toContain(`internal-api.example.com`)
     })
   })
+
+  describe(`nullability for DB-nullable fields`, () => {
+    it(`should create an endpoint without headers (undefined is ok)`, () => {
+      const endpointData = {
+        type: `proxy` as const,
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        projectId: `456e4567-e89b-12d3-a456-426614174001`,
+        options: { url: `https://api.example.com` },
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
+      }
+
+      const endpoint = new Endpoint(endpointData as any)
+
+      expect(endpoint.headers).toBeUndefined()
+      expect(endpoint.options).toEqual(endpointData.options)
+      expect(endpoint.projectId).toBe(endpointData.projectId)
+    })
+
+    it(`should create an endpoint without options (undefined is ok)`, () => {
+      const endpointData = {
+        type: `proxy` as const,
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        projectId: `456e4567-e89b-12d3-a456-426614174001`,
+        headers: { Authorization: `Bearer token` },
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
+      }
+
+      const endpoint = new Endpoint(endpointData as any)
+
+      expect(endpoint.options).toBeUndefined()
+      expect(endpoint.headers).toEqual(endpointData.headers)
+      expect(endpoint.projectId).toBe(endpointData.projectId)
+    })
+
+    it(`should create an endpoint with both headers and options`, () => {
+      const endpointData = {
+        type: `proxy` as const,
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        projectId: `456e4567-e89b-12d3-a456-426614174001`,
+        headers: { [`Content-Type`]: `application/json` },
+        options: { url: `https://api.example.com`, timeout: 5000 },
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
+      }
+
+      const endpoint = new Endpoint(endpointData as any)
+
+      expect(endpoint.headers).toEqual(endpointData.headers)
+      expect(endpoint.options).toEqual(endpointData.options)
+      expect(endpoint.projectId).toBe(endpointData.projectId)
+    })
+  })
 })

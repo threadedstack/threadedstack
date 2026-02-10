@@ -1,4 +1,5 @@
 import type { TAgentFormState, TFaasFormState, TProxyFormState } from '@TAF/types'
+import { EEPCredential, EEPAuthType } from '@tdsk/domain'
 
 export const DefProxyState: TProxyFormState = {
   url: ``,
@@ -14,9 +15,9 @@ export const DefProxyState: TProxyFormState = {
   retryExponentialBackoff: true,
 
   authEnabled: false,
-  authType: `bearer`,
   authSecretName: ``,
   authHeaderName: ``,
+  authType: EEPAuthType.bearer,
 
   oauthScopes: ``,
   oauthParams: [],
@@ -24,7 +25,7 @@ export const DefProxyState: TProxyFormState = {
   oauthClientId: ``,
   oauthEnabled: false,
   oauthClientSecret: ``,
-  oauthCredentialStyle: `header`,
+  oauthCredentialType: EEPCredential.header,
 
   transformEnabled: false,
   transformInjectSecrets: false,

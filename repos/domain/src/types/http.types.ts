@@ -1,12 +1,13 @@
 export enum EHttpMethod {
   Get = `get`,
-  Post = `post`,
   Put = `put`,
-  Patch = `patch`,
-  Delete = `delete`,
+  Post = `post`,
   Head = `head`,
+  Patch = `patch`,
   Trace = `trace`,
+  Delete = `delete`,
   Connect = `connect`,
+  Options = `options`,
 }
 
 export type THttpMethod = `${EHttpMethod}`

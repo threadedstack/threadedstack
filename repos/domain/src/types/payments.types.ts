@@ -33,11 +33,27 @@ export type TPayPlanMeta = {
   retention: TNumberOfMonths
   threads: TTotalAmountAllowed
   members: TNumberOfUserInvites
-  functionCalls: TTimeInSeconds
   messages: TTotalAmountAllowed
   projects: TTotalAmountAllowed
   endpoints: TTotalAmountAllowed
   orgSecrets: TTotalAmountAllowed
+  functionCalls: TTotalAmountAllowed
   organizations: TTotalAmountAllowed
   projectSecrets: TTotalAmountAllowed
 }
+
+export enum ESubscriptionTier {
+  pro = `pro`,
+  free = `free`,
+  basic = `basic`,
+  developer = `developer`,
+}
+export type TSubscriptionTier = `${ESubscriptionTier}`
+
+export enum ESubscriptionStatus {
+  active = `active`,
+  canceled = `canceled`,
+  past_due = `past_due`,
+  incomplete = `incomplete`,
+}
+export type TSubscriptionStatus = `${ESubscriptionStatus}`

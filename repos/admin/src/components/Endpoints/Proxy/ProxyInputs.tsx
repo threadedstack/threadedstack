@@ -1,5 +1,5 @@
 import type { TKeyValuePair } from '@TAF/types'
-import type { Secret } from '@tdsk/domain'
+import type { TEPCredential, TEPAuthType, Secret } from '@tdsk/domain'
 
 import { HttpMethodOps } from '@TAF/constants/values'
 import { TextInput, SelectInput } from '@tdsk/components'
@@ -42,11 +42,11 @@ export type TProxyInputs = {
 
   // Auth
   authEnabled: boolean
-  authType: `bearer` | `basic` | `apikey`
+  authType: TEPAuthType
   authSecretName: string
   authHeaderName: string
   onAuthEnabledChange: (value: boolean) => void
-  onAuthTypeChange: (value: `bearer` | `basic` | `apikey`) => void
+  onAuthTypeChange: (value: TEPAuthType) => void
   onAuthSecretNameChange: (value: string) => void
   onAuthHeaderNameChange: (value: string) => void
 
@@ -56,14 +56,14 @@ export type TProxyInputs = {
   oauthClientId: string
   oauthClientSecret: string
   oauthScopes: string
-  oauthCredentialStyle: `header` | `body`
+  oauthCredentialType: TEPCredential
   oauthParams: TKeyValuePair[]
   onOauthEnabledChange: (value: boolean) => void
   onOauthTokenUrlChange: (value: string) => void
   onOauthClientIdChange: (value: string) => void
   onOauthClientSecretChange: (value: string) => void
   onOauthScopesChange: (value: string) => void
-  onOauthCredentialStyleChange: (value: `header` | `body`) => void
+  onOauthCredentialStyleChange: (value: TEPCredential) => void
   onOauthParamsChange: (pairs: TKeyValuePair[]) => void
 
   // Transform
@@ -165,7 +165,7 @@ export const ProxyInputs = (props: TProxyInputs) => {
         clientSecret={props.oauthClientSecret}
         onScopesChange={props.onOauthScopesChange}
         onParamsChange={props.onOauthParamsChange}
-        credentialStyle={props.oauthCredentialStyle}
+        credentialType={props.oauthCredentialType}
         onEnabledChange={props.onOauthEnabledChange}
         onTokenUrlChange={props.onOauthTokenUrlChange}
         onClientIdChange={props.onOauthClientIdChange}

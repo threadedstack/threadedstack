@@ -10,6 +10,7 @@ const isCamelCase = (str: string): boolean => {
 
 /**
  * Converts a the raw metadata values into a valid plan metadata object
+ * NOTE: All TPayPlanMeta fields are numeric, so toNum() conversion is correct for all fields.
  */
 export const rawPlanToMeta = (raw: TPayPlanRaw | TPayPlanMeta) => {
   return Object.entries(raw).reduce((acc, [key, value]) => {

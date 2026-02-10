@@ -5,7 +5,7 @@ export class Function extends Base {
   name: string
   projectId: string
   content: string
-  endpointId: string
+  endpointId?: string
   description?: string
   branch: string = `main`
   defaultArgs?: Record<string, any>

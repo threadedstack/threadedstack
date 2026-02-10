@@ -2,12 +2,13 @@ import { Base } from './base'
 import type { TRoleType } from '@TDM/types'
 
 export class User extends Base {
-  first: string
-  last: string
-  image: string
+  first?: string
+  last?: string
+  image?: string
   name?: string
   email?: string
   banned?: boolean
+  /** Runtime-only field from auth provider, not persisted to DB */
   provider?: string
   banReason?: string
   emailVerified?: boolean
@@ -20,7 +21,8 @@ export class User extends Base {
     let last = usr.last
     let first = usr.first
     if ((name && !first) || (name && !last)) {
-      const [fn, ln] = name.split(` `)
+      const [fn, ...rest] = name.split(` `)
+      const ln = rest.join(` `)
       first = first || fn
       last = last || ln
     }
@@ -29,6 +31,6 @@ export class User extends Base {
   }
 
   get displayName(): string {
-    return this.name || `${this.first} ${this.last}`.trim()
+    return this.name || [this.first, this.last].filter(Boolean).join(` `).trim() || ``
   }
 }

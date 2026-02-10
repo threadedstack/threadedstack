@@ -8,7 +8,6 @@ import { Provider } from './provider'
 export class Agent extends Base {
   name: string
   model?: string
-  agentId?: string
   maxTokens?: number
   orgId: string
   providerId: string
@@ -29,7 +28,11 @@ export class Agent extends Base {
 
     Object.assign(this, {
       ...rest,
-      provider: agent.provider instanceof Provider ? provider : new Provider(provider),
+      provider: provider
+        ? provider instanceof Provider
+          ? provider
+          : new Provider(provider)
+        : undefined,
       secrets:
         secrets?.map((secret) =>
           secret instanceof Secret ? secret : new Secret(secret)

@@ -5,5 +5,5 @@ export const isDomain = (val: string) => {
 
   const regex =
     /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/
-  return regex.test(val.trim())
+  return regex.test(val.trim().toLowerCase())
 }

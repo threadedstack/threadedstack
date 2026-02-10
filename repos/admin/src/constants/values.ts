@@ -2,12 +2,12 @@ import { capitalize } from '@keg-hub/jsutils/capitalize'
 import {
   ERoleType,
   EHttpMethod,
-  EEPAuthTypes,
+  EEPAuthType,
   EFunLanguage,
   EApiKeyScope,
   EEPVisibility,
   EEndpointType,
-  EEPCredentialOpts,
+  EEPCredential,
 } from '@tdsk/domain'
 
 export const DefSettingsState = {}
@@ -36,14 +36,14 @@ export const AllAuthRoles = [
 export const AuthRoles = AllAuthRoles.filter((role) => role.value !== ERoleType.super)
 
 export const AuthTypes = [
-  { value: EEPAuthTypes.apikey, label: `API Key` },
-  { value: EEPAuthTypes.basic, label: `Basic Auth` },
-  { value: EEPAuthTypes.bearer, label: `Bearer Token` },
+  { value: EEPAuthType.apikey, label: `API Key` },
+  { value: EEPAuthType.basic, label: `Basic Auth` },
+  { value: EEPAuthType.bearer, label: `Bearer Token` },
 ]
 
 export const CredentialOpts = [
-  { value: EEPCredentialOpts.body, label: `Body (Form Params)` },
-  { value: EEPCredentialOpts.header, label: `Header (Basic Auth)` },
+  { value: EEPCredential.body, label: `Body (Form Params)` },
+  { value: EEPCredential.header, label: `Header (Basic Auth)` },
 ]
 
 export const LanguageOpts = Object.values(EFunLanguage).map((value) => ({

@@ -3,7 +3,7 @@
  */
 export const splitBy = (str: string | undefined, delimiter: string = `,`): string[] => {
   if (!str?.trim()) return []
-  return str.split(delimiter).map((s) => s)
+  return str.split(delimiter)
 }
 
 /**

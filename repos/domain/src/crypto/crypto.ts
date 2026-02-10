@@ -2,11 +2,11 @@ import crypto from 'crypto'
 import { Buffer } from 'buffer'
 import { isStr } from '@keg-hub/jsutils/isStr'
 
-let MASTER_KEY: Buffer
-const IV_LENGTH = 12
-const DERIVED_KEY_LENGTH = 32
-const ALGORITHM = `aes-256-gcm`
-const KEY_DERIVATION_INFO = Buffer.from(`user-secret-key`, `utf-8`)
+let MasterKey: Buffer
+const IvLength = 12
+const DerivedKeyLength = 32
+const Algorithm = `aes-256-gcm`
+const KeyDerivationInfo = Buffer.from(`user-secret-key`, `utf-8`)
 
 export type TEncryptVal = {
   iv: Buffer
@@ -14,18 +14,24 @@ export type TEncryptVal = {
   encrypted: Buffer
 }
 
-const getMasterKey = () => {
-  if (MASTER_KEY) return
+const getMasterKey = (): void => {
+  if (MasterKey) return
 
-  const envMasterKey = process.env.TDSK_MASTER_KEY
-  if (!envMasterKey) throw new Error(`Required ENV 'TDSK_MASTER_KEY' is missing.`)
+  const envMasterKey = process.env.TDSK_MasterKey
+  if (!envMasterKey) throw new Error(`Required ENV 'TDSK_MasterKey' is missing.`)
 
   try {
-    MASTER_KEY = Buffer.from(envMasterKey, `hex`)
+    MasterKey = Buffer.from(envMasterKey, `hex`)
   } catch (e) {
-    console.error(`Failed to create Buffer from TDSK_MASTER_KEY (is it valid hex?):`, e)
+    console.error(`Failed to create Buffer from TDSK_MasterKey (is it valid hex?):`, e)
     throw new Error(
-      `Invalid format for TDSK_MASTER_KEY environment variable (must be hex).`
+      `Invalid format for TDSK_MasterKey environment variable (must be hex).`
+    )
+  }
+
+  if (MasterKey.length < 32) {
+    throw new Error(
+      `TDSK_MasterKey must be at least 64 hex characters (32 bytes) for AES-256. Got ${MasterKey.length} bytes.`
     )
   }
 }
@@ -43,12 +49,16 @@ export const deriveKey = (ref_id: string): Promise<Buffer<ArrayBufferLike>> => {
   getMasterKey()
 
   return new Promise((resolve, reject) => {
+    // KNOWN DEVIATION FROM RFC 5869: ref_id is used as salt (param 3) rather than
+    // info (param 4). Per RFC 5869, salt should be random/fixed and info contextual.
+    // Changing this ordering would invalidate all existing encrypted data.
+    // TODO: Plan migration to move ref_id from salt to info position.
     crypto.hkdf(
       `sha256`,
-      MASTER_KEY,
+      MasterKey,
       ref_id,
-      KEY_DERIVATION_INFO,
-      DERIVED_KEY_LENGTH,
+      KeyDerivationInfo,
+      DerivedKeyLength,
       (err, key) => (err ? reject(err) : resolve(Buffer.from(key)))
     )
   })
@@ -69,13 +79,13 @@ export const encryptValue = async (
   if (!Buffer.isBuffer(derivedKey))
     throw new Error(`Derived key must be a Node.js Buffer.`)
 
-  if (derivedKey.length !== DERIVED_KEY_LENGTH)
-    throw new Error(`Invalid derived key length: expected ${DERIVED_KEY_LENGTH} bytes.`)
+  if (derivedKey.length !== DerivedKeyLength)
+    throw new Error(`Invalid derived key length: expected ${DerivedKeyLength} bytes.`)
 
   if (!isStr(plaintextValue)) throw new Error(`Plaintext value must be a string.`)
 
-  const iv = crypto.randomBytes(IV_LENGTH)
-  const cipher = crypto.createCipheriv(ALGORITHM, derivedKey, iv)
+  const iv = crypto.randomBytes(IvLength)
+  const cipher = crypto.createCipheriv(Algorithm, derivedKey, iv)
 
   const encryptedChunks: Buffer[] = []
   encryptedChunks.push(cipher.update(plaintextValue, `utf8`))
@@ -106,22 +116,22 @@ export const decryptValue = async (
   if (!Buffer.isBuffer(derivedKey))
     throw new Error(`Derived key must be a Node.js Buffer.`)
 
-  if (derivedKey.length !== DERIVED_KEY_LENGTH)
-    throw new Error(`Invalid derived key length: expected ${DERIVED_KEY_LENGTH} bytes.`)
+  if (derivedKey.length !== DerivedKeyLength)
+    throw new Error(`Invalid derived key length: expected ${DerivedKeyLength} bytes.`)
 
   if (!Buffer.isBuffer(ciphertext))
     throw new Error(`Ciphertext must be a Node.js Buffer.`)
 
   if (!Buffer.isBuffer(iv)) throw new Error(`IV must be a Node.js Buffer.`)
-  if (iv.length !== IV_LENGTH)
-    throw new Error(`Invalid IV length: expected ${IV_LENGTH} bytes.`)
+  if (iv.length !== IvLength)
+    throw new Error(`Invalid IV length: expected ${IvLength} bytes.`)
 
   if (!Buffer.isBuffer(authTag)) throw new Error(`Auth tag must be a Node.js Buffer.`)
   // Node.js crypto GCM auth tags are 16 bytes by default
   if (authTag.length !== 16)
     throw new Error(`Invalid auth tag length. Expected 16 bytes. Got ${authTag.length}.`)
 
-  const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv)
+  const decipher = crypto.createDecipheriv(Algorithm, derivedKey, iv)
   decipher.setAuthTag(authTag)
   let decrypted = decipher.update(ciphertext)
 
@@ -144,6 +154,8 @@ export const byteaToBuffer = (byteaString: string): Buffer => {
   return Buffer.from(byteaString.substring(2), `hex`)
 }
 
+// NOTE: No version byte in encryption format. Format: [iv:12][authTag:16][ciphertext:N]
+// If algorithm changes, add a version prefix for backward-compatible decryption.
 /**
  * Helper to encode encrypted data for storage
  * Combines iv + authTag + encrypted into a single base64 string
@@ -156,6 +168,8 @@ export const encodeEncrypted = (
   return Buffer.concat([iv, authTag, encrypted]).toString(`base64`)
 }
 
+// NOTE: Truncates SHA-256 to 16 hex chars (64 bits). Used for secret name
+// lookup only, not as a security-critical hash.
 /**
  * Helper to create a hash key from the secret name for lookup purposes
  */

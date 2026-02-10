@@ -5,17 +5,20 @@ type TCfg = Record<string, any>
 type TDB = Record<string, any>
 type TPay = Record<string, any>
 type TEmail = Record<string, any>
+type TAuth = Record<string, any>
 
 export type TAppLocals<
   C extends TCfg = TCfg,
   D extends TDB = TDB,
   P extends TPay = TPay,
   E extends TEmail = TEmail,
+  A extends TAuth = TAuth,
 > = {
   db: D
+  email?: E
   config: C
   payments: P
-  email?: E
+  auth: A
 }
 
 export type TApp<
@@ -23,13 +26,14 @@ export type TApp<
   D extends TDB = TDB,
   P extends TPay = TPay,
   E extends TEmail = TEmail,
-  L = TAppLocals<C, D, P, E>,
+  A extends TAuth = TAuth,
+  L = TAppLocals<C, D, P, E, A>,
 > = Express & {
   locals: L
 }
 
 export type TResLocals = {
-  user?: Record<string, any>
+  user?: User
   subdomain?: string
 }
 
@@ -49,31 +53,6 @@ export type TRequest<
   app: App
   user?: User
 }
-
-export type TPostReq<
-  App extends TApp = TApp,
-  ReqBody extends Record<string, any> = Record<string, any>,
-  ReqParams extends Record<string, any> = Record<string, any>,
-  ResBody = any,
-  ReqQuery extends Record<string, any> = Record<string, any>,
-  Locals extends Record<string, any> = Record<string, any>,
-> = TRequest<App, ReqParams, ResBody, ReqBody, ReqQuery, Locals>
-
-export type TRequestHandler = (
-  req: TRequest,
-  res: TResponse,
-  next: NextFunction
-) => void | undefined | Promise<void | undefined>
-
-export type TRouterHandler =
-  | Router[`all`]
-  | Router[`get`]
-  | Router[`put`]
-  | Router[`head`]
-  | Router[`post`]
-  | Router[`patch`]
-  | Router[`delete`]
-  | Router[`options`]
 
 export type TErrorHandler = (
   res: TResponse,

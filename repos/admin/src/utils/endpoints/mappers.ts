@@ -11,8 +11,8 @@ import type {
 } from '@TAF/types/endpoints.types'
 
 import { toNum } from '@keg-hub/jsutils/toNum'
-import { EEndpointType, cleanSplit } from '@tdsk/domain'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
+import { cleanSplit, EEPAuthType, EEPCredential, EEndpointType } from '@tdsk/domain'
 
 // ============================================================================
 // PROXY MAPPER
@@ -40,7 +40,7 @@ export const initProxyFromEndpoint = (endpoint: Endpoint): TProxyFormState => {
 
     // Auth
     authEnabled: !!opts.auth,
-    authType: opts.auth?.type || `bearer`,
+    authType: opts.auth?.type || EEPAuthType.bearer,
     authSecretName: opts.auth?.secretName || ``,
     authHeaderName: opts.auth?.headerName || ``,
 
@@ -50,7 +50,7 @@ export const initProxyFromEndpoint = (endpoint: Endpoint): TProxyFormState => {
     oauthClientId: opts.oauth?.clientId || ``,
     oauthClientSecret: opts.oauth?.clientSecret || ``,
     oauthScopes: opts.oauth?.scopes?.join(`, `) || ``,
-    oauthCredentialStyle: opts.oauth?.credentialStyle || `header`,
+    oauthCredentialType: opts.oauth?.credentialType || EEPCredential.header,
     oauthParams: objToKV(opts.oauth?.additionalParams || {}, `oauth-param`),
 
     // Transform
@@ -109,7 +109,7 @@ export const mapProxyStateToConfig = (state: TProxyFormState): TProxyEndpointCon
       clientId: state.oauthClientId,
       clientSecret: state.oauthClientSecret,
       scopes: cleanSplit(state.oauthScopes),
-      credentialStyle: state.oauthCredentialStyle,
+      credentialType: state.oauthCredentialType,
       additionalParams:
         Object.keys(additionalParams).length > 0 ? additionalParams : undefined,
     }

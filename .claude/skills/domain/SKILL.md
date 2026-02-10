@@ -31,6 +31,10 @@ repos/domain/
 │   │   ├── behindLBProxy.ts    # Load balancer proxy detection
 │   │   ├── checkAuthHeader.ts  # Auth header validation
 │   │   └── inKube.ts           # Kubernetes environment detection
+│   ├── crypto/                 # Crypto utilities
+│   │   ├── crypto.ts           # AES-256-GCM encryption/decryption (Node.js crypto)
+│   │   ├── generateKey.ts.     # Key generation (Web Crypto API - browser/edge only)
+│   │   └── index.ts
 │   ├── models/           # Domain model classes
 │   │   ├── base.ts             # Base class with id, createdAt, updatedAt
 │   │   ├── user.ts             # User model with name parsing
@@ -68,10 +72,6 @@ repos/domain/
 │   │   ├── scopes.types.ts     # API scope types
 │   │   └── server.types.ts     # Server configuration types
 │   ├── utils/            # Utility functions
-│   │   ├── crypto/             # Crypto utilities
-│   │   │   ├── crypto.ts       # AES-256-GCM encryption/decryption (Node.js crypto)
-│   │   │   ├── generateKey.ts  # Key generation (Web Crypto API - browser/edge only)
-│   │   │   └── index.ts
 │   │   ├── payments/           # Payment utilities
 │   │   │   ├── parsePayPlans.ts    # Parse payment plan configs
 │   │   │   ├── rawPlanToMeta.ts    # Convert raw to typed metadata
@@ -81,11 +81,8 @@ repos/domain/
 │   │   │   ├── permissions.test.ts
 │   │   │   └── index.ts
 │   │   ├── time.ts             # Timestamp utility
-│   │   ├── asBool.ts           # Boolean conversion
 │   │   ├── shortId.ts          # Short ID generation
-│   │   ├── splitBy.ts          # String splitting utilities (splitBy, cleanSplit)
-│   │   ├── deepCopy.ts         # Deep object cloning
-│   │   ├── defaultTrue.ts      # Default-to-true boolean conversion (deprecated)
+│   │   ├── cleanSplit.ts       # String splitting utilities (splitBy, cleanSplit)
 │   │   ├── isDomain.ts         # Domain name validation
 │   │   └── nextFrame.ts        # Animation frame utilities
 │   ├── error/            # Error handling
@@ -112,7 +109,7 @@ repos/domain/
 | File | Purpose |
 |------|---------|
 | `src/index.ts` | Main export barrel - exports all modules |
-| `src/web.ts` | Web-safe exports (excludes Node.js stdlib code) |
+| `src/web.ts` | Web-safe exports (excludes Node.js code) |
 | `src/types/endpoint.types.ts` | Express API type definitions (TApp, TRequest, TResponse, TRouter) |
 | `src/models/base.ts` | Base model class with id, createdAt, updatedAt |
 | `src/utils/crypto/crypto.ts` | AES-256-GCM encryption with HKDF key derivation |
@@ -128,9 +125,7 @@ repos/domain/
 - `TApp<C, L>` - Express app with typed locals (config, db)
 - `TRequest<ReqParams, ResBody, ReqBody, ReqQuery, Locals>` - Extended Express request with `auth` property
 - `TResponse<ResBody, Locals>` - Extended Express response with typed locals
-- `TPostReq` - Specialized POST request type
 - `TRouter` - Type-safe Express router with `asyncWrap` integration
-- `TRequestHandler` - Standard request handler signature
 - `TReqHandler` - Request handler with optional error handler
 - `TAsyncWrap` - Async wrapper utility type
 
@@ -366,9 +361,7 @@ timestamp(): number  // Date.now()
 
 ### Other Utilities
 
-- `asBool(value: any): boolean` - Convert value to boolean
 - `shortId(): string` - Generate short unique ID
-- `deepCopy(obj: any): any` - Deep clone objects
 - `nextFrame(callback: Function): void` - Schedule callback on next animation frame
 - `throttleCBLast(callback: Function, delay: number): Function` - Throttle with last call guarantee
 
@@ -691,19 +684,24 @@ pnpm test:watch         # Watch mode (if configured)
 Example test structure:
 
 ```typescript
-// src/utils/asBool.test.ts
+// src/utils/isDomain.test.ts
 import { describe, it, expect } from 'vitest'
-import { asBool } from './asBool'
+import { isDomain } from './isDomain'
 
-describe('asBool', () => {
-  it('converts truthy values to true', () => {
-    expect(asBool('true')).toBe(true)
-    expect(asBool(1)).toBe(true)
+describe(`isDomain`, () => {
+  it(`should return true for valid domains`, () => {
+    expect(isDomain(`example.com`)).toBe(true)
+    expect(isDomain(`sub.domain.co.uk`)).toBe(true)
+    expect(isDomain(`my-site.org`)).toBe(true)
+    expect(isDomain(`a.bc`)).toBe(true)
   })
 
-  it('converts falsy values to false', () => {
-    expect(asBool('false')).toBe(false)
-    expect(asBool(0)).toBe(false)
+  it(`should return false for invalid domains`, () => {
+    expect(isDomain(`not-a-domain`)).toBe(false)
+    expect(isDomain(`.com`)).toBe(false)
+    expect(isDomain(``)).toBe(false)
+    expect(isDomain(`   `)).toBe(false)
+    expect(isDomain(`-bad.com`)).toBe(false)
   })
 })
 ```

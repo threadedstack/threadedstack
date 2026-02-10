@@ -1,8 +1,20 @@
 import type { TKeyHash } from '@TDM/types'
 
 /**
+ * `generateKey` uses the Web Crypto API (`crypto.getRandomValues`, `crypto.subtle.digest`,
+ * and `btoa`). It may not be available in all environments:
+ * - Node.js < 19 without `--experimental-global-webcrypto` flag
+ * - Server-side environments where the global `crypto` object lacks `subtle`
+ * - Environments where `btoa` is not defined (older Node.js versions)
+ *
+ * In Node.js server contexts, prefer using the Node.js `crypto` module directly
+ * (see `crypto.ts` in this directory). This export is primarily intended for
+ * browser/edge runtime usage.
+ *
+ *
  * Node/Browser helper function to generate a crypto key hash
  * Use if needed in browser, for now only needed on backend, so Node crypto is used
+ *
  */
 export const generateKey = async (): Promise<TKeyHash> => {
   const keyBytes = new Uint8Array(32)

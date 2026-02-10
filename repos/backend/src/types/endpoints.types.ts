@@ -1,10 +1,8 @@
-import type { router } from '@TBE/server/router'
 import type { TReqHandler } from '@tdsk/domain'
 import type { Options } from 'http-proxy-middleware'
 import type { TApp, TRequest } from '@TBE/types/backend.types'
 
 export type TConfigProxy = Options
-export type TRequestHandler = TReqHandler
 
 export type TEndpointConfig = {
   path: string
@@ -12,8 +10,8 @@ export type TEndpointConfig = {
   method: EPMethod
   proxy?: TConfigProxy
   originHeader?: boolean
+  middleware?: TReqHandler[]
   endpoints?: TEndpointsConfig
-  middleware?: TRequestHandler[]
   action?: TReqHandler<TRequest>
 }
 
