@@ -25,7 +25,8 @@
     "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
-    "biome:format": "biome format --config-path $(pwd)/configs/biome.json"
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "types": "tsc --noEmit --pretty"
   },
   "dependencies": {
     "@keg-hub/jsutils": "10.0.0",

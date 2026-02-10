@@ -87,8 +87,7 @@ repos/domain/
 │   │   ├── deepCopy.ts         # Deep object cloning
 │   │   ├── defaultTrue.ts      # Default-to-true boolean conversion (deprecated)
 │   │   ├── isDomain.ts         # Domain name validation
-│   │   ├── nextFrame.ts        # Animation frame utilities
-│   │   └── throttleCBLast.ts   # Callback throttling
+│   │   └── nextFrame.ts        # Animation frame utilities
 │   ├── error/            # Error handling
 │   │   ├── exception.ts        # Exception class with status codes
 │   │   └── overrideErr.ts      # Error override utilities
