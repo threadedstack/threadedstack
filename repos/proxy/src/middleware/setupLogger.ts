@@ -15,7 +15,7 @@ const ignore = (req: Request) => {
  */
 export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
   const startTime = Date.now()
-  const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  const requestId = crypto.randomUUID()
 
   if (ignore(req)) return next()
 

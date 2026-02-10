@@ -3,7 +3,7 @@
     "extraFileExtensions": ["json"]
   },
   "compilerOptions": {
-    "rootDir": "./",
+    "rootDir": "../",
     "noEmit": true,
     "allowJs": true,
     "strict": false,

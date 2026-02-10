@@ -1,4 +1,3 @@
-import type { TProxyApp } from '@TPX/types'
 import type { Request, Response } from 'express'
 
 import { logger } from '@TPX/utils/logger'
@@ -12,21 +11,19 @@ import { logger } from '@TPX/utils/logger'
  * - This endpoint is called to confirm logout and clear any server-side state
  * - JWT tokens are invalidated on client side
  */
-export const logout = (_app: TProxyApp) => {
-  return async (req: Request, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.userId
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId
 
-      logger.info(`Logout request received`, { userId })
+    logger.info(`Logout request received`, { userId })
 
-      res.status(200).json({
-        data: {
-          message: `Logged out successfully`,
-        },
-      })
-    } catch (err) {
-      logger.error(`Logout error:`, err)
-      res.status(500).json({ error: `Logout failed` })
-    }
+    res.status(200).json({
+      data: {
+        message: `Logged out successfully`,
+      },
+    })
+  } catch (err) {
+    logger.error(`Logout error:`, err)
+    res.status(500).json({ error: `Logout failed` })
   }
 }

@@ -11,22 +11,11 @@ describe('proxy.config', () => {
       const { config } = await import('./proxy.config')
 
       expect(config).toBeDefined()
-      expect(config).toHaveProperty('jwt')
       expect(config).toHaveProperty('server')
       expect(config).toHaveProperty('backend')
       expect(config).toHaveProperty('logger')
       expect(config).toHaveProperty('jwks')
-    })
-
-    it('should have valid JWT configuration', async () => {
-      const { config } = await import('./proxy.config')
-
-      expect(config.jwt).toHaveProperty('secret')
-      expect(config.jwt).toHaveProperty('expiresIn')
-      expect(config.jwt).toHaveProperty('refreshExpiresIn')
-      expect(typeof config.jwt.secret).toBe('string')
-      expect(typeof config.jwt.expiresIn).toBe('string')
-      expect(typeof config.jwt.refreshExpiresIn).toBe('string')
+      expect(config).not.toHaveProperty('jwt')
     })
 
     it('should have valid server configuration', async () => {
@@ -74,9 +63,6 @@ describe('proxy.config', () => {
     it('should use default values when environment variables are not set', async () => {
       const { config } = await import('./proxy.config')
 
-      expect(config.jwt.secret).toBeTruthy()
-      expect(config.jwt.expiresIn).toBe('7d')
-      expect(config.jwt.refreshExpiresIn).toBe('30d')
       expect(config.server.port).toBeGreaterThan(0)
       expect(config.backend.url).toContain('http')
     })

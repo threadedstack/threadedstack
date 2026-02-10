@@ -9,7 +9,7 @@ import { health, logout, me, validate } from '@TPX/endpoints'
  */
 export const setupEndpoints = (app: TProxyApp, router: Router) => {
   router.get(`/health`, health)
-  router.get(`/auth/me`, me(app))
-  router.post(`/auth/logout`, logout(app))
+  router.get(`/auth/me`, me)
+  router.post(`/auth/logout`, logout)
   router.get(`/domains/validate`, validate)
 }

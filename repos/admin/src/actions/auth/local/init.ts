@@ -1,5 +1,6 @@
-import { apiService } from '@TAF/services/api'
+import { nav } from '@TAF/services/nav'
 import { auth } from '@TAF/services/auth'
+import { apiService } from '@TAF/services/api'
 import { setUser } from '@TAF/state/accessors'
 
 /**
@@ -14,6 +15,12 @@ import { setUser } from '@TAF/state/accessors'
  */
 export const initAuth = async () => {
   const data = await auth.session()
+
+  if (!data?.user) {
+    nav.signin()
+    return data
+  }
+
   await apiService.bearer(data)
 
   data.user && setUser(data.user)

@@ -108,4 +108,46 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
   },
+  [EPermResource.subscription]: {
+    [EPermAction.create]: ERoleType.admin, // Only admins can create subscriptions
+    [EPermAction.read]: ERoleType.member,
+    [EPermAction.update]: ERoleType.admin,
+    [EPermAction.delete]: ERoleType.owner,
+    [EPermAction.manage]: ERoleType.admin,
+  },
+  [EPermResource.quota]: {
+    [EPermAction.create]: ERoleType.admin, // Only admins can create quotas
+    [EPermAction.read]: ERoleType.member,
+    [EPermAction.update]: ERoleType.admin,
+    [EPermAction.delete]: ERoleType.owner,
+    [EPermAction.manage]: ERoleType.admin,
+  },
+  [EPermResource.invitation]: {
+    [EPermAction.create]: ERoleType.admin, // Admins can invite users
+    [EPermAction.read]: ERoleType.member,
+    [EPermAction.update]: ERoleType.admin,
+    [EPermAction.delete]: ERoleType.admin,
+    [EPermAction.manage]: ERoleType.admin,
+  },
+  [EPermResource.thread]: {
+    [EPermAction.create]: ERoleType.member, // Members can create threads
+    [EPermAction.read]: ERoleType.viewer,
+    [EPermAction.update]: ERoleType.member,
+    [EPermAction.delete]: ERoleType.admin,
+    [EPermAction.manage]: ERoleType.admin,
+  },
+  [EPermResource.message]: {
+    [EPermAction.create]: ERoleType.member, // Members can create messages
+    [EPermAction.read]: ERoleType.viewer,
+    [EPermAction.update]: ERoleType.member,
+    [EPermAction.delete]: ERoleType.admin,
+    [EPermAction.manage]: ERoleType.admin,
+  },
+  [EPermResource.asset]: {
+    [EPermAction.create]: ERoleType.member, // Members can upload assets
+    [EPermAction.read]: ERoleType.viewer,
+    [EPermAction.update]: ERoleType.member,
+    [EPermAction.delete]: ERoleType.admin,
+    [EPermAction.manage]: ERoleType.admin,
+  },
 }

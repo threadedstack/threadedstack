@@ -21,9 +21,6 @@ const {
   TDSK_PX_LOG_LEVEL,
   TDSK_PX_LOGGER_PRETTY,
   TDSK_PX_LOGGER_SILENT,
-  TDSK_PX_JWT_SECRET,
-  TDSK_PX_JWT_EXPIRES_IN,
-  TDSK_PX_JWT_REFRESH_EXPIRES_IN,
   TDSK_BE_URL,
   TDSK_BE_HOST,
   TDSK_BE_PORT,
@@ -55,11 +52,6 @@ const backendUrl = () => {
 }
 
 export const config: TProxyConfig = {
-  jwt: {
-    secret: TDSK_PX_JWT_SECRET || `tdsk-dev-secret-change-in-production`,
-    expiresIn: TDSK_PX_JWT_EXPIRES_IN || `7d`,
-    refreshExpiresIn: TDSK_PX_JWT_REFRESH_EXPIRES_IN || `30d`,
-  },
   server: {
     enableSSL,
     port: toInt(TDSK_PX_PORT) || 4000,

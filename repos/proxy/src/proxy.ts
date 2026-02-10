@@ -7,6 +7,7 @@ import { setupProxy } from '@TPX/middleware/setupProxy'
 import { setupLogger } from '@TPX/middleware/setupLogger'
 import { setupServer } from '@TPX/middleware/setupServer'
 import { setupPrewarm } from '@TPX/middleware/setupPrewarm'
+import { setupDatabase } from '@TPX/middleware/setupDatabase'
 import { setupEndpoints } from '@TPX/middleware/setupEndpoints'
 import { setupErrorHandler } from '@TPX/middleware/setupErrorHandler'
 
@@ -19,6 +20,7 @@ export const proxy = (config: TProxyConfig) => {
 
   setupLogger(app)
   setupServer(app, router)
+  setupDatabase(app)
   setupAuth(app)
   setupPrewarm(app)
   setupEndpoints(app, router)

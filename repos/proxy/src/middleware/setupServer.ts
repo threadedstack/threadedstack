@@ -19,7 +19,6 @@ export const setupServer = (app: TProxyApp, router: Router) => {
   !behindLBProxy() &&
     app.use(
       cors({
-        credentials: true,
         origin: origins.includes(`*`) ? `*` : origins,
       })
     )

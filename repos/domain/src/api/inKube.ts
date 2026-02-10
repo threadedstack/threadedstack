@@ -1,6 +1,6 @@
-export const inKube = () => {
-  return (
+export const inKube = (): boolean => {
+  return Boolean(
     process.env.TDSK_IN_KUBE ||
-    (process.env.KUBERNETES_SERVICE_HOST && process.env.KUBERNETES_SERVICE_PORT)
+      (process.env.KUBERNETES_SERVICE_HOST && process.env.KUBERNETES_SERVICE_PORT)
   )
 }

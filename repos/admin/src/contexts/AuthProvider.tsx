@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import type { TAuthSession } from '@TAF/types'
 
 import { useMemo, useState } from 'react'
+import { auth } from '@TAF/services/auth'
 import { ife } from '@keg-hub/jsutils/ife'
-import { authClient } from '@TAF/services/auth'
 import { AuthContext } from '@TAF/contexts/AuthContext'
 import { initAuth } from '@TAF/actions/auth/local/init'
 import { LoginError } from '@TAF/components/Login/LoginError'
@@ -48,7 +48,7 @@ export const AuthProvider = (props: TAuthProvider) => {
   })
 
   return (
-    <NeonAuthUIProvider authClient={authClient}>
+    <NeonAuthUIProvider authClient={auth.client}>
       <AuthContext.Provider value={ctx}>
         {error ? (
           <LoginError message={error} />

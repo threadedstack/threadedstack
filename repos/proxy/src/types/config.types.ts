@@ -1,11 +1,5 @@
 import type { TLogLevel } from '@TPX/types/envs.types'
 
-export type TJwtConfig = {
-  secret: string
-  expiresIn: string
-  refreshExpiresIn: string
-}
-
 export type TServerConfig = {
   port: number
   enableSSL: boolean
@@ -43,7 +37,6 @@ export type TDomainsConfig = {
 }
 
 export type TProxyConfig = {
-  jwt: TJwtConfig
   jwks: TJWKSConfig
   server: TServerConfig
   logger: TLoggerConfig

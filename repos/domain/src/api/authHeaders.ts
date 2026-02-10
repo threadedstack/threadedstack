@@ -21,9 +21,12 @@ export const setAuthHeaders = (pxReq: TClientReq, req: Record<string, any>) => {
 }
 
 export const fromAuthHeaders = (req: TReq) => {
-  return Object.entries(AuthHeaders).reduce((acc, [loc, key]) => {
-    const name = loc.split(`.`).pop()
-    acc[name] = req?.header?.(key)
-    return acc
-  }, {} as TAuthHeaderObj)
+  return Object.entries(AuthHeaders).reduce(
+    (acc, [loc, key]) => {
+      const name = loc.split(`.`).pop()
+      acc[name] = req?.header?.(key)
+      return acc
+    },
+    {} as Partial<TAuthHeaderObj>
+  )
 }

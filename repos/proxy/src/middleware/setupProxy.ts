@@ -13,7 +13,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware'
 const addProxyHeaders = (
   proxyReq: ClientRequest,
   req: Request,
-  config: TProxyApp['locals']['config']
+  config: TProxyApp[`locals`][`config`]
 ) => {
   config.backend.headerKey &&
     config.backend.headerValue &&
@@ -39,7 +39,7 @@ const handleProxyError = (
 }
 
 const pathFilter = (loc: string) => {
-  return `/${loc.replace(/$\//, ``).replace(/^\//, ``)}`
+  return `/${loc.replace(/\/$/, ``).replace(/^\//, ``)}`
 }
 
 /**
