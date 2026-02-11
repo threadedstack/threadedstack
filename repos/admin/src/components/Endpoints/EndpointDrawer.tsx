@@ -25,6 +25,7 @@ import { EndpointAgent } from '@TAF/components/Endpoints/Agent/EndpointAgent'
 
 export type TEndpointDrawer = {
   open: boolean
+  orgId: string
   projectId: string
   onClose: () => void
   onSuccess?: () => void
@@ -32,7 +33,14 @@ export type TEndpointDrawer = {
 }
 
 export const EndpointDrawer = (props: TEndpointDrawer) => {
-  const { open, endpoint, projectId, onClose: onCloseCB, onSuccess: onSuccessCB } = props
+  const {
+    open,
+    orgId,
+    endpoint,
+    projectId,
+    onClose: onCloseCB,
+    onSuccess: onSuccessCB,
+  } = props
 
   const isEditMode = Boolean(endpoint)
 
@@ -169,25 +177,32 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
 
     const result =
       isEditMode && endpoint
-        ? await updateEndpoint(endpoint.id, {
-            headers,
-            options,
+        ? await updateEndpoint({
+            orgId,
             projectId,
-            method: sharedState.method,
-            public: sharedState.public,
-            name: sharedState.name.trim(),
-            path: sharedState.path.trim(),
-            type: sharedState.endpointType,
+            id: endpoint.id,
+            data: {
+              headers,
+              options,
+              method: sharedState.method,
+              public: sharedState.public,
+              name: sharedState.name.trim(),
+              path: sharedState.path.trim(),
+              type: sharedState.endpointType,
+            },
           })
         : await createEndpoint({
-            headers,
-            options,
+            orgId,
             projectId,
-            public: sharedState.public,
-            method: sharedState.method,
-            name: sharedState.name.trim(),
-            path: sharedState.path.trim(),
-            type: sharedState.endpointType,
+            data: {
+              headers,
+              options,
+              public: sharedState.public,
+              method: sharedState.method,
+              name: sharedState.name.trim(),
+              path: sharedState.path.trim(),
+              type: sharedState.endpointType,
+            },
           })
 
     setUiState({ loading: false, error: null, showDeleteConfirm: false })
@@ -208,7 +223,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
 
     setUiState({ ...uiState, loading: true, error: null })
 
-    const result = await deleteEndpoint(endpoint.id)
+    const result = await deleteEndpoint({ orgId, projectId, id: endpoint.id })
 
     setUiState({ loading: false, error: null, showDeleteConfirm: false })
 
@@ -235,9 +250,6 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       open={open}
       onClose={onClose}
       title={isEditMode ? 'Edit Endpoint' : 'Create New Endpoint'}
-      actionsSx={
-        isEditMode ? { justifyContent: 'space-between', px: 3, pb: 2 } : undefined
-      }
       actions={
         <DrawerActions
           actions={actions}

@@ -7,10 +7,10 @@ import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 
 /**
- * GET /quotas/:orgId - Get current quota usage for an organization
+ * GET /orgs/:orgId/quotas - Get current quota usage for an organization
  */
 export const getOrgQuota: TEndpointConfig = {
-  path: `/:orgId`,
+  path: `/`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params

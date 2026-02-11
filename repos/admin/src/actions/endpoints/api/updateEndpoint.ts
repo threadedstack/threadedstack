@@ -3,8 +3,16 @@ import type { Endpoint } from '@tdsk/domain'
 import { endpointsApi } from '@TAF/services'
 import { upsertEndpoint } from '@TAF/actions/endpoints/local/upsertEndpoint'
 
-export const updateEndpoint = async (id: string, ep: Partial<Endpoint>) => {
-  const resp = await endpointsApi.update(id, ep)
+export type TUpdateEndpointOpts = {
+  orgId: string
+  projectId: string
+  id: string
+  data: Partial<Endpoint>
+}
+
+export const updateEndpoint = async (opts: TUpdateEndpointOpts) => {
+  const { orgId, projectId, id, data } = opts
+  const resp = await endpointsApi.update(orgId, projectId, id, data)
 
   if (resp.error) return { error: resp.error }
   resp.data && upsertEndpoint(resp.data)

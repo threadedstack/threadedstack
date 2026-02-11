@@ -11,10 +11,10 @@ import { parsePagination } from '@TBE/utils/pagination'
  * Requires viewer+ role (any member can see member list)
  */
 export const listOrgMembers: TEndpointConfig = {
-  path: `/:id/members`,
+  path: `/:orgId/members`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id: orgId } = req.params
+    const { orgId } = req.params
     const { db } = req.app.locals
 
     // Check membership first (viewer+ can see members)

@@ -17,10 +17,10 @@ export const listFunctions: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { projectId } = req.query
+    const { projectId } = req.params
 
     // projectId is required
-    if (!projectId) throw new Exception(400, `projectId query parameter required`)
+    if (!projectId) throw new Exception(400, `projectId parameter required`)
 
     // Check permission
     await checkPermission(req, EPermAction.read, EPermResource.function, {

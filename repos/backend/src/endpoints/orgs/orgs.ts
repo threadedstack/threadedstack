@@ -6,6 +6,14 @@ import { listOrgs } from '@TBE/endpoints/orgs/listOrgs'
 import { createOrg } from '@TBE/endpoints/orgs/createOrg'
 import { updateOrg } from '@TBE/endpoints/orgs/updateOrg'
 import { deleteOrg } from '@TBE/endpoints/orgs/deleteOrg'
+import { orgQuotas } from '@TBE/endpoints/orgs/orgQuotas'
+import { orgAgents } from '@TBE/endpoints/orgs/orgAgents'
+import { orgApiKeys } from '@TBE/endpoints/orgs/orgApiKeys'
+import { orgConfigs } from '@TBE/endpoints/orgs/orgConfigs'
+import { orgDomains } from '@TBE/endpoints/orgs/orgDomains'
+import { orgSecrets } from '@TBE/endpoints/orgs/orgSecrets'
+import { orgProjects } from '@TBE/endpoints/orgs/orgProjects'
+import { orgProviders } from '@TBE/endpoints/orgs/orgProviders'
 import { addOrgMember } from '@TBE/endpoints/orgs/addOrgMember'
 import { inviteOrgUser } from '@TBE/endpoints/orgs/inviteOrgUser'
 import { updateOrgRole } from '@TBE/endpoints/orgs/updateOrgRole'
@@ -30,5 +38,13 @@ export const orgs: TEndpointConfig = {
     listOrgMembers,
     removeOrgMember,
     updateMemberRole,
+    orgQuotas,
+    orgAgents,
+    orgApiKeys,
+    orgConfigs,
+    orgDomains,
+    orgSecrets,
+    orgProjects,
+    orgProviders,
   },
 }

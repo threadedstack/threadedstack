@@ -11,7 +11,7 @@ vi.mock('@TAF/state/accessors', () => ({
 
 vi.mock('@TAF/services', () => ({
   projectsApi: {
-    list: () => mockProjectsList(),
+    list: (orgId: string) => mockProjectsList(orgId),
   },
 }))
 
@@ -28,9 +28,9 @@ describe('fetchProjects', () => {
 
     mockProjectsList.mockResolvedValueOnce({ data: mockProjects })
 
-    const result = await fetchProjects()
+    const result = await fetchProjects({ orgId: 'org1' })
 
-    expect(mockProjectsList).toHaveBeenCalled()
+    expect(mockProjectsList).toHaveBeenCalledWith('org1')
     expect(mockSetProjects).toHaveBeenCalled()
     expect(result.projects).toBeDefined()
     expect(Object.keys(result.projects!)).toHaveLength(2)
@@ -41,7 +41,7 @@ describe('fetchProjects', () => {
       error: new Error('Failed to fetch projects'),
     })
 
-    const result = await fetchProjects()
+    const result = await fetchProjects({ orgId: 'org1' })
 
     expect(result.error).toBeDefined()
     expect(mockSetProjects).not.toHaveBeenCalled()

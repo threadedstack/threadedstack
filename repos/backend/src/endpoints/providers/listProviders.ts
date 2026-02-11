@@ -16,12 +16,10 @@ export const listProviders: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db, auth } = req.app.locals
-    const orgId = auth.orgId
-    const projectId = req.query.projectId as string | undefined
+    const { db } = req.app.locals
+    const { orgId, projectId } = req.params
 
-    if (!orgId && !projectId)
-      throw new Exception(400, `orgId or projectId query parameter required`)
+    if (!orgId && !projectId) throw new Exception(400, `orgId or projectId is required`)
 
     // Check permission to read providers in this scope
     await checkPermission(req, EPermAction.read, EPermResource.provider, {

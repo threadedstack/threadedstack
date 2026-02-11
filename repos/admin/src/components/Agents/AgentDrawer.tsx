@@ -4,7 +4,6 @@ import type { Agent, Secret } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
 import { Code } from '@TAF/components/Code'
 import { useSecrets } from '@TAF/state/selectors'
-import { fetchSecrets } from '@TAF/actions/secrets'
 import { MonacoOptions } from '@TAF/constants/monaco'
 import { fetchProviders } from '@TAF/actions/providers'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
@@ -13,6 +12,7 @@ import { createAgent } from '@TAF/actions/agents/api/createAgent'
 import { updateAgent } from '@TAF/actions/agents/api/updateAgent'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
@@ -67,10 +67,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   useEffect(() => {
     const loadData = async () => {
       // Load secrets
-      const secretsResult = await fetchSecrets({ projectId })
-      if (secretsResult.secrets) {
-        setSecretsList(Object.values(secretsResult.secrets))
-      }
+      const secretsResult = await fetchSecrets({ orgId, projectId })
+      if (secretsResult.data) setSecretsList(Object.values(secretsResult.data))
 
       // Load providers
       const providersResult = await fetchProviders({ orgId })
@@ -163,7 +161,6 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         model,
         active,
         maxTokens,
-        projectId,
         providerId,
         description,
         systemPrompt,
@@ -177,7 +174,18 @@ export const AgentDrawer = (props: TAgentDrawer) => {
           .filter(Boolean) as Secret[],
       }
 
-      agent ? await updateAgent(agent.id, agentData) : await createAgent(agentData)
+      agent
+        ? await updateAgent({
+            orgId,
+            projectId,
+            id: agent.id,
+            data: agentData,
+          })
+        : await createAgent({
+            orgId,
+            projectId,
+            data: agentData,
+          })
 
       onSuccessCB?.()
       onClose()
@@ -194,7 +202,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     try {
       setError(null)
       setLoading(true)
-      await deleteAgent(agent.id)
+      await deleteAgent({ orgId, id: agent.id, projectId })
       onSuccessCB?.()
       onClose()
     } catch (err) {
@@ -217,7 +225,6 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       open={open}
       onClose={onClose}
       title={title}
-      actionsSx={{ justifyContent: `space-between`, px: 3, pb: 2 }}
       actions={
         <DrawerActions
           form='agent-form'

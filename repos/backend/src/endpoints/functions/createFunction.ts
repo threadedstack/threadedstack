@@ -20,12 +20,12 @@ export const createFunction: TEndpointConfig = {
       name,
       content,
       language,
-      projectId,
       endpointId,
       description,
       defaultArgs,
       dependencies,
     } = req.body
+    const projectId = req.params.projectId || req.body.projectId
 
     if (!name) throw new Exception(400, `Function name is required`)
     if (!projectId) throw new Exception(400, `Project ID is required`)

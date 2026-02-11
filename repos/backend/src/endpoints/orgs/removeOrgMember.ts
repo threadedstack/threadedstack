@@ -14,10 +14,10 @@ import { ERoleType, EPermAction, EPermResource, canManageRole } from '@tdsk/doma
  * Cannot remove someone with equal or higher role than yourself
  */
 export const removeOrgMember: TEndpointConfig = {
-  path: `/:id/members/:userId`,
+  path: `/:orgId/members/:userId`,
   method: EPMethod.Delete,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id: orgId, userId } = req.params
+    const { orgId, userId } = req.params
     const { db } = req.app.locals
     const currentUserId = req.user?.id
 

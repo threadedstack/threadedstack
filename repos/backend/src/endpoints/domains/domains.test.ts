@@ -117,7 +117,7 @@ describe(`Domains endpoints`, () => {
         new Domain({ id: `dom-1`, domain: `test.example.com`, orgId: `org-1` }),
         new Domain({ id: `dom-2`, domain: `api.example.com`, orgId: `org-1` }),
       ]
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.domain.list as ReturnType<
         typeof vi.fn
@@ -139,7 +139,7 @@ describe(`Domains endpoints`, () => {
       mockReq.query = {}
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Either orgId or projectId query parameter is required`
+        `Either orgId or projectId is required`
       )
     })
 
@@ -147,7 +147,7 @@ describe(`Domains endpoints`, () => {
       const mockDomains = [
         new Domain({ id: `dom-3`, domain: `app.example.com`, projectId: `project-1` }),
       ]
-      mockReq.query = { projectId: `project-1` }
+      mockReq.params = { projectId: `project-1` }
 
       const mockProjectGet = mockReq.app?.locals.db.services.project.get as ReturnType<
         typeof vi.fn
@@ -173,7 +173,7 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should return 404 when project not found for projectId query`, async () => {
-      mockReq.query = { projectId: `project-nonexistent` }
+      mockReq.params = { projectId: `project-nonexistent` }
 
       const mockProjectGet = mockReq.app?.locals.db.services.project.get as ReturnType<
         typeof vi.fn
@@ -189,7 +189,7 @@ describe(`Domains endpoints`, () => {
       const mockDomains = [
         new Domain({ id: `dom-1`, domain: `member.example.com`, orgId: `org-1` }),
       ]
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockGetUserOrgs = mockReq.app?.locals.db.services.role
         .getUserOrgs as ReturnType<typeof vi.fn>
@@ -212,7 +212,7 @@ describe(`Domains endpoints`, () => {
 
     it(`should return 401 when user not authenticated`, async () => {
       mockReq.user = undefined as any
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Authentication required`
@@ -220,7 +220,7 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should return 403 for non-member regular users`, async () => {
-      mockReq.query = { orgId: `org-999` }
+      mockReq.params = { orgId: `org-999` }
 
       const mockGetUserOrgs = mockReq.app?.locals.db.services.role
         .getUserOrgs as ReturnType<typeof vi.fn>
@@ -232,7 +232,7 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should return 500 on database error`, async () => {
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.domain.list as ReturnType<
         typeof vi.fn

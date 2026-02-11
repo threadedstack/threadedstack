@@ -8,8 +8,8 @@ import { fetchProviders } from '@TAF/actions/providers'
 import { NoProviders } from '@TAF/components/Providers/NoProviders'
 import { ProvidersGrid } from '@TAF/components/Providers/ProvidersGrid'
 import { ProviderDrawer } from '@TAF/components/Providers/ProviderDrawer'
-import { Add as AddIcon, Settings as SettingsIcon } from '@mui/icons-material'
-import { SearchBar, PageHeader, LoadingSpinner, ErrorAlert } from '@TAF/components'
+import { Settings as SettingsIcon } from '@mui/icons-material'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 
 export type TProviders = {
   orgId: string
@@ -33,7 +33,7 @@ export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) =>
       setLoading(true)
       setError(null)
 
-      const result = await fetchProviders({ orgId })
+      const result = await fetchProviders({ orgId, projectId })
 
       if (result.error) {
         setError(result.error)
@@ -58,7 +58,7 @@ export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) =>
   const onDialogSuccess = async () => {
     if (orgId) {
       setLoading(true)
-      await fetchProviders({ orgId })
+      await fetchProviders({ orgId, projectId })
       setLoading(false)
     }
   }
@@ -93,83 +93,56 @@ export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) =>
 
   const providersCount = providers ? Object.keys(providers).length : 0
 
-  if (loading) {
-    return <LoadingSpinner />
-  }
-
   return (
-    <>
+    <PageLayout
+      loading={loading}
+      searchCount={0}
+      countLabel='provider'
+      count={providersCount}
+      error={error?.message}
+      title={readOnly ? 'Project Providers' : 'Org Providers'}
+      onAction={!readOnly && providersCount > 0 ? onCreateProvider : undefined}
+      actionLabel={!readOnly && providersCount > 0 ? 'Create Provider' : undefined}
+      setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
+      {...(!readOnly && {
+        query: searchQuery,
+        setSearchQuery,
+        searchPlaceholder: 'Search providers by name, type, or URL...',
+      })}
+    >
       {readOnly && projectId && (
-        <>
-          <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <PageHeader
-              title='Project Providers'
-              count={providersCount}
-              countLabel='provider'
-            />
-            <Button
-              variant='outlined'
-              startIcon={<SettingsIcon />}
-              onClick={onManageProviders}
-            >
-              Manage Org Providers
-            </Button>
-          </Box>
-
-          <Alert
-            severity='info'
-            sx={{ mb: 3 }}
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button
+            variant='outlined'
+            startIcon={<SettingsIcon />}
+            onClick={onManageProviders}
           >
-            Providers are org-scoped and shared across all projects in the org. This page
-            shows all providers available to this project.
-          </Alert>
-        </>
+            Manage Org Providers
+          </Button>
+        </Box>
       )}
 
-      {!readOnly && (
-        <>
-          <PageHeader
-            title='Org Providers'
-            count={providersCount}
-            countLabel='provider'
-            actionLabel='Create Provider'
-            actionIcon={<AddIcon />}
-            onAction={onCreateProvider}
-          />
-
-          {!loading && providersCount > 0 && (
-            <Box sx={{ mb: 3 }}>
-              <SearchBar
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder='Search providers by name, type, or URL...'
-              />
-            </Box>
-          )}
-        </>
-      )}
-
-      {error && (
-        <ErrorAlert
-          message={`Error loading providers: ${error.message}`}
-          onClose={() => setError(null)}
+      {readOnly && projectId && (
+        <Alert
+          severity='info'
           sx={{ mb: 3 }}
-        />
+        >
+          Providers are org-scoped and shared across all projects in the org. This page
+          shows all providers available to this project.
+        </Alert>
       )}
 
-      {!loading && !error && providersCount === 0 && !readOnly && (
-        <NoProviders onCreate={onCreateProvider} />
-      )}
+      {!readOnly && providersCount === 0 && <NoProviders onCreate={onCreateProvider} />}
 
-      {!loading && !error && providersCount === 0 && readOnly && (
+      {readOnly && providersCount === 0 && (
         <Alert severity='info'>No providers configured for this org.</Alert>
       )}
 
-      {!loading && !error && providersCount > 0 && filteredProviders.length === 0 && (
+      {providersCount > 0 && filteredProviders.length === 0 && (
         <Alert severity='info'>No providers match your search query.</Alert>
       )}
 
-      {!loading && !error && filteredProviders.length > 0 && (
+      {filteredProviders.length > 0 && (
         <ProvidersGrid
           providers={filteredProviders}
           onEdit={readOnly ? undefined : onEditProvider}
@@ -186,6 +159,6 @@ export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) =>
           onSuccess={onDialogSuccess}
         />
       )}
-    </>
+    </PageLayout>
   )
 }

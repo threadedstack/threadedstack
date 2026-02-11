@@ -3,16 +3,23 @@ import type { Config } from '@tdsk/domain'
 import { configsApi } from '@TAF/services'
 import { setConfigs, getConfigs } from '@TAF/state/accessors'
 
+export type TUpdateConfigOpts = {
+  orgId: string
+  id: string
+  data: Partial<Config>
+  projectId?: string
+}
+
 export type TUpdateConfigResult = {
   config?: Config
   error?: Error
 }
 
 export const updateConfig = async (
-  id: string,
-  input: Partial<Config>
+  opts: TUpdateConfigOpts
 ): Promise<TUpdateConfigResult> => {
-  const resp = await configsApi.update(id, input)
+  const { orgId, id, data, projectId } = opts
+  const resp = await configsApi.update(orgId, id, data, projectId)
 
   if (resp.error) {
     return { error: resp.error }

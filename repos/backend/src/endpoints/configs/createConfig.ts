@@ -16,7 +16,9 @@ export const createConfig: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { data, orgId, projectId, userId } = req.body
+    const { data, userId } = req.body
+    const orgId = req.params.orgId || req.body.orgId
+    const projectId = req.params.projectId || req.body.projectId
 
     if (!data) throw new Exception(400, `Config data is required`)
 

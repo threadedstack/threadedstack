@@ -1,21 +1,15 @@
-import { Loading, IconButton } from '@tdsk/components'
 import { useState, useEffect, useMemo } from 'react'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { fetchMessages } from '@TAF/actions/messages/api/fetchMessages'
-import { Clear as ClearIcon, Search as SearchIcon } from '@mui/icons-material'
 import { useActiveOrgId, useActiveProjectId, useMessages } from '@TAF/state/selectors'
 import {
-  Box,
-  Card,
   Table,
   TableRow,
-  TextField,
   TableCell,
   TableBody,
   TableHead,
   Typography,
-  CardContent,
-  InputAdornment,
   TableContainer,
   Chip,
 } from '@mui/material'
@@ -109,145 +103,85 @@ export const MessagesTab = (props: TMessagesTab) => {
   }
 
   return (
-    <Box>
-      {loading && (
-        <Loading
-          fixed
-          full
-        />
+    <PageLayout
+      title='Messages'
+      loading={loading}
+      error={error}
+      setError={setError}
+      searchCount={0}
+      query={searchQuery}
+      countLabel='message'
+      count={totalMessagesCount}
+      setSearchQuery={setSearchQuery}
+      searchPlaceholder='Search messages...'
+    >
+      {totalMessagesCount === 0 && (
+        <EmptyState message='No messages found for this project. Messages will appear here as AI conversations are created.' />
       )}
 
-      {error && (
-        <ErrorAlert
-          message={error}
-          onClose={() => setError(null)}
-        />
+      {totalMessagesCount > 0 && projectMessages.length === 0 && (
+        <EmptyState message='No messages match your search or filter criteria.' />
       )}
 
-      {!loading && (
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant='h6'>Messages</Typography>
-                <Typography
-                  variant='body2'
-                  color='text.secondary'
+      {projectMessages.length > 0 && (
+        <TableContainer>
+          <Table size='small'>
+            <TableHead>
+              <TableRow>
+                <TableCell>Type</TableCell>
+                <TableCell>Thread ID</TableCell>
+                <TableCell>Content</TableCell>
+                <TableCell>Created</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {projectMessages.map((message) => (
+                <TableRow
+                  key={message.id}
+                  hover
                 >
-                  {totalMessagesCount} message{totalMessagesCount !== 1 ? 's' : ''}
-                </Typography>
-              </Box>
-            </Box>
-
-            {totalMessagesCount > 0 && (
-              <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
-                <TextField
-                  placeholder='Search messages...'
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  size='small'
-                  sx={{ flex: 1 }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position='start'>
-                        <SearchIcon color='action' />
-                      </InputAdornment>
-                    ),
-                    endAdornment: searchQuery && (
-                      <InputAdornment position='end'>
-                        <IconButton
-                          size='small'
-                          onClick={() => setSearchQuery('')}
-                          edge='end'
-                        >
-                          <ClearIcon />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Box>
-            )}
-
-            {totalMessagesCount === 0 && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography color='text.secondary'>
-                  No messages found for this project. Messages will appear here as AI
-                  conversations are created.
-                </Typography>
-              </Box>
-            )}
-
-            {totalMessagesCount > 0 && projectMessages.length === 0 && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography color='text.secondary'>
-                  No messages match your search or filter criteria.
-                </Typography>
-              </Box>
-            )}
-
-            {projectMessages.length > 0 && (
-              <TableContainer>
-                <Table size='small'>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Type</TableCell>
-                      <TableCell>Thread ID</TableCell>
-                      <TableCell>Content</TableCell>
-                      <TableCell>Created</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {projectMessages.map((message) => (
-                      <TableRow
-                        key={message.id}
-                        hover
-                      >
-                        <TableCell>
-                          <Chip
-                            label={message.type}
-                            size='small'
-                            color={getMsgTypeColor(message.type) as any}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant='body2'
-                            fontFamily='monospace'
-                            sx={{ fontSize: '0.75rem' }}
-                          >
-                            {message.threadId?.substring(0, 8)}...
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant='body2'
-                            sx={{
-                              maxWidth: 400,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {formatContent(message.content)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant='body2'>
-                            {message.createdAt
-                              ? new Date(message.createdAt).toLocaleString()
-                              : '-'}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </CardContent>
-        </Card>
+                  <TableCell>
+                    <Chip
+                      label={message.type}
+                      size='small'
+                      color={getMsgTypeColor(message.type) as any}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant='body2'
+                      fontFamily='monospace'
+                      sx={{ fontSize: '0.75rem' }}
+                    >
+                      {message.threadId?.substring(0, 8)}...
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant='body2'
+                      sx={{
+                        maxWidth: 400,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {formatContent(message.content)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant='body2'>
+                      {message.createdAt
+                        ? new Date(message.createdAt).toLocaleString()
+                        : '-'}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
-    </Box>
+    </PageLayout>
   )
 }

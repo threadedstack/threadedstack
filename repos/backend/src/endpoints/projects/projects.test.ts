@@ -108,7 +108,7 @@ describe(`Endpoint projects`, () => {
 
     it(`should filter by orgId when provided`, async () => {
       const mockProjects = []
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
         typeof vi.fn
@@ -127,7 +127,8 @@ describe(`Endpoint projects`, () => {
 
     it(`should pass pagination params to list and include in response`, async () => {
       const mockProjects = [{ id: `1`, name: `Project`, gitUrl: `https://example.com` }]
-      mockReq.query = { orgId: `org-1`, limit: `10`, offset: `5` }
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { limit: `10`, offset: `5` }
 
       const mockList = mockReq.app?.locals.db.services.project.list as ReturnType<
         typeof vi.fn
@@ -159,7 +160,7 @@ describe(`Endpoint projects`, () => {
     })
   })
 
-  describe(`GET /_/Projects/:id - Get Project by ID`, () => {
+  describe(`GET /_/Projects/:projectId - Get Project by ID`, () => {
     const ep = getEndpointCfg(projects.endpoints?.getProject)
 
     it(`should return 200 with Project data when Project exists`, async () => {
@@ -168,7 +169,7 @@ describe(`Endpoint projects`, () => {
         name: `Get Users`,
         gitUrl: `https://api.example.com/users`,
       }
-      mockReq.params = { id: `123` }
+      mockReq.params = { projectId: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.project.get as ReturnType<
         typeof vi.fn
@@ -183,7 +184,7 @@ describe(`Endpoint projects`, () => {
     })
 
     it(`should return 404 when Project not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
+      mockReq.params = { projectId: `nonexistent` }
 
       const mockGet = mockReq.app?.locals.db.services.project.get as ReturnType<
         typeof vi.fn
@@ -256,7 +257,7 @@ describe(`Endpoint projects`, () => {
     })
   })
 
-  describe(`PUT /_/Projects/:id - Update Project`, () => {
+  describe(`PUT /_/Projects/:projectId - Update Project`, () => {
     const ep = getEndpointCfg(projects.endpoints?.updateProject)
 
     it(`should return 200 with updated Project on success`, async () => {
@@ -269,7 +270,7 @@ describe(`Endpoint projects`, () => {
       }
       const updateData = { name: `New Name` }
       const updatedProject = { ...existingProject, ...updateData }
-      mockReq.params = { id: `123` }
+      mockReq.params = { projectId: `123` }
       mockReq.body = updateData
 
       const mockGet = mockReq.app?.locals.db.services.project.get as ReturnType<
@@ -289,7 +290,7 @@ describe(`Endpoint projects`, () => {
     })
 
     it(`should return 404 when Project not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
+      mockReq.params = { projectId: `nonexistent` }
       mockReq.body = { name: `New Name` }
 
       const mockGet = mockReq.app?.locals.db.services.project.get as ReturnType<
@@ -303,7 +304,7 @@ describe(`Endpoint projects`, () => {
     })
   })
 
-  describe(`DELETE /_/Projects/:id - Delete Project`, () => {
+  describe(`DELETE /_/Projects/:projectId - Delete Project`, () => {
     const ep = getEndpointCfg(projects.endpoints?.deleteProject)
 
     it(`should return 200 with success on delete`, async () => {
@@ -314,7 +315,7 @@ describe(`Endpoint projects`, () => {
 
         orgId: `org-1`,
       }
-      mockReq.params = { id: `123` }
+      mockReq.params = { projectId: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.project.get as ReturnType<
         typeof vi.fn
@@ -334,7 +335,7 @@ describe(`Endpoint projects`, () => {
     })
 
     it(`should return 404 when Project not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
+      mockReq.params = { projectId: `nonexistent` }
 
       const mockGet = mockReq.app?.locals.db.services.project.get as ReturnType<
         typeof vi.fn

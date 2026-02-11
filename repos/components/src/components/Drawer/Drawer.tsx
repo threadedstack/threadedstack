@@ -53,18 +53,6 @@ const DrawerContent = styled(MuiBox)(({ theme }) => ({
   padding: theme.gutter.mpx,
 }))
 
-const DrawerActions = styled(MuiBox)(({ theme }) => ({
-  width: `100%`,
-  display: `flex`,
-  alignItems: `center`,
-  gap: theme.gutter.mpx,
-  justifyContent: `end`,
-  //justifyContent: `space-between`,
-  //borderTop: `1px solid ${theme.palette.divider}`,
-  //backgroundColor: theme.palette.background.header,
-  padding: `${theme.gutter.px} ${theme.gutter.mpx}`,
-}))
-
 const CloseButton = styled(MuiIconButton)(({ theme }) => ({
   color: theme.palette.text.secondary,
   [`&:hover`]: {
@@ -75,15 +63,14 @@ const CloseButton = styled(MuiIconButton)(({ theme }) => ({
 export type TDrawer = Omit<MuiDrawerProps, 'title' | 'anchor'> & {
   open: boolean
   title?: ReactNode
-  children?: ReactNode
-  actions?: ReactNode
-  onClose?: () => void
-  titleIcon?: ReactNode
-  showCloseButton?: boolean
   titleSx?: SxProps
   headerSx?: SxProps
   contentSx?: SxProps
-  actionsSx?: SxProps
+  actions?: ReactNode
+  children?: ReactNode
+  onClose?: () => void
+  titleIcon?: ReactNode
+  showCloseButton?: boolean
   className?: string | string[]
 }
 
@@ -97,7 +84,6 @@ export const Drawer = (props: TDrawer) => {
     children,
     titleIcon,
     contentSx,
-    actionsSx,
     headerSx,
     className,
     showCloseButton = true,
@@ -147,14 +133,7 @@ export const Drawer = (props: TDrawer) => {
         </DrawerContent>
       )}
 
-      {actions && (
-        <DrawerActions
-          className='tdsk-drawer-actions'
-          sx={actionsSx}
-        >
-          {actions}
-        </DrawerActions>
-      )}
+      {actions}
     </StyledDrawer>
   )
 }

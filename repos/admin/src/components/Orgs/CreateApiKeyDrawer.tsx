@@ -3,6 +3,7 @@ import type { TApiKeyScope } from '@tdsk/domain'
 import { useState } from 'react'
 import { createApiKey } from '@TAF/actions/apiKeys'
 import { ApiKeyScopes } from '@TAF/constants/values'
+import { capitalize } from '@keg-hub/jsutils/capitalize'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { Drawer, ClipboardCopy, Button, DrawerActions } from '@tdsk/components'
@@ -68,11 +69,13 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     }
 
     const result = await createApiKey({
-      projectId,
-      expiresAt,
-      name: name.trim(),
-      scopes: scopes.join(','),
-      orgId: projectId ? undefined : orgId,
+      orgId,
+      data: {
+        projectId,
+        expiresAt,
+        name: name.trim(),
+        scopes: scopes.join(','),
+      },
     })
 
     setLoading(false)
@@ -103,6 +106,8 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     onClose()
   }
 
+  // TODO: fix this - should be part of the main drawer
+  // Also styles in dark mode are messed up due to paper
   if (generatedKey) {
     return (
       <Drawer
@@ -132,10 +137,9 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
           variant='outlined'
           sx={{
             p: 2,
+            gap: 1,
             display: 'flex',
             alignItems: 'center',
-            gap: 1,
-            backgroundColor: 'grey.50',
           }}
         >
           <Typography
@@ -202,41 +206,6 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
           helperText='A descriptive name to identify this key'
         />
 
-        <Box sx={{ mb: 2 }}>
-          <Typography
-            gutterBottom
-            variant='subtitle2'
-          >
-            Scopes
-          </Typography>
-          <FormGroup row>
-            {ApiKeyScopes.map((scope) => (
-              <FormControlLabel
-                key={scope}
-                control={
-                  <Checkbox
-                    checked={scopes.includes(scope)}
-                    onChange={() => onScopeChange(scope)}
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant='body2'>{scope}</Typography>
-                    <Typography
-                      variant='caption'
-                      color='text.secondary'
-                    >
-                      {scope === `admin` && `Full administrative access`}
-                      {scope === `write` && `Create and update resources`}
-                      {scope === `read` && `Read-only access to resources`}
-                    </Typography>
-                  </Box>
-                }
-              />
-            ))}
-          </FormGroup>
-        </Box>
-
         <FormControl
           fullWidth
           margin='dense'
@@ -255,6 +224,42 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
             <MenuItem value='365'>1 year</MenuItem>
           </Select>
         </FormControl>
+
+        <Box sx={{ mt: 4 }}>
+          <Typography
+            gutterBottom
+            variant='subtitle2'
+          >
+            Scopes
+          </Typography>
+          <FormGroup>
+            {ApiKeyScopes.map((scope) => (
+              <FormControlLabel
+                key={scope}
+                sx={{ mt: 2, ml: 0.5 }}
+                control={
+                  <Checkbox
+                    checked={scopes.includes(scope)}
+                    onChange={() => onScopeChange(scope)}
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant='body2'>{capitalize(scope)}</Typography>
+                    <Typography
+                      variant='caption'
+                      color='text.secondary'
+                    >
+                      {scope === `admin` && `Full administrative access`}
+                      {scope === `write` && `Create and update resources`}
+                      {scope === `read` && `Read-only access to resources`}
+                    </Typography>
+                  </Box>
+                }
+              />
+            ))}
+          </FormGroup>
+        </Box>
       </form>
     </Drawer>
   )

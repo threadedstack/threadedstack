@@ -17,21 +17,20 @@ export const listApiKeys: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, projectId } = req.query
+    const { orgId } = req.params
+    const { projectId } = req.query
 
     // Require orgId for API keys (they belong to orgs)
-    if (!orgId) {
-      throw new Exception(400, 'orgId query parameter required')
-    }
+    if (!orgId) throw new Exception(400, `orgId parameter required`)
 
     // Check permission - requires admin+
     await checkPermission(req, EPermAction.read, EPermResource.apiKey, {
-      orgId: orgId as string,
+      orgId,
     })
 
     const { limit, offset } = parsePagination(req)
 
-    const where: Record<string, string> = { orgId: orgId as string }
+    const where: Record<string, string> = { orgId }
     if (projectId) where.projectId = projectId as string
 
     const { data, error } = await db.services.apiKey.list({ where, limit, offset })

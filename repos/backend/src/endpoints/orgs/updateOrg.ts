@@ -11,10 +11,10 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
  * Requires admin+ role in the org
  */
 export const updateOrg: TEndpointConfig = {
-  path: `/:id`,
+  path: `/:orgId`,
   method: EPMethod.Put,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id: orgId } = req.params
+    const { orgId } = req.params
     const { db } = req.app.locals
     const orgData = req.body
 

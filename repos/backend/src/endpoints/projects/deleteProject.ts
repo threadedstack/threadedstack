@@ -11,14 +11,14 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
  * User must be an admin of the organization to delete projects
  */
 export const deleteProject: TEndpointConfig = {
-  path: `/:id`,
+  path: `/:projectId`,
   method: EPMethod.Delete,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id } = req.params
+    const { projectId } = req.params
     const { db } = req.app.locals
 
     // First get the project to find its orgId
-    const { data: existing, error: getError } = await db.services.project.get(id)
+    const { data: existing, error: getError } = await db.services.project.get(projectId)
     if (getError) throw new Exception(500, getError.message)
     if (!existing) throw new Exception(404, `Project not found`)
 
@@ -28,9 +28,9 @@ export const deleteProject: TEndpointConfig = {
     })
 
     // Delete the project
-    const { data, error } = await db.services.project.delete(id)
+    const { data, error } = await db.services.project.delete(projectId)
     if (error) throw new Exception(500, error.message)
 
-    res.status(200).json({ data: { success: true, id } })
+    res.status(200).json({ data: { success: true, id: projectId } })
   },
 }

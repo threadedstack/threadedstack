@@ -11,10 +11,10 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
  * Requires owner role in the org
  */
 export const deleteOrg: TEndpointConfig = {
-  path: `/:id`,
+  path: `/:orgId`,
   method: EPMethod.Delete,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id: orgId } = req.params
+    const { orgId } = req.params
     const { db } = req.app.locals
 
     // Check permission first (requires owner role)

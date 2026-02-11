@@ -127,9 +127,6 @@ export const SecretDrawer = ({
       open={open}
       onClose={onClose}
       title={isEditMode ? `Edit Secret` : `Create New Secret`}
-      actionsSx={
-        isEditMode ? { justifyContent: `space-between`, px: 3, pb: 2 } : undefined
-      }
       actions={
         <DrawerActions
           form='secret-form'

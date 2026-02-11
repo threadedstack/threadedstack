@@ -2,18 +2,18 @@ import { Box } from '@mui/material'
 import { Add as AddIcon } from '@mui/icons-material'
 import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
 import { useEndpoints } from '@TAF/hooks/endpoints/useEndpoints'
-import { PageHeader } from '@TAF/components/PageHeader/PageHeader'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { HttpMethodOps, EPVisibilityOpts } from '@TAF/constants/values'
 import { FilterSelect } from '@TAF/components/FilterSelect/FilterSelect'
 import { EndpointsTable } from '@TAF/components/Endpoints/EndpointsTable'
 import { EndpointDrawer } from '@TAF/components/Endpoints/EndpointDrawer'
-import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
 
 export type TEndpoints = {}
 
 export const Endpoints = (props: TEndpoints) => {
   const {
+    orgId,
     count,
     query,
     onEdit,
@@ -33,16 +33,14 @@ export const Endpoints = (props: TEndpoints) => {
   } = useEndpoints()
 
   return (
-    <>
-      <PageHeader
-        title='Endpoints'
-        onAction={onCreate}
-        countLabel='endpoint'
-        count={count}
-        actionIcon={<AddIcon />}
-        actionLabel='Create Endpoint'
-      />
-
+    <PageLayout
+      title='Endpoints'
+      count={count}
+      loading={loading}
+      countLabel='endpoint'
+      onAction={onCreate}
+      actionLabel='Create Endpoint'
+    >
       {!loading && count > 0 && (
         <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <SearchBar
@@ -70,13 +68,11 @@ export const Endpoints = (props: TEndpoints) => {
         </Box>
       )}
 
-      {loading && <LoadingSpinner />}
-
       {!loading && count === 0 && (
         <EmptyState
           onAction={onCreate}
           actionIcon={<AddIcon />}
-          actionLabel='Create Your First Endpoint'
+          actionLabel='Create Endpoint'
           message='No endpoints found for this project.'
         />
       )}
@@ -93,8 +89,9 @@ export const Endpoints = (props: TEndpoints) => {
         />
       )}
 
-      {(projectId && (
+      {(orgId && projectId && (
         <EndpointDrawer
+          orgId={orgId}
           open={dialogOpen}
           endpoint={endpoint}
           projectId={projectId}
@@ -102,6 +99,6 @@ export const Endpoints = (props: TEndpoints) => {
         />
       )) ||
         null}
-    </>
+    </PageLayout>
   )
 }

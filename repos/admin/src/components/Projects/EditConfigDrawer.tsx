@@ -21,6 +21,8 @@ import {
 
 export type TEditConfigDrawer = {
   open: boolean
+  orgId: string
+  projectId?: string
   config: Config | null
   onClose: () => void
   onSuccess?: () => void
@@ -35,7 +37,14 @@ const CONFIG_TYPES = [
 ]
 
 export const EditConfigDrawer = (props: TEditConfigDrawer) => {
-  const { open, config, onClose: onCloseCB, onSuccess: onSuccessCB } = props
+  const {
+    open,
+    orgId,
+    projectId,
+    config,
+    onClose: onCloseCB,
+    onSuccess: onSuccessCB,
+  } = props
 
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
@@ -100,7 +109,7 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
     setLoading(true)
     setError(null)
 
-    const result = await updateConfig(config.id, {})
+    const result = await updateConfig({ orgId, id: config.id, data: {}, projectId })
 
     setLoading(false)
 
@@ -118,7 +127,7 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
     setLoading(true)
     setError(null)
 
-    const result = await deleteConfig(config.id)
+    const result = await deleteConfig({ orgId, id: config.id, projectId })
 
     setLoading(false)
 
@@ -142,7 +151,6 @@ export const EditConfigDrawer = (props: TEditConfigDrawer) => {
       open={open}
       onClose={onClose}
       title='Edit Configuration'
-      actionsSx={{ justifyContent: 'space-between', px: 3, pb: 2 }}
       actions={
         <DrawerActions
           editing={true}

@@ -3,13 +3,22 @@ import type { Function as TDFunction } from '@tdsk/domain'
 import { functionsApi } from '@TAF/services'
 import { setFunctions, getFunctions } from '@TAF/state/accessors'
 
+export type TFetchFunctionOpts = {
+  orgId: string
+  projectId: string
+  id: string
+}
+
 export type TFetchFunctionResult = {
   function?: TDFunction
   error?: Error
 }
 
-export const fetchFunction = async (id: string): Promise<TFetchFunctionResult> => {
-  const resp = await functionsApi.get(id)
+export const fetchFunction = async (
+  opts: TFetchFunctionOpts
+): Promise<TFetchFunctionResult> => {
+  const { orgId, projectId, id } = opts
+  const resp = await functionsApi.get(orgId, projectId, id)
 
   if (resp.error) {
     return { error: resp.error }

@@ -3,29 +3,21 @@ import { useActiveOrgId, useActiveProjectId, useAssets } from '@TAF/state/select
 import { fetchAssets } from '@TAF/actions/assets/api/fetchAssets'
 import { deleteAsset } from '@TAF/actions/assets/api/deleteAsset'
 import { useState, useEffect, useMemo } from 'react'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import {
-  Box,
-  Card,
-  Table,
   Alert,
+  Table,
   TableRow,
-  TextField,
   TableCell,
   TableBody,
   TableHead,
   Typography,
   IconButton,
-  CardContent,
-  InputAdornment,
   TableContainer,
 } from '@mui/material'
-import {
-  Delete as DeleteIcon,
-  Clear as ClearIcon,
-  Search as SearchIcon,
-  Download as DownloadIcon,
-} from '@mui/icons-material'
-import { Loading, ConfirmDelete } from '@tdsk/components'
+import { Delete as DeleteIcon, Download as DownloadIcon } from '@mui/icons-material'
+import { ConfirmDelete } from '@tdsk/components'
 
 export type TAssetsTab = {}
 
@@ -132,23 +124,18 @@ export const AssetsTab = (props: TAssetsTab) => {
   }
 
   return (
-    <Box>
-      {loading && (
-        <Loading
-          fixed
-          full
-        />
-      )}
-
-      {error && (
-        <Alert
-          severity='error'
-          sx={{ mb: 3 }}
-        >
-          {error}
-        </Alert>
-      )}
-
+    <PageLayout
+      title='Assets'
+      loading={loading}
+      error={error}
+      setError={setError}
+      searchCount={0}
+      query={searchQuery}
+      countLabel='asset'
+      count={totalAssetsCount}
+      setSearchQuery={setSearchQuery}
+      searchPlaceholder='Search assets by name, type, or ID...'
+    >
       {success && (
         <Alert
           severity='success'
@@ -158,140 +145,81 @@ export const AssetsTab = (props: TAssetsTab) => {
         </Alert>
       )}
 
-      {!loading && (
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant='h6'>Assets</Typography>
-                <Typography
-                  variant='body2'
-                  color='text.secondary'
+      {totalAssetsCount === 0 && (
+        <EmptyState message='No assets found for this project. Assets (images, files, etc.) generated during AI conversations will appear here.' />
+      )}
+
+      {totalAssetsCount > 0 && projectAssets.length === 0 && (
+        <EmptyState message='No assets match your search or filter criteria.' />
+      )}
+
+      {projectAssets.length > 0 && (
+        <TableContainer>
+          <Table size='small'>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Thread ID</TableCell>
+                <TableCell>Created</TableCell>
+                <TableCell align='right'>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {projectAssets.map((asset) => (
+                <TableRow
+                  key={asset.id}
+                  hover
                 >
-                  {totalAssetsCount} asset{totalAssetsCount !== 1 ? 's' : ''}
-                </Typography>
-              </Box>
-            </Box>
-
-            {totalAssetsCount > 0 && (
-              <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <TextField
-                  placeholder='Search assets by name, type, or ID...'
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  size='small'
-                  sx={{ flex: 1, minWidth: 200 }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position='start'>
-                        <SearchIcon color='action' />
-                      </InputAdornment>
-                    ),
-                    endAdornment: searchQuery && (
-                      <InputAdornment position='end'>
-                        <IconButton
-                          size='small'
-                          onClick={() => setSearchQuery('')}
-                          edge='end'
-                        >
-                          <ClearIcon />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Box>
-            )}
-
-            {totalAssetsCount === 0 && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography color='text.secondary'>
-                  No assets found for this project. Assets (images, files, etc.) generated
-                  during AI conversations will appear here.
-                </Typography>
-              </Box>
-            )}
-
-            {totalAssetsCount > 0 && projectAssets.length === 0 && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography color='text.secondary'>
-                  No assets match your search or filter criteria.
-                </Typography>
-              </Box>
-            )}
-
-            {projectAssets.length > 0 && (
-              <TableContainer>
-                <Table size='small'>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Type</TableCell>
-                      <TableCell>Thread ID</TableCell>
-                      <TableCell>Created</TableCell>
-                      <TableCell align='right'>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {projectAssets.map((asset) => (
-                      <TableRow
-                        key={asset.id}
-                        hover
-                      >
-                        <TableCell>
-                          <Typography variant='body2'>{asset.name}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant='body2'
-                            fontFamily='monospace'
-                            sx={{ fontSize: '0.75rem' }}
-                          >
-                            {asset.type}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant='body2'
-                            fontFamily='monospace'
-                            sx={{ fontSize: '0.75rem' }}
-                          >
-                            {asset.threadId?.substring(0, 8)}...
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant='body2'>
-                            {asset.createdAt
-                              ? new Date(asset.createdAt).toLocaleString()
-                              : '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align='right'>
-                          <IconButton
-                            size='small'
-                            color='primary'
-                            onClick={() => onDownloadAsset(asset)}
-                            title='Download asset'
-                          >
-                            <DownloadIcon fontSize='small' />
-                          </IconButton>
-                          <IconButton
-                            size='small'
-                            color='error'
-                            onClick={() => onDeleteAsset(asset)}
-                            title='Delete asset'
-                          >
-                            <DeleteIcon fontSize='small' />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </CardContent>
-        </Card>
+                  <TableCell>
+                    <Typography variant='body2'>{asset.name}</Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant='body2'
+                      fontFamily='monospace'
+                      sx={{ fontSize: '0.75rem' }}
+                    >
+                      {asset.type}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant='body2'
+                      fontFamily='monospace'
+                      sx={{ fontSize: '0.75rem' }}
+                    >
+                      {asset.threadId?.substring(0, 8)}...
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant='body2'>
+                      {asset.createdAt ? new Date(asset.createdAt).toLocaleString() : '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align='right'>
+                    <IconButton
+                      size='small'
+                      color='primary'
+                      onClick={() => onDownloadAsset(asset)}
+                      title='Download asset'
+                    >
+                      <DownloadIcon fontSize='small' />
+                    </IconButton>
+                    <IconButton
+                      size='small'
+                      color='error'
+                      onClick={() => onDeleteAsset(asset)}
+                      title='Delete asset'
+                    >
+                      <DeleteIcon fontSize='small' />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
       <ConfirmDelete
@@ -305,6 +233,6 @@ export const AssetsTab = (props: TAssetsTab) => {
         }}
         warnText='This will permanently delete this asset. This action cannot be undone.'
       />
-    </Box>
+    </PageLayout>
   )
 }

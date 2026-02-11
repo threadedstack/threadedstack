@@ -24,7 +24,7 @@ export const Projects = (props: TProjects) => {
   const onSelectProject = (projectId: string) => setProjectActive(projectId)
 
   const onDeleteProject = async (projectId: string) => {
-    await deleteProject(projectId)
+    await deleteProject({ orgId, id: projectId })
   }
 
   const filteredProjects = useMemo(() => {

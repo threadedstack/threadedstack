@@ -7,11 +7,11 @@ import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createProvider, updateProvider, deleteProvider } from '@TAF/actions/providers'
 import {
-  ConfirmDelete,
   Drawer,
-  DrawerActions,
   TextInput,
   SelectInput,
+  DrawerActions,
+  ConfirmDelete,
 } from '@tdsk/components'
 
 export type TProviderDrawer = {
@@ -95,8 +95,8 @@ export const ProviderDrawer = ({
 
     const result =
       isEditMode && provider
-        ? await updateProvider(provider.id, providerData)
-        : await createProvider({ orgId, ...providerData })
+        ? await updateProvider({ orgId, id: provider.id, data: providerData })
+        : await createProvider({ orgId, data: providerData })
 
     setLoading(false)
 
@@ -116,7 +116,7 @@ export const ProviderDrawer = ({
     setLoading(true)
     setError(null)
 
-    const result = await deleteProvider(provider.id)
+    const result = await deleteProvider({ orgId, id: provider.id })
 
     setLoading(false)
 
@@ -140,11 +140,6 @@ export const ProviderDrawer = ({
       open={open}
       onClose={onClose}
       title={isEditMode ? 'Edit Provider' : 'Create New Provider'}
-      actionsSx={{
-        justifyContent: isEditMode ? 'space-between' : 'flex-end',
-        px: 3,
-        pb: 2,
-      }}
       actions={
         <DrawerActions
           form='provider-form'

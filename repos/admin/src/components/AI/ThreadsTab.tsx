@@ -1,10 +1,12 @@
 import type { Thread } from '@tdsk/domain'
 import { useState, useEffect, useMemo } from 'react'
-import { Loading, ConfirmDelete } from '@tdsk/components'
+import { ConfirmDelete } from '@tdsk/components'
 import { fetchThreads } from '@TAF/actions/threads/api/fetchThreads'
 import { deleteThread } from '@TAF/actions/threads/api/deleteThread'
 import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
 import { CreateThreadDrawer } from '@TAF/components/AI/CreateThreadDrawer'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import {
   useThreads,
   useActiveOrgId,
@@ -12,28 +14,20 @@ import {
   useActiveThreadId,
 } from '@TAF/state/selectors'
 import {
-  Box,
-  Card,
   Alert,
-  Button,
   Table,
   TableRow,
-  TextField,
   TableCell,
   TableBody,
   TableHead,
   Typography,
   IconButton,
-  CardContent,
-  InputAdornment,
   TableContainer,
 } from '@mui/material'
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Clear as ClearIcon,
-  Search as SearchIcon,
   Visibility as ViewIcon,
 } from '@mui/icons-material'
 
@@ -154,23 +148,20 @@ export const ThreadsTab = (props: TThreadsTab) => {
   }
 
   return (
-    <Box>
-      {loading && (
-        <Loading
-          fixed
-          full
-        />
-      )}
-
-      {error && (
-        <Alert
-          severity='error'
-          sx={{ mb: 3 }}
-        >
-          {error}
-        </Alert>
-      )}
-
+    <PageLayout
+      title='Threads'
+      loading={loading}
+      error={error}
+      setError={setError}
+      searchCount={0}
+      query={searchQuery}
+      countLabel='thread'
+      count={totalThreadsCount}
+      setSearchQuery={setSearchQuery}
+      onAction={onCreateThread}
+      actionLabel='Create Thread'
+      searchPlaceholder='Search threads by name or ID...'
+    >
       {success && (
         <Alert
           severity='success'
@@ -180,156 +171,96 @@ export const ThreadsTab = (props: TThreadsTab) => {
         </Alert>
       )}
 
-      {!loading && (
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant='h6'>Threads</Typography>
-                <Typography
-                  variant='body2'
-                  color='text.secondary'
+      {totalThreadsCount === 0 && (
+        <EmptyState
+          actionIcon={<AddIcon />}
+          onAction={onCreateThread}
+          actionLabel='Create Thread'
+          message='No threads found for this project. Create a thread to start managing AI conversations.'
+        />
+      )}
+
+      {totalThreadsCount > 0 && projectThreads.length === 0 && (
+        <EmptyState message='No threads match your search criteria.' />
+      )}
+
+      {projectThreads.length > 0 && (
+        <TableContainer>
+          <Table size='small'>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>ID</TableCell>
+                <TableCell>Provider</TableCell>
+                <TableCell>Public</TableCell>
+                <TableCell align='right'>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {projectThreads.map((thread) => (
+                <TableRow
+                  key={thread.id}
+                  hover
                 >
-                  {totalThreadsCount} thread{totalThreadsCount !== 1 ? 's' : ''}
-                </Typography>
-              </Box>
-              <Button
-                size='small'
-                variant='outlined'
-                startIcon={<AddIcon />}
-                onClick={onCreateThread}
-              >
-                Create Thread
-              </Button>
-            </Box>
-
-            {totalThreadsCount > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <TextField
-                  placeholder='Search threads by name or ID...'
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  size='small'
-                  fullWidth
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position='start'>
-                        <SearchIcon color='action' />
-                      </InputAdornment>
-                    ),
-                    endAdornment: searchQuery && (
-                      <InputAdornment position='end'>
-                        <IconButton
-                          size='small'
-                          onClick={() => setSearchQuery('')}
-                          edge='end'
-                        >
-                          <ClearIcon />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Box>
-            )}
-
-            {totalThreadsCount === 0 && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography color='text.secondary'>
-                  No threads found for this project. Create a thread to start managing AI
-                  conversations.
-                </Typography>
-              </Box>
-            )}
-
-            {totalThreadsCount > 0 && projectThreads.length === 0 && (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography color='text.secondary'>
-                  No threads match your search criteria.
-                </Typography>
-              </Box>
-            )}
-
-            {projectThreads.length > 0 && (
-              <TableContainer>
-                <Table size='small'>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>ID</TableCell>
-                      <TableCell>Provider</TableCell>
-                      <TableCell>Public</TableCell>
-                      <TableCell align='right'>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {projectThreads.map((thread) => (
-                      <TableRow
-                        key={thread.id}
-                        hover
-                      >
-                        <TableCell>
-                          <Typography variant='body2'>
-                            {thread.name || 'Untitled Thread'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant='body2'
-                            fontFamily='monospace'
-                            sx={{ fontSize: '0.75rem' }}
-                          >
-                            {thread.id}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant='body2'
-                            fontFamily='monospace'
-                            sx={{ fontSize: '0.75rem' }}
-                          >
-                            {thread.providerId || '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant='body2'>
-                            {thread.public ? 'Yes' : 'No'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align='right'>
-                          <IconButton
-                            size='small'
-                            color='info'
-                            onClick={() => onViewThread(thread)}
-                            title='View messages'
-                          >
-                            <ViewIcon fontSize='small' />
-                          </IconButton>
-                          <IconButton
-                            size='small'
-                            color='primary'
-                            onClick={() => onEditThread(thread)}
-                            title='Edit thread'
-                          >
-                            <EditIcon fontSize='small' />
-                          </IconButton>
-                          <IconButton
-                            size='small'
-                            color='error'
-                            onClick={() => onDeleteThread(thread)}
-                            title='Delete thread'
-                          >
-                            <DeleteIcon fontSize='small' />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </CardContent>
-        </Card>
+                  <TableCell>
+                    <Typography variant='body2'>
+                      {thread.name || 'Untitled Thread'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant='body2'
+                      fontFamily='monospace'
+                      sx={{ fontSize: '0.75rem' }}
+                    >
+                      {thread.id}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant='body2'
+                      fontFamily='monospace'
+                      sx={{ fontSize: '0.75rem' }}
+                    >
+                      {thread.providerId || '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant='body2'>
+                      {thread.public ? 'Yes' : 'No'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align='right'>
+                    <IconButton
+                      size='small'
+                      color='info'
+                      onClick={() => onViewThread(thread)}
+                      title='View messages'
+                    >
+                      <ViewIcon fontSize='small' />
+                    </IconButton>
+                    <IconButton
+                      size='small'
+                      color='primary'
+                      onClick={() => onEditThread(thread)}
+                      title='Edit thread'
+                    >
+                      <EditIcon fontSize='small' />
+                    </IconButton>
+                    <IconButton
+                      size='small'
+                      color='error'
+                      onClick={() => onDeleteThread(thread)}
+                      title='Delete thread'
+                    >
+                      <DeleteIcon fontSize='small' />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
       {orgId && projectId && (
@@ -363,6 +294,6 @@ export const ThreadsTab = (props: TThreadsTab) => {
         }}
         warnText='This will permanently delete this thread and all associated messages. This action cannot be undone.'
       />
-    </Box>
+    </PageLayout>
   )
 }

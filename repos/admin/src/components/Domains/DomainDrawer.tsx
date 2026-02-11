@@ -83,12 +83,9 @@ export const DomainDrawer = ({
     if (cert) params.sslCertificate = cert
 
     if (isEditMode && domain) {
-      result = await updateDomain(domain.id, params)
+      result = await updateDomain({ orgId, id: domain.id, data: params, projectId })
     } else {
-      if (projectId) params.projectId = projectId
-      else if (orgId) params.orgId = orgId
-
-      result = await createDomain(params)
+      result = await createDomain({ orgId, data: params, projectId })
     }
 
     setLoading(false)
@@ -109,7 +106,7 @@ export const DomainDrawer = ({
     setLoading(true)
     setError(null)
 
-    const result = await deleteDomain(domain.id)
+    const result = await deleteDomain({ orgId, id: domain.id, projectId })
 
     setLoading(false)
 
@@ -164,9 +161,6 @@ export const DomainDrawer = ({
       open={open}
       onClose={onClose}
       title={isEditMode ? `Edit Domain` : `Add New Domain`}
-      actionsSx={
-        isEditMode ? { justifyContent: `space-between`, px: 3, pb: 2 } : undefined
-      }
       actions={
         <DrawerActions
           form='domain-form'

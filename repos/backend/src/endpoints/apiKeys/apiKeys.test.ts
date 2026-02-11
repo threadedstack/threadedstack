@@ -65,9 +65,9 @@ describe(`API Keys endpoints`, () => {
         id: `test-user-id`,
         email: `test@example.com`,
       } as any,
-      params: {},
+      params: { orgId: `org-1` },
       body: {},
-      query: { orgId: `org-1` },
+      query: {},
     }
   })
 
@@ -136,7 +136,7 @@ describe(`API Keys endpoints`, () => {
           orgId: `org-1`,
         }),
       ]
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.apiKey.list as ReturnType<
         typeof vi.fn
@@ -164,7 +164,8 @@ describe(`API Keys endpoints`, () => {
           orgId: `org-1`,
         }),
       ]
-      mockReq.query = { orgId: `org-1`, limit: `10`, offset: `20` }
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { limit: `10`, offset: `20` }
 
       const mockList = mockReq.app?.locals.db.services.apiKey.list as ReturnType<
         typeof vi.fn
@@ -183,7 +184,8 @@ describe(`API Keys endpoints`, () => {
     })
 
     it(`should cap limit at 200 for pagination`, async () => {
-      mockReq.query = { orgId: `org-1`, limit: `500` }
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { limit: `500` }
 
       const mockList = mockReq.app?.locals.db.services.apiKey.list as ReturnType<
         typeof vi.fn

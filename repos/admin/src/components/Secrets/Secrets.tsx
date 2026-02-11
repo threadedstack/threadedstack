@@ -1,9 +1,9 @@
 import type { Secret } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { Box, Typography } from '@mui/material'
+import Box from '@mui/material/Box'
 import { useSecrets } from '@TAF/state/selectors'
-import { ConfirmDelete } from '@tdsk/components'
+import { ConfirmDelete, Text } from '@tdsk/components'
 import { useEffect, useState, useMemo } from 'react'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
@@ -22,6 +22,20 @@ import {
 export type TSecrets = {
   orgId?: string
   projectId?: string
+}
+
+const styles = {
+  table: {
+    actions: {
+      box: {
+        gap: 1.5,
+        display: `flex`,
+        alignItems: `center`,
+        justifyContent: `end`,
+      },
+      icon: { fontSize: `16px` },
+    },
+  },
 }
 
 export const Secrets = ({ orgId, projectId }: TSecrets) => {
@@ -120,60 +134,47 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
 
   const columns: TDataTableColumn<Secret>[] = [
     {
-      id: 'key',
-      label: 'Key',
+      id: 'name',
+      label: 'Name',
       render: (secret) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <KeyIcon sx={{ color: 'text.secondary' }} />
-          <Typography
+          <Text
             variant='body2'
             fontWeight='medium'
           >
             {secret.name || secret.hashKey}
-          </Typography>
+          </Text>
         </Box>
-      ),
-    },
-    {
-      id: 'id',
-      label: 'ID',
-      render: (secret) => (
-        <Typography
-          maxWidth='200px'
-          variant='caption'
-          color='text.secondary'
-        >
-          {secret.id}
-        </Typography>
       ),
     },
     {
       id: 'description',
       label: 'Description',
       render: (secret) => (
-        <Typography
+        <Text
           display='block'
-          maxWidth='200px'
-          variant='caption'
           overflow='hidden'
+          variant='caption'
           whiteSpace='nowrap'
           textOverflow='ellipsis'
           color='text.secondary'
         >
           {secret.description}
-        </Typography>
+        </Text>
       ),
     },
     {
       id: 'created',
       label: 'Created',
+      width: 50,
       render: (secret) => (
-        <Typography
+        <Text
           variant='body2'
           color='text.secondary'
         >
           {secret.createdAt ? new Date(secret.createdAt).toLocaleDateString() : 'N/A'}
-        </Typography>
+        </Text>
       ),
     },
     {
@@ -181,10 +182,10 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
       label: 'Actions',
       align: 'right',
       render: (secret) => (
-        <>
+        <Box sx={styles.table.actions.box}>
           <ActionIconButton
             tooltip='Edit Secret'
-            icon={<EditIcon sx={{ fontSize: `16px` }} />}
+            icon={<EditIcon sx={styles.table.actions.icon} />}
             size='small'
             color='primary'
             onClick={(e) => {
@@ -194,7 +195,7 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
           />
           <ActionIconButton
             tooltip='Delete Secret'
-            icon={<DeleteIcon sx={{ fontSize: `16px` }} />}
+            icon={<DeleteIcon sx={styles.table.actions.icon} />}
             size='small'
             color='error'
             onClick={(e) => {
@@ -202,7 +203,7 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
               setDeleting(secret)
             }}
           />
-        </>
+        </Box>
       ),
     },
   ]

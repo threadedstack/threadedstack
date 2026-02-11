@@ -24,6 +24,7 @@ import {
 
 export type TFunctionDrawer = {
   open: boolean
+  orgId: string
   projectId: string
   onClose: () => void
   onSuccess?: () => void
@@ -33,6 +34,7 @@ export type TFunctionDrawer = {
 export const FunctionDrawer = ({
   open,
   func,
+  orgId,
   projectId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
@@ -55,8 +57,8 @@ export const FunctionDrawer = ({
 
   // Fetch endpoints when the drawer opens
   useEffect(() => {
-    open && projectId && fetchEndpoints({ projectId })
-  }, [open, projectId])
+    open && orgId && projectId && fetchEndpoints({ orgId, projectId })
+  }, [open, orgId, projectId])
 
   // Create endpoint options for the select dropdown
   const endpointOptions = useMemo(() => {
@@ -172,8 +174,8 @@ export const FunctionDrawer = ({
     }
 
     const result = isEditMode
-      ? await updateFunction(func?.id, functionData)
-      : await createFunction({ ...functionData, projectId })
+      ? await updateFunction({ orgId, projectId, id: func?.id, data: functionData })
+      : await createFunction({ orgId, projectId, data: functionData })
 
     setLoading(false)
 
@@ -193,7 +195,7 @@ export const FunctionDrawer = ({
     setLoading(true)
     setError(null)
 
-    const result = await deleteFunction(func.id)
+    const result = await deleteFunction({ orgId, projectId, id: func.id })
 
     setLoading(false)
 
@@ -217,9 +219,6 @@ export const FunctionDrawer = ({
       open={open}
       onClose={onClose}
       title={isEditMode ? `Edit Function` : `Create New Function`}
-      actionsSx={
-        isEditMode ? { justifyContent: `space-between`, px: 3, pb: 2 } : undefined
-      }
       actions={
         <DrawerActions
           form='function-form'

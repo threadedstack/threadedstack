@@ -17,6 +17,7 @@ const Org = lazy(() => import('@TAF/pages/Orgs/Org'))
 const Orgs = lazy(() => import('@TAF/pages/Orgs/Orgs'))
 const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
 const OrgUsage = lazy(() => import('@TAF/pages/Orgs/OrgUsage'))
+const OrgApiKeys = lazy(() => import('@TAF/pages/Orgs/OrgApiKeys'))
 const OrgsLoader = lazy(() => import('@TAF/pages/Orgs/OrgsLoader'))
 const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgDomains = lazy(() => import('@TAF/pages/Orgs/OrgDomains'))
@@ -70,58 +71,55 @@ export const Routes = createBrowserRouter([
       />
     ),
     children: [
-      // Home route - Org selection at root
       {
         index: true,
         Component: () => <SuspensePage Component={Home} />,
       },
-      // Org selection route
       {
         path: 'orgs',
         Component: () => <SuspensePage Component={Orgs} />,
       },
-      // Billing route
       {
         path: 'billing',
         Component: () => <SuspensePage Component={Billing} />,
       },
-      // Nested org routes
       {
         path: 'orgs/:orgId',
         children: [
-          // Org dashboard
           {
             index: true,
             Component: () => <SuspensePage Component={Org} />,
           },
-          // Org sub-pages
           {
-            path: 'users',
+            path: ERoutePath.Users,
             Component: () => <SuspensePage Component={OrgUsers} />,
           },
           {
-            path: 'secrets',
+            path: ERoutePath.Secrets,
             Component: () => <SuspensePage Component={OrgSecrets} />,
           },
           {
-            path: 'domains',
+            path: ERoutePath.Domains,
             Component: () => <SuspensePage Component={OrgDomains} />,
           },
           {
-            path: 'providers',
+            path: ERoutePath.Providers,
             Component: () => <SuspensePage Component={OrgProviders} />,
           },
           {
-            path: 'settings',
+            path: ERoutePath.Settings,
             Component: () => <SuspensePage Component={OrgSettings} />,
           },
           {
-            path: 'usage',
+            path: ERoutePath.Usage,
             Component: () => <SuspensePage Component={OrgUsage} />,
           },
-          // Project selection for this org
           {
-            path: 'projects',
+            path: ERoutePath.ApiKeys,
+            Component: () => <SuspensePage Component={OrgApiKeys} />,
+          },
+          {
+            path: ERoutePath.Projects,
             Component: () => (
               <SuspensePage
                 Component={() => (
@@ -132,47 +130,44 @@ export const Routes = createBrowserRouter([
               />
             ),
           },
-          // Nested project routes under org
           {
-            path: 'projects/:projectId',
+            path: ERoutePath.ProjectId,
             Component: () => <SuspensePage Component={ProjectsLoader} />,
             children: [
-              // Project dashboard
               {
                 index: true,
                 Component: () => <SuspensePage Component={Project} />,
               },
-              // Project sub-pages
               {
-                path: 'endpoints',
+                path: ERoutePath.Endpoints,
                 Component: () => <SuspensePage Component={ProjectEndpoints} />,
               },
               {
-                path: 'secrets',
+                path: ERoutePath.Secrets,
                 Component: () => <SuspensePage Component={ProjectSecrets} />,
               },
               {
-                path: 'domains',
+                path: ERoutePath.Domains,
                 Component: () => <SuspensePage Component={ProjectDomains} />,
               },
               {
-                path: 'providers',
+                path: ERoutePath.Providers,
                 Component: () => <SuspensePage Component={ProjectProviders} />,
               },
               {
-                path: 'functions',
+                path: ERoutePath.Functions,
                 Component: () => <SuspensePage Component={ProjectFunctions} />,
               },
               {
-                path: 'agents',
+                path: ERoutePath.Agents,
                 Component: () => <SuspensePage Component={ProjectAgents} />,
               },
               {
-                path: 'threads',
+                path: ERoutePath.Threads,
                 Component: () => <SuspensePage Component={ProjectThreads} />,
               },
               {
-                path: 'settings',
+                path: ERoutePath.Settings,
                 Component: () => <SuspensePage Component={ProjectSettings} />,
               },
             ],
@@ -181,17 +176,16 @@ export const Routes = createBrowserRouter([
       },
       // Global settings route
       {
-        path: 'settings',
+        path: ERoutePath.Settings,
         Component: () => <SuspensePage Component={Settings} />,
       },
       // Profile route
       {
-        path: 'profile',
+        path: ERoutePath.Profile,
         Component: () => <SuspensePage Component={Profile} />,
       },
     ],
   },
-  // Auth routes outside layout
   {
     id: ERoutePath.AuthPage,
     path: ERoutePath.AuthPage,
@@ -202,7 +196,6 @@ export const Routes = createBrowserRouter([
     path: ERoutePath.Account,
     Component: () => <SuspensePage Component={Account} />,
   },
-  // Catch-all redirect
   {
     id: ERoutePath.Star,
     path: ERoutePath.Star,

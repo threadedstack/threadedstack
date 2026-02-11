@@ -3,13 +3,14 @@ import type { Domain } from '@tdsk/domain'
 import { domainsApi } from '@TAF/services'
 import { upsertDomains } from '@TAF/actions/domains/local/upsertDomains'
 
-export type TFetchDomains = {
-  orgId?: string
+export type TFetchDomainsOpts = {
+  orgId: string
   projectId?: string
 }
 
-export const fetchDomains = async (filters?: TFetchDomains) => {
-  const resp = await domainsApi.list(filters)
+export const fetchDomains = async (opts: TFetchDomainsOpts) => {
+  const { orgId, projectId } = opts
+  const resp = await domainsApi.list(orgId, projectId)
 
   if (resp.error) return resp
 

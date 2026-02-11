@@ -3,13 +3,21 @@ import type { ApiKey } from '@tdsk/domain'
 import { apiKeysApi } from '@TAF/services'
 import { setApiKey, setActiveApiKeyId } from '@TAF/state/accessors'
 
+export type TFetchApiKeyOpts = {
+  orgId: string
+  id: string
+}
+
 export type TFetchApiKeyResult = {
   apiKey?: ApiKey
   error?: Error
 }
 
-export const fetchApiKey = async (id: string): Promise<TFetchApiKeyResult> => {
-  const resp = await apiKeysApi.get(id)
+export const fetchApiKey = async (
+  opts: TFetchApiKeyOpts
+): Promise<TFetchApiKeyResult> => {
+  const { orgId, id } = opts
+  const resp = await apiKeysApi.get(orgId, id)
 
   if (resp.error) {
     return { error: resp.error }

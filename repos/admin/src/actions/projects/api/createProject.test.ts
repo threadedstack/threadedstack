@@ -13,7 +13,7 @@ vi.mock('@TAF/state/accessors', () => ({
 
 vi.mock('@TAF/services', () => ({
   projectsApi: {
-    create: (data: any) => mockProjectsCreate(data),
+    create: (orgId: string, data: any) => mockProjectsCreate(orgId, data),
   },
 }))
 
@@ -41,9 +41,8 @@ describe('createProject', () => {
       gitUrl: 'https://github.com/test/project.git',
     })
 
-    expect(mockProjectsCreate).toHaveBeenCalledWith({
+    expect(mockProjectsCreate).toHaveBeenCalledWith('org1', {
       name: 'Test Project',
-      orgId: 'org1',
       branch: 'main',
       gitUrl: 'https://github.com/test/project.git',
     })

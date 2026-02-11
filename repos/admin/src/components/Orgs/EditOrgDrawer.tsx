@@ -90,14 +90,13 @@ export const EditOrgDrawer = ({
         </>
       }
       data-testid='edit-org-drawer'
-      actionsSx={{ px: 3, pb: 2 }}
       actions={
         <DrawerActions
-          form='edit-org-form'
           editing={true}
           actions={actions}
           loading={loading}
           disabled={loading}
+          form='edit-org-form'
         />
       }
     >

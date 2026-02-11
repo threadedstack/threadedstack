@@ -1,13 +1,22 @@
 import { configsApi } from '@TAF/services'
 import { setConfigs, getConfigs } from '@TAF/state/accessors'
 
+export type TDeleteConfigOpts = {
+  orgId: string
+  id: string
+  projectId?: string
+}
+
 export type TDeleteConfigResult = {
   success?: boolean
   error?: Error
 }
 
-export const deleteConfig = async (id: string): Promise<TDeleteConfigResult> => {
-  const resp = await configsApi.delete(id)
+export const deleteConfig = async (
+  opts: TDeleteConfigOpts
+): Promise<TDeleteConfigResult> => {
+  const { orgId, id, projectId } = opts
+  const resp = await configsApi.delete(orgId, id, projectId)
 
   if (resp.error) {
     return { error: resp.error }

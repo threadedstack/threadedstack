@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    "rootDir": "./",
     "strict": false,
     "allowJs": false,
     "outDir": "./dist",
@@ -13,13 +13,13 @@
       "@TSC/*": ["src/*"],
       "@ROOT": ["../../"],
       "@ROOT/*": ["../../*"],
-      "@keg-hub/jsutils": ["node_modules/@keg-hub/jsutils/build/esm"],
-      "@keg-hub/jsutils/*": ["node_modules/@keg-hub/jsutils/build/esm/*"],
-      "@keg-hub/jsutils/src/node": ["node_modules/@keg-hub/jsutils/build/esm/node"],
-      "@keg-hub/jsutils/src/node/*": ["node_modules/@keg-hub/jsutils/build/esm/node"]
+      "@keg-hub/jsutils": ["./node_modules/@keg-hub/jsutils/build/esm"],
+      "@keg-hub/jsutils/*": ["./node_modules/@keg-hub/jsutils/build/esm/*"],
+      "@keg-hub/jsutils/src/node": ["./node_modules/@keg-hub/jsutils/build/esm/node"],
+      "@keg-hub/jsutils/src/node/*": ["./node_modules/@keg-hub/jsutils/build/esm/node"]
     }
   },
-  "include": ["src", "configs", "../../configs"],
+  "include": ["src", "configs"],
   "exclude": [
     "build",
     "**/build/*",

@@ -3,11 +3,15 @@ import type { Project } from '@tdsk/domain'
 import { projectsApi } from '@TAF/services'
 import { setProjects, getProjects } from '@TAF/state/accessors'
 
-export type TUpdateProjectInput = {
-  name?: string
-  gitUrl?: string
-  branch?: string
-  meta?: Record<string, any>
+export type TUpdateProjectOpts = {
+  orgId: string
+  id: string
+  data: {
+    name?: string
+    gitUrl?: string
+    branch?: string
+    meta?: Record<string, any>
+  }
 }
 
 export type TUpdateProjectResult = {
@@ -16,10 +20,10 @@ export type TUpdateProjectResult = {
 }
 
 export const updateProject = async (
-  id: string,
-  input: TUpdateProjectInput
+  opts: TUpdateProjectOpts
 ): Promise<TUpdateProjectResult> => {
-  const resp = await projectsApi.update(id, input)
+  const { orgId, id, data } = opts
+  const resp = await projectsApi.update(orgId, id, data)
 
   if (resp.error) {
     return { error: resp.error }

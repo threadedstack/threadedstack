@@ -17,21 +17,22 @@ export const listConfigs: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, projectId, userId } = req.query
+    const { orgId, projectId } = req.params
+    const { userId } = req.query
 
     // Require at least one scope
     if (!orgId && !projectId && !userId)
-      throw new Exception(400, `An orgId, projectId, or userId query parameter required`)
+      throw new Exception(400, `An orgId, projectId, or userId parameter required`)
 
     // Check permission based on scope
     await checkPermission(req, EPermAction.read, EPermResource.config, {
-      orgId: orgId as string | undefined,
-      projectId: projectId as string | undefined,
+      orgId,
+      projectId,
     })
 
     const where: Record<string, string> = {}
-    if (orgId) where.orgId = orgId as string
-    if (projectId) where.projectId = projectId as string
+    if (orgId) where.orgId = orgId
+    if (projectId) where.projectId = projectId
     if (userId) where.userId = userId as string
 
     const { limit, offset } = parsePagination(req)

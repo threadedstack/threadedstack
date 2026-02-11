@@ -22,11 +22,11 @@ export const createEndpoint: TEndpointConfig = {
       path,
       type,
       method,
-      projectId,
       headers = {},
       options = {},
       public: isPublic,
     } = req.body
+    const projectId = req.params.projectId || req.body.projectId
 
     // Validate required fields
     if (!type) throw new Exception(400, `Endpoint type is required`)

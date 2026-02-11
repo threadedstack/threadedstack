@@ -77,8 +77,8 @@ export const ProjectSettings = (props: TProjectSettings) => {
       setLoading(true)
       setError(null)
 
-      const projectResult = await fetchProject(projectId)
-      await fetchConfigs({ projectId })
+      const projectResult = await fetchProject({ orgId, id: projectId })
+      await fetchConfigs({ orgId, projectId })
 
       if (projectResult.error) {
         setError(projectResult.error.message)
@@ -132,7 +132,11 @@ export const ProjectSettings = (props: TProjectSettings) => {
     setError(null)
     setSuccess(null)
 
-    const result = await updateProject(projectId, { name, gitUrl, branch })
+    const result = await updateProject({
+      orgId,
+      id: projectId,
+      data: { name, gitUrl, branch },
+    })
 
     if (result.error) {
       setError(result.error.message)
@@ -153,7 +157,7 @@ export const ProjectSettings = (props: TProjectSettings) => {
   const onDelete = async () => {
     if (!projectId || !project) return
 
-    const result = await deleteProject(projectId)
+    const result = await deleteProject({ orgId, id: projectId })
 
     if (result.error) {
       setError(result.error.message)
@@ -173,7 +177,7 @@ export const ProjectSettings = (props: TProjectSettings) => {
   }
 
   const onCreateConfigSuccess = async () => {
-    projectId && (await fetchConfigs({ projectId }))
+    projectId && orgId && (await fetchConfigs({ orgId, projectId }))
   }
 
   const onEditConfig = (config: Config) => {
@@ -182,7 +186,7 @@ export const ProjectSettings = (props: TProjectSettings) => {
   }
 
   const onEditConfigSuccess = async () => {
-    projectId && (await fetchConfigs({ projectId }))
+    projectId && orgId && (await fetchConfigs({ orgId, projectId }))
   }
 
   return (
@@ -416,8 +420,9 @@ export const ProjectSettings = (props: TProjectSettings) => {
       />
 
       {/* TODO: Combine CreateConfigDrawer and EditConfigDrawer */}
-      {projectId && (
+      {orgId && projectId && (
         <CreateConfigDrawer
+          orgId={orgId}
           projectId={projectId}
           open={createConfigDialogOpen}
           onSuccess={onCreateConfigSuccess}
@@ -425,15 +430,19 @@ export const ProjectSettings = (props: TProjectSettings) => {
         />
       )}
 
-      <EditConfigDrawer
-        config={selectedConfig}
-        open={editConfigDialogOpen}
-        onSuccess={onEditConfigSuccess}
-        onClose={() => {
-          setEditConfigDialogOpen(false)
-          setSelectedConfig(null)
-        }}
-      />
+      {orgId && (
+        <EditConfigDrawer
+          orgId={orgId}
+          projectId={projectId}
+          config={selectedConfig}
+          open={editConfigDialogOpen}
+          onSuccess={onEditConfigSuccess}
+          onClose={() => {
+            setEditConfigDialogOpen(false)
+            setSelectedConfig(null)
+          }}
+        />
+      )}
     </Page>
   )
 }

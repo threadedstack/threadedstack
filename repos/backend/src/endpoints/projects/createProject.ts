@@ -15,7 +15,8 @@ export const createProject: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, name, ...projectData } = req.body
+    const { name, ...projectData } = req.body
+    const orgId = req.params.orgId || req.body.orgId
 
     if (!orgId) throw new Exception(400, `orgId is required`)
 

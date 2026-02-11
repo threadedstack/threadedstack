@@ -26,7 +26,7 @@ export const getDynamicNav = (context: TNavCtx): TDynamicNavConfig => {
     sections.push({
       id: `project`,
       items: ProjectNavItems,
-      to: buildRoute(ERoutePath.Project),
+      to: buildRoute(ERoutePath.OrgProject),
       visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
       header: context.project?.name || `Project`,
     })

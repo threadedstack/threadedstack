@@ -55,9 +55,9 @@ describe(`Endpoints endpoints`, () => {
         id: `test-user-id`,
         email: `test@example.com`,
       } as any,
-      params: {},
+      params: { projectId: `project-1` },
       body: {},
-      query: { projectId: `project-1` },
+      query: {},
     }
   })
 
@@ -114,7 +114,7 @@ describe(`Endpoints endpoints`, () => {
       const mockEndpoints = [
         { id: `1`, name: `EP1`, method: `GET`, projectId: `project-1` },
       ]
-      mockReq.query = { projectId: `project-1` }
+      mockReq.params = { projectId: `project-1` }
 
       const mockList = mockReq.app?.locals.db.services.endpoint.list as ReturnType<
         typeof vi.fn
@@ -133,7 +133,8 @@ describe(`Endpoints endpoints`, () => {
     })
 
     it(`should pass pagination params to list and include in response`, async () => {
-      mockReq.query = { projectId: `project-1`, limit: `10`, offset: `5` }
+      mockReq.params = { projectId: `project-1` }
+      mockReq.query = { limit: `10`, offset: `5` }
 
       const mockList = mockReq.app?.locals.db.services.endpoint.list as ReturnType<
         typeof vi.fn
@@ -269,6 +270,7 @@ describe(`Endpoints endpoints`, () => {
     })
 
     it(`should return 400 when projectId is missing`, async () => {
+      mockReq.params = {}
       mockReq.body = { name: `Test`, type: `rest`, method: `GET` }
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Endpoint projectId is required`

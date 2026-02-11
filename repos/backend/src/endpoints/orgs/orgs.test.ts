@@ -352,18 +352,18 @@ describe(`Orgs endpoints`, () => {
     })
   })
 
-  describe(`GET /_/orgs/:id - Get org by ID`, () => {
+  describe(`GET /_/orgs/:orgId - Get org by ID`, () => {
     const ep = getEndpointCfg(orgs.endpoints?.getOrg)
 
     it(`should have correct endpoint configuration`, () => {
-      expect(ep.path).toBe(`/:id`)
+      expect(ep.path).toBe(`/:orgId`)
       expect(ep.method).toBe(`get`)
       expect(typeof ep.action).toBe(`function`)
     })
 
     it(`should return 401 when user is not authenticated`, async () => {
       mockReq.user = undefined
-      mockReq.params = { id: `org-123` }
+      mockReq.params = { orgId: `org-123` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Authentication required`
@@ -377,7 +377,7 @@ describe(`Orgs endpoints`, () => {
         slug: `test-org`,
         createdAt: new Date(),
       }
-      mockReq.params = { id: `org-123` }
+      mockReq.params = { orgId: `org-123` }
 
       const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
@@ -400,7 +400,7 @@ describe(`Orgs endpoints`, () => {
     })
 
     it(`should return 404 when org not found`, async () => {
-      mockReq.params = { id: `nonexistent-org` }
+      mockReq.params = { orgId: `nonexistent-org` }
 
       const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
@@ -417,7 +417,7 @@ describe(`Orgs endpoints`, () => {
 
     it(`should return 500 when database query fails`, async () => {
       const mockError = new Error(`Database connection failed`)
-      mockReq.params = { id: `org-123` }
+      mockReq.params = { orgId: `org-123` }
 
       const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
@@ -433,7 +433,7 @@ describe(`Orgs endpoints`, () => {
     })
 
     it(`should throw 403 when user is not a member of the org`, async () => {
-      mockReq.params = { id: `org-123` }
+      mockReq.params = { orgId: `org-123` }
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
         .isOrgMember as ReturnType<typeof vi.fn>
@@ -451,7 +451,7 @@ describe(`Orgs endpoints`, () => {
         name: `Test Organization`,
         slug: `test-org`,
       }
-      mockReq.params = { id: `org-123` }
+      mockReq.params = { orgId: `org-123` }
 
       const mockGet = mockReq.app?.locals.db.services.org.get as ReturnType<typeof vi.fn>
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
@@ -471,7 +471,7 @@ describe(`Orgs endpoints`, () => {
     })
 
     it(`should allow super admin to access any org`, async () => {
-      mockReq.params = { id: `org-123` }
+      mockReq.params = { orgId: `org-123` }
       // Set user as Neon admin (super admin)
       mockReq.user = {
         id: `admin-user-id`,

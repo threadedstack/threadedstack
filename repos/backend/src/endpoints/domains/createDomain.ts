@@ -21,16 +21,17 @@ export const createDomain: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, config } = req.app.locals
+    const { orgId: paramOrgId, projectId: paramProjectId } = req.params
     const {
       domain,
-      orgId,
-      projectId,
       // For manually uploaded SSL certificates
       sslEnabled,
       sslExpiresAt,
       sslPrivateKey,
       sslCertificate,
     } = req.body
+    const orgId = paramOrgId || req.body.orgId
+    const projectId = paramProjectId || req.body.projectId
 
     if (!domain) throw new Exception(400, `Domain is required`)
 

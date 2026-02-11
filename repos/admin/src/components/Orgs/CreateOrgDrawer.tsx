@@ -22,7 +22,6 @@ export type TCreateOrgDrawer = {
   onClose: () => void
   hideCreate?: boolean
   createSx?: CSSProperties
-  actionsSx?: CSSProperties
   createBtnSx?: CSSProperties
   onCreate?: (evt: any) => void
 }
@@ -33,7 +32,6 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
     open,
     createSx,
     onCreate,
-    actionsSx,
     hideCreate,
     createBtnSx,
     onClose: onCloseCB,
@@ -110,14 +108,13 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
           </>
         }
         data-testid='create-org-dialog'
-        actionsSx={actionsSx}
         actions={
           <DrawerActions
-            form='create-org-form'
             editing={false}
             actions={actions}
             loading={loading}
             disabled={loading}
+            form='create-org-form'
           />
         }
       >

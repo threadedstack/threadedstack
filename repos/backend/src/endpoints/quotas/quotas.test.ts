@@ -215,7 +215,7 @@ describe('Quota Endpoints', () => {
     })
 
     it('should have correct endpoint configuration', () => {
-      expect(ep.path).toBe('/:orgId')
+      expect(ep.path).toBe('/')
       expect(ep.method).toBe('get')
     })
   })
@@ -365,7 +365,7 @@ describe('Quota Endpoints', () => {
     })
 
     it('should have correct endpoint configuration', () => {
-      expect(ep.path).toBe('/:orgId/limits')
+      expect(ep.path).toBe('/limits')
       expect(ep.method).toBe('get')
     })
   })
@@ -626,7 +626,7 @@ describe('Quota Endpoints', () => {
     })
 
     it('should have correct endpoint configuration', () => {
-      expect(ep.path).toBe('/:orgId/check')
+      expect(ep.path).toBe('/check')
       expect(ep.method).toBe('post')
     })
 

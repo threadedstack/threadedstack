@@ -4,7 +4,6 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { ERoleType } from '@tdsk/domain'
-import { isStr } from '@keg-hub/jsutils/isStr'
 import { Exception } from '@TBE/utils/errors/exception'
 import { parsePagination } from '@TBE/utils/pagination'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
@@ -19,26 +18,26 @@ export const listDomains: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, projectId } = req.query
+    const { orgId, projectId } = req.params
     const userId = req.user?.id
 
     if (!userId) throw new Exception(401, `Authentication required`)
 
     if (!orgId && !projectId)
-      throw new Exception(400, `Either orgId or projectId query parameter is required`)
+      throw new Exception(400, `Either orgId or projectId is required`)
 
     const userRole = await getUserRole(req, {
-      ...(isStr(orgId) && { orgId }),
-      ...(isStr(projectId) && { projectId }),
+      ...(orgId && { orgId }),
+      ...(projectId && { projectId }),
     })
     const { limit, offset } = parsePagination(req)
 
     let domains: Domain[]
     // Super admins can list any domains
     if (userRole === ERoleType.super) {
-      const { data, error } = isStr(orgId)
+      const { data, error } = orgId
         ? await db.services.domain.list({ where: { orgId }, limit, offset })
-        : isStr(projectId)
+        : projectId
           ? await db.services.domain.list({ where: { projectId }, limit, offset })
           : { data: [] }
 
@@ -46,7 +45,7 @@ export const listDomains: TEndpointConfig = {
       domains = data
     } else {
       // Regular users can only list domains from their orgs
-      if (isStr(projectId)) {
+      if (projectId) {
         // For project domains, verify user has access to the project
         const { data: project, error: proErr } = await db.services.project.get(projectId)
         if (proErr) throw new Exception(500, proErr.message)
@@ -65,7 +64,7 @@ export const listDomains: TEndpointConfig = {
         })
         if (error) throw new Exception(500, error.message)
         domains = data
-      } else if (isStr(orgId)) {
+      } else if (orgId) {
         // For org domains, verify user is member of the org
         const { data: orgIds, error: orgErr } = await db.services.role.getUserOrgs(userId)
         if (orgErr) throw new Exception(500, orgErr.message)

@@ -16,6 +16,7 @@ import { isStr } from '@keg-hub/jsutils/isStr'
 import { exists } from '@keg-hub/jsutils/exists'
 import { eq, and, getTableName } from 'drizzle-orm'
 import { singular } from '@keg-hub/jsutils/singular'
+import { camelCase } from '@keg-hub/jsutils/camelCase'
 import { capitalize } from '@keg-hub/jsutils/capitalize'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
 import { DBError, DBIdError, DBValueError } from '@TDB/utils/error/error'
@@ -43,8 +44,8 @@ export class Base<
     this.db = opts.db
     this.table = opts.table
     this.config = opts.config || {}
-    this.name = getTableName(this.table)
     this.title = capitalize(singular(this.name))
+    this.name = camelCase(getTableName(this.table))
   }
 
   with = <T extends TDBWithRecord = TDBWithRecord>(opts: T): TDBWithRecord => opts

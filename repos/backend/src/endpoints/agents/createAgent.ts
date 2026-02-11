@@ -18,17 +18,21 @@ export const createAgent: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { projectIds = [], ...agent } = req.body
+    const orgId = req.params.orgId || agent.orgId
 
     // Validate required fields
-    if (!agent.orgId)
+    if (!orgId)
       throw new Exception(400, `Agent must belong to an organization (orgId required)`)
 
     if (!agent.providerId)
       throw new Exception(400, `Agent must have a provider (providerId required)`)
 
+    // Ensure orgId is set on the agent data
+    agent.orgId = orgId
+
     // Check permission to create agents in this org
     await checkPermission(req, EPermAction.create, EPermResource.agent, {
-      orgId: agent.orgId,
+      orgId,
     })
 
     const { data: projects, error: projErr } = projectIds?.length

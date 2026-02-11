@@ -18,12 +18,12 @@ export const createApiKey: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { name, orgId, projectId, scopes, expiresAt, rateLimit } = req.body
+    const keyData = { ...req.body, orgId: req.params.orgId }
 
-    const { valid, error } = validateApiKey(req.body)
-    if (!valid || error) {
-      throw new Exception(400, error)
-    }
+    const { valid, error } = validateApiKey(keyData)
+    if (!valid || error) throw new Exception(400, error)
+
+    const { name, orgId, scopes, projectId, expiresAt, rateLimit } = keyData
 
     // Check permission - requires admin+
     await checkPermission(req, EPermAction.create, EPermResource.apiKey, {
@@ -46,9 +46,7 @@ export const createApiKey: TEndpointConfig = {
 
       const { data, error } = await db.services.apiKey.create(apiKeyData)
 
-      if (error) {
-        throw new Exception(500, error.message)
-      }
+      if (error) throw new Exception(500, error.message)
 
       logger.info({
         name,

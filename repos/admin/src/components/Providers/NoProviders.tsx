@@ -9,7 +9,7 @@ export const NoProviders = ({ onCreate }: TNoProviders) => {
   return (
     <EmptyState
       message='No providers yet. Create your first provider to get started.'
-      actionLabel='Create Your First Provider'
+      actionLabel='Create Provider'
       actionIcon={<AddIcon />}
       onAction={onCreate}
     />

@@ -16,10 +16,10 @@ export const listEndpoints: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { projectId } = req.query
+    const { projectId } = req.params
 
     // Require projectId
-    if (!projectId) throw new Exception(400, `projectId query parameter required`)
+    if (!projectId) throw new Exception(400, `projectId parameter required`)
 
     // Check permission - requires member+ (viewer can also read per matrix)
     await checkPermission(req, EPermAction.read, EPermResource.endpoint, {

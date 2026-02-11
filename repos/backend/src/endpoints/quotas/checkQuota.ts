@@ -7,11 +7,11 @@ import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 
 /**
- * POST /quotas/:orgId/check - Check if action is within quota limits
+ * POST /orgs/:orgId/quotas/check - Check if action is within quota limits
  * Body: { resource: string, amount?: number }
  */
 export const checkQuota: TEndpointConfig = {
-  path: `/:orgId/check`,
+  path: `/check`,
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params

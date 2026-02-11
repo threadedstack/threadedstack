@@ -244,6 +244,7 @@ describe(`OrgNavItems`, () => {
         `Secrets`,
         `Providers`,
         `Domains`,
+        `Api Keys`,
         `Usage`,
         `Settings`,
       ]

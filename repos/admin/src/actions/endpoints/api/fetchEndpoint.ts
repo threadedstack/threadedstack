@@ -1,8 +1,15 @@
 import { endpointsApi } from '@TAF/services'
 import { upsertEndpoint } from '@TAF/actions/endpoints/local/upsertEndpoint'
 
-export const fetchEndpoint = async (id: string) => {
-  const resp = await endpointsApi.get(id)
+export type TFetchEndpointOpts = {
+  orgId: string
+  projectId: string
+  id: string
+}
+
+export const fetchEndpoint = async (opts: TFetchEndpointOpts) => {
+  const { orgId, projectId, id } = opts
+  const resp = await endpointsApi.get(orgId, projectId, id)
   if (resp.error) return { error: resp.error }
   resp.data && upsertEndpoint(resp.data)
 

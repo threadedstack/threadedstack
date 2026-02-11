@@ -6,24 +6,20 @@ import { useApiKeys } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
 import { useActiveOrgId } from '@TAF/state/selectors'
 import { Box, Typography, Chip } from '@mui/material'
+import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
 import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+
 import {
   Add as AddIcon,
   VpnKey as KeyIcon,
   Delete as DeleteIcon,
   ContentCopy as CopyIcon,
 } from '@mui/icons-material'
-import {
-  SearchBar,
-  DataTable,
-  PageHeader,
-  ErrorAlert,
-  EmptyState,
-  LoadingSpinner,
-  ActionIconButton,
-} from '@TAF/components'
 
 export type TOrgApiKeys = {}
 
@@ -31,11 +27,11 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
   const [apiKeys] = useApiKeys()
   const [orgId] = useActiveOrgId()
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<Error | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
 
   // Load org API keys
   useEffect(() => {
@@ -65,18 +61,6 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
     setCreateDialogOpen(false)
   }
 
-  const onApiKeyCreated = async () => {
-    if (!orgId) return
-
-    setLoading(true)
-    setError(null)
-
-    const result = await fetchApiKeys({ orgId })
-    result.error ? setError(result.error) : setError(null)
-
-    setLoading(false)
-  }
-
   const onDeleteClick = (apiKey: ApiKey) => {
     setSelectedApiKey(apiKey)
     setDeleteDialogOpen(true)
@@ -86,11 +70,8 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
     if (!selectedApiKey) return
 
     setLoading(true)
-    const result = await revokeApiKey(selectedApiKey.id)
-
-    if (result.error) {
-      setError(result.error)
-    }
+    const result = await revokeApiKey({ orgId, id: selectedApiKey.id })
+    result.error && setError(result.error)
 
     setDeleteDialogOpen(false)
     setSelectedApiKey(null)
@@ -238,74 +219,59 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
 
   return (
     <Page className='tdsk-org-api-keys-page'>
-      <PageHeader
+      <PageLayout
         title='API Keys'
-        count={apiKeysCount}
         countLabel='key'
-        actionLabel='Generate API Key'
-        actionIcon={<AddIcon />}
-        onAction={onCreateApiKey}
-      />
-
-      {!loading && apiKeysCount > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder='Search API keys by name or prefix...'
+        count={apiKeysCount}
+        error={error?.message}
+        loading={loading}
+        query={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchPlaceholder='Search API keys by name or prefix...'
+        searchCount={0}
+        onAction={apiKeysCount > 0 && onCreateApiKey}
+        actionLabel={apiKeysCount > 0 && 'Generate API Key'}
+        setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
+      >
+        {apiKeysCount === 0 && (
+          <EmptyState
+            message='No API keys yet. Generate your first API key to enable M2M authentication.'
+            actionLabel='Generate API Key'
+            actionIcon={<AddIcon />}
+            onAction={onCreateApiKey}
           />
-        </Box>
-      )}
+        )}
 
-      {loading && <LoadingSpinner />}
+        {apiKeysCount > 0 && filteredApiKeys.length === 0 && (
+          <EmptyState message='No API keys match your search query.' />
+        )}
 
-      {error && (
-        <ErrorAlert
-          message={`Error loading API keys: ${error.message}`}
-          onClose={() => setError(null)}
-          sx={{ mb: 3 }}
-        />
-      )}
+        {filteredApiKeys.length > 0 && (
+          <DataTable
+            columns={columns}
+            data={filteredApiKeys}
+            getRowKey={(apiKey) => apiKey.id}
+          />
+        )}
 
-      {!loading && !error && apiKeysCount === 0 && (
-        <EmptyState
-          message='No API keys yet. Generate your first API key to enable M2M authentication.'
-          actionLabel='Generate Your First API Key'
-          actionIcon={<AddIcon />}
-          onAction={onCreateApiKey}
-        />
-      )}
+        {orgId && (
+          <CreateApiKeyDrawer
+            orgId={orgId}
+            open={createDialogOpen}
+            onClose={onDialogClose}
+          />
+        )}
 
-      {!loading && !error && apiKeysCount > 0 && filteredApiKeys.length === 0 && (
-        <EmptyState message='No API keys match your search query.' />
-      )}
-
-      {!loading && !error && filteredApiKeys.length > 0 && (
-        <DataTable
-          columns={columns}
-          data={filteredApiKeys}
-          getRowKey={(apiKey) => apiKey.id}
-        />
-      )}
-
-      {orgId && (
-        <CreateApiKeyDrawer
-          orgId={orgId}
-          open={createDialogOpen}
-          onClose={onDialogClose}
-          onSuccess={onApiKeyCreated}
-        />
-      )}
-
-      {deleteDialogOpen && (
-        <ConfirmDelete
-          confirmText='Revoke'
-          onCancel={onDeleteCancel}
-          onConfirm={onDeleteConfirm}
-          itemName={selectedApiKey?.name}
-          text={`Are you sure you want to revoke the API key "${selectedApiKey?.name}"? This action cannot be undone and any applications using this key will lose access.`}
-        />
-      )}
+        {deleteDialogOpen && (
+          <ConfirmDelete
+            confirmText='Revoke'
+            onCancel={onDeleteCancel}
+            onConfirm={onDeleteConfirm}
+            itemName={selectedApiKey?.name}
+            text={`Are you sure you want to revoke the API key "${selectedApiKey?.name}"? This action cannot be undone and any applications using this key will lose access.`}
+          />
+        )}
+      </PageLayout>
     </Page>
   )
 }

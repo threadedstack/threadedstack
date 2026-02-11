@@ -3,15 +3,21 @@ import type { Provider } from '@tdsk/domain'
 import { providersApi } from '@TAF/services'
 import { setProviders } from '@TAF/state/accessors'
 
+export type TFetchProvidersOpts = {
+  orgId: string
+  projectId?: string
+}
+
 export type TFetchProvidersResult = {
   providers?: Record<string, Provider>
   error?: Error
 }
 
-export const fetchProviders = async (filters?: {
-  orgId?: string
-}): Promise<TFetchProvidersResult> => {
-  const resp = await providersApi.list(filters)
+export const fetchProviders = async (
+  opts: TFetchProvidersOpts
+): Promise<TFetchProvidersResult> => {
+  const { orgId, projectId } = opts
+  const resp = await providersApi.list(orgId, projectId)
 
   if (resp.error) {
     return { error: resp.error }

@@ -11,15 +11,15 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
  * User must be a member of the organization to update projects
  */
 export const updateProject: TEndpointConfig = {
-  path: `/:id`,
+  path: `/:projectId`,
   method: EPMethod.Put,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id } = req.params
+    const { projectId } = req.params
     const { db } = req.app.locals
     const updates = req.body
 
     // First get the project to find its orgId
-    const { data: existing, error: getError } = await db.services.project.get(id)
+    const { data: existing, error: getError } = await db.services.project.get(projectId)
 
     if (getError) throw new Exception(500, getError.message)
 
@@ -31,7 +31,10 @@ export const updateProject: TEndpointConfig = {
     })
 
     // Update the project
-    const { data, error } = await db.services.project.update({ ...updates, id })
+    const { data, error } = await db.services.project.update({
+      ...updates,
+      id: projectId,
+    })
     if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data })

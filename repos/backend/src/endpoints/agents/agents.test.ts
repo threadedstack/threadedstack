@@ -62,9 +62,9 @@ describe(`Agents endpoints`, () => {
         id: `test-user-id`,
         email: `test@example.com`,
       } as any,
-      params: {},
+      params: { orgId: `org-1` },
       body: {},
-      query: { orgId: `org-1` },
+      query: {},
     }
   })
 
@@ -116,7 +116,7 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ data: mockAgents })
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -133,15 +133,14 @@ describe(`Agents endpoints`, () => {
       expect(responseData).toHaveLength(2)
     })
 
-    it(`should return 400 when no orgId query param`, async () => {
+    it(`should return 400 when no orgId param`, async () => {
       const app = buildApp()
-      app.locals.auth = {}
-      mockReq.query = {}
+      mockReq.params = {}
       mockReq.app = app
       const epl = getEpCfg(app, agents.endpoints?.listAgents)
 
       await expect(epl.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `orgId query parameter required`
+        `orgId parameter required`
       )
     })
 
@@ -177,7 +176,8 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ data: mockAgents })
-      mockReq.query = { orgId: `org-1`, projectId: `project-1` }
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { projectId: `project-1` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -202,7 +202,8 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ data: mockAgents })
-      mockReq.query = { orgId: `org-1`, sanitize: `false` }
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { sanitize: `false` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -216,7 +217,8 @@ describe(`Agents endpoints`, () => {
     })
 
     it(`should return 403 when non-admin requests sanitize=false`, async () => {
-      mockReq.query = { orgId: `org-1`, sanitize: `false` }
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { sanitize: `false` }
 
       // Override role mock to return viewer for this test
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
@@ -230,7 +232,7 @@ describe(`Agents endpoints`, () => {
 
     it(`should return 500 on database error`, async () => {
       const mockError = new Error(`Database connection failed`)
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.agent.list as ReturnType<
         typeof vi.fn
@@ -378,6 +380,7 @@ describe(`Agents endpoints`, () => {
     })
 
     it(`should return 400 when orgId missing`, async () => {
+      mockReq.params = {}
       mockReq.body = { providerId: `provider-1`, name: `Test Agent` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(

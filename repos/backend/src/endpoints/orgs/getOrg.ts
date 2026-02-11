@@ -11,10 +11,10 @@ import { requireOrgMember, getUserRole } from '@TBE/utils/auth/checkPermission'
  * Returns org with user's role for that org
  */
 export const getOrg: TEndpointConfig = {
-  path: `/:id`,
+  path: `/:orgId`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id: orgId } = req.params
+    const { orgId } = req.params
     const { db } = req.app.locals
     const userId = req.user?.id
 

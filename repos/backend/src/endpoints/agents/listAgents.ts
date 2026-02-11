@@ -19,12 +19,12 @@ export const listAgents: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db, auth } = req.app.locals
-    const orgId = auth.orgId
+    const { db } = req.app.locals
+    const { orgId } = req.params
     const projectId = req.query.projectId as string | undefined
     const sanitize = req.query.sanitize !== `false`
 
-    if (!orgId) throw new Exception(400, `orgId query parameter required`)
+    if (!orgId) throw new Exception(400, `orgId parameter required`)
 
     // Check permission to read agents in this org
     await checkPermission(req, EPermAction.read, EPermResource.agent, {

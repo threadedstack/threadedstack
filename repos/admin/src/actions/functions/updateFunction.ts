@@ -3,8 +3,16 @@ import type { Function as TDFunction } from '@tdsk/domain'
 import { functionsApi } from '@TAF/services'
 import { setFunctions, getFunctions } from '@TAF/state/accessors'
 
-export const updateFunction = async (id: string, input: Partial<TDFunction>) => {
-  const resp = await functionsApi.update(id, input)
+export type TUpdateFunctionOpts = {
+  orgId: string
+  projectId: string
+  id: string
+  data: Partial<TDFunction>
+}
+
+export const updateFunction = async (opts: TUpdateFunctionOpts) => {
+  const { orgId, projectId, id, data } = opts
+  const resp = await functionsApi.update(orgId, projectId, id, data)
 
   if (resp.error) return { error: resp.error }
 

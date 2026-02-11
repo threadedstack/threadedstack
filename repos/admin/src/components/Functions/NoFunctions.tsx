@@ -9,7 +9,7 @@ export const NoFunctions = ({ onCreate }: TNoFunctions) => {
   return (
     <EmptyState
       message='No functions found for this project.'
-      actionLabel='Create Your First Function'
+      actionLabel='Create Function'
       actionIcon={<AddIcon />}
       onAction={onCreate}
     />

@@ -95,7 +95,7 @@ describe(`Functions endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ data: mockFunctions })
-      mockReq.query = { projectId: `project-1` }
+      mockReq.params = { projectId: `project-1` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -107,15 +107,16 @@ describe(`Functions endpoints`, () => {
     })
 
     it(`should return 400 when projectId is missing`, async () => {
-      mockReq.query = {}
+      mockReq.params = {}
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `projectId query parameter required`
+        `projectId parameter required`
       )
     })
 
     it(`should pass pagination params to list and include in response`, async () => {
-      mockReq.query = { projectId: `project-1`, limit: `15`, offset: `30` }
+      mockReq.params = { projectId: `project-1` }
+      mockReq.query = { limit: `15`, offset: `30` }
 
       const mockList = mockReq.app?.locals.db.services.function.list as ReturnType<
         typeof vi.fn
@@ -135,7 +136,7 @@ describe(`Functions endpoints`, () => {
 
     it(`should return 500 on database error`, async () => {
       const mockError = new Error(`Database connection failed`)
-      mockReq.query = { projectId: `project-1` }
+      mockReq.params = { projectId: `project-1` }
 
       const mockList = mockReq.app?.locals.db.services.function.list as ReturnType<
         typeof vi.fn

@@ -113,7 +113,7 @@ describe(`Providers endpoints`, () => {
           orgId: `org-1`,
         }),
       ]
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.provider.list as ReturnType<
         typeof vi.fn
@@ -140,7 +140,7 @@ describe(`Providers endpoints`, () => {
           projectId: `proj-1`,
         }),
       ]
-      mockReq.query = { projectId: `proj-1` }
+      mockReq.params = { projectId: `proj-1` }
 
       const mockList = mockReq.app?.locals.db.services.provider.list as ReturnType<
         typeof vi.fn
@@ -167,12 +167,12 @@ describe(`Providers endpoints`, () => {
       const epl = isFunc(endpoint) ? endpoint(app) : endpoint
 
       await expect(epl.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `orgId or projectId query parameter required`
+        `orgId or projectId is required`
       )
     })
 
     it(`should return empty array when no providers found`, async () => {
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.provider.list as ReturnType<
         typeof vi.fn
@@ -186,7 +186,8 @@ describe(`Providers endpoints`, () => {
     })
 
     it(`should pass pagination params to list and include in response`, async () => {
-      mockReq.query = { orgId: `org-1`, limit: `10`, offset: `20` }
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { limit: `10`, offset: `20` }
 
       const mockList = mockReq.app?.locals.db.services.provider.list as ReturnType<
         typeof vi.fn
@@ -205,7 +206,7 @@ describe(`Providers endpoints`, () => {
     })
 
     it(`should return 500 on database error`, async () => {
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.provider.list as ReturnType<
         typeof vi.fn

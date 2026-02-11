@@ -13,10 +13,10 @@ import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
  * Cannot promote someone to or above your own role
  */
 export const updateMemberRole: TEndpointConfig = {
-  path: `/:id/members/:userId`,
+  path: `/:orgId/members/:userId`,
   method: EPMethod.Put,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id: orgId, userId } = req.params
+    const { orgId, userId } = req.params
     const { db } = req.app.locals
     const { type: newRoleType } = req.body
     const currentUserId = req.user?.id

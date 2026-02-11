@@ -7,6 +7,7 @@ import { Drawer, DrawerActions, TextInput, SelectInput } from '@tdsk/components'
 
 export type TCreateConfigDrawer = {
   open: boolean
+  orgId: string
   projectId: string
   onClose: () => void
   onSuccess?: () => void
@@ -22,6 +23,7 @@ const CONFIG_TYPES = [
 
 export const CreateConfigDrawer = ({
   open,
+  orgId,
   projectId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
@@ -76,7 +78,10 @@ export const CreateConfigDrawer = ({
 
     // TODO: build out config options
     const result = await createConfig({
-      data: {},
+      orgId,
+      data: {
+        data: {},
+      },
       projectId,
     })
 

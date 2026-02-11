@@ -3,8 +3,7 @@ import type { Function as TDFunction } from '@tdsk/domain'
 import { Box } from '@mui/material'
 import { ife } from '@keg-hub/jsutils/ife'
 import { ConfirmDelete } from '@tdsk/components'
-import { Add as AddIcon } from '@mui/icons-material'
-import { useFunctions } from '@TAF/state/selectors'
+import { useFunctions, useActiveOrgId } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
 import { useActiveProjectId } from '@TAF/state/selectors'
 import { NoFunctions } from '@TAF/components/Functions/NoFunctions'
@@ -12,18 +11,14 @@ import { deleteFunction } from '@TAF/actions/functions/deleteFunction'
 import { fetchFunctions } from '@TAF/actions/functions/fetchFunctions'
 import { FunctionsGrid } from '@TAF/components/Functions/FunctionsGrid'
 import { FunctionDrawer } from '@TAF/components/Functions/FunctionDrawer'
-import {
-  SearchBar,
-  PageHeader,
-  EmptyState,
-  FilterSelect,
-  LoadingSpinner,
-} from '@TAF/components'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { SearchBar, EmptyState, FilterSelect } from '@TAF/components'
 
 export type TFunctions = {}
 
 export const Functions = (props: TFunctions) => {
   const [functions] = useFunctions()
+  const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -37,16 +32,17 @@ export const Functions = (props: TFunctions) => {
   } | null>(null)
 
   useEffect(() => {
-    projectId &&
+    orgId &&
+      projectId &&
       ife(async () => {
         try {
           setLoading(true)
-          await fetchFunctions({ projectId })
+          await fetchFunctions({ orgId, projectId })
         } finally {
           setLoading(false)
         }
       })
-  }, [projectId])
+  }, [orgId, projectId])
 
   const filteredFunctions = useMemo(() => {
     if (!functions || !projectId) return []
@@ -95,7 +91,7 @@ export const Functions = (props: TFunctions) => {
   const onDeleteConfirm = async () => {
     if (!functionToDelete) return
 
-    const result = await deleteFunction(functionToDelete.id)
+    const result = await deleteFunction({ orgId, projectId, id: functionToDelete.id })
     setDeleteDialogOpen(false)
     !result.error && setFunctionToDelete(null)
   }
@@ -116,7 +112,7 @@ export const Functions = (props: TFunctions) => {
   }
 
   const onDialogSuccess = async () => {
-    projectId && (await fetchFunctions({ projectId }))
+    orgId && projectId && (await fetchFunctions({ orgId, projectId }))
   }
 
   const onEdit = (func: TDFunction) => {
@@ -125,16 +121,14 @@ export const Functions = (props: TFunctions) => {
   }
 
   return (
-    <>
-      <PageHeader
-        title='Project Functions'
-        count={functionsCount}
-        countLabel='function'
-        actionLabel='Create Function'
-        actionIcon={<AddIcon />}
-        onAction={onCreate}
-      />
-
+    <PageLayout
+      loading={loading}
+      title='Project Functions'
+      count={functionsCount}
+      countLabel='function'
+      onAction={onCreate}
+      actionLabel='Create Function'
+    >
       {!loading && functionsCount > 0 && (
         <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <SearchBar
@@ -157,8 +151,6 @@ export const Functions = (props: TFunctions) => {
         </Box>
       )}
 
-      {loading && <LoadingSpinner />}
-
       {!loading && functionsCount === 0 && <NoFunctions onCreate={onCreate} />}
 
       {!loading && functionsCount > 0 && filteredFunctions.length === 0 && (
@@ -173,8 +165,9 @@ export const Functions = (props: TFunctions) => {
         />
       )}
 
-      {projectId && (
+      {orgId && projectId && (
         <FunctionDrawer
+          orgId={orgId!}
           open={dialogOpen}
           projectId={projectId}
           func={selectedFunction}
@@ -191,6 +184,6 @@ export const Functions = (props: TFunctions) => {
         itemName={functionToDelete?.name}
         warnText='This will permanently delete the function and all its associated configuration.'
       />
-    </>
+    </PageLayout>
   )
 }

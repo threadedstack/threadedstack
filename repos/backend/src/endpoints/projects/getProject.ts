@@ -10,14 +10,14 @@ import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
  * User must be a member of the project's organization
  */
 export const getProject: TEndpointConfig = {
-  path: `/:id`,
+  path: `/:projectId`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id } = req.params
+    const { projectId } = req.params
     const { db } = req.app.locals
 
     // First get the project to find its orgId
-    const { data, error } = await db.services.project.get(id)
+    const { data, error } = await db.services.project.get(projectId)
     if (error) throw new Exception(500, error.message)
     if (!data) throw new Exception(404, `Project not found`)
 

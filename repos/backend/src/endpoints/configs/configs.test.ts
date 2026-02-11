@@ -92,7 +92,7 @@ describe(`Configs endpoints`, () => {
         typeof vi.fn
       >
       mockList.mockResolvedValue({ data: mockConfigs })
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -105,16 +105,17 @@ describe(`Configs endpoints`, () => {
     })
 
     it(`should return 400 when no scope parameter provided`, async () => {
+      mockReq.params = {}
       mockReq.query = {}
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `An orgId, projectId, or userId query parameter required`
+        `An orgId, projectId, or userId parameter required`
       )
     })
 
     it(`should filter by projectId when provided`, async () => {
       const mockConfigs = [new Config({ id: `1`, data: {}, projectId: `project-1` })]
-      mockReq.query = { projectId: `project-1` }
+      mockReq.params = { projectId: `project-1` }
 
       const mockList = mockReq.app?.locals.db.services.config.list as ReturnType<
         typeof vi.fn
@@ -128,7 +129,8 @@ describe(`Configs endpoints`, () => {
     })
 
     it(`should pass pagination params to list and include in response`, async () => {
-      mockReq.query = { orgId: `org-1`, limit: `20`, offset: `5` }
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { limit: `20`, offset: `5` }
 
       const mockList = mockReq.app?.locals.db.services.config.list as ReturnType<
         typeof vi.fn
@@ -148,7 +150,7 @@ describe(`Configs endpoints`, () => {
 
     it(`should return 500 on database error`, async () => {
       const mockError = new Error(`Database connection failed`)
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.config.list as ReturnType<
         typeof vi.fn

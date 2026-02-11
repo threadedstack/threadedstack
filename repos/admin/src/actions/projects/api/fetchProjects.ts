@@ -8,16 +8,14 @@ export type TFetchProjectsResult = {
   error?: Error
 }
 
-export type TFetchProjects = {
-  orgId?: string
+export type TFetchProjectsOpts = {
+  orgId: string
 }
 
 export const fetchProjects = async (
-  opts?: TFetchProjects
+  opts: TFetchProjectsOpts
 ): Promise<TFetchProjectsResult> => {
-  const resp = opts?.orgId
-    ? await projectsApi.listByOrg(opts?.orgId)
-    : await projectsApi.list()
+  const resp = await projectsApi.list(opts.orgId)
 
   if (resp.error) return resp
 

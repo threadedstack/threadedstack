@@ -5,9 +5,9 @@ import { nav } from '@TAF/services/nav'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
 import { signout } from '@TAF/actions/auth/local/signout'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
-
 import {
   Dns as DnsIcon,
+  Api as ApiIcon,
   Build as ToolIcon,
   Lock as SecretIcon,
   Api as EndpointIcon,
@@ -26,13 +26,13 @@ export const HeaderSettingsItems = [
     label: `Profile`,
     Icon: PersonIcon,
     id: `tdsk-settings-nav-settings`,
-    onClick: async () => nav.to(ERoutePath.Profile),
+    onClick: async () => nav.to(`/${ERoutePath.Profile}`),
   },
   {
     label: `Billing`,
     Icon: BillingIcon,
     id: `tdsk-settings-nav-billing`,
-    onClick: async () => nav.to(ERoutePath.Billing),
+    onClick: async () => nav.to(`/${ERoutePath.Billing}`),
   },
   {
     divider: true,
@@ -73,6 +73,12 @@ export const OrgNavItems: TNavItem[] = [
     text: `Domains`,
     to: buildRoute(ERoutePath.OrgDomains),
     Icon: <DnsIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  {
+    text: `Api Keys`,
+    Icon: <ApiIcon />,
+    to: buildRoute(ERoutePath.OrgApiKeys),
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
@@ -143,5 +149,5 @@ export const ProjectNavItems: TNavItem[] = [
 
 // Bottom navigation items (always visible)
 export const BottomNavItems: TNavItem[] = [
-  { to: ERoutePath.Settings, text: `Settings`, Icon: <SettingsIcon /> },
+  { to: `/${ERoutePath.Settings}`, text: `Settings`, Icon: <SettingsIcon /> },
 ]

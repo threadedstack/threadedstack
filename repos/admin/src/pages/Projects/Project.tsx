@@ -31,7 +31,7 @@ export const Project = (props: TProject) => {
 
   const onDelete = async () => {
     if (!project || !projectId) return
-    const result = await deleteProject(projectId)
+    const result = await deleteProject({ orgId, id: projectId })
     !result.error && navigate(`/orgs/${orgId}/projects`)
     setDeleteDialogOpen(false)
   }

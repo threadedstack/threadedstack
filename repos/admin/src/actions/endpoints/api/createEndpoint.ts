@@ -3,15 +3,10 @@ import type { Endpoint } from '@tdsk/domain'
 import { endpointsApi } from '@TAF/services'
 import { upsertEndpoint } from '@TAF/actions/endpoints/local/upsertEndpoint'
 
-export type TCreateEndpointInput = {
-  name: string
-  path: string
-  method: string
+export type TCreateEndpointOpts = {
+  orgId: string
   projectId: string
-  description?: string
-  config?: Record<string, any>
-  options?: Record<string, any>
-  headers?: Record<string, string>
+  data: Partial<Endpoint>
 }
 
 export type TCreateEndpointResult = {
@@ -19,8 +14,9 @@ export type TCreateEndpointResult = {
   error?: Error
 }
 
-export const createEndpoint = async (ep: Partial<Endpoint>) => {
-  const resp = await endpointsApi.create(ep)
+export const createEndpoint = async (opts: TCreateEndpointOpts) => {
+  const { orgId, projectId, data } = opts
+  const resp = await endpointsApi.create(orgId, projectId, data)
 
   if (resp.error) return { error: resp.error }
   resp.data && upsertEndpoint(resp.data)

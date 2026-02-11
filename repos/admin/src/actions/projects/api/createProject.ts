@@ -3,9 +3,9 @@ import type { Project } from '@tdsk/domain'
 import { projectsApi } from '@TAF/services'
 import { setProjects, getProjects } from '@TAF/state/accessors'
 
-export type TCreateProjectInput = {
-  name: string
+export type TCreateProjectOpts = {
   orgId: string
+  name: string
   gitUrl?: string
   branch?: string
 }
@@ -16,9 +16,10 @@ export type TCreateProjectResult = {
 }
 
 export const createProject = async (
-  input: TCreateProjectInput
+  opts: TCreateProjectOpts
 ): Promise<TCreateProjectResult> => {
-  const resp = await projectsApi.create(input)
+  const { orgId, ...data } = opts
+  const resp = await projectsApi.create(orgId, data)
 
   if (resp.error) return { error: resp.error }
 

@@ -11,7 +11,7 @@ export const NoEndpoints = ({ onCreate }: TNoEndpoints) => {
       onAction={onCreate}
       actionIcon={<AddIcon />}
       message='No endpoints found for this project.'
-      actionLabel='Create Your First Endpoint'
+      actionLabel='Create Endpoint'
     />
   )
 }

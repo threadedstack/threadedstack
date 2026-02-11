@@ -5,13 +5,10 @@ import { useDomains } from '@TAF/state/selectors'
 import { fetchDomains } from '@TAF/actions/domains/api'
 import { useEffect, useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
-import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
-import { PageHeader } from '@TAF/components/PageHeader/PageHeader'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { DomainDrawer } from '@TAF/components/Domains/DomainDrawer'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
-import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Add as AddIcon,
@@ -46,8 +43,7 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
       setLoading(true)
       setError(null)
 
-      const params = projectId ? { projectId } : { orgId: orgId! }
-      const result = await fetchDomains(params)
+      const result = await fetchDomains({ orgId, projectId })
       result.error ? setError(result.error) : setError(null)
 
       setLoading(false)
@@ -72,8 +68,7 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
     setLoading(true)
     setError(null)
 
-    const params = projectId ? { projectId } : { orgId: orgId! }
-    const result = await fetchDomains(params)
+    const result = await fetchDomains({ orgId, projectId })
     result.error ? setError(result.error) : setError(null)
 
     setLoading(false)
@@ -227,37 +222,21 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
   ]
 
   return (
-    <>
-      <PageHeader
-        title='Domains'
-        countLabel='domain'
-        count={domainsCount}
-        actionLabel='Add Domain'
-        actionIcon={<AddIcon />}
-        onAction={onCreateDomain}
-      />
-
-      {!loading && domainsCount > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder='Search domains by name or ID...'
-          />
-        </Box>
-      )}
-
-      {loading && <LoadingSpinner />}
-
-      {error && (
-        <ErrorAlert
-          message={`Error loading domains: ${error.message}`}
-          onClose={() => setError(null)}
-          sx={{ mb: 3 }}
-        />
-      )}
-
-      {!loading && !error && domainsCount === 0 && (
+    <PageLayout
+      searchCount={0}
+      title='Domains'
+      query={searchQuery}
+      countLabel='domain'
+      count={domainsCount}
+      error={error?.message}
+      loading={loading}
+      setSearchQuery={setSearchQuery}
+      onAction={domainsCount > 0 && onCreateDomain}
+      actionLabel={domainsCount > 0 && 'Add Domain'}
+      searchPlaceholder='Search domains by name or ID...'
+      setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
+    >
+      {domainsCount === 0 && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateDomain}
@@ -266,11 +245,11 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
         />
       )}
 
-      {!loading && !error && domainsCount > 0 && filteredDomains.length === 0 && (
+      {domainsCount > 0 && filteredDomains.length === 0 && (
         <EmptyState message='No domains match your search query.' />
       )}
 
-      {!loading && !error && filteredDomains.length > 0 && (
+      {filteredDomains.length > 0 && (
         <DataTable
           columns={columns}
           data={filteredDomains}
@@ -289,7 +268,7 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
           onSuccess={onDomainCreated}
         />
       )}
-    </>
+    </PageLayout>
   )
 }
 

@@ -13,10 +13,10 @@ import { ERoleType, EPermAction, EPermResource, canManageRole } from '@tdsk/doma
  * Cannot add someone with higher role than yourself
  */
 export const addOrgMember: TEndpointConfig = {
-  path: `/:id/members`,
+  path: `/:orgId/members`,
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { id: orgId } = req.params
+    const { orgId } = req.params
     const { db } = req.app.locals
     const { userId, type = ERoleType.member } = req.body
     const currentUserId = req.user?.id

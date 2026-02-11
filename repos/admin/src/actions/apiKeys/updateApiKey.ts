@@ -3,16 +3,22 @@ import type { ApiKey } from '@tdsk/domain'
 import { apiKeysApi } from '@TAF/services'
 import { setApiKey } from '@TAF/state/accessors'
 
+export type TUpdateApiKeyOpts = {
+  orgId: string
+  id: string
+  data: Partial<ApiKey>
+}
+
 export type TUpdateApiKeyResult = {
   apiKey?: ApiKey
   error?: Error
 }
 
 export const updateApiKey = async (
-  id: string,
-  data: Partial<ApiKey>
+  opts: TUpdateApiKeyOpts
 ): Promise<TUpdateApiKeyResult> => {
-  const resp = await apiKeysApi.update(id, data)
+  const { orgId, id, data } = opts
+  const resp = await apiKeysApi.update(orgId, id, data)
 
   if (resp.error) {
     return { error: resp.error }

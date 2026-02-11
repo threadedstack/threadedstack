@@ -6,11 +6,11 @@ import { Exception } from '@TBE/utils/errors/exception'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 
 /**
- * GET /quotas/:orgId/limits - Get plan limits for an organization
+ * GET /orgs/:orgId/quotas/limits - Get plan limits for an organization
  * Returns the limits from the org owner's subscription
  */
 export const getOrgLimits: TEndpointConfig = {
-  path: `/:orgId/limits`,
+  path: `/limits`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params

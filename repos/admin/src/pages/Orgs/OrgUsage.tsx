@@ -51,12 +51,12 @@ export const OrgUsage = (props: TOrgUsage) => {
           sx={{
             mt: 4,
             p: 3,
-            bgcolor: 'background.paper',
             border: 1,
-            borderColor: 'divider',
             borderRadius: 1,
             display: 'flex',
             alignItems: 'center',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
             justifyContent: 'space-between',
           }}
         >
@@ -76,9 +76,9 @@ export const OrgUsage = (props: TOrgUsage) => {
           </Box>
           <Button
             variant='contained'
-            startIcon={<UpgradeIcon />}
             component={RouterLink}
-            to={ERoutePath.Billing}
+            startIcon={<UpgradeIcon />}
+            to={`/${ERoutePath.Billing}`}
           >
             Upgrade Plan
           </Button>
