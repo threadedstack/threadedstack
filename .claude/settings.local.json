@@ -13,7 +13,20 @@
       "Bash(npx vitest:*)",
       "Bash(echo:*)",
       "mcp__playwright__browser_navigate",
-      "mcp__playwright__browser_take_screenshot"
+      "mcp__playwright__browser_take_screenshot",
+      "Bash(API_KEY=\"tdsk_WF89zQCTk1a9_4FDzgZfv0zMCsrslp4MWL8gi7zDRAA\")",
+      "Bash(ORG_ID=\"22f40206-fd94-4da9-9e6e-b3e860798e0a\")",
+      "Bash(python3:*)",
+      "Bash(__NEW_LINE_be7a4d4b8d1abcde__ echo \"\")",
+      "Bash(__NEW_LINE_aaba68f53356c617__ echo \"\")",
+      "Bash(__NEW_LINE_dd29ad7e10e6200a__ echo \"\")",
+      "Bash(__NEW_LINE_b61408fdbb32fec1__ echo \"\")",
+      "Bash(__NEW_LINE_35e01676112925d6__ echo \"\")",
+      "mcp__playwright__browser_run_code",
+      "mcp__playwright__browser_network_requests",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_close"
     ]
   },
   "sandbox": {
