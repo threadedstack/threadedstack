@@ -63,7 +63,7 @@ Backend Server
 
 | Import | File | Purpose |
 |--------|------|---------|
-| `setAuthHeaders` | `setupProxy.ts:7` | Sets `X-User-Id`, `X-Org-Id`, `X-User-Role`, `X-User-Email` on proxied requests |
+| `setAuthHeaders` | `setupProxy.ts:7` | Sets `X-User-Id`, `X-User-Role`, `X-User-Email` on proxied requests |
 | `adminPath` | `setupProxy.ts:7` | Returns `/_` path prefix for backend forwarding |
 | `behindLBProxy` | `setupServer.ts:6` | Checks `TDSK_WITH_LB_PROXY` env to skip CORS |
 | `loadEnvs` | `proxy.config.ts:3` | Loads env vars from `deploy/values.*.yml` |
@@ -77,7 +77,7 @@ Backend Server
 
 The proxy-backend trust model:
 1. Proxy validates JWT via JWKS → attaches `req.user`
-2. `setAuthHeaders()` injects `X-User-Id`, `X-Org-Id`, `X-User-Role`, `X-User-Email` headers
+2. `setAuthHeaders()` injects `X-User-Id`, `X-User-Role`, `X-User-Email` headers
 3. Backend reads headers via `fromAuthHeaders()` (domain utility)
 4. Backend trusts these headers without re-validation (noted in backend audit as security concern)
 

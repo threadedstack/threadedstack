@@ -3,7 +3,6 @@ import type { Request, Response, NextFunction } from 'express'
 
 import { Auth } from '@TPX/services/auth'
 import { logger } from '@TPX/utils/logger'
-import { getAuthHeader } from '@tdsk/domain'
 
 /**
  * JWT Authentication middleware
@@ -47,7 +46,6 @@ export const validateAuth = (app: TProxyApp) => {
 
       req.user = {
         email: result.payload.email || ``,
-        orgId: getAuthHeader(req, `orgId`),
         role: result.payload.role || `user`,
         userId: result.payload.sub || result.payload.userId || ``,
       }

@@ -164,7 +164,7 @@ Uses `http-proxy-middleware` to forward requests to the backend:
 - **Target**: Backend URL from config (supports Kubernetes service discovery)
 - **Path Rewrite**: Preserves `req.originalUrl` (backend expects the original URL)
 - **Custom Headers**: Sets `headerKey`/`headerValue` from config (shared secret)
-- **Auth Headers**: Calls `setAuthHeaders(proxyReq, req)` from `@tdsk/domain` to inject `X-User-Id`, `X-Org-Id`, `X-User-Role`, `X-User-Email`
+- **Auth Headers**: Calls `setAuthHeaders(proxyReq, req)` from `@tdsk/domain` to inject `X-User-Id`, `X-User-Role`, `X-User-Email`
 - **WebSocket**: Enabled (`ws: true`)
 - **Error Handling**: Returns 502 with "Backend service unavailable" on proxy errors
 
@@ -261,7 +261,7 @@ config = {
 
 ### With Backend (`@tdsk/backend`)
 - **Request Forwarding**: Proxy forwards all `/_/*` routes to backend via http-proxy-middleware
-- **Auth Headers**: `setAuthHeaders()` injects `X-User-Id`, `X-Org-Id`, `X-User-Role`, `X-User-Email`
+- **Auth Headers**: `setAuthHeaders()` injects `X-User-Id`, `X-User-Role`, `X-User-Email`
 - **Backend Secret**: `headerKey`/`headerValue` config provides proxy→backend identity verification
 - **WebSocket**: Proxy forwards WebSocket connections (`ws: true`)
 

@@ -37,7 +37,7 @@ env:
 # ---- TDSK Shared ENVs ---- #
   TDSK_SH_LOCAL_MOUNT: tdsk-local
   TDSK_SERVER_ORIGINS: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,proxy.dev.threadedstack.app,px.dev.threadedstack.app,px.threadedstack.app,px.local.threadedstack.app,http://0.0.0.0'
-  TDSK_ALLOWED_HEADERS: 'X-PINGOTHER,Origin,X-Requested-With,Content-Type,Accept,Authorization,AuthToken,x-tdsk-host,x-tdsk-proto,x-tdsk-port,x-tdsk-route,x-tdsk-job-id,x-tdsk-subdomain,x-forwarded-subdomain,x-forwarded-port,x-forwarded-proto,x-forwarded-host,x-forwarded-for,x-user-id,x-org-id,x-user-role,x-user-email'
+  TDSK_ALLOWED_HEADERS: 'X-PINGOTHER,Origin,X-Requested-With,Content-Type,Accept,Authorization,AuthToken,x-tdsk-host,x-tdsk-proto,x-tdsk-port,x-tdsk-route,x-tdsk-job-id,x-tdsk-subdomain,x-forwarded-subdomain,x-forwarded-port,x-forwarded-proto,x-forwarded-host,x-forwarded-for,x-user-id,x-user-role,x-user-email'
 
 
   # ---- Logger ENVs ---- #

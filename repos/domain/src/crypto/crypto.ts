@@ -17,8 +17,8 @@ export type TEncryptVal = {
 const getMasterKey = (): void => {
   if (MasterKey) return
 
-  const envMasterKey = process.env.TDSK_MasterKey
-  if (!envMasterKey) throw new Error(`Required ENV 'TDSK_MasterKey' is missing.`)
+  const envMasterKey = process.env.TDSK_MASTER_KEY
+  if (!envMasterKey) throw new Error(`Required ENV 'TDSK_MASTER_KEY' is missing.`)
 
   try {
     MasterKey = Buffer.from(envMasterKey, `hex`)

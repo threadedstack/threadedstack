@@ -22,6 +22,8 @@ export class Exception extends Error {
 
     super(err.message)
     this.status = status
+    this.message = err.message
+    if ((err as TCustomErr).stack) this.stack = (err as TCustomErr).stack
     this.code = (err as TCustomErr).code || code
   }
 }

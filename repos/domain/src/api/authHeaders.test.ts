@@ -9,7 +9,6 @@ describe(`fromAuthHeaders`, () => {
           'X-User-Id': `user-123`,
           'X-User-Email': `test@test.com`,
           'X-User-Role': `admin`,
-          'X-Org-Id': `org-456`,
         }
         return map[key]
       }),
@@ -19,7 +18,6 @@ describe(`fromAuthHeaders`, () => {
     expect(result.userId).toBe(`user-123`)
     expect(result.email).toBe(`test@test.com`)
     expect(result.role).toBe(`admin`)
-    expect(result.orgId).toBe(`org-456`)
   })
 
   it(`should return partial when headers are missing`, () => {
@@ -41,7 +39,6 @@ describe(`setAuthHeaders`, () => {
         userId: `user-123`,
         email: `test@test.com`,
         role: `admin`,
-        orgId: `org-456`,
       },
     }
 
@@ -49,7 +46,6 @@ describe(`setAuthHeaders`, () => {
     expect(pxReq.setHeader).toHaveBeenCalledWith(`X-User-Id`, `user-123`)
     expect(pxReq.setHeader).toHaveBeenCalledWith(`X-User-Email`, `test@test.com`)
     expect(pxReq.setHeader).toHaveBeenCalledWith(`X-User-Role`, `admin`)
-    expect(pxReq.setHeader).toHaveBeenCalledWith(`X-Org-Id`, `org-456`)
   })
 
   it(`should skip undefined values`, () => {
@@ -66,6 +62,5 @@ describe(`setAuthHeaders`, () => {
     const calledKeys = calls.map((c: string[]) => c[0])
     expect(calledKeys).not.toContain(`X-User-Email`)
     expect(calledKeys).not.toContain(`X-User-Role`)
-    expect(calledKeys).not.toContain(`X-Org-Id`)
   })
 })

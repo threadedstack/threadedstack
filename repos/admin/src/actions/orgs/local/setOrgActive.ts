@@ -1,6 +1,4 @@
 import { nav } from '@TAF/services/nav'
-import { AuthHeaders } from '@tdsk/domain'
-import { apiService } from '@TAF/services/api'
 import { setActiveOrgId, getActiveOrgId } from '@TAF/state/accessors'
 import { unsetActiveProject } from '@TAF/actions/projects/local/unsetActiveProject'
 
@@ -13,7 +11,6 @@ export const setOrgActive = (
   if (force || current !== orgId) {
     unsetActiveProject()
     setActiveOrgId(orgId)
-    apiService.headers({ [AuthHeaders[`user.orgId`]]: orgId })
   }
 
   if (navigate) orgId ? nav.to(`/orgs/${orgId}/projects`) : nav.to(`/orgs`)

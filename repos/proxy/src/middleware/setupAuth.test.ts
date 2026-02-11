@@ -154,7 +154,6 @@ describe(`validateAuth`, () => {
       payload: {
         sub: `user-123`,
         email: `user@example.com`,
-        orgId: `org-456`,
         role: `admin`,
       },
     })
@@ -166,7 +165,6 @@ describe(`validateAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-123`,
       email: `user@example.com`,
-      orgId: `org-456`,
       role: `admin`,
     })
     expect(mockNext).toHaveBeenCalled()
@@ -182,7 +180,6 @@ describe(`validateAuth`, () => {
       payload: {
         userId: `user-789`,
         email: `fallback@example.com`,
-        orgId: `org-abc`,
       },
     })
     const mockReq = { path: `/auth/me`, headers: {} } as unknown as Request
@@ -193,7 +190,6 @@ describe(`validateAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-789`,
       email: `fallback@example.com`,
-      orgId: `org-abc`,
       role: `user`,
     })
     expect(mockNext).toHaveBeenCalled()
@@ -207,7 +203,6 @@ describe(`validateAuth`, () => {
       valid: true,
       payload: {
         sub: `user-minimal`,
-        orgId: `org-min`,
       },
     })
     const mockReq = { path: `/auth/me`, headers: {} } as unknown as Request
@@ -218,7 +213,6 @@ describe(`validateAuth`, () => {
     expect(mockReq.user).toEqual({
       userId: `user-minimal`,
       email: ``,
-      orgId: `org-min`,
       role: `user`,
     })
   })

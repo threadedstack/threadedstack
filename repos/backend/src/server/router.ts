@@ -17,7 +17,7 @@ const Async = (Method: TBoundMethod, endpoint: string, ...args: RequestHandler[]
 }
 
 export const createAsyncRouter = () => {
-  const Router = express.Router()
+  const Router = express.Router({ mergeParams: true })
   const All = Router.all.bind(Router)
   const Use = Router.use.bind(Router)
   const Get = Router.get.bind(Router)

@@ -5,7 +5,6 @@ import hq from 'alias-hq'
 import { defineConfig } from 'vitest/config'
 import { loadEnvs } from '../scripts/loadEnvs'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 const alias = hq.get(`webpack`)
 
@@ -53,15 +52,6 @@ export default defineConfig(async () => {
       alias,
     },
 
-    plugins: [
-      viteTsconfigPaths(),
-      nodePolyfills({
-        include: ['buffer', 'process', 'stream'],
-        globals: {
-          Buffer: true,
-          process: true,
-        },
-      }),
-    ],
+    plugins: [viteTsconfigPaths()],
   } as unknown as UserConfig
 })
