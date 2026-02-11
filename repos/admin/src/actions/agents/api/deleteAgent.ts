@@ -1,8 +1,15 @@
 import { agentsApi } from '@TAF/services'
 import { removeAgent } from '@TAF/actions/agents/local/removeAgent'
 
-export const deleteAgent = async (id: string) => {
-  const resp = await agentsApi.delete(id)
+export type TDeleteAgentOpts = {
+  orgId: string
+  id: string
+  projectId?: string
+}
+
+export const deleteAgent = async (opts: TDeleteAgentOpts) => {
+  const { orgId, id, projectId } = opts
+  const resp = await agentsApi.delete(orgId, id, projectId)
 
   if (resp.error) return { error: resp.error }
   resp.data?.success && removeAgent(id)

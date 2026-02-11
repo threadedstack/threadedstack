@@ -6,27 +6,42 @@ import { BaseApi } from '@TAF/services/api'
 /**
  * Secrets API Service
  * Handles all Secret-related API operations
+ *
+ * Secrets are "exclusive arc" resources — they belong to either an org OR a project.
+ * The backend has two mount points:
+ *   Org-scoped:     /orgs/:orgId/secrets
+ *   Project-scoped: /orgs/:orgId/projects/:projectId/secrets
  */
 export class SecretsApi extends BaseApi {
-  private readonly path = `/secrets`
-
   cache: TApiCacheKeys = {
-    all: () => [this.path] as const,
+    all: () => [`secrets`] as const,
     list: () => [...this.cache.all(), `list`] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
+  #path(orgId: string, projectId?: string) {
+    return projectId
+      ? `/orgs/${orgId}/projects/${projectId}/secrets`
+      : `/orgs/${orgId}/secrets`
+  }
+
   /**
    * Get all secrets
-   * @param data - Optional query parameters (orgId, projectId, limit, offset, etc.)
+   * @param orgId - Organization ID
+   * @param projectId - Optional Project ID (for project-scoped secrets)
+   * @param data - Optional query parameters (limit, offset, etc.)
    * @returns List of all secrets
    */
-  async list(data?: Record<string, any>): Promise<TApiRes<Secret[]>> {
+  async list(
+    orgId: string,
+    projectId?: string,
+    data?: Record<string, any>
+  ): Promise<TApiRes<Secret[]>> {
     const { queryKey, ...rest } = data || {}
 
     const resp = await this.api.get<Secret[]>({
       data: rest,
-      path: this.path,
+      path: this.#path(orgId, projectId),
       queryKey: queryKey || this.cache.list(),
     })
 
@@ -40,12 +55,14 @@ export class SecretsApi extends BaseApi {
 
   /**
    * Get secret by ID
+   * @param orgId - Organization ID
    * @param id - Secret ID
+   * @param projectId - Optional Project ID (for project-scoped secrets)
    * @returns Secret object
    */
-  async get(id: string): Promise<TApiRes<Secret>> {
+  async get(orgId: string, id: string, projectId?: string): Promise<TApiRes<Secret>> {
     const resp = await this.api.get<Secret>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
 
@@ -59,13 +76,19 @@ export class SecretsApi extends BaseApi {
 
   /**
    * Create new secret
+   * @param orgId - Organization ID
    * @param data - Secret data
+   * @param projectId - Optional Project ID (for project-scoped secrets)
    * @returns Created secret
    */
-  async create(data: Partial<Secret>): Promise<TApiRes<Secret>> {
+  async create(
+    orgId: string,
+    data: Partial<Secret>,
+    projectId?: string
+  ): Promise<TApiRes<Secret>> {
     const resp = await this.api.post<Secret>({
       data,
-      path: this.path,
+      path: this.#path(orgId, projectId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create Secret`))
@@ -78,14 +101,21 @@ export class SecretsApi extends BaseApi {
 
   /**
    * Update existing secret
-   * @param id - Provider ID
+   * @param orgId - Organization ID
+   * @param id - Secret ID
    * @param data - Updated secret data
+   * @param projectId - Optional Project ID (for project-scoped secrets)
    * @returns Updated secret
    */
-  async update(id: string, data: Partial<Secret>): Promise<TApiRes<Secret>> {
+  async update(
+    orgId: string,
+    id: string,
+    data: Partial<Secret>,
+    projectId?: string
+  ): Promise<TApiRes<Secret>> {
     const resp = await this.api.put<Secret>({
       data,
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update Secret`))
@@ -98,12 +128,18 @@ export class SecretsApi extends BaseApi {
 
   /**
    * Delete secret
+   * @param orgId - Organization ID
    * @param id - Secret ID
+   * @param projectId - Optional Project ID (for project-scoped secrets)
    * @returns Success status
    */
-  async delete(id: string): Promise<TApiRes<{ success: boolean }>> {
+  async delete(
+    orgId: string,
+    id: string,
+    projectId?: string
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to delete Secret`))

@@ -1,5 +1,2 @@
-export * from './fetchSecrets'
-export * from './fetchSecret'
-export * from './createSecret'
-export * from './updateSecret'
-export * from './deleteSecret'
+export * from './api'
+export * from './local'

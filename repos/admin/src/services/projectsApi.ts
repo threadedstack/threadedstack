@@ -8,26 +8,32 @@ import { BaseApi } from '@TAF/services/api'
  * Handles all Project-related API operations
  */
 export class ProjectsApi extends BaseApi {
-  private readonly path = `/projects`
+  #path(orgId: string) {
+    return `/orgs/${orgId}/projects`
+  }
 
   cache: TApiCacheKeys = {
-    all: () => [this.path] as const,
+    all: () => [`/projects`] as const,
     list: () => [...this.cache.all(), `list`] as const,
     listOrg: (orgId: string) => [...this.cache.list(), orgId] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
   /**
-   * Get all project
-   * @param params - Optional query parameters (orgId, limit, offset, etc.)
+   * Get all projects for an org
+   * @param orgId - Organization ID
+   * @param data - Optional query parameters (limit, offset, etc.)
    * @returns List of all projects
    */
-  async list(data: Record<string, any> = {}): Promise<TApiRes<Record<string, Project>>> {
+  async list(
+    orgId: string,
+    data: Record<string, any> = {}
+  ): Promise<TApiRes<Record<string, Project>>> {
     const { queryKey, ...rest } = data
 
     const resp = await this.api.get<Project[]>({
       data: rest,
-      path: this.path,
+      path: this.#path(orgId),
       queryKey: queryKey || this.cache.list(),
     })
 
@@ -44,12 +50,13 @@ export class ProjectsApi extends BaseApi {
 
   /**
    * Get project by ID
+   * @param orgId - Organization ID
    * @param id - Project ID
    * @returns Project object
    */
-  async get(id: string): Promise<TApiRes<Project>> {
+  async get(orgId: string, id: string): Promise<TApiRes<Project>> {
     const resp = await this.api.get<Project>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
 
@@ -63,13 +70,14 @@ export class ProjectsApi extends BaseApi {
 
   /**
    * Create new project
+   * @param orgId - Organization ID
    * @param data - Project data
    * @returns Created project
    */
-  async create(data: Partial<Project>): Promise<TApiRes<Project>> {
+  async create(orgId: string, data: Partial<Project>): Promise<TApiRes<Project>> {
     const resp = await this.api.post<Project>({
       data,
-      path: this.path,
+      path: this.#path(orgId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create Project`))
@@ -82,14 +90,19 @@ export class ProjectsApi extends BaseApi {
 
   /**
    * Update existing project
+   * @param orgId - Organization ID
    * @param id - Project ID
    * @param data - Updated project data
    * @returns Updated project
    */
-  async update(id: string, data: Partial<Project>): Promise<TApiRes<Project>> {
+  async update(
+    orgId: string,
+    id: string,
+    data: Partial<Project>
+  ): Promise<TApiRes<Project>> {
     const resp = await this.api.put<Project>({
       data,
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update Project`))
@@ -102,15 +115,16 @@ export class ProjectsApi extends BaseApi {
 
   /**
    * Delete project
+   * @param orgId - Organization ID
    * @param id - Project ID
    * @returns Success status
    */
-  async delete(id: string): Promise<TApiRes<{ success: boolean }>> {
+  async delete(orgId: string, id: string): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId)}/${id}`,
     })
 
-    resp.error && (await this._onError(resp.error, `Failed to update Project`))
+    resp.error && (await this._onError(resp.error, `Failed to delete Project`))
 
     return resp
   }
@@ -121,10 +135,7 @@ export class ProjectsApi extends BaseApi {
    * @returns List of projects for the org
    */
   async listByOrg(orgId: string): Promise<TApiRes<Record<string, Project>>> {
-    return this.list({
-      orgId,
-      queryKey: this.cache.listOrg(orgId),
-    })
+    return this.list(orgId, { queryKey: this.cache.listOrg(orgId) })
   }
 }
 

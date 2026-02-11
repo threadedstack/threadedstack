@@ -17,13 +17,14 @@ export const listSecrets: TEndpointConfig = {
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, projectId, agentId } = req.query
+    const { orgId, projectId } = req.params
+    const { agentId } = req.query
 
     if (!orgId && !projectId && !agentId)
-      throw new Exception(400, `orgId, projectId, or agentId query parameter required`)
+      throw new Exception(400, `orgId, projectId, or agentId is required`)
 
     // For agent secrets, look up the agent to get its orgId for permission check
-    let permOrgId = orgId as string | undefined
+    let permOrgId = orgId
     if (agentId) {
       const { data: agent } = await db.services.agent.get(agentId as string)
       if (!agent) throw new Exception(404, `Agent not found`)
@@ -33,14 +34,14 @@ export const listSecrets: TEndpointConfig = {
     // Check permission based on scope
     await checkPermission(req, EPermAction.read, EPermResource.secret, {
       orgId: permOrgId,
-      projectId: projectId as string | undefined,
+      projectId,
     })
 
     const { limit, offset } = parsePagination(req)
 
     const where: Record<string, string> = {}
-    if (orgId) where.orgId = orgId as string
-    if (projectId) where.projectId = projectId as string
+    if (orgId) where.orgId = orgId
+    if (projectId) where.projectId = projectId
     if (agentId) where.agentId = agentId as string
 
     const { data, error } = await db.services.secret.list({ where, limit, offset })
@@ -52,7 +53,7 @@ export const listSecrets: TEndpointConfig = {
     // Check if user can see secret values
     const userRole = await getUserRole(req, {
       orgId: permOrgId,
-      projectId: projectId as string | undefined,
+      projectId,
     })
     const includeValue = canAccessSecretValue(userRole)
 

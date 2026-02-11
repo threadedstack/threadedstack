@@ -118,7 +118,7 @@ describe(`Secrets endpoints`, () => {
           createdAt: new Date(),
         }),
       ]
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
         typeof vi.fn
@@ -144,7 +144,7 @@ describe(`Secrets endpoints`, () => {
           encryptedValue: `e`,
         }),
       ]
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
         typeof vi.fn
@@ -172,7 +172,8 @@ describe(`Secrets endpoints`, () => {
           encryptedValue: `e`,
         }),
       ]
-      mockReq.query = { orgId: `org-1`, limit: `25`, offset: `10` }
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { limit: `25`, offset: `10` }
 
       const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
         typeof vi.fn
@@ -226,7 +227,7 @@ describe(`Secrets endpoints`, () => {
 
     it(`should return 500 with error message on database failure`, async () => {
       const mockError = new Error(`Database connection failed`)
-      mockReq.query = { orgId: `org-1` }
+      mockReq.params = { orgId: `org-1` }
 
       const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
         typeof vi.fn

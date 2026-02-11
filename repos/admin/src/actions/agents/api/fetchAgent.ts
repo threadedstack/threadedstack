@@ -1,8 +1,15 @@
 import { agentsApi } from '@TAF/services'
 import { upsertAgent } from '@TAF/actions/agents/local/upsertAgent'
 
-export const fetchAgent = async (id: string) => {
-  const resp = await agentsApi.get(id)
+export type TFetchAgentOpts = {
+  orgId: string
+  id: string
+  projectId?: string
+}
+
+export const fetchAgent = async (opts: TFetchAgentOpts) => {
+  const { orgId, id, projectId } = opts
+  const resp = await agentsApi.get(orgId, id, projectId)
   if (resp.error) return { error: resp.error }
   resp.data && upsertAgent(resp.data)
 

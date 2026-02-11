@@ -24,7 +24,11 @@ export const createSecret: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { name, value, orgId, projectId, providerId, agentId } = req.body
+    const { name, value, agentId, providerId, description } = req.body
+
+    const { orgId: paramOrgId, projectId: paramProjectId } = req.params
+    const orgId = paramOrgId || req.body.orgId
+    const projectId = paramProjectId || req.body.projectId
 
     if (!name) throw new Exception(400, `Secret name is required`)
     if (!value) throw new Exception(400, `Secret value is required`)
@@ -71,11 +75,12 @@ export const createSecret: TEndpointConfig = {
       const secret = new Secret({
         name,
         hashKey,
+        description,
         encryptedValue,
         ...(orgId && { orgId }),
+        ...(agentId && { agentId }),
         ...(projectId && { projectId }),
         ...(providerId && { providerId }),
-        ...(agentId && { agentId }),
       })
 
       const { data, error } = await db.services.secret.create(secret)

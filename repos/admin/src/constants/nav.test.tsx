@@ -6,10 +6,9 @@ import { OrgNavItems, ProjectNavItems, BottomNavItems } from './nav'
 
 describe(`getDynamicNav`, () => {
   describe(`with no context`, () => {
-    it(`should return only global section`, () => {
+    it(`should return no sections`, () => {
       const config = getDynamicNav({})
-      expect(config.sections.length).toBe(1)
-      expect(config.sections[0].id).toBe(`global`)
+      expect(config.sections.length).toBe(0)
     })
 
     it(`should return bottom nav items`, () => {
@@ -32,11 +31,11 @@ describe(`getDynamicNav`, () => {
       org: { name: `Engineering` } as any,
     }
 
-    it(`should return global and org sections`, () => {
+    it(`should return org and project sections`, () => {
       const config = getDynamicNav(orgContext)
       expect(config.sections.length).toBe(2)
-      expect(config.sections[0].id).toBe(`global`)
-      expect(config.sections[1].id).toBe(`org`)
+      expect(config.sections[0].id).toBe(`org`)
+      expect(config.sections[1].id).toBe(`project`)
     })
 
     it(`should have org name in header`, () => {
@@ -64,10 +63,10 @@ describe(`getDynamicNav`, () => {
       expect(typeof orgSection?.visible).toBe(`function`)
     })
 
-    it(`should not include project section when projectId is missing`, () => {
+    it(`should include project section when orgId is present`, () => {
       const config = getDynamicNav(orgContext)
       const sectionIds = config.sections.map((s) => s.id)
-      expect(sectionIds).not.toContain(`project`)
+      expect(sectionIds).toContain(`project`)
     })
   })
 
@@ -79,12 +78,11 @@ describe(`getDynamicNav`, () => {
       project: { name: `API Gateway` } as any,
     }
 
-    it(`should return global, org, and project sections`, () => {
+    it(`should return org and project sections`, () => {
       const config = getDynamicNav(fullContext)
-      expect(config.sections.length).toBe(3)
-      expect(config.sections[0].id).toBe(`global`)
-      expect(config.sections[1].id).toBe(`org`)
-      expect(config.sections[2].id).toBe(`project`)
+      expect(config.sections.length).toBe(2)
+      expect(config.sections[0].id).toBe(`org`)
+      expect(config.sections[1].id).toBe(`project`)
     })
 
     it(`should have project name in project section header`, () => {
@@ -118,7 +116,7 @@ describe(`getDynamicNav`, () => {
     it(`should have correct section order`, () => {
       const config = getDynamicNav(fullContext)
       const sectionIds = config.sections.map((s) => s.id)
-      expect(sectionIds).toEqual([`global`, `org`, `project`])
+      expect(sectionIds).toEqual([`org`, `project`])
     })
   })
 
@@ -245,7 +243,7 @@ describe(`OrgNavItems`, () => {
         `Users`,
         `Secrets`,
         `Providers`,
-        `AI`,
+        `Domains`,
         `Usage`,
         `Settings`,
       ]
@@ -373,7 +371,12 @@ describe(`ProjectNavItems`, () => {
       const context: TNavCtx = { orgId: `org-123` }
       ProjectNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
-        expect(item.visible?.(context)).toBe(false)
+        // Domains only requires orgId, so it's visible even without projectId
+        if (item.text === `Domains`) {
+          expect(item.visible?.(context)).toBe(true)
+        } else {
+          expect(item.visible?.(context)).toBe(false)
+        }
       })
     })
 
@@ -393,7 +396,9 @@ describe(`ProjectNavItems`, () => {
         `Functions`,
         `Secrets`,
         `Providers`,
-        `AI`,
+        `Agents`,
+        `Threads`,
+        `Domains`,
         `Settings`,
       ]
       const actualItems = ProjectNavItems.map((item) => item.text)

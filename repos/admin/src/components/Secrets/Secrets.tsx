@@ -1,19 +1,23 @@
 import type { Secret } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
+import { Box, Typography } from '@mui/material'
 import { useSecrets } from '@TAF/state/selectors'
-import { fetchSecrets } from '@TAF/actions/secrets'
+import { ConfirmDelete } from '@tdsk/components'
 import { useEffect, useState, useMemo } from 'react'
-import { Box, Typography, Chip } from '@mui/material'
-import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
-import { PageHeader } from '@TAF/components/PageHeader/PageHeader'
-import { SecretDrawer } from '@TAF/components/Secrets/SecretDrawer'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
-import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { SecretDrawer } from '@TAF/components/Secrets/SecretDrawer'
+import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
+import { deleteSecret } from '@TAF/actions/secrets/api/deleteSecret'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
-import { Key as KeyIcon, Add as AddIcon, Edit as EditIcon } from '@mui/icons-material'
+import {
+  Key as KeyIcon,
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+} from '@mui/icons-material'
 
 export type TSecrets = {
   orgId?: string
@@ -23,10 +27,11 @@ export type TSecrets = {
 export const Secrets = ({ orgId, projectId }: TSecrets) => {
   const [secrets] = useSecrets()
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedSecret, setSelectedSecret] = useState<Secret | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [deleting, setDeleting] = useState<Secret>()
+  const [error, setError] = useState<Error | null>(null)
+  const [selectedSecret, setSelectedSecret] = useState<Secret | null>(null)
 
   // Determine context type
   const isOrgContext = !!orgId && !projectId
@@ -39,14 +44,8 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
 
       setLoading(true)
       setError(null)
-
-      const params = projectId ? { projectId } : { orgId: orgId! }
-      const result = await fetchSecrets(params)
-
-      if (result.error) {
-        setError(result.error)
-      }
-
+      const result = await fetchSecrets({ orgId, projectId })
+      result.error && setError(result.error)
       setLoading(false)
     }
 
@@ -63,22 +62,23 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
     setSelectedSecret(null)
   }
 
-  const onSecretCreated = async () => {
-    if (!orgId && !projectId) return
+  const onEditSecret = (secret: Secret) => {
+    setSelectedSecret(secret)
+    setDialogOpen(true)
+  }
+
+  const onRemove = async () => {
+    if (!deleting) return
 
     setLoading(true)
     setError(null)
 
-    const params = projectId ? { projectId } : { orgId: orgId! }
-    const result = await fetchSecrets(params)
-    result.error ? setError(result.error) : setError(null)
+    const result = await deleteSecret({ orgId, id: deleting.id, projectId })
 
     setLoading(false)
-  }
-
-  const onEditSecret = (secret: Secret) => {
-    setSelectedSecret(secret)
-    setDialogOpen(true)
+    setDeleting(undefined)
+    dialogOpen && setDialogOpen(false)
+    result.error && setError(result.error)
   }
 
   const filteredSecrets = useMemo(() => {
@@ -135,23 +135,34 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
       ),
     },
     {
-      id: 'provider',
-      label: 'Provider',
-      render: (secret) =>
-        secret.providerId ? (
-          <Chip
-            label={secret.providerId}
-            size='small'
-            variant='outlined'
-          />
-        ) : (
-          <Typography
-            variant='body2'
-            color='text.secondary'
-          >
-            N/A
-          </Typography>
-        ),
+      id: 'id',
+      label: 'ID',
+      render: (secret) => (
+        <Typography
+          maxWidth='200px'
+          variant='caption'
+          color='text.secondary'
+        >
+          {secret.id}
+        </Typography>
+      ),
+    },
+    {
+      id: 'description',
+      label: 'Description',
+      render: (secret) => (
+        <Typography
+          display='block'
+          maxWidth='200px'
+          variant='caption'
+          overflow='hidden'
+          whiteSpace='nowrap'
+          textOverflow='ellipsis'
+          color='text.secondary'
+        >
+          {secret.description}
+        </Typography>
+      ),
     },
     {
       id: 'created',
@@ -166,68 +177,53 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
       ),
     },
     {
-      id: 'id',
-      label: 'ID',
-      render: (secret) => (
-        <Typography
-          variant='caption'
-          color='text.secondary'
-        >
-          {secret.id}
-        </Typography>
-      ),
-    },
-    {
       id: 'actions',
       label: 'Actions',
       align: 'right',
       render: (secret) => (
-        <ActionIconButton
-          tooltip='Edit Secret'
-          icon={<EditIcon />}
-          size='small'
-          color='primary'
-          onClick={(e) => {
-            e.stopPropagation()
-            onEditSecret(secret)
-          }}
-        />
+        <>
+          <ActionIconButton
+            tooltip='Edit Secret'
+            icon={<EditIcon sx={{ fontSize: `16px` }} />}
+            size='small'
+            color='primary'
+            onClick={(e) => {
+              e.stopPropagation()
+              onEditSecret(secret)
+            }}
+          />
+          <ActionIconButton
+            tooltip='Delete Secret'
+            icon={<DeleteIcon sx={{ fontSize: `16px` }} />}
+            size='small'
+            color='error'
+            onClick={(e) => {
+              e.stopPropagation()
+              setDeleting(secret)
+            }}
+          />
+        </>
       ),
     },
   ]
 
   return (
-    <>
-      <PageHeader
-        title='Secrets'
-        count={secretsCount}
-        countLabel='secret'
-        actionLabel='Create Secret'
-        actionIcon={<AddIcon />}
-        onAction={onCreateSecret}
-      />
-
-      {!loading && secretsCount > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder='Search secrets by name or ID...'
-          />
-        </Box>
-      )}
-
-      {loading && <LoadingSpinner />}
-
-      {error && (
-        <ErrorAlert
-          message={`Error loading secrets: ${error.message}`}
-          onClose={() => setError(null)}
-          sx={{ mb: 3 }}
-        />
-      )}
-
-      {!loading && !error && secretsCount === 0 && (
+    <PageLayout
+      title='Secrets'
+      loading={loading}
+      searchCount={0}
+      countLabel='secret'
+      query={searchQuery}
+      count={secretsCount}
+      error={error?.message}
+      setSearchQuery={setSearchQuery}
+      actionIcon={<AddIcon />}
+      onAction={secretsCount > 0 && onCreateSecret}
+      actionLabel={secretsCount > 0 && 'Create Secret'}
+      searchPlaceholder='Search secrets by name or ID...'
+      setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
+    >
+      {!error && secretsCount === 0 && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateSecret}
@@ -236,11 +232,11 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
         />
       )}
 
-      {!loading && !error && secretsCount > 0 && filteredSecrets.length === 0 && (
+      {!error && secretsCount > 0 && filteredSecrets.length === 0 && (
         <EmptyState message='No secrets match your search query.' />
       )}
 
-      {!loading && !error && filteredSecrets.length > 0 && (
+      {!error && filteredSecrets.length > 0 && (
         <DataTable
           columns={columns}
           data={filteredSecrets}
@@ -251,15 +247,24 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
 
       {(orgId || projectId) && (
         <SecretDrawer
-          open={dialogOpen}
           orgId={orgId}
+          open={dialogOpen}
           projectId={projectId}
+          onRemove={setDeleting}
           secret={selectedSecret}
           onClose={onDialogClose}
-          onSuccess={onSecretCreated}
         />
       )}
-    </>
+
+      {deleting && (
+        <ConfirmDelete
+          deleting={loading}
+          onConfirm={onRemove}
+          itemName={deleting?.name || `Secret`}
+          onCancel={() => setDeleting(undefined)}
+        />
+      )}
+    </PageLayout>
   )
 }
 

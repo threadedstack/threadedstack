@@ -6,27 +6,42 @@ import { BaseApi } from '@TAF/services/api'
 /**
  * Configs API Service
  * Handles all Config-related API operations
+ *
+ * Configs are "exclusive arc" resources — they belong to either an org OR a project.
+ * The backend has two mount points:
+ *   Org-scoped:     /orgs/:orgId/configs
+ *   Project-scoped: /orgs/:orgId/projects/:projectId/configs
  */
 export class ConfigsApi extends BaseApi {
-  private readonly path = `/configs`
-
   cache: TApiCacheKeys = {
-    all: () => [this.path] as const,
+    all: () => [`configs`] as const,
     list: () => [...this.cache.all(), `list`] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
+  #path(orgId: string, projectId?: string) {
+    return projectId
+      ? `/orgs/${orgId}/projects/${projectId}/configs`
+      : `/orgs/${orgId}/configs`
+  }
+
   /**
    * Get all configs
-   * @param data - Optional query parameters (orgId, projectId, limit, offset, etc.)
+   * @param orgId - Organization ID
+   * @param projectId - Optional Project ID (for project-scoped configs)
+   * @param data - Optional query parameters (limit, offset, etc.)
    * @returns List of all configs
    */
-  async list(data?: Record<string, any>): Promise<TApiRes<Config[]>> {
+  async list(
+    orgId: string,
+    projectId?: string,
+    data?: Record<string, any>
+  ): Promise<TApiRes<Config[]>> {
     const { queryKey, ...rest } = data || {}
 
     const resp = await this.api.get<Config[]>({
       data: rest,
-      path: this.path,
+      path: this.#path(orgId, projectId),
       queryKey: queryKey || this.cache.list(),
     })
 
@@ -37,12 +52,14 @@ export class ConfigsApi extends BaseApi {
 
   /**
    * Get config by ID
+   * @param orgId - Organization ID
    * @param id - Config ID
+   * @param projectId - Optional Project ID (for project-scoped configs)
    * @returns Config object
    */
-  async get(id: string): Promise<TApiRes<Config>> {
+  async get(orgId: string, id: string, projectId?: string): Promise<TApiRes<Config>> {
     const resp = await this.api.get<Config>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
 
@@ -53,13 +70,19 @@ export class ConfigsApi extends BaseApi {
 
   /**
    * Create new config
+   * @param orgId - Organization ID
    * @param data - Config data
+   * @param projectId - Optional Project ID (for project-scoped configs)
    * @returns Created config
    */
-  async create(data: Partial<Config>): Promise<TApiRes<Config>> {
+  async create(
+    orgId: string,
+    data: Partial<Config>,
+    projectId?: string
+  ): Promise<TApiRes<Config>> {
     const resp = await this.api.post<Config>({
       data,
-      path: this.path,
+      path: this.#path(orgId, projectId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create Config`))
@@ -69,14 +92,21 @@ export class ConfigsApi extends BaseApi {
 
   /**
    * Update existing config
+   * @param orgId - Organization ID
    * @param id - Config ID
    * @param data - Updated config data
+   * @param projectId - Optional Project ID (for project-scoped configs)
    * @returns Updated config
    */
-  async update(id: string, data: Partial<Config>): Promise<TApiRes<Config>> {
+  async update(
+    orgId: string,
+    id: string,
+    data: Partial<Config>,
+    projectId?: string
+  ): Promise<TApiRes<Config>> {
     const resp = await this.api.put<Config>({
       data,
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update Config`))
@@ -86,12 +116,18 @@ export class ConfigsApi extends BaseApi {
 
   /**
    * Delete config
+   * @param orgId - Organization ID
    * @param id - Config ID
+   * @param projectId - Optional Project ID (for project-scoped configs)
    * @returns Success status
    */
-  async delete(id: string): Promise<TApiRes<{ success: boolean }>> {
+  async delete(
+    orgId: string,
+    id: string,
+    projectId?: string
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to delete Config`))

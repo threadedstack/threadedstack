@@ -16,25 +16,28 @@ export type TCreateApiKeyResponse = ApiKey & {
  * Handles all API Key-related API operations
  */
 export class ApiKeysApi extends BaseApi {
-  private readonly path = `/api-keys`
+  #path(orgId: string) {
+    return `/orgs/${orgId}/api-keys`
+  }
 
   cache: TApiCacheKeys = {
-    all: () => [this.path] as const,
+    all: () => [`/api-keys`] as const,
     list: () => [...this.cache.all(), `list`] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
   /**
    * Get all API keys (masked)
-   * @param data - Optional query parameters (orgId, projectId, limit, offset, etc.)
+   * @param orgId - Organization ID
+   * @param data - Optional query parameters (limit, offset, etc.)
    * @returns List of all API keys with masked values
    */
-  async list(data?: Record<string, any>): Promise<TApiRes<ApiKey[]>> {
+  async list(orgId: string, data?: Record<string, any>): Promise<TApiRes<ApiKey[]>> {
     const { queryKey, ...rest } = data || {}
 
     const resp = await this.api.get<ApiKey[]>({
       data: rest,
-      path: this.path,
+      path: this.#path(orgId),
       queryKey: queryKey || this.cache.list(),
     })
 
@@ -48,12 +51,13 @@ export class ApiKeysApi extends BaseApi {
 
   /**
    * Get API key by ID (masked)
+   * @param orgId - Organization ID
    * @param id - API Key ID
    * @returns API Key object (masked)
    */
-  async get(id: string): Promise<TApiRes<ApiKey>> {
+  async get(orgId: string, id: string): Promise<TApiRes<ApiKey>> {
     const resp = await this.api.get<ApiKey>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
 
@@ -67,13 +71,17 @@ export class ApiKeysApi extends BaseApi {
 
   /**
    * Create new API key
-   * @param data - API key data (name, orgId/projectId, scopes, expiresAt)
+   * @param orgId - Organization ID
+   * @param data - API key data (name, scopes, expiresAt)
    * @returns Created API key WITH the raw key (only shown once!)
    */
-  async create(data: Partial<ApiKey>): Promise<TApiRes<TCreateApiKeyResponse>> {
+  async create(
+    orgId: string,
+    data: Partial<ApiKey>
+  ): Promise<TApiRes<TCreateApiKeyResponse>> {
     const resp = await this.api.post<TCreateApiKeyResponse>({
       data,
-      path: this.path,
+      path: this.#path(orgId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create API key`))
@@ -83,14 +91,19 @@ export class ApiKeysApi extends BaseApi {
 
   /**
    * Update API key
+   * @param orgId - Organization ID
    * @param id - API Key ID
    * @param data - Update data (name, scopes, active)
    * @returns Updated API key
    */
-  async update(id: string, data: Partial<ApiKey>): Promise<TApiRes<ApiKey>> {
+  async update(
+    orgId: string,
+    id: string,
+    data: Partial<ApiKey>
+  ): Promise<TApiRes<ApiKey>> {
     const resp = await this.api.put<ApiKey>({
       data,
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update API key`))
@@ -103,12 +116,13 @@ export class ApiKeysApi extends BaseApi {
 
   /**
    * Revoke (delete) API key
+   * @param orgId - Organization ID
    * @param id - API Key ID
    * @returns Success status
    */
-  async revoke(id: string): Promise<TApiRes<{ success: boolean }>> {
+  async revoke(orgId: string, id: string): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to revoke API key`))

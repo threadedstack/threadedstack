@@ -6,27 +6,42 @@ import { BaseApi } from '@TAF/services/api'
 /**
  * Providers API Service
  * Handles all Provider-related API operations
+ *
+ * Providers are "exclusive arc" resources — they belong to either an org OR a project.
+ * The backend has two mount points:
+ *   Org-scoped:     /orgs/:orgId/providers
+ *   Project-scoped: /orgs/:orgId/projects/:projectId/providers
  */
 export class ProvidersApi extends BaseApi {
-  private readonly path = `/providers`
-
   cache: TApiCacheKeys = {
-    all: () => [this.path] as const,
+    all: () => [`providers`] as const,
     list: () => [...this.cache.all(), `list`] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
+  #path(orgId: string, projectId?: string) {
+    return projectId
+      ? `/orgs/${orgId}/projects/${projectId}/providers`
+      : `/orgs/${orgId}/providers`
+  }
+
   /**
    * Get all providers
-   * @param data - Optional query parameters (orgId, limit, offset, etc.)
+   * @param orgId - Organization ID
+   * @param projectId - Optional Project ID (for project-scoped providers)
+   * @param data - Optional query parameters (limit, offset, etc.)
    * @returns List of all providers
    */
-  async list(data?: Record<string, any>): Promise<TApiRes<Provider[]>> {
+  async list(
+    orgId: string,
+    projectId?: string,
+    data?: Record<string, any>
+  ): Promise<TApiRes<Provider[]>> {
     const { queryKey, ...rest } = data || {}
 
     const resp = await this.api.get<Provider[]>({
       data: rest,
-      path: this.path,
+      path: this.#path(orgId, projectId),
       queryKey: queryKey || this.cache.list(),
     })
 
@@ -40,12 +55,14 @@ export class ProvidersApi extends BaseApi {
 
   /**
    * Get provider by ID
+   * @param orgId - Organization ID
    * @param id - Provider ID
+   * @param projectId - Optional Project ID (for project-scoped providers)
    * @returns Provider object
    */
-  async get(id: string): Promise<TApiRes<Provider>> {
+  async get(orgId: string, id: string, projectId?: string): Promise<TApiRes<Provider>> {
     const resp = await this.api.get<Provider>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
 
@@ -59,13 +76,19 @@ export class ProvidersApi extends BaseApi {
 
   /**
    * Create new provider
+   * @param orgId - Organization ID
    * @param data - Provider data
+   * @param projectId - Optional Project ID (for project-scoped providers)
    * @returns Created provider
    */
-  async create(data: Partial<Provider>): Promise<TApiRes<Provider>> {
+  async create(
+    orgId: string,
+    data: Partial<Provider>,
+    projectId?: string
+  ): Promise<TApiRes<Provider>> {
     const resp = await this.api.post<Provider>({
       data,
-      path: this.path,
+      path: this.#path(orgId, projectId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create Provider`))
@@ -78,14 +101,21 @@ export class ProvidersApi extends BaseApi {
 
   /**
    * Update existing provider
+   * @param orgId - Organization ID
    * @param id - Provider ID
    * @param data - Updated provider data
+   * @param projectId - Optional Project ID (for project-scoped providers)
    * @returns Updated provider
    */
-  async update(id: string, data: Partial<Provider>): Promise<TApiRes<Provider>> {
+  async update(
+    orgId: string,
+    id: string,
+    data: Partial<Provider>,
+    projectId?: string
+  ): Promise<TApiRes<Provider>> {
     const resp = await this.api.put<Provider>({
       data,
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update Provider`))
@@ -98,12 +128,18 @@ export class ProvidersApi extends BaseApi {
 
   /**
    * Delete provider
+   * @param orgId - Organization ID
    * @param id - Provider ID
+   * @param projectId - Optional Project ID (for project-scoped providers)
    * @returns Success status
    */
-  async delete(id: string): Promise<TApiRes<{ success: boolean }>> {
+  async delete(
+    orgId: string,
+    id: string,
+    projectId?: string
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to delete Provider`))

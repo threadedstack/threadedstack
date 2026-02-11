@@ -1,7 +1,6 @@
 import type { TButton } from '@TSC/components/Buttons/Button'
 
 import { useMemo } from 'react'
-import Box from '@mui/material/Box'
 import { Button } from '@TSC/components/Buttons/Button'
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
 import { LoadingButton } from '@TSC/components/Buttons/LoadingButton'

@@ -6,27 +6,42 @@ import { BaseApi } from '@TAF/services/api'
 /**
  * Agents API Service
  * Handles all Agent-related API operations
+ *
+ * Agents are "exclusive arc" resources — they belong to either an org OR a project.
+ * The backend has two mount points:
+ *   Org-scoped:     /orgs/:orgId/agents
+ *   Project-scoped: /orgs/:orgId/projects/:projectId/agents
  */
 export class AgentsApi extends BaseApi {
-  private readonly path = `/agents`
-
   cache: TApiCacheKeys = {
-    all: () => [this.path] as const,
+    all: () => [`agents`] as const,
     list: () => [...this.cache.all(), `list`] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
+  #path(orgId: string, projectId?: string) {
+    return projectId
+      ? `/orgs/${orgId}/projects/${projectId}/agents`
+      : `/orgs/${orgId}/agents`
+  }
+
   /**
    * Get all agents
-   * @param data - Optional query parameters (projectId, limit, offset, etc.)
+   * @param orgId - Organization ID
+   * @param projectId - Optional Project ID (for project-scoped agents)
+   * @param data - Optional query parameters (limit, offset, etc.)
    * @returns List of all agents
    */
-  async list(data?: Record<string, any>): Promise<TApiRes<Agent[]>> {
+  async list(
+    orgId: string,
+    projectId?: string,
+    data?: Record<string, any>
+  ): Promise<TApiRes<Agent[]>> {
     const { queryKey, ...rest } = data || {}
 
     const resp = await this.api.get<Agent[]>({
       data: rest,
-      path: this.path,
+      path: this.#path(orgId, projectId),
       queryKey: queryKey || this.cache.list(),
     })
 
@@ -40,12 +55,14 @@ export class AgentsApi extends BaseApi {
 
   /**
    * Get agent by ID
+   * @param orgId - Organization ID
    * @param id - Agent ID
+   * @param projectId - Optional Project ID (for project-scoped agents)
    * @returns Agent object
    */
-  async get(id: string): Promise<TApiRes<Agent>> {
+  async get(orgId: string, id: string, projectId?: string): Promise<TApiRes<Agent>> {
     const resp = await this.api.get<Agent>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
 
@@ -59,13 +76,19 @@ export class AgentsApi extends BaseApi {
 
   /**
    * Create new agent
+   * @param orgId - Organization ID
    * @param data - Agent data
+   * @param projectId - Optional Project ID (for project-scoped agents)
    * @returns Created agent
    */
-  async create(data: Partial<Agent>): Promise<TApiRes<Agent>> {
+  async create(
+    orgId: string,
+    data: Partial<Agent>,
+    projectId?: string
+  ): Promise<TApiRes<Agent>> {
     const resp = await this.api.post<Agent>({
       data,
-      path: this.path,
+      path: this.#path(orgId, projectId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create Agent`))
@@ -78,14 +101,21 @@ export class AgentsApi extends BaseApi {
 
   /**
    * Update existing agent
+   * @param orgId - Organization ID
    * @param id - Agent ID
    * @param data - Updated agent data
+   * @param projectId - Optional Project ID (for project-scoped agents)
    * @returns Updated agent
    */
-  async update(id: string, data: Partial<Agent>): Promise<TApiRes<Agent>> {
+  async update(
+    orgId: string,
+    id: string,
+    data: Partial<Agent>,
+    projectId?: string
+  ): Promise<TApiRes<Agent>> {
     const resp = await this.api.put<Agent>({
       data,
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update Agent`))
@@ -98,12 +128,18 @@ export class AgentsApi extends BaseApi {
 
   /**
    * Delete agent
+   * @param orgId - Organization ID
    * @param id - Agent ID
+   * @param projectId - Optional Project ID (for project-scoped agents)
    * @returns Success status
    */
-  async delete(id: string): Promise<TApiRes<{ success: boolean }>> {
+  async delete(
+    orgId: string,
+    id: string,
+    projectId?: string
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to delete Agent`))

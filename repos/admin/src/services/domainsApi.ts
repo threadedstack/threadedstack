@@ -6,27 +6,42 @@ import { BaseApi } from '@TAF/services/api'
 /**
  * Domains API Service
  * Handles all Domain-related API operations
+ *
+ * Domains are "exclusive arc" resources — they belong to either an org OR a project.
+ * The backend has two mount points:
+ *   Org-scoped:     /orgs/:orgId/domains
+ *   Project-scoped: /orgs/:orgId/projects/:projectId/domains
  */
 export class DomainsApi extends BaseApi {
-  private readonly path = `/domains`
-
   cache: TApiCacheKeys = {
-    all: () => [this.path] as const,
+    all: () => [`domains`] as const,
     list: () => [...this.cache.all(), `list`] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
+  #path(orgId: string, projectId?: string) {
+    return projectId
+      ? `/orgs/${orgId}/projects/${projectId}/domains`
+      : `/orgs/${orgId}/domains`
+  }
+
   /**
    * Get all domains
-   * @param data - Optional query parameters (orgId, projectId, limit, offset, etc.)
+   * @param orgId - Organization ID
+   * @param projectId - Optional Project ID (for project-scoped domains)
+   * @param data - Optional query parameters (limit, offset, etc.)
    * @returns List of all domains
    */
-  async list(data?: Record<string, any>): Promise<TApiRes<Domain[]>> {
+  async list(
+    orgId: string,
+    projectId?: string,
+    data?: Record<string, any>
+  ): Promise<TApiRes<Domain[]>> {
     const { queryKey, ...rest } = data || {}
 
     const resp = await this.api.get<Domain[]>({
       data: rest,
-      path: this.path,
+      path: this.#path(orgId, projectId),
       queryKey: queryKey || this.cache.list(),
     })
 
@@ -40,12 +55,14 @@ export class DomainsApi extends BaseApi {
 
   /**
    * Get domain by ID
+   * @param orgId - Organization ID
    * @param id - Domain ID
+   * @param projectId - Optional Project ID (for project-scoped domains)
    * @returns Domain object
    */
-  async get(id: string): Promise<TApiRes<Domain>> {
+  async get(orgId: string, id: string, projectId?: string): Promise<TApiRes<Domain>> {
     const resp = await this.api.get<Domain>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
 
@@ -59,13 +76,19 @@ export class DomainsApi extends BaseApi {
 
   /**
    * Create new domain
+   * @param orgId - Organization ID
    * @param data - Domain data
+   * @param projectId - Optional Project ID (for project-scoped domains)
    * @returns Created domain
    */
-  async create(data: Partial<Domain>): Promise<TApiRes<Domain>> {
+  async create(
+    orgId: string,
+    data: Partial<Domain>,
+    projectId?: string
+  ): Promise<TApiRes<Domain>> {
     const resp = await this.api.post<Domain>({
       data,
-      path: this.path,
+      path: this.#path(orgId, projectId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create Domain`))
@@ -78,14 +101,21 @@ export class DomainsApi extends BaseApi {
 
   /**
    * Update existing domain
+   * @param orgId - Organization ID
    * @param id - Domain ID
    * @param data - Updated domain data
+   * @param projectId - Optional Project ID (for project-scoped domains)
    * @returns Updated domain
    */
-  async update(id: string, data: Partial<Domain>): Promise<TApiRes<Domain>> {
+  async update(
+    orgId: string,
+    id: string,
+    data: Partial<Domain>,
+    projectId?: string
+  ): Promise<TApiRes<Domain>> {
     const resp = await this.api.put<Domain>({
       data,
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update Domain`))
@@ -98,12 +128,18 @@ export class DomainsApi extends BaseApi {
 
   /**
    * Delete domain
+   * @param orgId - Organization ID
    * @param id - Domain ID
+   * @param projectId - Optional Project ID (for project-scoped domains)
    * @returns Success status
    */
-  async delete(id: string): Promise<TApiRes<{ success: boolean }>> {
+  async delete(
+    orgId: string,
+    id: string,
+    projectId?: string
+  ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `${this.path}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to delete Domain`))

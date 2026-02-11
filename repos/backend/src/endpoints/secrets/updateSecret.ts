@@ -24,7 +24,7 @@ export const updateSecret: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const { name, value } = req.body
+    const { name, value, description } = req.body
 
     const { data: existing, error: getError } = await db.services.secret.get(id)
     if (getError) throw new Exception(500, getError.message)
@@ -50,6 +50,8 @@ export const updateSecret: TEndpointConfig = {
         const { iv, encrypted, authTag } = await encryptValue(derivedKey, value)
         update.encryptedValue = encodeEncrypted(iv, authTag, encrypted)
       }
+
+      if (description) update.description = description
 
       const { data, error } = await db.services.secret.update(update)
 
