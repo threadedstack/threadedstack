@@ -106,8 +106,8 @@ describe(`LocalSandbox`, () => {
       expect(content).toBe(`file contents`)
     })
 
-    it(`should convert non-string content to string`, async () => {
-      mockFs.readFile.mockResolvedValue(Buffer.from(`buffer data`))
+    it(`should return string content directly`, async () => {
+      mockFs.readFile.mockResolvedValue(`buffer data`)
 
       const content = await sandbox.readFile(`/workspace/binary.txt`)
       expect(content).toBe(`buffer data`)
@@ -123,26 +123,23 @@ describe(`LocalSandbox`, () => {
   })
 
   describe(`listDir`, () => {
-    it(`should list entries with [DIR] prefix for directories (string entries)`, async () => {
+    it(`should list entries with [DIR] prefix for directories`, async () => {
       mockFs.readdir.mockResolvedValue([`src`, `package.json`, `node_modules`])
       mockFs.stat
-        .mockResolvedValueOnce({ isDirectory: () => true, isFile: () => false })
-        .mockResolvedValueOnce({ isDirectory: () => false, isFile: () => true })
-        .mockResolvedValueOnce({ isDirectory: () => true, isFile: () => false })
+        .mockResolvedValueOnce({ isDirectory: true, isFile: false })
+        .mockResolvedValueOnce({ isDirectory: false, isFile: true })
+        .mockResolvedValueOnce({ isDirectory: true, isFile: false })
 
       const result = await sandbox.listDir(`/project`)
 
       expect(result).toEqual([`[DIR] src`, `package.json`, `[DIR] node_modules`])
     })
 
-    it(`should handle object entries from readdir`, async () => {
-      mockFs.readdir.mockResolvedValue([
-        { name: `lib`, isDirectory: () => true },
-        { name: `index.ts` },
-      ])
+    it(`should list files without prefix`, async () => {
+      mockFs.readdir.mockResolvedValue([`lib`, `index.ts`])
       mockFs.stat
-        .mockResolvedValueOnce({ isDirectory: () => true, isFile: () => false })
-        .mockResolvedValueOnce({ isDirectory: () => false, isFile: () => true })
+        .mockResolvedValueOnce({ isDirectory: true, isFile: false })
+        .mockResolvedValueOnce({ isDirectory: false, isFile: true })
 
       const result = await sandbox.listDir(`/project`)
       expect(result).toEqual([`[DIR] lib`, `index.ts`])
