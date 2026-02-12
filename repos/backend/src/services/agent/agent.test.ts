@@ -81,6 +81,16 @@ vi.mock(`@tdsk/domain`, () => ({
     error: `error`,
     done: `done`,
   },
+  EAgentTool: {
+    mkdir: `mkdir`,
+    listDir: `listDir`,
+    readFile: `readFile`,
+    shellExec: `shellExec`,
+    webSearch: `webSearch`,
+    writeFile: `writeFile`,
+    deleteFile: `deleteFile`,
+    fileExists: `fileExists`,
+  },
 }))
 
 vi.mock(`@TBE/utils/logger`, () => ({
