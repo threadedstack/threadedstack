@@ -68,7 +68,7 @@ describe(`validateAuth`, () => {
     expect(mockRes.status).not.toHaveBeenCalled()
   })
 
-  it(`should return 401 when no token is provided`, async () => {
+  it(`should call next when no token is provided (defers to API key middleware)`, async () => {
     mockAuth.isPublic.mockReturnValue(false)
     mockAuth.extract.mockReturnValue(null)
     const mockReq = { path: `/auth/me`, headers: {} } as unknown as Request
@@ -76,11 +76,21 @@ describe(`validateAuth`, () => {
     const middleware = validateAuth(mockApp)
     await middleware(mockReq, mockRes, mockNext)
 
-    expect(mockRes.status).toHaveBeenCalledWith(401)
-    expect(mockRes.json).toHaveBeenCalledWith({
-      error: `No authentication token provided`,
-    })
-    expect(mockNext).not.toHaveBeenCalled()
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  it(`should call next when token starts with tdsk_ (defers to API key middleware)`, async () => {
+    mockAuth.isPublic.mockReturnValue(false)
+    mockAuth.extract.mockReturnValue(`tdsk_abc123def456`)
+    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+    expect(mockAuth.verify).not.toHaveBeenCalled()
   })
 
   it(`should return 500 when auth is not initialized`, async () => {

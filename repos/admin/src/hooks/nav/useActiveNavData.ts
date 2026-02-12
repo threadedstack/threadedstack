@@ -1,3 +1,4 @@
+import type { TNavCtx } from '@TAF/types'
 import { useMemo } from 'react'
 import {
   useOrgs,
@@ -12,11 +13,11 @@ export const useActiveNavData = () => {
   const [activeOrgId] = useActiveOrgId()
   const [activeProjectId] = useActiveProjectId()
 
-  return useMemo(
+  return useMemo<TNavCtx>(
     () => ({
       orgId: activeOrgId,
-      org: activeOrgId && orgs?.[activeOrgId],
       projectId: activeProjectId,
+      org: activeOrgId && orgs?.[activeOrgId],
       project: activeProjectId && projects?.[activeProjectId],
     }),
     [orgs, projects, activeOrgId, activeProjectId]

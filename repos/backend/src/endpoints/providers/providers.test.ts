@@ -1,12 +1,13 @@
 import type { Response } from 'express'
+import type { TAuthHeaderObj } from '@tdsk/domain'
 import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { providers } from './providers'
 import { Provider } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: {
@@ -160,7 +161,7 @@ describe(`Providers endpoints`, () => {
 
     it(`should return 400 when neither orgId nor projectId provided`, async () => {
       const app = buildApp()
-      app.locals.auth = {}
+      app.locals.auth = {} as TAuthHeaderObj
       mockReq.query = {}
       mockReq.app = app
       const endpoint = providers.endpoints?.listProviders

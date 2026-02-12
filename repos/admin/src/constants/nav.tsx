@@ -151,3 +151,6 @@ export const ProjectNavItems: TNavItem[] = [
 export const BottomNavItems: TNavItem[] = [
   { to: `/${ERoutePath.Settings}`, text: `Settings`, Icon: <SettingsIcon /> },
 ]
+
+// Steps for the Quick Start section
+export const QSSteps = [`AI Provider`, `Project & Agent`, `Review & Create`]

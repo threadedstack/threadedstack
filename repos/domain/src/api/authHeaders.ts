@@ -28,7 +28,7 @@ export const fromAuthHeaders = (req: TReq) => {
       return acc
     },
     {} as Partial<TAuthHeaderObj>
-  )
+  ) as TAuthHeaderObj
 }
 
 export const getAuthHeader = (req: TReq, name: string) => {

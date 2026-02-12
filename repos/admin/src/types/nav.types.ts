@@ -10,8 +10,8 @@ import type {
 
 export type TNavCtx = {
   orgId?: string
-  project?: Project
   projectId?: string
+  project?: Project
   org?: Organization
 }
 

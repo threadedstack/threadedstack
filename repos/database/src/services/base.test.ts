@@ -56,7 +56,7 @@ const createMockDb = () => {
       update: updateFn,
       delete: deleteFn,
       query: {
-        test_table: { findFirst, findMany },
+        testTable: { findFirst, findMany },
       },
     } as any,
     // Expose inner mocks for assertion

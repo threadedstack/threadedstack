@@ -9,6 +9,7 @@ import { noOp } from '@keg-hub/jsutils/noOp'
 import { sidebarOpenState } from '@TAF/state/app'
 import { themeTypeState } from '@TAF/state/theme'
 import { providersState } from '@TAF/state/providers'
+import { quickstartState } from '@TAF/state/quickstart'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { assetsState, activeAssetIdState } from '@TAF/state/assets'
 import { agentsState, activeAgentIdState } from '@TAF/state/agents'
@@ -60,6 +61,7 @@ export const useUser = () => useRecState(userState)
 export const useProviders = () => useRecState(providersState)
 export const useThemeType = () => useRecState(themeTypeState)
 export const useSidebarOpen = () => useRecState(sidebarOpenState)
+export const useQuickstartOpen = () => useRecState(quickstartState)
 
 export const useOrgs = () => useRecState(orgsState)
 export const useOrgUsers = () => useRecState(orgUsersState)

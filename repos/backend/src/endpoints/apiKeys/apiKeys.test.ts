@@ -301,6 +301,7 @@ describe(`API Keys endpoints`, () => {
     })
 
     it(`should return 400 when neither orgId nor projectId is provided`, async () => {
+      mockReq.params = {}
       mockReq.body = { name: `KEY` }
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `API key must belong to an org or project`
@@ -318,6 +319,33 @@ describe(`API Keys endpoints`, () => {
       mockReq.body = { name: `KEY`, orgId: `org-1`, scopes: `invalid_scope` }
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Invalid scopes`
+      )
+    })
+
+    it(`should store userId from req.user on created API key`, async () => {
+      mockReq.body = { name: `User Key`, orgId: `org-123` }
+      const createdApiKey = new ApiKey({
+        id: `user-key-1`,
+        name: `User Key`,
+        keyHash: `some_hash`,
+        keyPrefix: `tdsk_user`,
+        scopes: `read`,
+        active: true,
+        orgId: `org-123`,
+        userId: `test-user-id`,
+        createdAt: new Date(),
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdApiKey })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: `test-user-id`,
+        })
       )
     })
 

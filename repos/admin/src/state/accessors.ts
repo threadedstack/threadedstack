@@ -28,14 +28,15 @@ import type {
 import { createStore } from 'jotai'
 import { userState } from '@TAF/state/user'
 import { providersState } from '@TAF/state/providers'
+import { quickstartState } from '@TAF/state/quickstart'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
 import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
-import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
-import { domainsState, activeDomainIdState } from '@TAF/state/domains'
-import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { assetsState, activeAssetIdState } from '@TAF/state/assets'
 import { agentsState, activeAgentIdState } from '@TAF/state/agents'
+import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
+import { domainsState, activeDomainIdState } from '@TAF/state/domains'
+import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { configsState, activeConfigIdState } from '@TAF/state/configs'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
@@ -66,6 +67,10 @@ export const setThemeType = (type: EThemeType) => store.set(themeTypeState, type
 export const getSidebarOpen = () => store.get(sidebarOpenState)
 export const resetSidebarOpen = () => store.set(sidebarOpenState, defSidebarOpen)
 export const setSidebarOpen = (status: boolean) => store.set(sidebarOpenState, status)
+
+export const getQuickstartOpen = () => store.get(quickstartState)
+export const resetQuickstartOpen = () => store.set(quickstartState, defSidebarOpen)
+export const setQuickstartOpen = (status: boolean) => store.set(quickstartState, status)
 
 export const getUser = () => store.get(userState)
 export const resetUser = () => store.set(userState, undefined)

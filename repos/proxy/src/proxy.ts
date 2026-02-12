@@ -10,6 +10,7 @@ import { setupPrewarm } from '@TPX/middleware/setupPrewarm'
 import { setupDatabase } from '@TPX/middleware/setupDatabase'
 import { setupEndpoints } from '@TPX/middleware/setupEndpoints'
 import { setupErrorHandler } from '@TPX/middleware/setupErrorHandler'
+import { setupApiKeyAuth } from '@TPX/middleware/setupApiKeyAuth'
 
 /**
  * Main proxy server initialization
@@ -22,6 +23,7 @@ export const proxy = (config: TProxyConfig) => {
   setupServer(app, router)
   setupDatabase(app)
   setupAuth(app)
+  setupApiKeyAuth(app)
   setupPrewarm(app)
   setupEndpoints(app, router)
   setupProxy(app)

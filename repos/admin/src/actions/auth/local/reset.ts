@@ -31,6 +31,7 @@ import {
   resetActiveConfigId,
   resetActiveDomainId,
   resetAgentFormState,
+  resetQuickstartOpen,
   resetProxyFormState,
   resetActiveMessageId,
   resetActiveProjectId,
@@ -72,6 +73,7 @@ export const reset = () => {
   resetActiveDomainId?.()
   resetAgentFormState?.()
   resetProxyFormState?.()
+  resetQuickstartOpen?.()
   resetActiveMessageId?.()
   resetActiveProjectId?.()
   resetActiveFunctionId?.()

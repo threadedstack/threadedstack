@@ -23,10 +23,9 @@ export const validateAuth = (app: TProxyApp) => {
 
     const token = app.locals.auth.extract(req)
 
-    if (!token) {
-      res.status(401).json({ error: `No authentication token provided` })
-      return
-    }
+    if (!token) return next()
+    // Token present but starts with tdsk_ — it's an API key, not a JWT
+    if (token.startsWith(`tdsk_`)) return next()
 
     if (!app.locals.auth.initialized()) {
       logger.error(`Auth client not initialized`)

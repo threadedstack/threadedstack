@@ -1,5 +1,10 @@
 import { ERoleType, EPermAction, EPermResource } from '../types/permissions.types'
 
+/**
+ * Prefix for Threaded stack API keys
+ */
+export const ApiKeyPrefix = `tdsk_`
+
 export const AuthHeaders = Object.freeze({
   [`user.userId`]: `X-User-Id`,
   [`user.role`]: `X-User-Role`,

@@ -1,10 +1,36 @@
+import type { TNavCtx } from '@TAF/types'
 import { ERoutePath } from '@TAF/types'
+import { buildRoute } from '@TAF/utils/nav/buildRoute'
+import {
+  getOrgs,
+  getProjects,
+  getActiveOrgId,
+  getActiveProjectId,
+} from '@TAF/state/accessors'
 
 export class NavService {
   base: string
 
   constructor(base?: string) {
     this.base = (base ?? window.location.origin).replace(/^\//, ``)
+  }
+
+  context = (ctx?: TNavCtx): TNavCtx => {
+    const orgs = getOrgs()
+    const projects = getProjects()
+    const orgId = ctx?.orgId || getActiveOrgId()
+    const projectId = ctx?.projectId || getActiveProjectId()
+    return {
+      orgId,
+      projectId,
+      org: orgs?.[orgId],
+      project: projects?.[projectId],
+    }
+  }
+
+  route = (route: ERoutePath, ctx?: Partial<TNavCtx>) => {
+    const to = buildRoute(route)(this.context(ctx))
+    this.to(to)
   }
 
   to = (to: string, base: string = undefined) => {

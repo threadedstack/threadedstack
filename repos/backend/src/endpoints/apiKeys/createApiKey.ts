@@ -37,6 +37,7 @@ export const createApiKey: TEndpointConfig = {
         active: true,
         keyHash: hash,
         keyPrefix: prefix,
+        userId: req.user?.id,
         scopes: scopes || `read`,
         rateLimit: rateLimit || 100,
         ...(orgId && { orgId }),

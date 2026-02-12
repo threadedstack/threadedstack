@@ -44,8 +44,9 @@ export class Base<
     this.db = opts.db
     this.table = opts.table
     this.config = opts.config || {}
-    this.title = capitalize(singular(this.name))
-    this.name = camelCase(getTableName(this.table))
+    const tableName = getTableName(this.table)
+    this.name = camelCase(tableName)
+    this.title = capitalize(singular(tableName))
   }
 
   with = <T extends TDBWithRecord = TDBWithRecord>(opts: T): TDBWithRecord => opts

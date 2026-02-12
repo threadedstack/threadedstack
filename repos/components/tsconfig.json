@@ -9,8 +9,8 @@
     "moduleResolution": "bundler",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "paths": {
-      "@TSC": ["src"],
-      "@TSC/*": ["src/*"],
+      "@TSC": ["./src"],
+      "@TSC/*": ["./src/*"],
       "@ROOT": ["../../"],
       "@ROOT/*": ["../../*"],
       "@keg-hub/jsutils": ["./node_modules/@keg-hub/jsutils/build/esm"],

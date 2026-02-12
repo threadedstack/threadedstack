@@ -154,9 +154,9 @@ export const byteaToBuffer = (byteaString: string): Buffer => {
   return Buffer.from(byteaString.substring(2), `hex`)
 }
 
-// NOTE: No version byte in encryption format. Format: [iv:12][authTag:16][ciphertext:N]
-// If algorithm changes, add a version prefix for backward-compatible decryption.
 /**
+ * NOTE: No version byte in encryption format. Format: [iv:12][authTag:16][ciphertext:N]
+ * If algorithm changes, add a version prefix for backward-compatible decryption.
  * Helper to encode encrypted data for storage
  * Combines iv + authTag + encrypted into a single base64 string
  */
@@ -168,11 +168,19 @@ export const encodeEncrypted = (
   return Buffer.concat([iv, authTag, encrypted]).toString(`base64`)
 }
 
-// NOTE: Truncates SHA-256 to 16 hex chars (64 bits). Used for secret name
-// lookup only, not as a security-critical hash.
 /**
+ * NOTE: Truncates SHA-256 to 16 hex chars (64 bits). Used for secret name
+ * lookup only, not as a security-critical hash.
  * Helper to create a hash key from the secret name for lookup purposes
  */
 export const createHashKey = (name: string): string => {
-  return crypto.createHash(`sha256`).update(name).digest(`hex`).slice(0, 16)
+  return hashKey(name).slice(0, 16)
+}
+
+/**
+ * Hash an API key using SHA-256 for storage and comparison
+ * Shared between proxy (validation) and backend (generation)
+ */
+export const hashKey = (key: string): string => {
+  return crypto.createHash(`sha256`).update(key).digest(`hex`)
 }

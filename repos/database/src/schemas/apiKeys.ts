@@ -1,5 +1,6 @@
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
+import { users } from '@TDB/schemas/users'
 import { projects } from '@TDB/schemas/projects'
 import { base } from '@TDB/utils/schema/base'
 import {
@@ -27,15 +28,18 @@ export const apiKeys = pgTable(
     keyPrefix: varchar(`key_prefix`, { length: 12 }).notNull(),
     orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
     projectId: uuid(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
+    userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
   },
   (table) => [
     index(`api_keys_org_id_idx`).on(table.orgId),
     index(`api_keys_key_hash_idx`).on(table.keyHash),
     index(`api_keys_project_id_idx`).on(table.projectId),
+    index(`api_keys_user_id_idx`).on(table.userId),
   ]
 )
 
 export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
   org: one(orgs, { fields: [apiKeys.orgId], references: [orgs.id] }),
   project: one(projects, { fields: [apiKeys.projectId], references: [projects.id] }),
+  user: one(users, { fields: [apiKeys.userId], references: [users.id] }),
 }))

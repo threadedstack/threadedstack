@@ -1,5 +1,7 @@
 import type { TKeyHash } from '@tdsk/domain'
+
 import crypto from 'crypto'
+import { hashKey, ApiKeyPrefix } from '@tdsk/domain'
 
 /**
  * Generates a new API key
@@ -9,18 +11,11 @@ import crypto from 'crypto'
  */
 export const generateApiKey = (): TKeyHash => {
   const keyBytes = crypto.randomBytes(32)
-  const key = `tdsk_${keyBytes.toString(`base64url`)}`
+  const key = `${ApiKeyPrefix}${keyBytes.toString(`base64url`)}`
 
-  const hash = crypto.createHash(`sha256`).update(key).digest(`hex`)
+  const hash = hashKey(key)
 
   const prefix = key.substring(0, 12)
 
   return { key, hash, prefix }
-}
-
-/**
- * Hash an API key for comparison
- */
-export const hashApiKey = (key: string): string => {
-  return crypto.createHash('sha256').update(key).digest('hex')
 }

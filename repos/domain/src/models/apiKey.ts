@@ -7,6 +7,7 @@ export class ApiKey extends Base {
   key?: string
   name: string
   orgId?: string
+  userId?: string
   keyHash: string
   scopes?: string
   active: boolean
