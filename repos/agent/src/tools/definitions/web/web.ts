@@ -1,21 +1,15 @@
-import type { TToolDefGroup, TToolDefinition } from '@TAG/types'
+import type { TLLMToolDef } from '@tdsk/domain'
 
-export const WebTools: TToolDefGroup = {
-  webSearch: {
-    type: `function`,
-    function: {
-      name: `webSearch`,
-      description: `Search the web for information. Use this when you need to look up documentation, examples, or current information.`,
-      parameters: {
-        type: `object`,
-        properties: {
-          query: {
-            type: `string`,
-            description: `The search query`,
-          },
-        },
-        required: [`query`],
+export const webTools: TLLMToolDef[] = [
+  {
+    name: `webSearch`,
+    description: `Search the web for information. Returns search results.`,
+    inputSchema: {
+      type: `object`,
+      properties: {
+        query: { type: `string`, description: `Search query` },
       },
+      required: [`query`],
     },
   },
-}
+]

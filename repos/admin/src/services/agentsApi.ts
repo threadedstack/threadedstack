@@ -1,7 +1,9 @@
+import type { TStreamEvent } from '@tdsk/domain'
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
 
 import { Agent } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
+import { apiUrl } from '@TAF/utils/api/apiUrl'
 
 /**
  * Agents API Service
@@ -146,7 +148,37 @@ export class AgentsApi extends BaseApi {
 
     return resp
   }
+  /**
+   * Run an agent with SSE streaming
+   * Returns an object with the Response for reading SSE events
+   */
+  async run(
+    orgId: string,
+    agentId: string,
+    prompt: string,
+    threadId?: string
+  ): Promise<{ response?: Response; error?: Error }> {
+    try {
+      const base = apiUrl({})
+      const url = `${base.replace(/\/$/, ``)}/_/orgs/${orgId}/agents/${agentId}/run`
+      const headers = { ...this.api.options.headers }
+
+      const res = await fetch(url, {
+        method: `POST`,
+        headers,
+        body: JSON.stringify({ prompt, threadId }),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        return { error: new Error(text || `Agent run failed: ${res.status}`) }
+      }
+
+      return { response: res }
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error(String(err)) }
+    }
+  }
 }
 
-// Export singleton instance
 export const agentsApi = new AgentsApi()

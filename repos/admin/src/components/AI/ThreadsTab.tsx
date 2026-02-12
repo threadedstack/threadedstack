@@ -8,26 +8,32 @@ import { CreateThreadDrawer } from '@TAF/components/AI/CreateThreadDrawer'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import {
+  useAgents,
   useThreads,
   useActiveOrgId,
   useActiveProjectId,
   useActiveThreadId,
+  useActiveAgentId,
 } from '@TAF/state/selectors'
 import {
   Alert,
+  Chip,
   Table,
   TableRow,
   TableCell,
   TableBody,
   TableHead,
+  TextField,
   Typography,
   IconButton,
   TableContainer,
+  Box,
 } from '@mui/material'
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  CallSplit as BranchIcon,
   Visibility as ViewIcon,
 } from '@mui/icons-material'
 
@@ -36,10 +42,12 @@ export type TThreadsTab = {}
 export const ThreadsTab = (props: TThreadsTab) => {
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
+  const [agents] = useAgents()
   const [threads] = useThreads()
   const [, setActiveThreadId] = useActiveThreadId()
+  const [activeAgentId, setActiveAgentId] = useActiveAgentId()
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -49,14 +57,21 @@ export const ThreadsTab = (props: TThreadsTab) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null)
 
+  const projectAgents = useMemo(() => {
+    if (!agents || !projectId) return []
+    return Object.values(agents).filter(
+      (agent) => agent.projectId === projectId || agent.orgId === orgId
+    )
+  }, [agents, projectId, orgId])
+
   useEffect(() => {
     const loadData = async () => {
-      if (!orgId || !projectId) return
+      if (!orgId || !activeAgentId) return
 
       setLoading(true)
       setError(null)
 
-      const result = await fetchThreads({ orgId, projectId })
+      const result = await fetchThreads({ orgId, agentId: activeAgentId })
 
       if (result.error) {
         setError(result.error.message)
@@ -66,12 +81,12 @@ export const ThreadsTab = (props: TThreadsTab) => {
     }
 
     loadData()
-  }, [orgId, projectId])
+  }, [orgId, activeAgentId])
 
-  const projectThreads = useMemo(() => {
-    if (!threads || !projectId) return []
+  const agentThreads = useMemo(() => {
+    if (!threads || !activeAgentId) return []
     let filtered = Object.values(threads).filter(
-      (thread) => thread.projectId === projectId
+      (thread) => thread.agentId === activeAgentId
     )
 
     if (searchQuery.trim()) {
@@ -85,21 +100,21 @@ export const ThreadsTab = (props: TThreadsTab) => {
     }
 
     return filtered
-  }, [threads, projectId, searchQuery])
+  }, [threads, activeAgentId, searchQuery])
 
   const totalThreadsCount = useMemo(() => {
-    if (!threads || !projectId) return 0
-    return Object.values(threads).filter((thread) => thread.projectId === projectId)
+    if (!threads || !activeAgentId) return 0
+    return Object.values(threads).filter((thread) => thread.agentId === activeAgentId)
       .length
-  }, [threads, projectId])
+  }, [threads, activeAgentId])
 
   const onCreateThread = () => {
     setCreateDialogOpen(true)
   }
 
   const onCreateSuccess = async () => {
-    if (orgId && projectId) {
-      await fetchThreads({ orgId, projectId })
+    if (orgId && activeAgentId) {
+      await fetchThreads({ orgId, agentId: activeAgentId })
     }
     setSuccess('Thread created successfully')
     setTimeout(() => setSuccess(null), 2000)
@@ -111,8 +126,8 @@ export const ThreadsTab = (props: TThreadsTab) => {
   }
 
   const onEditSuccess = async () => {
-    if (orgId && projectId) {
-      await fetchThreads({ orgId, projectId })
+    if (orgId && activeAgentId) {
+      await fetchThreads({ orgId, agentId: activeAgentId })
     }
     setSuccess('Thread updated successfully')
     setTimeout(() => setSuccess(null), 2000)
@@ -124,9 +139,9 @@ export const ThreadsTab = (props: TThreadsTab) => {
   }
 
   const onDeleteConfirm = async () => {
-    if (!selectedThread) return
+    if (!selectedThread || !activeAgentId) return
 
-    const result = await deleteThread(selectedThread.id)
+    const result = await deleteThread(orgId, activeAgentId, selectedThread.id)
 
     if (result.error) {
       setError(result.error.message)
@@ -135,16 +150,51 @@ export const ThreadsTab = (props: TThreadsTab) => {
       setSuccess('Thread deleted successfully')
       setDeleteDialogOpen(false)
       setTimeout(() => setSuccess(null), 2000)
-      // Refresh threads
-      if (orgId && projectId) {
-        await fetchThreads({ orgId, projectId })
+      if (orgId && activeAgentId) {
+        await fetchThreads({ orgId, agentId: activeAgentId })
       }
     }
   }
 
   const onViewThread = (thread: Thread) => {
     setActiveThreadId(thread.id)
-    // TODO: Navigate to messages tab and filter by this thread
+  }
+
+  if (!activeAgentId && projectAgents.length > 0) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Typography
+          variant='body1'
+          sx={{ mb: 2 }}
+        >
+          Select an agent to view its threads:
+        </Typography>
+        <TextField
+          select
+          fullWidth
+          label='Agent'
+          value=''
+          onChange={(e) => setActiveAgentId(e.target.value)}
+          SelectProps={{ native: true }}
+        >
+          <option value=''>-- Select Agent --</option>
+          {projectAgents.map((agent) => (
+            <option
+              key={agent.id}
+              value={agent.id}
+            >
+              {agent.name}
+            </option>
+          ))}
+        </TextField>
+      </Box>
+    )
+  }
+
+  if (projectAgents.length === 0) {
+    return (
+      <EmptyState message='No agents found. Create an agent first to manage threads.' />
+    )
   }
 
   return (
@@ -162,6 +212,27 @@ export const ThreadsTab = (props: TThreadsTab) => {
       actionLabel='Create Thread'
       searchPlaceholder='Search threads by name or ID...'
     >
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          select
+          size='small'
+          label='Agent'
+          value={activeAgentId}
+          onChange={(e) => setActiveAgentId(e.target.value)}
+          SelectProps={{ native: true }}
+          sx={{ minWidth: 200 }}
+        >
+          {projectAgents.map((agent) => (
+            <option
+              key={agent.id}
+              value={agent.id}
+            >
+              {agent.name}
+            </option>
+          ))}
+        </TextField>
+      </Box>
+
       {success && (
         <Alert
           severity='success'
@@ -171,20 +242,20 @@ export const ThreadsTab = (props: TThreadsTab) => {
         </Alert>
       )}
 
-      {totalThreadsCount === 0 && (
+      {totalThreadsCount === 0 && !loading && (
         <EmptyState
           actionIcon={<AddIcon />}
           onAction={onCreateThread}
           actionLabel='Create Thread'
-          message='No threads found for this project. Create a thread to start managing AI conversations.'
+          message='No threads found for this agent. Create a thread to start managing AI conversations.'
         />
       )}
 
-      {totalThreadsCount > 0 && projectThreads.length === 0 && (
+      {totalThreadsCount > 0 && agentThreads.length === 0 && (
         <EmptyState message='No threads match your search criteria.' />
       )}
 
-      {projectThreads.length > 0 && (
+      {agentThreads.length > 0 && (
         <TableContainer>
           <Table size='small'>
             <TableHead>
@@ -197,15 +268,34 @@ export const ThreadsTab = (props: TThreadsTab) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {projectThreads.map((thread) => (
+              {agentThreads.map((thread) => (
                 <TableRow
                   key={thread.id}
                   hover
                 >
                   <TableCell>
-                    <Typography variant='body2'>
-                      {thread.name || 'Untitled Thread'}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant='body2'>
+                        {thread.name || 'Untitled Thread'}
+                      </Typography>
+                      {thread.parentThreadId && (
+                        <Chip
+                          icon={<BranchIcon sx={{ fontSize: 14 }} />}
+                          label='branched'
+                          size='small'
+                          variant='outlined'
+                          color='info'
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (thread.parentThreadId) {
+                              setActiveThreadId(thread.parentThreadId)
+                            }
+                          }}
+                          title='Click to view parent thread'
+                          sx={{ cursor: 'pointer' }}
+                        />
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <Typography
@@ -263,10 +353,10 @@ export const ThreadsTab = (props: TThreadsTab) => {
         </TableContainer>
       )}
 
-      {orgId && projectId && (
+      {orgId && activeAgentId && (
         <CreateThreadDrawer
           orgId={orgId}
-          projectId={projectId}
+          agentId={activeAgentId}
           open={createDialogOpen}
           onSuccess={onCreateSuccess}
           onClose={() => setCreateDialogOpen(false)}

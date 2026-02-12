@@ -163,6 +163,8 @@ const ItemNoChildren = TooltipHoc<TListItem, HTMLDivElement>(
       children,
       component,
       className,
+      defaultOpen,
+      itemsListProps,
       itemsToggleRef,
       ...rest
     } = props

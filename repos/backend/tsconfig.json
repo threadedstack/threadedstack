@@ -44,6 +44,9 @@
       "@tdsk/database": ["../database/src"],
       "@tdsk/database/*": ["../database/src/*"],
 
+      "@tdsk/agent": ["../agent/src"],
+      "@tdsk/agent/*": ["../agent/src/*"],
+
       "@tdsk/logger": ["../logger/src"],
       "@tdsk/logger/*": ["../logger/src/*"],
 
@@ -61,6 +64,7 @@
     "src",
     "configs",
     "scripts",
+    "../agent/src",
     "../logger/src",
     "../domain/src",
     "../database/src"

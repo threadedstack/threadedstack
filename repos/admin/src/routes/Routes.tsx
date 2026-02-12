@@ -36,6 +36,7 @@ const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings')
 const ProjectProviders = lazy(() => import('@TAF/pages/Projects/ProjectProviders'))
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
+const AgentChat = lazy(() => import('@TAF/components/AI/ChatView'))
 
 // Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
@@ -163,8 +164,12 @@ export const Routes = createBrowserRouter([
                 Component: () => <SuspensePage Component={ProjectAgents} />,
               },
               {
-                path: ERoutePath.Threads,
+                path: ERoutePath.AgentThreads,
                 Component: () => <SuspensePage Component={ProjectThreads} />,
+              },
+              {
+                path: ERoutePath.AgentChat,
+                Component: () => <SuspensePage Component={AgentChat} />,
               },
               {
                 path: ERoutePath.Settings,

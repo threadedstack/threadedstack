@@ -1,40 +1,89 @@
-import { useState, useEffect, useMemo } from 'react'
+import type { Message } from '@tdsk/domain'
+
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { ConfirmDelete } from '@tdsk/components'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { fetchMessages } from '@TAF/actions/messages/api/fetchMessages'
-import { useActiveOrgId, useActiveProjectId, useMessages } from '@TAF/state/selectors'
+import { updateMessage } from '@TAF/actions/messages/api/updateMessage'
+import { deleteMessage } from '@TAF/actions/messages/api/deleteMessage'
+import { branchThread } from '@TAF/actions/threads/api/branchThread'
 import {
+  useThreads,
+  useActiveOrgId,
+  useActiveThreadId,
+  useMessages,
+} from '@TAF/state/selectors'
+import {
+  Box,
+  Chip,
   Table,
+  Alert,
+  Button,
   TableRow,
   TableCell,
   TableBody,
   TableHead,
+  TextField,
   Typography,
+  IconButton,
   TableContainer,
-  Chip,
+  ToggleButton,
+  ToggleButtonGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material'
+import {
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Close as CloseIcon,
+  Delete as DeleteIcon,
+  Person as PersonIcon,
+  SmartToy as AssistantIcon,
+  ViewList as TableViewIcon,
+  CallSplit as BranchIcon,
+  ChatBubble as ChatViewIcon,
+  Build as ToolIcon,
+  Settings as SystemIcon,
+} from '@mui/icons-material'
+
+type TViewMode = 'chat' | 'table'
 
 export type TMessagesTab = {}
 
 export const MessagesTab = (props: TMessagesTab) => {
   const [orgId] = useActiveOrgId()
-  const [projectId] = useActiveProjectId()
+  const [activeThreadId, setActiveThreadId] = useActiveThreadId()
+  const [threads] = useThreads()
   const [messages] = useMessages()
 
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const activeThread = activeThreadId ? threads?.[activeThreadId] : undefined
+  const agentId = activeThread?.agentId
 
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [viewMode, setViewMode] = useState<TViewMode>('chat')
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [branchDialogOpen, setBranchDialogOpen] = useState(false)
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
+
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const loadData = async () => {
-      if (!orgId || !projectId) return
+      if (!orgId || !agentId || !activeThreadId) return
 
       setLoading(true)
       setError(null)
 
-      const result = await fetchMessages({ orgId, projectId })
+      const result = await fetchMessages({ orgId, agentId, threadId: activeThreadId })
 
       if (result.error) {
         setError(result.error.message)
@@ -44,17 +93,13 @@ export const MessagesTab = (props: TMessagesTab) => {
     }
 
     loadData()
-  }, [orgId, projectId])
+  }, [orgId, agentId, activeThreadId])
 
-  const projectMessages = useMemo(() => {
-    if (!messages || !projectId) return []
+  const threadMessages = useMemo(() => {
+    if (!messages || !activeThreadId) return []
     let filtered = Object.values(messages).filter(
-      (message) => message.projectId === projectId
+      (message) => message.threadId === activeThreadId
     )
-
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter((message) => message.type === typeFilter)
-    }
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
@@ -68,15 +113,15 @@ export const MessagesTab = (props: TMessagesTab) => {
     }
 
     return filtered.sort(
-      (a, b) => ((b.createdAt || 0) as any) - ((a.createdAt || 0) as any)
+      (a, b) => ((a.createdAt || 0) as any) - ((b.createdAt || 0) as any)
     )
-  }, [messages, projectId, searchQuery, typeFilter])
+  }, [messages, activeThreadId, searchQuery])
 
-  const totalMessagesCount = useMemo(() => {
-    if (!messages || !projectId) return 0
-    return Object.values(messages).filter((message) => message.projectId === projectId)
-      .length
-  }, [messages, projectId])
+  useEffect(() => {
+    if (viewMode === 'chat' && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [threadMessages.length, viewMode])
 
   const getMsgTypeColor = (type: string) => {
     switch (type) {
@@ -95,11 +140,152 @@ export const MessagesTab = (props: TMessagesTab) => {
     }
   }
 
-  const formatContent = (content: any) => {
-    if (typeof content === 'string') {
-      return content.length > 100 ? content.substring(0, 100) + '...' : content
+  const extractText = useCallback((content: any): string => {
+    if (typeof content === 'string') return content
+    if (Array.isArray(content)) {
+      return content
+        .map((block: any) => {
+          if (typeof block === 'string') return block
+          if (block.type === 'text') return block.text || ''
+          if (block.type === 'tool_use') return `[Tool: ${block.name}]`
+          if (block.type === 'tool_result') return block.content || '[Tool Result]'
+          return JSON.stringify(block)
+        })
+        .join('\n')
     }
-    return JSON.stringify(content).substring(0, 100) + '...'
+    if (content && typeof content === 'object') {
+      if (content.text) return content.text
+      return JSON.stringify(content, null, 2)
+    }
+    return String(content ?? '')
+  }, [])
+
+  const formatContent = (content: any) => {
+    const text = extractText(content)
+    return text.length > 100 ? text.substring(0, 100) + '...' : text
+  }
+
+  const getMsgIcon = (type: string) => {
+    switch (type) {
+      case 'user':
+        return <PersonIcon sx={{ fontSize: 18 }} />
+      case 'assistant':
+        return <AssistantIcon sx={{ fontSize: 18 }} />
+      case 'tool':
+        return <ToolIcon sx={{ fontSize: 18 }} />
+      case 'system':
+        return <SystemIcon sx={{ fontSize: 18 }} />
+      default:
+        return <PersonIcon sx={{ fontSize: 18 }} />
+    }
+  }
+
+  const getMsgBgColor = (type: string) => {
+    switch (type) {
+      case 'user':
+        return 'primary.main'
+      case 'assistant':
+        return 'grey.700'
+      case 'tool':
+        return 'warning.main'
+      case 'system':
+        return 'grey.500'
+      default:
+        return 'grey.600'
+    }
+  }
+
+  const onEditStart = (message: Message) => {
+    setEditingId(message.id)
+    setEditContent(extractText(message.content))
+  }
+
+  const onEditCancel = () => {
+    setEditingId(null)
+    setEditContent('')
+  }
+
+  const onEditSave = async (message: Message) => {
+    if (!orgId || !agentId || !activeThreadId) return
+
+    const result = await updateMessage({
+      orgId,
+      agentId,
+      threadId: activeThreadId,
+      messageId: message.id,
+      data: { content: editContent },
+    })
+
+    if (result.error) {
+      setError(result.error.message || 'Failed to update message')
+    } else {
+      setSuccess('Message updated')
+      setTimeout(() => setSuccess(null), 2000)
+    }
+
+    setEditingId(null)
+    setEditContent('')
+  }
+
+  const onDeleteClick = (message: Message) => {
+    setSelectedMessage(message)
+    setDeleteDialogOpen(true)
+  }
+
+  const onDeleteConfirm = async () => {
+    if (!selectedMessage || !orgId || !agentId || !activeThreadId) return
+
+    const result = await deleteMessage({
+      orgId,
+      agentId,
+      threadId: activeThreadId,
+      messageId: selectedMessage.id,
+    })
+
+    if (result.error) {
+      setError(result.error.message || 'Failed to delete message')
+    } else {
+      setSuccess('Message deleted')
+      setTimeout(() => setSuccess(null), 2000)
+    }
+
+    setDeleteDialogOpen(false)
+    setSelectedMessage(null)
+  }
+
+  const onBranchClick = (message: Message) => {
+    setSelectedMessage(message)
+    setBranchDialogOpen(true)
+  }
+
+  const onBranchConfirm = async () => {
+    if (!selectedMessage || !orgId || !agentId || !activeThreadId) return
+
+    const result = await branchThread({
+      orgId,
+      agentId,
+      threadId: activeThreadId,
+      messageId: selectedMessage.id,
+    })
+
+    if (result.error) {
+      setError(result.error.message || 'Failed to branch thread')
+    } else {
+      setSuccess('Thread branched successfully')
+      setTimeout(() => setSuccess(null), 2000)
+      if (result.data?.id) {
+        setActiveThreadId(result.data.id)
+      }
+    }
+
+    setBranchDialogOpen(false)
+    setSelectedMessage(null)
+  }
+
+  if (!activeThreadId) {
+    return (
+      <EmptyState message='Select a thread from the Threads tab to view its messages.' />
+    )
   }
 
   return (
@@ -111,31 +297,233 @@ export const MessagesTab = (props: TMessagesTab) => {
       searchCount={0}
       query={searchQuery}
       countLabel='message'
-      count={totalMessagesCount}
+      count={threadMessages.length}
       setSearchQuery={setSearchQuery}
       searchPlaceholder='Search messages...'
     >
-      {totalMessagesCount === 0 && (
-        <EmptyState message='No messages found for this project. Messages will appear here as AI conversations are created.' />
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 2,
+        }}
+      >
+        <Typography
+          variant='body2'
+          color='text.secondary'
+        >
+          Thread: {activeThread?.name || 'Untitled'}
+          {activeThread?.parentThreadId && (
+            <Chip
+              label='branched'
+              size='small'
+              variant='outlined'
+              sx={{ ml: 1 }}
+            />
+          )}
+        </Typography>
+        <ToggleButtonGroup
+          size='small'
+          value={viewMode}
+          exclusive
+          onChange={(_, v) => v && setViewMode(v)}
+        >
+          <ToggleButton value='chat'>
+            <ChatViewIcon sx={{ fontSize: 18, mr: 0.5 }} />
+            Chat
+          </ToggleButton>
+          <ToggleButton value='table'>
+            <TableViewIcon sx={{ fontSize: 18, mr: 0.5 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {success && (
+        <Alert
+          severity='success'
+          sx={{ mb: 2 }}
+        >
+          {success}
+        </Alert>
       )}
 
-      {totalMessagesCount > 0 && projectMessages.length === 0 && (
-        <EmptyState message='No messages match your search or filter criteria.' />
+      {threadMessages.length === 0 && !loading && (
+        <EmptyState message='No messages found for this thread.' />
       )}
 
-      {projectMessages.length > 0 && (
+      {threadMessages.length > 0 && viewMode === 'chat' && (
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            maxHeight: 600,
+            overflow: 'auto',
+            p: 2,
+            bgcolor: 'background.default',
+            borderRadius: 1,
+            border: 1,
+            borderColor: 'divider',
+          }}
+        >
+          {threadMessages.map((message) => {
+            const isUser = message.type === 'user'
+            const isEditing = editingId === message.id
+
+            return (
+              <Box
+                key={message.id}
+                sx={{
+                  display: 'flex',
+                  gap: 1.5,
+                  alignItems: 'flex-start',
+                  flexDirection: isUser ? 'row-reverse' : 'row',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: getMsgBgColor(message.type),
+                    color: 'white',
+                    flexShrink: 0,
+                    mt: 0.5,
+                  }}
+                >
+                  {getMsgIcon(message.type)}
+                </Box>
+
+                <Box sx={{ maxWidth: '75%', minWidth: 0 }}>
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      borderRadius: 2,
+                      bgcolor: isUser ? 'primary.main' : 'background.paper',
+                      color: isUser ? 'primary.contrastText' : 'text.primary',
+                      border: isUser ? 'none' : 1,
+                      borderColor: 'divider',
+                    }}
+                  >
+                    {isEditing ? (
+                      <Box>
+                        <TextField
+                          fullWidth
+                          multiline
+                          minRows={2}
+                          maxRows={10}
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          size='small'
+                          sx={{
+                            '& .MuiInputBase-root': {
+                              bgcolor: 'background.default',
+                            },
+                          }}
+                        />
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            gap: 1,
+                            mt: 1,
+                            justifyContent: 'flex-end',
+                          }}
+                        >
+                          <IconButton
+                            size='small'
+                            onClick={onEditCancel}
+                          >
+                            <CloseIcon fontSize='small' />
+                          </IconButton>
+                          <IconButton
+                            size='small'
+                            color='primary'
+                            onClick={() => onEditSave(message)}
+                          >
+                            <SaveIcon fontSize='small' />
+                          </IconButton>
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Typography
+                        variant='body2'
+                        sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                      >
+                        {extractText(message.content)}
+                      </Typography>
+                    )}
+                  </Box>
+
+                  {!isEditing && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 0.5,
+                        mt: 0.5,
+                        justifyContent: isUser ? 'flex-end' : 'flex-start',
+                        opacity: 0.6,
+                        '&:hover': { opacity: 1 },
+                      }}
+                    >
+                      <IconButton
+                        size='small'
+                        title='Edit message'
+                        onClick={() => onEditStart(message)}
+                      >
+                        <EditIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                      <IconButton
+                        size='small'
+                        title='Branch at this message'
+                        onClick={() => onBranchClick(message)}
+                      >
+                        <BranchIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                      <IconButton
+                        size='small'
+                        title='Delete message'
+                        onClick={() => onDeleteClick(message)}
+                      >
+                        <DeleteIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                      <Typography
+                        variant='caption'
+                        color='text.secondary'
+                        sx={{ ml: 1, alignSelf: 'center' }}
+                      >
+                        {message.createdAt
+                          ? new Date(message.createdAt).toLocaleTimeString()
+                          : ''}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )
+          })}
+          <div ref={messagesEndRef} />
+        </Box>
+      )}
+
+      {threadMessages.length > 0 && viewMode === 'table' && (
         <TableContainer>
           <Table size='small'>
             <TableHead>
               <TableRow>
                 <TableCell>Type</TableCell>
-                <TableCell>Thread ID</TableCell>
                 <TableCell>Content</TableCell>
                 <TableCell>Created</TableCell>
+                <TableCell align='right'>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {projectMessages.map((message) => (
+              {threadMessages.map((message) => (
                 <TableRow
                   key={message.id}
                   hover
@@ -146,15 +534,6 @@ export const MessagesTab = (props: TMessagesTab) => {
                       size='small'
                       color={getMsgTypeColor(message.type) as any}
                     />
-                  </TableCell>
-                  <TableCell>
-                    <Typography
-                      variant='body2'
-                      fontFamily='monospace'
-                      sx={{ fontSize: '0.75rem' }}
-                    >
-                      {message.threadId?.substring(0, 8)}...
-                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography
@@ -176,12 +555,83 @@ export const MessagesTab = (props: TMessagesTab) => {
                         : '-'}
                     </Typography>
                   </TableCell>
+                  <TableCell align='right'>
+                    <IconButton
+                      size='small'
+                      color='primary'
+                      title='Edit message'
+                      onClick={() => onEditStart(message)}
+                    >
+                      <EditIcon fontSize='small' />
+                    </IconButton>
+                    <IconButton
+                      size='small'
+                      color='info'
+                      title='Branch at this message'
+                      onClick={() => onBranchClick(message)}
+                    >
+                      <BranchIcon fontSize='small' />
+                    </IconButton>
+                    <IconButton
+                      size='small'
+                      color='error'
+                      title='Delete message'
+                      onClick={() => onDeleteClick(message)}
+                    >
+                      <DeleteIcon fontSize='small' />
+                    </IconButton>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </TableContainer>
       )}
+
+      <ConfirmDelete
+        onConfirm={onDeleteConfirm}
+        title='Delete Message?'
+        open={deleteDialogOpen}
+        itemName='this message'
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setSelectedMessage(null)
+        }}
+        warnText='This will permanently delete this message. This action cannot be undone.'
+      />
+
+      <Dialog
+        open={branchDialogOpen}
+        onClose={() => {
+          setBranchDialogOpen(false)
+          setSelectedMessage(null)
+        }}
+      >
+        <DialogTitle>Branch Thread</DialogTitle>
+        <DialogContent>
+          <Typography variant='body2'>
+            Create a new thread branching at this message? Messages before and including
+            this point will be copied to the new thread. Messages after this point will
+            not be included.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setBranchDialogOpen(false)
+              setSelectedMessage(null)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant='contained'
+            onClick={onBranchConfirm}
+          >
+            Branch
+          </Button>
+        </DialogActions>
+      </Dialog>
     </PageLayout>
   )
 }

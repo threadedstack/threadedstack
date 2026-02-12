@@ -9,8 +9,10 @@ import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { useActiveOrgId, useActiveProjectId, useAgents } from '@TAF/state/selectors'
+import { nav } from '@TAF/services/nav'
 import {
   Add as AddIcon,
+  Chat as ChatIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
 } from '@mui/icons-material'
@@ -278,6 +280,18 @@ export const ProjectAgents = (props: TProjectAgents) => {
                   </Stack>
                 </CardContent>
                 <CardActions>
+                  <IconButton
+                    size='small'
+                    color='primary'
+                    title='Chat with agent'
+                    onClick={() =>
+                      nav.to(
+                        `/orgs/${orgId}/projects/${projectId}/agents/${agent.id}/chat`
+                      )
+                    }
+                  >
+                    <ChatIcon fontSize='small' />
+                  </IconButton>
                   <IconButton
                     size='small'
                     onClick={() => onOpenEdit(agent)}

@@ -26,7 +26,16 @@
       "mcp__playwright__browser_network_requests",
       "mcp__playwright__browser_console_messages",
       "mcp__playwright__browser_snapshot",
-      "mcp__playwright__browser_close"
+      "mcp__playwright__browser_close",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:snyk.io)",
+      "WebFetch(domain:justbash.dev)",
+      "WebFetch(domain:ridwandevjourney.vercel.app)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:turso.tech)",
+      "WebFetch(domain:www.clouddefense.ai)",
+      "WebFetch(domain:security.snyk.io)",
+      "WebFetch(domain:blog.logrocket.com)"
     ]
   },
   "sandbox": {

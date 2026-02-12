@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Organization, Project } from '@tdsk/domain'
+import type { Organization, Project, Agent } from '@tdsk/domain'
 import type { TAnyCB } from '@TAF/types/helper.types'
 import type {
   LinkProps,
@@ -10,9 +10,11 @@ import type {
 
 export type TNavCtx = {
   orgId?: string
-  projectId?: string
+  agentId?: string
   project?: Project
+  projectId?: string
   org?: Organization
+  agents?: Record<string, Agent>
 }
 
 export type TToAction = string | ((context: TNavCtx) => string)

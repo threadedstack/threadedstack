@@ -26,6 +26,7 @@ ADD repos/domain/package.json ./repos/domain/package.json
 ADD repos/database/package.json ./repos/database/package.json
 ADD repos/proxy/package.json ./repos/proxy/package.json
 ADD repos/backend/package.json ./repos/backend/package.json
+ADD repos/agent/package.json ./repos/agent/package.json
 RUN pnpm install --frozen-lockfile --prefer-offline
 
 ADD repos/logger ./repos/logger
@@ -33,6 +34,7 @@ ADD repos/domain ./repos/domain
 ADD repos/database ./repos/database
 ADD repos/proxy ./repos/proxy
 ADD repos/backend ./repos/backend
+ADD repos/agent ./repos/agent
 ADD deploy deploy
 # ---- End Stage ---- #
 

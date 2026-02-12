@@ -19,13 +19,13 @@ import {
 export type TCreateThreadDrawerProps = {
   open: boolean
   orgId: string
-  projectId: string
+  agentId: string
   onClose?: () => void
   onSuccess?: () => void
 }
 
 export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
-  const { open, orgId, projectId, onSuccess, onClose: onCloseCB } = props
+  const { open, orgId, agentId, onSuccess, onClose: onCloseCB } = props
 
   const [providers] = useProviders()
 
@@ -35,8 +35,8 @@ export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
   const [error, setError] = useState<string | null>(null)
   const [selectedProviderId, setSelectedProviderId] = useState(``)
 
-  const projectProviders = Object.values(providers || {}).filter(
-    (provider) => provider.projectId === projectId || provider.orgId === orgId
+  const availableProviders = Object.values(providers || {}).filter(
+    (provider) => provider.orgId === orgId
   )
 
   const onClose = () => {
@@ -56,7 +56,6 @@ export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
     setError(null)
 
     const threadData: Partial<Thread> = {
-      projectId,
       userId: ``,
       name: name.trim(),
       public: publicThread,
@@ -64,7 +63,7 @@ export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
 
     if (selectedProviderId) threadData.providerId = selectedProviderId
 
-    const result = await createThread(threadData)
+    const result = await createThread(orgId, agentId, threadData)
     setLoading(false)
 
     if (result.error) return setError(result.error.message)
@@ -152,7 +151,7 @@ export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
                 }}
               >
                 <option value=''>None</option>
-                {projectProviders.map((provider) => (
+                {availableProviders.map((provider) => (
                   <option
                     key={provider.id}
                     value={provider.id}

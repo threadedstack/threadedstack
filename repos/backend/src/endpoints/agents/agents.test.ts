@@ -80,10 +80,11 @@ describe(`Agents endpoints`, () => {
       expect(agents.endpoints?.deleteAgent).toBeDefined()
     })
 
-    it(`should have all 5 endpoint configs defined`, () => {
+    it(`should have all 6 endpoint configs defined`, () => {
       const endpointKeys = Object.keys(agents.endpoints || {})
-      expect(endpointKeys).toHaveLength(5)
+      expect(endpointKeys).toHaveLength(6)
       expect(endpointKeys).toContain(`getAgent`)
+      expect(endpointKeys).toContain(`runAgent`)
       expect(endpointKeys).toContain(`listAgents`)
       expect(endpointKeys).toContain(`createAgent`)
       expect(endpointKeys).toContain(`updateAgent`)

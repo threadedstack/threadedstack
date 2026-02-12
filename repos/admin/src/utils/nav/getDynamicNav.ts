@@ -2,13 +2,9 @@ import type { TNavCtx, TDynamicNavConfig } from '@TAF/types'
 
 import { ERoutePath } from '@TAF/types'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
-import { OrgNavItems, BottomNavItems, ProjectNavItems } from '@TAF/constants/nav'
+import { OrgNavItems, BottomNavItems } from '@TAF/constants/nav'
+import { buildProjectNavItems } from '@TAF/utils/nav/buildProjectNavItems'
 
-/**
- * Get dynamic navigation configuration based on context
- * @param context - Current navigation context (orgId, projectId, etc.)
- * @returns Dynamic navigation configuration with sections and bottom items
- */
 export const getDynamicNav = (context: TNavCtx): TDynamicNavConfig => {
   const sections = []
 
@@ -25,7 +21,7 @@ export const getDynamicNav = (context: TNavCtx): TDynamicNavConfig => {
   if (context.orgId) {
     sections.push({
       id: `project`,
-      items: ProjectNavItems,
+      items: buildProjectNavItems(context),
       to: buildRoute(ERoutePath.OrgProject),
       visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
       header: context.project?.name || `Project`,

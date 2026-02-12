@@ -29,6 +29,12 @@ export const SBNavItem = (props: TNavItem & { open?: boolean; context?: TNavCtx 
   if (props.visible && !props.visible(props.context || {})) return null
 
   const resolvedPath = isFunc(props.to) ? props.to(props.context || {}) : props.to
+  const hasChildren = Boolean(props.items?.length)
+
+  // Parent items with children use prefix matching so they highlight when a child is active
+  const isActive = hasChildren
+    ? Boolean(resolvedPath && location.pathname.startsWith(resolvedPath))
+    : location.pathname === resolvedPath
 
   return (
     <NavItem
@@ -38,14 +44,16 @@ export const SBNavItem = (props: TNavItem & { open?: boolean; context?: TNavCtx 
       Icon={props.Icon}
       text={props.text}
       items={props.items}
+      defaultOpen={isActive}
       tooltip={!props.open ? { title: props.text, loc: `left` } : undefined}
-      className={cls(
-        props.open && `open`,
-        location.pathname === resolvedPath && `active`
-      )}
+      itemsListProps={{
+        Item: SBNavItem,
+        itemProps: { open: props.open, context: props.context },
+      }}
+      className={cls(props.open && `open`, isActive && `active`)}
       onClick={(evt: any) => {
         stopEvent(evt)
-        navigate(resolvedPath)
+        if (resolvedPath) navigate(resolvedPath)
       }}
     />
   )

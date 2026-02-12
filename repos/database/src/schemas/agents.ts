@@ -3,6 +3,7 @@ import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { secrets } from '@TDB/schemas/secrets'
+import { threads } from '@TDB/schemas/threads'
 import { orgs } from '@TDB/schemas/orgs'
 import { agentProjects } from '@TDB/schemas/agentProjects'
 import { uuid, text, jsonb, boolean, pgTable, integer } from 'drizzle-orm/pg-core'
@@ -68,6 +69,7 @@ export const agentsRelations = relations(agents, ({ one, many }) => ({
     references: [orgs.id],
   }),
   secrets: many(secrets),
+  threads: many(threads),
   projects: many(agentProjects),
   provider: one(providers, {
     fields: [agents.providerId],

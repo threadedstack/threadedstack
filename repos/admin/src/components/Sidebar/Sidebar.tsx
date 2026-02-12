@@ -7,6 +7,7 @@ import { SBNavList } from '@TAF/components/Sidebar/SBNavList'
 import { SBSection } from '@TAF/components/Sidebar/SBSection'
 import { ChevronLeft, ChevronRight } from '@mui/icons-material'
 import { useActiveOrgId, useSidebarOpen } from '@TAF/state/selectors'
+import { useAgentsSidebarSync } from '@TAF/hooks/nav/useAgentsSidebarSync'
 import { CreateProjectDrawer } from '@TAF/components/Projects/CreateProjectDrawer'
 import {
   SideDrawer,
@@ -22,6 +23,7 @@ export const Sidebar = (props: TSidebar) => {
   const [open, setOpen] = useSidebarOpen()
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const { config, context } = useDynamicNav()
+  useAgentsSidebarSync()
 
   const onCreateProject = () => setCreateProjectOpen(true)
 

@@ -41,11 +41,8 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
     }
   }, [thread])
 
-  const projectProviders = Object.values(providers || {}).filter(
-    (provider) =>
-      !thread ||
-      provider.projectId === thread.projectId ||
-      provider.orgId === thread.orgId
+  const availableProviders = Object.values(providers || {}).filter(
+    (provider) => !thread || provider.orgId === thread.orgId
   )
 
   const onClose = () => {
@@ -73,7 +70,7 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
       threadData.providerId = selectedProviderId
     }
 
-    const result = await updateThread(thread.id, threadData)
+    const result = await updateThread(thread.orgId, thread.agentId, thread.id, threadData)
 
     if (result.error) {
       setError(result.error.message)
@@ -159,7 +156,7 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
                 }}
               >
                 <option value=''>None</option>
-                {projectProviders.map((provider) => (
+                {availableProviders.map((provider) => (
                   <option
                     key={provider.id}
                     value={provider.id}

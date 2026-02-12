@@ -1,0 +1,18 @@
+import { messagesApi } from '@TAF/services'
+import { removeMessage } from '@TAF/actions/messages/local/removeMessage'
+
+export type TDeleteMessageOpts = {
+  orgId: string
+  agentId: string
+  threadId: string
+  messageId: string
+}
+
+export const deleteMessage = async (opts: TDeleteMessageOpts) => {
+  const { orgId, agentId, threadId, messageId } = opts
+  const resp = await messagesApi.delete(orgId, agentId, threadId, messageId)
+  if (resp.error) return { error: resp.error }
+  removeMessage(messageId)
+
+  return resp
+}

@@ -27,6 +27,7 @@
       "threadedstack",
       "TSCD",
       "TSCP"
-    ]
+    ],
+    "git.ignoreLimitWarning": true
   }
 }

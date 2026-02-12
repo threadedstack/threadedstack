@@ -79,50 +79,83 @@ export const NavItem = styled(ListItem)`
     opacity: 1;
     background-color: ${cmx(colors.grey[500], 5)};
   }
-  
+
   &.active {
     opacity: 1;
     color: ${colors.primary.main};
     background-color: ${cmx(colors.grey[500], 5)};
-    & .MuiListItemIcon-root {
+    & > .MuiListItemIcon-root {
       color: ${colors.primary.main};
     }
-    & .MuiTypography-root {
+    & > .MuiTypography-root {
       color: ${colors.primary.main};
     }
   }
 
   &.open {
-  
-    & .MuiTypography-root {
+
+    & > .MuiTypography-root {
       opacity: 1;
     }
-    & .tdsk-list-item-expand {
+    & > .tdsk-list-item-expand {
       opacity: 1;
     }
   }
-  
-  
-  & .MuiListItemIcon-root {
+
+
+  & > .MuiListItemIcon-root {
     padding-left: ${gutter.cpx};
     padding-right: ${gutter.hpx};
     transition: color 0.4s ease;
-    
+
     & svg {
       font-size: 18px;
     }
   }
-    
-  & .MuiTypography-root {
+
+  & > .MuiTypography-root {
     opacity: 0;
     font-size: 14px;
     transition: opacity 0.4s ease, color 0.4s ease;
   }
-  
-  & .tdsk-list-item-expand {
+
+  & > .tdsk-list-item-expand {
     opacity: 0;
     min-width: 0;
     transition: opacity 0.4s ease;
+  }
+
+  /* Nested nav items (level 1: agents under Agents) */
+  & .tdsk-list-container {
+    padding-left: 12px;
+
+    & > .tdsk-list > .tdsk-list-item-box > .tdsk-list-item {
+      padding: ${gutter.cpx} ${gutter.tpx};
+
+      & > .MuiTypography-root {
+        font-size: 13px;
+      }
+      & > .MuiListItemIcon-root svg {
+        font-size: 16px;
+      }
+    }
+
+    /* Nested nav items (level 2: Threads/Chat under agent) */
+    & .tdsk-list-container {
+      padding-left: 8px;
+
+      & > .tdsk-list > .tdsk-list-item-box > .tdsk-list-item,
+      & > .tdsk-list > .tdsk-list-item {
+        padding: ${gutter.cpx} ${gutter.tpx};
+
+        & > .MuiTypography-root {
+          font-size: 12px;
+        }
+        & > .MuiListItemIcon-root svg {
+          font-size: 14px;
+        }
+      }
+    }
   }
 `
 

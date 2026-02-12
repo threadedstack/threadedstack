@@ -1,4 +1,4 @@
-import type { TMutexOpts } from '@TAG/types'
+import type { TMutexOpts } from '../types/mutex.types'
 
 /**
  * Mutex class for managing concurrent access to project directories
