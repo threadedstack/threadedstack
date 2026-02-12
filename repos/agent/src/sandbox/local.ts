@@ -45,8 +45,7 @@ export class LocalSandbox implements ISandbox {
   }
 
   readFile = async (path: string): Promise<string> => {
-    const content = await this.fs.readFile(path, { encoding: `utf-8` })
-    return typeof content === `string` ? content : content.toString()
+    return await this.fs.readFile(path, { encoding: `utf-8` })
   }
 
   writeFile = async (path: string, content: string): Promise<void> => {
@@ -57,15 +56,12 @@ export class LocalSandbox implements ISandbox {
     const entries = await this.fs.readdir(path)
     const result: string[] = []
 
-    for (const entry of entries) {
-      const name = typeof entry === `string` ? entry : entry.name
+    for (const name of entries) {
       const entryPath = path.endsWith(`/`) ? `${path}${name}` : `${path}/${name}`
 
       try {
         const stat = await this.fs.stat(entryPath)
-        const isDir =
-          typeof stat.isDirectory === `function` ? stat.isDirectory() : stat.isDirectory
-        result.push(isDir ? `[DIR] ${name}` : name)
+        result.push(stat.isDirectory ? `[DIR] ${name}` : name)
       } catch {
         result.push(name)
       }

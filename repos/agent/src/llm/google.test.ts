@@ -539,7 +539,7 @@ describe(`GoogleAdapter`, () => {
                     name: `get_weather`,
                     description: `Get weather for a location`,
                     parameters: {
-                      type: `object`,
+                      type: `OBJECT`,
                       properties: {
                         location: { type: `string`, description: `The city name` },
                       },

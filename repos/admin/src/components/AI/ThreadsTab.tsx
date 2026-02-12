@@ -60,7 +60,7 @@ export const ThreadsTab = (props: TThreadsTab) => {
   const projectAgents = useMemo(() => {
     if (!agents || !projectId) return []
     return Object.values(agents).filter(
-      (agent) => agent.projectId === projectId || agent.orgId === orgId
+      (agent) => agent.projects?.some((p) => p.id === projectId) || agent.orgId === orgId
     )
   }, [agents, projectId, orgId])
 

@@ -38,12 +38,14 @@ export const updateMessage: TEndpointConfig = {
       throw new Exception(404, `Message not found in this thread`)
 
     const { content, type, meta } = req.body
-    const updateData: Record<string, any> = { id: messageId }
-    if (content !== undefined) updateData.content = content
-    if (type !== undefined) updateData.type = type
-    if (meta !== undefined) updateData.meta = meta
+    const updateData = {
+      id: messageId,
+      ...(content !== undefined && { content }),
+      ...(type !== undefined && { type }),
+      ...(meta !== undefined && { meta }),
+    }
 
-    const { data, error } = await db.services.message.update(updateData)
+    const { data, error } = await db.services.message.update(updateData as any)
 
     if (error) throw new Exception(500, error)
 

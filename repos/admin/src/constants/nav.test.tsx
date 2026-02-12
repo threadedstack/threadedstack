@@ -103,7 +103,18 @@ describe(`getDynamicNav`, () => {
     it(`should have project items in project section`, () => {
       const config = getDynamicNav(fullContext)
       const projectSection = config.sections.find((s) => s.id === `project`)
-      expect(projectSection?.items).toBe(ProjectNavItems)
+      // getDynamicNav uses buildProjectNavItems which filters Threads
+      // and transforms Agents with sub-items, so it's not the same reference
+      const itemTexts = projectSection?.items.map((i) => i.text)
+      expect(itemTexts).toEqual([
+        `Endpoints`,
+        `Functions`,
+        `Secrets`,
+        `Providers`,
+        `Agents`,
+        `Domains`,
+        `Settings`,
+      ])
     })
 
     it(`should have visible function for project section`, () => {

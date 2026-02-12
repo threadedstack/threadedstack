@@ -40,7 +40,10 @@ export class Message extends Base<
 
   async createBatch(data: TDBMessageInsert[]): Promise<TDBApiRes<MessageModel[]>> {
     try {
-      const resp = await this.db.insert(messages).values(data).returning()
+      const resp = await this.db
+        .insert(messages)
+        .values(data as (typeof messages.$inferInsert)[])
+        .returning()
       return { data: resp.map((row) => this.model(row as TDBMessageSelect)) }
     } catch (error: any) {
       return { error }

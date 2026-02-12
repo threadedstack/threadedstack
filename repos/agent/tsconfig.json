@@ -36,6 +36,8 @@
 
       "@TSH": ["../shell/src"],
       "@TSH/*": ["../shell/src/*"],
+      "@TSH/configs": ["../shell/configs"],
+      "@TSH/configs/*": ["../shell/configs/*"],
       "@tdsk/shell": ["../shell/src"],
       "@tdsk/shell/*": ["../shell/src/*"],
 

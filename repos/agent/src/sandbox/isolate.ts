@@ -59,8 +59,7 @@ export class IsolateRunner {
       `_fsReadFile`,
       new ivm.Callback(
         async (path: string) => {
-          const content = await this.fs.readFile(path, { encoding: `utf-8` })
-          return typeof content === `string` ? content : content.toString()
+          return await this.fs.readFile(path, { encoding: `utf-8` })
         },
         { async: true }
       )
@@ -105,8 +104,7 @@ export class IsolateRunner {
       `_fsReaddir`,
       new ivm.Callback(
         async (path: string) => {
-          const entries = await this.fs.readdir(path)
-          return entries.map((e: any) => (typeof e === `string` ? e : e.name))
+          return await this.fs.readdir(path)
         },
         { async: true }
       )
@@ -127,10 +125,11 @@ export class IsolateRunner {
       new ivm.Callback(
         async (path: string) => {
           const stat = await this.fs.stat(path)
-          const isDir =
-            typeof stat.isDirectory === `function` ? stat.isDirectory() : stat.isDirectory
-          const isFile = typeof stat.isFile === `function` ? stat.isFile() : stat.isFile
-          return { isDirectory: isDir, isFile: isFile, size: stat.size || 0 }
+          return {
+            isDirectory: stat.isDirectory,
+            isFile: stat.isFile,
+            size: stat.size || 0,
+          }
         },
         { async: true }
       )

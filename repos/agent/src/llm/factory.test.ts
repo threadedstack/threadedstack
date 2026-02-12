@@ -5,24 +5,24 @@ import { AnthropicAdapter } from './anthropic'
 import { describe, it, expect, vi } from 'vitest'
 
 vi.mock(`@TAG/llm/anthropic`, () => ({
-  AnthropicAdapter: vi.fn().mockImplementation(() => ({
-    provider: `anthropic`,
-    stream: vi.fn(),
-  })),
+  AnthropicAdapter: vi.fn().mockImplementation(function (this: any) {
+    this.provider = `anthropic`
+    this.stream = vi.fn()
+  }),
 }))
 
 vi.mock(`@TAG/llm/openai`, () => ({
-  OpenAIAdapter: vi.fn().mockImplementation(() => ({
-    provider: `openai`,
-    stream: vi.fn(),
-  })),
+  OpenAIAdapter: vi.fn().mockImplementation(function (this: any) {
+    this.provider = `openai`
+    this.stream = vi.fn()
+  }),
 }))
 
 vi.mock(`@TAG/llm/google`, () => ({
-  GoogleAdapter: vi.fn().mockImplementation(() => ({
-    provider: `google`,
-    stream: vi.fn(),
-  })),
+  GoogleAdapter: vi.fn().mockImplementation(function (this: any) {
+    this.provider = `google`
+    this.stream = vi.fn()
+  }),
 }))
 
 describe(`createLLMAdapter`, () => {

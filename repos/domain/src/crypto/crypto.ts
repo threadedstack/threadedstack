@@ -42,7 +42,7 @@ const getMasterKey = (): void => {
  * @returns A Promise resolving to the derived key as a Node.js Buffer (32 bytes).
  * @throws Error if ref_id is invalid. Rejects promise if HKDF fails.
  */
-export const deriveKey = (ref_id: string): Promise<Buffer<ArrayBufferLike>> => {
+export const deriveKey = (ref_id: string): Promise<Buffer> => {
   if (!isStr(ref_id) || ref_id.length === 0)
     return Promise.reject(new Error(`Invalid ref_id provided for key derivation.`))
 

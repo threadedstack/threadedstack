@@ -44,6 +44,10 @@
       "@tdsk/database": ["../database/src"],
       "@tdsk/database/*": ["../database/src/*"],
 
+      "@TAG": ["../agent/src"],
+      "@TAG/*": ["../agent/src/*"],
+      "@TAG/configs": ["../agent/configs"],
+      "@TAG/configs/*": ["../agent/configs/*"],
       "@tdsk/agent": ["../agent/src"],
       "@tdsk/agent/*": ["../agent/src/*"],
 
@@ -68,5 +72,11 @@
     "../logger/src",
     "../domain/src",
     "../database/src"
+  ],
+  "exclude": [
+    "../agent/src/**/*.test.ts",
+    "../agent/src/**/__tests__/**",
+    "../agent/src/utils/logger.ts",
+    "../agent/src/configs"
   ]
 }
