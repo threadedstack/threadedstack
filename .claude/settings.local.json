@@ -35,7 +35,8 @@
       "WebFetch(domain:turso.tech)",
       "WebFetch(domain:www.clouddefense.ai)",
       "WebFetch(domain:security.snyk.io)",
-      "WebFetch(domain:blog.logrocket.com)"
+      "WebFetch(domain:blog.logrocket.com)",
+      "Bash(CI=true pnpm install:*)"
     ]
   },
   "sandbox": {

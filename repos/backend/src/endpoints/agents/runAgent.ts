@@ -110,16 +110,17 @@ export const runAgent: TEndpointConfig = {
       model: agent.model || provider.options?.model || `claude-sonnet-4-20250514`,
     }
 
-    // Build sandbox config from environment
-    const sandboxConfig = agent.environment?.options?.sandbox
-      ? {
-          envVars: agent.envVars,
-          timeout: agent.environment?.timeout,
-          apiKey: (agent.environment.options.sandbox as any).apiKey,
-          template: (agent.environment.options.sandbox as any).template,
-          provider: (agent.environment.options.sandbox as any).provider || `e2b`,
-        }
-      : undefined
+    // Build sandbox config — defaults to local provider when no explicit sandbox set
+    const sandbox = agent.environment?.options?.sandbox as
+      | Record<string, unknown>
+      | undefined
+    const sandboxConfig = {
+      envVars: agent.envVars,
+      timeout: agent.environment?.timeout ?? 300000,
+      apiKey: sandbox?.apiKey as string | undefined,
+      template: sandbox?.template as string | undefined,
+      provider: (sandbox?.provider as string) || `local`,
+    }
 
     // Handle client disconnect
     let aborted = false

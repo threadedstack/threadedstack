@@ -1,9 +1,11 @@
 import type { ISandboxProvider, TSandboxProviderType } from '@tdsk/domain'
 
 import { E2bSandboxProvider } from './e2b'
+import { LocalSandboxProvider } from './local'
 
 const providers = new Map<TSandboxProviderType, () => ISandboxProvider>([
   [`e2b`, () => new E2bSandboxProvider()],
+  [`local`, () => new LocalSandboxProvider()],
 ])
 
 /**

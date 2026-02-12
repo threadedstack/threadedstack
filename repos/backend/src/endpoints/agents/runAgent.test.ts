@@ -454,7 +454,109 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           temperature: 0.7,
           systemPrompt: `You are helpful.`,
         }),
+        sandboxConfig: expect.objectContaining({
+          provider: `local`,
+          timeout: 300000,
+        }),
         onEvent: expect.any(Function),
+      })
+    )
+  })
+
+  it(`should default sandbox provider to local when no explicit sandbox config`, async () => {
+    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+
+    const ep = getEndpointCfg(runAgent as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [{ value: `sk-test-key` }],
+        tools: [],
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `anthropic`, options: {} },
+    })
+    mockThreadCreate.mockResolvedValue({
+      data: { id: `thread-default`, name: `Hello agent` },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(AgentRunner.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sandboxConfig: expect.objectContaining({
+          provider: `local`,
+          timeout: 300000,
+          apiKey: undefined,
+          template: undefined,
+        }),
+      })
+    )
+  })
+
+  it(`should use explicit sandbox provider when configured`, async () => {
+    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+
+    const ep = getEndpointCfg(runAgent as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [{ value: `sk-test-key` }],
+        tools: [],
+        environment: {
+          timeout: 600000,
+          options: {
+            sandbox: {
+              provider: `e2b`,
+              apiKey: `e2b-key-123`,
+              template: `custom-template`,
+            },
+          },
+        },
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `anthropic`, options: {} },
+    })
+    mockThreadCreate.mockResolvedValue({
+      data: { id: `thread-e2b`, name: `Hello agent` },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(AgentRunner.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sandboxConfig: expect.objectContaining({
+          provider: `e2b`,
+          apiKey: `e2b-key-123`,
+          template: `custom-template`,
+          timeout: 600000,
+        }),
       })
     )
   })

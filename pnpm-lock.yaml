@@ -214,6 +214,12 @@ importers:
       events:
         specifier: 3.3.0
         version: 3.3.0
+      isolated-vm:
+        specifier: ^5.0.1
+        version: 5.0.4
+      just-bash:
+        specifier: 2.5.5
+        version: 2.5.5
       openai:
         specifier: ^4.77.0
         version: 4.104.0(ws@8.18.3)
@@ -8121,6 +8127,10 @@ packages:
   isobject@3.0.1:
     resolution: {integrity: sha512-WhB9zCku7EGTj/HQQRz5aUQEUeoQZH2bWcltRErOpymJ4boYE6wL9Tbr23krRPSZ+C5zqNSrSw+Cc7sZZ4b7vg==}
     engines: {node: '>=0.10.0'}
+
+  isolated-vm@5.0.4:
+    resolution: {integrity: sha512-RYUf/JC4ldWz/oi2BVs8a1XIprQ71q6eQPBwySaF5Apu0KMyf2gIpElbCyPh2OEmRT+FYw1GOKSdkv7jw2KLxw==}
+    engines: {node: '>=18.0.0'}
 
   issue-parser@6.0.0:
     resolution: {integrity: sha512-zKa/Dxq2lGsBIXQ7CUZWTHfvxPC2ej0KfO7fIPqLlHB9J2hJ7rGhZ5rilhuufylr4RXYPzJUeFjKxz305OsNlA==}
@@ -19773,6 +19783,10 @@ snapshots:
       isarray: 1.0.0
 
   isobject@3.0.1: {}
+
+  isolated-vm@5.0.4:
+    dependencies:
+      prebuild-install: 7.1.3
 
   issue-parser@6.0.0:
     dependencies:

@@ -56,6 +56,7 @@
       "@swc/core",
       "core-js",
       "esbuild",
+      "isolated-vm",
       "node-liblzma"
     ]
   },

@@ -12,6 +12,8 @@ const entry = path.join(rootDir, `src/index.ts`)
 const getExternal = () => {
   return [
     `openai`,
+    `isolated-vm`,
+    `just-bash`,
     ...Object.keys(packcfg.dependencies || {}),
     ...Object.keys(packcfg.devDependencies || {}),
   ].filter((name) => !name.startsWith(`@tdsk`) && !name.startsWith(`@keg-hub`))
