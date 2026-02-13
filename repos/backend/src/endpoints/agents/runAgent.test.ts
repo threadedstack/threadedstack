@@ -22,6 +22,26 @@ vi.mock(`@TBE/services/agent/agent`, () => ({
   },
 }))
 
+vi.mock(`@tdsk/domain`, async () => {
+  const actual = await vi.importActual(`@tdsk/domain`)
+  return {
+    ...actual,
+    deriveKey: vi.fn().mockResolvedValue(Buffer.alloc(32, `key`)),
+    decryptValue: vi.fn().mockResolvedValue(`sk-test-key`),
+  }
+})
+
+/**
+ * Helper to create a fake encrypted value that passes the minimum length check
+ * Format: [iv:12][authTag:16][ciphertext:N] encoded as base64
+ */
+const fakeEncrypted = () =>
+  Buffer.concat([
+    Buffer.alloc(12, `iv`),
+    Buffer.alloc(16, `tag`),
+    Buffer.from(`ciphertext`),
+  ]).toString(`base64`)
+
 describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   let mockReq: Partial<TRequest>
   let mockRes: Partial<Response>
@@ -52,6 +72,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
             },
             provider: {
               get: vi.fn(),
+            },
+            secret: {
+              list: vi.fn().mockResolvedValue({ data: [] }),
             },
             thread: {
               create: vi.fn(),
@@ -159,7 +182,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
       },
     })
     mockProvGet.mockResolvedValue({ data: null })
@@ -169,7 +192,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     )
   })
 
-  it(`should throw 400 when no API key found in agent secrets`, async () => {
+  it(`should throw 400 when no API key found across all scopes`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -189,66 +215,20 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     mockProvGet.mockResolvedValue({
       data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
+    // secret.list returns empty for both provider and org scoped
+    const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
+      typeof vi.fn
+    >
+    mockSecretList.mockResolvedValue({ data: [] })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
       `No API key found for agent provider`
     )
   })
 
-  it(`should throw 400 when secrets have no value property`, async () => {
-    const ep = getEndpointCfg(runAgent as any)
-    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
-      typeof vi.fn
-    >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
-
-    mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providerId: `prov-1`,
-        secrets: [{ key: `API_KEY`, value: `` }],
-      },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
-    })
-
-    await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `No API key found for agent provider`
-    )
-  })
-
-  it(`should throw 400 for unsupported LLM provider`, async () => {
-    const ep = getEndpointCfg(runAgent as any)
-    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
-      typeof vi.fn
-    >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
-
-    mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providerId: `prov-1`,
-        secrets: [{ value: `sk-key` }],
-      },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `invalid-provider`, options: {} },
-    })
-
-    await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `Unsupported LLM provider`
-    )
-  })
-
-  it(`should set SSE headers correctly`, async () => {
-    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+  it(`should resolve API key from agent-scoped secrets`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-agent-key`)
 
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
@@ -266,7 +246,171 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        tools: [],
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `anthropic`, options: {} },
+    })
+    mockThreadCreate.mockResolvedValue({
+      data: { id: `thread-agent`, name: `Hello agent` },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    // Should NOT query provider or org secrets when agent secret found
+    const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
+      typeof vi.fn
+    >
+    expect(mockSecretList).not.toHaveBeenCalled()
+  })
+
+  it(`should fall back to provider-scoped secrets when agent has none`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-provider-key`)
+
+    const ep = getEndpointCfg(runAgent as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
+      typeof vi.fn
+    >
+    const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [],
+        tools: [],
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `anthropic`, options: {} },
+    })
+    mockSecretList.mockResolvedValueOnce({
+      data: [{ encryptedValue: fakeEncrypted(), providerId: `prov-1` }],
+    })
+    mockThreadCreate.mockResolvedValue({
+      data: { id: `thread-prov`, name: `Hello agent` },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(mockSecretList).toHaveBeenCalledWith({
+      where: { providerId: `prov-1` },
+    })
+  })
+
+  it(`should fall back to org-scoped secrets when provider has none`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-org-key`)
+
+    const ep = getEndpointCfg(runAgent as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
+      typeof vi.fn
+    >
+    const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [],
+        tools: [],
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `anthropic`, options: {} },
+    })
+    // Provider secrets empty
+    mockSecretList.mockResolvedValueOnce({ data: [] })
+    // Org secrets found
+    mockSecretList.mockResolvedValueOnce({
+      data: [{ encryptedValue: fakeEncrypted(), orgId: `org-1` }],
+    })
+    mockThreadCreate.mockResolvedValue({
+      data: { id: `thread-org`, name: `Hello agent` },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(mockSecretList).toHaveBeenCalledWith({
+      where: { providerId: `prov-1` },
+    })
+    expect(mockSecretList).toHaveBeenCalledWith({
+      where: { orgId: `org-1` },
+    })
+  })
+
+  it(`should throw 400 for unsupported LLM provider`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-key`)
+
+    const ep = getEndpointCfg(runAgent as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `invalid-provider`, options: {} },
+    })
+
+    await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+      `Unsupported LLM provider`
+    )
+  })
+
+  it(`should set SSE headers correctly`, async () => {
+    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
+
+    const ep = getEndpointCfg(runAgent as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         model: `claude-sonnet-4-20250514`,
         tools: [],
       },
@@ -289,6 +433,8 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
 
   it(`should create a new thread when no threadId provided`, async () => {
     const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
@@ -306,7 +452,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         model: `claude-sonnet-4-20250514`,
         tools: [],
       },
@@ -329,6 +475,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should use existing threadId when provided and skip thread creation`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
+
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -347,7 +496,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
     })
@@ -365,6 +514,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should send thread ID as first SSE event`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
+
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -381,7 +533,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
     })
@@ -402,6 +554,8 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
 
   it(`should call AgentRunner.run with correct options`, async () => {
     const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
@@ -419,7 +573,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         model: `claude-sonnet-4-20250514`,
         maxTokens: 2048,
         systemPrompt: `You are helpful.`,
@@ -465,6 +619,8 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
 
   it(`should default sandbox provider to local when no explicit sandbox config`, async () => {
     const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
@@ -482,7 +638,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
     })
@@ -509,6 +665,8 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
 
   it(`should use explicit sandbox provider when configured`, async () => {
     const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
@@ -526,7 +684,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
         environment: {
           timeout: 600000,
@@ -562,6 +720,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should write DONE event and call res.end on success`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
+
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -578,7 +739,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
     })
@@ -597,6 +758,8 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
 
   it(`should send error event when AgentRunner.run throws`, async () => {
     const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
     ;(AgentRunner.run as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error(`LLM crashed`)
     )
@@ -617,7 +780,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
     })
@@ -638,6 +801,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should register close handler on request`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
+
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -654,7 +820,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providerId: `prov-1`,
-        secrets: [{ value: `sk-test-key` }],
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
     })

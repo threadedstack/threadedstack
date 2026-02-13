@@ -165,7 +165,7 @@ const apiKeys = {
     keyPrefix: `tdsk_master`,
     scopes: `read,write,admin`,
     name: `Threaded Stack Org Master Key`,
-    id: Ids.apikey.acmeOrgKey,
+    id: Ids.apikey.tdskOrgKey,
     expiresAt: new Date(`2025-12-31`),
     lastUsedAt: new Date(`2024-01-25`),
     keyHash: `hashed_tdsk_org_master_key_12345`,
@@ -438,7 +438,7 @@ const configs = {
       },
       runtime: {
         nodeVersion: `20.x`,
-        memoryLimit: 2048,
+        memory: 2048,
         timeout: 30,
       },
     },

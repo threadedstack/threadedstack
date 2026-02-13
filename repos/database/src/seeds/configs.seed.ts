@@ -51,7 +51,7 @@ export const configsSeeds: Config[] = [
       },
       runtime: {
         nodeVersion: `20.x`,
-        memoryLimit: 2048,
+        memory: 2048,
         timeout: 30,
       },
     },

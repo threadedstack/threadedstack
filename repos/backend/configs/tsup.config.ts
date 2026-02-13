@@ -13,7 +13,11 @@ const getExternal = () => {
   return [
     `openai`,
     `isolated-vm`,
-    `just-bash`,
+    // just-bash transitive deps that can't be bundled (native addons / optional browser deps)
+    `@mongodb-js/zstd`,
+    `node-liblzma`,
+    `@mixmark-io/domino`,
+    `sql.js`,
     ...Object.keys(packcfg.dependencies || {}),
     ...Object.keys(packcfg.devDependencies || {}),
   ].filter((name) => !name.startsWith(`@tdsk`) && !name.startsWith(`@keg-hub`))

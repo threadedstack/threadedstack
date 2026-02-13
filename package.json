@@ -17,6 +17,9 @@
     "tdsk": "cd repos/cli; pnpm cli",
     "ts": "cd repos/cli; pnpm cli",
     "test": "pnpm -r test",
+    "test:integration": "cd repos/integration && pnpm test",
+    "test:integration:api": "cd repos/integration && pnpm test:api",
+    "test:integration:ui": "cd repos/integration && pnpm test:ui",
     "precommit": "pnpm lint:staged && pnpm format:staged",
     "validate": "pnpm lint:ci && pnpm format:ci",
     "format": "pnpm biome:format --write && pnpm -r format",
@@ -57,7 +60,8 @@
       "core-js",
       "esbuild",
       "isolated-vm",
-      "node-liblzma"
+      "node-liblzma",
+      "protobufjs"
     ]
   },
   "config": {

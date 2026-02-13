@@ -1,11 +1,23 @@
-import ivm from 'isolated-vm'
 import type { Bash } from 'just-bash'
 import type { IFileSystem } from 'just-bash'
+import type { Isolate, Context, Module } from 'isolated-vm'
+
+// Lazy-load isolated-vm via dynamic import() to:
+// 1. Avoid crashing when native addon isn't compiled (Linux pod)
+// 2. Allow vitest to intercept via vi.mock()
+let _ivm: any = null
+const loadIvm = async (): Promise<any> => {
+  if (!_ivm) {
+    const mod = await import('isolated-vm')
+    _ivm = mod.default || mod
+  }
+  return _ivm
+}
 
 export type IsolateRunnerOptions = {
-  memoryLimit?: number
   bash: Bash
   fs: IFileSystem
+  memory?: number
 }
 
 /**
@@ -14,38 +26,40 @@ export type IsolateRunnerOptions = {
  * Node.js API shims (fs, path, shell) route to just-bash
  */
 export class IsolateRunner {
-  private isolate: ivm.Isolate | null = null
-  private context: ivm.Context | null = null
-  private shimModules = new Map<string, ivm.Module>()
-  private bash: Bash
-  private fs: IFileSystem
-  private memoryLimit: number
-  private capturedOutput: string[] = []
-  private initialized = false
+  #bash: Bash
+  #memory: number
+  #fs: IFileSystem
+  #initialized = false
+  #isolate: Isolate | null = null
+  #context: Context | null = null
+  #shims = new Map<string, Module>()
+
+  #output: string[] = []
 
   constructor(opts: IsolateRunnerOptions) {
-    this.bash = opts.bash
-    this.fs = opts.fs
-    this.memoryLimit = opts.memoryLimit || 128
+    this.#fs = opts.fs
+    this.#bash = opts.bash
+    this.#memory = opts.memory || 128
   }
 
   async init(): Promise<void> {
-    if (this.initialized) return
+    if (this.#initialized) return
 
-    this.isolate = new ivm.Isolate({ memoryLimit: this.memoryLimit })
-    this.context = await this.isolate.createContext()
-    const jail = this.context.global
+    const ivm = await loadIvm()
+    this.#isolate = new ivm.Isolate({ memory: this.#memory })
+    this.#context = await this.#isolate.createContext()
+    const jail = this.#context.global
     await jail.set(`global`, jail.derefInto())
 
     // Console bridge — captures output for retrieval after eval
     await jail.set(
       `_log`,
       new ivm.Callback((...args: any[]) => {
-        this.capturedOutput.push(args.map(String).join(` `))
+        this.#output.push(args.map(String).join(` `))
       })
     )
 
-    await this.context.eval(`
+    await this.#context.eval(`
       globalThis.console = {
         log: (...args) => _log(...args),
         error: (...args) => _log('ERROR:', ...args),
@@ -59,7 +73,7 @@ export class IsolateRunner {
       `_fsReadFile`,
       new ivm.Callback(
         async (path: string) => {
-          return await this.fs.readFile(path, { encoding: `utf-8` })
+          return await this.#fs.readFile(path, { encoding: `utf-8` })
         },
         { async: true }
       )
@@ -69,7 +83,7 @@ export class IsolateRunner {
       `_fsWriteFile`,
       new ivm.Callback(
         async (path: string, content: string) => {
-          await this.fs.writeFile(path, content)
+          await this.#fs.writeFile(path, content)
         },
         { async: true }
       )
@@ -80,7 +94,7 @@ export class IsolateRunner {
       new ivm.Callback(
         async (path: string) => {
           try {
-            await this.fs.stat(path)
+            await this.#fs.stat(path)
             return true
           } catch {
             return false
@@ -94,7 +108,7 @@ export class IsolateRunner {
       `_fsMkdir`,
       new ivm.Callback(
         async (path: string) => {
-          await this.fs.mkdir(path, { recursive: true })
+          await this.#fs.mkdir(path, { recursive: true })
         },
         { async: true }
       )
@@ -104,7 +118,7 @@ export class IsolateRunner {
       `_fsReaddir`,
       new ivm.Callback(
         async (path: string) => {
-          return await this.fs.readdir(path)
+          return await this.#fs.readdir(path)
         },
         { async: true }
       )
@@ -114,7 +128,7 @@ export class IsolateRunner {
       `_fsUnlink`,
       new ivm.Callback(
         async (path: string) => {
-          await this.fs.rm(path)
+          await this.#fs.rm(path)
         },
         { async: true }
       )
@@ -124,7 +138,7 @@ export class IsolateRunner {
       `_fsStat`,
       new ivm.Callback(
         async (path: string) => {
-          const stat = await this.fs.stat(path)
+          const stat = await this.#fs.stat(path)
           return {
             isDirectory: stat.isDirectory,
             isFile: stat.isFile,
@@ -140,7 +154,7 @@ export class IsolateRunner {
       `_shellRun`,
       new ivm.Callback(
         async (cmd: string) => {
-          const result = await this.bash.exec(cmd)
+          const result = await this.#bash.exec(cmd)
           if (result.exitCode !== 0)
             throw new Error(result.stderr || `Command failed: ${cmd}`)
           return result.stdout
@@ -149,12 +163,12 @@ export class IsolateRunner {
       )
     )
 
-    await this.compileShimModules()
-    this.initialized = true
+    await this.#compile()
+    this.#initialized = true
   }
 
-  private async compileShimModules(): Promise<void> {
-    if (!this.isolate || !this.context) throw new Error(`Isolate not created`)
+  async #compile(): Promise<void> {
+    if (!this.#isolate || !this.#context) throw new Error(`Isolate not created`)
 
     // fs shim — all operations are async (return Promises)
     const fsSource = `
@@ -179,13 +193,13 @@ export class IsolateRunner {
         readFileSync, writeFileSync,
       }
     `
-    const fsMod = await this.isolate.compileModule(fsSource, { filename: `node:fs` })
-    await fsMod.instantiate(this.context, () => {
+    const fsMod = await this.#isolate.compileModule(fsSource, { filename: `node:fs` })
+    await fsMod.instantiate(this.#context, () => {
       throw new Error(`fs shim has no dependencies`)
     })
     await fsMod.evaluate()
-    this.shimModules.set(`fs`, fsMod)
-    this.shimModules.set(`node:fs`, fsMod)
+    this.#shims.set(`fs`, fsMod)
+    this.#shims.set(`node:fs`, fsMod)
 
     // path shim — pure JS, no host bridge needed
     const pathSource = `
@@ -215,15 +229,15 @@ export class IsolateRunner {
       export const posix = { sep: '/' }
       export default { join, resolve, dirname, basename, extname, normalize, sep, posix }
     `
-    const pathMod = await this.isolate.compileModule(pathSource, {
+    const pathMod = await this.#isolate.compileModule(pathSource, {
       filename: `node:path`,
     })
-    await pathMod.instantiate(this.context, () => {
+    await pathMod.instantiate(this.#context, () => {
       throw new Error(`path shim has no dependencies`)
     })
     await pathMod.evaluate()
-    this.shimModules.set(`path`, pathMod)
-    this.shimModules.set(`node:path`, pathMod)
+    this.#shims.set(`path`, pathMod)
+    this.#shims.set(`node:path`, pathMod)
 
     // Shell shim — routes commands to just-bash virtual shell
     // Named as child_process for Node.js API compatibility
@@ -233,28 +247,28 @@ export class IsolateRunner {
       export { run }
       export default { execSync: run, run }
     `
-    const shellMod = await this.isolate.compileModule(shellSource, {
+    const shellMod = await this.#isolate.compileModule(shellSource, {
       filename: `node:child_process`,
     })
-    await shellMod.instantiate(this.context, () => {
+    await shellMod.instantiate(this.#context, () => {
       throw new Error(`shell shim has no dependencies`)
     })
     await shellMod.evaluate()
-    this.shimModules.set(`child_process`, shellMod)
-    this.shimModules.set(`node:child_process`, shellMod)
+    this.#shims.set(`child_process`, shellMod)
+    this.#shims.set(`node:child_process`, shellMod)
   }
 
   async eval(code: string, timeout = 5000): Promise<{ output: string; result: any }> {
-    if (!this.initialized) await this.init()
+    if (!this.#initialized) await this.init()
 
-    this.capturedOutput = []
+    this.#output = []
 
-    const userModule = await this.isolate!.compileModule(code, {
+    const userModule = await this.#isolate!.compileModule(code, {
       filename: `user-code.js`,
     })
 
-    await userModule.instantiate(this.context!, (specifier: string) => {
-      const shim = this.shimModules.get(specifier)
+    await userModule.instantiate(this.#context!, (specifier: string) => {
+      const shim = this.#shims.get(specifier)
       if (!shim) throw new Error(`Module not found: ${specifier}`)
       return shim
     })
@@ -273,39 +287,39 @@ export class IsolateRunner {
     userModule.release()
 
     return {
-      output: this.capturedOutput.join(`\n`),
+      output: this.#output.join(`\n`),
       result,
     }
   }
 
   dispose(): void {
-    for (const mod of this.shimModules.values()) {
+    for (const mod of this.#shims.values()) {
       try {
         mod.release()
       } catch {
         /* already released */
       }
     }
-    this.shimModules.clear()
+    this.#shims.clear()
 
-    if (this.context) {
+    if (this.#context) {
       try {
-        this.context.release()
+        this.#context.release()
       } catch {
         /* already released */
       }
-      this.context = null
+      this.#context = null
     }
 
-    if (this.isolate) {
+    if (this.#isolate) {
       try {
-        this.isolate.dispose()
+        this.#isolate.dispose()
       } catch {
         /* already disposed */
       }
-      this.isolate = null
+      this.#isolate = null
     }
 
-    this.initialized = false
+    this.#initialized = false
   }
 }

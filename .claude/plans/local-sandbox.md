@@ -62,7 +62,7 @@ The agent repo uses E2B Firecracker microVMs as its sandbox for code execution. 
 1. Create MountableFs with InMemoryFs base
 2. If config.options?.mountDir is set, mount an OverlayFs at /workspace (copy-on-write from host dir)
 3. Create Bash instance with the filesystem, env vars from config, execution limits, and command whitelist
-4. Create IsolateRunner with memory limit from config.options?.memoryLimit (default 128MB), passing the Bash instance for shim wiring
+4. Create IsolateRunner with memory limit from config.options?.memory (default 128MB), passing the Bash instance for shim wiring
 5. Return LocalSandbox instance
 
 
@@ -71,7 +71,7 @@ The agent repo uses E2B Firecracker microVMs as its sandbox for code execution. 
 
 **Wraps isolated-vm for code execution with just-bash backed shims:**
 
-**Constructor: (opts: { memoryLimit?: number, bash: Bash })**
+**Constructor: (opts: { memory?: number, bash: Bash })**
 
 * Creates Isolate with memory limit
 * Stores reference to Bash instance for shim routing

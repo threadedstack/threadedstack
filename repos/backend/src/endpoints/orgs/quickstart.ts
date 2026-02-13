@@ -84,23 +84,6 @@ export const quickstart: TEndpointConfig = {
     // --- Permission check ---
     await checkPermission(req, EPermAction.create, EPermResource.project, { orgId })
 
-    // --- Encrypt the API key ---
-    let encryptedValue: string
-    let hashKey: string
-    try {
-      const derivedKey = await deriveKey(orgId)
-      const encrypted = await encryptValue(derivedKey, apiKey)
-      encryptedValue = encodeEncrypted(
-        encrypted.iv,
-        encrypted.authTag,
-        encrypted.encrypted
-      )
-      hashKey = createHashKey(secretName)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : `Failed to encrypt API key`
-      throw new Exception(500, message)
-    }
-
     // --- Create endpoint path slug ---
     const slug = agentName
       .toLowerCase()
@@ -122,7 +105,17 @@ export const quickstart: TEndpointConfig = {
           })
           .returning()
 
-        // 2. Secret (provider-scoped, encrypted API key)
+        // 2. Encrypt API key using provider ID (scope owner for provider-scoped secrets)
+        const derivedKey = await deriveKey(provider.id)
+        const encrypted = await encryptValue(derivedKey, apiKey)
+        const encryptedValue = encodeEncrypted(
+          encrypted.iv,
+          encrypted.authTag,
+          encrypted.encrypted
+        )
+        const hashKey = createHashKey(secretName)
+
+        // 3. Secret (provider-scoped, encrypted API key)
         const [secret] = await tx
           .insert(secrets)
           .values({
@@ -133,7 +126,7 @@ export const quickstart: TEndpointConfig = {
           })
           .returning()
 
-        // 3. Project (org-scoped)
+        // 4. Project (org-scoped)
         const [project] = await tx
           .insert(projects)
           .values({
@@ -143,7 +136,7 @@ export const quickstart: TEndpointConfig = {
           })
           .returning()
 
-        // 4. Agent (org-scoped, linked to provider)
+        // 5. Agent (org-scoped, linked to provider)
         const [agent] = await tx
           .insert(agents)
           .values({
@@ -157,13 +150,13 @@ export const quickstart: TEndpointConfig = {
           })
           .returning()
 
-        // 5. Agent-Project junction
+        // 6. Agent-Project junction
         await tx.insert(agentProjects).values({
           agentId: agent.id,
           projectId: project.id,
         })
 
-        // 6. Endpoint (project-scoped, type=agent)
+        // 7. Endpoint (project-scoped, type=agent)
         const [endpoint] = await tx
           .insert(endpoints)
           .values({

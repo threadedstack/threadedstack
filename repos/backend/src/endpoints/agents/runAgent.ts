@@ -2,11 +2,66 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { ELLMProvider } from '@tdsk/domain'
 import { Exception } from '@TBE/utils/errors/exception'
 import { AgentRunner } from '@TBE/services/agent/agent'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import {
+  ELLMProvider,
+  EPermAction,
+  EPermResource,
+  deriveKey,
+  decryptValue,
+} from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+
+/**
+ * Decrypt a secret's encryptedValue using the appropriate scope owner ID.
+ * Falls back to orgId if decryption with the owner ID fails (handles
+ * quickstart secrets that were encrypted with orgId but stored as provider-scoped).
+ */
+const decryptSecret = async (
+  secret: {
+    encryptedValue: string
+    orgId?: string
+    projectId?: string
+    providerId?: string
+    agentId?: string
+  },
+  orgId: string
+): Promise<string | null> => {
+  if (!secret.encryptedValue) return null
+
+  const combined = Buffer.from(secret.encryptedValue, `base64`)
+  if (combined.length < 29) return null // 12 (iv) + 16 (authTag) + 1 (min ciphertext)
+
+  const iv = combined.subarray(0, 12)
+  const authTag = combined.subarray(12, 28)
+  const ciphertext = combined.subarray(28)
+
+  // Determine the scope owner for key derivation
+  const refId = secret.agentId || secret.providerId || secret.projectId || secret.orgId
+
+  // Try the scope owner first
+  if (refId) {
+    try {
+      const key = await deriveKey(refId)
+      return await decryptValue(key, ciphertext, iv, authTag)
+    } catch {
+      // Decryption failed with scope owner — may be encrypted with a different key
+    }
+  }
+
+  // Fallback: try orgId (handles quickstart encryption mismatch)
+  if (orgId && orgId !== refId) {
+    try {
+      const key = await deriveKey(orgId)
+      return await decryptValue(key, ciphertext, iv, authTag)
+    } catch {
+      // Both attempts failed
+    }
+  }
+
+  return null
+}
 
 /**
  * POST /agents/:id/run - Run an agent with SSE streaming
@@ -48,14 +103,51 @@ export const runAgent: TEndpointConfig = {
 
     if (provErr || !provider) throw new Exception(404, `Agent provider not found`)
 
-    // Find the API key secret for this agent
-    // Agent secrets with a value contain the decrypted API key
+    // Resolve API key secret with fallback chain:
+    // 1. Agent-scoped secrets (loaded via agent relation)
+    // 2. Provider-scoped secrets (query by providerId)
+    // 3. Org-scoped secrets (query by orgId)
     let apiKey = ``
+
+    // 1. Try agent-scoped secrets
     if (agent.secrets?.length) {
       for (const secret of agent.secrets) {
-        if (secret.value) {
-          apiKey = secret.value
+        const value = await decryptSecret(secret, agent.orgId)
+        if (value) {
+          apiKey = value
           break
+        }
+      }
+    }
+
+    // 2. Try provider-scoped secrets
+    if (!apiKey) {
+      const { data: providerSecrets } = await db.services.secret.list({
+        where: { providerId: agent.providerId },
+      })
+      if (providerSecrets?.length) {
+        for (const secret of providerSecrets) {
+          const value = await decryptSecret(secret, agent.orgId)
+          if (value) {
+            apiKey = value
+            break
+          }
+        }
+      }
+    }
+
+    // 3. Try org-scoped secrets
+    if (!apiKey) {
+      const { data: orgSecrets } = await db.services.secret.list({
+        where: { orgId: agent.orgId },
+      })
+      if (orgSecrets?.length) {
+        for (const secret of orgSecrets) {
+          const value = await decryptSecret(secret, agent.orgId)
+          if (value) {
+            apiKey = value
+            break
+          }
         }
       }
     }

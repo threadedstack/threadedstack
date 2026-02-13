@@ -260,3 +260,20 @@ env:
   TDSK_AG_LOG_LEVEL:
   TDSK_AG_LOGGER_PRETTY:
   TDSK_AG_LOGGER_SILENT:
+
+
+# ---- Integration Test ENVs --- #
+  # Proxy URL for integration tests (defaults to https://<TDSK_CADDY_PX_HOST>)
+  TDSK_IT_PROXY_URL:
+
+  # Admin SPA URL for Playwright UI tests (defaults to http://localhost:<TDSK_AD_PORT>)
+  TDSK_IT_ADMIN_URL:
+
+  # API key for authenticating test requests (required — set in ~/.config/tdsk/values.yaml)
+  TDSK_IT_API_KEY:
+
+  # Org ID to run tests against (required — set in ~/.config/tdsk/values.yaml)
+  TDSK_IT_ORG_ID:
+
+  # User ID associated with the test API key
+  TDSK_IT_USER_ID: integration-test-user

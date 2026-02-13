@@ -129,7 +129,7 @@ describe(`IsolateRunner`, () => {
     })
 
     it(`should accept custom memory limit`, () => {
-      const r = new IsolateRunner({ bash: mockBash, fs: mockFs, memoryLimit: 256 })
+      const r = new IsolateRunner({ bash: mockBash, fs: mockFs, memory: 256 })
       expect(r).toBeInstanceOf(IsolateRunner)
     })
 

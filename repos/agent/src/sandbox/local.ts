@@ -114,14 +114,20 @@ export class LocalSandboxProvider implements ISandboxProvider {
     })
 
     // IsolateRunner is optional — sandbox works for shell/FS even without it
-    let isolateRunner: IsolateRunner | null = null
+    // Call init() eagerly to validate isolated-vm is available
+    let runner: IsolateRunner | null = null
     try {
-      const memoryLimit = (config.options?.memoryLimit as number) || 128
-      isolateRunner = new IsolateRunner({ memoryLimit, bash, fs })
+      const memory = (config.options?.memory as number) || 128
+      runner = new IsolateRunner({ memory, bash, fs })
+      await runner.init()
     } catch {
-      // isolated-vm not available — sandbox works without code execution isolation
+      runner = null
+      // TODO: Figure out how to best handle this?
+      console.warn(
+        `isolated-vm not available — sandbox running without code execution isolation`
+      )
     }
 
-    return new LocalSandbox(bash, fs, isolateRunner)
+    return new LocalSandbox(bash, fs, runner)
   }
 }
