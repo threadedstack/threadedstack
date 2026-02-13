@@ -1,6 +1,7 @@
 {
   "env": {
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
+    "npm_config_store_dir": "/Users/lancetipton/Library/pnpm/store/v10"
   },
   "permissions": {
     "allow": [

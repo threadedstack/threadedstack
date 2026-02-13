@@ -182,3 +182,4 @@ vite.config.ts.timestamp*
 *.sqlite-journal
 *.sqlite-wal
 repos/**/wit/deps
+.playwright-mcp
