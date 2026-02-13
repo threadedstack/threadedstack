@@ -50,12 +50,13 @@
       "mcp__plugin_playwright_playwright__browser_wait_for",
       "Bash(npx:*)",
       "Bash(echo:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "WebFetch(domain:api.github.com)"
     ]
   },
   "sandbox": {
-    "network": {},
     "enabled": true,
-    "autoAllowBashIfSandboxed": true
+    "autoAllowBashIfSandboxed": true,
+    "network": {}
   }
 }

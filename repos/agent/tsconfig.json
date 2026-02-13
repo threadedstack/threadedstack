@@ -34,12 +34,12 @@
       "@TAG/": ["./src"],
       "@TAG/*": ["./src/*"],
 
-      "@TSH": ["../shell/src"],
-      "@TSH/*": ["../shell/src/*"],
-      "@TSH/configs": ["../shell/configs"],
-      "@TSH/configs/*": ["../shell/configs/*"],
-      "@tdsk/shell": ["../shell/src"],
-      "@tdsk/shell/*": ["../shell/src/*"],
+      "@TSB": ["../sandbox/src"],
+      "@TSB/*": ["../sandbox/src/*"],
+      "@TSB/configs": ["../sandbox/configs"],
+      "@TSB/configs/*": ["../sandbox/configs/*"],
+      "@tdsk/sandbox": ["../sandbox/src"],
+      "@tdsk/sandbox/*": ["../sandbox/src/*"],
 
       "@TDM": ["../domain/src"],
       "@TDM/*": ["../domain/src/*"],
@@ -75,7 +75,7 @@
     "src",
     "configs",
     "scripts",
-    "../shell/src",
+    "../sandbox/src",
     "../logger/src",
     "../domain/src",
     "../database/src"

@@ -7,8 +7,7 @@
     "test": "pnpm test:api && pnpm test:ui",
     "test:api": "vitest run --config configs/vitest.config.ts",
     "test:ui": "playwright test --config configs/playwright.config.ts",
-    "postinstall": "pnpm playwright:install",
-    "playwright:install": "playwright install chromium"
+    "pwi": "playwright install chromium"
   },
   "dependencies": {
     "@keg-hub/parse-config": "2.2.0"

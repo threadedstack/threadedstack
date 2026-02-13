@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "rootDir": "./",
+    "outDir": "./dist",
+    "target": "esnext",
+    "module": "esnext",
+    "noEmit": true,
+    "allowJs": true,
+    "sourceMap": true,
+    "declaration": false,
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "noImplicitAny": false,
+    "declarationMap": false,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "strictNullChecks": false,
+    "moduleResolution": "bundler",
+    "noFallthroughCasesInSwitch": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@ROOT": ["../../"],
+
+      "@TSB": ["./src"],
+      "@TSB/*": ["./src/*"],
+      "@TSB/configs": ["./configs"],
+      "@TSB/configs/*": ["./configs/*"],
+
+      "@tdsk/domain": ["../domain/src"],
+      "@tdsk/domain/*": ["../domain/src/*"]
+    }
+  },
+  "include": [
+    "src",
+    "configs"
+  ]
+}

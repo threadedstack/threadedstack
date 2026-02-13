@@ -1,0 +1,36 @@
+{
+  "name": "@tdsk/sandbox",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "clean": "rm -rf ./node_modules",
+    "biome": "biome",
+    "lint": "pnpm biome:lint --write",
+    "format": "pnpm biome:format --write",
+    "lint:ci": "pnpm biome:lint --diagnostic-level=error --changed",
+    "format:ci": "pnpm biome:format --diagnostic-level=error --changed",
+    "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "test": "vitest run --config configs/vitest.config.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tdsk/domain": "workspace:*",
+    "alias-hq": "6.2.4",
+    "e2b": "^1.2.0",
+    "isolated-vm": "^5.0.1",
+    "just-bash": "2.5.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.1.2",
+    "@types/node": "^20.11.16",
+    "vite-tsconfig-paths": "4.3.2",
+    "vitest": "1.6.1"
+  }
+}
