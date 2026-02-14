@@ -73,10 +73,11 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
     mockOn = vi.fn()
 
     mockRes = {
-      status: mockStatus,
+      end: mockEnd,
       json: mockJson,
       write: mockWrite,
-      end: mockEnd,
+      on: mockOn as any,
+      status: mockStatus,
       setHeader: mockSetHeader,
       flushHeaders: mockFlushHeaders,
     } as Partial<Response>
@@ -92,7 +93,6 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
       },
       query: {},
       params: {},
-      on: mockOn as any,
     }
 
     // Default: stream yields nothing (empty conversation)
@@ -240,7 +240,7 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
     expect(mockEnd).toHaveBeenCalled()
   })
 
-  it(`should register close handler on request`, async () => {
+  it(`should register close handler on response`, async () => {
     const ep = getEndpointCfg(aiChatProxy as any)
     await ep.action(mockReq as TRequest, mockRes as Response)
 

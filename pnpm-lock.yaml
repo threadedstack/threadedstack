@@ -216,7 +216,7 @@ importers:
         version: 3.3.0
       openai:
         specifier: ^4.77.0
-        version: 4.104.0(ws@8.18.3)
+        version: 4.104.0(ws@8.18.3)(zod@4.3.5)
       tsx:
         specifier: 4.21.0
         version: 4.21.0
@@ -245,9 +245,15 @@ importers:
 
   repos/backend:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.39.0
+        version: 0.39.0
       '@elastic/ecs-winston-format':
         specifier: 1.5.3
         version: 1.5.3
+      '@google/genai':
+        specifier: ^1.0.0
+        version: 1.41.0
       '@keg-hub/jsutils':
         specifier: ^10.0.0
         version: 10.0.0
@@ -320,6 +326,9 @@ importers:
       nodemailer:
         specifier: 7.0.12
         version: 7.0.12
+      openai:
+        specifier: ^4.77.0
+        version: 4.104.0(ws@8.18.3)(zod@4.3.5)
       safe-stable-stringify:
         specifier: 2.5.0
         version: 2.5.0
@@ -20712,7 +20721,7 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  openai@4.104.0(ws@8.18.3):
+  openai@4.104.0(ws@8.18.3)(zod@4.3.5):
     dependencies:
       '@types/node': 18.19.130
       '@types/node-fetch': 2.6.13
@@ -20723,6 +20732,7 @@ snapshots:
       node-fetch: 2.7.0
     optionalDependencies:
       ws: 8.18.3
+      zod: 4.3.5
     transitivePeerDependencies:
       - encoding
 

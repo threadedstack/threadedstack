@@ -18,8 +18,8 @@ const createDBAdapter = (db: any): IAgentRunnerDB => ({
   listMessages: (opts) =>
     db.services.message.list({
       limit: opts.limit,
+      where: opts.where,
       offset: opts.offset,
-      where: { threadId: opts.threadId },
     }),
 })
 
@@ -87,8 +87,8 @@ export const runAgent: TEndpointConfig = {
     if (!threadId) {
       const { data: thread, error: threadErr } = await db.services.thread.create({
         userId,
-        orgId: agent.orgId,
         agentId,
+        orgId: agent.orgId,
         name: prompt.substring(0, 100),
       })
 

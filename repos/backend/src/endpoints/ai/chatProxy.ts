@@ -41,6 +41,9 @@ export const aiChatProxy: TEndpointConfig = {
     }
 
     // Create the real LLM adapter (Anthropic/OpenAI/Google)
+    logger.info(
+      `Chat proxy: creating adapter for provider=${session.llmConfig.provider}, model=${session.llmConfig.model}`
+    )
     const adapter = llm.createLLMAdapter(session.llmConfig.provider)
 
     // SSE headers
@@ -49,17 +52,24 @@ export const aiChatProxy: TEndpointConfig = {
     res.setHeader(`Connection`, `keep-alive`)
     res.flushHeaders()
 
-    // Handle client disconnect
+    // Handle client disconnect — use res.on('close') instead of req.on('close')
+    // because req 'close' fires when the POST body is consumed (body-parser),
+    // NOT when the client actually disconnects
     let aborted = false
-    req.on(`close`, () => {
+    res.on(`close`, () => {
       aborted = true
+      logger.info(`Chat proxy: client disconnected`)
     })
 
     try {
+      logger.info(
+        `Chat proxy: starting stream with ${messages.length} messages, ${tools.length} tools`
+      )
       for await (const event of adapter.stream(messages, tools, session.llmConfig)) {
         if (aborted) break
         res.write(`data: ${JSON.stringify(event)}\n\n`)
       }
+      logger.info(`Chat proxy: stream completed`)
     } catch (err) {
       const message = err instanceof Error ? err.message : `LLM proxy error`
       logger.error(`Chat proxy error: ${message}`)

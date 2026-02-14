@@ -13,6 +13,8 @@ const getExternal = () => {
   return [
     `openai`,
     `isolated-vm`,
+    `@google/genai`,
+    `@anthropic-ai/sdk`,
     // just-bash transitive deps that can't be bundled (native addons / optional browser deps)
     `@mongodb-js/zstd`,
     `node-liblzma`,

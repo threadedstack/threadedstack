@@ -7,6 +7,9 @@ import type {
   TLLMAdapterConfig,
 } from '@tdsk/domain'
 
+import { buildApiLogger } from '@tdsk/logger'
+const logger = buildApiLogger(`google-adapter`)
+
 type Content = { role: string; parts: Part[] }
 type Part =
   | { text: string }
@@ -75,7 +78,9 @@ export class GoogleAdapter implements ILLMAdapter {
     tools: TLLMToolDef[],
     config: TLLMAdapterConfig
   ): AsyncIterable<TStreamEvent> {
+    logger.info(`GoogleAdapter: loading SDK`)
     const GoogleGenAI = await loadGoogleGenAI()
+    logger.info(`GoogleAdapter: SDK loaded, creating client`)
     const client = new GoogleGenAI({ apiKey: config.apiKey })
 
     const systemPrompt =
@@ -89,6 +94,9 @@ export class GoogleAdapter implements ILLMAdapter {
     const contents = toGoogleContents(messages)
     const googleTools = tools.length > 0 ? toGoogleTools(tools) : undefined
 
+    logger.info(
+      `GoogleAdapter: calling generateContentStream model=${config.model} contents=${contents.length}`
+    )
     const response = await client.models.generateContentStream({
       model: config.model,
       contents,
@@ -99,6 +107,7 @@ export class GoogleAdapter implements ILLMAdapter {
         tools: googleTools ? [{ functionDeclarations: googleTools }] : undefined,
       },
     })
+    logger.info(`GoogleAdapter: stream started, iterating chunks`)
 
     let toolCallCounter = 0
 
@@ -113,13 +122,13 @@ export class GoogleAdapter implements ILLMAdapter {
         if (part.functionCall) {
           const toolId = `tool_${toolCallCounter++}`
           yield {
-            type: `tool_call_start` as const,
             id: toolId,
+            type: `tool_call_start` as const,
             name: part.functionCall.name ?? ``,
           }
           yield {
-            type: `tool_call_args` as const,
             id: toolId,
+            type: `tool_call_args` as const,
             args: JSON.stringify(part.functionCall.args ?? {}),
           }
         }
@@ -137,5 +146,6 @@ export class GoogleAdapter implements ILLMAdapter {
         yield { type: `done` as const, stopReason }
       }
     }
+    logger.info(`GoogleAdapter: stream iteration complete`)
   }
 }

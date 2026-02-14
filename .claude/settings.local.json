@@ -53,7 +53,9 @@
       "Bash(python3:*)",
       "WebFetch(domain:api.github.com)",
       "Bash(bun:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(pgrep:*)",
+      "Bash(npx vitest run:*)"
     ]
   },
   "sandbox": {
