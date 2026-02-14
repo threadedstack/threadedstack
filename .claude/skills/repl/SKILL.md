@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - REPL Repo"
 description: "Knowledge base for the terminal REPL CLI for AI agent interaction"
-version: "1.0.0"
-tags: ["cli", "repl", "bun", "agent", "terminal", "interactive"]
+version: "1.1.0"
+tags: ["cli", "repl", "bun", "agent", "terminal", "interactive", "session", "proxy-adapter"]
 ---
 # REPL Repo Skill
 
@@ -10,7 +10,7 @@ tags: ["cli", "repl", "bun", "agent", "terminal", "interactive"]
 
 The **REPL** repo (`repos/repl`, `@tdsk/repl`) is a terminal-based interactive CLI for communicating with ThreadedStack AI agents. It provides:
 
-- **Local Agent Execution** — Runs agent ReAct loops locally (not on server) with decrypted LLM credentials
+- **Local Agent Execution** — Runs agent ReAct loops locally via session-based LLM proxy (API keys never leave the backend)
 - **Persistent Authentication** — API key-based login stored in `~/.config/tdsk/repl-auth.json`
 - **Conversation Management** — Thread creation, switching, history loading via backend API
 - **Rich Terminal Output** — Markdown rendering, syntax highlighting, ANSI colors, tool call visualization
@@ -18,7 +18,7 @@ The **REPL** repo (`repos/repl`, `@tdsk/repl`) is a terminal-based interactive C
 
 **Runtime**: Bun (not Node.js) — the entry point uses `#!/usr/bin/env bun`
 
-**Key Problem Solved**: Bridges server-hosted agent management with local execution, giving developers an interactive chat interface for testing and using agents without a browser UI.
+**Key Problem Solved**: Bridges server-hosted agent management with local execution, giving developers an interactive chat interface for testing and using agents without a browser UI. LLM API keys never leave the server — the REPL uses session tokens to proxy LLM calls through the backend.
 
 ## Directory Structure
 
@@ -38,17 +38,17 @@ repos/repl/
 │   ├── auth/
 │   │   ├── index.ts            # AuthManager export
 │   │   ├── auth.ts             # AuthManager class (login/logout/credentials)
-│   │   └── auth.test.ts        # 26 unit tests
+│   │   └── auth.test.ts        # 17 unit tests
 │   ├── api/
 │   │   ├── index.ts            # ApiClient export
-│   │   ├── client.ts           # ApiClient class (HTTP API wrapper)
-│   │   └── client.test.ts      # 20 unit tests
+│   │   ├── client.ts           # ApiClient class (HTTP API wrapper + session creation)
+│   │   └── client.test.ts      # 18 unit tests
 │   ├── executor/
 │   │   ├── index.ts            # Executor exports
-│   │   ├── executor.ts         # LocalAgentExecutor class
+│   │   ├── executor.ts         # LocalAgentExecutor class (session-based flow)
 │   │   ├── executor.test.ts    # 9 unit tests
 │   │   ├── httpAdapter.ts      # HttpMessageAdapter (IAgentRunnerDB impl)
-│   │   └── httpAdapter.test.ts # 4 unit tests
+│   │   └── httpAdapter.test.ts # 3 unit tests
 │   └── display/
 │       ├── index.ts            # Renderer & colors exports
 │       ├── colors.ts           # ANSI color functions
@@ -65,7 +65,7 @@ repos/repl/
 | `src/repl.ts` | AgentRepl class — interactive readline loop with slash commands |
 | `src/auth/auth.ts` | AuthManager — persistent API key storage and validation |
 | `src/api/client.ts` | ApiClient — HTTP wrapper for backend API (`/_/*` endpoints) |
-| `src/executor/executor.ts` | LocalAgentExecutor — resolves agent config, creates threads, runs AgentRunner |
+| `src/executor/executor.ts` | LocalAgentExecutor — creates sessions, ProxyAdapter, threads, runs AgentRunner |
 | `src/executor/httpAdapter.ts` | HttpMessageAdapter — implements IAgentRunnerDB for message persistence via HTTP |
 | `src/display/renderer.ts` | Renderer — event-driven terminal output with markdown and tool call formatting |
 | `src/display/colors.ts` | ANSI color utility functions (red, green, cyan, yellow, dim, bold, gray) |
@@ -83,11 +83,13 @@ CLI Entry (index.ts)
     │
     └── Chat Flow:
         ├── ApiClient — HTTP wrapper (Bearer token auth to proxy /_/* endpoints)
+        │   └── createSession(agentId) → TSessionInfo (sessionToken, provider, model)
         │
         ├── LocalAgentExecutor — Orchestrator:
-        │   ├── resolveAgent(orgId, agentId) → TResolvedAgentConfig (decrypted LLM key + sandbox config)
+        │   ├── createSession(agentId) → TSessionInfo (backend resolves API key server-side)
+        │   ├── ProxyAdapter — LLM calls proxied through backend SSE (/ai/chat)
         │   ├── createThread() → thread ID
-        │   └── AgentRunner.run() — Local ReAct loop execution
+        │   └── AgentRunner.run() — Local ReAct loop with ProxyAdapter
         │
         ├── HttpMessageAdapter — IAgentRunnerDB implementation
         │   ├── listMessages() → GET /_/orgs/:orgId/agents/:agentId/threads/:threadId/messages
@@ -105,20 +107,23 @@ CLI Entry (index.ts)
 1. User types message at > prompt
 2. AgentRepl.#sendMessage(prompt)
 3. LocalAgentExecutor.run()
-   a. resolveAgent() → decrypts LLM credentials via backend API
-   b. Creates thread if none exists
-   c. AgentRunner.run() with:
-      - llmConfig (API key + provider + model)
-      - sandboxConfig (provider, timeout, env vars)
+   a. createSession(agentId) → backend resolves API key, returns session token
+   b. ProxyAdapter created with session token (LLM calls go through backend SSE)
+   c. Creates thread if none exists
+   d. AgentRunner.run() with:
+      - adapter: ProxyAdapter (proxies LLM calls through /ai/chat)
+      - llmConfig (provider + model, NO apiKey)
       - db: HttpMessageAdapter (persists messages via API)
       - onEvent callback (streams events to Renderer)
-4. Renderer displays streaming response:
+4. ProxyAdapter → POST /ai/chat with Authorization: Session <token>
+   - Backend injects API key server-side, streams SSE response
+5. Renderer displays streaming response:
    - text → rendered markdown
    - tool_call_start → tool header
    - tool_call_args → streaming args
    - tool_result → formatted result
    - done → completion
-5. Messages persisted to backend via HttpMessageAdapter
+6. Messages persisted to backend via HttpMessageAdapter
 ```
 
 ## Key Components
@@ -147,6 +152,9 @@ HTTP wrapper for all backend API interactions.
 
 ```typescript
 class ApiClient {
+  // Proxy URL getter (throws if not logged in)
+  get proxyUrl(): string
+
   // Organizations
   listOrgs(): Promise<unknown[]>
   getOrg(orgId): Promise<unknown>
@@ -154,37 +162,50 @@ class ApiClient {
   // Agents
   listAgents(orgId): Promise<unknown[]>
   getAgent(orgId, agentId): Promise<unknown>
-  resolveAgent(orgId, agentId): Promise<unknown>
+
+  // Sessions (replaces resolveAgent — API keys never leave the server)
+  createSession(agentId): Promise<TSessionInfo>
 
   // Threads
   listThreads(orgId, agentId): Promise<unknown[]>
+  getThread(orgId, agentId, threadId): Promise<unknown>
   createThread(orgId, agentId, name?): Promise<unknown>
 
   // Messages
   listMessages(orgId, agentId, threadId): Promise<unknown[]>
   createMessage(orgId, agentId, threadId, data): Promise<unknown>
 }
+
+type TSessionInfo = {
+  sessionToken: string
+  provider: TLLMProviderType
+  model: string
+  maxTokens?: number
+  systemPrompt?: string
+}
 ```
 
-- **Auth**: `Authorization: Bearer <apiKey>` header on all requests
+- **Auth**: `Authorization: Bearer <apiKey>` header on all `/_/*` requests
+- **Session Creation**: `POST /_/ai/sessions` with `{ agentId }` → returns `TSessionInfo`
 - **Base URL**: `${proxyUrl}/_` (all paths prefixed with `/_`)
 - **Response Format**: Unwraps `{ data: T }` envelope from backend
 
 ### 3. LocalAgentExecutor (`src/executor/executor.ts`)
 
-Orchestrates local agent execution with server-side credential resolution.
+Orchestrates local agent execution with session-based LLM proxying. API keys never leave the server.
 
 ```typescript
 class LocalAgentExecutor {
   client: ApiClient
-  async resolve(orgId, agentId): Promise<TResolvedAgentConfig>
+  async createSession(agentId): Promise<TSessionInfo>
   async run(opts): Promise<{ threadId: string }>
 }
 ```
 
-- **Resolve**: Calls `resolveAgent()` endpoint to get decrypted LLM API key
+- **Session Creation**: Calls `POST /_/ai/sessions` → backend resolves API key, returns session token + LLM config
+- **ProxyAdapter**: Creates `ProxyAdapter` with session token — LLM calls go through backend SSE (`/ai/chat`)
 - **Thread Management**: Creates thread if none provided, reuses existing
-- **Execution**: Delegates to `AgentRunner.run()` with full config (llmConfig, sandboxConfig, tools, maxSteps: 10)
+- **Execution**: Delegates to `AgentRunner.run()` with `adapter` (ProxyAdapter) and `llmConfig` (no apiKey)
 - **Persistence**: Uses `HttpMessageAdapter` as the database layer
 
 ### 4. HttpMessageAdapter (`src/executor/httpAdapter.ts`)
@@ -358,7 +379,7 @@ pnpm clean           # Remove dist/
 ### Testing
 
 ```bash
-pnpm test            # Run vitest (59 tests, 4 files)
+pnpm test            # Run vitest (138 tests, 7 files)
 ```
 
 ### Commands Notes
@@ -369,14 +390,17 @@ pnpm test            # Run vitest (59 tests, 4 files)
 
 ## Testing
 
-### Current Coverage (59 tests, 4 files)
+### Current Coverage (138 tests, 7 files)
 
 | Test File | Tests | What's Covered |
 |-----------|-------|----------------|
-| `src/auth/auth.test.ts` | 26 | Login flow, credential storage, API validation, logout, insecure mode |
-| `src/api/client.test.ts` | 20 | All CRUD endpoints, auth headers, error handling, envelope unwrapping |
-| `src/executor/executor.test.ts` | 9 | Agent resolution, thread creation, runner integration |
-| `src/executor/httpAdapter.test.ts` | 4 | Message list/create, null handling |
+| `src/auth/auth.test.ts` | 17 | Login flow, credential storage, API validation, logout, insecure mode |
+| `src/api/client.test.ts` | 18 | All CRUD endpoints, session creation, proxyUrl getter, auth headers, error handling |
+| `src/executor/executor.test.ts` | 9 | Session creation, ProxyAdapter construction, thread management, runner integration |
+| `src/executor/httpAdapter.test.ts` | 3 | Message list/create, null handling |
+| `src/display/renderer.test.ts` | 23 | Event rendering, markdown output, tool call formatting, spinner |
+| `src/repl.test.ts` | 29 | Interactive loop, slash commands, session management, org/agent selection |
+| `src/cli.test.ts` | 39 | CLI arg parsing, command dispatch, help/version output, error handling |
 
 **Testing Patterns**:
 - Mocks `fetch` globally via `vi.stubGlobal()`
@@ -389,27 +413,25 @@ pnpm test            # Run vitest (59 tests, 4 files)
 ### With Agent (`@tdsk/agent`)
 
 - Imports `AgentRunner` for local ReAct loop execution
+- Imports `ProxyAdapter` — LLM calls proxied through backend SSE (`/ai/chat`)
 - Implements `IAgentRunnerDB` interface via `HttpMessageAdapter`
 - Uses `TStreamEvent` for real-time event handling
 
 ### With Domain (`@tdsk/domain`)
 
 - `TStreamEvent` — Event types for agent streaming output
-- `TLLMAdapterConfig` — LLM provider configuration
+- `TLLMAdapterConfig` — LLM provider configuration (apiKey is optional when using ProxyAdapter)
+- `TLLMProviderType` — Provider type enum used in `TSessionInfo`
 - `TMessageContent` — Message content structure
-
-### With Sandbox (`@tdsk/sandbox`)
-
-- Referenced in `TResolvedAgentConfig.sandboxConfig`
-- Sandbox provider config (type, timeout, env vars) passed to AgentRunner
 
 ### With Backend API
 
 - **Auth**: API key validated against `/_/orgs` endpoint
-- **Agents**: `/_/orgs/:orgId/agents` for listing and resolution
+- **Sessions**: `POST /_/ai/sessions` — creates session token, resolves API key server-side
+- **LLM Proxy**: `POST /ai/chat` — streams LLM responses via SSE (session token auth, no API key auth)
+- **Agents**: `/_/orgs/:orgId/agents` for listing
 - **Threads**: `/_/orgs/:orgId/agents/:agentId/threads` for CRUD
 - **Messages**: `/_/orgs/:orgId/agents/:agentId/threads/:threadId/messages` for persistence
-- **Resolution**: `resolveAgent()` endpoint decrypts LLM credentials server-side
 
 ### With Proxy
 
@@ -459,10 +481,19 @@ pnpm test            # Run vitest (59 tests, 4 files)
 
 ---
 
-**Last Updated:** 2026-02-13
-**Version:** 1.0.0
+**Last Updated:** 2026-02-14
+**Version:** 1.1.0
 
 ### Changelog
+
+#### v1.1.0 (2026-02-14)
+- **Breaking**: Replaced `resolveAgent()` with session-based LLM proxy flow
+- **New**: `createSession(agentId)` → `TSessionInfo` (session token + LLM config, no API key)
+- **New**: `ProxyAdapter` from `@tdsk/agent` — LLM calls proxied through backend SSE (`/ai/chat`)
+- **New**: `proxyUrl` getter on ApiClient
+- **Removed**: `resolveAgent()` method and `TResolvedAgentConfig` type
+- **Security**: API keys never leave the server — session tokens used for LLM proxy auth
+- **Testing**: 138/138 tests passing across 7 test files
 
 #### v1.0.0 (2026-02-13)
 - **Initial Release**: Terminal REPL for AI agent interaction

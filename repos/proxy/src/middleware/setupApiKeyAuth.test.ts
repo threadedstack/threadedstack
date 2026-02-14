@@ -334,6 +334,18 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockNext).not.toHaveBeenCalled()
   })
 
+  it(`should skip API key auth for /ai/chat paths (session token auth)`, async () => {
+    mockAuth.extract.mockReturnValue(null)
+    const mockReq = { path: `/ai/chat`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockDb.services.apiKey.getByHash).not.toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
   it(`should not block request if touchLastUsed fails`, async () => {
     const validKey = new ApiKey({
       id: `key-8`,

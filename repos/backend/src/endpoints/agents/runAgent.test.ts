@@ -16,7 +16,7 @@ vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
   checkPermission: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock(`@TBE/services/agent/agent`, () => ({
+vi.mock(`@tdsk/agent`, () => ({
   AgentRunner: {
     run: vi.fn().mockResolvedValue(undefined),
   },
@@ -390,7 +390,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should set SSE headers correctly`, async () => {
-    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { AgentRunner } = await import(`@tdsk/agent`)
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
@@ -432,7 +432,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should create a new thread when no threadId provided`, async () => {
-    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { AgentRunner } = await import(`@tdsk/agent`)
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
@@ -553,7 +553,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should call AgentRunner.run with correct options`, async () => {
-    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { AgentRunner } = await import(`@tdsk/agent`)
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
@@ -618,7 +618,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should default sandbox provider to local when no explicit sandbox config`, async () => {
-    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { AgentRunner } = await import(`@tdsk/agent`)
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
@@ -664,7 +664,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should use explicit sandbox provider when configured`, async () => {
-    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { AgentRunner } = await import(`@tdsk/agent`)
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
@@ -757,7 +757,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   })
 
   it(`should send error event when AgentRunner.run throws`, async () => {
-    const { AgentRunner } = await import(`@TBE/services/agent/agent`)
+    const { AgentRunner } = await import(`@tdsk/agent`)
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
     ;(AgentRunner.run as ReturnType<typeof vi.fn>).mockRejectedValueOnce(

@@ -141,34 +141,49 @@ describe(`ApiClient`, () => {
     })
   })
 
-  describe(`resolveAgent`, () => {
-    it(`should POST to /_/orgs/:orgId/agents/:id/resolve`, async () => {
+  describe(`createSession`, () => {
+    it(`should POST to /_/ai/sessions`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
           data: {
-            agentId: `agent1`,
-            llmConfig: { apiKey: `sk-test`, provider: `anthropic` },
+            sessionToken: `sess-abc`,
+            provider: `anthropic`,
+            model: `claude-sonnet-4-20250514`,
+            maxTokens: 4096,
           },
         }),
       })
 
-      const result = await client.resolveAgent(`org1`, `agent1`)
+      const result = await client.createSession(`agent1`)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `https://proxy.test/_/orgs/org1/agents/agent1/resolve`,
+        `https://proxy.test/_/ai/sessions`,
         expect.objectContaining({
           method: `POST`,
           headers: expect.objectContaining({
             'Content-Type': `application/json`,
           }),
-          body: JSON.stringify({}),
+          body: JSON.stringify({ agentId: `agent1` }),
         })
       )
       expect(result).toEqual({
-        agentId: `agent1`,
-        llmConfig: { apiKey: `sk-test`, provider: `anthropic` },
+        sessionToken: `sess-abc`,
+        provider: `anthropic`,
+        model: `claude-sonnet-4-20250514`,
+        maxTokens: 4096,
       })
+    })
+  })
+
+  describe(`proxyUrl`, () => {
+    it(`should return the proxy URL from credentials`, () => {
+      expect(client.proxyUrl).toBe(`https://proxy.test`)
+    })
+
+    it(`should throw when not logged in`, () => {
+      client = new ApiClient(makeAuth(null))
+      expect(() => client.proxyUrl).toThrow(`Not logged in`)
     })
   })
 

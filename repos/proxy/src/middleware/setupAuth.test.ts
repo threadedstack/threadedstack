@@ -243,4 +243,17 @@ describe(`validateAuth`, () => {
     })
     expect(mockNext).not.toHaveBeenCalled()
   })
+
+  it(`should skip JWT auth for /ai/chat paths (session token auth)`, async () => {
+    mockAuth.isPublic.mockReturnValue(false)
+    const mockReq = { path: `/ai/chat`, headers: {} } as unknown as Request
+
+    const middleware = validateAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockAuth.extract).not.toHaveBeenCalled()
+    expect(mockAuth.verify).not.toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
 })

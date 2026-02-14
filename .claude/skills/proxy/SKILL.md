@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Proxy Repo"
 description: "Knowledge base for the Auth Gateway proxy repo"
-version: "2.1.0"
-tags: ["express", "jwt", "jwks", "proxy", "auth", "gateway", "typescript", "jose"]
+version: "2.2.0"
+tags: ["express", "jwt", "jwks", "proxy", "auth", "gateway", "typescript", "jose", "session"]
 ---
 # Proxy Repo Skill
 
@@ -52,8 +52,10 @@ repos/proxy/
 │   │   └── index.ts
 │   ├── middleware/                   # Express middleware chain
 │   │   ├── setupServer.ts          # CORS, x-powered-by, urlencoded, router mount
-│   │   ├── setupAuth.ts            # JWT validation via JWKS, attaches req.user
-│   │   ├── setupProxy.ts           # http-proxy-middleware → backend forwarding
+│   │   ├── setupAuth.ts            # JWT validation via JWKS, attaches req.user (skips /ai/chat)
+│   │   ├── setupApiKeyAuth.ts      # API key auth for tdsk_* tokens (skips /ai/chat)
+│   │   ├── setupSessionAuth.ts     # Session-token auth for /ai/chat (7 tests)
+│   │   ├── setupProxy.ts           # http-proxy-middleware → backend forwarding (/_/* + /ai/*)
 │   │   ├── setupLogger.ts          # Request/response logging with timing
 │   │   ├── setupDatabase.ts        # Database initialization on app.locals.db
 │   │   ├── setupEndpoints.ts       # Route registration (4 endpoints)
@@ -205,13 +207,17 @@ setupServer     → CORS validation, URL-encoded body parsing
   ↓
 setupDatabase   → Initialize DB singleton on app.locals.db
   ↓
-setupAuth       → Check PublicRoutes → Extract Bearer token → Verify via JWKS → Attach req.user
+setupAuth       → Check PublicRoutes → Skip /ai/chat → Extract Bearer token → Verify via JWKS → Attach req.user
+  ↓
+setupApiKeyAuth → Skip /ai/chat → Validate tdsk_* Bearer tokens → Attach req.user
+  ↓
+setupSessionAuth → Only /ai/chat paths → Require Authorization: Session <token> → 401 if missing
   ↓
 setupPrewarm    → If prewarm header present, return 200 early
   ↓
 setupEndpoints  → Match /health, /auth/me, /auth/logout, /domains/validate
   ↓
-setupProxy      → Forward /_/* to backend with auth headers
+setupProxy      → Forward /_/* and /ai/* to backend with auth headers
   ↓
 setupErrorHandler → Catch errors, return status/message/errorCode
   ↓
@@ -298,7 +304,7 @@ pnpm d:build            # Alternative build (tsdown)
 pnpm clean              # Remove dist/
 
 # Testing
-pnpm test               # Run tests (vitest run) — 80 tests, 11 files
+pnpm test               # Run tests (vitest run) — 105 tests, 13 files
 pnpm test:watch         # Watch mode tests
 ```
 
@@ -308,7 +314,7 @@ pnpm test:watch         # Watch mode tests
 
 ## Testing
 
-### Current Coverage (80 tests, 11 files)
+### Current Coverage (105 tests, 13 files)
 
 | Test File | Tests | What's Covered |
 |-----------|-------|----------------|
@@ -318,8 +324,10 @@ pnpm test:watch         # Watch mode tests
 | `src/endpoints/auth/logout.test.ts` | 1 | /auth/logout success response |
 | `src/endpoints/domains/validate.test.ts` | 4 | Domain validation: 400/403/200/500 cases |
 | `src/services/auth.test.ts` | 15 | Auth class: constructor, isPublic, extract, verify (all branches) |
-| `src/middleware/setupAuth.test.ts` | 10 | Auth middleware: public routes, 401/500 cases, req.user attachment |
-| `src/middleware/setupProxy.test.ts` | 20 | Proxy: path normalization, middleware creation, headers, error handling |
+| `src/middleware/setupAuth.test.ts` | 12 | Auth middleware: public routes, 401/500 cases, req.user attachment, /ai/chat skip |
+| `src/middleware/setupApiKeyAuth.test.ts` | 16 | API key auth: validation, scope→role mapping, /ai/chat skip |
+| `src/middleware/setupSessionAuth.test.ts` | 7 | Session auth: /ai/chat validation, missing token 401, non-/ai/chat passthrough |
+| `src/middleware/setupProxy.test.ts` | 20 | Proxy: path normalization, middleware creation, headers, /ai route |
 | `src/middleware/setupLogger.test.ts` | 4 | Request logger: OPTIONS skip, logging, UUID requestId |
 | `src/utils/logger.test.ts` | 11 | Logger creation, API methods, config integration |
 | `src/utils/errors/errorHandler.test.ts` | 5 | Error handler: Exception/Error handling, logging, status codes |

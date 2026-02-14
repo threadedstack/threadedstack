@@ -3,65 +3,25 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
-import { AgentRunner } from '@TBE/services/agent/agent'
-import {
-  ELLMProvider,
-  EPermAction,
-  EPermResource,
-  deriveKey,
-  decryptValue,
-} from '@tdsk/domain'
+import { AgentRunner } from '@tdsk/agent'
+import type { IAgentRunnerDB } from '@tdsk/agent'
+import { ELLMProvider, EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { resolveApiKey } from '@TBE/utils/secrets/decryptSecret'
 
 /**
- * Decrypt a secret's encryptedValue using the appropriate scope owner ID.
- * Falls back to orgId if decryption with the owner ID fails (handles
- * quickstart secrets that were encrypted with orgId but stored as provider-scoped).
+ * Create an IAgentRunnerDB adapter that wraps the backend's
+ * direct database services into the narrow interface AgentRunner expects.
  */
-const decryptSecret = async (
-  secret: {
-    encryptedValue: string
-    orgId?: string
-    projectId?: string
-    providerId?: string
-    agentId?: string
-  },
-  orgId: string
-): Promise<string | null> => {
-  if (!secret.encryptedValue) return null
-
-  const combined = Buffer.from(secret.encryptedValue, `base64`)
-  if (combined.length < 29) return null // 12 (iv) + 16 (authTag) + 1 (min ciphertext)
-
-  const iv = combined.subarray(0, 12)
-  const authTag = combined.subarray(12, 28)
-  const ciphertext = combined.subarray(28)
-
-  // Determine the scope owner for key derivation
-  const refId = secret.agentId || secret.providerId || secret.projectId || secret.orgId
-
-  // Try the scope owner first
-  if (refId) {
-    try {
-      const key = await deriveKey(refId)
-      return await decryptValue(key, ciphertext, iv, authTag)
-    } catch {
-      // Decryption failed with scope owner — may be encrypted with a different key
-    }
-  }
-
-  // Fallback: try orgId (handles quickstart encryption mismatch)
-  if (orgId && orgId !== refId) {
-    try {
-      const key = await deriveKey(orgId)
-      return await decryptValue(key, ciphertext, iv, authTag)
-    } catch {
-      // Both attempts failed
-    }
-  }
-
-  return null
-}
+const createDBAdapter = (db: any): IAgentRunnerDB => ({
+  createMessage: (data) => db.services.message.create(data),
+  listMessages: (opts) =>
+    db.services.message.list({
+      limit: opts.limit,
+      offset: opts.offset,
+      where: { threadId: opts.threadId },
+    }),
+})
 
 /**
  * POST /agents/:id/run - Run an agent with SSE streaming
@@ -103,54 +63,8 @@ export const runAgent: TEndpointConfig = {
 
     if (provErr || !provider) throw new Exception(404, `Agent provider not found`)
 
-    // Resolve API key secret with fallback chain:
-    // 1. Agent-scoped secrets (loaded via agent relation)
-    // 2. Provider-scoped secrets (query by providerId)
-    // 3. Org-scoped secrets (query by orgId)
-    let apiKey = ``
-
-    // 1. Try agent-scoped secrets
-    if (agent.secrets?.length) {
-      for (const secret of agent.secrets) {
-        const value = await decryptSecret(secret, agent.orgId)
-        if (value) {
-          apiKey = value
-          break
-        }
-      }
-    }
-
-    // 2. Try provider-scoped secrets
-    if (!apiKey) {
-      const { data: providerSecrets } = await db.services.secret.list({
-        where: { providerId: agent.providerId },
-      })
-      if (providerSecrets?.length) {
-        for (const secret of providerSecrets) {
-          const value = await decryptSecret(secret, agent.orgId)
-          if (value) {
-            apiKey = value
-            break
-          }
-        }
-      }
-    }
-
-    // 3. Try org-scoped secrets
-    if (!apiKey) {
-      const { data: orgSecrets } = await db.services.secret.list({
-        where: { orgId: agent.orgId },
-      })
-      if (orgSecrets?.length) {
-        for (const secret of orgSecrets) {
-          const value = await decryptSecret(secret, agent.orgId)
-          if (value) {
-            apiKey = value
-            break
-          }
-        }
-      }
-    }
+    // Resolve API key using 3-tier fallback
+    const apiKey = await resolveApiKey(agent, db)
 
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 
@@ -222,7 +136,6 @@ export const runAgent: TEndpointConfig = {
 
     try {
       await AgentRunner.run({
-        db,
         prompt,
         userId,
         agentId,
@@ -231,6 +144,7 @@ export const runAgent: TEndpointConfig = {
         maxSteps: 10,
         sandboxConfig,
         orgId: agent.orgId,
+        db: createDBAdapter(db),
         environment: agent.environment,
         tools: agent.tools as string[] | undefined,
         onEvent: (event) => {

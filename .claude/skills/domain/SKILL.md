@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Domain Repo"
 description: "Knowledge base for the shared types, models, and utilities repo"
-version: "1.2.0"
-tags: ["typescript", "types", "models", "domain", "shared", "utilities", "payments"]
+version: "1.3.0"
+tags: ["typescript", "types", "models", "domain", "shared", "utilities", "payments", "ai"]
 ---
 # Domain Repo Skill
 
@@ -58,7 +58,7 @@ repos/domain/
 │   │   ├── subscription.ts     # Subscription model
 │   │   └── thread.ts           # Thread model
 │   ├── types/            # TypeScript type definitions
-│   │   ├── ai.types.ts         # AI/LLM related types
+│   │   ├── ai.types.ts         # AI/LLM related types (TLLMAdapterConfig, TStreamEvent, etc.)
 │   │   ├── endpoint.types.ts   # Express types: TApp, TRequest, TResponse, TRouter
 │   │   ├── epd.types.ts        # Endpoint data types
 │   │   ├── functions.types.ts  # Function/FaaS types
@@ -708,10 +708,15 @@ describe(`isDomain`, () => {
 
 ---
 
-**Last Updated**: 2026-01-18
-**Version**: 1.2.0
+**Last Updated**: 2026-02-14
+**Version**: 1.3.0
 
 ## Changelog
+
+### v1.3.0 (2026-02-14)
+- **Changed**: `apiKey` is now optional in `TLLMAdapterConfig` (`ai.types.ts` line 213)
+- When using `ProxyAdapter` (session-based LLM proxy), no apiKey is passed from the client
+- Server-side code that requires apiKey validates it before calling the LLM adapter
 
 ### v1.2.0 (2026-01-18)
 - **New**: `Plan` model for payment plans with metadata conversion

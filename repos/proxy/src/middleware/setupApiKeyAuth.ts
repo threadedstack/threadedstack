@@ -33,6 +33,9 @@ export const validateApiKeyAuth = (app: TProxyApp) => {
     if (req.user) return next()
     if (app.locals.auth.isPublic(req.path)) return next()
 
+    // /ai/chat uses session-token auth, skip API key
+    if (req.path.startsWith(`/ai/chat`)) return next()
+
     const token = app.locals.auth.extract(req)
 
     // No token at all — no auth provided

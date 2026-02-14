@@ -14,6 +14,7 @@ import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { ServerErr } from '@TBE/utils/errors/server'
 import { createAsyncRouter } from '@TBE/server/router'
 import { endpointProxy } from '@TBE/utils/proxy/endpointProxy'
+import { validateUUIDParams } from '@TBE/utils/validation/uuid'
 
 type TEndpointWithRouter = Omit<TEndpointConfig, `action`> & {
   action: TReqHandlerOrRouter
@@ -35,6 +36,8 @@ const isValid = (
   return true
 }
 
+const UUIDParamPattern = /:(id|[a-zA-Z]+Id)\b/
+
 const buildEndpoint = (
   app: TApp,
   router: TRouter,
@@ -42,17 +45,22 @@ const buildEndpoint = (
 ) => {
   const { path, proxy, action, method, middleware = [], endpoints: children } = endpoint
 
+  // Auto-inject UUID param validation for routes with :id or :xxxId params
+  const mw = UUIDParamPattern.test(path)
+    ? [validateUUIDParams as TReqHandler, ...middleware]
+    : middleware
+
   method === EPMethod.Use
     ? router.use(
         path,
-        ...middleware,
+        ...mw,
         buildEndpoints(app, createAsyncRouter(), children, path) as unknown as TReqHandler
       )
     : method === EPMethod.Proxy
-      ? router.use(path, ...middleware, endpointProxy(endpoint as TEndpointConfig))
+      ? router.use(path, ...mw, endpointProxy(endpoint as TEndpointConfig))
       : isObj(proxy)
-        ? router[method](path, ...middleware, endpointProxy(endpoint as TEndpointConfig))
-        : router[method](path, ...middleware, action as TReqHandler)
+        ? router[method](path, ...mw, endpointProxy(endpoint as TEndpointConfig))
+        : router[method](path, ...mw, action as TReqHandler)
 }
 
 const buildEndpoints = (

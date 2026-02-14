@@ -1,34 +1,19 @@
-import type { TStreamEvent, TLLMAdapterConfig } from '@tdsk/domain'
-import type { ApiClient } from '@TRL/api'
+import type { TStreamEvent } from '@tdsk/domain'
+import type { ApiClient, TSessionInfo } from '@TRL/api'
 
-import { AgentRunner } from '@tdsk/agent'
+import { AgentRunner, ProxyAdapter } from '@tdsk/agent'
 import { HttpMessageAdapter } from './httpAdapter'
-
-type TResolvedAgentConfig = {
-  agentId: string
-  orgId: string
-  llmConfig: TLLMAdapterConfig
-  sandboxConfig?: {
-    provider: string
-    apiKey?: string
-    template?: string
-    timeout?: number
-    envVars?: Record<string, string>
-  }
-  tools?: string[]
-  environment?: Record<string, unknown>
-}
 
 export type TRunResult = {
   threadId: string
 }
 
 /**
- * Runs the agent loop locally while persisting messages via the backend API.
+ * Runs the agent loop locally while proxying LLM calls through the backend.
  *
- * 1. Resolves agent config (decrypted LLM key) from backend
+ * 1. Creates a session (backend resolves API key, returns session token)
  * 2. Creates/reuses a thread via backend
- * 3. Runs AgentRunner locally with HTTP message adapter
+ * 3. Runs AgentRunner locally with ProxyAdapter (LLM calls go through backend SSE)
  */
 export class LocalAgentExecutor {
   #client: ApiClient
@@ -41,8 +26,8 @@ export class LocalAgentExecutor {
     return this.#client
   }
 
-  async resolve(orgId: string, agentId: string): Promise<TResolvedAgentConfig> {
-    return (await this.#client.resolveAgent(orgId, agentId)) as TResolvedAgentConfig
+  async createSession(agentId: string): Promise<TSessionInfo> {
+    return this.#client.createSession(agentId)
   }
 
   async run(opts: {
@@ -55,32 +40,43 @@ export class LocalAgentExecutor {
   }): Promise<TRunResult> {
     const { orgId, agentId, prompt, userId, onEvent } = opts
 
-    // 1. Resolve agent config (decrypted LLM key) from backend
-    const config = await this.resolve(orgId, agentId)
+    // 1. Create session (backend resolves API key, returns session token)
+    const session = await this.createSession(agentId)
 
-    // 2. Create or reuse thread
+    // 2. Create ProxyAdapter — LLM calls go through backend SSE proxy
+    const adapter = new ProxyAdapter({
+      backendUrl: this.#client.proxyUrl,
+      sessionToken: session.sessionToken,
+      provider: session.provider,
+    })
+
+    // 3. Create or reuse thread
     let threadId = opts.threadId
     if (!threadId) {
       const thread = (await this.#client.createThread(orgId, agentId)) as { id: string }
       threadId = thread.id
     }
 
-    // 3. Create HTTP message adapter
+    // 4. Create HTTP message adapter
     const db = new HttpMessageAdapter(this.#client, orgId, agentId)
 
-    // 4. Run agent locally
+    // 5. Run agent locally with ProxyAdapter
     await AgentRunner.run({
-      agentId,
-      threadId,
+      db,
+      orgId,
       prompt,
       userId,
-      orgId,
-      db,
-      llmConfig: config.llmConfig,
-      sandboxConfig: config.sandboxConfig,
-      tools: config.tools,
-      maxSteps: 10,
+      adapter,
       onEvent,
+      agentId,
+      threadId,
+      maxSteps: 10,
+      llmConfig: {
+        model: session.model,
+        provider: session.provider,
+        maxTokens: session.maxTokens,
+        systemPrompt: session.systemPrompt,
+      },
     })
 
     return { threadId }

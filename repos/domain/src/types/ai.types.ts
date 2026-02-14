@@ -210,8 +210,8 @@ export type TLLMToolDef = {
  * LLM adapter configuration
  */
 export type TLLMAdapterConfig = {
-  apiKey: string
   model: string
+  apiKey?: string
   maxTokens?: number
   temperature?: number
   systemPrompt?: string
