@@ -272,6 +272,9 @@ importers:
       '@tdsk/logger':
         specifier: workspace:*
         version: link:../logger
+      '@tdsk/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
       alias-hq:
         specifier: 6.2.2
         version: 6.2.2(@babel/preset-env@7.26.7(@babel/core@7.28.5))
@@ -694,6 +697,43 @@ importers:
       tsx:
         specifier: 4.21.0
         version: 4.21.0
+      vite-tsconfig-paths:
+        specifier: 4.3.2
+        version: 4.3.2(typescript@5.7.3)(vite@6.3.5(@types/node@22.12.0)(jiti@2.6.1)(terser@5.43.1)(tsx@4.21.0)(yaml@2.8.2))
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@22.12.0)(jsdom@24.1.3)(terser@5.43.1)
+
+  repos/repl:
+    dependencies:
+      '@tdsk/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@tdsk/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@tdsk/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
+      cli-highlight:
+        specifier: ^2.1.11
+        version: 2.1.11
+      marked:
+        specifier: ^15.0.0
+        version: 15.0.12
+      marked-terminal:
+        specifier: ^7.0.0
+        version: 7.3.0(marked@15.0.12)
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 2.1.2
+        version: 2.1.2
+      '@types/node':
+        specifier: 22.12.0
+        version: 22.12.0
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
       vite-tsconfig-paths:
         specifier: 4.3.2
         version: 4.3.2(typescript@5.7.3)(vite@6.3.5(@types/node@22.12.0)(jiti@2.6.1)(terser@5.43.1)(tsx@4.21.0)(yaml@2.8.2))
@@ -5885,10 +5925,6 @@ packages:
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
     engines: {node: '>=8'}
-
-  ansi-regex@6.1.0:
-    resolution: {integrity: sha512-7HSX4QQb4CspciLpVFwyRe79O3xsIZDDLER21kERQ71oaPodF8jL725AgJMFAYbooIqolJoRLuM81SpeUkpkvA==}
-    engines: {node: '>=12'}
 
   ansi-regex@6.2.2:
     resolution: {integrity: sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg==}
@@ -17306,8 +17342,6 @@ snapshots:
 
   ansi-regex@5.0.1: {}
 
-  ansi-regex@6.1.0: {}
-
   ansi-regex@6.2.2: {}
 
   ansi-styles@3.2.1:
@@ -17698,7 +17732,7 @@ snapshots:
 
   chalk-template@1.1.0:
     dependencies:
-      chalk: 5.3.0
+      chalk: 5.6.2
 
   chalk@2.4.2:
     dependencies:
@@ -22124,7 +22158,7 @@ snapshots:
 
   strip-ansi@7.1.0:
     dependencies:
-      ansi-regex: 6.1.0
+      ansi-regex: 6.2.2
 
   strip-ansi@7.1.2:
     dependencies:

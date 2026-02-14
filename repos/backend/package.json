@@ -33,6 +33,7 @@
     "@polar-sh/sdk": "0.42.5",
     "@tdsk/agent": "workspace:*",
     "@tdsk/database": "workspace:*",
+    "@tdsk/sandbox": "workspace:*",
     "@tdsk/domain": "workspace:*",
     "@tdsk/logger": "workspace:*",
     "alias-hq": "6.2.2",

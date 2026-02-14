@@ -11,11 +11,10 @@
 * Upstreams: `http://0.0.0.0:2019/reverse_proxy/upstreams`
 * Test:
 ```sh
-curl -I -X OPTIONS https://px.local.threadedstack.app \
-  -H "Origin: http://localhost:3000" \
-  -H "Access-Control-Request-Method: POST" \
-  --insecure
+curl -I -X OPTIONS https://px.local.threadedstack.app -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: POST" --insecure
 ```
+
+curl -I -X OPTIONS https://px.local.threadedstack.app/health -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: POST" --insecure
 
 ### Proxy
 

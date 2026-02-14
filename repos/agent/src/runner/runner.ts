@@ -1,44 +1,14 @@
-import type {
-  ISandbox,
-  TStreamEvent,
-  TAIMessage,
-  TMessageContent,
-  TLLMAdapterConfig,
-  TAgentEnvironment,
-} from '@tdsk/domain'
+import type { TAgentRunOpts } from '@TAG/types'
+import type { ISandbox, TAIMessage, TMessageContent } from '@tdsk/domain'
 
+import { getToolDefs } from '@TAG//tools'
+import { Mutex } from '@TAG/services/mutex'
+import { buildApiLogger } from '@tdsk/logger'
+import { createLLMAdapter } from '@TAG/llm/factory'
+import { createSandboxProvider } from '@tdsk/sandbox'
 import { EContentType, EStreamEventType, EAgentTool } from '@tdsk/domain'
-import { Mutex, createLLMAdapter, createSandboxProvider, getToolDefs } from '@tdsk/agent'
 
-import { logger } from '@TBE/utils/logger'
-
-export type TAgentRunOpts = {
-  agentId: string
-  threadId: string
-  prompt: string
-  userId: string
-  orgId: string
-  /** DB services reference */
-  db: any
-  /** LLM config built from agent + provider */
-  llmConfig: TLLMAdapterConfig
-  /** Sandbox config */
-  sandboxConfig?: {
-    provider: string
-    apiKey?: string
-    template?: string
-    timeout?: number
-    envVars?: Record<string, string>
-  }
-  /** Allowed tools list (empty = all) */
-  tools?: string[]
-  /** Agent environment settings */
-  environment?: TAgentEnvironment
-  /** Max conversation loop steps (prevents infinite tool-call loops) */
-  maxSteps?: number
-  /** Callback for each streaming event */
-  onEvent: (event: TStreamEvent) => void
-}
+const logger = buildApiLogger(`agent-runner`)
 
 const mutex = new Mutex()
 
@@ -75,8 +45,8 @@ export class AgentRunner {
       // 1. Acquire mutex for this thread
       releaseLock = await mutex.acquire(threadId)
 
-      // 2. Load conversation history from DB
-      const { data: existingMessages } = await db.services.message.list({
+      // 2. Load conversation history
+      const { data: existingMessages } = await db.listMessages({
         where: { threadId },
         limit: 100,
         offset: 0,
@@ -91,8 +61,8 @@ export class AgentRunner {
       const userContent: TMessageContent[] = [{ type: EContentType.text, text: prompt }]
       history.push({ role: `user`, content: userContent })
 
-      // 4. Save user message to DB
-      await db.services.message.create({
+      // 4. Save user message
+      await db.createMessage({
         threadId,
         type: `user`,
         content: userContent,
@@ -168,7 +138,7 @@ export class AgentRunner {
 
         // Save assistant message
         history.push({ role: `assistant`, content: assistantContent })
-        await db.services.message.create({
+        await db.createMessage({
           threadId,
           type: `assistant`,
           content: assistantContent,
@@ -200,7 +170,7 @@ export class AgentRunner {
 
           // Add tool results as user message (per Anthropic convention)
           history.push({ role: `user`, content: toolResults })
-          await db.services.message.create({
+          await db.createMessage({
             threadId,
             type: `user`,
             content: toolResults,
@@ -216,7 +186,7 @@ export class AgentRunner {
           }))
 
           history.push({ role: `user`, content: errContent })
-          await db.services.message.create({
+          await db.createMessage({
             threadId,
             type: `user`,
             content: errContent,

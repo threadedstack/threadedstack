@@ -26,12 +26,14 @@ ADD repos/backend/package.json ./repos/backend/package.json
 ADD repos/database/package.json ./repos/database/package.json
 ADD repos/domain/package.json ./repos/domain/package.json
 ADD repos/agent/package.json ./repos/agent/package.json
+ADD repos/sandbox/package.json ./repos/sandbox/package.json
 RUN pnpm install --prod --offline --frozen-lockfile
 ADD repos/backend ./repos/backend
 ADD repos/database ./repos/database
 ADD repos/logger ./repos/logger
 ADD repos/domain ./repos/domain
 ADD repos/agent ./repos/agent
+ADD repos/sandbox ./repos/sandbox
 WORKDIR /tdsk/repos/backend
 RUN pnpm build
 RUN pnpm --filter=@tdsk/backend --prod deploy /tdsk-runner/repos/backend

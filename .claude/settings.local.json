@@ -51,12 +51,14 @@
       "Bash(npx:*)",
       "Bash(echo:*)",
       "Bash(python3:*)",
-      "WebFetch(domain:api.github.com)"
+      "WebFetch(domain:api.github.com)",
+      "Bash(bun:*)",
+      "Bash(wc:*)"
     ]
   },
   "sandbox": {
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true,
+    "enabled": false,
+    "autoAllowBashIfSandboxed": false,
     "network": {}
   }
 }

@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest'
  * removes or breaks an export, this test fails immediately.
  */
 describe(`agent service dependency contract`, () => {
-  it(`should resolve all @tdsk/agent imports used by agent.ts`, async () => {
+  it(`should resolve all @tdsk/agent imports used by runAgent.ts`, async () => {
     const mod = await import(`@tdsk/agent`)
 
     expect(mod.Mutex).toBeDefined()
@@ -23,6 +23,10 @@ describe(`agent service dependency contract`, () => {
 
     expect(mod.getToolDefs).toBeDefined()
     expect(typeof mod.getToolDefs).toBe(`function`)
+
+    // AgentRunner is now exported from @tdsk/agent (extracted from backend)
+    expect(mod.AgentRunner).toBeDefined()
+    expect(typeof mod.AgentRunner).toBe(`function`)
   })
 
   it(`should resolve all @tdsk/domain imports used by agent.ts`, async () => {

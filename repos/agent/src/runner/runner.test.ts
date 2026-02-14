@@ -1,10 +1,9 @@
+import type { IAgentRunnerDB, TAgentRunOpts } from '../types/runner.types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createLLMAdapter, createSandboxProvider, getToolDefs } from '@tdsk/agent'
+import { createLLMAdapter } from '../llm/factory'
+import { createSandboxProvider } from '@tdsk/sandbox'
+import { getToolDefs } from '../tools'
 
-/**
- * Inline enum values matching @tdsk/domain to avoid resolution issues
- * with domain-internal path aliases in the backend vitest config.
- */
 const EContentType = {
   text: `text`,
   toolUse: `tool_use`,
@@ -47,26 +46,6 @@ type ISandbox = {
   close(): Promise<void>
 }
 
-type TAgentRunOpts = {
-  agentId: string
-  threadId: string
-  prompt: string
-  userId: string
-  orgId: string
-  db: any
-  llmConfig: { apiKey: string; model: string; provider: string }
-  sandboxConfig?: {
-    provider: string
-    apiKey?: string
-    template?: string
-    timeout?: number
-    envVars?: Record<string, string>
-  }
-  tools?: string[]
-  maxSteps?: number
-  onEvent: (event: any) => void
-}
-
 vi.mock(`@tdsk/domain`, () => ({
   EContentType: {
     text: `text`,
@@ -93,47 +72,45 @@ vi.mock(`@tdsk/domain`, () => ({
   },
 }))
 
-vi.mock(`@TBE/utils/logger`, () => ({
-  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
+vi.mock(`@tdsk/logger`, () => ({
+  buildApiLogger: vi
+    .fn()
+    .mockReturnValue({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }),
 }))
 
-vi.mock(`@tdsk/agent`, () => ({
+vi.mock(`../services/mutex`, () => ({
   Mutex: vi.fn().mockImplementation(() => ({
     acquire: vi.fn().mockResolvedValue(vi.fn()),
     clearAll: vi.fn(),
     getActiveLocks: vi.fn().mockReturnValue(0),
   })),
+}))
+
+vi.mock(`../llm/factory`, () => ({
   createLLMAdapter: vi.fn(),
+}))
+
+vi.mock(`@tdsk/sandbox`, () => ({
   createSandboxProvider: vi.fn(),
+}))
+
+vi.mock(`../tools`, () => ({
   getToolDefs: vi.fn().mockReturnValue([]),
 }))
 
-/**
- * Helper: creates an async generator from an array of TStreamEvent
- */
 async function* streamFromEvents(events: TStreamEvent[]): AsyncIterable<TStreamEvent> {
   for (const event of events) {
     yield event
   }
 }
 
-/**
- * Build a minimal mock db object with message.list and message.create stubs
- */
-function createMockDb(existingMessages: any[] = []) {
+function createMockDb(existingMessages: any[] = []): IAgentRunnerDB {
   return {
-    services: {
-      message: {
-        list: vi.fn().mockResolvedValue({ data: existingMessages }),
-        create: vi.fn().mockResolvedValue({}),
-      },
-    },
+    listMessages: vi.fn().mockResolvedValue({ data: existingMessages }),
+    createMessage: vi.fn().mockResolvedValue({}),
   }
 }
 
-/**
- * Build a minimal mock sandbox implementing ISandbox
- */
 function createMockSandbox(
   overrides: Partial<Record<keyof ISandbox, any>> = {}
 ): ISandbox {
@@ -150,9 +127,6 @@ function createMockSandbox(
   }
 }
 
-/**
- * Base options shared across tests
- */
 function baseOpts(overrides: Partial<TAgentRunOpts> = {}): TAgentRunOpts {
   return {
     agentId: `agent-1`,
@@ -176,9 +150,7 @@ describe(`AgentRunner`, () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-
-    // Re-import to get a fresh module with reset mocks each time
-    const mod = await import(`./agent`)
+    const mod = await import(`./runner`)
     AgentRunner = mod.AgentRunner
   })
 
@@ -198,20 +170,16 @@ describe(`AgentRunner`, () => {
       const opts = baseOpts()
       await AgentRunner.run(opts)
 
-      // onEvent should have received text and done
       expect(opts.onEvent).toHaveBeenCalledWith(textEvent)
       expect(opts.onEvent).toHaveBeenCalledWith(doneEvent)
 
-      // message.list called to load history
-      expect(opts.db.services.message.list).toHaveBeenCalledWith(
+      expect(opts.db.listMessages).toHaveBeenCalledWith(
         expect.objectContaining({ where: { threadId: `thread-1` } })
       )
 
-      // Two creates: user message, then assistant message
-      expect(opts.db.services.message.create).toHaveBeenCalledTimes(2)
+      expect(opts.db.createMessage).toHaveBeenCalledTimes(2)
 
-      // First call: user message
-      expect(opts.db.services.message.create).toHaveBeenNthCalledWith(
+      expect(opts.db.createMessage).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
           threadId: `thread-1`,
@@ -221,8 +189,7 @@ describe(`AgentRunner`, () => {
         })
       )
 
-      // Second call: assistant message with text content
-      expect(opts.db.services.message.create).toHaveBeenNthCalledWith(
+      expect(opts.db.createMessage).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
           threadId: `thread-1`,
@@ -246,7 +213,6 @@ describe(`AgentRunner`, () => {
       const opts = baseOpts()
       await AgentRunner.run(opts)
 
-      // adapter.stream called exactly once (single loop iteration)
       expect(mockAdapter.stream).toHaveBeenCalledTimes(1)
     })
   })
@@ -276,11 +242,10 @@ describe(`AgentRunner`, () => {
       const opts = baseOpts()
       await AgentRunner.run(opts)
 
-      // Three creates: user msg, assistant msg (with toolUse), error tool result msg
-      expect(opts.db.services.message.create).toHaveBeenCalledTimes(3)
+      expect(opts.db.createMessage).toHaveBeenCalledTimes(3)
 
-      // Third create should be the error tool result
-      const thirdCall = opts.db.services.message.create.mock.calls[2][0]
+      const thirdCall = (opts.db.createMessage as ReturnType<typeof vi.fn>).mock
+        .calls[2][0]
       expect(thirdCall.type).toBe(`user`)
       expect(thirdCall.content).toEqual(
         expect.arrayContaining([
@@ -293,13 +258,12 @@ describe(`AgentRunner`, () => {
         ])
       )
 
-      // Loop should stop after the error (only one stream call)
       expect(mockAdapter.stream).toHaveBeenCalledTimes(1)
     })
   })
 
   describe(`run - tool call with sandbox`, () => {
-    it(`should execute tool in sandbox and loop for second LLM call`, async () => {
+    it(`should run tool in sandbox and loop for second LLM call`, async () => {
       const toolDefs = [
         {
           name: `shellExec`,
@@ -313,8 +277,6 @@ describe(`AgentRunner`, () => {
       const mockProvider = { create: vi.fn().mockResolvedValue(mockSandbox) }
       vi.mocked(createSandboxProvider).mockReturnValue(mockProvider as any)
 
-      // First stream call: tool call
-      // Second stream call: text response
       let callCount = 0
       const mockAdapter = {
         stream: vi.fn().mockImplementation(() => {
@@ -343,13 +305,9 @@ describe(`AgentRunner`, () => {
       })
       await AgentRunner.run(opts)
 
-      // adapter.stream called twice (two loop iterations)
       expect(mockAdapter.stream).toHaveBeenCalledTimes(2)
-
-      // sandbox.exec called once with parsed args
       expect(mockSandbox.exec).toHaveBeenCalledWith(`ls`, [`-la`])
 
-      // onEvent should have received a toolResult event
       expect(opts.onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -358,16 +316,13 @@ describe(`AgentRunner`, () => {
         })
       )
 
-      // message.create calls: user, assistant (tool_use), tool result user, assistant (text)
-      expect(opts.db.services.message.create).toHaveBeenCalledTimes(4)
-
-      // Sandbox should be closed in finally
+      expect(opts.db.createMessage).toHaveBeenCalledTimes(4)
       expect(mockSandbox.close).toHaveBeenCalledTimes(1)
     })
   })
 
   describe(`run - error handling`, () => {
-    it(`should emit error event and call cleanup when adapter.stream throws`, async () => {
+    it(`should emit error event when adapter.stream throws`, async () => {
       const mockAdapter = {
         stream: vi.fn().mockImplementation(() => {
           throw new Error(`LLM connection failed`)
@@ -378,7 +333,6 @@ describe(`AgentRunner`, () => {
       const opts = baseOpts()
       await AgentRunner.run(opts)
 
-      // onEvent should have been called with an error event
       expect(opts.onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.error,
@@ -387,7 +341,7 @@ describe(`AgentRunner`, () => {
       )
     })
 
-    it(`should close sandbox and release lock even when an error occurs`, async () => {
+    it(`should close sandbox even when an error occurs`, async () => {
       const toolDefs = [
         {
           name: `shellExec`,
@@ -401,7 +355,6 @@ describe(`AgentRunner`, () => {
       const mockProvider = { create: vi.fn().mockResolvedValue(mockSandbox) }
       vi.mocked(createSandboxProvider).mockReturnValue(mockProvider as any)
 
-      // Stream yields tool call, then sandbox.exec throws on execution
       const mockAdapter = {
         stream: vi.fn().mockReturnValue(
           streamFromEvents([
@@ -417,7 +370,6 @@ describe(`AgentRunner`, () => {
       }
       vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
 
-      // Make exec throw to trigger the executeTool catch branch
       mockSandbox.exec = vi.fn().mockRejectedValue(new Error(`sandbox crashed`))
 
       const opts = baseOpts({
@@ -425,7 +377,6 @@ describe(`AgentRunner`, () => {
       })
       await AgentRunner.run(opts)
 
-      // Tool result should have the error message
       expect(opts.onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -435,7 +386,6 @@ describe(`AgentRunner`, () => {
         })
       )
 
-      // Sandbox should still be closed
       expect(mockSandbox.close).toHaveBeenCalledTimes(1)
     })
 
@@ -457,13 +407,12 @@ describe(`AgentRunner`, () => {
         expect.objectContaining({ type: EStreamEventType.error, error: `Rate limited` })
       )
 
-      // Only one iteration; loop stops after error event
       expect(mockAdapter.stream).toHaveBeenCalledTimes(1)
     })
   })
 
   describe(`run - max steps limit`, () => {
-    it(`should stop after maxSteps iterations even if tool calls keep coming`, async () => {
+    it(`should stop after maxSteps iterations`, async () => {
       const toolDefs = [
         {
           name: `shellExec`,
@@ -477,7 +426,6 @@ describe(`AgentRunner`, () => {
       const mockProvider = { create: vi.fn().mockResolvedValue(mockSandbox) }
       vi.mocked(createSandboxProvider).mockReturnValue(mockProvider as any)
 
-      // Always return tool_use to keep the loop going
       let streamCallCount = 0
       const mockAdapter = {
         stream: vi.fn().mockImplementation(() => {
@@ -505,7 +453,6 @@ describe(`AgentRunner`, () => {
       })
       await AgentRunner.run(opts)
 
-      // Stream called exactly 3 times (maxSteps)
       expect(mockAdapter.stream).toHaveBeenCalledTimes(3)
     })
 
@@ -547,7 +494,6 @@ describe(`AgentRunner`, () => {
       const opts = baseOpts({
         sandboxConfig: { provider: `e2b`, apiKey: `key-123` },
       })
-      // maxSteps not provided - defaults to 10
       await AgentRunner.run(opts)
 
       expect(mockAdapter.stream).toHaveBeenCalledTimes(10)
@@ -555,7 +501,7 @@ describe(`AgentRunner`, () => {
   })
 
   describe(`run - history loading`, () => {
-    it(`should load existing messages from db and include them in history`, async () => {
+    it(`should load existing messages and include them in history`, async () => {
       const existingMessages = [
         {
           type: `user`,
@@ -568,7 +514,6 @@ describe(`AgentRunner`, () => {
       ]
       const db = createMockDb(existingMessages)
 
-      // Capture a snapshot of history at call time since the source mutates the array
       let historySnapshot: any[] = []
       const mockAdapter = {
         stream: vi.fn().mockImplementation((history: any[]) => {
@@ -584,14 +529,12 @@ describe(`AgentRunner`, () => {
       const opts = baseOpts({ db })
       await AgentRunner.run(opts)
 
-      // Verify message.list was called correctly
-      expect(db.services.message.list).toHaveBeenCalledWith({
+      expect(db.listMessages).toHaveBeenCalledWith({
         where: { threadId: `thread-1` },
         limit: 100,
         offset: 0,
       })
 
-      // History at call time should have 2 existing + 1 new user message
       expect(historySnapshot).toHaveLength(3)
       expect(historySnapshot[0].role).toBe(`user`)
       expect(historySnapshot[0].content[0].text).toBe(`Previous question`)
@@ -617,16 +560,12 @@ describe(`AgentRunner`, () => {
       const opts = baseOpts({ db })
       await AgentRunner.run(opts)
 
-      // Only the new user message should be in history at call time
       expect(historySnapshot).toHaveLength(1)
       expect(historySnapshot[0].role).toBe(`user`)
     })
   })
 
-  describe(`run - tool dispatch (executeTool)`, () => {
-    /**
-     * Helper to run AgentRunner with a single tool call and return events
-     */
+  describe(`run - tool dispatch`, () => {
     async function runWithToolCall(
       toolName: string,
       argsJson: string,
@@ -689,8 +628,6 @@ describe(`AgentRunner`, () => {
         sandbox
       )
       expect(sandbox.readFile).toHaveBeenCalledWith(`/tmp/test.txt`)
-
-      // Verify the tool result content matches readFile return
       expect(onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -708,7 +645,6 @@ describe(`AgentRunner`, () => {
         sandbox
       )
       expect(sandbox.writeFile).toHaveBeenCalledWith(`/tmp/out.txt`, `hello`)
-
       expect(onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -722,7 +658,6 @@ describe(`AgentRunner`, () => {
       const sandbox = createMockSandbox()
       const onEvent = await runWithToolCall(`listDir`, `{"path":"/tmp"}`, sandbox)
       expect(sandbox.listDir).toHaveBeenCalledWith(`/tmp`)
-
       expect(onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -740,7 +675,6 @@ describe(`AgentRunner`, () => {
         sandbox
       )
       expect(sandbox.deleteFile).toHaveBeenCalledWith(`/tmp/old.txt`)
-
       expect(onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -753,7 +687,6 @@ describe(`AgentRunner`, () => {
       const sandbox = createMockSandbox()
       const onEvent = await runWithToolCall(`mkdir`, `{"path":"/tmp/newdir"}`, sandbox)
       expect(sandbox.mkdir).toHaveBeenCalledWith(`/tmp/newdir`)
-
       expect(onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -770,7 +703,6 @@ describe(`AgentRunner`, () => {
         sandbox
       )
       expect(sandbox.fileExists).toHaveBeenCalledWith(`/tmp/check.txt`)
-
       expect(onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -783,7 +715,6 @@ describe(`AgentRunner`, () => {
     it(`should return error for unknown tool name`, async () => {
       const sandbox = createMockSandbox()
       const onEvent = await runWithToolCall(`unknownTool`, `{}`, sandbox)
-
       expect(onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -796,7 +727,6 @@ describe(`AgentRunner`, () => {
     it(`should return error for webSearch (not implemented)`, async () => {
       const sandbox = createMockSandbox()
       const onEvent = await runWithToolCall(`webSearch`, `{"query":"test"}`, sandbox)
-
       expect(onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,
@@ -809,7 +739,6 @@ describe(`AgentRunner`, () => {
     it(`should return error for invalid JSON arguments`, async () => {
       const sandbox = createMockSandbox()
       const onEvent = await runWithToolCall(`shellExec`, `not-json`, sandbox)
-
       expect(onEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: EStreamEventType.toolResult,

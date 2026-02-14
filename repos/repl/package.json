@@ -1,0 +1,45 @@
+{
+  "name": "@tdsk/repl",
+  "version": "0.1.0",
+  "description": "Terminal REPL for interacting with ThreadedStack AI agents",
+  "type": "module",
+  "bin": {
+    "tdsk-agent": "./dist/tdsk-agent"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun --minify",
+    "compile": "bun build src/index.ts --compile --outfile dist/tdsk-agent",
+    "test": "vitest run --config configs/vitest.config.ts",
+    "clean": "rm -rf dist",
+    "clean:nm": "rm -rf node_modules",
+    "clean:full": "pnpm clean && pnpm clean:nm",
+    "biome": "biome",
+    "lint": "pnpm biome:lint --write",
+    "format": "pnpm biome:format --write",
+    "lint:ci": "pnpm biome:lint --diagnostic-level=error --changed",
+    "format:ci": "pnpm biome:format --diagnostic-level=error --changed",
+    "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
+    "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tdsk/agent": "workspace:*",
+    "@tdsk/domain": "workspace:*",
+    "@tdsk/sandbox": "workspace:*",
+    "marked": "^15.0.0",
+    "marked-terminal": "^7.0.0",
+    "cli-highlight": "^2.1.11"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.1.2",
+    "@types/node": "22.12.0",
+    "typescript": "5.7.3",
+    "vite-tsconfig-paths": "4.3.2",
+    "vitest": "1.6.1"
+  }
+}

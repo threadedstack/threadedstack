@@ -183,3 +183,4 @@ vite.config.ts.timestamp*
 *.sqlite-wal
 repos/**/wit/deps
 .playwright-mcp
+.worktrees/

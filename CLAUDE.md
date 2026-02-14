@@ -109,6 +109,8 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `components/` | Shared React components/hooks | React, MUI | `.claude/skills/components/SKILL.md` |
 | `logger/` | Winston-based logging service | Winston | `.claude/skills/logger/SKILL.md` |
 | `cli/` | Developer CLI for project management | Node.js | `.claude/skills/cli/SKILL.md` |
+| `repl/` | Terminal REPL for AI agent interaction | Bun, readline, marked | `.claude/skills/repl/SKILL.md` |
+| `sandbox/` | Pluggable sandbox execution layer | isolated-vm, E2B, just-bash | `.claude/skills/sandbox/SKILL.md` |
 
 ## Sub-Repo Skills
 
@@ -121,6 +123,8 @@ Load the relevant skill when working on a specific repo:
 - Building AI agents? → Read `.claude/skills/agent/SKILL.md` first
 - Building shell environments? → Read `.claude/skills/shell/SKILL.md` first
 - Modifying database schema? → Read `.claude/skills/database/SKILL.md` first
+- Working on the REPL CLI? → Read `.claude/skills/repl/SKILL.md` first
+- Working on sandbox execution? → Read `.claude/skills/sandbox/SKILL.md` first
 
 ### Available Skills
 | Skill File | Contents |
@@ -135,6 +139,8 @@ Load the relevant skill when working on a specific repo:
 | `logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
 | `proxy/SKILL.md` | JWKS auth validation, http-proxy-middleware backend forwarding, full implementation |
 | `shell/SKILL.md` | Cross-platform virtual shell environment, Shell class API, just-bash integration, ZenFS backends (Node.js/Browser/Bun), StreamManager, Platform detection, cwd persistence pattern, Test suite (140/149 passing) |
+| `repl/SKILL.md` | Terminal REPL CLI, AuthManager, ApiClient, LocalAgentExecutor, HttpMessageAdapter, AgentRepl interactive loop, Renderer, Bun binary compilation |
+| `sandbox/SKILL.md` | Pluggable sandbox factory, E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |
 
 ### Subagents

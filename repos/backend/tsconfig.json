@@ -51,6 +51,11 @@
       "@tdsk/agent": ["../agent/src"],
       "@tdsk/agent/*": ["../agent/src/*"],
 
+      "@TSB": ["../sandbox/src"],
+      "@TSB/*": ["../sandbox/src/*"],
+      "@tdsk/sandbox": ["../sandbox/src"],
+      "@tdsk/sandbox/*": ["../sandbox/src/*"],
+
       "@tdsk/logger": ["../logger/src"],
       "@tdsk/logger/*": ["../logger/src/*"],
 
@@ -69,6 +74,7 @@
     "configs",
     "scripts",
     "../agent/src",
+    "../sandbox/src",
     "../logger/src",
     "../domain/src",
     "../database/src"
