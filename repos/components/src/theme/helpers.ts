@@ -16,6 +16,16 @@ export const inherit = {
   letterSpacing: `inherit`,
 }
 
+export const inheritCss = `
+  font: inherit;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+`
+
 export const cmx = (
   clr: string,
   pr: string | number = `50`,

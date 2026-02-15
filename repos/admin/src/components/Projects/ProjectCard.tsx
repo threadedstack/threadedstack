@@ -2,8 +2,8 @@ import type { Project } from '@tdsk/domain'
 
 import { useState } from 'react'
 import { styled } from '@mui/material/styles'
-import { ConfirmDelete } from '@tdsk/components'
 import DeleteIcon from '@mui/icons-material/DeleteOutline'
+import { ConfirmDelete, TextPair } from '@tdsk/components'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
 import {
@@ -27,13 +27,18 @@ const CardProj = styled(Card)(({ theme }) => {
     &.active {
       2px solid ${theme.palette.primary.main};
     }
-  
+
     &:hover {
       box-shadow: 3;
       transform: translateY(-4px);
     }
   `
 })
+
+const CardInfo = styled(Box)`
+  height: 80px;
+  max-height: 80px;
+`
 
 export type TProjectCard = {
   project: Project
@@ -68,33 +73,45 @@ export const ProjectCard = (props: TProjectCard) => {
             </Typography>
           </Box>
 
-          {project.gitUrl && (
-            <Typography
-              variant='body2'
-              color='text.secondary'
-              sx={{ mb: 1, wordBreak: 'break-all' }}
-            >
-              {project.gitUrl}
-            </Typography>
-          )}
+          <CardInfo>
+            <Box sx={{ display: 'flex', gap: 1, mt: 1, mb: 2 }}>
+              {project.branch && (
+                <Chip
+                  label={project.branch}
+                  size='small'
+                  variant='outlined'
+                />
+              )}
+            </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-            {project.branch && (
-              <Chip
-                label={project.branch}
-                size='small'
-                variant='outlined'
+            {(project.gitUrl && (
+              <TextPair
+                label='Git:'
+                size='12px'
+                text={
+                  <a
+                    href={project.gitUrl}
+                    target='_blank'
+                  >
+                    {project.gitUrl}
+                  </a>
+                }
+                variant='caption'
+                color='text.secondary'
+                sx={{ mt: 0.5 }}
               />
-            )}
-          </Box>
+            )) ||
+              null}
 
-          <Typography
-            variant='caption'
-            color='text.secondary'
-            sx={{ mt: 1, display: 'block' }}
-          >
-            ID: {project.id}
-          </Typography>
+            <TextPair
+              label='ID:'
+              size='12px'
+              sx={{ mt: 0.5 }}
+              text={project.id}
+              variant='caption'
+              color='text.secondary'
+            />
+          </CardInfo>
         </CardContent>
         <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
           {showDelete && (

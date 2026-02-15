@@ -1,7 +1,8 @@
 import type { ComponentProps, CSSProperties } from 'react'
 import type { TTextRef } from './Text'
-import { forwardRef, useMemo } from 'react'
+
 import { Text } from './Text'
+import { forwardRef, useMemo } from 'react'
 import { inherit } from '@TSC/theme/helpers'
 
 export type TTextEl = ComponentProps<typeof Text>
