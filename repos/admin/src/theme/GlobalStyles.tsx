@@ -37,11 +37,38 @@ const globalCss = (props: TGlobalCSS) => {
       text-decoration: none;
     }
 
-    code {
-      font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-        monospace;
+    code, kbd, pre {
+      font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, 'Courier New', monospace;
+      font-size: 0.875em;
     }
-    
+
+    *:focus-visible {
+      outline: 2px solid #3370DE;
+      outline-offset: 2px;
+    }
+
+    ::selection {
+      background-color: rgba(51, 112, 222, 0.2);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(128, 128, 128, 0.3);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(128, 128, 128, 0.5);
+    }
+
     .text-center {
       text-align: center;
     }
@@ -53,7 +80,7 @@ const globalCss = (props: TGlobalCSS) => {
     .text-right {
       text-align: right;
     }
-    
+
     .hidden {
       height: 0px !important;
       max-height: 0px !important;

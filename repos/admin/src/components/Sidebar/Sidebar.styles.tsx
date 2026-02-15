@@ -39,7 +39,7 @@ export const LogoBtn = styled(MuiIconButton)`
   display: flex;
   margin: 0px 6px;
   position: relative;
-  border-radius: 0px;
+  border-radius: 6px;
   align-items: center;
 `
 

@@ -24,11 +24,11 @@ const StyledCard = styled(Card)(({ theme }) => ({
   display: `flex`,
   flexDirection: `column`,
   transition: `all 0.2s`,
-  border: `2px solid rgba(0, 0, 0, 0.12)`,
+  border: `1px solid ${theme.palette.border.default}`,
 
   [`&:hover`]: {
-    boxShadow: theme.shadows[4],
-    transform: `translateY(-1px)`,
+    transform: `translateY(-2px)`,
+    boxShadow: theme.palette.colors.shadows?.sm,
   },
 
   [`&.current`]: {

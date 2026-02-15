@@ -12,7 +12,7 @@ export const ConfirmDialog = styled(Dialog)(({ theme }) => {
   return `
     background-image: none;
     & .MuiPaper-root {
-      border-radius: ${theme.dims.border.tpx};
+      border-radius: ${theme.dims.border.lgpx};
     }
   `
 })

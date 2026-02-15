@@ -36,6 +36,14 @@ export type TThemeColors = {
   shadow?: string
   shadowAlt?: string
   shadowPaper?: string
+  shadows?: {
+    xs: string
+    sm: string
+    md: string
+    lg: string
+    xl: string
+    ring: string
+  }
   grey?: typeof grey
   editor?: (typeof editor)[`light`]
   border?: (typeof border)[`light`]

@@ -1,5 +1,5 @@
 import { IconButton } from '@TSC/components/Buttons/IconButton'
-import { colors, grey } from '@TSC/theme/colors'
+
 import { dims } from '@TSC/theme/dims'
 import { gutter } from '@TSC/theme/gutter'
 import Box from '@mui/material/Box'
@@ -10,18 +10,15 @@ import CloseIcon from '@mui/icons-material/Close'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 
 export const DDialog = styled(Dialog)(({ theme }) => {
-  const isDark = theme.palette.mode === `dark`
-  const bgclr = isDark ? grey[900] : colors.white
-
   return `
-  
+
     & .MuiPaper-root {
       max-height: calc(100vh - ${dims.modal.tabs.height + gutter.d}px);
     }
 
     & .MuiDialogContent-root {
       padding: ${gutter.dpx};
-      background-color: ${bgclr};
+      background-color: ${theme.palette.background.default};
       padding-bottom: ${gutter.px};
     }
   `
@@ -35,9 +32,6 @@ export const DDPaper = styled(Paper)(({ theme }) => {
 })
 
 export const DDHeader = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === `dark`
-  const bdClr = isDark ? grey[900] : grey[100]
-
   return `
     cursor: grab;
     display: flex;
@@ -45,21 +39,19 @@ export const DDHeader = styled(Box)(({ theme }) => {
     overflow-x: hidden;
     align-items: center;
     justify-content: flex-start;
-    border-bottom: 1px solid ${bdClr};
+    border-bottom: 1px solid ${theme.palette.border.default};
     min-height: ${dims.modal.tabs.hpx};
-    background-color: ${isDark ? grey[875] : grey[50]};
+    background-color: ${theme.palette.background.header};
   `
 })
 
 export const DDTitle = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === `dark`
-
   return `
     flex-grow: 2;
     display: flex;
     font-weight: bold;
     align-items: center;
-    background-color: ${isDark ? grey[875] : grey[50]};
+    background-color: ${theme.palette.background.header};
     border-bottom: 1px solid ${theme.palette.border.default};
     & .tdsk-dialog-title-icon {
       display: inline-flex;

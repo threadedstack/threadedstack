@@ -21,16 +21,15 @@ const CardProj = styled(Card)(({ theme }) => {
   return `
     cursor: pointer;
     transition: all 0.2s;
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    border-top: 5px solid ${theme.palette.border.dark};
-  
+    border: 1px solid ${theme.palette.border.default};
+
     &.active {
-      2px solid ${theme.palette.primary.main};
+      border: 2px solid ${theme.palette.primary.main};
     }
 
     &:hover {
-      box-shadow: 3;
-      transform: translateY(-4px);
+      transform: translateY(-2px);
+      box-shadow: ${theme.palette.colors.shadows?.sm};
     }
   `
 })

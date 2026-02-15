@@ -11,9 +11,10 @@ export const AppHeader = styled(AppBar)(({ theme }) => {
   return `
     z-index: 1200;
     padding-left: 0;
+    box-shadow: none;
     padding: 0 ${gutter.hpx};
     height: ${dims.header.hpx};
-    box-shadow: ${theme.palette.colors.shadow};
+    border-bottom: 1px solid ${theme.palette.divider};
     background-color: ${theme.palette.background.header};
     
     & .MuiToolbar-root {
@@ -49,7 +50,7 @@ export const LogoBtn = styled(MuiIconButton)`
   display: flex;
   margin: 0px 6px;
   position: relative;
-  border-radius: 0px;
+  border-radius: 6px;
   align-items: center;
 `
 
