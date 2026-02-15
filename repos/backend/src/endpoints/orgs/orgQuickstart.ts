@@ -101,7 +101,10 @@ export const orgQuickstart: TEndpointConfig = {
             orgId,
             type: `ai`,
             name: proName,
-            options: { baseUrl },
+            options: {
+              baseUrl,
+              ...(providerTemp !== `custom` && { llmProvider: providerTemp }),
+            },
           })
           .returning()
 

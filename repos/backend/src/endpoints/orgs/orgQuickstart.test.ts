@@ -270,6 +270,39 @@ describe(`Quickstart endpoint`, () => {
       const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
       expect(providerInsertCall?.name).toBe(`Google AI`)
     })
+
+    it(`should store llmProvider in provider options for known templates`, async () => {
+      mockReq.body = { ...validBody, providerTemp: `anthropic` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+
+      const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
+      expect(providerInsertCall?.options?.llmProvider).toBe(`anthropic`)
+    })
+
+    it(`should store llmProvider=google for google template`, async () => {
+      mockReq.body = { ...validBody, providerTemp: `google`, apiKey: `AIzaTest` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
+      expect(providerInsertCall?.options?.llmProvider).toBe(`google`)
+    })
+
+    it(`should NOT store llmProvider for custom template`, async () => {
+      mockReq.body = {
+        ...validBody,
+        providerTemp: `custom`,
+        providerName: `My LLM`,
+        providerUrl: `https://my-llm.example.com`,
+      }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
+      expect(providerInsertCall?.options?.llmProvider).toBeUndefined()
+    })
   })
 
   describe(`Transaction rollback`, () => {

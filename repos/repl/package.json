@@ -7,7 +7,8 @@
     "tdsk-agent": "./dist/tdsk-agent"
   },
   "scripts": {
-    "dev": "bun run src/index.ts",
+    "serve": "./dist/tdsk-agent",
+    "start": "bun run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun --minify",
     "compile": "bun build src/index.ts --compile --outfile dist/tdsk-agent",
     "test": "vitest run --config configs/vitest.config.ts",

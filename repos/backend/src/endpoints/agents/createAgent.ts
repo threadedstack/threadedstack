@@ -27,6 +27,17 @@ export const createAgent: TEndpointConfig = {
     if (!agent.providerId)
       throw new Exception(400, `Agent must have a provider (providerId required)`)
 
+    // Validate that the provider exists and is an AI provider
+    const { data: provider, error: provErr } = await db.services.provider.get(
+      agent.providerId
+    )
+    if (provErr || !provider) throw new Exception(404, `Provider not found`)
+    if (provider.type !== `ai`)
+      throw new Exception(
+        400,
+        `Agent must be linked to an AI provider (got type: "${provider.type}")`
+      )
+
     // Ensure orgId is set on the agent data
     agent.orgId = orgId
 

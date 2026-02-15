@@ -2,6 +2,7 @@ import type { Provider, TProviderType } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
 import { Box } from '@mui/material'
+import { ELLMProvider, EProvider } from '@tdsk/domain'
 import { ProviderTypes } from '@TAF/constants/providers'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
@@ -13,6 +14,11 @@ import {
   DrawerActions,
   ConfirmDelete,
 } from '@tdsk/components'
+
+const LLMProviderOptions = Object.values(ELLMProvider).map((value) => ({
+  value,
+  label: value.charAt(0).toUpperCase() + value.slice(1),
+}))
 
 export type TProviderDrawer = {
   open: boolean
@@ -34,17 +40,21 @@ export const ProviderDrawer = ({
   const [name, setName] = useState('')
   const [type, setType] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
+  const [llmProvider, setLlmProvider] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const isAiType = type === EProvider.ai
 
   // Pre-populate form in edit mode
   useEffect(() => {
     if (provider) {
       const options = provider.options || {}
-      setName(options.name || '')
+      setName(provider.name || options.name || '')
       setType(provider.type || '')
       setBaseUrl(options.baseUrl || '')
+      setLlmProvider(options.llmProvider || '')
       setError(null)
       setShowDeleteConfirm(false)
     } else {
@@ -52,6 +62,7 @@ export const ProviderDrawer = ({
       setName('')
       setType('')
       setBaseUrl('')
+      setLlmProvider('')
       setError(null)
       setShowDeleteConfirm(false)
     }
@@ -63,6 +74,7 @@ export const ProviderDrawer = ({
     setName('')
     setType('')
     setBaseUrl('')
+    setLlmProvider('')
     setError(null)
     setShowDeleteConfirm(false)
     onCloseCB?.()
@@ -81,15 +93,21 @@ export const ProviderDrawer = ({
       return
     }
 
+    if (isAiType && !llmProvider) {
+      setError('LLM provider is required for AI providers')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     const providerType = type as TProviderType
     const providerData = {
+      name: name.trim(),
       type: providerType,
       options: {
-        name: name.trim(),
         ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
+        ...(isAiType && llmProvider ? { llmProvider } : {}),
       },
     }
 
@@ -164,7 +182,7 @@ export const ProviderDrawer = ({
               deleting={loading}
               onConfirm={onRemove}
               onCancel={() => setShowDeleteConfirm(false)}
-              itemName={provider?.options?.name || 'this provider'}
+              itemName={provider?.name || provider?.options?.name || 'this provider'}
             />
           )}
 
@@ -183,11 +201,27 @@ export const ProviderDrawer = ({
             id='provider-type'
             label='Provider Type'
             value={type}
-            onChange={(e) => setType(e.target.value)}
+            onChange={(e) => {
+              setType(e.target.value)
+              e.target.value !== EProvider.ai && setLlmProvider(``)
+            }}
             items={ProviderTypes}
             required
             disabled={loading}
           />
+
+          {isAiType && (
+            <SelectInput
+              required
+              disabled={loading}
+              value={llmProvider}
+              label='LLM Provider'
+              id='provider-llm-provider'
+              items={LLMProviderOptions}
+              onChange={(e) => setLlmProvider(e.target.value)}
+              description='The AI service this provider connects to'
+            />
+          )}
 
           <TextInput
             id='provider-base-url'

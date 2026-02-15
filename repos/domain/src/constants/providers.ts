@@ -88,6 +88,41 @@ export const ProviderTemplates: Record<string, TProviderTemplate> = {
       },
     ],
   },
+  zai: {
+    id: `zai`,
+    name: `Z.AI`,
+    baseUrl: `https://api.z.ai/api/paas/v4`,
+    defaultModel: `glm-5`,
+    defaultSecretName: `ZAI_API_KEY`,
+    apiKeyPlaceholder: `Enter your Z.AI API key...`,
+    apiKeyPattern: ``,
+    models: [
+      {
+        id: `glm-5`,
+        name: `GLM-5`,
+        maxTokens: 131072,
+        description: `Most capable model`,
+      },
+      {
+        id: `glm-4.7`,
+        name: `GLM-4.7`,
+        maxTokens: 131072,
+        description: `High performance`,
+      },
+      {
+        id: `glm-4.6`,
+        name: `GLM-4.6`,
+        maxTokens: 131072,
+        description: `Supports tool streaming`,
+      },
+      {
+        id: `glm-4.5`,
+        name: `GLM-4.5`,
+        maxTokens: 131072,
+        description: `Efficient with thinking mode`,
+      },
+    ],
+  },
   custom: {
     id: `custom`,
     name: `Custom Provider`,

@@ -385,7 +385,93 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `Unsupported LLM provider`
+      `Cannot determine LLM provider`
+    )
+  })
+
+  it(`should resolve Google AI display name to google provider`, async () => {
+    const { AgentRunner } = await import(`@tdsk/agent`)
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-google-key`)
+
+    const ep = getEndpointCfg(runAgent as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        tools: [],
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `Google AI`, options: {} },
+    })
+    mockThreadCreate.mockResolvedValue({
+      data: { id: `thread-google`, name: `Hello agent` },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(AgentRunner.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        llmConfig: expect.objectContaining({
+          provider: `google`,
+        }),
+      })
+    )
+  })
+
+  it(`should prefer options.llmProvider over name matching`, async () => {
+    const { AgentRunner } = await import(`@tdsk/agent`)
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-key`)
+
+    const ep = getEndpointCfg(runAgent as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        tools: [],
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `My Custom Name`, options: { llmProvider: `openai` } },
+    })
+    mockThreadCreate.mockResolvedValue({
+      data: { id: `thread-opts`, name: `Hello agent` },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(AgentRunner.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        llmConfig: expect.objectContaining({
+          provider: `openai`,
+        }),
+      })
     )
   })
 

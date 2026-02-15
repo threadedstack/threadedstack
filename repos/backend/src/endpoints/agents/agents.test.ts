@@ -31,6 +31,9 @@ describe(`Agents endpoints`, () => {
               update: vi.fn(),
               delete: vi.fn(),
             },
+            provider: {
+              get: vi.fn(),
+            },
             project: {
               list: vi.fn(),
               get: vi.fn(),
@@ -368,6 +371,13 @@ describe(`Agents endpoints`, () => {
         name: `New Agent`,
       }
 
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic` },
+      })
+
       const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
         typeof vi.fn
       >
@@ -416,6 +426,13 @@ describe(`Agents endpoints`, () => {
         projectIds: [`project-1`, `project-2`],
       }
 
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic` },
+      })
+
       const mockProjectList = mockReq.app?.locals.db.services.project.list as ReturnType<
         typeof vi.fn
       >
@@ -453,6 +470,13 @@ describe(`Agents endpoints`, () => {
         name: `New Agent`,
       }
 
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic` },
+      })
+
       const mockProjectList = mockReq.app?.locals.db.services.project.list as ReturnType<
         typeof vi.fn
       >
@@ -467,12 +491,85 @@ describe(`Agents endpoints`, () => {
       expect(mockCreate).toHaveBeenCalled()
     })
 
+    it(`should return 404 when provider not found`, async () => {
+      mockReq.body = {
+        orgId: `org-1`,
+        providerId: `nonexistent-provider`,
+        name: `Test Agent`,
+      }
+
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({ data: null })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider not found`
+      )
+    })
+
+    it(`should return 400 when provider is not AI type`, async () => {
+      mockReq.body = {
+        orgId: `org-1`,
+        providerId: `git-provider`,
+        name: `Test Agent`,
+      }
+
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({
+        data: { id: `git-provider`, type: `git`, name: `GitHub` },
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Agent must be linked to an AI provider`
+      )
+    })
+
+    it(`should allow creating agent with AI-type provider`, async () => {
+      const createdAgent = new Agent({
+        id: `agent-new`,
+        name: `New Agent`,
+        orgId: `org-1`,
+        providerId: `ai-provider`,
+        projects: [],
+      })
+      mockReq.body = {
+        orgId: `org-1`,
+        providerId: `ai-provider`,
+        name: `New Agent`,
+      }
+
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({
+        data: { id: `ai-provider`, type: `ai`, name: `Anthropic` },
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
     it(`should return 500 on database error`, async () => {
       mockReq.body = {
         orgId: `org-1`,
         providerId: `provider-1`,
         name: `Test Agent`,
       }
+
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic` },
+      })
 
       const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
         typeof vi.fn
@@ -609,6 +706,134 @@ describe(`Agents endpoints`, () => {
         `Update failed`
       )
       expect(mockUpdate).toHaveBeenCalledOnce()
+    })
+
+    it(`should throw 400 when changing providerId to non-AI provider`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { providerId: `git-provider` }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+      mockProvGet.mockResolvedValue({
+        data: { id: `git-provider`, type: `git`, name: `GitHub` },
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Agent must be linked to an AI provider`
+      )
+    })
+
+    it(`should throw 404 when changing providerId to nonexistent provider`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { providerId: `nonexistent` }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+      mockProvGet.mockResolvedValue({ data: null })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider not found`
+      )
+    })
+
+    it(`should skip provider validation when providerId unchanged`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Old Name`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        projects: [],
+      })
+      const updatedAgent = new Agent({
+        id: `agent-1`,
+        name: `New Name`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { name: `New Name`, providerId: `provider-1` }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+      mockUpdate.mockResolvedValue({ data: updatedAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      // provider.get should NOT be called since providerId didn't change
+      expect(mockProvGet).not.toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it(`should allow changing to a valid AI provider`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        projects: [],
+      })
+      const updatedAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent`,
+        orgId: `org-1`,
+        providerId: `new-ai-provider`,
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { providerId: `new-ai-provider` }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+      mockProvGet.mockResolvedValue({
+        data: { id: `new-ai-provider`, type: `ai`, name: `OpenAI` },
+      })
+      mockUpdate.mockResolvedValue({ data: updatedAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockProvGet).toHaveBeenCalledWith(`new-ai-provider`)
+      expect(mockStatus).toHaveBeenCalledWith(200)
     })
   })
 

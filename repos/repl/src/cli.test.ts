@@ -107,7 +107,7 @@ describe(`main`, () => {
       output.push(String(chunk))
       return true
     })
-    vi.spyOn(process, `exit`).mockImplementation((code?: number) => {
+    vi.spyOn(process, `exit`).mockImplementation((code?: any) => {
       exitCode = code ?? 0
       throw new Error(`__EXIT__`)
     })

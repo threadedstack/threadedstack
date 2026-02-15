@@ -34,6 +34,19 @@ export const updateAgent: TEndpointConfig = {
 
     if (projErr) throw new Exception(500, projErr.message)
 
+    // If providerId is being changed, validate the new provider is AI type
+    if (agent.providerId && agent.providerId !== existingAgent.providerId) {
+      const { data: provider, error: provErr } = await db.services.provider.get(
+        agent.providerId
+      )
+      if (provErr || !provider) throw new Exception(404, `Provider not found`)
+      if (provider.type !== `ai`)
+        throw new Exception(
+          400,
+          `Agent must be linked to an AI provider (got type: "${provider.type}")`
+        )
+    }
+
     agent.id = id
     if (projects?.length) agent.projects = projects
     const { data, error } = await db.services.agent.update(agent)

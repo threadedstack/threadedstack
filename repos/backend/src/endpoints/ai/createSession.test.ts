@@ -205,8 +205,75 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `Unsupported LLM provider`
+      `Cannot determine LLM provider`
     )
+  })
+
+  it(`should resolve Google AI display name to google provider`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-google-key`)
+
+    const ep = getEndpointCfg(aiCreateSession as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        model: `gemini-2.0-flash`,
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `Google AI`, options: {} },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(mockJson).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        provider: `google`,
+      }),
+    })
+  })
+
+  it(`should prefer options.llmProvider over name matching`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-key`)
+
+    const ep = getEndpointCfg(aiCreateSession as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: {
+        id: `agent-1`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+      },
+    })
+    mockProvGet.mockResolvedValue({
+      data: { id: `prov-1`, name: `My Custom Name`, options: { llmProvider: `openai` } },
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(mockJson).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        provider: `openai`,
+      }),
+    })
   })
 
   it(`should return session token without apiKey`, async () => {

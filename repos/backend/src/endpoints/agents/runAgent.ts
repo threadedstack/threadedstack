@@ -5,9 +5,10 @@ import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { AgentRunner } from '@tdsk/agent'
 import type { IAgentRunnerDB } from '@tdsk/agent'
-import { ELLMProvider, EPermAction, EPermResource } from '@tdsk/domain'
+import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { resolveApiKey } from '@TBE/utils/secrets/decryptSecret'
+import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 
 /**
  * Create an IAgentRunnerDB adapter that wraps the backend's
@@ -68,19 +69,8 @@ export const runAgent: TEndpointConfig = {
 
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 
-    // Determine LLM provider type from provider options or name
-    const providerType = (provider.options?.llmProvider ||
-      provider.name?.toLowerCase() ||
-      `anthropic`) as string
-
-    // Validate provider type
-    const validProviders = Object.values(ELLMProvider) as string[]
-    if (!validProviders.includes(providerType)) {
-      throw new Exception(
-        400,
-        `Unsupported LLM provider: ${providerType}. Supported: ${validProviders.join(`, `)}`
-      )
-    }
+    // Determine and validate LLM provider type
+    const providerType = resolveProviderType(provider)
 
     // Get or create thread
     let threadId = existingThreadId

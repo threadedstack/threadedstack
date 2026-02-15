@@ -3,9 +3,10 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
-import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { EProvider, EPermAction, EPermResource } from '@tdsk/domain'
 import { validateExclusiveArc } from '@TBE/utils/validation/exclusiveArc'
+import { validateProviderType } from '@TBE/utils/providers/validateProviderType'
 
 /**
  * POST /_/providers - Create a new provider
@@ -21,6 +22,8 @@ export const createProvider: TEndpointConfig = {
     const providerData = req.body
     const orgId = paramOrgId || providerData.orgId
     const projectId = paramProjectId || providerData.projectId
+
+    validateProviderType(providerData.type)
 
     // Validate Exclusive Arc: must have exactly one of orgId, projectId
     validateExclusiveArc(

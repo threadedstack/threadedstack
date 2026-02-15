@@ -3,10 +3,11 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
-import { ELLMProvider, EPermAction, EPermResource } from '@tdsk/domain'
+import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { resolveApiKey } from '@TBE/utils/secrets/decryptSecret'
 import { createSession } from '@TBE/services/sessionStore'
+import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 
 /**
  * POST /ai/sessions - Create a session for proxied LLM calls
@@ -52,17 +53,7 @@ export const aiCreateSession: TEndpointConfig = {
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 
     // Determine and validate provider type
-    const providerType = (provider.options?.llmProvider ||
-      provider.name?.toLowerCase() ||
-      `anthropic`) as string
-
-    const validProviders = Object.values(ELLMProvider) as string[]
-    if (!validProviders.includes(providerType)) {
-      throw new Exception(
-        400,
-        `Unsupported LLM provider: ${providerType}. Supported: ${validProviders.join(`, `)}`
-      )
-    }
+    const providerType = resolveProviderType(provider)
 
     // Build LLM config (apiKey stays server-side)
     const llmConfig = {

@@ -66,6 +66,7 @@ export type TAgentRunRequest = {
  * Supported LLM providers
  */
 export enum ELLMProvider {
+  zai = `zai`,
   openai = `openai`,
   google = `google`,
   anthropic = `anthropic`,
@@ -216,6 +217,7 @@ export type TLLMAdapterConfig = {
   temperature?: number
   systemPrompt?: string
   provider: TLLMProviderType
+  options?: Record<string, unknown>
 }
 
 /**

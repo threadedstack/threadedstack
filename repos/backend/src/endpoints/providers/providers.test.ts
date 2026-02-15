@@ -458,6 +458,134 @@ describe(`Providers endpoints`, () => {
     })
   })
 
+  describe(`POST /_/providers - Provider type validation`, () => {
+    const ep = getEndpointCfg(providers.endpoints?.createProvider)
+
+    it(`should throw 400 when type is missing`, async () => {
+      mockReq.body = { name: `Provider`, orgId: `org-1` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider type must be one of:`
+      )
+    })
+
+    it(`should throw 400 when type is invalid`, async () => {
+      mockReq.body = { name: `Provider`, type: `invalid`, orgId: `org-1` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider type must be one of:`
+      )
+    })
+
+    it(`should accept valid type "ai"`, async () => {
+      mockReq.body = { name: `AI Provider`, type: `ai`, orgId: `org-1` }
+      const mockCreate = mockReq.app?.locals.db.services.provider.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({
+        data: new Provider({ id: `prov-1`, ...mockReq.body }),
+      })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should accept valid type "git"`, async () => {
+      mockReq.body = { name: `Git Provider`, type: `git`, orgId: `org-1` }
+      const mockCreate = mockReq.app?.locals.db.services.provider.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({
+        data: new Provider({ id: `prov-1`, ...mockReq.body }),
+      })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+  })
+
+  describe(`PUT /_/providers/:id - Provider type validation on update`, () => {
+    const ep = getEndpointCfg(providers.endpoints?.updateProvider)
+
+    it(`should throw 400 when updating type to invalid value`, async () => {
+      const existingProvider = new Provider({
+        id: `prov-1`,
+        name: `Provider`,
+        type: `ai`,
+        orgId: `org-1`,
+      })
+      mockReq.params = { id: `prov-1` }
+      mockReq.body = { type: `invalid` }
+
+      const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingProvider })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider type must be one of:`
+      )
+    })
+
+    it(`should allow update without type field (name-only update)`, async () => {
+      const existingProvider = new Provider({
+        id: `prov-1`,
+        name: `Old Name`,
+        type: `ai`,
+        orgId: `org-1`,
+      })
+      const updatedProvider = new Provider({
+        id: `prov-1`,
+        name: `New Name`,
+        type: `ai`,
+        orgId: `org-1`,
+      })
+      mockReq.params = { id: `prov-1` }
+      mockReq.body = { name: `New Name` }
+
+      const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.provider.update as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingProvider })
+      mockUpdate.mockResolvedValue({ data: updatedProvider })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it(`should allow updating type to a valid value`, async () => {
+      const existingProvider = new Provider({
+        id: `prov-1`,
+        name: `Provider`,
+        type: `ai`,
+        orgId: `org-1`,
+      })
+      const updatedProvider = new Provider({
+        id: `prov-1`,
+        name: `Provider`,
+        type: `git`,
+        orgId: `org-1`,
+      })
+      mockReq.params = { id: `prov-1` }
+      mockReq.body = { type: `git` }
+
+      const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.provider.update as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingProvider })
+      mockUpdate.mockResolvedValue({ data: updatedProvider })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+  })
+
   describe(`DELETE /_/providers/:id - Delete Provider`, () => {
     const ep = getEndpointCfg(providers.endpoints?.deleteProvider)
 

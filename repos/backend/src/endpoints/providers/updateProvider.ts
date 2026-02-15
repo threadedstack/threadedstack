@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
+import { validateProviderType } from '@TBE/utils/providers/validateProviderType'
 
 /**
  * PUT /providers/:id - Update an existing provider
@@ -31,6 +32,9 @@ export const updateProvider: TEndpointConfig = {
         projectId: provider.projectId || undefined,
       })
     )
+
+    // Validate provider type if being changed
+    providerData.type && validateProviderType(providerData.type)
 
     // Update the provider
     const { data, error } = await db.services.provider.update({ ...providerData, id })
