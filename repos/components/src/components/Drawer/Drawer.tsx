@@ -92,6 +92,7 @@ export const Drawer = (props: TDrawer) => {
 
   return (
     <StyledDrawer
+      closeAfterTransition={false}
       {...drawerProps}
       open={open}
       anchor='right'

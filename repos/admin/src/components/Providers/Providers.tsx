@@ -55,14 +55,6 @@ export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) =>
     setSelectedProvider(null)
   }
 
-  const onDialogSuccess = async () => {
-    if (orgId) {
-      setLoading(true)
-      await fetchProviders({ orgId, projectId })
-      setLoading(false)
-    }
-  }
-
   const onEditProvider = (providerId: string) => {
     const provider = providers?.[providerId]
     if (provider) {
@@ -72,9 +64,7 @@ export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) =>
   }
 
   const onManageProviders = () => {
-    if (orgId) {
-      navigate(`/orgs/${orgId}/providers`)
-    }
+    orgId && navigate(`/orgs/${orgId}/providers`)
   }
 
   const filteredProviders = useMemo(() => {
@@ -152,11 +142,10 @@ export const Providers = ({ orgId, projectId, readOnly = false }: TProviders) =>
 
       {orgId && !readOnly && (
         <ProviderDrawer
-          open={dialogOpen}
           orgId={orgId}
-          provider={selectedProvider}
+          open={dialogOpen}
           onClose={onDialogClose}
-          onSuccess={onDialogSuccess}
+          provider={selectedProvider}
         />
       )}
     </PageLayout>

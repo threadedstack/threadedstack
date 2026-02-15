@@ -64,6 +64,9 @@
 		header_up Authorization {header.Authorization}
 		lb_policy cookie
 
+		# Flush immediately for SSE/streaming (no buffering)
+		flush_interval -1
+
     header_down -Access-Control-Allow-Origin
     header_down -Access-Control-Allow-Methods
     header_down -Access-Control-Allow-Headers

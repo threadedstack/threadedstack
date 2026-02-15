@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Agent Repo"
 description: "Knowledge base for the AI Agent WASM backend repo"
-version: "1.0.0"
-tags: ["wasm", "nodejs", "ai-agent", "componentize-js", "security", "isolation", "llm-providers"]
+version: "1.1.0"
+tags: ["wasm", "nodejs", "ai-agent", "componentize-js", "security", "isolation", "llm-providers", "proxy-adapter"]
 ---
 # Agent Repo Skill
 
@@ -52,15 +52,30 @@ repos/agent/
 ├── src/                          # Application source code
 │   ├── constants/                # Security constants
 │   │   └── executor.ts           # Command allowlist + blocklist patterns
+│   ├── llm/                      # LLM adapter layer
+│   │   ├── factory.ts            # createLLMAdapter factory
+│   │   ├── anthropic.ts          # Anthropic streaming adapter (18 tests)
+│   │   ├── openai.ts             # OpenAI streaming adapter (17 tests)
+│   │   ├── google.ts             # Google Gemini streaming adapter (25 tests)
+│   │   ├── proxy.ts              # ProxyAdapter — routes LLM calls through backend SSE (7 tests)
+│   │   ├── factory.test.ts       # Factory tests (6 tests)
+│   │   └── index.ts              # LLM exports
+│   ├── runner/                   # Agent execution orchestration
+│   │   ├── runner.ts             # AgentRunner — multi-step conversation loop
+│   │   └── runner.test.ts        # Runner tests (21 tests)
+│   ├── tools/                    # Tool definitions for LLM
+│   │   ├── definitions/          # Individual tool schemas
+│   │   └── index.ts              # Tool exports
 │   ├── services/                 # Host-side services
-│   │   ├── mutex.ts              # Promise-based locking (serial execution)
+│   │   ├── mutex.ts              # Promise-based locking (serial execution, 15 tests)
 │   │   ├── executor.ts           # Secure shell command execution
 │   │   ├── wasm.ts               # WASM instantiation bridge
 │   │   └── index.ts              # Service exports
-│   ├── index.ts                  # Main export (TSAgent class)
-│   ├── tsagent.ts                # Host wrapper class (main API)
+│   ├── index.ts                  # Main export (AgentRunner, ProxyAdapter, etc.)
+│   ├── tsagent.ts                # Host wrapper class (14 tests)
 │   ├── types/                    # TypeScript type definitions
 │   │   ├── agent.types.ts        # LLM providers, messages, config
+│   │   ├── runner.types.ts       # TAgentRunOpts, IAgentRunnerDB
 │   │   ├── executor.types.ts     # Command execution types
 │   │   ├── mutex.types.ts        # Concurrency control types
 │   │   ├── wasm.types.ts         # WASM bridge types
@@ -744,7 +759,7 @@ pnpm build:wasm      # Componentize + transpile only
 ### Testing
 
 ```bash
-pnpm test            # Run vitest tests (no tests yet)
+pnpm test            # Run vitest tests — 150 tests, 11 files
 ```
 
 ### Maintenance
@@ -1005,11 +1020,20 @@ console.log('[WasmBridge] Import object:', wasmImports)
 
 ---
 
-**Last Updated**: 2026-01-22
-**Version**: 1.0.0
+**Last Updated**: 2026-02-14
+**Version**: 1.1.0
 **Maintainer**: ThreadedStack Team
 
 ## Changelog
+
+### v1.1.0 (2026-02-14)
+- **New**: `ProxyAdapter` — ILLMAdapter that routes LLM calls through backend SSE proxy (7 tests)
+- **New**: `AgentRunner` — Multi-step conversation loop with streaming, tool execution, mutex locking (21 tests)
+- **New**: LLM adapter layer with factory pattern: Anthropic (18), OpenAI (17), Google (25), factory (6) tests
+- **New**: Tool definitions for shell, file ops, directory ops (21 tests)
+- **New**: Optional `adapter` parameter in `TAgentRunOpts` — allows injecting ProxyAdapter (or any ILLMAdapter)
+- **New**: `IAgentRunnerDB` interface for pluggable message persistence (HTTP or direct DB)
+- **Testing**: 150/150 tests passing across 11 test files
 
 ### v1.0.0 (2026-01-22)
 - **Initial Release**: Complete WASM AI agent implementation

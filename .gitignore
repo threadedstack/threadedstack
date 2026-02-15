@@ -128,7 +128,6 @@ browser-meta.json
 
 configs/*firebase*.json
 
-!**/**/.gitkeep
 
 deploy/azure/**
 
@@ -184,3 +183,6 @@ vite.config.ts.timestamp*
 repos/**/wit/deps
 .playwright-mcp
 .worktrees/
+repos/integration/test-results/**
+
+!**/**/.gitkeep

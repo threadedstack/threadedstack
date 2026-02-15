@@ -1,13 +1,13 @@
 import type { IInput } from '@TSC/types'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import type { CheckboxProps } from '@mui/material/Checkbox'
 import type { FormControlLabelProps } from '@mui/material/FormControlLabel'
 
-import { cls } from '@keg-hub/jsutils/cls'
 import Box from '@mui/material/Box'
+import { cls } from '@keg-hub/jsutils/cls'
 import Checkbox from '@mui/material/Checkbox'
-import FormControlLabel from '@mui/material/FormControlLabel'
 import InputLabel from '@mui/material/InputLabel'
+import FormControlLabel from '@mui/material/FormControlLabel'
 
 export type TCheckboxInput = IInput &
   CheckboxProps & {
@@ -16,14 +16,6 @@ export type TCheckboxInput = IInput &
     checkboxSx?: CSSProperties
     checkboxClass?: string
   } & Pick<FormControlLabelProps, `labelPlacement`>
-
-const getThemeColor = (palette: any) => {
-  return palette.mode === `light` ? palette.primary.main : palette.text.primary
-}
-
-const getColor = (checked: boolean, palette: any) => {
-  return !checked ? `grey.500` : getThemeColor(palette)
-}
 
 export const CheckboxInput = (props: TCheckboxInput) => {
   const {
@@ -77,9 +69,9 @@ export const CheckboxInput = (props: TCheckboxInput) => {
                 fontWeight: 600,
                 fontSize: `12px`,
                 cursor: `pointer`,
-                color: (theme) => getColor(checked, theme.palette),
+                color: (theme) => (!checked ? `grey.500` : theme.palette.primary.main),
                 [`&:hover`]: {
-                  color: (theme) => getThemeColor(theme.palette),
+                  color: (theme) => theme.palette.primary.main,
                 },
               },
               labelSx,
@@ -103,7 +95,7 @@ export const CheckboxInput = (props: TCheckboxInput) => {
           sx={[
             {
               [`& svg`]: {
-                color: (theme) => getColor(checked, theme.palette),
+                color: (theme) => (!checked ? `grey.500` : theme.palette.primary.main),
               },
             },
             checkboxSx,

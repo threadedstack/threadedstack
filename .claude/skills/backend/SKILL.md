@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Backend Repo"
 description: "Knowledge base for the backend Core API repo"
-version: "1.4.0"
-tags: ["express", "nodejs", "api", "websocket", "backend", "payments", "polar"]
+version: "1.5.0"
+tags: ["express", "nodejs", "api", "websocket", "backend", "payments", "polar", "ai", "session"]
 ---
 # Backend Repo Skill
 
@@ -33,13 +33,20 @@ repos/backend/
 │   │   ├── values.ts       # Static values (AuthIgnore, sigs)
 │   │   └── index.ts
 │   ├── endpoints/           # API route definitions
+│   │   ├── agents/         # Agent endpoints (runAgent)
+│   │   ├── ai/             # AI session + LLM proxy endpoints
+│   │   │   ├── ai.ts       # Top-level /ai group (no auth — session-token only)
+│   │   │   ├── sessions.ts # /_/ai/sessions group (normal auth, under accounts)
+│   │   │   ├── createSession.ts  # POST /sessions — creates LLM session
+│   │   │   ├── chatProxy.ts      # POST /chat — SSE LLM proxy
+│   │   │   └── index.ts
 │   │   ├── auth/           # Authentication endpoints
 │   │   ├── base/           # Base/health endpoints
 │   │   ├── payments/       # Payment endpoints
 │   │   ├── subscriptions/  # Subscription endpoints
 │   │   ├── quotas/         # Quota endpoints
 │   │   ├── accounts.ts     # Main accounts routes (/_/*)
-│   │   ├── endpoints.ts    # Endpoint registry
+│   │   ├── endpoints.ts    # Endpoint registry (ai, proxy, accounts)
 │   │   └── index.ts
 │   ├── middleware/          # Express middleware setup
 │   │   ├── authorize.ts    # Authorization middleware (12 tests)
@@ -55,6 +62,8 @@ repos/backend/
 │   │   ├── server.ts       # HTTP/HTTPS server creation
 │   │   └── index.ts
 │   ├── services/            # Service layer
+│   │   ├── sessionStore.ts  # In-memory LLM session store with TTL (10 tests)
+│   │   ├── llm.ts           # Spyable wrapper for createLLMAdapter
 │   │   └── payments/       # Payment services
 │   │       ├── polarService.ts # Polar.sh API integration (340 lines)
 │   │       ├── polarService.test.ts # 53 passing tests
@@ -70,8 +79,10 @@ repos/backend/
 │   │   ├── auth/           # Auth utilities (shouldIgnore, adminPath, parseToken, checkPermission - 20 tests)
 │   │   │   └── requireResource.ts  # requireResourceWithPermission helper (11 tests)
 │   │   ├── errors/         # Error handling (Exception, errorHandler, withEx)
+│   │   ├── secrets/        # Secret decryption utilities (resolveApiKey)
 │   │   ├── validation/      # Validation utilities
-│   │   │   └── exclusiveArc.ts # Exclusive arc validation (13 tests)
+│   │   │   ├── exclusiveArc.ts # Exclusive arc validation (13 tests)
+│   │   │   └── uuid.ts     # UUID validation helper (14 tests)
 │   │   ├── proxy/          # Proxy utilities (buildProxy, endpointProxy, proxyHeaders)
 │   │   ├── getCurrentPeriod.ts # Billing period utility
 │   │   ├── pagination.ts    # List endpoint pagination (10 tests)
@@ -122,7 +133,12 @@ repos/backend/
 - **`src/endpoints/subscriptions/**`** - Subscription management
 - **`src/endpoints/quotas/**`** - Quota checking and limits
 - **`src/endpoints/payments/**`** - Payment processing and webhooks
+- **`src/endpoints/agents/runAgent.ts`** - Agent execution endpoint (POST, runs AgentRunner)
+- **`src/endpoints/ai/createSession.ts`** - Session creation (POST /_/ai/sessions, auth required)
+- **`src/endpoints/ai/chatProxy.ts`** - SSE LLM proxy (POST /ai/chat, session-token auth)
 - **`src/services/payments/polarService.ts`** - Polar.sh integration (53 passing tests)
+- **`src/services/sessionStore.ts`** - In-memory session store with 1-hour TTL (10 tests)
+- **`src/services/llm.ts`** - Spyable wrapper for `createLLMAdapter` from `@tdsk/agent`
 
 ### Utilities
 - **`src/utils/logger.ts`** - Winston logger configured from config
@@ -133,7 +149,9 @@ repos/backend/
 - **`src/utils/errors/errorHandler.ts`** - Express error handler middleware
 - **`src/utils/errors/exception.ts`** - Custom Exception class for structured errors
 - **`src/utils/auth/requireResource.ts`** - Permission check + resource fetch helper (11 tests)
+- **`src/utils/secrets/decryptSecret.ts`** - Decrypts provider API keys from encrypted secrets
 - **`src/utils/validation/exclusiveArc.ts`** - Exclusive arc validation utility (13 tests)
+- **`src/utils/validation/uuid.ts`** - UUID format validation utility (14 tests)
 - **`src/utils/pagination.ts`** - Pagination query parser (default limit=50, max=200) (10 tests)
 
 ## Architecture
@@ -623,10 +641,22 @@ Changes to any of these trigger automatic rebuild and server restart.
 
 ---
 
-**Last Updated:** 2026-02-08
-**Version:** 1.4.0
+**Last Updated:** 2026-02-14
+**Version:** 1.5.0
 
 ### Changelog
+
+#### v1.5.0 (2026-02-14)
+- **New**: Session-based LLM proxy architecture — API keys never leave the backend
+- **New**: `POST /_/ai/sessions` — Creates LLM session, resolves API key server-side, returns session token
+- **New**: `POST /ai/chat` — SSE proxy that streams LLM responses using cached session config
+- **New**: `sessionStore.ts` — In-memory session store with 1-hour TTL and periodic cleanup (10 tests)
+- **New**: `llm.ts` — Spyable wrapper for `createLLMAdapter` (enables `vi.spyOn` in tests)
+- **New**: `uuid.ts` — UUID validation utility (14 tests)
+- **New**: `decryptSecret.ts` — Provider API key decryption utility
+- **Removed**: `resolveAgent` endpoint — decrypted API keys no longer sent over the wire
+- **Routing**: AI endpoints split: `/_/ai/sessions` (normal auth under accounts) + `/ai/chat` (session-token only at top level)
+- **Testing**: 745/745 tests passing across 44 test files (was 584/584 across 36 files)
 
 #### v1.4.0 (2026-02-08)
 - **New**: Pagination for all 13 list endpoints (`?limit=N&offset=N`, default 50, max 200)
@@ -637,7 +667,7 @@ Changes to any of these trigger automatic rebuild and server restart.
 - **Performance**: `fetchPlans()` parallelized with Promise.all
 - **Performance**: PolarService product cache now has 5-minute TTL
 - **New**: 153+ new tests (agents 25, domains 30, middleware 16, error utils 14, proxy utils 19, validation 13, pagination 10, permission 11, plus existing test updates)
-- **Testing**: 584/584 tests passing across 36 test files (was 431/431 across 25 files)
+- **Testing**: 584/584 tests passing across 36 test files (was 431/431 across 25 files; now 745/745 across 44 after v1.5.0)
 
 #### v1.3.0 (2026-02-08)
 - **Fixed**: 5 critical bugs (inverted validation, uninitialized token, subscription upsert, exclusive arc, price/product confusion)

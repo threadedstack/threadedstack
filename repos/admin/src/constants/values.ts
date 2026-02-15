@@ -6,6 +6,7 @@ import {
   EFunLanguage,
   EApiKeyScope,
   EEPVisibility,
+  EApiKeyExpire,
   EEndpointType,
   EEPCredential,
 } from '@tdsk/domain'
@@ -16,6 +17,21 @@ export const SidebarWidthClosed = 60
 export const HttpMethods = Object.keys(EHttpMethod)
 export const ApiKeyScopes = Object.values(EApiKeyScope)
 export const EPVisibility = Object.values(EEPVisibility)
+
+export const ApiKeysExpire = [
+  { label: `7 days`, value: EApiKeyExpire.d7 },
+  { label: `30 days`, value: EApiKeyExpire.d30 },
+  { label: `90 days`, value: EApiKeyExpire.d90 },
+  { label: `180 days`, value: EApiKeyExpire.d180 },
+  { label: `1 year`, value: EApiKeyExpire.y1 },
+  { label: `Never expires`, value: EApiKeyExpire.never },
+]
+
+export const ApiKeyScopeDesc = {
+  [EApiKeyScope.admin]: `Full administrative access`,
+  [EApiKeyScope.write]: `Create and update resources`,
+  [EApiKeyScope.read]: `Read-only access to resources`,
+}
 
 export const AllAuthRoles = [
   {

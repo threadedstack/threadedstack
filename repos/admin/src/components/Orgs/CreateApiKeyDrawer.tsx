@@ -1,26 +1,27 @@
 import type { TApiKeyScope } from '@tdsk/domain'
 
 import { useState } from 'react'
+import { EApiKeyScope } from '@tdsk/domain'
 import { createApiKey } from '@TAF/actions/apiKeys'
-import { ApiKeyScopes } from '@TAF/constants/values'
 import { capitalize } from '@keg-hub/jsutils/capitalize'
+import { Box, Paper, Alert, Typography } from '@mui/material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { Drawer, ClipboardCopy, Button, DrawerActions } from '@tdsk/components'
+
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import LocalPoliceIcon from '@mui/icons-material/LocalPolice'
+import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline'
+import { ApiKeyScopes, ApiKeysExpire, ApiKeyScopeDesc } from '@TAF/constants/values'
 import {
-  Box,
-  Paper,
-  Alert,
-  Select,
-  MenuItem,
-  Checkbox,
-  FormGroup,
-  TextField,
+  Drawer,
+  Button,
+  TextInput,
   InputLabel,
-  Typography,
-  FormControl,
-  FormControlLabel,
-} from '@mui/material'
+  SelectInput,
+  ClipboardCopy,
+  DrawerActions,
+  CheckboxInput,
+} from '@tdsk/components'
 
 export type TCreateApiKeyDrawer = {
   orgId: string
@@ -30,32 +31,33 @@ export type TCreateApiKeyDrawer = {
   onSuccess?: () => void
 }
 
+const ScopeIcons = {
+  [EApiKeyScope.read]: VisibilityIcon,
+  [EApiKeyScope.admin]: LocalPoliceIcon,
+  [EApiKeyScope.write]: DriveFileRenameOutlineIcon,
+}
+
 export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
   const { open, orgId, projectId, onClose: onCloseCB, onSuccess: onSuccessCB } = props
 
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<TApiKeyScope[]>([`read`])
-  const [expiresIn, setExpiresIn] = useState<string>('')
+  const [expiresIn, setExpiresIn] = useState<string>(`none`)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [generatedKey, setGeneratedKey] = useState<string | null>(null)
+  const [generatedKey, setGeneratedKey] = useState<string | null>(
+    `tdsk_UE5jDOLLfAQpFOPYk5PXoP3ZMAu3Sc0ak2e0HhMdfi8`
+  )
 
-  const onScopeChange = (scope: TApiKeyScope) => {
+  const onScopeChange = (scope: TApiKeyScope) =>
     setScopes((prev) =>
       prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
     )
-  }
 
   const onSave = async () => {
-    if (!name.trim()) {
-      setError(`API key name is required`)
-      return
-    }
+    if (!name.trim()) return setError(`API key name is required`)
 
-    if (scopes.length === 0) {
-      setError(`At least one scope is required`)
-      return
-    }
+    if (scopes.length === 0) return setError(`At least one scope is required`)
 
     setLoading(true)
     setError(null)
@@ -63,9 +65,8 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     let expiresAt: Date | undefined
     if (expiresIn) {
       const days = Number.parseInt(expiresIn, 10)
-      if (!isNaN(days) && days > 0) {
+      if (!isNaN(days) && days > 0)
         expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
-      }
     }
 
     const result = await createApiKey({
@@ -90,7 +91,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     generatedKey && onSuccessCB?.()
     setName(``)
     setScopes([`read`])
-    setExpiresIn(``)
+    setExpiresIn(`none`)
     setError(null)
     setGeneratedKey(null)
     onCloseCB?.()
@@ -106,15 +107,13 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     onClose()
   }
 
-  // TODO: fix this - should be part of the main drawer
-  // Also styles in dark mode are messed up due to paper
-  if (generatedKey) {
-    return (
-      <Drawer
-        open={open}
-        onClose={() => {}}
-        title='API Key Generated'
-        actions={
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title='Generate API Key'
+      actions={
+        generatedKey ? (
           <Button
             color='primary'
             onClick={onDone}
@@ -122,145 +121,123 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
           >
             Done
           </Button>
-        }
-      >
-        <Alert
-          severity='warning'
-          sx={{ mb: 3 }}
-        >
-          <Typography variant='body2'>
-            Make sure to copy your API key now. You won't be able to see it again!
-          </Typography>
-        </Alert>
-
-        <Paper
-          variant='outlined'
-          sx={{
-            p: 2,
-            gap: 1,
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <Typography
-            variant='body2'
-            fontFamily='monospace'
-            sx={{
-              flex: 1,
-              wordBreak: 'break-all',
-              fontSize: '0.875rem',
-            }}
-          >
-            {generatedKey}
-          </Typography>
-          <ClipboardCopy value={generatedKey} />
-        </Paper>
-
-        <Typography
-          variant='caption'
-          color='text.secondary'
-          sx={{ display: 'block', mt: 2 }}
-        >
-          Use this key in the Authorization header:{' '}
-          <code>
-            Authorization: Bearer {'{'}your_key{'}'}
-          </code>
-        </Typography>
-      </Drawer>
-    )
-  }
-
-  return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      title='Generate API Key'
-      actions={
-        <DrawerActions
-          form='api-key-form'
-          editing={false}
-          actions={actions}
-          loading={loading}
-          disabled={!name.trim() || scopes.length === 0}
-        />
+        ) : (
+          <DrawerActions
+            editing={false}
+            actions={actions}
+            loading={loading}
+            form='api-key-form'
+            cancelDisabled={false}
+            disabled={!name.trim() || scopes.length === 0}
+          />
+        )
       }
     >
-      <form id='api-key-form'>
-        {error && (
-          <ErrorAlert
-            message={error}
-            onClose={() => setError(null)}
-            sx={{ mb: 2 }}
-          />
-        )}
-
-        <TextField
-          autoFocus
-          fullWidth
-          value={name}
-          margin='dense'
-          sx={{ mb: 2 }}
-          label='Key Name'
-          placeholder='e.g., Production API Key'
-          onChange={(e) => setName(e.target.value)}
-          helperText='A descriptive name to identify this key'
-        />
-
-        <FormControl
-          fullWidth
-          margin='dense'
-        >
-          <InputLabel>Expiration</InputLabel>
-          <Select
-            value={expiresIn}
-            label='Expiration'
-            onChange={(e) => setExpiresIn(e.target.value)}
+      {generatedKey ? (
+        <>
+          <Alert
+            sx={{ mb: 3 }}
+            severity='warning'
           >
-            <MenuItem value=''>Never expires</MenuItem>
-            <MenuItem value='7'>7 days</MenuItem>
-            <MenuItem value='30'>30 days</MenuItem>
-            <MenuItem value='90'>90 days</MenuItem>
-            <MenuItem value='180'>180 days</MenuItem>
-            <MenuItem value='365'>1 year</MenuItem>
-          </Select>
-        </FormControl>
+            <Typography variant='body2'>
+              Make sure to copy your API key now. You won't be able to see it again!
+            </Typography>
+          </Alert>
 
-        <Box sx={{ mt: 4 }}>
+          <Paper
+            variant='outlined'
+            sx={{
+              p: 2,
+              gap: 1,
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Typography
+              variant='body2'
+              fontFamily='monospace'
+              sx={{
+                flex: 1,
+                wordBreak: 'break-all',
+                fontSize: '0.875rem',
+              }}
+            >
+              {generatedKey}
+            </Typography>
+            <ClipboardCopy value={generatedKey} />
+          </Paper>
+
           <Typography
-            gutterBottom
-            variant='subtitle2'
+            variant='caption'
+            color='text.secondary'
+            sx={{ display: 'block', mt: 2 }}
           >
-            Scopes
+            Use this key in the Authorization header:{' '}
+            <code>
+              Authorization: Bearer {'{'}your_key{'}'}
+            </code>
           </Typography>
-          <FormGroup>
-            {ApiKeyScopes.map((scope) => (
-              <FormControlLabel
-                key={scope}
-                sx={{ mt: 2, ml: 0.5 }}
-                control={
-                  <Checkbox
+        </>
+      ) : (
+        <form id='api-key-form'>
+          {error && (
+            <ErrorAlert
+              sx={{ mb: 2 }}
+              message={error}
+              onClose={() => setError(null)}
+            />
+          )}
+
+          <TextInput
+            autoFocus
+            fullWidth
+            value={name}
+            label='Key Name'
+            disabled={loading}
+            id='tdsk-api-key-name'
+            placeholder='e.g., Production API Key'
+            onChange={(e) => setName(e.target.value)}
+          />
+
+          <SelectInput
+            sx={{ mt: 2 }}
+            label='Expiration'
+            value={expiresIn}
+            disabled={loading}
+            items={ApiKeysExpire}
+            id='tdsk-api-key-expiration'
+            onChange={(e) => setExpiresIn(e.target.value)}
+          />
+
+          <Box sx={{ mt: 2 }}>
+            <InputLabel>Scopes</InputLabel>
+            {ApiKeyScopes.map((scope) => {
+              const Icon = ScopeIcons[scope]
+
+              return (
+                <Box
+                  key={scope}
+                  sx={{ mt: 1, display: `flex`, alignItems: `center` }}
+                >
+                  <CheckboxInput
+                    id={scope}
+                    sx={{ ml: 0.5 }}
+                    label={capitalize(scope)}
                     checked={scopes.includes(scope)}
                     onChange={() => onScopeChange(scope)}
                   />
-                }
-                label={
-                  <Box>
-                    <Typography variant='body2'>{capitalize(scope)}</Typography>
-                    <Typography
-                      variant='caption'
-                      color='text.secondary'
-                    >
-                      {scope === `admin` && `Full administrative access`}
-                      {scope === `write` && `Create and update resources`}
-                      {scope === `read` && `Read-only access to resources`}
-                    </Typography>
-                  </Box>
-                }
-              />
-            ))}
-          </FormGroup>
-        </Box>
-      </form>
+                  <Typography
+                    color='text.secondary'
+                    sx={{ fontSize: `12px` }}
+                  >
+                    {ApiKeyScopeDesc[scope]}
+                  </Typography>
+                </Box>
+              )
+            })}
+          </Box>
+        </form>
+      )}
     </Drawer>
   )
 }

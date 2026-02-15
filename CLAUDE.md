@@ -88,12 +88,15 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
          Proxy: /proxy/* → Backend Proxy Engine
          FaaS: /faas/* → Backend Compute Engine
          AI: /ai/* → Backend AI Engine
+            ├── /_/ai/sessions  - Create LLM session (JWT/API key auth)
+            └── /ai/chat        - LLM proxy SSE stream (session token auth)
 ```
 
 **Authentication Flow**:
 - Client-side auth via Neon Auth (social login)
 - Proxy validates JWT using JWKS from Neon
-- Protected routes require valid JWT token
+- Protected routes require valid JWT token or API key (`tdsk_*` Bearer token)
+- `/ai/chat` uses session token auth (`Authorization: Session <token>`) — skips JWT/API key
 
 ### Workspace Structure (`repos/`)
 
@@ -130,16 +133,16 @@ Load the relevant skill when working on a specific repo:
 | Skill File | Contents |
 |------------|----------|
 | `admin/SKILL.md` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services, Billing pages/components, Quota tracking |
-| `agent/SKILL.md` | WASM AI agent, Host-Guest architecture, WasmBridge, TSAgent, Mutex, Executor, Provider abstraction, ReAct loop, Security layers, Build pipeline |
-| `backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, Subscription/Quota/Payment endpoints, PaymentsService |
+| `agent/SKILL.md` | AI Agent runtime, LLM adapters (Anthropic/OpenAI/Google/Proxy), ProxyAdapter for session-based LLM proxy, AgentRunner, ReAct loop, tool execution |
+| `backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, AI session/chat proxy endpoints, Subscription/Quota/Payment endpoints, PaymentsService |
 | `cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
 | `components/SKILL.md` | 30+ React components, 25+ hooks, Monaco editor, Confirm loading state |
 | `database/SKILL.md` | Drizzle ORM, organizations/projects schemas, apiKeys table, model converters, quotas/subscriptions tables |
 | `domain/SKILL.md` | Organization/Project/ApiKey/Secret/Endpoint/Function models, crypto utilities, Plan model, payment types (TPayPlanMeta) |
 | `logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
-| `proxy/SKILL.md` | JWKS auth validation, http-proxy-middleware backend forwarding, full implementation |
+| `proxy/SKILL.md` | JWKS auth validation, API key auth, session token auth for /ai/chat, http-proxy-middleware backend forwarding |
 | `shell/SKILL.md` | Cross-platform virtual shell environment, Shell class API, just-bash integration, ZenFS backends (Node.js/Browser/Bun), StreamManager, Platform detection, cwd persistence pattern, Test suite (140/149 passing) |
-| `repl/SKILL.md` | Terminal REPL CLI, AuthManager, ApiClient, LocalAgentExecutor, HttpMessageAdapter, AgentRepl interactive loop, Renderer, Bun binary compilation |
+| `repl/SKILL.md` | Terminal REPL CLI, AuthManager, ApiClient, session-based LLM proxy (ProxyAdapter), LocalAgentExecutor, AgentRepl interactive loop, Renderer, Bun binary |
 | `sandbox/SKILL.md` | Pluggable sandbox factory, E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |
 

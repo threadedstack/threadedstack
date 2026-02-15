@@ -164,7 +164,7 @@ const buildTheme = (mode: TThemeType, colors: TThemeColors) =>
       divider: colors.border?.default,
       text: {
         primary: colors.foreground,
-        secondary: colors.mutedForeground,
+        secondary: colors.secondaryForeground,
       },
     },
   })
