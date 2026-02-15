@@ -1,5 +1,7 @@
+import { main } from './cli'
+import { Version } from '@TRL/constants'
+import { existsSync, readFileSync } from 'node:fs'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { parseArgs, main, printUsage, Version } from './cli'
 
 vi.mock(`node:fs`, () => ({
   existsSync: vi.fn(),
@@ -21,8 +23,6 @@ vi.mock(`@TRL/executor`, () => ({
   LocalAgentExecutor: vi.fn().mockImplementation(() => ({ client: {} })),
 }))
 
-import { existsSync, readFileSync } from 'node:fs'
-
 const makeCreds = (
   overrides?: Partial<{ apiKey: string; proxyUrl: string; insecure: boolean }>
 ) => ({
@@ -40,61 +40,6 @@ const setLoggedOut = () => {
   vi.mocked(existsSync).mockReturnValue(false)
 }
 
-describe(`parseArgs`, () => {
-  it(`should parse command from argv[2]`, () => {
-    const result = parseArgs([`node`, `script`, `help`])
-    expect(result.command).toBe(`help`)
-  })
-
-  it(`should default command to empty string`, () => {
-    const result = parseArgs([`node`, `script`])
-    expect(result.command).toBe(``)
-  })
-
-  it(`should collect positional args after command`, () => {
-    const result = parseArgs([`node`, `script`, `login`, `my-key`])
-    expect(result.positional).toEqual([`my-key`])
-  })
-
-  it(`should parse boolean flags`, () => {
-    const result = parseArgs([`node`, `script`, `login`, `--insecure`])
-    expect(result.flags.insecure).toBe(true)
-  })
-
-  it(`should parse value flags`, () => {
-    const result = parseArgs([`node`, `script`, `login`, `--url`, `https://proxy.test`])
-    expect(result.flags.url).toBe(`https://proxy.test`)
-  })
-
-  it(`should parse mixed positional and flags`, () => {
-    const result = parseArgs([`node`, `script`, `threads`, `agent-1`, `--org`, `org-1`])
-    expect(result.command).toBe(`threads`)
-    expect(result.positional).toEqual([`agent-1`])
-    expect(result.flags.org).toBe(`org-1`)
-  })
-
-  it(`should handle empty argv`, () => {
-    const result = parseArgs([])
-    expect(result.command).toBe(``)
-    expect(result.positional).toEqual([])
-    expect(result.flags).toEqual({})
-  })
-
-  it(`should treat flag followed by another flag as boolean`, () => {
-    const result = parseArgs([
-      `node`,
-      `script`,
-      `login`,
-      `key`,
-      `--insecure`,
-      `--url`,
-      `https://x`,
-    ])
-    expect(result.flags.insecure).toBe(true)
-    expect(result.flags.url).toBe(`https://x`)
-  })
-})
-
 describe(`main`, () => {
   let output: string[]
   let exitCode: number | undefined
@@ -111,6 +56,7 @@ describe(`main`, () => {
       exitCode = code ?? 0
       throw new Error(`__EXIT__`)
     })
+    vi.spyOn(process.stderr, `write`).mockImplementation(() => true)
   })
 
   const setArgv = (...args: string[]) => {
@@ -128,27 +74,41 @@ describe(`main`, () => {
   const joined = () => output.join(``)
 
   describe(`help command`, () => {
-    it(`should print usage for 'help'`, async () => {
+    it(`should print commands for 'help'`, async () => {
       setArgv(`help`)
       setLoggedOut()
       await runMain()
-      expect(joined()).toContain(`Usage:`)
+      expect(joined()).toContain(`Commands:`)
       expect(joined()).toContain(`tdsk-agent login`)
       expect(exitCode).toBeUndefined()
     })
 
-    it(`should print usage for '--help'`, async () => {
+    it(`should print commands for '--help'`, async () => {
       setArgv(`--help`)
       setLoggedOut()
       await runMain()
-      expect(joined()).toContain(`Usage:`)
+      expect(joined()).toContain(`Commands:`)
     })
 
-    it(`should print usage for '-h'`, async () => {
+    it(`should print commands for '-h'`, async () => {
       setArgv(`-h`)
       setLoggedOut()
       await runMain()
-      expect(joined()).toContain(`Usage:`)
+      expect(joined()).toContain(`Commands:`)
+    })
+
+    it(`should list all available commands`, async () => {
+      setArgv(`help`)
+      setLoggedOut()
+      await runMain()
+      const text = joined()
+      expect(text).toContain(`login`)
+      expect(text).toContain(`logout`)
+      expect(text).toContain(`chat`)
+      expect(text).toContain(`agents`)
+      expect(text).toContain(`threads`)
+      expect(text).toContain(`status`)
+      expect(text).toContain(`help`)
     })
   })
 
@@ -502,36 +462,101 @@ describe(`main`, () => {
     })
   })
 
+  describe(`alias resolution`, () => {
+    it(`should resolve 'li' to login`, async () => {
+      setArgv(`li`, `tdsk_newkey123`)
+      setLoggedOut()
+      mockFetch.mockResolvedValue({ ok: true })
+      vi.mocked(existsSync).mockReturnValue(true)
+
+      await runMain()
+
+      expect(joined()).toContain(`Logged in successfully`)
+    })
+
+    it(`should resolve 'st' to status`, async () => {
+      setArgv(`st`)
+      setLoggedOut()
+      await runMain()
+      expect(joined()).toContain(`not logged in`)
+    })
+
+    it(`should resolve 'lo' to logout`, async () => {
+      setArgv(`lo`)
+      setLoggedIn()
+      await runMain()
+      expect(joined()).toContain(`Logged out`)
+    })
+  })
+
+  describe(`default command`, () => {
+    it(`should default to chat when first arg is a value flag`, async () => {
+      setArgv(`--org`, `org1`)
+      setLoggedIn()
+      await runMain()
+
+      expect(mockReplStart).toHaveBeenCalledWith({
+        orgId: `org1`,
+        agentId: undefined,
+        threadId: undefined,
+      })
+    })
+  })
+
+  describe(`config defaults`, () => {
+    const setLoggedInWithConfig = (config: Record<string, any>) => {
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation((path: any) => {
+        if (String(path).endsWith(`repl.json`)) return JSON.stringify(config)
+        return JSON.stringify(makeCreds())
+      })
+    }
+
+    it(`should use config org as default when no --org flag`, async () => {
+      setArgv(`chat`)
+      setLoggedInWithConfig({ org: `cfg-org` })
+      await runMain()
+
+      expect(mockReplStart).toHaveBeenCalledWith({
+        orgId: `cfg-org`,
+        agentId: undefined,
+        threadId: undefined,
+      })
+    })
+
+    it(`should use config agent as default when no --agent flag`, async () => {
+      setArgv(`chat`)
+      setLoggedInWithConfig({ org: `cfg-org`, agent: `cfg-agent` })
+      await runMain()
+
+      expect(mockReplStart).toHaveBeenCalledWith({
+        orgId: `cfg-org`,
+        agentId: `cfg-agent`,
+        threadId: undefined,
+      })
+    })
+
+    it(`should override config defaults with explicit flags`, async () => {
+      setArgv(`chat`, `--org`, `explicit-org`)
+      setLoggedInWithConfig({ org: `cfg-org`, agent: `cfg-agent` })
+      await runMain()
+
+      expect(mockReplStart).toHaveBeenCalledWith({
+        orgId: `explicit-org`,
+        agentId: `cfg-agent`,
+        threadId: undefined,
+      })
+    })
+  })
+
   describe(`unknown command`, () => {
-    it(`should show error and usage`, async () => {
+    it(`should show error for unknown command`, async () => {
       setArgv(`foobar`)
       setLoggedOut()
       await runMain()
-      expect(joined()).toContain(`Unknown command:`)
+      expect(joined()).toContain(`Task Error:`)
       expect(joined()).toContain(`foobar`)
-      expect(joined()).toContain(`Usage:`)
       expect(exitCode).toBe(1)
     })
-  })
-})
-
-describe(`printUsage`, () => {
-  it(`should output all command descriptions`, () => {
-    const output: string[] = []
-    vi.spyOn(process.stdout, `write`).mockImplementation((chunk: any) => {
-      output.push(String(chunk))
-      return true
-    })
-
-    printUsage()
-
-    const text = output.join(``)
-    expect(text).toContain(`login`)
-    expect(text).toContain(`logout`)
-    expect(text).toContain(`chat`)
-    expect(text).toContain(`agents`)
-    expect(text).toContain(`threads`)
-    expect(text).toContain(`status`)
-    expect(text).toContain(`help`)
   })
 })

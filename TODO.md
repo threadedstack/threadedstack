@@ -18,6 +18,26 @@
 
 
 ### ALL
-* Providers should only be tied to Organization
-  * Figure out why they are tied to users / projects and remove them
 * Configs are not being used, and should be removed
+
+
+### Agent
+ Follow-up: Runtime header injection (not in this PR)
+
+ The agent LLM adapters (repos/agent/src/llm/) will need to consume provider.headers
+ at runtime:
+ - OpenAICompatibleAdapter.getHeaders() — merge config.options?.headers with defaults
+ - AnthropicAdapter — pass custom headers via Anthropic SDK's defaultHeaders
+ - Backend AI session creation — include provider headers in TLLMAdapterConfig.options
+
+ This is a separate concern from the admin UI and tracked as a follow-up.
+ 
+ 
+### Repl
+* Add ability to generate session token via browser login
+  * cross repo, requires updates to admin sub-repo
+* Improve the chat interface
+  * Add spinner when waiting on AI
+  * Add automatic loading of local files, (i.e. AGENTS.md, skills, MCP, etc.)
+  * Add hooks that can be configured next to the config file
+  * Extend config file to allow setting config options for sandbox environment
