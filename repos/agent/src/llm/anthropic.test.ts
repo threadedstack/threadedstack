@@ -470,6 +470,48 @@ describe(`AnthropicAdapter`, () => {
     })
   })
 
+  describe(`custom headers`, () => {
+    it(`should pass config.headers as defaultHeaders to Anthropic constructor`, async () => {
+      const Anthropic = (await import(`@anthropic-ai/sdk`)).default
+      const stream = createMockStream([{ type: `message_stop` }])
+      mockStream.mockReturnValue(stream)
+
+      const config = {
+        ...baseConfig,
+        headers: { [`X-Custom`]: `custom-value`, [`X-Provider`]: `provider-value` },
+      }
+
+      const events: Record<string, unknown>[] = []
+      for await (const event of adapter.stream(baseMessages, [], config)) {
+        events.push(event)
+      }
+
+      expect(Anthropic).toHaveBeenCalledWith({
+        apiKey: `test-api-key`,
+        defaultHeaders: {
+          [`X-Custom`]: `custom-value`,
+          [`X-Provider`]: `provider-value`,
+        },
+      })
+    })
+
+    it(`should pass undefined defaultHeaders when config.headers is undefined`, async () => {
+      const Anthropic = (await import(`@anthropic-ai/sdk`)).default
+      const stream = createMockStream([{ type: `message_stop` }])
+      mockStream.mockReturnValue(stream)
+
+      const events: Record<string, unknown>[] = []
+      for await (const event of adapter.stream(baseMessages, [], baseConfig)) {
+        events.push(event)
+      }
+
+      expect(Anthropic).toHaveBeenCalledWith({
+        apiKey: `test-api-key`,
+        defaultHeaders: undefined,
+      })
+    })
+  })
+
   describe(`content_block_start for non-tool blocks`, () => {
     it(`should ignore content_block_start events that are not tool_use`, async () => {
       const stream = createMockStream([

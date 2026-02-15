@@ -4,10 +4,10 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { resolveApiKey } from '@TBE/utils/secrets/decryptSecret'
 import { createSession } from '@TBE/services/sessionStore'
+import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
+import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 /**
  * POST /ai/sessions - Create a session for proxied LLM calls
@@ -47,17 +47,22 @@ export const aiCreateSession: TEndpointConfig = {
 
     if (provErr || !provider) throw new Exception(404, `Agent provider not found`)
 
-    // Resolve API key via 3-tier fallback
-    const apiKey = await resolveApiKey(agent, db)
+    // Resolve secrets
+    const secrets = new SecretResolver(db)
+    const apiKey = await secrets.resolveApiKey(agent)
 
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 
     // Determine and validate provider type
     const providerType = resolveProviderType(provider)
 
+    // Resolve provider headers (with {{SECRET}} template substitution)
+    const headers = await secrets.resolveHeaders(provider)
+
     // Build LLM config (apiKey stays server-side)
     const llmConfig = {
       apiKey,
+      headers,
       provider: providerType as any,
       systemPrompt: agent.systemPrompt,
       maxTokens: agent.maxTokens || 4096,

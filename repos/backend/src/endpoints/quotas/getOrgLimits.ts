@@ -30,31 +30,17 @@ export const getOrgLimits: TEndpointConfig = {
 
     const ownerId = ownerRole.data.userId
 
-    // Get owner's subscription
+    // Get owner's subscription to determine tier
     const subResult = await db.services.subscription.findByUser(ownerId)
     if (subResult.error) throw new Exception(500, subResult.error.message)
 
-    // If no subscription, use free tier limits
-    if (!subResult.data || !subResult.data.polarPriceId) {
-      const freeProductId = payments.service.getProductIdForTier(`free`)
+    // Use subscription tier or default to free
+    const tier = subResult.data?.tier || `free`
+    const productId = payments.service.getProductIdForTier(tier)
 
-      if (!freeProductId) throw new Exception(500, `Free tier not configured`)
+    if (!productId) throw new Exception(500, `Product not configured for tier: ${tier}`)
 
-      const limitsResult = await payments.service.getPlanLimits(freeProductId)
-      if (limitsResult.error || !limitsResult.data)
-        throw new Exception(500, limitsResult.error?.message || `Failed to fetch limits`)
-
-      res.status(200).json({ data: limitsResult.data })
-      return
-    }
-
-    // Fetch limits from Polar using product ID
-    const productResult = await payments.service.fetchProduct(subResult.data.polarPriceId)
-
-    if (productResult.error || !productResult.data)
-      throw new Exception(500, productResult.error?.message || `Failed to fetch product`)
-
-    const limitsResult = await payments.service.getPlanLimits(productResult.data.id)
+    const limitsResult = await payments.service.getPlanLimits(productId)
 
     if (limitsResult.error || !limitsResult.data)
       throw new Exception(500, limitsResult.error?.message || `Failed to fetch limits`)

@@ -116,6 +116,7 @@ export abstract class OpenAICompatibleAdapter implements ILLMAdapter {
     return {
       'Content-Type': `application/json`,
       Authorization: `Bearer ${config.apiKey}`,
+      ...config?.headers,
     }
   }
 

@@ -239,11 +239,6 @@ describe('Quota Endpoints', () => {
         projectSecrets: 25,
       }
 
-      const mockProduct = {
-        id: 'prod_basic_123',
-        name: 'Basic Plan',
-      }
-
       mockReq.params = { orgId: mockOrgId }
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
@@ -255,10 +250,11 @@ describe('Quota Endpoints', () => {
 
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
+      mockFindByUser.mockResolvedValue({
+        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+      })
 
       // Mock payment service methods
-      mockFetchProduct.mockResolvedValue({ data: mockProduct })
       mockGetPlanLimits.mockResolvedValue({ data: mockLimits })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -266,6 +262,9 @@ describe('Quota Endpoints', () => {
       expect(mockIsOrgMember).toHaveBeenCalledWith(mockUserId, mockOrgId)
       expect(mockGetOrgOwner).toHaveBeenCalledWith(mockOrgId)
       expect(mockFindByUser).toHaveBeenCalledWith('owner_123')
+      expect(mockGetProductIdForTier).toHaveBeenCalledWith('basic')
+      expect(mockGetPlanLimits).toHaveBeenCalledWith('prod_basic_456')
+      expect(mockFetchProduct).not.toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: mockLimits })
     })
@@ -394,7 +393,9 @@ describe('Quota Endpoints', () => {
         data: { projects: 2 },
       })
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
+      mockFindByUser.mockResolvedValue({
+        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+      })
 
       // Mock payment service methods
       mockGetPlanLimits.mockResolvedValue({ data: { projects: 5 } })
@@ -433,7 +434,9 @@ describe('Quota Endpoints', () => {
         data: { projects: 4 },
       })
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
+      mockFindByUser.mockResolvedValue({
+        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+      })
 
       // Mock payment service methods
       mockGetPlanLimits.mockResolvedValue({ data: { projects: 5 } })
@@ -471,7 +474,9 @@ describe('Quota Endpoints', () => {
         data: { projects: 3 },
       })
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
+      mockFindByUser.mockResolvedValue({
+        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+      })
 
       // Mock payment service methods
       mockGetPlanLimits.mockResolvedValue({ data: { projects: 5 } })
@@ -541,7 +546,9 @@ describe('Quota Endpoints', () => {
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({ data: {} })
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
+      mockFindByUser.mockResolvedValue({
+        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+      })
 
       // Mock payment service methods - no limit for invalid_resource
       mockGetPlanLimits.mockResolvedValue({ data: { projects: 5 } })
@@ -593,7 +600,7 @@ describe('Quota Endpoints', () => {
       mockGetProductIdForTier.mockReturnValue(undefined as any)
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        'Product not configured'
+        'Product not configured for tier: free'
       )
     })
 
@@ -613,7 +620,9 @@ describe('Quota Endpoints', () => {
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({ data: { projects: 2 } })
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({ data: { polarPriceId: 'price_basic_123' } })
+      mockFindByUser.mockResolvedValue({
+        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+      })
 
       // Mock payment service method to return error
       mockGetPlanLimits.mockResolvedValue({
@@ -675,9 +684,8 @@ describe('Quota Endpoints', () => {
         data: { projects: 2 },
       })
       mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
-      // Subscription has polarPriceId - used directly as productId
       mockFindByUser.mockResolvedValue({
-        data: { tier: 'basic', polarPriceId: 'price_old_123' },
+        data: { tier: 'pro', polarPriceId: 'polar_price_pro_monthly' },
       })
 
       // Mock payment service methods
@@ -685,8 +693,10 @@ describe('Quota Endpoints', () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      // polarPriceId is used directly as the productId for getPlanLimits
-      expect(mockGetPlanLimits).toHaveBeenCalledWith('price_old_123')
+      // Should use tier to look up product ID, not polarPriceId directly
+      expect(mockGetProductIdForTier).toHaveBeenCalledWith('pro')
+      expect(mockGetPlanLimits).toHaveBeenCalledWith('prod_pro_000')
+      expect(mockFetchProduct).not.toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(200)
     })
   })

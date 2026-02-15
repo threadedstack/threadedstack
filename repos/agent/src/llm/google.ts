@@ -81,7 +81,10 @@ export class GoogleAdapter implements ILLMAdapter {
     logger.info(`GoogleAdapter: loading SDK`)
     const GoogleGenAI = await loadGoogleGenAI()
     logger.info(`GoogleAdapter: SDK loaded, creating client`)
-    const client = new GoogleGenAI({ apiKey: config.apiKey })
+    const client = new GoogleGenAI({
+      apiKey: config.apiKey,
+      httpOptions: config.headers ? { headers: config.headers } : undefined,
+    })
 
     const systemPrompt =
       config.systemPrompt ||

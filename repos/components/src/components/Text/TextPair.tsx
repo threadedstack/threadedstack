@@ -71,8 +71,6 @@ export const TextPair = forwardRef((props: TTextPair, ref: TTextRef) => {
     ...rest
   } = props
 
-  console.log(size)
-
   return (
     <PairContainer
       {...rest}

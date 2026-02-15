@@ -2,7 +2,7 @@ import type { Request } from 'express'
 import type { Secret } from '@tdsk/domain'
 import type { TBEConfig } from '@TBE/types'
 import type { ClientRequest, IncomingMessage } from 'http'
-import { replaceSecretsInHeaders } from '@TBE/utils/proxy/replaceSecretRefs'
+import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 /**
  * Updates the headers of the request sent to the proxy url
@@ -32,7 +32,9 @@ export const addEndpointHeaders = (
 
   // Replace secret references if secrets are provided
   const processedHeaders =
-    secrets && secrets.length > 0 ? replaceSecretsInHeaders(headers, secrets) : headers
+    secrets && secrets.length > 0
+      ? SecretResolver.replaceInHeaders(headers, secrets)
+      : headers
 
   // Apply each header to the proxy request
   Object.entries(processedHeaders).forEach(

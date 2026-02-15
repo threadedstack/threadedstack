@@ -7,8 +7,8 @@ import { AgentRunner } from '@tdsk/agent'
 import type { IAgentRunnerDB } from '@tdsk/agent'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { resolveApiKey } from '@TBE/utils/secrets/decryptSecret'
 import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
+import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 /**
  * Create an IAgentRunnerDB adapter that wraps the backend's
@@ -64,13 +64,17 @@ export const runAgent: TEndpointConfig = {
 
     if (provErr || !provider) throw new Exception(404, `Agent provider not found`)
 
-    // Resolve API key using 3-tier fallback
-    const apiKey = await resolveApiKey(agent, db)
+    // Resolve secrets
+    const secrets = new SecretResolver(db)
+    const apiKey = await secrets.resolveApiKey(agent)
 
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 
     // Determine and validate LLM provider type
     const providerType = resolveProviderType(provider)
+
+    // Resolve provider headers (with {{SECRET}} template substitution)
+    const headers = await secrets.resolveHeaders(provider)
 
     // Get or create thread
     let threadId = existingThreadId
@@ -99,6 +103,7 @@ export const runAgent: TEndpointConfig = {
     // Build LLM config
     const llmConfig = {
       apiKey,
+      headers,
       provider: providerType as any,
       systemPrompt: agent.systemPrompt,
       maxTokens: agent.maxTokens || 4096,

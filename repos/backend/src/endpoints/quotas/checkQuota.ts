@@ -46,15 +46,11 @@ export const checkQuota: TEndpointConfig = {
     // Get owner's subscription to find limits
     const subResult = await db.services.subscription.findByUser(ownerId)
 
-    let productId: string | undefined
+    // Use subscription tier or default to free
+    const tier = subResult.data?.tier || `free`
+    const productId = payments.service.getProductIdForTier(tier)
 
-    if (!subResult.data || !subResult.data.polarPriceId) {
-      productId = payments.service.getProductIdForTier(`free`)
-    } else {
-      productId = subResult.data.polarPriceId
-    }
-
-    if (!productId) throw new Exception(500, `Product not configured`)
+    if (!productId) throw new Exception(500, `Product not configured for tier: ${tier}`)
 
     // Fetch limits
     const limitsResult = await payments.service.getPlanLimits(productId)

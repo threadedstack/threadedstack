@@ -218,6 +218,7 @@ export type TLLMAdapterConfig = {
   systemPrompt?: string
   provider: TLLMProviderType
   options?: Record<string, unknown>
+  headers?: Record<string, string>
 }
 
 /**

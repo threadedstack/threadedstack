@@ -7,7 +7,7 @@ import axios from 'axios'
 import { logger } from '@TBE/utils/logger'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { EEPCredential, EEPAuthType } from '@tdsk/domain'
-import { replaceSecretsInObj } from '@TBE/utils/proxy/replaceSecretRefs'
+import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 /**
  * OAuth token cache entry
@@ -43,7 +43,7 @@ export class ProxyService {
   async getOAuthToken(oauth: TOAuthConfig, secrets?: Secret[]): Promise<string> {
     // Replace secret references in OAuth config
     const processedOAuth =
-      secrets && secrets.length > 0 ? replaceSecretsInObj(oauth, secrets) : oauth
+      secrets && secrets.length > 0 ? SecretResolver.replaceInObj(oauth, secrets) : oauth
 
     const {
       scopes,
@@ -341,6 +341,6 @@ export class ProxyService {
   applyTransform(body: any, transform: TBodyTransformConfig, secrets?: Secret[]): any {
     if (!transform.injectSecrets || !secrets || secrets.length === 0) return body
 
-    return isObj(body) ? replaceSecretsInObj(body, secrets) : body
+    return isObj(body) ? SecretResolver.replaceInObj(body, secrets) : body
   }
 }

@@ -74,6 +74,35 @@ describe(`GoogleAdapter`, () => {
       expect(MockGoogleGenAI).toHaveBeenCalledWith({ apiKey: `test-google-api-key` })
     })
 
+    it(`should pass httpOptions.headers when config.headers is provided`, async () => {
+      mockGenerateContentStream.mockResolvedValue(createMockStream([]))
+
+      const config = {
+        ...baseConfig,
+        headers: { [`X-Custom`]: `custom-value`, [`X-Provider`]: `prov-val` },
+      }
+
+      await collectEvents(adapter.stream([userMessage], [], config))
+
+      expect(MockGoogleGenAI).toHaveBeenCalledWith({
+        apiKey: `test-google-api-key`,
+        httpOptions: {
+          headers: { [`X-Custom`]: `custom-value`, [`X-Provider`]: `prov-val` },
+        },
+      })
+    })
+
+    it(`should not pass httpOptions when config.headers is undefined`, async () => {
+      mockGenerateContentStream.mockResolvedValue(createMockStream([]))
+
+      await collectEvents(adapter.stream([userMessage], [], baseConfig))
+
+      expect(MockGoogleGenAI).toHaveBeenCalledWith({
+        apiKey: `test-google-api-key`,
+        httpOptions: undefined,
+      })
+    })
+
     it(`should call generateContentStream with correct model and config`, async () => {
       mockGenerateContentStream.mockResolvedValue(createMockStream([]))
 

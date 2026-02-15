@@ -472,6 +472,56 @@ describe(`OpenAICompatibleAdapter`, () => {
         const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)
         expect(body.tools).toBeUndefined()
       })
+
+      it(`should merge config.headers into fetch headers`, async () => {
+        const fetchSpy = vi
+          .spyOn(globalThis, `fetch`)
+          .mockResolvedValue(createSSEResponse([`data: [DONE]`]))
+
+        const config = {
+          ...baseConfig,
+          headers: { 'X-Custom': `custom-value`, 'X-Another': `another-value` },
+        }
+
+        await collectEvents(adapter.stream(baseMessages, [], config))
+
+        const callArgs = fetchSpy.mock.calls[0][1] as RequestInit
+        const headers = callArgs.headers as Record<string, string>
+        expect(headers[`X-Custom`]).toBe(`custom-value`)
+        expect(headers[`X-Another`]).toBe(`another-value`)
+        // Default headers still present
+        expect(headers[`Content-Type`]).toBe(`application/json`)
+        expect(headers[`Authorization`]).toBe(`Bearer test-key`)
+      })
+
+      it(`should allow config.headers to override default headers`, async () => {
+        const fetchSpy = vi
+          .spyOn(globalThis, `fetch`)
+          .mockResolvedValue(createSSEResponse([`data: [DONE]`]))
+
+        const config = {
+          ...baseConfig,
+          headers: { Authorization: `ApiKey my-custom-auth` },
+        }
+
+        await collectEvents(adapter.stream(baseMessages, [], config))
+
+        const callArgs = fetchSpy.mock.calls[0][1] as RequestInit
+        const headers = callArgs.headers as Record<string, string>
+        expect(headers[`Authorization`]).toBe(`ApiKey my-custom-auth`)
+      })
+
+      it(`should not add extra headers when config.headers is undefined`, async () => {
+        const fetchSpy = vi
+          .spyOn(globalThis, `fetch`)
+          .mockResolvedValue(createSSEResponse([`data: [DONE]`]))
+
+        await collectEvents(adapter.stream(baseMessages, [], baseConfig))
+
+        const callArgs = fetchSpy.mock.calls[0][1] as RequestInit
+        const headers = callArgs.headers as Record<string, string>
+        expect(Object.keys(headers)).toEqual([`Content-Type`, `Authorization`])
+      })
     })
   })
 })

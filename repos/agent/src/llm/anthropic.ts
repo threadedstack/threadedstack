@@ -54,7 +54,10 @@ export class AnthropicAdapter implements ILLMAdapter {
     tools: TLLMToolDef[],
     config: TLLMAdapterConfig
   ): AsyncIterable<TStreamEvent> {
-    const client = new Anthropic({ apiKey: config.apiKey })
+    const client = new Anthropic({
+      apiKey: config.apiKey,
+      defaultHeaders: config?.headers,
+    })
 
     const systemPrompt =
       config.systemPrompt ||
