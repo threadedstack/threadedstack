@@ -102,7 +102,6 @@ export class Thread extends Base<
             parentThreadId: threadId,
             agentId: original.agentId,
             branchMessageId: messageId,
-            configId: original.configId,
             projectId: original.projectId,
             providerId: original.providerId,
             name: `${original.name || `Untitled`} (branch)`,

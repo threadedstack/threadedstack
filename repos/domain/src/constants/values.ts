@@ -91,13 +91,6 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
   },
-  [EPermResource.config]: {
-    [EPermAction.create]: ERoleType.member,
-    [EPermAction.read]: ERoleType.viewer,
-    [EPermAction.update]: ERoleType.member,
-    [EPermAction.delete]: ERoleType.admin,
-    [EPermAction.manage]: ERoleType.admin,
-  },
   [EPermResource.role]: {
     [EPermAction.create]: ERoleType.admin, // Only admins can create roles
     [EPermAction.read]: ERoleType.viewer, // Anyone can see roles

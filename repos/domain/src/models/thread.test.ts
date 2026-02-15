@@ -30,7 +30,6 @@ describe('Thread Model', () => {
           tags: ['support', 'billing'],
         },
         public: true,
-        configId: '789e4567-e89b-12d3-a456-426614174002',
         providerId: '012e4567-e89b-12d3-a456-426614174003',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -43,7 +42,6 @@ describe('Thread Model', () => {
       expect(thread.name).toBe(threadData.name)
       expect(thread.meta).toEqual(threadData.meta)
       expect(thread.public).toBe(true)
-      expect(thread.configId).toBe(threadData.configId)
       expect(thread.providerId).toBe(threadData.providerId)
       expect(thread.createdAt).toBe(threadData.createdAt)
       expect(thread.updatedAt).toBe(threadData.updatedAt)
@@ -62,7 +60,6 @@ describe('Thread Model', () => {
       expect(thread.public).toBe(false)
       expect(thread.name).toBeUndefined()
       expect(thread.meta).toBeUndefined()
-      expect(thread.configId).toBeUndefined()
       expect(thread.providerId).toBeUndefined()
     })
 
@@ -207,7 +204,6 @@ describe('Thread Model', () => {
       const threadData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         userId: '456e4567-e89b-12d3-a456-426614174001',
-        configId: undefined,
         providerId: undefined,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -215,7 +211,6 @@ describe('Thread Model', () => {
 
       const thread = new Thread(threadData)
 
-      expect(thread.configId).toBeUndefined()
       expect(thread.providerId).toBeUndefined()
     })
   })
@@ -233,7 +228,6 @@ describe('Thread Model', () => {
           ticketId: 'SUP-12345',
         },
         public: false,
-        configId: '789e4567-e89b-12d3-a456-426614174002',
         providerId: '012e4567-e89b-12d3-a456-426614174003',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -269,7 +263,7 @@ describe('Thread Model', () => {
       expect(thread.meta?.tags).toContain('proxy')
     })
 
-    it('should create an AI chat thread with provider and config', () => {
+    it('should create an AI chat thread with provider', () => {
       const threadData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         userId: '456e4567-e89b-12d3-a456-426614174001',
@@ -281,7 +275,6 @@ describe('Thread Model', () => {
           conversationType: 'code-review',
         },
         public: false,
-        configId: '789e4567-e89b-12d3-a456-426614174002',
         providerId: '012e4567-e89b-12d3-a456-426614174003',
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -289,7 +282,6 @@ describe('Thread Model', () => {
 
       const thread = new Thread(threadData)
 
-      expect(thread.configId).toBeDefined()
       expect(thread.providerId).toBeDefined()
       expect(thread.meta?.model).toBe('gpt-4')
       expect(thread.name).toContain('AI Assistant')
@@ -305,7 +297,6 @@ describe('Thread Model', () => {
       expect(thread.userId).toBe(threadData.userId)
       expect(thread.public).toBe(false)
       expect(thread.name).toBeUndefined()
-      expect(thread.configId).toBeUndefined()
       expect(thread.providerId).toBeUndefined()
     })
 
@@ -376,7 +367,7 @@ describe('Thread Model', () => {
       expect(thread.meta.closedAt).toBe('2024-01-02T00:00:00Z')
     })
 
-    it('should allow adding configId and providerId after creation', () => {
+    it('should allow adding providerId after creation', () => {
       const threadData = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         userId: '456e4567-e89b-12d3-a456-426614174001',
@@ -385,10 +376,8 @@ describe('Thread Model', () => {
       }
 
       const thread = new Thread(threadData)
-      thread.configId = '789e4567-e89b-12d3-a456-426614174002'
       thread.providerId = '012e4567-e89b-12d3-a456-426614174003'
 
-      expect(thread.configId).toBe('789e4567-e89b-12d3-a456-426614174002')
       expect(thread.providerId).toBe('012e4567-e89b-12d3-a456-426614174003')
     })
   })

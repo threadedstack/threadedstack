@@ -128,14 +128,14 @@ describe(`requireResourceWithPermission`, () => {
       service,
       `resource-id`,
       EPermAction.read,
-      EPermResource.config,
-      `Config`
+      EPermResource.secret,
+      `Secret`
     )
 
     expect(mockCheckPermission).toHaveBeenCalledWith(
       mockReq,
       EPermAction.read,
-      EPermResource.config,
+      EPermResource.secret,
       { orgId: `org-1`, projectId: `proj-1` }
     )
   })

@@ -187,9 +187,7 @@ const apiKeys = {
 const providers = {
   openai: new Provider({
     orgId: org.id,
-    userId: undefined,
     type: EProvider.ai,
-    projectId: undefined,
     id: Ids.provider.acmeOpenai,
     name: `OpenAI Provider`,
     options: {
@@ -200,9 +198,7 @@ const providers = {
   }),
   anthropic: new Provider({
     orgId: org.id,
-    userId: undefined,
     type: EProvider.ai,
-    projectId: undefined,
     id: Ids.provider.acmeAnthropic,
     name: `Anthropic Provider`,
     options: {
