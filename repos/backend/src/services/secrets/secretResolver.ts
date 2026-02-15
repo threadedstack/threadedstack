@@ -267,6 +267,35 @@ export class SecretResolver {
    * 3. Otherwise → loads provider-scoped secrets (falls back to org-scoped),
    *    decrypts each, and replaces template references
    */
+  /**
+   * Resolves {{SECRET_NAME}} templates in provider.bodyParams using decrypted secrets.
+   *
+   * Unlike resolveHeaders, bodyParams values can be non-strings (numbers, booleans, objects),
+   * so only string values are checked for {{...}} templates. Non-string values pass through.
+   */
+  resolveBodyParams = async (provider: {
+    id: string
+    orgId: string
+    bodyParams?: Record<string, any>
+  }): Promise<Record<string, unknown> | undefined> => {
+    if (!provider.bodyParams || Object.keys(provider.bodyParams).length === 0)
+      return undefined
+
+    // Only check string values for template references
+    const stringValues = Object.values(provider.bodyParams).filter(
+      (v): v is string => typeof v === 'string'
+    )
+    if (stringValues.length === 0 || !SecretResolver.hasSecretRefs(stringValues))
+      return provider.bodyParams
+
+    const decrypted = await this.loadAndDecrypt({
+      providerId: provider.id,
+      orgId: provider.orgId,
+    })
+
+    return SecretResolver.replaceInObj(provider.bodyParams, decrypted)
+  }
+
   resolveHeaders = async (provider: {
     id: string
     orgId: string

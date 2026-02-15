@@ -108,6 +108,7 @@ export class GoogleAdapter implements ILLMAdapter {
         systemInstruction: systemPrompt,
         maxOutputTokens: config.maxTokens ?? 4096,
         tools: googleTools ? [{ functionDeclarations: googleTools }] : undefined,
+        ...config.bodyParams,
       },
     })
     logger.info(`GoogleAdapter: stream started, iterating chunks`)

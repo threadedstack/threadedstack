@@ -512,6 +512,44 @@ describe(`AnthropicAdapter`, () => {
     })
   })
 
+  describe(`body params`, () => {
+    it(`should spread config.bodyParams into stream call`, async () => {
+      const stream = createMockStream([{ type: `message_stop` }])
+      mockStream.mockReturnValue(stream)
+
+      const config = {
+        ...baseConfig,
+        bodyParams: { top_p: 0.9, seed: 42 },
+      }
+
+      const events: Record<string, unknown>[] = []
+      for await (const event of adapter.stream(baseMessages, [], config)) {
+        events.push(event)
+      }
+
+      expect(mockStream).toHaveBeenCalledWith(
+        expect.objectContaining({
+          top_p: 0.9,
+          seed: 42,
+        })
+      )
+    })
+
+    it(`should not add extra params when config.bodyParams is undefined`, async () => {
+      const stream = createMockStream([{ type: `message_stop` }])
+      mockStream.mockReturnValue(stream)
+
+      const events: Record<string, unknown>[] = []
+      for await (const event of adapter.stream(baseMessages, [], baseConfig)) {
+        events.push(event)
+      }
+
+      const callArgs = mockStream.mock.calls[0][0]
+      expect(callArgs.top_p).toBeUndefined()
+      expect(callArgs.seed).toBeUndefined()
+    })
+  })
+
   describe(`content_block_start for non-tool blocks`, () => {
     it(`should ignore content_block_start events that are not tool_use`, async () => {
       const stream = createMockStream([

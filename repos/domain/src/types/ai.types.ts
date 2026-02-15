@@ -219,6 +219,7 @@ export type TLLMAdapterConfig = {
   provider: TLLMProviderType
   options?: Record<string, unknown>
   headers?: Record<string, string>
+  bodyParams?: Record<string, unknown>
 }
 
 /**

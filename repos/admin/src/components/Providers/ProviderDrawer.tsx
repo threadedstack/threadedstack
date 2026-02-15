@@ -66,6 +66,7 @@ export const ProviderDrawer = ({
   const [baseUrl, setBaseUrl] = useState('')
   const [llmProvider, setLlmProvider] = useState('')
   const [headers, setHeaders] = useState<TKeyValuePair[]>([])
+  const [bodyParams, setBodyParams] = useState<TKeyValuePair[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -119,6 +120,7 @@ export const ProviderDrawer = ({
       setBaseUrl(options.baseUrl || '')
       setLlmProvider(options.llmProvider || '')
       setHeaders(objToKV(provider.headers, 'header'))
+      setBodyParams(objToKV(provider.bodyParams, 'bodyParam'))
       setError(null)
       setSecretMode('none')
       setApiKeyValue('')
@@ -130,6 +132,7 @@ export const ProviderDrawer = ({
       setBaseUrl('')
       setLlmProvider('')
       setHeaders([])
+      setBodyParams([])
       setError(null)
       setSecretMode('none')
       setApiKeyValue('')
@@ -158,6 +161,7 @@ export const ProviderDrawer = ({
     setBaseUrl('')
     setLlmProvider('')
     setHeaders([])
+    setBodyParams([])
     setError(null)
     setSecretMode('none')
     setApiKeyValue('')
@@ -182,6 +186,7 @@ export const ProviderDrawer = ({
 
     const providerType = type as TProviderType
     const headersObj = kvToObj(headers, false)
+    const bodyParamsObj = kvToObj(bodyParams, true)
     const providerData: Partial<Provider> = {
       name: name.trim(),
       type: providerType,
@@ -192,6 +197,9 @@ export const ProviderDrawer = ({
       ...(Object.keys(headersObj).length > 0
         ? { headers: headersObj }
         : { headers: undefined }),
+      ...(Object.keys(bodyParamsObj).length > 0
+        ? { bodyParams: bodyParamsObj }
+        : { bodyParams: undefined }),
     }
 
     const result =
@@ -431,6 +439,46 @@ export const ProviderDrawer = ({
                 >
                   Custom headers included in provider API requests. Use {'{{'} and {'}}'}{' '}
                   to reference secrets.
+                </Alert>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Body Parameters */}
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                variant='subtitle1'
+                fontWeight={500}
+              >
+                Body Parameters
+              </Typography>
+              {bodyParams.length > 0 && (
+                <Chip
+                  size='small'
+                  label={bodyParams.length}
+                  sx={{ ml: 1 }}
+                />
+              )}
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <KeyValueEditor
+                  pairs={bodyParams}
+                  disabled={loading}
+                  secrets={orgSecrets}
+                  keyPlaceholder='Parameter Name'
+                  valuePlaceholder='Value (supports JSON: numbers, booleans, objects)'
+                  enableSecretReferences={true}
+                  onChange={setBodyParams}
+                />
+                <Alert
+                  severity='info'
+                  sx={{ fontSize: '0.875rem' }}
+                >
+                  Extra parameters added to the LLM request body. Values are parsed as
+                  JSON (numbers, booleans, objects). Use {'{{'} and {'}}'} to reference
+                  secrets.
                 </Alert>
               </Box>
             </AccordionDetails>

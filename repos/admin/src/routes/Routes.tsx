@@ -27,6 +27,7 @@ const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 // Project pages
 const Project = lazy(() => import('@TAF/pages/Projects/Project'))
 const Projects = lazy(() => import('@TAF/pages/Projects/Projects'))
+const ProjectAgent = lazy(() => import('@TAF/pages/Projects/ProjectAgent'))
 const ProjectAgents = lazy(() => import('@TAF/pages/Projects/ProjectAgents'))
 const ProjectsLoader = lazy(() => import('@TAF/pages/Projects/ProjectsLoader'))
 const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
@@ -157,6 +158,10 @@ export const Routes = createBrowserRouter([
               {
                 path: ERoutePath.Agents,
                 Component: () => <SuspensePage Component={ProjectAgents} />,
+              },
+              {
+                path: 'agents/:agentId',
+                Component: () => <SuspensePage Component={ProjectAgent} />,
               },
               {
                 path: ERoutePath.AgentThreads,

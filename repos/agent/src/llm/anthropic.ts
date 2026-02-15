@@ -74,6 +74,7 @@ export class AnthropicAdapter implements ILLMAdapter {
       system: systemPrompt,
       messages: toAnthropicMessages(messages),
       tools: tools.length > 0 ? toAnthropicTools(tools) : undefined,
+      ...config.bodyParams,
     })
 
     let currentToolId = ``

@@ -24,14 +24,13 @@ const db = database()
  * 6. invitations (depends on organizations, users)
  * 7. providers (depends on users, organizations, projects)
  * 8. secrets (depends on organizations, projects, providers)
- * 9. configs (depends on users, organizations, projects)
- * 10. apiKeys (depends on organizations, projects)
- * 11. endpoints (depends on projects)
- * 12. functions (depends on projects, endpoints)
- * 13. threads (depends on users, providers, configs)
- * 14. messages (depends on threads)
- * 15. assets (depends on organizations, projects, users, threads, messages, providers)
- * 16. quotas (depends on organizations)
+ * 9. apiKeys (depends on organizations, projects)
+ * 10. endpoints (depends on projects)
+ * 11. functions (depends on projects, endpoints)
+ * 12. threads (depends on users, providers)
+ * 13. messages (depends on threads)
+ * 14. assets (depends on organizations, projects, users, threads, messages, providers)
+ * 15. quotas (depends on organizations)
  */
 
 type SeedData = {
@@ -61,7 +60,6 @@ ife(async () => {
     },
     { name: `providers`, data: seeds.providersSeeds, service: db.services.provider },
     { name: `secrets`, data: seeds.secretsSeeds, service: db.services.secret },
-    { name: `configs`, data: seeds.configsSeeds, service: db.services.config },
     { name: `apiKeys`, data: seeds.apiKeysSeeds, service: db.services.apiKey },
     { name: `endpoints`, data: seeds.endpointsSeeds, service: db.services.endpoint },
     { name: `functions`, data: seeds.functionsSeeds, service: db.services.function },

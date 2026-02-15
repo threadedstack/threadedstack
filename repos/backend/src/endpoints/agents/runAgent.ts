@@ -73,8 +73,9 @@ export const runAgent: TEndpointConfig = {
     // Determine and validate LLM provider type
     const providerType = resolveProviderType(provider)
 
-    // Resolve provider headers (with {{SECRET}} template substitution)
+    // Resolve provider headers and body params (with {{SECRET}} template substitution)
     const headers = await secrets.resolveHeaders(provider)
+    const bodyParams = await secrets.resolveBodyParams(provider)
 
     // Get or create thread
     let threadId = existingThreadId
@@ -104,6 +105,7 @@ export const runAgent: TEndpointConfig = {
     const llmConfig = {
       apiKey,
       headers,
+      bodyParams,
       provider: providerType as any,
       systemPrompt: agent.systemPrompt,
       maxTokens: agent.maxTokens || 4096,

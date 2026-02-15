@@ -16,14 +16,13 @@ const db = database()
  * 6. invitations
  * 7. providers
  * 8. secrets
- * 9. configs
- * 10. apiKeys
- * 11. endpoints
- * 12. functions
- * 13. threads
- * 14. messages
- * 15. assets
- * 16. quotas
+ * 9. apiKeys
+ * 10. endpoints
+ * 11. functions
+ * 12. threads
+ * 13. messages
+ * 14. assets
+ * 15. quotas
  *
  * Clean order (reverse):
  */
@@ -69,11 +68,6 @@ ife(async () => {
       name: `apiKeys`,
       ids: Object.values(Ids.apikey),
       service: db.services.apiKey,
-    },
-    {
-      name: `configs`,
-      ids: Object.values(Ids.config),
-      service: db.services.config,
     },
     {
       name: `secrets`,

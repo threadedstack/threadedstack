@@ -155,6 +155,7 @@ export abstract class OpenAICompatibleAdapter implements ILLMAdapter {
       temperature: config.temperature,
       messages: toOpenAIMessages(messages),
       stream: true,
+      ...config.bodyParams,
       ...extraBody,
     }
 

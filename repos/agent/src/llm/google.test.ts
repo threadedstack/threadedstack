@@ -583,6 +583,36 @@ describe(`GoogleAdapter`, () => {
       )
     })
 
+    it(`should spread config.bodyParams into generateContentStream config`, async () => {
+      mockGenerateContentStream.mockResolvedValue(createMockStream([]))
+
+      const config = {
+        ...baseConfig,
+        bodyParams: { topP: 0.9, seed: 42 },
+      }
+
+      await collectEvents(adapter.stream([userMessage], [], config))
+
+      expect(mockGenerateContentStream).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            topP: 0.9,
+            seed: 42,
+          }),
+        })
+      )
+    })
+
+    it(`should not add extra config when config.bodyParams is undefined`, async () => {
+      mockGenerateContentStream.mockResolvedValue(createMockStream([]))
+
+      await collectEvents(adapter.stream([userMessage], [], baseConfig))
+
+      const callArgs = mockGenerateContentStream.mock.calls[0][0]
+      expect(callArgs.config.topP).toBeUndefined()
+      expect(callArgs.config.seed).toBeUndefined()
+    })
+
     it(`should not include tools config when tools array is empty`, async () => {
       mockGenerateContentStream.mockResolvedValue(createMockStream([]))
 

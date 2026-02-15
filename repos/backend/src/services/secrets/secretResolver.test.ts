@@ -167,7 +167,7 @@ describe(`SecretResolver.replaceInObj`, () => {
   })
 })
 
-// ── SecretResolver#resolveHeaders ──────────────────────────────
+// ── SecretResolver#resolveBodyParams ──────────────────────────────
 
 const fakeEncrypted = () =>
   Buffer.concat([
@@ -187,6 +187,133 @@ const createMockDb = (providerSecrets: any[] = [], orgSecrets: any[] = []) => ({
     },
   },
 })
+
+describe(`SecretResolver#resolveBodyParams`, () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it(`should return undefined when bodyParams is undefined`, async () => {
+    const db = createMockDb()
+    const resolver = new SecretResolver(db)
+    const result = await resolver.resolveBodyParams({ id: `prov-1`, orgId: `org-1` })
+    expect(result).toBeUndefined()
+  })
+
+  it(`should return undefined when bodyParams is empty object`, async () => {
+    const db = createMockDb()
+    const resolver = new SecretResolver(db)
+    const result = await resolver.resolveBodyParams({
+      id: `prov-1`,
+      orgId: `org-1`,
+      bodyParams: {},
+    })
+    expect(result).toBeUndefined()
+  })
+
+  it(`should return bodyParams as-is when no {{...}} templates`, async () => {
+    const db = createMockDb()
+    const resolver = new SecretResolver(db)
+    const bodyParams = { top_p: 0.9, seed: 42, custom: `static-value` }
+    const result = await resolver.resolveBodyParams({
+      id: `prov-1`,
+      orgId: `org-1`,
+      bodyParams,
+    })
+    expect(result).toEqual(bodyParams)
+    expect(db.services.secret.list).not.toHaveBeenCalled()
+  })
+
+  it(`should return bodyParams as-is when only non-string values`, async () => {
+    const db = createMockDb()
+    const resolver = new SecretResolver(db)
+    const bodyParams = { top_p: 0.9, seed: 42, enabled: true }
+    const result = await resolver.resolveBodyParams({
+      id: `prov-1`,
+      orgId: `org-1`,
+      bodyParams,
+    })
+    expect(result).toEqual(bodyParams)
+    expect(db.services.secret.list).not.toHaveBeenCalled()
+  })
+
+  it(`should resolve {{SECRET_NAME}} with provider-scoped secrets`, async () => {
+    const providerSecrets = [
+      {
+        name: `API_TOKEN`,
+        encryptedValue: fakeEncrypted(),
+        providerId: `prov-1`,
+      },
+    ]
+    const db = createMockDb(providerSecrets)
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.resolveBodyParams({
+      id: `prov-1`,
+      orgId: `org-1`,
+      bodyParams: { token: `{{API_TOKEN}}`, top_p: 0.9 },
+    })
+
+    expect(result).toEqual({
+      token: `decrypted-secret-value`,
+      top_p: 0.9,
+    })
+  })
+
+  it(`should fall back to org-scoped secrets`, async () => {
+    const orgSecrets = [
+      {
+        name: `ORG_KEY`,
+        encryptedValue: fakeEncrypted(),
+        orgId: `org-1`,
+      },
+    ]
+    const db = createMockDb([], orgSecrets)
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.resolveBodyParams({
+      id: `prov-1`,
+      orgId: `org-1`,
+      bodyParams: { key: `{{ORG_KEY}}` },
+    })
+
+    expect(result).toEqual({
+      key: `decrypted-secret-value`,
+    })
+  })
+
+  it(`should leave non-string values untouched`, async () => {
+    const providerSecrets = [
+      {
+        name: `SECRET`,
+        encryptedValue: fakeEncrypted(),
+        providerId: `prov-1`,
+      },
+    ]
+    const db = createMockDb(providerSecrets)
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.resolveBodyParams({
+      id: `prov-1`,
+      orgId: `org-1`,
+      bodyParams: {
+        ref: `{{SECRET}}`,
+        count: 42,
+        flag: true,
+        nested: { key: `value` },
+      },
+    })
+
+    expect(result).toEqual({
+      ref: `decrypted-secret-value`,
+      count: 42,
+      flag: true,
+      nested: { key: `value` },
+    })
+  })
+})
+
+// ── SecretResolver#resolveHeaders ──────────────────────────────
 
 describe(`SecretResolver#resolveHeaders`, () => {
   beforeEach(() => {

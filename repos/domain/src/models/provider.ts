@@ -8,6 +8,7 @@ export class Provider extends Base {
   type: TProviderType
   options: Record<string, any> = {}
   headers?: Record<string, string>
+  bodyParams?: Record<string, any>
 
   constructor(provider: Partial<Provider>) {
     super()

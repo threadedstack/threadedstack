@@ -110,7 +110,6 @@ describe(`getDynamicNav`, () => {
         `Endpoints`,
         `Functions`,
         `Secrets`,
-        `Providers`,
         `Agents`,
         `Domains`,
         `Settings`,
@@ -301,16 +300,6 @@ describe(`ProjectNavItems`, () => {
       expect(path).toBe(`/orgs/org-123/projects/project-456/secrets`)
     })
 
-    it(`should generate correct path for Providers with orgId and projectId`, () => {
-      const context: TNavCtx = { orgId: `org-789`, projectId: `project-101` }
-      const providersItem = ProjectNavItems.find((item) => item.text === `Providers`)
-      const path =
-        typeof providersItem?.to === `function`
-          ? providersItem.to(context)
-          : providersItem?.to
-      expect(path).toBe(`/orgs/org-789/projects/project-101/providers`)
-    })
-
     it(`should generate correct path for Project Settings with orgId and projectId`, () => {
       const context: TNavCtx = { orgId: `org-settings`, projectId: `project-settings` }
       const settingsItem = ProjectNavItems.find((item) => item.text === `Settings`)
@@ -407,7 +396,6 @@ describe(`ProjectNavItems`, () => {
         `Endpoints`,
         `Functions`,
         `Secrets`,
-        `Providers`,
         `Agents`,
         `Threads`,
         `Domains`,

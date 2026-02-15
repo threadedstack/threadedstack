@@ -511,6 +511,39 @@ describe(`OpenAICompatibleAdapter`, () => {
         expect(headers[`Authorization`]).toBe(`ApiKey my-custom-auth`)
       })
 
+      it(`should spread config.bodyParams into fetch body`, async () => {
+        const fetchSpy = vi
+          .spyOn(globalThis, `fetch`)
+          .mockResolvedValue(createSSEResponse([`data: [DONE]`]))
+
+        const config = {
+          ...baseConfig,
+          bodyParams: { top_p: 0.9, seed: 42, custom_flag: true },
+        }
+
+        await collectEvents(adapter.stream(baseMessages, [], config))
+
+        const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)
+        expect(body.top_p).toBe(0.9)
+        expect(body.seed).toBe(42)
+        expect(body.custom_flag).toBe(true)
+        // Standard fields still present
+        expect(body.model).toBe(`test-model`)
+        expect(body.stream).toBe(true)
+      })
+
+      it(`should not add extra body params when config.bodyParams is undefined`, async () => {
+        const fetchSpy = vi
+          .spyOn(globalThis, `fetch`)
+          .mockResolvedValue(createSSEResponse([`data: [DONE]`]))
+
+        await collectEvents(adapter.stream(baseMessages, [], baseConfig))
+
+        const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)
+        expect(body.top_p).toBeUndefined()
+        expect(body.seed).toBeUndefined()
+      })
+
       it(`should not add extra headers when config.headers is undefined`, async () => {
         const fetchSpy = vi
           .spyOn(globalThis, `fetch`)

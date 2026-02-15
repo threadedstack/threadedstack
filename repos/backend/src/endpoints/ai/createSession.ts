@@ -56,13 +56,15 @@ export const aiCreateSession: TEndpointConfig = {
     // Determine and validate provider type
     const providerType = resolveProviderType(provider)
 
-    // Resolve provider headers (with {{SECRET}} template substitution)
+    // Resolve provider headers and body params (with {{SECRET}} template substitution)
     const headers = await secrets.resolveHeaders(provider)
+    const bodyParams = await secrets.resolveBodyParams(provider)
 
     // Build LLM config (apiKey stays server-side)
     const llmConfig = {
       apiKey,
       headers,
+      bodyParams,
       provider: providerType as any,
       systemPrompt: agent.systemPrompt,
       maxTokens: agent.maxTokens || 4096,

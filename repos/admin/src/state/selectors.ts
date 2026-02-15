@@ -1,6 +1,6 @@
 import type { Atom } from 'jotai'
 import type { atomWithReset } from 'jotai/utils'
-import type { Organization, Project } from '@tdsk/domain'
+import type { Agent, Organization, Project } from '@tdsk/domain'
 
 import { useAtom } from 'jotai'
 import { useResetAtom } from 'jotai/utils'
@@ -12,7 +12,7 @@ import { providersState } from '@TAF/state/providers'
 import { quickstartState } from '@TAF/state/quickstart'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { assetsState, activeAssetIdState } from '@TAF/state/assets'
-import { agentsState, activeAgentIdState } from '@TAF/state/agents'
+import { agentsState, activeAgentIdState, activeAgentState } from '@TAF/state/agents'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
@@ -104,6 +104,7 @@ export const useActiveAssetId = () => useRecState(activeAssetIdState)
 
 export const useAgents = () => useRecState(agentsState)
 export const useActiveAgentId = () => useRecState(activeAgentIdState)
+export const useActiveAgent = () => useDerivedState<Agent>(activeAgentState)
 
 export const useProxyFormState = () => useRecState(proxyFormState)
 export const useFaasFormState = () => useRecState(faasFormState)
