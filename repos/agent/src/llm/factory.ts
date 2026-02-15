@@ -1,10 +1,12 @@
 import type { ILLMAdapter, TLLMProviderType } from '@tdsk/domain'
 
+import { ZaiAdapter } from './zai'
 import { AnthropicAdapter } from './anthropic'
 import { OpenAIAdapter } from './openai'
 import { GoogleAdapter } from './google'
 
 const adapters = new Map<TLLMProviderType, () => ILLMAdapter>([
+  [`zai`, () => new ZaiAdapter()],
   [`anthropic`, () => new AnthropicAdapter()],
   [`openai`, () => new OpenAIAdapter()],
   [`google`, () => new GoogleAdapter()],

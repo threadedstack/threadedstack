@@ -1,5 +1,6 @@
 import { OpenAIAdapter } from './openai'
 import { GoogleAdapter } from './google'
+import { ZaiAdapter } from './zai'
 import { createLLMAdapter } from './factory'
 import { AnthropicAdapter } from './anthropic'
 import { describe, it, expect, vi } from 'vitest'
@@ -25,6 +26,13 @@ vi.mock(`@TAG/llm/google`, () => ({
   }),
 }))
 
+vi.mock(`@TAG/llm/zai`, () => ({
+  ZaiAdapter: vi.fn().mockImplementation(function (this: any) {
+    this.provider = `zai`
+    this.stream = vi.fn()
+  }),
+}))
+
 describe(`createLLMAdapter`, () => {
   it(`should create an AnthropicAdapter for 'anthropic'`, () => {
     const adapter = createLLMAdapter(`anthropic`)
@@ -44,6 +52,12 @@ describe(`createLLMAdapter`, () => {
     expect(adapter.provider).toBe(`google`)
   })
 
+  it(`should create a ZaiAdapter for 'zai'`, () => {
+    const adapter = createLLMAdapter(`zai`)
+    expect(adapter).toBeInstanceOf(ZaiAdapter)
+    expect(adapter.provider).toBe(`zai`)
+  })
+
   it(`should throw for unknown provider`, () => {
     expect(() => createLLMAdapter(`cohere` as any)).toThrow(
       `Unknown LLM provider: cohere`
@@ -57,7 +71,7 @@ describe(`createLLMAdapter`, () => {
   })
 
   it(`should return adapters that implement ILLMAdapter`, () => {
-    for (const provider of [`anthropic`, `openai`, `google`] as const) {
+    for (const provider of [`anthropic`, `openai`, `google`, `zai`] as const) {
       const adapter = createLLMAdapter(provider)
       expect(adapter).toHaveProperty(`provider`)
       expect(adapter).toHaveProperty(`stream`)

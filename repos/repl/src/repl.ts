@@ -28,7 +28,6 @@ export class AgentRepl {
     threadId?: string
   }): Promise<void> {
     const client = this.#executor.client
-
     const orgId = opts?.orgId || (await this.#selectOrg())
     if (!orgId) return
 
@@ -296,7 +295,6 @@ export class AgentRepl {
         id: string
         name: string
       }[]
-
       if (!orgs.length) {
         this.#renderer.renderWarning(`No organizations found`)
         return null

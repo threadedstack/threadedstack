@@ -43,6 +43,14 @@ export const env = {
     return process.env.TDSK_IT_AGENT_ID || ''
   },
 
+  /**
+   * Z.AI Agent ID with a real Z.AI provider key for live Z.AI chat tests.
+   * Required for tier3/zai-chat-flow tests. When not set, those tests are skipped.
+   */
+  get testZaiAgentId() {
+    return process.env.TDSK_IT_ZAI_AGENT_ID || ''
+  },
+
   /** Neon Auth URL pattern for Playwright interception */
   neonAuthPattern: '**/neondb/auth/get-session**',
 } as const

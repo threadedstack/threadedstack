@@ -106,27 +106,6 @@ export async function main(): Promise<void> {
       break
     }
 
-    case `chat`:
-    case ``: {
-      if (!auth.isLoggedIn()) {
-        process.stdout.write(
-          `${red(`Not logged in.`)} Run ${cyan(`tdsk-agent login <api-key>`)} first.\n`
-        )
-        process.exit(1)
-      }
-
-      const client = new ApiClient(auth)
-      const executor = new LocalAgentExecutor(client)
-      const repl = new AgentRepl(executor, renderer)
-
-      await repl.start({
-        orgId: flags.org as string | undefined,
-        agentId: flags.agent as string | undefined,
-        threadId: flags.thread as string | undefined,
-      })
-      break
-    }
-
     case `agents`: {
       if (!auth.isLoggedIn()) {
         process.stdout.write(
@@ -243,6 +222,26 @@ export async function main(): Promise<void> {
     case `--version`:
     case `-v`: {
       process.stdout.write(`tdsk-agent v${Version}\n`)
+      break
+    }
+    case `chat`:
+    case ``: {
+      if (!auth.isLoggedIn()) {
+        process.stdout.write(
+          `${red(`Not logged in.`)} Run ${cyan(`tdsk-agent login <api-key>`)} first.\n`
+        )
+        process.exit(1)
+      }
+
+      const client = new ApiClient(auth)
+      const executor = new LocalAgentExecutor(client)
+      const repl = new AgentRepl(executor, renderer)
+
+      await repl.start({
+        orgId: flags.org as string | undefined,
+        agentId: flags.agent as string | undefined,
+        threadId: flags.thread as string | undefined,
+      })
       break
     }
 

@@ -83,7 +83,7 @@ describe('Tier 1: AI Sessions', () => {
     const { data } = res.data
     expect(typeof data.sessionToken).toBe('string')
     expect(data.sessionToken.length).toBeGreaterThan(10)
-    expect(['anthropic', 'openai', 'google']).toContain(data.provider)
+    expect(['anthropic', 'openai', 'google', 'zai']).toContain(data.provider)
     expect(typeof data.model).toBe('string')
     expect(typeof data.maxTokens).toBe('number')
   })
