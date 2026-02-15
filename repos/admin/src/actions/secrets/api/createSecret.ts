@@ -6,6 +6,7 @@ export type TCreateSecretOpts = {
   name: string
   value: string
   projectId?: string
+  providerId?: string
   description?: string
 }
 

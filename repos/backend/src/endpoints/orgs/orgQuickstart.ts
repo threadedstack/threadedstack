@@ -108,8 +108,8 @@ export const orgQuickstart: TEndpointConfig = {
           })
           .returning()
 
-        // 2. Encrypt API key using provider ID (scope owner for provider-scoped secrets)
-        const derivedKey = await deriveKey(provider.id)
+        // 2. Encrypt API key using org ID (scope owner for org-scoped secrets)
+        const derivedKey = await deriveKey(orgId)
         const encrypted = await encryptValue(derivedKey, apiKey)
         const encryptedValue = encodeEncrypted(
           encrypted.iv,
@@ -118,13 +118,14 @@ export const orgQuickstart: TEndpointConfig = {
         )
         const hashKey = createHashKey(secretName)
 
-        // 3. Secret (provider-scoped, encrypted API key)
+        // 3. Secret (dual ownership: org-scoped for Secrets page visibility + provider-linked)
         const [secret] = await tx
           .insert(secrets)
           .values({
             name: secretName,
             hashKey,
             encryptedValue,
+            orgId,
             providerId: provider.id,
           })
           .returning()

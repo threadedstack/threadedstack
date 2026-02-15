@@ -7,6 +7,7 @@ export const providers = pgTable(`providers`, {
   ...base,
   name: text(`name`),
   options: jsonb(`options`),
+  headers: jsonb(`headers`),
   type: text(`type`).notNull(),
   orgId: uuid(`org_id`)
     .notNull()

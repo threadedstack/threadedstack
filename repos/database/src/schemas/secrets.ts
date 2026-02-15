@@ -30,7 +30,8 @@ export const secrets = pgTable(
     (${table.orgId} IS NOT NULL AND ${table.projectId} IS NULL AND ${table.providerId} IS NULL AND ${table.agentId} IS NULL) OR
     (${table.orgId} IS NULL AND ${table.projectId} IS NOT NULL AND ${table.providerId} IS NULL AND ${table.agentId} IS NULL) OR
     (${table.orgId} IS NULL AND ${table.projectId} IS NULL AND ${table.providerId} IS NOT NULL AND ${table.agentId} IS NULL) OR
-    (${table.orgId} IS NULL AND ${table.projectId} IS NULL AND ${table.providerId} IS NULL AND ${table.agentId} IS NOT NULL)
+    (${table.orgId} IS NULL AND ${table.projectId} IS NULL AND ${table.providerId} IS NULL AND ${table.agentId} IS NOT NULL) OR
+    (${table.orgId} IS NOT NULL AND ${table.providerId} IS NOT NULL AND ${table.projectId} IS NULL AND ${table.agentId} IS NULL)
   `
     ),
     index(`secrets_org_id_idx`).on(table.orgId),

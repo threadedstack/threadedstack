@@ -18,10 +18,10 @@ export const listSecrets: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, projectId } = req.params
-    const { agentId } = req.query
+    const { agentId, providerId } = req.query
 
-    if (!orgId && !projectId && !agentId)
-      throw new Exception(400, `orgId, projectId, or agentId is required`)
+    if (!orgId && !projectId && !agentId && !providerId)
+      throw new Exception(400, `orgId, projectId, agentId, or providerId is required`)
 
     // For agent secrets, look up the agent to get its orgId for permission check
     let permOrgId = orgId
@@ -29,6 +29,13 @@ export const listSecrets: TEndpointConfig = {
       const { data: agent } = await db.services.agent.get(agentId as string)
       if (!agent) throw new Exception(404, `Agent not found`)
       permOrgId = agent.orgId
+    }
+
+    // For provider secrets, look up the provider to get its orgId for permission check
+    if (providerId) {
+      const { data: provider } = await db.services.provider.get(providerId as string)
+      if (!provider) throw new Exception(404, `Provider not found`)
+      permOrgId = provider.orgId
     }
 
     // Check permission based on scope
@@ -43,6 +50,7 @@ export const listSecrets: TEndpointConfig = {
     if (orgId) where.orgId = orgId
     if (projectId) where.projectId = projectId
     if (agentId) where.agentId = agentId as string
+    if (providerId) where.providerId = providerId as string
 
     const { data, error } = await db.services.secret.list({ where, limit, offset })
 

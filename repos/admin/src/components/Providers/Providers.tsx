@@ -1,16 +1,39 @@
 import type { Provider } from '@tdsk/domain'
+import type { TDataTableColumn } from '@TAF/components'
 
 import { useEffect, useState, useMemo } from 'react'
-import { Alert } from '@mui/material'
+import { Box, Typography, Chip } from '@mui/material'
 import { useProviders } from '@TAF/state/selectors'
-import { fetchProviders } from '@TAF/actions/providers'
-import { NoProviders } from '@TAF/components/Providers/NoProviders'
-import { ProvidersGrid } from '@TAF/components/Providers/ProvidersGrid'
+import { ConfirmDelete } from '@tdsk/components'
+import { fetchProviders, deleteProvider } from '@TAF/actions/providers'
 import { ProviderDrawer } from '@TAF/components/Providers/ProviderDrawer'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { DataTable } from '@TAF/components/DataTable/DataTable'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  CloudQueue as ProviderIcon,
+} from '@mui/icons-material'
 
 export type TProviders = {
   orgId: string
+}
+
+const styles = {
+  table: {
+    actions: {
+      box: {
+        gap: 1.5,
+        display: `flex`,
+        alignItems: `center`,
+        justifyContent: `end`,
+      },
+      icon: { fontSize: `16px` },
+    },
+  },
 }
 
 export const Providers = ({ orgId }: TProviders) => {
@@ -20,6 +43,7 @@ export const Providers = ({ orgId }: TProviders) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
+  const [deleting, setDeleting] = useState<Provider>()
 
   useEffect(() => {
     const loadProviders = async () => {
@@ -29,10 +53,7 @@ export const Providers = ({ orgId }: TProviders) => {
       setError(null)
 
       const result = await fetchProviders({ orgId })
-
-      if (result.error) {
-        setError(result.error)
-      }
+      result.error && setError(result.error)
 
       setLoading(false)
     }
@@ -50,12 +71,22 @@ export const Providers = ({ orgId }: TProviders) => {
     setSelectedProvider(null)
   }
 
-  const onEditProvider = (providerId: string) => {
-    const provider = providers?.[providerId]
-    if (provider) {
-      setSelectedProvider(provider)
-      setDialogOpen(true)
-    }
+  const onEditProvider = (provider: Provider) => {
+    setSelectedProvider(provider)
+    setDialogOpen(true)
+  }
+
+  const onRemove = async () => {
+    if (!deleting) return
+
+    setLoading(true)
+    setError(null)
+
+    const result = await deleteProvider({ orgId, id: deleting.id })
+    result.error && setError(result.error)
+
+    setLoading(false)
+    setDeleting(undefined)
   }
 
   const filteredProviders = useMemo(() => {
@@ -65,14 +96,104 @@ export const Providers = ({ orgId }: TProviders) => {
     const query = searchQuery.toLowerCase()
     return providersArray.filter(
       (provider) =>
-        provider.options?.name?.toLowerCase().includes(query) ||
+        provider.name?.toLowerCase().includes(query) ||
         provider.type?.toLowerCase().includes(query) ||
+        provider.options?.llmProvider?.toLowerCase().includes(query) ||
         provider.options?.baseUrl?.toLowerCase().includes(query) ||
         provider.id?.toLowerCase().includes(query)
     )
   }, [providers, searchQuery])
 
   const providersCount = providers ? Object.keys(providers).length : 0
+
+  const columns: TDataTableColumn<Provider>[] = [
+    {
+      id: 'name',
+      label: 'Name',
+      render: (provider) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ProviderIcon sx={{ color: 'text.secondary' }} />
+          <Typography
+            variant='body2'
+            fontWeight='medium'
+          >
+            {provider.name || 'Unnamed Provider'}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      id: 'type',
+      label: 'Type',
+      render: (provider) => (
+        <Chip
+          label={provider.type}
+          size='small'
+          color='primary'
+          variant='outlined'
+        />
+      ),
+    },
+    {
+      id: 'llmProvider',
+      label: 'LLM Provider',
+      render: (provider) => (
+        <Typography
+          variant='body2'
+          color='text.secondary'
+        >
+          {provider.options?.llmProvider || '\u2014'}
+        </Typography>
+      ),
+    },
+    {
+      id: 'baseUrl',
+      label: 'Base URL',
+      render: (provider) => (
+        <Typography
+          variant='body2'
+          color='text.secondary'
+          sx={{
+            maxWidth: 250,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {provider.options?.baseUrl || '\u2014'}
+        </Typography>
+      ),
+    },
+    {
+      id: 'actions',
+      label: 'Actions',
+      align: 'right',
+      render: (provider) => (
+        <Box sx={styles.table.actions.box}>
+          <ActionIconButton
+            tooltip='Edit Provider'
+            icon={<EditIcon sx={styles.table.actions.icon} />}
+            size='small'
+            color='primary'
+            onClick={(e) => {
+              e.stopPropagation()
+              onEditProvider(provider)
+            }}
+          />
+          <ActionIconButton
+            tooltip='Delete Provider'
+            icon={<DeleteIcon sx={styles.table.actions.icon} />}
+            size='small'
+            color='error'
+            onClick={(e) => {
+              e.stopPropagation()
+              setDeleting(provider)
+            }}
+          />
+        </Box>
+      ),
+    },
+  ]
 
   return (
     <PageLayout
@@ -82,23 +203,32 @@ export const Providers = ({ orgId }: TProviders) => {
       count={providersCount}
       error={error?.message}
       title='Org Providers'
-      onAction={providersCount > 0 ? onCreateProvider : undefined}
-      actionLabel={providersCount > 0 ? 'Create Provider' : undefined}
+      onAction={providersCount > 0 && onCreateProvider}
+      actionLabel={providersCount > 0 && 'Create Provider'}
       setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
       query={searchQuery}
       setSearchQuery={setSearchQuery}
       searchPlaceholder='Search providers by name, type, or URL...'
     >
-      {providersCount === 0 && <NoProviders onCreate={onCreateProvider} />}
-
-      {providersCount > 0 && filteredProviders.length === 0 && (
-        <Alert severity='info'>No providers match your search query.</Alert>
+      {!error && providersCount === 0 && (
+        <EmptyState
+          actionIcon={<AddIcon />}
+          onAction={onCreateProvider}
+          actionLabel='Create Provider'
+          message='No providers yet. Create your first provider to get started.'
+        />
       )}
 
-      {filteredProviders.length > 0 && (
-        <ProvidersGrid
-          providers={filteredProviders}
-          onEdit={onEditProvider}
+      {!error && providersCount > 0 && filteredProviders.length === 0 && (
+        <EmptyState message='No providers match your search query.' />
+      )}
+
+      {!error && filteredProviders.length > 0 && (
+        <DataTable
+          columns={columns}
+          data={filteredProviders}
+          onRowClick={onEditProvider}
+          getRowKey={(provider) => provider.id}
         />
       )}
 
@@ -107,7 +237,17 @@ export const Providers = ({ orgId }: TProviders) => {
           orgId={orgId}
           open={dialogOpen}
           onClose={onDialogClose}
+          onRemove={setDeleting}
           provider={selectedProvider}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmDelete
+          deleting={loading}
+          onConfirm={onRemove}
+          itemName={deleting?.name || `Provider`}
+          onCancel={() => setDeleting(undefined)}
         />
       )}
     </PageLayout>

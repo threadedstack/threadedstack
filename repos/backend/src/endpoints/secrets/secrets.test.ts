@@ -225,6 +225,53 @@ describe(`Secrets endpoints`, () => {
       expect(responseData).toHaveLength(1)
     })
 
+    it(`should filter by providerId when provided`, async () => {
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: { orgId: `org-prov-1` } })
+
+      const mockSecrets = [
+        new Secret({
+          id: `1`,
+          name: `PROVIDER_SECRET`,
+          hashKey: `h1`,
+          providerId: `provider-1`,
+          encryptedValue: `e`,
+        }),
+      ]
+      mockReq.query = { providerId: `provider-1` }
+
+      const mockList = mockReq.app?.locals.db.services.secret.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: mockSecrets })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockProviderGet).toHaveBeenCalledWith(`provider-1`)
+      expect(mockList).toHaveBeenCalledWith({
+        where: { providerId: `provider-1` },
+        limit: 50,
+        offset: 0,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).toHaveLength(1)
+    })
+
+    it(`should return 404 when provider not found for providerId query`, async () => {
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: null })
+
+      mockReq.query = { providerId: `provider-nonexistent` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider not found`
+      )
+    })
+
     it(`should return 500 with error message on database failure`, async () => {
       const mockError = new Error(`Database connection failed`)
       mockReq.params = { orgId: `org-1` }
@@ -347,15 +394,67 @@ describe(`Secrets endpoints`, () => {
       )
     })
 
-    it(`should return 400 when org+provider combination is provided (BUG-004 fix)`, async () => {
+    it(`should return 201 when org+provider dual ownership is used`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: { orgId: `org-1` } })
+
+      const createdSecret = new Secret({
+        id: `dual-1`,
+        name: `KEY`,
+        hashKey: `hash`,
+        orgId: `org-1`,
+        providerId: `provider-1`,
+        encryptedValue: `encrypted`,
+      })
+      mockReq.params = { orgId: `org-1` }
       mockReq.body = {
         name: `KEY`,
         value: `secret`,
-        orgId: `org-1`,
         providerId: `provider-1`,
       }
+
+      const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdSecret })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockProviderGet).toHaveBeenCalledWith(`provider-1`)
+      expect(mockCreate).toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+
+      // Verify both orgId and providerId are set on the created secret
+      const secretArg = mockCreate.mock.calls[0][0]
+      expect(secretArg.orgId).toBe(`org-1`)
+      expect(secretArg.providerId).toBe(`provider-1`)
+    })
+
+    it(`should return 403 when provider does not belong to the org`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: { orgId: `org-different` } })
+
+      mockReq.params = { orgId: `org-1` }
+      mockReq.body = {
+        name: `KEY`,
+        value: `secret`,
+        providerId: `provider-1`,
+      }
+
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Secret can only belong to one of: orgId, agentId, projectId, providerId (exclusive arc)`
+        `Provider does not belong to this organization`
       )
     })
 
@@ -431,6 +530,42 @@ describe(`Secrets endpoints`, () => {
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Agent not found`
       )
+    })
+
+    it(`should create provider-scoped secret when providerId is in body and orgId is in route params`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
+      const mockProviderGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProviderGet.mockResolvedValue({ data: { orgId: `org-1` } })
+
+      const createdSecret = new Secret({
+        id: `prov-secret-1`,
+        name: `PROVIDER_KEY`,
+        hashKey: `hash`,
+        providerId: `provider-1`,
+        encryptedValue: `encrypted`,
+      })
+      mockReq.params = { orgId: `org-1` }
+      mockReq.body = {
+        name: `PROVIDER_KEY`,
+        value: `secret-value`,
+        providerId: `provider-1`,
+      }
+
+      const mockCreate = mockReq.app?.locals.db.services.secret.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdSecret })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockProviderGet).toHaveBeenCalledWith(`provider-1`)
+      expect(mockCreate).toHaveBeenCalled()
+      expect(mockStatus).toHaveBeenCalledWith(201)
     })
 
     it(`should return 404 when provider secret references non-existent provider (SEC-007 fix)`, async () => {

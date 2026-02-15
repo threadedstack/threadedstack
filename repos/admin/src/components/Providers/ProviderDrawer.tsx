@@ -1,24 +1,46 @@
-import type { Provider, TProviderType } from '@tdsk/domain'
+import type { Provider, Secret, TProviderType } from '@tdsk/domain'
+import type { TKeyValuePair } from '@TAF/types'
 
-import { useState, useEffect } from 'react'
-import { Box } from '@mui/material'
-import { ELLMProvider, EProvider } from '@tdsk/domain'
-import { ProviderTypes } from '@TAF/constants/providers'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { createProvider, updateProvider, deleteProvider } from '@TAF/actions/providers'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  Drawer,
-  TextInput,
-  SelectInput,
-  DrawerActions,
-  ConfirmDelete,
-} from '@tdsk/components'
+  Box,
+  Chip,
+  Alert,
+  Accordion,
+  Typography,
+  IconButton,
+  InputAdornment,
+  AccordionSummary,
+  AccordionDetails,
+} from '@mui/material'
+import { ELLMProvider, EProvider, ProviderTemplates } from '@tdsk/domain'
+import { ProviderTypes } from '@TAF/constants/providers'
+import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
+import { secretsApi } from '@TAF/services'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { createProvider, updateProvider } from '@TAF/actions/providers'
+import { createSecret } from '@TAF/actions/secrets/api/createSecret'
+import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
+import {
+  ExpandMore as ExpandMoreIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+} from '@mui/icons-material'
 
 const LLMProviderOptions = Object.values(ELLMProvider).map((value) => ({
   value,
   label: value.charAt(0).toUpperCase() + value.slice(1),
 }))
+
+type TSecretMode = 'none' | 'existing' | 'new'
+
+const SecretModeOptions = [
+  { value: 'none', label: 'None' },
+  { value: 'existing', label: 'Select Existing' },
+  { value: 'new', label: 'Create New' },
+]
 
 export type TProviderDrawer = {
   open: boolean
@@ -26,6 +48,7 @@ export type TProviderDrawer = {
   provider?: Provider | null
   onClose: () => void
   onSuccess?: () => void
+  onRemove?: (provider: Provider) => void
 }
 
 export const ProviderDrawer = ({
@@ -34,6 +57,7 @@ export const ProviderDrawer = ({
   provider,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
+  onRemove,
 }: TProviderDrawer) => {
   const isEditMode = Boolean(provider)
 
@@ -41,32 +65,90 @@ export const ProviderDrawer = ({
   const [type, setType] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
   const [llmProvider, setLlmProvider] = useState('')
+  const [headers, setHeaders] = useState<TKeyValuePair[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Secret management
+  const [secretMode, setSecretMode] = useState<TSecretMode>('none')
+  const [apiKeyValue, setApiKeyValue] = useState('')
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [selectedSecretId, setSelectedSecretId] = useState('')
+  const [orgSecrets, setOrgSecrets] = useState<Secret[]>([])
 
   const isAiType = type === EProvider.ai
+  const template = isAiType && llmProvider ? ProviderTemplates[llmProvider] : undefined
 
-  // Pre-populate form in edit mode
+  // Provider-linked secrets (fetched by providerId in edit mode)
+  const [providerSecrets, setProviderSecrets] = useState<Secret[]>([])
+
+  const secretOptions = orgSecrets.map((s) => ({
+    value: s.name || s.hashKey || s.id,
+    label: s.name || s.hashKey || s.id,
+  }))
+
+  // Load org secrets for the select dropdown and headers autocomplete
+  const loadSecrets = useCallback(async () => {
+    if (!orgId) return
+
+    const resp = await secretsApi.list(orgId)
+    if (resp.data) setOrgSecrets(resp.data)
+  }, [orgId])
+
+  // Load provider-linked secrets in edit mode
+  const loadProviderSecrets = useCallback(async () => {
+    if (!orgId || !provider?.id) return
+
+    const resp = await secretsApi.list(orgId, undefined, { providerId: provider.id })
+    if (resp.data) setProviderSecrets(resp.data)
+  }, [orgId, provider?.id])
+
+  useEffect(() => {
+    if (!open) return
+
+    loadSecrets()
+    if (isEditMode) loadProviderSecrets()
+  }, [open, loadSecrets, isEditMode, loadProviderSecrets])
+
+  // Pre-populate form
   useEffect(() => {
     if (provider) {
       const options = provider.options || {}
-      setName(provider.name || options.name || '')
+      setName(provider.name || '')
       setType(provider.type || '')
       setBaseUrl(options.baseUrl || '')
       setLlmProvider(options.llmProvider || '')
+      setHeaders(objToKV(provider.headers, 'header'))
       setError(null)
-      setShowDeleteConfirm(false)
+      setSecretMode('none')
+      setApiKeyValue('')
+      setShowApiKey(false)
+      setSelectedSecretId('')
     } else {
-      // Reset form in create mode
       setName('')
       setType('')
       setBaseUrl('')
       setLlmProvider('')
+      setHeaders([])
       setError(null)
-      setShowDeleteConfirm(false)
+      setSecretMode('none')
+      setApiKeyValue('')
+      setShowApiKey(false)
+      setSelectedSecretId('')
+      setProviderSecrets([])
     }
   }, [provider])
+
+  // Auto-fill from template when LLM provider changes (create mode only)
+  useEffect(() => {
+    if (isEditMode || !isAiType || !llmProvider) return
+
+    const tpl = ProviderTemplates[llmProvider]
+    if (!tpl) return
+
+    setName(tpl.name)
+    if (tpl.baseUrl) setBaseUrl(tpl.baseUrl)
+  }, [llmProvider, isAiType, isEditMode])
 
   const onClose = () => {
     if (loading) return
@@ -75,40 +157,41 @@ export const ProviderDrawer = ({
     setType('')
     setBaseUrl('')
     setLlmProvider('')
+    setHeaders([])
     setError(null)
-    setShowDeleteConfirm(false)
+    setSecretMode('none')
+    setApiKeyValue('')
+    setShowApiKey(false)
+    setSelectedSecretId('')
+    setProviderSecrets([])
     onCloseCB?.()
   }
 
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
-    if (!name.trim()) {
-      setError('Provider name is required')
-      return
-    }
-
-    if (!type) {
-      setError('Provider type is required')
-      return
-    }
-
-    if (isAiType && !llmProvider) {
-      setError('LLM provider is required for AI providers')
-      return
-    }
+    if (!name.trim()) return setError('Provider name is required')
+    if (!type) return setError('Provider type is required')
+    if (isAiType && !llmProvider)
+      return setError('LLM provider is required for AI providers')
+    if (secretMode === 'new' && !apiKeyValue.trim())
+      return setError('API key value is required')
 
     setLoading(true)
     setError(null)
 
     const providerType = type as TProviderType
-    const providerData = {
+    const headersObj = kvToObj(headers, false)
+    const providerData: Partial<Provider> = {
       name: name.trim(),
       type: providerType,
       options: {
         ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
         ...(isAiType && llmProvider ? { llmProvider } : {}),
       },
+      ...(Object.keys(headersObj).length > 0
+        ? { headers: headersObj }
+        : { headers: undefined }),
     }
 
     const result =
@@ -116,41 +199,42 @@ export const ProviderDrawer = ({
         ? await updateProvider({ orgId, id: provider.id, data: providerData })
         : await createProvider({ orgId, data: providerData })
 
-    setLoading(false)
-
     if (result.error) {
-      setError(
+      setLoading(false)
+      return setError(
         `Failed to ${isEditMode ? 'update' : 'create'} provider. Please try again.`
       )
-    } else {
-      onSuccessCB?.()
-      onClose()
     }
-  }
 
-  const onRemove = async () => {
-    if (!provider) return
-
-    setLoading(true)
-    setError(null)
-
-    const result = await deleteProvider({ orgId, id: provider.id })
+    // Create secret with dual ownership (orgId + providerId) if "new" mode
+    if (secretMode === 'new' && apiKeyValue.trim()) {
+      const secretName =
+        template?.defaultSecretName ||
+        `${name.trim().toUpperCase().replace(/\s+/g, '_')}_API_KEY`
+      const providerId = isEditMode ? provider?.id : result.provider?.id
+      const secretResult = await createSecret({
+        orgId,
+        name: secretName,
+        value: apiKeyValue.trim(),
+        ...(providerId ? { providerId } : {}),
+      })
+      if (secretResult.error) {
+        setLoading(false)
+        return setError(
+          `Provider saved, but failed to create API key secret: ${secretResult.error.message}`
+        )
+      }
+    }
 
     setLoading(false)
-
-    if (result.error) {
-      setError('Failed to delete provider. Please try again.')
-      setShowDeleteConfirm(false)
-    } else {
-      onSuccessCB?.()
-      onClose()
-    }
+    onSuccessCB?.()
+    onClose()
   }
 
   const { actions } = useDrawerActions({
     onSave,
     onClose,
-    onRemove,
+    onRemove: provider ? () => onRemove?.(provider) : undefined,
   })
 
   return (
@@ -164,7 +248,7 @@ export const ProviderDrawer = ({
           editing={isEditMode}
           actions={actions}
           loading={loading}
-          disabled={loading || showDeleteConfirm}
+          disabled={loading}
         />
       }
     >
@@ -177,33 +261,15 @@ export const ProviderDrawer = ({
             />
           )}
 
-          {isEditMode && showDeleteConfirm && (
-            <ConfirmDelete
-              deleting={loading}
-              onConfirm={onRemove}
-              onCancel={() => setShowDeleteConfirm(false)}
-              itemName={provider?.name || provider?.options?.name || 'this provider'}
-            />
-          )}
-
-          <TextInput
-            id='provider-name'
-            label='Provider Name'
-            placeholder='Enter provider name'
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            fullWidth
-            disabled={loading}
-          />
-
           <SelectInput
             id='provider-type'
             label='Provider Type'
             value={type}
             onChange={(e) => {
               setType(e.target.value)
-              e.target.value !== EProvider.ai && setLlmProvider(``)
+              if (e.target.value !== EProvider.ai) {
+                setLlmProvider('')
+              }
             }}
             items={ProviderTypes}
             required
@@ -224,14 +290,151 @@ export const ProviderDrawer = ({
           )}
 
           <TextInput
+            id='provider-name'
+            label='Provider Name'
+            placeholder='Enter provider name'
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            fullWidth
+            disabled={loading}
+          />
+
+          <TextInput
             id='provider-base-url'
             label='Base URL'
-            placeholder='https://api.example.com (optional)'
+            placeholder={template?.baseUrl || 'https://api.example.com (optional)'}
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             fullWidth
             disabled={loading}
           />
+
+          {/* API Key Secret section */}
+          {isAiType && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant='subtitle2'>API Key Secret</Typography>
+
+              {/* Show provider-linked secrets */}
+              {isEditMode && providerSecrets.length > 0 && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    gap: 0.5,
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                  >
+                    Linked:
+                  </Typography>
+                  {providerSecrets.map((s) => (
+                    <Chip
+                      key={s.id}
+                      label={s.name}
+                      size='small'
+                      variant='outlined'
+                      color='primary'
+                    />
+                  ))}
+                </Box>
+              )}
+
+              <SelectInput
+                id='provider-secret-mode'
+                label={isEditMode ? 'Change API Key' : 'API Key'}
+                value={secretMode}
+                items={SecretModeOptions}
+                onChange={(e) => {
+                  setSecretMode(e.target.value as TSecretMode)
+                  setApiKeyValue('')
+                  setSelectedSecretId('')
+                  setShowApiKey(false)
+                }}
+                disabled={loading}
+              />
+
+              {secretMode === 'existing' && (
+                <SelectInput
+                  id='provider-existing-secret'
+                  label='Select Secret'
+                  value={selectedSecretId}
+                  items={secretOptions}
+                  onChange={(e) => setSelectedSecretId(e.target.value)}
+                  disabled={loading}
+                  description='Choose an existing org-scoped secret'
+                />
+              )}
+
+              {secretMode === 'new' && (
+                <TextInput
+                  id='provider-api-key-value'
+                  label='API Key Value'
+                  placeholder={template?.apiKeyPlaceholder || 'Enter your API key...'}
+                  value={apiKeyValue}
+                  onChange={(e) => setApiKeyValue(e.target.value)}
+                  fullWidth
+                  required
+                  disabled={loading}
+                  type={showApiKey ? 'text' : 'password'}
+                  endAdornment={
+                    <InputAdornment position='end'>
+                      <IconButton
+                        edge='end'
+                        disabled={loading}
+                        onClick={() => setShowApiKey((prev) => !prev)}
+                        aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                      >
+                        {showApiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                      </IconButton>
+                    </InputAdornment>
+                  }
+                />
+              )}
+            </Box>
+          )}
+
+          {/* Custom Headers */}
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                variant='subtitle1'
+                fontWeight={500}
+              >
+                Headers
+              </Typography>
+              {headers.length > 0 && (
+                <Chip
+                  size='small'
+                  label={headers.length}
+                  sx={{ ml: 1 }}
+                />
+              )}
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <KeyValueEditor
+                  pairs={headers}
+                  disabled={loading}
+                  secrets={orgSecrets}
+                  keyPlaceholder='Header Name'
+                  valuePlaceholder='Header Value or {{secret-name}}'
+                  enableSecretReferences={true}
+                  onChange={setHeaders}
+                />
+                <Alert
+                  severity='info'
+                  sx={{ fontSize: '0.875rem' }}
+                >
+                  Custom headers included in provider API requests. Use {'{{'} and {'}}'}{' '}
+                  to reference secrets.
+                </Alert>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
         </Box>
       </form>
     </Drawer>

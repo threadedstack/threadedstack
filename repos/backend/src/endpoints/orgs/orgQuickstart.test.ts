@@ -94,7 +94,7 @@ describe(`Quickstart endpoint`, () => {
           name: `Anthropic`,
           type: `ai`,
           orgId: `org-1`,
-          options: { baseUrl: `https://api.anthropic.com` },
+          options: { baseUrl: `https://api.anthropic.com`, llmProvider: `anthropic` },
         },
       ])
       .mockResolvedValueOnce([
@@ -103,6 +103,7 @@ describe(`Quickstart endpoint`, () => {
           name: `ANTHROPIC_API_KEY`,
           hashKey: `hash`,
           encryptedValue: `enc`,
+          orgId: `org-1`,
           providerId: `provider-1`,
         },
       ])
@@ -269,6 +270,27 @@ describe(`Quickstart endpoint`, () => {
 
       const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
       expect(providerInsertCall?.name).toBe(`Google AI`)
+    })
+
+    it(`should NOT store secretName in provider options`, async () => {
+      mockReq.body = { ...validBody, providerTemp: `anthropic` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+
+      const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
+      expect(providerInsertCall?.options?.secretName).toBeUndefined()
+    })
+
+    it(`should create secret with dual ownership (orgId + providerId)`, async () => {
+      mockReq.body = { ...validBody, providerTemp: `anthropic` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+
+      const secretInsertCall = (mockInsertValues.mock.calls as any[][])[1]?.[0]
+      expect(secretInsertCall?.orgId).toBe(`org-1`)
+      expect(secretInsertCall?.providerId).toBe(`provider-1`)
     })
 
     it(`should store llmProvider in provider options for known templates`, async () => {

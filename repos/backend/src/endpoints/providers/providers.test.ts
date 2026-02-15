@@ -282,6 +282,31 @@ describe(`Providers endpoints`, () => {
       )
     })
 
+    it(`should pass headers field through to provider data`, async () => {
+      const providerData = {
+        name: `Custom Provider`,
+        type: `ai` as const,
+        orgId: `org-1`,
+        headers: { 'X-Custom': `value`, Authorization: `Bearer {{API_KEY}}` },
+      }
+      const createdProvider = new Provider({
+        id: `prov-headers`,
+        ...providerData,
+      })
+      mockReq.body = providerData
+
+      const mockCreate = mockReq.app?.locals.db.services.provider.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdProvider })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockCreate).toHaveBeenCalledWith(providerData)
+      expect(mockStatus).toHaveBeenCalledWith(201)
+      expect(mockJson).toHaveBeenCalledWith({ data: createdProvider })
+    })
+
     it(`should throw 500 on database error`, async () => {
       mockReq.body = {
         name: `Provider`,
@@ -364,6 +389,38 @@ describe(`Providers endpoints`, () => {
         `Database error`
       )
       expect(mockGet).toHaveBeenCalledWith(`prov-1`)
+    })
+
+    it(`should update provider headers`, async () => {
+      const existingProvider = new Provider({
+        id: `prov-1`,
+        name: `Provider`,
+        type: `ai`,
+        orgId: `org-1`,
+      })
+      const updateData = { headers: { 'X-Api-Key': `{{MY_SECRET}}` } }
+      const updatedProvider = new Provider({
+        ...existingProvider,
+        ...updateData,
+      })
+      mockReq.params = { id: `prov-1` }
+      mockReq.body = updateData
+
+      const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.provider.update as ReturnType<
+        typeof vi.fn
+      >
+
+      mockGet.mockResolvedValue({ data: existingProvider })
+      mockUpdate.mockResolvedValue({ data: updatedProvider })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockUpdate).toHaveBeenCalledWith({ ...updateData, id: `prov-1` })
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({ data: updatedProvider })
     })
 
     it(`should return 500 on update error`, async () => {
