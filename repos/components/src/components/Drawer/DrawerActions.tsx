@@ -10,6 +10,7 @@ import { LoadingButton } from '@TSC/components/Buttons/LoadingButton'
 import NotInterestedOutlinedIcon from '@mui/icons-material/NotInterestedOutlined'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import AddCircleOutlineOutlinedIcon from '@mui/icons-material/AddCircleOutlineOutlined'
+import { exists } from '@keg-hub/jsutils/exists'
 
 type TDrawerAction = Partial<TButton>
 
@@ -53,18 +54,37 @@ export type TDrawerActions = {
   editing?: boolean
   loading?: boolean
   disabled?: boolean
+  saveDisabled?: boolean
+  removeDisabled?: boolean
+  createDisabled?: boolean
+  cancelDisabled?: boolean
   type?: `button` | `submit` | `reset`
   actions?: Record<string, TDrawerAction>
 }
 
 export const DrawerActions = (props: TDrawerActions) => {
-  const { sx, form, type, actions, editing, loading, disabled } = props
+  const {
+    sx,
+    form,
+    type,
+    actions,
+    editing,
+    loading,
+    disabled,
+    saveDisabled,
+    removeDisabled,
+    createDisabled,
+    cancelDisabled,
+  } = props
 
-  const { remove, cancel, save, create, ...merged } = useMemo(() => {
+  const { save, create, remove, cancel, ...merged } = useMemo(() => {
+    const isDisabled = disabled || loading
+
     const save = {
       ...DefActions.save,
       text: loading ? `Saving...` : DefActions.save.text,
       ...actions?.save,
+      disabled: exists(saveDisabled) ? saveDisabled : isDisabled,
     }
 
     return {
@@ -74,41 +94,43 @@ export const DrawerActions = (props: TDrawerActions) => {
       remove: {
         ...DefActions.remove,
         ...actions?.remove,
+        disabled: exists(removeDisabled) ? removeDisabled : isDisabled,
       },
       cancel: {
         ...DefActions.cancel,
         ...actions?.cancel,
+        disabled: exists(cancelDisabled) ? cancelDisabled : isDisabled,
       },
       create: {
         ...save,
         ...DefActions.create,
         ...actions?.create,
+        disabled: exists(createDisabled) ? createDisabled : save.disabled,
       },
     }
-  }, [actions, loading])
+  }, [
+    actions,
+    loading,
+    disabled,
+    saveDisabled,
+    removeDisabled,
+    createDisabled,
+    cancelDisabled,
+  ])
 
   return (
     <ActionsContainer sx={sx}>
-      {(editing && (
-        <Button
-          {...remove}
-          disabled={disabled || loading}
-        />
-      )) || <Box />}
+      {(editing && <Button {...remove} />) || <Box />}
       <Box
-        display='flex'
         gap={3}
+        display='flex'
       >
-        <Button
-          {...cancel}
-          disabled={disabled || loading}
-        />
+        <Button {...cancel} />
         <LoadingButton
           type={type}
           form={form}
           {...(editing ? save : create)}
           loading={loading}
-          disabled={disabled || loading}
         />
       </Box>
     </ActionsContainer>

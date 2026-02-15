@@ -97,7 +97,7 @@ const dark = {
   primaryForeground: grey[50],
   contrastText: grey[0],
   secondary: grey[200],
-  secondaryForeground: grey[300],
+  secondaryForeground: grey[200],
   muted: grey[700],
   mutedForeground: grey[400],
   accent: grey[600],
