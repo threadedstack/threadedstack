@@ -1,8 +1,9 @@
 ---
 name: "Threaded Stack - CLI Repo"
 description: "Knowledge base for the developer CLI repo - DevOps orchestration for Docker, Kubernetes, and DevSpace"
-version: "1.0.0"
+version: "1.1.0"
 tags: ["cli", "nodejs", "devops", "kubernetes", "docker", "devspace"]
+lastUpdated: "2026-02-15"
 ---
 # CLI Repo Skill
 
@@ -12,7 +13,7 @@ The CLI repo (`@tdsk/cli`) is a comprehensive developer CLI tool for managing th
 - **Docker operations**: Building and running containerized applications
 - **Kubernetes management**: Secrets, namespaces, ingress configuration
 - **DevSpace orchestration**: Development environment management
-- **Repository management**: Starting and managing individual repos
+- **Web UI management**: Starting and managing the admin UI
 
 The CLI uses a hierarchical task system built on `@keg-hub/args-parse` with support for nested commands, aliases, and options.
 
@@ -40,14 +41,14 @@ repos/cli/
 │   ├── tasks/            # Command definitions (hierarchical structure)
 │   │   ├── index.ts      # Task registry
 │   │   ├── docker/       # Docker commands: build, run, login
-│   │   ├── kube/         # Kubernetes commands: secret, namespace, ingress, set, remove
-│   │   ├── devspace/     # DevSpace commands: start, enter, attach, log, clean, use
-│   │   └── repos/        # Repository commands: start
+│   │   ├── kube/         # Kubernetes commands: secret, namespace, ingress, set, remove, pod
+│   │   ├── devspace/     # DevSpace commands: start, enter, attach, log, clean, use, render
+│   │   └── web/          # Web UI commands: start
 │   └── utils/            # Utility functions
 │       ├── config/       # Config utilities (getCtx)
 │       ├── devspace/     # DevSpace helpers
 │       ├── docker/       # Docker helpers
-│       ├── kube/         # Kubernetes utilities (kubectl wrapper)
+│       ├── kube/         # Kubernetes utilities (kubectl wrapper, getPod)
 │       ├── pnpm/         # PNPM command execution
 │       ├── proc/         # Process management (spawn, exec)
 │       ├── tasks/        # Task utilities (find, error, options)
@@ -124,16 +125,18 @@ kube (group)
 
 ## Available Commands
 
-### Repository Management (`repos`)
+### Web UI Management (`web`)
 
-**`repos start`** - Start a repository in dev mode
+**`web start`** - Start the admin UI in dev mode
 ```bash
-pnpm tdsk repos start --context proxy
-pnpm tdsk repos start --context api --docker  # Run in Docker
+pnpm tdsk web start                    # Start admin UI (default)
+pnpm tdsk web start --context admin    # Explicit context
+pnpm tdsk ui start                     # Via 'ui' alias
 ```
-- Aliases: `st`
-- Options: `--context` (proxy/api/admin), `--docker` (containerized mode)
-- Runs: `pnpm start` in repo directory or `docker run` if `--docker` flag
+- Aliases: `ui`
+- Sub-commands: `start` (runs `pnpm start` for admin UI)
+- Options: `--context` (default: `admin`)
+- Runs: `pnpm start` in `repos/admin/` directory
 
 ### Docker Commands (`docker`)
 
@@ -173,9 +176,18 @@ pnpm tdsk kube secret --name app-config --secrets API_KEY:xxx,DB_URL:yyy
 pnpm tdsk kube secret docker --env prod --namespace production
 ```
 - Aliases: `kubectl`, `kb`, `kcl`
-- Sub-commands: `docker`, `tdsk`, `database` (preset configurations)
+- Sub-commands: `docker`, `tdsk`, `database`, `payments`, `email` (preset configurations)
 - Options: `--name`, `--key`, `--value`, `--file`, `--files`, `--secrets`, `--keyvalue`, `--namespace`, `--literal`
 - Creates temporary files for secret values, then cleans up
+
+**`kube pod`** - Get pod information by context
+```bash
+pnpm tdsk kube pod --context proxy
+pnpm tdsk kube pod --context backend --output json
+```
+- Options: `--context` (proxy/backend/caddy), `--output` (json/yaml/wide)
+- Uses `getPod()` utility to resolve pod name from context
+- Returns pod details via `kubectl get pod`
 
 **`kube namespace`** - Manage namespaces
 ```bash
@@ -218,8 +230,19 @@ pnpm tdsk devspace use --namespace dev --context minikube
 ```
 
 **`devspace render`** - Render DevSpace manifests without deploying
+```bash
+pnpm tdsk devspace render          # Dry-run Helm templates
+pnpm tdsk dev render               # Via 'dev' alias
+```
 
+## Command Summary Table
 
+| Task Group | Commands | Aliases | Key Options |
+|---|---|---|---|
+| **web** | start | ui | --context (default: admin) |
+| **kube** | set, pod, secret, remove, ingress, namespace | kubectl, kb, kcl | --context, --output, --name, --namespace |
+| **docker** | build, pull, push, run, exec, login | N/A | --context, --tag, --image, --port |
+| **devspace** | start, clean, log, enter, render, attach, use | ds, space, dev | --build, --debug, --follow, --selector |
 
 ## Logic Flow
 
@@ -528,14 +551,13 @@ pnpm tdsk kube secret --name app-config --secrets API_KEY:xxx,DB_URL:yyy
 
 ### Starting Development Environment
 ```bash
-# Start proxy in Docker
-pnpm tdsk repos start --context proxy --docker
+# Start admin UI locally
+pnpm tdsk web start
+pnpm tdsk ui start  # Via alias
 
-# Start API locally
-pnpm tdsk repos start --context api
-
-# Start DevSpace environment
+# Start DevSpace environment (K8s services)
 pnpm tdsk devspace start --build --debug
+pnpm tdsk dev start --clean  # Via alias with clean option
 ```
 
 ### DevSpace Operations
@@ -555,7 +577,16 @@ pnpm tdsk devspace clean --all
 
 ### Commands Notes
 
-* Linting and formatting are automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
+* Linting and formatting are automatic, so `pnpm lint` and `pnpm format` commands should be ignored.
+
+## Test Coverage
+
+The CLI repo currently has minimal test coverage:
+- **1 test file**: `src/utils/config/getCtx.test.ts`
+- **1 placeholder test**: `expect(true).toBe(true)`
+- **Coverage**: ~0%
+
+This is a known gap. The CLI relies heavily on integration testing via manual command execution rather than unit tests.
 
 ## Error Handling
 
@@ -576,3 +607,28 @@ Based on the codebase structure, potential areas for expansion:
 - Database migration commands
 - Monitoring and observability tools
 - Multi-environment deployment pipelines
+- Comprehensive unit test coverage for all task groups
+
+## Changelog
+
+### v1.1.0 (2026-02-15)
+**Changes:**
+- Renamed `tasks/repos/` directory to `tasks/web/` for clarity
+- Updated `repos` command group to `web` with `ui` alias
+- Added `web start` command for running admin UI (`pnpm start`)
+- Enhanced `kube pod` task with `--output` flag and `getPod()` utility
+- Added `getPod()` utility in `utils/kube/` for context-based pod lookup
+- Added preset secret commands: `payments`, `email` (in addition to existing `docker`, `tdsk`, `database`)
+- Documented minimal test coverage (1 placeholder test file)
+- Updated command summary table with all task groups and key options
+
+### v1.0.0 (Initial Release)
+**Features:**
+- Docker commands: build, run, login
+- Kubernetes commands: secret, namespace, ingress, set, remove
+- DevSpace commands: start, enter, attach, log, clean, use, render
+- Repository management commands
+- Hierarchical task system with aliases
+- Configuration contexts for proxy/api/admin repos
+- Process spawning utilities
+- Environment filtering and configuration loading

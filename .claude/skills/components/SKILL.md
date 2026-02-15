@@ -1,7 +1,7 @@
 ---
 name: "Threaded Stack - Components Repo"
 description: "Knowledge base for the shared React components library (@tdsk/components)"
-version: "1.0.0"
+version: "1.1.0"
 tags: ["react", "mui", "components", "hooks", "frontend", "shared-library"]
 ---
 # Components Repo Skill
@@ -49,7 +49,6 @@ repos/components/
 │   │   ├── RenderType/      # Conditional rendering
 │   │   ├── Resize/          # Resizable panels
 │   │   ├── Section/         # Section containers
-│   │   ├── SplitViews/      # Split view panels
 │   │   ├── Tabs/            # Tab components
 │   │   ├── Text/            # Text components
 │   │   └── Tooltip/         # Tooltip components
@@ -57,7 +56,7 @@ repos/components/
 │   │   ├── api/             # API-related hooks (useFetch, useLoadDynamic)
 │   │   ├── components/      # Component-specific hooks (9 hooks)
 │   │   ├── data/            # Data management hooks (useRecall, useTimeout, useInterval)
-│   │   ├── definitions/     # Definition-related hooks
+│   │   ├── definitions/     # Definition-related hooks (useDefsFilters)
 │   │   ├── dom/             # DOM interaction hooks (9 hooks)
 │   │   ├── monaco/          # Monaco editor hooks
 │   │   └── theme/           # Theme-related hooks
@@ -188,7 +187,6 @@ Custom SVG icons including:
 - **Accordion** - Collapsible accordion panels
 - **Card** - Card container
 - **Section** - Section container
-- **SplitViews** - Split pane views (uses react-resizable-panels)
 - **Tabs** - Tab navigation
 - **List** - List rendering
 - **Menu** - Context/dropdown menus
@@ -351,7 +349,6 @@ const Enhanced = TooltipHoc(MyComponent)
 - **overlayscrollbars-react** (0.5.6) - React wrapper for overlay scrollbars
 - **react-from-dom** (0.7.5) - Convert DOM to React components
 - **react-resizable-panels** (3.0.1) - Resizable panel layout
-- **split-pane-react** (0.1.3) - Split pane component
 - **sonner** (^1.2.3) - Toast notifications
 
 ### Utilities

@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - Database Repo"
 description: "Knowledge base for the database ORM & migrations repo"
-version: "1.4.0"
-tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas", "subscriptions"]
+version: "2.0.0"
+tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas", "subscriptions", "agents", "domains", "invitations"]
 ---
 # Database Repo Skill
 
@@ -11,22 +11,24 @@ tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas
 The `repos/database` repository provides the **ORM layer and migration system** for the Threaded Stack platform. Built on **Drizzle ORM** and **PostgreSQL (Neon.com)**, it defines all database schemas, relationships, and provides a service-based API for database operations across all other repos.
 
 **Key Responsibilities:**
-- Define database schemas with Drizzle ORM
-- Manage migrations and schema versioning
-- Provide type-safe database services (CRUD operations)
+- Define database schemas with Drizzle ORM (18 Drizzle-managed tables + 2 external)
+- Provide type-safe database services (17 services with CRUD operations)
 - Implement polymorphic relationships via "Exclusive Arc" pattern
-- Handle database connection pooling and configuration
-- Convert database records to domain models (Organization, Project, ApiKey, etc.)
+- Handle database connection pooling via pg.Pool singleton
+- Convert database records to domain models (Organization, Agent, Domain, etc.)
+- Manage AI agent configurations with many-to-many project associations
+- Handle custom domain management with SSL certificate storage
+- Track organization invitations with status workflows
 
 **Database Provider:** Neon.com (PostgreSQL)
 **ORM:** Drizzle ORM v0.45.1
+**Package Version:** 0.1.0
 **Path Alias:** `@TDB/*`
 
 ## Directory Structure
 
 ```
 repos/database/
-├── .vscode/               # VS Code settings
 ├── configs/               # Configuration files
 │   ├── aliases.ts         # Path alias setup (alias-hq)
 │   ├── biome.json         # Biome linter config
@@ -35,236 +37,267 @@ repos/database/
 │   └── vitest.config.ts   # Vitest test configuration
 ├── drizzle/               # Generated migrations
 │   ├── meta/              # Migration metadata
-│   │   ├── _journal.json  # Migration journal
-│   │   └── 0000_snapshot.json
-│   └── 0000_open_spitfire.sql  # Initial migration
+│   └── *.sql              # Generated SQL migration files
 ├── scripts/               # Utility scripts
 │   ├── addToProcess.ts    # Process environment helper
 │   ├── loadEnvs.ts        # Environment loader
+│   ├── seed.ts            # Database seeder
+│   ├── purge.ts           # Database purge
 │   └── script.ts          # General script runner
 ├── src/
-│   ├── constants/         # Database constants
+│   ├── index.ts           # Main export (types + database)
+│   ├── database.ts        # Database singleton factory + disconnectDatabase
+│   ├── constants/
 │   │   ├── index.ts
-│   │   └── values.ts
-│   ├── schemas/           # Drizzle table schemas
-│   │   ├── assets.ts      # File/asset storage
-│   │   ├── configs.ts     # Configuration data (polymorphic)
-│   │   ├── endpoints.ts   # API proxy endpoints
-│   │   ├── functions.ts   # FaaS function definitions
-│   │   ├── messages.ts    # Chat messages
-│   │   ├── providers.ts   # External API providers
-│   │   ├── repos.ts       # Project repositories
-│   │   ├── roles.ts       # User-team roles (many-to-many)
-│   │   ├── secrets.ts     # Encrypted secrets (polymorphic)
-│   │   ├── teams.ts       # Team/organization
-│   │   ├── threads.ts     # Chat threads
-│   │   ├── users.ts       # User accounts
-│   │   ├── quotas.ts      # Quota tracking
-│   │   ├── subscriptions.ts # User subscriptions
-│   │   └── index.ts       # Schema exports
-│   ├── services/          # Service layer (CRUD API)
-│   │   ├── base.ts        # Base service class
-│   │   ├── asset.ts       # Asset service
-│   │   ├── config.ts      # Config service
-│   │   ├── endpoint.ts    # Endpoint service
-│   │   ├── function.ts    # Function service
-│   │   ├── message.ts     # Message service
-│   │   ├── provider.ts    # Provider service
-│   │   ├── repo.ts        # Repo service
-│   │   ├── role.ts        # Role service
-│   │   ├── secret.ts      # Secret service
-│   │   ├── team.ts        # Team service
-│   │   ├── thread.ts      # Thread service
-│   │   ├── user.ts        # User service
-│   │   ├── quota.ts       # Quota service
-│   │   ├── subscription.ts # Subscription service
-│   │   └── index.ts       # Service exports
-│   ├── types/             # TypeScript types
-│   │   ├── db.types.ts    # Database utility types
-│   │   ├── helper.types.ts # Helper types
-│   │   ├── schema.types.ts # Schema inferred types
-│   │   └── index.ts
-│   ├── utils/             # Utility functions
-│   │   ├── database/      # Database utilities
-│   │   │   ├── buildDBUrl.ts      # URL builder
-│   │   │   ├── getDialect.ts      # Dialect resolver
-│   │   │   └── getDialect.test.ts
-│   │   ├── error/         # Error handling
-│   │   │   └── error.ts
-│   │   ├── schema/        # Schema utilities
-│   │   │   ├── base.ts    # Base schema fields (id)
-│   │   │   └── timestamps.ts # Timestamp fields
-│   │   └── index.ts
-│   ├── database.ts        # Database singleton factory
-│   └── index.ts           # Main export
-├── index.ts               # Root export
-├── package.json           # Dependencies and scripts
-└── tsconfig.json          # TypeScript configuration
+│   │   └── values.ts      # DefDBProto constant
+│   ├── schemas/           # Drizzle table schemas (21 files)
+│   │   ├── schemas.ts     # Drizzle-managed schema barrel (17 tables)
+│   │   ├── index.ts       # Full schema barrel (schemas.ts + users + certificates)
+│   │   ├── orgs.ts
+│   │   ├── roles.ts
+│   │   ├── users.ts           # External: Neon Auth managed (pgSchema 'neon_auth')
+│   │   ├── agents.ts
+│   │   ├── agentProjects.ts   # Junction: agent-project many-to-many
+│   │   ├── assets.ts
+│   │   ├── apiKeys.ts
+│   │   ├── certificates.ts   # External: Caddy certmagic storage
+│   │   ├── configs.ts        # REMOVED (file does not exist)
+│   │   ├── domains.ts
+│   │   ├── endpoints.ts
+│   │   ├── functions.ts
+│   │   ├── invitations.ts
+│   │   ├── messages.ts
+│   │   ├── projects.ts
+│   │   ├── providers.ts
+│   │   ├── quotas.ts
+│   │   ├── secrets.ts
+│   │   ├── subscriptions.ts
+│   │   └── threads.ts
+│   ├── seeds/             # 19 seed files
+│   │   ├── index.ts
+│   │   ├── ids.seed.ts
+│   │   ├── fullorg.ts
+│   │   ├── orgs.seed.ts
+│   │   ├── users.seed.ts
+│   │   ├── roles.seed.ts
+│   │   ├── agents.seed.ts
+│   │   ├── apiKeys.seed.ts
+│   │   ├── assets.seed.ts
+│   │   ├── endpoints.seed.ts
+│   │   ├── functions.seed.ts
+│   │   ├── invitations.seed.ts
+│   │   ├── messages.seed.ts
+│   │   ├── projects.seed.ts
+│   │   ├── providers.seed.ts
+│   │   ├── quotas.seed.ts
+│   │   ├── secrets.seed.ts
+│   │   ├── subscriptions.seed.ts
+│   │   └── threads.seed.ts
+│   ├── services/          # 17 service classes + base + tests
+│   │   ├── base.ts        # Abstract Base<TTable, S, I, M> class
+│   │   ├── org.ts
+│   │   ├── role.ts        # 26 specialized queries
+│   │   ├── user.ts        # byEmail(), getByIds()
+│   │   ├── agent.ts       # 261 lines, secrets+projects auto-loading
+│   │   ├── apiKey.ts
+│   │   ├── asset.ts
+│   │   ├── domain.ts      # DomainService, 299 lines
+│   │   ├── endpoint.ts
+│   │   ├── function.ts
+│   │   ├── invitation.ts  # 243 lines, status workflow
+│   │   ├── message.ts
+│   │   ├── project.ts
+│   │   ├── provider.ts
+│   │   ├── quota.ts       # Atomic SQL increment
+│   │   ├── secret.ts
+│   │   ├── subscription.ts # upsertByUser
+│   │   ├── thread.ts      # branchThread, listByAgent/User
+│   │   ├── index.ts       # Barrel: 17 named exports
+│   │   ├── *.test.ts      # 8 test files
+│   │   └── base.test.ts
+│   ├── types/
+│   │   ├── index.ts
+│   │   ├── db.types.ts        # TDatabase, TDBServices, TDBConfig, EDBDialects
+│   │   ├── schema.types.ts    # TDB*Select/Insert for all 16 entity types
+│   │   ├── helper.types.ts
+│   │   └── service.types.ts   # TServiceOpts
+│   └── utils/
+│       ├── index.ts
+│       ├── crypto.ts          # encryptSecret() helper
+│       ├── logger.ts          # buildApiLogger wrapper
+│       ├── database/
+│       │   ├── buildDBUrl.ts
+│       │   ├── buildDBUrl.test.ts
+│       │   ├── buildQuery.ts      # addWhere(), addOrderBy()
+│       │   ├── buildQuery.test.ts
+│       │   ├── getDialect.ts
+│       │   └── getDialect.test.ts
+│       ├── error/
+│       │   ├── error.ts       # DBError, DBIdError, DBValueError
+│       │   └── error.test.ts
+│       └── schema/
+│           ├── base.ts        # { id, ...timestamps }
+│           └── timestamps.ts  # { createdAt, updatedAt } both notNull
+├── index.ts               # Root re-export
+├── package.json
+└── tsconfig.json
 ```
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/database.ts` | Singleton database instance factory with service initialization |
-| `src/schemas/*.ts` | Drizzle table definitions with relations |
-| `src/services/base.ts` | Base service class with CRUD operations (create, get, list, update, upsert, delete). `list()` supports `{ where, limit, offset, orderBy }` for pagination |
-| `src/services/*.ts` | Specific service classes extending Base |
-| `src/types/schema.types.ts` | TypeScript types inferred from schemas (Select/Insert) |
-| `configs/drizzle.config.ts` | Drizzle Kit configuration for migrations |
-| `configs/db.config.ts` | Database connection configuration |
-| `drizzle/*.sql` | Generated SQL migration files |
-| `src/utils/schema/base.ts` | Shared base fields (id, createdAt, updatedAt) |
+| `src/database.ts` | Singleton database factory with Pool management + `disconnectDatabase()` |
+| `src/schemas/schemas.ts` | Barrel for 17 Drizzle-managed tables (excludes users, certificates) |
+| `src/schemas/index.ts` | Full barrel: schemas.ts + users + certificates |
+| `src/services/base.ts` | Abstract `Base<TTable, S, I, M>` class with CRUD, `model()`, `with()` |
+| `src/services/index.ts` | 17 named service exports |
+| `src/types/schema.types.ts` | TDB*Select/Insert types via `$inferSelect`/`$inferInsert` |
+| `src/types/db.types.ts` | TDatabase (NodePgDatabase + services), TDBConfig, TDBServices |
+| `src/utils/crypto.ts` | `encryptSecret()` using domain's HKDF + AES-256-GCM |
+| `configs/db.config.ts` | Connection config from env vars via `@keg-hub/parse-config` |
 
 ## Schema Overview
 
-### Core Tables
+### Tables (21 total)
 
-**14 main tables** organized by domain:
+**18 Drizzle-managed tables** (defined in `schemas.ts`):
+`orgs`, `roles`, `quotas`, `agents`, `agentProjects`, `assets`, `threads`, `domains`, `secrets`, `apiKeys`, `messages`, `projects`, `functions`, `providers`, `endpoints`, `invitations`, `subscriptions`, `configs` (schema file removed -- not in codebase)
 
-#### User & Organization Management
-- **`users`**: User accounts with Neon Auth integration
-  - Fields: id, email, first, last, displayName, provider, photoUrl, timestamps
-  - Unique index on email
-  - Relations: organizations (via roles), assets, threads, providers
+**2 External tables** (read-only, not in Drizzle migrations):
+- **`users`** -- Neon Auth managed, `pgSchema('neon_auth')`, table name `user`
+- **`certificates`** (`caddy_certmagic_objects`) -- Caddy certmagic storage plugin
 
-- **`organizations`**: Organizations/workspaces (renamed from `teams`)
-  - Fields: id, name, description, timestamps
-  - Relations: users (via roles), projects, assets, secrets, configs, providers, apiKeys
+**1 Junction table** (Drizzle-managed):
+- **`agentProjects`** (`agent_projects`) -- Many-to-many agents-projects
 
-- **`roles`**: Many-to-many user-organization relationships
-  - Fields: id, userId, orgId, role, timestamps
-  - Implements user organization membership
+---
 
-- **`api_keys`**: API key management (NEW)
-  - Fields: id, name, key (hashed), orgId, scopes (jsonb), rateLimit, expiresAt, lastUsedAt, timestamps
-  - Relations: organization
-  - Features: Scoped permissions, rate limiting, expiration
+### User & Organization Management
 
-#### Project & Code Management
-- **`projects`**: Project repositories (renamed from `repos`)
-  - Fields: id, name, gitUrl, branch, orgId, meta (jsonb), timestamps
-  - Relations: organization, endpoints, functions, assets, secrets, configs, providers
+#### `organizations` (variable: `orgs`)
+- Fields: `id`, `name`(notNull), `description`, `createdAt`, `updatedAt`
+- Relations: users(via roles), quotas, assets, agents, secrets, projects, providers, invitations
 
-- **`endpoints`**: API proxy endpoints
-  - Fields: id, projectId, proxyUrl, proxyMethod, proxyHeaders (jsonb), proxyOptions (jsonb), public (boolean), timestamps
-  - Relations: project, functions
+#### `users` (Neon Auth, pgSchema `neon_auth`, table `user`)
+- Fields: `id`(PK), `name`, `email`, `image`, `role`, `banned`, `banReason`, `banExpires`, `emailVerified`, `createdAt`(notNull), `updatedAt`(notNull)
+- Relations: orgs(via roles), roles, assets, threads, providers, subscription
+- **External**: Not managed by Drizzle migrations
 
-- **`functions`**: FaaS function definitions
-  - Fields: id, endpointId, code, runtime, configuration, timestamps
-  - Relations: endpoint
+#### `roles`
+- Fields: `id`, `name`, `type`(notNull), `userId`(notNull FK->users), `orgId`(FK->orgs), `projectId`(FK->projects), `createdAt`, `updatedAt`
+- Constraint: Exclusive arc -- `orgId XOR projectId` (exactly one must be set)
+- Unique indexes: `(userId, orgId)`, `(userId, projectId)`
+- Relations: user, org, project
 
-#### Configuration & Secrets
-- **`configs`**: Configuration data (polymorphic - Exclusive Arc)
-  - Fields: id, data (jsonb), userId?, orgId?, projectId?, timestamps
-  - Constraint: Exactly ONE of userId/orgId/projectId must be set
-  - Relations: user, organization, project
+#### `invitations`
+- Fields: `id`, `email`(notNull), `userId`(FK->users), `roleType`(notNull), `orgId`(notNull FK->orgs), `invitedBy`(FK->users, onDelete set null), `token`(notNull unique), `status`(notNull default 'pending'), `expiresAt`(notNull), `acceptedAt`, `revokedAt`, `revokedBy`(FK->users, onDelete set null), `createdAt`, `updatedAt`
+- Status enum: `pending`, `accepted`, `expired`, `revoked` (from `EInviteStatus`)
+- Indexes: `orgId`, `email`, `status`
+- Relations: org, user(invitee), inviter, revoker (3 separate user relations via `relationName`)
 
-- **`secrets`**: Encrypted secrets (polymorphic - Exclusive Arc)
-  - Fields: id, name, hashKey, encryptedValue, orgId?, projectId?, providerId?, timestamps
-  - Constraint: Exactly ONE of orgId/projectId/providerId must be set
-  - Relations: organization, project, provider
-  - Encryption: AES-256-GCM with HKDF key derivation
+### AI & Agent Management
 
-#### AI & Chat Features
-- **`threads`**: Chat conversation threads
-  - Fields: id, userId, title, metadata, timestamps
-  - Relations: user, messages
+#### `agents`
+- Fields: `id`, `name`(notNull), `description`, `orgId`(notNull FK->orgs), `providerId`(notNull FK->providers), `systemPrompt`, `model`, `maxTokens`(default 100000), `tools`(jsonb default []), `envVars`(jsonb default {}), `environment`(jsonb default {}), `active`(boolean default true), `createdAt`, `updatedAt`
+- Relations: org, secrets(many), threads(many), projects(many via agentProjects), provider
+- **Not an exclusive arc** -- belongs to org + provider (both required)
 
-- **`messages`**: Chat messages in threads
-  - Fields: id, threadId, role, content, metadata, timestamps
-  - Relations: thread
+#### `agentProjects` (`agent_projects`)
+- Fields: `id`, `agentId`(notNull FK->agents), `projectId`(notNull FK->projects), `alias`, `createdAt`, `updatedAt`
+- Constraint: `unique(agentId, projectId)`
+- Relations: agent, project
+- **Junction table** for many-to-many agent-project relationships
 
-#### External Integration
-- **`providers`**: External API provider configurations
-  - Fields: id, name, type, credentials, userId?, teamId?, repoId?, timestamps
-  - Relations: user, team, repo
+#### `threads`
+- Fields: `id`, `name`, `meta`(jsonb), `public`(boolean default false), `parentThreadId`(uuid self-ref), `branchMessageId`(uuid FK->messages), `providerId`(FK->providers, onDelete set null), `agentId`(FK->agents, onDelete set null), `orgId`(FK->orgs), `projectId`(FK->projects), `userId`(notNull FK->users), `createdAt`, `updatedAt`
+- Indexes: `userId`, `agentId`, `parentThreadId`
+- Relations: messages(many), user, provider, agent, org, project, parentThread(self), branches(self many), branchMessage
+- Supports thread branching via `parentThreadId` + `branchMessageId`
 
-- **`assets`**: File and asset storage
-  - Fields: id, name, type, url, metadata, userId?, teamId?, repoId?, timestamps
-  - Relations: user, team, repo
+#### `messages`
+- Fields: `id`, `meta`(jsonb), `type`(notNull), `content`(jsonb notNull), `orgId`(FK->orgs), `projectId`(FK->projects), `threadId`(notNull FK->threads), `createdAt`, `updatedAt`
+- Relations: assets(many), thread, org, project
 
-- **`quotas`**: Organization quota tracking
-  - Fields: id, orgId, period (YYYY-MM), price, retention, organizations, projects, members, endpoints, threads, messages, functionCalls, runtime, orgSecrets, projectSecrets, timestamps
-  - Relations: organization
-  - Purpose: Track resource usage per org per month
+### Project & Code Management
 
-- **`subscriptions`**: User subscription tracking
-  - Fields: id, userId, tier, status, polarId, polarCustomerId, polarPriceId, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, timestamps
-  - Relations: user
-  - Purpose: Track user payment plans and Polar.sh integration
+#### `projects`
+- Fields: `id`, `meta`(jsonb), `gitUrl`, `name`(notNull), `branch`(default 'main'), `orgId`(notNull FK->orgs), `createdAt`, `updatedAt`
+- Unique index: `(orgId, name)`
+- Index: `orgId`
+- Relations: assets, secrets, providers, endpoints, agents(via agentProjects), org
 
-## Exclusive Arc Pattern
+#### `endpoints`
+- Fields: `id`, `name`, `headers`(jsonb), `options`(jsonb), `path`(notNull), `public`(boolean default false), `method`(varchar 10 default 'GET'), `type`(varchar 10 notNull default 'proxy'), `projectId`(notNull FK->projects), `createdAt`, `updatedAt`
+- Unique index: `(projectId, path, method)`
+- Relations: functions(many), project
 
-**Polymorphic relationships** are implemented using the **"Exclusive Arc"** pattern - ensuring a record belongs to exactly ONE parent entity, not multiple.
+#### `functions`
+- Fields: `id`, `name`(notNull), `description`, `content`(notNull), `branch`(default 'main'), `defaultArgs`(jsonb default {}), `dependencies`(jsonb default {}), `language`(varchar 50 default EFunLanguage.typescript), `endpointId`(FK->endpoints), `projectId`(notNull FK->projects), `createdAt`, `updatedAt`
+- Indexes: `projectId`, `endpointId`
+- Relations: endpoint, project
 
-### Implementation Pattern
+### Configuration & Secrets
 
-```typescript
-// Example: secrets table belongs to EITHER org OR project OR provider (not multiple)
-export const secrets = pgTable(
-  'secrets',
-  {
-    ...base,
-    name: text('name').notNull(),
-    hashKey: text('hash_key').notNull(),
-    encryptedValue: text('encrypted_value').notNull(),
+#### `providers` -- ORG-SCOPED ONLY
+- Fields: `id`, `name`, `options`(jsonb), `headers`(jsonb), `bodyParams`(jsonb, column `body_params`), `type`(notNull), `orgId`(notNull FK->orgs), `createdAt`, `updatedAt`
+- Relations: org
+- **NOT an exclusive arc** -- only has `orgId` (required). No `userId` or `projectId`.
 
-    // Nullable foreign keys
-    orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }),
-    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
-    providerId: uuid('provider_id').references(() => providers.id, { onDelete: 'cascade' }),
-  },
-  (table) => [
-    // Database constraint: exactly ONE must be set
-    check(
-      'secret_scope_check',
-      sql`
-        (
-          (${table.orgId} IS NOT NULL)::int +
-          (${table.projectId} IS NOT NULL)::int +
-          (${table.providerId} IS NOT NULL)::int
-        ) = 1
-      `
-    ),
-  ]
-)
-```
+#### `secrets` -- 4-WAY ARC + COMBO
+- Fields: `id`, `name`(notNull), `description`, `hashKey`(notNull), `encryptedValue`(notNull), `orgId`(FK->orgs), `projectId`(FK->projects), `providerId`(FK->providers), `agentId`(FK->agents), `createdAt`, `updatedAt`
+- **5 valid scope combinations** (CHECK constraint `secret_scope_check`):
+  1. `orgId` only
+  2. `projectId` only
+  3. `providerId` only
+  4. `agentId` only
+  5. `orgId` + `providerId` together (combo scope)
+- Indexes: `orgId`, `projectId`, `providerId`, `agentId`
+- Relations: org, project, provider, agent
+- Encryption: AES-256-GCM with HKDF key derivation (via `@tdsk/domain`)
 
-### Tables Using Exclusive Arc
+#### `apiKeys` (`api_keys`)
+- Fields: `id`, `name`(notNull), `expiresAt`(timestamp), `lastUsedAt`(timestamp), `scopes`(text default 'read'), `active`(boolean default true), `rateLimit`(integer default 100), `keyHash`(notNull unique), `keyPrefix`(varchar 12 notNull), `orgId`(FK->orgs), `projectId`(FK->projects), `userId`(FK->users), `createdAt`, `updatedAt`
+- **Note**: `scopes` is `text` type (NOT jsonb array)
+- Indexes: `orgId`, `keyHash`, `projectId`, `userId`
+- Relations: org, project, user
+- `orgId` and `projectId` are both optional (no exclusive arc constraint)
 
-1. **`secrets`**: orgId XOR projectId XOR providerId
-2. **`configs`**: userId XOR orgId XOR projectId
-3. **`assets`**: userId XOR orgId XOR projectId
-4. **`providers`**: userId XOR orgId XOR projectId
+### File & Asset Management
 
-### Constraint SQL Pattern
+#### `assets` -- 5-WAY EXCLUSIVE ARC
+- Fields: `id`, `url`, `meta`(jsonb), `content`(jsonb), `name`(notNull), `type`(notNull), `providerId`(FK->providers, onDelete set null), `orgId`(FK->orgs), `userId`(FK->users), `threadId`(FK->threads), `projectId`(FK->projects), `messageId`(FK->messages), `createdAt`, `updatedAt`
+- Constraint: Exactly ONE of `orgId`, `projectId`, `userId`, `threadId`, `messageId` must be set
+- `providerId` is **not** part of the arc (nullable, independent)
+- Relations: org, project, user, thread, message, provider
 
-```sql
--- Three-way exclusive arc (e.g., secrets)
-CHECK (
-  (
-    (org_id IS NOT NULL)::int +
-    (project_id IS NOT NULL)::int +
-    (provider_id IS NOT NULL)::int
-  ) = 1
-)
+### Domain Management
 
--- Three-way exclusive arc (e.g., configs)
-CHECK (
-  (
-    (user_id IS NOT NULL)::int +
-    (org_id IS NOT NULL)::int +
-    (project_id IS NOT NULL)::int
-  ) = 1
-)
-```
+#### `domains`
+- Fields: `id`, `domain`(notNull unique), `verifiedAt`(timestamp), `sslPrivateKey`, `sslCertificate`, `sslExpiresAt`(timestamp), `verified`(boolean notNull default false), `sslEnabled`(boolean notNull default false), `orgId`(FK->orgs), `projectId`(FK->projects), `createdAt`, `updatedAt`
+- Constraint: Exclusive arc -- `orgId XOR projectId`
+- Unique index: `(orgId, domain)`
+- Relations: org, project, certificates(many)
 
-**Benefits:**
-- Enforces data integrity at database level
-- Prevents orphaned records
-- Clear ownership semantics
-- Type-safe polymorphic queries
+#### `certificates` (`caddy_certmagic_objects`) -- EXTERNAL
+- Fields: `parent`(notNull), `name`(notNull), `isFile`(boolean notNull), `value`(bytea), `modified`(timestamp notNull defaultNow)
+- Primary key: composite `(parent, name)`
+- Constraint: `(isFile=true AND value IS NOT NULL) OR (isFile=false AND value IS NULL)`
+- Relations: domain (via parent->domains.domain)
+- **External**: Managed by caddy-storage-postgresql plugin, not Drizzle migrations
+
+### Billing & Quotas
+
+#### `quotas`
+- Fields: `id`, `orgId`(notNull FK->orgs), `period`(notNull), then 12 counter columns all `integer default(0) notNull`:
+  `price`, `retention`, `organizations`, `projects`, `members`, `endpoints`, `threads`, `messages`, `functionCalls`(column `function_calls`), `runtime`, `orgSecrets`(column `org_secrets`), `projectSecrets`(column `project_secrets`)
+- Unique index: `(orgId, period)`
+- Relations: org
+
+#### `subscriptions`
+- Fields: `id`, `userId`(notNull FK->users, unique, onDelete cascade), `tier`(notNull default 'free'), `status`(notNull default 'active'), `polarId`, `polarCustomerId`, `polarPriceId`, `currentPeriodStart`(timestamp), `currentPeriodEnd`(timestamp), `cancelAtPeriodEnd`(boolean default false), `seats`(integer default 0), `createdAt`, `updatedAt`
+- Relations: user
+- One subscription per user (userId is unique)
 
 ## Architecture
 
@@ -272,24 +305,25 @@ CHECK (
 
 ```
 ┌──────────────────────────────────────┐
-│  Consumer Repos (backend, admin)    │  Import services
+│  Consumer Repos (backend, proxy)    │  Import: database, types
 │  db.services.org.create()           │
 └─────────────┬────────────────────────┘
               │
 ┌─────────────▼────────────────────────┐
-│  Service Layer (src/services/)       │  Business logic
-│  - Base class (CRUD operations)     │
-│  - Specific services (Team, User)   │
+│  Service Layer (src/services/)       │  17 services extending Base
+│  - Base<TTable, S, I, M> class      │  CRUD + model conversion
+│  - Specialized services              │  Custom queries
 └─────────────┬────────────────────────┘
               │
 ┌─────────────▼────────────────────────┐
-│  Schema Layer (src/schemas/)         │  Data models
-│  - Table definitions (Drizzle)      │
-│  - Relations                         │
+│  Schema Layer (src/schemas/)         │  21 table definitions
+│  - Drizzle table definitions         │  + relations
+│  - schemas.ts (17 managed)           │
+│  - index.ts (+ users + certs)        │
 └─────────────┬────────────────────────┘
               │
 ┌─────────────▼────────────────────────┐
-│  Database (PostgreSQL via Neon)      │  Data storage
+│  PostgreSQL (Neon.com)               │  Connection via pg.Pool
 └──────────────────────────────────────┘
 ```
 
@@ -297,94 +331,282 @@ CHECK (
 
 ```typescript
 // src/database.ts
-let _database: TDatabase
+let _pool: Pool | null = null
+let _database: TDatabase | null = null
 
 export const database = (cfg: TDBConfig = config) => {
   if (!_database) {
+    // Neon calls users table 'user' -- remap for consistency
+    const { users, orgs, ...rest } = schema
+    _pool = new Pool({ connectionString: cfg.url })
     _database = drizzle({
-      client: new Pool({ connectionString: config.url })
-    })
+      client: _pool,
+      schema: { ...rest, user: users, organizations: orgs },
+    }) as unknown as TDatabase
 
-    // Auto-initialize services
+    // Auto-initialize all 17 services
     _database.services = Object.entries(DBservices).reduce((acc, [name, Service]) => {
-      acc[name] = new Service({ db: _database, schema: undefined, config: cfg })
+      acc[name] = new Service({ db: _database, config: cfg })
       return acc
     }, {} as TDBServices)
   }
-
   return _database
+}
+
+export const disconnectDatabase = async () => {
+  if (_pool) { await _pool.end(); _pool = null }
+  _database = null
 }
 ```
 
 **Usage in other repos:**
 ```typescript
-import { database, disconnectDatabase } from '@TDB/database'
+import { database, disconnectDatabase } from '@tdsk/database'
 
 const db = database()
-const { data, error } = await db.services.org.create({ name: 'My Organization' })
+const { data, error } = await db.services.org.create({ name: 'My Org' })
 
 // Graceful shutdown
 await disconnectDatabase()  // Closes Pool, resets singleton
-// database() after disconnect creates a fresh instance
 ```
 
-### Model Conversion Pattern
+## Services (17 total)
 
-Services now include methods to convert database records to domain models:
+Exported from `services/index.ts`:
+
+| Export Name | Class | Schema | Domain Model | Notable Methods |
+|-------------|-------|--------|-------------|-----------------|
+| `org` | `Org` | `orgs` | `Organization` | Inherits base CRUD |
+| `role` | `Role` | `roles` | `Role` | `getOrgRole`, `getProjectRole`, `getUserRoles`, `getOrgMembers`, `getOrgOwner`, `getProjectMembers`, `isOrgMember`, `isProjectMember`, `updateOrgRole`, `updateProjectRole`, `removeFromOrg`, `removeFromProject`, `getUserOrgs`, `getUserProjects` |
+| `user` | `User` | `users` | `User` | `byEmail()`, `getByIds()` |
+| `asset` | `Asset` | `assets` | -- | Inherits base CRUD |
+| `quota` | `Quota` | `quotas` | `Quota` | `getUsage`, `findByOrgAndPeriod`, `increment` (atomic SQL), `initializePeriod` |
+| `agent` | `Agent` | `agents` | `Agent` | Auto-loads secrets+projects, `create`/`update`/`upsert` with project associations, `addProject`, `removeProject`, sanitization |
+| `apiKey` | `ApiKey` | `apiKeys` | -- | Inherits base CRUD |
+| `secret` | `Secret` | `secrets` | -- | Inherits base CRUD |
+| `thread` | `Thread` | `threads` | `Thread` | `listByAgent`, `listByUser`, `getWithMessages`, `branchThread` |
+| `project` | `Project` | `projects` | -- | Inherits base CRUD |
+| `message` | `Message` | `messages` | -- | Inherits base CRUD |
+| `endpoint` | `Endpoint` | `endpoints` | -- | Inherits base CRUD |
+| `function` | `Function` | `functions` | -- | Inherits base CRUD |
+| `provider` | `Provider` | `providers` | -- | Inherits base CRUD |
+| `domain` | `DomainService` | `domains` | `Domain` | `find` (cert check), `validate`, `verified`, `enableSSL`, `disableSSL`, `owner`, custom cert storage via DB transactions |
+| `invitation` | `Invitation` | `invitations` | `Invitation` | `getByToken`, `getByEmailAndOrg`, `getPendingByOrg`, `getAllByOrg`, `getPendingByEmail`, `accept`, `revoke`, `markExpired`, `isValid` |
+| `subscription` | `Subscription` | `subscriptions` | `Subscription` | `findByUser`, `findByPolarId`, `upsertByUser` |
+
+**No config service** -- the config schema file and service were removed.
+
+### Base Service Class
 
 ```typescript
-// Service returns database type + toModel() for domain conversion
-const { data } = await db.services.org.get(orgId)
-const orgModel = db.services.org.toModel(data)  // Returns Organization instance
+class Base<
+  TTable extends TTableSchema,
+  S extends TDBEntitySelect = TDBEntitySelect,
+  I extends TDBEntityInsert = TDBEntityInsert,
+  M extends BaseModel = BaseModel,
+> implements IDBApi<M, I> {
 
-// Or use toModels() for arrays
-const { data: orgs } = await db.services.org.list()
-const orgModels = db.services.org.toModels(orgs)  // Returns Organization[]
-```
+  name: string       // camelCase table name
+  title: string      // Capitalized singular table name
+  table: TTable
+  db: TDatabase
+  config: Record<string, any>
 
-## Logic Flow
+  // Override in subclasses for domain model conversion
+  model(data: S, ...args: any[]): M
 
-### Service CRUD Flow
+  // Override in subclasses to configure default relation loading
+  with<T extends TDBWithRecord>(opts: T): TDBWithRecord
 
-```
-Client Request → Service Method → Drizzle Query → PostgreSQL → Response
-```
-
-**Example: Create Organization**
-
-```typescript
-// 1. Client calls service
-const { data, error } = await db.services.org.create({
-  name: 'Acme Corp',
-  description: 'Our company'
-})
-
-// 2. Service (base.ts) executes query
-create = async (data: I): Promise<TDBApiRes<S>> => {
-  try {
-    const resp = await this.db
-      .insert(this.schema)
-      .values(data)
-      .returning()
-
-    return { data: resp[0] as S }
-  } catch (error: any) {
-    return { error }
-  }
+  // CRUD methods -- all return Promise<TDBApiRes<M>> or Promise<TDBApiRes<M[]>>
+  create(data: I): Promise<TDBApiRes<M>>
+  get(id: string, opts?: Pick<TDBQueryOpts, 'with'>): Promise<TDBApiRes<M>>
+  by(prop: string | Record<string, any>, value?, opts?): Promise<TDBApiRes<M>>
+  list(opts?: TDBQueryOpts): Promise<TDBApiRes<M[]>>  // supports { where, limit, offset, orderBy, with }
+  update(data: I): Promise<TDBApiRes<M>>               // auto-sets updatedAt
+  upsert(data: I): Promise<TDBApiRes<M>>               // onConflictDoUpdate by id
+  delete(id: string): Promise<TDBApiRes<M>>
 }
-
-// 3. Drizzle translates to SQL
-INSERT INTO organizations (id, name, description, created_at, updated_at)
-VALUES (uuid_generate_v4(), 'Acme Corp', 'Our company', now(), now())
-RETURNING *;
-
-// 4. PostgreSQL executes and returns row
-// 5. Service returns { data: { id, name, description, ... } }
-
-// 6. Optionally convert to domain model
-const org = db.services.org.toModel(data)  // Returns Organization instance
 ```
 
+**Return pattern**: All methods return `{ data, error }` -- never throw.
+
+### Agent Service (261 lines)
+
+The Agent service is the most complex, with automatic relation loading and secret sanitization:
+
+```typescript
+class Agent extends Base<typeof agents, TAgentSelectOpts, TDBAgentInsert, AgentModel> {
+  // with() override: always loads secrets, provider, projects (with nested project)
+  with = (opts) => ({ secrets: true, provider: true, ...opts, projects: { with: { project: true } } })
+
+  // model() sanitizes secrets by default (strips encryptedValue)
+  model = (data, sanitizeOpts?) => { ... }
+
+  // get/by/list all auto-load relations and sanitize
+  async get(id, opts?: TAgentQueryOpts)    // opts.sanitize = false to skip
+  async by(prop, value?, opts?)
+  async list(opts?: TAgentQueryOpts)
+
+  // create/update/upsert handle agentProjects junction table
+  async create(data: TAgentInsertOpts)     // data.projects creates associations
+  async update(data: TAgentInsertOpts)     // replaces all project associations
+  async upsert(data: TAgentInsertOpts)
+
+  // Direct junction management
+  async addProject(agentId, projectId, alias?)
+  async removeProject(agentId, projectId)
+}
+```
+
+### DomainService (299 lines)
+
+Manages custom domains with SSL certificate storage via the external `caddy_certmagic_objects` table:
+
+```typescript
+class DomainService extends Base<typeof domains, TDBDomainsSelect, TDBDomainsInsert, DomainModel> {
+  async get(id)                  // includes certificates relation
+  async by(prop, value?)         // includes certificates relation
+  async create(data)             // optionally stores custom SSL cert
+  async update(data)             // optionally updates custom SSL cert
+  async find(domain: string)     // checks for valid cert (< 90 days old)
+  async validate(domain: string) // checks domain exists + verified (for Caddy on_demand_tls)
+  async verified(domain: string) // marks domain as verified
+  async enableSSL(domain)
+  async disableSSL(domain)
+  async delete(domain: string)   // deletes by domain name (not id)
+  async owner(domain, orgId?, projectId?)  // authorization check
+}
+```
+
+### Invitation Service (243 lines)
+
+Status workflow: `pending` -> `accepted` | `expired` | `revoked`
+
+```typescript
+class Invitation extends Base<typeof invitations, ...> {
+  async getByToken(token)
+  async getByEmailAndOrg(email, orgId)
+  async getPendingByOrg(orgId)
+  async getAllByOrg(orgId)
+  async getPendingByEmail(email)
+  async accept(invitationId, userId)    // validates status=pending first
+  async revoke(invitationId, revokedBy) // validates status=pending first
+  async markExpired()                   // bulk update past-expiration pending invites
+  async isValid(invitationId)           // checks status=pending AND not expired
+}
+```
+
+### Role Service (270 lines)
+
+26 specialized query methods for org/project role management:
+
+```typescript
+class Role extends Base<typeof roles, ...> {
+  async getOrgRole(userId, orgId)
+  async getProjectRole(userId, projectId)
+  async getUserRoles(userId)           // all roles across orgs and projects
+  async getOrgMembers(orgId)
+  async getOrgOwner(orgId)             // finds type='owner'
+  async getProjectMembers(projectId)
+  async isOrgMember(userId, orgId)     // returns boolean
+  async isProjectMember(userId, projectId)
+  async updateOrgRole(userId, orgId, roleType)
+  async updateProjectRole(userId, projectId, roleType)
+  async removeFromOrg(userId, orgId)
+  async removeFromProject(userId, projectId)
+  async getUserOrgs(userId)            // returns string[] of orgIds
+  async getUserProjects(userId)        // returns string[] of projectIds
+}
+```
+
+### Quota Service (130 lines)
+
+Atomic SQL increment for usage tracking:
+
+```typescript
+class Quota extends Base<typeof quotas, ...> {
+  async getUsage(orgId, period)
+  async findByOrgAndPeriod(orgId, period)  // alias for getUsage
+  async increment(orgId, period, key: TIncrementKey, amount = 1)
+    // Rejects amount <= 0
+    // Uses INSERT ... ON CONFLICT DO UPDATE with SQL: column + amount
+    // TIncrementKey: 'members' | 'threads' | 'runtime' | 'messages' | 'projects' |
+    //   'endpoints' | 'orgSecrets' | 'organizations' | 'functionCalls' | 'projectSecrets'
+  async initializePeriod(orgId, period, price, retention)
+    // INSERT ... ON CONFLICT DO NOTHING, falls back to getUsage on conflict
+}
+```
+
+### Thread Service (136 lines)
+
+```typescript
+class Thread extends Base<typeof threads, ...> {
+  async listByAgent(agentId, opts?)      // ordered by createdAt desc
+  async listByUser(userId, opts?)        // ordered by createdAt desc
+  async getWithMessages(id)              // includes messages relation
+  async branchThread(threadId, messageId, userId)
+    // Transaction: copies thread + messages up to branchpoint
+    // Sets parentThreadId and branchMessageId on new thread
+}
+```
+
+### Subscription Service (101 lines)
+
+```typescript
+class Subscription extends Base<typeof subscriptions, ...> {
+  findByUser(userId)
+  findByPolarId(polarId)
+  upsertByUser(data: { userId, ...rest })  // find-then-update or create
+}
+```
+
+## Exclusive Arc Pattern
+
+**Polymorphic relationships** ensuring a record belongs to exactly ONE parent entity, enforced at the database level via CHECK constraints.
+
+### Tables Using Exclusive Arc
+
+| Table | Arc Columns | Constraint Style |
+|-------|------------|------------------|
+| `secrets` | orgId, projectId, providerId, agentId | 4-way + combo (orgId+providerId allowed) |
+| `assets` | orgId, projectId, userId, threadId, messageId | 5-way strict (exactly one) |
+| `roles` | orgId, projectId | 2-way strict (exactly one) |
+| `domains` | orgId, projectId | 2-way strict (exactly one) |
+
+### Secrets: 4-Way Arc + Combo
+
+The secrets table allows 5 valid scope combinations:
+
+```sql
+-- CHECK constraint: secret_scope_check
+(org_id IS NOT NULL AND project_id IS NULL AND provider_id IS NULL AND agent_id IS NULL) OR
+(org_id IS NULL AND project_id IS NOT NULL AND provider_id IS NULL AND agent_id IS NULL) OR
+(org_id IS NULL AND project_id IS NULL AND provider_id IS NOT NULL AND agent_id IS NULL) OR
+(org_id IS NULL AND project_id IS NULL AND provider_id IS NULL AND agent_id IS NOT NULL) OR
+(org_id IS NOT NULL AND provider_id IS NOT NULL AND project_id IS NULL AND agent_id IS NULL)
+```
+
+### Assets: 5-Way Strict Arc
+
+```sql
+-- CHECK constraint: asset_owner_check
+(
+  (org_id IS NOT NULL)::int +
+  (project_id IS NOT NULL)::int +
+  (user_id IS NOT NULL)::int +
+  (thread_id IS NOT NULL)::int +
+  (message_id IS NOT NULL)::int
+) = 1
+```
+
+**Note**: `assets.providerId` is NOT part of the arc -- it is an independent nullable FK (onDelete set null).
+
+### Tables NOT Using Exclusive Arc
+
+- **`providers`**: org-scoped only (`orgId` notNull, no other scope columns)
+- **`apiKeys`**: both `orgId` and `projectId` are optional, no constraint enforcing exclusivity
+- **`agents`**: both `orgId` and `providerId` are required (notNull), not polymorphic
 
 ## Key Patterns
 
@@ -401,200 +623,196 @@ export const base = {
 
 // src/utils/schema/timestamps.ts
 export const timestamps = {
-  createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 }
-
-// Usage in schema
-export const teams = pgTable('teams', {
-  ...base,  // id, createdAt, updatedAt
-  name: text('name').notNull(),
-  description: text('description'),
-})
 ```
 
 ### 2. Service Inheritance Pattern
 
-All services extend Base class for consistent CRUD API:
+All 17 services extend `Base<TTable, S, I, M>`:
 
 ```typescript
-// src/services/org.ts
-export class Org extends Base<typeof organizations, TDBOrgSelect, TDBOrgInsert> {
-  constructor(opts: TOrgOpts) {
-    super({ ...opts, schema: organizations })
+// Minimal service (e.g., org.ts)
+export class Org extends Base<typeof orgs, TDBOrgSelect, TDBOrgInsert, OrgModel> {
+  constructor(opts: TServiceOpts) {
+    super({ ...opts, table: orgs })
   }
-
-  // Inherits: create, get, list, update, upsert, delete
-  // Model conversion methods
-  toModel(data: TDBOrgSelect): Organization
-  toModels(data: TDBOrgSelect[]): Organization[]
-
-  // Custom methods for org-specific operations
-  listMembers(orgId: string): Promise<TDBApiRes<TDBRoleSelect[]>>
-  addMember(orgId: string, userId: string, role: string): Promise<TDBApiRes<TDBRoleSelect>>
-  removeMember(orgId: string, userId: string): Promise<TDBApiRes<boolean>>
+  model = (data: TDBOrgSelect) => new OrgModel(data)
 }
 ```
 
-**Available Services:**
-- `org` - Organization CRUD + member management
-- `user` - User CRUD with `byEmail()`, `getByIds()` methods
-- `project` - Project CRUD (renamed from repo)
-- `apiKey` - API key generation and management
-- `secret` - Encrypted secret CRUD
-- `endpoint` - Endpoint CRUD
-- `function` - Function CRUD
-- `provider` - Provider CRUD
-- `role` - Role assignments
-- `config` - Configuration data
-- `asset` - Asset/file management
-- `thread` - Chat thread CRUD
-- `message` - Chat message CRUD
-- `quota` - Quota tracking with `findByOrgAndPeriod()`, `increment()` methods
-- `subscription` - Subscription CRUD with `findByUser()`, `upsertByUser()`, `create()` methods
+Services with custom behavior override `model()`, `with()`, `get()`, `list()`, etc.
 
 ### 3. Type Inference Pattern
 
-Types are automatically inferred from schemas:
+Types are inferred from schemas with date normalization:
 
 ```typescript
 // src/types/schema.types.ts
-export type TDBOrgSelect = typeof organizations.$inferSelect
-export type TDBOrgInsert = typeof organizations.$inferInsert
-export type TDBProjectSelect = typeof projects.$inferSelect
-export type TDBProjectInsert = typeof projects.$inferInsert
-export type TDBApiKeySelect = typeof apiKeys.$inferSelect
-export type TDBApiKeyInsert = typeof apiKeys.$inferInsert
-// ... etc for all tables
-
-// Consumer usage - fully type-safe
-const orgData: TDBOrgInsert = {
-  name: 'Organization A',
-  description: 'Description'
+type TInferDates<T> = Omit<T, 'createdAt' | 'updatedAt'> & {
+  createdAt?: string | Date
+  updatedAt?: string | Date
 }
-const result: TDBApiRes<TDBOrgSelect> = await db.services.org.create(orgData)
+
+export type TDBOrgSelect = TInferDates<typeof orgs.$inferSelect>
+export type TDBOrgInsert = TInferDates<typeof orgs.$inferInsert>
+
+// Special types with extra date fields
+export type TDBApiKeySelect = TInferDateProps<
+  typeof apiKeys.$inferSelect,
+  'createdAt' | 'updatedAt' | 'expiresAt' | 'lastUsedAt'
+>
 ```
 
 ### 4. Relation Definition Pattern
 
-Drizzle relations are defined separately from table schemas:
+Relations defined separately from table schemas:
 
 ```typescript
-// Define table
-export const organizations = pgTable('organizations', { ...base, name: text('name') })
-
-// Define relations separately
-export const organizationsRelations = relations(organizations, ({ many }) => ({
-  users: many(roles),       // orgs have many users via roles
-  projects: many(projects), // orgs have many projects
-  secrets: many(secrets),   // orgs have many secrets
-  apiKeys: many(apiKeys),   // orgs have many API keys
-  providers: many(providers), // orgs have many providers
+export const agentsRelations = relations(agents, ({ one, many }) => ({
+  org: one(orgs, { fields: [agents.orgId], references: [orgs.id] }),
+  secrets: many(secrets),
+  threads: many(threads),
+  projects: many(agentProjects),  // via junction table
+  provider: one(providers, { fields: [agents.providerId], references: [providers.id] }),
 }))
 ```
 
 ### 5. Cascade Deletion Pattern
 
-Foreign keys use `onDelete: 'cascade'` to maintain referential integrity:
+Foreign keys use appropriate cascade behaviors:
 
 ```typescript
-projectId: uuid('project_id')
-  .references(() => projects.id, { onDelete: 'cascade' })
-  .notNull()
+// Hard delete: child deleted when parent is deleted
+orgId: uuid('org_id').references(() => orgs.id, { onDelete: 'cascade' })
 
-// When project is deleted, all related endpoints are automatically deleted
+// Soft unlink: FK set to null when parent is deleted
+providerId: uuid('provider_id').references(() => providers.id, { onDelete: 'set null' })
 ```
 
 ### 6. JSONB for Flexible Data
 
-Complex/dynamic data stored as JSONB:
+```typescript
+// Agent configuration
+tools: jsonb('tools').default('[]').$type<string[]>()
+envVars: jsonb('env_vars').default({}).$type<Record<string, string>>()
+environment: jsonb('environment').default({}).$type<{ timeout?, memory?, streaming?, ... }>()
+
+// Provider extras
+headers: jsonb('headers')
+bodyParams: jsonb('body_params')
+options: jsonb('options')
+```
+
+### 7. Schema Barrel Organization
+
+Two-level barrel pattern separates Drizzle-managed from external:
 
 ```typescript
-export const projects = pgTable('projects', {
-  ...base,
-  meta: jsonb('meta'),           // Arbitrary metadata
-  name: text('name').notNull(),
-})
+// schemas/schemas.ts -- 17 Drizzle-managed tables only (used for migrations)
+export { orgs, orgsRelations } from '@TDB/schemas/orgs'
+// ... 16 more
 
-export const endpoints = pgTable('endpoints', {
-  ...base,
-  proxyHeaders: jsonb('proxy_headers'),  // Dynamic headers
-  proxyOptions: jsonb('proxy_options'),  // Dynamic options
-})
-
-export const apiKeys = pgTable('api_keys', {
-  ...base,
-  scopes: jsonb('scopes'),       // Array of permission scopes
-})
+// schemas/index.ts -- full export including external read-only tables
+export * from '@TDB/schemas/schemas'
+export { users, usersRelations } from '@TDB/schemas/users'
+export { certificates, certificatesRelations } from '@TDB/schemas/certificates'
 ```
 
 ## Dependencies
 
 ### Core Dependencies
 - **`drizzle-orm`** (0.45.1): Type-safe ORM for PostgreSQL
-- **`pg`** (8.16.3): PostgreSQL client for Node.js
+- **`pg`** (8.16.3): PostgreSQL client for Node.js (Pool-based)
+- **`@tdsk/domain`** (workspace): Shared domain models, crypto, utilities
+- **`@tdsk/logger`** (workspace): Winston-based logging via `buildApiLogger`
 - **`@keg-hub/parse-config`** (2.2.0): Environment configuration loader
-- **`@keg-hub/jsutils`** (10.0.0): JavaScript utilities
-- **`@tdsk/domain`** (workspace): Shared domain utilities
+- **`@keg-hub/jsutils`** (10.0.0): JavaScript utilities (isObj, isStr, exists, etc.)
 - **`alias-hq`** (6.2.4): Path alias management
 - **`module-alias`** (2.2.3): Runtime module aliasing
 
 ### Dev Dependencies
 - **`drizzle-kit`** (0.31.8): Migration generation and management CLI
 - **`tsx`** (4.21.0): TypeScript execution for scripts
-- **`vitest`** (^1.4.0): Unit testing framework
-- **`vite-tsconfig-paths`** (^4.3.1): Path alias resolution for Vite
+- **`vitest`** (1.6.1): Unit testing framework
+- **`vite-tsconfig-paths`** (4.3.2): Path alias resolution for Vite/Vitest
 
 ## Commands
 
-### Drizzle Kit Commands
+### Package Scripts
+
 ```bash
+# Testing
+pnpm test                # Run vitest with configs/vitest.config.ts
 
-# Introspect existing database schema
-pnpm introspect
+# Drizzle Kit
+pnpm push                # Push schema to DB (INTERACTIVE -- requires manual confirmation)
+pnpm generate            # Generate migration files from schema changes
+pnpm migrate             # Apply pending migrations
+pnpm introspect          # Introspect existing DB schema
+pnpm studio              # Launch Drizzle Studio (visual DB browser)
+pnpm check               # Check migration consistency
+pnpm drop                # Drop a migration
+pnpm export              # Export schema as SQL
+pnpm dup                 # drizzle-kit up (update migration format)
+pnpm dk <command>        # Direct drizzle-kit access
 
-# Push schema changes without migrations (dev only)
-pnpm push
+# Seeding
+pnpm seed                # Run database seeder
+pnpm purge               # Purge database data
 
-# Export schema as TypeScript/SQL
-pnpm export
-
-# Direct Drizzle Kit access
-pnpm dk <command>
+# Utility
+pnpm script              # Run utility scripts with aliases
+pnpm clean               # Remove node_modules
+pnpm types               # TypeScript type checking (tsc --noEmit)
 ```
 
-### Development Commands
-```bash
-# Run utility script with aliases
-pnpm script
+> **Note**: `pnpm push` runs `drizzle-kit push` which is interactive and requires manual confirmation for destructive changes. Claude cannot run this automatically.
 
-# Testing with Vitest
-pnpm test
-
-# Clean node_modules
-pnpm clean
-```
-
-### Commands Notes
-
-* Linting and formatting are automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
+> **Note**: Linting and formatting run automatically via Biome. Do not run `pnpm lint` or `pnpm format` manually.
 
 ### Environment Variables
 
 Required in `deploy/values.*.yml`:
 
 ```yaml
-TDSK_DB_URL: "postgresql://..."      # Full connection URL (preferred)
-TDSK_DB_NAME: "threaded_stack"       # Database name
-TDSK_DB_USER: "username"             # Database user
-TDSK_DB_PASS: "password"             # Database password
-TDSK_DB_PROTO: "postgres"            # Protocol (postgres/postgresql)
-TDSK_DB_DIALECT: "postgresql"        # Drizzle dialect
-TDSK_DB_TYPE: "postgresql"           # Database type
-TDSK_DB_JWT_SCRT: "secret"           # JWT secret (optional)
-TDSK_DB_SRV_ROLE: "service"          # Service role (optional)
-TDSK_DB_PUBLIC_KEY: "key"            # Public key (optional)
+TDSK_DB_URL: "postgresql://..."       # Full connection URL (preferred)
+TDSK_DB_NAME: "threaded_stack"        # Database name
+TDSK_DB_USER: "username"              # Database user
+TDSK_DB_PASS: "password"              # Database password
+TDSK_DB_PROTO: "postgres"             # Protocol (postgres/postgresql)
+TDSK_DB_DIALECT: "postgresql"         # Drizzle dialect
+TDSK_DB_TYPE: "postgresql"            # Database type
+TDSK_DB_JWT_SCRT: "secret"            # JWT secret (optional)
+TDSK_DB_SRV_ROLE: "service"           # Service role (optional)
+TDSK_DB_PUBLIC_KEY: "key"             # Public key (optional)
+TDSK_DB_PROJECT_ID: "..."             # Neon project ID (optional)
+TDSK_DB_LOG_LEVEL: "info"             # Log level override (optional)
+TDSK_DB_LOG_LABEL: "TDSK - Database"  # Log label (optional)
 ```
+
+## Tests
+
+**312 tests passing across 13 test files:**
+
+| Test File | Count | Location |
+|-----------|-------|----------|
+| `database.test.ts` | 13 | `src/` |
+| `base.test.ts` | 15 | `src/services/` |
+| `role.test.ts` | 46 | `src/services/` |
+| `user.test.ts` | 17 | `src/services/` |
+| `agent.test.ts` | 37 | `src/services/` |
+| `domain.test.ts` | 52 | `src/services/` |
+| `invitation.test.ts` | 45 | `src/services/` |
+| `subscription.test.ts` | 19 | `src/services/` |
+| `quota.test.ts` | 22 | `src/services/` |
+| `buildDBUrl.test.ts` | 13 | `src/utils/database/` |
+| `buildQuery.test.ts` | 14 | `src/utils/database/` |
+| `getDialect.test.ts` | 6 | `src/utils/database/` |
+| `error.test.ts` | 13 | `src/utils/error/` |
+
+Run tests: `pnpm test` from `repos/database/`
 
 ## Integration Points
 
@@ -605,194 +823,83 @@ TDSK_DB_PUBLIC_KEY: "key"            # Public key (optional)
 import { database } from '@tdsk/database'
 
 const db = database()
-
-// Admin API routes use services
-app.post('/api/teams', async (req, res) => {
-  const { data, error } = await db.services.team.create(req.body)
-  if (error) return res.status(400).json({ error })
-  res.json(data)
-})
-```
-
-**Admin SPA** (`repos/admin`):
-```typescript
-// Makes API calls to backend, which uses database services
-// Indirectly consumes via backend API
-
-fetch('/api/teams')
-  .then(res => res.json())
-  .then(teams => setTeams(teams))
+const { data, error } = await db.services.org.create({ name: 'Acme Corp' })
+const { data: agent } = await db.services.agent.get(agentId, { sanitize: false })
 ```
 
 **Proxy** (`repos/proxy`):
 ```typescript
 import { database } from '@tdsk/database'
 
-// Proxy uses services to fetch secrets for injection
 const db = database()
-const { data: secrets } = await db.services.secret.list({ repoId })
+const { data: apiKey } = await db.services.apiKey.by({ keyHash })
 ```
 
 ### Export Surface
 
 ```typescript
-// Main exports from @tdsk/database
-export { database, disconnectDatabase } from './database'  // Singleton factory + graceful shutdown
-export * from './schemas'                      // All table schemas
-export * from './services'                     // All service classes
-export * from './types'                        // All TypeScript types
-export * from './constants'                    // Constants
+// Main exports from @tdsk/database (src/index.ts)
+export * from './types'      // All TypeScript types
+export * from './database'   // database(), disconnectDatabase()
+
+// Types are the primary cross-repo interface:
+// TDatabase, TDBServices, TDBConfig
+// TDB*Select, TDB*Insert for all 16 entity types
+// TDBApiRes<M>, TDBApiResType<T>, TDBQueryOpts, IDBApi
 ```
 
-### Type Safety Across Repos
-
-```typescript
-// Backend imports types from database
-import type { TDBTeamSelect, TDBTeamInsert } from '@tdsk/database'
-
-// Type-safe request handler
-async function createTeam(data: TDBTeamInsert): Promise<TDBTeamSelect> {
-  const { data: team, error } = await db.services.team.create(data)
-  if (error) throw error
-  return team
-}
-```
+**Note**: Schemas and services are NOT directly exported from the package index. They are accessed via the `database()` singleton's `.services` property.
 
 ## Common Workflows
 
 ### Adding a New Table
 
-1. **Create schema file**: `src/schemas/newtable.ts`
-```typescript
-import { base } from '@TDB/utils/schema/base'
-import { pgTable, text } from 'drizzle-orm/pg-core'
-
-export const newtable = pgTable('newtable', {
-  ...base,
-  name: text('name').notNull(),
-})
-```
-
-2. **Add relations** (if needed)
-```typescript
-import { relations } from 'drizzle-orm'
-
-export const newtableRelations = relations(newtable, ({ one, many }) => ({
-  // Define relationships
-}))
-```
-
-3. **Export from schemas/index.ts**
-```typescript
-export { newtable } from '@TDB/schemas/newtable'
-```
-
-4. **Create service**: `src/services/newtable.ts`
-```typescript
-import { Base } from '@TDB/services/base'
-import { newtable } from '@TDB/schemas/newtable'
-
-export class Newtable extends Base<typeof newtable, TDBNewtableSelect, TDBNewtableInsert> {
-  constructor(opts: TNewtableOpts) {
-    super({ ...opts, schema: newtable })
-  }
-}
-```
-
-5. **Add types**: `src/types/schema.types.ts`
-```typescript
-export type TDBNewtableSelect = typeof newtable.$inferSelect
-export type TDBNewtableInsert = typeof newtable.$inferInsert
-```
-
-6. **Export service**: `src/services/index.ts`
-```typescript
-export { Newtable as newtable } from './newtable'
-```
-
-7. **Generate migration**
-```bash
-pnpm generate
-```
-
-8. **Review and apply**
-```bash
-cat drizzle/0001_*.sql  # Review generated SQL
-pnpm migrate            # Apply to database
-```
+1. Create schema file: `src/schemas/newtable.ts`
+2. Add relations if needed
+3. Export from `src/schemas/schemas.ts` (or `index.ts` if external)
+4. Add types to `src/types/schema.types.ts`
+5. Create service: `src/services/newtable.ts` extending `Base`
+6. Export service from `src/services/index.ts`
+7. Run `pnpm generate` to create migration
+8. Ask user to run `pnpm push` (interactive)
 
 ### Modifying Existing Schema
 
-1. **Edit schema file**: `src/schemas/teams.ts`
-```typescript
-export const teams = pgTable('teams', {
-  ...base,
-  name: text('name').notNull(),
-  description: text('description'),
-  website: text('website'),  // NEW FIELD
-})
-```
+1. Edit the schema file in `src/schemas/`
+2. Update types in `src/types/schema.types.ts` if needed
+3. Ask the user to sync the schema with the remote database via `pnpm push`
 
-2. **Sync **
-* Ask the user to sync the schema with the remote database.
-
-
-```
-
-### Testing in Drizzle Studio
-
-```bash
-pnpm studio
-# Opens http://localhost:4983
-```
-
-**Features:**
-- Browse all tables and data
-- Run raw SQL queries
-- Edit records directly
-- View relationships
-- Inspect indexes and constraints
+> **drizzle-kit push limitation**: Cannot modify existing CHECK constraints -- must drop+recreate via manual SQL. Known issue: GitHub drizzle-team/drizzle-kit-mirror#3520
 
 ## Best Practices
 
-### 1. Schema Design
-- Use `base` spread for all tables (id, timestamps)
-- Define relations separately from tables
-- Use JSONB for flexible/dynamic data
-- Add unique indexes for lookup fields (email, etc.)
-- Use `onDelete: 'cascade'` for parent-child relationships
+### Schema Design
+- Use `base` spread for all tables (id, createdAt, updatedAt -- both notNull)
+- Define relations separately from tables (Drizzle convention)
+- Use JSONB with `.$type<T>()` for typed flexible data
+- Add unique indexes for lookup fields
+- Use `onDelete: 'cascade'` for parent-child, `onDelete: 'set null'` for optional refs
+- Keep external schemas (users, certificates) out of `schemas.ts` (only in `index.ts`)
 
-### 2. Service Implementation
+### Service Implementation
 - Extend `Base` class for standard CRUD
-- Add custom methods for complex queries
-- Always return `{ data, error }` pattern
-- Use TypeScript generics for type safety
+- Override `model()` for domain model conversion
+- Override `with()` to configure default relation loading
+- Always return `{ data, error }` pattern -- never throw from service methods
+- Use `TServiceOpts` for constructor params
 
-### 3. Migration Management
-- Always review generated SQL before applying
-- Test migrations on dev environment first
-- Use `pnpm push` for rapid dev iteration (skips migrations)
-- Keep migration files in version control
-- Never edit applied migrations
-
-### 4. Type Safety
+### Type Safety
 - Let Drizzle infer types (`$inferSelect`, `$inferInsert`)
+- Use `TInferDates` wrapper for date field normalization
 - Export types from `schema.types.ts`
-- Use types across all repos
-- Avoid `any` types in database code
+- Use generic `Base<TTable, S, I, M>` for full type safety
 
-### 5. Performance
-- Use indexes on frequently queried columns
-- Use JSONB for flexible data structures
-- Leverage connection pooling (pg.Pool)
-- Monitor query performance in production
-
-### 6. Security
+### Security
 - Never commit database credentials
-- Use environment variables for config
-- Store secrets encrypted in `secrets` table
-- Use Neon's built-in security features
-
+- Use environment variables via `@keg-hub/parse-config`
+- Store secrets encrypted in `secrets` table (AES-256-GCM + HKDF)
+- Use `encryptSecret()` helper from `utils/crypto.ts` for seeding
+- Agent service sanitizes secrets by default (strips `encryptedValue`)
 
 ## Related Documentation
 
@@ -803,57 +910,41 @@ pnpm studio
 
 ---
 
-**Last Updated:** 2026-02-08
-**Version:** 1.4.0
+**Last Updated:** 2026-02-15
+**Version:** 2.0.0
 **Maintained By:** Lance Tipton
 **License:** ISC (Private)
 
 ## Changelog
 
-### v1.3.0 (2026-02-08) — Audit Fix Release
-- **Security**: Quota `increment()` now rejects `amount <= 0` (prevents negative quota bypass)
-- **Fix**: `Base.by()` inverted property check corrected (CRIT-01)
-- **Fix**: `users.banExpires` column mapped to correct `ban_expires` (was `ban_reason`)
-- **Fix**: `configsRelations` export added to schemas barrel
-- **Fix**: `secrets` provider relation corrected
-- **Fix**: `agent.ts` `get()/by()` no longer crash when `opts` is undefined
-- **Fix**: `database.ts` now uses `cfg.url` parameter (was ignoring custom config)
-- **Fix**: `invitations` relation uses correct `relationName`
-- **New**: `disconnectDatabase()` export — closes Pool and resets singleton
-- **New**: Exclusive arc CHECK constraints on `providers` (userId/orgId/projectId) and `domains` (orgId/projectId)
-- **New**: Unique constraints on `roles` (userId+orgId, userId+projectId), `projects` (orgId+name), `endpoints` (projectId+path+method)
-- **New**: `endpoints.path` is now NOT NULL
-- **New**: All 12 `quotas` counter columns are now NOT NULL (with `.default(0)`)
-- **New**: `updatedAt` timestamp is now NOT NULL across all tables
-- **New**: Cascade behaviors: `assets.providerId` → set null, `threads.configId/providerId` → set null, `subscriptions.userId` → cascade
-- **New**: Performance indexes on `projects.orgId`, `functions.projectId/endpointId`, `secrets.orgId/projectId/providerId/agentId`, `threads.userId`, `invitations.orgId/email/status`
-- **Fix**: `Base.update()` auto-sets `updatedAt` on every update
-- **Fix**: `Base.update()/upsert()/delete()` return proper errors when record not found
-- **Fix**: `Base.model()` logs warning when not overridden
-- **Fix**: Agent service guards `data.projects || []` (no crash on undefined)
-- **Fix**: Agent `#relations()` wrapped in try-catch
-- **Fix**: Quota `getUsage()` returns error on null data (was undefined behavior)
-- **Fix**: Quota `initializePeriod()` falls back to `getUsage()` on conflict
-- **Fix**: Subscription/User/Domain/Invitation/Role services: null checks, error handling
-- **Tests**: 133 tests across 8 test files (was ~0% coverage)
-  - `database.test.ts` — singleton, config, disconnect, Pool lifecycle
-  - `base.test.ts` — all CRUD operations, by() fix, updatedAt, null checks
-  - `quota.test.ts` — increment validation, getUsage, initializePeriod
-  - `agent.test.ts` — with(), model(), sanitization, project relations
-  - `buildDBUrl.test.ts` — URL construction, proto, params, auth
-  - `buildQuery.test.ts` — WHERE conditions, ORDER BY
-  - `getDialect.test.ts` — dialect resolution
-  - `error.test.ts` — DBError, DBIdError, DBValueError classes
+### v2.0.0 (2026-02-15) -- Major Schema Rewrite
+- **Rewritten** from scratch to reflect actual codebase state
+- **Tables**: Documented all 21 tables (18 Drizzle-managed + 2 external + 1 junction)
+- **Services**: Documented all 17 services with complete method signatures
+- **Removed**: configs schema/service references (no longer exist)
+- **Removed**: teams/repos references (renamed to orgs/projects long ago)
+- **Corrected**: providers is org-scoped only (orgId notNull), NOT an exclusive arc
+- **Corrected**: secrets has 4-way arc + combo (5 valid combinations including orgId+providerId)
+- **Corrected**: apiKeys.scopes is text type (not jsonb), has keyHash/keyPrefix/active/userId fields
+- **Corrected**: assets has 5-way exclusive arc (orgId/projectId/userId/threadId/messageId)
+- **Added**: Full documentation for agents, agentProjects, domains, certificates, invitations tables
+- **Added**: Complete Agent service API (261 lines, auto-relation loading, sanitization)
+- **Added**: Complete DomainService API (299 lines, SSL cert management, Caddy integration)
+- **Added**: Complete Invitation service API (243 lines, status workflow)
+- **Added**: Complete Role service API (270 lines, 14 specialized methods)
+- **Added**: Thread service branching support
+- **Added**: Quota atomic increment details
+- **Added**: Schema barrel organization (schemas.ts vs index.ts)
+- **Tests**: 312 tests across 13 files
+
+### v1.4.0 (2026-02-08)
+- Updated with quota/subscription services, base service model conversion, pagination support
+
+### v1.3.0 (2026-02-08) -- Audit Fix Release
+- Security, bug fixes, and test coverage improvements (133 tests)
 
 ### v1.2.0 (2026-01-18)
-- **New**: `quotas` table - Tracks org resource usage (12 resource types)
-- **New**: `subscriptions` table - Tracks user payment plans and Polar integration
-- **New**: Quota service with `findByOrgAndPeriod()`, `increment()` methods
-- **New**: Subscription service with `findByUser()`, `create()` methods
-- **New**: Role service method `getOrgOwner()` for finding org owners
-- **Updated**: Quotas schema aligned 1:1 with `TPayPlanMeta` type from domain
+- Added quotas and subscriptions tables and services
 
 ### v1.1.0 (Previous)
-- Organizations and Projects schemas
-- API Keys and Secrets management
-- Polymorphic relationships (Exclusive Arc pattern)
+- Organizations and Projects schemas, API Keys and Secrets management

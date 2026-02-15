@@ -1,7 +1,7 @@
 ---
 name: "Threaded Stack - Sandbox Repo"
 description: "Knowledge base for the pluggable sandbox execution layer"
-version: "1.0.0"
+version: "1.1.0"
 tags: ["sandbox", "isolation", "v8-isolate", "e2b", "just-bash", "wasm", "security"]
 ---
 # Sandbox Repo Skill
@@ -104,24 +104,25 @@ interface ISandbox {
 
 ### 1. Factory (`src/factory.ts`)
 
-Simple map-based factory that creates sandbox providers:
+Map-based factory that creates sandbox providers:
 
 ```typescript
 export const createSandboxProvider = (type: TSandboxProviderType): ISandboxProvider => {
-  const providers: Record<string, () => ISandboxProvider> = {
-    e2b: () => new E2bSandboxProvider(),
-    local: () => new LocalSandboxProvider(),
-  }
+  const providers = new Map<TSandboxProviderType, () => ISandboxProvider>([
+    [`e2b`, () => new E2bSandboxProvider()],
+    [`local`, () => new LocalSandboxProvider()],
+  ])
 
-  const factory = providers[type]
+  const factory = providers.get(type)
   if (!factory) throw new Error(`Unknown sandbox provider type: ${type}`)
   return factory()
 }
 ```
 
+- Uses `Map<TSandboxProviderType, () => ISandboxProvider>` (not Record/object)
 - Returns fresh instance each call (not singleton)
 - Throws for unknown types
-- Extensible: add new providers by adding entries to the map
+- Extensible: add new providers with `providers.set()`
 
 ### 2. E2bSandboxProvider (`src/e2b.ts`)
 
@@ -145,8 +146,20 @@ class E2bSandbox implements ISandbox {
   listDir(path)           // → sandbox.files.list(path), prefixes dirs with [DIR]
   deleteFile(path)        // → sandbox.files.remove(path)
   mkdir(path)             // → sandbox.files.makeDir(path)
-  fileExists(path)        // → sandbox.files.exists(path)
+  fileExists(path)        // → try/catch on sandbox.files.read(path)
   close()                 // → sandbox.kill()
+}
+```
+
+**fileExists Implementation** (E2B SDK lacks native `exists()` method):
+```typescript
+fileExists = async (path: string): Promise<boolean> => {
+  try {
+    await this.sandbox.files.read(path)
+    return true
+  } catch {
+    return false
+  }
 }
 ```
 
@@ -163,6 +176,7 @@ class LocalSandboxProvider implements ISandboxProvider {
   type = 'local'
   async create(config: TSandboxConfig): Promise<ISandbox>
   // Creates InMemoryFs, Bash, /workspace + /tmp dirs
+  // Reads memory limit from config.options?.memory (number, default: 128 MB)
   // Optionally initializes IsolateRunner (graceful fallback if unavailable)
 }
 ```
@@ -207,13 +221,20 @@ class IsolateRunner {
 }
 ```
 
+**Memory Configuration**:
+- Read from `config.options?.memory` (number) in LocalSandboxProvider
+- Default: 128 MB
+- Passed directly to IsolateRunner constructor
+- Controls V8 isolate heap size limit
+
 **Shims Provided** (Node.js API compatibility inside the isolate):
 
 | Module | APIs | Implementation |
 |--------|------|----------------|
-| `fs` / `node:fs` | readFile, writeFile, mkdir, readdir, rm, stat, readFileSync, writeFileSync | Async bridges to just-bash IFileSystem |
-| `path` / `node:path` | join, resolve, dirname, basename, extname, sep, delimiter | Pure JS implementation |
-| subprocess | exec, execSync | Routes to Bash via `_shellRun` callback |
+| `fs` + `node:fs` | readFile, writeFile, mkdir, readdir, rm, stat, readFileSync, writeFileSync | Bridged to just-bash IFileSystem |
+| `path` + `node:path` | join, resolve, dirname, basename, extname, sep, delimiter | Pure JS path manipulation |
+| `child_process` + `node:child_process` | exec, execSync | Routes to bash.exec() via `_shellRun` callback |
+| `console` | log, error, warn, info | Captured output bridge |
 
 **Key Design Decisions**:
 - **Lazy loading**: `isolated-vm` loaded via dynamic `import()` on first `init()` call (avoids crashes when native addon unavailable)
@@ -303,7 +324,7 @@ const entries = await sandbox.listDir('/workspace')
 ### Testing
 
 ```bash
-pnpm test            # Run vitest (61 tests, 4 files)
+pnpm test            # Run vitest (57 tests, 4 files)
 ```
 
 ### Commands Notes
@@ -314,14 +335,14 @@ pnpm test            # Run vitest (61 tests, 4 files)
 
 ## Testing
 
-### Current Coverage (61 tests, 4 files)
+### Current Coverage (57 tests, 4 files)
 
 | Test File | Tests | What's Covered |
 |-----------|-------|----------------|
-| `src/factory.test.ts` | 6 | Provider creation, error handling, fresh instances, interface compliance |
-| `src/isolate.test.ts` | 28 | Constructor, init (context/console/shims/idempotence), eval (auto-init/modules/timeout), dispose |
+| `src/factory.test.ts` | 7 | Provider creation, error handling, fresh instances, interface compliance |
+| `src/isolate.test.ts` | 21 | Constructor, init (context/console/shims/idempotence), eval (auto-init/modules/timeout), dispose |
 | `src/e2b.test.ts` | 11 | exec, readFile, writeFile, listDir, deleteFile, mkdir, fileExists, close |
-| `src/local.test.ts` | 16 | exec, readFile, writeFile, listDir, deleteFile, mkdir, fileExists, close, provider creation |
+| `src/local.test.ts` | 18 | exec, readFile, writeFile, listDir, deleteFile, mkdir, fileExists, close, provider creation |
 
 **Testing Strategy**:
 - All external dependencies mocked (`isolated-vm`, `e2b`, `just-bash`)
@@ -399,10 +420,18 @@ pnpm test            # Run vitest (61 tests, 4 files)
 
 ---
 
-**Last Updated:** 2026-02-13
-**Version:** 1.0.0
+**Last Updated:** 2026-02-15
+**Version:** 1.1.0
 
 ### Changelog
+
+#### v1.1.0 (2026-02-15)
+- **Fixed**: Factory now uses `Map<TSandboxProviderType, () => ISandboxProvider>` (was incorrectly documented as Record)
+- **Fixed**: E2B `fileExists()` implementation details — uses try/catch on `files.read()` (SDK lacks native `exists()` method)
+- **Fixed**: LocalSandboxProvider memory config — reads from `config.options?.memory`, default 128 MB
+- **Fixed**: IsolateRunner shim modules — documented all 4 shim modules (fs, path, child_process, console)
+- **Fixed**: Test count correction — 57 tests across 4 files (factory: 7, e2b: 11, local: 18, isolate: 21)
+- **Docs**: Improved clarity on Map-based factory, E2B fileExists workaround, and memory configuration flow
 
 #### v1.0.0 (2026-02-13)
 - **Initial Release**: Extracted from agent repo (commit 85aedef)
@@ -411,4 +440,4 @@ pnpm test            # Run vitest (61 tests, 4 files)
 - **New**: LocalSandboxProvider — just-bash virtual shell + optional V8 isolate
 - **New**: IsolateRunner — V8 isolate with fs/path/subprocess shims
 - **New**: Graceful degradation when isolated-vm unavailable
-- **Testing**: 61/61 tests passing across 4 test files
+- **Testing**: 57/57 tests passing across 4 test files

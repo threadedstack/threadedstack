@@ -82,6 +82,10 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
             ├── /_/secrets/*   - Secrets CRUD (encrypted)
             ├── /_/endpoints/* - Endpoints CRUD
             ├── /_/providers/* - Providers CRUD
+            ├── /_/agents/*    - Agents CRUD + run (SSE)
+            ├── /_/threads/*   - Threads CRUD + messages + branching
+            ├── /_/domains/*   - Domain verification
+            ├── /_/invitations/* - Org invitation management
             ├── /_/subscriptions/* - Subscription management
             ├── /_/quotas/*    - Quota tracking
             └── /_/payments/*  - Payment webhooks
@@ -105,14 +109,13 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `proxy/` | Auth Gateway - JWT/JWKS validation, backend proxying | Express 5, jose, http-proxy-middleware | `.claude/skills/proxy/SKILL.md` |
 | `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/backend/SKILL.md` |
 | `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/admin/SKILL.md` |
-| `agent/` | AI Agent Backend - WASM isolation, LLM orchestration | TypeScript, WebAssembly, componentize-js | `.claude/skills/agent/SKILL.md` |
-| `shell/` | Cross-Platform Virtual Shell - bash execution, filesystem abstraction | TypeScript, just-bash, ZenFS | `.claude/skills/shell/SKILL.md` |
+| `agent/` | Headless AI Agent - LLM adapters, ReAct loop, tool execution | TypeScript, streaming SSE | `.claude/skills/agent/SKILL.md` |
 | `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/database/SKILL.md` |
 | `domain/` | Shared types, models, utilities | TypeScript | `.claude/skills/domain/SKILL.md` |
 | `components/` | Shared React components/hooks | React, MUI | `.claude/skills/components/SKILL.md` |
 | `logger/` | Winston-based logging service | Winston | `.claude/skills/logger/SKILL.md` |
 | `cli/` | Developer CLI for project management | Node.js | `.claude/skills/cli/SKILL.md` |
-| `repl/` | Terminal REPL for AI agent interaction | Bun, readline, marked | `.claude/skills/repl/SKILL.md` |
+| `repl/` | Terminal REPL for AI agent interaction | Bun, @keg-hub/args-parse, marked | `.claude/skills/repl/SKILL.md` |
 | `sandbox/` | Pluggable sandbox execution layer | isolated-vm, E2B, just-bash | `.claude/skills/sandbox/SKILL.md` |
 
 ## Sub-Repo Skills
@@ -124,7 +127,6 @@ Load the relevant skill when working on a specific repo:
 - Working on admin UI? → Read `.claude/skills/admin/SKILL.md` first
 - Adding API endpoints? → Read `.claude/skills/backend/SKILL.md` first
 - Building AI agents? → Read `.claude/skills/agent/SKILL.md` first
-- Building shell environments? → Read `.claude/skills/shell/SKILL.md` first
 - Modifying database schema? → Read `.claude/skills/database/SKILL.md` first
 - Working on the REPL CLI? → Read `.claude/skills/repl/SKILL.md` first
 - Working on sandbox execution? → Read `.claude/skills/sandbox/SKILL.md` first
@@ -136,13 +138,13 @@ Load the relevant skill when working on a specific repo:
 | `agent/SKILL.md` | AI Agent runtime, LLM adapters (Anthropic/OpenAI/Google/Proxy), ProxyAdapter for session-based LLM proxy, AgentRunner, ReAct loop, tool execution |
 | `backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, AI session/chat proxy endpoints, Subscription/Quota/Payment endpoints, PaymentsService |
 | `cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
-| `components/SKILL.md` | 30+ React components, 25+ hooks, Monaco editor, Confirm loading state |
+| `components/SKILL.md` | 29 React components, 8 hook categories, Monaco editor, Definitions, theming |
 | `database/SKILL.md` | Drizzle ORM, organizations/projects schemas, apiKeys table, model converters, quotas/subscriptions tables |
 | `domain/SKILL.md` | Organization/Project/ApiKey/Secret/Endpoint/Function models, crypto utilities, Plan model, payment types (TPayPlanMeta) |
 | `logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
 | `proxy/SKILL.md` | JWKS auth validation, API key auth, session token auth for /ai/chat, http-proxy-middleware backend forwarding |
-| `shell/SKILL.md` | Cross-platform virtual shell environment, Shell class API, just-bash integration, ZenFS backends (Node.js/Browser/Bun), StreamManager, Platform detection, cwd persistence pattern, Test suite (140/149 passing) |
-| `repl/SKILL.md` | Terminal REPL CLI, AuthManager, ApiClient, session-based LLM proxy (ProxyAdapter), LocalAgentExecutor, AgentRepl interactive loop, Renderer, Bun binary |
+| `shell/SKILL.md` | ARCHIVED — redirects to sandbox/SKILL.md (shell repo migrated to sandbox) |
+| `repl/SKILL.md` | Terminal REPL CLI, task-based architecture (@keg-hub/args-parse), config system, 7 commands, session-based LLM proxy, Bun binary |
 | `sandbox/SKILL.md` | Pluggable sandbox factory, E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |
 
@@ -165,9 +167,9 @@ Custom subagents live in `.claude/agents/`:
 
 ### Database Schema (Exclusive Arc Pattern)
 
-Key tables: `organizations`, `users`, `projects`, `endpoints`, `functions`, `configs`, `providers`, `secrets`, `api_keys`, `roles`, `threads`, `messages`, `assets`, `quotas`, `subscriptions`
+Key tables: `organizations`, `users`, `projects`, `endpoints`, `functions`, `providers`, `secrets`, `api_keys`, `roles`, `agents`, `threads`, `messages`, `assets`, `quotas`, `subscriptions`, `domains`, `certificates`, `invitations`
 
-Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR Project OR Provider (exactly one, not multiple).
+Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR Agent OR Project OR Provider (exactly one of four, not multiple).
 - `quotas` - Org resource usage tracking (12 resource types: projects, members, endpoints, threads, messages, functionCalls, runtime, orgSecrets, projectSecrets, organizations, price, retention)
 - `subscriptions` - User payment plans and Polar.sh integration (tier, status, polarId, polarCustomerId)
 

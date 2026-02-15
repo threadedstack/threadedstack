@@ -1,366 +1,589 @@
 ---
 name: "Threaded Stack - Admin Repo"
 description: "Knowledge base for the admin SPA dashboard repo"
-version: "1.2.0"
-tags: ["react", "vite", "mui", "jotai", "frontend", "admin-dashboard", "billing", "quotas"]
+version: "2.0.0"
+tags: ["react", "vite", "mui", "jotai", "tanstack-query", "frontend", "admin-dashboard", "billing", "quotas", "agents", "ai-chat"]
 ---
 # Admin Repo Skill
 
 ## Overview
 
-The **Admin** repo (`repos/admin`) is the Single Page Application (SPA) dashboard for Threaded Stack. It provides the primary user interface for managing **organizations**, **projects**, API keys, providers, secrets, endpoints, and other platform resources. Built with modern React tooling, it uses Vite for blazing-fast HMR, MUI for UI components, and Jotai for lightweight state management.
+The **Admin** repo (`repos/admin`) is the Single Page Application (SPA) dashboard for Threaded Stack. It provides the primary user interface for managing **organizations**, **projects**, API keys, providers, secrets, endpoints, functions, agents, threads, and other platform resources. Built with modern React tooling, it uses Vite for fast HMR, MUI for UI components, Jotai for lightweight state management, and TanStack React Query for API caching.
 
 **Key Characteristics:**
 - **Type**: Frontend SPA Dashboard
-- **Tech Stack**: Vite 5, React 18, Material-UI 6, Jotai 2.16, React Router 7
-- **Authentication**: Neon Auth (via `@neondatabase/neon-js`) with social OAuth providers
+- **Package**: `@tdsk/admin` v0.1.0 (private)
+- **Tech Stack**: Vite 5, React 18.3, Material-UI 6.1.2, Jotai 2.16.1, TanStack React Query 5.90.16, React Router 7.1.1, TypeScript 5.3
+- **Authentication**: Neon Auth (via `@neondatabase/neon-js` 0.1.0-beta.21) with social OAuth providers
 - **Path Aliases**: Uses `@TAF/*` prefix via `alias-hq` for internal imports
-- **Build Tool**: Vite with SWC for fast React compilation
+- **Build Tool**: Vite with SWC (`@vitejs/plugin-react-swc`) for fast React compilation
 - **Styling**: Emotion (CSS-in-JS) + Material-UI theming system
-- **Total Files**: ~105 TypeScript/TSX files
+- **Toasts**: Sonner 2.0.7
+- **Analytics**: PostHog (`posthog-js` 1.242.2)
+- **Total Files**: ~400+ TypeScript/TSX files across 18 action domains, 38+ component directories, 22+ services, 21 state atoms, 32+ hooks
 
 ## Directory Structure
 
 ```
 repos/admin/
-├── index.html                    # Entry HTML (loads /src/index.tsx)
-├── package.json                  # Dependencies & scripts
-├── tsconfig.json                 # TypeScript config with path mappings
-├── configs/                      # Build & tooling configs
-│   ├── vite.config.ts            # Vite entry point
-│   ├── vite.workspace.ts         # Main Vite configuration
-│   ├── frontend.config.ts        # Env loading & alias setup
-│   ├── biome.json                # Biome linter config
-│   └── nginx.conf                # Nginx deployment config
-├── scripts/                      # Build/dev helper scripts
-│   ├── registerPaths.ts          # Path alias registration
-│   ├── loadEnvs.ts               # Environment variable loader
-│   └── setupTests.ts             # Vitest test setup
-└── src/                          # Application source code
-    ├── index.tsx                 # React app bootstrap (entry point)
-    ├── App.tsx                   # Root component (theme + routing)
-    ├── types/                    # TypeScript type definitions
-    │   ├── routes.types.ts       # Route path enum (ERoutePath)
-    │   └── index.ts              # Type exports
-    ├── routes/                   # React Router configuration
-    │   ├── Routes.tsx            # Route definitions with lazy loading
-    │   └── index.ts              # Route exports
-    ├── pages/                    # Page-level components
-    │   ├── Layout/               # Main layout with sidebar
-    │   │   ├── Layout.tsx        # Layout wrapper (SignedIn guard)
-    │   │   └── Layout.styles.tsx # Styled components
-    │   ├── Home/                 # Home page (dashboard)
-    │   ├── Login/                # Login page (OAuth flows)
-    │   ├── Account/              # User account settings
-    │   ├── Orgs/                 # Organization management (renamed from Teams)
-    │   │   ├── Orgs.tsx          # Organizations list
-    │   │   ├── Org.tsx           # Single org dashboard
-    │   │   ├── OrgUsers.tsx      # Org user management
-    │   │   ├── OrgSecrets.tsx    # Org-level secrets
-    │   │   ├── OrgProviders.tsx  # Org-level providers
-    │   │   ├── OrgApiKeys.tsx    # API key management
-    │   │   └── OrgProjects.tsx   # Projects within org
-    │   ├── Projects/             # Project management (renamed from Repos)
-    │   │   ├── Projects.tsx      # Projects list
-    │   │   ├── Project.tsx       # Single project dashboard
-    │   │   ├── ProjectEndpoints.tsx   # Project endpoints
-    │   │   ├── ProjectSecrets.tsx     # Project-level secrets
-    │   │   └── ProjectFunctions.tsx   # Project functions
-    │   └── Page/                 # Base page component
-    ├── components/               # Reusable UI components
-    │   ├── Sidebar/              # Collapsible navigation sidebar
-    │   ├── Header/               # Page header component
-    │   ├── Login/                # Login form components
-    │   ├── Link/                 # Router-aware link component
-    │   └── Version/              # App version display
-    ├── state/                    # Jotai state management
-    │   ├── accessors.ts          # Global store + getters/setters
-    │   ├── selectors.ts          # Derived state selectors (hooks)
-    │   ├── user.ts               # User state atom
-    │   ├── theme.ts              # Theme type state (light/dark)
-    │   ├── app.ts                # App-level state (sidebar open)
-    │   ├── orgs.ts               # Organizations state + active org ID
-    │   ├── projects.ts           # Projects state + active project ID
-    │   ├── providers.ts          # Providers state
-    │   ├── apiKeys.ts            # API keys state
-    │   ├── secrets.ts            # Secrets state
-    │   ├── endpoints.ts          # Endpoints state
-    │   └── functions.ts          # Functions state
-    ├── services/                 # Singleton service classes
-    │   ├── auth.ts               # Auth service (Neon Auth wrapper)
-    │   ├── nav.ts                # Navigation service (routing utils)
-    │   └── storage.ts            # LocalStorage wrapper
-    ├── actions/                  # Async action handlers
-    │   └── auth/
-    │       └── local/
-    │           ├── init.ts       # Initialize auth session
-    │           └── signin.ts     # Social OAuth sign-in
-    ├── contexts/                 # React contexts
-    │   ├── AuthContext.ts        # Auth context definition
-    │   └── AuthProvider.tsx      # Auth provider (session management)
-    ├── hooks/                    # Custom React hooks
-    │   ├── theme/                # Theme-related hooks
-    │   │   └── useMakeTheme.ts   # Theme builder hook
-    │   └── components/           # Component-specific hooks
-    ├── theme/                    # MUI theme configuration
-    │   ├── GlobalStyles.tsx      # Global CSS styles
-    │   └── index.ts              # Theme exports
-    ├── constants/                # App constants
-    │   ├── nav.ts                # Navigation items config
-    │   ├── envs.ts               # Environment variable exports
-    │   ├── values.ts             # Static values
-    │   └── storage.ts            # Storage key constants
-    └── utils/                    # Utility functions
-        ├── api/                  # API utilities
-        │   ├── genFormData.ts    # FormData generator
-        │   └── toQueryParams.ts  # Query string builder
-        └── errors/               # Error handling utilities
+├── index.html                       # Entry HTML (loads /src/index.tsx)
+├── package.json                     # v0.1.0, private, type: module
+├── tsconfig.json                    # TypeScript config with path mappings
+├── configs/
+│   ├── biome.json                   # Biome linter config
+│   ├── frontend.config.ts           # Env loading & alias setup (loadConfig)
+│   ├── nginx.conf                   # Nginx deployment config
+│   ├── vite.config.ts               # Vite entry point (delegates to vite.workspace.ts)
+│   └── vite.workspace.ts            # Main Vite config (React SWC, aliases, tsconfig paths, markdown loader, test config)
+├── scripts/
+│   ├── addToProcess.ts              # Add envs to process.env
+│   ├── loadEnvs.ts                  # Environment variable loader
+│   ├── registerPaths.ts             # Path alias registration
+│   ├── setupTests.ts                # Vitest test setup
+│   └── testUtils.tsx                # Test utility helpers
+└── src/
+    ├── index.tsx                    # React bootstrap: StrictMode → Jotai Provider → AuthProvider → App + Version
+    ├── App.tsx                      # Root: ThemeProvider → GlobalStyles → MUI GlobalStyles → RouterProvider
+    ├── actions/                     # ~160 files across 18 domains
+    │   ├── agents/
+    │   │   ├── api/                 # createAgent, deleteAgent, fetchAgent, fetchAgents, updateAgent
+    │   │   └── local/               # upsertAgent, upsertAgents, removeAgent
+    │   ├── apiKeys/                 # createApiKey, fetchApiKey, fetchApiKeys, revokeApiKey, updateApiKey
+    │   ├── assets/
+    │   │   ├── api/                 # fetchAssets, deleteAsset
+    │   │   └── local/               # upsertAsset, upsertAssets, removeAsset
+    │   ├── auth/
+    │   │   └── local/               # init, signin, signout, reset
+    │   ├── domains/
+    │   │   ├── api/                 # createDomain, deleteDomain, fetchDomain, fetchDomains, updateDomain
+    │   │   └── local/               # upsertDomain, upsertDomains, removeDomain
+    │   ├── endpoints/
+    │   │   ├── api/                 # createEndpoint, deleteEndpoint, fetchEndpoint, fetchEndpoints, updateEndpoint
+    │   │   └── local/               # upsertEndpoint, upsertEndpoints, removeEndpoint, setProxyFormField, setFaasFormField, setAgentFormField
+    │   ├── functions/               # createFunction, deleteFunction, fetchFunction, fetchFunctions, updateFunction
+    │   ├── messages/
+    │   │   ├── api/                 # fetchMessages, updateMessage, deleteMessage
+    │   │   └── local/               # upsertMessage, upsertMessages, removeMessage
+    │   ├── orgs/
+    │   │   ├── api/                 # createOrg, deleteOrg, fetchOrg, fetchOrgs, updateOrg (+ tests)
+    │   │   └── local/               # setOrgActive, unsetActiveOrg
+    │   ├── profile/
+    │   │   ├── api/                 # updateProfile
+    │   │   └── local/               # (index only)
+    │   ├── projects/
+    │   │   ├── api/                 # createProject, deleteProject, fetchProject, fetchProjects, updateProject (+ tests)
+    │   │   └── local/               # setProjectActive, unsetActiveProject
+    │   ├── providers/               # createProvider, deleteProvider, fetchProvider, fetchProviders, updateProvider
+    │   ├── quickstart/
+    │   │   ├── api/                 # create (one-shot Provider+Secret+Project+Agent+Endpoint)
+    │   │   └── local/               # toggle
+    │   ├── quotas/
+    │   │   ├── api/                 # checkQuota, fetchOrgLimits, fetchOrgQuota
+    │   │   └── local/               # setOrgLimits, setOrgQuota
+    │   ├── secrets/
+    │   │   ├── api/                 # createSecret, deleteSecret, fetchSecret, fetchSecrets, updateSecret
+    │   │   └── local/               # upsertSecret, setSecrets, removeSecret
+    │   ├── subscriptions/
+    │   │   ├── api/                 # cancelSubscription, createCheckoutSession, createPortalSession, fetchCurrentSubscription, fetchPaymentPlans
+    │   │   └── local/               # setPlans, setSubscription
+    │   ├── threads/
+    │   │   ├── api/                 # branchThread, createThread, deleteThread, fetchThreads, updateThread
+    │   │   └── local/               # upsertThread, upsertThreads, removeThread
+    │   └── users/                   # inviteToOrg, listOrgUsers, removeFromOrg, updateOrgRole
+    ├── components/                  # 38+ directories, 140+ files
+    │   ├── ActionIconButton/
+    │   ├── Agents/                  # AgentDrawer, AgentSettingsForm, BasicInfoForm, ModelConfigForm, SecretsSelector, ToolsSelector
+    │   ├── AI/                      # AssetsTab, ChatView, CreateThreadDrawer, EditThreadDrawer, MessageBubble, MessagesTab, ThreadsTab, ToolCallDisplay
+    │   ├── AppError/
+    │   ├── ArrayEditor/
+    │   ├── Billing/                 # CurrentPlan, PlanCard, QuotaUsage
+    │   ├── Breadcrumbs/             # OrgSelector, OrgsMenu, ProjectSelector
+    │   ├── CardGrid/
+    │   ├── Code/
+    │   ├── DataTable/
+    │   ├── Domains/                 # DomainDrawer, Domains
+    │   ├── EmptyState/
+    │   ├── Endpoints/               # EndpointDrawer, EndpointFormBase, Endpoints, EndpointsTable, Envs, NoEndpoints
+    │   │   ├── Agent/               # AgentInputs, EndpointAgent
+    │   │   ├── Faas/                # EndpointFass, FaasInputs, ResourcesLimits
+    │   │   └── Proxy/               # EndpointAuth, EndpointBasicOptions, EndpointHeaders, EndpointOAuth, EndpointProxy, EndpointTransform, EndpointWhitelist, ProxyInputs
+    │   ├── ErrorAlert/
+    │   ├── FilterSelect/
+    │   ├── Functions/               # FunctionCard, FunctionDrawer, FunctionsGrid, NoFunctions
+    │   ├── Header/
+    │   ├── InfoField/
+    │   ├── ItemCard/
+    │   ├── KeyValueEditor/
+    │   ├── Link/
+    │   ├── LoadingButton/
+    │   ├── LoadingSpinner/
+    │   ├── Login/                   # GithubBtn, GitlabBtn, GoogleBtn, VercelBtn, LoginError
+    │   ├── Orgs/                    # CreateApiKeyDrawer, CreateOrgDrawer, EditOrgDrawer, NoOrgs, OrgCard, OrgIcon, OrgsGrid
+    │   ├── PageHeader/
+    │   ├── PageLayout/
+    │   ├── Permissions/             # PermissionGate
+    │   ├── Projects/                # CreateProjectDrawer, NoProjects, ProjectCard, ProjectIcon, ProjectsGrid, ProjectsMenu
+    │   ├── Providers/               # ProviderDrawer, Providers
+    │   ├── Quickstart/              # AgentStep, ProviderStep, QuickstartButton, QuickstartWizard, ReviewStep
+    │   ├── Roles/                   # EditRoleDrawer, RoleSelect
+    │   ├── SearchBar/
+    │   ├── Secrets/                 # SecretDrawer, Secrets
+    │   ├── Settings/                # DangerZoneCard, InfoCard, SettingsFormCard
+    │   ├── Sidebar/                 # SBLogo, SBNavList, SBProjectSelector, SBSection, Sidebar
+    │   ├── Users/                   # InviteUserDrawer, NoUsers, UserCard, UsersGrid
+    │   └── Version/
+    ├── constants/
+    │   ├── endpoints.ts             # Default endpoint form states (DefProxyState, DefFaasState, DefAgentState)
+    │   ├── envs.ts                  # Environment variable exports (TDSK_AUTH_URL, etc.)
+    │   ├── monaco.ts                # Monaco editor config
+    │   ├── nav.tsx                  # Navigation items: OrgNavItems, ProjectNavItems, BottomNavItems, HeaderSettingsItems, QSSteps
+    │   ├── providers.ts             # Provider-related constants
+    │   ├── query.ts                 # Cache timing: DefCacheStaleTime (5min), DefRefetchInterval (5min), DefCacheGarbageColTime (30min)
+    │   ├── storage.ts               # Storage key constants (ThemeTypeStorageKey, ApiHeadersStorageKey)
+    │   ├── tools.ts                 # Tool-related constants
+    │   └── values.ts                # Static values
+    ├── contexts/
+    │   ├── AuthContext.ts           # Auth context definition
+    │   ├── AuthProvider.tsx         # Neon Auth provider (NeonAuthUIProvider + session init + loading/error states)
+    │   ├── OrgsContext.ts           # Orgs context definition
+    │   ├── OrgsProvider.tsx         # Fetches orgs on mount, provides via context
+    │   ├── ProjectsContext.ts       # Projects context definition
+    │   └── ProjectsProvider.tsx     # Fetches projects on mount, provides via context
+    ├── hooks/
+    │   ├── chat/
+    │   │   └── useAgentChat.ts      # SSE streaming chat with agent (sendMessage, isStreaming, messages, threadId, error, reset)
+    │   ├── components/
+    │   │   ├── useDrawerActions.ts   # Drawer open/close actions
+    │   │   ├── useLocalSearch.ts     # Client-side search filtering
+    │   │   ├── useQuickStart.ts      # Quickstart wizard state
+    │   │   ├── useReset.ts           # Reset state on unmount
+    │   │   └── useSteps.ts           # Multi-step form state
+    │   ├── endpoints/
+    │   │   ├── useAgentFormState.ts  # Agent endpoint form state
+    │   │   ├── useEndpointFilter.ts  # Endpoint type filtering
+    │   │   ├── useEndpointForm.ts    # Endpoint form state management
+    │   │   ├── useEndpoints.ts       # Endpoints data hook
+    │   │   ├── useFaasFormState.ts   # FaaS endpoint form state
+    │   │   └── useProxyFormState.ts  # Proxy endpoint form state
+    │   ├── nav/
+    │   │   ├── useActiveNavData.ts   # Active navigation data from route params
+    │   │   ├── useAgentsSidebarSync.ts # Sync agents to sidebar nav
+    │   │   └── useDynamicNav.ts      # Dynamic navigation based on context
+    │   ├── org/
+    │   │   ├── useOrgsState.ts       # Fetch orgs on mount, provide orgs/loading/error
+    │   │   └── useOrgUsersList.ts    # Org users list hook
+    │   ├── permissions/
+    │   │   ├── useCanPerform.tsx     # Check if user can perform action
+    │   │   └── usePermissions.tsx    # Permissions resolution hook
+    │   ├── project/
+    │   │   └── useProjectsState.ts   # Fetch projects on mount, provide projects/loading/error
+    │   └── theme/
+    │       ├── useMakeTheme.ts       # MUI theme builder hook (watches themeTypeState)
+    │       ├── useTheme.ts           # Theme access hook
+    │       └── useThemeToggle.ts     # Theme toggle hook
+    ├── pages/
+    │   ├── Account/Account.tsx
+    │   ├── Billing/Billing.tsx
+    │   ├── Home/Home.tsx
+    │   ├── Layout/
+    │   │   ├── Layout.tsx           # Auth guard: SignedIn → Sidebar + Outlet; RedirectToSignIn fallback
+    │   │   └── Layout.styles.tsx    # LayoutContainer, LayoutContent styled components
+    │   ├── Login/
+    │   │   ├── Login.tsx            # OAuth login page
+    │   │   └── Login.styles.tsx
+    │   ├── Orgs/
+    │   │   ├── Org.tsx              # Single org dashboard
+    │   │   ├── Orgs.tsx             # All orgs list
+    │   │   ├── OrgsLoader.tsx       # Wraps children in OrgsProvider context
+    │   │   ├── OrgApiKeys.tsx
+    │   │   ├── OrgDomains.tsx
+    │   │   ├── OrgProviders.tsx
+    │   │   ├── OrgSecrets.tsx
+    │   │   ├── OrgSettings.tsx
+    │   │   ├── OrgUsage.tsx         # Quota usage tracking
+    │   │   └── OrgUsers.tsx
+    │   ├── Page/Page.tsx            # Base page wrapper component
+    │   ├── Profile/Profile.tsx
+    │   ├── Projects/
+    │   │   ├── Project.tsx          # Single project dashboard
+    │   │   ├── Projects.tsx         # Projects list
+    │   │   ├── ProjectsLoader.tsx   # Wraps children in ProjectsProvider context
+    │   │   ├── ProjectAgent.tsx     # Single agent detail view
+    │   │   ├── ProjectAgents.tsx    # Agents list for project
+    │   │   ├── ProjectAI.tsx        # AI features page (stub)
+    │   │   ├── ProjectDomains.tsx
+    │   │   ├── ProjectEndpoints.tsx
+    │   │   ├── ProjectFunctions.tsx
+    │   │   ├── ProjectSecrets.tsx
+    │   │   ├── ProjectSettings.tsx
+    │   │   └── ProjectThreads.tsx   # Threads list for project agents
+    │   ├── Providers/
+    │   │   ├── Provider.tsx         # Stub
+    │   │   └── Providers.tsx        # Stub
+    │   └── Settings/Settings.tsx
+    ├── routes/
+    │   └── Routes.tsx               # createBrowserRouter with lazy loading + SuspensePage helper
+    ├── services/                    # 22+ singleton service classes
+    │   ├── api.ts                   # ApiService base (fetch/get/post/put/delete) + BaseApi (adds cache keys + toast errors)
+    │   ├── agentsApi.ts             # AgentsApi (list/get/create/update/delete/run with SSE)
+    │   ├── apiKeysApi.ts            # ApiKeysApi
+    │   ├── assetsApi.ts             # AssetsApi
+    │   ├── auth.ts                  # Auth class wrapping Neon Auth (signin/signout/session)
+    │   ├── domainsApi.ts            # DomainsApi
+    │   ├── endpointsApi.ts          # EndpointsApi
+    │   ├── functionsApi.ts          # FunctionsApi
+    │   ├── messagesApi.ts           # MessagesApi
+    │   ├── nav.ts                   # NavService (to/route/is/not/has/back/home/signin)
+    │   ├── orgsApi.ts               # OrgsApi (list/get/create/update/delete/addMember/removeMember)
+    │   ├── projectsApi.ts           # ProjectsApi
+    │   ├── providersApi.ts          # ProvidersApi
+    │   ├── query.ts                 # QueryService wrapping TanStack QueryClient (fetch/options/reset/key)
+    │   ├── quickstartApi.ts         # QuickstartApi (create one-shot setup)
+    │   ├── quotasApi.ts             # QuotasApi
+    │   ├── secretsApi.ts            # SecretsApi
+    │   ├── storage.ts               # Storage class extending @tdsk/components Storage (theme + headers)
+    │   ├── subscriptionsApi.ts      # SubscriptionsApi (current/plans/checkout/portal/cancel)
+    │   ├── templates.ts             # Templates class for {{mustache}} template handling
+    │   ├── threadsApi.ts            # ThreadsApi
+    │   └── usersApi.ts              # UsersApi
+    ├── state/                       # 21 Jotai atom files + accessors + selectors
+    │   ├── accessors.ts             # Global store (createStore) + get*/set*/reset* functions for all atoms
+    │   ├── selectors.ts             # Hook-based selectors: useRecState, useDerivedState, and per-entity hooks
+    │   ├── agents.ts                # agentsState, activeAgentIdState, activeAgentState (derived)
+    │   ├── apiKeys.ts               # apiKeysState, activeApiKeyIdState
+    │   ├── app.ts                   # sidebarOpenState
+    │   ├── assets.ts                # assetsState, activeAssetIdState
+    │   ├── domains.ts               # domainsState, activeDomainIdState
+    │   ├── endpoints.ts             # endpointsState, activeEndpointIdState, proxyFormState, faasFormState, agentFormState
+    │   ├── functions.ts             # functionsState, activeFunctionIdState
+    │   ├── messages.ts              # messagesState, activeMessageIdState
+    │   ├── orgs.ts                  # orgsState, orgUsersState, activeOrgIdState, activeOrgRoleState, activeOrgState (derived)
+    │   ├── projects.ts              # projectsState, activeProjectIdState, activeProjectState (derived)
+    │   ├── providers.ts             # providersState
+    │   ├── quickstart.ts            # quickstartState (boolean)
+    │   ├── quotas.ts                # orgQuotaState, orgLimitsState
+    │   ├── secrets.ts               # secretsState, activeSecretIdState
+    │   ├── subscriptions.ts         # subscriptionState, paymentPlansState
+    │   ├── theme.ts                 # themeTypeState
+    │   ├── threads.ts               # threadsState, activeThreadIdState
+    │   └── user.ts                  # userState
+    ├── theme/
+    │   └── GlobalStyles.tsx         # Global CSS styles component
+    ├── types/                       # 15 type definition files
+    │   ├── api.types.ts             # TApiRes, TApiReq, TApiData, TApiReqEx, TApiService, TFetchOpts, TApiCacheKeys, EAPIMethod
+    │   ├── auth.types.ts            # TAuthData, TAuthSession, TAuthError, TAuthResp
+    │   ├── components.types.ts      # Component prop types
+    │   ├── endpoints.types.ts       # TProxyFormState, TFaasFormState, TAgentFormState
+    │   ├── helper.types.ts          # Utility types
+    │   ├── nav.types.ts             # TNavItem, TNavCtx
+    │   ├── qs.types.ts              # Quickstart types
+    │   ├── query.types.ts           # TQueryKey, TReadOnlyQueryKey
+    │   ├── quotas.types.ts          # TQuotaData, TLimitsData
+    │   ├── routes.types.ts          # ERoutePath enum (all route paths)
+    │   ├── state.types.ts           # State-related types
+    │   ├── subscriptions.types.ts   # TCheckoutData, TCheckoutSession, TPortalSession
+    │   ├── theme.types.ts           # EThemeType
+    │   └── user.types.ts            # User-related types
+    └── utils/                       # 7 categories
+        ├── api/
+        │   ├── apiUrl.ts            # Build API URL from env vars (TDSK_CADDY_PX_HOST takes priority)
+        │   ├── authHeader.ts        # Auth header utility
+        │   ├── genFormData.ts       # Convert object to FormData
+        │   ├── objToQuery.ts        # Convert object to URL query string (alias: toQueryParams)
+        │   ├── toQueryParams.ts     # (see objToQuery)
+        │   └── validateUrl.ts       # URL validation
+        ├── endpoints/
+        │   ├── mappers.ts           # Endpoint data mappers
+        │   └── validators.ts        # Endpoint form validators
+        ├── errors/
+        │   └── ApiError.ts          # Custom ApiError class (message + status code)
+        ├── nav/
+        │   ├── buildRoute.ts        # Build parameterized route string from context (replaces :orgId, :projectId, etc.)
+        │   ├── getDynamicNav.ts     # Dynamic navigation builder
+        │   └── getParamValue.ts     # Extract route param values
+        ├── text/
+        │   ├── getInitials.ts       # Get initials from text
+        │   └── pluralize.ts         # Simple pluralization
+        ├── transforms/
+        │   └── kvs.ts              # Key-value transforms
+        └── user/
+            ├── getInitials.ts       # Get user initials
+            └── getRoleColor.ts      # Map role to MUI color
 ```
 
 ## Key Files
 
 ### Entry Point Flow
 
-1. **index.html** → Loads `/src/index.tsx` via Vite
-2. **src/index.tsx** → Bootstraps React app with:
-   - `StrictMode` wrapper
-   - Jotai `Provider` with global store
-   - `AuthProvider` for Neon Auth integration
-   - `App` component (root)
-   - `Version` component (app version display)
-   - `overlayScrollBody()` for custom scrollbar
-3. **src/App.tsx** → Root component with:
-   - `ThemeProvider` (MUI theme system)
-   - `GlobalStyles` component
-   - `RouterProvider` with `Routes` definition
-   - `useWindowResize()` hook for responsive behavior
-   - `useMakeTheme()` hook for dynamic theme creation
+1. **index.html** loads `/src/index.tsx` via Vite
+2. **src/index.tsx** bootstraps the React app:
+   - Imports Neon Auth CSS (`@neondatabase/neon-js/ui/css`)
+   - `overlayScrollBody()` from `@tdsk/components` for custom scrollbar
+   - Renders: `StrictMode` > `Jotai Provider (store)` > `AuthProvider` > `App` + `Version`
+3. **src/App.tsx** renders the root component tree:
+   - `useWindowResize()` hook from `@tdsk/components`
+   - `useMakeTheme()` hook for dynamic MUI theme
+   - `ThemeProvider` > `GlobalStyles` + MUI `GlobalStyles` (body colors) > `RouterProvider`
 
 ### Routing Configuration
 
 **File**: `src/routes/Routes.tsx`
 
-Uses React Router 7's `createBrowserRouter` with:
-- **Lazy Loading**: All pages wrapped in `React.lazy()` + `Suspense`
-- **Nested Routes**: Layout component as parent with `Outlet` for children
-- **Loading States**: `<Loading fixed full />` fallback during code splitting
-- **Catch-All**: `*` route redirects to home
+Uses React Router 7's `createBrowserRouter` with a `SuspensePage` helper component for consistent lazy loading with `Loading` fallback.
 
-**Route Definitions** (from `src/types/routes.types.ts`):
+**Route Tree**:
+```
+/ (root)
+├── Component: OrgsLoader → Layout (SignedIn guard + Sidebar + Outlet)
+├── / (index) → Home
+├── /orgs → Orgs list
+├── /billing → Billing/subscriptions
+├── /orgs/:orgId
+│   ├── (index) → Org dashboard
+│   ├── /users → OrgUsers
+│   ├── /secrets → OrgSecrets
+│   ├── /domains → OrgDomains
+│   ├── /providers → OrgProviders
+│   ├── /settings → OrgSettings
+│   ├── /usage → OrgUsage (quota tracking)
+│   ├── /api-keys → OrgApiKeys
+│   ├── /projects → ProjectsLoader → Projects list
+│   └── /projects/:projectId (Component: ProjectsLoader)
+│       ├── (index) → Project dashboard
+│       ├── /endpoints → ProjectEndpoints
+│       ├── /secrets → ProjectSecrets
+│       ├── /domains → ProjectDomains
+│       ├── /functions → ProjectFunctions
+│       ├── /agents → ProjectAgents
+│       ├── /agents/:agentId → ProjectAgent
+│       ├── /agents/:agentId/threads → ProjectThreads
+│       ├── /agents/:agentId/chat → ChatView (AI chat)
+│       └── /settings → ProjectSettings
+├── /settings → Settings
+├── /profile → Profile
+├── /auth/:pathname → Login
+├── /account/:pathname → Account
+└── * → Redirect to /
+```
+
+**Route Path Enum** (`src/types/routes.types.ts`):
 ```typescript
 enum ERoutePath {
-  Home = `/`,
-  Orgs = `/orgs`,
-  Org = `/orgs/:orgId`,
-  OrgUsers = `/orgs/:orgId/users`,
-  OrgSecrets = `/orgs/:orgId/secrets`,
-  OrgProviders = `/orgs/:orgId/providers`,
-  OrgSettings = `/orgs/:orgId/settings`,
-  OrgApiKeys = `/orgs/:orgId/api-keys`,
-  OrgUsage = `/orgs/:orgId/usage`,       // NEW v1.2
-  OrgProjects = `/orgs/:orgId/projects`,
-  // Project routes (nested under orgs)
-  Project = `/orgs/:orgId/projects/:projectId`,
+  // Global
+  Home = `/`, Auth = `/auth`, Signin = `/auth/sign-in`, Signout = `/auth/sign-out`,
+  AuthPage = `/auth/:pathname`, Account = `/account/:pathname`,
+  Profile = `profile`, Billing = `billing`, Settings = `settings`,
+
+  // Org (relative paths for nested routing)
+  Orgs = `/orgs`, Org = `/orgs/:orgId`,
+  Users = `users`, Secrets = `secrets`, Domains = `domains`, Providers = `providers`,
+  ApiKeys = `api-keys`, Usage = `usage`, Projects = `projects`,
+
+  // Org (absolute paths for nav/links)
+  OrgUsers = `/orgs/:orgId/users`, OrgSecrets = `/orgs/:orgId/secrets`,
+  OrgDomains = `/orgs/:orgId/domains`, OrgProviders = `/orgs/:orgId/providers`,
+  OrgSettings = `/orgs/:orgId/settings`, OrgUsage = `/orgs/:orgId/usage`,
+  OrgApiKeys = `/orgs/:orgId/api-keys`, OrgProjects = `/orgs/:orgId/projects`,
+
+  // Project (relative and absolute)
+  ProjectId = `projects/:projectId`, Endpoints = `endpoints`, Functions = `functions`,
+  Agents = `agents`, AgentChat = `agents/:agentId/chat`, AgentThreads = `agents/:agentId/threads`,
+  ProjectAgents = `/orgs/:orgId/projects/:projectId/agents`,
   ProjectEndpoints = `/orgs/:orgId/projects/:projectId/endpoints`,
-  ProjectSecrets = `/orgs/:orgId/projects/:projectId/secrets`,
-  ProjectFunctions = `/orgs/:orgId/projects/:projectId/functions`,
-  ProjectSettings = `/orgs/:orgId/projects/:projectId/settings`,
-  // Billing & subscription routes
-  Billing = `/billing`,
-  // Other routes
-  Settings = `/settings`,
-  Profile = `/profile`,
-  Auth = `/auth`,
-  Login = `/auth/:pathname`,
-  Account = `/account/:pathname`,
-  ApiTokens = `/api-tokens`,
-  AI = `/ai`,
-  AIAgents = `/ai/agents`,
-  MCPTools = `/ai/mcp-tools`,
+  // ... etc
+
   Star = `*`
 }
 ```
 
-**Note**: Projects are now **nested under organizations** in the URL structure.
+**Key design**: Route paths exist in both relative form (for nested React Router children, e.g., `users`) and absolute form (for navigation links, e.g., `/orgs/:orgId/users`). The `buildRoute()` utility replaces `:orgId`, `:projectId`, etc. with actual IDs from context.
 
 ### State Management (Jotai)
 
-**File**: `src/state/accessors.ts`
-
-Uses Jotai's `atomWithReset` for resettable state atoms:
-
-**Global Store**:
+**Global Store** (`src/state/accessors.ts`):
 ```typescript
 export const store = createStore()
 ```
 
-**State Atoms**:
-- `themeTypeState` - Theme mode (light/dark)
-- `sidebarOpenState` - Sidebar expanded/collapsed
-- `userState` - Current authenticated user
-- `orgsState` - All organizations (Record<id, Organization>)
-- `activeOrgIdState` - Selected organization ID
-- `orgUsersState` - Users in current org (Record<string, User[]>)
-- `projectsState` - All projects (Record<id, Project>)
-- `activeProjectIdState` - Selected project ID
-- `providersState` - API providers (Record<id, Provider>)
-- `secretsState` - Secrets (Record<id, Secret>)
-- `activeSecretIdState` - Selected secret ID
-- `apiKeysState` - API keys (Record<id, ApiKey>)
-- `activeApiKeyIdState` - Selected API key ID
-- `endpointsState` - Endpoints (Record<id, Endpoint>)
-- `activeEndpointIdState` - Selected endpoint ID
-- `functionsState` - Functions (Record<id, Function>)
-- `activeFunctionIdState` - Selected function ID
-- `currentSubscriptionAtom` - Current user subscription
-- `paymentPlansAtom` - Available payment plans
-- `subscriptionLoadingAtom` - Subscription loading state
-- `plansLoadingAtom` - Plans loading state
-- `orgQuotaAtom` - Organization quota usage
-- `orgLimitsAtom` - Organization quota limits
-- `quotaLoadingAtom` - Quota loading state
-
-**Accessors**:
+**21 State Atom Files** with the following pattern:
 ```typescript
-// Getters
-getThemeType() → EThemeType
-getSidebarOpen() → boolean
-getUser() → User
-getTeams() → Record<string, Team>
-getActiveTeamId() → string
-// ... etc
-
-// Setters
-setThemeType(type: EThemeType)
-setSidebarOpen(status: boolean)
-setUser(user: User)
-setTeams(teams: Record<string, Team>)
-// ... etc
-
-// Resetters
-resetThemeType()
-resetUser()
-resetTeams()
-// ... etc
+// state/<entity>.ts
+import { atomWithReset } from 'jotai/utils'
+export const entityState = atomWithReset<Record<string, Entity> | undefined>(undefined)
+export const activeEntityIdState = atomWithReset<string | undefined>(undefined)
 ```
 
-**Selectors** (hooks from `src/state/selectors.ts`):
-- `useSidebarOpen()` - Returns `[open, setOpen]`
-- `useUser()` - Returns current user
-- `useActiveTeam()` - Returns active team object
-- etc.
+**Derived Atoms** (read-only, computed from other atoms):
+- `activeOrgState` - Derives active Organization from `orgsState` + `activeOrgIdState`
+- `activeProjectState` - Derives active Project from `projectsState` + `activeProjectIdState`
+- `activeAgentState` - Derives active Agent from `agentsState` + `activeAgentIdState`
 
-### Authentication System
-
-**Neon Auth Integration**:
-
-**File**: `src/services/auth.ts`
-
+**Accessors** (`src/state/accessors.ts`) - Imperative get/set/reset for each atom:
 ```typescript
-import { createAuthClient } from '@neondatabase/neon-js/auth'
+export const getOrgs = () => store.get(orgsState)
+export const setOrgs = (orgs: Record<string, Organization>) => store.set(orgsState, orgs)
+export const resetOrgs = () => store.set(orgsState, undefined)
+// ... same pattern for all 21 entities
+```
 
-export const authClient = createAuthClient(TDSK_AUTH_URL)
+Special accessors for `apiKeys` include `setApiKey` (single upsert) and `removeApiKey` (single delete).
 
-export class Auth {
-  signin(provider: string) // Social OAuth (GitHub, GitLab, Google, Vercel)
-  signout()
-  session() // Get current session
+**Selectors** (`src/state/selectors.ts`) - Hook-based access:
+```typescript
+// useRecState - Returns [value, setter, resetter] for atomWithReset atoms
+const useRecState = <T>(state) => {
+  const [current, setCurrent] = useAtom(state)
+  const resetCurrent = useResetAtom(state)
+  return [current, setCurrent, resetCurrent]
+}
+
+// useDerivedState - Returns [value, setter, noOp] for read-only derived atoms
+const useDerivedState = <T>(state) => {
+  const [current, setCurrent] = useAtom(state)
+  return [current, setCurrent, noOp]
+}
+
+// Per-entity selectors
+export const useOrgs = () => useRecState(orgsState)
+export const useActiveOrg = () => useDerivedState<Organization>(activeOrgState)
+export const useActiveProject = () => useDerivedState<Project>(activeProjectState)
+export const useActiveAgent = () => useDerivedState<Agent>(activeAgentState)
+// ... etc for all entities
+```
+
+### API Service Architecture
+
+**Three-layer design**:
+
+1. **ApiService** (`src/services/api.ts`) - Base fetch wrapper:
+   - Manages base URL, path prefix (`_`), default headers (`Accept`, `Content-Type: application/json`)
+   - `bearer()` - Fetches session token from Neon Auth, sets `Authorization: Bearer <token>`
+   - `fetch()` - Core method: builds URL, handles FormData, returns `TApiRes<T>` (data or error)
+   - `get()` - Wraps fetch with TanStack QueryClient caching (`query.fetch(query.options({...}))`)
+   - `post()`, `put()`, `delete()` - Simple method wrappers
+   - URL building: `apiUrl()` resolves from `TDSK_CADDY_PX_HOST` > `TDSK_PX_URL` > `TDSK_PX_HOST:TDSK_PX_PORT`
+
+2. **BaseApi** (`src/services/api.ts`) - Base class for domain APIs:
+   - Holds `api: apiService` singleton reference
+   - `_onError()` - Shows toast notification via Sonner + console.warn
+
+3. **Domain APIs** (e.g., `OrgsApi`, `AgentsApi`, `SecretsApi`) - Entity-specific services:
+   - Extend `BaseApi`
+   - Define `path` and `cache` keys for TanStack Query
+   - Each method: call API, handle errors via `_onError`, return typed response with domain model instantiation
+
+**Cache Key Pattern**:
+```typescript
+cache: TApiCacheKeys = {
+  all: () => [this.path] as const,
+  list: () => [...this.cache.all(), `list`] as const,
+  detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
 }
 ```
 
-**Auth Provider** (`src/contexts/AuthProvider.tsx`):
-- Wraps app with `NeonAuthUIProvider`
-- Initializes session on mount via `initAuth()`
-- Shows loading spinner during auth check
-- Displays error state if auth fails
-- Provides `AuthContext` for child components
+**TanStack React Query Integration**:
+- `QueryService` (`src/services/query.ts`) wraps `QueryClient`
+- GET requests are cached with configurable `staleTime` and `queryKey`
+- Defaults: staleTime 5 min, gcTime 30 min, no retry, refetchOnWindowFocus
+
+### Authentication System
+
+**Neon Auth Client** (`src/services/auth.ts`):
+```typescript
+export const authClient = createAuthClient(TDSK_AUTH_URL)
+
+export class Auth {
+  client = authClient
+  signin(provider: string)   // Social OAuth (GitHub, GitLab, Google, Vercel)
+  signout()                  // Sign out + clear session
+  session()                  // Get current session (returns { session, user: new User(data.user) })
+}
+```
+
+**AuthProvider** (`src/contexts/AuthProvider.tsx`):
+- Wraps app with `NeonAuthUIProvider` from `@neondatabase/neon-js/auth/react`
+- On mount: calls `initAuth()` which invokes `auth.session()`, sets session state
+- Shows `Loading` during auth check, `LoginError` on failure
+- Provides `AuthContext` with `{ session, loading }`
 
 **Protected Routes** (`src/pages/Layout/Layout.tsx`):
-- Uses `<SignedIn>` component from Neon Auth
-- Redirects to login via `<RedirectToSignIn>` if not authenticated
-- Wraps all authenticated pages
-
-**Login Flow**:
-1. User visits `/auth/:provider` (e.g., `/auth/github`)
-2. `Login.tsx` renders OAuth provider buttons
-3. Click triggers `signin(provider)` action
-4. Neon Auth redirects to OAuth provider
-5. Callback returns with session token
-6. Session stored in Neon Auth client
-7. User redirected to home page
-
-### Component Architecture
-
-**Layout Structure**:
-```
-<App>
-  └─ <ThemeProvider>
-      └─ <RouterProvider>
-          └─ <Layout> (route: "/")
-              ├─ <Sidebar /> (collapsible navigation)
-              └─ <Outlet /> (child route content)
-                  ├─ <Home /> (route: "/" index)
-                  ├─ <Teams /> (route: "/teams")
-                  ├─ <Repos /> (route: "/repos")
-                  └─ ... other pages
+```typescript
+const Layout = () => (
+  <>
+    <SignedIn>
+      <LayoutContainer>
+        <LayoutContent>
+          <Sidebar />
+          <Outlet />
+        </LayoutContent>
+      </LayoutContainer>
+    </SignedIn>
+    <RedirectToSignIn />
+  </>
+)
 ```
 
-**Key Components**:
+**Data Loading Flow**:
+- `OrgsLoader` wraps Layout children in `OrgsProvider` which calls `useOrgsState()` on mount
+- `ProjectsLoader` wraps project children in `ProjectsProvider` which calls `useProjectsState()` on mount
+- Both providers show Loading/AppError states while fetching
 
-1. **Sidebar** (`src/components/Sidebar/Sidebar.tsx`)
-   - Collapsible navigation drawer (MUI `Drawer` variant="permanent")
-   - State managed by `useSidebarOpen()` Jotai selector
-   - Two navigation lists: main nav + bottom nav (settings/account)
-   - Logo component that scales based on open/closed state
-   - Toggle button (chevron left/right icon)
+### Action Pattern
 
-2. **Login** (`src/components/Login/Login.tsx`)
-   - OAuth provider buttons (GitHub, GitLab, Google, Vercel)
-   - Configured via `TDSK_AUTH_PROVIDERS` env variable
-   - Loading state during authentication
-   - Error display for failed auth
-
-3. **Page** (`src/pages/Page/Page.tsx`)
-   - Base page wrapper component
-   - Provides consistent layout/padding
-   - Used by all page-level components
-
-### Theme System
-
-**File**: `src/hooks/theme/useMakeTheme.ts`
-
-Dynamic MUI theme generation based on Jotai state:
-- Watches `themeTypeState` (light/dark)
-- Returns MUI `Theme` object with custom palette
-- Supports Ubuntu font family (loaded in index.html)
-- Uses Emotion for CSS-in-JS styling
-
-**Theme Persistence**:
-- Theme type stored in LocalStorage via `storage.ts` service
-- Restored on app init from `src/state/theme.ts`
-
-### API Communication Pattern
-
-**File**: `src/utils/api/`
-
-Utilities for API calls (not yet fully implemented):
-- `genFormData()` - Convert object to FormData
-- `toQueryParams()` - Convert object to URL query string
-
-**Expected Flow** (based on architecture):
-```
-Component → Action (async) → API Service → Backend (/api/*)
-                ↓
-          State Update (Jotai)
-                ↓
-          UI Re-render
+**API Actions** (`actions/<domain>/api/<action>.ts`):
+```typescript
+// Async functions that call service → update Jotai state
+export const fetchOrgs = async () => {
+  const resp = await orgsApi.list()
+  if (resp.data) setOrgs(resp.data)
+  return resp
+}
 ```
 
-**Backend Integration**:
-- Admin calls backend via auth-proxy (`repos/proxy`)
-- Proxy routes to backend (`repos/backend`) at `/admin/*` endpoints
-- JWT tokens injected by proxy (secrets server-side)
-- Admin receives JSON responses
+**Local Actions** (`actions/<domain>/local/<action>.ts`):
+```typescript
+// Synchronous Jotai state mutations
+export const upsertAgent = (agent: Agent) => {
+  const current = getAgents() || {}
+  setAgents({ ...current, [agent.id]: agent })
+}
+```
+
+### Navigation
+
+**NavService** (`src/services/nav.ts`):
+```typescript
+class NavService {
+  context(ctx?)     // Build nav context from Jotai state (orgId, projectId, agentId, org, project, agents)
+  route(route, ctx?) // Build + navigate to parameterized route
+  to(to, base?)     // Push state + dispatch popstate event
+  is(loc)           // Exact path match
+  not(loc)          // Not exact match
+  has(loc)          // startsWith match
+  back()            // history.back()
+  home()            // Navigate to /
+  signin()          // Navigate to /auth/sign-in
+}
+```
+
+**buildRoute** (`src/utils/nav/buildRoute.ts`):
+- Takes an `ERoutePath` string and returns a function that accepts `TNavCtx`
+- Replaces `:orgId`, `:projectId`, `:agentId` etc. with actual values from context
+
+**Sidebar Navigation** (`src/constants/nav.tsx`):
+- `OrgNavItems` - 8 items: Projects, Users, Secrets, Providers, Domains, Api Keys, Usage, Settings
+- `ProjectNavItems` - 7 items: Endpoints, Functions, Secrets, Agents, Threads, Domains, Settings
+- `BottomNavItems` - 1 item: Settings
+- `HeaderSettingsItems` - 3 items: Profile, Billing, Sign Out
+- `QSSteps` - 3 quickstart steps: "AI Provider", "Project & Agent", "Review & Create"
+
+### Agent Chat (SSE Streaming)
+
+**useAgentChat hook** (`src/hooks/chat/useAgentChat.ts`):
+- Calls `agentsApi.run(orgId, agentId, prompt, threadId)` which POSTs to `/_/orgs/:orgId/agents/:agentId/run`
+- Reads SSE stream via `ReadableStreamDefaultReader`
+- Processes event types: `text`, `toolCallStart`, `toolCallArgs`, `toolResult`, `error`, `thread`
+- Returns `{ messages, sendMessage, isStreaming, threadId, error, reset }`
 
 ## Architecture
 
@@ -368,20 +591,25 @@ Component → Action (async) → API Service → Backend (/api/*)
 
 ```
 1. index.html loads → /src/index.tsx
-2. Render:
+2. overlayScrollBody() → custom scrollbar
+3. Render tree:
    <StrictMode>
-     <Provider store={store}>           # Jotai global store
-       <AuthProvider>                   # Neon Auth + session init
+     <Provider store={store}>              # Jotai global store
+       <AuthProvider>                      # NeonAuthUIProvider + session init
          <App>
-           <ThemeProvider>              # MUI theme system
-             <RouterProvider>           # React Router 7
-               <Layout>                 # Auth guard + sidebar
-                 <Outlet />             # Page content
-               </Layout>
+           <ThemeProvider theme={theme}>   # MUI theme from useMakeTheme()
+             <GlobalStyles />              # Admin global CSS
+             <MUI GlobalStyles />          # Body text/bg colors
+             <RouterProvider>              # React Router 7
+               <OrgsLoader>               # Fetch orgs → OrgsContext
+                 <Layout>                  # SignedIn guard + Sidebar
+                   <Outlet />             # Page content
+                 </Layout>
+               </OrgsLoader>
              </RouterProvider>
            </ThemeProvider>
          </App>
-         <Version />                    # App version footer
+         <Version />                       # App version footer
        </AuthProvider>
      </Provider>
    </StrictMode>
@@ -389,372 +617,144 @@ Component → Action (async) → API Service → Backend (/api/*)
 
 ### Request/Data Flow
 
-**Authentication Flow**:
 ```
-User → Login Page → OAuth Provider → Callback → Neon Auth Session → AuthContext → App State
-```
-
-**Protected Route Access**:
-```
-User Request → Router → Layout → SignedIn Guard → Redirect to Login (if not authed)
-                                               → Render Page (if authed)
-```
-
-**State Management Flow**:
-```
-User Action → Component → Jotai Setter (setTeams, setUser, etc.)
-                                ↓
-                         Store Update
-                                ↓
-                    Selectors Re-compute (useSidebarOpen, useUser, etc.)
-                                ↓
-                       Components Re-render
+User Action → Component → Action (api/) → Service (api.ts) → TanStack QueryClient cache
+                                               ↓
+                                         fetch() → Caddy proxy → Auth proxy → Backend
+                                               ↓
+                                         Response (JSON)
+                                               ↓
+                                      Domain model instantiation (e.g., new Organization(data))
+                                               ↓
+                                      Action (local/) → Jotai store update
+                                               ↓
+                                      Selectors recompute → Components re-render
 ```
 
-**Navigation Flow**:
-```
-User Click → nav.to(path) → history.pushState → popstate event → Router → Page Render
-```
+**API URL Resolution** (`src/utils/api/apiUrl.ts`):
+1. If `TDSK_CADDY_PX_HOST` is set, use it (prepend `https://` if needed)
+2. Else if `TDSK_PX_URL` is set, parse and use it
+3. Else build from `TDSK_PX_HOST` + `TDSK_PX_PORT`
+
+All API calls go through the Caddy reverse proxy which terminates TLS, then routes to the Auth proxy which validates JWT, then forwards to the Backend.
 
 ### Path Aliases
 
 **Configured in**: `tsconfig.json` + `configs/vite.workspace.ts`
 
 ```typescript
-@TAF/*        → repos/admin/src/*           # Admin internal imports
-@TAF          → repos/admin/src             # Admin root
-@TSC/*        → repos/components/src/*      # Shared components
-@tdsk/components → repos/components/src     # Components barrel
-@TDM/*        → repos/domain/src/*          # Domain models
-@tdsk/domain  → repos/domain/src/web.ts     # Domain web bundle
+@TAF/*           → repos/admin/src/*           # Admin internal imports
+@TAF             → repos/admin/src             # Admin root
+@TSC/*           → repos/components/src/*      # Shared components
+@tdsk/components → repos/components/src        # Components barrel
+@TDM/*           → repos/domain/src/*          # Domain models
+@tdsk/domain     → repos/domain/src/web.ts     # Domain web bundle
 ```
 
-**Example Usage**:
-```typescript
-import { User } from '@tdsk/domain'
-import { Loading } from '@tdsk/components'
-import { auth } from '@TAF/services/auth'
-import { Routes } from '@TAF/routes/Routes'
-```
-
-## Logic Flow
-
-### 1. Authentication Lifecycle
-
-**Init Auth** (`src/actions/auth/local/init.ts`):
-```typescript
-1. AuthProvider mounts → useEffectOnce
-2. Call initAuth()
-3. auth.session() → Neon Auth API
-4. If session exists:
-   - Create User instance from response
-   - Update userState via setUser()
-   - Return { session, user }
-5. If no session:
-   - Return empty response
-6. If error:
-   - Return { error } → display LoginError
-```
-
-**Sign In** (`src/actions/auth/local/signin.ts`):
-```typescript
-1. User clicks OAuth provider button
-2. Login.tsx → onLogin(provider)
-3. Call signin(provider)
-4. auth.client.signIn.social({ provider })
-5. Neon Auth redirects to OAuth provider
-6. User authorizes
-7. Callback returns with session token
-8. Session stored in Neon Auth
-9. User redirected to home
-```
-
-### 2. Navigation Flow
-
-**Navigation Service** (`src/services/nav.ts`):
-```typescript
-class NavService {
-  to(path) {
-    history.pushState({}, '', path)
-    window.dispatchEvent(new PopStateEvent('popstate'))
-  }
-
-  is(path) // Check if current path matches
-  not(path) // Check if current path doesn't match
-  has(path) // Check if current path starts with
-  home() // Navigate to home
-  login() // Navigate to login
-}
-```
-
-**Usage**:
-```typescript
-import { nav } from '@TAF/services/nav'
-
-nav.to('/teams')
-nav.is(ERoutePath.Home) // true if on home page
-nav.has(ERoutePath.Signin) // true if on any /auth/* route
-```
-
-### 3. State Updates (Typical CRUD Flow)
-
-**Example: Team Management**
-
-```typescript
-// 1. Fetch teams from API (action)
-const fetchTeams = async () => {
-  const response = await fetch('/admin/teams')
-  const teams = await response.json()
-
-  // 2. Convert to Record<id, Team>
-  const teamsMap = teams.reduce((acc, team) => {
-    acc[team.id] = new Team(team)
-    return acc
-  }, {})
-
-  // 3. Update Jotai state
-  setTeams(teamsMap)
-
-  // 4. Optionally set active team
-  setActiveTeamId(teams[0].id)
-}
-
-// 5. Component reads state via selector
-const TeamsPage = () => {
-  const teams = useAtomValue(teamsState)
-  const activeTeamId = useAtomValue(activeTeamIdState)
-  const activeTeam = teams?.[activeTeamId]
-
-  return <div>{activeTeam?.name}</div>
-}
-```
-
-### 4. Theme Switching
-
-```typescript
-// 1. User clicks theme toggle button
-const onThemeToggle = () => {
-  const current = getThemeType()
-  const next = current === EThemeType.light
-    ? EThemeType.dark
-    : EThemeType.light
-
-  // 2. Update state
-  setThemeType(next)
-
-  // 3. Persist to localStorage
-  storage.setThemeType(next)
-}
-
-// 4. useMakeTheme() hook recomputes theme
-// 5. ThemeProvider passes new theme to MUI
-// 6. All components re-render with new colors
-```
+**Vite resolves cross-workspace paths** via `viteTsconfigPaths` with projects: `admin`, `domain`, `database`, `components`.
 
 ## Key Patterns
 
-### 1. State Management (Jotai)
+### 1. Action Split: API vs Local
 
-**Atomic State**:
-- Each piece of state is an independent atom
-- Atoms can depend on other atoms (derived state)
-- Uses `atomWithReset` for easy reset to defaults
-- Global store created once (`createStore()`)
+Every domain has up to two action subdirectories:
+- **`api/`** - Async functions: call service, handle response, update state, return result
+- **`local/`** - Synchronous functions: directly mutate Jotai state (upsert, remove, set, reset)
 
-**Accessor Pattern**:
-```typescript
-// Centralized store access in accessors.ts
-export const store = createStore()
+Components call API actions which internally delegate to local actions after successful API responses.
 
-export const getUser = () => store.get(userState)
-export const setUser = (user: User) => store.set(userState, user)
-export const resetUser = () => store.set(userState, undefined)
+### 2. State: atomWithReset + Accessors + Selectors
+
+Three-layer state design:
+1. **Atoms** (state files) - `atomWithReset` for resettable state, derived atoms for computed values
+2. **Accessors** (accessors.ts) - Imperative `get*/set*/reset*` functions for use outside React (actions, services)
+3. **Selectors** (selectors.ts) - `useRecState`/`useDerivedState` hooks for use inside React components
+
+### 3. Service Class Hierarchy
+
+```
+ApiService (base fetch with Bearer auth + TanStack Query caching)
+    └── BaseApi (adds _onError toast notifications)
+        ├── OrgsApi
+        ├── ProjectsApi
+        ├── AgentsApi (includes SSE .run() method)
+        ├── SecretsApi
+        ├── ProvidersApi
+        ├── EndpointsApi
+        ├── FunctionsApi
+        ├── ApiKeysApi
+        ├── DomainsApi
+        ├── ThreadsApi
+        ├── MessagesApi
+        ├── AssetsApi
+        ├── UsersApi
+        ├── QuotasApi
+        ├── SubscriptionsApi
+        └── QuickstartApi
 ```
 
-**Selector Pattern**:
-```typescript
-// Hook-based selectors in selectors.ts
-export const useUser = () => {
-  return useAtomValue(userState)
-}
+All exported as singletons (e.g., `export const orgsApi = new OrgsApi()`).
 
-export const useSidebarOpen = () => {
-  return useAtom(sidebarOpenState) // [value, setter]
-}
-
-export const useActiveTeam = () => {
-  const teams = useAtomValue(teamsState)
-  const activeId = useAtomValue(activeTeamIdState)
-  return teams?.[activeId]
-}
-```
-
-### 2. Lazy Loading & Code Splitting
-
-**Pattern**: All pages use `React.lazy()` + `Suspense`
+### 4. Context Providers for Data Loading
 
 ```typescript
-const Home = lazy(() => import('@TAF/pages/Home/Home'))
+// OrgsLoader → OrgsProvider → useOrgsState() → fetchOrgs() on mount
+// ProjectsLoader → ProjectsProvider → useProjectsState() → fetchProjects() on mount
 
-<Route
-  path="/"
-  Component={() => (
-    <Suspense fallback={<Loading fixed full />}>
-      <Home />
-    </Suspense>
-  )}
-/>
+// Pattern: show Loading while fetching, AppError on failure, MemoChildren on success
 ```
 
-**Benefits**:
-- Reduced initial bundle size
-- Faster time-to-interactive
-- Loading states during chunk fetch
+### 5. Lazy Loading & Code Splitting
 
-### 3. Service Classes (Singleton Pattern)
-
-**Pattern**: Singleton classes for stateful services
-
+All pages use `React.lazy()` wrapped by the `SuspensePage` helper:
 ```typescript
-// auth.ts
-export class Auth {
-  client = authClient
-
-  signin = async (provider: string) => { ... }
-  signout = async () => { ... }
-  session = async () => { ... }
-}
-
-export const auth = new Auth() // Singleton export
-
-// Usage
-import { auth } from '@TAF/services/auth'
-await auth.signin('github')
+const SuspensePage = ({ Component }) => (
+  <Suspense fallback={<Loading fixed full />}>
+    <Component />
+  </Suspense>
+)
 ```
 
-**Benefits**:
-- Shared state across components
-- Easy testing (can mock singleton)
-- Organized API surface
+### 6. Template Mustache Syntax
 
-### 4. Type-Safe Routing
+The `Templates` service handles `{{variable}}` template syntax for secret/endpoint value interpolation:
+- `has(value)` - Test if string contains `{{...}}`
+- `extract(value)` - Extract variable name from `{{name}}`
+- `wrap(value)` - Wrap a string in `{{...}}`
 
-**Pattern**: Enum for route paths + centralized route definitions
+### 7. Component Co-location
 
-```typescript
-// types/routes.types.ts
-export enum ERoutePath {
-  Home = `/`,
-  Teams = `/teams`,
-  Team = `/teams/:teamId`,
-}
-
-// Usage
-import { ERoutePath } from '@TAF/types'
-nav.to(ERoutePath.Teams)
-nav.is(ERoutePath.Home)
-```
-
-**Benefits**:
-- Type-safe route references
-- Single source of truth
-- Easy refactoring (change once, updates everywhere)
-
-### 5. Material-UI Theming
-
-**Pattern**: Dynamic theme generation with MUI + Emotion
-
-```typescript
-// hooks/theme/useMakeTheme.ts
-export const useMakeTheme = () => {
-  const themeType = useAtomValue(themeTypeState)
-
-  return useMemo(() => {
-    return createTheme({
-      palette: {
-        mode: themeType,
-        primary: { main: '#1976d2' },
-        // ... custom colors
-      },
-      typography: {
-        fontFamily: 'Ubuntu, sans-serif',
-      },
-    })
-  }, [themeType])
-}
-```
-
-**Benefits**:
-- Centralized theme logic
-- Auto re-renders on theme change
-- Type-safe theme access
-
-### 6. Component Co-location
-
-**Pattern**: Each component has its own directory with related files
-
+Each component has its own directory:
 ```
 components/Sidebar/
 ├── Sidebar.tsx           # Main component
-├── Sidebar.styles.tsx    # Styled components (Emotion)
-├── SBLogo.tsx            # Sub-component (Logo)
-├── SBNavList.tsx         # Sub-component (Nav list)
+├── SBLogo.tsx            # Sub-component
+├── SBNavList.tsx          # Sub-component
+├── SBProjectSelector.tsx  # Sub-component
+├── SBSection.tsx          # Sub-component
 └── index.ts              # Barrel export
 ```
 
-**Benefits**:
-- Easy to find related code
-- Clear component boundaries
-- Easier refactoring/deletion
+### 8. Event Handler Callbacks
 
-### 7. Protected Routes with Neon Auth
-
-**Pattern**: Layout component as auth guard
-
+Event handler callbacks always use the `on` prefix followed by a descriptive name:
 ```typescript
-const Layout = () => {
-  return (
-    <>
-      <SignedIn>
-        {/* Protected content */}
-        <Sidebar />
-        <Outlet />
-      </SignedIn>
-      <RedirectToSignIn />
-    </>
-  )
-}
+const onBlur = (evt: Event) => { ... }
+const onDeleteClick = (evt: Event) => { ... }
+const onSuccess = (evt: Event) => { ... }
 ```
 
-**Benefits**:
-- Single point of auth enforcement
-- Automatic redirect to login
-- Session management handled by Neon Auth
+### 9. Protected Routes with Neon Auth
 
-
-### 8. Event handler callbacks
-
-**Pattern**: Event handler callbacks should always use the `on` prefix then a related name.
-
-```typescript
-
-const onBlur = (evt:Event) => { ... }
-
-const onDeleteClick = (evt:Event) => { ... }
-
-const onSuccess = (evt:Event) => { ... }
-
-```
-
-
+Layout acts as an auth guard using Neon Auth's `SignedIn` and `RedirectToSignIn` components. All routes under Layout require authentication.
 
 ## Dependencies
 
 ### Core Framework
-- **react** (18.3.1) - UI library
-- **react-dom** (18.3.1) - React DOM renderer
-- **react-router** (7.1.1) - Client-side routing
-- **vite** (5.0.12) - Build tool + dev server
+- **react** (^18.3.1) - UI library
+- **react-dom** (^18.3.1) - React DOM renderer
+- **react-router** (7.1.1) - Client-side routing (v7 with createBrowserRouter)
+- **vite** (^5.0.12) - Build tool + dev server
 
 ### UI Components
 - **@mui/material** (6.1.2) - Material-UI components
@@ -763,56 +763,60 @@ const onSuccess = (evt:Event) => { ... }
 - **@emotion/react** (11.13.3) - CSS-in-JS styling
 - **@emotion/styled** (11.13.0) - Styled components for Emotion
 
-### State Management
+### State & Data
 - **jotai** (2.16.1) - Primitive and flexible state management
+- **@tanstack/react-query** (5.90.16) - Server state caching and synchronization
 
 ### Authentication
-- **@neondatabase/neon-js** (0.1.0-beta.21) - Neon Auth SDK
+- **@neondatabase/neon-js** (0.1.0-beta.21) - Neon Auth SDK (createAuthClient, NeonAuthUIProvider, SignedIn, RedirectToSignIn)
 
 ### Utilities
-- **@keg-hub/jsutils** (10.0.0) - JavaScript utilities
-- **@keg-hub/parse-config** (2.1.0) - Environment config parser
+- **@keg-hub/jsutils** (^10.0.0) - JavaScript utilities (limbo, isObj, isStr, exists, emptyObj, deepMerge, cleanColl, noOp, ife)
+- **@keg-hub/parse-config** (2.1.0) - Environment config parser (loads deploy/values.*.yml)
 - **alias-hq** (6.2.4) - Path alias management
-- **sonner** (1.2.3) - Toast notifications
+- **sonner** (2.0.7) - Toast notifications
+- **posthog-js** (1.242.2) - Product analytics
 
-### Build Tools
-- **@vitejs/plugin-react-swc** (3.3.2) - Vite + SWC for React
-- **vite-tsconfig-paths** (4.3.1) - TypeScript paths in Vite
+### Build Plugins
+- **@vitejs/plugin-react-swc** (^3.3.2) - Vite + SWC for React fast compilation
+- **vite-tsconfig-paths** (4.3.2) - TypeScript path resolution in Vite (cross-workspace)
 - **vite-plugin-svgr-component** (1.0.1) - Import SVGs as React components
 - **tsconfig-paths** (4.2.0) - Runtime path alias resolution
-- **esbuild-register** (3.5.0) - Runtime TS transpilation
+- **esbuild-register** (3.5.0) - Runtime TS transpilation for scripts
 
 ### Dev Tools
-- **typescript** (5.3.3) - Type checking
-- **vitest** (1.4.0) - Unit testing framework
-- **@testing-library/react** (14.2.1) - React testing utilities
-- **@testing-library/jest-dom** (6.4.2) - Jest DOM matchers
-- **jsdom** (24.0.0) - DOM implementation for testing
+- **typescript** (^5.3.3) - Type checking
+- **vitest** (1.6.1) - Unit testing framework
+- **@testing-library/react** (^14.2.1) - React testing utilities
+- **@testing-library/jest-dom** (^6.4.2) - Jest DOM matchers
+- **@testing-library/user-event** (14.6.1) - User interaction simulation
+- **jsdom** (^24.0.0) - DOM implementation for testing
+- **@biomejs/biome** (2.1.2) - Linter and formatter
 
 ### Monorepo Workspaces
-- **@tdsk/components** (workspace:*) - Shared React components
-- **@tdsk/database** (workspace:*) - Database models/ORM
-- **@tdsk/domain** (workspace:*) - Domain models/types
+- **@tdsk/components** (workspace:*) - Shared React components (Loading, MemoChildren, useWindowResize, useEffectOnce, overlayScrollBody, Storage, dims)
+- **@tdsk/database** (workspace:*) - Database types
+- **@tdsk/domain** (workspace:*) - Domain models (Organization, Project, User, Agent, Secret, Provider, Endpoint, Function, ApiKey, Domain, Thread, Message, Asset, Plan, Subscription)
 
 ## Commands
 
 ### Development
 ```bash
-pnpm start           # Start dev server (default port 5887)
-pnpm sf              # Start with force refresh (NODE_ENV=local)
-pnpm host            # Start with network access (--host --open)
+pnpm start           # Vite dev server (default port 5887)
+pnpm sf              # Start with NODE_ENV=local force refresh
+pnpm host            # Start with --host --open (network access)
 pnpm preview         # Preview production build
 ```
 
 ### Building
 ```bash
-pnpm build           # Production build to /dist
-pnpm types           # Type check (tsc -b)
+pnpm build           # Production build to /dist (vite build)
+pnpm types           # Type check (tsc --noEmit --pretty)
 ```
 
 ### Testing
 ```bash
-pnpm test            # Run Vitest tests
+pnpm test            # Run Vitest tests (vitest run)
 ```
 
 ### Maintenance
@@ -820,392 +824,226 @@ pnpm test            # Run Vitest tests
 pnpm clean           # Remove node_modules
 ```
 
-### Commands Notes
+### Command Notes
+- Linting and formatting run automatically via Biome. Do NOT run `pnpm lint` or `pnpm format` manually.
+- The dev server port (5887) is configured via `TDSK_AD_PORT` env var in deploy/values.yaml.
 
-* Linting and formatting are automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
+## Tests
 
+6 co-located test files:
+- `src/actions/orgs/api/createOrg.test.ts`
+- `src/actions/orgs/api/fetchOrgs.test.ts`
+- `src/actions/projects/api/createProject.test.ts`
+- `src/actions/projects/api/fetchProjects.test.ts`
+- `src/constants/nav.test.tsx`
+- `src/utils/api/genFormData.test.ts`
 
-## Integration Points
+Test setup: `scripts/setupTests.ts` with `scripts/testUtils.tsx` helpers. Test environment: jsdom.
 
-### 1. Backend API Communication
+## Environment Variables
 
-**Proxy Integration**:
-```
-Admin SPA → Auth-Proxy (repos/proxy) → Backend (repos/backend)
-    ↓
-/admin/*  → Backend Admin API endpoints
-/proxy/*  → Backend Proxy Engine
-/faas/*   → Backend FaaS Engine
-/ai/*     → Backend AI Engine
-```
+**Loaded via**: `@keg-hub/parse-config` from `deploy/values.*.yml` → Vite `define` option
 
-**API Call Pattern** (expected):
-```typescript
-// From admin component
-const response = await fetch('/admin/teams', {
-  method: 'GET',
-  headers: {
-    'Authorization': `Bearer ${session.token}` // JWT injected by proxy
-  }
-})
-```
-
-### 2. Shared Components
-
-**Import from @tdsk/components** (`repos/components`):
-```typescript
-import { Loading, MemoChildren, useWindowResize } from '@tdsk/components'
-```
-
-**Available Components**:
-- `Loading` - Loading spinner with fixed/full options
-- `MemoChildren` - Memoized children wrapper
-- `useWindowResize` - Hook for responsive behavior
-- `overlayScrollBody` - Custom scrollbar overlay
-- `dims` - Dimension constants (header height, etc.)
-
-### 3. Domain Models
-
-**Import from @tdsk/domain** (`repos/domain`):
-```typescript
-import { User, Team, Repo, Provider } from '@tdsk/domain'
-```
-
-**Model Classes**:
-- `User` - User model with methods
-- `Team` - Team model
-- `Repo` - Repository model
-- `Provider` - API provider model
-- `Endpoint` - API endpoint model
-- `Function` - FaaS function model
-- `Secret` - Secret model
-
-### 4. Database Types
-
-**Import from @tdsk/database** (`repos/database`):
-```typescript
-import type { DatabaseUser, DatabaseTeam } from '@tdsk/database'
-```
-
-**Usage**: Convert database types to domain models:
-```typescript
-const team = new Team(databaseTeam)
-```
-
-### 5. Environment Variables
-
-**Loaded via**: `@keg-hub/parse-config` from `deploy/values.*.yml`
-
-**Available in Admin**:
-- `TDSK_AUTH_URL` - Neon Auth API URL
-- `TDSK_AUTH_PROVIDERS` - Comma-separated OAuth providers (github,gitlab,google,vercel)
-- `TDSK_AD_PORT` - Dev server port (default 5887)
+**Available in Admin** (`src/constants/envs.ts`):
+- `TDSK_AUTH_URL` - Neon Auth API URL (required)
+- `TDSK_AUTH_PROVIDERS` - Comma-separated OAuth providers (default: `github`)
+- `TDSK_AD_APP_VERSION` - App version from package.json (required)
 - `TDSK_AD_BASE_PATH` - Base path for deployment (default `/`)
-- `TDSK_AD_APP_VERSION` - App version (from package.json)
-- `TDSK_AD_OVERRIDE_ENVS` - Override env loading behavior
-
-**Access Pattern**:
-```typescript
-// constants/envs.ts
-export const TDSK_AUTH_URL = process.env.TDSK_AUTH_URL as string
-export const TDSK_AUTH_PROVIDERS = (process.env.TDSK_AUTH_PROVIDERS as string)
-  .split(',')
-  .map(p => p.trim())
-```
-
-### 6. Monorepo Path Resolution
-
-**Vite Config** (`configs/vite.workspace.ts`):
-```typescript
-viteTsconfigPaths({
-  root: rootDir,
-  projects: [
-    rootDir,                      // repos/admin
-    path.join(rootDir, '../domain'),    // repos/domain
-    path.join(rootDir, '../database'),  // repos/database
-    path.join(rootDir, '../components') // repos/components
-  ]
-})
-```
-
-**Enables**:
-- Cross-workspace TypeScript path resolution
-- Vite HMR across workspace dependencies
-- Single tsconfig.json per repo
+- `TDSK_PX_URL` - Proxy URL
+- `TDSK_PX_HOST` - Proxy host
+- `TDSK_PX_PORT` - Proxy port
+- `TDSK_CADDY_PX_HOST` - Caddy proxy host (takes priority in apiUrl resolution)
+- `TDSK_BE_API_ADMIN_PATH` - Backend admin API path
+- `TDSK_POSTHOG_KEY` - PostHog analytics key
+- `TDSK_POSTHOG_HOST` - PostHog host URL
 
 ## Development Guidelines
 
 ### 1. Adding a New Page
 
 ```typescript
-// 1. Create page component
-// repos/admin/src/pages/NewPage/NewPage.tsx
-import { Page } from '@TAF/pages/Page/Page'
-
-export const NewPage = () => {
-  return <Page className='tdsk-new-page'>
-    {/* content */}
-  </Page>
-}
-
-export default NewPage
-
-// 2. Add route enum
-// repos/admin/src/types/routes.types.ts
+// 1. Add route enum value
+// src/types/routes.types.ts
 export enum ERoutePath {
-  // ... existing
-  NewPage = `/new-page`,
+  NewPage = `new-page`,                              // Relative (for nesting)
+  OrgNewPage = `/orgs/:orgId/new-page`,              // Absolute (for links)
 }
+
+// 2. Create page component
+// src/pages/NewPage/NewPage.tsx
+const NewPage = () => {
+  return <div>New Page Content</div>
+}
+export default NewPage  // Must be default export for lazy()
 
 // 3. Add route definition
-// repos/admin/src/routes/Routes.tsx
+// src/routes/Routes.tsx
 const NewPage = lazy(() => import('@TAF/pages/NewPage/NewPage'))
-
-export const Routes = createBrowserRouter([
-  {
-    path: ERoutePath.Home,
-    Component: Layout,
-    children: [
-      // ... existing
-      {
-        path: ERoutePath.NewPage,
-        Component: () => (
-          <Suspense fallback={<Loading fixed full />}>
-            <NewPage />
-          </Suspense>
-        )
-      }
-    ]
-  }
-])
+// Add to children array:
+{ path: ERoutePath.NewPage, Component: () => <SuspensePage Component={NewPage} /> }
 
 // 4. Add nav item (if needed)
-// repos/admin/src/constants/nav.ts
-export const NavItems = [
-  // ... existing
-  { label: 'New Page', path: ERoutePath.NewPage, icon: <Icon /> }
-]
+// src/constants/nav.tsx
+{ text: `New Page`, to: buildRoute(ERoutePath.OrgNewPage), Icon: <SomeIcon /> }
 ```
 
-### 2. Adding Global State
+### 2. Adding a New Entity (Full Stack)
 
 ```typescript
-// 1. Create atom
-// repos/admin/src/state/myState.ts
+// 1. Create state atom
+// src/state/newEntity.ts
 import { atomWithReset } from 'jotai/utils'
-
-export const defMyState: MyType = undefined
-export const myState = atomWithReset<MyType>(defMyState)
+import type { NewEntity } from '@tdsk/domain'
+export const newEntitiesState = atomWithReset<Record<string, NewEntity> | undefined>(undefined)
+export const activeNewEntityIdState = atomWithReset<string | undefined>(undefined)
 
 // 2. Add accessors
-// repos/admin/src/state/accessors.ts
-import { myState, defMyState } from '@TAF/state/myState'
+// src/state/accessors.ts
+export const getNewEntities = () => store.get(newEntitiesState)
+export const setNewEntities = (v: Record<string, NewEntity>) => store.set(newEntitiesState, v)
+export const resetNewEntities = () => store.set(newEntitiesState, undefined)
 
-export const getMyState = () => store.get(myState)
-export const resetMyState = () => store.set(myState, defMyState)
-export const setMyState = (value: MyType) => store.set(myState, value)
+// 3. Add selectors
+// src/state/selectors.ts
+export const useNewEntities = () => useRecState(newEntitiesState)
+export const useActiveNewEntityId = () => useRecState(activeNewEntityIdState)
 
-// 3. Add selector (if needed)
-// repos/admin/src/state/selectors.ts
-export const useMyState = () => {
-  return useAtom(myState)
+// 4. Create service
+// src/services/newEntitiesApi.ts
+export class NewEntitiesApi extends BaseApi {
+  private readonly path = `/new-entities`
+  cache: TApiCacheKeys = { ... }
+  async list() { ... }
+  async get(id: string) { ... }
+  async create(data: Partial<NewEntity>) { ... }
+  async update(id: string, data: Partial<NewEntity>) { ... }
+  async delete(id: string) { ... }
 }
+export const newEntitiesApi = new NewEntitiesApi()
 
-// 4. Use in component
-import { useMyState } from '@TAF/state/selectors'
-
-const MyComponent = () => {
-  const [myState, setMyState] = useMyState()
-  // ...
-}
+// 5. Create actions (api/ and local/)
+// src/actions/newEntities/api/fetchNewEntities.ts
+// src/actions/newEntities/local/upsertNewEntity.ts
 ```
 
-### 3. Calling Backend API
+### 3. Adding Global State
 
 ```typescript
-// 1. Create action
-// repos/admin/src/actions/teams/fetchTeams.ts
-import { setTeams } from '@TAF/state/accessors'
+// 1. Create atom (src/state/myState.ts)
+import { atomWithReset } from 'jotai/utils'
+export const myState = atomWithReset<MyType>(undefined)
 
-export const fetchTeams = async () => {
-  try {
-    const response = await fetch('/admin/teams')
-    if (!response.ok) throw new Error('Failed to fetch teams')
+// 2. Add accessors (src/state/accessors.ts)
+export const getMyState = () => store.get(myState)
+export const setMyState = (value: MyType) => store.set(myState, value)
+export const resetMyState = () => store.set(myState, undefined)
 
-    const teams = await response.json()
-    const teamsMap = teams.reduce((acc, team) => {
-      acc[team.id] = new Team(team)
-      return acc
-    }, {})
+// 3. Add selector (src/state/selectors.ts)
+export const useMyState = () => useRecState(myState)
 
-    setTeams(teamsMap)
-    return { teams: teamsMap }
-  } catch (error) {
-    console.error('fetchTeams error:', error)
-    return { error }
-  }
-}
-
-// 2. Call from component
-import { fetchTeams } from '@TAF/actions/teams/fetchTeams'
-
-const TeamsPage = () => {
-  const teams = useAtomValue(teamsState)
-
-  useEffectOnce(() => {
-    fetchTeams()
-  })
-
-  return <div>{/* render teams */}</div>
-}
+// 4. Use in component
+const [myState, setMyState, resetMyState] = useMyState()
 ```
 
 ### 4. Creating Styled Components
 
 ```typescript
-// repos/admin/src/components/MyComponent/MyComponent.styles.tsx
+// src/components/MyComponent/MyComponent.styles.tsx
 import { styled } from '@mui/material/styles'
-import { Box, Button } from '@mui/material'
+import { Box } from '@mui/material'
 
 export const MyContainer = styled(Box)(({ theme }) => ({
   padding: theme.spacing(2),
   backgroundColor: theme.palette.background.paper,
   borderRadius: theme.shape.borderRadius,
 }))
-
-export const MyButton = styled(Button)(({ theme }) => ({
-  color: theme.palette.primary.contrastText,
-  '&:hover': {
-    backgroundColor: theme.palette.primary.dark,
-  },
-}))
-
-// Usage in MyComponent.tsx
-import { MyContainer, MyButton } from './MyComponent.styles'
-
-export const MyComponent = () => {
-  return (
-    <MyContainer>
-      <MyButton variant="contained">Click Me</MyButton>
-    </MyContainer>
-  )
-}
-```
-
-### 5. Adding a Service
-
-```typescript
-// repos/admin/src/services/myService.ts
-export class MyService {
-  private baseUrl: string
-
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl
-  }
-
-  async getData() {
-    const response = await fetch(`${this.baseUrl}/data`)
-    return response.json()
-  }
-}
-
-export const myService = new MyService('/api/my-service')
-
-// Usage
-import { myService } from '@TAF/services/myService'
-const data = await myService.getData()
 ```
 
 ## Common Issues & Solutions
 
 ### 1. Path Alias Not Resolving
-
-**Problem**: Import using `@TAF/*` not found
-
-**Solution**:
 - Check `tsconfig.json` paths configuration
-- Verify `configs/vite.workspace.ts` has correct aliases
-- Restart TypeScript server in IDE
+- Verify `configs/vite.workspace.ts` includes workspace project via `viteTsconfigPaths`
+- Restart Vite dev server after config changes
 - Run `pnpm types` to check for TS errors
 
-### 2. State Not Updating
+### 2. State Not Updating in Component
+- Use `useRecState()` or `useDerivedState()` hooks (not `store.get()` in components)
+- Ensure component tree is under `<Provider store={store}>`
+- Always create new objects/arrays (never mutate)
 
-**Problem**: Jotai state changes not triggering re-render
+### 3. API Calls Returning 401
+- Verify Neon Auth session is valid (`auth.session()`)
+- Check `apiUrl()` resolution (TDSK_CADDY_PX_HOST should point to Caddy proxy)
+- Verify proxy is validating JWT correctly
+- Check that `bearer()` has been called on `apiService`
 
-**Solution**:
-- Use `useAtomValue()` or `useAtom()` hook (not `store.get()`)
-- Ensure component is wrapped in `<Provider store={store}>`
-- Check for mutations (always create new objects/arrays)
+### 4. TanStack Query Cache Issues
+- Check `queryKey` uniqueness for different requests
+- Use different `staleTime` values where needed
+- Call `query.reset()` to clear all cached data
 
-### 3. Auth Redirect Loop
-
-**Problem**: Stuck redirecting between login and home
-
-**Solution**:
-- Check `TDSK_AUTH_URL` is correct
-- Verify Neon Auth session is valid
-- Clear browser cookies/localStorage
-- Check `SignedIn` / `RedirectToSignIn` logic in Layout
-
-### 4. Environment Variables Not Loading
-
-**Problem**: `process.env.TDSK_*` is undefined
-
-**Solution**:
+### 5. Environment Variables Not Loading
 - Check `deploy/values.local.yml` has correct values
-- Verify `configs/frontend.config.ts` loadEnvs() is called
-- Ensure `TDSK_AD_OVERRIDE_ENVS` is set for local dev
+- Verify `configs/frontend.config.ts` `loadConfig()` is called
+- Ensure env vars are defined in Vite `define` config
 - Restart dev server after changing env files
 
-### 5. HMR Not Working for Domain/Components
-
-**Problem**: Changes in `@tdsk/domain` or `@tdsk/components` don't trigger HMR
-
-**Solution**:
+### 6. HMR Not Working for Domain/Components
 - Check `vite.workspace.ts` includes workspace projects
 - Verify `tsconfig.json` paths are correct
 - Use `pnpm sf` (force refresh) instead of `pnpm start`
-- Ensure workspace packages are built (`pnpm build` in each)
 
 ## Best Practices
 
 1. **Always use path aliases** - Prefer `@TAF/*` over relative imports
 2. **Co-locate styles** - Keep styled components in `.styles.tsx` next to component
-3. **Lazy load pages** - Wrap all route components in `React.lazy()`
-4. **Use Jotai selectors** - Create hooks in `selectors.ts` for derived state
-5. **Type everything** - Avoid `any`, use proper TypeScript types
-6. **Service classes for stateful APIs** - Use singleton pattern
-7. **Atomic state** - Keep state atoms small and focused
-8. **Error boundaries** - Wrap Suspense with error boundaries for robustness
-9. **Loading states** - Always show loading UI during async operations
-10. **Theme-aware styling** - Use `theme` parameter in styled components
+3. **Lazy load pages** - All route components must use `React.lazy()` + `SuspensePage`
+4. **Use selectors for components** - `useRecState`/`useDerivedState` hooks, not `store.get()`
+5. **Use accessors for actions** - `get*/set*/reset*` functions from accessors.ts
+6. **Type everything** - Avoid `any`, use proper TypeScript types from `@TAF/types` or `@tdsk/domain`
+7. **Singleton services** - Each API service is a singleton instance
+8. **Cache keys for GET requests** - Always provide `queryKey` for TanStack Query caching
+9. **Toast on error** - Use `_onError()` from BaseApi for user-facing error messages
+10. **Event handler naming** - Always prefix with `on` (e.g., `onDeleteClick`, `onSuccess`)
+11. **Default exports for pages** - Required for `React.lazy()` dynamic imports
+12. **Theme-aware styling** - Use `theme` parameter in styled components
 
 ---
 
-**Last Updated**: 2026-01-18
-**Version**: 1.2.0
+**Last Updated**: 2026-02-15
+**Version**: 2.0.0
 **Maintainer**: ThreadedStack Team
 
 ## Changelog
 
+### v2.0.0 (2026-02-15)
+- **Complete rewrite** based on actual codebase audit
+- **Fixed**: Directory structure now reflects all 38+ component dirs, 18 action domains, 22+ services, 21 state atoms
+- **Fixed**: Route definitions corrected (relative vs absolute paths, actual ERoutePath enum values)
+- **Fixed**: Removed stale "Teams" and "Repos" references (now Organizations and Projects everywhere)
+- **Fixed**: State management section updated with actual accessor/selector pattern (useRecState/useDerivedState)
+- **Fixed**: API service architecture documented (ApiService → BaseApi → domain APIs with TanStack Query)
+- **Fixed**: Dependencies list corrected (added @tanstack/react-query, posthog-js, sonner v2.0.7, vitest v1.6.1)
+- **Added**: Agent chat SSE streaming documentation (useAgentChat hook)
+- **Added**: Quickstart wizard flow (ProviderStep → AgentStep → ReviewStep)
+- **Added**: All 18 action domains with api/local split documented
+- **Added**: Context providers (OrgsProvider, ProjectsProvider) data loading pattern
+- **Added**: Navigation system (NavService, buildRoute, OrgNavItems, ProjectNavItems)
+- **Added**: Templates service for {{mustache}} syntax
+- **Added**: Complete environment variables list
+- **Added**: Test files inventory (6 test files)
+- **Removed**: Outdated code examples referencing Teams/Repos/Page component patterns
+
 ### v1.2.0 (2026-01-18)
-- **New**: Billing & Subscriptions - Payment plans via Polar.sh
-- **New**: Quota Management - Track org resource usage (12 resource types)
-- **New**: `subscriptionsApi.ts` - API service for subscriptions (current, plans, checkout, portal, cancel)
-- **New**: `quotasApi.ts` - API service for quotas (get usage, limits, check)
-- **New**: `/billing` page - Subscription management with plan cards and checkout flow
-- **New**: `/orgs/:orgId/usage` page - Quota usage tracking with progress bars
-- **New**: `Billing/` components - `PlanCard`, `CurrentPlan`, `QuotaUsage`
-- **New**: State atoms for subscriptions and quotas (Jotai)
-- **New**: Actions for subscriptions and quotas API integration
-- **New**: Integration with backend payment endpoints
+- Added Billing & Subscriptions (Polar.sh)
+- Added Quota Management (12 resource types)
+- Added subscriptionsApi, quotasApi services
+- Added /billing and /orgs/:orgId/usage pages
+- Added Billing components and state atoms
 
 ### v1.1.0 (2026-01-15)
-- **Breaking**: Teams renamed to Organizations (orgs)
-- **Breaking**: Repos renamed to Projects
-- **New**: API Keys management at org level
-- **New**: Secrets management at org and project levels
-- **New**: Endpoints and Functions at project level
-- **New**: User invitation and role management for orgs
-- **New**: Nested routing - Projects are under Organizations
-- **New**: Multiple new state atoms for all new entities
+- Teams renamed to Organizations (orgs)
+- Repos renamed to Projects
+- Added API Keys, Secrets, Endpoints, Functions management
+- Added nested routing (Projects under Organizations)

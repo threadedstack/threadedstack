@@ -1,1050 +1,884 @@
 ---
 name: "Threaded Stack - Agent Repo"
-description: "Knowledge base for the AI Agent WASM backend repo"
-version: "1.1.0"
-tags: ["wasm", "nodejs", "ai-agent", "componentize-js", "security", "isolation", "llm-providers", "proxy-adapter"]
+description: "Knowledge base for the headless AI agent orchestration library"
+version: "2.0.0"
+tags: ["ai-agent", "llm", "streaming", "react-loop", "tool-execution", "sandbox", "typescript"]
 ---
 # Agent Repo Skill
 
 ## Overview
 
-The **Agent** repo (`repos/agent`) is a secure, headless AI coding agent backend built with WebAssembly for maximum isolation and security. It provides a Node.js Host that spawns isolated WASM Guest instances to handle AI agent requests with strict security boundaries, concurrent execution control, and provider-agnostic LLM integration.
+The **Agent** repo (`repos/agent`, `@tdsk/agent`) is a headless AI agent orchestration library that provides streaming-first LLM integration and a ReAct loop for tool execution. It acts as the runtime brain for Threaded Stack's AI agent system.
 
 **Key Characteristics:**
-- **Type**: AI Agent Backend (Node.js + WebAssembly)
-- **Tech Stack**: TypeScript, WebAssembly Component Model, componentize-js, preview2-shim
-- **Architecture**: Host-Guest separation with security layers
-- **Security Model**: Fresh WASM instance per request, command allowlist + blocklist
-- **LLM Support**: OpenAI, Anthropic, Grok, and custom providers
-- **Concurrency**: Mutex-based serial execution per projectId
+- **Type**: Headless AI Agent Library (no server, no WASM)
+- **Tech Stack**: TypeScript, streaming SSE, async generators
+- **Architecture**: AgentRunner orchestrates a multi-step ReAct loop with LLM streaming and sandbox-based tool execution
+- **LLM Support**: Anthropic, OpenAI, Google Gemini, Z.AI (GLM), and ProxyAdapter (backend SSE relay)
+- **Sandbox**: Delegates to `@tdsk/sandbox` for isolated code/shell execution (E2B or local)
+- **Concurrency**: Mutex-based serial execution per threadId
+- **Build**: Single-step CJS bundle via tsup (no WASM compilation)
+
+**Key Problem Solved**: Provides a unified, streaming-first interface for running AI agents across multiple LLM providers, with automatic tool call detection, sandbox execution, and conversation history management.
 
 ## Directory Structure
 
 ```
 repos/agent/
-├── package.json                  # Dependencies & scripts
+├── package.json                  # v2.0.0, type: module
 ├── tsconfig.json                 # TypeScript config with path mappings
-├── README.md                     # User documentation
-├── configs/                      # Build & tooling configs
-│   ├── agent.config.ts           # TSAgent configuration
+├── configs/
+│   ├── agent.config.ts           # Logger + env config
 │   ├── aliases.ts                # Path aliases (@TAG/*)
 │   ├── biome.json                # Biome linter config
-│   └── tsup.config.ts            # Main app build (TSAgent export)
-│   ├── vitest.config.ts          # Test configuration for vitest
-├── scripts/                      # Build pipeline scripts
-│   └── wasm/
-│       ├── build.ts              # TS → WASM componentization
-│       └── deps.ts               # Download WASM module dependencies
-├── docs/                         # Documentation
-│   └── IMPLEMENTATION.md         # Detailed architecture & implementation guide
-├── dist/                         # Build outputs
-│   ├── index.cjs                 # Host package
-│   ├── agent/agent.js            # Pre-componentized agent
-│   ├── sandbox/sandbox.js        # Pre-componentized code sandbox
-│   └── wasm/                     # Compiled WASM agent + JS bindings
-│       ├── interfaces/           # WASI interface definitions
-│       ├── agent.core.wasm       # WASM binary
-│       ├── agent.js              # JS bindings with WASI polyfills
-│       ├── agent.d.ts            # TypeScript definitions
-│       ├── sandbox.core.wasm     # WASM binary
-│       ├── sandbox.js            # JS bindings with WASI polyfills
-│       └── sandbox.d.ts          # TypeScript definitions
-├── src/                          # Application source code
-│   ├── constants/                # Security constants
-│   │   └── executor.ts           # Command allowlist + blocklist patterns
-│   ├── llm/                      # LLM adapter layer
-│   │   ├── factory.ts            # createLLMAdapter factory
-│   │   ├── anthropic.ts          # Anthropic streaming adapter (18 tests)
-│   │   ├── openai.ts             # OpenAI streaming adapter (17 tests)
-│   │   ├── google.ts             # Google Gemini streaming adapter (25 tests)
-│   │   ├── proxy.ts              # ProxyAdapter — routes LLM calls through backend SSE (7 tests)
-│   │   ├── factory.test.ts       # Factory tests (6 tests)
-│   │   └── index.ts              # LLM exports
-│   ├── runner/                   # Agent execution orchestration
-│   │   ├── runner.ts             # AgentRunner — multi-step conversation loop
-│   │   └── runner.test.ts        # Runner tests (21 tests)
-│   ├── tools/                    # Tool definitions for LLM
-│   │   ├── definitions/          # Individual tool schemas
-│   │   └── index.ts              # Tool exports
-│   ├── services/                 # Host-side services
-│   │   ├── mutex.ts              # Promise-based locking (serial execution, 15 tests)
-│   │   ├── executor.ts           # Secure shell command execution
-│   │   ├── wasm.ts               # WASM instantiation bridge
-│   │   └── index.ts              # Service exports
-│   ├── index.ts                  # Main export (AgentRunner, ProxyAdapter, etc.)
-│   ├── tsagent.ts                # Host wrapper class (14 tests)
-│   ├── types/                    # TypeScript type definitions
-│   │   ├── agent.types.ts        # LLM providers, messages, config
-│   │   ├── runner.types.ts       # TAgentRunOpts, IAgentRunnerDB
-│   │   ├── executor.types.ts     # Command execution types
-│   │   ├── mutex.types.ts        # Concurrency control types
-│   │   ├── wasm.types.ts         # WASM bridge types
-│   │   ├── index.types.ts        # Public API types (TSAgent options)
-│   │   └── index.ts              # Type exports
-│   └── wasm/                     # WASM Guest code (compiled to WASM)
-│       ├── agent.ts              # Main ReAct loop entry point
-│       ├── context.ts            # Token management ("Middle-Out" truncation)
-│       ├── provider.ts           # LLM provider abstractions
-│       ├── sandbox.ts            # Sandbox code execution entry point
-│       └── tools.ts              # Tool definitions passed to the llm provider
-└── wit/
-    ├── deps                      # WASM dependencies
-    └── world.wit                 # WASM Component Model interface definition
+│   ├── tsup.config.ts            # CJS build, externals
+│   └── vitest.config.ts          # Vitest test runner config
+└── src/
+    ├── index.ts                  # Re-exports: llm, types, tools, tsagent, runner, services, @tdsk/sandbox
+    ├── index.test.ts             # 6 tests
+    ├── tsagent.ts                # TSAgent class — sandbox lifecycle manager (62 lines)
+    ├── tsagent.test.ts           # 14 tests
+    ├── llm/
+    │   ├── index.ts              # Barrel: zai, proxy, openai, google, factory, anthropic, openai-compatible
+    │   ├── factory.ts            # createLLMAdapter() — Map-based factory
+    │   ├── factory.test.ts       # 7 tests
+    │   ├── anthropic.ts          # AnthropicAdapter — native @anthropic-ai/sdk streaming (120 lines)
+    │   ├── anthropic.test.ts     # 22 tests
+    │   ├── openai.ts             # OpenAIAdapter extends OpenAICompatibleAdapter (15 lines)
+    │   ├── openai.test.ts        # 18 tests
+    │   ├── openai-compatible.ts  # Abstract base class — SSE fetch, tool call tracking (257 lines)
+    │   ├── openai-compatible.test.ts # 29 tests
+    │   ├── google.ts             # GoogleAdapter — @google/genai with lazy import (156 lines)
+    │   ├── google.test.ts        # 29 tests
+    │   ├── zai.ts                # ZaiAdapter extends OpenAICompatibleAdapter (79 lines)
+    │   ├── zai.test.ts           # 17 tests
+    │   ├── proxy.ts              # ProxyAdapter — backend /ai/chat SSE relay (77 lines)
+    │   └── proxy.test.ts         # 7 tests
+    ├── runner/
+    │   ├── index.ts              # Re-exports runner + runner.types
+    │   ├── runner.ts             # AgentRunner — ReAct loop orchestrator (279 lines)
+    │   └── runner.test.ts        # 21 tests
+    ├── services/
+    │   ├── index.ts              # Re-exports mutex
+    │   ├── mutex.ts              # Mutex — promise-based locking (61 lines)
+    │   └── mutex.test.ts         # 15 tests
+    ├── tools/
+    │   ├── index.ts              # Re-exports definitions
+    │   ├── definitions.test.ts   # 12 tests
+    │   └── definitions/
+    │       ├── index.ts          # Re-exports definitions
+    │       ├── definitions.ts    # allToolDefs, getToolDefs()
+    │       ├── definitions.test.ts # 9 tests
+    │       ├── fs/fs.ts          # readFile, writeFile, listDir, deleteFile, mkdir, fileExists
+    │       ├── shell/definition.ts # shellExec
+    │       └── web/web.ts        # webSearch (stub)
+    ├── types/
+    │   ├── index.ts              # Re-exports mutex.types + runner.types
+    │   ├── runner.types.ts       # TAgentRunOpts, IAgentRunnerDB (58 lines)
+    │   └── mutex.types.ts        # TMutexOpts (5 lines)
+    └── utils/
+        ├── index.ts              # Re-exports paths
+        ├── logger.ts             # buildApiLogger wrapper
+        └── paths.ts              # alias-hq path resolution
 ```
 
 ## Key Files
 
-### Entry Points
-
-- **`src/index.ts`** - Root export, re-exports TSAgent class
-- **`src/tsagent.ts`** - Main Host class with `run()` method (122 lines)
-- **`src/agent/agent.ts`** - WASM Guest entry point with `processRequest()` function
-
-### Build Pipeline
-
-- **`scripts/wasm/build.ts`** - TS → WASM componentization via componentize-js (3 steps)
-- **`scripts/wasm/transpile.ts`** - WASM → JS transpilation via jco (unused, integrated in build.ts)
-- **`world.wit`** - WebAssembly Component Model interface definition
-
-### Services (Host-Side)
-
-- **`src/services/mutex.ts`** - Promise-chaining mutex for serial execution per projectId
-- **`src/services/executor.ts`** - Secure shell execution with multi-layer validation
-- **`src/services/wasm.ts`** - WASM instantiation, VFS mounting, import object creation (156 lines)
-
-### Agent (Guest-Side)
-
-- **`src/agent/context.ts`** - Token budget management with "Middle-Out" truncation strategy
-- **`src/agent/provider.ts`** - LLM provider factory (OpenAI, Anthropic, Grok support)
-- **`src/agent/agent.ts`** - ReAct loop: `/run` tool execution, LLM chat, token streaming
-
-### Type Definitions
-
-- **`src/types/agent.types.ts`** - LLM provider interface, message types, config types
-- **`src/types/wasm.types.ts`** - WASM bridge imports/exports, instance types
-- **`src/types/executor.types.ts`** - Command execution options, security config
-- **`src/types/mutex.types.ts`** - Mutex configuration
-- **`src/types/index.types.ts`** - Public TSAgent API types
-
-### Security Constants
-
-- **`src/constants/executor.ts`** - Command allowlist (git, npm, etc.) + blocklist regex patterns
-
-### Documentation
-
-- **`README.md`** - User-facing documentation with usage examples
-- **`docs/IMPLEMENTATION.md`** - Comprehensive architecture guide (700+ lines)
+| File | Purpose |
+|------|---------|
+| `src/index.ts` | Root barrel export — re-exports llm, types, tools, tsagent, runner, services, and `createSandboxProvider` from `@tdsk/sandbox` |
+| `src/tsagent.ts` | TSAgent class — manages sandbox lifecycle (create/get/destroy) with mutex concurrency |
+| `src/runner/runner.ts` | AgentRunner — static `run()` method orchestrating the ReAct loop (279 lines) |
+| `src/llm/factory.ts` | `createLLMAdapter()` — Map-based factory creating adapters by provider type |
+| `src/llm/openai-compatible.ts` | Abstract base class for OpenAI-compatible providers — SSE fetch + tool call tracking (257 lines) |
+| `src/llm/anthropic.ts` | AnthropicAdapter — native `@anthropic-ai/sdk` streaming (120 lines) |
+| `src/llm/openai.ts` | OpenAIAdapter — thin subclass of OpenAICompatibleAdapter (15 lines) |
+| `src/llm/google.ts` | GoogleAdapter — `@google/genai` with lazy dynamic import (156 lines) |
+| `src/llm/zai.ts` | ZaiAdapter — OpenAICompatibleAdapter subclass with thinking/web_search/do_sample (79 lines) |
+| `src/llm/proxy.ts` | ProxyAdapter — routes LLM calls through backend `/ai/chat` SSE proxy (77 lines) |
+| `src/services/mutex.ts` | Mutex — promise-chaining concurrency control (61 lines) |
+| `src/tools/definitions/definitions.ts` | `allToolDefs` array and `getToolDefs()` filter function |
+| `src/types/runner.types.ts` | `TAgentRunOpts` and `IAgentRunnerDB` interface definitions |
+| `configs/agent.config.ts` | Logger configuration from environment variables |
+| `configs/tsup.config.ts` | Build configuration — CJS output, external non-workspace deps |
 
 ## Architecture
 
-### Host-Guest Separation
+### Component Hierarchy
 
 ```
-Node.js Host (TSAgent)
-  ├─ Mutex (Serial execution per projectId)
-  ├─ Executor (Secure shell bridge)
-  └─ WasmBridge (WASM instantiation + VFS)
-      └─ WASM Guest (Agent)
-          ├─ Context (Token management)
-          ├─ Provider (LLM abstraction)
-          └─ ReAct Loop (Tool execution)
+TSAgent (sandbox lifecycle manager)
+  ├─ sandboxProvider: ISandboxProvider (from @tdsk/sandbox)
+  ├─ activeSandboxes: Map<string, ISandbox>
+  └─ mutex: Mutex (concurrency control)
+
+AgentRunner.run(opts) (main orchestration — static method)
+  ├─ Mutex (per-threadId locking)
+  ├─ IAgentRunnerDB (message persistence)
+  ├─ LLM Adapter (streaming via async generator)
+  │   ├─ AnthropicAdapter (@anthropic-ai/sdk native streaming)
+  │   ├─ OpenAIAdapter → OpenAICompatibleAdapter (SSE fetch)
+  │   ├─ GoogleAdapter (@google/genai streaming)
+  │   ├─ ZaiAdapter → OpenAICompatibleAdapter (SSE fetch + thinking/web_search)
+  │   └─ ProxyAdapter (backend /ai/chat SSE proxy)
+  ├─ Tool Definitions (fs: 6, shell: 1, web: 1 = 8 total)
+  └─ Sandbox (from @tdsk/sandbox — E2B or local)
 ```
 
-**Host Responsibilities**:
-- Manage concurrency (Mutex locking)
-- Provide secure shell access (Executor with allowlist/blocklist)
-- Instantiate WASM instances (WasmBridge)
-- Mount VFS (project directory → `/data`)
-- Inject capabilities (tools, env vars)
-
-**Guest Responsibilities**:
-- Process user requests
-- Execute ReAct loop (Reasoning + Acting)
-- Call LLM providers for responses
-- Invoke tools via Host Bridge
-- Stream tokens back to Host
-
-### Request Flow
+### Adapter Inheritance
 
 ```
-User Request (prompt, config, projectId)
+ILLMAdapter (interface from @tdsk/domain)
+├── AnthropicAdapter (standalone — uses @anthropic-ai/sdk)
+├── GoogleAdapter (standalone — uses @google/genai)
+├── ProxyAdapter (standalone — SSE fetch to backend)
+└── OpenAICompatibleAdapter (abstract base — raw SSE fetch)
+    ├── OpenAIAdapter (base URL: api.openai.com/v1)
+    └── ZaiAdapter (base URL: api.z.ai/api/paas/v4)
+```
+
+### Request Flow (AgentRunner.run)
+
+```
+AgentRunner.run(opts: TAgentRunOpts)
     ↓
-TSAgent.run()
-    ├─ 1. Acquire Mutex Lock (serial execution)
-    ├─ 2. Create Project Directory
-    ├─ 3. Build WASM Imports (tools, VFS, config)
-    ├─ 4. WasmBridge.initialize()
-    │      ├─ Load dist/wasm/agent.js
-    │      ├─ Create Import Object
-    │      │   ├─ local:agent/host-callback → { onToken }
-    │      │   ├─ local:agent/tools → { executeShell, webSearch }
-    │      │   ├─ wasi:cli/environment → { getEnvironment }
-    │      │   └─ wasi:filesystem/preopens → { getDirectories }
-    │      └─ Return instance.processRequest()
-    ├─ 5. instance.processRequest(prompt)
-    │      ├─ Parse Intent (/run, /search, or LLM)
-    │      ├─ Execute Tools (via Host Bridge)
-    │      ├─ Call LLM Provider (OpenAI/Anthropic/Grok)
-    │      └─ Stream Tokens via onToken()
-    ├─ 6. WasmBridge.cleanup()
-    └─ 7. Release Mutex Lock
+1. Acquire mutex lock for threadId
+    ↓
+2. Load conversation history from DB (db.listMessages)
+    ↓
+3. Append user message to history + persist to DB
+    ↓
+4. Get tool definitions (getToolDefs, optionally filtered by opts.tools)
+    ↓
+5. Create LLM adapter (opts.adapter ?? createLLMAdapter(llmConfig.provider))
+    ↓
+6. Create sandbox if tool defs + sandboxConfig present
+    ↓
+7. Conversation loop (max opts.maxSteps iterations, default 10):
+   ├─ Stream LLM response via adapter.stream(history, toolDefs, llmConfig)
+   │   ├─ Yield text events → collect into assistantContent
+   │   ├─ Yield tool_call_start → track pending tool calls
+   │   ├─ Yield tool_call_args → accumulate args
+   │   ├─ Yield done → check stopReason (tool_use = continue, else stop)
+   │   └─ Yield error → stop loop
+   ├─ Parse tool_use content blocks from pending tool calls
+   ├─ Save assistant message to DB
+   ├─ If tool calls + sandbox:
+   │   ├─ Run each tool via AgentRunner.executeTool(sandbox, name, args)
+   │   ├─ Emit toolResult events via onEvent
+   │   └─ Append tool results as user message (Anthropic convention) + persist
+   ├─ If tool calls but no sandbox → error, stop loop
+   └─ If no tool calls → stop loop (natural completion)
+    ↓
+8. Cleanup: close sandbox, release mutex lock (in finally block)
 ```
 
-### Security Layers
+### Tool Execution (AgentRunner.executeTool)
 
-**Layer 1: Fresh WASM Instance**
-- New instance per request (no state leakage)
-- Memory isolation via WASM sandbox
-- Automatic cleanup after execution
+Maps tool names (from `EAgentTool` enum) to sandbox methods:
 
-**Layer 2: Controlled Host Bridge**
-- Guest can only call approved functions:
-  - `executeShell(cmd, args)` → Validated shell execution
-  - `webSearch(query)` → Web search (not yet implemented)
-  - `onToken(token)` → Token streaming to Host
-- No direct filesystem, network, or process access
-
-**Layer 3: Command Validation (Executor)**
-- **Allowlist**: Only pre-approved commands (`git`, `ls`, `npm`, `pnpm`, `node`, `python3`, etc.)
-- **Blocklist**: Regex patterns block dangerous arguments:
-  - `../` - Directory traversal
-  - `^/` - Absolute paths
-  - `|`, `&`, `;`, `$`, `` ` `` - Shell operators
-  - `>`, `<`, `>>` - Redirects
-- **No Shell**: Commands run without shell expansion
-- **CWD Isolation**: Locked to project directory
-- **Minimal Env**: Only PATH and HOME exposed
-
-**Layer 4: VFS Mounting**
-- Project directory mounted as `/data` in WASM guest
-- No access to Host filesystem outside mount
-- Automatic cleanup on instance disposal
-
-**Layer 5: Mutex Locking**
-- Prevents concurrent modifications per projectId
-- Serial execution ensures no race conditions
-- Automatic queue management
+| Tool Name | Sandbox Method | Description |
+|-----------|---------------|-------------|
+| `shellExec` | `sandbox.exec(command, args)` | Run shell command |
+| `readFile` | `sandbox.readFile(path)` | Read file contents |
+| `writeFile` | `sandbox.writeFile(path, content)` | Write content to file |
+| `listDir` | `sandbox.listDir(path)` | List directory entries |
+| `deleteFile` | `sandbox.deleteFile(path)` | Delete a file |
+| `mkdir` | `sandbox.mkdir(path)` | Create directory |
+| `fileExists` | `sandbox.fileExists(path)` | Check if path exists |
+| `webSearch` | (not implemented) | Returns stub error |
 
 ## Component Details
 
-### 1. TSAgent (Host Entry Point)
+### 1. TSAgent (Sandbox Lifecycle Manager)
 
-**File**: `src/tsagent.ts` (122 lines)
+**File**: `src/tsagent.ts` (62 lines)
 
-**Purpose**: Main API exported from package
+**Purpose**: Manages sandbox instances per session with concurrency control
 
-**Constructor Options**:
+**Constructor**:
 ```typescript
 type TTSAgentOpts = {
-  tempDir?: string         // Temp directory for project files (default: os.tmpdir())
-  mutex?: TMutexOpts       // Mutex configuration
-  exec?: TExecutorOpts     // Executor configuration
-  bridge?: TWasmBridgeOpts // WASM bridge configuration
+  sandboxProvider: ISandboxProvider  // From @tdsk/sandbox
+  mutex?: TMutexOpts                // Optional mutex config
 }
-```
-
-**Main Method**: `run(opts: TInitOpts): Promise<void>`
-
-**Parameters**:
-```typescript
-type TInitOpts = {
-  prompt: string                        // User request
-  config: TAgentConfig                  // LLM provider config
-  projectId: string                     // Unique project identifier
-  onTokenCallback: (token: string) => void // Token streaming callback
-}
-
-type TAgentConfig = {
-  provider: 'openai' | 'anthropic' | 'grok' | 'gemini' | 'zai'
-  apiKey: string
-  model: string
-  url: string
-  path?: string           // API endpoint path
-  maxTokens?: number      // Context window size
-}
-```
-
-**Usage Example**:
-```typescript
-import { TSAgent } from '@tdsk/agent'
 
 const agent = new TSAgent({
-  tempDir: '/tmp/agents',
-  mutex: { maxLocks: 100 },
-  exec: { timeout: 10000 }
-})
-
-await agent.run({
-  prompt: 'Create a new React component',
-  projectId: 'my-project',
-  config: {
-    provider: 'openai',
-    apiKey: process.env.OPENAI_API_KEY,
-    model: 'gpt-4o',
-    url: 'https://api.openai.com'
-  },
-  onTokenCallback: (token) => console.log(token)
+  sandboxProvider: createSandboxProvider('local'),
+  mutex: { maxLocks: 100, timeout: 30000 }
 })
 ```
 
-### 2. WasmBridge (WASM Instantiation)
+**Properties**:
+- `mutex: Mutex` — Concurrency control instance
+- `sandboxProvider: ISandboxProvider` — Factory for creating sandboxes (private)
+- `activeSandboxes: Map<string, ISandbox>` — Active sandbox instances keyed by sessionId (private)
 
-**File**: `src/services/wasm.ts` (156 lines)
+**Methods**:
 
-**Purpose**: Bridge between Node.js Host and WASM Guest
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `createSandbox(sessionId, config)` | `Promise<ISandbox>` | Creates or returns existing sandbox for session |
+| `getSandbox(sessionId)` | `Promise<ISandbox \| undefined>` | Retrieves active sandbox by session ID |
+| `destroySandbox(sessionId)` | `Promise<void>` | Closes and removes sandbox (swallows errors) |
+| `cleanup()` | `Promise<void>` | Closes all sandboxes and clears mutex locks |
+| `getStats()` | `{ activeLocks, activeSandboxes }` | Returns current resource counts |
 
-**Key Methods**:
+### 2. AgentRunner (ReAct Loop Orchestrator)
 
-#### `initialize(imports: TWasmImports): Promise<TWasmInstance>`
+**File**: `src/runner/runner.ts` (279 lines)
 
-Creates fresh WASM instance with:
+**Purpose**: Core orchestration engine that runs a multi-step conversation loop with streaming LLM responses and tool execution
 
-1. **VFS Mount Points** - Tracks mount configuration (actual mounting via WASI runtime)
-2. **Import Object** - Structures imports matching compiled WASM expectations
-3. **Dynamic Import** - Loads compiled WASM agent from `dist/wasm/agent.js`
-4. **Return Instance** - Provides `processRequest()` function wrapper
+**API**: Static `run(opts: TAgentRunOpts): Promise<void>` method (no instantiation needed)
 
-**Import Structure**:
+**Key Behaviors**:
+- Acquires mutex per `threadId` to prevent concurrent thread access
+- Loads existing conversation history from DB before each run
+- Streams LLM responses via async generator (`adapter.stream()`)
+- Collects tool calls during streaming, runs them in sandbox after stream completes
+- Feeds tool results back to LLM as user messages (Anthropic convention)
+- Repeats until LLM stops calling tools or `maxSteps` reached (default 10)
+- Always cleans up sandbox and releases mutex in `finally` block
+
+**TAgentRunOpts**:
 ```typescript
-type TWasmImports = {
-  onToken: (token: string) => void                   // Token streaming callback
-  executeShell: (cmd: string, args: string[]) => string // Shell execution
-  webSearch: (query: string) => string               // Web search (TODO)
-  vfsMounts?: Record<string, string>                 // guestPath -> hostPath
-  config?: Record<string, string | number>           // Environment variables
+{
+  agentId: string
+  threadId: string
+  prompt: string
+  userId: string
+  orgId: string
+  db: IAgentRunnerDB           // Message persistence adapter
+  llmConfig: TLLMAdapterConfig // Provider, model, apiKey, etc.
+  sandboxConfig?: {            // Optional sandbox configuration
+    provider: string
+    apiKey?: string
+    template?: string
+    timeout?: number
+    envVars?: Record<string, string>
+  }
+  tools?: string[]             // Allowed tool names (empty = all 8 tools)
+  environment?: TAgentEnvironment
+  maxSteps?: number            // Max conversation loop steps (default 10)
+  adapter?: ILLMAdapter        // Pre-built adapter (e.g. ProxyAdapter). Falls back to factory
+  onEvent: (event: TStreamEvent) => void  // Streaming event callback
 }
 ```
 
-#### `cleanup(): Promise<void>`
-
-Clears mount points and nullifies instance reference.
-
-#### `processRequest(prompt: string): Promise<void>`
-
-Direct wrapper for WASM `processRequest()` function with validation.
-
-### 3. Executor (Secure Shell Execution)
-
-**File**: `src/services/executor.ts`
-
-**Purpose**: Multi-layer shell command validation and execution
-
-**Configuration**:
+**IAgentRunnerDB** (pluggable persistence interface):
 ```typescript
-type TExecutorOpts = {
-  timeout?: number                // Command timeout (default: 30000ms)
-  allowedCommands?: Set<string>   // Command allowlist
-  blockedPatterns?: RegExp[]      // Argument blocklist patterns
+interface IAgentRunnerDB {
+  listMessages(opts: {
+    where: { threadId: string }
+    limit: number
+    offset: number
+  }): Promise<{ data?: Array<{ type: string; content: TMessageContent[] }> }>
+
+  createMessage(data: {
+    threadId: string
+    type: string
+    content: TMessageContent[]
+    orgId: string
+  }): Promise<unknown>
 }
 ```
 
-**Default Allowlist**:
+Backend implements this via direct DB calls; REPL implements it via HTTP calls to the backend API.
+
+### 3. LLM Adapter Factory
+
+**File**: `src/llm/factory.ts`
+
+**Purpose**: Creates LLM adapter instances by provider type
+
 ```typescript
-['git', 'ls', 'cat', 'mkdir', 'touch', 'rm', 'mv', 'cp',
- 'npm', 'pnpm', 'node', 'python3', 'pip3', 'grep', 'find']
+const adapters = new Map<TLLMProviderType, () => ILLMAdapter>([
+  ['zai',       () => new ZaiAdapter()],
+  ['anthropic', () => new AnthropicAdapter()],
+  ['openai',    () => new OpenAIAdapter()],
+  ['google',    () => new GoogleAdapter()],
+])
+
+export const createLLMAdapter = (provider: TLLMProviderType): ILLMAdapter
+// Throws: Error('Unknown LLM provider: ${provider}')
 ```
 
-**Default Blocklist Patterns**:
+Note: `ProxyAdapter` is NOT in the factory -- it is always injected via `opts.adapter` because it requires constructor parameters (`backendUrl`, `sessionToken`, `provider`).
+
+### 4. OpenAICompatibleAdapter (Abstract Base)
+
+**File**: `src/llm/openai-compatible.ts` (257 lines)
+
+**Purpose**: Abstract base class for all OpenAI-compatible LLM providers. Uses raw `fetch()` + SSE parsing (no SDK dependency).
+
+**Abstract members**:
+- `provider: TLLMProviderType` — Provider identifier
+- `getBaseUrl(config): string` — Returns API base URL
+
+**Protected methods (overridable)**:
+- `getHeaders(config)` — Returns request headers. Default: `{ Content-Type: application/json, Authorization: Bearer ${config.apiKey}, ...config.headers }`
+- `getExtraBody(config, tools)` — Returns extra body params. Default: `{}`
+- `mapFinishReason(reason)` — Maps provider-specific finish reasons to `TStreamStopReason`. Default: `stop` -> `end_turn`, `tool_calls` -> `tool_use`, `length` -> `max_tokens`
+
+**Streaming implementation**:
+- POSTs to `${baseUrl}/chat/completions` with `stream: true`
+- Reads response body as `ReadableStream<Uint8Array>`
+- Parses SSE `data: ` lines, handles `[DONE]` sentinel
+- Tracks tool calls by index in a `Map<number, { id, name, args }>`
+- Yields unified `TStreamEvent` objects: `text`, `tool_call_start`, `tool_call_args`, `done`, `error`
+
+**Message conversion helpers** (exported):
+- `toOpenAIMessages(messages: TAIMessage[])` — Converts unified messages to OpenAI chat format
+- `toOpenAITools(tools: TLLMToolDef[])` — Converts unified tool defs to OpenAI function calling format
+
+**Request body construction**:
 ```typescript
-[
-  /\.\.\//,         // Directory traversal
-  /^\//,            // Absolute paths
-  /[|&;$`]/,        // Shell operators
-  /[><]/,           // Redirects
-]
+body = {
+  model: config.model,
+  max_tokens: config.maxTokens ?? 4096,
+  temperature: config.temperature,
+  messages: toOpenAIMessages(messages),
+  stream: true,
+  ...config.bodyParams,    // User-specified body overrides
+  ...extraBody,            // Subclass-specific params (e.g. ZAI thinking)
+  tools: toOpenAITools(tools),  // Only if tools.length > 0 and extraBody doesn't set tools
+}
 ```
 
-**Execution Method**: `exec(cmd: string, args: string[], projectDir: string): Promise<string>`
+### 5. AnthropicAdapter
 
-**Security Checks**:
-1. Command must be in allowlist
-2. Arguments must not match blocklist patterns
-3. Shell expansion disabled (`shell: false`)
-4. CWD locked to `projectDir`
-5. Minimal environment (PATH, HOME only)
+**File**: `src/llm/anthropic.ts` (120 lines)
 
-### 4. Mutex (Concurrency Control)
+**Purpose**: Anthropic LLM adapter using native `@anthropic-ai/sdk` streaming
 
-**File**: `src/services/mutex.ts`
+**Key differences from OpenAI-compatible**:
+- Uses `client.messages.stream()` from the Anthropic SDK (not raw fetch)
+- System prompt passed as separate `system` parameter (not in messages array)
+- Handles `content_block_start` (tool_use detection), `content_block_delta` (text + input_json), `message_stop` events
+- Supports `config.headers` via `defaultHeaders` on client
+- Supports `config.bodyParams` spread into stream options
 
-**Purpose**: Promise-based locking for serial execution per projectId
+**Message conversion**:
+- Filters out system messages (handled separately)
+- Maps `tool_result` content blocks with `tool_use_id` and `is_error` fields
+- Maps `tool_use` content blocks with `id`, `name`, `input` fields
 
-**Implementation**:
+### 6. OpenAIAdapter
+
+**File**: `src/llm/openai.ts` (15 lines)
+
+**Purpose**: Thin subclass of `OpenAICompatibleAdapter` for OpenAI API
+
 ```typescript
-class Mutex {
-  private locks = new Map<string, Promise<void>>()
-
-  acquire = async (projectId: string): Promise<() => void> => {
-    const currentLock = this.locks.get(projectId) || Promise.resolve()
-    const newLock = currentLock.then(() =>
-      new Promise<void>(resolve => releaseLock = resolve)
-    )
-    this.locks.set(projectId, newLock)
-    await currentLock // Wait for turn
-    return releaseLock
+export class OpenAIAdapter extends OpenAICompatibleAdapter {
+  readonly provider = 'openai' as const
+  protected getBaseUrl(_config: TLLMAdapterConfig): string {
+    return 'https://api.openai.com/v1'
   }
 }
 ```
 
-**Usage**:
+Inherits all streaming, tool handling, and message conversion from the base class.
+
+### 7. GoogleAdapter
+
+**File**: `src/llm/google.ts` (156 lines)
+
+**Purpose**: Google Gemini adapter using `@google/genai` SDK with lazy dynamic import
+
+**Key details**:
+- **Lazy loading**: `@google/genai` loaded via `await import('@google/genai')` to avoid CJS/ESM compatibility issues (p-retry dependency)
+- Uses `client.models.generateContentStream()` for streaming
+- System prompt passed via `config.systemInstruction`
+- Supports `config.headers` via `httpOptions: { headers }`
+- Supports `config.bodyParams` spread into config object
+- Generates synthetic tool IDs (`tool_0`, `tool_1`, etc.)
+- Maps `STOP` -> `end_turn`, `MAX_TOKENS` -> `max_tokens`
+
+**Message conversion**:
+- Role mapping: `assistant` -> `model`, `user` stays `user`
+- `tool_use` -> `functionCall: { name, args }`
+- `tool_result` -> `functionResponse: { name: toolUseId, response: { result: content } }`
+
+### 8. ZaiAdapter
+
+**File**: `src/llm/zai.ts` (79 lines)
+
+**Purpose**: Z.AI (GLM models) adapter extending `OpenAICompatibleAdapter`
+
+**Base URL**: `https://api.z.ai/api/paas/v4`
+
+**Z.AI-specific features** (via `config.options` as `TZaiOptions`):
+- `thinking: boolean` — Enables chain-of-thought mode with `budget_tokens`
+- `thinkingBudget: number` — Token budget for thinking (default 2048)
+- `doSample: boolean` — When `false`, enables greedy decoding
+- `toolStream: boolean` — Enables streaming tool calls (GLM-4.6+)
+- `webSearch: Record<string, unknown>` — Enables built-in web search tool
+
+**Custom finish reasons**: Maps `sensitive` -> `error`, `network_error` -> `error`
+
+### 9. ProxyAdapter
+
+**File**: `src/llm/proxy.ts` (77 lines)
+
+**Purpose**: Routes LLM calls through the backend's SSE proxy instead of calling providers directly
+
+**Constructor**:
 ```typescript
-const releaseLock = await mutex.acquire(projectId)
-try {
-  // Critical section - serial execution guaranteed
-} finally {
-  releaseLock() // Always release
-}
-```
-
-### 5. Context (Token Management)
-
-**File**: `src/agent/context.ts`
-
-**Purpose**: Token budget management with "Middle-Out" truncation
-
-**Strategy**: Keep system prompt + recent messages, drop middle when over budget
-
-**Implementation**:
-```typescript
-class Context {
-  constructor(max: number = 100000) // Token budget
-
-  compose(sys: string, history: TMessage[]): { system: string, messages: TMessage[] } {
-    let budget = this.max - estimateTokens(sys)
-    const keep: TMessage[] = []
-
-    // Start from most recent, work backwards
-    for (let i = history.length - 1; i >= 0; i--) {
-      const len = estimateTokens(history[i])
-      if (budget - len < 0) break
-      budget -= len
-      keep.unshift(history[i])
-    }
-
-    return { system: sys, messages: keep }
-  }
-}
-```
-
-### 6. Provider (LLM Abstraction)
-
-**File**: `src/agent/provider.ts`
-
-**Purpose**: Factory pattern for multiple LLM APIs
-
-**Interface**:
-```typescript
-interface ILLMProvider {
-  key: string
-  url: string
-  model: string
-  path?: string
-  type: 'openai' | 'anthropic' | 'grok' | 'gemini' | 'zai'
-
-  complete(system: string, user: string): Promise<string>
-}
-```
-
-**Implementations**:
-
-1. **OpenAI** (and compatible APIs like Grok, Gemini)
-```typescript
-async complete(system: string, user: string): Promise<string> {
-  const response = await fetch(`${this.url}${this.path}`, {
-    headers: { Authorization: `Bearer ${this.key}` },
-    body: JSON.stringify({
-      model: this.model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user }
-      ]
-    })
-  })
-  return response.json().choices[0].message.content
-}
-```
-
-2. **Anthropic** (different API format)
-```typescript
-async complete(system: string, user: string): Promise<string> {
-  const response = await fetch(`${this.url}${this.path}`, {
-    headers: { 'x-api-key': this.key },
-    body: JSON.stringify({
-      system,
-      max_tokens: 4096,
-      model: this.model,
-      messages: [{ role: 'user', content: user }]
-    })
-  })
-  return response.json().content[0].text
-}
-```
-
-**Factory**:
-```typescript
-export const getProvider = (opts: TLLMBaseOpts): ILLMProvider => {
-  switch (opts.type) {
-    case 'openai': return new OpenAI(opts)
-    case 'anthropic': return new Anthropic(opts)
-    case 'grok': return new Grok(opts)
-    default: throw new Error(`Unknown provider: ${opts.type}`)
-  }
-}
-```
-
-### 7. Agent (ReAct Loop)
-
-**File**: `src/agent/agent.ts`
-
-**Purpose**: WASM guest entry point with tool execution and LLM chat
-
-**Main Export**: `processRequest(prompt: string): void`
-
-**Flow**:
-
-1. **Tool Commands** - Direct tool invocation
-```typescript
-if (prompt.startsWith('/run ')) {
-  const [cmd, ...args] = prompt.slice(5).split(' ')
-  onToken(`[Tool] Running ${cmd}...\n`)
-  const output = executeShell(cmd, args)
-  onToken(`[Output]\n${output}\n`)
-  return
-}
-```
-
-2. **Web Search** - Placeholder
-```typescript
-if (prompt.startsWith('/search ')) {
-  const query = prompt.slice(8).trim()
-  const results = webSearch(query)
-  onToken(`[Results]\n${results}\n`)
-  return
-}
-```
-
-3. **LLM Chat** - Standard conversation
-```typescript
-const provider = getProvider({
-  url: process.env.AGENT_URL,
-  key: process.env.AGENT_API_KEY,
-  type: process.env.AGENT_PROVIDER as TLLMProvider,
-  model: process.env.AGENT_MODEL
-})
-
-history.push({ role: 'user', content: prompt })
-const { system, messages } = ctx.compose(systemPrompt, history)
-const response = await provider.complete(system, userMessage)
-onToken(response)
-history.push({ role: 'assistant', content: response })
-```
-
-## Build Pipeline
-
-### 3-Step Compilation Process
-
-**Step 1: Compile TypeScript** (`pnpm build:app`)
-```bash
-tsup-node --config configs/tsup.config.ts
-# Output: dist/index.cjs (11.45 KB)
-```
-
-**Step 2: Compile Agent Code** (`pnpm build:agent`)
-```bash
-tsup-node --config configs/tsup.agent.config.ts
-# Output: dist/agent/agent.js (6.75 KB)
-```
-
-**Step 3: Componentize to WASM** (`pnpm build:wasm`)
-```typescript
-// scripts/wasm/build.ts
-const { component } = await componentize(agentJs, {
-  witPath: join(rootDir, 'world.wit'),
-  worldName: 'agent-service',
-  disableFeatures: []
-})
-
-const { files } = await jco.transpile(component, {
-  name: 'agent',
-  map: { 'wasi:*': '@bytecodealliance/preview2-shim/*' },
-  optimize: true
+new ProxyAdapter({
+  backendUrl: string,      // Backend URL (e.g. 'https://px.local.threadedstack.app')
+  sessionToken: string,    // Session token from POST /_/ai/sessions
+  provider: TLLMProviderType
 })
 ```
 
-**Outputs**:
-- `dist/wasm/agent.core.wasm` - Core WASM binary (13.5 MiB)
-- `dist/wasm/agent.js` - JS bindings with WASI polyfills (702 KB)
-- `dist/wasm/agent.d.ts` - TypeScript definitions
-- `dist/wasm/interfaces/` - 36 WASI interface definition files
+**How it works**:
+- POSTs to `${backendUrl}/ai/chat` with `Authorization: Session ${token}`
+- Body: `{ messages, tools }` (config handled server-side from cached session)
+- Reads SSE response and yields pre-formed `TStreamEvent` objects (backend emits events in unified format)
+- API key never leaves the backend -- the session token references a cached config with the decrypted key
 
-### WIT Interface Definition
+### 10. Mutex (Concurrency Control)
 
-**File**: `world.wit`
+**File**: `src/services/mutex.ts` (61 lines)
 
-```wit
-package local:agent;
+**Purpose**: Promise-based locking for serial execution per resource key
 
-interface tools {
-  execute-shell: func(command: string, args: list<string>) -> result<string, string>;
-  web-search: func(query: string) -> string;
-}
-
-interface imports {
-  on-token: func(token: string);
-}
-
-world agent-service {
-  include wasi:http/imports@0.2.0;
-  include wasi:filesystem/imports@0.2.0;
-  include wasi:cli/imports@0.2.0;
-  import tools;
-  import imports;
-  export process-request: func(prompt: string);
-}
-```
-
-## Logic Flow
-
-### Typical Request Execution
-
-```
-1. User calls agent.run({ prompt, config, projectId, onTokenCallback })
-2. Mutex.acquire(projectId) → Wait for turn in queue
-3. fs.mkdir(projectDir) → Ensure project directory exists
-4. WasmBridge.initialize(imports)
-   a. Store VFS mount points ({ '/data': projectDir })
-   b. Build import object:
-      - local:agent/host-callback → { onToken: callback }
-      - local:agent/tools → { executeShell: executor.exec, webSearch: stub }
-      - wasi:cli/environment → { getEnvironment: () => config as env vars }
-      - wasi:filesystem/preopens → { getDirectories: () => mount points }
-   c. Dynamic import: const wasmModule = await import('dist/wasm/agent.js')
-   d. Return { processRequest: wasmModule.processRequest, exports: wasmModule }
-5. instance.processRequest(prompt)
-   a. Parse intent: /run, /search, or LLM chat
-   b. If /run: Call executeShell(cmd, args) via Host Bridge
-      - Executor validates command (allowlist + blocklist)
-      - Executor runs spawnSync() with locked CWD
-      - Return stdout/stderr to WASM
-   c. If LLM: Call provider.complete(system, user)
-      - Create provider from env vars (OpenAI/Anthropic/Grok)
-      - Compose context (token truncation)
-      - Fetch LLM API
-      - Stream tokens via onToken()
-6. WasmBridge.cleanup() → Clear mount points, nullify instance
-7. Mutex release → Allow next request for this projectId
-```
-
-### Error Handling Flow
-
-```
-1. Error occurs in WASM guest or Host Bridge
-2. Caught by try-catch in TSAgent.run()
-3. Error message sent via onTokenCallback(`[Error] ${message}`)
-4. Error re-thrown to caller
-5. Finally block ensures mutex release (critical!)
-```
-
-## Key Patterns
-
-### 1. Host-Guest Isolation
-
-**Principle**: Guest has no direct access to Host resources
-
-**Implementation**:
-- Guest only has imports provided by Host Bridge
-- All filesystem/network/process access mediated by Host
-- Fresh instance per request (no shared state)
-
-### 2. Promise-Chaining Mutex
-
-**Principle**: Serial execution without blocking Node.js event loop
-
-**Implementation**:
+**Constructor**:
 ```typescript
-const currentLock = this.locks.get(projectId) || Promise.resolve()
-const newLock = currentLock.then(() => new Promise(resolve => releaseLock = resolve))
-this.locks.set(projectId, newLock)
-await currentLock // Wait for turn
+new Mutex({ maxLocks?: number, timeout?: number })
+// maxLocks default: 100, timeout default: 30000
 ```
 
-### 3. Multi-Layer Security
+**Methods**:
+- `acquire(key: string): Promise<() => void>` — Returns release function. Chains promises so callers queue behind the current lock holder
+- `getActiveLocks(): number` — Returns count of active locks
+- `clearAll(): void` — Clears all locks (use with caution)
 
-**Principle**: Defense in depth with multiple validation layers
-
-**Layers**:
-1. WASM sandbox (memory isolation)
-2. Host Bridge (controlled API)
-3. Command allowlist (only approved commands)
-4. Argument blocklist (pattern-based blocking)
-5. Mutex locking (prevent race conditions)
-
-### 4. Factory Pattern for Providers
-
-**Principle**: Single interface, multiple implementations
-
-**Implementation**:
+**Pattern**: Promise-chaining queue (not blocking the event loop):
 ```typescript
-const provider = getProvider({ type: 'openai', ... })
-const response = await provider.complete(system, user)
+const currentLock = this.locks.get(key) || Promise.resolve()
+const newLock = currentLock.then(() => new Promise(resolve => { releaseLock = resolve }))
+this.locks.set(key, newLock)
+await currentLock  // Wait for turn
+return releaseLock
 ```
 
-### 5. Token Streaming
+### 11. Tool Definitions
 
-**Principle**: Real-time feedback to user during LLM generation
+**Files**: `src/tools/definitions/`
 
-**Implementation**:
-```typescript
-onToken('[Agent] Processing request...\n')
-const response = await provider.complete(system, user)
-onToken(response) // Stream full response
-```
+**8 total tool definitions** organized by category:
 
-### 6. Configuration-Driven Build
+**Filesystem tools** (`fs/fs.ts` — 6 tools):
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `readFile` | `path: string` | Read file contents |
+| `writeFile` | `path: string, content: string` | Write content to file |
+| `listDir` | `path: string` | List files and directories |
+| `deleteFile` | `path: string` | Delete a file |
+| `mkdir` | `path: string` | Create directory (recursive) |
+| `fileExists` | `path: string` | Check if path exists |
 
-**Principle**: Declarative build pipeline configuration
+**Shell tools** (`shell/definition.ts` — 1 tool):
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `shellExec` | `command: string, args?: string[]` | Run shell command |
 
-**Implementation**:
-- `tsup.config.ts` - Host package build
-- `tsup.agent.config.ts` - Guest code build
-- `world.wit` - WASM interface definition
-- `scripts/wasm/build.ts` - Componentization script
+**Web tools** (`web/web.ts` — 1 tool):
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `webSearch` | `query: string` | Search the web (stub -- not yet implemented) |
+
+**API**:
+- `allToolDefs: TLLMToolDef[]` — All 8 tool definitions
+- `getToolDefs(allowedTools?: string[]): TLLMToolDef[]` — Filter by names (empty/undefined = all)
+
+## Streaming Events
+
+All adapters yield `TStreamEvent` objects (from `@tdsk/domain`):
+
+| Event Type | Fields | When Emitted |
+|-----------|--------|-------------|
+| `text` | `text: string` | LLM generates text content |
+| `tool_call_start` | `id: string, name: string` | LLM begins a tool call |
+| `tool_call_args` | `id: string, args: string` | LLM streams tool call arguments (may be chunked) |
+| `tool_result` | `toolUseId: string, content: string, isError: boolean` | Tool execution result (emitted by AgentRunner) |
+| `done` | `stopReason: TStreamStopReason` | Stream complete. stopReason: `end_turn`, `tool_use`, `max_tokens`, `error` |
+| `error` | `error: string` | Error occurred during streaming |
 
 ## Dependencies
 
 ### Core Dependencies
 
-| Package | Purpose | Version |
+| Package | Version | Purpose |
 |---------|---------|---------|
-| `@bytecodealliance/componentize-js` | TS → WASM componentization | 0.12.1 |
-| `@bytecodealliance/jco` | WASM → JS transpilation | 1.7.3 |
-| `@bytecodealliance/preview2-shim` | WASI polyfills | 0.21.0 |
-
-### Build Tools
-
-- `tsup@8.3.11` - TypeScript bundler
-- `typescript@5.7.3` - Type checking
-- `tsx@4.19.2` - TS execution for build scripts
-
-### Development Tools
-
-- `@biomejs/biome@1.9.4` - Linting/formatting
-- `vitest@2.1.8` - Testing framework
+| `@anthropic-ai/sdk` | ^0.39.0 | Anthropic native SDK for streaming |
+| `@google/genai` | ^1.0.0 | Google Gemini SDK (lazy-loaded) |
+| `openai` | ^4.77.0 | OpenAI SDK (type reference only -- actual calls use raw fetch) |
+| `events` | 3.3.0 | Node.js EventEmitter polyfill |
+| `tsx` | 4.21.0 | TypeScript execution |
 
 ### Workspace Dependencies
 
-- `@tdsk/domain` - Shared types (not actively used yet)
+| Package | Purpose |
+|---------|---------|
+| `@tdsk/sandbox` | Sandbox execution (E2B + local providers) |
+| `@tdsk/domain` | Shared types: ILLMAdapter, TStreamEvent, TLLMToolDef, TAIMessage, ISandbox, etc. |
+| `@tdsk/database` | Database types (workspace dep) |
+| `@tdsk/logger` | Winston logger via `buildApiLogger()` |
+
+### Utility Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@keg-hub/jsutils` | ^10.0.0 | General utilities (`toBool`) |
+| `@keg-hub/parse-config` | 2.1.0 | Environment variable loading from YAML |
+| `alias-hq` | 6.2.2 | Path alias resolution |
+
+### Development Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@biomejs/biome` | 2.1.2 | Linting and formatting |
+| `tsup` | 8.3.0 | TypeScript bundler (CJS output) |
+| `typescript` | 5.7.3 | Type checking |
+| `vitest` | 1.6.1 | Test framework |
+| `vite-tsconfig-paths` | 4.3.2 | Path alias resolution in tests |
 
 ## Commands
 
 ### Development
 
 ```bash
-pnpm start           # Build and run (tsup watch mode)
+pnpm start           # Build + watch mode (tsup watch)
+                     # Watches: src, configs, domain, logger, database, sandbox
+                     # On success: runs `pnpm serve` (node dist/index.cjs)
 ```
 
 ### Building
 
 ```bash
-pnpm build           # Full 3-step build pipeline
-                     # 1. build:app (tsup Host)
-                     # 2. build:agent (tsup Guest)
-                     # 3. build:wasm (componentize + transpile)
-
-pnpm build:app       # Build Host package only
-pnpm build:agent     # Build Guest code only
-pnpm build:wasm      # Componentize + transpile only
+pnpm build           # Single-step CJS build via tsup-node
+                     # Output: dist/index.cjs (with source maps)
+pnpm clean           # Remove dist/
+pnpm clean:nm        # Remove node_modules/
+pnpm clean:full      # Remove both dist/ and node_modules/
 ```
 
 ### Testing
 
 ```bash
-pnpm test            # Run vitest tests — 150 tests, 11 files
-```
-
-### Maintenance
-
-```bash
-pnpm clean           # Remove node_modules
+pnpm test            # Run vitest (206 tests, 13 files)
 ```
 
 ### Commands Notes
 
-* Linting and formatting are automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
+* Linting and formatting run automatically via Biome -- `pnpm lint` and `pnpm format` should be ignored.
+* No WASM build step. Single `pnpm build` produces CJS bundle.
+* `@tdsk/sandbox` and `@tdsk/domain` are bundled into the output (not external). Only non-workspace, non-keg-hub packages are externalized.
 
-## Integration Points
+## Testing
 
-### 1. LLM Provider APIs
+### Current Coverage (206 tests, 13 files -- all passing)
 
-**OpenAI Compatible** (OpenAI, Grok, Gemini, custom):
-- Endpoint: `POST ${url}${path}` (e.g., `https://api.openai.com/v1/chat/completions`)
-- Auth: `Authorization: Bearer ${apiKey}`
-- Format: ChatGPT API format
+| Test File | Tests | What's Covered |
+|-----------|-------|----------------|
+| `src/index.test.ts` | 6 | Module exports verification |
+| `src/tsagent.test.ts` | 14 | TSAgent: createSandbox, getSandbox, destroySandbox, cleanup, getStats |
+| `src/llm/anthropic.test.ts` | 22 | AnthropicAdapter: streaming, tool calls, system prompt, message conversion |
+| `src/llm/openai.test.ts` | 18 | OpenAIAdapter: streaming, tool calls, error handling |
+| `src/llm/openai-compatible.test.ts` | 29 | Base class: SSE parsing, tool call tracking, finish reasons, message/tool conversion |
+| `src/llm/google.test.ts` | 29 | GoogleAdapter: lazy import, streaming, tool calls, content conversion |
+| `src/llm/zai.test.ts` | 17 | ZaiAdapter: thinking mode, do_sample, tool_stream, web_search, custom finish reasons |
+| `src/llm/proxy.test.ts` | 7 | ProxyAdapter: SSE relay, session auth, error handling |
+| `src/llm/factory.test.ts` | 7 | Factory: adapter creation, unknown provider error, fresh instances |
+| `src/runner/runner.test.ts` | 21 | AgentRunner: ReAct loop, tool execution, mutex, error handling, max steps |
+| `src/services/mutex.test.ts` | 15 | Mutex: acquire/release, queuing, getActiveLocks, clearAll |
+| `src/tools/definitions.test.ts` | 12 | Tool definitions: getToolDefs filtering, allToolDefs content |
+| `src/tools/definitions/definitions.test.ts` | 9 | Individual tool def validation: schemas, required fields |
 
-**Anthropic**:
-- Endpoint: `POST ${url}${path}` (e.g., `https://api.anthropic.com/v1/messages`)
-- Auth: `x-api-key: ${apiKey}`
-- Format: Claude API format (separate system parameter)
+**Testing strategy**:
+- All external SDKs mocked (`@anthropic-ai/sdk`, `@google/genai`, `fetch`)
+- Vitest with Node.js environment
+- Co-located test files (`.test.ts` adjacent to source)
+- Globals enabled (`describe`, `it`, `expect` without imports)
 
-### 2. Host Filesystem
+## Key Patterns
 
-**VFS Mounting**:
-- Host creates project directory at `${tempDir}/${projectId}`
-- Mounted as `/data` in WASM guest
-- Guest sees only its own project files
-- Automatic cleanup after execution
+### 1. Streaming-First via Async Generators
 
-### 3. Shell Commands
+All LLM adapters implement `ILLMAdapter.stream()` as an `AsyncIterable<TStreamEvent>`:
 
-**Executor Interface**:
-- Guest calls `executeShell(cmd, args)`
-- Host validates and executes via `spawnSync()`
-- Results returned as string (stdout/stderr)
-- Errors thrown on validation failure
+```typescript
+for await (const event of adapter.stream(history, toolDefs, config)) {
+  if (event.type === 'text') { /* handle text chunk */ }
+  if (event.type === 'tool_call_start') { /* track new tool call */ }
+  // ...
+}
+```
 
-### 4. WASM Runtime
+### 2. Unified Message Format
 
-**WASI Integration**:
-- Uses `@bytecodealliance/preview2-shim` for WASI polyfills
-- Imports include:
-  - `wasi:http/imports@0.2.0` - HTTP client
-  - `wasi:filesystem/imports@0.2.0` - Filesystem access
-  - `wasi:cli/imports@0.2.0` - CLI environment
-- Polyfills provide Node.js-compatible implementations
+All adapters convert between the unified `TAIMessage` format (from `@tdsk/domain`) and provider-specific formats. Conversion happens at adapter boundaries:
+- `toOpenAIMessages()` / `toOpenAITools()` — OpenAI-compatible providers
+- `toAnthropicMessages()` / `toAnthropicTools()` — Anthropic
+- `toGoogleContents()` / `toGoogleTools()` — Google Gemini
+
+### 3. Factory + Strategy Pattern
+
+Provider selection via Map-based factory, each adapter implementing the same `ILLMAdapter` interface:
+
+```typescript
+const adapter = createLLMAdapter('anthropic')  // or 'openai', 'google', 'zai'
+// ProxyAdapter injected directly via opts.adapter (not from factory)
+```
+
+### 4. Pluggable Persistence (IAgentRunnerDB)
+
+AgentRunner accepts a narrow DB interface rather than depending on the full database package. This allows:
+- Backend: passes direct DB service calls
+- REPL: passes HTTP client that calls backend API
+
+### 5. Tool Call Accumulation Pattern
+
+During streaming, tool calls arrive in chunks. The runner accumulates them:
+
+```typescript
+const pendingToolCalls: Array<{ id, name, args }> = []
+
+// During streaming:
+if (event.type === 'tool_call_start') {
+  pendingToolCalls.push({ id: event.id, name: event.name, args: '' })
+}
+if (event.type === 'tool_call_args') {
+  const tc = pendingToolCalls.find(t => t.id === event.id)
+  if (tc) tc.args += event.args  // Accumulate JSON fragments
+}
+
+// After streaming: parse accumulated args, run in sandbox
+```
+
+### 6. Mutex-Protected Threads
+
+Every `AgentRunner.run()` call acquires a mutex keyed by `threadId`, preventing concurrent modifications to the same conversation thread:
+
+```typescript
+const releaseLock = await mutex.acquire(threadId)
+try {
+  // ... entire conversation loop
+} finally {
+  releaseLock()
+}
+```
+
+### 7. Lazy SDK Loading
+
+GoogleAdapter uses dynamic `import()` to load `@google/genai` only when first used, avoiding CJS/ESM compatibility issues at import time:
+
+```typescript
+const loadGoogleGenAI = async () => {
+  const mod = await import('@google/genai')
+  return mod.GoogleGenAI
+}
+```
+
+## Configuration
+
+### Agent Config (`configs/agent.config.ts`)
+
+Loads environment variables and configures logger:
+
+```typescript
+export const config = {
+  logger: {
+    label: 'TDSK - Agent',
+    level: TDSK_AG_LOG_LEVEL ?? TDSK_LOG_LEVEL,
+    pretty: toBool(TDSK_BE_LOGGER_PRETTY) ?? false,
+    silent: toBool(TDSK_AG_LOGGER_SILENT) ?? false,
+    exceptions: true,
+    rejections: true,
+    exitOnError: false,
+  }
+}
+```
+
+### Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `TDSK_AG_LOG_LEVEL` | Agent-specific log level | Falls back to `TDSK_LOG_LEVEL` |
+| `TDSK_LOG_LEVEL` | Global log level | - |
+| `TDSK_BE_LOGGER_PRETTY` | Pretty-printed logs | `false` |
+| `TDSK_AG_LOGGER_SILENT` | Disable all agent logging | `false` |
+| `NODE_ENV` | Runtime environment | `local` |
+
+### Build Config (`configs/tsup.config.ts`)
+
+- **Format**: CJS only (`format: ['cjs']`)
+- **Output**: `dist/index.cjs` with source maps
+- **Externals**: All non-workspace, non-keg-hub packages (SDK packages like `@anthropic-ai/sdk` are external)
+- **No externals for**: `@tdsk/*` and `@keg-hub/*` packages (bundled into output)
+- **Source maps**: Enabled
+- **Splitting**: Disabled
 
 ## Path Aliases
 
 **Configured in**: `tsconfig.json` + `configs/aliases.ts`
 
 ```typescript
-@TAG/*  → repos/agent/src/*      # Agent internal imports
+@TAG/*              → repos/agent/src/*         // Agent internal imports
+@TAG/configs/*      → repos/agent/configs/*     // Agent config files
+@TSB/*              → repos/sandbox/src/*       // Sandbox imports
+@tdsk/sandbox       → repos/sandbox/src         // Sandbox package
+@TDM/*              → repos/domain/src/*        // Domain imports
+@tdsk/domain        → repos/domain/src          // Domain package
+@TDB/*              → repos/database/src/*      // Database imports
+@tdsk/database      → repos/database/src        // Database package
+@tdsk/logger        → repos/logger/src          // Logger package
+@ROOT               → ../../                    // Monorepo root
 ```
 
 **Example Usage**:
 ```typescript
+import type { TAgentRunOpts } from '@TAG/types'
 import { Mutex } from '@TAG/services/mutex'
-import type { TInitOpts } from '@TAG/types'
+import { createLLMAdapter } from '@TAG/llm/factory'
+import { buildApiLogger } from '@tdsk/logger'
+import { createSandboxProvider } from '@tdsk/sandbox'
+import { EContentType, EStreamEventType } from '@tdsk/domain'
 ```
 
-## Environment Variables
+## Integration Points
 
-**WASM Guest Environment** (injected via `getEnvironment()`):
+### With Backend (`@tdsk/backend`)
 
-| Variable | Purpose |
-|----------|---------|
-| `AGENT_URL` | LLM API base URL |
-| `AGENT_PATH` | LLM API endpoint path |
-| `AGENT_MODEL` | LLM model name |
-| `AGENT_API_KEY` | LLM API key |
-| `AGENT_PROVIDER` | Provider type (openai/anthropic/grok) |
-| `AGENT_MAX_TOKENS` | Context window size |
+- Backend's `runAgent` endpoint calls `AgentRunner.run()` with direct DB service as `IAgentRunnerDB`
+- Backend's `chatProxy` endpoint uses `createLLMAdapter()` to stream LLM responses via SSE
+- Backend's `sessionStore` caches LLM config; `ProxyAdapter` uses session tokens to access it
+
+### With Sandbox (`@tdsk/sandbox`)
+
+- AgentRunner creates sandbox via `createSandboxProvider(type).create(config)`
+- Tool execution maps tool names to `ISandbox` methods (readFile, writeFile, listDir, etc.)
+- Sandbox is created per-run and closed in the `finally` block
+
+### With Domain (`@tdsk/domain`)
+
+- `ILLMAdapter` — LLM adapter interface (stream method signature)
+- `TStreamEvent` — Unified streaming event type
+- `TLLMToolDef` — Tool definition schema
+- `TAIMessage` / `TMessageContent` — Message format types
+- `TLLMAdapterConfig` — Provider config (apiKey, model, temperature, headers, bodyParams, etc.)
+- `TLLMProviderType` — Provider type union
+- `ISandbox` / `ISandboxProvider` / `TSandboxConfig` — Sandbox interfaces
+- `EContentType` — Content type enum (text, tool_use, tool_result)
+- `EStreamEventType` — Event type enum (text, tool_call_start, tool_call_args, done, error, tool_result)
+- `EAgentTool` — Tool name enum (shellExec, readFile, writeFile, listDir, deleteFile, mkdir, fileExists, webSearch)
+
+### With REPL (`@tdsk/repl`)
+
+- REPL's `LocalAgentExecutor` calls `AgentRunner.run()` with HTTP-based `IAgentRunnerDB`
+- REPL uses `ProxyAdapter` to route LLM calls through the backend proxy (API key stays server-side)
+
+### With Logger (`@tdsk/logger`)
+
+- `buildApiLogger()` creates Winston logger with configured label and level
+- Used in `runner.ts` for error logging and in `google.ts` for SDK loading diagnostics
 
 ## Development Guidelines
 
-### 1. Adding a New Tool
+### Adding a New LLM Adapter
+
+1. **For OpenAI-compatible APIs**: Extend `OpenAICompatibleAdapter`:
+   ```typescript
+   export class MyAdapter extends OpenAICompatibleAdapter {
+     readonly provider = 'myProvider' as const
+     protected getBaseUrl(config): string { return 'https://api.myprovider.com/v1' }
+     // Optionally override: getHeaders, getExtraBody, mapFinishReason
+   }
+   ```
+
+2. **For non-OpenAI APIs**: Implement `ILLMAdapter` directly (like `AnthropicAdapter` or `GoogleAdapter`)
+
+3. **Register in factory** (`src/llm/factory.ts`):
+   ```typescript
+   adapters.set('myProvider', () => new MyAdapter())
+   ```
+
+4. **Add `TLLMProviderType` union member** in `@tdsk/domain`
+
+5. **Export from barrel** (`src/llm/index.ts`)
+
+6. **Write tests** (co-located `.test.ts` file)
+
+### Adding a New Tool
+
+1. **Define tool schema** in `src/tools/definitions/` (new file or add to existing category)
+
+2. **Export from definitions barrel** (`definitions.ts`):
+   ```typescript
+   export const allToolDefs = [...fsTools, ...shellTools, ...webTools, ...myTools]
+   ```
+
+3. **Add handler** in `AgentRunner.executeTool()` switch statement
+
+4. **Add to `EAgentTool` enum** in `@tdsk/domain`
+
+### Testing Patterns
 
 ```typescript
-// 1. Define WIT interface
-// world.wit
-interface tools {
-  execute-shell: func(...) -> result<string, string>;
-  web-search: func(...) -> string;
-  my-new-tool: func(...) -> string;  // Add here
-}
-
-// 2. Implement Host Bridge
-// src/tsagent.ts - in run() method
-const wasmImports = {
-  ...
-  myNewTool: (param: string) => {
-    // Implementation
-    return result
+// Mock LLM adapter for runner tests
+const mockAdapter: ILLMAdapter = {
+  provider: 'openai',
+  async *stream() {
+    yield { type: 'text', text: 'Hello' }
+    yield { type: 'done', stopReason: 'end_turn' }
   }
 }
 
-// 3. Use in Agent
-// src/agent/agent.ts
-import { myNewTool } from 'local:agent/tools'
-
-if (prompt.startsWith('/mytool ')) {
-  const result = myNewTool(prompt.slice(8))
-  onToken(result)
-}
-```
-
-### 2. Adding a New LLM Provider
-
-```typescript
-// 1. Add to type union
-// src/types/agent.types.ts
-export type TLLMProvider = 'openai'|'anthropic'|'grok'|'myProvider'
-
-// 2. Create provider class
-// src/agent/provider.ts
-class MyProvider extends BaseProvider {
-  constructor(opts: TLLMProviderOpts) {
-    super({ ...opts, type: 'myProvider', url: 'https://api.myprovider.com' })
-  }
-
-  async complete(system: string, user: string): Promise<string> {
-    // Custom API format
-  }
+// Mock sandbox for tool execution tests
+const mockSandbox: ISandbox = {
+  exec: vi.fn().mockResolvedValue({ success: true, output: 'result' }),
+  readFile: vi.fn().mockResolvedValue('file content'),
+  // ...
 }
 
-// 3. Add to factory
-export const getProvider = (opts: TLLMBaseOpts): ILLMProvider => {
-  switch (opts.type) {
-    case 'myProvider': return new MyProvider(opts)
-    // ... existing
-  }
+// Mock DB for runner tests
+const mockDb: IAgentRunnerDB = {
+  listMessages: vi.fn().mockResolvedValue({ data: [] }),
+  createMessage: vi.fn().mockResolvedValue({}),
 }
 ```
-
-### 3. Modifying Security Rules
-
-```typescript
-// Executor allowlist/blocklist
-// src/constants/executor.ts
-
-// Add allowed command
-export const defAllowedCommands = new Set([
-  'git', 'npm', 'my-safe-command'  // Add here
-])
-
-// Add blocked pattern
-export const defBlockedPatterns = [
-  /\.\.\//,    // Existing patterns
-  /my-regex/   // New pattern
-]
-```
-
-### 4. Debugging WASM Issues
-
-```bash
-# 1. Check WASM build output
-pnpm build:wasm
-
-# 2. Inspect compiled JS bindings
-cat dist/wasm/agent.js | head -n 100
-
-# 3. Enable logging in WasmBridge
-const agent = new TSAgent({
-  bridge: { enableLogging: true }
-})
-
-# 4. Check import object structure
-console.log('[WasmBridge] Import object:', wasmImports)
-```
-
-## Common Issues & Solutions
-
-### 1. WASM Module Not Found
-
-**Problem**: `Error: Cannot find module 'dist/wasm/agent.js'`
-
-**Solution**:
-- Run `pnpm build:wasm` to compile WASM agent
-- Verify `dist/wasm/agent.js` exists
-- Check WasmBridge `wasmPath` configuration
-
-### 2. Command Denied by Executor
-
-**Problem**: `SECURITY: Command 'xyz' denied. Not in allowlist.`
-
-**Solution**:
-- Add command to `defAllowedCommands` in `src/constants/executor.ts`
-- Or override via `new TSAgent({ exec: { allowedCommands: new Set(['xyz']) } })`
-
-### 3. Argument Blocked by Pattern
-
-**Problem**: `SECURITY: Arg '../file' matches blocked pattern`
-
-**Solution**:
-- Use relative paths within project directory
-- Avoid `../`, absolute paths, shell operators
-- Override blocklist if needed (not recommended)
-
-### 4. Mutex Deadlock
-
-**Problem**: Request hangs indefinitely
-
-**Solution**:
-- Ensure mutex is always released in `finally` block
-- Check for thrown errors before release
-- Verify `projectId` is consistent
-
-### 5. Token Truncation Too Aggressive
-
-**Problem**: Context always truncated, losing important messages
-
-**Solution**:
-- Increase `maxTokens` in config
-- Adjust `Context` budget in `src/agent/context.ts`
-- Use more concise system prompts
-
-## Best Practices
-
-1. **Always release mutex** - Use `finally` block to guarantee release
-2. **Validate input** - Never trust user input for commands
-3. **Fresh instances** - Don't reuse WASM instances across requests
-4. **Stream tokens** - Provide real-time feedback via `onToken()`
-5. **Error messages** - Send errors via `onToken()` for user visibility
-6. **Security first** - Add to blocklist before adding to allowlist
-7. **Test builds** - Run `pnpm build` after changes to verify compilation
-8. **Document WIT** - Keep `world.wit` in sync with actual interface
-9. **Type safety** - Leverage TypeScript for Host Bridge interfaces
-10. **Isolate projects** - Use unique `projectId` per isolated workspace
-
-## Future Enhancements
-
-### Short-Term
-
-- [ ] Implement web search tool via MCP or external API
-- [ ] Support streaming LLM responses (SSE)
-- [ ] Add retry logic for failed LLM calls
-- [ ] Better error recovery and user feedback
-
-### Medium-Term
-
-- [ ] Multi-turn conversation persistence
-- [ ] Tool result parsing and structured outputs
-- [ ] Rate limiting per project/user
-- [ ] Telemetry and observability
-
-### Long-Term
-
-- [ ] Multi-agent coordination (spawn sub-agents)
-- [ ] Git integration (auto-commit, branch management)
-- [ ] Browser automation via WASM Puppeteer
-- [ ] Plugin system for custom tools
 
 ---
 
-**Last Updated**: 2026-02-14
-**Version**: 1.1.0
-**Maintainer**: ThreadedStack Team
+**Last Updated**: 2026-02-15
+**Version**: 2.0.0
 
-## Changelog
+### Changelog
 
-### v1.1.0 (2026-02-14)
-- **New**: `ProxyAdapter` — ILLMAdapter that routes LLM calls through backend SSE proxy (7 tests)
-- **New**: `AgentRunner` — Multi-step conversation loop with streaming, tool execution, mutex locking (21 tests)
-- **New**: LLM adapter layer with factory pattern: Anthropic (18), OpenAI (17), Google (25), factory (6) tests
-- **New**: Tool definitions for shell, file ops, directory ops (21 tests)
-- **New**: Optional `adapter` parameter in `TAgentRunOpts` — allows injecting ProxyAdapter (or any ILLMAdapter)
-- **New**: `IAgentRunnerDB` interface for pluggable message persistence (HTTP or direct DB)
-- **Testing**: 150/150 tests passing across 11 test files
-
-### v1.0.0 (2026-01-22)
-- **Initial Release**: Complete WASM AI agent implementation
-- **New**: TSAgent Host wrapper with mutex-protected execution
-- **New**: WasmBridge with VFS mounting and import object creation
-- **New**: Executor with multi-layer security validation
-- **New**: Context with "Middle-Out" token truncation
-- **New**: Provider abstraction (OpenAI, Anthropic, Grok support)
-- **New**: Agent ReAct loop with tool execution and LLM chat
-- **New**: 3-step build pipeline (TS → WASM → JS bindings)
-- **New**: Comprehensive documentation (README + IMPLEMENTATION.md)
-- **Security**: Command allowlist + blocklist patterns
-- **Security**: Fresh WASM instance per request
-- **Security**: VFS isolation per projectId
+#### v2.0.0 (2026-02-15)
+- **Breaking**: Complete architecture rewrite from WASM-based to headless LLM orchestration
+- **Removed**: All WASM infrastructure (componentize-js, jco, preview2-shim, WIT files, build pipeline)
+- **Removed**: Executor service (command allowlist/blocklist)
+- **Removed**: WasmBridge (VFS mounting, import objects)
+- **Removed**: Guest-side code (agent.ts, context.ts, provider.ts, sandbox.ts)
+- **New**: AgentRunner — static ReAct loop orchestrator with streaming (279 lines, 21 tests)
+- **New**: LLM adapter layer with 5 providers:
+  - AnthropicAdapter — native `@anthropic-ai/sdk` streaming (22 tests)
+  - OpenAIAdapter — extends OpenAICompatibleAdapter (18 tests)
+  - OpenAICompatibleAdapter — abstract base with SSE parsing (29 tests)
+  - GoogleAdapter — `@google/genai` with lazy import (29 tests)
+  - ZaiAdapter — GLM models with thinking/web_search (17 tests)
+  - ProxyAdapter — backend SSE relay (7 tests)
+- **New**: Factory pattern for adapter creation (7 tests)
+- **New**: TSAgent class — sandbox lifecycle manager (62 lines, 14 tests)
+- **New**: 8 tool definitions (fs: 6, shell: 1, web: 1) with filtering
+- **New**: IAgentRunnerDB — pluggable persistence interface (backend DB or REPL HTTP)
+- **Changed**: Sandbox execution delegated to `@tdsk/sandbox` package (extracted from agent)
+- **Changed**: Build simplified to single-step CJS via tsup (no WASM compilation)
+- **Dependencies**: Added `@anthropic-ai/sdk`, `@google/genai`, `openai`, `@tdsk/sandbox`
+- **Dependencies**: Removed `@bytecodealliance/*` packages
+- **Testing**: 206/206 tests passing across 13 test files
