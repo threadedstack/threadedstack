@@ -28,14 +28,14 @@ export class AgentRunner {
    */
   static run = async (opts: TAgentRunOpts): Promise<void> => {
     const {
-      threadId,
-      prompt,
       db,
+      tools,
+      prompt,
+      onEvent,
+      threadId,
       llmConfig,
       sandboxConfig,
-      tools,
       maxSteps = 10,
-      onEvent,
     } = opts
 
     let releaseLock: (() => void) | undefined
@@ -65,25 +65,25 @@ export class AgentRunner {
       await db.createMessage({
         threadId,
         type: `user`,
-        content: userContent,
         orgId: opts.orgId,
+        content: userContent,
       })
 
       // 5. Get tool definitions
       const toolDefs = getToolDefs(tools)
 
-      // 6. Create LLM adapter
-      const adapter = createLLMAdapter(llmConfig.provider)
+      // 6. Create LLM adapter (use injected adapter or create from factory)
+      const adapter = opts.adapter ?? createLLMAdapter(llmConfig.provider)
 
       // 7. Create sandbox if we have tool defs and sandbox config
       if (toolDefs.length > 0 && sandboxConfig?.provider) {
         const provider = createSandboxProvider(sandboxConfig.provider as any)
         sandbox = await provider.create({
-          provider: sandboxConfig.provider as any,
           apiKey: sandboxConfig.apiKey,
-          template: sandboxConfig.template,
-          timeout: sandboxConfig.timeout ?? 300000,
           envVars: sandboxConfig.envVars,
+          template: sandboxConfig.template,
+          provider: sandboxConfig.provider as any,
+          timeout: sandboxConfig.timeout ?? 300000,
         })
       }
 
@@ -141,8 +141,8 @@ export class AgentRunner {
         await db.createMessage({
           threadId,
           type: `assistant`,
-          content: assistantContent,
           orgId: opts.orgId,
+          content: assistantContent,
         })
 
         // If there are tool calls, run them
@@ -161,10 +161,10 @@ export class AgentRunner {
 
             // Emit tool result event
             onEvent({
-              type: EStreamEventType.toolResult,
               toolUseId: tc.id,
               content: result.output,
               isError: !result.success,
+              type: EStreamEventType.toolResult,
             })
           }
 

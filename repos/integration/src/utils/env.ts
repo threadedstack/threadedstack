@@ -35,6 +35,14 @@ export const env = {
     return process.env.TDSK_IT_USER_ID || 'integration-test-user'
   },
 
+  /**
+   * Agent ID with a real LLM provider key for live chat tests.
+   * Required for tier3/llm-chat-flow tests. When not set, those tests are skipped.
+   */
+  get testAgentId() {
+    return process.env.TDSK_IT_AGENT_ID || ''
+  },
+
   /** Neon Auth URL pattern for Playwright interception */
   neonAuthPattern: '**/neondb/auth/get-session**',
 } as const

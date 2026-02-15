@@ -17,6 +17,8 @@ interface RequestOptions {
   apiKey?: string
   /** Skip auth entirely — for testing 401 responses */
   noAuth?: boolean
+  /** Use path as-is without auto-prefixing /_  (e.g. for /ai/chat) */
+  rawPath?: boolean
 }
 
 /**
@@ -31,9 +33,9 @@ export const api = async <T = unknown>(
   path: string,
   opts: RequestOptions = {}
 ): Promise<ApiResponse<T>> => {
-  const { method = 'GET', body, headers = {}, apiKey, noAuth = false } = opts
+  const { method = 'GET', body, headers = {}, apiKey, noAuth = false, rawPath = false } = opts
 
-  const fullPath = path.startsWith('/_') || path.startsWith('/health')
+  const fullPath = rawPath || path.startsWith('/_') || path.startsWith('/health')
     ? path
     : `/_${path.startsWith('/') ? '' : '/'}${path}`
 

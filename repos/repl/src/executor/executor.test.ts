@@ -4,25 +4,25 @@ vi.mock(`@tdsk/agent`, () => ({
   AgentRunner: {
     run: vi.fn().mockResolvedValue(undefined),
   },
+  ProxyAdapter: vi.fn().mockImplementation((opts: any) => ({
+    provider: opts.provider,
+    stream: vi.fn(),
+  })),
 }))
 
 import { LocalAgentExecutor } from './executor'
-import { AgentRunner } from '@tdsk/agent'
+import { AgentRunner, ProxyAdapter } from '@tdsk/agent'
 import type { ApiClient } from '@TRL/api'
 
 const makeClient = () =>
   ({
-    resolveAgent: vi.fn().mockResolvedValue({
-      agentId: `agent-1`,
-      orgId: `org-1`,
-      llmConfig: {
-        apiKey: `sk-test`,
-        provider: `anthropic`,
-        model: `claude-sonnet-4-20250514`,
-        maxTokens: 4096,
-      },
-      sandboxConfig: { provider: `local`, timeout: 300000 },
-      tools: [`shellExec`, `readFile`],
+    proxyUrl: `https://proxy.test`,
+    createSession: vi.fn().mockResolvedValue({
+      sessionToken: `sess-abc`,
+      provider: `anthropic`,
+      model: `claude-sonnet-4-20250514`,
+      maxTokens: 4096,
+      systemPrompt: `You are helpful`,
     }),
     createThread: vi.fn().mockResolvedValue({ id: `thread-new` }),
     listMessages: vi.fn().mockResolvedValue([]),
@@ -51,18 +51,18 @@ describe(`LocalAgentExecutor`, () => {
     })
   })
 
-  describe(`resolve`, () => {
-    it(`should call client.resolveAgent`, async () => {
-      const config = await executor.resolve(`org-1`, `agent-1`)
+  describe(`createSession`, () => {
+    it(`should call client.createSession`, async () => {
+      const session = await executor.createSession(`agent-1`)
 
-      expect(client.resolveAgent).toHaveBeenCalledWith(`org-1`, `agent-1`)
-      expect(config.llmConfig.apiKey).toBe(`sk-test`)
-      expect(config.llmConfig.provider).toBe(`anthropic`)
+      expect(client.createSession).toHaveBeenCalledWith(`agent-1`)
+      expect(session.sessionToken).toBe(`sess-abc`)
+      expect(session.provider).toBe(`anthropic`)
     })
   })
 
   describe(`run`, () => {
-    it(`should create a new thread when none provided`, async () => {
+    it(`should create a session and new thread when none provided`, async () => {
       const onEvent = vi.fn()
 
       const result = await executor.run({
@@ -73,7 +73,7 @@ describe(`LocalAgentExecutor`, () => {
         onEvent,
       })
 
-      expect(client.resolveAgent).toHaveBeenCalledWith(`org-1`, `agent-1`)
+      expect(client.createSession).toHaveBeenCalledWith(`agent-1`)
       expect(client.createThread).toHaveBeenCalledWith(`org-1`, `agent-1`)
       expect(result.threadId).toBe(`thread-new`)
     })
@@ -94,7 +94,26 @@ describe(`LocalAgentExecutor`, () => {
       expect(result.threadId).toBe(`existing-thread`)
     })
 
-    it(`should call AgentRunner.run with correct options`, async () => {
+    it(`should create a ProxyAdapter with session token`, async () => {
+      const onEvent = vi.fn()
+
+      await executor.run({
+        orgId: `org-1`,
+        agentId: `agent-1`,
+        prompt: `Hello`,
+        userId: `user-1`,
+        threadId: `t1`,
+        onEvent,
+      })
+
+      expect(ProxyAdapter).toHaveBeenCalledWith({
+        backendUrl: `https://proxy.test`,
+        sessionToken: `sess-abc`,
+        provider: `anthropic`,
+      })
+    })
+
+    it(`should call AgentRunner.run with adapter and llmConfig (no apiKey)`, async () => {
       const onEvent = vi.fn()
 
       await executor.run({
@@ -113,18 +132,23 @@ describe(`LocalAgentExecutor`, () => {
           prompt: `Hello`,
           userId: `user-1`,
           orgId: `org-1`,
-          llmConfig: expect.objectContaining({
-            apiKey: `sk-test`,
+          adapter: expect.objectContaining({
             provider: `anthropic`,
           }),
-          sandboxConfig: expect.objectContaining({
-            provider: `local`,
+          llmConfig: expect.objectContaining({
+            provider: `anthropic`,
+            model: `claude-sonnet-4-20250514`,
+            maxTokens: 4096,
+            systemPrompt: `You are helpful`,
           }),
-          tools: [`shellExec`, `readFile`],
           maxSteps: 10,
           onEvent,
         })
       )
+
+      // Verify no apiKey in llmConfig
+      const call = (AgentRunner.run as any).mock.calls[0][0]
+      expect(call.llmConfig.apiKey).toBeUndefined()
     })
 
     it(`should pass an HttpMessageAdapter as db`, async () => {
@@ -145,8 +169,10 @@ describe(`LocalAgentExecutor`, () => {
       expect(typeof call.db.createMessage).toBe(`function`)
     })
 
-    it(`should propagate errors from resolve`, async () => {
-      ;(client.resolveAgent as any).mockRejectedValue(new Error(`Agent not found`))
+    it(`should propagate errors from createSession`, async () => {
+      ;(client.createSession as any).mockRejectedValue(
+        new Error(`Session creation failed`)
+      )
 
       await expect(
         executor.run({
@@ -156,7 +182,7 @@ describe(`LocalAgentExecutor`, () => {
           userId: `user-1`,
           onEvent: vi.fn(),
         })
-      ).rejects.toThrow(`Agent not found`)
+      ).rejects.toThrow(`Session creation failed`)
     })
 
     it(`should propagate errors from createThread`, async () => {

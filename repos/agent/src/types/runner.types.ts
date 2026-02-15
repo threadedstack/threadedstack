@@ -1,4 +1,5 @@
 import type {
+  ILLMAdapter,
   TStreamEvent,
   TMessageContent,
   TLLMAdapterConfig,
@@ -49,6 +50,8 @@ export type TAgentRunOpts = {
   environment?: TAgentEnvironment
   /** Max conversation loop steps (prevents infinite tool-call loops) */
   maxSteps?: number
+  /** Pre-built LLM adapter (e.g. ProxyAdapter). Falls back to factory if omitted. */
+  adapter?: ILLMAdapter
   /** Callback for each streaming event */
   onEvent: (event: TStreamEvent) => void
 }

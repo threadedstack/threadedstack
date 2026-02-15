@@ -33,6 +33,7 @@ describe(`Thread endpoints`, () => {
             message: {
               list: vi.fn(),
               get: vi.fn(),
+              create: vi.fn(),
               update: vi.fn(),
               delete: vi.fn(),
             },
@@ -78,14 +79,15 @@ describe(`Thread endpoints`, () => {
       expect(agentThreads.endpoints).toBeDefined()
     })
 
-    it(`should have all 8 endpoint configs`, () => {
+    it(`should have all 9 endpoint configs`, () => {
       const keys = Object.keys(agentThreads.endpoints || {})
-      expect(keys).toHaveLength(8)
+      expect(keys).toHaveLength(9)
       expect(keys).toContain(`getThread`)
       expect(keys).toContain(`listThreads`)
       expect(keys).toContain(`createThread`)
       expect(keys).toContain(`deleteThread`)
       expect(keys).toContain(`listMessages`)
+      expect(keys).toContain(`createMessage`)
       expect(keys).toContain(`updateMessage`)
       expect(keys).toContain(`deleteMessage`)
       expect(keys).toContain(`branchThread`)
@@ -782,6 +784,177 @@ describe(`Thread endpoints`, () => {
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `DB error`
+      )
+    })
+  })
+
+  // ── CREATE MESSAGE ────────────────────────────────────────────────
+
+  describe(`POST /:threadId/messages - Create message`, () => {
+    const ep = getEndpointCfg(agentThreads.endpoints?.createMessage)
+
+    const mockThread = {
+      id: `t-1`,
+      orgId: `org-1`,
+      agentId: `agent-1`,
+      userId: `test-user-id`,
+    }
+
+    it(`should return 201 with created message`, async () => {
+      const createdMessage = {
+        id: `m-new`,
+        threadId: `t-1`,
+        type: `user`,
+        content: [{ type: `text`, text: `Hello` }],
+        orgId: `org-1`,
+      }
+
+      const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockCreateMsg = mockReq.app?.locals.db.services.message.create as ReturnType<
+        typeof vi.fn
+      >
+      mockGetThread.mockResolvedValue({ data: mockThread })
+      mockCreateMsg.mockResolvedValue({ data: createdMessage })
+      mockReq.params = {
+        threadId: `t-1`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      }
+      mockReq.body = {
+        type: `user`,
+        content: [{ type: `text`, text: `Hello` }],
+      }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockGetThread).toHaveBeenCalledWith(`t-1`)
+      expect(mockCreateMsg).toHaveBeenCalledWith({
+        threadId: `t-1`,
+        type: `user`,
+        content: [{ type: `text`, text: `Hello` }],
+        orgId: `org-1`,
+      })
+      expect(mockStatus).toHaveBeenCalledWith(201)
+      expect(mockJson).toHaveBeenCalledWith({ data: createdMessage })
+    })
+
+    it(`should throw 401 when no user`, async () => {
+      mockReq.user = undefined as any
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Authentication required`
+      )
+    })
+
+    it(`should throw 404 when thread not found`, async () => {
+      const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGetThread.mockResolvedValue({ data: null })
+      mockReq.params = {
+        threadId: `t-nope`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      }
+      mockReq.body = { type: `user`, content: [{ type: `text`, text: `Hi` }] }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Thread not found`
+      )
+    })
+
+    it(`should throw 404 when thread belongs to different agent`, async () => {
+      const wrongAgentThread = { ...mockThread, agentId: `other-agent` }
+
+      const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGetThread.mockResolvedValue({ data: wrongAgentThread })
+      mockReq.params = {
+        threadId: `t-1`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      }
+      mockReq.body = { type: `user`, content: [{ type: `text`, text: `Hi` }] }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Thread not found`
+      )
+    })
+
+    it(`should throw 403 when thread belongs to different user`, async () => {
+      const otherUserThread = { ...mockThread, userId: `other-user` }
+
+      const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGetThread.mockResolvedValue({ data: otherUserThread })
+      mockReq.params = {
+        threadId: `t-1`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      }
+      mockReq.body = { type: `user`, content: [{ type: `text`, text: `Hi` }] }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Access denied`
+      )
+    })
+
+    it(`should throw 400 when type is missing`, async () => {
+      const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGetThread.mockResolvedValue({ data: mockThread })
+      mockReq.params = {
+        threadId: `t-1`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      }
+      mockReq.body = { content: [{ type: `text`, text: `Hi` }] }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `type is required`
+      )
+    })
+
+    it(`should throw 400 when content is missing`, async () => {
+      const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGetThread.mockResolvedValue({ data: mockThread })
+      mockReq.params = {
+        threadId: `t-1`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      }
+      mockReq.body = { type: `user` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `content is required`
+      )
+    })
+
+    it(`should throw 500 on db create error`, async () => {
+      const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockCreateMsg = mockReq.app?.locals.db.services.message.create as ReturnType<
+        typeof vi.fn
+      >
+      mockGetThread.mockResolvedValue({ data: mockThread })
+      mockCreateMsg.mockResolvedValue({ error: `Create failed` })
+      mockReq.params = {
+        threadId: `t-1`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      }
+      mockReq.body = { type: `user`, content: [{ type: `text`, text: `Hi` }] }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Create failed`
       )
     })
   })

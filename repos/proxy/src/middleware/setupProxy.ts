@@ -74,4 +74,5 @@ const createBackendProxy = (app: TProxyApp) => {
 export const setupProxy = (app: TProxyApp) => {
   const loc = adminPath(app.locals.config.backend)
   app.use(pathFilter(loc), createBackendProxy(app))
+  app.use(`/ai`, createBackendProxy(app))
 }

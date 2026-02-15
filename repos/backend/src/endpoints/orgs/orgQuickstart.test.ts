@@ -55,7 +55,7 @@ describe(`Quickstart endpoint`, () => {
   }
 
   const getEndpointCfg = (ep?: TEndpoint) => getEpCfg(buildApp(), ep)
-  const ep = getEndpointCfg(orgQuickstart.endpoints?.quickstart)
+  const ep = getEndpointCfg(orgQuickstart)
 
   const validBody = {
     providerTemp: `anthropic`,

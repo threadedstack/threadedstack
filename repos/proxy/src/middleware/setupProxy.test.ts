@@ -59,10 +59,14 @@ describe(`setupProxy`, () => {
     setupProxy(app)
 
     expect(mockAdminPath).toHaveBeenCalledWith(app.locals.config.backend)
-    expect(app.use).toHaveBeenCalledTimes(1)
+    // Two proxy routes: /_/* (admin) and /ai (session-based LLM proxy)
+    expect(app.use).toHaveBeenCalledTimes(2)
 
     const [pathArg] = app.use.mock.calls[0]
     expect(pathArg).toBe(`/_`)
+
+    const [aiPathArg] = app.use.mock.calls[1]
+    expect(aiPathArg).toBe(`/ai`)
   })
 
   it(`should normalize a trailing slash from adminPath result`, () => {
@@ -111,7 +115,8 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    expect(mockCreateProxyMiddleware).toHaveBeenCalledTimes(1)
+    // Two proxy middlewares: admin + /ai
+    expect(mockCreateProxyMiddleware).toHaveBeenCalledTimes(2)
 
     const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
       string,

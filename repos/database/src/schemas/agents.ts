@@ -25,7 +25,7 @@ export const agents = pgTable(`agents`, {
 
   /** Provider relationship - contains LLM API configuration */
   providerId: uuid(`provider_id`)
-    .references(() => providers.id, { onDelete: `restrict` })
+    .references(() => providers.id, { onDelete: `cascade` })
     .notNull(),
 
   /** System prompt for the agent */

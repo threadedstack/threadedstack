@@ -21,6 +21,9 @@ export const validateAuth = (app: TProxyApp) => {
       return next()
     }
 
+    // /ai/chat uses session-token auth, skip JWT
+    if (req.path.startsWith(`/ai/chat`)) return next()
+
     const token = app.locals.auth.extract(req)
 
     if (!token) return next()

@@ -1,10 +1,17 @@
 import type { AuthManager } from '@TRL/auth'
+import type { TSessionInfo } from '@TRL/types'
 
 export class ApiClient {
   #auth: AuthManager
 
   constructor(auth: AuthManager) {
     this.#auth = auth
+  }
+
+  #getProxyUrl(): string {
+    const creds = this.#auth.getCredentials()
+    if (!creds) throw new Error(`Not logged in. Run "tdsk-agent login" first.`)
+    return creds.proxyUrl
   }
 
   async #request<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
@@ -38,6 +45,10 @@ export class ApiClient {
     })
   }
 
+  get proxyUrl(): string {
+    return this.#getProxyUrl()
+  }
+
   // --- Organizations ---
 
   async listOrgs(): Promise<unknown[]> {
@@ -58,10 +69,10 @@ export class ApiClient {
     return this.#request(`/orgs/${orgId}/agents/${agentId}`)
   }
 
-  // --- Agent Resolution ---
+  // --- Sessions ---
 
-  async resolveAgent(orgId: string, agentId: string): Promise<unknown> {
-    return this.#postRequest(`/orgs/${orgId}/agents/${agentId}/resolve`, {})
+  async createSession(agentId: string): Promise<TSessionInfo> {
+    return this.#postRequest<TSessionInfo>(`/ai/sessions`, { agentId })
   }
 
   // --- Threads ---
