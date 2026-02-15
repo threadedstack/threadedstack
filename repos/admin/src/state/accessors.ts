@@ -11,7 +11,6 @@ import type {
   Plan,
   Asset,
   Agent,
-  Config,
   Secret,
   ApiKey,
   Domain,
@@ -37,7 +36,6 @@ import { agentsState, activeAgentIdState } from '@TAF/state/agents'
 import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
-import { configsState, activeConfigIdState } from '@TAF/state/configs'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
@@ -142,15 +140,6 @@ export const setFunctions = (functions: Record<string, TDFunction>) =>
 export const getActiveFunctionId = () => store.get(activeFunctionIdState)
 export const resetActiveFunctionId = () => store.set(activeFunctionIdState, undefined)
 export const setActiveFunctionId = (id: string) => store.set(activeFunctionIdState, id)
-
-export const getConfigs = () => store.get(configsState)
-export const resetConfigs = () => store.set(configsState, undefined)
-export const setConfigs = (configs: Record<string, Config>) =>
-  store.set(configsState, configs)
-
-export const getActiveConfigId = () => store.get(activeConfigIdState)
-export const resetActiveConfigId = () => store.set(activeConfigIdState, undefined)
-export const setActiveConfigId = (id: string) => store.set(activeConfigIdState, id)
 
 export const getApiKeys = () => store.get(apiKeysState)
 export const resetApiKeys = () => store.set(apiKeysState, undefined)

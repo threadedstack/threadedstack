@@ -3,7 +3,6 @@ import {
   resetOrgs,
   resetAssets,
   resetAgents,
-  resetConfigs,
   resetApiKeys,
   resetThreads,
   resetSecrets,
@@ -28,7 +27,6 @@ import {
   resetActiveApiKeyId,
   resetActiveThreadId,
   resetActiveSecretId,
-  resetActiveConfigId,
   resetActiveDomainId,
   resetAgentFormState,
   resetQuickstartOpen,
@@ -44,7 +42,6 @@ export const reset = () => {
   resetOrgs?.()
   resetAssets?.()
   resetAgents?.()
-  resetConfigs?.()
   resetApiKeys?.()
   resetThreads?.()
   resetSecrets?.()
@@ -69,7 +66,6 @@ export const reset = () => {
   resetActiveApiKeyId?.()
   resetActiveThreadId?.()
   resetActiveSecretId?.()
-  resetActiveConfigId?.()
   resetActiveDomainId?.()
   resetAgentFormState?.()
   resetProxyFormState?.()

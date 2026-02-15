@@ -5,7 +5,6 @@ export class Thread extends Base {
   userId: string
   orgId?: string
   agentId?: string
-  configId?: string
   projectId?: string
   providerId?: string
   public: boolean = false

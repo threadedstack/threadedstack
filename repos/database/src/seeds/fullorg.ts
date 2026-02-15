@@ -7,7 +7,6 @@ import {
   Quota,
   Asset,
   ApiKey,
-  Config,
   Thread,
   Domain,
   Secret,
@@ -388,63 +387,6 @@ export async function generateToken(userId: string) {
   }),
 }
 
-const configs = {
-  user: new Config({
-    orgId: undefined,
-    id: Ids.config.user,
-    projectId: undefined,
-    userId: users.owner.id,
-    data: {
-      theme: `dark`,
-      language: `en`,
-      notifications: {
-        email: true,
-        push: false,
-      },
-      preferences: {
-        defaultOrg: org.id,
-      },
-    },
-  }),
-  org: new Config({
-    userId: undefined,
-    orgId: org.id,
-    projectId: undefined,
-    id: Ids.config.acmeOrg,
-    data: {
-      billing: {
-        plan: `enterprise`,
-        paymentMethod: `invoice`,
-      },
-      security: {
-        enforceSSO: true,
-        allowedDomains: [`threadedstack.com`],
-      },
-      features: {
-        aiAssistant: true,
-        advancedAnalytics: true,
-      },
-    },
-  }),
-  apiProject: new Config({
-    orgId: undefined,
-    userId: undefined,
-    id: Ids.config.acmeApi,
-    projectId: projects.api.id,
-    data: {
-      deployment: {
-        environment: `production`,
-        region: `us-east-1`,
-      },
-      runtime: {
-        nodeVersion: `20.x`,
-        memory: 2048,
-        timeout: 30,
-      },
-    },
-  }),
-}
-
 const assets = {
   orgLogo: new Asset({
     type: `image/png`,
@@ -508,7 +450,6 @@ const threads = {
     public: false,
     userId: users.owner.id,
     id: Ids.thread.adminPlanning,
-    configId: configs.org.id,
     name: `Q1 Planning Discussion`,
     projectId: projects.web.id,
     providerId: providers.openai.id,
@@ -519,7 +460,6 @@ const threads = {
   }),
   support: new Thread({
     public: false,
-    configId: undefined,
     userId: users.admin.id,
     id: Ids.thread.adminSupport,
     projectId: projects.api.id,
@@ -532,7 +472,6 @@ const threads = {
   }),
   dev: new Thread({
     public: false,
-    configId: undefined,
     userId: users.member.id,
     id: Ids.thread.memberDev,
     name: `API Development Chat`,
@@ -723,7 +662,6 @@ const seeds = {
   secrets,
   agents,
   // User/Org/Project-dependent entities (polymorphic)
-  configs,
   assets,
   // Thread/Message entities
   threads,

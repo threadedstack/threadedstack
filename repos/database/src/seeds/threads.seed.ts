@@ -1,19 +1,11 @@
 import { Thread } from '@tdsk/domain'
-import {
-  Ids,
-  UserIds,
-  ConfigIds,
-  ThreadIds,
-  ProjectIds,
-  ProviderIds,
-} from '@TDB/seeds/ids.seed'
+import { Ids, UserIds, ThreadIds, ProjectIds, ProviderIds } from '@TDB/seeds/ids.seed'
 
 export const threadsSeeds: Thread[] = [
   new Thread({
     public: false,
     userId: Ids.super.user,
     id: ThreadIds.adminPlanning,
-    configId: ConfigIds.acmeOrg,
     name: `Q1 Planning Discussion`,
     projectId: ProjectIds.acmeWeb,
     providerId: ProviderIds.acmeOpenai,
@@ -24,7 +16,6 @@ export const threadsSeeds: Thread[] = [
   }),
   new Thread({
     public: false,
-    configId: undefined,
     userId: UserIds.admin,
     id: ThreadIds.adminSupport,
     projectId: ProjectIds.acmeApi,
@@ -37,7 +28,6 @@ export const threadsSeeds: Thread[] = [
   }),
   new Thread({
     public: false,
-    configId: undefined,
     userId: UserIds.member,
     id: ThreadIds.memberDev,
     name: `API Development Chat`,
@@ -53,7 +43,6 @@ export const threadsSeeds: Thread[] = [
     id: ThreadIds.viewer,
     userId: UserIds.viewer,
     name: `Learning TypeScript`,
-    configId: ConfigIds.personal,
     projectId: ProjectIds.personal,
     providerId: ProviderIds.personalOpenai,
     meta: {

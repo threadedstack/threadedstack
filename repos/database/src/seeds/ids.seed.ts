@@ -94,13 +94,6 @@ export const Ids = {
     thread3Msg1: `d0000000-0000-0000-0000-000000000005`,
     thread4Msg1: `d0000000-0000-0000-0000-000000000006`,
   },
-  config: {
-    user: `90000000-0000-0000-0000-000000000001`,
-    acmeOrg: `90000000-0000-0000-0000-000000000002`,
-    acmeApi: `90000000-0000-0000-0000-000000000003`,
-    startup: `90000000-0000-0000-0000-000000000004`,
-    personal: `90000000-0000-0000-0000-000000000005`,
-  },
   endpoint: {
     acmeApiGoogle: `a0000000-0000-0000-0000-000000000001`,
     acmeApiUsers: `a0000000-0000-0000-0000-000000000002`,
@@ -130,7 +123,6 @@ export const Ids = {
 export const AgentIds = Ids.agent
 export const AssetIds = Ids.asset
 export const ApiKeyIds = Ids.apikey
-export const ConfigIds = Ids.config
 export const EndpointIds = Ids.endpoint
 export const FunctionIds = Ids.function
 export const InvitationIds = Ids.invitation

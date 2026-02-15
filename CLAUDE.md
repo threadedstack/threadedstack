@@ -215,6 +215,7 @@ pnpm test           # Vitest tests
 pnpm push           # Push schema to DB (INTERACTIVE - requires manual confirmation)
 ```
 > **Note**: `pnpm push` runs `drizzle-kit push` which is interactive and requires manual confirmation for destructive changes. Claude cannot run this automatically. The user must run it manually from `repos/database/`.
+> **IMPORTANT**: Domain and database don't have build scripts (TypeScript source consumed directly via aliases). Backend and admin have build scripts. Let me run tests for domain/database, and builds for backend/admin.
 
 ## Service Management (`tdsk` CLI)
 
@@ -334,7 +335,6 @@ pnpm --filter @tdsk/admin build      # depends on domain, components
   - `/config` - Configuration files
   - `/scripts` - Utility scripts
   - `/examples` - Example code
-
 
 ## Compact Instructions
 

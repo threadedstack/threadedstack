@@ -1,9 +1,10 @@
 import type {
   ILLMAdapter,
   TAIMessage,
-  TLLMAdapterConfig,
   TLLMToolDef,
   TStreamEvent,
+  TLLMProviderType,
+  TLLMAdapterConfig,
   TStreamStopReason,
 } from '@tdsk/domain'
 
@@ -107,7 +108,7 @@ export const toOpenAITools = (tools: TLLMToolDef[]): TOpenAITool[] => {
  * Subclasses override getBaseUrl, getHeaders, getExtraBody, mapFinishReason.
  */
 export abstract class OpenAICompatibleAdapter implements ILLMAdapter {
-  abstract readonly provider: string
+  abstract readonly provider: TLLMProviderType
 
   protected abstract getBaseUrl(config: TLLMAdapterConfig): string
 

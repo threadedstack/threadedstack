@@ -11,7 +11,6 @@ export * from './projects.seed'
 export * from './apiKeys.seed'
 export * from './providers.seed'
 export * from './secrets.seed'
-export * from './configs.seed'
 export * from './endpoints.seed'
 export * from './functions.seed'
 export * from './threads.seed'
@@ -31,10 +30,9 @@ export * from './invitations.seed'
  * 7. apiKeys - API keys for orgs/projects (depends on: orgs, projects)
  * 8. providers - External API providers (depends on: orgs, projects, users)
  * 9. secrets - Encrypted secrets (depends on: orgs, projects, providers)
- * 10. configs - Configuration data (depends on: orgs, projects, users)
- * 11. endpoints - API proxy endpoints (depends on: projects)
- * 12. functions - FaaS functions (depends on: projects, endpoints)
- * 13. threads - Chat threads (depends on: users, providers, configs)
+ * 10. endpoints - API proxy endpoints (depends on: projects)
+ * 11. functions - FaaS functions (depends on: projects, endpoints)
+ * 12. threads - Chat threads (depends on: users, providers)
  * 14. messages - Chat messages (depends on: threads)
  * 15. assets - File assets (depends on: orgs, projects, users, threads, messages, providers)
  * 16. invitations - Org invitations (depends on: orgs, users)

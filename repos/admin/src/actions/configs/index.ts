@@ -1,5 +1,0 @@
-export * from './fetchConfigs'
-export * from './fetchConfig'
-export * from './createConfig'
-export * from './updateConfig'
-export * from './deleteConfig'

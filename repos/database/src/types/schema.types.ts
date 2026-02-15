@@ -5,7 +5,6 @@ import type { assets } from '@TDB/schemas/assets'
 import type { quotas } from '@TDB/schemas/quotas'
 import type { agents } from '@TDB/schemas/agents'
 import type { apiKeys } from '@TDB/schemas/apiKeys'
-import type { configs } from '@TDB/schemas/configs'
 import type { secrets } from '@TDB/schemas/secrets'
 import type { threads } from '@TDB/schemas/threads'
 import type { domains } from '@TDB/schemas/domains'
@@ -40,8 +39,6 @@ export type TDBQuotaSelect = TInferDates<typeof quotas.$inferSelect>
 export type TDBQuotaInsert = TInferDates<typeof quotas.$inferInsert>
 export type TDBAssetSelect = TInferDates<typeof assets.$inferSelect>
 export type TDBAssetInsert = TInferDates<typeof assets.$inferInsert>
-export type TDBConfigSelect = TInferDates<typeof configs.$inferSelect>
-export type TDBConfigInsert = TInferDates<typeof configs.$inferInsert>
 export type TDBSecretSelect = TInferDates<typeof secrets.$inferSelect>
 export type TDBSecretInsert = TInferDates<typeof secrets.$inferInsert>
 export type TDBThreadSelect = TInferDates<typeof threads.$inferSelect>
@@ -107,7 +104,6 @@ export type TDBEntitySelect =
   | TDBAgentSelect
   | TDBQuotaSelect
   | TDBApiKeySelect
-  | TDBConfigSelect
   | TDBSecretSelect
   | TDBThreadSelect
   | TDBDomainsSelect
@@ -127,7 +123,6 @@ export type TDBEntityInsert =
   | TDBQuotaInsert
   | TDBAgentInsert
   | TDBApiKeyInsert
-  | TDBConfigInsert
   | TDBSecretInsert
   | TDBThreadInsert
   | TDBDomainsInsert

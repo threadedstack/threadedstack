@@ -9,7 +9,6 @@ import { deleteOrg } from '@TBE/endpoints/orgs/deleteOrg'
 import { orgQuotas } from '@TBE/endpoints/orgs/orgQuotas'
 import { orgAgents } from '@TBE/endpoints/orgs/orgAgents'
 import { orgApiKeys } from '@TBE/endpoints/orgs/orgApiKeys'
-import { orgConfigs } from '@TBE/endpoints/orgs/orgConfigs'
 import { orgDomains } from '@TBE/endpoints/orgs/orgDomains'
 import { orgSecrets } from '@TBE/endpoints/orgs/orgSecrets'
 import { orgProjects } from '@TBE/endpoints/orgs/orgProjects'
@@ -42,7 +41,6 @@ export const orgs: TEndpointConfig = {
     orgQuotas,
     orgAgents,
     orgApiKeys,
-    orgConfigs,
     orgDomains,
     orgSecrets,
     orgProjects,

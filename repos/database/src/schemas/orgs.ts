@@ -4,7 +4,6 @@ import { assets } from '@TDB/schemas/assets'
 import { quotas } from '@TDB/schemas/quotas'
 import { base } from '@TDB/utils/schema/base'
 import { secrets } from '@TDB/schemas/secrets'
-import { configs } from '@TDB/schemas/configs'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { agents } from '@TDB/schemas/agents'
@@ -23,7 +22,6 @@ export const orgsRelations = relations(orgs, ({ many }) => ({
   assets: many(assets),
   agents: many(agents),
   secrets: many(secrets),
-  configs: many(configs),
   projects: many(projects),
   providers: many(providers),
   invitations: many(invitations),

@@ -3,7 +3,6 @@ import { orgs } from '@TDB/schemas/orgs'
 import { assets } from '@TDB/schemas/assets'
 import { base } from '@TDB/utils/schema/base'
 import { secrets } from '@TDB/schemas/secrets'
-import { configs } from '@TDB/schemas/configs'
 import { endpoints } from '@TDB/schemas/endpoints'
 import { providers } from '@TDB/schemas/providers'
 import { agentProjects } from '@TDB/schemas/agentProjects'
@@ -30,7 +29,6 @@ export const projects = pgTable(
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   assets: many(assets),
   secrets: many(secrets),
-  configs: many(configs),
   providers: many(providers),
   endpoints: many(endpoints),
   agents: many(agentProjects),
