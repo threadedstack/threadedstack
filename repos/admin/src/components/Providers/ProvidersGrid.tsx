@@ -6,14 +6,9 @@ import { CardGrid } from '@TAF/components'
 export type TProvidersGrid = {
   providers: Provider[]
   onEdit?: (providerId: string) => void
-  readOnly?: boolean
 }
 
-export const ProvidersGrid = ({
-  providers,
-  onEdit,
-  readOnly = false,
-}: TProvidersGrid) => {
+export const ProvidersGrid = ({ providers, onEdit }: TProvidersGrid) => {
   return (
     <CardGrid
       items={providers}
@@ -21,7 +16,6 @@ export const ProvidersGrid = ({
         <ProviderCard
           provider={provider}
           onEdit={onEdit}
-          readOnly={readOnly}
         />
       )}
       getKey={(provider) => provider.id}

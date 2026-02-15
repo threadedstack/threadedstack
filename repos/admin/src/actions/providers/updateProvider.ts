@@ -7,7 +7,6 @@ export type TUpdateProviderOpts = {
   orgId: string
   id: string
   data: Partial<Provider>
-  projectId?: string
 }
 
 export type TUpdateProviderResult = {
@@ -18,15 +17,14 @@ export type TUpdateProviderResult = {
 export const updateProvider = async (
   opts: TUpdateProviderOpts
 ): Promise<TUpdateProviderResult> => {
-  const { orgId, id, data, projectId } = opts
-  const resp = await providersApi.update(orgId, id, data, projectId)
+  const { orgId, id, data } = opts
+  const resp = await providersApi.update(orgId, id, data)
 
   if (resp.error) {
     return { error: resp.error }
   }
 
   if (resp.data) {
-    // Update providers state with the updated provider
     const currentProviders = getProviders() || {}
     setProviders({ ...currentProviders, [resp.data.id]: resp.data })
   }

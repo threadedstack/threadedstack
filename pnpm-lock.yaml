@@ -715,6 +715,12 @@ importers:
 
   repos/repl:
     dependencies:
+      '@keg-hub/args-parse':
+        specifier: 10.0.1
+        version: 10.0.1
+      '@keg-hub/jsutils':
+        specifier: 10.0.0
+        version: 10.0.0
       '@tdsk/agent':
         specifier: workspace:*
         version: link:../agent

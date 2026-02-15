@@ -8,30 +8,26 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { parsePagination } from '@TBE/utils/pagination'
 
 /**
- * GET /providers - List all providers
- * Filter by orgId or projectId query param
- * User must be member of the org/project
+ * GET /providers - List all providers for an org
+ * Requires orgId in params
  */
 export const listProviders: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { orgId, projectId } = req.params
+    const { orgId } = req.params
 
-    if (!orgId && !projectId) throw new Exception(400, `orgId or projectId is required`)
+    if (!orgId) throw new Exception(400, `orgId is required`)
 
-    // Check permission to read providers in this scope
     await checkPermission(req, EPermAction.read, EPermResource.provider, {
       orgId,
-      projectId,
     })
 
     const { limit, offset } = parsePagination(req)
 
-    // List providers for the specified scope
     const { data, error } = await db.services.provider.list({
-      where: projectId ? { projectId } : { orgId },
+      where: { orgId },
       limit,
       offset,
     })

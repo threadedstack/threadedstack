@@ -22,7 +22,7 @@ const pushImg: TTaskAction = async (args) => {
 
 export const push: TTask = {
   name: `push`,
-  alias: [`pl`],
+  alias: [`psh`],
   action: pushImg,
   example: `pnpm tdsk dev img push <options>`,
   description: `Calls the image push command`,

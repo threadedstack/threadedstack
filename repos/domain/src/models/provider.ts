@@ -4,9 +4,7 @@ import { Base } from './base'
 
 export class Provider extends Base {
   name?: string
-  orgId?: string
-  userId?: string
-  projectId?: string
+  orgId: string
   type: TProviderType
   options: Record<string, any> = {}
 

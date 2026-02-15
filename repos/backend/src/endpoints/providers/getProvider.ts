@@ -7,8 +7,7 @@ import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * GET /providers/:id - Get provider by ID
- * Get provider first to find its scope (org/project)
- * Check membership in that scope
+ * Checks membership in the provider's org
  */
 export const getProvider: TEndpointConfig = {
   path: `/:id`,
@@ -24,10 +23,7 @@ export const getProvider: TEndpointConfig = {
       EPermAction.read,
       EPermResource.provider,
       `Provider`,
-      (provider) => ({
-        orgId: provider.orgId || undefined,
-        projectId: provider.projectId || undefined,
-      })
+      (provider) => ({ orgId: provider.orgId })
     )
 
     res.status(200).json({ data })

@@ -9,8 +9,7 @@ import { validateProviderType } from '@TBE/utils/providers/validateProviderType'
 
 /**
  * PUT /providers/:id - Update an existing provider
- * Get provider first to find scope
- * Requires admin+ role in that scope
+ * Requires admin+ role in the provider's org
  */
 export const updateProvider: TEndpointConfig = {
   path: `/:id`,
@@ -27,16 +26,11 @@ export const updateProvider: TEndpointConfig = {
       EPermAction.update,
       EPermResource.provider,
       `Provider`,
-      (provider) => ({
-        orgId: provider.orgId || undefined,
-        projectId: provider.projectId || undefined,
-      })
+      (provider) => ({ orgId: provider.orgId })
     )
 
-    // Validate provider type if being changed
     providerData.type && validateProviderType(providerData.type)
 
-    // Update the provider
     const { data, error } = await db.services.provider.update({ ...providerData, id })
 
     if (error) throw new Exception(500, error.message)

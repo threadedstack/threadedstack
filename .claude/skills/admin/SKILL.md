@@ -65,7 +65,6 @@ repos/admin/
     │   │   ├── Project.tsx       # Single project dashboard
     │   │   ├── ProjectEndpoints.tsx   # Project endpoints
     │   │   ├── ProjectSecrets.tsx     # Project-level secrets
-    │   │   ├── ProjectProviders.tsx   # Project-level providers
     │   │   └── ProjectFunctions.tsx   # Project functions
     │   └── Page/                 # Base page component
     ├── components/               # Reusable UI components
@@ -164,7 +163,6 @@ enum ERoutePath {
   Project = `/orgs/:orgId/projects/:projectId`,
   ProjectEndpoints = `/orgs/:orgId/projects/:projectId/endpoints`,
   ProjectSecrets = `/orgs/:orgId/projects/:projectId/secrets`,
-  ProjectProviders = `/orgs/:orgId/projects/:projectId/providers`,
   ProjectFunctions = `/orgs/:orgId/projects/:projectId/functions`,
   ProjectSettings = `/orgs/:orgId/projects/:projectId/settings`,
   // Billing & subscription routes

@@ -8,8 +8,7 @@ import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * DELETE /providers/:id - Delete a provider
- * Get provider first to find scope
- * Requires admin+ role in that scope
+ * Requires admin+ role in the provider's org
  */
 export const deleteProvider: TEndpointConfig = {
   path: `/:id`,
@@ -25,13 +24,9 @@ export const deleteProvider: TEndpointConfig = {
       EPermAction.delete,
       EPermResource.provider,
       `Provider`,
-      (provider) => ({
-        orgId: provider.orgId || undefined,
-        projectId: provider.projectId || undefined,
-      })
+      (provider) => ({ orgId: provider.orgId })
     )
 
-    // Delete the provider
     const { data, error } = await db.services.provider.delete(id)
 
     if (error) throw new Exception(500, error.message)

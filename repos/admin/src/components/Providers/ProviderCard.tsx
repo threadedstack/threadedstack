@@ -7,25 +7,22 @@ import { ItemCard, ActionIconButton } from '@TAF/components'
 export type TProviderCard = {
   provider: Provider
   onEdit?: (providerId: string) => void
-  readOnly?: boolean
 }
 
-export const ProviderCard = ({ provider, onEdit, readOnly = false }: TProviderCard) => {
+export const ProviderCard = ({ provider, onEdit }: TProviderCard) => {
   const handleEdit = (e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation()
     }
-    if (!readOnly && onEdit) {
-      onEdit(provider.id)
-    }
+    onEdit?.(provider.id)
   }
 
   return (
     <ItemCard
-      onClick={readOnly ? undefined : () => handleEdit()}
+      onClick={onEdit ? () => handleEdit() : undefined}
       actionsPosition='left'
       actions={
-        !readOnly && onEdit ? (
+        onEdit ? (
           <ActionIconButton
             tooltip='Edit Provider'
             icon={<EditIcon />}

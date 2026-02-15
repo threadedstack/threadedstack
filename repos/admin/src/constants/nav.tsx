@@ -116,12 +116,6 @@ export const ProjectNavItems: TNavItem[] = [
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
-    text: `Providers`,
-    to: buildRoute(ERoutePath.ProjectProviders),
-    Icon: <ProviderIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
-  },
-  {
     text: `Agents`,
     to: buildRoute(ERoutePath.ProjectAgents),
     Icon: <AutoAwesomeIcon />,

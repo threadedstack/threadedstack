@@ -6,7 +6,6 @@ import { setProviders, getProviders } from '@TAF/state/accessors'
 export type TCreateProviderOpts = {
   orgId: string
   data: Partial<Provider>
-  projectId?: string
 }
 
 export type TCreateProviderResult = {
@@ -17,15 +16,14 @@ export type TCreateProviderResult = {
 export const createProvider = async (
   opts: TCreateProviderOpts
 ): Promise<TCreateProviderResult> => {
-  const { orgId, data, projectId } = opts
-  const resp = await providersApi.create(orgId, data, projectId)
+  const { orgId, data } = opts
+  const resp = await providersApi.create(orgId, data)
 
   if (resp.error) {
     return { error: resp.error }
   }
 
   if (resp.data) {
-    // Update providers state with the new provider
     const currentProviders = getProviders() || {}
     setProviders({ ...currentProviders, [resp.data.id]: resp.data })
   }

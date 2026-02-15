@@ -5,7 +5,6 @@ import { setProviders } from '@TAF/state/accessors'
 
 export type TFetchProvidersOpts = {
   orgId: string
-  projectId?: string
 }
 
 export type TFetchProvidersResult = {
@@ -16,8 +15,8 @@ export type TFetchProvidersResult = {
 export const fetchProviders = async (
   opts: TFetchProvidersOpts
 ): Promise<TFetchProvidersResult> => {
-  const { orgId, projectId } = opts
-  const resp = await providersApi.list(orgId, projectId)
+  const { orgId } = opts
+  const resp = await providersApi.list(orgId)
 
   if (resp.error) {
     return { error: resp.error }

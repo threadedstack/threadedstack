@@ -1,12 +1,10 @@
 import { Provider, EProvider } from '@tdsk/domain'
-import { OrgIds, UserIds, ProviderIds, ProjectIds } from '@TDB/seeds/ids.seed'
+import { OrgIds, ProviderIds } from '@TDB/seeds/ids.seed'
 
 export const providersSeeds: Provider[] = [
   new Provider({
-    userId: undefined,
     type: EProvider.ai,
     orgId: OrgIds.acme,
-    projectId: undefined,
     id: ProviderIds.acmeOpenai,
     name: `OpenAI - Acme Org`,
     options: {
@@ -18,10 +16,8 @@ export const providersSeeds: Provider[] = [
   new Provider({
     id: ProviderIds.acmeAnthropic,
     type: EProvider.ai,
-    orgId: undefined,
-    userId: undefined,
-    projectId: ProjectIds.acmeApi,
-    name: `Anthropic - Acme Project`,
+    orgId: OrgIds.acme,
+    name: `Anthropic - Acme Org`,
     options: {
       maxTokens: 4096,
       model: `claude-3-opus-20240229`,
@@ -29,9 +25,7 @@ export const providersSeeds: Provider[] = [
   }),
   new Provider({
     id: ProviderIds.startupAnthropic,
-    userId: undefined,
     type: EProvider.ai,
-    projectId: undefined,
     orgId: OrgIds.startup,
     name: `Anthropic - Startup Org`,
     options: {
@@ -41,10 +35,8 @@ export const providersSeeds: Provider[] = [
   }),
   new Provider({
     id: ProviderIds.personalOpenai,
-    orgId: undefined,
     type: EProvider.ai,
-    projectId: undefined,
-    userId: UserIds.viewer,
+    orgId: OrgIds.startup,
     name: `Personal OpenAI`,
     options: {
       maxTokens: 1024,

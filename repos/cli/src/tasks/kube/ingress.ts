@@ -1,5 +1,6 @@
 import type { TTask, TTaskAction } from '@TSCL/types'
 import { kubectl } from '@TSCL/utils/kube/kubectl'
+import { taskError } from '@TSCL/utils/tasks/error'
 
 /**
  * Creates a kubernetes ingress in the active namespace
@@ -10,9 +11,9 @@ import { kubectl } from '@TSCL/utils/kube/kubectl'
 const ingressAction: TTaskAction = async (args) => {
   const { params } = args
   const { name, host, path, service, port } = params
-  !name && console.error(`Ingress name is required`)
-  !host && console.error(`Host is required`)
-  !service && console.error(`Service name is required`)
+  !name && taskError(`Ingress name is required`)
+  !host && taskError(`Host is required`)
+  !service && taskError(`Service name is required`)
 
   const ingressYaml = `
 apiVersion: networking.k8s.io/v1

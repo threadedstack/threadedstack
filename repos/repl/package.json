@@ -29,12 +29,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@keg-hub/args-parse": "10.0.1",
+    "@keg-hub/jsutils": "10.0.0",
     "@tdsk/agent": "workspace:*",
     "@tdsk/domain": "workspace:*",
     "@tdsk/sandbox": "workspace:*",
+    "cli-highlight": "^2.1.11",
     "marked": "^15.0.0",
-    "marked-terminal": "^7.0.0",
-    "cli-highlight": "^2.1.11"
+    "marked-terminal": "^7.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",

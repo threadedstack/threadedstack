@@ -33,7 +33,6 @@ const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
 const ProjectDomains = lazy(() => import('@TAF/pages/Projects/ProjectDomains'))
 const ProjectThreads = lazy(() => import('@TAF/pages/Projects/ProjectThreads'))
 const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
-const ProjectProviders = lazy(() => import('@TAF/pages/Projects/ProjectProviders'))
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
 const AgentChat = lazy(() => import('@TAF/components/AI/ChatView'))
@@ -150,10 +149,6 @@ export const Routes = createBrowserRouter([
               {
                 path: ERoutePath.Domains,
                 Component: () => <SuspensePage Component={ProjectDomains} />,
-              },
-              {
-                path: ERoutePath.Providers,
-                Component: () => <SuspensePage Component={ProjectProviders} />,
               },
               {
                 path: ERoutePath.Functions,

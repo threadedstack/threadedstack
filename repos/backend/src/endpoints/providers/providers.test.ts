@@ -124,7 +124,7 @@ describe(`Providers endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1`, projectId: undefined },
+        where: { orgId: `org-1` },
         limit: 50,
         offset: 0,
       })
@@ -132,34 +132,7 @@ describe(`Providers endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({ data: mockProviders, limit: 50, offset: 0 })
     })
 
-    it(`should return 200 with providers for projectId`, async () => {
-      const mockProviders = [
-        new Provider({
-          id: `prov-1`,
-          name: `AWS`,
-          type: `ai`,
-          projectId: `proj-1`,
-        }),
-      ]
-      mockReq.params = { projectId: `proj-1` }
-
-      const mockList = mockReq.app?.locals.db.services.provider.list as ReturnType<
-        typeof vi.fn
-      >
-      mockList.mockResolvedValue({ data: mockProviders })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockList).toHaveBeenCalledWith({
-        where: { projectId: `proj-1` },
-        limit: 50,
-        offset: 0,
-      })
-      expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockProviders, limit: 50, offset: 0 })
-    })
-
-    it(`should return 400 when neither orgId nor projectId provided`, async () => {
+    it(`should return 400 when orgId is not provided`, async () => {
       const app = buildApp()
       app.locals.auth = {} as TAuthHeaderObj
       mockReq.query = {}
@@ -168,7 +141,7 @@ describe(`Providers endpoints`, () => {
       const epl = isFunc(endpoint) ? endpoint(app) : endpoint
 
       await expect(epl.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `orgId or projectId is required`
+        `orgId is required`
       )
     })
 
@@ -197,7 +170,7 @@ describe(`Providers endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1`, projectId: undefined },
+        where: { orgId: `org-1` },
         limit: 10,
         offset: 20,
       })
@@ -301,48 +274,11 @@ describe(`Providers endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({ data: createdProvider })
     })
 
-    it(`should return 201 with created provider for projectId`, async () => {
-      const providerData = {
-        name: `Project Provider`,
-        type: `ai` as const,
-        projectId: `proj-1`,
-      }
-      const createdProvider = new Provider({
-        id: `prov-new`,
-        ...providerData,
-      })
-      mockReq.body = providerData
-
-      const mockCreate = mockReq.app?.locals.db.services.provider.create as ReturnType<
-        typeof vi.fn
-      >
-      mockCreate.mockResolvedValue({ data: createdProvider })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      expect(mockCreate).toHaveBeenCalledWith(providerData)
-      expect(mockStatus).toHaveBeenCalledWith(201)
-      expect(mockJson).toHaveBeenCalledWith({ data: createdProvider })
-    })
-
-    it(`should throw 400 when neither orgId nor projectId provided`, async () => {
+    it(`should throw 400 when orgId is not provided`, async () => {
       mockReq.body = { name: `Provider`, type: `ai` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider must belong to one of: orgId, projectId`
-      )
-    })
-
-    it(`should throw 400 when both orgId and projectId provided`, async () => {
-      mockReq.body = {
-        name: `Provider`,
-        type: `ai`,
-        orgId: `org-1`,
-        projectId: `proj-1`,
-      }
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider can only belong to one of: orgId, projectId (exclusive arc)`
+        `orgId is required`
       )
     })
 
@@ -465,7 +401,7 @@ describe(`Providers endpoints`, () => {
       mockReq.body = { name: `Provider`, orgId: `org-1` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider type must be one of:`
+        `Invalid provider type`
       )
     })
 
@@ -473,7 +409,7 @@ describe(`Providers endpoints`, () => {
       mockReq.body = { name: `Provider`, type: `invalid`, orgId: `org-1` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider type must be one of:`
+        `Invalid provider type`
       )
     })
 
@@ -523,7 +459,7 @@ describe(`Providers endpoints`, () => {
       mockGet.mockResolvedValue({ data: existingProvider })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider type must be one of:`
+        `Invalid provider type`
       )
     })
 

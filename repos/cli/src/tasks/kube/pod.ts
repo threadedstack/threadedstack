@@ -26,9 +26,9 @@ const podAction: TTaskAction = async (args) => {
     !podName && console.error(`Could not determine pod name from context`)
 
     await kubectl.describePod(args, [podName, ...describeArgs])
+  } else {
+    taskError(`Either 'name' or 'context' parameter is required`)
   }
-
-  taskError(`Either 'name' or 'context' parameter is required`)
 }
 
 export const pod: TTask = {

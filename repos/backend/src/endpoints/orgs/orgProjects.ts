@@ -21,11 +21,6 @@ import { listSecrets } from '@TBE/endpoints/secrets/listSecrets'
 import { createSecret } from '@TBE/endpoints/secrets/createSecret'
 import { updateSecret } from '@TBE/endpoints/secrets/updateSecret'
 import { deleteSecret } from '@TBE/endpoints/secrets/deleteSecret'
-import { getProvider } from '@TBE/endpoints/providers/getProvider'
-import { listProviders } from '@TBE/endpoints/providers/listProviders'
-import { createProvider } from '@TBE/endpoints/providers/createProvider'
-import { updateProvider } from '@TBE/endpoints/providers/updateProvider'
-import { deleteProvider } from '@TBE/endpoints/providers/deleteProvider'
 import { getDomain } from '@TBE/endpoints/domains/getDomain'
 import { listDomains } from '@TBE/endpoints/domains/listDomains'
 import { createDomain } from '@TBE/endpoints/domains/createDomain'
@@ -73,18 +68,6 @@ const projectSecrets: TEndpointConfig = {
   },
 }
 
-const projectProviders: TEndpointConfig = {
-  path: `/:projectId/providers`,
-  method: EPMethod.Use,
-  endpoints: {
-    getProvider,
-    listProviders,
-    createProvider,
-    updateProvider,
-    deleteProvider,
-  },
-}
-
 const projectDomains: TEndpointConfig = {
   path: `/:projectId/domains`,
   method: EPMethod.Use,
@@ -121,7 +104,6 @@ export const orgProjects: TEndpointConfig = {
     projectEndpoints,
     projectFunctions,
     projectSecrets,
-    projectProviders,
     projectDomains,
     projectAgents,
   },

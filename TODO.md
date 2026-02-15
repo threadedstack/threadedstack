@@ -21,8 +21,3 @@
 * Providers should only be tied to Organization
   * Figure out why they are tied to users / projects and remove them
 * Configs are not being used, and should be removed
-
-
-### REPL
-* The repl CLI uses a custom implementation for parsing passed in arguments
-* 
