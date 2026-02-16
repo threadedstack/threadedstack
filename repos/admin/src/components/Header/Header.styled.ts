@@ -12,6 +12,7 @@ export const AppHeader = styled(AppBar)(({ theme }) => {
     z-index: 1200;
     padding-left: 0;
     box-shadow: none;
+    border-radius: 0px;
     padding: 0 ${gutter.hpx};
     height: ${dims.header.hpx};
     border-bottom: 1px solid ${theme.palette.divider};

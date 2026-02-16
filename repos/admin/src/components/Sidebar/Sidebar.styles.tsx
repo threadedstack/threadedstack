@@ -12,8 +12,9 @@ export const SideDrawer = styled(Drawer, {
   [`& .MuiDrawer-paper`]: {
     position: `relative`,
     whiteSpace: `nowrap`,
-    backgroundColor: theme.palette.background.header,
+    borderRadius: `0px`,
     width: SidebarWidthOpen,
+    backgroundColor: theme.palette.background.header,
     transition: theme.transitions.create(`width`, {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
@@ -98,10 +99,14 @@ export const NavItem = styled(ListItem)`
       color: ${colors.primary.main};
     }
   }
+  
+  .tdsk-list-item-text {
+    opacity: 0;
+  }
+
 
   &.open {
-
-    & > .MuiTypography-root {
+    & .tdsk-list-item-text {
       opacity: 1;
     }
     & > .tdsk-list-item-expand {
