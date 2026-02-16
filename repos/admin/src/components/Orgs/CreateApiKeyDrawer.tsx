@@ -45,9 +45,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
   const [expiresIn, setExpiresIn] = useState<string>(`none`)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [generatedKey, setGeneratedKey] = useState<string | null>(
-    `tdsk_UE5jDOLLfAQpFOPYk5PXoP3ZMAu3Sc0ak2e0HhMdfi8`
-  )
+  const [generatedKey, setGeneratedKey] = useState<string | null>()
 
   const onScopeChange = (scope: TApiKeyScope) =>
     setScopes((prev) =>

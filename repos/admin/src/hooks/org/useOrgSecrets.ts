@@ -11,7 +11,7 @@ export const useOrgSecrets = (props: THOrgSecrets) => {
   const { orgId } = props
 
   const [secrets] = useOSecrets()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {

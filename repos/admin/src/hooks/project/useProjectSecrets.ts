@@ -12,7 +12,7 @@ export const useProjectSecrets = (props: THOrgSecrets) => {
   const { orgId, projectId } = props
 
   const [secrets] = useSecrets()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {

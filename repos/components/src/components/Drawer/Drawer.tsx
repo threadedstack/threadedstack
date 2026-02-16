@@ -92,11 +92,11 @@ export const Drawer = (props: TDrawer) => {
 
   return (
     <StyledDrawer
-      closeAfterTransition={false}
       {...drawerProps}
       open={open}
       anchor='right'
       onClose={onClose}
+      closeAfterTransition={false}
       className={cls('tdsk-drawer', className)}
     >
       {(title || showCloseButton) && (
