@@ -1,5 +1,5 @@
 import { secretsApi } from '@TAF/services'
-import { removeSecret } from '@TAF/actions/secrets/local/removeSecret'
+import { removeSecret, removeOrgSecret } from '@TAF/actions/secrets/local/removeSecret'
 
 export type TDeleteSecretOpts = {
   orgId: string
@@ -12,6 +12,6 @@ export const deleteSecret = async (opts: TDeleteSecretOpts) => {
   const resp = await secretsApi.delete(orgId, id, projectId)
   if (resp.error) return { error: resp.error }
 
-  removeSecret(id)
+  projectId ? removeSecret(id) : removeOrgSecret(id)
   return { success: true }
 }

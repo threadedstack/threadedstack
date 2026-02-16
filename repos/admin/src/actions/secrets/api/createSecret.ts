@@ -1,5 +1,5 @@
 import { secretsApi } from '@TAF/services'
-import { upsertSecret } from '@TAF/actions/secrets/local/upsertSecret'
+import { upsertSecret, upsertOrgSecret } from '@TAF/actions/secrets/local/upsertSecret'
 
 export type TCreateSecretOpts = {
   orgId: string
@@ -13,6 +13,7 @@ export type TCreateSecretOpts = {
 export const createSecret = async (opts: TCreateSecretOpts) => {
   const { orgId, projectId, ...data } = opts
   const resp = await secretsApi.create(orgId, data, projectId)
-  resp.data && upsertSecret(resp.data)
+  if (resp.data) projectId ? upsertSecret(resp.data) : upsertOrgSecret(resp.data)
+
   return resp
 }

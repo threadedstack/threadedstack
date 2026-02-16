@@ -2,14 +2,12 @@ import type { Secret } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import Box from '@mui/material/Box'
-import { useSecrets } from '@TAF/state/selectors'
+import { useState, useMemo } from 'react'
 import { ConfirmDelete, Text } from '@tdsk/components'
-import { useEffect, useState, useMemo } from 'react'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { SecretDrawer } from '@TAF/components/Secrets/SecretDrawer'
-import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { deleteSecret } from '@TAF/actions/secrets/api/deleteSecret'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
@@ -21,7 +19,12 @@ import {
 
 export type TSecrets = {
   orgId?: string
+  error?: Error
+  loading?: boolean
   projectId?: string
+  setError?: (err: Error) => void
+  secrets?: Record<string, Secret>
+  setLoading?: (state?: boolean) => void
 }
 
 const styles = {
@@ -38,33 +41,16 @@ const styles = {
   },
 }
 
-export const Secrets = ({ orgId, projectId }: TSecrets) => {
-  const [secrets] = useSecrets()
-  const [loading, setLoading] = useState(true)
+export const Secrets = (props: TSecrets) => {
+  const { orgId, error, loading, secrets, setError, projectId, setLoading } = props
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [deleting, setDeleting] = useState<Secret>()
-  const [error, setError] = useState<Error | null>(null)
   const [selectedSecret, setSelectedSecret] = useState<Secret | null>(null)
 
-  // Determine context type
-  const isOrgContext = !!orgId && !projectId
   const isProjectContext = !!projectId
-
-  // Load secrets based on context
-  useEffect(() => {
-    const loadSecrets = async () => {
-      if (!orgId && !projectId) return
-
-      setLoading(true)
-      setError(null)
-      const result = await fetchSecrets({ orgId, projectId })
-      result.error && setError(result.error)
-      setLoading(false)
-    }
-
-    loadSecrets()
-  }, [orgId, projectId])
+  const isOrgContext = !!orgId && !projectId
 
   const onCreateSecret = () => {
     setSelectedSecret(null)
@@ -100,12 +86,9 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
 
     // Filter by context
     const contextFilteredSecrets = secretsArray.filter((secret) => {
-      if (isProjectContext) {
-        return secret.projectId === projectId
-      }
-      if (isOrgContext) {
-        return secret.orgId === orgId && !secret.projectId
-      }
+      if (isProjectContext) return secret.projectId === projectId
+      if (isOrgContext) return secret.orgId === orgId && !secret.projectId
+
       return false
     })
 
@@ -123,12 +106,11 @@ export const Secrets = ({ orgId, projectId }: TSecrets) => {
 
   const secretsCount = useMemo(() => {
     const secretsArray = secrets ? Object.values(secrets) : []
-    if (isProjectContext) {
+    if (isProjectContext)
       return secretsArray.filter((s) => s.projectId === projectId).length
-    }
-    if (isOrgContext) {
+
+    if (isOrgContext)
       return secretsArray.filter((s) => s.orgId === orgId && !s.projectId).length
-    }
     return 0
   }, [secrets, orgId, projectId, isOrgContext, isProjectContext])
 

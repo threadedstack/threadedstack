@@ -12,14 +12,19 @@ import { providersState } from '@TAF/state/providers'
 import { quickstartState } from '@TAF/state/quickstart'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { assetsState, activeAssetIdState } from '@TAF/state/assets'
-import { agentsState, activeAgentIdState, activeAgentState } from '@TAF/state/agents'
-import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
+import { agentsState, activeAgentIdState, activeAgentState } from '@TAF/state/agents'
+import {
+  secretsState,
+  activeSecretIdState,
+  orgSecretsState,
+  activeOrgSecretIdState,
+} from '@TAF/state/secrets'
 import {
   faasFormState,
   proxyFormState,
@@ -74,6 +79,9 @@ export const useActiveProject = () => useDerivedState<Project>(activeProjectStat
 
 export const useSecrets = () => useRecState(secretsState)
 export const useActiveSecretId = () => useRecState(activeSecretIdState)
+
+export const useOrgSecrets = () => useRecState(orgSecretsState)
+export const useActiveOrgSecretId = () => useRecState(activeOrgSecretIdState)
 
 export const useDomains = () => useRecState(domainsState)
 export const useActiveDomainId = () => useRecState(activeDomainIdState)

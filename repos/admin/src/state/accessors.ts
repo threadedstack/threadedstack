@@ -33,7 +33,6 @@ import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { assetsState, activeAssetIdState } from '@TAF/state/assets'
 import { agentsState, activeAgentIdState } from '@TAF/state/agents'
-import { secretsState, activeSecretIdState } from '@TAF/state/secrets'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
@@ -42,6 +41,12 @@ import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { DefFaasState, DefProxyState, DefAgentState } from '@TAF/constants/endpoints'
+import {
+  secretsState,
+  activeSecretIdState,
+  orgSecretsState,
+  activeOrgSecretIdState,
+} from '@TAF/state/secrets'
 import {
   faasFormState,
   proxyFormState,
@@ -113,6 +118,15 @@ export const setSecrets = (secrets: Record<string, Secret>) =>
 export const getActiveSecretId = () => store.get(activeSecretIdState)
 export const resetActiveSecretId = () => store.set(activeSecretIdState, undefined)
 export const setActiveSecretId = (id: string) => store.set(activeSecretIdState, id)
+
+export const getOrgSecrets = () => store.get(orgSecretsState)
+export const resetOrgSecrets = () => store.set(orgSecretsState, undefined)
+export const setOrgSecrets = (secrets: Record<string, Secret>) =>
+  store.set(orgSecretsState, secrets)
+
+export const getActiveOrgSecretId = () => store.get(activeOrgSecretIdState)
+export const resetActiveOrgSecretId = () => store.set(activeOrgSecretIdState, undefined)
+export const setActiveOrgSecretId = (id: string) => store.set(activeOrgSecretIdState, id)
 
 export const getDomains = () => store.get(domainsState)
 export const resetDomains = () => store.set(domainsState, undefined)
