@@ -16,13 +16,7 @@ export type TSBNavList = {
   context?: TNavCtx
 }
 
-export type TSBNavItem = {
-  open?: boolean
-  item: TNavItem
-  context?: TNavCtx
-}
-
-export const SBNavItem = (props: TNavItem & { open?: boolean; context?: TNavCtx }) => {
+export const SBNavItem = (props: TNavItem) => {
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -38,22 +32,23 @@ export const SBNavItem = (props: TNavItem & { open?: boolean; context?: TNavCtx 
 
   return (
     <NavItem
-      to={resolvedPath}
-      key={resolvedPath}
       component={Link}
       Icon={props.Icon}
       text={props.text}
+      to={resolvedPath}
+      key={resolvedPath}
       items={props.items}
       defaultOpen={isActive}
+      expandOnClick={hasChildren}
+      className={cls(props.open && `open`, isActive && `active`)}
       tooltip={!props.open ? { title: props.text, loc: `left` } : undefined}
+      onClick={(evt: any, open: boolean) => {
+        stopEvent(evt)
+        if (resolvedPath) navigate(resolvedPath)
+      }}
       itemsListProps={{
         Item: SBNavItem,
         itemProps: { open: props.open, context: props.context },
-      }}
-      className={cls(props.open && `open`, isActive && `active`)}
-      onClick={(evt: any) => {
-        stopEvent(evt)
-        if (resolvedPath) navigate(resolvedPath)
       }}
     />
   )

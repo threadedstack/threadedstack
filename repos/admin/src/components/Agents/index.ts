@@ -1,4 +1,5 @@
 export * from './AgentDrawer'
+export * from './AgentSection'
 export * from './BasicInfoForm'
 export * from './ToolsSelector'
 export * from './SecretsSelector'

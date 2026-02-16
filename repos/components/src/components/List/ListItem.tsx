@@ -131,7 +131,7 @@ const ItemIcon = (props: TListItemPart) => {
 }
 
 const ItemExpand = (props: TListItemExpand) => {
-  const { id, onOpen, selected, expandSx, expandClass } = props
+  const { id, open, onOpen, selected, expandSx, expandClass } = props
 
   return (
     <ItemExpContainer
@@ -164,6 +164,7 @@ const ItemNoChildren = TooltipHoc<TListItem, HTMLDivElement>(
       component,
       className,
       defaultOpen,
+      expandOnClick,
       itemsListProps,
       itemsToggleRef,
       ...rest
@@ -239,7 +240,7 @@ const ItemWithChildren = TooltipHoc<TListItem, HTMLDivElement>(
 
     const onClickCB = (evt: MouseEvent) => {
       expandOnClick && onOpen?.(evt)
-      onClick?.(evt)
+      onClick?.(evt, open)
     }
 
     useEffect(() => {

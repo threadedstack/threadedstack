@@ -3,8 +3,8 @@ import { Page } from '@TAF/pages/Page/Page'
 import { AssetsTab } from '@TAF/components/AI/AssetsTab'
 import { ThreadsTab } from '@TAF/components/AI/ThreadsTab'
 import { MessagesTab } from '@TAF/components/AI/MessagesTab'
-import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
 import { Box, Tab, Tabs, Paper, Typography } from '@mui/material'
+import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
 
 export type TProjectAI = {}
 

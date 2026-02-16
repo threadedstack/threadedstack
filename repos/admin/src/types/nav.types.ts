@@ -20,10 +20,13 @@ export type TNavCtx = {
 export type TToAction = string | ((context: TNavCtx) => string)
 
 export type TNavItem = {
+  to?: TToAction
+  open?: boolean
   text: ReactNode
   Icon: ReactNode
+  context?: TNavCtx
   items?: TNavItem[]
-  to?: TToAction
+  expandOnClick?: boolean
   visible?: (context: TNavCtx) => boolean
 }
 

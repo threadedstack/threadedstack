@@ -8,7 +8,6 @@ import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import {
   Dns as DnsIcon,
   Api as ApiIcon,
-  Build as ToolIcon,
   Lock as SecretIcon,
   Api as EndpointIcon,
   Person as PersonIcon,

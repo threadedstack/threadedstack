@@ -8,10 +8,9 @@ import { storage } from '@TAF/services/storage'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { useState, useCallback, useEffect } from 'react'
 import { Box, Collapse, Typography } from '@mui/material'
+import { StorageKeyPrefix } from '@TAF/constants/storage'
 import { SBNavList } from '@TAF/components/Sidebar/SBNavList'
 import { ExpandMore as ExpandIcon, ExpandLess as CollapseIcon } from '@mui/icons-material'
-
-const STORAGE_KEY_PREFIX = 'tdsk-sidebar-section-'
 
 export type TSBSection = {
   id: string
@@ -39,7 +38,7 @@ export const SBSection = (props: TSBSection) => {
   } = props
 
   const navigate = useNavigate()
-  const storageKey = `${STORAGE_KEY_PREFIX}${id}`
+  const storageKey = `${StorageKeyPrefix}${id}`
 
   // Initialize expanded state from localStorage or default
   const [expanded, setExpanded] = useState(() => {
@@ -54,12 +53,12 @@ export const SBSection = (props: TSBSection) => {
     storage.set(storageKey, String(expanded))
   }, [expanded, storageKey])
 
-  const handleToggle = useCallback((evt: React.MouseEvent) => {
+  const onToggle = useCallback((evt: React.MouseEvent) => {
     stopEvent(evt)
     setExpanded((prev) => !prev)
   }, [])
 
-  const handleHeaderClick = useCallback(
+  const onHeaderClick = useCallback(
     (evt: React.MouseEvent) => {
       stopEvent(evt)
       const resolvedPath = isFunc(headerTo) ? headerTo(context || {}) : headerTo
@@ -87,7 +86,7 @@ export const SBSection = (props: TSBSection) => {
       {resolvedHeader && sidebarOpen && (
         <Box
           className='tdsk-sb-section-header'
-          onClick={handleToggle}
+          onClick={onToggle}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -104,7 +103,7 @@ export const SBSection = (props: TSBSection) => {
         >
           <Typography
             variant='caption'
-            onClick={headerTo ? handleHeaderClick : undefined}
+            onClick={headerTo ? onHeaderClick : undefined}
             sx={{
               fontWeight: 600,
               letterSpacing: 0.5,
@@ -139,8 +138,8 @@ export const SBSection = (props: TSBSection) => {
       )}
 
       <Collapse
-        in={expanded || !sidebarOpen}
         timeout={200}
+        in={expanded || !sidebarOpen}
       >
         <SBNavList
           items={items}

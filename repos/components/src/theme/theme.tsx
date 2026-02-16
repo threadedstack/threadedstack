@@ -350,11 +350,11 @@ const components = (colors: TThemeColors) => {
           [`& .MuiTableCell-root`]: {
             fontWeight: 600,
             fontSize: `0.75rem`,
-            textTransform: `uppercase` as const,
             letterSpacing: `0.05em`,
             color: colors.mutedForeground,
-            borderBottom: `1px solid ${colors.border?.default}`,
+            textTransform: `uppercase` as const,
             padding: `${gutter.tpx} ${gutter.px}`,
+            borderBottom: `1px solid ${colors.border?.default}`,
           },
         },
       },
@@ -363,6 +363,7 @@ const components = (colors: TThemeColors) => {
       styleOverrides: {
         root: {
           [`& .MuiTableRow-root`]: {
+            backgroundColor: colors.paper,
             transition: `background-color 0.1s ease`,
             [`&:hover`]: {
               backgroundColor: `color-mix(in srgb, ${colors.primary} 4%, transparent)`,

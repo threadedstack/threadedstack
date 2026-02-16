@@ -63,6 +63,13 @@ export const NavList = styled(List)`
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
+
+  & .tdsk-list-item-box .tdsk-list-container {
+    & .tdsk-list .tdsk-list-item-box .tdsk-list-item {
+      padding: ${gutter.cpx} ${gutter.tpx};
+    }
+  }
+  
 `
 
 export const NavItem = styled(ListItem)`
@@ -122,41 +129,13 @@ export const NavItem = styled(ListItem)`
   & > .tdsk-list-item-expand {
     opacity: 0;
     min-width: 0;
+    padding-right: 4px;
     transition: opacity 0.4s ease;
-  }
-
-  /* Nested nav items (level 1: agents under Agents) */
-  & .tdsk-list-container {
-    padding-left: 12px;
-
-    & > .tdsk-list > .tdsk-list-item-box > .tdsk-list-item {
-      padding: ${gutter.cpx} ${gutter.tpx};
-
-      & > .MuiTypography-root {
-        font-size: 13px;
-      }
-      & > .MuiListItemIcon-root svg {
-        font-size: 16px;
-      }
-    }
-
-    /* Nested nav items (level 2: Threads/Chat under agent) */
-    & .tdsk-list-container {
-      padding-left: 8px;
-
-      & > .tdsk-list > .tdsk-list-item-box > .tdsk-list-item,
-      & > .tdsk-list > .tdsk-list-item {
-        padding: ${gutter.cpx} ${gutter.tpx};
-
-        & > .MuiTypography-root {
-          font-size: 12px;
-        }
-        & > .MuiListItemIcon-root svg {
-          font-size: 14px;
-        }
-      }
+    & svg {
+      font-size: 18px;
     }
   }
+
 `
 
 export const SBNavListSpacer = styled(Box)`
