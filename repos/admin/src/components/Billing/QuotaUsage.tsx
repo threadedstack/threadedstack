@@ -199,12 +199,21 @@ export const QuotaUsage = (props: TQuotaUsage) => {
                     {formatValue(item.limit, item.unit)}
                   </Typography>
                   {item.limit !== -1 && item.limit !== Number.POSITIVE_INFINITY && (
-                    <LinearProgress
-                      variant='determinate'
-                      value={progress}
-                      color={color}
-                      sx={{ height: 8, borderRadius: 1 }}
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LinearProgress
+                        variant='determinate'
+                        value={progress}
+                        color={color}
+                        sx={{ height: 8, borderRadius: 1, flex: 1 }}
+                      />
+                      <Typography
+                        variant='caption'
+                        color='text.secondary'
+                        sx={{ minWidth: 35 }}
+                      >
+                        {Math.round(progress)}%
+                      </Typography>
+                    </Box>
                   )}
                 </CardContent>
               </Card>

@@ -2,6 +2,7 @@ import type { Secret } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import Box from '@mui/material/Box'
+import Chip from '@mui/material/Chip'
 import { useState, useMemo } from 'react'
 import { ConfirmDelete, Text } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
@@ -158,6 +159,42 @@ export const Secrets = (props: TSecrets) => {
           {secret.createdAt ? new Date(secret.createdAt).toLocaleDateString() : 'N/A'}
         </Text>
       ),
+    },
+    {
+      id: 'scope',
+      label: 'Scope',
+      width: 50,
+      render: (secret) => {
+        const scope = secret.providerId
+          ? 'Provider'
+          : secret.agentId
+            ? 'Agent'
+            : secret.projectId
+              ? 'Project'
+              : secret.orgId
+                ? 'Org'
+                : 'Unknown'
+
+        const color =
+          scope === 'Provider'
+            ? 'info'
+            : scope === 'Agent'
+              ? 'warning'
+              : scope === 'Project'
+                ? 'success'
+                : scope === 'Org'
+                  ? 'primary'
+                  : 'default'
+
+        return (
+          <Chip
+            size='small'
+            label={scope}
+            color={color as any}
+            variant='outlined'
+          />
+        )
+      },
     },
     {
       id: 'actions',

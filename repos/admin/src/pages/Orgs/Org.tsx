@@ -11,8 +11,10 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   PersonAdd as AddMemberIcon,
+  VpnKey as SecretIcon,
+  FolderOpen as ProjectIcon,
 } from '@mui/icons-material'
-import { Box, Card, Button, Divider, Typography, CardContent } from '@mui/material'
+import { Box, Card, Grid, Button, Divider, Typography, CardContent } from '@mui/material'
 
 export type TOrg = {}
 
@@ -158,6 +160,122 @@ export const Org = (props: TOrg) => {
         </CardContent>
       </Card>
 
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography
+            variant='h6'
+            gutterBottom
+          >
+            Quick Actions
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Grid
+            container
+            spacing={2}
+          >
+            <Grid
+              item
+              xs={12}
+              sm={4}
+            >
+              <Card
+                variant='outlined'
+                sx={{
+                  cursor: 'pointer',
+                  '&:hover': { borderColor: 'primary.main' },
+                }}
+                onClick={() => navigate(`/orgs/${org.id}/projects`)}
+              >
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <ProjectIcon
+                    color='primary'
+                    sx={{ fontSize: 40 }}
+                  />
+                  <Typography
+                    variant='subtitle1'
+                    sx={{ mt: 1 }}
+                  >
+                    Projects
+                  </Typography>
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                  >
+                    View and manage projects
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid
+              item
+              xs={12}
+              sm={4}
+            >
+              <Card
+                variant='outlined'
+                sx={{
+                  cursor: 'pointer',
+                  '&:hover': { borderColor: 'primary.main' },
+                }}
+                onClick={() => navigate(`/orgs/${org.id}/users`)}
+              >
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <AddMemberIcon
+                    color='primary'
+                    sx={{ fontSize: 40 }}
+                  />
+                  <Typography
+                    variant='subtitle1'
+                    sx={{ mt: 1 }}
+                  >
+                    Invite Users
+                  </Typography>
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                  >
+                    Manage team members
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid
+              item
+              xs={12}
+              sm={4}
+            >
+              <Card
+                variant='outlined'
+                sx={{
+                  cursor: 'pointer',
+                  '&:hover': { borderColor: 'primary.main' },
+                }}
+                onClick={() => navigate(`/orgs/${org.id}/secrets`)}
+              >
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <SecretIcon
+                    color='primary'
+                    sx={{ fontSize: 40 }}
+                  />
+                  <Typography
+                    variant='subtitle1'
+                    sx={{ mt: 1 }}
+                  >
+                    Manage Secrets
+                  </Typography>
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                  >
+                    Configure API keys and secrets
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent>
           <Box
@@ -173,9 +291,9 @@ export const Org = (props: TOrg) => {
               variant='outlined'
               size='small'
               startIcon={<AddMemberIcon />}
-              disabled
+              onClick={() => navigate(`/orgs/${org.id}/users`)}
             >
-              Add Member
+              Manage Members
             </Button>
           </Box>
           <Divider sx={{ mb: 2 }} />
@@ -184,7 +302,7 @@ export const Org = (props: TOrg) => {
             color='text.secondary'
             align='center'
           >
-            Member management coming soon
+            Visit the Users page to invite and manage organization members.
           </Typography>
         </CardContent>
       </Card>

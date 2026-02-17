@@ -19,20 +19,40 @@ import {
   ArrowBack as BackIcon,
 } from '@mui/icons-material'
 
+// TODO: Accessors should NEVER be imported into react components - are for actions ONLY
+import {
+  setActiveOrgId,
+  setActiveProjectId,
+  setActiveAgentId,
+} from '@TAF/state/accessors'
+
 export type TChatViewProps = {}
 
 export const ChatView = (props: TChatViewProps) => {
-  const { agentId } = useParams<{ agentId: string }>()
+  const {
+    orgId: urlOrgId,
+    projectId: urlProjectId,
+    agentId,
+  } = useParams<{ orgId: string; projectId: string; agentId: string }>()
   const [orgId] = useActiveOrgId()
   const [agents] = useAgents()
   const [input, setInput] = useState(``)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => {
+    // TODO: This is an anti-pattern and should NEVER be done!!
+    // Important - FIX THIS, accessors are not allowed to be used in components
+    // Use actions instead!!!
+    if (urlOrgId) setActiveOrgId(urlOrgId)
+    if (urlProjectId) setActiveProjectId(urlProjectId)
+    if (agentId) setActiveAgentId(agentId)
+  }, [urlOrgId, urlProjectId, agentId])
+
   const agent = agentId ? agents?.[agentId] : undefined
 
   const { messages, sendMessage, isStreaming, threadId, error, reset } = useAgentChat({
-    orgId: orgId || ``,
+    orgId: urlOrgId || orgId || ``,
     agentId: agentId || ``,
   })
 
@@ -98,6 +118,17 @@ export const ChatView = (props: TChatViewProps) => {
                 fontFamily='monospace'
               >
                 Thread: {threadId.substring(0, 12)}...
+              </Typography>
+            )}
+            {agent?.model && (
+              <Typography
+                variant='caption'
+                color='text.secondary'
+              >
+                {agent.model}
+                {agent.environment?.temperature != null
+                  ? ` · Temp: ${agent.environment.temperature}`
+                  : ''}
               </Typography>
             )}
           </Box>

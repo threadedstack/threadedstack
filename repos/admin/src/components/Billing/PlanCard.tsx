@@ -65,7 +65,7 @@ const formatRuntime = (seconds: number): string => {
  * Format number with commas
  */
 const formatNumber = (num: number): string => {
-  if (!num) return `Unknown`
+  if (num == null) return `Unknown`
   if (num === -1) return `Unlimited`
   return num?.toLocaleString?.()
 }
@@ -86,7 +86,10 @@ const usePlanFeatures = (plan: Plan) => {
       { label: `Messages`, value: formatNumber(metadata.messages) },
       { label: `Org Secrets`, value: formatNumber(metadata.orgSecrets) },
       { label: `Project Secrets`, value: formatNumber(metadata.projectSecrets) },
-      { label: `Data Retention`, value: `${metadata.retention} months` },
+      {
+        label: `Data Retention`,
+        value: `${metadata.retention} ${metadata.retention === 1 ? 'month' : 'months'}`,
+      },
     ]
   }, [plan.metadata])
 }
@@ -124,14 +127,20 @@ export const PlanCard = (props: TPlanCardProps) => {
           variant='h4'
           sx={{ mb: 3, fontWeight: 'bold' }}
         >
-          ${metadata.price}
-          <Typography
-            component='span'
-            variant='body2'
-            color='text.secondary'
-          >
-            /month
-          </Typography>
+          {metadata.price === 0 ? (
+            'Free'
+          ) : (
+            <>
+              ${metadata.price}
+              <Typography
+                component='span'
+                variant='body2'
+                color='text.secondary'
+              >
+                /month
+              </Typography>
+            </>
+          )}
         </Typography>
 
         <List dense>

@@ -147,7 +147,8 @@ const light = {
   destructiveForeground: grey[50],
   inputBackground: grey[5],
   sectionBackground: `#FAFBFC`,
-  headerBackground: grey[10],
+  // Custom color override, may need to add to theme some how
+  headerBackground: `#F4F5F6`,
   input: grey[200],
   ring: primary[500],
   shadowColor: grey[50],

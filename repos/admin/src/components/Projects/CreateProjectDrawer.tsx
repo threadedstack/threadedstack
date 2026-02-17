@@ -19,6 +19,7 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
   const { open, onClose: onCloseCB, onSuccess: onSuccessCB } = props
 
   const [name, setName] = useState(``)
+  const [description, setDescription] = useState(``)
   const [orgId, setOrgId] = useState(``)
   const [gitUrl, setGitUrl] = useState(``)
   const [branch, setBranch] = useState(`main`)
@@ -34,6 +35,7 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
     if (loading) return
 
     setName(``)
+    setDescription(``)
     setOrgId(``)
     setGitUrl(``)
     setBranch(`main`)
@@ -55,6 +57,7 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
     const result = await createProject({
       orgId,
       name: short,
+      description: description.trim() || undefined,
       branch: branch.trim() || `main`,
       gitUrl: gitUrl.trim() || undefined,
     })
@@ -107,6 +110,18 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
             placeholder='Enter project name'
             value={name}
             onChange={(e) => setName(e.target.value)}
+          />
+
+          <TextInput
+            fullWidth
+            multiline
+            minRows={2}
+            label='Description'
+            value={description}
+            disabled={loading}
+            id='tdsk-project-description'
+            placeholder='Enter project description (optional)'
+            onChange={(e) => setDescription(e.target.value)}
           />
 
           <TextInput

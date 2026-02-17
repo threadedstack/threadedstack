@@ -2,19 +2,27 @@ import type { TKeyValuePair } from '@TAF/types'
 import type { Agent, Secret, Function as TDFunction } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
+import { cls } from '@keg-hub/jsutils/cls'
 import { Code } from '@TAF/components/Code'
-import { useSecrets } from '@TAF/state/selectors'
 import { MonacoOptions } from '@TAF/constants/monaco'
 import { fetchProviders } from '@TAF/actions/providers'
+import { fetchFunctions } from '@TAF/actions/functions'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
-import { Box, Stack, Divider, Typography } from '@mui/material'
+import { useSecrets, useOrgSecrets } from '@TAF/state/selectors'
 import { createAgent } from '@TAF/actions/agents/api/createAgent'
 import { updateAgent } from '@TAF/actions/agents/api/updateAgent'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
-import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { Box, Stack, Divider, Typography, Autocomplete } from '@mui/material'
+import {
+  Drawer,
+  DrawerActions,
+  ConfirmDelete,
+  AutoInputText,
+  InputStateHandler,
+} from '@tdsk/components'
 import {
   BasicInfoForm,
   ToolsSelector,
@@ -25,9 +33,9 @@ import {
 
 export type TAgentDrawer = {
   open: boolean
-  agent: Agent | null
   orgId: string
   projectId: string
+  agent: Agent | null
   onClose: () => void
   onSuccess?: () => void
 }
@@ -42,13 +50,16 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     onSuccess: onSuccessCB,
   } = props
 
+  // TODO: Secrets list should come form the jotai store
   const [secrets] = useSecrets()
+  const [orgSecrets] = useOrgSecrets()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [secretsList, setSecretsList] = useState<Secret[]>([])
   const [aiProviders, setAiProviders] = useState<Array<{ id: string; name: string }>>([])
-  const [agentFunctions, setAgentFunctions] = useState<TDFunction[]>([])
+  const [availableFunctions, setAvailableFunctions] = useState<TDFunction[]>([])
+  const [selectedFunctionIds, setSelectedFunctionIds] = useState<string[]>([])
 
   // Form state
   const [name, setName] = useState('')
@@ -67,15 +78,24 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   // Load secrets and providers for the project
   useEffect(() => {
     const loadData = async () => {
-      // Load secrets
-      const secretsResult = await fetchSecrets({ orgId, projectId })
-      if (secretsResult.data) setSecretsList(Object.values(secretsResult.data))
+      // TODO: Secrets list should come form the jotai store
+      // Not from the action responses
+      // Load secrets - both org-level and project-level
+      const [orgSecretsResult, projectSecretsResult] = await Promise.all([
+        fetchSecrets({ orgId }),
+        fetchSecrets({ orgId, projectId }),
+      ])
+
+      setSecretsList([
+        ...(orgSecretsResult.data || []),
+        ...(projectSecretsResult.data || []),
+      ])
 
       // Load providers
       const providersResult = await fetchProviders({ orgId })
       if (providersResult.providers) {
         const aiProvidersOnly = Object.values(providersResult.providers)
-          .filter((p) => p.type === 'ai')
+          .filter((p) => p.type === `ai`)
           .map((p) => ({
             id: p.id,
             name: p.name || p.id,
@@ -83,27 +103,28 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         setAiProviders(aiProvidersOnly)
       }
 
-      // Use functions already populated on the agent model
-      setAgentFunctions(agent?.functions || [])
+      // Load functions for the project
+      const functionsResult = await fetchFunctions({ orgId, projectId })
+      functionsResult?.functions &&
+        setAvailableFunctions(Object.values(functionsResult.functions))
     }
-    if (open && projectId) {
-      loadData()
-    }
-  }, [open, projectId, orgId])
+
+    open && projectId && loadData()
+  }, [open, orgId, projectId])
 
   // Pre-populate form with agent data when drawer opens
   useEffect(() => {
     if (agent) {
       setName(agent.name || '')
-      setDescription(agent.description || '')
-      setProviderId(agent.providerId || null)
-      setSystemPrompt(agent.systemPrompt || '')
       setModel(agent.model || '')
-      setMaxTokens(agent.maxTokens || 100000)
-      setTemperature(agent.environment?.temperature || 0.7)
-      setStreaming(agent.environment?.streaming ?? true)
       setActive(agent.active ?? true)
       setSelectedTools(agent.tools || [])
+      setDescription(agent.description || '')
+      setProviderId(agent.providerId || null)
+      setMaxTokens(agent.maxTokens || 100000)
+      setSystemPrompt(agent.systemPrompt || '')
+      setStreaming(agent.environment?.streaming ?? true)
+      setTemperature(agent.environment?.temperature ?? 0.7)
 
       // Convert envVars object to key-value pairs
       const envVarsPairs = Object.entries(agent.envVars || {}).map(
@@ -119,20 +140,22 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setSelectedSecrets(
         (agent.secrets || []).map((s) => s.id || s.name || s.hashKey || '')
       )
+      setSelectedFunctionIds((agent.functions || []).map((f) => f.id))
     } else {
       // Reset form for new agent
       setName('')
+      setModel('')
+      setEnvVars([])
+      setActive(true)
       setDescription('')
+      setStreaming(true)
       setProviderId(null)
       setSystemPrompt('')
-      setModel('')
-      setMaxTokens(100000)
       setTemperature(0.7)
-      setStreaming(true)
-      setActive(true)
+      setMaxTokens(100000)
       setSelectedTools([])
-      setEnvVars([])
       setSelectedSecrets([])
+      setSelectedFunctionIds([])
     }
     setError(null)
     setShowDeleteConfirm(false)
@@ -145,8 +168,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
-    if (!name.trim()) return setError(`Agent name is required`)
     if (!providerId) return setError(`Provider is required`)
+    if (!name.trim()) return setError(`Agent name is required`)
 
     try {
       setError(null)
@@ -170,6 +193,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         systemPrompt,
         envVars: envVarsObj,
         tools: selectedTools,
+        functionIds: selectedFunctionIds,
         environment: { streaming, temperature },
         secrets: selectedSecrets
           .map((secretId) =>
@@ -308,54 +332,40 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             selectedTools={selectedTools}
           />
 
-          {agentFunctions.length > 0 && (
-            <>
-              <Divider />
-              <Box>
-                <Typography
-                  variant='subtitle2'
-                  sx={{ fontWeight: 600, mb: 2 }}
-                >
-                  Custom Functions
-                </Typography>
-                <Typography
-                  variant='body2'
-                  color='text.secondary'
-                  sx={{ mb: 1 }}
-                >
-                  Functions attached to this agent as tools. Manage in the Functions
-                  section.
-                </Typography>
-                {agentFunctions.map((fn) => (
-                  <Box
-                    key={fn.id}
-                    sx={{
-                      p: 1.5,
-                      mb: 1,
-                      borderRadius: 1,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                  >
-                    <Typography
-                      variant='body2'
-                      sx={{ fontWeight: 500 }}
-                    >
-                      {fn.name}
-                    </Typography>
-                    {fn.description && (
-                      <Typography
-                        variant='caption'
-                        color='text.secondary'
-                      >
-                        {fn.description}
-                      </Typography>
-                    )}
-                  </Box>
-                ))}
-              </Box>
-            </>
-          )}
+          <Divider />
+
+          <InputStateHandler
+            id='agent-functions'
+            label='Custom Functions'
+            disabled={loading || availableFunctions.length === 0}
+            description={
+              loading
+                ? `Loading functions...`
+                : availableFunctions.length === 0
+                  ? `No functions available. Create a function first.`
+                  : `Select functions to attach as tools for this agent`
+            }
+          >
+            <Autocomplete
+              multiple
+              id='agent-functions'
+              className={cls(`tdsk-auto-input`, loading && `disabled`)}
+              value={selectedFunctionIds}
+              options={availableFunctions.map((f) => f.id)}
+              getOptionLabel={(id) =>
+                availableFunctions.find((f) => f.id === id)?.name || id
+              }
+              onChange={(_, updates) => setSelectedFunctionIds(updates)}
+              disabled={loading || availableFunctions.length === 0}
+              renderInput={(params) => (
+                <AutoInputText
+                  {...params}
+                  sx={{ padding: `0px` }}
+                  placeholder='Select functions...'
+                />
+              )}
+            />
+          </InputStateHandler>
 
           <Divider />
 

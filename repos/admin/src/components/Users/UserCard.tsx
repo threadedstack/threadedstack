@@ -38,22 +38,31 @@ export const UserCard = (props: TUserCard) => {
           >
             {getInitials(user)}
           </Avatar>
-          <Box sx={{ flex: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant='h6'
               component='h3'
+              noWrap
+              sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
             >
               {user.displayName ||
                 [user.first, user.last].filter(Boolean).join(` `) ||
                 user.email ||
                 `User`}
             </Typography>
-            <Typography
-              variant='body2'
-              color='text.secondary'
+            <Tooltip
+              title={user.email || ''}
+              disableHoverListener={!user.email}
             >
-              {user.email}
-            </Typography>
+              <Typography
+                variant='body2'
+                color='text.secondary'
+                noWrap
+                sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                {user.email}
+              </Typography>
+            </Tooltip>
           </Box>
         </Box>
         <Box
@@ -91,7 +100,11 @@ export const UserCard = (props: TUserCard) => {
         </Tooltip>
         <Tooltip
           title={
-            user.role === ERoleType.super ? `Cannot remove super admin` : `Remove User`
+            user.role === ERoleType.super
+              ? `Cannot remove super admin`
+              : authUser.id === user.id
+                ? `Cannot remove yourself`
+                : `Remove User`
           }
         >
           <span>
@@ -99,7 +112,7 @@ export const UserCard = (props: TUserCard) => {
               size='small'
               color='error'
               onClick={() => onRemoveUser(user)}
-              disabled={authUser.role === ERoleType.super}
+              disabled={user.role === ERoleType.super || authUser.id === user.id}
             >
               <DeleteIcon />
             </IconButton>

@@ -75,7 +75,7 @@ export const OrgNavItems: TNavItem[] = [
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
-    text: `Api Keys`,
+    text: `API Keys`,
     Icon: <ApiIcon />,
     to: buildRoute(ERoutePath.OrgApiKeys),
     visible: (ctx: TNavCtx) => !!ctx.orgId,
@@ -138,6 +138,12 @@ export const ProjectNavItems: TNavItem[] = [
     Icon: <SettingsIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
+]
+
+// Global navigation items (shown when no org is selected)
+export const GlobalNavItems: TNavItem[] = [
+  { to: `/${ERoutePath.Billing}`, text: `Billing`, Icon: <BillingIcon /> },
+  { to: `/${ERoutePath.Profile}`, text: `Profile`, Icon: <PersonIcon /> },
 ]
 
 // Bottom navigation items (always visible)

@@ -42,6 +42,8 @@ export const FunctionCard = ({ func, onEdit, onDelete }: TFunctionCard) => {
           <Typography
             variant='h6'
             component='div'
+            noWrap
+            sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
           >
             {func.name}
           </Typography>
@@ -115,6 +117,7 @@ export const FunctionCard = ({ func, onEdit, onDelete }: TFunctionCard) => {
           <IconButton
             size='small'
             color='error'
+            sx={{ minHeight: 44, minWidth: 44 }}
             onClick={(e) => {
               e.stopPropagation()
               onDelete(func.id, func.name)

@@ -100,6 +100,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
 
   const apiKeysCount = apiKeys ? Object.keys(apiKeys).length : 0
 
+  // TODO: Convert this to enum like other constants
   const getScopeChipColor = (
     scope: string
   ): 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' => {
@@ -112,6 +113,20 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
         return 'info'
       default:
         return 'default'
+    }
+  }
+
+  // TODO: Convert this to enum like other constants
+  const formatScopeLabel = (scope: string): string => {
+    switch (scope.toLowerCase()) {
+      case 'admin':
+        return 'Admin'
+      case 'write':
+        return 'Write'
+      case 'read':
+        return 'Read Only'
+      default:
+        return scope.charAt(0).toUpperCase() + scope.slice(1)
     }
   }
 
@@ -164,7 +179,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
           {apiKey.scopes?.split(',').map((scope) => (
             <Chip
               key={scope}
-              label={scope.trim()}
+              label={formatScopeLabel(scope.trim())}
               size='small'
               color={getScopeChipColor(scope.trim())}
               variant='outlined'

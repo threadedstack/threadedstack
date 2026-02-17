@@ -1,7 +1,23 @@
 import type { Provider, Secret, TProviderType } from '@tdsk/domain'
 import type { TKeyValuePair } from '@TAF/types'
 
-import { useState, useEffect, useCallback } from 'react'
+import { secretsApi } from '@TAF/services'
+import { useProviders } from '@TAF/state/selectors'
+import { ProviderTypes } from '@TAF/constants/providers'
+import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
+import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { createSecret } from '@TAF/actions/secrets/api/createSecret'
+import { createProvider, updateProvider } from '@TAF/actions/providers'
+import { ELLMProvider, EProvider, ProviderTemplates } from '@tdsk/domain'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
+import {
+  ExpandMore as ExpandMoreIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+} from '@mui/icons-material'
 import {
   Box,
   Chip,
@@ -13,21 +29,6 @@ import {
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material'
-import { ELLMProvider, EProvider, ProviderTemplates } from '@tdsk/domain'
-import { ProviderTypes } from '@TAF/constants/providers'
-import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
-import { secretsApi } from '@TAF/services'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
-import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { createProvider, updateProvider } from '@TAF/actions/providers'
-import { createSecret } from '@TAF/actions/secrets/api/createSecret'
-import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
-import {
-  ExpandMore as ExpandMoreIcon,
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
-} from '@mui/icons-material'
 
 const LLMProviderOptions = Object.values(ELLMProvider).map((value) => ({
   value,
@@ -60,6 +61,7 @@ export const ProviderDrawer = ({
   onRemove,
 }: TProviderDrawer) => {
   const isEditMode = Boolean(provider)
+  const [providers] = useProviders()
 
   const [name, setName] = useState('')
   const [type, setType] = useState('')
@@ -79,6 +81,12 @@ export const ProviderDrawer = ({
 
   const isAiType = type === EProvider.ai
   const template = isAiType && llmProvider ? ProviderTemplates[llmProvider] : undefined
+
+  const duplicateName = useMemo(() => {
+    if (isEditMode || !name.trim() || !providers) return false
+    const trimmed = name.trim().toLowerCase()
+    return Object.values(providers).some((p) => p.name?.toLowerCase() === trimmed)
+  }, [name, providers, isEditMode])
 
   // Provider-linked secrets (fetched by providerId in edit mode)
   const [providerSecrets, setProviderSecrets] = useState<Secret[]>([])
@@ -307,6 +315,13 @@ export const ProviderDrawer = ({
             fullWidth
             disabled={loading}
           />
+
+          {duplicateName && (
+            <Alert severity='warning'>
+              A provider with this name already exists. Creating another will result in
+              duplicates.
+            </Alert>
+          )}
 
           <TextInput
             id='provider-base-url'

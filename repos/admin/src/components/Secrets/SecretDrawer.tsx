@@ -1,16 +1,17 @@
 import type { Secret } from '@tdsk/domain'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
-import { Box, IconButton, InputAdornment } from '@mui/material'
+import { useSecrets } from '@TAF/state/selectors'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
 import { createSecret } from '@TAF/actions/secrets/api/createSecret'
 import { updateSecret } from '@TAF/actions/secrets/api/updateSecret'
+import { Box, Alert, IconButton, InputAdornment } from '@mui/material'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material'
-import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
 
 export type TSecretDrawer = {
   open: boolean
@@ -38,13 +39,22 @@ export const SecretDrawer = ({
   onSuccess: onSuccessCB,
 }: TSecretDrawer) => {
   const isEditMode = !!secret
-  const [temp, setTemp] = useState<TTempSecret>({})
+  const [secrets] = useSecrets()
   const [loading, setLoading] = useState(false)
+  const [temp, setTemp] = useState<TTempSecret>({})
   const [showValue, setShowValue] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const updateTemp = (update: Partial<TTempSecret>) => setTemp({ ...temp, ...update })
+
+  const duplicateName = useMemo(() => {
+    if (isEditMode || !temp?.name?.trim() || !secrets) return false
+    const name = temp.name.trim().toLowerCase()
+    return Object.values(secrets).some(
+      (s) => s.name?.toLowerCase() === name || s.hashKey?.toLowerCase() === name
+    )
+  }, [temp?.name, secrets, isEditMode])
 
   useEffect(() => {
     if (secret) {
@@ -157,6 +167,13 @@ export const SecretDrawer = ({
             placeholder='Enter secret name (e.g., API_KEY)'
             onChange={(e) => updateTemp({ name: e.target.value })}
           />
+
+          {duplicateName && (
+            <Alert severity='warning'>
+              A secret with this name already exists. Creating another will result in
+              duplicates.
+            </Alert>
+          )}
 
           <TextInput
             fullWidth

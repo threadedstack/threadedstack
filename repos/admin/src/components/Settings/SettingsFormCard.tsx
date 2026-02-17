@@ -25,6 +25,7 @@ export type TFormField = {
   label: string
   value: string
   rows?: number
+  disabled?: boolean
   multiline?: boolean
   placeholder?: string
   onChange: (value: string) => void
@@ -68,6 +69,7 @@ export const SettingsFormCard = (props: TSettingsFormCard) => {
               value={field.value}
               minRows={field.rows}
               maxRows={field.rows}
+              disabled={field.disabled}
               textarea={field.multiline}
               placeholder={field.placeholder}
               id={`tdsk-settings-${field.name}`}

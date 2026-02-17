@@ -8,7 +8,13 @@ import { ConfirmDelete } from '@tdsk/components'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
-import { useActiveOrgId, useActiveProjectId, useAgents } from '@TAF/state/selectors'
+import {
+  useActiveOrgId,
+  useActiveProjectId,
+  useAgents,
+  useProviders,
+} from '@TAF/state/selectors'
+import { fetchProviders } from '@TAF/actions/providers'
 import { nav } from '@TAF/services/nav'
 import {
   Add as AddIcon,
@@ -32,6 +38,7 @@ export type TProjectAgents = {}
 export const ProjectAgents = (props: TProjectAgents) => {
   const [agents] = useAgents()
   const [orgId] = useActiveOrgId()
+  const [providers] = useProviders()
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -42,6 +49,16 @@ export const ProjectAgents = (props: TProjectAgents) => {
   useEffect(() => {
     orgId && projectId && fetchAgents({ orgId, projectId })
   }, [orgId, projectId])
+
+  useEffect(() => {
+    orgId && fetchProviders({ orgId })
+  }, [orgId])
+
+  const getProviderName = (providerId: string) => {
+    if (!providers || !providerId) return providerId
+    const provider = providers[providerId]
+    return provider?.name || providerId
+  }
 
   const onOpenCreate = () => {
     setEditingAgent(null)
@@ -126,6 +143,18 @@ export const ProjectAgents = (props: TProjectAgents) => {
                       <Typography
                         variant='h6'
                         gutterBottom
+                        sx={{
+                          cursor: 'pointer',
+                          '&:hover': {
+                            color: 'primary.main',
+                            textDecoration: 'underline',
+                          },
+                        }}
+                        onClick={() =>
+                          nav.to(
+                            `/orgs/${orgId}/projects/${projectId}/agents/${agent.id}`
+                          )
+                        }
                       >
                         {agent.name}
                       </Typography>
@@ -149,7 +178,7 @@ export const ProjectAgents = (props: TProjectAgents) => {
                       />
                       {agent.providerId && (
                         <Chip
-                          label={agent.providerId}
+                          label={getProviderName(agent.providerId)}
                           variant='outlined'
                           size='small'
                         />

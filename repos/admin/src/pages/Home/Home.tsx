@@ -5,14 +5,13 @@ import { Page } from '@TAF/pages/Page/Page'
 import Container from '@mui/material/Container'
 import { Orgs } from '@TAF/components/Orgs/Orgs'
 import CardContent from '@mui/material/CardContent'
-import { useOrgs, useActiveOrgId } from '@TAF/state/selectors'
+import { useOrgs } from '@TAF/state/selectors'
 import { Quickstart } from '@TAF/components/Quickstart/Quickstart'
 
 export type THome = {}
 
 export const Home = (props: THome) => {
   const [orgs] = useOrgs()
-  const [activeOrgId] = useActiveOrgId()
   const orgsArray = orgs ? Object.values(orgs) : []
   const hasOrgs = orgsArray.length > 0
 
@@ -66,7 +65,9 @@ export const Home = (props: THome) => {
               Choose an organization to continue or create a new one
             </Text>
           </Box>
-          {hasOrgs && activeOrgId && <Quickstart />}
+          {/* TODO: This is in the wrong place, so be added on the Org page */}
+          {/* It's not easily accessible on the Orgs list page */}
+          {hasOrgs && <Quickstart />}
         </Box>
 
         <Orgs />

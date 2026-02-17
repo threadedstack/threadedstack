@@ -116,7 +116,7 @@ export const ProjectSettings = (props: TProjectSettings) => {
           variant='h5'
           component='h1'
         >
-          Project Settings
+          {project?.name || `Project`}
         </Typography>
       </Box>
 

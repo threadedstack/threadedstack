@@ -2,7 +2,6 @@ import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { useSearchParams } from 'react-router'
-import { LoadingSpinner } from '@TAF/components'
 import { CurrentPlan, PlanCard } from '@TAF/components/Billing'
 import { usePaymentPlans, useSubscription } from '@TAF/state/selectors'
 import {
@@ -10,7 +9,18 @@ import {
   createCheckoutSession,
   fetchCurrentSubscription,
 } from '@TAF/actions'
-import { Box, Tab, Tabs, Grid, Alert, Container, Typography } from '@mui/material'
+import {
+  Box,
+  Tab,
+  Tabs,
+  Card,
+  Grid,
+  Alert,
+  Skeleton,
+  Container,
+  Typography,
+  CardContent,
+} from '@mui/material'
 
 export type TBilling = {}
 
@@ -52,6 +62,7 @@ export const Billing = (props: TBilling) => {
 
     if (success === 'true') {
       toast.success('Subscription Updated', {
+        id: 'billing-success',
         description: 'Your subscription has been successfully updated.',
       })
       // Clean up URL params
@@ -60,6 +71,7 @@ export const Billing = (props: TBilling) => {
       loadData()
     } else if (cancelled === 'true') {
       toast.info('Checkout Cancelled', {
+        id: 'billing-cancelled',
         description: 'You cancelled the checkout process.',
       })
       // Clean up URL params
@@ -111,13 +123,19 @@ export const Billing = (props: TBilling) => {
       const { data, error } = await createCheckoutSession(planId, successUrl, cancelUrl)
 
       if (error) {
-        toast.error('Checkout Error', { description: error.message })
+        toast.error('Checkout Error', {
+          id: 'billing-checkout-error',
+          description: error.message,
+        })
         return
       }
 
       window.location.href = data.url
     } catch (err: any) {
-      toast.error('Checkout Error', { description: err.message })
+      toast.error('Checkout Error', {
+        id: 'billing-checkout-error',
+        description: err.message,
+      })
       setUpgradeLoading(false)
     }
   }
@@ -141,7 +159,81 @@ export const Billing = (props: TBilling) => {
           </Typography>
         </Box>
 
-        {loading && <LoadingSpinner />}
+        {loading && (
+          <Box>
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Skeleton
+                  variant='text'
+                  width='40%'
+                  height={32}
+                />
+                <Skeleton
+                  variant='text'
+                  width='60%'
+                  height={24}
+                  sx={{ mt: 1 }}
+                />
+                <Skeleton
+                  variant='rectangular'
+                  height={80}
+                  sx={{ mt: 2, borderRadius: 1 }}
+                />
+              </CardContent>
+            </Card>
+            <Grid
+              container
+              spacing={3}
+            >
+              {[1, 2, 3].map((i) => (
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                  md={4}
+                  key={i}
+                >
+                  <Card>
+                    <CardContent>
+                      <Skeleton
+                        variant='text'
+                        width='50%'
+                        height={28}
+                      />
+                      <Skeleton
+                        variant='text'
+                        width='30%'
+                        height={40}
+                        sx={{ mt: 1 }}
+                      />
+                      <Skeleton
+                        variant='text'
+                        width='80%'
+                        height={20}
+                        sx={{ mt: 1 }}
+                      />
+                      <Skeleton
+                        variant='text'
+                        width='80%'
+                        height={20}
+                      />
+                      <Skeleton
+                        variant='text'
+                        width='80%'
+                        height={20}
+                      />
+                      <Skeleton
+                        variant='rectangular'
+                        height={36}
+                        sx={{ mt: 2, borderRadius: 1 }}
+                      />
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
 
         {error && (
           <Alert

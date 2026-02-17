@@ -164,6 +164,10 @@ export const Routes = createBrowserRouter([
                 Component: () => <SuspensePage Component={ProjectAgent} />,
               },
               {
+                path: ERoutePath.Threads,
+                Component: () => <SuspensePage Component={ProjectThreads} />,
+              },
+              {
                 path: ERoutePath.AgentThreads,
                 Component: () => <SuspensePage Component={ProjectThreads} />,
               },

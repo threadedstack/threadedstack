@@ -97,7 +97,8 @@ export const ProjectAgent = (props: TProjectAgent) => {
         <Typography
           variant='h4'
           component='h1'
-          sx={{ flex: 1 }}
+          noWrap
+          sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}
         >
           {agent.name}
           <Chip
@@ -108,16 +109,9 @@ export const ProjectAgent = (props: TProjectAgent) => {
           />
         </Typography>
         <Button
-          variant='text'
+          variant='outlined'
           Icon={<ChatIcon />}
           onClick={onChat}
-          sx={{
-            color: `text.disabled`,
-            [`&:hover`]: {
-              color: `primary.main`,
-              backgroundColor: `transparent`,
-            },
-          }}
         >
           Chat
         </Button>
@@ -314,8 +308,10 @@ export const ProjectAgent = (props: TProjectAgent) => {
       )) ||
         null}
 
-      {agent.tools && agent.tools.length > 0 && (
-        <AgentSection title={`Tools (${agent.tools.length})`}>
+      <AgentSection
+        title={`Tools${agent.tools?.length ? ` (${agent.tools.length})` : ''}`}
+      >
+        {agent.tools && agent.tools.length > 0 ? (
           <Stack
             useFlexGap
             spacing={1}
@@ -336,11 +332,15 @@ export const ProjectAgent = (props: TProjectAgent) => {
               )
             })}
           </Stack>
-        </AgentSection>
-      )}
+        ) : (
+          <Typography color='text.secondary'>No tools configured</Typography>
+        )}
+      </AgentSection>
 
-      {agent.secrets && agent.secrets.length > 0 && (
-        <AgentSection title={`Secrets (${agent.secrets.length})`}>
+      <AgentSection
+        title={`Secrets${agent.secrets?.length ? ` (${agent.secrets.length})` : ''}`}
+      >
+        {agent.secrets && agent.secrets.length > 0 ? (
           <Stack
             useFlexGap
             spacing={1}
@@ -362,8 +362,10 @@ export const ProjectAgent = (props: TProjectAgent) => {
               )
             })}
           </Stack>
-        </AgentSection>
-      )}
+        ) : (
+          <Typography color='text.secondary'>No secrets configured</Typography>
+        )}
+      </AgentSection>
 
       {envVarKeys.length > 0 && (
         <AgentSection title={`Environment Variables (${envVarKeys.length})`}>

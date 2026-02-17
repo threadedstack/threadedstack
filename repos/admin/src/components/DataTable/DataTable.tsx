@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useState, useEffect } from 'react'
+import type { ReactNode, ChangeEvent } from 'react'
 import {
   Table,
   TableBody,
@@ -6,6 +7,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   Paper,
   Card,
 } from '@mui/material'
@@ -28,6 +30,7 @@ export type TDataTable<T> = {
   size?: 'small' | 'medium'
   hover?: boolean
   sx?: SxProps<Theme>
+  initialRowsPerPage?: number
 }
 
 export const DataTable = <T,>({
@@ -39,8 +42,26 @@ export const DataTable = <T,>({
   size = 'medium',
   hover = true,
   sx,
+  initialRowsPerPage = 10,
 }: TDataTable<T>) => {
   const Container = variant === 'card' ? Card : Paper
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(initialRowsPerPage)
+
+  useEffect(() => {
+    setPage(0)
+  }, [data.length])
+
+  const onChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage)
+  }
+
+  const onChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(Number.parseInt(event.target.value, 10))
+    setPage(0)
+  }
+
+  const paginatedData = data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
   return (
     <TableContainer
@@ -62,7 +83,7 @@ export const DataTable = <T,>({
           </TableRow>
         </TableHead>
         <TableBody>
-          {data.map((item) => (
+          {paginatedData.map((item) => (
             <TableRow
               key={getRowKey(item)}
               hover={hover}
@@ -81,6 +102,15 @@ export const DataTable = <T,>({
           ))}
         </TableBody>
       </Table>
+      <TablePagination
+        page={page}
+        component='div'
+        count={data.length}
+        rowsPerPage={rowsPerPage}
+        onPageChange={onChangePage}
+        rowsPerPageOptions={[5, 10, 25, 50]}
+        onRowsPerPageChange={onChangeRowsPerPage}
+      />
     </TableContainer>
   )
 }

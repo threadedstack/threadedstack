@@ -43,6 +43,7 @@ const styles = {
       mb: 3,
       gap: 2,
       display: 'flex',
+      flexWrap: 'wrap',
     },
     default: {
       mb: 3,
@@ -85,7 +86,7 @@ export const PageLayout = (props: TPageLayout) => {
         actionLabel={actionLabel}
       />
 
-      {!loading && count > searchCount && (
+      {!loading && setSearchQuery && count > searchCount && (
         <Box sx={onFilter ? styles.search.filter : styles.search.default}>
           <SearchBar
             value={query}

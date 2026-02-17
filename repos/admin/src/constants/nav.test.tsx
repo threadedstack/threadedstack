@@ -6,9 +6,10 @@ import { OrgNavItems, ProjectNavItems, BottomNavItems } from './nav'
 
 describe(`getDynamicNav`, () => {
   describe(`with no context`, () => {
-    it(`should return no sections`, () => {
+    it(`should return global nav section`, () => {
       const config = getDynamicNav({})
-      expect(config.sections.length).toBe(0)
+      expect(config.sections.length).toBe(1)
+      expect(config.sections[0].id).toBe(`global`)
     })
 
     it(`should return bottom nav items`, () => {
@@ -254,7 +255,7 @@ describe(`OrgNavItems`, () => {
         `Secrets`,
         `Providers`,
         `Domains`,
-        `Api Keys`,
+        `API Keys`,
         `Usage`,
         `Settings`,
       ]

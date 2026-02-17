@@ -1,24 +1,26 @@
 import type { Thread } from '@tdsk/domain'
-import { useState, useEffect, useMemo } from 'react'
 import { ConfirmDelete } from '@tdsk/components'
+import { useState, useEffect, useMemo } from 'react'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { fetchThreads } from '@TAF/actions/threads/api/fetchThreads'
 import { deleteThread } from '@TAF/actions/threads/api/deleteThread'
 import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
 import { CreateThreadDrawer } from '@TAF/components/AI/CreateThreadDrawer'
-import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
-import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import {
   useAgents,
   useThreads,
   useActiveOrgId,
-  useActiveProjectId,
-  useActiveThreadId,
   useActiveAgentId,
+  useActiveThreadId,
+  useActiveProjectId,
 } from '@TAF/state/selectors'
 import {
-  Alert,
+  Box,
   Chip,
+  Alert,
   Table,
+  Tooltip,
   TableRow,
   TableCell,
   TableBody,
@@ -27,7 +29,6 @@ import {
   Typography,
   IconButton,
   TableContainer,
-  Box,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -37,9 +38,12 @@ import {
   Visibility as ViewIcon,
 } from '@mui/icons-material'
 
-export type TThreadsTab = {}
+export type TThreadsTab = {
+  onSwitchToMessages?: () => void
+}
 
 export const ThreadsTab = (props: TThreadsTab) => {
+  const { onSwitchToMessages } = props
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
   const [agents] = useAgents()
@@ -158,6 +162,7 @@ export const ThreadsTab = (props: TThreadsTab) => {
 
   const onViewThread = (thread: Thread) => {
     setActiveThreadId(thread.id)
+    onSwitchToMessages?.()
   }
 
   if (!activeAgentId && projectAgents.length > 0) {
@@ -264,6 +269,7 @@ export const ThreadsTab = (props: TThreadsTab) => {
                 <TableCell>ID</TableCell>
                 <TableCell>Provider</TableCell>
                 <TableCell>Public</TableCell>
+                <TableCell>Updated</TableCell>
                 <TableCell align='right'>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -296,28 +302,58 @@ export const ThreadsTab = (props: TThreadsTab) => {
                         />
                       )}
                     </Box>
-                  </TableCell>
-                  <TableCell>
                     <Typography
-                      variant='body2'
-                      fontFamily='monospace'
-                      sx={{ fontSize: '0.75rem' }}
+                      variant='caption'
+                      color='text.secondary'
+                      sx={{ display: 'block', mt: 0.25 }}
                     >
-                      {thread.id}
+                      {thread.public ? 'Public' : 'Private'}
+                      {thread.parentThreadId ? ' · Branched' : ''}
                     </Typography>
                   </TableCell>
                   <TableCell>
+                    <Tooltip title={thread.id}>
+                      <Typography
+                        variant='body2'
+                        fontFamily='monospace'
+                        sx={{ fontSize: '0.75rem', cursor: 'default' }}
+                      >
+                        {thread.id?.substring(0, 8)}...
+                      </Typography>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell>
                     <Typography
                       variant='body2'
-                      fontFamily='monospace'
                       sx={{ fontSize: '0.75rem' }}
                     >
-                      {thread.providerId || '-'}
+                      {agents?.[activeAgentId]?.provider?.name || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>
                       {thread.public ? 'Yes' : 'No'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant='body2'
+                      color='text.secondary'
+                      sx={{ fontSize: '0.75rem' }}
+                    >
+                      {thread.updatedAt
+                        ? new Date(thread.updatedAt).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : thread.createdAt
+                          ? new Date(thread.createdAt).toLocaleDateString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })
+                          : '-'}
                     </Typography>
                   </TableCell>
                   <TableCell align='right'>

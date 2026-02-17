@@ -3,16 +3,16 @@ import type { Function as TDFunction } from '@tdsk/domain'
 import { Box } from '@mui/material'
 import { ife } from '@keg-hub/jsutils/ife'
 import { ConfirmDelete } from '@tdsk/components'
-import { useFunctions, useActiveOrgId } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
 import { useActiveProjectId } from '@TAF/state/selectors'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { NoFunctions } from '@TAF/components/Functions/NoFunctions'
+import { useFunctions, useActiveOrgId } from '@TAF/state/selectors'
+import { SearchBar, EmptyState, FilterSelect } from '@TAF/components'
 import { deleteFunction } from '@TAF/actions/functions/deleteFunction'
 import { fetchFunctions } from '@TAF/actions/functions/fetchFunctions'
 import { FunctionsGrid } from '@TAF/components/Functions/FunctionsGrid'
 import { FunctionDrawer } from '@TAF/components/Functions/FunctionDrawer'
-import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
-import { SearchBar, EmptyState, FilterSelect } from '@TAF/components'
 
 export type TFunctions = {}
 
@@ -23,9 +23,9 @@ export const Functions = (props: TFunctions) => {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [languageFilter, setLanguageFilter] = useState<string>('all')
-  const [selectedFunction, setSelectedFunction] = useState<TDFunction | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [languageFilter, setLanguageFilter] = useState<string>(`all`)
+  const [selectedFunction, setSelectedFunction] = useState<TDFunction | null>(null)
   const [functionToDelete, setFunctionToDelete] = useState<{
     id: string
     name: string
@@ -111,10 +111,6 @@ export const Functions = (props: TFunctions) => {
     setSelectedFunction(null)
   }
 
-  const onDialogSuccess = async () => {
-    orgId && projectId && (await fetchFunctions({ orgId, projectId }))
-  }
-
   const onEdit = (func: TDFunction) => {
     setSelectedFunction(func)
     setDialogOpen(true)
@@ -123,7 +119,7 @@ export const Functions = (props: TFunctions) => {
   return (
     <PageLayout
       loading={loading}
-      title='Project Functions'
+      title='Functions'
       count={functionsCount}
       countLabel='function'
       onAction={onCreate}
@@ -172,7 +168,6 @@ export const Functions = (props: TFunctions) => {
           projectId={projectId}
           func={selectedFunction}
           onClose={onDialogClose}
-          onSuccess={onDialogSuccess}
         />
       )}
 

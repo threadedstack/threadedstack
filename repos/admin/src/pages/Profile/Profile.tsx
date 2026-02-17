@@ -33,7 +33,6 @@ export const Profile = (props: TProfile) => {
   const hasChanges =
     user?.first !== localUser?.first ||
     user?.last !== localUser?.last ||
-    user?.email !== localUser?.email ||
     user?.image !== localUser?.image
 
   const onReset = () => setLocalUser(user)
@@ -160,6 +159,7 @@ export const Profile = (props: TProfile) => {
                 name: `email`,
                 label: `Email`,
                 value: localUser?.email ?? ``,
+                disabled: true,
                 placeholder: 'user@example.com',
                 onChange: (email: string) =>
                   setLocalUser({ ...localUser, email } as User),
