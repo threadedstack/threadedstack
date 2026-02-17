@@ -59,14 +59,11 @@ describe(`setupProxy`, () => {
     setupProxy(app)
 
     expect(mockAdminPath).toHaveBeenCalledWith(app.locals.config.backend)
-    // Two proxy routes: /_/* (admin) and /ai (session-based LLM proxy)
-    expect(app.use).toHaveBeenCalledTimes(2)
+    // Single app.use call with array of route paths
+    expect(app.use).toHaveBeenCalledTimes(1)
 
     const [pathArg] = app.use.mock.calls[0]
-    expect(pathArg).toBe(`/_`)
-
-    const [aiPathArg] = app.use.mock.calls[1]
-    expect(aiPathArg).toBe(`/ai`)
+    expect(pathArg).toEqual([`/_`, `/ai`, `/proxy`])
   })
 
   it(`should normalize a trailing slash from adminPath result`, () => {
@@ -76,7 +73,7 @@ describe(`setupProxy`, () => {
     setupProxy(app)
 
     const [pathArg] = app.use.mock.calls[0]
-    expect(pathArg).toBe(`/admin`)
+    expect(pathArg[0]).toBe(`/admin`)
   })
 
   it(`should normalize a bare path without leading slash`, () => {
@@ -86,7 +83,7 @@ describe(`setupProxy`, () => {
     setupProxy(app)
 
     const [pathArg] = app.use.mock.calls[0]
-    expect(pathArg).toBe(`/api`)
+    expect(pathArg[0]).toBe(`/api`)
   })
 
   it(`should normalize a path with both leading and trailing slashes`, () => {
@@ -96,7 +93,7 @@ describe(`setupProxy`, () => {
     setupProxy(app)
 
     const [pathArg] = app.use.mock.calls[0]
-    expect(pathArg).toBe(`/custom`)
+    expect(pathArg[0]).toBe(`/custom`)
   })
 
   it(`should handle a single slash from adminPath`, () => {
@@ -106,7 +103,7 @@ describe(`setupProxy`, () => {
     setupProxy(app)
 
     const [pathArg] = app.use.mock.calls[0]
-    expect(pathArg).toBe(`/`)
+    expect(pathArg[0]).toBe(`/`)
   })
 
   it(`should create proxy middleware with the correct target URL`, () => {
@@ -115,8 +112,8 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    // Two proxy middlewares: admin + /ai
-    expect(mockCreateProxyMiddleware).toHaveBeenCalledTimes(2)
+    // Single proxy middleware shared across all routes
+    expect(mockCreateProxyMiddleware).toHaveBeenCalledTimes(1)
 
     const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
       string,

@@ -72,6 +72,14 @@ describe(`Auth`, () => {
       expect(auth.extract(mockReq)).toBe(`my-jwt-token-123`)
     })
 
+    it(`should return token from Session header`, () => {
+      const mockReq = {
+        headers: { authorization: `Session my-session-token-123` },
+      } as unknown as Request
+
+      expect(auth.extract(mockReq)).toBe(`my-session-token-123`)
+    })
+
     it(`should return null for missing authorization header`, () => {
       const mockReq = {
         headers: {},
@@ -80,7 +88,7 @@ describe(`Auth`, () => {
       expect(auth.extract(mockReq)).toBeNull()
     })
 
-    it(`should return null for non-Bearer header`, () => {
+    it(`should return null for non-Bearer/Session header`, () => {
       const mockReq = {
         headers: { authorization: `Basic dXNlcjpwYXNz` },
       } as unknown as Request

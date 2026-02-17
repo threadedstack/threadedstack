@@ -4,7 +4,12 @@ import type { TJWTPayload, TJWTValidationResult } from '@TPX/types'
 import * as jose from 'jose'
 import { EJWTError } from '@TPX/types'
 import { logger } from '@TPX/utils/logger'
-import { PublicRoutes } from '@TPX/constants/values'
+import {
+  PublicRoutes,
+  SessionRoutes,
+  BearerPrefix,
+  SessionPrefix,
+} from '@TPX/constants/values'
 
 export type TAuth = {
   url: string
@@ -42,15 +47,24 @@ export class Auth {
   isPublic = (path: string): boolean =>
     PublicRoutes.some((route) => path.startsWith(route))
 
+  isSession = (path: string): boolean =>
+    SessionRoutes.some((route) => path.startsWith(route))
+
   /**
    * Extract JWT token from Authorization header
    */
   extract = (req: Request): string | null => {
     const authHeader = req.headers.authorization
-    if (!authHeader || !authHeader.startsWith(`Bearer `)) {
-      return null
-    }
-    return authHeader.substring(7)
+    if (!authHeader) return null
+
+    if (authHeader.startsWith(BearerPrefix))
+      return authHeader.slice(BearerPrefix.length).trim()
+
+    if (authHeader.startsWith(SessionPrefix))
+      return authHeader.slice(SessionPrefix.length).trim()
+
+    logger.error(`Invalid Authorization header:`, authHeader)
+    return null
   }
 
   /**

@@ -611,16 +611,14 @@ dev:
           - '!/repos/database'
           - '!/repos/domain'
           - '!/repos/logger'
-          - '!/repos/shell'
-          - '!/repos/wasm'
+          - '!/repos/sandbox'
           - '!/tsconfig.json'
           - /repos/agent/dist
           - /repos/backend/dist
           - /repos/database/dist
           - /repos/domain/dist
           - /repos/logger/dist
-          - /repos/shell/dist
-          - /repos/wasm/dist
+          - /repos/sandbox/dist
           - node_modules
           - node_modules/**
           - deploy/scripts

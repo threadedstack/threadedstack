@@ -19,6 +19,7 @@ import { validateAuth } from './setupAuth'
 
 const createMockAuth = () => ({
   isPublic: vi.fn(),
+  isSession: vi.fn(),
   extract: vi.fn(),
   initialized: vi.fn(),
   verify: vi.fn(),
@@ -246,7 +247,22 @@ describe(`validateAuth`, () => {
 
   it(`should skip JWT auth for /ai/chat paths (session token auth)`, async () => {
     mockAuth.isPublic.mockReturnValue(false)
+    mockAuth.isSession.mockReturnValue(true)
     const mockReq = { path: `/ai/chat`, headers: {} } as unknown as Request
+
+    const middleware = validateAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockAuth.extract).not.toHaveBeenCalled()
+    expect(mockAuth.verify).not.toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  it(`should skip JWT auth for /ai/stream paths (session token auth)`, async () => {
+    mockAuth.isPublic.mockReturnValue(false)
+    mockAuth.isSession.mockReturnValue(true)
+    const mockReq = { path: `/ai/stream`, headers: {} } as unknown as Request
 
     const middleware = validateAuth(mockApp)
     await middleware(mockReq, mockRes, mockNext)

@@ -32,9 +32,7 @@ export const validateApiKeyAuth = (app: TProxyApp) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (req.user) return next()
     if (app.locals.auth.isPublic(req.path)) return next()
-
-    // /ai/chat uses session-token auth, skip API key
-    if (req.path.startsWith(`/ai/chat`)) return next()
+    if (app.locals.auth.isSession(req.path)) return next()
 
     const token = app.locals.auth.extract(req)
 

@@ -24,6 +24,7 @@ vi.mock(`@tdsk/domain`, async () => {
 
 const createMockAuth = () => ({
   isPublic: vi.fn().mockReturnValue(false),
+  isSession: vi.fn().mockReturnValue(false),
   extract: vi.fn(),
   initialized: vi.fn(),
   verify: vi.fn(),
@@ -335,8 +336,22 @@ describe(`validateApiKeyAuth`, () => {
   })
 
   it(`should skip API key auth for /ai/chat paths (session token auth)`, async () => {
+    mockAuth.isSession.mockReturnValue(true)
     mockAuth.extract.mockReturnValue(null)
     const mockReq = { path: `/ai/chat`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockDb.services.apiKey.getByHash).not.toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  it(`should skip API key auth for /ai/stream paths (session token auth)`, async () => {
+    mockAuth.isSession.mockReturnValue(true)
+    mockAuth.extract.mockReturnValue(null)
+    const mockReq = { path: `/ai/stream`, headers: {} } as unknown as Request
 
     const middleware = validateApiKeyAuth(mockApp)
     await middleware(mockReq, mockRes, mockNext)

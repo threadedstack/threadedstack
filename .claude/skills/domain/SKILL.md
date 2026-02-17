@@ -1059,10 +1059,6 @@ pnpm clean              # Remove node_modules
 - Imports: AI types, models, error handling
 - Uses: `TLLMAdapterConfig`, `ILLMAdapter`, `TStreamEvent`, `Agent`, `Thread`, `Message`
 
-**Shell (`@tdsk/shell`)**:
-- Uses sandbox types
-- Imports: `ISandbox`, `ISandboxProvider`, `ESandboxProvider`, `TSandboxConfig`
-
 **REPL (`@tdsk/repl`)**:
 - Uses full `index.ts` exports
 - Imports: AI types, models

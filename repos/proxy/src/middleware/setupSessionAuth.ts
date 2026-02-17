@@ -3,29 +3,23 @@ import type { Request, Response, NextFunction } from 'express'
 
 import { logger } from '@TPX/utils/logger'
 
-const SessionPrefix = `Session `
-
 /**
- * Session-token authentication middleware for /ai/chat
+ * Session-token authentication middleware for /ai/chat and /ai/stream
  *
  * Ensures a session token is present in the Authorization header.
  * The actual token validation happens in the backend — this middleware
  * only checks that the token exists and is in the correct format.
  */
-export const validateSessionAuth = (_app: TProxyApp) => {
+export const validateSessionAuth = (app: TProxyApp) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    // Only apply to /ai/chat routes
-    if (!req.path.startsWith(`/ai/chat`)) return next()
+    if (!app.locals.auth.isSession(req.path)) return next()
 
     const authHeader = req.headers.authorization
-    if (!authHeader || !authHeader.startsWith(SessionPrefix)) {
-      logger.warn(`Missing session token for ${req.path}`)
-      res.status(401).json({ error: `Session token required` })
-      return
-    }
-
-    const token = authHeader.slice(SessionPrefix.length).trim()
+    const token = app.locals.auth.extract(req)
     if (!token) {
+      logger.warn(
+        `Missing session token for ${req.path}\nAuthorization Header: ${authHeader}`
+      )
       res.status(401).json({ error: `Session token required` })
       return
     }

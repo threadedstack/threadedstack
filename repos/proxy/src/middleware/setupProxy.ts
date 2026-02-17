@@ -5,6 +5,7 @@ import type { ClientRequest, IncomingMessage, ServerResponse } from 'http'
 
 import { logger } from '@TPX/utils/logger'
 import { adminPath, setAuthHeaders } from '@tdsk/domain'
+import { ProxyForwardRoutes } from '@TPX/constants/values'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 
 /**
@@ -73,6 +74,5 @@ const createBackendProxy = (app: TProxyApp) => {
 
 export const setupProxy = (app: TProxyApp) => {
   const loc = adminPath(app.locals.config.backend)
-  app.use(pathFilter(loc), createBackendProxy(app))
-  app.use(`/ai`, createBackendProxy(app))
+  app.use([pathFilter(loc), ...ProxyForwardRoutes], createBackendProxy(app))
 }

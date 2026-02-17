@@ -13,9 +13,17 @@ vi.mock(`@TPX/utils/logger`, () => ({
   },
 }))
 
-const createMockApp = () =>
+const createMockAuth = () => ({
+  isSession: vi.fn((path: string) =>
+    [`/ai/chat`, `/ai/stream`].some((route) => path.startsWith(route))
+  ),
+  extract: vi.fn().mockReturnValue(null),
+})
+
+const createMockApp = (auth = createMockAuth()) =>
   ({
     locals: {
+      auth,
       config: {},
     },
   }) as unknown as TProxyApp
@@ -27,13 +35,15 @@ const createMockRes = () =>
   }) as unknown as Response
 
 describe(`validateSessionAuth`, () => {
+  let mockAuth: ReturnType<typeof createMockAuth>
   let mockApp: TProxyApp
   let mockRes: Response
   let mockNext: NextFunction
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockApp = createMockApp()
+    mockAuth = createMockAuth()
+    mockApp = createMockApp(mockAuth)
     mockRes = createMockRes()
     mockNext = vi.fn() as unknown as NextFunction
   })
@@ -65,6 +75,7 @@ describe(`validateSessionAuth`, () => {
   })
 
   it(`should return 401 when no Authorization header on /ai/chat`, () => {
+    mockAuth.extract.mockReturnValue(null)
     const mockReq = {
       path: `/ai/chat`,
       headers: {},
@@ -78,7 +89,8 @@ describe(`validateSessionAuth`, () => {
     expect(mockNext).not.toHaveBeenCalled()
   })
 
-  it(`should return 401 when Authorization is not Session type`, () => {
+  it(`should pass through when any token is present on /ai/chat`, () => {
+    mockAuth.extract.mockReturnValue(`some-jwt`)
     const mockReq = {
       path: `/ai/chat`,
       headers: { authorization: `Bearer some-jwt` },
@@ -87,12 +99,12 @@ describe(`validateSessionAuth`, () => {
     const middleware = validateSessionAuth(mockApp)
     middleware(mockReq, mockRes, mockNext)
 
-    expect(mockRes.status).toHaveBeenCalledWith(401)
-    expect(mockRes.json).toHaveBeenCalledWith({ error: `Session token required` })
-    expect(mockNext).not.toHaveBeenCalled()
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
   })
 
   it(`should return 401 when Session token is empty`, () => {
+    mockAuth.extract.mockReturnValue(``)
     const mockReq = {
       path: `/ai/chat`,
       headers: { authorization: `Session ` },
@@ -107,6 +119,7 @@ describe(`validateSessionAuth`, () => {
   })
 
   it(`should call next when valid Session token is present`, () => {
+    mockAuth.extract.mockReturnValue(`abc-123-def-456`)
     const mockReq = {
       path: `/ai/chat`,
       headers: { authorization: `Session abc-123-def-456` },
@@ -120,9 +133,39 @@ describe(`validateSessionAuth`, () => {
   })
 
   it(`should handle /ai/chat sub-paths`, () => {
+    mockAuth.extract.mockReturnValue(`abc-123`)
     const mockReq = {
       path: `/ai/chat/stream`,
       headers: { authorization: `Session abc-123` },
+    } as unknown as Request
+
+    const middleware = validateSessionAuth(mockApp)
+    middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  it(`should return 401 when no Authorization header on /ai/stream`, () => {
+    mockAuth.extract.mockReturnValue(null)
+    const mockReq = {
+      path: `/ai/stream`,
+      headers: {},
+    } as unknown as Request
+
+    const middleware = validateSessionAuth(mockApp)
+    middleware(mockReq, mockRes, mockNext)
+
+    expect(mockRes.status).toHaveBeenCalledWith(401)
+    expect(mockRes.json).toHaveBeenCalledWith({ error: `Session token required` })
+    expect(mockNext).not.toHaveBeenCalled()
+  })
+
+  it(`should call next when valid Session token is present on /ai/stream`, () => {
+    mockAuth.extract.mockReturnValue(`abc-123-def-456`)
+    const mockReq = {
+      path: `/ai/stream`,
+      headers: { authorization: `Session abc-123-def-456` },
     } as unknown as Request
 
     const middleware = validateSessionAuth(mockApp)
