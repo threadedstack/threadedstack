@@ -1,7 +1,7 @@
 import type { TStreamEvent } from '@tdsk/domain'
 import type { ApiClient, TSessionInfo } from '@TRL/api'
 
-import { PiAgentRunner } from '@tdsk/agent'
+import { AgentRunner } from '@tdsk/agent'
 import { HttpMessageAdapter } from './httpAdapter'
 
 export type TRunResult = {
@@ -13,7 +13,7 @@ export type TRunResult = {
  *
  * 1. Creates a session (backend resolves API key, returns session token)
  * 2. Creates/reuses a thread via backend
- * 3. Runs PiAgentRunner locally with proxyConfig (LLM calls go through backend SSE)
+ * 3. Runs AgentRunner locally with proxyConfig (LLM calls go through backend SSE)
  */
 export class LocalAgentExecutor {
   #client: ApiClient
@@ -54,7 +54,7 @@ export class LocalAgentExecutor {
     const db = new HttpMessageAdapter(this.#client, orgId, agentId)
 
     // 4. Run agent locally — LLM calls go through backend SSE
-    await PiAgentRunner.run({
+    await AgentRunner.run({
       db,
       orgId,
       prompt,

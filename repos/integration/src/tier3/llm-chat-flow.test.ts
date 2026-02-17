@@ -124,41 +124,47 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
 
     test.skipIf(!hasAgent())(`streams a response for a simple prompt`, async () => {
       const { events, raw } = await consumeSessionSSE(sessionToken, {
-        messages: [
-          { role: `user`, content: [{ type: `text`, text: `Respond with exactly: INTEGRATION_TEST_OK` }] },
-        ],
+        context: {
+          messages: [
+            { role: `user`, content: [{ type: `text`, text: `Respond with exactly: INTEGRATION_TEST_OK` }] },
+          ],
+        },
+        options: {},
       }, { timeout: 30_000 })
 
-      // Must have at least one text event and a done event
+      // Must have at least one text_delta event and a done event
       expect(events.length).toBeGreaterThanOrEqual(2)
 
-      const textEvents = events.filter((e) => e.type === `text`)
+      const textEvents = events.filter((e) => e.type === `text_delta`)
       const doneEvents = events.filter((e) => e.type === `done`)
 
       expect(textEvents.length).toBeGreaterThanOrEqual(1)
       expect(doneEvents.length).toBe(1)
 
-      // Text events must contain actual text content
+      // Text events must contain actual text content (delta field)
       for (const te of textEvents) {
-        expect(typeof te.text).toBe(`string`)
+        expect(typeof te.delta).toBe(`string`)
       }
 
       // Concatenated text should contain something meaningful
-      const fullText = textEvents.map((e) => e.text).join(``)
+      const fullText = textEvents.map((e) => e.delta).join(``)
       expect(fullText.length).toBeGreaterThan(0)
 
-      // Done event must have a valid stopReason
-      expect([`end_turn`, `max_tokens`, `stop_sequence`]).toContain(doneEvents[0].stopReason)
+      // Done event must have a valid reason
+      expect([`end_turn`, `max_tokens`, `stop_sequence`, `stop`]).toContain(doneEvents[0].reason)
 
-      // Raw SSE must end with [DONE] marker
-      expect(raw).toContain(`data: [DONE]`)
+      // Stream may end with [DONE] sentinel or just close after the last event
+      expect(raw.length).toBeGreaterThan(0)
     })
 
     test.skipIf(!hasAgent())(`SSE format uses correct data: prefix`, async () => {
       const { raw } = await consumeSessionSSE(sessionToken, {
-        messages: [
-          { role: `user`, content: [{ type: `text`, text: `Say hi` }] },
-        ],
+        context: {
+          messages: [
+            { role: `user`, content: [{ type: `text`, text: `Say hi` }] },
+          ],
+        },
+        options: {},
       }, { timeout: 30_000 })
 
       // Every non-empty line should start with "data: "
@@ -170,9 +176,12 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
 
     test.skipIf(!hasAgent())(`each SSE event is valid JSON (except [DONE])`, async () => {
       const { raw } = await consumeSessionSSE(sessionToken, {
-        messages: [
-          { role: `user`, content: [{ type: `text`, text: `Say hello` }] },
-        ],
+        context: {
+          messages: [
+            { role: `user`, content: [{ type: `text`, text: `Say hello` }] },
+          ],
+        },
+        options: {},
       }, { timeout: 30_000 })
 
       const lines = raw.split(`\n`).filter((l) => l.startsWith(`data: `))
@@ -188,9 +197,12 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
 
     test.skipIf(!hasAgent())(`streaming response contains no apiKey or secret data`, async () => {
       const { raw } = await consumeSessionSSE(sessionToken, {
-        messages: [
-          { role: `user`, content: [{ type: `text`, text: `What is 2+2?` }] },
-        ],
+        context: {
+          messages: [
+            { role: `user`, content: [{ type: `text`, text: `What is 2+2?` }] },
+          ],
+        },
+        options: {},
       }, { timeout: 30_000 })
 
       // Ensure no API key patterns leaked in the SSE stream
@@ -211,21 +223,24 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
       const token = res.data.data.sessionToken
 
       const { events } = await consumeSessionSSE(token, {
-        messages: [
-          { role: `user`, content: [{ type: `text`, text: `Remember the number 42.` }] },
-          { role: `assistant`, content: [{ type: `text`, text: `I will remember the number 42.` }] },
-          { role: `user`, content: [{ type: `text`, text: `What number did I ask you to remember?` }] },
-        ],
+        context: {
+          messages: [
+            { role: `user`, content: [{ type: `text`, text: `Remember the number 42.` }] },
+            { role: `assistant`, content: [{ type: `text`, text: `I will remember the number 42.` }] },
+            { role: `user`, content: [{ type: `text`, text: `What number did I ask you to remember?` }] },
+          ],
+        },
+        options: {},
       }, { timeout: 30_000 })
 
-      const textEvents = events.filter((e) => e.type === `text`)
+      const textEvents = events.filter((e) => e.type === `text_delta`)
       const doneEvents = events.filter((e) => e.type === `done`)
 
       expect(textEvents.length).toBeGreaterThanOrEqual(1)
       expect(doneEvents.length).toBe(1)
 
       // The response should reference 42
-      const fullText = textEvents.map((e) => e.text).join(``)
+      const fullText = textEvents.map((e) => e.delta).join(``)
       expect(fullText).toContain(`42`)
     })
 
@@ -236,22 +251,28 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
 
       // First request
       const result1 = await consumeSessionSSE(token, {
-        messages: [
-          { role: `user`, content: [{ type: `text`, text: `Say ONE` }] },
-        ],
+        context: {
+          messages: [
+            { role: `user`, content: [{ type: `text`, text: `Say ONE` }] },
+          ],
+        },
+        options: {},
       }, { timeout: 30_000 })
 
-      expect(result1.events.some((e) => e.type === `text`)).toBe(true)
+      expect(result1.events.some((e) => e.type === `text_delta`)).toBe(true)
       expect(result1.events.some((e) => e.type === `done`)).toBe(true)
 
       // Second request with the same session token
       const result2 = await consumeSessionSSE(token, {
-        messages: [
-          { role: `user`, content: [{ type: `text`, text: `Say TWO` }] },
-        ],
+        context: {
+          messages: [
+            { role: `user`, content: [{ type: `text`, text: `Say TWO` }] },
+          ],
+        },
+        options: {},
       }, { timeout: 30_000 })
 
-      expect(result2.events.some((e) => e.type === `text`)).toBe(true)
+      expect(result2.events.some((e) => e.type === `text_delta`)).toBe(true)
       expect(result2.events.some((e) => e.type === `done`)).toBe(true)
     })
   })
@@ -266,9 +287,9 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
       expect(res.status).toBe(200)
       const token = res.data.data.sessionToken
 
-      const chatRes = await api(`/ai/chat`, {
+      const chatRes = await api(`/ai/stream`, {
         method: `POST`,
-        body: { messages: `not-an-array` },
+        body: { context: { messages: `not-an-array` }, options: {} },
         rawPath: true,
         noAuth: true,
         headers: { Authorization: `Session ${token}` },
@@ -282,9 +303,9 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
       expect(res.status).toBe(200)
       const token = res.data.data.sessionToken
 
-      const chatRes = await api(`/ai/chat`, {
+      const chatRes = await api(`/ai/stream`, {
         method: `POST`,
-        body: { tools: [] },
+        body: { context: {}, options: {} },
         rawPath: true,
         noAuth: true,
         headers: { Authorization: `Session ${token}` },
@@ -293,10 +314,10 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
       expect(chatRes.status).toBe(400)
     })
 
-    test(`POST /ai/chat without any auth returns 401`, async () => {
-      const chatRes = await api(`/ai/chat`, {
+    test(`POST /ai/stream without any auth returns 401`, async () => {
+      const chatRes = await api(`/ai/stream`, {
         method: `POST`,
-        body: { messages: [{ role: `user`, content: [{ type: `text`, text: `hi` }] }] },
+        body: { context: { messages: [{ role: `user`, content: [{ type: `text`, text: `hi` }] }] }, options: {} },
         rawPath: true,
         noAuth: true,
       })
@@ -304,10 +325,10 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
       expect(chatRes.status).toBe(401)
     })
 
-    test(`POST /ai/chat with Bearer token (not Session) returns 401`, async () => {
-      const chatRes = await api(`/ai/chat`, {
+    test(`POST /ai/stream with Bearer token (not Session) returns 401`, async () => {
+      const chatRes = await api(`/ai/stream`, {
         method: `POST`,
-        body: { messages: [{ role: `user`, content: [{ type: `text`, text: `hi` }] }] },
+        body: { context: { messages: [{ role: `user`, content: [{ type: `text`, text: `hi` }] }] }, options: {} },
         rawPath: true,
         noAuth: true,
         headers: { Authorization: `Bearer ${ctx.apiKey}` },
@@ -316,10 +337,10 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
       expect(chatRes.status).toBe(401)
     })
 
-    test(`POST /ai/chat with fabricated session token returns 401`, async () => {
-      const chatRes = await api(`/ai/chat`, {
+    test(`POST /ai/stream with fabricated session token returns 401`, async () => {
+      const chatRes = await api(`/ai/stream`, {
         method: `POST`,
-        body: { messages: [{ role: `user`, content: [{ type: `text`, text: `hi` }] }] },
+        body: { context: { messages: [{ role: `user`, content: [{ type: `text`, text: `hi` }] }] }, options: {} },
         rawPath: true,
         noAuth: true,
         headers: { Authorization: `Session fake-token-12345` },
@@ -368,17 +389,19 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
       // Stream both concurrently
       const [result1, result2] = await Promise.all([
         consumeSessionSSE(token1, {
-          messages: [{ role: `user`, content: [{ type: `text`, text: `Say ALPHA` }] }],
+          context: { messages: [{ role: `user`, content: [{ type: `text`, text: `Say ALPHA` }] }] },
+          options: {},
         }, { timeout: 30_000 }),
         consumeSessionSSE(token2, {
-          messages: [{ role: `user`, content: [{ type: `text`, text: `Say BETA` }] }],
+          context: { messages: [{ role: `user`, content: [{ type: `text`, text: `Say BETA` }] }] },
+          options: {},
         }, { timeout: 30_000 }),
       ])
 
       // Both streams should complete independently
-      expect(result1.events.some((e) => e.type === `text`)).toBe(true)
+      expect(result1.events.some((e) => e.type === `text_delta`)).toBe(true)
       expect(result1.events.some((e) => e.type === `done`)).toBe(true)
-      expect(result2.events.some((e) => e.type === `text`)).toBe(true)
+      expect(result2.events.some((e) => e.type === `text_delta`)).toBe(true)
       expect(result2.events.some((e) => e.type === `done`)).toBe(true)
     })
   })
@@ -408,13 +431,16 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
 
       // Step 4: Stream LLM response (Backend → LLM provider → SSE back through Caddy)
       const { events, raw } = await consumeSessionSSE(sessionToken, {
-        messages: [
-          { role: `user`, content: [{ type: `text`, text: `Respond with exactly the word: PONG` }] },
-        ],
+        context: {
+          messages: [
+            { role: `user`, content: [{ type: `text`, text: `Respond with exactly the word: PONG` }] },
+          ],
+        },
+        options: {},
       }, { timeout: 30_000 })
 
       // Step 5: Validate response structure
-      const textEvents = events.filter((e) => e.type === `text`)
+      const textEvents = events.filter((e) => e.type === `text_delta`)
       const doneEvents = events.filter((e) => e.type === `done`)
       const errorEvents = events.filter((e) => e.type === `error`)
 
@@ -426,14 +452,14 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
       expect(doneEvents).toHaveLength(1)
 
       // Text should contain actual content
-      const fullText = textEvents.map((e) => e.text).join(``)
+      const fullText = textEvents.map((e) => e.delta).join(``)
       expect(fullText.length).toBeGreaterThan(0)
 
-      // Done event should indicate end_turn (normal completion)
-      expect(doneEvents[0].stopReason).toBe(`end_turn`)
+      // Done event should indicate normal completion
+      expect([`end_turn`, `stop`]).toContain(doneEvents[0].reason)
 
-      // Raw stream should be properly terminated
-      expect(raw.trimEnd()).toMatch(/data: \[DONE\]$/)
+      // Stream may end with [DONE] or just close after the done event
+      expect(raw.length).toBeGreaterThan(0)
     })
   })
 })

@@ -12,21 +12,39 @@ describe(`agent service dependency contract`, () => {
   it(`should resolve all @tdsk/agent imports used by runAgent.ts`, async () => {
     const mod = await import(`@tdsk/agent`)
 
-    expect(mod.Mutex).toBeDefined()
-    expect(typeof mod.Mutex).toBe(`function`)
+    // AgentRunner replaces the old AgentRunner
+    expect(mod.AgentRunner).toBeDefined()
+    expect(typeof mod.AgentRunner).toBe(`function`)
 
-    expect(mod.createLLMAdapter).toBeDefined()
-    expect(typeof mod.createLLMAdapter).toBe(`function`)
-
+    // createSandboxProvider — re-export from @tdsk/sandbox
     expect(mod.createSandboxProvider).toBeDefined()
     expect(typeof mod.createSandboxProvider).toBe(`function`)
 
+    // getToolDefs — from tools/definitions
     expect(mod.getToolDefs).toBeDefined()
     expect(typeof mod.getToolDefs).toBe(`function`)
 
-    // AgentRunner is now exported from @tdsk/agent (extracted from backend)
-    expect(mod.AgentRunner).toBeDefined()
-    expect(typeof mod.AgentRunner).toBe(`function`)
+    // createSandboxTools — pi-mono tool bridge
+    expect(mod.createSandboxTools).toBeDefined()
+    expect(typeof mod.createSandboxTools).toBe(`function`)
+
+    // createProxyStreamFn — proxy stream function
+    expect(mod.createProxyStreamFn).toBeDefined()
+    expect(typeof mod.createProxyStreamFn).toBe(`function`)
+
+    // mapAgentEvent — event bridge
+    expect(mod.mapAgentEvent).toBeDefined()
+    expect(typeof mod.mapAgentEvent).toBe(`function`)
+
+    // Message converters
+    expect(mod.convertToLlmMessages).toBeDefined()
+    expect(typeof mod.convertToLlmMessages).toBe(`function`)
+
+    expect(mod.convertAssistantToContent).toBeDefined()
+    expect(typeof mod.convertAssistantToContent).toBe(`function`)
+
+    expect(mod.convertToolResultToContent).toBeDefined()
+    expect(typeof mod.convertToolResultToContent).toBe(`function`)
   })
 
   it(`should resolve all @tdsk/domain imports used by agent.ts`, async () => {

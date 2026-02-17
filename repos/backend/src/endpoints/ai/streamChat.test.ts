@@ -2,19 +2,26 @@ import type { Response } from 'express'
 import type { TApp, TRequest, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { aiChatProxy } from './chatProxy'
+import { streamChat } from './streamChat'
 import { EPMethod } from '@TBE/types'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
 import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
-import { llm } from '@TBE/services/llm'
 import { createSession, resetSessionStore } from '@TBE/services/sessionStore'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }))
 
-describe(`POST /ai/chat - LLM chat proxy`, () => {
+const mockGetModel = vi.fn()
+const mockStreamSimple = vi.fn()
+
+vi.mock(`@mariozechner/pi-ai`, () => ({
+  getModel: (...args: any[]) => mockGetModel(...args),
+  streamSimple: (...args: any[]) => mockStreamSimple(...args),
+}))
+
+describe(`POST /ai/stream - LLM stream proxy`, () => {
   let mockReq: Partial<TRequest>
   let mockRes: Partial<Response>
   let mockJson: ReturnType<typeof vi.fn>
@@ -24,7 +31,6 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
   let mockSetHeader: ReturnType<typeof vi.fn>
   let mockFlushHeaders: ReturnType<typeof vi.fn>
   let mockOn: ReturnType<typeof vi.fn>
-  let mockStream: ReturnType<typeof vi.fn>
   let sessionToken: string
 
   const buildApp = () => {
@@ -43,13 +49,10 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
     vi.clearAllMocks()
     resetSessionStore()
 
-    mockStream = vi.fn()
-
-    // Spy on the llm service object to intercept createLLMAdapter
-    vi.spyOn(llm, `createLLMAdapter`).mockReturnValue({
+    mockGetModel.mockReturnValue({
       provider: `anthropic`,
-      stream: (...args: any[]) => mockStream(...args),
-    } as any)
+      model: `claude-sonnet-4-20250514`,
+    })
 
     // Create a real session for testing
     sessionToken = createSession({
@@ -88,15 +91,17 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
         authorization: `Session ${sessionToken}`,
       },
       body: {
-        messages: [{ role: `user`, content: [{ type: `text`, text: `Hello` }] }],
-        tools: [],
+        context: {
+          messages: [{ role: `user`, content: [{ type: `text`, text: `Hello` }] }],
+          tools: [],
+        },
       },
       query: {},
       params: {},
     }
 
-    // Default: stream yields nothing (empty conversation)
-    mockStream.mockReturnValue((async function* () {})())
+    // Default: streamSimple yields nothing (empty conversation)
+    mockStreamSimple.mockReturnValue((async function* () {})())
   })
 
   afterEach(() => {
@@ -105,12 +110,12 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
   })
 
   it(`should have correct endpoint config`, () => {
-    expect(aiChatProxy.path).toBe(`/chat`)
-    expect(aiChatProxy.method).toBe(EPMethod.Post)
+    expect(streamChat.path).toBe(`/stream`)
+    expect(streamChat.method).toBe(EPMethod.Post)
   })
 
   it(`should throw 401 when no session token`, async () => {
-    const ep = getEndpointCfg(aiChatProxy as any)
+    const ep = getEndpointCfg(streamChat as any)
     mockReq.headers = {}
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -119,7 +124,7 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
   })
 
   it(`should throw 401 when Authorization header is not Session type`, async () => {
-    const ep = getEndpointCfg(aiChatProxy as any)
+    const ep = getEndpointCfg(streamChat as any)
     mockReq.headers = { authorization: `Bearer some-jwt` }
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -128,7 +133,7 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
   })
 
   it(`should throw 401 for invalid session token`, async () => {
-    const ep = getEndpointCfg(aiChatProxy as any)
+    const ep = getEndpointCfg(streamChat as any)
     mockReq.headers = { authorization: `Session invalid-token` }
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -136,26 +141,26 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
     )
   })
 
-  it(`should throw 400 when messages is missing`, async () => {
-    const ep = getEndpointCfg(aiChatProxy as any)
+  it(`should throw 400 when context.messages is missing`, async () => {
+    const ep = getEndpointCfg(streamChat as any)
     mockReq.body = {}
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `messages is required`
+      `context.messages is required and must be an array`
     )
   })
 
-  it(`should throw 400 when messages is not an array`, async () => {
-    const ep = getEndpointCfg(aiChatProxy as any)
-    mockReq.body = { messages: `not-an-array` }
+  it(`should throw 400 when context.messages is not an array`, async () => {
+    const ep = getEndpointCfg(streamChat as any)
+    mockReq.body = { context: { messages: `not-an-array` } }
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `messages is required`
+      `context.messages is required and must be an array`
     )
   })
 
   it(`should set SSE headers`, async () => {
-    const ep = getEndpointCfg(aiChatProxy as any)
+    const ep = getEndpointCfg(streamChat as any)
 
     await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -165,94 +170,106 @@ describe(`POST /ai/chat - LLM chat proxy`, () => {
     expect(mockFlushHeaders).toHaveBeenCalled()
   })
 
-  it(`should stream events from LLM adapter`, async () => {
-    const events = [
-      { type: `text`, text: `Hello ` },
-      { type: `text`, text: `world` },
-      { type: `done`, stopReason: `end_turn` },
+  it(`should stream events from pi-ai streamSimple`, async () => {
+    const piAiEvents = [
+      { type: `start`, partial: { content: [] } },
+      {
+        type: `text_delta`,
+        contentIndex: 0,
+        delta: `Hello `,
+        partial: { content: [{ type: `text`, text: `Hello ` }] },
+      },
+      {
+        type: `text_delta`,
+        contentIndex: 0,
+        delta: `world`,
+        partial: { content: [{ type: `text`, text: `Hello world` }] },
+      },
+      {
+        type: `done`,
+        reason: `end_turn`,
+        message: { usage: { input: 10, output: 5 } },
+        partial: { content: [] },
+      },
     ]
 
-    mockStream.mockReturnValue(
+    mockStreamSimple.mockReturnValue(
       (async function* () {
-        for (const e of events) yield e
+        for (const e of piAiEvents) yield e
       })()
     )
 
-    const ep = getEndpointCfg(aiChatProxy as any)
+    const ep = getEndpointCfg(streamChat as any)
     await ep.action(mockReq as TRequest, mockRes as Response)
 
     expect(mockWrite).toHaveBeenCalledWith(
-      `data: ${JSON.stringify({ type: `text`, text: `Hello ` })}\n\n`
+      `data: ${JSON.stringify({ type: `start` })}\n\n`
     )
     expect(mockWrite).toHaveBeenCalledWith(
-      `data: ${JSON.stringify({ type: `text`, text: `world` })}\n\n`
+      `data: ${JSON.stringify({ type: `text_delta`, contentIndex: 0, delta: `Hello ` })}\n\n`
     )
     expect(mockWrite).toHaveBeenCalledWith(
-      `data: ${JSON.stringify({ type: `done`, stopReason: `end_turn` })}\n\n`
+      `data: ${JSON.stringify({ type: `text_delta`, contentIndex: 0, delta: `world` })}\n\n`
     )
-    expect(mockWrite).toHaveBeenCalledWith(`data: [DONE]\n\n`)
+    expect(mockWrite).toHaveBeenCalledWith(
+      `data: ${JSON.stringify({ type: `done`, reason: `end_turn`, usage: { input: 10, output: 5 } })}\n\n`
+    )
     expect(mockEnd).toHaveBeenCalled()
   })
 
-  it(`should pass messages and tools to adapter.stream`, async () => {
-    mockStream.mockReturnValue((async function* () {})())
+  it(`should pass messages and tools to streamSimple with correct context`, async () => {
+    mockStreamSimple.mockReturnValue((async function* () {})())
 
-    const ep = getEndpointCfg(aiChatProxy as any)
+    const ep = getEndpointCfg(streamChat as any)
     await ep.action(mockReq as TRequest, mockRes as Response)
 
-    expect(mockStream).toHaveBeenCalledWith(
-      [{ role: `user`, content: [{ type: `text`, text: `Hello` }] }],
-      [],
+    expect(mockGetModel).toHaveBeenCalledWith(`anthropic`, `claude-sonnet-4-20250514`)
+
+    expect(mockStreamSimple).toHaveBeenCalledWith(
+      { provider: `anthropic`, model: `claude-sonnet-4-20250514` },
+      expect.objectContaining({
+        messages: [{ role: `user`, content: [{ type: `text`, text: `Hello` }] }],
+        tools: [],
+      }),
       expect.objectContaining({
         apiKey: `sk-test-key`,
-        model: `claude-sonnet-4-20250514`,
-        provider: `anthropic`,
+        maxTokens: 4096,
       })
     )
   })
 
-  it(`should default tools to empty array when not provided`, async () => {
-    mockStream.mockReturnValue((async function* () {})())
-    mockReq.body = {
-      messages: [{ role: `user`, content: [{ type: `text`, text: `Hi` }] }],
-    }
-
-    const ep = getEndpointCfg(aiChatProxy as any)
-    await ep.action(mockReq as TRequest, mockRes as Response)
-
-    expect(mockStream).toHaveBeenCalledWith(expect.any(Array), [], expect.any(Object))
-  })
-
-  it(`should write error event when adapter throws`, async () => {
-    mockStream.mockReturnValue(
+  it(`should write error event when streamSimple throws`, async () => {
+    mockStreamSimple.mockReturnValue(
       (async function* () {
         throw new Error(`Provider timeout`)
       })()
     )
 
-    const ep = getEndpointCfg(aiChatProxy as any)
+    const ep = getEndpointCfg(streamChat as any)
     await ep.action(mockReq as TRequest, mockRes as Response)
 
     expect(mockWrite).toHaveBeenCalledWith(
-      `data: ${JSON.stringify({ type: `error`, error: `Provider timeout` })}\n\n`
+      `data: ${JSON.stringify({
+        type: `error`,
+        reason: `error`,
+        errorMessage: `Provider timeout`,
+        usage: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          totalTokens: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+        },
+      })}\n\n`
     )
-    expect(mockWrite).toHaveBeenCalledWith(`data: [DONE]\n\n`)
     expect(mockEnd).toHaveBeenCalled()
   })
 
   it(`should register close handler on response`, async () => {
-    const ep = getEndpointCfg(aiChatProxy as any)
+    const ep = getEndpointCfg(streamChat as any)
     await ep.action(mockReq as TRequest, mockRes as Response)
 
     expect(mockOn).toHaveBeenCalledWith(`close`, expect.any(Function))
-  })
-
-  it(`should create adapter with correct provider from session`, async () => {
-    mockStream.mockReturnValue((async function* () {})())
-
-    const ep = getEndpointCfg(aiChatProxy as any)
-    await ep.action(mockReq as TRequest, mockRes as Response)
-
-    expect(llm.createLLMAdapter).toHaveBeenCalledWith(`anthropic`)
   })
 })

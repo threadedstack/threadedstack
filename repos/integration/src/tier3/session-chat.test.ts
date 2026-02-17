@@ -72,7 +72,7 @@ describe('Tier 3: Session Chat SSE Flow', () => {
     expect(sessionProvider).toBe('anthropic')
   })
 
-  test('POST /ai/chat with valid session is accepted by backend', async () => {
+  test('POST /ai/stream with valid session is accepted by backend', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // With a fake API key, the LLM adapter may hang while connecting
@@ -80,7 +80,7 @@ describe('Tier 3: Session Chat SSE Flow', () => {
     // auth + validation by using a short timeout — either we get a
     // response (200 SSE or error) or the timeout proves the backend
     // accepted the request and is attempting the LLM call.
-    const url = `${env.proxyUrl}/ai/chat`
+    const url = `${env.proxyUrl}/ai/stream`
     let gotResponse = false
     let responseStatus = 0
 
@@ -92,9 +92,12 @@ describe('Tier 3: Session Chat SSE Flow', () => {
           'Authorization': `Session ${sessionToken}`,
         },
         body: JSON.stringify({
-          messages: [
-            { role: 'user', content: [{ type: 'text', text: 'Say hello' }] },
-          ],
+          context: {
+            messages: [
+              { role: 'user', content: [{ type: 'text', text: 'Say hello' }] },
+            ],
+          },
+          options: {},
         }),
         signal: AbortSignal.timeout(8_000),
       })
@@ -119,12 +122,12 @@ describe('Tier 3: Session Chat SSE Flow', () => {
     }
   })
 
-  test('POST /ai/chat with invalid messages returns 400', async () => {
+  test('POST /ai/stream with invalid messages returns 400', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await api('/ai/chat', {
+    const res = await api('/ai/stream', {
       method: 'POST',
-      body: { messages: 'not-an-array' },
+      body: { context: { messages: 'not-an-array' }, options: {} },
       rawPath: true,
       noAuth: true,
       headers: { 'Authorization': `Session ${sessionToken}` },
@@ -133,17 +136,20 @@ describe('Tier 3: Session Chat SSE Flow', () => {
     expect(res.status).toBe(400)
   })
 
-  test('POST /ai/chat with expired/deleted session returns 401', async () => {
+  test('POST /ai/stream with expired/deleted session returns 401', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Use a UUID that looks valid but doesn't exist in the store
     const fakeToken = '12345678-1234-1234-1234-123456789abc'
-    const res = await api('/ai/chat', {
+    const res = await api('/ai/stream', {
       method: 'POST',
       body: {
-        messages: [
-          { role: 'user', content: [{ type: 'text', text: 'hello' }] },
-        ],
+        context: {
+          messages: [
+            { role: 'user', content: [{ type: 'text', text: 'hello' }] },
+          ],
+        },
+        options: {},
       },
       rawPath: true,
       noAuth: true,

@@ -6,7 +6,7 @@ import { adminPath } from '@tdsk/domain'
 import { orgs } from '@TBE/endpoints/orgs'
 import { users } from '@TBE/endpoints/users'
 import { payments } from './payments/payments'
-import { aiSessions } from '@TBE/endpoints/ai'
+import { ai } from '@TBE/endpoints/ai'
 import { base } from '@TBE/endpoints/base/base'
 import { auth } from '@TBE/endpoints/auth/auth'
 import { health } from '@TBE/endpoints/base/health'
@@ -21,6 +21,7 @@ export const accounts: TEndpointBuilder = (app) => {
     path: adminPath(app.locals.config.server),
     middleware: [express.json(), authenticate, setupSubscription],
     endpoints: {
+      ai,
       auth,
       base,
       orgs,
@@ -29,7 +30,6 @@ export const accounts: TEndpointBuilder = (app) => {
       payments,
       invitations,
       subscriptions,
-      aiSessions,
     },
   }
 }

@@ -1,2 +1,2 @@
 export { ai } from './ai'
-export { aiSessions } from './sessions'
+export { aiStream } from './stream'

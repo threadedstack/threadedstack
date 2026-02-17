@@ -1,5 +1,5 @@
 import type { TKeyValuePair } from '@TAF/types'
-import type { Agent, Secret } from '@tdsk/domain'
+import type { Agent, Secret, Function as TDFunction } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
 import { Code } from '@TAF/components/Code'
@@ -48,6 +48,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [secretsList, setSecretsList] = useState<Secret[]>([])
   const [aiProviders, setAiProviders] = useState<Array<{ id: string; name: string }>>([])
+  const [agentFunctions, setAgentFunctions] = useState<TDFunction[]>([])
 
   // Form state
   const [name, setName] = useState('')
@@ -81,6 +82,9 @@ export const AgentDrawer = (props: TAgentDrawer) => {
           }))
         setAiProviders(aiProvidersOnly)
       }
+
+      // Use functions already populated on the agent model
+      setAgentFunctions(agent?.functions || [])
     }
     if (open && projectId) {
       loadData()
@@ -303,6 +307,55 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             onChange={setSelectedTools}
             selectedTools={selectedTools}
           />
+
+          {agentFunctions.length > 0 && (
+            <>
+              <Divider />
+              <Box>
+                <Typography
+                  variant='subtitle2'
+                  sx={{ fontWeight: 600, mb: 2 }}
+                >
+                  Custom Functions
+                </Typography>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  sx={{ mb: 1 }}
+                >
+                  Functions attached to this agent as tools. Manage in the Functions
+                  section.
+                </Typography>
+                {agentFunctions.map((fn) => (
+                  <Box
+                    key={fn.id}
+                    sx={{
+                      p: 1.5,
+                      mb: 1,
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography
+                      variant='body2'
+                      sx={{ fontWeight: 500 }}
+                    >
+                      {fn.name}
+                    </Typography>
+                    {fn.description && (
+                      <Typography
+                        variant='caption'
+                        color='text.secondary'
+                      >
+                        {fn.description}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            </>
+          )}
 
           <Divider />
 

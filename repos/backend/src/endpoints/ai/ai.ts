@@ -1,21 +1,18 @@
 import type { TEndpointConfig } from '@TBE/types'
 
-import express from 'express'
 import { EPMethod } from '@TBE/types'
-import { aiChatProxy } from './chatProxy'
+import { createSession } from './createSession'
 
 /**
- * AI chat endpoint group — mounted at /ai (top level, no auth middleware)
+ * AI endpoint group — mounted under accounts at /_/ai
+ * Inherits auth middleware from accounts parent (JWT/API key)
  *
- * POST /ai/chat — session-token auth only (validated in handler)
- *
- * The /ai/sessions endpoint is registered under accounts (which has auth)
+ * POST /_/ai/sessions — create a new LLM session
  */
 export const ai: TEndpointConfig = {
   path: `/ai`,
   method: EPMethod.Use,
-  middleware: [express.json()],
   endpoints: {
-    chatProxy: aiChatProxy,
+    createSession,
   },
 }

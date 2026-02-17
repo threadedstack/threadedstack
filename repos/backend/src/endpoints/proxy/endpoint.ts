@@ -1,20 +1,22 @@
 import type { Response } from 'express'
-import type { TProxyEndpointConfig } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
+import type { ProxyEndpoint, TProxyEndpointConfig } from '@tdsk/domain'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
+import { handleFaaSEndpoint } from './faas'
 import { addEndpointHeaders } from '@TBE/utils/proxy'
 import { Exception } from '@TBE/utils/errors/exception'
 import { RetryService, ProxyService } from '@TBE/services/proxy'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import type { ProxyEndpoint } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { EEndpointType, EPermAction, EPermResource } from '@tdsk/domain'
 import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware'
 
 // -----------------------------------
 // TODO: Needs lots of clean up
 // -----------------------------------
+// TODO: Clean this up, create Endpoint service that handles all endpoint types
+// Move handleFaaSEndpoint helper and all proxy code below into the endpoint service
 
 /**
  * GET/POST/PUT/PATCH/DELETE /proxy/:projectId/:endpointId/*
@@ -48,6 +50,13 @@ export const endpoint: TEndpointConfig = {
     const endpoint = ep as ProxyEndpoint
 
     if (fetchError || !endpoint) throw new Exception(404, `Endpoint not found`)
+
+    // Handle FaaS endpoints
+    // TODO: Clean this up, create Endpoint service that handles all endpoint types
+    // Move handleFaaSEndpoint helper and all proxy code below into the endpoint service
+    if (ep?.type === EEndpointType.faas) {
+      return handleFaaSEndpoint(req, res, ep as any, db)
+    }
 
     const opts = endpoint.options as TProxyEndpointConfig
     if (!opts?.url) throw new Exception(400, `Endpoint has no proxy configuration`)

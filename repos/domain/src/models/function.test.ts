@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Function } from './function'
+import { Function as FunctionModel } from './function'
 
 describe(`Function Model`, () => {
   describe(`constructor`, () => {
@@ -13,14 +13,14 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.id).toBe(functionData.id)
-      expect(func.projectId).toBe(functionData.projectId)
-      expect(func.endpointId).toBe(functionData.endpointId)
       expect(func.content).toBe(functionData.content)
       expect(func.createdAt).toBe(functionData.createdAt)
       expect(func.updatedAt).toBe(functionData.updatedAt)
+      expect(func.projectId).toBe(functionData.projectId)
+      expect(func.endpointId).toBe(functionData.endpointId)
     })
 
     it(`should create a function with all optional fields`, () => {
@@ -42,7 +42,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.id).toBe(functionData.id)
       expect(func.endpointId).toBe(functionData.endpointId)
@@ -65,7 +65,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.language).toBe(`typescript`)
       expect(func.defaultArgs).toBeUndefined()
@@ -83,7 +83,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.language).toBe(`python`)
     })
@@ -111,7 +111,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.defaultArgs).toEqual(functionData.defaultArgs)
       expect(func.defaultArgs?.timeout).toBe(10000)
@@ -139,7 +139,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.dependencies).toEqual(functionData.dependencies)
       expect(Object.keys(func.dependencies || {})).toHaveLength(5)
@@ -158,7 +158,7 @@ describe(`Function Model`, () => {
         updatedAt: now,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.createdAt).toBe(now)
       expect(func.updatedAt).toBe(now)
@@ -171,7 +171,7 @@ describe(`Function Model`, () => {
         content: `export default function handler(req, res) { }`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.endpointId).toBe(functionData.endpointId)
       expect(func.projectId).toBe(functionData.projectId)
@@ -193,7 +193,7 @@ describe(`Function Model`, () => {
           updatedAt: `2024-01-01T00:00:00Z`,
         }
 
-        const func = new Function(functionData)
+        const func = new FunctionModel(functionData)
         expect(func.language).toBe(lang)
       })
     })
@@ -210,7 +210,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func).toHaveProperty(`id`)
       expect(func).toHaveProperty(`createdAt`)
@@ -230,7 +230,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.defaultArgs).toEqual({})
       expect(Object.keys(func.defaultArgs || {})).toHaveLength(0)
@@ -247,7 +247,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.dependencies).toEqual({})
       expect(Object.keys(func.dependencies || {})).toHaveLength(0)
@@ -264,7 +264,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.defaultArgs).toBeNull()
     })
@@ -300,7 +300,7 @@ describe(`Function Model`, () => {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.content).toContain(`export default`)
       expect(func.language).toBe(`typescript`)
@@ -335,7 +335,7 @@ def handler(event, context):
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.language).toBe(`python`)
       expect(func.content).toContain(`def handler`)
@@ -362,7 +362,7 @@ def handler(event, context):
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(Object.keys(func.dependencies || {})).toHaveLength(7)
       expect(func.dependencies?.express).toBe(`^5.0.0`)
@@ -394,7 +394,7 @@ def handler(event, context):
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.defaultArgs?.timeout).toBe(30000)
       expect(func.defaultArgs?.memory).toBe(1024)
@@ -440,7 +440,7 @@ export default async function handler(req: Request, res: Response) {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.content).toContain(`API Handler`)
       expect(func.content).toContain(`try`)
@@ -459,7 +459,7 @@ export default async function handler(req: Request, res: Response) {
         updatedAt: `2024-01-01T00:00:00Z`,
       }
 
-      const func = new Function(functionData)
+      const func = new FunctionModel(functionData)
 
       expect(func.endpointId).toBeUndefined()
       expect(func.id).toBe(functionData.id)

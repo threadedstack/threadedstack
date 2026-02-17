@@ -1,14 +1,15 @@
 import type { Response } from 'express'
+import type { IAgentRunnerDB } from '@tdsk/agent'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@TBE/utils/errors/exception'
 import { AgentRunner } from '@tdsk/agent'
-import type { IAgentRunnerDB } from '@tdsk/agent'
+import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
+import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
+import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 
 /**
  * Create an IAgentRunnerDB adapter that wraps the backend's
@@ -77,6 +78,12 @@ export const runAgent: TEndpointConfig = {
     const headers = await secrets.resolveHeaders(provider)
     const bodyParams = await secrets.resolveBodyParams(provider)
 
+    // Load custom functions attached to this agent via junction table
+    const { data: agentFunctions } = await db.services.function.listByAgent(agent.id)
+
+    // Build function lookup for the execution callback
+    const functionMap = new Map((agentFunctions || []).map((fn: any) => [fn.id, fn]))
+
     // Get or create thread
     let threadId = existingThreadId
     if (!threadId) {
@@ -144,6 +151,21 @@ export const runAgent: TEndpointConfig = {
         db: createDBAdapter(db),
         environment: agent.environment,
         tools: agent.tools as string[] | undefined,
+        customFunctions: agentFunctions || [],
+        onExecuteFunction: async (functionId, input) => {
+          const func = functionMap.get(functionId)
+          if (!func) {
+            return {
+              success: false,
+              output: null,
+              error: `Function not found`,
+              duration: 0,
+            }
+          }
+          return FunctionExecutor.execute(func, {
+            context: { args: input as Record<string, any> },
+          })
+        },
         onEvent: (event) => {
           if (aborted) return
           res.write(`data: ${JSON.stringify(event)}\n\n`)

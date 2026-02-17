@@ -4,6 +4,22 @@ import { get } from '../utils/api-client'
 import { checkHealth } from '../utils/health'
 import { writeContext } from '../utils/test-context'
 
+// TODO: use this to suppress UNAUTHORIZED warning, not needed for integration tests
+const cancelAndSuppressTLSWarning = () => {
+  const { emitWarning } = process
+  process.emitWarning = (warning: string | Error, ...args: any) => {
+    const m = typeof warning === `string` ? warning : warning.message
+    if (m.includes(`NODE_TLS_REJECT_UNAUTHORIZED`)) {
+      process.emitWarning = emitWarning
+      return
+    }
+    return emitWarning(warning, ...args)
+  }
+
+  process.env[`NODE_TLS_REJECT_UNAUTHORIZED`] = `0`
+}
+
+
 /**
  * Vitest global setup — runs once before all test files.
  *
@@ -19,6 +35,7 @@ export default async function setup() {
   loadEnvs()
 
   // 2. Allow self-signed certs from Caddy local CA
+  //cancelAndSuppressTLSWarning()
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
   // 3. Validate required env vars
@@ -60,8 +77,8 @@ export default async function setup() {
 
   // 6. Write context for tests
   writeContext({
-    orgId: env.testOrgId,
     orgName,
+    orgId: env.testOrgId,
     apiKey: env.testApiKey,
     userId: env.testUserId,
   })

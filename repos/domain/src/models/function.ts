@@ -1,13 +1,16 @@
+import type { TFunctionParam } from '@TDM/types'
 import { Base } from './base'
 import { EFunLanguage } from '@TDM/types'
 
 export class Function extends Base {
   name: string
-  projectId: string
   content: string
+  projectId: string
   endpointId?: string
   description?: string
+  agentIds?: string[]
   branch: string = `main`
+  inputSchema?: TFunctionParam[]
   defaultArgs?: Record<string, any>
   dependencies?: Record<string, any>
   language: string = EFunLanguage.typescript

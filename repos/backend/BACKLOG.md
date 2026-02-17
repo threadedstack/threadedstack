@@ -35,7 +35,7 @@ These are **new capabilities** (not bug fixes) organized into implementable task
 | Quota DB service | `repos/database/src/services/quota.ts` | Complete (increment/getUsage/initializePeriod) |
 | Subscription DB service | `repos/database/src/services/subscription.ts` | Complete (findByUser/upsertByUser) |
 | Thread domain model | `repos/domain/src/models/thread.ts` | Complete |
-| Message domain model | `repos/domain/src/models/message.ts` | Complete (MessageType union) |
+| Message domain model | `repos/domain/src/models/message.ts` | Complete (EMsgType union) |
 | Asset domain model | `repos/domain/src/models/asset.ts` | Complete |
 | Subscription domain model | `repos/domain/src/models/subscription.ts` | Complete |
 | Permission resources | `repos/domain/src/types/permissions.types.ts` | thread/message/asset in EPermResource |

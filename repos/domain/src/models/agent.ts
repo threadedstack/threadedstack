@@ -4,6 +4,7 @@ import { Base } from './base'
 import { Secret } from './secret'
 import { Project } from './project'
 import { Provider } from './provider'
+import { Function as FunctionModel } from './function'
 
 export class Agent extends Base {
   name: string
@@ -19,12 +20,13 @@ export class Agent extends Base {
   secrets: Secret[] = []
   projects: Project[] = []
   envVars: TAgentEnvVars = {}
+  functions: FunctionModel[] = []
   environment: TAgentEnvironment = {}
 
   constructor(agent: Partial<Agent>) {
     super()
 
-    const { secrets, provider, projects, ...rest } = agent
+    const { secrets, functions, provider, projects, ...rest } = agent
 
     Object.assign(this, {
       ...rest,
@@ -36,6 +38,10 @@ export class Agent extends Base {
       secrets:
         secrets?.map((secret) =>
           secret instanceof Secret ? secret : new Secret(secret)
+        ) || [],
+      functions:
+        functions?.map((fn) =>
+          fn instanceof FunctionModel ? fn : new FunctionModel(fn)
         ) || [],
       projects:
         projects?.map((project) =>

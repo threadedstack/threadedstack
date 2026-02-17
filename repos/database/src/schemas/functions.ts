@@ -1,8 +1,11 @@
+import type { TFunctionParam } from '@tdsk/domain'
+
 import { relations } from 'drizzle-orm'
 import { EFunLanguage } from '@tdsk/domain'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { endpoints } from '@TDB/schemas/endpoints'
+import { agentFunctions } from '@TDB/schemas/agentFunctions'
 import { uuid, text, jsonb, varchar, index, pgTable } from 'drizzle-orm/pg-core'
 
 export const functions = pgTable(
@@ -15,6 +18,7 @@ export const functions = pgTable(
     branch: text(`branch`).default(`main`),
     defaultArgs: jsonb(`default_args`).default({}),
     dependencies: jsonb(`dependencies`).default({}),
+    inputSchema: jsonb(`input_schema`).default([]).$type<TFunctionParam[]>(),
     language: varchar(`language`, { length: 50 }).default(EFunLanguage.typescript),
     endpointId: uuid(`endpoint_id`).references(() => endpoints.id, {
       onDelete: `cascade`,
@@ -29,7 +33,7 @@ export const functions = pgTable(
   ]
 )
 
-export const functionsRelations = relations(functions, ({ one }) => ({
+export const functionsRelations = relations(functions, ({ one, many }) => ({
   endpoint: one(endpoints, {
     fields: [functions.endpointId],
     references: [endpoints.id],
@@ -38,4 +42,5 @@ export const functionsRelations = relations(functions, ({ one }) => ({
     fields: [functions.projectId],
     references: [projects.id],
   }),
+  agents: many(agentFunctions),
 }))

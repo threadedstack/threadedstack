@@ -16,7 +16,17 @@ export const updateFunction: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { id } = req.params
-    const { name, content, language, description, defaultArgs, dependencies } = req.body
+    const {
+      name,
+      content,
+      language,
+      agentIds,
+      endpointId,
+      description,
+      defaultArgs,
+      inputSchema,
+      dependencies,
+    } = req.body
 
     const existingFunc = await requireResourceWithPermission(
       req,
@@ -32,13 +42,22 @@ export const updateFunction: TEndpointConfig = {
       ...(name && { name }),
       ...(content && { content }),
       ...(language && { language }),
+      ...(endpointId !== undefined && { endpointId }),
       ...(description !== undefined && { description }),
       ...(defaultArgs !== undefined && { defaultArgs }),
+      ...(inputSchema !== undefined && { inputSchema }),
       ...(dependencies !== undefined && { dependencies }),
     })
 
     const { data, error } = await db.services.function.update(func)
     if (error) throw new Exception(500, error.message)
+
+    // Update agent associations via junction table if provided
+    if (data && agentIds !== undefined) {
+      await db.services.function.setAgents(data.id, agentIds || [])
+      data.agentIds = agentIds || []
+    }
+
     res.status(200).json({ data })
   },
 }

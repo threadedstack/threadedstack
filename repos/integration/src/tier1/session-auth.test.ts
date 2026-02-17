@@ -3,10 +3,10 @@ import { api } from '../utils/api-client'
 
 describe('Tier 1: Session Token Auth', () => {
 
-  test('POST /ai/chat without session token returns 401', async () => {
-    const res = await api('/ai/chat', {
+  test('POST /ai/stream without session token returns 401', async () => {
+    const res = await api('/ai/stream', {
       method: 'POST',
-      body: { messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] },
+      body: { context: { messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] }, options: {} },
       noAuth: true,
       rawPath: true,
     })
@@ -15,10 +15,10 @@ describe('Tier 1: Session Token Auth', () => {
     expect(res.ok).toBe(false)
   })
 
-  test('POST /ai/chat with Bearer token (not Session) returns 401', async () => {
-    const res = await api('/ai/chat', {
+  test('POST /ai/stream with Bearer token (not Session) returns 401', async () => {
+    const res = await api('/ai/stream', {
       method: 'POST',
-      body: { messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] },
+      body: { context: { messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] }, options: {} },
       rawPath: true,
       noAuth: true,
       headers: { 'Authorization': 'Bearer tdsk_some_key' },
@@ -28,10 +28,10 @@ describe('Tier 1: Session Token Auth', () => {
     expect(res.ok).toBe(false)
   })
 
-  test('POST /ai/chat with empty session token returns 401', async () => {
-    const res = await api('/ai/chat', {
+  test('POST /ai/stream with empty session token returns 401', async () => {
+    const res = await api('/ai/stream', {
       method: 'POST',
-      body: { messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] },
+      body: { context: { messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] }, options: {} },
       rawPath: true,
       noAuth: true,
       headers: { 'Authorization': 'Session ' },
@@ -41,10 +41,10 @@ describe('Tier 1: Session Token Auth', () => {
     expect(res.ok).toBe(false)
   })
 
-  test('POST /ai/chat with invalid session token returns 401', async () => {
-    const res = await api('/ai/chat', {
+  test('POST /ai/stream with invalid session token returns 401', async () => {
+    const res = await api('/ai/stream', {
       method: 'POST',
-      body: { messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] },
+      body: { context: { messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] }, options: {} },
       rawPath: true,
       noAuth: true,
       headers: { 'Authorization': 'Session 00000000-0000-0000-0000-000000000000' },

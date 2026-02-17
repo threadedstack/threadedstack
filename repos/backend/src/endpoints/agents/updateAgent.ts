@@ -16,7 +16,7 @@ export const updateAgent: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const { projectIds = [], ...agent } = req.body
+    const { projectIds = [], functionIds = [], ...agent } = req.body
 
     // First get the agent to check permissions
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)
@@ -49,6 +49,7 @@ export const updateAgent: TEndpointConfig = {
 
     agent.id = id
     if (projects?.length) agent.projects = projects
+    if (functionIds?.length) agent.functionIds = functionIds
     const { data, error } = await db.services.agent.update(agent)
 
     if (error) throw new Exception(500, error.message)

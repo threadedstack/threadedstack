@@ -80,6 +80,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
               create: vi.fn(),
               get: vi.fn(),
             },
+            function: {
+              list: vi.fn().mockResolvedValue({ data: [] }),
+              listByAgent: vi.fn().mockResolvedValue({ data: [] }),
+            },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),

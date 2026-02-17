@@ -20,9 +20,11 @@ export const createFunction: TEndpointConfig = {
       name,
       content,
       language,
+      agentIds,
       endpointId,
       description,
       defaultArgs,
+      inputSchema,
       dependencies,
     } = req.body
     const projectId = req.params.projectId || req.body.projectId
@@ -45,11 +47,19 @@ export const createFunction: TEndpointConfig = {
         description,
         language: language || EFunLanguage.typescript,
         ...(defaultArgs && { defaultArgs }),
+        ...(inputSchema && { inputSchema }),
         ...(dependencies && { dependencies }),
       })
 
       const { data, error } = await db.services.function.create(func)
       if (error) throw new Exception(500, error.message)
+
+      // Set agent associations via junction table
+      if (data && agentIds?.length) {
+        await db.services.function.setAgents(data.id, agentIds)
+        data.agentIds = agentIds
+      }
+
       res.status(201).json({ data })
     } catch (err) {
       if (err instanceof Exception) throw err

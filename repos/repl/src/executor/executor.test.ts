@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock(`@tdsk/agent`, () => ({
-  PiAgentRunner: {
+  AgentRunner: {
     run: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
 import { LocalAgentExecutor } from './executor'
-import { PiAgentRunner } from '@tdsk/agent'
+import { AgentRunner } from '@tdsk/agent'
 import type { ApiClient } from '@TRL/api'
 
 const makeClient = () =>
@@ -102,7 +102,7 @@ describe(`LocalAgentExecutor`, () => {
         agentId: `agent-1`,
       })
 
-      expect(PiAgentRunner.run).toHaveBeenCalledWith(
+      expect(AgentRunner.run).toHaveBeenCalledWith(
         expect.objectContaining({
           proxyConfig: {
             sessionToken: `sess-abc`,
@@ -112,7 +112,7 @@ describe(`LocalAgentExecutor`, () => {
       )
     })
 
-    it(`should call PiAgentRunner.run with proxyConfig and llmConfig (no apiKey)`, async () => {
+    it(`should call AgentRunner.run with proxyConfig and llmConfig (no apiKey)`, async () => {
       const onEvent = vi.fn()
 
       await executor.run({
@@ -124,7 +124,7 @@ describe(`LocalAgentExecutor`, () => {
         agentId: `agent-1`,
       })
 
-      expect(PiAgentRunner.run).toHaveBeenCalledWith(
+      expect(AgentRunner.run).toHaveBeenCalledWith(
         expect.objectContaining({
           onEvent,
           maxSteps: 10,
@@ -147,7 +147,7 @@ describe(`LocalAgentExecutor`, () => {
       )
 
       // Verify no apiKey in llmConfig
-      const call = (PiAgentRunner.run as any).mock.calls[0][0]
+      const call = (AgentRunner.run as any).mock.calls[0][0]
       expect(call.llmConfig.apiKey).toBeUndefined()
     })
 
@@ -163,7 +163,7 @@ describe(`LocalAgentExecutor`, () => {
         agentId: `agent-1`,
       })
 
-      const call = (PiAgentRunner.run as any).mock.calls[0][0]
+      const call = (AgentRunner.run as any).mock.calls[0][0]
       expect(call.db).toBeDefined()
       expect(typeof call.db.listMessages).toBe(`function`)
       expect(typeof call.db.createMessage).toBe(`function`)

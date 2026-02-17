@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { createSession } from '@TBE/services/sessionStore'
+import { createSession as createStoreSession } from '@TBE/services/sessionStore'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
@@ -17,7 +17,7 @@ import { SecretResolver } from '@TBE/services/secrets/secretResolver'
  * and returns an opaque session token. The client uses this token
  * for subsequent /ai/chat requests without ever receiving the API key.
  */
-export const aiCreateSession: TEndpointConfig = {
+export const createSession: TEndpointConfig = {
   path: `/sessions`,
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
@@ -73,7 +73,7 @@ export const aiCreateSession: TEndpointConfig = {
     }
 
     // Create session with cached config
-    const sessionToken = createSession({
+    const sessionToken = createStoreSession({
       agentId: agent.id,
       orgId: agent.orgId,
       userId,

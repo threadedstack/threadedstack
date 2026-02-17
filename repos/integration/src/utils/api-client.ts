@@ -78,6 +78,10 @@ export const get = <T = unknown>(path: string, opts?: RequestOptions) =>
 export const post = <T = unknown>(path: string, body?: unknown, opts?: RequestOptions) =>
   api<T>(path, { ...opts, method: 'POST', body })
 
+/** PUT shorthand */
+export const put = <T = unknown>(path: string, body?: unknown, opts?: RequestOptions) =>
+  api<T>(path, { ...opts, method: 'PUT', body })
+
 /** DELETE shorthand */
 export const del = <T = unknown>(path: string, opts?: RequestOptions) =>
   api<T>(path, { ...opts, method: 'DELETE' })

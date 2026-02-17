@@ -2,18 +2,19 @@ import { env } from './env'
 import type { SSEEvent } from './sse'
 
 /**
- * Consume an SSE stream from /ai/chat using session-token auth.
+ * Consume an SSE stream from /ai/stream (or legacy /ai/chat) using session-token auth.
  *
  * Unlike the regular SSE helper, this:
  * - Uses `Authorization: Session <token>` (not Bearer API key)
- * - Hits /ai/chat directly (no /_ prefix)
+ * - Hits /ai/stream directly (no /_ prefix)
  */
 export const consumeSessionSSE = async (
   sessionToken: string,
-  body: { messages: unknown[]; tools?: unknown[] },
-  opts?: { timeout?: number }
+  body: { messages?: unknown[]; model?: unknown; context?: unknown; options?: unknown; tools?: unknown[] },
+  opts?: { timeout?: number; path?: string }
 ): Promise<{ events: SSEEvent[]; raw: string }> => {
-  const url = `${env.proxyUrl}/ai/chat`
+  const aiPath = opts?.path ?? '/ai/stream'
+  const url = `${env.proxyUrl}${aiPath}`
   const timeout = opts?.timeout ?? 30_000
 
   const res = await fetch(url, {

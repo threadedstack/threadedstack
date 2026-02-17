@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TApp, TRequest, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { aiCreateSession } from './createSession'
+import { createSession } from './createSession'
 import { EPMethod } from '@TBE/types'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
@@ -95,12 +95,12 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
   })
 
   it(`should have correct endpoint config`, () => {
-    expect(aiCreateSession.path).toBe(`/sessions`)
-    expect(aiCreateSession.method).toBe(EPMethod.Post)
+    expect(createSession.path).toBe(`/sessions`)
+    expect(createSession.method).toBe(EPMethod.Post)
   })
 
   it(`should throw 401 when no userId`, async () => {
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     mockReq.user = undefined as any
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -109,7 +109,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
   })
 
   it(`should throw 400 when no agentId`, async () => {
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     mockReq.body = {}
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -118,7 +118,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
   })
 
   it(`should throw 404 when agent not found`, async () => {
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<typeof vi.fn>
     mockGet.mockResolvedValue({ data: null, error: null })
 
@@ -128,7 +128,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
   })
 
   it(`should throw 404 when provider not found`, async () => {
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
@@ -155,7 +155,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
@@ -184,7 +184,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-key`)
 
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
@@ -213,7 +213,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-google-key`)
 
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
@@ -247,7 +247,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-key`)
 
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
@@ -280,7 +280,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
@@ -328,7 +328,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
 
-    const ep = getEndpointCfg(aiCreateSession as any)
+    const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
