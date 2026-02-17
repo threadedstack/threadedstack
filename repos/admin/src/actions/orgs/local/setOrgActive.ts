@@ -13,5 +13,5 @@ export const setOrgActive = (
     setActiveOrgId(orgId)
   }
 
-  if (navigate) orgId ? nav.to(`/orgs/${orgId}/projects`) : nav.to(`/orgs`)
+  if (navigate) orgId ? nav.to(`/orgs/${orgId}`) : nav.to(`/orgs`)
 }

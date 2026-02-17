@@ -46,11 +46,6 @@
       "@tdsk/domain": ["../domain/src"],
       "@tdsk/domain/*": ["../domain/src/*"],
 
-      "@TWA": ["../wasm/src"],
-      "@TWA/*": ["../wasm/src/*"],
-      "@tdsk/wasm": ["../wasm/src"],
-      "@tdsk/wasm/*": ["../wasm/src/*"],
-
       "@TDB": ["../database/src"],
       "@TDB/*": ["../database/src/*"],
       "@TDB/configs": ["../database/configs"],

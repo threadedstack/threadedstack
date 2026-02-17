@@ -22,7 +22,7 @@ interface QuickstartResult {
 interface FunctionRecord {
   id: string
   name: string
-  agentId: string | null
+  agentIds: string[]
   projectId: string
   [key: string]: unknown
 }
@@ -132,7 +132,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data.agentId).toBe(quickstart!.agent.id)
+    expect(res.data.data.agentIds).toContain(quickstart!.agent.id)
   })
 
   test('creates second function linked to same agent', async (context) => {
@@ -187,9 +187,9 @@ describe('Tier 1: Agent-Functions Relationship', () => {
 
     expect(res1.status).toBe(200)
     expect(res2.status).toBe(200)
-    expect(res1.data.data.agentId).toBe(quickstart!.agent.id)
-    expect(res2.data.data.agentId).toBe(quickstart!.agent.id)
-    expect(res1.data.data.agentId).toBe(res2.data.data.agentId)
+    expect(res1.data.data.agentIds).toContain(quickstart!.agent.id)
+    expect(res2.data.data.agentIds).toContain(quickstart!.agent.id)
+    expect(res1.data.data.agentIds).toEqual(res2.data.data.agentIds)
   })
 
   test('creates unlinked function (no agentId)', async (context) => {
@@ -224,11 +224,11 @@ describe('Tier 1: Agent-Functions Relationship', () => {
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
 
-    const agentId = res.data.data.agentId
-    expect(agentId === null || agentId === undefined).toBe(true)
+    const agentIds = res.data.data.agentIds
+    expect(!agentIds || agentIds.length === 0).toBe(true)
   })
 
-  test('deleting agent cascades to delete linked functions', async (context) => {
+  test('deleting agent removes agent link from functions', async (context) => {
     if (setupFailed || !quickstart || !linkedFunctionId1 || !linkedFunctionId2) {
       context.skip()
       return
@@ -238,17 +238,19 @@ describe('Tier 1: Agent-Functions Relationship', () => {
     const deleteRes = await del(`/orgs/${ctx.orgId}/agents/${quickstart.agent.id}`)
     expect(deleteRes.status).toBe(200)
 
-    // Verify linked functions are gone (cascade delete)
+    // Functions should still exist but no longer be linked to the agent
+    // (junction table rows are cascade-deleted, not the functions themselves)
     const res1 = await get<{ data: FunctionRecord }>(
       `${functionsPath()}/${linkedFunctionId1}`
     )
-    // Expect 404 or 500 (resource not found)
-    expect(res1.ok).toBe(false)
+    expect(res1.status).toBe(200)
+    expect(!res1.data.data.agentIds || res1.data.data.agentIds.length === 0).toBe(true)
 
     const res2 = await get<{ data: FunctionRecord }>(
       `${functionsPath()}/${linkedFunctionId2}`
     )
-    expect(res2.ok).toBe(false)
+    expect(res2.status).toBe(200)
+    expect(!res2.data.data.agentIds || res2.data.data.agentIds.length === 0).toBe(true)
 
     // Mark agent as deleted so afterAll doesn't try to re-delete it
     quickstart.agent.id = ''

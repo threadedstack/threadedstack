@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os'
 
 export interface TestContext {
   orgId: string
-  orgName: string
   apiKey: string
   userId: string
+  agentId: string
+  orgName: string
+  projectId: string
 }
 
 const contextDir = join(tmpdir(), 'tdsk-integration')

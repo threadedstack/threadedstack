@@ -81,5 +81,7 @@ export default async function setup() {
     orgId: env.testOrgId,
     apiKey: env.testApiKey,
     userId: env.testUserId,
+    agentId: env.testAgentId,
+    projectId: env.testProjectId,
   })
 }

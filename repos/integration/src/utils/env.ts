@@ -30,6 +30,11 @@ export const env = {
     return process.env.TDSK_IT_ORG_ID || ''
   },
 
+  /** Project ID to use for tests (required for tier2 UI tests) */
+  get testProjectId() {
+    return process.env.TDSK_IT_PROJECT_ID || ''
+  },
+
   /** User ID associated with the test API key */
   get testUserId() {
     return process.env.TDSK_IT_USER_ID || 'integration-test-user'

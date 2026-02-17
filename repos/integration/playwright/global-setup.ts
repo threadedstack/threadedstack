@@ -27,9 +27,11 @@ export default async function globalSetup() {
   }
 
   writeContext({
-    orgId: env.testOrgId,
     orgName: '',
+    orgId: env.testOrgId,
     apiKey: env.testApiKey,
     userId: env.testUserId,
+    agentId: env.testAgentId,
+    projectId: env.testProjectId,
   })
 }

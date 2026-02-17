@@ -92,7 +92,7 @@ describe('Tier 3: Agent with Custom Functions', () => {
     expect(res.status).toBe(200)
     expect(res.data.data).toBeDefined()
     expect(res.data.data.id).toBe(functionId)
-    expect(res.data.data.agentId).toBe(agentId)
+    expect(res.data.data.agentIds).toContain(agentId)
   })
 
   test('agent run with custom function starts SSE stream', async () => {
