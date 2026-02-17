@@ -55,7 +55,8 @@
       "Bash(bun:*)",
       "Bash(wc:*)",
       "Bash(pgrep:*)",
-      "Bash(npx vitest run:*)"
+      "Bash(npx vitest run:*)",
+      "Bash(grep:*)"
     ]
   },
   "sandbox": {

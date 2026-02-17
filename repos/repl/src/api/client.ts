@@ -1,5 +1,6 @@
 import type { AuthManager } from '@TRL/auth'
 import type { TSessionInfo } from '@TRL/types'
+import { Agent, Thread, Message, Organization } from '@tdsk/domain'
 
 export class ApiClient {
   #auth: AuthManager
@@ -51,22 +52,26 @@ export class ApiClient {
 
   // --- Organizations ---
 
-  async listOrgs(): Promise<unknown[]> {
-    return this.#request<unknown[]>(`/orgs`)
+  async listOrgs(): Promise<Organization[]> {
+    const resp = await this.#request<Organization[]>(`/orgs`)
+    return resp.map((item) => new Organization(item))
   }
 
-  async getOrg(orgId: string): Promise<unknown> {
-    return this.#request(`/orgs/${orgId}`)
+  async getOrg(orgId: string): Promise<Organization> {
+    const resp = await this.#request<Organization>(`/orgs/${orgId}`)
+    return new Organization(resp)
   }
 
   // --- Agents ---
 
-  async listAgents(orgId: string): Promise<unknown[]> {
-    return this.#request<unknown[]>(`/orgs/${orgId}/agents`)
+  async listAgents(orgId: string): Promise<Agent[]> {
+    const resp = await this.#request<unknown[]>(`/orgs/${orgId}/agents`)
+    return resp.map((item) => new Agent(item))
   }
 
-  async getAgent(orgId: string, agentId: string): Promise<unknown> {
-    return this.#request(`/orgs/${orgId}/agents/${agentId}`)
+  async getAgent(orgId: string, agentId: string): Promise<Agent> {
+    const resp = await this.#request<Agent>(`/orgs/${orgId}/agents/${agentId}`)
+    return new Agent(resp)
   }
 
   // --- Sessions ---
@@ -77,18 +82,28 @@ export class ApiClient {
 
   // --- Threads ---
 
-  async listThreads(orgId: string, agentId: string): Promise<unknown[]> {
-    return this.#request<unknown[]>(`/orgs/${orgId}/agents/${agentId}/threads`)
+  async listThreads(orgId: string, agentId: string): Promise<Thread[]> {
+    const resp = await this.#request<unknown[]>(
+      `/orgs/${orgId}/agents/${agentId}/threads`
+    )
+    return resp.map((item) => new Thread(item))
   }
 
-  async getThread(orgId: string, agentId: string, threadId: string): Promise<unknown> {
-    return this.#request(`/orgs/${orgId}/agents/${agentId}/threads/${threadId}`)
+  async getThread(orgId: string, agentId: string, threadId: string): Promise<Thread> {
+    const resp = await this.#request(
+      `/orgs/${orgId}/agents/${agentId}/threads/${threadId}`
+    )
+    return new Thread(resp)
   }
 
-  async createThread(orgId: string, agentId: string, name?: string): Promise<unknown> {
-    return this.#postRequest(`/orgs/${orgId}/agents/${agentId}/threads`, {
-      name: name || `REPL session`,
-    })
+  async createThread(orgId: string, agentId: string, name?: string): Promise<Thread> {
+    const resp = await this.#postRequest<Thread>(
+      `/orgs/${orgId}/agents/${agentId}/threads`,
+      {
+        name: name || `REPL session`,
+      }
+    )
+    return new Thread(resp)
   }
 
   // --- Messages ---
@@ -97,10 +112,11 @@ export class ApiClient {
     orgId: string,
     agentId: string,
     threadId: string
-  ): Promise<unknown[]> {
-    return this.#request<unknown[]>(
+  ): Promise<Message[]> {
+    const resp = await this.#request<Message[]>(
       `/orgs/${orgId}/agents/${agentId}/threads/${threadId}/messages`
     )
+    return resp.map((item) => new Message(item))
   }
 
   async createMessage(
@@ -108,10 +124,11 @@ export class ApiClient {
     agentId: string,
     threadId: string,
     data: { type: string; content: unknown[]; orgId: string }
-  ): Promise<unknown> {
-    return this.#postRequest(
+  ): Promise<Message> {
+    const resp = await this.#postRequest<Message>(
       `/orgs/${orgId}/agents/${agentId}/threads/${threadId}/messages`,
       data
     )
+    return new Message(resp)
   }
 }

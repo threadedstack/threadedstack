@@ -38,11 +38,6 @@ export const AvailableTools = [
     label: `Terminate Sub-Agent`,
     description: `Terminate a sub-agent`,
   },
-  {
-    value: `executeCustomTool`,
-    label: `Custom Tool`,
-    description: `Execute custom user-defined tool`,
-  },
 ] as const
 
 export type TAvailableTool = (typeof AvailableTools)[number][`value`]

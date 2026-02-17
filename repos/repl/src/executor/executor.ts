@@ -1,7 +1,7 @@
 import type { TStreamEvent } from '@tdsk/domain'
 import type { ApiClient, TSessionInfo } from '@TRL/api'
 
-import { AgentRunner, ProxyAdapter } from '@tdsk/agent'
+import { PiAgentRunner } from '@tdsk/agent'
 import { HttpMessageAdapter } from './httpAdapter'
 
 export type TRunResult = {
@@ -13,7 +13,7 @@ export type TRunResult = {
  *
  * 1. Creates a session (backend resolves API key, returns session token)
  * 2. Creates/reuses a thread via backend
- * 3. Runs AgentRunner locally with ProxyAdapter (LLM calls go through backend SSE)
+ * 3. Runs PiAgentRunner locally with proxyConfig (LLM calls go through backend SSE)
  */
 export class LocalAgentExecutor {
   #client: ApiClient
@@ -43,34 +43,30 @@ export class LocalAgentExecutor {
     // 1. Create session (backend resolves API key, returns session token)
     const session = await this.createSession(agentId)
 
-    // 2. Create ProxyAdapter — LLM calls go through backend SSE proxy
-    const adapter = new ProxyAdapter({
-      backendUrl: this.#client.proxyUrl,
-      sessionToken: session.sessionToken,
-      provider: session.provider,
-    })
-
-    // 3. Create or reuse thread
+    // 2. Create or reuse thread
     let threadId = opts.threadId
     if (!threadId) {
-      const thread = (await this.#client.createThread(orgId, agentId)) as { id: string }
+      const thread = await this.#client.createThread(orgId, agentId)
       threadId = thread.id
     }
 
-    // 4. Create HTTP message adapter
+    // 3. Create HTTP message adapter
     const db = new HttpMessageAdapter(this.#client, orgId, agentId)
 
-    // 5. Run agent locally with ProxyAdapter
-    await AgentRunner.run({
+    // 4. Run agent locally — LLM calls go through backend SSE
+    await PiAgentRunner.run({
       db,
       orgId,
       prompt,
       userId,
-      adapter,
       onEvent,
       agentId,
       threadId,
       maxSteps: 10,
+      proxyConfig: {
+        backendUrl: this.#client.proxyUrl,
+        sessionToken: session.sessionToken,
+      },
       llmConfig: {
         model: session.model,
         provider: session.provider,

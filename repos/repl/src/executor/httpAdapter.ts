@@ -1,5 +1,5 @@
 import type { IAgentRunnerDB } from '@tdsk/agent'
-import type { TMessageContent } from '@tdsk/domain'
+import type { Message, TMessageContent } from '@tdsk/domain'
 import type { ApiClient } from '@TRL/api'
 
 /**
@@ -21,16 +21,13 @@ export class HttpMessageAdapter implements IAgentRunnerDB {
     where: { threadId: string }
     limit: number
     offset: number
-  }): Promise<{ data?: Array<{ type: string; content: TMessageContent[] }> }> {
-    const messages = await this.#client.listMessages(
+  }): Promise<{ data?: Message[] }> {
+    const data = await this.#client.listMessages(
       this.#orgId,
       this.#agentId,
       opts.where.threadId
     )
-
-    return {
-      data: (messages || []) as Array<{ type: string; content: TMessageContent[] }>,
-    }
+    return { data: data || [] }
   }
 
   async createMessage(data: {

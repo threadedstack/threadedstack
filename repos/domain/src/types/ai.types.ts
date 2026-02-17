@@ -11,16 +11,16 @@ export type TMsgType = `${EMsgType}`
 export type TAgentEnvVars = Record<string, string>
 
 export type TAgentEnvironment = {
-  /** Execution timeout in milliseconds */
-  timeout?: number
   /** Maximum memory in MB */
   memory?: number
+  /** Execution timeout in milliseconds */
+  timeout?: number
   /** Whether to enable streaming responses */
   streaming?: boolean
-  /** Temperature for response generation */
-  temperature?: number
   /** Maximum retries for API calls */
   maxRetries?: number
+  /** Temperature for response generation */
+  temperature?: number
   /** Agent-specific options */
   options?: Record<string, any>
 }
@@ -130,6 +130,7 @@ export enum EStreamEventType {
   toolResult = `tool_result`,
   toolCallArgs = `tool_call_args`,
   toolCallStart = `tool_call_start`,
+  toolExecutionUpdate = `tool_execution_update`,
 }
 
 export type TStreamEventType = `${EStreamEventType}`
@@ -163,6 +164,12 @@ export type TStreamErrorEvent = {
   type: `${EStreamEventType.error}`
 }
 
+export type TStreamToolExecutionUpdateEvent = {
+  content: string
+  toolUseId: string
+  type: `${EStreamEventType.toolExecutionUpdate}`
+}
+
 export enum EStreamStopReason {
   error = `error`,
   endTurn = `end_turn`,
@@ -178,12 +185,13 @@ export type TStreamDoneEvent = {
 }
 
 export type TStreamEvent =
-  | TStreamTextEvent
-  | TStreamToolCallStartEvent
-  | TStreamToolCallArgsEvent
-  | TStreamToolResultEvent
-  | TStreamErrorEvent
   | TStreamDoneEvent
+  | TStreamErrorEvent
+  | TStreamTextEvent
+  | TStreamToolResultEvent
+  | TStreamToolCallArgsEvent
+  | TStreamToolCallStartEvent
+  | TStreamToolExecutionUpdateEvent
 
 /**
  * Tool definition for LLM providers (JSON Schema format)

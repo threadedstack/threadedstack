@@ -1,10 +1,11 @@
+import type { AuthManager } from '@TRL/auth'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockFetch = vi.fn()
 vi.stubGlobal(`fetch`, mockFetch)
 
 import { ApiClient } from './client'
-import type { AuthManager } from '@TRL/auth'
+import { Agent, Thread, Message, Organization } from '@tdsk/domain'
 
 const makeCreds = () => ({
   apiKey: `tdsk_test123`,
@@ -120,7 +121,7 @@ describe(`ApiClient`, () => {
         `https://proxy.test/_/orgs/org1/agents`,
         expect.any(Object)
       )
-      expect(result).toEqual([{ id: `agent1` }])
+      expect(result[0].id).toEqual(`agent1`)
     })
   })
 
@@ -128,7 +129,7 @@ describe(`ApiClient`, () => {
     it(`should call GET /_/orgs/:orgId/agents/:id`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: async () => ({ data: { id: `agent1`, name: `Bot` } }),
+        json: async () => ({ data: new Agent({ id: `agent1`, name: `Bot` }) }),
       })
 
       const result = await client.getAgent(`org1`, `agent1`)
@@ -137,7 +138,8 @@ describe(`ApiClient`, () => {
         `https://proxy.test/_/orgs/org1/agents/agent1`,
         expect.any(Object)
       )
-      expect(result).toEqual({ id: `agent1`, name: `Bot` })
+      expect(result.id).toEqual(`agent1`)
+      expect(result.name).toEqual(`Bot`)
     })
   })
 
@@ -200,7 +202,7 @@ describe(`ApiClient`, () => {
         `https://proxy.test/_/orgs/org1/agents/agent1/threads`,
         expect.any(Object)
       )
-      expect(result).toEqual([{ id: `t1` }])
+      expect(result[0].id).toEqual(`t1`)
     })
   })
 
@@ -217,7 +219,8 @@ describe(`ApiClient`, () => {
         `https://proxy.test/_/orgs/org1/agents/agent1/threads/t1`,
         expect.any(Object)
       )
-      expect(result).toEqual({ id: `t1`, name: `Chat` })
+      expect(result.id).toEqual(`t1`)
+      expect(result.name).toEqual(`Chat`)
     })
   })
 
@@ -237,7 +240,8 @@ describe(`ApiClient`, () => {
           body: JSON.stringify({ name: `REPL session` }),
         })
       )
-      expect(result).toEqual({ id: `t-new`, name: `REPL session` })
+      expect(result.id).toEqual(`t-new`)
+      expect(result.name).toEqual(`REPL session`)
     })
 
     it(`should use custom name when provided`, async () => {

@@ -278,16 +278,13 @@ tdsk kube secret tdsk                      # Create master key k8s secret
 curl -sf https://local.threadedstack.app/health         # Proxy
 curl -sf https://local.threadedstack.app/_/health        # Backend
 
-# Direct to K8s ports (bypass Caddy)
-curl -sf http://localhost:7118/health                    # Proxy direct
+# Only be use for health checks, all other requests must go through the proxy
 curl -sf http://localhost:5885/_/health                  # Backend direct
+
 ```
 
 ### API Validation
 ```bash
-# Direct backend (trusts X-User-* headers)
-curl -s -H "X-User-Id: test-user" http://localhost:5885/_/orgs
-
 # Through Caddy → Proxy (requires valid JWT)
 curl -s -H "Authorization: Bearer <token>" https://local.threadedstack.app/_/orgs
 ```

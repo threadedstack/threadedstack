@@ -1,28 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock(`@tdsk/agent`, () => ({
-  AgentRunner: {
+  PiAgentRunner: {
     run: vi.fn().mockResolvedValue(undefined),
   },
-  ProxyAdapter: vi.fn().mockImplementation((opts: any) => ({
-    provider: opts.provider,
-    stream: vi.fn(),
-  })),
 }))
 
 import { LocalAgentExecutor } from './executor'
-import { AgentRunner, ProxyAdapter } from '@tdsk/agent'
+import { PiAgentRunner } from '@tdsk/agent'
 import type { ApiClient } from '@TRL/api'
 
 const makeClient = () =>
   ({
     proxyUrl: `https://proxy.test`,
     createSession: vi.fn().mockResolvedValue({
-      sessionToken: `sess-abc`,
-      provider: `anthropic`,
-      model: `claude-sonnet-4-20250514`,
       maxTokens: 4096,
+      provider: `anthropic`,
+      sessionToken: `sess-abc`,
       systemPrompt: `You are helpful`,
+      model: `claude-sonnet-4-20250514`,
     }),
     createThread: vi.fn().mockResolvedValue({ id: `thread-new` }),
     listMessages: vi.fn().mockResolvedValue([]),
@@ -66,11 +62,11 @@ describe(`LocalAgentExecutor`, () => {
       const onEvent = vi.fn()
 
       const result = await executor.run({
+        onEvent,
         orgId: `org-1`,
-        agentId: `agent-1`,
         prompt: `Hello`,
         userId: `user-1`,
-        onEvent,
+        agentId: `agent-1`,
       })
 
       expect(client.createSession).toHaveBeenCalledWith(`agent-1`)
@@ -82,72 +78,76 @@ describe(`LocalAgentExecutor`, () => {
       const onEvent = vi.fn()
 
       const result = await executor.run({
+        onEvent,
         orgId: `org-1`,
-        agentId: `agent-1`,
         prompt: `Hello`,
         userId: `user-1`,
+        agentId: `agent-1`,
         threadId: `existing-thread`,
-        onEvent,
       })
 
       expect(client.createThread).not.toHaveBeenCalled()
       expect(result.threadId).toBe(`existing-thread`)
     })
 
-    it(`should create a ProxyAdapter with session token`, async () => {
+    it(`should pass proxyConfig with backendUrl and sessionToken`, async () => {
       const onEvent = vi.fn()
 
       await executor.run({
+        onEvent,
+        threadId: `t1`,
         orgId: `org-1`,
-        agentId: `agent-1`,
         prompt: `Hello`,
         userId: `user-1`,
-        threadId: `t1`,
-        onEvent,
+        agentId: `agent-1`,
       })
 
-      expect(ProxyAdapter).toHaveBeenCalledWith({
-        backendUrl: `https://proxy.test`,
-        sessionToken: `sess-abc`,
-        provider: `anthropic`,
-      })
+      expect(PiAgentRunner.run).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proxyConfig: {
+            sessionToken: `sess-abc`,
+            backendUrl: `https://proxy.test`,
+          },
+        })
+      )
     })
 
-    it(`should call AgentRunner.run with adapter and llmConfig (no apiKey)`, async () => {
+    it(`should call PiAgentRunner.run with proxyConfig and llmConfig (no apiKey)`, async () => {
       const onEvent = vi.fn()
 
       await executor.run({
+        onEvent,
+        threadId: `t1`,
         orgId: `org-1`,
-        agentId: `agent-1`,
         prompt: `Hello`,
         userId: `user-1`,
-        threadId: `t1`,
-        onEvent,
+        agentId: `agent-1`,
       })
 
-      expect(AgentRunner.run).toHaveBeenCalledWith(
+      expect(PiAgentRunner.run).toHaveBeenCalledWith(
         expect.objectContaining({
-          agentId: `agent-1`,
+          onEvent,
+          maxSteps: 10,
+          orgId: `org-1`,
           threadId: `t1`,
           prompt: `Hello`,
           userId: `user-1`,
-          orgId: `org-1`,
-          adapter: expect.objectContaining({
-            provider: `anthropic`,
-          }),
+          agentId: `agent-1`,
+          proxyConfig: {
+            backendUrl: `https://proxy.test`,
+            sessionToken: `sess-abc`,
+          },
           llmConfig: expect.objectContaining({
-            provider: `anthropic`,
-            model: `claude-sonnet-4-20250514`,
             maxTokens: 4096,
+            provider: `anthropic`,
             systemPrompt: `You are helpful`,
+            model: `claude-sonnet-4-20250514`,
           }),
-          maxSteps: 10,
-          onEvent,
         })
       )
 
       // Verify no apiKey in llmConfig
-      const call = (AgentRunner.run as any).mock.calls[0][0]
+      const call = (PiAgentRunner.run as any).mock.calls[0][0]
       expect(call.llmConfig.apiKey).toBeUndefined()
     })
 
@@ -155,15 +155,15 @@ describe(`LocalAgentExecutor`, () => {
       const onEvent = vi.fn()
 
       await executor.run({
+        onEvent,
+        threadId: `t1`,
         orgId: `org-1`,
-        agentId: `agent-1`,
         prompt: `Hello`,
         userId: `user-1`,
-        threadId: `t1`,
-        onEvent,
+        agentId: `agent-1`,
       })
 
-      const call = (AgentRunner.run as any).mock.calls[0][0]
+      const call = (PiAgentRunner.run as any).mock.calls[0][0]
       expect(call.db).toBeDefined()
       expect(typeof call.db.listMessages).toBe(`function`)
       expect(typeof call.db.createMessage).toBe(`function`)
@@ -177,10 +177,10 @@ describe(`LocalAgentExecutor`, () => {
       await expect(
         executor.run({
           orgId: `org-1`,
-          agentId: `bad-agent`,
           prompt: `Hello`,
           userId: `user-1`,
           onEvent: vi.fn(),
+          agentId: `bad-agent`,
         })
       ).rejects.toThrow(`Session creation failed`)
     })
@@ -191,10 +191,10 @@ describe(`LocalAgentExecutor`, () => {
       await expect(
         executor.run({
           orgId: `org-1`,
-          agentId: `agent-1`,
           prompt: `Hello`,
           userId: `user-1`,
           onEvent: vi.fn(),
+          agentId: `agent-1`,
         })
       ).rejects.toThrow(`Thread creation failed`)
     })

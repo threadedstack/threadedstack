@@ -24,17 +24,16 @@
     "test": "vitest run --config configs/vitest.config.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
-    "@google/genai": "^1.0.0",
     "@keg-hub/jsutils": "^10.0.0",
     "@keg-hub/parse-config": "2.1.0",
+    "@mariozechner/pi-agent-core": "0.52.12",
+    "@mariozechner/pi-ai": "0.52.12",
     "@tdsk/database": "workspace:*",
     "@tdsk/domain": "workspace:*",
     "@tdsk/logger": "workspace:*",
     "@tdsk/sandbox": "workspace:*",
     "alias-hq": "6.2.2",
     "events": "3.3.0",
-    "openai": "^4.77.0",
     "tsx": "4.21.0"
   },
   "devDependencies": {
