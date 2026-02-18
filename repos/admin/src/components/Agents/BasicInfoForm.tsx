@@ -1,33 +1,31 @@
-import { Box, Stack } from '@mui/material'
-import { Text, TextInput, SelectInput } from '@tdsk/components'
+import Box from '@mui/material/Box'
+import { Stack } from '@mui/material'
+import { cls } from '@keg-hub/jsutils/cls'
+import Autocomplete from '@mui/material/Autocomplete'
+import { Text, TextInput, AutoInputText, InputStateHandler } from '@tdsk/components'
 
 export type TBasicInfoFormProps = {
   name: string
   loading: boolean
   description: string
-  providerId: string | null
+  providerIds: string[]
   onNameChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   aiProviders: Array<{ id: string; name: string }>
-  onProviderChange: (providerId: string | null) => void
+  onProviderChange: (providerIds: string[]) => void
 }
 
 export const BasicInfoForm = (props: TBasicInfoFormProps) => {
   const {
     name,
     loading,
-    providerId,
+    providerIds,
     aiProviders,
     description,
     onNameChange,
     onProviderChange,
     onDescriptionChange,
   } = props
-
-  const providerOptions = aiProviders.map((provider) => ({
-    label: provider.name,
-    value: provider.id,
-  }))
 
   return (
     <Box>
@@ -62,21 +60,36 @@ export const BasicInfoForm = (props: TBasicInfoFormProps) => {
           onChange={(e) => onDescriptionChange(e.target.value)}
         />
 
-        <SelectInput
-          required
-          fullWidth
+        <InputStateHandler
+          id='agent-providers'
           disabled={loading}
-          label='AI Provider'
-          id='agent-provider'
-          value={providerId || ''}
-          items={
-            aiProviders.length === 0
-              ? [{ label: 'No AI providers available. Create one first.', value: '' }]
-              : providerOptions
+          label='AI Providers'
+          description={
+            loading
+              ? 'Loading providers...'
+              : aiProviders.length === 0
+                ? 'No AI providers available. Create a provider first.'
+                : 'Select AI providers for this agent (first selected is primary)'
           }
-          description='The AI provider to use for this agent'
-          onChange={(e) => onProviderChange(e.target.value)}
-        />
+        >
+          <Autocomplete
+            multiple
+            id='agent-providers'
+            className={cls('tdsk-auto-input', loading && 'disabled')}
+            value={providerIds}
+            options={aiProviders.map((p) => p.id)}
+            getOptionLabel={(id) => aiProviders.find((p) => p.id === id)?.name || id}
+            onChange={(_, updates) => onProviderChange(updates)}
+            disabled={loading || aiProviders.length === 0}
+            renderInput={(params) => (
+              <AutoInputText
+                {...params}
+                sx={{ padding: '0px' }}
+                placeholder='Select providers...'
+              />
+            )}
+          />
+        </InputStateHandler>
       </Stack>
     </Box>
   )

@@ -10,10 +10,10 @@ import { CreateThreadDrawer } from '@TAF/components/AI/CreateThreadDrawer'
 import {
   useAgents,
   useThreads,
+  useProviders,
   useActiveOrgId,
   useActiveAgentId,
   useActiveThreadId,
-  useActiveProjectId,
 } from '@TAF/state/selectors'
 import {
   Box,
@@ -25,7 +25,6 @@ import {
   TableCell,
   TableBody,
   TableHead,
-  TextField,
   Typography,
   IconButton,
   TableContainer,
@@ -45,11 +44,11 @@ export type TThreadsTab = {
 export const ThreadsTab = (props: TThreadsTab) => {
   const { onSwitchToMessages } = props
   const [orgId] = useActiveOrgId()
-  const [projectId] = useActiveProjectId()
   const [agents] = useAgents()
   const [threads] = useThreads()
+  const [providers] = useProviders()
   const [, setActiveThreadId] = useActiveThreadId()
-  const [activeAgentId, setActiveAgentId] = useActiveAgentId()
+  const [activeAgentId] = useActiveAgentId()
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,12 +60,7 @@ export const ThreadsTab = (props: TThreadsTab) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null)
 
-  const projectAgents = useMemo(() => {
-    if (!agents || !projectId) return []
-    return Object.values(agents).filter(
-      (agent) => agent.projects?.some((p) => p.id === projectId) || agent.orgId === orgId
-    )
-  }, [agents, projectId, orgId])
+  const agent = activeAgentId ? agents?.[activeAgentId] : undefined
 
   useEffect(() => {
     const loadData = async () => {
@@ -111,6 +105,14 @@ export const ThreadsTab = (props: TThreadsTab) => {
     return Object.values(threads).filter((thread) => thread.agentId === activeAgentId)
       .length
   }, [threads, activeAgentId])
+
+  const getProviderName = (thread: Thread) => {
+    if (thread.providerId && providers) {
+      const provider = providers[thread.providerId]
+      if (provider) return provider.name
+    }
+    return agent?.primaryProvider?.name || '-'
+  }
 
   const onCreateThread = () => {
     setCreateDialogOpen(true)
@@ -165,40 +167,9 @@ export const ThreadsTab = (props: TThreadsTab) => {
     onSwitchToMessages?.()
   }
 
-  if (!activeAgentId && projectAgents.length > 0) {
+  if (!activeAgentId) {
     return (
-      <Box sx={{ p: 2 }}>
-        <Typography
-          variant='body1'
-          sx={{ mb: 2 }}
-        >
-          Select an agent to view its threads:
-        </Typography>
-        <TextField
-          select
-          fullWidth
-          label='Agent'
-          value=''
-          onChange={(e) => setActiveAgentId(e.target.value)}
-          SelectProps={{ native: true }}
-        >
-          <option value=''>-- Select Agent --</option>
-          {projectAgents.map((agent) => (
-            <option
-              key={agent.id}
-              value={agent.id}
-            >
-              {agent.name}
-            </option>
-          ))}
-        </TextField>
-      </Box>
-    )
-  }
-
-  if (projectAgents.length === 0) {
-    return (
-      <EmptyState message='No agents found. Create an agent first to manage threads.' />
+      <EmptyState message='No agent selected. Navigate to an agent to view its threads.' />
     )
   }
 
@@ -217,27 +188,6 @@ export const ThreadsTab = (props: TThreadsTab) => {
       actionLabel='Create Thread'
       searchPlaceholder='Search threads by name or ID...'
     >
-      <Box sx={{ mb: 2 }}>
-        <TextField
-          select
-          size='small'
-          label='Agent'
-          value={activeAgentId}
-          onChange={(e) => setActiveAgentId(e.target.value)}
-          SelectProps={{ native: true }}
-          sx={{ minWidth: 200 }}
-        >
-          {projectAgents.map((agent) => (
-            <option
-              key={agent.id}
-              value={agent.id}
-            >
-              {agent.name}
-            </option>
-          ))}
-        </TextField>
-      </Box>
-
       {success && (
         <Alert
           severity='success'
@@ -327,8 +277,18 @@ export const ThreadsTab = (props: TThreadsTab) => {
                       variant='body2'
                       sx={{ fontSize: '0.75rem' }}
                     >
-                      {agents?.[activeAgentId]?.provider?.name || '-'}
+                      {getProviderName(thread)}
                     </Typography>
+                    {thread.providerId &&
+                      thread.providerId !== agent?.primaryProvider?.id && (
+                        <Typography
+                          variant='caption'
+                          color='info.main'
+                          sx={{ display: 'block', fontSize: '0.65rem' }}
+                        >
+                          override
+                        </Typography>
+                      )}
                   </TableCell>
                   <TableCell>
                     <Typography variant='body2'>

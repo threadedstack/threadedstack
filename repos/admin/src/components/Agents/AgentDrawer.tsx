@@ -2,7 +2,6 @@ import type { TKeyValuePair } from '@TAF/types'
 import type { Agent, Secret, Function as FunctionModel } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
-import { cls } from '@keg-hub/jsutils/cls'
 import { Code } from '@TAF/components/Code'
 import { MonacoOptions } from '@TAF/constants/monaco'
 import { fetchProviders } from '@TAF/actions/providers'
@@ -15,19 +14,14 @@ import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { Box, Stack, Divider, Typography, Autocomplete } from '@mui/material'
-import {
-  Drawer,
-  DrawerActions,
-  ConfirmDelete,
-  AutoInputText,
-  InputStateHandler,
-} from '@tdsk/components'
+import { Box, Stack, Divider, Typography } from '@mui/material'
+import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import {
   BasicInfoForm,
   ToolsSelector,
   SecretsSelector,
   ModelConfigForm,
+  FunctionsSelector,
   AgentSettingsForm,
 } from '@TAF/components/Agents'
 
@@ -71,7 +65,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [temperature, setTemperature] = useState(0.7)
   const [systemPrompt, setSystemPrompt] = useState('')
   const [envVars, setEnvVars] = useState<TKeyValuePair[]>([])
-  const [providerId, setProviderId] = useState<string | null>(null)
+  const [providerIds, setProviderIds] = useState<string[]>([])
   const [selectedTools, setSelectedTools] = useState<string[]>([])
   const [selectedSecrets, setSelectedSecrets] = useState<string[]>([])
 
@@ -120,7 +114,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setActive(agent.active ?? true)
       setSelectedTools(agent.tools || [])
       setDescription(agent.description || '')
-      setProviderId(agent.providerId || null)
+      setProviderIds(agent.providers?.map((p) => p.id) || [])
       setMaxTokens(agent.maxTokens || 100000)
       setSystemPrompt(agent.systemPrompt || '')
       setStreaming(agent.environment?.streaming ?? true)
@@ -149,7 +143,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setActive(true)
       setDescription('')
       setStreaming(true)
-      setProviderId(null)
+      setProviderIds([])
       setSystemPrompt('')
       setTemperature(0.7)
       setMaxTokens(100000)
@@ -168,7 +162,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
-    if (!providerId) return setError(`Provider is required`)
+    if (!providerIds.length) return setError(`At least one provider is required`)
     if (!name.trim()) return setError(`Agent name is required`)
 
     try {
@@ -188,7 +182,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         model,
         active,
         maxTokens,
-        providerId,
+        providerIds,
         description,
         systemPrompt,
         envVars: envVarsObj,
@@ -285,10 +279,10 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             name={name}
             loading={loading}
             onNameChange={setName}
-            providerId={providerId}
+            providerIds={providerIds}
             aiProviders={aiProviders}
             description={description}
-            onProviderChange={setProviderId}
+            onProviderChange={setProviderIds}
             onDescriptionChange={setDescription}
           />
 
@@ -334,38 +328,12 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
           <Divider />
 
-          <InputStateHandler
-            id='agent-functions'
-            label='Custom Functions'
-            disabled={loading || availableFunctions.length === 0}
-            description={
-              loading
-                ? `Loading functions...`
-                : availableFunctions.length === 0
-                  ? `No functions available. Create a function first.`
-                  : `Select functions to attach as tools for this agent`
-            }
-          >
-            <Autocomplete
-              multiple
-              id='agent-functions'
-              className={cls(`tdsk-auto-input`, loading && `disabled`)}
-              value={selectedFunctionIds}
-              options={availableFunctions.map((f) => f.id)}
-              getOptionLabel={(id) =>
-                availableFunctions.find((f) => f.id === id)?.name || id
-              }
-              onChange={(_, updates) => setSelectedFunctionIds(updates)}
-              disabled={loading || availableFunctions.length === 0}
-              renderInput={(params) => (
-                <AutoInputText
-                  {...params}
-                  sx={{ padding: `0px` }}
-                  placeholder='Select functions...'
-                />
-              )}
-            />
-          </InputStateHandler>
+          <FunctionsSelector
+            loading={loading}
+            onChange={setSelectedFunctionIds}
+            selectedFunctionIds={selectedFunctionIds}
+            availableFunctions={availableFunctions}
+          />
 
           <Divider />
 

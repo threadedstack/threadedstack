@@ -1,37 +1,33 @@
 import { toast } from 'sonner'
 import type { Agent } from '@tdsk/domain'
+import type { TDataTableColumn } from '@TAF/components'
+
 import { Page } from '@TAF/pages/Page/Page'
-import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
-import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
-import { useState, useEffect } from 'react'
+import { nav } from '@TAF/services/nav'
 import { ConfirmDelete } from '@tdsk/components'
+import { useState, useEffect, useMemo } from 'react'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
+import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
+import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
+import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import { fetchProviders } from '@TAF/actions/providers'
 import {
   useActiveOrgId,
   useActiveProjectId,
   useAgents,
   useProviders,
 } from '@TAF/state/selectors'
-import { fetchProviders } from '@TAF/actions/providers'
-import { nav } from '@TAF/services/nav'
+import { Box, Chip, Typography } from '@mui/material'
 import {
   Add as AddIcon,
   Chat as ChatIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  SmartToy as AgentIcon,
 } from '@mui/icons-material'
-import {
-  Box,
-  Card,
-  Chip,
-  Stack,
-  IconButton,
-  Typography,
-  CardContent,
-  CardActions,
-} from '@mui/material'
 
 export type TProjectAgents = {}
 
@@ -42,6 +38,7 @@ export const ProjectAgents = (props: TProjectAgents) => {
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null)
@@ -55,10 +52,28 @@ export const ProjectAgents = (props: TProjectAgents) => {
   }, [orgId])
 
   const getProviderName = (providerId: string) => {
-    if (!providers || !providerId) return providerId
+    if (!providers || !providerId) return '-'
     const provider = providers[providerId]
-    return provider?.name || providerId
+    return provider?.name || '-'
   }
+
+  const agentsList = useMemo(() => {
+    const list = Object.values(agents || {}).filter((agent) => agent.orgId === orgId)
+    if (!searchQuery.trim()) return list
+
+    const query = searchQuery.toLowerCase()
+    return list.filter(
+      (agent) =>
+        agent.name?.toLowerCase().includes(query) ||
+        agent.description?.toLowerCase().includes(query) ||
+        agent.model?.toLowerCase().includes(query)
+    )
+  }, [agents, orgId, searchQuery])
+
+  const totalCount = useMemo(
+    () => Object.values(agents || {}).filter((agent) => agent.orgId === orgId).length,
+    [agents, orgId]
+  )
 
   const onOpenCreate = () => {
     setEditingAgent(null)
@@ -104,20 +119,151 @@ export const ProjectAgents = (props: TProjectAgents) => {
     }
   }
 
+  const onRowClick = (agent: Agent) => {
+    nav.to(`/orgs/${orgId}/projects/${projectId}/agents/${agent.id}`)
+  }
+
   if (!orgId || !projectId) return null
 
-  const agentsList = Object.values(agents || {}).filter((agent) => agent.orgId === orgId)
+  const columns: TDataTableColumn<Agent>[] = [
+    {
+      id: 'name',
+      label: 'Name',
+      render: (agent) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <AgentIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+          <Box>
+            <Typography
+              variant='body2'
+              fontWeight='medium'
+            >
+              {agent.name}
+            </Typography>
+            {agent.description && (
+              <Typography
+                variant='caption'
+                color='text.secondary'
+                sx={{
+                  display: 'block',
+                  maxWidth: 300,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {agent.description}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      ),
+    },
+    {
+      id: 'provider',
+      label: 'Provider',
+      render: (agent) => (
+        <Typography
+          variant='body2'
+          color='text.secondary'
+        >
+          {agent.primaryProvider?.name || '-'}
+        </Typography>
+      ),
+    },
+    {
+      id: 'model',
+      label: 'Model',
+      render: (agent) => (
+        <Typography
+          variant='body2'
+          fontFamily='monospace'
+          color='text.secondary'
+          sx={{ fontSize: '0.75rem' }}
+        >
+          {agent.model || '-'}
+        </Typography>
+      ),
+    },
+    {
+      id: 'status',
+      label: 'Status',
+      render: (agent) => (
+        <Chip
+          label={agent.active ? 'Active' : 'Inactive'}
+          size='small'
+          color={agent.active ? 'success' : 'default'}
+          variant={agent.active ? 'filled' : 'outlined'}
+        />
+      ),
+    },
+    {
+      id: 'tools',
+      label: 'Tools',
+      render: (agent) => (
+        <Typography
+          variant='body2'
+          color='text.secondary'
+        >
+          {agent.tools?.length || 0}
+        </Typography>
+      ),
+    },
+    {
+      id: 'actions',
+      label: 'Actions',
+      align: 'right',
+      render: (agent) => (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+          <ActionIconButton
+            tooltip='Chat with agent'
+            icon={<ChatIcon fontSize='small' />}
+            size='small'
+            color='info'
+            onClick={(e) => {
+              e.stopPropagation()
+              nav.to(`/orgs/${orgId}/projects/${projectId}/agents/${agent.id}/chat`)
+            }}
+          />
+          <ActionIconButton
+            tooltip='Edit agent'
+            icon={<EditIcon fontSize='small' />}
+            size='small'
+            color='primary'
+            onClick={(e) => {
+              e.stopPropagation()
+              onOpenEdit(agent)
+            }}
+          />
+          <ActionIconButton
+            tooltip='Delete agent'
+            icon={<DeleteIcon fontSize='small' />}
+            size='small'
+            color='error'
+            onClick={(e) => {
+              e.stopPropagation()
+              onDeleteClick(agent)
+            }}
+          />
+        </Box>
+      ),
+    },
+  ]
 
   return (
     <Page className='tdsk-project-agents-page'>
       <PageLayout
         title='AI Agents'
         countLabel='agent'
-        count={agentsList.length}
+        count={totalCount}
+        loading={loading}
+        query={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchPlaceholder='Search agents by name, description, or model...'
+        searchCount={0}
         onAction={onOpenCreate}
         actionLabel='Create Agent'
       >
-        {agentsList.length === 0 && (
+        {totalCount === 0 && (
           <EmptyState
             actionIcon={<AddIcon />}
             onAction={onOpenCreate}
@@ -126,218 +272,17 @@ export const ProjectAgents = (props: TProjectAgents) => {
           />
         )}
 
+        {totalCount > 0 && agentsList.length === 0 && (
+          <EmptyState message='No agents match your search criteria.' />
+        )}
+
         {agentsList.length > 0 && (
-          <Stack spacing={2}>
-            {agentsList.map((agent) => (
-              <Card key={agent.id}>
-                <CardContent>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      mb: 2,
-                    }}
-                  >
-                    <Box>
-                      <Typography
-                        variant='h6'
-                        gutterBottom
-                        sx={{
-                          cursor: 'pointer',
-                          '&:hover': {
-                            color: 'primary.main',
-                            textDecoration: 'underline',
-                          },
-                        }}
-                        onClick={() =>
-                          nav.to(
-                            `/orgs/${orgId}/projects/${projectId}/agents/${agent.id}`
-                          )
-                        }
-                      >
-                        {agent.name}
-                      </Typography>
-                      {agent.description && (
-                        <Typography
-                          variant='body2'
-                          color='text.secondary'
-                        >
-                          {agent.description}
-                        </Typography>
-                      )}
-                    </Box>
-                    <Stack
-                      direction='row'
-                      spacing={1}
-                    >
-                      <Chip
-                        label={agent.active ? 'Active' : 'Inactive'}
-                        color={agent.active ? 'success' : 'default'}
-                        size='small'
-                      />
-                      {agent.providerId && (
-                        <Chip
-                          label={getProviderName(agent.providerId)}
-                          variant='outlined'
-                          size='small'
-                        />
-                      )}
-                    </Stack>
-                  </Box>
-
-                  <Stack
-                    spacing={2}
-                    sx={{ mt: 2 }}
-                  >
-                    {agent.model && (
-                      <Box>
-                        <Typography
-                          variant='caption'
-                          color='text.secondary'
-                        >
-                          Model
-                        </Typography>
-                        <Typography variant='body2'>{agent.model}</Typography>
-                      </Box>
-                    )}
-
-                    {agent.systemPrompt && (
-                      <Box>
-                        <Typography
-                          variant='caption'
-                          color='text.secondary'
-                        >
-                          System Prompt
-                        </Typography>
-                        <Typography
-                          variant='body2'
-                          sx={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                          }}
-                        >
-                          {agent.systemPrompt}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {agent.tools && agent.tools.length > 0 && (
-                      <Box>
-                        <Typography
-                          variant='caption'
-                          color='text.secondary'
-                          gutterBottom
-                          display='block'
-                        >
-                          Tools ({agent.tools.length})
-                        </Typography>
-                        <Stack
-                          direction='row'
-                          spacing={1}
-                          flexWrap='wrap'
-                        >
-                          {agent.tools.map((tool) => (
-                            <Chip
-                              key={tool}
-                              label={tool}
-                              size='small'
-                              variant='outlined'
-                            />
-                          ))}
-                        </Stack>
-                      </Box>
-                    )}
-
-                    {agent.secrets && agent.secrets.length > 0 && (
-                      <Box>
-                        <Typography
-                          variant='caption'
-                          color='text.secondary'
-                          gutterBottom
-                          display='block'
-                        >
-                          Secrets ({agent.secrets.length})
-                        </Typography>
-                        <Stack
-                          direction='row'
-                          spacing={1}
-                          flexWrap='wrap'
-                        >
-                          {agent.secrets.map((secret) => (
-                            <Chip
-                              key={secret.id}
-                              label={secret.name || secret.hashKey}
-                              size='small'
-                              variant='outlined'
-                              color='primary'
-                            />
-                          ))}
-                        </Stack>
-                      </Box>
-                    )}
-
-                    {agent.envVars && Object.keys(agent.envVars).length > 0 && (
-                      <Box>
-                        <Typography
-                          variant='caption'
-                          color='text.secondary'
-                          gutterBottom
-                          display='block'
-                        >
-                          Environment Variables ({Object.keys(agent.envVars).length})
-                        </Typography>
-                        <Stack
-                          direction='row'
-                          spacing={1}
-                          flexWrap='wrap'
-                        >
-                          {Object.keys(agent.envVars).map((key) => (
-                            <Chip
-                              key={key}
-                              label={key}
-                              size='small'
-                              variant='outlined'
-                            />
-                          ))}
-                        </Stack>
-                      </Box>
-                    )}
-                  </Stack>
-                </CardContent>
-                <CardActions>
-                  <IconButton
-                    size='small'
-                    color='primary'
-                    title='Chat with agent'
-                    onClick={() =>
-                      nav.to(
-                        `/orgs/${orgId}/projects/${projectId}/agents/${agent.id}/chat`
-                      )
-                    }
-                  >
-                    <ChatIcon fontSize='small' />
-                  </IconButton>
-                  <IconButton
-                    size='small'
-                    onClick={() => onOpenEdit(agent)}
-                  >
-                    <EditIcon fontSize='small' />
-                  </IconButton>
-                  <IconButton
-                    size='small'
-                    color='error'
-                    onClick={() => onDeleteClick(agent)}
-                  >
-                    <DeleteIcon fontSize='small' />
-                  </IconButton>
-                </CardActions>
-              </Card>
-            ))}
-          </Stack>
+          <DataTable
+            columns={columns}
+            data={agentsList}
+            getRowKey={(agent) => agent.id}
+            onRowClick={onRowClick}
+          />
         )}
 
         {orgId && projectId && (

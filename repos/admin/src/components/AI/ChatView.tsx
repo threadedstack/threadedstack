@@ -152,6 +152,9 @@ export const ChatView = (props: TChatViewProps) => {
             display: `flex`,
             flexDirection: `column`,
             gap: 2,
+            maxWidth: 900,
+            mx: `auto`,
+            width: `100%`,
           }}
         >
           {messages.length === 0 && (

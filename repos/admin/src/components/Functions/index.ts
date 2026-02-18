@@ -1,5 +1,3 @@
 export * from './Functions'
 export * from './NoFunctions'
-export * from './FunctionCard'
-export * from './FunctionsGrid'
 export * from './FunctionDrawer'

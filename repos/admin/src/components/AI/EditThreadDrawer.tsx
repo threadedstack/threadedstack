@@ -1,17 +1,15 @@
 import type { Thread } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
 import { useProviders } from '@TAF/state/selectors'
-import { Close as CloseIcon } from '@mui/icons-material'
 import { Loading, Drawer, DrawerActions } from '@tdsk/components'
 import { updateThread } from '@TAF/actions/threads/api/updateThread'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
-  Box,
+  Stack,
   Alert,
   Switch,
   TextField,
   Typography,
-  IconButton,
   FormControlLabel,
 } from '@mui/material'
 
@@ -42,7 +40,7 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
   }, [thread])
 
   const availableProviders = Object.values(providers || {}).filter(
-    (provider) => !thread || provider.orgId === thread.orgId
+    (provider) => provider.type === 'ai' && (!thread || provider.orgId === thread.orgId)
   )
 
   const onClose = () => {
@@ -90,6 +88,7 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
     <Drawer
       open={open}
       onClose={onClose}
+      title='Edit Thread'
       actions={
         <DrawerActions
           editing={true}
@@ -100,42 +99,21 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
         />
       }
     >
-      <Box sx={{ width: 400, p: 3 }}>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            mb: 3,
-          }}
-        >
-          <Typography variant='h6'>Edit Thread</Typography>
-          <IconButton
-            onClick={onClose}
-            disabled={loading}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Box>
+      {loading && <Loading />}
 
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <Loading />
-          </Box>
-        )}
+      {!loading && (
+        <>
+          {error && (
+            <Alert
+              color='error'
+              sx={{ mb: 2 }}
+            >
+              {error}
+            </Alert>
+          )}
 
-        {!loading && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {error && (
-              <Alert
-                color='error'
-                sx={{ mb: 2 }}
-              >
-                {error}
-              </Alert>
-            )}
-
-            <form id='edit-thread-form'>
+          <form id='edit-thread-form'>
+            <Stack spacing={3}>
               <TextField
                 label='Thread Name'
                 value={name}
@@ -146,7 +124,7 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
               />
 
               <TextField
-                label='AI Provider (Optional)'
+                label='AI Provider'
                 value={selectedProviderId}
                 onChange={(e) => setSelectedProviderId(e.target.value)}
                 fullWidth
@@ -155,13 +133,13 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
                   native: true,
                 }}
               >
-                <option value=''>None</option>
+                <option value=''>None (use agent's primary provider)</option>
                 {availableProviders.map((provider) => (
                   <option
                     key={provider.id}
                     value={provider.id}
                   >
-                    {provider.name} ({provider.type})
+                    {provider.name}
                   </option>
                 ))}
               </TextField>
@@ -182,10 +160,10 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
               >
                 Thread ID: {thread.id}
               </Typography>
-            </form>
-          </Box>
-        )}
-      </Box>
+            </Stack>
+          </form>
+        </>
+      )}
     </Drawer>
   )
 }

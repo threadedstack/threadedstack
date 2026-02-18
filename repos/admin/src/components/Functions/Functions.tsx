@@ -1,18 +1,21 @@
 import type { Function as FunctionModel } from '@tdsk/domain'
+import type { TDataTableColumn } from '@TAF/components'
 
-import { Box } from '@mui/material'
 import { ife } from '@keg-hub/jsutils/ife'
 import { ConfirmDelete } from '@tdsk/components'
 import { useEffect, useState, useMemo } from 'react'
+import { Box, Chip, Typography } from '@mui/material'
+import { EmptyState, DataTable } from '@TAF/components'
 import { useActiveProjectId } from '@TAF/state/selectors'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { NoFunctions } from '@TAF/components/Functions/NoFunctions'
 import { useFunctions, useActiveOrgId } from '@TAF/state/selectors'
-import { SearchBar, EmptyState, FilterSelect } from '@TAF/components'
 import { deleteFunction } from '@TAF/actions/functions/deleteFunction'
 import { fetchFunctions } from '@TAF/actions/functions/fetchFunctions'
-import { FunctionsGrid } from '@TAF/components/Functions/FunctionsGrid'
 import { FunctionDrawer } from '@TAF/components/Functions/FunctionDrawer'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+
+import { Code as CodeIcon, Delete as DeleteIcon } from '@mui/icons-material'
 
 export type TFunctions = {}
 
@@ -83,8 +86,8 @@ export const Functions = (props: TFunctions) => {
     ? Object.values(functions).filter((f) => f.projectId === projectId).length
     : 0
 
-  const onDelete = (id: string, name: string) => {
-    setFunctionToDelete({ id, name })
+  const onDelete = (func: FunctionModel) => {
+    setFunctionToDelete({ id: func.id, name: func.name })
     setDeleteDialogOpen(true)
   }
 
@@ -116,48 +119,108 @@ export const Functions = (props: TFunctions) => {
     setDialogOpen(true)
   }
 
+  const columns: TDataTableColumn<FunctionModel>[] = [
+    {
+      id: 'name',
+      label: 'Name',
+      render: (func) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CodeIcon sx={{ color: 'text.secondary' }} />
+          <Typography
+            variant='body2'
+            fontWeight='medium'
+          >
+            {func.name}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      id: 'language',
+      label: 'Language',
+      render: (func) => (
+        <Chip
+          label={func.language}
+          size='small'
+          color='primary'
+          variant='outlined'
+        />
+      ),
+    },
+    {
+      id: 'endpoint',
+      label: 'Endpoint',
+      render: (func) => (
+        <Typography
+          variant='body2'
+          fontFamily='monospace'
+          color='text.secondary'
+        >
+          {func.endpointId || '—'}
+        </Typography>
+      ),
+    },
+    {
+      id: 'createdAt',
+      label: 'Created',
+      render: (func) => (
+        <Typography
+          variant='body2'
+          color='text.secondary'
+        >
+          {func.createdAt ? new Date(func.createdAt).toLocaleDateString() : '—'}
+        </Typography>
+      ),
+    },
+    {
+      id: 'actions',
+      label: 'Actions',
+      align: 'right',
+      render: (func) => (
+        <ActionIconButton
+          tooltip='Delete function'
+          icon={<DeleteIcon />}
+          size='small'
+          color='error'
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(func)
+          }}
+        />
+      ),
+    },
+  ]
+
   return (
     <PageLayout
       loading={loading}
       title='Functions'
       count={functionsCount}
       countLabel='function'
-      onAction={onCreate}
-      actionLabel='Create Function'
+      query={searchQuery}
+      setSearchQuery={setSearchQuery}
+      searchPlaceholder='Search functions by name...'
+      searchCount={0}
+      onAction={functionsCount > 0 && onCreate}
+      actionLabel={functionsCount > 0 && 'Create Function'}
+      filterLabel='Language'
+      filterValue={languageFilter}
+      filterAllLabel='All Languages'
+      filterOpts={languageFilterOptions.length > 1 ? languageFilterOptions : undefined}
+      onFilter={languageFilterOptions.length > 1 ? setLanguageFilter : undefined}
     >
-      {!loading && functionsCount > 0 && (
-        <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            sx={{ flex: 1, minWidth: 200 }}
-            placeholder='Search functions by name...'
-          />
-          {languageFilterOptions.length > 1 && (
-            <FilterSelect
-              label='Language'
-              id='language-filter'
-              value={languageFilter}
-              allLabel='All Languages'
-              sx={{ minWidth: `140px` }}
-              onChange={setLanguageFilter}
-              options={languageFilterOptions}
-            />
-          )}
-        </Box>
-      )}
+      {functionsCount === 0 && <NoFunctions onCreate={onCreate} />}
 
-      {!loading && functionsCount === 0 && <NoFunctions onCreate={onCreate} />}
-
-      {!loading && functionsCount > 0 && filteredFunctions.length === 0 && (
+      {functionsCount > 0 && filteredFunctions.length === 0 && (
         <EmptyState message='No functions match your search or filter criteria.' />
       )}
 
-      {!loading && filteredFunctions.length > 0 && (
-        <FunctionsGrid
-          functions={filteredFunctions}
-          onEdit={onEdit}
-          onDelete={onDelete}
+      {filteredFunctions.length > 0 && (
+        <DataTable
+          columns={columns}
+          data={filteredFunctions}
+          getRowKey={(func) => func.id}
+          onRowClick={onEdit}
         />
       )}
 

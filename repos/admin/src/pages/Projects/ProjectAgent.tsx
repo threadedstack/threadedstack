@@ -224,7 +224,7 @@ export const ProjectAgent = (props: TProjectAgent) => {
       </AgentSection>
 
       <AgentSection title='LLM Configuration'>
-        {agent.provider && (
+        {agent.primaryProvider && (
           <Box sx={{ mb: 2 }}>
             <Typography
               variant='subtitle2'
@@ -232,7 +232,7 @@ export const ProjectAgent = (props: TProjectAgent) => {
             >
               Provider
             </Typography>
-            <Typography variant='body1'>{agent.provider.name}</Typography>
+            <Typography variant='body1'>{agent.primaryProvider.name}</Typography>
           </Box>
         )}
 

@@ -398,7 +398,6 @@ describe(`ProjectNavItems`, () => {
         `Functions`,
         `Secrets`,
         `Agents`,
-        `Threads`,
         `Domains`,
         `Settings`,
       ]
