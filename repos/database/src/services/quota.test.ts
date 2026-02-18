@@ -185,23 +185,22 @@ describe(`Quota service`, () => {
       expect(mocks.selectWhereFn).toHaveBeenCalledOnce()
     })
 
-    it(`should return error when quota is not found`, async () => {
+    it(`should return null data when quota is not found`, async () => {
       mocks.selectWhereFn.mockResolvedValue([])
 
       const result = await service.getUsage(`org-missing`, `2025-01`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`Quota not found`)
-      expect(result.data).toBeUndefined()
+      expect(result.data).toBeNull()
+      expect(result.error).toBeUndefined()
     })
 
-    it(`should return error when the result is undefined`, async () => {
+    it(`should return null data when the result is undefined`, async () => {
       mocks.selectWhereFn.mockResolvedValue([undefined])
 
       const result = await service.getUsage(`org-1`, `2025-01`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`Quota not found`)
+      expect(result.data).toBeNull()
+      expect(result.error).toBeUndefined()
     })
 
     it(`should return error on DB exception`, async () => {
@@ -229,13 +228,13 @@ describe(`Quota service`, () => {
       expect(result.data._isModel).toBe(true)
     })
 
-    it(`should return error when getUsage returns error`, async () => {
+    it(`should return null data when getUsage finds no record`, async () => {
       mocks.selectWhereFn.mockResolvedValue([])
 
       const result = await service.findByOrgAndPeriod(`org-missing`, `2025-01`)
 
-      expect(result.error).toBeDefined()
-      expect(result.error.message).toBe(`Quota not found`)
+      expect(result.data).toBeNull()
+      expect(result.error).toBeUndefined()
     })
   })
 

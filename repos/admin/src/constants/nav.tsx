@@ -2,22 +2,24 @@ import type { TNavItem, TNavCtx } from '@TAF/types'
 
 import { ERoutePath } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
+import { RobotIcon } from '@tdsk/components'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
 import { signout } from '@TAF/actions/auth/local/signout'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import {
   Dns as DnsIcon,
   Api as ApiIcon,
+  Chat as ChatIcon,
   Lock as SecretIcon,
   Api as EndpointIcon,
   Person as PersonIcon,
   Code as FunctionIcon,
   Logout as LogoutIcon,
+  Forum as ThreadsIcon,
   BarChart as UsageIcon,
   Settings as SettingsIcon,
   CreditCard as BillingIcon,
   CloudQueue as ProviderIcon,
-  AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material'
 
 export const HeaderSettingsItems = [
@@ -116,15 +118,22 @@ export const ProjectNavItems: TNavItem[] = [
   },
   {
     text: `Agents`,
+    Icon: <RobotIcon />,
+    route: ERoutePath.Agents,
     to: buildRoute(ERoutePath.ProjectAgents),
-    Icon: <AutoAwesomeIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
-  },
-  {
-    text: `Threads`,
-    to: buildRoute(ERoutePath.ProjectThreads),
-    Icon: <AutoAwesomeIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    items: [
+      {
+        text: `Threads`,
+        Icon: <ThreadsIcon sx={{ fontSize: 14 }} />,
+        to: buildRoute(ERoutePath.ProjectAgentThreads),
+      },
+      {
+        text: `Chat`,
+        Icon: <ChatIcon sx={{ fontSize: 14 }} />,
+        to: buildRoute(ERoutePath.ProjectAgentChat),
+      },
+    ],
   },
   {
     text: `Domains`,

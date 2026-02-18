@@ -39,7 +39,7 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
         .from(this.table)
         .where(and(eq(this.table.orgId, orgId), eq(this.table.period, period)))
 
-      if (!data) return { error: new DBError(`Quota not found`) }
+      if (!data) return { data: null }
 
       return { data: this.model(data as TDBQuotaSelect) }
     } catch (err: unknown) {

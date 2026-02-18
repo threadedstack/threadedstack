@@ -134,12 +134,12 @@ export class Base<
 
   async update(data: I): Promise<TDBApiRes<M>> {
     try {
-      const id = data.id
+      const { id, createdAt, updatedAt, ...rest } = data
       !id && DBIdError.throw()
 
       const resp = await this.db
         .update(this.table)
-        .set({ ...data, updatedAt: new Date() })
+        .set({ ...rest, updatedAt: new Date() })
         .where(eq(this.table.id, id))
         .returning()
 

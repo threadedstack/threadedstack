@@ -70,9 +70,11 @@ export const ProjectSettings = (props: TProjectSettings) => {
     setSuccess(null)
 
     const result = await updateProject({
+      name,
       orgId,
+      gitUrl,
+      branch,
       id: projectId,
-      data: { name, gitUrl, branch },
     })
 
     if (result.error) {

@@ -4,6 +4,7 @@ export class Project extends Base {
   name: string
   orgId: string
   gitUrl?: string
+  description?: string
   branch: string = `main`
   meta: Record<string, any> = {}
 

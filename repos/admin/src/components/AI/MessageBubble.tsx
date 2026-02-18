@@ -1,7 +1,8 @@
 import type { TChatMessage } from '@TAF/hooks/chat/useAgentChat'
 
 import { Box, Typography } from '@mui/material'
-import { Person as PersonIcon, SmartToy as AssistantIcon } from '@mui/icons-material'
+import { RobotOutlineIcon } from '@tdsk/components'
+import { Person as PersonIcon } from '@mui/icons-material'
 import { ToolCallDisplay } from '@TAF/components/AI/ToolCallDisplay'
 
 export type TMessageBubble = {
@@ -39,7 +40,7 @@ export const MessageBubble = (props: TMessageBubble) => {
         {isUser ? (
           <PersonIcon sx={{ fontSize: 18 }} />
         ) : (
-          <AssistantIcon sx={{ fontSize: 18 }} />
+          <RobotOutlineIcon sx={{ fontSize: 18 }} />
         )}
       </Box>
 

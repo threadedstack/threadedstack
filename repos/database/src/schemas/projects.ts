@@ -15,6 +15,7 @@ export const projects = pgTable(
     meta: jsonb(`meta`),
     gitUrl: text(`git_url`),
     name: text(`name`).notNull(),
+    description: text(`description`),
     branch: text(`branch`).default(`main`),
     orgId: uuid(`org_id`)
       .references(() => orgs.id, { onDelete: `cascade` })

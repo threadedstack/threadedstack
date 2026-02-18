@@ -20,6 +20,7 @@ export type TNavCtx = {
 export type TToAction = string | ((context: TNavCtx) => string)
 
 export type TNavItem = {
+  route?: string
   to?: TToAction
   open?: boolean
   text: ReactNode

@@ -7,6 +7,7 @@ import type {
   TDBAgentSelect,
   TDBAgentInsert,
   TDBProjectSelect,
+  TDBFunctionSelect,
 } from '@TDB/types'
 
 import { eq, and } from 'drizzle-orm'
@@ -16,9 +17,11 @@ import { isStr, isObj } from '@keg-hub/jsutils'
 import { DBError } from '@TDB/utils/error/error'
 import { Agent as AgentModel } from '@tdsk/domain'
 import { agentProjects } from '@TDB/schemas/agentProjects'
+import { agentFunctions } from '@TDB/schemas/agentFunctions'
 
 export type TAgentInsertOpts = TDBAgentInsert & {
   projects?: Array<Partial<ProjectModel>>
+  functionIds?: string[]
 }
 
 export type TAgentSelectOpts = TDBAgentSelect & {
@@ -28,6 +31,17 @@ export type TAgentSelectOpts = TDBAgentSelect & {
     projectId: string
     project: ProjectModel | TDBProjectSelect
   }[]
+  functions?: {
+    agentId: string
+    functionId: string
+    function: TDBFunctionSelect
+  }[]
+}
+
+type TAgentRelations = {
+  id: string
+  functionIds?: string[]
+  projects?: Array<Partial<ProjectModel>>
 }
 
 /**
@@ -65,11 +79,18 @@ export class Agent extends Base<
           project: true,
         },
       },
+      functions: {
+        with: {
+          function: true,
+        },
+      },
     } as TDBWithRecord
   }
 
-  #relations = async (id: string, projects?: Array<Partial<ProjectModel>>) => {
-    try {
+  #relations = async (opts: TAgentRelations) => {
+    const { id, projects, functionIds } = opts
+
+    if (projects?.length)
       for (const proj of projects) {
         if (!proj?.id) continue
         await this.db
@@ -81,9 +102,18 @@ export class Agent extends Base<
           })
           .onConflictDoNothing()
       }
-    } catch (error: any) {
-      throw error
-    }
+
+    if (functionIds?.length)
+      for (const functionId of functionIds) {
+        if (!functionId) continue
+        await this.db
+          .insert(agentFunctions)
+          .values({
+            agentId: id,
+            functionId,
+          })
+          .onConflictDoNothing()
+      }
   }
 
   /**
@@ -94,6 +124,7 @@ export class Agent extends Base<
     const agent = new AgentModel({
       ...data,
       projects: (data.projects || []).map((link) => link.project),
+      functions: (data.functions || []).map((link) => link.function),
     })
 
     // If sanitize is not explicitly false, sanitize the secrets
@@ -167,18 +198,16 @@ export class Agent extends Base<
   }
 
   /**
-   * Create an agent and optionally associate it with projects
+   * Create an agent and optionally associate it with projects and functions
    */
   async create(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, ...agentData } = data
+    const { projects, functionIds, ...agentData } = data
 
     // Create the agent
     const result = await super.create(agentData as TDBAgentInsert)
 
-    // If projectIds are provided, create the associations
-    if (result.data && projects?.length) {
-      await this.#relations(result.data.id, projects)
-
+    if (result.data && (projects?.length || functionIds?.length)) {
+      await this.#relations({ id: result.data.id, projects, functionIds })
       const updated = await this.get(result.data.id, opts)
       result.data = updated.data
     }
@@ -187,25 +216,24 @@ export class Agent extends Base<
   }
 
   /**
-   * Update an agent and manage project associations
+   * Update an agent and manage project and function associations
    */
   async update(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, ...agent } = data
+    const { projects, functionIds, ...agent } = data
 
     if (!agent.id)
       return { data: null, error: new DBError(`Agent ID is required for update`) }
 
-    // Update the agent
     const result = await super.update(agent)
 
-    // If projectIds are provided, update the associations
-    if (result.data && projects?.length) {
-      // Delete existing project associations
-      await this.db.delete(agentProjects).where(eq(agentProjects.agentId, agent.id))
+    if (result.data && (projects?.length || functionIds?.length)) {
+      if (projects?.length)
+        await this.db.delete(agentProjects).where(eq(agentProjects.agentId, agent.id))
 
-      await this.#relations(agent.id, projects)
+      if (functionIds?.length)
+        await this.db.delete(agentFunctions).where(eq(agentFunctions.agentId, agent.id))
 
-      // Fetch the agent with projects to return complete data
+      await this.#relations({ id: agent.id, projects, functionIds })
       const updated = await this.get(agent.id, opts)
       result.data = updated.data
     }
@@ -214,14 +242,12 @@ export class Agent extends Base<
   }
 
   async upsert(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, ...agent } = data
+    const { projects, functionIds, ...agent } = data
     const result = await super.upsert(agent)
 
     // If projectIds are provided, update the associations
-    if (result.data && projects?.length) {
-      await this.#relations(agent.id, projects)
-
-      // Fetch the agent with projects to return complete data
+    if (result.data && (projects?.length || functionIds?.length)) {
+      await this.#relations({ id: agent.id, projects, functionIds })
       const updated = await this.get(agent.id, opts)
       result.data = updated.data
     }
@@ -253,6 +279,37 @@ export class Agent extends Base<
       .delete(agentProjects)
       .where(
         and(eq(agentProjects.agentId, agentId), eq(agentProjects.projectId, projectId))
+      )
+
+    return { data: null, error: null }
+  }
+
+  /**
+   * Add a function to an agent
+   */
+  async addFunction(agentId: string, functionId: string) {
+    const [result] = await this.db
+      .insert(agentFunctions)
+      .values({
+        agentId,
+        functionId,
+      })
+      .returning()
+
+    return { data: result, error: null }
+  }
+
+  /**
+   * Remove a function from an agent
+   */
+  async removeFunction(agentId: string, functionId: string) {
+    await this.db
+      .delete(agentFunctions)
+      .where(
+        and(
+          eq(agentFunctions.agentId, agentId),
+          eq(agentFunctions.functionId, functionId)
+        )
       )
 
     return { data: null, error: null }

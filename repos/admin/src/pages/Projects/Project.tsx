@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
-import { ConfirmDelete, Drawer, TextInput } from '@tdsk/components'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
+import { ConfirmDelete, Drawer, TextInput, RobotOutlineIcon } from '@tdsk/components'
 import {
   useAgents,
   useEndpoints,
@@ -14,12 +14,10 @@ import {
   useActiveProjectId,
 } from '@TAF/state/selectors'
 import {
+  Api as ApiIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  ArrowBack as BackIcon,
-  Api as ApiIcon,
   Functions as FunctionsIcon,
-  SmartToy as AgentIcon,
 } from '@mui/icons-material'
 import {
   Box,
@@ -103,7 +101,7 @@ export const Project = (props: TProject) => {
 
   const onEdit = async () => {
     if (!projectId || !editName.trim()) {
-      setEditError('Project name is required')
+      setEditError(`Project name is required`)
       return
     }
     setEditLoading(true)
@@ -111,12 +109,10 @@ export const Project = (props: TProject) => {
     const result = await updateProject({
       orgId,
       id: projectId,
-      data: {
-        name: editName.trim(),
-        description: editDescription.trim() || undefined,
-        gitUrl: editGitUrl.trim() || undefined,
-        branch: editBranch.trim() || 'main',
-      },
+      name: editName.trim(),
+      branch: editBranch.trim() || `main`,
+      gitUrl: editGitUrl.trim() || undefined,
+      description: editDescription.trim() || undefined,
     })
     setEditLoading(false)
     if (result.error) {
@@ -217,7 +213,7 @@ export const Project = (props: TProject) => {
         >
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
-              <AgentIcon sx={{ fontSize: 32, color: 'warning.main', mb: 1 }} />
+              <RobotOutlineIcon sx={{ fontSize: 32, color: 'warning.main', mb: 1 }} />
               <Typography variant='h4'>{agentCount}</Typography>
               <Typography
                 variant='body2'

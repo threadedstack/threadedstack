@@ -1,18 +1,18 @@
 import type { Message } from '@tdsk/domain'
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { ConfirmDelete } from '@tdsk/components'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { ConfirmDelete, RobotOutlineIcon } from '@tdsk/components'
+import { branchThread } from '@TAF/actions/threads/api/branchThread'
 import { fetchMessages } from '@TAF/actions/messages/api/fetchMessages'
 import { updateMessage } from '@TAF/actions/messages/api/updateMessage'
 import { deleteMessage } from '@TAF/actions/messages/api/deleteMessage'
-import { branchThread } from '@TAF/actions/threads/api/branchThread'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   useThreads,
+  useMessages,
   useActiveOrgId,
   useActiveThreadId,
-  useMessages,
 } from '@TAF/state/selectors'
 import {
   Box,
@@ -38,15 +38,14 @@ import {
 import {
   Edit as EditIcon,
   Save as SaveIcon,
+  Build as ToolIcon,
   Close as CloseIcon,
   Delete as DeleteIcon,
   Person as PersonIcon,
-  SmartToy as AssistantIcon,
-  ViewList as TableViewIcon,
-  CallSplit as BranchIcon,
-  ChatBubble as ChatViewIcon,
-  Build as ToolIcon,
   Settings as SystemIcon,
+  CallSplit as BranchIcon,
+  ViewList as TableViewIcon,
+  ChatBubble as ChatViewIcon,
 } from '@mui/icons-material'
 
 type TViewMode = 'chat' | 'table'
@@ -170,7 +169,7 @@ export const MessagesTab = (props: TMessagesTab) => {
       case 'user':
         return <PersonIcon sx={{ fontSize: 18 }} />
       case 'assistant':
-        return <AssistantIcon sx={{ fontSize: 18 }} />
+        return <RobotOutlineIcon sx={{ fontSize: 18 }} />
       case 'tool':
         return <ToolIcon sx={{ fontSize: 18 }} />
       case 'system':

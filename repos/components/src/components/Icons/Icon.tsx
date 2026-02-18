@@ -1,5 +1,5 @@
 import type { CSSProperties, ElementType, MouseEvent, ReactNode } from 'react'
-
+import type { SxProps, Theme } from '@mui/material'
 import { useJoinSx } from '@TSC/hooks/theme/useJoinSx'
 import { exists } from '@keg-hub/jsutils/exists'
 import SvgIcon from '@mui/material/SvgIcon'
@@ -17,15 +17,15 @@ export type TIconProps = {
   stroke?: string
   viewBox?: string
   tabIndex?: number
-  definition?: string
   className?: string
+  definition?: string
+  sx?: SxProps<Theme>
   RootEl?: ElementType
   children?: ReactNode
   width?: string | number
   height?: string | number
   attrs?: Record<any, any>
   inheritViewBox?: boolean
-  sx?: CSSProperties
   style?: CSSProperties
   styles?: CSSProperties
   svgStyle?: CSSProperties
