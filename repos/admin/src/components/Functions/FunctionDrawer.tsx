@@ -1,5 +1,5 @@
 import type { TKeyValuePair } from '@TAF/types'
-import type { Function as TDFunction } from '@tdsk/domain'
+import type { Function as FunctionModel } from '@tdsk/domain'
 
 import { useAtomValue } from 'jotai'
 import { EFunLanguage } from '@tdsk/domain'
@@ -33,7 +33,7 @@ export type TFunctionDrawer = {
   projectId: string
   onClose: () => void
   onSuccess?: () => void
-  func?: TDFunction | null
+  func?: FunctionModel | null
 }
 
 export const FunctionDrawer = ({

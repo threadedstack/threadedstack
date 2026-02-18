@@ -1,5 +1,5 @@
 import type { TKeyValuePair } from '@TAF/types'
-import type { Secret, Function as TDFunction } from '@tdsk/domain'
+import type { Secret, Function as FunctionModel } from '@tdsk/domain'
 
 import { SelectInput } from '@tdsk/components'
 import { Envs } from '@TAF/components/Endpoints/Envs'
@@ -20,7 +20,7 @@ export type TFaasInputs = {
   loading: boolean
   // Function selection
   functionId: string
-  availableFunctions: TDFunction[]
+  availableFunctions: FunctionModel[]
   onFunctionIdChange: (value: string) => void
 
   // Arguments

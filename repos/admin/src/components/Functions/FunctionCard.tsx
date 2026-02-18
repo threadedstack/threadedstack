@@ -1,4 +1,4 @@
-import type { Function as TDFunction } from '@tdsk/domain'
+import type { Function as FunctionModel } from '@tdsk/domain'
 import { Code as CodeIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import {
   Box,
@@ -13,8 +13,8 @@ import {
 } from '@mui/material'
 
 export type TFunctionCard = {
-  func: TDFunction
-  onEdit: (func: TDFunction) => void
+  func: FunctionModel
+  onEdit: (func: FunctionModel) => void
   onDelete: (id: string, name: string) => void
 }
 

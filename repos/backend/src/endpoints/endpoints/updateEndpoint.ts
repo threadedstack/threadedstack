@@ -6,6 +6,7 @@ import { isObj } from '@keg-hub/jsutils/isObj'
 import { HttpMethods } from '@TBE/constants/values'
 import { Exception } from '@TBE/utils/errors/exception'
 import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
+import { getEPService } from '@TBE/services/endpoints'
 import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
@@ -54,6 +55,14 @@ export const updateEndpoint: TEndpointConfig = {
     // Validate options is an object if provided
     if (options && !isObj(options)) throw new Exception(400, `Options must be an object`)
 
+    // Type-specific validation when type or options change
+    if (options !== undefined || type !== undefined) {
+      const effectiveType = type || existing.type
+      const effectiveOptions = options !== undefined ? options : existing.options
+      const service = getEPService(effectiveType)
+      if (effectiveOptions) service.validateOptions(effectiveOptions)
+    }
+
     const updateData = new Endpoint({ id, type: existing.type })
 
     if (type !== undefined) updateData.type = type
@@ -62,7 +71,7 @@ export const updateEndpoint: TEndpointConfig = {
     if (headers !== undefined) updateData.headers = headers
     if (options !== undefined) updateData.options = options
     if (isPublic !== undefined) updateData.public = isPublic
-    if (method !== undefined) updateData.method = method.toUpperCase()
+    if (method !== undefined) updateData.method = method.toLowerCase()
 
     const { data, error } = await db.services.endpoint.update(updateData)
 

@@ -1,8 +1,8 @@
-import { EFunLanguage, Function as TDFunction } from '@tdsk/domain'
+import { EFunLanguage, Function as FunctionModel } from '@tdsk/domain'
 import { EndpointIds, FunctionIds, ProjectIds } from '@TDB/seeds/ids.seed'
 
-export const functionsSeeds: TDFunction[] = [
-  new TDFunction({
+export const functionsSeeds: FunctionModel[] = [
+  new FunctionModel({
     id: FunctionIds.acmeUserValidator,
     projectId: ProjectIds.acmeApi,
     endpointId: EndpointIds.acmeApiUsers,
@@ -24,7 +24,7 @@ export const functionsSeeds: TDFunction[] = [
       zod: `^3.22.0`,
     },
   }),
-  new TDFunction({
+  new FunctionModel({
     id: FunctionIds.acmeAuth,
     projectId: ProjectIds.acmeApi,
     endpointId: EndpointIds.acmeApiUsers,
@@ -43,7 +43,7 @@ export async function generateToken(userId: string) {
       jsonwebtoken: `^9.0.0`,
     },
   }),
-  new TDFunction({
+  new FunctionModel({
     id: FunctionIds.startupAi,
     projectId: ProjectIds.startupAi,
     endpointId: EndpointIds.startupInference,
@@ -64,7 +64,7 @@ def predict(input_data):
       [`scikit-learn`]: `>=1.3.0`,
     },
   }),
-  new TDFunction({
+  new FunctionModel({
     id: FunctionIds.personal,
     projectId: ProjectIds.personal,
     endpointId: EndpointIds.personalTest,

@@ -56,8 +56,9 @@ export const createSecret: TEndpointConfig = {
       refId = orgId
     } else {
       // Standard exclusive arc: exactly one owner field
+      // When projectId is set (project-scoped URL), exclude orgId from arc to avoid dual ownership
       const arcFields = [
-        { name: `orgId`, value: orgId },
+        { name: `orgId`, value: projectId ? undefined : orgId },
         { name: `agentId`, value: agentId },
         { name: `projectId`, value: projectId },
         { name: `providerId`, value: providerId },

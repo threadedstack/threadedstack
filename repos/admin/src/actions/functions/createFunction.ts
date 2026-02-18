@@ -1,4 +1,4 @@
-import type { Function as TDFunction } from '@tdsk/domain'
+import type { Function as FunctionModel } from '@tdsk/domain'
 
 import { functionsApi } from '@TAF/services'
 import { setFunctions, getFunctions } from '@TAF/state/accessors'
@@ -6,7 +6,7 @@ import { setFunctions, getFunctions } from '@TAF/state/accessors'
 export type TCreateFunctionOpts = {
   orgId: string
   projectId: string
-  data: Partial<TDFunction>
+  data: Partial<FunctionModel>
 }
 
 export const createFunction = async (opts: TCreateFunctionOpts) => {

@@ -1,10 +1,10 @@
-import type { Function as TDFunction } from '@tdsk/domain'
+import type { Function as FunctionModel } from '@tdsk/domain'
 import { Grid } from '@mui/material'
 import { FunctionCard } from './FunctionCard'
 
 export type TFunctionsGrid = {
-  functions: TDFunction[]
-  onEdit: (func: TDFunction) => void
+  functions: FunctionModel[]
+  onEdit: (func: FunctionModel) => void
   onDelete: (id: string, name: string) => void
 }
 

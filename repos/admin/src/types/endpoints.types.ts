@@ -5,7 +5,7 @@ import type {
   TEPAuthType,
   TEPCredential,
   TEndpointType,
-  Function as TDFunction,
+  Function as FunctionModel,
 } from '@tdsk/domain'
 
 export type TProxyFormState = {
@@ -76,7 +76,7 @@ export type TEndpointFormProps<T> = {
   loading: boolean
   endpoint?: Endpoint | null
   availableSecrets: Secret[]
-  availableFunctions?: TDFunction[]
+  availableFunctions?: FunctionModel[]
   onConfigChange: (config: T) => void
   onValidate: (error: string | null) => void
 }

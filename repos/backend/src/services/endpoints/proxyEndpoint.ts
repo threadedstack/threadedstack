@@ -1,0 +1,199 @@
+import type { Response } from 'express'
+import type { TRequest } from '@TBE/types'
+import type { TDatabase } from '@tdsk/database'
+import type { Endpoint, TProxyEndpointConfig } from '@tdsk/domain'
+
+import { EEndpointType } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
+import { BaseEndpoint } from './base'
+import { addEndpointHeaders } from '@TBE/utils/proxy'
+import { Exception } from '@TBE/utils/errors/exception'
+import { RetryService, ProxyService } from '@TBE/services/proxy'
+import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware'
+
+/**
+ * ProxyEndpoint
+ *
+ * Handles HTTP proxying with auth/oauth/retry/transforms.
+ * Holds a singleton ProxyService instance so the OAuth token cache
+ * is shared across all requests.
+ */
+export class ProxyEndpoint extends BaseEndpoint {
+  readonly type = EEndpointType.proxy
+
+  /** Singleton ProxyService — fixes OAuth cache bug */
+  private proxyService = new ProxyService()
+
+  validateOptions(options: Record<string, any>): void {
+    if (!options?.url) {
+      throw new Exception(400, `Proxy endpoint requires a url in options`)
+    }
+  }
+
+  async execute(
+    req: TRequest,
+    res: Response,
+    endpoint: Endpoint,
+    db: TDatabase
+  ): Promise<void> {
+    const opts = endpoint.options as TProxyEndpointConfig
+    if (!opts?.url) throw new Exception(400, `Endpoint has no proxy configuration`)
+
+    // Validate HTTP method matches (if endpoint specifies a method)
+    this.validateMethod(req, opts)
+
+    // Extract the remaining path after /:projectId/:endpointId/
+    const proxyPath = req.params[0] || ''
+
+    // Fetch secrets scoped to this project
+    const secrets = await this.fetchSecrets(db, endpoint)
+
+    // Construct target URL for logging
+    const targetUrl = `${opts.url}/${proxyPath}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`
+
+    try {
+      const proxyConfig = this.proxyService.applyEndpointOptions(opts, secrets)
+      // Build retry configuration (per-request)
+      const retryService = new RetryService(req, opts)
+
+      // Helper function to execute the proxy request
+      const executeProxy = (): Promise<void> => {
+        return new Promise((resolve, reject) => {
+          const proxy = createProxyMiddleware({
+            target: opts.url,
+            changeOrigin: true,
+            pathRewrite: () => {
+              return `/${proxyPath}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`
+            },
+            ...proxyConfig,
+
+            on: {
+              proxyReq: async (proxyReq, request, response) => {
+                try {
+                  if (endpoint.headers)
+                    addEndpointHeaders(proxyReq, endpoint.headers, secrets)
+
+                  const requestOrigin = request.headers.origin || request.headers.referer
+
+                  await this.proxyService.applyEndpointOptionsAsync(
+                    proxyReq,
+                    opts,
+                    secrets,
+                    requestOrigin,
+                    `/${proxyPath}`
+                  )
+
+                  logger.debug(`Proxying ${request.method} ${targetUrl}`)
+                } catch (error) {
+                  logger.error(`Error in proxyReq handler:`, error)
+                  reject(error)
+                }
+              },
+
+              proxyRes: responseInterceptor(
+                async (responseBuffer, proxyRes, request, response) => {
+                  try {
+                    const statusCode = proxyRes.statusCode || 0
+
+                    if (statusCode >= 400) {
+                      ;(request as any).__proxyStatusCode = statusCode
+                    }
+
+                    if (opts.transform && opts.transform.injectSecrets) {
+                      const responseText = responseBuffer.toString('utf8')
+
+                      try {
+                        const responseJson = JSON.parse(responseText)
+                        const transformed = this.proxyService.applyTransform(
+                          responseJson,
+                          opts.transform,
+                          secrets
+                        )
+                        return JSON.stringify(transformed)
+                      } catch {
+                        return responseBuffer
+                      }
+                    }
+
+                    return responseBuffer
+                  } catch (error) {
+                    logger.error(`Error in proxyRes handler:`, error)
+                    return responseBuffer
+                  }
+                }
+              ),
+
+              error: async (err, request, response) => {
+                const statusCode = (request as any).__proxyStatusCode
+
+                retryService.meta.update(err)
+
+                if (retryService.shouldRetry(err, statusCode)) {
+                  logger.warn(`Proxy error (will retry): ${err.message}`, {
+                    statusCode,
+                    error: err,
+                  })
+                  reject(err)
+                } else {
+                  logger.error(`Proxy error (no retry):`, err)
+                  reject(err)
+                }
+              },
+            },
+          })
+
+          proxy(req, res, (err) => {
+            if (err) {
+              reject(err)
+            } else {
+              resolve()
+            }
+          })
+        })
+      }
+
+      // Retry loop
+      let lastError: any = null
+      let success = false
+
+      while (!success) {
+        try {
+          await executeProxy()
+          success = true
+          const metadata = retryService.meta.get()
+          metadata && metadata.attempt > 0 && retryService.logStatus(true)
+        } catch (error) {
+          lastError = error
+
+          const statusCode = (req as any).__proxyStatusCode
+
+          if (!retryService.shouldRetry(error, statusCode)) break
+
+          await retryService.delayRetry()
+        }
+      }
+
+      // If we exited the loop without success, send error response
+      if (!success && lastError) {
+        const metadata = retryService.meta.get()
+        metadata && metadata.attempt > 0 && retryService.logStatus(false)
+
+        if (!res.headersSent) {
+          const statusCode = (req as any).__proxyStatusCode || 502
+          const errorMessage =
+            lastError instanceof Error ? lastError.message : 'Unknown error'
+          throw new Exception(statusCode, `Proxy failed after retries: ${errorMessage}`)
+        }
+      }
+    } catch (error) {
+      logger.error(`Error setting up proxy:`, error)
+
+      if (!res.headersSent) {
+        if (error instanceof Exception) throw error
+
+        const errorMessage = error instanceof Error ? error.message : `Unknown error`
+        throw new Exception(500, `Failed to setup proxy: ${errorMessage}`)
+      }
+    }
+  }
+}

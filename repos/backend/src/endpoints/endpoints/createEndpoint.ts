@@ -5,6 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { HttpMethods } from '@TBE/constants/values'
 import { Exception } from '@TBE/utils/errors/exception'
+import { getEPService } from '@TBE/services/endpoints'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -54,6 +55,10 @@ export const createEndpoint: TEndpointConfig = {
     if (headers && !isObj(headers)) throw new Exception(400, `Headers must be an object`)
 
     if (options && !isObj(options)) throw new Exception(400, `Options must be an object`)
+
+    // Type-specific validation (e.g., proxy needs url, faas needs functionId)
+    const service = getEPService(type)
+    service.validateOptions(options)
 
     const endpointData = new Endpoint({
       name,

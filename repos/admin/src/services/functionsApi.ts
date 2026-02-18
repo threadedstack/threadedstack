@@ -1,6 +1,6 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
 
-import { Function as TDFunction } from '@tdsk/domain'
+import { Function as FunctionModel } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
 
 /**
@@ -29,10 +29,10 @@ export class FunctionsApi extends BaseApi {
     orgId: string,
     projectId: string,
     data?: Record<string, any>
-  ): Promise<TApiRes<TDFunction[]>> {
+  ): Promise<TApiRes<FunctionModel[]>> {
     const { queryKey, ...rest } = data || {}
 
-    const resp = await this.api.get<TDFunction[]>({
+    const resp = await this.api.get<FunctionModel[]>({
       data: rest,
       path: this.#path(orgId, projectId),
       queryKey: queryKey || this.cache.list(),
@@ -42,7 +42,7 @@ export class FunctionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data?.map((func) => new TDFunction(func)) || [],
+      data: resp.data?.map((func) => new FunctionModel(func)) || [],
     }
   }
 
@@ -53,8 +53,12 @@ export class FunctionsApi extends BaseApi {
    * @param id - Function ID
    * @returns Function object
    */
-  async get(orgId: string, projectId: string, id: string): Promise<TApiRes<TDFunction>> {
-    const resp = await this.api.get<TDFunction>({
+  async get(
+    orgId: string,
+    projectId: string,
+    id: string
+  ): Promise<TApiRes<FunctionModel>> {
+    const resp = await this.api.get<FunctionModel>({
       path: `${this.#path(orgId, projectId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
@@ -63,7 +67,7 @@ export class FunctionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data ? new TDFunction(resp.data) : undefined,
+      data: resp.data ? new FunctionModel(resp.data) : undefined,
     }
   }
 
@@ -77,9 +81,9 @@ export class FunctionsApi extends BaseApi {
   async create(
     orgId: string,
     projectId: string,
-    data: Partial<TDFunction>
-  ): Promise<TApiRes<TDFunction>> {
-    const resp = await this.api.post<TDFunction>({
+    data: Partial<FunctionModel>
+  ): Promise<TApiRes<FunctionModel>> {
+    const resp = await this.api.post<FunctionModel>({
       data,
       path: this.#path(orgId, projectId),
     })
@@ -88,7 +92,7 @@ export class FunctionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data ? new TDFunction(resp.data) : undefined,
+      data: resp.data ? new FunctionModel(resp.data) : undefined,
     }
   }
 
@@ -104,9 +108,9 @@ export class FunctionsApi extends BaseApi {
     orgId: string,
     projectId: string,
     id: string,
-    data: Partial<TDFunction>
-  ): Promise<TApiRes<TDFunction>> {
-    const resp = await this.api.put<TDFunction>({
+    data: Partial<FunctionModel>
+  ): Promise<TApiRes<FunctionModel>> {
+    const resp = await this.api.put<FunctionModel>({
       data,
       path: `${this.#path(orgId, projectId)}/${id}`,
     })
@@ -115,7 +119,7 @@ export class FunctionsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp.data ? new TDFunction(resp.data) : undefined,
+      data: resp.data ? new FunctionModel(resp.data) : undefined,
     }
   }
 

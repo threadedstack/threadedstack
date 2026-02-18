@@ -1,4 +1,4 @@
-import type { Function as TDFunction } from '@tdsk/domain'
+import type { Function as FunctionModel } from '@tdsk/domain'
 
 import { functionsApi } from '@TAF/services'
 import { setFunctions } from '@TAF/state/accessors'
@@ -9,7 +9,7 @@ export type TFetchFunctionsOpts = {
 }
 
 export type TFetchFunctionsResult = {
-  functions?: Record<string, TDFunction>
+  functions?: Record<string, FunctionModel>
   error?: Error
 }
 
@@ -24,7 +24,7 @@ export const fetchFunctions = async (
   }
 
   const functionsMap =
-    resp.data?.reduce((acc: Record<string, TDFunction>, func: TDFunction) => {
+    resp.data?.reduce((acc: Record<string, FunctionModel>, func: FunctionModel) => {
       acc[func.id] = func
       return acc
     }, {}) || {}

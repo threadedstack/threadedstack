@@ -6,7 +6,7 @@ import { functions } from './functions'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
-import { Function as TDFunction } from '@tdsk/domain'
+import { Function as FunctionModel } from '@tdsk/domain'
 
 describe(`Functions endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -82,7 +82,7 @@ describe(`Functions endpoints`, () => {
 
     it(`should return 200 with functions on success`, async () => {
       const mockFunctions = [
-        new TDFunction({
+        new FunctionModel({
           id: `1`,
           name: `processPay`,
           content: `console.log('pay')`,
@@ -156,7 +156,7 @@ describe(`Functions endpoints`, () => {
     const ep = getEndpointCfg(functions.endpoints?.getFunction)
 
     it(`should return 200 with function when found`, async () => {
-      const mockFunction = new TDFunction({
+      const mockFunction = new FunctionModel({
         id: `123`,
         name: `testFunc`,
         content: `console.log('test')`,
@@ -202,7 +202,7 @@ describe(`Functions endpoints`, () => {
         projectId: `project-123`,
         endpointId: `endpoint-456`,
       }
-      const createdFunction = new TDFunction({
+      const createdFunction = new FunctionModel({
         id: `789`,
         ...newFunction,
         language: `typescript`,
@@ -257,7 +257,7 @@ describe(`Functions endpoints`, () => {
     })
 
     it(`should return 400 when endpointId is missing`, async () => {
-      const createdFunction = new TDFunction({
+      const createdFunction = new FunctionModel({
         id: `new-1`,
         name: `func`,
         content: `code`,
@@ -286,7 +286,7 @@ describe(`Functions endpoints`, () => {
     const ep = getEndpointCfg(functions.endpoints?.updateFunction)
 
     it(`should return 200 with updated function on success`, async () => {
-      const existingFunction = new TDFunction({
+      const existingFunction = new FunctionModel({
         id: `123`,
         name: `oldFunc`,
         content: `old code`,
@@ -294,7 +294,7 @@ describe(`Functions endpoints`, () => {
         endpointId: `endpoint-1`,
       })
       const updateData = { name: `newFunc`, content: `new code` }
-      const updatedFunction = new TDFunction({
+      const updatedFunction = new FunctionModel({
         ...existingFunction,
         ...updateData,
       })
@@ -336,7 +336,7 @@ describe(`Functions endpoints`, () => {
     const ep = getEndpointCfg(functions.endpoints?.deleteFunction)
 
     it(`should return 200 with success on delete`, async () => {
-      const existingFunction = new TDFunction({
+      const existingFunction = new FunctionModel({
         id: `123`,
         name: `toDelete`,
         content: `code`,

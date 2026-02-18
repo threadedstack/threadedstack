@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
-import { Function as TDFunction, EPermAction, EPermResource } from '@tdsk/domain'
+import { Function as FunctionModel, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * PUT /_/functions/:id - Update function
@@ -20,13 +20,22 @@ export const updateFunction: TEndpointConfig = {
       name,
       content,
       language,
-      agentIds,
+      agentId,
+      agentIds: rawAgentIds,
       endpointId,
       description,
       defaultArgs,
       inputSchema,
       dependencies,
     } = req.body
+
+    // Accept both agentId (singular) and agentIds (array)
+    const agentIds =
+      rawAgentIds !== undefined
+        ? rawAgentIds
+        : agentId !== undefined
+          ? [agentId]
+          : undefined
 
     const existingFunc = await requireResourceWithPermission(
       req,
@@ -37,7 +46,7 @@ export const updateFunction: TEndpointConfig = {
       `Function`
     )
 
-    const func = new TDFunction({
+    const func = new FunctionModel({
       ...existingFunc,
       ...(name && { name }),
       ...(content && { content }),

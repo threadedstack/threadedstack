@@ -22,7 +22,7 @@ import {
   EEndpointType,
   ProxyEndpoint,
   EInviteStatus,
-  Function as TDFunction,
+  Function as FunctionModel,
 } from '@tdsk/domain'
 
 const org = new Organization({
@@ -340,7 +340,7 @@ const endpoints = {
 }
 
 const functions = {
-  userValidator: new TDFunction({
+  userValidator: new FunctionModel({
     id: Ids.function.acmeUserValidator,
     projectId: projects.api.id,
     endpointId: endpoints.usersApi.id,
@@ -362,7 +362,7 @@ const functions = {
       zod: `^3.22.0`,
     },
   }),
-  authToken: new TDFunction({
+  authToken: new FunctionModel({
     id: Ids.function.acmeAuth,
     projectId: projects.api.id,
     endpointId: endpoints.webhooks.id,

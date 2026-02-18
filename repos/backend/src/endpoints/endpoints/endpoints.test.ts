@@ -2,11 +2,19 @@ import type { Response } from 'express'
 import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Mock the endpoint services module
+vi.mock(`@TBE/services/endpoints`, () => ({
+  getEPService: vi.fn().mockReturnValue({
+    validateOptions: vi.fn(),
+  }),
+}))
+
 import { endpoints } from './endpoints'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
 import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
+import { getEPService } from '@TBE/services/endpoints'
 
 describe(`Endpoints endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -41,6 +49,11 @@ describe(`Endpoints endpoints`, () => {
   const getEndpointCfg = (ep?: TEndpoint) => getEpCfg(buildApp(), ep)
 
   beforeEach(() => {
+    // Reset the getEPService mock to default (no-op validateOptions)
+    ;(getEPService as ReturnType<typeof vi.fn>).mockReturnValue({
+      validateOptions: vi.fn(),
+    })
+
     mockJson = vi.fn()
     mockStatus = vi.fn(() => mockRes as Response) as any
 
@@ -393,6 +406,51 @@ describe(`Endpoints endpoints`, () => {
         `Headers must be an object`
       )
     })
+
+    it(`should reject proxy endpoint without url in options`, async () => {
+      const { getEPService } = await import(`@TBE/services/endpoints`)
+      const mockGetService = getEPService as ReturnType<typeof vi.fn>
+      mockGetService.mockReturnValue({
+        validateOptions: vi.fn().mockImplementation((opts: any) => {
+          if (!opts?.url) throw new Error(`Proxy endpoint requires a url in options`)
+        }),
+      })
+
+      mockReq.body = {
+        name: `Test Proxy`,
+        type: `proxy`,
+        method: `GET`,
+        projectId: `project-1`,
+        options: {},
+      }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Proxy endpoint requires a url in options`
+      )
+    })
+
+    it(`should reject faas endpoint without functionId in options`, async () => {
+      const { getEPService } = await import(`@TBE/services/endpoints`)
+      const mockGetService = getEPService as ReturnType<typeof vi.fn>
+      mockGetService.mockReturnValue({
+        validateOptions: vi.fn().mockImplementation((opts: any) => {
+          if (!opts?.functionId)
+            throw new Error(`FaaS endpoint requires a functionId in options`)
+        }),
+      })
+
+      mockReq.body = {
+        name: `Test FaaS`,
+        type: `faas`,
+        method: `POST`,
+        projectId: `project-1`,
+        options: {},
+      }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `FaaS endpoint requires a functionId in options`
+      )
+    })
   })
 
   describe(`PUT /_/endpoints/:id - Update endpoint`, () => {
@@ -465,6 +523,33 @@ describe(`Endpoints endpoints`, () => {
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Invalid HTTP method`
       )
+    })
+
+    it(`should store method in lowercase (method case fix)`, async () => {
+      const existingEndpoint = {
+        id: `123`,
+        name: `Test`,
+        type: `proxy`,
+        method: `get`,
+        projectId: `project-1`,
+        options: { url: `https://api.com` },
+      }
+      mockReq.params = { id: `123` }
+      mockReq.body = { method: `POST` }
+
+      const mockGet = mockReq.app?.locals.db.services.endpoint.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.endpoint.update as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingEndpoint })
+      mockUpdate.mockResolvedValue({ data: { ...existingEndpoint, method: `post` } })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const updateCall = mockUpdate.mock.calls[0][0]
+      expect(updateCall.method).toBe(`post`)
     })
   })
 

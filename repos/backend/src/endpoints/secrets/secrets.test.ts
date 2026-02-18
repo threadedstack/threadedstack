@@ -382,16 +382,30 @@ describe(`Secrets endpoints`, () => {
       )
     })
 
-    it(`should return 400 when both orgId and projectId are provided`, async () => {
+    it(`should treat secret as project-scoped when both orgId and projectId are provided`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
+      const createdSecret = new Secret({
+        id: `proj-scoped-1`,
+        name: `KEY`,
+        hashKey: `hash`,
+        projectId: `project-1`,
+        encryptedValue: `encrypted`,
+      })
+      const mockSecretCreate = mockReq.app?.locals.db.services.secret
+        .create as ReturnType<typeof vi.fn>
+      mockSecretCreate.mockResolvedValue({ data: createdSecret })
+
       mockReq.body = {
         name: `KEY`,
         value: `secret`,
         orgId: `org-1`,
         projectId: `project-1`,
       }
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Secret can only belong to one of: orgId, agentId, projectId, providerId (exclusive arc)`
-      )
+      await ep.action(mockReq as TRequest, mockRes as Response)
+      expect(mockRes.status).toHaveBeenCalledWith(201)
     })
 
     it(`should return 201 when org+provider dual ownership is used`, async () => {

@@ -112,6 +112,9 @@ export type TSharedEndpointOpts<
   auth?: TEndpointAuth
   headers?: Record<string, string>
 
+  /** HTTP method */
+  method?: string
+
   // TODO: update to use retry object instead of flat properties
   //retry: TEndpointRetryOpts
 
@@ -182,8 +185,6 @@ export type TProxyEndpointConfig = TSharedEndpointOpts<
   {
     /** Target URL for proxying */
     url: string
-    /** HTTP method */
-    method?: string
     /** Transform configuration */
     transform?: TBodyTransformConfig
   }

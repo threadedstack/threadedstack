@@ -1,4 +1,4 @@
-import type { Function as TDFunction } from '@tdsk/domain'
+import type { Function as FunctionModel } from '@tdsk/domain'
 
 import { functionsApi } from '@TAF/services'
 import { setFunctions, getFunctions } from '@TAF/state/accessors'
@@ -10,7 +10,7 @@ export type TFetchFunctionOpts = {
 }
 
 export type TFetchFunctionResult = {
-  function?: TDFunction
+  function?: FunctionModel
   error?: Error
 }
 

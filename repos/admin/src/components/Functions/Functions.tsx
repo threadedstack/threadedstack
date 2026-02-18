@@ -1,4 +1,4 @@
-import type { Function as TDFunction } from '@tdsk/domain'
+import type { Function as FunctionModel } from '@tdsk/domain'
 
 import { Box } from '@mui/material'
 import { ife } from '@keg-hub/jsutils/ife'
@@ -25,7 +25,7 @@ export const Functions = (props: TFunctions) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [languageFilter, setLanguageFilter] = useState<string>(`all`)
-  const [selectedFunction, setSelectedFunction] = useState<TDFunction | null>(null)
+  const [selectedFunction, setSelectedFunction] = useState<FunctionModel | null>(null)
   const [functionToDelete, setFunctionToDelete] = useState<{
     id: string
     name: string
@@ -111,7 +111,7 @@ export const Functions = (props: TFunctions) => {
     setSelectedFunction(null)
   }
 
-  const onEdit = (func: TDFunction) => {
+  const onEdit = (func: FunctionModel) => {
     setSelectedFunction(func)
     setDialogOpen(true)
   }

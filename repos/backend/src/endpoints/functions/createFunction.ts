@@ -5,7 +5,7 @@ import { EPMethod } from '@TBE/types'
 import { EFunLanguage } from '@tdsk/domain'
 import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { Function as TDFunction, EPermAction, EPermResource } from '@tdsk/domain'
+import { Function as FunctionModel, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * POST /_/functions - Create a new function
@@ -19,14 +19,20 @@ export const createFunction: TEndpointConfig = {
     const {
       name,
       content,
+      agentId,
       language,
-      agentIds,
       endpointId,
       description,
       defaultArgs,
       inputSchema,
       dependencies,
     } = req.body
+
+    const agentIds = req.body.agentIds?.length
+      ? req.body.agentIds
+      : agentId
+        ? [agentId]
+        : undefined
     const projectId = req.params.projectId || req.body.projectId
 
     if (!name) throw new Exception(400, `Function name is required`)
@@ -39,7 +45,7 @@ export const createFunction: TEndpointConfig = {
     })
 
     try {
-      const func = new TDFunction({
+      const func = new FunctionModel({
         name,
         content,
         projectId,

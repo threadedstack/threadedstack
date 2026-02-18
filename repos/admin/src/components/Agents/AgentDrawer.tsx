@@ -1,5 +1,5 @@
 import type { TKeyValuePair } from '@TAF/types'
-import type { Agent, Secret, Function as TDFunction } from '@tdsk/domain'
+import type { Agent, Secret, Function as FunctionModel } from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
@@ -58,7 +58,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [secretsList, setSecretsList] = useState<Secret[]>([])
   const [aiProviders, setAiProviders] = useState<Array<{ id: string; name: string }>>([])
-  const [availableFunctions, setAvailableFunctions] = useState<TDFunction[]>([])
+  const [availableFunctions, setAvailableFunctions] = useState<FunctionModel[]>([])
   const [selectedFunctionIds, setSelectedFunctionIds] = useState<string[]>([])
 
   // Form state

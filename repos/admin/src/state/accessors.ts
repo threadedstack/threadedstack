@@ -21,7 +21,7 @@ import type {
   Endpoint,
   Subscription,
   Organization,
-  Function as TDFunction,
+  Function as FunctionModel,
 } from '@tdsk/domain'
 
 import { createStore } from 'jotai'
@@ -148,7 +148,7 @@ export const setActiveEndpointId = (id: string) => store.set(activeEndpointIdSta
 
 export const getFunctions = () => store.get(functionsState)
 export const resetFunctions = () => store.set(functionsState, undefined)
-export const setFunctions = (functions: Record<string, TDFunction>) =>
+export const setFunctions = (functions: Record<string, FunctionModel>) =>
   store.set(functionsState, functions)
 
 export const getActiveFunctionId = () => store.get(activeFunctionIdState)

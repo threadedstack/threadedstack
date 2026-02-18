@@ -1,5 +1,4 @@
 import type { Response } from 'express'
-import type { Function as TDFunction } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
