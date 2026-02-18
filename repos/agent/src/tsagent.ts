@@ -1,21 +1,15 @@
 import type { ISandboxProvider, ISandbox, TSandboxConfig } from '@tdsk/domain'
-import type { TMutexOpts } from './types/mutex.types'
-
-import { Mutex } from './services/mutex'
 
 export type TTSAgentOpts = {
   sandboxProvider: ISandboxProvider
-  mutex?: TMutexOpts
 }
 
 export class TSAgent {
-  mutex: Mutex
   private sandboxProvider: ISandboxProvider
   private activeSandboxes = new Map<string, ISandbox>()
 
   constructor(opts: TTSAgentOpts) {
     this.sandboxProvider = opts.sandboxProvider
-    this.mutex = new Mutex(opts.mutex)
   }
 
   async createSandbox(sessionId: string, config: TSandboxConfig): Promise<ISandbox> {
@@ -49,12 +43,10 @@ export class TSAgent {
     )
     await Promise.all(closePromises)
     this.activeSandboxes.clear()
-    this.mutex.clearAll()
   }
 
-  getStats(): { activeLocks: number; activeSandboxes: number } {
+  getStats(): { activeSandboxes: number } {
     return {
-      activeLocks: this.mutex.getActiveLocks(),
       activeSandboxes: this.activeSandboxes.size,
     }
   }

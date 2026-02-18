@@ -5,10 +5,11 @@ import type {
 } from '@tdsk/domain'
 
 import { transform } from 'esbuild'
-import { EFunLanguage } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
+import { EFunLanguage } from '@tdsk/domain'
 import { createSandboxProvider } from '@tdsk/sandbox'
 
+// TODO: Move this to be constants, should not be hardcoded
 /** 1 MB output cap */
 const MAX_OUTPUT_BYTES = 1_048_576
 

@@ -9,15 +9,19 @@ const rootDir = path.join(dirname, `..`)
 const outdir = path.join(rootDir, `dist`)
 const entry = path.join(rootDir, `src/index.ts`)
 
+const nativeModules = [`isolated-vm`, `@mongodb-js/zstd`]
+
 const getExternal = () => {
   return [
     ...Object.keys(packcfg.dependencies || {}),
     ...Object.keys(packcfg.devDependencies || {}),
-  ].filter((name) => !name.startsWith(`@tdsk`) && !name.startsWith(`@keg-hub`))
+  ]
+    .filter((name) => !name.startsWith(`@tdsk`) && !name.startsWith(`@keg-hub`))
+    .concat(nativeModules)
 }
 
 export default defineConfig(async () => {
-  //await fs.rm(outdir, { recursive: true, force: true })
+  await fs.rm(outdir, { recursive: true, force: true })
 
   return {
     clean: true,

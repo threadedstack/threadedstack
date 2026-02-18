@@ -8,16 +8,20 @@ import * as agentExports from './index'
  */
 describe(`@tdsk/agent public API`, () => {
   const expectedExports = [
-    // llm
-    `createLLMAdapter`,
+    // runner
+    `AgentRunner`,
     // tools
     `getToolDefs`,
+    `createSandboxTools`,
+    // llm
+    `createProxyStreamFn`,
+    // adapters
+    `mapAgentEvent`,
+    `convertToLlmMessages`,
+    `convertAssistantToContent`,
+    `convertToolResultToContent`,
     // tsagent
     `TSAgent`,
-    // services
-    `Mutex`,
-    // sandbox (re-exported from @tdsk/sandbox)
-    `createSandboxProvider`,
   ]
 
   it.each(expectedExports)(`should export "%s"`, (name) => {
@@ -25,7 +29,7 @@ describe(`@tdsk/agent public API`, () => {
     expect((agentExports as any)[name]).toBeDefined()
   })
 
-  it(`should export createSandboxProvider as a function`, () => {
-    expect(typeof agentExports.createSandboxProvider).toBe(`function`)
+  it(`should export AgentRunner with a static run method`, () => {
+    expect(typeof (agentExports as any).AgentRunner.run).toBe(`function`)
   })
 })

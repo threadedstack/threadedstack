@@ -16,10 +16,6 @@ describe(`agent service dependency contract`, () => {
     expect(mod.AgentRunner).toBeDefined()
     expect(typeof mod.AgentRunner).toBe(`function`)
 
-    // createSandboxProvider — re-export from @tdsk/sandbox
-    expect(mod.createSandboxProvider).toBeDefined()
-    expect(typeof mod.createSandboxProvider).toBe(`function`)
-
     // getToolDefs — from tools/definitions
     expect(mod.getToolDefs).toBeDefined()
     expect(typeof mod.getToolDefs).toBe(`function`)

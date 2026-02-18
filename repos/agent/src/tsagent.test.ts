@@ -31,23 +31,13 @@ describe(`TSAgent`, () => {
   })
 
   describe(`constructor`, () => {
-    it(`should create a Mutex instance`, () => {
+    it(`should create with a sandbox provider`, () => {
       expect(agent).toBeDefined()
-      expect(agent.mutex).toBeDefined()
     })
 
-    it(`should accept custom mutex options`, () => {
-      const customAgent = new TSAgent({
-        sandboxProvider: mockProvider,
-        mutex: { maxLocks: 50, timeout: 10000 },
-      })
-      expect(customAgent.mutex).toBeDefined()
-    })
-
-    it(`should start with zero active sandboxes and locks`, () => {
+    it(`should start with zero active sandboxes`, () => {
       const stats = agent.getStats()
       expect(stats.activeSandboxes).toBe(0)
-      expect(stats.activeLocks).toBe(0)
     })
   })
 
@@ -133,7 +123,7 @@ describe(`TSAgent`, () => {
   })
 
   describe(`cleanup`, () => {
-    it(`should close all sandboxes and clear the mutex`, async () => {
+    it(`should close all sandboxes`, async () => {
       await agent.createSandbox(`s1`, { provider: `e2b`, template: `base` })
 
       const sb2Close = vi.fn().mockResolvedValue(undefined)
@@ -156,7 +146,6 @@ describe(`TSAgent`, () => {
       expect(mockSandbox.close).toHaveBeenCalled()
       expect(sb2Close).toHaveBeenCalled()
       expect(agent.getStats().activeSandboxes).toBe(0)
-      expect(agent.getStats().activeLocks).toBe(0)
     })
 
     it(`should handle individual sandbox close errors during cleanup`, async () => {
@@ -171,11 +160,11 @@ describe(`TSAgent`, () => {
   })
 
   describe(`getStats`, () => {
-    it(`should return correct counts for sandboxes and locks`, async () => {
-      expect(agent.getStats()).toEqual({ activeLocks: 0, activeSandboxes: 0 })
+    it(`should return correct counts for sandboxes`, async () => {
+      expect(agent.getStats()).toEqual({ activeSandboxes: 0 })
 
       await agent.createSandbox(`s1`, { provider: `e2b`, template: `base` })
-      expect(agent.getStats()).toEqual({ activeLocks: 0, activeSandboxes: 1 })
+      expect(agent.getStats()).toEqual({ activeSandboxes: 1 })
 
       await agent.createSandbox(`s2`, { provider: `e2b`, template: `base` })
       expect(agent.getStats().activeSandboxes).toBe(2)
