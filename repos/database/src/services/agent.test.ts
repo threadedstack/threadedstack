@@ -131,15 +131,17 @@ describe(`Agent service`, () => {
 
       expect(result).toBeDefined()
       expect(result.secrets).toBe(true)
-      expect(result.provider).toBe(true)
+      expect(result.providers).toEqual({ with: { provider: true } })
+      expect(result.functions).toEqual({ with: { function: true } })
       expect(result.projects).toEqual({ with: { project: true } })
     })
 
-    it(`should always include secrets, provider, and projects`, () => {
+    it(`should always include secrets, providers, functions, and projects`, () => {
       const result = service.with({})
 
       expect(result.secrets).toBe(true)
-      expect(result.provider).toBe(true)
+      expect(result.providers).toEqual({ with: { provider: true } })
+      expect(result.functions).toEqual({ with: { function: true } })
       expect(result.projects).toEqual({ with: { project: true } })
     })
 
@@ -148,7 +150,8 @@ describe(`Agent service`, () => {
 
       expect(result.org).toBe(true)
       expect(result.secrets).toBe(true)
-      expect(result.provider).toBe(true)
+      expect(result.providers).toEqual({ with: { provider: true } })
+      expect(result.functions).toEqual({ with: { function: true } })
       expect(result.projects).toEqual({ with: { project: true } })
     })
 

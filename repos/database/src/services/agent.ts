@@ -1,6 +1,5 @@
 import type { Project as ProjectModel } from '@tdsk/domain'
 import type {
-  TDBWithObj,
   TServiceOpts,
   TDBQueryOpts,
   TDBWithRecord,
@@ -8,6 +7,7 @@ import type {
   TDBAgentInsert,
   TDBProjectSelect,
   TDBFunctionSelect,
+  TDBProviderSelect,
 } from '@TDB/types'
 
 import { eq, and } from 'drizzle-orm'
@@ -18,10 +18,12 @@ import { DBError } from '@TDB/utils/error/error'
 import { Agent as AgentModel } from '@tdsk/domain'
 import { agentProjects } from '@TDB/schemas/agentProjects'
 import { agentFunctions } from '@TDB/schemas/agentFunctions'
+import { agentProviders } from '@TDB/schemas/agentProviders'
 
 export type TAgentInsertOpts = TDBAgentInsert & {
-  projects?: Array<Partial<ProjectModel>>
   functionIds?: string[]
+  providerIds?: string[]
+  projects?: Array<Partial<ProjectModel>>
 }
 
 export type TAgentSelectOpts = TDBAgentSelect & {
@@ -36,11 +38,18 @@ export type TAgentSelectOpts = TDBAgentSelect & {
     functionId: string
     function: TDBFunctionSelect
   }[]
+  providers?: {
+    agentId: string
+    providerId: string
+    priority: number
+    provider: TDBProviderSelect
+  }[]
 }
 
 type TAgentRelations = {
   id: string
   functionIds?: string[]
+  providerIds?: string[]
   projects?: Array<Partial<ProjectModel>>
 }
 
@@ -69,10 +78,8 @@ export class Agent extends Base<
   }
 
   with = (opts: TDBWithRecord) => {
-    const proj: TDBWithObj = isObj<TDBWithObj>(opts?.projects) ? opts.projects : {}
     return {
       secrets: true,
-      provider: true,
       ...opts,
       projects: {
         with: {
@@ -84,11 +91,16 @@ export class Agent extends Base<
           function: true,
         },
       },
+      providers: {
+        with: {
+          provider: true,
+        },
+      },
     } as TDBWithRecord
   }
 
   #relations = async (opts: TAgentRelations) => {
-    const { id, projects, functionIds } = opts
+    const { id, projects, functionIds, providerIds } = opts
 
     if (projects?.length)
       for (const proj of projects) {
@@ -114,6 +126,20 @@ export class Agent extends Base<
           })
           .onConflictDoNothing()
       }
+
+    if (providerIds?.length)
+      for (let i = 0; i < providerIds.length; i++) {
+        const providerId = providerIds[i]
+        if (!providerId) continue
+        await this.db
+          .insert(agentProviders)
+          .values({
+            agentId: id,
+            providerId,
+            priority: i,
+          })
+          .onConflictDoNothing()
+      }
   }
 
   /**
@@ -125,6 +151,9 @@ export class Agent extends Base<
       ...data,
       projects: (data.projects || []).map((link) => link.project),
       functions: (data.functions || []).map((link) => link.function),
+      providers: (data.providers || [])
+        .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+        .map((link) => link.provider),
     })
 
     // If sanitize is not explicitly false, sanitize the secrets
@@ -201,13 +230,13 @@ export class Agent extends Base<
    * Create an agent and optionally associate it with projects and functions
    */
   async create(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, functionIds, ...agentData } = data
+    const { projects, functionIds, providerIds, ...agentData } = data
 
     // Create the agent
     const result = await super.create(agentData as TDBAgentInsert)
 
-    if (result.data && (projects?.length || functionIds?.length)) {
-      await this.#relations({ id: result.data.id, projects, functionIds })
+    if (result.data && (projects?.length || functionIds?.length || providerIds?.length)) {
+      await this.#relations({ id: result.data.id, projects, functionIds, providerIds })
       const updated = await this.get(result.data.id, opts)
       result.data = updated.data
     }
@@ -219,21 +248,24 @@ export class Agent extends Base<
    * Update an agent and manage project and function associations
    */
   async update(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, functionIds, ...agent } = data
+    const { projects, functionIds, providerIds, ...agent } = data
 
     if (!agent.id)
       return { data: null, error: new DBError(`Agent ID is required for update`) }
 
     const result = await super.update(agent)
 
-    if (result.data && (projects?.length || functionIds?.length)) {
+    if (result.data && (projects?.length || functionIds?.length || providerIds?.length)) {
       if (projects?.length)
         await this.db.delete(agentProjects).where(eq(agentProjects.agentId, agent.id))
 
       if (functionIds?.length)
         await this.db.delete(agentFunctions).where(eq(agentFunctions.agentId, agent.id))
 
-      await this.#relations({ id: agent.id, projects, functionIds })
+      if (providerIds?.length)
+        await this.db.delete(agentProviders).where(eq(agentProviders.agentId, agent.id))
+
+      await this.#relations({ id: agent.id, projects, functionIds, providerIds })
       const updated = await this.get(agent.id, opts)
       result.data = updated.data
     }
@@ -242,12 +274,11 @@ export class Agent extends Base<
   }
 
   async upsert(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, functionIds, ...agent } = data
+    const { projects, functionIds, providerIds, ...agent } = data
     const result = await super.upsert(agent)
 
-    // If projectIds are provided, update the associations
-    if (result.data && (projects?.length || functionIds?.length)) {
-      await this.#relations({ id: agent.id, projects, functionIds })
+    if (result.data && (projects?.length || functionIds?.length || providerIds?.length)) {
+      await this.#relations({ id: agent.id, projects, functionIds, providerIds })
       const updated = await this.get(agent.id, opts)
       result.data = updated.data
     }
@@ -311,6 +342,60 @@ export class Agent extends Base<
           eq(agentFunctions.functionId, functionId)
         )
       )
+
+    return { data: null, error: null }
+  }
+
+  /**
+   * Add a provider to an agent with priority ordering
+   */
+  async addProvider(agentId: string, providerId: string, priority: number = 0) {
+    const [result] = await this.db
+      .insert(agentProviders)
+      .values({
+        agentId,
+        providerId,
+        priority,
+      })
+      .returning()
+
+    return { data: result, error: null }
+  }
+
+  /**
+   * Remove a provider from an agent
+   */
+  async removeProvider(agentId: string, providerId: string) {
+    await this.db
+      .delete(agentProviders)
+      .where(
+        and(
+          eq(agentProviders.agentId, agentId),
+          eq(agentProviders.providerId, providerId)
+        )
+      )
+
+    return { data: null, error: null }
+  }
+
+  /**
+   * Replace all providers for an agent, setting priority by array order
+   */
+  async setProviders(agentId: string, providerIds: string[]) {
+    await this.db.delete(agentProviders).where(eq(agentProviders.agentId, agentId))
+
+    for (let i = 0; i < providerIds.length; i++) {
+      const providerId = providerIds[i]
+      if (!providerId) continue
+      await this.db
+        .insert(agentProviders)
+        .values({
+          agentId,
+          providerId,
+          priority: i,
+        })
+        .onConflictDoNothing()
+    }
 
     return { data: null, error: null }
   }

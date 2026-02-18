@@ -56,6 +56,15 @@ export const env = {
     return process.env.TDSK_IT_ZAI_AGENT_ID || ''
   },
 
+  /**
+   * Real LLM provider API key for creating providers in E2E tests.
+   * Used by agent-provider tests that need to create working agents with real keys.
+   * When not set, tests that require live LLM calls are skipped.
+   */
+  get testProviderKey() {
+    return process.env.TDSK_IT_PROVIDER_KEY || ''
+  },
+
   /** Neon Auth URL pattern for Playwright interception */
   neonAuthPattern: '**/neondb/auth/get-session**',
 } as const

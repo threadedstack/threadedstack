@@ -56,6 +56,7 @@ export type TAgentRunRequest = {
   agentId: string
   threadId?: string
   projectId?: string
+  providerId?: string
   overrides?: TAgentRunOverrides
 }
 

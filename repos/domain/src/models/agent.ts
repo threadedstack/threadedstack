@@ -8,17 +8,16 @@ import { Function as FunctionModel } from './function'
 
 export class Agent extends Base {
   name: string
+  orgId: string
   model?: string
   maxTokens?: number
-  orgId: string
-  providerId: string
-  provider?: Provider
   description?: string
   tools: string[] = []
   systemPrompt?: string
   active: boolean = true
   secrets: Secret[] = []
   projects: Project[] = []
+  providers: Provider[] = []
   envVars: TAgentEnvVars = {}
   functions: FunctionModel[] = []
   environment: TAgentEnvironment = {}
@@ -26,15 +25,10 @@ export class Agent extends Base {
   constructor(agent: Partial<Agent>) {
     super()
 
-    const { secrets, functions, provider, projects, ...rest } = agent
+    const { secrets, functions, providers, projects, ...rest } = agent
 
     Object.assign(this, {
       ...rest,
-      provider: provider
-        ? provider instanceof Provider
-          ? provider
-          : new Provider(provider)
-        : undefined,
       secrets:
         secrets?.map((secret) =>
           secret instanceof Secret ? secret : new Secret(secret)
@@ -47,7 +41,15 @@ export class Agent extends Base {
         projects?.map((project) =>
           project instanceof Project ? project : new Project(project)
         ) || [],
+      providers:
+        providers?.map((prov) =>
+          prov instanceof Provider ? prov : new Provider(prov)
+        ) || [],
     })
+  }
+
+  get primaryProvider(): Provider | undefined {
+    return this.providers[0]
   }
 
   sanitize = () => {
