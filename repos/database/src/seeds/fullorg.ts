@@ -1,5 +1,6 @@
 import { Ids } from '@TDB/seeds/ids.seed'
 import { encryptSecret } from '@TDB/utils/crypto'
+
 import {
   User,
   Role,
@@ -25,52 +26,53 @@ import {
   Function as FunctionModel,
 } from '@tdsk/domain'
 
+// --- Organization ---
 const org = new Organization({
   id: Ids.org.tdsk,
-  name: `Threaded Stack`,
+  name: `Tdsk`,
+  ownerId: Ids.super.user,
   description: `Developer platform that offers AI Agent management, functions as a service and API request proxying including secure dynamic secret injection`,
 })
 
+// --- Users ---
 const users = {
   owner: new User({
     id: Ids.super.user,
     name: `Lance Tipton`,
     banExpires: undefined,
+    emailVerified: false,
     email: `lancetipton04@gmail.com`,
   }),
   admin: new User({
     id: Ids.user.admin,
     name: `Test Admin`,
+    emailVerified: false,
     email: `test.admin@threadedstack.com`,
   }),
   member: new User({
     id: Ids.user.member,
     name: `Test Member`,
+    emailVerified: false,
     email: `test.member@threadedstack.com`,
   }),
   viewer: new User({
     id: Ids.user.viewer,
     name: `Test Viewer`,
+    emailVerified: false,
     email: `test.viewer@threadedstack.com`,
   }),
 }
 
+// --- Org-Scoped Roles ---
 const roles = {
+  // Owner user gets 'super' role (unique constraint: one role per user per org)
   super: new Role({
     type: `super`,
     orgId: org.id,
     projectId: undefined,
-    id: `20000000-0000-0000-0000-000000000000`,
+    id: Ids.role.super,
     userId: users.owner.id,
     name: `Organization Super`,
-  }),
-  owner: new Role({
-    type: `owner`,
-    orgId: org.id,
-    projectId: undefined,
-    id: Ids.role.ownerAcme,
-    userId: users.owner.id,
-    name: `Organization Owner`,
   }),
   admin: new Role({
     type: `admin`,
@@ -98,6 +100,7 @@ const roles = {
   }),
 }
 
+// --- Projects ---
 const projects = {
   api: new Project({
     orgId: org.id,
@@ -140,6 +143,43 @@ const projects = {
   }),
 }
 
+// --- Project-Scoped Roles (user <-> project membership) ---
+const projectRoles = {
+  adminApi: new Role({
+    type: `admin`,
+    orgId: undefined,
+    projectId: projects.api.id,
+    id: `20000000-0000-0000-0000-000000000010`,
+    userId: users.admin.id,
+    name: `API Backend Admin`,
+  }),
+  memberApi: new Role({
+    type: `member`,
+    orgId: undefined,
+    projectId: projects.api.id,
+    id: `20000000-0000-0000-0000-000000000011`,
+    userId: users.member.id,
+    name: `API Backend Member`,
+  }),
+  memberWeb: new Role({
+    type: `member`,
+    orgId: undefined,
+    projectId: projects.web.id,
+    id: `20000000-0000-0000-0000-000000000012`,
+    userId: users.member.id,
+    name: `Web Dashboard Member`,
+  }),
+  viewerWeb: new Role({
+    type: `viewer`,
+    orgId: undefined,
+    projectId: projects.web.id,
+    id: `20000000-0000-0000-0000-000000000013`,
+    userId: users.viewer.id,
+    name: `Web Dashboard Viewer`,
+  }),
+}
+
+// --- Subscriptions ---
 const subscriptions = {
   sub: new Subscription({
     tier: `free`,
@@ -155,35 +195,39 @@ const subscriptions = {
   }),
 }
 
+// --- API Keys ---
 const apiKeys = {
   orgMaster: new ApiKey({
     active: true,
     rateLimit: 1000,
     orgId: org.id,
     projectId: undefined,
-    keyPrefix: `tdsk_master`,
+    userId: users.owner.id,
     scopes: `read,write,admin`,
-    name: `Threaded Stack Org Master Key`,
+    keyPrefix: `tdsk_QIWTcVw`,
     id: Ids.apikey.tdskOrgKey,
     expiresAt: new Date(`2025-12-31`),
     lastUsedAt: new Date(`2024-01-25`),
-    keyHash: `hashed_tdsk_org_master_key_12345`,
+    name: `Threaded Stack Org Master Key`,
+    keyHash: `e1a4f913e4f19a36a4fe09ffc431dadd0cd79b218c70b0a1adc46b7435a4919c`,
   }),
   apiProject: new ApiKey({
     active: true,
     rateLimit: 500,
     orgId: undefined,
-    projectId: projects.api.id,
+    userId: users.admin.id,
     scopes: `read,write`,
-    keyPrefix: `tdsk_api_proj`,
+    keyPrefix: `tdsk_XP0wDQi`,
+    projectId: projects.api.id,
     name: `API Backend Project Key`,
     id: Ids.apikey.acmeApiProjectKey,
     expiresAt: new Date(`2024-12-31`),
     lastUsedAt: new Date(`2024-01-26`),
-    keyHash: `hashed_tdsk_api_project_key_67890`,
+    keyHash: `5bf5a7b45c5c9450d5b993f4441bb8a4ee167a1b466a00377dc4ea43e65577df`,
   }),
 }
 
+// --- Providers ---
 const providers = {
   openai: new Provider({
     orgId: org.id,
@@ -191,7 +235,6 @@ const providers = {
     id: Ids.provider.acmeOpenai,
     name: `OpenAI Provider`,
     options: {
-      maxTokens: 4096,
       temperature: 0.7,
       model: `gpt-4-turbo`,
     },
@@ -202,16 +245,31 @@ const providers = {
     id: Ids.provider.acmeAnthropic,
     name: `Anthropic Provider`,
     options: {
-      maxTokens: 4096,
       model: `claude-3-opus-20240229`,
+    },
+  }),
+  zai: new Provider({
+    orgId: org.id,
+    type: EProvider.ai,
+    id: Ids.provider.zai,
+    name: `ZAI Provider`,
+    options: {
+      model: `glm-5`,
+      tool_stream: true,
     },
   }),
 }
 
-// Generate encrypted secrets
+// --- Secrets (all 4 exclusive arc scopes + combo) ---
 const anthropicSecret = await encryptSecret(
   `Anthropic API Key`,
   `sk-ant-test-key-for-seeding`,
+  Ids.project.acmeApi
+)
+
+const zaiSecret = await encryptSecret(
+  `ZAI API Key`,
+  process.env.TDSK_ZAI_KEY || `sk-zai-test-key-for-seeding`,
   Ids.project.acmeApi
 )
 
@@ -227,20 +285,36 @@ const githubSecret = await encryptSecret(
   org.id
 )
 
+const openaiProviderSecret = await encryptSecret(
+  `OpenAI API Key`,
+  `sk-test-openai-key-for-seeding`,
+  Ids.provider.acmeOpenai
+)
+
+const agentEnvSecret = await encryptSecret(
+  `Agent Environment Config`,
+  `agent-specific-secret-value`,
+  Ids.agent.codingAgent
+)
+
 const secrets = {
+  // Org+Provider combo-scoped secret
   anthropic: new Secret({
-    orgId: undefined,
-    providerId: undefined,
+    orgId: org.id,
+    agentId: null as any,
+    projectId: null as any,
     name: `Anthropic API Key`,
     hashKey: anthropicSecret.hashKey,
-    projectId: Ids.project.acmeApi,
+    providerId: providers.anthropic.id,
     id: Ids.secret.providerAnthropicKey,
     description: `Anthropic API authentication key`,
     encryptedValue: anthropicSecret.encryptedValue,
   }),
+  // Project-scoped secret
   database: new Secret({
-    orgId: undefined,
-    providerId: undefined,
+    orgId: null as any,
+    agentId: null as any,
+    providerId: null as any,
     name: `Database Password`,
     hashKey: databaseSecret.hashKey,
     id: Ids.secret.acmeDbPassword,
@@ -248,39 +322,110 @@ const secrets = {
     description: `Production database password`,
     encryptedValue: databaseSecret.encryptedValue,
   }),
+  // Org-scoped secret
   github: new Secret({
-    name: `GitHub Token`,
-    projectId: undefined,
-    providerId: undefined,
+    projectId: null as any,
+    agentId: null as any,
+    providerId: null as any,
     orgId: org.id,
     id: Ids.secret.githubToken,
+    name: `GitHub Token`,
     hashKey: githubSecret.hashKey,
-    description: `GitHub PAT`,
+    description: `GitHub PAT for repository access`,
     encryptedValue: githubSecret.encryptedValue,
+  }),
+  // Org+Provider combo-scoped secret
+  openaiKey: new Secret({
+    orgId: org.id,
+    agentId: null as any,
+    projectId: null as any,
+    name: `OpenAI API Key`,
+    id: Ids.secret.acmeApiKey,
+    providerId: providers.openai.id,
+    hashKey: openaiProviderSecret.hashKey,
+    description: `OpenAI API key for provider`,
+    encryptedValue: openaiProviderSecret.encryptedValue,
+  }),
+  // Agent-scoped secret
+  agentEnv: new Secret({
+    orgId: null as any,
+    projectId: null as any,
+    providerId: null as any,
+    agentId: Ids.agent.codingAgent,
+    id: Ids.secret.acmeProjectSecret,
+    name: `Agent Environment Config`,
+    hashKey: agentEnvSecret.hashKey,
+    description: `Agent-specific environment configuration`,
+    encryptedValue: agentEnvSecret.encryptedValue,
+  }),
+  // Org+Provider combo-scoped secret
+  zaiSecret: new Secret({
+    orgId: org.id,
+    agentId: null as any,
+    projectId: null as any,
+    name: `ZAI API Key`,
+    id: Ids.secret.zaiKey,
+    hashKey: zaiSecret.hashKey,
+    providerId: providers.zai.id,
+    description: `ZAI API authentication key`,
+    encryptedValue: zaiSecret.encryptedValue,
   }),
 }
 
+// --- Agents ---
 const agents = {
   coding: new Agent({
     orgId: org.id,
     id: Ids.agent.codingAgent,
+    name: `Coding Agent`,
     description: `A coding AI Agent`,
+    model: `claude-3-opus-20240229`,
     projects: Object.values(projects),
-    providerId: Ids.provider.acmeAnthropic,
+    providers: [providers.anthropic, providers.openai],
     systemPrompt: `You are a senior software engineer.`,
-    secrets: [secrets.anthropic],
+    secrets: [secrets.anthropic, secrets.agentEnv],
+    tools: [`readFile`, `writeFile`, `shellExec`],
+    environment: {
+      timeout: 30000,
+      memory: 512,
+      streaming: true,
+      temperature: 0.3,
+      maxRetries: 2,
+    },
   }),
   chat: new Agent({
     orgId: org.id,
     id: Ids.agent.chatAgent,
+    name: `Chat Agent`,
     description: `Conversational AI`,
-    projects: Object.values(projects),
-    providerId: Ids.provider.acmeAnthropic,
+    model: `claude-3-opus-20240229`,
+    projects: [projects.api, projects.web],
+    providers: [providers.anthropic],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.anthropic],
+    environment: {
+      streaming: true,
+      temperature: 0.7,
+    },
+  }),
+  general: new Agent({
+    orgId: org.id,
+    id: Ids.agent.generalAgent,
+    name: `General Agent`,
+    description: `General well rounded AI Agent`,
+    model: `glm-5`,
+    projects: [projects.api, projects.web],
+    providers: [providers.zai],
+    systemPrompt: `Answer the users questions.`,
+    secrets: [secrets.zaiSecret],
+    environment: {
+      streaming: true,
+      temperature: 0.7,
+    },
   }),
 }
 
+// --- Endpoints ---
 const endpoints = {
   googleProxy: new ProxyEndpoint({
     type: EEndpointType.proxy,
@@ -337,13 +482,32 @@ const endpoints = {
       functionId: Ids.function.acmeAuth,
     },
   }),
+  validator: new FaaSEndpoint({
+    name: `User Validator`,
+    path: `/api/v1/validate`,
+    type: EEndpointType.faas,
+    projectId: projects.api.id,
+    id: Ids.endpoint.acmeApiValidator,
+    method: `POST`,
+    public: false,
+    headers: {
+      [`Content-Type`]: `application/json`,
+    },
+    options: {
+      retries: 1,
+      timeout: 10000,
+      type: EEndpointType.faas,
+      functionId: Ids.function.acmeUserValidator,
+    },
+  }),
 }
 
-const functions = {
+// --- Functions ---
+const funcs = {
   userValidator: new FunctionModel({
     id: Ids.function.acmeUserValidator,
     projectId: projects.api.id,
-    endpointId: endpoints.usersApi.id,
+    endpointId: endpoints.validator.id,
     name: `User Data Validator`,
     description: `Validates user input before saving`,
     language: EFunLanguage.typescript,
@@ -383,7 +547,9 @@ export async function generateToken(userId: string) {
   }),
 }
 
+// --- Assets (all 5 exclusive arc scopes + provider link) ---
 const assets = {
+  // Org-scoped asset
   orgLogo: new Asset({
     type: `image/png`,
     userId: undefined,
@@ -403,6 +569,7 @@ const assets = {
       uploadedBy: users.owner.id,
     },
   }),
+  // Project-scoped asset
   projectDiagram: new Asset({
     orgId: undefined,
     userId: undefined,
@@ -421,6 +588,7 @@ const assets = {
       category: `documentation`,
     },
   }),
+  // User-scoped asset
   userAvatar: new Asset({
     orgId: undefined,
     type: `image/jpeg`,
@@ -439,12 +607,72 @@ const assets = {
       size: 23456,
     },
   }),
+  // Thread-scoped asset
+  threadAttachment: new Asset({
+    orgId: undefined,
+    userId: undefined,
+    content: undefined,
+    messageId: undefined,
+    projectId: undefined,
+    providerId: undefined,
+    type: `application/pdf`,
+    threadId: Ids.thread.adminPlanning,
+    id: Ids.asset.threadAttachment,
+    name: `Q1 Planning Document`,
+    url: `https://cdn.threadedstack.com/docs/q1-plan.pdf`,
+    meta: {
+      size: 156789,
+      pages: 12,
+      category: `planning`,
+    },
+  }),
+  // Message-scoped asset
+  messageImage: new Asset({
+    orgId: undefined,
+    userId: undefined,
+    content: undefined,
+    threadId: undefined,
+    projectId: undefined,
+    providerId: undefined,
+    type: `image/png`,
+    messageId: Ids.message.thread2Msg2,
+    id: Ids.asset.messageImage,
+    name: `Dashboard Performance Chart`,
+    url: `https://cdn.threadedstack.com/charts/perf-metrics.png`,
+    meta: {
+      width: 1024,
+      height: 768,
+      size: 87654,
+      chartType: `line`,
+    },
+  }),
+  // User-scoped asset with provider link (providerId is independent, not part of arc)
+  providerConfig: new Asset({
+    orgId: undefined,
+    threadId: undefined,
+    messageId: undefined,
+    projectId: undefined,
+    content: { defaultModel: `gpt-4-turbo`, maxTokens: 4096 },
+    type: `application/json`,
+    userId: users.owner.id,
+    providerId: providers.openai.id,
+    id: Ids.asset.providerConfig,
+    name: `OpenAI Provider Configuration`,
+    url: undefined,
+    meta: {
+      category: `configuration`,
+      provider: `openai`,
+    },
+  }),
 }
 
+// --- Threads (with orgId, agentId, projectId relationships) ---
 const threads = {
   planning: new Thread({
     public: false,
+    orgId: org.id,
     userId: users.owner.id,
+    agentId: agents.chat.id,
     id: Ids.thread.adminPlanning,
     name: `Q1 Planning Discussion`,
     projectId: projects.web.id,
@@ -456,7 +684,9 @@ const threads = {
   }),
   support: new Thread({
     public: false,
+    orgId: org.id,
     userId: users.admin.id,
+    agentId: agents.chat.id,
     id: Ids.thread.adminSupport,
     projectId: projects.api.id,
     name: `Customer Support Issues`,
@@ -468,7 +698,9 @@ const threads = {
   }),
   dev: new Thread({
     public: false,
+    orgId: org.id,
     userId: users.member.id,
+    agentId: agents.coding.id,
     id: Ids.thread.memberDev,
     name: `API Development Chat`,
     projectId: projects.api.id,
@@ -478,30 +710,51 @@ const threads = {
       tags: [`development`, `api`],
     },
   }),
+  viewer: new Thread({
+    public: true,
+    orgId: org.id,
+    userId: users.viewer.id,
+    agentId: agents.chat.id,
+    id: Ids.thread.viewer,
+    name: `General Q&A`,
+    projectId: projects.web.id,
+    providerId: providers.anthropic.id,
+    meta: {
+      tags: [`general`, `questions`],
+    },
+  }),
 }
 
+// --- Messages (using TMessageContent[] format for content field) ---
 const messages = {
   planningMsg1: new Message({
     type: `user`,
+    orgId: org.id,
+    projectId: projects.web.id,
     id: Ids.message.thread1Msg1,
     threadId: threads.planning.id,
-    content: {
-      text: `What are our key objectives for Q1 2024?`,
-      timestamp: new Date(`2024-01-05T10:00:00Z`).toISOString(),
-    },
+    content: [
+      {
+        type: `text`,
+        text: `What are our key objectives for Q1 2024?`,
+      },
+    ],
     meta: {
       role: `user`,
-      modelVersion: null,
     },
   }),
   planningMsg2: new Message({
     type: `assistant`,
+    orgId: org.id,
+    projectId: projects.web.id,
     id: Ids.message.thread1Msg2,
     threadId: threads.planning.id,
-    content: {
-      text: `Based on our previous discussions, here are the key Q1 objectives:\n1. Launch new API v2\n2. Expand team by 5 members\n3. Achieve 99.9% uptime SLA\n4. Complete security audit`,
-      timestamp: new Date(`2024-01-05T10:00:15Z`).toISOString(),
-    },
+    content: [
+      {
+        type: `text`,
+        text: `Based on our previous discussions, here are the key Q1 objectives:\n1. Launch new API v2\n2. Expand team by 5 members\n3. Achieve 99.9% uptime SLA\n4. Complete security audit`,
+      },
+    ],
     meta: {
       role: `assistant`,
       modelVersion: `gpt-4-turbo`,
@@ -510,12 +763,16 @@ const messages = {
   }),
   supportMsg1: new Message({
     type: `user`,
+    orgId: org.id,
+    projectId: projects.api.id,
     id: Ids.message.thread2Msg1,
     threadId: threads.support.id,
-    content: {
-      text: `Customer reports slow response times on the dashboard`,
-      timestamp: new Date(`2024-01-15T14:30:00Z`).toISOString(),
-    },
+    content: [
+      {
+        type: `text`,
+        text: `Customer reports slow response times on the dashboard`,
+      },
+    ],
     meta: {
       role: `user`,
       customerId: `cust_abc123`,
@@ -523,20 +780,57 @@ const messages = {
   }),
   supportMsg2: new Message({
     type: `assistant`,
+    orgId: org.id,
+    projectId: projects.api.id,
     id: Ids.message.thread2Msg2,
     threadId: threads.support.id,
-    content: {
-      text: `I can help investigate. Please check:\n1. Database query performance\n2. CDN cache status\n3. Recent deployments\n4. Server load metrics`,
-      timestamp: new Date(`2024-01-15T14:30:20Z`).toISOString(),
-    },
+    content: [
+      {
+        type: `text`,
+        text: `I can help investigate. Please check:\n1. Database query performance\n2. CDN cache status\n3. Recent deployments\n4. Server load metrics`,
+      },
+    ],
     meta: {
       tokensUsed: 56,
       role: `assistant`,
       modelVersion: `claude-3-opus-20240229`,
     },
   }),
+  devMsg1: new Message({
+    type: `user`,
+    orgId: org.id,
+    projectId: projects.api.id,
+    id: Ids.message.thread3Msg1,
+    threadId: threads.dev.id,
+    content: [
+      {
+        type: `text`,
+        text: `Can you help me refactor the authentication middleware to support API key validation?`,
+      },
+    ],
+    meta: {
+      role: `user`,
+    },
+  }),
+  viewerMsg1: new Message({
+    type: `user`,
+    orgId: org.id,
+    projectId: projects.web.id,
+    id: Ids.message.thread4Msg1,
+    threadId: threads.viewer.id,
+    content: [
+      {
+        type: `text`,
+        text: `How do I configure a new endpoint in the dashboard?`,
+      },
+    ],
+    meta: {
+      role: `user`,
+    },
+  }),
 }
 
+// --- Quotas ---
 const quotas = {
   jan2024: new Quota({
     projects: 5,
@@ -549,7 +843,7 @@ const quotas = {
     orgSecrets: 15,
     runtime: 120000,
     organizations: 1,
-    period: `2024-01`,
+    period: `2026-01`,
     projectSecrets: 45,
     orgId: org.id,
     functionCalls: 50000,
@@ -566,7 +860,7 @@ const quotas = {
     messages: 4200,
     runtime: 150000,
     organizations: 1,
-    period: `2024-02`,
+    period: `2026-02`,
     orgId: org.id,
     projectSecrets: 52,
     functionCalls: 65000,
@@ -574,6 +868,7 @@ const quotas = {
   }),
 }
 
+// --- Invitations (all 4 statuses) ---
 const invitations = {
   pending: new Invitation({
     userId: undefined,
@@ -617,8 +912,23 @@ const invitations = {
     email: `expired@threadedstack.com`,
     expiresAt: new Date(`2024-01-01T00:00:00Z`).toISOString(),
   }),
+  revoked: new Invitation({
+    userId: undefined,
+    roleType: `member`,
+    acceptedAt: undefined,
+    orgId: org.id,
+    invitedBy: users.owner.id,
+    revokedBy: users.owner.id,
+    id: Ids.invitation.revoked,
+    status: EInviteStatus.revoked,
+    token: `invite_token_tdsk_revoked`,
+    email: `revoked@threadedstack.com`,
+    expiresAt: new Date(`2024-03-01T00:00:00Z`).toISOString(),
+    revokedAt: new Date(`2024-01-20T10:00:00Z`).toISOString(),
+  }),
 }
 
+// --- Domains ---
 const domains = {
   orgDomain: new Domain({
     orgId: org.id,
@@ -627,8 +937,8 @@ const domains = {
     projectId: undefined,
     domain: `app.threadedstack.com`,
     id: `10000000-0000-0000-0000-000000000100`,
-    verifiedAt: new Date(`2024-01-01T00:00:00Z`).toISOString(),
-    sslExpiresAt: new Date(`2025-01-01T00:00:00Z`).toISOString(),
+    verifiedAt: new Date(`2024-01-01T00:00:00Z`),
+    sslExpiresAt: new Date(`2025-01-01T00:00:00Z`),
   }),
   apiDomain: new Domain({
     orgId: undefined,
@@ -636,33 +946,53 @@ const domains = {
     projectId: projects.api.id,
     domain: `api.threadedstack.com`,
     id: `10000000-0000-0000-0000-000000000101`,
-    verifiedAt: new Date(`2024-01-01T00:00:00Z`).toISOString(),
+    verifiedAt: new Date(`2024-01-01T00:00:00Z`),
     sslEnabled: true,
-    sslExpiresAt: new Date(`2025-01-01T00:00:00Z`).toISOString(),
+    sslExpiresAt: new Date(`2025-01-01T00:00:00Z`),
   }),
 }
 
-const seeds = {
-  // Core entities (no dependencies)
+/**
+ * Full organization seed data
+ * Contains everything needed to create a complete org with all entity types
+ *
+ * Entity relationships:
+ * - Organization has ownerId -> users.owner
+ * - Roles: org-scoped (owner/admin/member/viewer) + project-scoped (admin/member/viewer)
+ * - Providers: org-scoped (openai, anthropic)
+ * - Agents: linked to providers via junction table, projects via junction table, functions via junction table
+ * - Secrets: covers all 4 exclusive arc scopes (org, project, provider, agent)
+ * - Assets: covers all 5 exclusive arc scopes (org, project, user, thread, message) + provider link
+ * - Threads: linked to org, project, agent, provider, and user
+ * - Messages: linked to thread, org, and project with TMessageContent[] format
+ * - Invitations: all 4 statuses (pending, accepted, expired, revoked)
+ */
+export const seeds = {
+  // Core entities
   org,
   users,
-  // Organization-dependent entities
-  projects,
+  // Organization membership
   roles,
+  projectRoles,
   subscriptions,
+  // Infrastructure
   providers,
-  // Project-dependent entities
-  endpoints,
-  functions,
-  apiKeys,
+  projects,
+  // Security
   secrets,
+  apiKeys,
+
+  // Code
+  endpoints,
+  functions: funcs,
+  // AI
   agents,
-  // User/Org/Project-dependent entities (polymorphic)
-  assets,
-  // Thread/Message entities
+  // Conversations
   threads,
   messages,
-  // Organization tracking
+  // Files
+  assets,
+  // Tracking
   quotas,
   invitations,
   domains,
