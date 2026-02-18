@@ -4,10 +4,9 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { Exception } from '@TBE/utils/errors/exception'
-import { generateApiKey } from '@TBE/utils/auth/generateApiKey'
 import { validateApiKey } from '@TBE/utils/auth/validateApiKey'
-import { ApiKey, EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { ApiKey, EPermAction, EPermResource, generateApiKey } from '@tdsk/domain'
 
 /**
  * POST /api-keys - Generate a new API key

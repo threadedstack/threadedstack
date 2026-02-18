@@ -16,7 +16,7 @@ export const updateAgent: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const { projectIds = [], functionIds = [], ...agent } = req.body
+    const { projectIds = [], functionIds = [], providerIds = [], ...agent } = req.body
 
     // First get the agent to check permissions
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)
@@ -34,22 +34,30 @@ export const updateAgent: TEndpointConfig = {
 
     if (projErr) throw new Exception(500, projErr.message)
 
-    // If providerId is being changed, validate the new provider is AI type
-    if (agent.providerId && agent.providerId !== existingAgent.providerId) {
-      const { data: provider, error: provErr } = await db.services.provider.get(
-        agent.providerId
-      )
-      if (provErr || !provider) throw new Exception(404, `Provider not found`)
-      if (provider.type !== `ai`)
-        throw new Exception(
-          400,
-          `Agent must be linked to an AI provider (got type: "${provider.type}")`
-        )
+    // If providerIds are being changed, validate all are AI type and same org
+    if (providerIds?.length) {
+      for (const providerId of providerIds) {
+        const { data: provider, error: provErr } =
+          await db.services.provider.get(providerId)
+        if (provErr || !provider)
+          throw new Exception(404, `Provider ${providerId} not found`)
+        if (provider.type !== `ai`)
+          throw new Exception(
+            400,
+            `Agent must be linked to AI providers (provider ${providerId} has type: "${provider.type}")`
+          )
+        if (provider.orgId !== existingAgent.orgId)
+          throw new Exception(
+            403,
+            `Provider ${providerId} does not belong to organization ${existingAgent.orgId}`
+          )
+      }
     }
 
     agent.id = id
     if (projects?.length) agent.projects = projects
     if (functionIds?.length) agent.functionIds = functionIds
+    if (providerIds?.length) agent.providerIds = providerIds
     const { data, error } = await db.services.agent.update(agent)
 
     if (error) throw new Exception(500, error.message)

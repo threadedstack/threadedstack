@@ -49,7 +49,7 @@ export class Agent extends Base {
   }
 
   get primaryProvider(): Provider | undefined {
-    return this.providers[0]
+    return this.providers?.[0]
   }
 
   sanitize = () => {

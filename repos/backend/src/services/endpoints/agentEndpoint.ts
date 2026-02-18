@@ -67,7 +67,14 @@ export class AgentEndpoint extends BaseEndpoint {
     db: TDatabase,
     opts: TAgentExecOpts
   ): Promise<void> => {
-    const { agentId, prompt, userId, threadId: existingThreadId, overrides } = opts
+    const {
+      prompt,
+      userId,
+      agentId,
+      overrides,
+      providerId,
+      threadId: existingThreadId,
+    } = opts
 
     // Load the agent with provider and secrets (unsanitized to access secret values)
     const { data: agent, error: agentErr } = await db.services.agent.get(agentId, {
@@ -76,16 +83,22 @@ export class AgentEndpoint extends BaseEndpoint {
 
     if (agentErr || !agent) throw new Exception(404, `Agent not found`)
 
-    // Load provider
-    const { data: provider, error: provErr } = await db.services.provider.get(
-      agent.providerId
-    )
-
-    if (provErr || !provider) throw new Exception(404, `Agent provider not found`)
+    // Select provider: explicit override, or primary (first in priority order)
+    let provider = agent.primaryProvider
+    if (providerId) {
+      const match = agent.providers.find((p) => p.id === providerId)
+      if (!match)
+        throw new Exception(
+          400,
+          `Provider ${providerId} is not configured for this agent`
+        )
+      provider = match
+    }
+    if (!provider) throw new Exception(404, `Agent has no provider configured`)
 
     // Resolve secrets
     const secrets = new SecretResolver(db)
-    const apiKey = await secrets.resolveApiKey(agent)
+    const apiKey = await secrets.resolveApiKey(agent, provider.id)
 
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 
@@ -132,14 +145,10 @@ export class AgentEndpoint extends BaseEndpoint {
       headers,
       bodyParams,
       provider: providerType as any,
-      systemPrompt: overrides?.systemPrompt || agent.systemPrompt,
-      maxTokens: overrides?.maxTokens || agent.maxTokens || 4096,
       temperature: agent.environment?.temperature,
-      model:
-        overrides?.model ||
-        agent.model ||
-        provider.options?.model ||
-        `claude-sonnet-4-20250514`,
+      maxTokens: overrides?.maxTokens || agent.maxTokens,
+      systemPrompt: overrides?.systemPrompt || agent.systemPrompt,
+      model: overrides?.model || agent.model || provider.options?.model,
     }
 
     // Build sandbox config
@@ -167,7 +176,8 @@ export class AgentEndpoint extends BaseEndpoint {
         agentId,
         threadId,
         llmConfig,
-        maxSteps: 10,
+        // TODO: Make maxSteps configurable, should not be hard-coded like this
+        //maxSteps: 10,
         sandboxConfig,
         orgId: agent.orgId,
         db: createDBAdapter(db),
@@ -178,10 +188,10 @@ export class AgentEndpoint extends BaseEndpoint {
           const func = functionMap.get(functionId)
           if (!func) {
             return {
-              success: false,
-              output: null,
-              error: `Function not found`,
               duration: 0,
+              output: null,
+              success: false,
+              error: `Function not found`,
             }
           }
           return FunctionExecutor.execute(func, {

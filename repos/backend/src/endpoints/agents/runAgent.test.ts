@@ -70,9 +70,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
               update: vi.fn(),
               delete: vi.fn(),
             },
-            provider: {
-              get: vi.fn(),
-            },
             secret: {
               list: vi.fn().mockResolvedValue({ data: [] }),
             },
@@ -172,12 +169,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     )
   })
 
-  it(`should throw 404 when provider not found`, async () => {
+  it(`should throw 404 when agent has no providers`, async () => {
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
-      typeof vi.fn
-    >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
       typeof vi.fn
     >
 
@@ -185,14 +179,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [],
+        primaryProvider: undefined,
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
       },
     })
-    mockProvGet.mockResolvedValue({ data: null })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `Agent provider not found`
+      `Agent has no provider configured`
     )
   })
 
@@ -204,20 +198,23 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
 
     mockAgentGet.mockResolvedValue({
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     // secret.list returns empty for both provider and org scoped
     const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
@@ -238,9 +235,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -249,13 +243,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-agent`, name: `Hello agent` },
@@ -278,9 +278,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
       typeof vi.fn
     >
@@ -292,13 +289,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockSecretList.mockResolvedValueOnce({
       data: [{ encryptedValue: fakeEncrypted(), providerId: `prov-1` }],
@@ -322,9 +325,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
       typeof vi.fn
     >
@@ -336,13 +336,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     // Provider secrets empty
     mockSecretList.mockResolvedValueOnce({ data: [] })
@@ -372,20 +378,29 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
 
     mockAgentGet.mockResolvedValue({
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          {
+            id: `prov-1`,
+            type: `ai`,
+            orgId: `org-1`,
+            name: `invalid-provider`,
+            options: {},
+          },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `invalid-provider`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `invalid-provider`, options: {} },
     })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -402,9 +417,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -413,13 +425,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `Google AI`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `Google AI`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `Google AI`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-google`, name: `Hello agent` },
@@ -445,9 +463,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -456,13 +471,25 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          {
+            id: `prov-1`,
+            type: `ai`,
+            orgId: `org-1`,
+            name: `My Custom Name`,
+            options: { llmProvider: `openai` },
+          },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `My Custom Name`,
+          options: { llmProvider: `openai` },
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `My Custom Name`, options: { llmProvider: `openai` } },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-opts`, name: `Hello agent` },
@@ -488,9 +515,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -499,14 +523,20 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         model: `claude-sonnet-4-20250514`,
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-sse`, name: `Hello agent` },
@@ -530,9 +560,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -541,14 +568,20 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         model: `claude-sonnet-4-20250514`,
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-new`, name: `Hello agent` },
@@ -572,9 +605,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -585,13 +615,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
 
     await ep.action(mockReq as TRequest, mockRes as Response)
@@ -611,9 +647,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -622,13 +655,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-first`, name: `Hello agent` },
@@ -651,9 +690,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -662,7 +698,16 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         model: `claude-sonnet-4-20250514`,
         maxTokens: 2048,
@@ -670,9 +715,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         tools: [`web_search`],
         environment: { temperature: 0.7 },
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-run`, name: `Hello agent` },
@@ -716,9 +758,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -727,13 +766,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-default`, name: `Hello agent` },
@@ -762,9 +807,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -773,7 +815,16 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
         environment: {
@@ -787,9 +838,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           },
         },
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-e2b`, name: `Hello agent` },
@@ -817,9 +865,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -828,13 +873,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-done`, name: `Hello agent` },
@@ -858,9 +909,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -869,13 +917,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `t-err`, name: `test` },
@@ -898,9 +952,6 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
     const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
       typeof vi.fn
     >
@@ -909,13 +960,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       data: {
         id: `agent-1`,
         orgId: `org-1`,
-        providerId: `prov-1`,
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+        primaryProvider: {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          options: {},
+        },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
       },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `t-close`, name: `test` },

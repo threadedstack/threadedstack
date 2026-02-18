@@ -23,7 +23,10 @@ export const createOrg: TEndpointConfig = {
 
     if (!orgData || !orgData.name) throw new Exception(400, `Org name is required`)
 
-    const { data, error } = await db.services.org.create(orgData)
+    const { data, error } = await db.services.org.create({
+      ...orgData,
+      ownerId: userId,
+    })
 
     if (error) throw new Exception(500, error.message)
 

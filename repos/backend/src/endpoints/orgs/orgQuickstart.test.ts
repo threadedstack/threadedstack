@@ -115,10 +115,12 @@ describe(`Quickstart endpoint`, () => {
           id: `agent-1`,
           name: `claude-agent`,
           orgId: `org-1`,
-          providerId: `provider-1`,
           model: `claude-sonnet-4-20250514`,
         },
       ])
+
+    // agentProviders insert doesn't call returning
+    mockInsertValues.mockReturnValueOnce({ returning: mockInsertReturning })
 
     // agentProjects insert doesn't call returning
     mockInsertValues.mockReturnValueOnce({ returning: mockInsertReturning })
@@ -356,7 +358,7 @@ describe(`Quickstart endpoint`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       // The endpoint insert should use a slugified path
-      const endpointInsertCall = (mockInsertValues.mock.calls as any[][])[5]?.[0]
+      const endpointInsertCall = (mockInsertValues.mock.calls as any[][])[6]?.[0]
       expect(endpointInsertCall?.path).toBe(`/ai/my-cool-agent`)
     })
   })

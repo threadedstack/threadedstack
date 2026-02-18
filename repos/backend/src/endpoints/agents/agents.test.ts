@@ -104,14 +104,14 @@ describe(`Agents endpoints`, () => {
           id: `agent-1`,
           name: `Agent One`,
           orgId: `org-1`,
-          providerId: `provider-1`,
+          providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
           projects: [],
         }),
         new Agent({
           id: `agent-2`,
           name: `Agent Two`,
           orgId: `org-1`,
-          providerId: `provider-2`,
+          providers: [{ id: `provider-2`, type: `ai`, orgId: `org-1` }] as any,
           projects: [],
         }),
       ]
@@ -154,21 +154,21 @@ describe(`Agents endpoints`, () => {
           id: `agent-1`,
           name: `Agent One`,
           orgId: `org-1`,
-          providerId: `provider-1`,
+          providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
           projects: [{ id: `project-1`, name: `P1`, orgId: `org-1` }] as any,
         }),
         new Agent({
           id: `agent-2`,
           name: `Agent Two`,
           orgId: `org-1`,
-          providerId: `provider-2`,
+          providers: [{ id: `provider-2`, type: `ai`, orgId: `org-1` }] as any,
           projects: [{ id: `project-2`, name: `P2`, orgId: `org-1` }] as any,
         }),
         new Agent({
           id: `agent-3`,
           name: `Agent Three`,
           orgId: `org-1`,
-          providerId: `provider-3`,
+          providers: [{ id: `provider-3`, type: `ai`, orgId: `org-1` }] as any,
           projects: [
             { id: `project-1`, name: `P1`, orgId: `org-1` },
             { id: `project-3`, name: `P3`, orgId: `org-1` },
@@ -197,7 +197,7 @@ describe(`Agents endpoints`, () => {
           id: `agent-1`,
           name: `Agent One`,
           orgId: `org-1`,
-          providerId: `provider-1`,
+          providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
           projects: [],
         }),
       ]
@@ -258,7 +258,7 @@ describe(`Agents endpoints`, () => {
         id: `agent-1`,
         name: `Agent One`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
         secrets: [
           { id: `s1`, key: `API_KEY`, value: `secret-value`, orgId: `org-1` },
@@ -287,7 +287,7 @@ describe(`Agents endpoints`, () => {
         id: `agent-1`,
         name: `Agent One`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
         secrets: [
           { id: `s1`, key: `API_KEY`, value: `secret-value`, orgId: `org-1` },
@@ -329,7 +329,7 @@ describe(`Agents endpoints`, () => {
         id: `agent-1`,
         name: `Agent One`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
         secrets: [
           { id: `s1`, key: `API_KEY`, value: `secret-value`, orgId: `org-1` },
@@ -362,12 +362,12 @@ describe(`Agents endpoints`, () => {
         id: `agent-new`,
         name: `New Agent`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.body = {
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providerIds: [`provider-1`],
         name: `New Agent`,
       }
 
@@ -375,7 +375,7 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockProvGet.mockResolvedValue({
-        data: { id: `provider-1`, type: `ai`, name: `Anthropic` },
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic`, orgId: `org-1` },
       })
 
       const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
@@ -392,18 +392,18 @@ describe(`Agents endpoints`, () => {
 
     it(`should return 400 when orgId missing`, async () => {
       mockReq.params = {}
-      mockReq.body = { providerId: `provider-1`, name: `Test Agent` }
+      mockReq.body = { providerIds: [`provider-1`], name: `Test Agent` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Agent must belong to an organization (orgId required)`
       )
     })
 
-    it(`should return 400 when providerId missing`, async () => {
+    it(`should return 400 when providerIds missing`, async () => {
       mockReq.body = { orgId: `org-1`, name: `Test Agent` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Agent must have a provider (providerId required)`
+        `Agent must have at least one provider (providerIds required)`
       )
     })
 
@@ -416,12 +416,12 @@ describe(`Agents endpoints`, () => {
         id: `agent-new`,
         name: `New Agent`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: mockProjects as any,
       })
       mockReq.body = {
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providerIds: [`provider-1`],
         name: `New Agent`,
         projectIds: [`project-1`, `project-2`],
       }
@@ -430,7 +430,7 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockProvGet.mockResolvedValue({
-        data: { id: `provider-1`, type: `ai`, name: `Anthropic` },
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic`, orgId: `org-1` },
       })
 
       const mockProjectList = mockReq.app?.locals.db.services.project.list as ReturnType<
@@ -461,12 +461,12 @@ describe(`Agents endpoints`, () => {
         id: `agent-new`,
         name: `New Agent`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.body = {
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providerIds: [`provider-1`],
         name: `New Agent`,
       }
 
@@ -474,7 +474,7 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockProvGet.mockResolvedValue({
-        data: { id: `provider-1`, type: `ai`, name: `Anthropic` },
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic`, orgId: `org-1` },
       })
 
       const mockProjectList = mockReq.app?.locals.db.services.project.list as ReturnType<
@@ -494,7 +494,7 @@ describe(`Agents endpoints`, () => {
     it(`should return 404 when provider not found`, async () => {
       mockReq.body = {
         orgId: `org-1`,
-        providerId: `nonexistent-provider`,
+        providerIds: [`nonexistent-provider`],
         name: `Test Agent`,
       }
 
@@ -504,14 +504,14 @@ describe(`Agents endpoints`, () => {
       mockProvGet.mockResolvedValue({ data: null })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider not found`
+        `Provider nonexistent-provider not found`
       )
     })
 
     it(`should return 400 when provider is not AI type`, async () => {
       mockReq.body = {
         orgId: `org-1`,
-        providerId: `git-provider`,
+        providerIds: [`git-provider`],
         name: `Test Agent`,
       }
 
@@ -519,11 +519,11 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockProvGet.mockResolvedValue({
-        data: { id: `git-provider`, type: `git`, name: `GitHub` },
+        data: { id: `git-provider`, type: `git`, name: `GitHub`, orgId: `org-1` },
       })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Agent must be linked to an AI provider`
+        `Agent must be linked to AI providers (provider git-provider has type: "git")`
       )
     })
 
@@ -532,12 +532,12 @@ describe(`Agents endpoints`, () => {
         id: `agent-new`,
         name: `New Agent`,
         orgId: `org-1`,
-        providerId: `ai-provider`,
+        providers: [{ id: `ai-provider`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.body = {
         orgId: `org-1`,
-        providerId: `ai-provider`,
+        providerIds: [`ai-provider`],
         name: `New Agent`,
       }
 
@@ -545,7 +545,7 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockProvGet.mockResolvedValue({
-        data: { id: `ai-provider`, type: `ai`, name: `Anthropic` },
+        data: { id: `ai-provider`, type: `ai`, name: `Anthropic`, orgId: `org-1` },
       })
 
       const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
@@ -560,7 +560,7 @@ describe(`Agents endpoints`, () => {
     it(`should return 500 on database error`, async () => {
       mockReq.body = {
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providerIds: [`provider-1`],
         name: `Test Agent`,
       }
 
@@ -568,7 +568,7 @@ describe(`Agents endpoints`, () => {
         typeof vi.fn
       >
       mockProvGet.mockResolvedValue({
-        data: { id: `provider-1`, type: `ai`, name: `Anthropic` },
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic`, orgId: `org-1` },
       })
 
       const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
@@ -581,6 +581,48 @@ describe(`Agents endpoints`, () => {
       )
       expect(mockCreate).toHaveBeenCalledOnce()
     })
+
+    it(`should return 403 when provider belongs to different org`, async () => {
+      mockReq.body = {
+        orgId: `org-1`,
+        providerIds: [`provider-other-org`],
+        name: `Test Agent`,
+      }
+
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({
+        data: { id: `provider-other-org`, type: `ai`, name: `Anthropic`, orgId: `org-2` },
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider provider-other-org does not belong to organization org-1`
+      )
+    })
+
+    it(`should validate multiple providers and reject if any is non-AI`, async () => {
+      mockReq.body = {
+        orgId: `org-1`,
+        providerIds: [`provider-1`, `git-provider`],
+        name: `Test Agent`,
+      }
+
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet
+        .mockResolvedValueOnce({
+          data: { id: `provider-1`, type: `ai`, name: `Anthropic`, orgId: `org-1` },
+        })
+        .mockResolvedValueOnce({
+          data: { id: `git-provider`, type: `git`, name: `GitHub`, orgId: `org-1` },
+        })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Agent must be linked to AI providers (provider git-provider has type: "git")`
+      )
+    })
   })
 
   describe(`PUT /_/agents/:id - Update agent`, () => {
@@ -591,14 +633,14 @@ describe(`Agents endpoints`, () => {
         id: `agent-1`,
         name: `Old Name`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       const updatedAgent = new Agent({
         id: `agent-1`,
         name: `New Name`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.params = { id: `agent-1` }
@@ -626,7 +668,7 @@ describe(`Agents endpoints`, () => {
         id: `agent-1`,
         name: `Agent`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       const mockProjects = [{ id: `project-1`, name: `P1`, orgId: `org-1` }]
@@ -634,7 +676,7 @@ describe(`Agents endpoints`, () => {
         id: `agent-1`,
         name: `Agent`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: mockProjects as any,
       })
       mockReq.params = { id: `agent-1` }
@@ -687,7 +729,7 @@ describe(`Agents endpoints`, () => {
         id: `agent-1`,
         name: `Old Name`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.params = { id: `agent-1` }
@@ -708,16 +750,16 @@ describe(`Agents endpoints`, () => {
       expect(mockUpdate).toHaveBeenCalledOnce()
     })
 
-    it(`should throw 400 when changing providerId to non-AI provider`, async () => {
+    it(`should throw 400 when changing providerIds to non-AI provider`, async () => {
       const existingAgent = new Agent({
         id: `agent-1`,
         name: `Agent`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.params = { id: `agent-1` }
-      mockReq.body = { providerId: `git-provider` }
+      mockReq.body = { providerIds: [`git-provider`] }
 
       const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
         typeof vi.fn
@@ -727,24 +769,24 @@ describe(`Agents endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: existingAgent })
       mockProvGet.mockResolvedValue({
-        data: { id: `git-provider`, type: `git`, name: `GitHub` },
+        data: { id: `git-provider`, type: `git`, name: `GitHub`, orgId: `org-1` },
       })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Agent must be linked to an AI provider`
+        `Agent must be linked to AI providers (provider git-provider has type: "git")`
       )
     })
 
-    it(`should throw 404 when changing providerId to nonexistent provider`, async () => {
+    it(`should throw 404 when changing providerIds to nonexistent provider`, async () => {
       const existingAgent = new Agent({
         id: `agent-1`,
         name: `Agent`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.params = { id: `agent-1` }
-      mockReq.body = { providerId: `nonexistent` }
+      mockReq.body = { providerIds: [`nonexistent`] }
 
       const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
         typeof vi.fn
@@ -756,27 +798,27 @@ describe(`Agents endpoints`, () => {
       mockProvGet.mockResolvedValue({ data: null })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Provider not found`
+        `Provider nonexistent not found`
       )
     })
 
-    it(`should skip provider validation when providerId unchanged`, async () => {
+    it(`should skip provider validation when providerIds not provided`, async () => {
       const existingAgent = new Agent({
         id: `agent-1`,
         name: `Old Name`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       const updatedAgent = new Agent({
         id: `agent-1`,
         name: `New Name`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.params = { id: `agent-1` }
-      mockReq.body = { name: `New Name`, providerId: `provider-1` }
+      mockReq.body = { name: `New Name` }
 
       const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
         typeof vi.fn
@@ -792,28 +834,28 @@ describe(`Agents endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      // provider.get should NOT be called since providerId didn't change
+      // provider.get should NOT be called since providerIds was not provided
       expect(mockProvGet).not.toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(200)
     })
 
-    it(`should allow changing to a valid AI provider`, async () => {
+    it(`should allow changing to valid AI providers`, async () => {
       const existingAgent = new Agent({
         id: `agent-1`,
         name: `Agent`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       const updatedAgent = new Agent({
         id: `agent-1`,
         name: `Agent`,
         orgId: `org-1`,
-        providerId: `new-ai-provider`,
+        providers: [{ id: `new-ai-provider`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.params = { id: `agent-1` }
-      mockReq.body = { providerId: `new-ai-provider` }
+      mockReq.body = { providerIds: [`new-ai-provider`] }
 
       const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
         typeof vi.fn
@@ -826,7 +868,7 @@ describe(`Agents endpoints`, () => {
       >
       mockGet.mockResolvedValue({ data: existingAgent })
       mockProvGet.mockResolvedValue({
-        data: { id: `new-ai-provider`, type: `ai`, name: `OpenAI` },
+        data: { id: `new-ai-provider`, type: `ai`, name: `OpenAI`, orgId: `org-1` },
       })
       mockUpdate.mockResolvedValue({ data: updatedAgent })
 
@@ -834,6 +876,33 @@ describe(`Agents endpoints`, () => {
 
       expect(mockProvGet).toHaveBeenCalledWith(`new-ai-provider`)
       expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it(`should return 403 when provider belongs to different org`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent`,
+        orgId: `org-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
+        projects: [],
+      })
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { providerIds: [`provider-other-org`] }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+      mockProvGet.mockResolvedValue({
+        data: { id: `provider-other-org`, type: `ai`, name: `Anthropic`, orgId: `org-2` },
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Provider provider-other-org does not belong to organization org-1`
+      )
     })
   })
 
@@ -845,7 +914,7 @@ describe(`Agents endpoints`, () => {
         id: `agent-1`,
         name: `To Delete`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       const deleteResult = { id: `agent-1` }
@@ -887,7 +956,7 @@ describe(`Agents endpoints`, () => {
         id: `agent-1`,
         name: `To Delete`,
         orgId: `org-1`,
-        providerId: `provider-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
         projects: [],
       })
       mockReq.params = { id: `agent-1` }

@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { EProvider } from '@tdsk/domain'
 import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import {
@@ -11,6 +12,7 @@ import {
   providers,
   endpoints,
   agentProjects,
+  agentProviders,
 } from '@tdsk/database/schemas'
 import {
   deriveKey,
@@ -99,8 +101,8 @@ export const orgQuickstart: TEndpointConfig = {
           .insert(providers)
           .values({
             orgId,
-            type: `ai`,
             name: proName,
+            type: EProvider.ai,
             options: {
               baseUrl,
               ...(providerTemp !== `custom` && { llmProvider: providerTemp }),
@@ -140,13 +142,12 @@ export const orgQuickstart: TEndpointConfig = {
           })
           .returning()
 
-        // 5. Agent (org-scoped, linked to provider)
+        // 5. Agent (org-scoped)
         const [agent] = await tx
           .insert(agents)
           .values({
             name: agentName,
             orgId,
-            providerId: provider.id,
             model: resolvedModel,
             maxTokens: resolvedMaxTokens,
             ...(agentDescription && { description: agentDescription }),
@@ -154,13 +155,20 @@ export const orgQuickstart: TEndpointConfig = {
           })
           .returning()
 
-        // 6. Agent-Project junction
+        // 6. Agent-Provider junction (priority 0 = primary)
+        await tx.insert(agentProviders).values({
+          agentId: agent.id,
+          providerId: provider.id,
+          priority: 0,
+        })
+
+        // 8. Agent-Project junction
         await tx.insert(agentProjects).values({
           agentId: agent.id,
           projectId: project.id,
         })
 
-        // 7. Endpoint (project-scoped, type=agent)
+        // 9. Endpoint (project-scoped, type=agent)
         const [endpoint] = await tx
           .insert(endpoints)
           .values({

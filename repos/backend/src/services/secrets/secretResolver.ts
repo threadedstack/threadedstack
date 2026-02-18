@@ -167,17 +167,19 @@ export class SecretResolver {
    * 2. Provider-scoped secrets (query by providerId)
    * 3. Org-scoped secrets (query by orgId)
    */
-  resolveApiKey = async (agent: {
-    secrets?: Array<{
-      encryptedValue: string
-      orgId?: string
-      projectId?: string
-      providerId?: string
-      agentId?: string
-    }>
+  resolveApiKey = async (
+    agent: {
+      secrets?: Array<{
+        encryptedValue: string
+        orgId?: string
+        projectId?: string
+        providerId?: string
+        agentId?: string
+      }>
+      orgId: string
+    },
     providerId: string
-    orgId: string
-  }): Promise<string> => {
+  ): Promise<string> => {
     let apiKey = ``
 
     // 1. Try agent-scoped secrets
@@ -194,7 +196,7 @@ export class SecretResolver {
     // 2. Try provider-scoped secrets
     if (!apiKey) {
       const { data: providerSecrets } = await this.db.services.secret.list({
-        where: { providerId: agent.providerId },
+        where: { providerId },
       })
       if (providerSecrets?.length) {
         for (const secret of providerSecrets) {

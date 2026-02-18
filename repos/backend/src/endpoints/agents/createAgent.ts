@@ -17,26 +17,36 @@ export const createAgent: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { projectIds = [], functionIds = [], ...agent } = req.body
+    const { projectIds = [], functionIds = [], providerIds = [], ...agent } = req.body
     const orgId = req.params.orgId || agent.orgId
 
     // Validate required fields
     if (!orgId)
       throw new Exception(400, `Agent must belong to an organization (orgId required)`)
 
-    if (!agent.providerId)
-      throw new Exception(400, `Agent must have a provider (providerId required)`)
-
-    // Validate that the provider exists and is an AI provider
-    const { data: provider, error: provErr } = await db.services.provider.get(
-      agent.providerId
-    )
-    if (provErr || !provider) throw new Exception(404, `Provider not found`)
-    if (provider.type !== `ai`)
+    if (!providerIds.length)
       throw new Exception(
         400,
-        `Agent must be linked to an AI provider (got type: "${provider.type}")`
+        `Agent must have at least one provider (providerIds required)`
       )
+
+    // Validate all providers exist, are AI type, and belong to the same org
+    for (const providerId of providerIds) {
+      const { data: provider, error: provErr } =
+        await db.services.provider.get(providerId)
+      if (provErr || !provider)
+        throw new Exception(404, `Provider ${providerId} not found`)
+      if (provider.type !== `ai`)
+        throw new Exception(
+          400,
+          `Agent must be linked to AI providers (provider ${providerId} has type: "${provider.type}")`
+        )
+      if (provider.orgId !== orgId)
+        throw new Exception(
+          403,
+          `Provider ${providerId} does not belong to organization ${orgId}`
+        )
+    }
 
     // Ensure orgId is set on the agent data
     agent.orgId = orgId
@@ -53,6 +63,7 @@ export const createAgent: TEndpointConfig = {
     if (projErr) throw new Exception(500, projErr.message)
     if (projects?.length) agent.projects = projects
     if (functionIds?.length) agent.functionIds = functionIds
+    if (providerIds?.length) agent.providerIds = providerIds
 
     const { data, error } = await db.services.agent.create(agent)
 

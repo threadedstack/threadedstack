@@ -40,16 +40,13 @@ export const createSession: TEndpointConfig = {
       orgId: agent.orgId,
     })
 
-    // Load provider
-    const { data: provider, error: provErr } = await db.services.provider.get(
-      agent.providerId
-    )
-
-    if (provErr || !provider) throw new Exception(404, `Agent provider not found`)
+    // Get primary provider from agent's providers array
+    const provider = agent.primaryProvider
+    if (!provider) throw new Exception(404, `Agent has no provider configured`)
 
     // Resolve secrets
     const secrets = new SecretResolver(db)
-    const apiKey = await secrets.resolveApiKey(agent)
+    const apiKey = await secrets.resolveApiKey(agent, provider.id)
 
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 
@@ -84,8 +81,8 @@ export const createSession: TEndpointConfig = {
     res.status(200).json({
       data: {
         sessionToken,
-        provider: providerType,
         model: llmConfig.model,
+        provider: providerType,
         maxTokens: llmConfig.maxTokens,
         systemPrompt: llmConfig.systemPrompt,
       },

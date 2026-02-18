@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { createSession } from './createSession'
 import { EPMethod } from '@TBE/types'
+import { Agent } from '@tdsk/domain'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
 import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
@@ -49,9 +50,6 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
             agent: {
               get: vi.fn(),
             },
-            provider: {
-              get: vi.fn(),
-            },
             secret: {
               list: vi.fn().mockResolvedValue({ data: [] }),
             },
@@ -64,6 +62,18 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
       },
     } as unknown as TApp
   }
+
+  const buildAgent = (overrides: Record<string, any> = {}) =>
+    new Agent({
+      id: `agent-1`,
+      orgId: `org-1`,
+      name: `Test Agent`,
+      providers: [
+        { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+      ],
+      secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+      ...overrides,
+    } as any)
 
   const getEndpointCfg = (ep?: TEndpoint) => getEpCfg(buildApp(), ep)
 
@@ -127,27 +137,18 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     )
   })
 
-  it(`should throw 404 when provider not found`, async () => {
+  it(`should throw 404 when agent has no provider`, async () => {
     const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
 
     mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providerId: `prov-1`,
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
-      },
+      data: buildAgent({ providers: [] }),
     })
-    mockProvGet.mockResolvedValue({ data: null })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `Agent provider not found`
+      `Agent has no provider configured`
     )
   })
 
@@ -159,20 +160,14 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
 
     mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providerId: `prov-1`,
+      data: buildAgent({
         secrets: [],
-      },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+      }),
     })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -188,20 +183,19 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
 
     mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providerId: `prov-1`,
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
-      },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `invalid-provider`, options: {} },
+      data: buildAgent({
+        providers: [
+          {
+            id: `prov-1`,
+            type: `ai`,
+            orgId: `org-1`,
+            name: `invalid-provider`,
+            options: {},
+          },
+        ],
+      }),
     })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -217,21 +211,14 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
 
     mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providerId: `prov-1`,
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+      data: buildAgent({
         model: `gemini-2.0-flash`,
-      },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `Google AI`, options: {} },
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `Google AI`, options: {} },
+        ],
+      }),
     })
 
     await ep.action(mockReq as TRequest, mockRes as Response)
@@ -251,20 +238,19 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
 
     mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providerId: `prov-1`,
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
-      },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `My Custom Name`, options: { llmProvider: `openai` } },
+      data: buildAgent({
+        providers: [
+          {
+            id: `prov-1`,
+            type: `ai`,
+            orgId: `org-1`,
+            name: `My Custom Name`,
+            options: { llmProvider: `openai` },
+          },
+        ],
+      }),
     })
 
     await ep.action(mockReq as TRequest, mockRes as Response)
@@ -284,23 +270,16 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
 
     mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providerId: `prov-1`,
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+      data: buildAgent({
         model: `claude-sonnet-4-20250514`,
         maxTokens: 2048,
         systemPrompt: `You are helpful.`,
-      },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `anthropic`, options: {} },
+        providers: [
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+        ],
+      }),
     })
 
     await ep.action(mockReq as TRequest, mockRes as Response)
@@ -332,20 +311,20 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
     >
-    const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
-      typeof vi.fn
-    >
 
     mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providerId: `prov-1`,
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
-      },
-    })
-    mockProvGet.mockResolvedValue({
-      data: { id: `prov-1`, name: `openai`, options: { model: `gpt-4o` } },
+      data: buildAgent({
+        model: undefined,
+        providers: [
+          {
+            id: `prov-1`,
+            type: `ai`,
+            orgId: `org-1`,
+            name: `openai`,
+            options: { model: `gpt-4o` },
+          },
+        ],
+      }),
     })
 
     await ep.action(mockReq as TRequest, mockRes as Response)
