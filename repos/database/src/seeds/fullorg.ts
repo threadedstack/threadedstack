@@ -381,7 +381,7 @@ const agents = {
     description: `A coding AI Agent`,
     model: `claude-3-opus-20240229`,
     projects: Object.values(projects),
-    providers: [providers.anthropic, providers.openai],
+    providers: [providers.openai],
     systemPrompt: `You are a senior software engineer.`,
     secrets: [secrets.anthropic, secrets.agentEnv],
     tools: [`readFile`, `writeFile`, `shellExec`],
@@ -400,7 +400,7 @@ const agents = {
     description: `Conversational AI`,
     model: `claude-3-opus-20240229`,
     projects: [projects.api, projects.web],
-    providers: [providers.anthropic],
+    providers: [providers.zai, providers.openai],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.anthropic],
     environment: {
@@ -415,7 +415,7 @@ const agents = {
     description: `General well rounded AI Agent`,
     model: `glm-5`,
     projects: [projects.api, projects.web],
-    providers: [providers.zai],
+    providers: [providers.zai, providers.anthropic, providers.openai],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.zaiSecret],
     environment: {
