@@ -11,7 +11,6 @@
     "start": "bun run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun --minify --external react-devtools-core",
     "compile": "bun build src/index.ts --compile --outfile dist/tdsk-agent --external react-devtools-core",
-    "test": "vitest run --config configs/vitest.config.ts",
     "clean": "pnpm clean:dist && pnpm clean:nm",
     "clean:dist": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",
@@ -24,7 +23,9 @@
     "lint:staged": "pnpm biome:lint --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "format:staged": "pnpm biome:format --diagnostic-level=error --staged --no-errors-on-unmatched --write",
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
-    "biome:format": "biome format --config-path $(pwd)/configs/biome.json"
+    "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
+    "test": "vitest run --config configs/vitest.config.ts",
+    "types": "tsc --noEmit --pretty"
   },
   "keywords": [],
   "author": "",
