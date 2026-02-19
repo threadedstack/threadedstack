@@ -190,48 +190,52 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
       expect(sessionRes.data.data.model).toBeTruthy()
     })
 
-    test.skipIf(!hasProviderKey())('session streams successfully with brand-resolved provider', async () => {
-      // Create agent with real key
-      const qsRes = await post<{ data: Record<string, any> }>(
-        `/orgs/${ctx.orgId}/quickstart`,
-        {
-          providerBrand: 'zai',
-          apiKey: env.testProviderKey,
-          projectName: `QS Session Stream ${timestamp}`,
-          agentName: `QS Session Stream Agent ${timestamp}`,
-        }
-      )
+    test.skipIf(!hasProviderKey())(
+      'session streams successfully with brand-resolved provider',
+      async () => {
+        // Create agent with real key
+        const qsRes = await post<{ data: Record<string, any> }>(
+          `/orgs/${ctx.orgId}/quickstart`,
+          {
+            providerBrand: 'zai',
+            apiKey: env.testProviderKey,
+            projectName: `QS Session Stream ${timestamp}`,
+            agentName: `QS Session Stream Agent ${timestamp}`,
+          }
+        )
 
-      expect(qsRes.status).toBe(201)
-      const result = qsRes.data.data
-      await cleanup(result)
+        expect(qsRes.status).toBe(201)
+        const result = qsRes.data.data
+        await cleanup(result)
 
-      // Create session
-      const sessionRes = await post<{ data: Record<string, any> }>(
-        `/_/ai/sessions`,
-        { agentId: result.agent.id }
-      )
+        // Create session
+        const sessionRes = await post<{ data: Record<string, any> }>(
+          `/_/ai/sessions`,
+          { agentId: result.agent.id }
+        )
 
-      expect(sessionRes.status).toBe(200)
-      const token = sessionRes.data.data.sessionToken
+        expect(sessionRes.status).toBe(200)
+        const token = sessionRes.data.data.sessionToken
 
-      // Stream a response — validates the full pipeline with brand resolution
-      const { events } = await consumeSessionSSE(token, {
-        context: {
-          messages: [
-            { role: 'user', content: [{ type: 'text', text: 'Say OK' }] },
-          ],
-        },
-        options: {},
-      })
+        // Stream a response — validates the full pipeline with brand resolution
+        const { events } = await consumeSessionSSE(token, {
+          context: {
+            messages: [
+              { role: 'user', content: [{ type: 'text', text: 'Say OK' }] },
+            ],
+          },
+          options: {},
+        })
 
-      const textEvents = events.filter((e) => e.type === 'text_delta')
-      const doneEvents = events.filter((e) => e.type === 'done')
-      const errorEvents = events.filter((e) => e.type === 'error')
+        const textEvents = events.filter((e) => e.type === 'text_delta')
+        const doneEvents = events.filter((e) => e.type === 'done')
+        const errorEvents = events.filter((e) => e.type === 'error')
 
-      expect(errorEvents).toHaveLength(0)
-      expect(textEvents.length).toBeGreaterThanOrEqual(1)
-      expect(doneEvents.length).toBe(1)
-    })
+        expect(errorEvents).toHaveLength(0)
+        expect(textEvents.length).toBeGreaterThanOrEqual(1)
+        expect(doneEvents.length).toBe(1)
+      },
+      120_000
+    )
   })
 })

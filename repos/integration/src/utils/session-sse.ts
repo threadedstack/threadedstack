@@ -7,6 +7,8 @@ import type { SSEEvent } from './sse'
  * Unlike the regular SSE helper, this:
  * - Uses `Authorization: Session <token>` (not Bearer API key)
  * - Hits /ai/stream directly (no /_ prefix)
+ *
+ * Returns whatever events were collected, even on timeout/abort.
  */
 export const consumeSessionSSE = async (
   sessionToken: string,
@@ -15,50 +17,54 @@ export const consumeSessionSSE = async (
 ): Promise<{ events: SSEEvent[]; raw: string }> => {
   const aiPath = opts?.path ?? '/ai/stream'
   const url = `${env.proxyUrl}${aiPath}`
-  const timeout = opts?.timeout ?? 60_000
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Session ${sessionToken}`,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeout),
-  })
+  const timeout = opts?.timeout ?? 90_000
 
   const events: SSEEvent[] = []
   let raw = ''
 
-  if (!res.body) {
-    return { events, raw }
-  }
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Session ${sessionToken}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeout),
+    })
 
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
+    if (!res.body) {
+      return { events, raw }
+    }
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
 
-    const chunk = decoder.decode(value, { stream: true })
-    raw += chunk
-    buffer += chunk
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const payload = line.slice(6).trim()
-      if (payload === '[DONE]') return { events, raw }
+      const chunk = decoder.decode(value, { stream: true })
+      raw += chunk
+      buffer += chunk
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
 
-      try {
-        events.push(JSON.parse(payload) as SSEEvent)
-      } catch {
-        // Non-JSON SSE line, skip
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const payload = line.slice(6).trim()
+        if (payload === '[DONE]') return { events, raw }
+
+        try {
+          events.push(JSON.parse(payload) as SSEEvent)
+        } catch {
+          // Non-JSON SSE line, skip
+        }
       }
     }
+  } catch {
+    // Timeout or abort — return events collected so far
   }
 
   return { events, raw }

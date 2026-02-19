@@ -10,7 +10,7 @@ export const providers = pgTable(`providers`, {
   ...base,
   name: text(`name`),
   type: text(`type`).notNull().$type<EProvider>(),
-  brand: text(`brand`).notNull().$type<TProviderBrand>(),
+  brand: text(`brand`).$type<TProviderBrand>(),
   options: jsonb(`options`).$type<Record<string, any>>(),
   headers: jsonb(`headers`).$type<Record<string, string>>(),
   bodyParams: jsonb(`body_params`).$type<Record<string, any>>(),

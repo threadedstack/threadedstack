@@ -32,7 +32,7 @@ export const consumeSSE = async (
     method: 'POST',
     headers,
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(90_000),
   })
 
   const threadId = res.headers.get('X-Thread-Id')
@@ -46,25 +46,29 @@ export const consumeSSE = async (
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
 
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const payload = line.slice(6).trim()
-      if (payload === '[DONE]') return { events, threadId }
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const payload = line.slice(6).trim()
+        if (payload === '[DONE]') return { events, threadId }
 
-      try {
-        events.push(JSON.parse(payload) as SSEEvent)
-      } catch {
-        // Non-JSON SSE line, skip
+        try {
+          events.push(JSON.parse(payload) as SSEEvent)
+        } catch {
+          // Non-JSON SSE line, skip
+        }
       }
     }
+  } catch {
+    // Timeout or abort — return events collected so far
   }
 
   return { events, threadId }

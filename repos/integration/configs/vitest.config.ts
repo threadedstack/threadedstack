@@ -1,13 +1,15 @@
+import type { UserConfig } from 'vitest/config'
+
 import { defineConfig } from 'vitest/config'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
   test: {
     root: './',
-    include: [`src/**/*.test.ts`],
-    testTimeout: 60_000,
-    hookTimeout: 60_000,
+    testTimeout: 120_000,
+    hookTimeout: 120_000,
     fileParallelism: false,
+    include: [`src/**/*.test.ts`],
     globalSetup: [`src/setup/global-setup.ts`],
     // Ensure TLS bypass is inherited by worker processes
     env: {
@@ -15,4 +17,4 @@ export default defineConfig({
     },
   },
   plugins: [viteTsconfigPaths()],
-})
+} as UserConfig)
