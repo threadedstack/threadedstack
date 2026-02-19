@@ -1,67 +1,44 @@
 import type { TAgentRunOpts } from '@TAG/types'
-import type { ISandbox, TAIMessage, TMessageContent } from '@tdsk/domain'
+import type { ISandbox, TStreamEvent } from '@tdsk/domain'
+import type { AgentEvent } from '@mariozechner/pi-agent-core'
+import type { AssistantMessage, Message, ToolResultMessage } from '@mariozechner/pi-ai'
 
-import { getToolDefs } from '@TAG//tools'
-import { Mutex } from '@TAG/services/mutex'
+import { EContentType } from '@tdsk/domain'
 import { buildApiLogger } from '@tdsk/logger'
-import { createLLMAdapter } from '@TAG/llm/factory'
+import { getModel } from '@mariozechner/pi-ai'
+import { Agent } from '@mariozechner/pi-agent-core'
 import { createSandboxProvider } from '@tdsk/sandbox'
-import { EContentType, EStreamEventType, EAgentTool } from '@tdsk/domain'
+import { createStreamProxy } from '@TAG/stream/stream'
+import { mapAgentEvent } from '@TAG/adapters/eventBridge'
+import { createSandboxTools, buildCustomFunctionTools } from '@TAG/tools/tools'
+import {
+  convertToLlmMessages,
+  convertAssistantToContent,
+  convertToolResultToContent,
+} from '@TAG/adapters/messageConverter'
 
-const logger = buildApiLogger(`agent-runner`)
-
-const mutex = new Mutex()
+const logger = buildApiLogger(`pi-agent-runner`)
 
 /**
- * AgentRunner - Core orchestration engine
- * Runs a multi-step conversation loop:
- *   1. Send messages to LLM (streaming)
- *   2. Collect tool calls from response
- *   3. Execute tools in sandbox
- *   4. Feed results back to LLM
- *   5. Repeat until LLM stops calling tools (or max steps reached)
+ * AgentRunner - Replacement for AgentRunner using pi-mono's Agent class.
+ * Preserves the TAgentRunOpts contract so callers (backend, REPL) need minimal changes.
  */
 export class AgentRunner {
-  /**
-   * Run an agent conversation step
-   * Acquires mutex per thread to prevent concurrent access
-   */
   static run = async (opts: TAgentRunOpts): Promise<void> => {
-    const {
-      db,
-      tools,
-      prompt,
-      onEvent,
-      threadId,
-      llmConfig,
-      sandboxConfig,
-      maxSteps = 10,
-    } = opts
+    const { db, prompt, onEvent, threadId, llmConfig, sandboxConfig } = opts
 
-    let releaseLock: (() => void) | undefined
     let sandbox: ISandbox | undefined
 
     try {
-      // 1. Acquire mutex for this thread
-      releaseLock = await mutex.acquire(threadId)
-
-      // 2. Load conversation history
+      // 1. Load conversation history
       const { data: existingMessages } = await db.listMessages({
         where: { threadId },
         limit: 100,
         offset: 0,
       })
 
-      const history: TAIMessage[] = (existingMessages || []).map((m: any) => ({
-        role: m.type as TAIMessage[`role`],
-        content: m.content as TMessageContent[],
-      }))
-
-      // 3. Add user message to history
-      const userContent: TMessageContent[] = [{ type: EContentType.text, text: prompt }]
-      history.push({ role: `user`, content: userContent })
-
-      // 4. Save user message
+      // 2. Save user message to DB
+      const userContent = [{ type: EContentType.text as const, text: prompt }]
       await db.createMessage({
         threadId,
         type: `user`,
@@ -69,14 +46,9 @@ export class AgentRunner {
         content: userContent,
       })
 
-      // 5. Get tool definitions
-      const toolDefs = getToolDefs(tools)
-
-      // 6. Create LLM adapter (use injected adapter or create from factory)
-      const adapter = opts.adapter ?? createLLMAdapter(llmConfig.provider)
-
-      // 7. Create sandbox if we have tool defs and sandbox config
-      if (toolDefs.length > 0 && sandboxConfig?.provider) {
+      // 3. Create sandbox + tools if configured
+      const tools = opts.tools
+      if (sandboxConfig?.provider) {
         const provider = createSandboxProvider(sandboxConfig.provider as any)
         sandbox = await provider.create({
           apiKey: sandboxConfig.apiKey,
@@ -86,124 +58,79 @@ export class AgentRunner {
           timeout: sandboxConfig.timeout ?? 300000,
         })
       }
+      const agentTools = sandbox ? createSandboxTools(sandbox, tools) : []
 
-      // 8. Conversation loop
-      let step = 0
-      let continueLoop = true
-
-      while (continueLoop && step < maxSteps) {
-        step++
-        const assistantContent: TMessageContent[] = []
-        const pendingToolCalls: Array<{ id: string; name: string; args: string }> = []
-
-        // Stream LLM response
-        for await (const event of adapter.stream(history, toolDefs, llmConfig)) {
-          onEvent(event)
-
-          if (event.type === EStreamEventType.text) {
-            assistantContent.push({
-              type: EContentType.text,
-              text: event.text,
-            })
-          } else if (event.type === EStreamEventType.toolCallStart) {
-            pendingToolCalls.push({ id: event.id, name: event.name, args: `` })
-          } else if (event.type === EStreamEventType.toolCallArgs) {
-            const tc = pendingToolCalls.find((t) => t.id === event.id)
-            if (tc) tc.args += event.args
-          } else if (event.type === EStreamEventType.done) {
-            if (event.stopReason !== `tool_use`) {
-              continueLoop = false
-            }
-          } else if (event.type === EStreamEventType.error) {
-            continueLoop = false
-          }
-        }
-
-        // Add parsed tool_use content blocks
-        for (const tc of pendingToolCalls) {
-          let input: Record<string, unknown> = {}
-          try {
-            input = JSON.parse(tc.args)
-          } catch {
-            input = { raw: tc.args }
-          }
-
-          assistantContent.push({
-            type: EContentType.toolUse,
-            id: tc.id,
-            name: tc.name,
-            input,
-          })
-        }
-
-        // Save assistant message
-        history.push({ role: `assistant`, content: assistantContent })
-        await db.createMessage({
-          threadId,
-          type: `assistant`,
-          orgId: opts.orgId,
-          content: assistantContent,
-        })
-
-        // If there are tool calls, run them
-        if (pendingToolCalls.length > 0 && sandbox) {
-          const toolResults: TMessageContent[] = []
-
-          for (const tc of pendingToolCalls) {
-            const result = await AgentRunner.executeTool(sandbox, tc.name, tc.args)
-
-            toolResults.push({
-              type: EContentType.toolResult,
-              toolUseId: tc.id,
-              content: result.output,
-              isError: !result.success,
-            })
-
-            // Emit tool result event
-            onEvent({
-              toolUseId: tc.id,
-              content: result.output,
-              isError: !result.success,
-              type: EStreamEventType.toolResult,
-            })
-          }
-
-          // Add tool results as user message (per Anthropic convention)
-          history.push({ role: `user`, content: toolResults })
-          await db.createMessage({
-            threadId,
-            type: `user`,
-            content: toolResults,
-            orgId: opts.orgId,
-          })
-        } else if (pendingToolCalls.length > 0 && !sandbox) {
-          // Tool calls but no sandbox - error
-          const errContent: TMessageContent[] = pendingToolCalls.map((tc) => ({
-            type: EContentType.toolResult as const,
-            toolUseId: tc.id,
-            content: `Error: No sandbox configured for tool execution`,
-            isError: true,
-          }))
-
-          history.push({ role: `user`, content: errContent })
-          await db.createMessage({
-            threadId,
-            type: `user`,
-            content: errContent,
-            orgId: opts.orgId,
-          })
-          continueLoop = false
-        } else {
-          // No tool calls - we're done
-          continueLoop = false
-        }
+      // Build and merge custom function tools
+      if (opts.customFunctions?.length && opts.onExecuteFunction) {
+        const customTools = buildCustomFunctionTools(
+          opts.customFunctions,
+          opts.onExecuteFunction
+        )
+        agentTools.push(...customTools)
       }
+
+      // 4. Convert history to pi-mono messages
+      const history = convertToLlmMessages(existingMessages || [])
+
+      // 5. Create pi-mono model
+      const model = getModel(llmConfig.provider as any, llmConfig.model as any)
+
+      // 6. Build stream function — use proxy when proxyConfig is provided
+      const streamFn = opts.proxyConfig ? createStreamProxy(opts.proxyConfig) : undefined
+
+      // 7. Build pi-mono Agent
+      const agent = new Agent({
+        initialState: {
+          model,
+          tools: agentTools,
+          messages: history as Message[],
+          systemPrompt: llmConfig.systemPrompt || ``,
+        },
+        streamFn,
+        getApiKey: llmConfig.apiKey ? () => llmConfig.apiKey : undefined,
+      })
+
+      // 8. Subscribe to events — bridge to TStreamEvent + persist messages
+      const unsubscribe = agent.subscribe((event: AgentEvent) => {
+        // Map and emit SSE events
+        const streamEvent = mapAgentEvent(event)
+        if (streamEvent) onEvent(streamEvent)
+
+        // Persist messages on turn_end
+        if (event.type === `turn_end`) {
+          const assistantMsg = event.message as AssistantMessage
+          if (assistantMsg?.role === `assistant`) {
+            const content = convertAssistantToContent(assistantMsg)
+            db.createMessage({
+              content,
+              threadId,
+              type: `assistant`,
+              orgId: opts.orgId,
+            }).catch((err) => logger.error(`Failed to persist assistant message: ${err}`))
+          }
+
+          for (const tr of event.toolResults) {
+            const toolContent = convertToolResultToContent(tr as ToolResultMessage)
+            db.createMessage({
+              threadId,
+              type: `user`,
+              orgId: opts.orgId,
+              content: [toolContent],
+            }).catch((err) => logger.error(`Failed to persist tool result: ${err}`))
+          }
+        }
+      })
+
+      // 9. Run the agent
+      await agent.prompt(prompt)
+      await agent.waitForIdle()
+
+      unsubscribe()
     } catch (err) {
       const message = err instanceof Error ? err.message : `Unknown agent error`
       logger.error(`AgentRunner error: ${message}`)
-      onEvent({ type: EStreamEventType.error, error: message })
+      onEvent({ type: `error`, error: message } as TStreamEvent)
     } finally {
-      // Always cleanup
       if (sandbox) {
         try {
           await sandbox.close()
@@ -211,68 +138,6 @@ export class AgentRunner {
           logger.error(`Failed to close sandbox: ${e}`)
         }
       }
-      if (releaseLock) releaseLock()
-    }
-  }
-
-  /**
-   * Execute a tool in the sandbox
-   */
-  private static executeTool = async (
-    sandbox: ISandbox,
-    name: string,
-    argsJson: string
-  ): Promise<{ success: boolean; output: string }> => {
-    try {
-      let args: Record<string, any> = {}
-      try {
-        args = JSON.parse(argsJson)
-      } catch {
-        return { success: false, output: `Invalid JSON arguments: ${argsJson}` }
-      }
-
-      switch (name) {
-        case EAgentTool.shellExec: {
-          const result = await sandbox.exec(args.command, args.args)
-          return { success: result.success, output: result.output || result.error || `` }
-        }
-
-        case EAgentTool.readFile: {
-          const content = await sandbox.readFile(args.path)
-          return { success: true, output: content }
-        }
-
-        case EAgentTool.writeFile:
-          await sandbox.writeFile(args.path, args.content)
-          return { success: true, output: `File written to ${args.path}` }
-
-        case EAgentTool.listDir: {
-          const entries = await sandbox.listDir(args.path)
-          return { success: true, output: entries.join(`\n`) }
-        }
-
-        case EAgentTool.deleteFile:
-          await sandbox.deleteFile(args.path)
-          return { success: true, output: `File deleted: ${args.path}` }
-
-        case EAgentTool.mkdir:
-          await sandbox.mkdir(args.path)
-          return { success: true, output: `Directory created: ${args.path}` }
-
-        case EAgentTool.fileExists: {
-          const exists = await sandbox.fileExists(args.path)
-          return { success: true, output: String(exists) }
-        }
-
-        case EAgentTool.webSearch:
-          return { success: false, output: `Web search not yet implemented` }
-
-        default:
-          return { success: false, output: `Unknown tool: ${name}` }
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      return { success: false, output: `Tool execution error: ${message}` }
     }
   }
 }

@@ -93,7 +93,7 @@ export type TProviderStep = {
 
 export const ProviderStep = (props: TProviderStep) => {
   const { data, onChange, disabled } = props
-  const template = ProviderTemplates[data.providerTemp]
+  const template = ProviderTemplates[data.providerBrand]
 
   const modelOptions = useMemo(() => {
     if (!template?.models?.length) return []
@@ -107,7 +107,7 @@ export const ProviderStep = (props: TProviderStep) => {
     const tmpl = ProviderTemplates[id]
     onChange({
       providerUrl: ``,
-      providerTemp: id,
+      providerBrand: id,
       providerName: ``,
       apiKey: data.apiKey,
       model: tmpl?.defaultModel || ``,
@@ -130,7 +130,7 @@ export const ProviderStep = (props: TProviderStep) => {
         </SectionHeader>
         <ProvidersGrid>
           {Object.values(ProviderTemplates).map((tmpl) => {
-            const isSelected = data.providerTemp === tmpl.id
+            const isSelected = data.providerBrand === tmpl.id
             return (
               <ProviderCard
                 key={tmpl.id}
@@ -173,7 +173,7 @@ export const ProviderStep = (props: TProviderStep) => {
       </Box>
 
       <Collapse
-        in={!!data.providerTemp}
+        in={!!data.providerBrand}
         timeout={350}
       >
         <ConfigSection>
@@ -189,7 +189,7 @@ export const ProviderStep = (props: TProviderStep) => {
             onChange={(e) => onChange({ apiKey: e.target.value })}
           />
 
-          {data.providerTemp === `custom` ? (
+          {data.providerBrand === `custom` ? (
             <>
               <TextInput
                 required

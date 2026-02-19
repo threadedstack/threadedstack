@@ -1,5 +1,5 @@
 import type { Response } from 'express'
-import type { TAuthHeaderObj } from '@tdsk/domain'
+import type { TAuthHeaderObj, TLLMProviderBrand } from '@tdsk/domain'
 import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 
 import { providers } from './providers'
@@ -255,6 +255,7 @@ describe(`Providers endpoints`, () => {
         name: `New Provider`,
         type: `ai` as const,
         orgId: `org-1`,
+        brand: `anthropic` as TLLMProviderBrand,
       }
       const createdProvider = new Provider({
         id: `prov-new`,
@@ -287,7 +288,8 @@ describe(`Providers endpoints`, () => {
         name: `Custom Provider`,
         type: `ai` as const,
         orgId: `org-1`,
-        headers: { 'X-Custom': `value`, Authorization: `Bearer {{API_KEY}}` },
+        brand: `openai` as TLLMProviderBrand,
+        headers: { [`X-Custom`]: `value`, Authorization: `Bearer {{API_KEY}}` },
       }
       const createdProvider = new Provider({
         id: `prov-headers`,
@@ -312,6 +314,7 @@ describe(`Providers endpoints`, () => {
         name: `Provider`,
         type: `ai`,
         orgId: `org-1`,
+        brand: `anthropic`,
       }
 
       const mockCreate = mockReq.app?.locals.db.services.provider.create as ReturnType<
@@ -470,8 +473,21 @@ describe(`Providers endpoints`, () => {
       )
     })
 
-    it(`should accept valid type "ai"`, async () => {
+    it(`should throw 400 when AI provider is missing brand`, async () => {
       mockReq.body = { name: `AI Provider`, type: `ai`, orgId: `org-1` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `AI providers require brand`
+      )
+    })
+
+    it(`should accept valid type "ai" with brand`, async () => {
+      mockReq.body = {
+        name: `AI Provider`,
+        type: `ai`,
+        orgId: `org-1`,
+        brand: `anthropic`,
+      }
       const mockCreate = mockReq.app?.locals.db.services.provider.create as ReturnType<
         typeof vi.fn
       >

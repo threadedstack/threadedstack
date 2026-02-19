@@ -24,6 +24,8 @@ import {
   ProxyEndpoint,
   EInviteStatus,
   Function as FunctionModel,
+  // --- End model imports ---
+  ELLMProviderBrand,
 } from '@tdsk/domain'
 
 // --- Organization ---
@@ -232,6 +234,7 @@ const providers = {
   openai: new Provider({
     orgId: org.id,
     type: EProvider.ai,
+    brand: ELLMProviderBrand.openai,
     id: Ids.provider.acmeOpenai,
     name: `OpenAI Provider`,
     options: {
@@ -242,6 +245,7 @@ const providers = {
   anthropic: new Provider({
     orgId: org.id,
     type: EProvider.ai,
+    brand: ELLMProviderBrand.anthropic,
     id: Ids.provider.acmeAnthropic,
     name: `Anthropic Provider`,
     options: {
@@ -251,6 +255,7 @@ const providers = {
   zai: new Provider({
     orgId: org.id,
     type: EProvider.ai,
+    brand: ELLMProviderBrand.zai,
     id: Ids.provider.zai,
     name: `ZAI Provider`,
     options: {
@@ -294,7 +299,7 @@ const openaiProviderSecret = await encryptSecret(
 const agentEnvSecret = await encryptSecret(
   `Agent Environment Config`,
   `agent-specific-secret-value`,
-  Ids.agent.codingAgent
+  Ids.agent.generalAgent
 )
 
 const secrets = {
@@ -351,7 +356,7 @@ const secrets = {
     orgId: null as any,
     projectId: null as any,
     providerId: null as any,
-    agentId: Ids.agent.codingAgent,
+    agentId: Ids.agent.generalAgent,
     id: Ids.secret.acmeProjectSecret,
     name: `Agent Environment Config`,
     hashKey: agentEnvSecret.hashKey,
@@ -379,11 +384,10 @@ const agents = {
     id: Ids.agent.codingAgent,
     name: `Coding Agent`,
     description: `A coding AI Agent`,
-    model: `claude-3-opus-20240229`,
     projects: Object.values(projects),
-    providers: [providers.openai],
+    providers: [providers.zai, providers.openai],
     systemPrompt: `You are a senior software engineer.`,
-    secrets: [secrets.anthropic, secrets.agentEnv],
+    secrets: [secrets.anthropic],
     tools: [`readFile`, `writeFile`, `shellExec`],
     environment: {
       timeout: 30000,
@@ -398,7 +402,6 @@ const agents = {
     id: Ids.agent.chatAgent,
     name: `Chat Agent`,
     description: `Conversational AI`,
-    model: `claude-3-opus-20240229`,
     projects: [projects.api, projects.web],
     providers: [providers.zai, providers.openai],
     systemPrompt: `Answer the users questions.`,
@@ -417,7 +420,7 @@ const agents = {
     projects: [projects.api, projects.web],
     providers: [providers.zai, providers.anthropic, providers.openai],
     systemPrompt: `Answer the users questions.`,
-    secrets: [secrets.zaiSecret],
+    secrets: [secrets.zaiSecret, secrets.agentEnv],
     environment: {
       streaming: true,
       temperature: 0.7,

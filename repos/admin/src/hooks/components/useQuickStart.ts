@@ -26,8 +26,8 @@ export const useQuickStart = (props: THQuickStart) => {
     model: ``,
     apiKey: ``,
     providerUrl: ``,
-    providerTemp: ``,
     providerName: ``,
+    providerBrand: null,
   })
 
   const [agentData, setAgentData] = useState<TAgentStepData>({
@@ -43,8 +43,8 @@ export const useQuickStart = (props: THQuickStart) => {
         const next = { ...prev, ...updates }
 
         // Auto-suggest project and agent names when provider is first selected
-        if (updates.providerTemp && updates.providerTemp !== prev.providerTemp) {
-          const tmpl = ProviderTemplates[updates.providerTemp]
+        if (updates.providerBrand && updates.providerBrand !== prev.providerBrand) {
+          const tmpl = ProviderTemplates[updates.providerBrand]
           if (tmpl && !agentData.projectName && !agentData.agentName) {
             const name = tmpl.name.replace(/\s+/g, `-`).toLowerCase()
             setAgentData((a) => ({
@@ -67,8 +67,8 @@ export const useQuickStart = (props: THQuickStart) => {
 
   const canNext = useMemo(() => {
     if (activeStep === 0) {
-      if (!providerData.providerTemp || !providerData.apiKey) return false
-      if (providerData.providerTemp === `custom`) {
+      if (!providerData.providerBrand || !providerData.apiKey) return false
+      if (providerData.providerBrand === `custom`) {
         return !!(
           providerData.providerName &&
           providerData.providerUrl &&
@@ -89,8 +89,8 @@ export const useQuickStart = (props: THQuickStart) => {
       model: ``,
       apiKey: ``,
       providerUrl: ``,
-      providerTemp: ``,
       providerName: ``,
+      providerBrand: null,
     })
     setAgentData({
       projectName: ``,
@@ -105,7 +105,7 @@ export const useQuickStart = (props: THQuickStart) => {
     setLoading(true)
     setError(null)
 
-    const template = ProviderTemplates[providerData.providerTemp]
+    const template = ProviderTemplates[providerData.providerBrand]
     const modelEntry = template?.models?.find((m) => m.id === providerData.model)
 
     const resp = await createQuickstart({

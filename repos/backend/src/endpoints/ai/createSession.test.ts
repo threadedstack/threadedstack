@@ -69,7 +69,14 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
       orgId: `org-1`,
       name: `Test Agent`,
       providers: [
-        { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
+        {
+          id: `prov-1`,
+          type: `ai`,
+          orgId: `org-1`,
+          name: `anthropic`,
+          brand: `anthropic`,
+          options: {},
+        },
       ],
       secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
       ...overrides,
@@ -165,7 +172,14 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
       data: buildAgent({
         secrets: [],
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
+          {
+            id: `prov-1`,
+            type: `ai`,
+            orgId: `org-1`,
+            name: `anthropic`,
+            brand: `anthropic`,
+            options: {},
+          },
         ],
       }),
     })
@@ -203,7 +217,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     )
   })
 
-  it(`should resolve google provider from options.llmProvider`, async () => {
+  it(`should resolve google provider from brand`, async () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-google-key`)
 
@@ -216,7 +230,14 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
       data: buildAgent({
         model: `gemini-2.0-flash`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `Google AI`, options: { llmProvider: `google` } },
+          {
+            id: `prov-1`,
+            type: `ai`,
+            orgId: `org-1`,
+            name: `Google AI`,
+            brand: `google`,
+            options: {},
+          },
         ],
       }),
     })
@@ -230,7 +251,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     })
   })
 
-  it(`should use options.llmProvider regardless of provider name`, async () => {
+  it(`should use brand regardless of provider name`, async () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-key`)
 
@@ -247,7 +268,8 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
             type: `ai`,
             orgId: `org-1`,
             name: `My Custom Name`,
-            options: { llmProvider: `openai` },
+            brand: `openai`,
+            options: {},
           },
         ],
       }),
@@ -277,7 +299,14 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
         maxTokens: 2048,
         systemPrompt: `You are helpful.`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
+          {
+            id: `prov-1`,
+            type: `ai`,
+            orgId: `org-1`,
+            name: `anthropic`,
+            brand: `anthropic`,
+            options: {},
+          },
         ],
       }),
     })
@@ -321,7 +350,8 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
             type: `ai`,
             orgId: `org-1`,
             name: `openai`,
-            options: { llmProvider: `openai`, model: `gpt-4o` },
+            brand: `openai`,
+            options: { model: `gpt-4o` },
           },
         ],
       }),

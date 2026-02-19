@@ -282,10 +282,7 @@ describe(`Agent service`, () => {
       expect(result.data).toBeUndefined()
     })
 
-    it(`should pass sanitize: false to second model call in get`, async () => {
-      // Note: super.get() calls this.model(row) first (sanitize defaults to true),
-      // then Agent.get() calls this.model(result.data, { sanitize: false }).
-      // The first model() call always sanitizes since no sanitizeOpts is passed.
+    it(`should skip sanitization when sanitize: false is passed`, async () => {
       const mockSanitize: any = vi.fn(function () {
         return { id: `s1`, value: `****`, sanitize: mockSanitize }
       })
@@ -300,15 +297,11 @@ describe(`Agent service`, () => {
       const result = await service.get(`agent-1`, { sanitize: false })
 
       expect(result.data).toBeDefined()
-      // First call from super.get() -> this.model() sanitizes (no opts = default true)
-      // Second call from Agent.get() with sanitize: false skips sanitization
-      // So mockSanitize is called once total (from the first model() invocation)
-      expect(mockSanitize).toHaveBeenCalledTimes(1)
+      // Single model() call with sanitize: false skips sanitization entirely
+      expect(mockSanitize).not.toHaveBeenCalled()
     })
 
     it(`should sanitize secrets by default on get`, async () => {
-      // super.get() calls this.model(row) first, then Agent.get() calls
-      // this.model(result.data, { sanitize: true }) again - both sanitize
       const mockSanitize: any = vi.fn(function () {
         return { id: `s1`, value: `****`, sanitize: mockSanitize }
       })
@@ -322,8 +315,8 @@ describe(`Agent service`, () => {
 
       await service.get(`agent-1`)
 
-      // Called twice: once from super.get() -> model(), once from Agent.get() -> model()
-      expect(mockSanitize).toHaveBeenCalledTimes(2)
+      // Single model() call sanitizes secrets by default
+      expect(mockSanitize).toHaveBeenCalledTimes(1)
     })
 
     it(`should not crash when opts is undefined`, async () => {
@@ -428,8 +421,6 @@ describe(`Agent service`, () => {
     })
 
     it(`should sanitize secrets by default on list`, async () => {
-      // super.list() calls this.model(row) first, then Agent.list() calls
-      // this.model(agent, { sanitize }) again - both sanitize by default
       const mockSanitize: any = vi.fn(function () {
         return { id: `s1`, value: `****`, sanitize: mockSanitize }
       })
@@ -445,13 +436,11 @@ describe(`Agent service`, () => {
 
       await service.list()
 
-      // Called twice: once from super.list() -> model(), once from Agent.list() -> model()
-      expect(mockSanitize).toHaveBeenCalledTimes(2)
+      // Single model() call sanitizes secrets by default
+      expect(mockSanitize).toHaveBeenCalledTimes(1)
     })
 
-    it(`should skip sanitization on second model call when sanitize: false`, async () => {
-      // super.list() calls this.model(row) first (no opts = sanitize true),
-      // then Agent.list() calls this.model(agent, { sanitize: false })
+    it(`should skip sanitization when sanitize: false on list`, async () => {
       const mockSanitize: any = vi.fn(function () {
         return { id: `s1`, value: `****`, sanitize: mockSanitize }
       })
@@ -467,9 +456,8 @@ describe(`Agent service`, () => {
 
       await service.list({ sanitize: false })
 
-      // First call from super.list() -> model() sanitizes (default true)
-      // Second call from Agent.list() with sanitize: false skips
-      expect(mockSanitize).toHaveBeenCalledTimes(1)
+      // Single model() call with sanitize: false skips sanitization entirely
+      expect(mockSanitize).not.toHaveBeenCalled()
     })
   })
 

@@ -1,9 +1,10 @@
 import type {
-  ILLMAdapter,
   TStreamEvent,
   TMessageContent,
   TLLMAdapterConfig,
   TAgentEnvironment,
+  TFunctionExecResult,
+  Function as FunctionModel,
 } from '@tdsk/domain'
 
 /**
@@ -24,6 +25,15 @@ export interface IAgentRunnerDB {
     content: TMessageContent[]
     orgId: string
   }): Promise<unknown>
+}
+
+/**
+ * Config for routing LLM calls through the backend SSE proxy.
+ * Used by REPL to avoid requiring the LLM API key directly.
+ */
+export type TProxyConfig = {
+  backendUrl: string
+  sessionToken: string
 }
 
 export type TAgentRunOpts = {
@@ -50,8 +60,12 @@ export type TAgentRunOpts = {
   environment?: TAgentEnvironment
   /** Max conversation loop steps (prevents infinite tool-call loops) */
   maxSteps?: number
-  /** Pre-built LLM adapter (e.g. ProxyAdapter). Falls back to factory if omitted. */
-  adapter?: ILLMAdapter
+  /** Config for routing LLM calls through the backend SSE proxy */
+  proxyConfig?: TProxyConfig
   /** Callback for each streaming event */
   onEvent: (event: TStreamEvent) => void
+  /** Custom functions attached to this agent */
+  customFunctions?: FunctionModel[]
+  /** Callback to execute a custom function (provided by backend) */
+  onExecuteFunction?: (functionId: string, input: unknown) => Promise<TFunctionExecResult>
 }

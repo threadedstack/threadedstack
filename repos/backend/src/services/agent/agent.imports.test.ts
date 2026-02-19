@@ -24,9 +24,9 @@ describe(`agent service dependency contract`, () => {
     expect(mod.createSandboxTools).toBeDefined()
     expect(typeof mod.createSandboxTools).toBe(`function`)
 
-    // createProxyStreamFn — proxy stream function
-    expect(mod.createProxyStreamFn).toBeDefined()
-    expect(typeof mod.createProxyStreamFn).toBe(`function`)
+    // createStreamProxy — proxy stream function
+    expect(mod.createStreamProxy).toBeDefined()
+    expect(typeof mod.createStreamProxy).toBe(`function`)
 
     // mapAgentEvent — event bridge
     expect(mod.mapAgentEvent).toBeDefined()

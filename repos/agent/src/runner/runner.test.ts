@@ -1,751 +1,426 @@
-import type { IAgentRunnerDB, TAgentRunOpts } from '../types/runner.types'
+import type { TAgentRunOpts } from '@TAG/types'
+import type { AgentEvent } from '@mariozechner/pi-agent-core'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createLLMAdapter } from '../llm/factory'
-import { createSandboxProvider } from '@tdsk/sandbox'
-import { getToolDefs } from '../tools'
 
-const EContentType = {
-  text: `text`,
-  toolUse: `tool_use`,
-  toolResult: `tool_result`,
-} as const
-
-const EStreamEventType = {
-  text: `text`,
-  toolCallStart: `tool_call_start`,
-  toolCallArgs: `tool_call_args`,
-  toolResult: `tool_result`,
-  error: `error`,
-  done: `done`,
-} as const
-
-type TStreamEvent =
-  | { type: typeof EStreamEventType.text; text: string }
-  | { type: typeof EStreamEventType.toolCallStart; id: string; name: string }
-  | { type: typeof EStreamEventType.toolCallArgs; id: string; args: string }
-  | {
-      type: typeof EStreamEventType.toolResult
-      toolUseId: string
-      content: string
-      isError?: boolean
-    }
-  | { type: typeof EStreamEventType.error; error: string }
-  | { type: typeof EStreamEventType.done; stopReason: string }
-
-type ISandbox = {
-  exec(
-    command: string,
-    args?: string[]
-  ): Promise<{ success: boolean; output: string; error?: string }>
-  readFile(path: string): Promise<string>
-  writeFile(path: string, content: string): Promise<void>
-  listDir(path: string): Promise<string[]>
-  deleteFile(path: string): Promise<void>
-  mkdir(path: string): Promise<void>
-  fileExists(path: string): Promise<boolean>
-  close(): Promise<void>
-}
-
-vi.mock(`@tdsk/domain`, () => ({
-  EContentType: {
-    text: `text`,
-    toolUse: `tool_use`,
-    toolResult: `tool_result`,
-  },
-  EStreamEventType: {
-    text: `text`,
-    toolCallStart: `tool_call_start`,
-    toolCallArgs: `tool_call_args`,
-    toolResult: `tool_result`,
-    error: `error`,
-    done: `done`,
-  },
-  EAgentTool: {
-    mkdir: `mkdir`,
-    listDir: `listDir`,
-    readFile: `readFile`,
-    shellExec: `shellExec`,
-    webSearch: `webSearch`,
-    writeFile: `writeFile`,
-    deleteFile: `deleteFile`,
-    fileExists: `fileExists`,
-  },
+const {
+  mockSubscribe,
+  mockPrompt,
+  mockWaitForIdle,
+  mockSandboxClose,
+  mockSandboxCreate,
+} = vi.hoisted(() => ({
+  mockSubscribe: vi.fn().mockReturnValue(vi.fn()),
+  mockPrompt: vi.fn().mockResolvedValue(undefined),
+  mockWaitForIdle: vi.fn().mockResolvedValue(undefined),
+  mockSandboxClose: vi.fn().mockResolvedValue(undefined),
+  mockSandboxCreate: vi.fn().mockResolvedValue({
+    exec: vi.fn(),
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    listDir: vi.fn(),
+    deleteFile: vi.fn(),
+    mkdir: vi.fn(),
+    fileExists: vi.fn(),
+    close: vi.fn().mockResolvedValue(undefined),
+  }),
 }))
 
-vi.mock(`@tdsk/logger`, () => ({
-  buildApiLogger: vi
-    .fn()
-    .mockReturnValue({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }),
-}))
+vi.mock(`@mariozechner/pi-agent-core`, () => {
+  return {
+    Agent: vi.fn().mockImplementation(() => ({
+      subscribe: mockSubscribe,
+      prompt: mockPrompt,
+      waitForIdle: mockWaitForIdle,
+    })),
+  }
+})
 
-vi.mock(`../services/mutex`, () => ({
-  Mutex: vi.fn().mockImplementation(() => ({
-    acquire: vi.fn().mockResolvedValue(vi.fn()),
-    clearAll: vi.fn(),
-    getActiveLocks: vi.fn().mockReturnValue(0),
-  })),
-}))
-
-vi.mock(`../llm/factory`, () => ({
-  createLLMAdapter: vi.fn(),
+vi.mock(`@mariozechner/pi-ai`, () => ({
+  getModel: vi.fn().mockReturnValue({ api: `test`, provider: `test`, id: `test-model` }),
 }))
 
 vi.mock(`@tdsk/sandbox`, () => ({
-  createSandboxProvider: vi.fn(),
+  createSandboxProvider: vi.fn().mockReturnValue({
+    create: mockSandboxCreate,
+  }),
 }))
 
-vi.mock(`../tools`, () => ({
-  getToolDefs: vi.fn().mockReturnValue([]),
+vi.mock(`@tdsk/logger`, () => ({
+  buildApiLogger: vi.fn().mockReturnValue({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+  }),
 }))
 
-async function* streamFromEvents(events: TStreamEvent[]): AsyncIterable<TStreamEvent> {
-  for (const event of events) {
-    yield event
-  }
+vi.mock(`@TAG/tools/piTools`, () => ({
+  createSandboxTools: vi.fn().mockReturnValue([]),
+}))
+
+vi.mock(`@TAG/adapters/eventBridge`, () => ({
+  mapAgentEvent: vi.fn().mockReturnValue(undefined),
+}))
+
+vi.mock(`@TAG/llm/proxyStreamFn`, () => ({
+  createStreamProxy: vi.fn().mockReturnValue(vi.fn()),
+}))
+
+vi.mock(`@TAG/adapters/messageConverter`, () => ({
+  convertToLlmMessages: vi.fn().mockReturnValue([]),
+  convertAssistantToContent: vi.fn().mockReturnValue([]),
+  convertToolResultToContent: vi.fn().mockReturnValue({}),
+}))
+
+import { AgentRunner } from './runner'
+import { getModel } from '@mariozechner/pi-ai'
+import { Agent } from '@mariozechner/pi-agent-core'
+import { createSandboxProvider } from '@tdsk/sandbox'
+import { createSandboxTools } from '@TAG/tools/tools'
+import { createStreamProxy } from '@TAG/stream/stream'
+import { mapAgentEvent } from '@TAG/adapters/eventBridge'
+import { convertToLlmMessages } from '@TAG/adapters/messageConverter'
+
+const mockDb = {
+  listMessages: vi.fn().mockResolvedValue({ data: [] }),
+  createMessage: vi.fn().mockResolvedValue({}),
 }
 
-function createMockDb(existingMessages: any[] = []): IAgentRunnerDB {
-  return {
-    listMessages: vi.fn().mockResolvedValue({ data: existingMessages }),
-    createMessage: vi.fn().mockResolvedValue({}),
-  }
-}
-
-function createMockSandbox(
-  overrides: Partial<Record<keyof ISandbox, any>> = {}
-): ISandbox {
-  return {
-    exec: vi.fn().mockResolvedValue({ success: true, output: `ok`, error: `` }),
-    readFile: vi.fn().mockResolvedValue(`file content`),
-    writeFile: vi.fn().mockResolvedValue(undefined),
-    listDir: vi.fn().mockResolvedValue([`a.txt`, `b.txt`]),
-    deleteFile: vi.fn().mockResolvedValue(undefined),
-    mkdir: vi.fn().mockResolvedValue(undefined),
-    fileExists: vi.fn().mockResolvedValue(true),
-    close: vi.fn().mockResolvedValue(undefined),
-    ...overrides,
-  }
-}
-
-function baseOpts(overrides: Partial<TAgentRunOpts> = {}): TAgentRunOpts {
-  return {
+const baseOpts = () =>
+  ({
     agentId: `agent-1`,
     threadId: `thread-1`,
-    prompt: `Hello`,
+    prompt: `Hello agent`,
     userId: `user-1`,
     orgId: `org-1`,
-    db: createMockDb(),
+    db: mockDb,
     llmConfig: {
-      apiKey: `sk-test`,
-      model: `claude-3-opus`,
       provider: `anthropic`,
+      model: `claude-sonnet-4-20250514`,
+      systemPrompt: `You are a helpful assistant`,
+      apiKey: `sk-test-key`,
     },
     onEvent: vi.fn(),
-    ...overrides,
-  }
-}
+  }) as TAgentRunOpts
 
 describe(`AgentRunner`, () => {
-  let AgentRunner: any
-
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks()
-    const mod = await import(`./runner`)
-    AgentRunner = mod.AgentRunner
+    mockSubscribe.mockReturnValue(vi.fn())
+    mockPrompt.mockResolvedValue(undefined)
+    mockWaitForIdle.mockResolvedValue(undefined)
+    mockSandboxClose.mockResolvedValue(undefined)
+    mockSandboxCreate.mockResolvedValue({
+      exec: vi.fn(),
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      listDir: vi.fn(),
+      deleteFile: vi.fn(),
+      mkdir: vi.fn(),
+      fileExists: vi.fn(),
+      close: mockSandboxClose,
+    })
+    mockDb.listMessages.mockResolvedValue({ data: [] })
+    mockDb.createMessage.mockResolvedValue({})
   })
 
-  describe(`run - simple text response`, () => {
-    it(`should stream a text response and save messages to db`, async () => {
-      const textEvent: TStreamEvent = { type: EStreamEventType.text, text: `Hello world` }
-      const doneEvent: TStreamEvent = {
-        type: EStreamEventType.done,
-        stopReason: `end_turn`,
-      }
+  it(`should create an Agent and call prompt + waitForIdle`, async () => {
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
 
-      const mockAdapter = {
-        stream: vi.fn().mockReturnValue(streamFromEvents([textEvent, doneEvent])),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
+    expect(Agent).toHaveBeenCalledTimes(1)
+    expect(mockPrompt).toHaveBeenCalledWith(`Hello agent`)
+    expect(mockWaitForIdle).toHaveBeenCalledTimes(1)
+  })
 
-      const opts = baseOpts()
-      await AgentRunner.run(opts)
+  it(`should load conversation history via db.listMessages`, async () => {
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
 
-      expect(opts.onEvent).toHaveBeenCalledWith(textEvent)
-      expect(opts.onEvent).toHaveBeenCalledWith(doneEvent)
-
-      expect(opts.db.listMessages).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { threadId: `thread-1` } })
-      )
-
-      expect(opts.db.createMessage).toHaveBeenCalledTimes(2)
-
-      expect(opts.db.createMessage).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          threadId: `thread-1`,
-          type: `user`,
-          content: [{ type: EContentType.text, text: `Hello` }],
-          orgId: `org-1`,
-        })
-      )
-
-      expect(opts.db.createMessage).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          threadId: `thread-1`,
-          type: `assistant`,
-          orgId: `org-1`,
-        })
-      )
-    })
-
-    it(`should stop the loop when done event has stopReason other than tool_use`, async () => {
-      const mockAdapter = {
-        stream: vi.fn().mockReturnValue(
-          streamFromEvents([
-            { type: EStreamEventType.text, text: `Done` },
-            { type: EStreamEventType.done, stopReason: `end_turn` },
-          ])
-        ),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const opts = baseOpts()
-      await AgentRunner.run(opts)
-
-      expect(mockAdapter.stream).toHaveBeenCalledTimes(1)
+    expect(mockDb.listMessages).toHaveBeenCalledWith({
+      where: { threadId: `thread-1` },
+      limit: 100,
+      offset: 0,
     })
   })
 
-  describe(`run - tool call without sandbox`, () => {
-    it(`should produce error tool results when no sandbox is configured`, async () => {
-      const toolDefs = [
-        {
-          name: `shellExec`,
-          description: `Run shell`,
-          inputSchema: { type: `object` as const, properties: {} },
-        },
-      ]
-      vi.mocked(getToolDefs).mockReturnValue(toolDefs as any)
+  it(`should save user message via db.createMessage`, async () => {
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
 
-      const mockAdapter = {
-        stream: vi.fn().mockReturnValue(
-          streamFromEvents([
-            { type: EStreamEventType.toolCallStart, id: `tc-1`, name: `shellExec` },
-            { type: EStreamEventType.toolCallArgs, id: `tc-1`, args: `{"command":"ls"}` },
-            { type: EStreamEventType.done, stopReason: `tool_use` },
-          ])
-        ),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const opts = baseOpts()
-      await AgentRunner.run(opts)
-
-      expect(opts.db.createMessage).toHaveBeenCalledTimes(3)
-
-      const thirdCall = (opts.db.createMessage as ReturnType<typeof vi.fn>).mock
-        .calls[2][0]
-      expect(thirdCall.type).toBe(`user`)
-      expect(thirdCall.content).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            type: EContentType.toolResult,
-            toolUseId: `tc-1`,
-            isError: true,
-            content: expect.stringContaining(`No sandbox configured`),
-          }),
-        ])
-      )
-
-      expect(mockAdapter.stream).toHaveBeenCalledTimes(1)
+    expect(mockDb.createMessage).toHaveBeenCalledWith({
+      threadId: `thread-1`,
+      type: `user`,
+      orgId: `org-1`,
+      content: [{ type: `text`, text: `Hello agent` }],
     })
   })
 
-  describe(`run - tool call with sandbox`, () => {
-    it(`should run tool in sandbox and loop for second LLM call`, async () => {
-      const toolDefs = [
-        {
-          name: `shellExec`,
-          description: `Run shell`,
-          inputSchema: { type: `object` as const, properties: {} },
-        },
-      ]
-      vi.mocked(getToolDefs).mockReturnValue(toolDefs as any)
-
-      const mockSandbox = createMockSandbox()
-      const mockProvider = { create: vi.fn().mockResolvedValue(mockSandbox) }
-      vi.mocked(createSandboxProvider).mockReturnValue(mockProvider as any)
-
-      let callCount = 0
-      const mockAdapter = {
-        stream: vi.fn().mockImplementation(() => {
-          callCount++
-          if (callCount === 1) {
-            return streamFromEvents([
-              { type: EStreamEventType.toolCallStart, id: `tc-1`, name: `shellExec` },
-              {
-                type: EStreamEventType.toolCallArgs,
-                id: `tc-1`,
-                args: `{"command":"ls","args":["-la"]}`,
-              },
-              { type: EStreamEventType.done, stopReason: `tool_use` },
-            ])
-          }
-          return streamFromEvents([
-            { type: EStreamEventType.text, text: `Here are the files` },
-            { type: EStreamEventType.done, stopReason: `end_turn` },
-          ])
-        }),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const opts = baseOpts({
-        sandboxConfig: { provider: `e2b`, apiKey: `key-123` },
-      })
-      await AgentRunner.run(opts)
-
-      expect(mockAdapter.stream).toHaveBeenCalledTimes(2)
-      expect(mockSandbox.exec).toHaveBeenCalledWith(`ls`, [`-la`])
-
-      expect(opts.onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          toolUseId: `tc-1`,
-          isError: false,
-        })
-      )
-
-      expect(opts.db.createMessage).toHaveBeenCalledTimes(4)
-      expect(mockSandbox.close).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  describe(`run - error handling`, () => {
-    it(`should emit error event when adapter.stream throws`, async () => {
-      const mockAdapter = {
-        stream: vi.fn().mockImplementation(() => {
-          throw new Error(`LLM connection failed`)
-        }),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const opts = baseOpts()
-      await AgentRunner.run(opts)
-
-      expect(opts.onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.error,
-          error: `LLM connection failed`,
-        })
-      )
-    })
-
-    it(`should close sandbox even when an error occurs`, async () => {
-      const toolDefs = [
-        {
-          name: `shellExec`,
-          description: `Run shell`,
-          inputSchema: { type: `object` as const, properties: {} },
-        },
-      ]
-      vi.mocked(getToolDefs).mockReturnValue(toolDefs as any)
-
-      const mockSandbox = createMockSandbox()
-      const mockProvider = { create: vi.fn().mockResolvedValue(mockSandbox) }
-      vi.mocked(createSandboxProvider).mockReturnValue(mockProvider as any)
-
-      const mockAdapter = {
-        stream: vi.fn().mockReturnValue(
-          streamFromEvents([
-            { type: EStreamEventType.toolCallStart, id: `tc-1`, name: `shellExec` },
-            {
-              type: EStreamEventType.toolCallArgs,
-              id: `tc-1`,
-              args: `{"command":"fail"}`,
-            },
-            { type: EStreamEventType.done, stopReason: `tool_use` },
-          ])
-        ),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      mockSandbox.exec = vi.fn().mockRejectedValue(new Error(`sandbox crashed`))
-
-      const opts = baseOpts({
-        sandboxConfig: { provider: `e2b`, apiKey: `key-123` },
-      })
-      await AgentRunner.run(opts)
-
-      expect(opts.onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          toolUseId: `tc-1`,
-          isError: true,
-          content: expect.stringContaining(`Tool execution error`),
-        })
-      )
-
-      expect(mockSandbox.close).toHaveBeenCalledTimes(1)
-    })
-
-    it(`should handle stream error event and stop the loop`, async () => {
-      const mockAdapter = {
-        stream: vi.fn().mockReturnValue(
-          streamFromEvents([
-            { type: EStreamEventType.text, text: `partial` },
-            { type: EStreamEventType.error, error: `Rate limited` },
-          ])
-        ),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const opts = baseOpts()
-      await AgentRunner.run(opts)
-
-      expect(opts.onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ type: EStreamEventType.error, error: `Rate limited` })
-      )
-
-      expect(mockAdapter.stream).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  describe(`run - max steps limit`, () => {
-    it(`should stop after maxSteps iterations`, async () => {
-      const toolDefs = [
-        {
-          name: `shellExec`,
-          description: `Run shell`,
-          inputSchema: { type: `object` as const, properties: {} },
-        },
-      ]
-      vi.mocked(getToolDefs).mockReturnValue(toolDefs as any)
-
-      const mockSandbox = createMockSandbox()
-      const mockProvider = { create: vi.fn().mockResolvedValue(mockSandbox) }
-      vi.mocked(createSandboxProvider).mockReturnValue(mockProvider as any)
-
-      let streamCallCount = 0
-      const mockAdapter = {
-        stream: vi.fn().mockImplementation(() => {
-          streamCallCount++
-          return streamFromEvents([
-            {
-              type: EStreamEventType.toolCallStart,
-              id: `tc-${streamCallCount}`,
-              name: `shellExec`,
-            },
-            {
-              type: EStreamEventType.toolCallArgs,
-              id: `tc-${streamCallCount}`,
-              args: `{"command":"loop"}`,
-            },
-            { type: EStreamEventType.done, stopReason: `tool_use` },
-          ])
-        }),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const opts = baseOpts({
-        maxSteps: 3,
-        sandboxConfig: { provider: `e2b`, apiKey: `key-123` },
-      })
-      await AgentRunner.run(opts)
-
-      expect(mockAdapter.stream).toHaveBeenCalledTimes(3)
-    })
-
-    it(`should default maxSteps to 10`, async () => {
-      const toolDefs = [
-        {
-          name: `shellExec`,
-          description: `Run shell`,
-          inputSchema: { type: `object` as const, properties: {} },
-        },
-      ]
-      vi.mocked(getToolDefs).mockReturnValue(toolDefs as any)
-
-      const mockSandbox = createMockSandbox()
-      const mockProvider = { create: vi.fn().mockResolvedValue(mockSandbox) }
-      vi.mocked(createSandboxProvider).mockReturnValue(mockProvider as any)
-
-      let streamCallCount = 0
-      const mockAdapter = {
-        stream: vi.fn().mockImplementation(() => {
-          streamCallCount++
-          return streamFromEvents([
-            {
-              type: EStreamEventType.toolCallStart,
-              id: `tc-${streamCallCount}`,
-              name: `shellExec`,
-            },
-            {
-              type: EStreamEventType.toolCallArgs,
-              id: `tc-${streamCallCount}`,
-              args: `{"command":"loop"}`,
-            },
-            { type: EStreamEventType.done, stopReason: `tool_use` },
-          ])
-        }),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const opts = baseOpts({
-        sandboxConfig: { provider: `e2b`, apiKey: `key-123` },
-      })
-      await AgentRunner.run(opts)
-
-      expect(mockAdapter.stream).toHaveBeenCalledTimes(10)
-    })
-  })
-
-  describe(`run - history loading`, () => {
-    it(`should load existing messages and include them in history`, async () => {
-      const existingMessages = [
-        {
-          type: `user`,
-          content: [{ type: EContentType.text, text: `Previous question` }],
-        },
-        {
-          type: `assistant`,
-          content: [{ type: EContentType.text, text: `Previous answer` }],
-        },
-      ]
-      const db = createMockDb(existingMessages)
-
-      let historySnapshot: any[] = []
-      const mockAdapter = {
-        stream: vi.fn().mockImplementation((history: any[]) => {
-          historySnapshot = history.map((m: any) => ({ ...m }))
-          return streamFromEvents([
-            { type: EStreamEventType.text, text: `Response` },
-            { type: EStreamEventType.done, stopReason: `end_turn` },
-          ])
-        }),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const opts = baseOpts({ db })
-      await AgentRunner.run(opts)
-
-      expect(db.listMessages).toHaveBeenCalledWith({
-        where: { threadId: `thread-1` },
-        limit: 100,
-        offset: 0,
-      })
-
-      expect(historySnapshot).toHaveLength(3)
-      expect(historySnapshot[0].role).toBe(`user`)
-      expect(historySnapshot[0].content[0].text).toBe(`Previous question`)
-      expect(historySnapshot[1].role).toBe(`assistant`)
-      expect(historySnapshot[2].role).toBe(`user`)
-      expect(historySnapshot[2].content[0].text).toBe(`Hello`)
-    })
-
-    it(`should handle empty message history`, async () => {
-      const db = createMockDb([])
-      let historySnapshot: any[] = []
-      const mockAdapter = {
-        stream: vi.fn().mockImplementation((history: any[]) => {
-          historySnapshot = history.map((m: any) => ({ ...m }))
-          return streamFromEvents([
-            { type: EStreamEventType.text, text: `First response` },
-            { type: EStreamEventType.done, stopReason: `end_turn` },
-          ])
-        }),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const opts = baseOpts({ db })
-      await AgentRunner.run(opts)
-
-      expect(historySnapshot).toHaveLength(1)
-      expect(historySnapshot[0].role).toBe(`user`)
-    })
-  })
-
-  describe(`run - tool dispatch`, () => {
-    async function runWithToolCall(
-      toolName: string,
-      argsJson: string,
-      sandbox: ISandbox
-    ) {
-      const toolDefs = [
-        {
-          name: toolName,
-          description: `test`,
-          inputSchema: { type: `object` as const, properties: {} },
-        },
-      ]
-      vi.mocked(getToolDefs).mockReturnValue(toolDefs as any)
-
-      const mockProvider = { create: vi.fn().mockResolvedValue(sandbox) }
-      vi.mocked(createSandboxProvider).mockReturnValue(mockProvider as any)
-
-      let callCount = 0
-      const mockAdapter = {
-        stream: vi.fn().mockImplementation(() => {
-          callCount++
-          if (callCount === 1) {
-            return streamFromEvents([
-              { type: EStreamEventType.toolCallStart, id: `tc-1`, name: toolName },
-              { type: EStreamEventType.toolCallArgs, id: `tc-1`, args: argsJson },
-              { type: EStreamEventType.done, stopReason: `tool_use` },
-            ])
-          }
-          return streamFromEvents([
-            { type: EStreamEventType.done, stopReason: `end_turn` },
-          ])
-        }),
-      }
-      vi.mocked(createLLMAdapter).mockReturnValue(mockAdapter as any)
-
-      const onEvent = vi.fn()
-      const opts = baseOpts({
-        onEvent,
-        sandboxConfig: { provider: `e2b`, apiKey: `key` },
-      })
-      await AgentRunner.run(opts)
-      return onEvent
+  it(`should create sandbox when sandboxConfig.provider is set`, async () => {
+    const opts = {
+      ...baseOpts(),
+      sandboxConfig: {
+        provider: `e2b`,
+        apiKey: `e2b-key`,
+        template: `base`,
+        timeout: 60000,
+        envVars: { FOO: `bar` },
+      },
     }
+    await AgentRunner.run(opts)
 
-    it(`should dispatch shellExec to sandbox.exec`, async () => {
-      const sandbox = createMockSandbox()
-      await runWithToolCall(
-        `shellExec`,
-        `{"command":"echo hi","args":["--flag"]}`,
-        sandbox
-      )
-      expect(sandbox.exec).toHaveBeenCalledWith(`echo hi`, [`--flag`])
+    expect(createSandboxProvider).toHaveBeenCalledWith(`e2b`)
+    expect(mockSandboxCreate).toHaveBeenCalledWith({
+      apiKey: `e2b-key`,
+      envVars: { FOO: `bar` },
+      template: `base`,
+      provider: `e2b`,
+      timeout: 60000,
+    })
+    expect(createSandboxTools).toHaveBeenCalled()
+  })
+
+  it(`should use default timeout of 300000 when sandboxConfig.timeout is not set`, async () => {
+    const opts = {
+      ...baseOpts(),
+      sandboxConfig: {
+        provider: `e2b`,
+      },
+    }
+    await AgentRunner.run(opts)
+
+    expect(mockSandboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ timeout: 300000 })
+    )
+  })
+
+  it(`should not create sandbox when sandboxConfig is absent`, async () => {
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(createSandboxProvider).not.toHaveBeenCalled()
+    expect(createSandboxTools).not.toHaveBeenCalled()
+  })
+
+  it(`should call getModel with llmConfig provider and model`, async () => {
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(getModel).toHaveBeenCalledWith(`anthropic`, `claude-sonnet-4-20250514`)
+  })
+
+  it(`should create proxy stream function when proxyConfig is provided`, async () => {
+    const opts = {
+      ...baseOpts(),
+      proxyConfig: {
+        backendUrl: `https://api.example.com`,
+        sessionToken: `session-123`,
+      },
+    }
+    await AgentRunner.run(opts)
+
+    expect(createStreamProxy).toHaveBeenCalledWith({
+      backendUrl: `https://api.example.com`,
+      sessionToken: `session-123`,
     })
 
-    it(`should dispatch readFile to sandbox.readFile`, async () => {
-      const sandbox = createMockSandbox()
-      const onEvent = await runWithToolCall(
-        `readFile`,
-        `{"path":"/tmp/test.txt"}`,
-        sandbox
-      )
-      expect(sandbox.readFile).toHaveBeenCalledWith(`/tmp/test.txt`)
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          content: `file content`,
-          isError: false,
-        })
-      )
+    // Verify streamFn was passed to Agent constructor
+    const agentCtorArgs = vi.mocked(Agent).mock.calls[0][0]
+    expect(agentCtorArgs.streamFn).toBeDefined()
+  })
+
+  it(`should NOT create proxy stream function when proxyConfig is absent`, async () => {
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(createStreamProxy).not.toHaveBeenCalled()
+
+    const agentCtorArgs = vi.mocked(Agent).mock.calls[0][0]
+    expect(agentCtorArgs.streamFn).toBeUndefined()
+  })
+
+  it(`should set up getApiKey from llmConfig.apiKey`, async () => {
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    const agentCtorArgs = vi.mocked(Agent).mock.calls[0][0]
+    expect(agentCtorArgs.getApiKey).toBeDefined()
+    expect((agentCtorArgs as any).getApiKey!()).toBe(`sk-test-key`)
+  })
+
+  it(`should not set getApiKey when llmConfig.apiKey is absent`, async () => {
+    const opts = baseOpts()
+    opts.llmConfig.apiKey = undefined as any
+    await AgentRunner.run(opts)
+
+    const agentCtorArgs = vi.mocked(Agent).mock.calls[0][0]
+    expect(agentCtorArgs.getApiKey).toBeUndefined()
+  })
+
+  it(`should call Agent constructor with correct initialState`, async () => {
+    const mockModel = { api: `test`, provider: `test`, id: `test-model` }
+    const mockHistory = [{ role: `user`, content: `old msg`, timestamp: 1 }]
+    vi.mocked(getModel).mockReturnValue(mockModel as any)
+    vi.mocked(convertToLlmMessages).mockReturnValue(mockHistory as any)
+
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    const agentCtorArgs = vi.mocked(Agent).mock.calls[0][0]
+    expect(agentCtorArgs.initialState).toEqual({
+      systemPrompt: `You are a helpful assistant`,
+      model: mockModel,
+      tools: [],
+      messages: mockHistory,
+    })
+  })
+
+  it(`should use empty string for systemPrompt when not provided`, async () => {
+    const opts = baseOpts()
+    opts.llmConfig.systemPrompt = undefined as any
+    await AgentRunner.run(opts)
+
+    const agentCtorArgs = vi.mocked(Agent).mock.calls[0][0]
+    expect(agentCtorArgs.initialState.systemPrompt).toBe(``)
+  })
+
+  it(`should subscribe to agent events and call mapAgentEvent + onEvent`, async () => {
+    const mockStreamEvent = { type: `text`, text: `hello` }
+    vi.mocked(mapAgentEvent).mockReturnValue(mockStreamEvent as any)
+
+    // Capture the subscriber callback
+    let subscriberFn: ((event: AgentEvent) => void) | undefined
+    mockSubscribe.mockImplementation((fn: (event: AgentEvent) => void) => {
+      subscriberFn = fn
+      return vi.fn()
     })
 
-    it(`should dispatch writeFile to sandbox.writeFile`, async () => {
-      const sandbox = createMockSandbox()
-      const onEvent = await runWithToolCall(
-        `writeFile`,
-        `{"path":"/tmp/out.txt","content":"hello"}`,
-        sandbox
-      )
-      expect(sandbox.writeFile).toHaveBeenCalledWith(`/tmp/out.txt`, `hello`)
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          content: `File written to /tmp/out.txt`,
-          isError: false,
-        })
-      )
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(mockSubscribe).toHaveBeenCalledTimes(1)
+    expect(subscriberFn).toBeDefined()
+
+    // Simulate an event
+    const fakeEvent = { type: `message_update` } as AgentEvent
+    subscriberFn!(fakeEvent)
+
+    expect(mapAgentEvent).toHaveBeenCalledWith(fakeEvent)
+    expect(opts.onEvent).toHaveBeenCalledWith(mockStreamEvent)
+  })
+
+  it(`should not call onEvent when mapAgentEvent returns undefined`, async () => {
+    vi.mocked(mapAgentEvent).mockReturnValue(undefined)
+
+    let subscriberFn: ((event: AgentEvent) => void) | undefined
+    mockSubscribe.mockImplementation((fn: (event: AgentEvent) => void) => {
+      subscriberFn = fn
+      return vi.fn()
     })
 
-    it(`should dispatch listDir to sandbox.listDir`, async () => {
-      const sandbox = createMockSandbox()
-      const onEvent = await runWithToolCall(`listDir`, `{"path":"/tmp"}`, sandbox)
-      expect(sandbox.listDir).toHaveBeenCalledWith(`/tmp`)
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          content: `a.txt\nb.txt`,
-          isError: false,
-        })
-      )
-    })
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
 
-    it(`should dispatch deleteFile to sandbox.deleteFile`, async () => {
-      const sandbox = createMockSandbox()
-      const onEvent = await runWithToolCall(
-        `deleteFile`,
-        `{"path":"/tmp/old.txt"}`,
-        sandbox
-      )
-      expect(sandbox.deleteFile).toHaveBeenCalledWith(`/tmp/old.txt`)
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          content: `File deleted: /tmp/old.txt`,
-        })
-      )
-    })
+    const fakeEvent = { type: `agent_start` } as AgentEvent
+    subscriberFn!(fakeEvent)
 
-    it(`should dispatch mkdir to sandbox.mkdir`, async () => {
-      const sandbox = createMockSandbox()
-      const onEvent = await runWithToolCall(`mkdir`, `{"path":"/tmp/newdir"}`, sandbox)
-      expect(sandbox.mkdir).toHaveBeenCalledWith(`/tmp/newdir`)
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          content: `Directory created: /tmp/newdir`,
-        })
-      )
-    })
+    expect(mapAgentEvent).toHaveBeenCalledWith(fakeEvent)
+    expect(opts.onEvent).not.toHaveBeenCalled()
+  })
 
-    it(`should dispatch fileExists to sandbox.fileExists`, async () => {
-      const sandbox = createMockSandbox()
-      const onEvent = await runWithToolCall(
-        `fileExists`,
-        `{"path":"/tmp/check.txt"}`,
-        sandbox
-      )
-      expect(sandbox.fileExists).toHaveBeenCalledWith(`/tmp/check.txt`)
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          content: `true`,
-          isError: false,
-        })
-      )
-    })
+  it(`should close sandbox in finally block`, async () => {
+    const opts = {
+      ...baseOpts(),
+      sandboxConfig: { provider: `e2b` },
+    }
+    await AgentRunner.run(opts)
 
-    it(`should return error for unknown tool name`, async () => {
-      const sandbox = createMockSandbox()
-      const onEvent = await runWithToolCall(`unknownTool`, `{}`, sandbox)
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          content: `Unknown tool: unknownTool`,
-          isError: true,
-        })
-      )
-    })
+    expect(mockSandboxClose).toHaveBeenCalledTimes(1)
+  })
 
-    it(`should return error for webSearch (not implemented)`, async () => {
-      const sandbox = createMockSandbox()
-      const onEvent = await runWithToolCall(`webSearch`, `{"query":"test"}`, sandbox)
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          content: `Web search not yet implemented`,
-          isError: true,
-        })
-      )
-    })
+  it(`should send error event when agent throws`, async () => {
+    mockPrompt.mockRejectedValue(new Error(`LLM connection failed`))
 
-    it(`should return error for invalid JSON arguments`, async () => {
-      const sandbox = createMockSandbox()
-      const onEvent = await runWithToolCall(`shellExec`, `not-json`, sandbox)
-      expect(onEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: EStreamEventType.toolResult,
-          content: expect.stringContaining(`Invalid JSON arguments`),
-          isError: true,
-        })
-      )
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(opts.onEvent).toHaveBeenCalledWith({
+      type: `error`,
+      error: `LLM connection failed`,
     })
+  })
+
+  it(`should send 'Unknown agent error' for non-Error throws`, async () => {
+    mockPrompt.mockRejectedValue(`string error`)
+
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(opts.onEvent).toHaveBeenCalledWith({
+      type: `error`,
+      error: `Unknown agent error`,
+    })
+  })
+
+  it(`should close sandbox even when error occurs`, async () => {
+    mockPrompt.mockRejectedValue(new Error(`Agent crashed`))
+
+    const opts = {
+      ...baseOpts(),
+      sandboxConfig: { provider: `e2b` },
+    }
+    await AgentRunner.run(opts)
+
+    expect(mockSandboxClose).toHaveBeenCalledTimes(1)
+  })
+
+  it(`should pass existing messages to convertToLlmMessages`, async () => {
+    const existingMsgs = [
+      { type: `user`, content: [{ type: `text`, text: `hi` }] },
+      { type: `assistant`, content: [{ type: `text`, text: `hello` }] },
+    ]
+    mockDb.listMessages.mockResolvedValue({ data: existingMsgs })
+
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(convertToLlmMessages).toHaveBeenCalledWith(existingMsgs)
+  })
+
+  it(`should pass empty array to convertToLlmMessages when data is undefined`, async () => {
+    mockDb.listMessages.mockResolvedValue({ data: undefined })
+
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(convertToLlmMessages).toHaveBeenCalledWith([])
+  })
+
+  it(`should call unsubscribe after agent completes`, async () => {
+    const mockUnsubscribe = vi.fn()
+    mockSubscribe.mockReturnValue(mockUnsubscribe)
+
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(mockUnsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it(`should pass sandbox and tools list to createSandboxTools`, async () => {
+    const opts = {
+      ...baseOpts(),
+      sandboxConfig: { provider: `e2b` },
+      tools: [`shellExec`, `readFile`],
+    }
+    await AgentRunner.run(opts)
+
+    const sandbox = await mockSandboxCreate.mock.results[0].value
+    expect(createSandboxTools).toHaveBeenCalledWith(sandbox, [`shellExec`, `readFile`])
+  })
+
+  it(`should not call createSandboxTools when no sandbox is created`, async () => {
+    const opts = baseOpts()
+    await AgentRunner.run(opts)
+
+    expect(createSandboxTools).not.toHaveBeenCalled()
   })
 })

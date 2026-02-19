@@ -4,6 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
+import { validateLLMProvider } from '@TBE/utils/providers/validateLLMProvider'
 import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 import { validateProviderType } from '@TBE/utils/providers/validateProviderType'
 
@@ -30,6 +31,7 @@ export const updateProvider: TEndpointConfig = {
     )
 
     providerData.type && validateProviderType(providerData.type)
+    validateLLMProvider(providerData.type, providerData.brand)
 
     const { data, error } = await db.services.provider.update({ ...providerData, id })
 

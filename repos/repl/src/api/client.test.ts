@@ -1,6 +1,15 @@
 import type { AuthManager } from '@TRL/auth'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+vi.mock('@TRL/constants', async () => {
+  const actual = await vi.importActual('@TRL/constants')
+  return {
+    ...actual,
+    MAX_RETRIES: 3,
+    RETRY_DELAYS: [0, 0, 0],
+  }
+})
+
 const mockFetch = vi.fn()
 vi.stubGlobal(`fetch`, mockFetch)
 
@@ -314,6 +323,164 @@ describe(`ApiClient`, () => {
           orgId: `org1`,
         })
       ).rejects.toThrow(`Not logged in`)
+    })
+  })
+
+  describe(`retry logic`, () => {
+    it(`retries on network error up to 3 times`, async () => {
+      const networkError = Object.assign(new Error(`connect failed`), {
+        code: `ECONNREFUSED`,
+      })
+      mockFetch
+        .mockRejectedValueOnce(networkError)
+        .mockRejectedValueOnce(networkError)
+        .mockResolvedValue({
+          ok: true,
+          json: async () => ({ data: [] }),
+        })
+
+      const result = await client.listOrgs()
+
+      expect(mockFetch).toHaveBeenCalledTimes(3)
+      expect(result).toEqual([])
+    })
+
+    it(`retries on 429 with backoff`, async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: `Too Many Requests`,
+          text: async () => `Rate limited`,
+        })
+        .mockResolvedValue({
+          ok: true,
+          json: async () => ({ data: [] }),
+        })
+
+      const result = await client.listOrgs()
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(result).toEqual([])
+    })
+
+    it(`does not retry on 4xx errors (except 429)`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: `Bad Request`,
+        text: async () => `Invalid`,
+      })
+
+      await expect(client.listOrgs()).rejects.toThrow(`API error (400)`)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it(`retries on 500 errors`, async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: `Internal Server Error`,
+          text: async () => `Server error`,
+        })
+        .mockResolvedValue({
+          ok: true,
+          json: async () => ({ data: [] }),
+        })
+
+      const result = await client.listOrgs()
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(result).toEqual([])
+    })
+
+    it(`throws after max retries exhausted`, async () => {
+      const networkError = Object.assign(new Error(`connect failed`), {
+        code: `ECONNREFUSED`,
+      })
+      mockFetch.mockRejectedValue(networkError)
+
+      await expect(client.listOrgs()).rejects.toThrow(`connect failed`)
+      expect(mockFetch).toHaveBeenCalledTimes(4) // 1 initial + 3 retries
+    })
+  })
+
+  describe(`listProviders`, () => {
+    it(`lists available providers for an agent`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [
+            {
+              id: `p1`,
+              name: `Anthropic`,
+              model: `claude-sonnet`,
+              provider: `anthropic`,
+            },
+            { id: `p2`, name: `OpenAI`, model: `gpt-4o`, provider: `openai` },
+          ],
+        }),
+      })
+
+      const result = await client.listProviders(`org1`, `agent1`)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://proxy.test/_/orgs/org1/agents/agent1/providers`,
+        expect.any(Object)
+      )
+      expect(result).toHaveLength(2)
+      expect(result[0].name).toBe(`Anthropic`)
+    })
+  })
+
+  describe(`createSession with providerId`, () => {
+    it(`should POST with providerId when specified`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: {
+            sessionToken: `sess-abc`,
+            provider: `openai`,
+            model: `gpt-4o`,
+            maxTokens: 4096,
+          },
+        }),
+      })
+
+      await client.createSession(`agent1`, `provider-123`)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://proxy.test/_/ai/sessions`,
+        expect.objectContaining({
+          method: `POST`,
+          body: JSON.stringify({ agentId: `agent1`, providerId: `provider-123` }),
+        })
+      )
+    })
+
+    it(`should POST without providerId when not specified`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: {
+            sessionToken: `sess-abc`,
+            provider: `anthropic`,
+            model: `claude-sonnet-4-20250514`,
+            maxTokens: 4096,
+          },
+        }),
+      })
+
+      await client.createSession(`agent1`)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://proxy.test/_/ai/sessions`,
+        expect.objectContaining({
+          method: `POST`,
+          body: JSON.stringify({ agentId: `agent1` }),
+        })
+      )
     })
   })
 })

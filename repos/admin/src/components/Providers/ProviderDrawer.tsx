@@ -1,5 +1,11 @@
-import type { Provider, Secret, TProviderType } from '@tdsk/domain'
 import type { TKeyValuePair } from '@TAF/types'
+import type {
+  Provider,
+  Secret,
+  TProviderType,
+  TLLMProviderBrand,
+  TProviderBrand,
+} from '@tdsk/domain'
 
 import { secretsApi } from '@TAF/services'
 import { useProviders } from '@TAF/state/selectors'
@@ -10,8 +16,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { createSecret } from '@TAF/actions/secrets/api/createSecret'
 import { createProvider, updateProvider } from '@TAF/actions/providers'
-import { ELLMProvider, EProvider, ProviderTemplates } from '@tdsk/domain'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { ELLMProviderBrand, EProvider, ProviderTemplates } from '@tdsk/domain'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
 import {
   ExpandMore as ExpandMoreIcon,
@@ -30,7 +36,7 @@ import {
   AccordionDetails,
 } from '@mui/material'
 
-const LLMProviderOptions = Object.values(ELLMProvider).map((value) => ({
+const LLMProviderOptions = Object.values(ELLMProviderBrand).map((value) => ({
   value,
   label: value.charAt(0).toUpperCase() + value.slice(1),
 }))
@@ -56,9 +62,9 @@ export const ProviderDrawer = ({
   open,
   orgId,
   provider,
+  onRemove,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
-  onRemove,
 }: TProviderDrawer) => {
   const isEditMode = Boolean(provider)
   const [providers] = useProviders()
@@ -66,11 +72,11 @@ export const ProviderDrawer = ({
   const [name, setName] = useState('')
   const [type, setType] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
-  const [llmProvider, setLlmProvider] = useState('')
-  const [headers, setHeaders] = useState<TKeyValuePair[]>([])
-  const [bodyParams, setBodyParams] = useState<TKeyValuePair[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [brand, setBrand] = useState<TProviderBrand>(null)
+  const [headers, setHeaders] = useState<TKeyValuePair[]>([])
+  const [bodyParams, setBodyParams] = useState<TKeyValuePair[]>([])
 
   // Secret management
   const [secretMode, setSecretMode] = useState<TSecretMode>('none')
@@ -80,7 +86,7 @@ export const ProviderDrawer = ({
   const [orgSecrets, setOrgSecrets] = useState<Secret[]>([])
 
   const isAiType = type === EProvider.ai
-  const template = isAiType && llmProvider ? ProviderTemplates[llmProvider] : undefined
+  const template = isAiType && brand ? ProviderTemplates[brand] : undefined
 
   const duplicateName = useMemo(() => {
     if (isEditMode || !name.trim() || !providers) return false
@@ -126,7 +132,7 @@ export const ProviderDrawer = ({
       setName(provider.name || '')
       setType(provider.type || '')
       setBaseUrl(options.baseUrl || '')
-      setLlmProvider(options.llmProvider || '')
+      setBrand(provider.brand || null)
       setHeaders(objToKV(provider.headers, 'header'))
       setBodyParams(objToKV(provider.bodyParams, 'bodyParam'))
       setError(null)
@@ -138,12 +144,12 @@ export const ProviderDrawer = ({
       setName('')
       setType('')
       setBaseUrl('')
-      setLlmProvider('')
+      setBrand(null)
       setHeaders([])
       setBodyParams([])
       setError(null)
-      setSecretMode('none')
       setApiKeyValue('')
+      setSecretMode('none')
       setShowApiKey(false)
       setSelectedSecretId('')
       setProviderSecrets([])
@@ -152,14 +158,14 @@ export const ProviderDrawer = ({
 
   // Auto-fill from template when LLM provider changes (create mode only)
   useEffect(() => {
-    if (isEditMode || !isAiType || !llmProvider) return
+    if (isEditMode || !isAiType || !brand) return
 
-    const tpl = ProviderTemplates[llmProvider]
+    const tpl = ProviderTemplates[brand]
     if (!tpl) return
 
     setName(tpl.name)
     if (tpl.baseUrl) setBaseUrl(tpl.baseUrl)
-  }, [llmProvider, isAiType, isEditMode])
+  }, [brand, isAiType, isEditMode])
 
   const onClose = () => {
     if (loading) return
@@ -167,7 +173,7 @@ export const ProviderDrawer = ({
     setName('')
     setType('')
     setBaseUrl('')
-    setLlmProvider('')
+    setBrand(null)
     setHeaders([])
     setBodyParams([])
     setError(null)
@@ -184,23 +190,21 @@ export const ProviderDrawer = ({
 
     if (!name.trim()) return setError('Provider name is required')
     if (!type) return setError('Provider type is required')
-    if (isAiType && !llmProvider)
-      return setError('LLM provider is required for AI providers')
+    if (isAiType && !brand) return setError('LLM provider is required for AI providers')
     if (secretMode === 'new' && !apiKeyValue.trim())
       return setError('API key value is required')
 
     setLoading(true)
     setError(null)
 
-    const providerType = type as TProviderType
     const headersObj = kvToObj(headers, false)
     const bodyParamsObj = kvToObj(bodyParams, true)
     const providerData: Partial<Provider> = {
       name: name.trim(),
-      type: providerType,
+      type: type as TProviderType,
+      ...(isAiType && brand ? { brand } : {}),
       options: {
         ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}),
-        ...(isAiType && llmProvider ? { llmProvider } : {}),
       },
       ...(Object.keys(headersObj).length > 0
         ? { headers: headersObj }
@@ -283,9 +287,7 @@ export const ProviderDrawer = ({
             value={type}
             onChange={(e) => {
               setType(e.target.value)
-              if (e.target.value !== EProvider.ai) {
-                setLlmProvider('')
-              }
+              e.target.value !== EProvider.ai && setBrand(null)
             }}
             items={ProviderTypes}
             required
@@ -296,24 +298,24 @@ export const ProviderDrawer = ({
             <SelectInput
               required
               disabled={loading}
-              value={llmProvider}
-              label='LLM Provider'
-              id='provider-llm-provider'
+              value={brand}
+              label='Provider'
+              id='provider-brand'
               items={LLMProviderOptions}
-              onChange={(e) => setLlmProvider(e.target.value)}
               description='The AI service this provider connects to'
+              onChange={(e) => setBrand(e.target.value as TLLMProviderBrand)}
             />
           )}
 
           <TextInput
-            id='provider-name'
-            label='Provider Name'
-            placeholder='Enter provider name'
-            value={name}
-            onChange={(e) => setName(e.target.value)}
             required
             fullWidth
+            value={name}
+            id='provider-name'
             disabled={loading}
+            label='Provider Name'
+            placeholder='Enter provider name'
+            onChange={(e) => setName(e.target.value)}
           />
 
           {duplicateName && (

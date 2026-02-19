@@ -1,8 +1,8 @@
 import type { Response } from 'express'
-import type { Endpoint } from '@tdsk/domain'
 import type { TDatabase } from '@tdsk/database'
 import type { IAgentRunnerDB } from '@tdsk/agent'
 import type { TRequest, TAgentExecOpts } from '@TBE/types'
+import type { Endpoint, TLLMProviderBrand } from '@tdsk/domain'
 
 import { BaseEndpoint } from './base'
 import { AgentRunner } from '@tdsk/agent'
@@ -102,9 +102,6 @@ export class AgentEndpoint extends BaseEndpoint {
 
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 
-    // Determine and validate LLM provider type
-    const providerType = resolveProviderType(provider)
-
     // Resolve provider headers and body params (with {{SECRET}} template substitution)
     const headers = await secrets.resolveHeaders(provider)
     const bodyParams = await secrets.resolveBodyParams(provider)
@@ -144,11 +141,14 @@ export class AgentEndpoint extends BaseEndpoint {
       apiKey,
       headers,
       bodyParams,
-      provider: providerType as any,
       temperature: agent.environment?.temperature,
       maxTokens: overrides?.maxTokens || agent.maxTokens,
       systemPrompt: overrides?.systemPrompt || agent.systemPrompt,
       model: overrides?.model || agent.model || provider.options?.model,
+
+      // TODO: fix this, need to add differnt Provider class types
+      // I.E. need AIProvider, GitProvider, etc...
+      provider: resolveProviderType<TLLMProviderBrand>(provider as any),
     }
 
     // Build sandbox config

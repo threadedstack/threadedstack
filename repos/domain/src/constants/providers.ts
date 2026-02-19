@@ -1,4 +1,5 @@
-import type { TProviderTemplate } from '../types/quickstart.types'
+import type { TProviderTemplate } from '@TDM/types'
+import { ELLMProviderBrand } from '@TDM/types'
 
 /**
  * TODO: Figure out how to Replace this with a dynamic look up of AI models
@@ -6,9 +7,9 @@ import type { TProviderTemplate } from '../types/quickstart.types'
  *  - https://openrouter.ai/api/v1/models
  *  - https://ai-gateway.vercel.sh/v1/models
  */
-export const ProviderTemplates: Record<string, TProviderTemplate> = {
-  anthropic: {
-    id: `anthropic`,
+export const ProviderTemplates: Record<ELLMProviderBrand, TProviderTemplate> = {
+  [ELLMProviderBrand.anthropic]: {
+    id: ELLMProviderBrand.anthropic,
     name: `Anthropic`,
     baseUrl: `https://api.anthropic.com`,
     defaultModel: `claude-sonnet-4-20250514`,
@@ -36,8 +37,8 @@ export const ProviderTemplates: Record<string, TProviderTemplate> = {
       },
     ],
   },
-  openai: {
-    id: `openai`,
+  [ELLMProviderBrand.openai]: {
+    id: ELLMProviderBrand.openai,
     name: `OpenAI`,
     baseUrl: `https://api.openai.com/v1`,
     defaultModel: `gpt-4o`,
@@ -65,8 +66,8 @@ export const ProviderTemplates: Record<string, TProviderTemplate> = {
       },
     ],
   },
-  google: {
-    id: `google`,
+  [ELLMProviderBrand.google]: {
+    id: ELLMProviderBrand.google,
     name: `Google AI`,
     baseUrl: `https://generativelanguage.googleapis.com/v1`,
     defaultModel: `gemini-2.0-flash`,
@@ -88,8 +89,8 @@ export const ProviderTemplates: Record<string, TProviderTemplate> = {
       },
     ],
   },
-  zai: {
-    id: `zai`,
+  [ELLMProviderBrand.zai]: {
+    id: ELLMProviderBrand.zai,
     name: `Z.AI`,
     baseUrl: `https://api.z.ai/api/paas/v4`,
     defaultModel: `glm-5`,
@@ -123,8 +124,8 @@ export const ProviderTemplates: Record<string, TProviderTemplate> = {
       },
     ],
   },
-  custom: {
-    id: `custom`,
+  [ELLMProviderBrand.custom]: {
+    id: ELLMProviderBrand.custom,
     name: `Custom Provider`,
     baseUrl: ``,
     defaultModel: ``,

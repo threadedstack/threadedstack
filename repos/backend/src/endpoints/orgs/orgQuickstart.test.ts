@@ -58,7 +58,7 @@ describe(`Quickstart endpoint`, () => {
   const ep = getEndpointCfg(orgQuickstart)
 
   const validBody = {
-    providerTemp: `anthropic`,
+    providerBrand: `anthropic`,
     apiKey: `sk-ant-api03-test-key`,
     projectName: `My Claude Project`,
     agentName: `claude-agent`,
@@ -94,7 +94,8 @@ describe(`Quickstart endpoint`, () => {
           name: `Anthropic`,
           type: `ai`,
           orgId: `org-1`,
-          options: { baseUrl: `https://api.anthropic.com`, llmProvider: `anthropic` },
+          brand: `anthropic`,
+          options: { baseUrl: `https://api.anthropic.com` },
         },
       ])
       .mockResolvedValueOnce([
@@ -168,10 +169,10 @@ describe(`Quickstart endpoint`, () => {
   })
 
   describe(`Validation`, () => {
-    it(`should return 400 when template is missing`, async () => {
-      mockReq.body = { ...validBody, providerTemp: undefined }
+    it(`should return 400 when providerBrand is missing`, async () => {
+      mockReq.body = { ...validBody, providerBrand: undefined }
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `template is required`
+        `providerBrand is required`
       )
     })
 
@@ -196,8 +197,8 @@ describe(`Quickstart endpoint`, () => {
       )
     })
 
-    it(`should return 400 for unknown template`, async () => {
-      mockReq.body = { ...validBody, providerTemp: `nonexistent` }
+    it(`should return 400 for unknown providerBrand`, async () => {
+      mockReq.body = { ...validBody, providerBrand: `nonexistent` }
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Unknown template: nonexistent`
       )
@@ -206,7 +207,7 @@ describe(`Quickstart endpoint`, () => {
     it(`should return 400 when custom provider has no name`, async () => {
       mockReq.body = {
         ...validBody,
-        providerTemp: `custom`,
+        providerBrand: `custom`,
         providerUrl: `https://example.com`,
       }
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -217,7 +218,7 @@ describe(`Quickstart endpoint`, () => {
     it(`should return 400 when custom provider has no baseUrl`, async () => {
       mockReq.body = {
         ...validBody,
-        providerTemp: `custom`,
+        providerBrand: `custom`,
         providerName: `My Provider`,
       }
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
@@ -240,7 +241,7 @@ describe(`Quickstart endpoint`, () => {
     it(`should accept custom provider with name and baseUrl`, async () => {
       mockReq.body = {
         ...validBody,
-        providerTemp: `custom`,
+        providerBrand: `custom`,
         providerName: `My LLM`,
         providerUrl: `https://my-llm.example.com`,
         model: `my-model`,
@@ -253,7 +254,7 @@ describe(`Quickstart endpoint`, () => {
 
   describe(`Template resolution`, () => {
     it(`should use openai template defaults`, async () => {
-      mockReq.body = { ...validBody, providerTemp: `openai`, apiKey: `sk-test` }
+      mockReq.body = { ...validBody, providerBrand: `openai`, apiKey: `sk-test` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
       expect(mockStatus).toHaveBeenCalledWith(201)
@@ -265,7 +266,7 @@ describe(`Quickstart endpoint`, () => {
     })
 
     it(`should use google template defaults`, async () => {
-      mockReq.body = { ...validBody, providerTemp: `google`, apiKey: `AIzaTest` }
+      mockReq.body = { ...validBody, providerBrand: `google`, apiKey: `AIzaTest` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
       expect(mockStatus).toHaveBeenCalledWith(201)
@@ -275,7 +276,7 @@ describe(`Quickstart endpoint`, () => {
     })
 
     it(`should NOT store secretName in provider options`, async () => {
-      mockReq.body = { ...validBody, providerTemp: `anthropic` }
+      mockReq.body = { ...validBody, providerBrand: `anthropic` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
       expect(mockStatus).toHaveBeenCalledWith(201)
@@ -285,7 +286,7 @@ describe(`Quickstart endpoint`, () => {
     })
 
     it(`should create secret with dual ownership (orgId + providerId)`, async () => {
-      mockReq.body = { ...validBody, providerTemp: `anthropic` }
+      mockReq.body = { ...validBody, providerBrand: `anthropic` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
       expect(mockStatus).toHaveBeenCalledWith(201)
@@ -295,37 +296,23 @@ describe(`Quickstart endpoint`, () => {
       expect(secretInsertCall?.providerId).toBe(`provider-1`)
     })
 
-    it(`should store llmProvider in provider options for known templates`, async () => {
-      mockReq.body = { ...validBody, providerTemp: `anthropic` }
+    it(`should store brand as top-level field for known templates`, async () => {
+      mockReq.body = { ...validBody, providerBrand: `anthropic` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
       expect(mockStatus).toHaveBeenCalledWith(201)
 
       const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
-      expect(providerInsertCall?.options?.llmProvider).toBe(`anthropic`)
+      expect(providerInsertCall?.brand).toBe(`anthropic`)
     })
 
-    it(`should store llmProvider=google for google template`, async () => {
-      mockReq.body = { ...validBody, providerTemp: `google`, apiKey: `AIzaTest` }
+    it(`should store brand=google for google template`, async () => {
+      mockReq.body = { ...validBody, providerBrand: `google`, apiKey: `AIzaTest` }
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
-      expect(providerInsertCall?.options?.llmProvider).toBe(`google`)
-    })
-
-    it(`should NOT store llmProvider for custom template`, async () => {
-      mockReq.body = {
-        ...validBody,
-        providerTemp: `custom`,
-        providerName: `My LLM`,
-        providerUrl: `https://my-llm.example.com`,
-      }
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      const providerInsertCall = (mockInsertValues.mock.calls as any[][])[0]?.[0]
-      expect(providerInsertCall?.options?.llmProvider).toBeUndefined()
+      expect(providerInsertCall?.brand).toBe(`google`)
     })
   })
 

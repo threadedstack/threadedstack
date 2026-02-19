@@ -60,13 +60,13 @@ const ResourceIcon = styled(Box, {
 
 export const ReviewStep = (props: TReviewStep) => {
   const { provider, agent } = props
-  const template = ProviderTemplates[provider.providerTemp]
+  const template = ProviderTemplates[provider.providerBrand]
 
   const items = useMemo<TReviewItem[]>(() => {
     const providerName =
-      provider.providerTemp === `custom`
+      provider.providerBrand === `custom`
         ? provider.providerName || `Custom Provider`
-        : template?.name || provider.providerTemp
+        : template?.name || provider.providerBrand
 
     const modelName =
       template?.models?.find((m) => m.id === provider.model)?.name || provider.model
@@ -87,7 +87,7 @@ export const ReviewStep = (props: TReviewStep) => {
         color: `#3370DE`,
         details: [
           providerName,
-          ...(provider.providerTemp === `custom` && provider.providerUrl
+          ...(provider.providerBrand === `custom` && provider.providerUrl
             ? [provider.providerUrl]
             : []),
         ],

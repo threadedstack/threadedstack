@@ -98,7 +98,7 @@ export const Providers = ({ orgId }: TProviders) => {
       (provider) =>
         provider.name?.toLowerCase().includes(query) ||
         provider.type?.toLowerCase().includes(query) ||
-        provider.options?.llmProvider?.toLowerCase().includes(query) ||
+        provider.brand?.toLowerCase().includes(query) ||
         provider.options?.baseUrl?.toLowerCase().includes(query) ||
         provider.id?.toLowerCase().includes(query)
     )
@@ -135,14 +135,14 @@ export const Providers = ({ orgId }: TProviders) => {
       ),
     },
     {
-      id: 'llmProvider',
-      label: 'LLM Provider',
+      id: 'providerBrand',
+      label: 'Provider',
       render: (provider) => (
         <Typography
           variant='body2'
           color='text.secondary'
         >
-          {provider.options?.llmProvider || '\u2014'}
+          {provider.brand || '\u2014'}
         </Typography>
       ),
     },

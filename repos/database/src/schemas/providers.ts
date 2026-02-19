@@ -1,4 +1,4 @@
-import type { EProvider } from '@tdsk/domain'
+import type { EProvider, TProviderBrand } from '@tdsk/domain'
 
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
@@ -10,6 +10,7 @@ export const providers = pgTable(`providers`, {
   ...base,
   name: text(`name`),
   type: text(`type`).notNull().$type<EProvider>(),
+  brand: text(`brand`).notNull().$type<TProviderBrand>(),
   options: jsonb(`options`).$type<Record<string, any>>(),
   headers: jsonb(`headers`).$type<Record<string, string>>(),
   bodyParams: jsonb(`body_params`).$type<Record<string, any>>(),

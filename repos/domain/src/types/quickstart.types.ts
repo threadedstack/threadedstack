@@ -1,3 +1,5 @@
+import type { TLLMProviderBrand } from '@TDM/types/ai.types'
+
 /**
  * Provider model entry for template definitions
  */
@@ -12,13 +14,13 @@ export type TProviderModel = {
  * Provider template definition for quickstart wizard
  */
 export type TProviderTemplate = {
-  id: string
   name: string
   baseUrl: string
   defaultModel: string
+  id: TLLMProviderBrand
+  apiKeyPattern?: string
   defaultSecretName: string
   apiKeyPlaceholder: string
-  apiKeyPattern?: string
   models: TProviderModel[]
 }
 
@@ -41,11 +43,11 @@ export type TQuickstartRequest = {
   maxTokens?: number
   /** System prompt (optional) */
   systemPrompt?: string
-  /** Provider template ID (e.g., 'anthropic', 'openai', 'google', 'custom') */
-  providerTemp: string
   /** Custom provider fields (required when template = 'custom') */
   providerUrl?: string
   providerName?: string
+  /** Provider template ID (e.g., 'anthropic', 'openai', 'google', 'custom') */
+  providerBrand: TLLMProviderBrand
 }
 
 /**

@@ -1,9 +1,11 @@
+import type { TLLMProviderBrand } from '@tdsk/domain'
+
 export type TProviderStepData = {
   apiKey: string
   model: string
   providerUrl: string
   providerName: string
-  providerTemp: string
+  providerBrand: TLLMProviderBrand
 }
 
 export type TAgentStepData = {

@@ -14,7 +14,7 @@ describe(`@tdsk/agent public API`, () => {
     `getToolDefs`,
     `createSandboxTools`,
     // llm
-    `createProxyStreamFn`,
+    `createStreamProxy`,
     // adapters
     `mapAgentEvent`,
     `convertToLlmMessages`,

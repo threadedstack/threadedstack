@@ -14,11 +14,13 @@ import { eq, and } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { agents } from '@TDB/schemas/agents'
 import { isStr, isObj } from '@keg-hub/jsutils'
+import { exists } from '@keg-hub/jsutils/exists'
 import { DBError } from '@TDB/utils/error/error'
 import { Agent as AgentModel } from '@tdsk/domain'
 import { agentProjects } from '@TDB/schemas/agentProjects'
 import { agentFunctions } from '@TDB/schemas/agentFunctions'
 import { agentProviders } from '@TDB/schemas/agentProviders'
+import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
 
 export type TAgentInsertOpts = TDBAgentInsert & {
   functionIds?: string[]
@@ -170,15 +172,19 @@ export class Agent extends Base<
    * Supports optional sanitization via opts.sanitize
    */
   async get(id: string, opts?: TAgentQueryOpts) {
-    const result = await super.get(id, { ...opts, with: this.with(opts?.with) })
+    try {
+      const row = await this.db.query[this.name].findFirst({
+        with: this.with(opts?.with),
+        where: eq(this.table.id, id),
+      })
 
-    // Apply sanitization if data exists
-    if (result.data) {
-      const sanitize = opts?.sanitize !== false ? true : opts?.sanitize
-      result.data = this.model(result.data as TDBAgentSelect, { sanitize })
+      if (!row) return { error: new DBError(`${this.title} not found`) }
+
+      const sanitize = opts?.sanitize !== false
+      return { data: this.model(row as TAgentSelectOpts, { sanitize }) }
+    } catch (error: any) {
+      return { error }
     }
-
-    return result
   }
 
   /**
@@ -192,19 +198,26 @@ export class Agent extends Base<
   ) {
     const data = isStr(prop) ? { [prop]: value } : prop
     const normalizedOpts = isObj(value) && !opts ? (value as TAgentQueryOpts) : opts
-    const result = await super.by(data, {
-      ...normalizedOpts,
-      with: this.with(normalizedOpts?.with),
-    })
 
-    // Apply sanitization if data exists
-    if (result.data && normalizedOpts) {
-      const sanitize =
-        normalizedOpts?.sanitize !== false ? true : normalizedOpts?.sanitize
-      result.data = this.model(result.data as TDBAgentSelect, { sanitize })
+    const property = Object.keys(data)[0]
+    const propValue = isStr(prop) ? value : data[property]
+
+    if (!exists(propValue))
+      return { error: new DBError(`${this.title} value is required`) }
+
+    try {
+      const row = await this.db.query[this.name].findFirst({
+        with: this.with(normalizedOpts?.with),
+        where: eq(this.table[property], propValue),
+      })
+
+      if (!row) return { error: new DBError(`${this.title} not found`) }
+
+      const sanitize = normalizedOpts?.sanitize !== false
+      return { data: this.model(row as TAgentSelectOpts, { sanitize }) }
+    } catch (error: any) {
+      return { error }
     }
-
-    return result
   }
 
   /**
@@ -212,18 +225,28 @@ export class Agent extends Base<
    * Supports optional sanitization via opts.sanitize
    */
   async list(opts: TAgentQueryOpts = {}) {
-    // Always include secrets and projects
-    const result = await super.list({ ...opts, with: this.with(opts.with) })
+    const { where, limit, offset, orderBy } = opts
 
-    // Apply sanitization to all agents
-    if (result.data && result.data.length > 0) {
-      const sanitize = opts?.sanitize !== false ? true : opts?.sanitize
-      result.data = result.data.map((agent) =>
-        this.model(agent as TDBAgentSelect, { sanitize })
-      ) as AgentModel[]
+    try {
+      const found = await this.db.query[this.name].findMany({
+        limit,
+        offset,
+        with: this.with(opts?.with),
+        orderBy: orderBy ? addOrderBy(this.table, opts) : undefined,
+        where: where ? and(...addWhere(this.table, opts)) : undefined,
+      })
+
+      if (!found?.length) return { data: [] as AgentModel[] }
+
+      const sanitize = opts?.sanitize !== false
+      return {
+        data: found.map((row) =>
+          this.model(row as TAgentSelectOpts, { sanitize })
+        ) as AgentModel[],
+      }
+    } catch (error: any) {
+      return { error }
     }
-
-    return result
   }
 
   /**

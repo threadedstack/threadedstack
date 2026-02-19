@@ -66,14 +66,15 @@ export type TAgentRunRequest = {
  *
  * Supported LLM providers
  */
-export enum ELLMProvider {
+export enum ELLMProviderBrand {
   zai = `zai`,
   openai = `openai`,
   google = `google`,
+  custom = `custom`,
   anthropic = `anthropic`,
 }
 
-export type TLLMProviderType = `${ELLMProvider}`
+export type TLLMProviderBrand = `${ELLMProviderBrand}`
 
 /**
  * Unified message content types
@@ -225,7 +226,7 @@ export type TLLMAdapterConfig = {
   maxTokens?: number
   temperature?: number
   systemPrompt?: string
-  provider: TLLMProviderType
+  provider: TLLMProviderBrand
   options?: Record<string, unknown>
   headers?: Record<string, string>
   bodyParams?: Record<string, unknown>
@@ -235,7 +236,7 @@ export type TLLMAdapterConfig = {
  * ILLMAdapter interface - implemented by each provider adapter
  */
 export interface ILLMAdapter {
-  readonly provider: TLLMProviderType
+  readonly provider: TLLMProviderBrand
   stream(
     messages: TAIMessage[],
     tools: TLLMToolDef[],

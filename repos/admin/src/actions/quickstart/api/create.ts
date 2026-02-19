@@ -18,7 +18,7 @@ export const createQuickstart = async (opts: TCreateQuickstart) => {
     agentName: agent.agentName,
     projectName: agent.projectName,
     model: provider.model || undefined,
-    providerTemp: provider.providerTemp,
+    providerBrand: provider.providerBrand,
     maxTokens: model?.maxTokens || undefined,
     systemPrompt: agent.systemPrompt || undefined,
     providerUrl: provider.providerUrl || undefined,

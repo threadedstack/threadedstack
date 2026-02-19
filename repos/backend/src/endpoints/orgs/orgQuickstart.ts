@@ -47,13 +47,13 @@ export const orgQuickstart: TEndpointConfig = {
       projectName,
       providerUrl,
       systemPrompt,
-      providerTemp,
       providerName,
+      providerBrand,
       agentDescription,
     } = req.body
 
     // --- Validate required fields ---
-    if (!providerTemp) throw new Exception(400, `template is required`)
+    if (!providerBrand) throw new Exception(400, `providerBrand is required`)
 
     if (!apiKey) throw new Exception(400, `apiKey is required`)
 
@@ -62,25 +62,25 @@ export const orgQuickstart: TEndpointConfig = {
     if (!agentName) throw new Exception(400, `agentName is required`)
 
     // Resolve template
-    const proTemp = ProviderTemplates[providerTemp]
-    if (!proTemp) throw new Exception(400, `Unknown template: ${providerTemp}`)
+    const template = ProviderTemplates[providerBrand]
+    if (!template) throw new Exception(400, `Unknown template: ${providerBrand}`)
 
-    // Custom provider requires name + baseUrl
-    if (providerTemp === `custom`) {
+    // Custom provider requires name + baseUrl + brand
+    if (providerBrand === `custom`) {
       if (!providerName)
         throw new Exception(400, `providerName is required for custom providers`)
       if (!providerUrl)
         throw new Exception(400, `providerUrl is required for custom providers`)
     }
 
-    const proName = providerTemp === `custom` ? providerName : proTemp.name
-    const baseUrl = providerTemp === `custom` ? providerUrl : proTemp.baseUrl
+    const proName = providerBrand === `custom` ? providerName : template.name
+    const baseUrl = providerBrand === `custom` ? providerUrl : template.baseUrl
     const secretName =
-      providerTemp === `custom` ? `PROVIDER_API_KEY` : proTemp.defaultSecretName
+      providerBrand === `custom` ? `PROVIDER_API_KEY` : template.defaultSecretName
 
     // Resolve model defaults
-    const resolvedModel = model || proTemp.defaultModel
-    const defaultModelEntry = proTemp.models.find((m) => m.id === resolvedModel)
+    const resolvedModel = model || template.defaultModel
+    const defaultModelEntry = template.models.find((m) => m.id === resolvedModel)
     const resolvedMaxTokens = maxTokens || defaultModelEntry?.maxTokens || 100000
 
     // --- Permission check ---
@@ -94,6 +94,8 @@ export const orgQuickstart: TEndpointConfig = {
     const endpointPath = `/ai/${slug}`
 
     // --- Single transaction: create all 5 resources ---
+    // TODO: move this to repos/database
+    // Add some form of helpers that manage this
     try {
       const result = await db.transaction(async (tx) => {
         // 1. Provider (org-scoped)
@@ -103,9 +105,9 @@ export const orgQuickstart: TEndpointConfig = {
             orgId,
             name: proName,
             type: EProvider.ai,
+            brand: providerBrand,
             options: {
               baseUrl,
-              ...(providerTemp !== `custom` && { llmProvider: providerTemp }),
             },
           })
           .returning()

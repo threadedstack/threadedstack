@@ -2,111 +2,84 @@ import { describe, it, expect } from 'vitest'
 import { resolveProviderType } from './resolveProviderType'
 
 describe(`resolveProviderType`, () => {
-  describe(`Priority 1: explicit options.llmProvider`, () => {
-    it(`should return llmProvider when set to a valid ELLMProvider value`, () => {
-      expect(
-        resolveProviderType({ name: `Anything`, options: { llmProvider: `anthropic` } })
-      ).toBe(`anthropic`)
+  describe(`resolves from brand`, () => {
+    it(`should return anthropic`, () => {
+      expect(resolveProviderType({ name: `Anything`, brand: `anthropic` })).toBe(
+        `anthropic`
+      )
     })
 
-    it(`should return google from options even when name is "Google AI"`, () => {
-      expect(
-        resolveProviderType({ name: `Google AI`, options: { llmProvider: `google` } })
-      ).toBe(`google`)
+    it(`should return openai`, () => {
+      expect(resolveProviderType({ name: `Foo`, brand: `openai` })).toBe(`openai`)
     })
 
-    it(`should return openai from options`, () => {
-      expect(
-        resolveProviderType({ name: `Foo`, options: { llmProvider: `openai` } })
-      ).toBe(`openai`)
+    it(`should return google`, () => {
+      expect(resolveProviderType({ name: `Bar`, brand: `google` })).toBe(`google`)
     })
 
-    it(`should ignore invalid llmProvider and fall through to name matching`, () => {
-      expect(
-        resolveProviderType({ name: `anthropic`, options: { llmProvider: `invalid` } })
-      ).toBe(`anthropic`)
+    it(`should return zai`, () => {
+      expect(resolveProviderType({ name: `Baz`, brand: `zai` })).toBe(`zai`)
     })
 
-    it(`should ignore non-string llmProvider`, () => {
-      expect(resolveProviderType({ name: `openai`, options: { llmProvider: 123 } })).toBe(
+    it(`should work regardless of provider name`, () => {
+      expect(resolveProviderType({ name: `Custom LLM Gateway`, brand: `openai` })).toBe(
         `openai`
       )
     })
   })
 
-  describe(`Priority 2: exact name match against ELLMProvider`, () => {
-    it(`should match "anthropic" name (case-insensitive)`, () => {
-      expect(resolveProviderType({ name: `Anthropic`, options: {} })).toBe(`anthropic`)
-    })
-
-    it(`should match "openai" name`, () => {
-      expect(resolveProviderType({ name: `openai`, options: {} })).toBe(`openai`)
-    })
-
-    it(`should match "google" name`, () => {
-      expect(resolveProviderType({ name: `google`, options: {} })).toBe(`google`)
-    })
-  })
-
-  describe(`Priority 3: match against ProviderTemplate display names`, () => {
-    it(`should match "Google AI" display name to google`, () => {
-      expect(resolveProviderType({ name: `Google AI`, options: {} })).toBe(`google`)
-    })
-
-    it(`should match "OpenAI" display name to openai`, () => {
-      expect(resolveProviderType({ name: `OpenAI`, options: {} })).toBe(`openai`)
-    })
-
-    it(`should match "Anthropic" display name to anthropic`, () => {
-      expect(resolveProviderType({ name: `Anthropic`, options: {} })).toBe(`anthropic`)
-    })
-
-    it(`should be case-insensitive for template matching`, () => {
-      expect(resolveProviderType({ name: `google ai`, options: {} })).toBe(`google`)
-    })
-  })
-
-  describe(`Priority 4: throw for unresolvable provider`, () => {
-    it(`should throw for unknown provider name`, () => {
+  describe(`throws for missing or invalid brand`, () => {
+    it(`should throw for unknown brand value`, () => {
       expect(() =>
-        resolveProviderType({ name: `unknown-provider`, options: {} })
+        // @ts-ignore
+        resolveProviderType({ name: `test`, brand: `invalid` })
       ).toThrow(`Cannot determine LLM provider`)
     })
 
-    it(`should throw for null name with no options`, () => {
-      expect(() => resolveProviderType({ name: null, options: {} })).toThrow(
+    it(`should throw for non-string brand`, () => {
+      expect(() => resolveProviderType({ name: `test`, brand: 123 as any })).toThrow(
         `Cannot determine LLM provider`
       )
     })
 
-    it(`should throw for empty name with no options`, () => {
-      expect(() => resolveProviderType({ name: ``, options: {} })).toThrow(
+    it(`should throw when brand is null`, () => {
+      expect(() => resolveProviderType({ name: `Anthropic`, brand: null })).toThrow(
         `Cannot determine LLM provider`
       )
     })
 
-    it(`should throw for "Custom Provider" (custom template excluded)`, () => {
-      expect(() => resolveProviderType({ name: `Custom Provider`, options: {} })).toThrow(
+    it(`should throw when brand is undefined`, () => {
+      expect(() => resolveProviderType({ name: `openai`, brand: undefined })).toThrow(
+        `Cannot determine LLM provider`
+      )
+    })
+
+    it(`should throw when name matches a provider but brand is missing`, () => {
+      expect(() => resolveProviderType({ name: `anthropic`, brand: undefined })).toThrow(
+        `Cannot determine LLM provider`
+      )
+    })
+
+    it(`should throw for null name with no brand`, () => {
+      expect(() => resolveProviderType({ name: null, brand: undefined })).toThrow(
         `Cannot determine LLM provider`
       )
     })
 
     it(`should include supported providers in error message`, () => {
-      expect(() => resolveProviderType({ name: `bad`, options: {} })).toThrow(
-        `Set provider.options.llmProvider to one of:`
+      expect(() => resolveProviderType({ name: `bad`, brand: undefined })).toThrow(
+        `Set provider.brand to one of:`
       )
     })
 
     it(`should include provider name in error message`, () => {
-      expect(() => resolveProviderType({ name: `My Custom LLM`, options: {} })).toThrow(
-        `"My Custom LLM"`
-      )
+      expect(() =>
+        resolveProviderType({ name: `My Custom LLM`, brand: undefined })
+      ).toThrow(`"My Custom LLM"`)
     })
 
     it(`should show "unnamed" when name is missing`, () => {
-      expect(() => resolveProviderType({ name: null, options: null })).toThrow(
-        `"unnamed"`
-      )
+      expect(() => resolveProviderType({ name: null, brand: null })).toThrow(`"unnamed"`)
     })
   })
 })
