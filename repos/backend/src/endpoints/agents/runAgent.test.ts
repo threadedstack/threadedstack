@@ -435,6 +435,8 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
       },
     })
 
+    mockReq.body = { prompt: `Hello agent`, threadId: `thread-1` }
+
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
       `Cannot determine LLM provider`
     )
