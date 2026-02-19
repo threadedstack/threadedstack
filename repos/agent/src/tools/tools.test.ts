@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createSandboxTools, buildCustomFunctionTools } from './tools'
 
 const ALL_TOOL_NAMES = [
-  `mkdir`,
-  `listDir`,
   `shellExec`,
   `readFile`,
   `writeFile`,
+  `listDir`,
   `deleteFile`,
-  `webSearch`,
+  `mkdir`,
   `fileExists`,
+  `webSearch`,
 ]
 
 describe(`createSandboxTools`, () => {
@@ -24,14 +24,12 @@ describe(`createSandboxTools`, () => {
       deleteFile: vi.fn().mockResolvedValue(undefined),
       readFile: vi.fn().mockResolvedValue(`file contents`),
       listDir: vi.fn().mockResolvedValue([`file1.ts`, `file2.ts`]),
-      exec: vi
-        .fn()
-        .mockResolvedValue({
-          success: true,
-          exitCode: 0,
-          output: `cmd output`,
-          error: ``,
-        }),
+      exec: vi.fn().mockResolvedValue({
+        success: true,
+        exitCode: 0,
+        output: `cmd output`,
+        error: ``,
+      }),
     }
   })
 

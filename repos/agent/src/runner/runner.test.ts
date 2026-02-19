@@ -53,15 +53,16 @@ vi.mock(`@tdsk/logger`, () => ({
   }),
 }))
 
-vi.mock(`@TAG/tools/piTools`, () => ({
+vi.mock(`@TAG/tools/tools`, () => ({
   createSandboxTools: vi.fn().mockReturnValue([]),
+  buildCustomFunctionTools: vi.fn().mockReturnValue([]),
 }))
 
 vi.mock(`@TAG/adapters/eventBridge`, () => ({
   mapAgentEvent: vi.fn().mockReturnValue(undefined),
 }))
 
-vi.mock(`@TAG/llm/proxyStreamFn`, () => ({
+vi.mock(`@TAG/stream/stream`, () => ({
   createStreamProxy: vi.fn().mockReturnValue(vi.fn()),
 }))
 

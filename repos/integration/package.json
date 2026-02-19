@@ -1,5 +1,5 @@
 {
-  "name": "@tdsk/integration-tests",
+  "name": "@tdsk/integration",
   "version": "0.1.0",
   "private": true,
   "type": "module",
