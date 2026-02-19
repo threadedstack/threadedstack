@@ -1,6 +1,6 @@
 import type { TTaskAction } from '@TRL/types'
 
-import { cyan, red } from '@TRL/display/colors'
+import { themed } from '@TRL/theme'
 
 /**
  * Wraps a task action with an authentication check
@@ -11,7 +11,7 @@ export const requireAuth =
   (args) => {
     if (!args.auth.isLoggedIn()) {
       process.stdout.write(
-        `${red(`Not logged in.`)} Run ${cyan(`tdsk-agent login <api-key>`)} first.\n`
+        `${themed('error', `Not logged in.`)} Run ${themed('primary', `tdsk-agent login <api-key>`)} first.\n`
       )
       process.exit(1)
     }

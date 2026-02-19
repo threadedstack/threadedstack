@@ -29,7 +29,7 @@ describe('Tier 3: Agent with Custom Functions', () => {
     const qsRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
-        providerTemp: 'anthropic',
+        providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
         projectName: `Agent Fn Test Project ${timestamp}`,
         agentName: `Agent Fn Test Agent ${timestamp}`,

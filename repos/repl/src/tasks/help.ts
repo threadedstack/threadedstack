@@ -1,7 +1,7 @@
 import type { TTask, TTasks } from '@TRL/types'
 
 import { Version } from '@TRL/constants'
-import { bold, cyan, dim } from '@TRL/display/colors'
+import { themed } from '@TRL/theme'
 
 export const help: TTask = {
   name: `help`,
@@ -10,9 +10,9 @@ export const help: TTask = {
   example: `tdsk-agent help`,
   action: async ({ tasks }) => {
     process.stdout.write(
-      `\n${bold(cyan(`tdsk-agent`))} ${dim(`v${Version}`)} — ThreadedStack AI Agent REPL\n\n`
+      `\n${themed('bold', themed('primary', `tdsk-agent`))} ${themed('muted', `v${Version}`)} — ThreadedStack AI Agent REPL\n\n`
     )
-    process.stdout.write(`${bold(`Commands:`)}\n`)
+    process.stdout.write(`${themed('bold', `Commands:`)}\n`)
 
     for (const task of Object.values(tasks) as TTask[]) {
       if (task.example) {

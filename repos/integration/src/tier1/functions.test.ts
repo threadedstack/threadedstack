@@ -36,7 +36,7 @@ describe('Tier 1: Functions CRUD', () => {
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
-        providerTemp: 'anthropic',
+        providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
         projectName: `Functions Test Project ${timestamp}`,
         agentName: `Functions Test Agent ${timestamp}`,

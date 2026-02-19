@@ -1,5 +1,4 @@
 import type { AuthManager } from '@TRL/auth'
-import type { Renderer } from '@TRL/display'
 
 export type TTaskOptionTypeMap = {
   arr: any[]
@@ -32,18 +31,11 @@ export type TTaskOption<T extends TTaskPMap = TTaskPMap> = {
 
 export type TTaskOptions<T extends TTaskPMap = TTaskPMap> = Record<string, TTaskOption<T>>
 
-export type TReplConfig = {
-  org?: string
-  agent?: string
-  insecure?: boolean
-}
-
 export type TTaskActionArgs<P extends TTaskPMap = TTaskPMap> = {
   params: P
   task: TTask
   tasks: TTasks
   auth: AuthManager
-  renderer: Renderer
   config?: TReplConfig
   options?: string[]
 }
@@ -64,3 +56,6 @@ export type TTask<P extends TTaskPMap = TTaskPMap> = {
 }
 
 export type TTasks = Record<string, TTask>
+
+// Re-export TReplConfig from config.types for backward compatibility
+export type { TReplConfig } from './config.types'

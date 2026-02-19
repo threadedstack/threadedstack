@@ -1,5 +1,6 @@
 import type { AuthManager } from '@TRL/auth'
-import type { TSessionInfo } from '@TRL/types'
+import type { TSessionInfo, TProviderInfo } from '@TRL/types'
+import { MAX_RETRIES, RETRY_DELAYS } from '@TRL/constants'
 import { Agent, Thread, Message, Organization } from '@tdsk/domain'
 
 export class ApiClient {
@@ -38,8 +39,44 @@ export class ApiClient {
     return json.data
   }
 
+  async #requestWithRetry<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
+    let lastError: Error | undefined
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        return await this.#request<T>(path, opts)
+      } catch (error) {
+        lastError = error as Error
+        const isRetryable = this.#isRetryableError(lastError)
+        if (!isRetryable || attempt === MAX_RETRIES) throw lastError
+        await this.#delay(RETRY_DELAYS[attempt])
+      }
+    }
+    throw lastError!
+  }
+
+  #isRetryableError(error: Error): boolean {
+    const msg = error.message
+    if ('code' in error) {
+      const code = (error as any).code
+      if (code === 'ECONNREFUSED' || code === 'ETIMEDOUT' || code === 'ENOTFOUND')
+        return true
+    }
+    if (
+      msg.includes('(429)') ||
+      msg.includes('(500)') ||
+      msg.includes('(502)') ||
+      msg.includes('(503)')
+    )
+      return true
+    return false
+  }
+
+  #delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
   async #postRequest<T = unknown>(path: string, body: unknown): Promise<T> {
-    return this.#request<T>(path, {
+    return this.#requestWithRetry<T>(path, {
       method: `POST`,
       headers: { 'Content-Type': `application/json` },
       body: JSON.stringify(body),
@@ -53,44 +90,55 @@ export class ApiClient {
   // --- Organizations ---
 
   async listOrgs(): Promise<Organization[]> {
-    const resp = await this.#request<Organization[]>(`/orgs`)
+    const resp = await this.#requestWithRetry<Organization[]>(`/orgs`)
     return resp.map((item) => new Organization(item))
   }
 
   async getOrg(orgId: string): Promise<Organization> {
-    const resp = await this.#request<Organization>(`/orgs/${orgId}`)
+    const resp = await this.#requestWithRetry<Organization>(`/orgs/${orgId}`)
     return new Organization(resp)
   }
 
   // --- Agents ---
 
   async listAgents(orgId: string): Promise<Agent[]> {
-    const resp = await this.#request<unknown[]>(`/orgs/${orgId}/agents`)
+    const resp = await this.#requestWithRetry<unknown[]>(`/orgs/${orgId}/agents`)
     return resp.map((item) => new Agent(item))
   }
 
   async getAgent(orgId: string, agentId: string): Promise<Agent> {
-    const resp = await this.#request<Agent>(`/orgs/${orgId}/agents/${agentId}`)
+    const resp = await this.#requestWithRetry<Agent>(`/orgs/${orgId}/agents/${agentId}`)
     return new Agent(resp)
   }
 
   // --- Sessions ---
 
-  async createSession(agentId: string): Promise<TSessionInfo> {
-    return this.#postRequest<TSessionInfo>(`/ai/sessions`, { agentId })
+  async createSession(agentId: string, providerId?: string): Promise<TSessionInfo> {
+    return this.#postRequest<TSessionInfo>(`/ai/sessions`, {
+      agentId,
+      ...(providerId && { providerId }),
+    })
+  }
+
+  // --- Providers ---
+
+  async listProviders(orgId: string, agentId: string): Promise<TProviderInfo[]> {
+    return this.#requestWithRetry<TProviderInfo[]>(
+      `/orgs/${orgId}/agents/${agentId}/providers`
+    )
   }
 
   // --- Threads ---
 
   async listThreads(orgId: string, agentId: string): Promise<Thread[]> {
-    const resp = await this.#request<unknown[]>(
+    const resp = await this.#requestWithRetry<unknown[]>(
       `/orgs/${orgId}/agents/${agentId}/threads`
     )
     return resp.map((item) => new Thread(item))
   }
 
   async getThread(orgId: string, agentId: string, threadId: string): Promise<Thread> {
-    const resp = await this.#request(
+    const resp = await this.#requestWithRetry(
       `/orgs/${orgId}/agents/${agentId}/threads/${threadId}`
     )
     return new Thread(resp)
@@ -113,7 +161,7 @@ export class ApiClient {
     agentId: string,
     threadId: string
   ): Promise<Message[]> {
-    const resp = await this.#request<Message[]>(
+    const resp = await this.#requestWithRetry<Message[]>(
       `/orgs/${orgId}/agents/${agentId}/threads/${threadId}/messages`
     )
     return resp.map((item) => new Message(item))

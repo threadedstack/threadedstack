@@ -1,21 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
-
 import type { TAuthCredentials } from '@TRL/types'
+import { ConfigService } from '@TRL/services/config'
+import { DEFAULT_PROXY_URL } from '@TRL/constants'
 
-const DefaultProxyUrl = `https://px.local.threadedstack.app`
 const ApiKeyPrefix = `tdsk_`
-const ConfigPath = join(homedir(), `.config`, `tdsk`, `repl-auth.json`)
 
 export class AuthManager {
   getCredentials(): TAuthCredentials | null {
     try {
-      if (!existsSync(ConfigPath)) return null
-      const raw = readFileSync(ConfigPath, `utf-8`)
-      const data = JSON.parse(raw)
-      if (!data?.apiKey || !data?.proxyUrl) return null
-      return data as TAuthCredentials
+      const config = ConfigService.loadGlobal()
+      if (!config.auth?.apiKey) return null
+      return {
+        apiKey: config.auth.apiKey,
+        proxyUrl: config.auth.proxyUrl || DEFAULT_PROXY_URL,
+        insecure: config.auth.insecure,
+      }
     } catch {
       return null
     }
@@ -26,7 +24,7 @@ export class AuthManager {
   }
 
   async login(apiKey: string, proxyUrl?: string, insecure?: boolean): Promise<void> {
-    const url = proxyUrl || DefaultProxyUrl
+    const url = proxyUrl || DEFAULT_PROXY_URL
 
     if (!apiKey.startsWith(ApiKeyPrefix)) {
       throw new Error(`Invalid API key format. Keys must start with "${ApiKeyPrefix}"`)
@@ -48,16 +46,16 @@ export class AuthManager {
       )
     }
 
-    const dir = dirname(ConfigPath)
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-
-    const credentials: TAuthCredentials = { apiKey, proxyUrl: url, insecure }
-    writeFileSync(ConfigPath, JSON.stringify(credentials, null, 2), `utf-8`)
+    const config = ConfigService.loadGlobal()
+    config.auth = { apiKey, proxyUrl: url, insecure }
+    ConfigService.saveGlobal(config)
   }
 
   logout(): void {
     try {
-      if (existsSync(ConfigPath)) unlinkSync(ConfigPath)
+      const config = ConfigService.loadGlobal()
+      delete config.auth
+      ConfigService.saveGlobal(config)
     } catch {
       // Ignore errors during cleanup
     }

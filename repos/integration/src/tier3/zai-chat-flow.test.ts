@@ -114,7 +114,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       expect(events.length).toBeGreaterThanOrEqual(2)
 
@@ -146,7 +146,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       const lines = raw.split(`\n`).filter((l) => l.trim().length > 0)
       for (const line of lines) {
@@ -162,7 +162,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       const lines = raw.split(`\n`).filter((l) => l.startsWith(`data: `))
       for (const line of lines) {
@@ -183,7 +183,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       expect(raw).not.toMatch(/sk-[a-zA-Z0-9]{20,}/)
       expect(raw).not.toMatch(/AIza[a-zA-Z0-9_-]{30,}/)
@@ -210,7 +210,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       const textEvents = events.filter((e) => e.type === `text_delta`)
       const doneEvents = events.filter((e) => e.type === `done`)
@@ -234,7 +234,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       expect(result1.events.some((e) => e.type === `text_delta`)).toBe(true)
       expect(result1.events.some((e) => e.type === `done`)).toBe(true)
@@ -246,7 +246,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       expect(result2.events.some((e) => e.type === `text_delta`)).toBe(true)
       expect(result2.events.some((e) => e.type === `done`)).toBe(true)
@@ -274,11 +274,11 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
         consumeSessionSSE(token1, {
           context: { messages: [{ role: `user`, content: [{ type: `text`, text: `Say ALPHA` }] }] },
           options: {},
-        }, { timeout: 30_000 }),
+        }),
         consumeSessionSSE(token2, {
           context: { messages: [{ role: `user`, content: [{ type: `text`, text: `Say BETA` }] }] },
           options: {},
-        }, { timeout: 30_000 }),
+        }),
       ])
 
       expect(result1.events.some((e) => e.type === `text_delta`)).toBe(true)
@@ -319,7 +319,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       // Step 5: Validate response structure
       const textEvents = events.filter((e) => e.type === `text_delta`)

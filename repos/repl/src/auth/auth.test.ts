@@ -1,20 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock(`node:fs`, () => ({
-  existsSync: vi.fn(),
-  readFileSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  unlinkSync: vi.fn(),
-  mkdirSync: vi.fn(),
+vi.mock('@TRL/services/config', () => ({
+  ConfigService: {
+    loadGlobal: vi.fn(),
+    saveGlobal: vi.fn(),
+  },
 }))
 
 const mockFetch = vi.fn()
-vi.stubGlobal(`fetch`, mockFetch)
+vi.stubGlobal('fetch', mockFetch)
 
 import { AuthManager } from './auth'
+import { ConfigService } from '@TRL/services/config'
 
-describe(`AuthManager`, () => {
+describe('AuthManager', () => {
   let auth: AuthManager
 
   beforeEach(() => {
@@ -22,165 +21,180 @@ describe(`AuthManager`, () => {
     vi.clearAllMocks()
   })
 
-  describe(`getCredentials`, () => {
-    it(`should return null when config file does not exist`, () => {
-      vi.mocked(existsSync).mockReturnValue(false)
+  describe('getCredentials', () => {
+    it('should return null when no auth in config', () => {
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
       expect(auth.getCredentials()).toBeNull()
     })
 
-    it(`should return credentials when config file exists`, () => {
-      const creds = { apiKey: `tdsk_test123`, proxyUrl: `https://proxy.test` }
-      vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockReturnValue(JSON.stringify(creds))
+    it('should return credentials when auth exists in config', () => {
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({
+        auth: { apiKey: 'tdsk_test123', proxyUrl: 'https://proxy.test' },
+      })
 
-      expect(auth.getCredentials()).toEqual(creds)
+      const creds = auth.getCredentials()
+      expect(creds).toEqual({
+        apiKey: 'tdsk_test123',
+        proxyUrl: 'https://proxy.test',
+        insecure: undefined,
+      })
     })
 
-    it(`should return null for invalid JSON`, () => {
-      vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockReturnValue(`not json`)
-
+    it('should return null when apiKey is missing', () => {
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({
+        auth: { apiKey: '' },
+      })
       expect(auth.getCredentials()).toBeNull()
     })
 
-    it(`should return null when apiKey is missing`, () => {
-      vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockReturnValue(
-        JSON.stringify({ proxyUrl: `https://proxy.test` })
-      )
+    it('should use default proxy URL when not in config', () => {
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({
+        auth: { apiKey: 'tdsk_test123' },
+      })
 
+      const creds = auth.getCredentials()
+      expect(creds?.proxyUrl).toContain('px.local.threadedstack.app')
+    })
+
+    it('should return null on error', () => {
+      vi.mocked(ConfigService.loadGlobal).mockImplementation(() => {
+        throw new Error('read error')
+      })
       expect(auth.getCredentials()).toBeNull()
     })
   })
 
-  describe(`isLoggedIn`, () => {
-    it(`should return false when no credentials`, () => {
-      vi.mocked(existsSync).mockReturnValue(false)
+  describe('isLoggedIn', () => {
+    it('should return false when no credentials', () => {
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
       expect(auth.isLoggedIn()).toBe(false)
     })
 
-    it(`should return true when credentials exist`, () => {
-      const creds = { apiKey: `tdsk_test`, proxyUrl: `https://proxy.test` }
-      vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockReturnValue(JSON.stringify(creds))
-
+    it('should return true when credentials exist', () => {
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({
+        auth: { apiKey: 'tdsk_test', proxyUrl: 'https://proxy.test' },
+      })
       expect(auth.isLoggedIn()).toBe(true)
     })
   })
 
-  describe(`login`, () => {
-    it(`should reject keys without tdsk_ prefix`, async () => {
-      await expect(auth.login(`invalid_key`)).rejects.toThrow(`Invalid API key format`)
+  describe('login', () => {
+    it('should reject keys without tdsk_ prefix', async () => {
+      await expect(auth.login('invalid_key')).rejects.toThrow('Invalid API key format')
     })
 
-    it(`should validate key against proxy`, async () => {
+    it('should validate key against proxy', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({ data: [] }),
       })
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
-      await auth.login(`tdsk_test123`, `https://proxy.test`)
+      await auth.login('tdsk_test123', 'https://proxy.test')
 
-      expect(mockFetch).toHaveBeenCalledWith(`https://proxy.test/_/orgs`, {
+      expect(mockFetch).toHaveBeenCalledWith('https://proxy.test/_/orgs', {
         headers: {
-          Authorization: `Bearer tdsk_test123`,
-          Accept: `application/json`,
+          Authorization: 'Bearer tdsk_test123',
+          Accept: 'application/json',
         },
       })
     })
 
-    it(`should save credentials on success`, async () => {
+    it('should save credentials via ConfigService', async () => {
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
-      await auth.login(`tdsk_test123`, `https://proxy.test`)
+      await auth.login('tdsk_test123', 'https://proxy.test')
 
-      expect(writeFileSync).toHaveBeenCalledWith(
-        expect.stringContaining(`repl-auth.json`),
-        expect.stringContaining(`tdsk_test123`),
-        `utf-8`
+      expect(ConfigService.saveGlobal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          auth: expect.objectContaining({
+            apiKey: 'tdsk_test123',
+            proxyUrl: 'https://proxy.test',
+          }),
+        })
       )
     })
 
-    it(`should throw on auth failure`, async () => {
+    it('should throw on auth failure', async () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 401,
-        text: async () => `Unauthorized`,
+        text: async () => 'Unauthorized',
       })
 
-      await expect(auth.login(`tdsk_test123`, `https://proxy.test`)).rejects.toThrow(
-        `Authentication failed (401)`
+      await expect(auth.login('tdsk_test123', 'https://proxy.test')).rejects.toThrow(
+        'Authentication failed (401)'
       )
     })
 
-    it(`should use default proxy URL when none provided`, async () => {
+    it('should use default proxy URL when none provided', async () => {
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
-      await auth.login(`tdsk_test123`)
+      await auth.login('tdsk_test123')
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining(`px.local.threadedstack.app`),
+        expect.stringContaining('px.local.threadedstack.app'),
         expect.any(Object)
       )
     })
 
-    it(`should create config directory if missing`, async () => {
+    it('should store insecure flag when provided', async () => {
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(existsSync).mockReturnValue(false)
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
-      await auth.login(`tdsk_test123`)
+      await auth.login('tdsk_test123', 'https://proxy.test', true)
 
-      expect(mkdirSync).toHaveBeenCalledWith(expect.stringContaining(`tdsk`), {
-        recursive: true,
-      })
+      expect(ConfigService.saveGlobal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          auth: expect.objectContaining({
+            insecure: true,
+          }),
+        })
+      )
     })
 
-    it(`should store insecure flag when provided`, async () => {
+    it('should set NODE_TLS_REJECT_UNAUTHORIZED when insecure', async () => {
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(existsSync).mockReturnValue(true)
-
-      await auth.login(`tdsk_test123`, `https://proxy.test`, true)
-
-      const savedData = JSON.parse(vi.mocked(writeFileSync).mock.calls[0][1] as string)
-      expect(savedData.insecure).toBe(true)
-    })
-
-    it(`should set NODE_TLS_REJECT_UNAUTHORIZED when insecure`, async () => {
-      mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
       const original = process.env.NODE_TLS_REJECT_UNAUTHORIZED
-      await auth.login(`tdsk_test123`, `https://proxy.test`, true)
+      await auth.login('tdsk_test123', 'https://proxy.test', true)
 
-      expect(process.env.NODE_TLS_REJECT_UNAUTHORIZED).toBe(`0`)
+      expect(process.env.NODE_TLS_REJECT_UNAUTHORIZED).toBe('0')
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = original
     })
 
-    it(`should not store insecure flag when not provided`, async () => {
+    it('should not store insecure flag when not provided', async () => {
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({})
 
-      await auth.login(`tdsk_test123`, `https://proxy.test`)
+      await auth.login('tdsk_test123', 'https://proxy.test')
 
-      const savedData = JSON.parse(vi.mocked(writeFileSync).mock.calls[0][1] as string)
-      expect(savedData.insecure).toBeUndefined()
+      const savedConfig = vi.mocked(ConfigService.saveGlobal).mock.calls[0][0]
+      expect(savedConfig.auth?.insecure).toBeUndefined()
     })
   })
 
-  describe(`logout`, () => {
-    it(`should delete credentials file`, () => {
-      vi.mocked(existsSync).mockReturnValue(true)
+  describe('logout', () => {
+    it('should remove auth from config', () => {
+      vi.mocked(ConfigService.loadGlobal).mockReturnValue({
+        auth: { apiKey: 'tdsk_test', proxyUrl: 'https://proxy.test' },
+        org: 'org_1',
+      })
 
       auth.logout()
 
-      expect(unlinkSync).toHaveBeenCalledWith(expect.stringContaining(`repl-auth.json`))
+      expect(ConfigService.saveGlobal).toHaveBeenCalledWith(
+        expect.not.objectContaining({ auth: expect.anything() })
+      )
     })
 
-    it(`should not throw when file does not exist`, () => {
-      vi.mocked(existsSync).mockReturnValue(false)
+    it('should not throw on error', () => {
+      vi.mocked(ConfigService.loadGlobal).mockImplementation(() => {
+        throw new Error('read error')
+      })
 
       expect(() => auth.logout()).not.toThrow()
     })

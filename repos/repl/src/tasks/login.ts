@@ -1,6 +1,6 @@
 import type { TTask } from '@TRL/types'
 
-import { bold, red } from '@TRL/display/colors'
+import { themed } from '@TRL/theme'
 
 export const login: TTask = {
   name: `login`,
@@ -25,24 +25,22 @@ export const login: TTask = {
       default: false,
     },
   },
-  action: async ({ params, auth, renderer, options }) => {
+  action: async ({ params, auth, options }) => {
     const apiKey = params.apiKey || options?.[0]
     if (!apiKey) {
-      renderer.renderWarning(
-        `Usage: tdsk-agent login <api-key> [--url <proxy-url>] [--insecure]`
+      process.stdout.write(
+        `${themed('warning', `Usage: tdsk-agent login <api-key> [--url <proxy-url>] [--insecure]`)}\n`
       )
       process.exit(1)
     }
 
-    const spinner = renderer.spinner(`Validating API key...`)
+    process.stdout.write(`${themed('muted', `Validating API key...`)}\n`)
     try {
       await auth.login(apiKey, params.url, params.insecure === true)
-      spinner.stop()
-      renderer.renderSuccess(`Logged in successfully`)
+      process.stdout.write(`${themed('success', `Logged in successfully`)}\n`)
     } catch (err) {
-      spinner.stop()
       const msg = err instanceof Error ? err.message : `Login failed`
-      process.stdout.write(`${red(bold(`Error:`))} ${msg}\n`)
+      process.stdout.write(`${themed('error', `Error:`)} ${msg}\n`)
       process.exit(1)
     }
   },

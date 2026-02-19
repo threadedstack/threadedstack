@@ -1,3 +1,7 @@
 export * from './repl.types'
 export * from './tasks.types'
 export * from './client.types'
+export type * from './config.types'
+export type * from './session.types'
+export type * from './commands.types'
+export type * from './context.types'

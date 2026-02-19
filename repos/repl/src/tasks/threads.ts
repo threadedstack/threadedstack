@@ -1,7 +1,7 @@
 import type { TTask } from '@TRL/types'
 
 import { ApiClient } from '@TRL/api'
-import { bold, dim, red } from '@TRL/display/colors'
+import { themed } from '@TRL/theme'
 import { requireAuth } from '@TRL/utils/tasks/requireAuth'
 
 export const threads: TTask = {
@@ -21,10 +21,12 @@ export const threads: TTask = {
       type: `str`,
     },
   },
-  action: requireAuth(async ({ params, auth, renderer, options }) => {
+  action: requireAuth(async ({ params, auth, options }) => {
     const agentId = params.agentId || options?.[0]
     if (!agentId) {
-      renderer.renderWarning(`Usage: tdsk-agent threads <agent-id> [--org <id>]`)
+      process.stdout.write(
+        `${themed('warning', `Usage: tdsk-agent threads <agent-id> [--org <id>]`)}\n`
+      )
       process.exit(1)
     }
 
@@ -37,7 +39,9 @@ export const threads: TTask = {
         if (orgs.length === 1) {
           orgId = orgs[0].id
         } else {
-          renderer.renderWarning(`Multiple orgs found. Use --org <id> to specify.`)
+          process.stdout.write(
+            `${themed('warning', `Multiple orgs found. Use --org <id> to specify.`)}\n`
+          )
           process.exit(1)
         }
       }
@@ -48,17 +52,20 @@ export const threads: TTask = {
         createdAt?: string
       }[]
 
-      if (!threads.length) return renderer.renderInfo(`No threads found`)
+      if (!threads.length) {
+        process.stdout.write(`${themed('muted', `No threads found`)}\n`)
+        return
+      }
 
-      process.stdout.write(`\n${bold(`Threads:`)}\n`)
+      process.stdout.write(`\n${themed('bold', `Threads:`)}\n`)
       for (const t of threads) {
-        const name = t.name || dim(`untitled`)
-        process.stdout.write(`  ${dim(t.id)} ${name}\n`)
+        const name = t.name || themed('muted', `untitled`)
+        process.stdout.write(`  ${themed('muted', t.id)} ${name}\n`)
       }
       process.stdout.write(`\n`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : `Failed to list threads`
-      process.stdout.write(`${red(bold(`Error:`))} ${msg}\n`)
+      process.stdout.write(`${themed('error', `Error:`)} ${msg}\n`)
       process.exit(1)
     }
   }),

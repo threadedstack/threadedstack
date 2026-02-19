@@ -18,7 +18,7 @@ describe('Tier 3: Session Chat SSE Flow', () => {
     const qsRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
-        providerTemp: 'anthropic',
+        providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-chat-sse',
         projectName: `Chat SSE Test Project ${timestamp}`,
         agentName: `Chat SSE Test Agent ${timestamp}`,

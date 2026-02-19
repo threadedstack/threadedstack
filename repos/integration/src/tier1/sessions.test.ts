@@ -14,7 +14,7 @@ describe('Tier 1: AI Sessions', () => {
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
-        providerTemp: 'anthropic',
+        providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-sessions',
         projectName: `Session Test Project ${timestamp}`,
         agentName: `Session Test Agent ${timestamp}`,

@@ -9,7 +9,7 @@ describe('Tier 3: Quickstart E2E Flow', () => {
 
   const timestamp = Date.now()
   const body = {
-    providerTemp: 'anthropic',
+    providerBrand: 'anthropic',
     apiKey: 'sk-test-fake-key-12345',
     projectName: `QS Test Project ${timestamp}`,
     agentName: `QS Test Agent ${timestamp}`,

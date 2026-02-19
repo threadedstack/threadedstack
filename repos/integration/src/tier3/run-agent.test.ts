@@ -15,7 +15,7 @@ describe('Tier 3: Run Agent SSE Flow', () => {
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
-        providerTemp: 'anthropic',
+        providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
         projectName: `Run Agent Test Project ${timestamp}`,
         agentName: `Run Agent Test Agent ${timestamp}`,

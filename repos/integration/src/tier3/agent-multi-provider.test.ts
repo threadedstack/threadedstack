@@ -16,14 +16,15 @@ import { env } from '../utils/env'
  * and that provider switching updates which provider the agent uses.
  *
  * Requires:
- * - TDSK_IT_PROVIDER_KEY: Real Anthropic API key for creating providers with real secrets
- * - TDSK_IT_AGENT_ID: Pre-existing agent with real provider key (for session-based tests)
+ * - TDSK_IT_PROVIDER_KEY: Real Z.AI API key for creating providers with real secrets
+ * - TDSK_IT_ZAI_AGENT_ID or TDSK_IT_AGENT_ID: Pre-existing agent with real provider key
  *
  * Tests are skipped when env vars are not set.
  */
 
 const hasProviderKey = () => !!env.testProviderKey
-const hasAgent = () => !!env.testAgentId
+const getAgentId = () => env.testZaiAgentId || env.testAgentId
+const hasAgent = () => !!getAgentId()
 
 describe('Tier 3: Multi-Provider Agent E2E', () => {
   const ctx = readContext()
@@ -41,7 +42,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const res = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
-          providerTemp: 'anthropic',
+          providerBrand: 'zai',
           apiKey: env.testProviderKey,
           projectName: `MP E2E Project ${timestamp}`,
           agentName: `MP E2E Agent ${timestamp}`,
@@ -75,14 +76,14 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
       expect(sessionRes.status).toBe(200)
       expect(sessionRes.data.data.sessionToken).toBeTruthy()
-      expect(sessionRes.data.data.provider).toBe('anthropic')
+      expect(sessionRes.data.data.provider).toBe('zai')
       expect(sessionRes.data.data.model).toBeTruthy()
       expect(sessionRes.data.data.maxTokens).toBeGreaterThan(0)
 
       // Session should NOT leak the API key
       expect(sessionRes.data.data).not.toHaveProperty('apiKey')
       const raw = JSON.stringify(sessionRes.data)
-      expect(raw).not.toMatch(/sk-ant-/)
+      expect(raw).not.toMatch(/sk-ant-|sk-/)
     })
 
     test.skipIf(!hasProviderKey())('quickstart agent streams LLM response via session', async () => {
@@ -105,7 +106,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       // Should have text_delta events and a done event
       const textEvents = events.filter((e) => e.type === 'text_delta')
@@ -120,7 +121,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(fullText.length).toBeGreaterThan(0)
 
       // No API key leakage in the stream
-      expect(raw).not.toMatch(/sk-ant-/)
+      expect(raw).not.toMatch(/sk-ant-|sk-/)
       expect(raw).not.toContain('apiKey')
     })
 
@@ -147,7 +148,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     test.skipIf(!hasAgent())('session resolves primary provider from agent providers array', async () => {
       // Verify the pre-existing agent has providers
       const agentRes = await get<{ data: Record<string, any> }>(
-        `/orgs/${ctx.orgId}/agents/${env.testAgentId}`
+        `/orgs/${ctx.orgId}/agents/${getAgentId()}`
       )
 
       expect(agentRes.status).toBe(200)
@@ -159,14 +160,14 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       // Create session — should use the primary provider
       const sessionRes = await post<{ data: Record<string, any> }>(
         `/_/ai/sessions`,
-        { agentId: env.testAgentId }
+        { agentId: getAgentId() }
       )
 
       expect(sessionRes.status).toBe(200)
       expect(sessionRes.data.data.sessionToken).toBeTruthy()
 
       // Provider type should match what the primary provider resolves to
-      const expectedProvider = primaryProvider.options?.llmProvider
+      const expectedProvider = primaryProvider.brand
       if (expectedProvider) {
         expect(sessionRes.data.data.provider).toBe(expectedProvider)
       }
@@ -175,7 +176,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     test.skipIf(!hasAgent())('session streams valid LLM response', async () => {
       const sessionRes = await post<{ data: Record<string, any> }>(
         `/_/ai/sessions`,
-        { agentId: env.testAgentId }
+        { agentId: getAgentId() }
       )
 
       expect(sessionRes.status).toBe(200)
@@ -188,7 +189,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       const textEvents = events.filter((e) => e.type === 'text_delta')
       const doneEvents = events.filter((e) => e.type === 'done')
@@ -231,7 +232,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const qsRes = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
-          providerTemp: 'anthropic',
+          providerBrand: 'zai',
           apiKey: env.testProviderKey,
           projectName: `MP Switch QS ${timestamp}`,
           agentName: `MP Switch Agent ${timestamp}`,
@@ -248,14 +249,15 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       provider1Id = qs.provider.id
       secretId = qs.secret?.id
 
-      // Create a second anthropic provider (same template, will share org secrets)
+      // Create a second zai provider (same template, will share org secrets)
       const prov2Res = await post<{ data: { id: string } }>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: `MP Switch Provider 2 ${timestamp}`,
           type: 'ai',
           orgId: ctx.orgId,
-          options: { baseUrl: 'https://api.anthropic.com', llmProvider: 'anthropic' },
+          brand: 'zai',
+          options: { baseUrl: 'https://api.z.ai/api/paas/v4' },
         }
       )
 
@@ -290,14 +292,14 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(agentRes.status).toBe(200)
       expect(agentRes.data.data.providers[0].id).toBe(provider1Id)
 
-      // Session should resolve to anthropic via provider1
+      // Session should resolve to zai via provider1
       const sessionRes = await post<{ data: Record<string, any> }>(
         `/_/ai/sessions`,
         { agentId }
       )
 
       expect(sessionRes.status).toBe(200)
-      expect(sessionRes.data.data.provider).toBe('anthropic')
+      expect(sessionRes.data.data.provider).toBe('zai')
     })
 
     test.skipIf(!hasProviderKey())('update agent to add second provider and switch primary', async () => {
@@ -330,8 +332,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       )
 
       expect(sessionRes.status).toBe(200)
-      // Both providers are anthropic, so provider type stays the same
-      expect(sessionRes.data.data.provider).toBe('anthropic')
+      // Both providers are zai, so provider type stays the same
+      expect(sessionRes.data.data.provider).toBe('zai')
       expect(sessionRes.data.data.sessionToken).toBeTruthy()
     })
 
@@ -353,7 +355,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       const textEvents = events.filter((e) => e.type === 'text_delta')
       const doneEvents = events.filter((e) => e.type === 'done')
@@ -400,7 +402,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       const textEvents = events.filter((e) => e.type === 'text_delta')
       const errorEvents = events.filter((e) => e.type === 'error')
@@ -426,7 +428,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const qsRes = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
-          providerTemp: 'anthropic',
+          providerBrand: 'zai',
           apiKey: env.testProviderKey,
           projectName: `MP Run Project ${timestamp}`,
           agentName: `MP Run Agent ${timestamp}`,
@@ -447,7 +449,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
           name: `MP Run Provider 2 ${timestamp}`,
           type: 'ai',
           orgId: ctx.orgId,
-          options: { baseUrl: 'https://api.anthropic.com', llmProvider: 'anthropic' },
+          brand: 'zai',
+          options: { baseUrl: 'https://api.z.ai/api/paas/v4' },
         }
       )
 
@@ -521,7 +524,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const qsRes = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
-          providerTemp: 'anthropic',
+          providerBrand: 'zai',
           apiKey: env.testProviderKey,
           projectName: `MP Security Project ${timestamp}`,
           agentName: `MP Security Agent ${timestamp}`,

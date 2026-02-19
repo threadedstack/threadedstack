@@ -1,4 +1,4 @@
-import { red, bold } from '@TRL/display/colors'
+import { themed } from '@TRL/theme'
 import { isStr } from '@keg-hub/jsutils/isStr'
 
 export const taskError = (err: Error | string, stack: boolean = true): never => {
@@ -6,7 +6,7 @@ export const taskError = (err: Error | string, stack: boolean = true): never => 
     err = new Error(err)
     stack = false
   }
-  process.stdout.write(`\n${red(bold(`Task Error:`))} `)
+  process.stdout.write(`\n${themed('error', `Task Error:`)} `)
   stack && err.stack
     ? process.stdout.write(`${err.stack}\n`)
     : process.stdout.write(`${err.message}\n`)

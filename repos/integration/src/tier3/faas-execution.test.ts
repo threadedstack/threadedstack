@@ -44,7 +44,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
     const qsRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
-        providerTemp: 'anthropic',
+        providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
         projectName: `FaaS Test Project ${timestamp}`,
         agentName: `FaaS Test Agent ${timestamp}`,

@@ -50,19 +50,22 @@ describe('Tier 1: Agent-Provider Relationship', () => {
         name: `AP Provider Anthropic ${timestamp}`,
         type: 'ai',
         orgId: ctx.orgId,
-        options: { baseUrl: 'https://api.anthropic.com', llmProvider: 'anthropic' },
+        brand: 'anthropic',
+        options: { baseUrl: 'https://api.anthropic.com' },
       }),
       post<{ data: { id: string } }>(`/orgs/${ctx.orgId}/providers`, {
         name: `AP Provider OpenAI ${timestamp}`,
         type: 'ai',
         orgId: ctx.orgId,
-        options: { baseUrl: 'https://api.openai.com/v1', llmProvider: 'openai' },
+        brand: 'openai',
+        options: { baseUrl: 'https://api.openai.com/v1' },
       }),
       post<{ data: { id: string } }>(`/orgs/${ctx.orgId}/providers`, {
         name: `AP Provider Google ${timestamp}`,
         type: 'ai',
         orgId: ctx.orgId,
-        options: { baseUrl: 'https://generativelanguage.googleapis.com/v1', llmProvider: 'google' },
+        brand: 'google',
+        options: { baseUrl: 'https://generativelanguage.googleapis.com/v1' },
       }),
     ])
 
@@ -186,7 +189,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     expect(typeof provider.orgId).toBe('string')
     expect(provider.orgId).toBe(ctx.orgId)
     expect(provider.options).toBeDefined()
-    expect(provider.options.llmProvider).toBe('anthropic')
+    expect(provider.brand).toBe('anthropic')
   })
 
   test('GET /agents list returns agents with providers array', async () => {
@@ -435,7 +438,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       const qsRes = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
-          providerTemp: 'anthropic',
+          providerBrand: 'anthropic',
           apiKey: providerKey,
           projectName: `AP QS Project ${timestamp}`,
           agentName: `AP QS Agent ${timestamp}`,
@@ -458,7 +461,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       expect(agentRes.data.data.providers.length).toBe(1)
       expect(agentRes.data.data.providers[0].id).toBe(qsProvider.id)
       expect(agentRes.data.data.providers[0].type).toBe('ai')
-      expect(agentRes.data.data.providers[0].options.llmProvider).toBe('anthropic')
+      expect(agentRes.data.data.providers[0].brand).toBe('anthropic')
     })
 
     test('quickstart agent can have additional providers added', async () => {

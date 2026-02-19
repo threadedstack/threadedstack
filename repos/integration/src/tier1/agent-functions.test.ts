@@ -50,7 +50,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
       const res = await post<{ data: QuickstartResult }>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
-          providerTemp: 'anthropic',
+          providerBrand: 'anthropic',
           apiKey: 'sk-test-fake-key-agent-fn',
           projectName: `AgentFn Project ${timestamp}`,
           agentName: `AgentFn Agent ${timestamp}`,

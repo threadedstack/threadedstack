@@ -1,8 +1,8 @@
 import type { TTask } from '@TRL/types'
 
-import { ApiClient } from '@TRL/api'
-import { AgentRepl } from '@TRL/repl'
-import { LocalAgentExecutor } from '@TRL/executor'
+import React from 'react'
+import { render } from 'ink'
+import { App } from '@TRL/components/App'
 import { requireAuth } from '@TRL/utils/tasks/requireAuth'
 
 export const chat: TTask = {
@@ -27,15 +27,15 @@ export const chat: TTask = {
       type: `str`,
     },
   },
-  action: requireAuth(async ({ params, auth, renderer }) => {
-    const client = new ApiClient(auth)
-    const executor = new LocalAgentExecutor(client)
-    const repl = new AgentRepl(executor, renderer)
-
-    await repl.start({
-      orgId: params.org as string | undefined,
-      agentId: params.agent as string | undefined,
-      threadId: params.thread as string | undefined,
-    })
+  action: requireAuth(async ({ params, auth }) => {
+    const { waitUntilExit } = render(
+      React.createElement(App, {
+        auth,
+        initialOrgId: params.org as string | undefined,
+        initialAgentId: params.agent as string | undefined,
+        initialThreadId: params.thread as string | undefined,
+      })
+    )
+    await waitUntilExit()
   }),
 }

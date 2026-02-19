@@ -1,22 +1,36 @@
 import { main } from './cli'
 import { Version } from '@TRL/constants'
-import { existsSync, readFileSync } from 'node:fs'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock(`node:fs`, () => ({
-  existsSync: vi.fn(),
-  readFileSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  unlinkSync: vi.fn(),
-  mkdirSync: vi.fn(),
+const mockLoadGlobal = vi.fn()
+const mockSaveGlobal = vi.fn()
+const mockLoadProject = vi.fn().mockReturnValue({})
+const mockMerge = vi.fn((global: any, project: any) => ({ ...global, ...project }))
+vi.mock(`@TRL/services/config`, () => ({
+  ConfigService: {
+    loadGlobal: (...args: any[]) => mockLoadGlobal(...args),
+    saveGlobal: (...args: any[]) => mockSaveGlobal(...args),
+    loadProject: (...args: any[]) => mockLoadProject(...args),
+    merge: (...args: any[]) => mockMerge(...args),
+  },
 }))
 
 const mockFetch = vi.fn()
 vi.stubGlobal(`fetch`, mockFetch)
 
-const mockReplStart = vi.fn().mockResolvedValue(undefined)
-vi.mock(`@TRL/repl`, () => ({
-  AgentRepl: vi.fn().mockImplementation(() => ({ start: mockReplStart })),
+const mockWaitUntilExit = vi.fn().mockResolvedValue(undefined)
+const mockInkRender = vi.fn().mockReturnValue({
+  waitUntilExit: mockWaitUntilExit,
+  unmount: vi.fn(),
+  rerender: vi.fn(),
+  clear: vi.fn(),
+})
+vi.mock(`ink`, () => ({
+  render: (...args: any[]) => mockInkRender(...args),
+  Text: (props: any) => props.children,
+  Box: (props: any) => props.children,
+  useApp: () => ({ exit: () => {} }),
+  useInput: () => {},
 }))
 
 vi.mock(`@TRL/executor`, () => ({
@@ -32,12 +46,11 @@ const makeCreds = (
 })
 
 const setLoggedIn = (creds = makeCreds()) => {
-  vi.mocked(existsSync).mockReturnValue(true)
-  vi.mocked(readFileSync).mockReturnValue(JSON.stringify(creds))
+  mockLoadGlobal.mockReturnValue({ auth: creds })
 }
 
 const setLoggedOut = () => {
-  vi.mocked(existsSync).mockReturnValue(false)
+  mockLoadGlobal.mockReturnValue({})
 }
 
 describe(`main`, () => {
@@ -57,6 +70,9 @@ describe(`main`, () => {
       throw new Error(`__EXIT__`)
     })
     vi.spyOn(process.stderr, `write`).mockImplementation(() => true)
+    // Default: loadProject returns empty, merge returns global config
+    mockLoadProject.mockReturnValue({})
+    mockMerge.mockImplementation((global: any, _project: any) => global)
   })
 
   const setArgv = (...args: string[]) => {
@@ -141,7 +157,7 @@ describe(`main`, () => {
       setArgv(`login`, `tdsk_newkey123`)
       setLoggedOut()
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(existsSync).mockReturnValue(true)
+      mockLoadGlobal.mockReturnValue({})
 
       await runMain()
 
@@ -153,7 +169,7 @@ describe(`main`, () => {
       setArgv(`login`, `tdsk_newkey123`, `--url`, `https://custom.proxy`, `--insecure`)
       setLoggedOut()
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(existsSync).mockReturnValue(true)
+      mockLoadGlobal.mockReturnValue({})
 
       await runMain()
 
@@ -437,28 +453,22 @@ describe(`main`, () => {
       expect(exitCode).toBe(1)
     })
 
-    it(`should start repl with flags`, async () => {
+    it(`should render Ink App with flags`, async () => {
       setArgv(`chat`, `--org`, `org1`, `--agent`, `a1`, `--thread`, `t1`)
       setLoggedIn()
       await runMain()
 
-      expect(mockReplStart).toHaveBeenCalledWith({
-        orgId: `org1`,
-        agentId: `a1`,
-        threadId: `t1`,
-      })
+      expect(mockInkRender).toHaveBeenCalledTimes(1)
+      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
     })
 
-    it(`should start repl without flags`, async () => {
+    it(`should render Ink App without flags`, async () => {
       setArgv(`chat`)
       setLoggedIn()
       await runMain()
 
-      expect(mockReplStart).toHaveBeenCalledWith({
-        orgId: undefined,
-        agentId: undefined,
-        threadId: undefined,
-      })
+      expect(mockInkRender).toHaveBeenCalledTimes(1)
+      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -467,7 +477,7 @@ describe(`main`, () => {
       setArgv(`li`, `tdsk_newkey123`)
       setLoggedOut()
       mockFetch.mockResolvedValue({ ok: true })
-      vi.mocked(existsSync).mockReturnValue(true)
+      mockLoadGlobal.mockReturnValue({})
 
       await runMain()
 
@@ -495,57 +505,40 @@ describe(`main`, () => {
       setLoggedIn()
       await runMain()
 
-      expect(mockReplStart).toHaveBeenCalledWith({
-        orgId: `org1`,
-        agentId: undefined,
-        threadId: undefined,
-      })
+      expect(mockInkRender).toHaveBeenCalledTimes(1)
+      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
     })
   })
 
   describe(`config defaults`, () => {
-    const setLoggedInWithConfig = (config: Record<string, any>) => {
-      vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockImplementation((path: any) => {
-        if (String(path).endsWith(`repl.json`)) return JSON.stringify(config)
-        return JSON.stringify(makeCreds())
-      })
-    }
-
     it(`should use config org as default when no --org flag`, async () => {
       setArgv(`chat`)
-      setLoggedInWithConfig({ org: `cfg-org` })
+      mockLoadGlobal.mockReturnValue({ auth: makeCreds() })
+      mockMerge.mockReturnValue({ org: `cfg-org`, auth: makeCreds() })
       await runMain()
 
-      expect(mockReplStart).toHaveBeenCalledWith({
-        orgId: `cfg-org`,
-        agentId: undefined,
-        threadId: undefined,
-      })
+      expect(mockInkRender).toHaveBeenCalledTimes(1)
+      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
     })
 
     it(`should use config agent as default when no --agent flag`, async () => {
       setArgv(`chat`)
-      setLoggedInWithConfig({ org: `cfg-org`, agent: `cfg-agent` })
+      mockLoadGlobal.mockReturnValue({ auth: makeCreds() })
+      mockMerge.mockReturnValue({ org: `cfg-org`, agent: `cfg-agent`, auth: makeCreds() })
       await runMain()
 
-      expect(mockReplStart).toHaveBeenCalledWith({
-        orgId: `cfg-org`,
-        agentId: `cfg-agent`,
-        threadId: undefined,
-      })
+      expect(mockInkRender).toHaveBeenCalledTimes(1)
+      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
     })
 
     it(`should override config defaults with explicit flags`, async () => {
       setArgv(`chat`, `--org`, `explicit-org`)
-      setLoggedInWithConfig({ org: `cfg-org`, agent: `cfg-agent` })
+      mockLoadGlobal.mockReturnValue({ auth: makeCreds() })
+      mockMerge.mockReturnValue({ org: `cfg-org`, agent: `cfg-agent`, auth: makeCreds() })
       await runMain()
 
-      expect(mockReplStart).toHaveBeenCalledWith({
-        orgId: `explicit-org`,
-        agentId: `cfg-agent`,
-        threadId: undefined,
-      })
+      expect(mockInkRender).toHaveBeenCalledTimes(1)
+      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
     })
   })
 

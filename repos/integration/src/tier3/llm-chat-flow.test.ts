@@ -15,7 +15,12 @@ import { describe, test, expect, beforeAll } from 'vitest'
  * When the env var is not set, the entire suite is skipped.
  */
 
-const hasAgent = () => !!env.testAgentId
+/**
+ * Use testZaiAgentId preferentially since it has a verified real provider key.
+ * Falls back to testAgentId if set.
+ */
+const getAgentId = () => env.testZaiAgentId || env.testAgentId
+const hasAgent = () => !!getAgentId()
 
 describe(`Tier 3: LLM Chat Flow (live)`, () => {
   const ctx = readContext()
@@ -25,7 +30,7 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
 
   beforeAll(async () => {
     if (!hasAgent()) return
-    agentId = env.testAgentId
+    agentId = getAgentId()
 
     // Validate agent is accessible — also confirms the whole auth chain works
     const res = await get<{ data: Record<string, any> }>(
@@ -130,7 +135,7 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       // Must have at least one text_delta event and a done event
       expect(events.length).toBeGreaterThanOrEqual(2)
@@ -165,7 +170,7 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       // Every non-empty line should start with "data: "
       const lines = raw.split(`\n`).filter((l) => l.trim().length > 0)
@@ -182,7 +187,7 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       const lines = raw.split(`\n`).filter((l) => l.startsWith(`data: `))
       for (const line of lines) {
@@ -203,7 +208,7 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       // Ensure no API key patterns leaked in the SSE stream
       expect(raw).not.toMatch(/sk-[a-zA-Z0-9]{20,}/)
@@ -231,7 +236,7 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       const textEvents = events.filter((e) => e.type === `text_delta`)
       const doneEvents = events.filter((e) => e.type === `done`)
@@ -257,7 +262,7 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       expect(result1.events.some((e) => e.type === `text_delta`)).toBe(true)
       expect(result1.events.some((e) => e.type === `done`)).toBe(true)
@@ -270,7 +275,7 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       expect(result2.events.some((e) => e.type === `text_delta`)).toBe(true)
       expect(result2.events.some((e) => e.type === `done`)).toBe(true)
@@ -391,11 +396,11 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
         consumeSessionSSE(token1, {
           context: { messages: [{ role: `user`, content: [{ type: `text`, text: `Say ALPHA` }] }] },
           options: {},
-        }, { timeout: 30_000 }),
+        }),
         consumeSessionSSE(token2, {
           context: { messages: [{ role: `user`, content: [{ type: `text`, text: `Say BETA` }] }] },
           options: {},
-        }, { timeout: 30_000 }),
+        }),
       ])
 
       // Both streams should complete independently
@@ -437,7 +442,7 @@ describe(`Tier 3: LLM Chat Flow (live)`, () => {
           ],
         },
         options: {},
-      }, { timeout: 30_000 })
+      })
 
       // Step 5: Validate response structure
       const textEvents = events.filter((e) => e.type === `text_delta`)

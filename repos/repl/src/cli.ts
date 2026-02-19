@@ -1,5 +1,4 @@
 import { tasks } from '@TRL/tasks'
-import { Renderer } from '@TRL/display'
 import { AuthManager } from '@TRL/auth'
 import { Version } from '@TRL/constants'
 import { find } from '@TRL/utils/tasks/find'
@@ -30,7 +29,6 @@ export const main = async (): Promise<any> => {
     task: { options: addDefaults(task, config) },
   })
   const auth = new AuthManager()
-  const renderer = new Renderer()
 
   // Apply insecure mode from stored credentials
   const storedCreds = auth.getCredentials()
@@ -43,6 +41,5 @@ export const main = async (): Promise<any> => {
     config,
     params,
     options,
-    renderer,
   })
 }

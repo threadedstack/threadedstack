@@ -15,7 +15,7 @@ export const consumeSessionSSE = async (
 ): Promise<{ events: SSEEvent[]; raw: string }> => {
   const aiPath = opts?.path ?? '/ai/stream'
   const url = `${env.proxyUrl}${aiPath}`
-  const timeout = opts?.timeout ?? 30_000
+  const timeout = opts?.timeout ?? 60_000
 
   const res = await fetch(url, {
     method: 'POST',

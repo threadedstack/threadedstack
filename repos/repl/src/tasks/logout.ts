@@ -1,12 +1,14 @@
 import type { TTask } from '@TRL/types'
 
+import { themed } from '@TRL/theme'
+
 export const logout: TTask = {
   name: `logout`,
   alias: [`lo`],
   description: `Remove stored credentials`,
   example: `tdsk-agent logout`,
-  action: async ({ auth, renderer }) => {
+  action: async ({ auth }) => {
     auth.logout()
-    renderer.renderSuccess(`Logged out`)
+    process.stdout.write(`${themed('success', `Logged out`)}\n`)
   },
 }

@@ -1,18 +1,50 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
     "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
+    "target": "esnext",
+    "module": "esnext",
     "outDir": "../dist",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "moduleResolution": "bundler",
     "rootDir": ".",
     "paths": {
       "@TIT/*": ["./src/*"],
       "@TIT": ["./src"],
       "@ROOT": ["../../"],
-      "@ROOT/*": ["../../*"]
+      "@ROOT/*": ["../../*"],
+
+      "@TRL": ["../repl/src"],
+      "@TRL/*": ["../repl/src/*"],
+      "@TRL/configs": ["../repl/configs"],
+      "@TRL/configs/*": ["../repl/configs/*"],
+      "@tdsk/repl": ["../repl/src"],
+      "@tdsk/repl/*": ["../repl/src/*"],
+
+      "@TAG": ["../agent/src"],
+      "@TAG/*": ["../agent/src/*"],
+      "@TAG/configs": ["../agent/configs"],
+      "@TAG/configs/*": ["../agent/configs/*"],
+      "@tdsk/agent": ["../agent/src"],
+      "@tdsk/agent/*": ["../agent/src/*"],
+
+      "@TDM": ["../domain/src"],
+      "@TDM/*": ["../domain/src/*"],
+      "@tdsk/domain": ["../domain/src"],
+      "@tdsk/domain/*": ["../domain/src/*"],
+
+      "@TSB": ["../sandbox/src"],
+      "@TSB/*": ["../sandbox/src/*"],
+      "@tdsk/sandbox": ["../sandbox/src"],
+      "@tdsk/sandbox/*": ["../sandbox/src/*"],
+
+      "@TDB": ["../database/src"],
+      "@TDB/*": ["../database/src/*"],
+      "@tdsk/database": ["../database/src"],
+      "@tdsk/database/*": ["../database/src/*"],
+
+      "@tdsk/logger": ["../logger/src"],
+      "@tdsk/logger/*": ["../logger/src/*"]
     }
   },
   "include": [

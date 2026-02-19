@@ -1,7 +1,9 @@
 import type { TStreamEvent } from '@tdsk/domain'
 import type { ApiClient, TSessionInfo } from '@TRL/api'
+import type { TContextFile } from '@TRL/types'
 
 import { AgentRunner } from '@tdsk/agent'
+import { DEFAULT_MAX_STEPS } from '@TRL/constants'
 import { HttpMessageAdapter } from './httpAdapter'
 
 export type TRunResult = {
@@ -26,8 +28,8 @@ export class LocalAgentExecutor {
     return this.#client
   }
 
-  async createSession(agentId: string): Promise<TSessionInfo> {
-    return this.#client.createSession(agentId)
+  async createSession(agentId: string, providerId?: string): Promise<TSessionInfo> {
+    return this.#client.createSession(agentId, providerId)
   }
 
   async run(opts: {
@@ -36,12 +38,15 @@ export class LocalAgentExecutor {
     prompt: string
     userId: string
     threadId?: string
+    providerId?: string
+    maxSteps?: number
+    contextFiles?: TContextFile[]
     onEvent: (event: TStreamEvent) => void
   }): Promise<TRunResult> {
     const { orgId, agentId, prompt, userId, onEvent } = opts
 
     // 1. Create session (backend resolves API key, returns session token)
-    const session = await this.createSession(agentId)
+    const session = await this.createSession(agentId, opts.providerId)
 
     // 2. Create or reuse thread
     let threadId = opts.threadId
@@ -50,19 +55,28 @@ export class LocalAgentExecutor {
       threadId = thread.id
     }
 
-    // 3. Create HTTP message adapter
+    // 3. Build final prompt with optional context files
+    let finalPrompt = prompt
+    if (opts.contextFiles?.length) {
+      const contextBlock = opts.contextFiles
+        .map((f) => `--- ${f.name} ---\n${f.content}`)
+        .join('\n\n')
+      finalPrompt = `<context>\n${contextBlock}\n</context>\n\n${prompt}`
+    }
+
+    // 4. Create HTTP message adapter
     const db = new HttpMessageAdapter(this.#client, orgId, agentId)
 
-    // 4. Run agent locally — LLM calls go through backend SSE
+    // 5. Run agent locally — LLM calls go through backend SSE
     await AgentRunner.run({
       db,
       orgId,
-      prompt,
       userId,
       onEvent,
       agentId,
       threadId,
-      maxSteps: 10,
+      prompt: finalPrompt,
+      maxSteps: opts.maxSteps || DEFAULT_MAX_STEPS,
       proxyConfig: {
         backendUrl: this.#client.proxyUrl,
         sessionToken: session.sessionToken,

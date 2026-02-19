@@ -31,7 +31,7 @@ describe('Tier 3: AI Stream Endpoint (/ai/stream)', () => {
     const qsRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
-        providerTemp: 'anthropic',
+        providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-ai-stream',
         projectName: `AI Stream Test Project ${timestamp}`,
         agentName: `AI Stream Test Agent ${timestamp}`,
