@@ -24,7 +24,7 @@
     "@tdsk/domain": "workspace:*",
     "alias-hq": "6.2.4",
     "e2b": "^1.2.0",
-    "isolated-vm": "^5.0.1",
+    "isolated-vm": "6.0.2",
     "just-bash": "2.5.5"
   },
   "devDependencies": {
