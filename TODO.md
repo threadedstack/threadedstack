@@ -78,7 +78,7 @@
 * Currently the AI providers use `options.llmProvider` to set the name of the selected provider 
   * This works but because `options` is stored as a `Record<string, any>` JSON object in the database its not properly typed.
   * Really anything could be saved for `options.llmProvider` and it's not properly validated
-  * A better option would be to add a new column to the provider table called `key` which would could replace the `options.llmProvider`.
+  * A better option would be to add a new column to the provider table called `brand` which would could replace the `options.llmProvider`.
   * This would allow it to be properly type, and ensure the value exists 
 * Create Selector components for Providers, Agents, Functions, Endpoints, Secrets, ENVs
   * Reuse the Selector component across entities Drawers for consistency
