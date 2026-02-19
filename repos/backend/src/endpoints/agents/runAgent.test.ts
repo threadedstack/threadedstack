@@ -204,14 +204,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [],
       },
@@ -244,14 +244,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
@@ -290,14 +290,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [],
         tools: [],
@@ -337,14 +337,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [],
         tools: [],
@@ -408,7 +408,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     )
   })
 
-  it(`should resolve Google AI display name to google provider`, async () => {
+  it(`should resolve provider type from options.llmProvider`, async () => {
     const { AgentRunner } = await import(`@tdsk/agent`)
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-google-key`)
@@ -426,14 +426,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `Google AI`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `Google AI`, options: { llmProvider: `google` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `Google AI`,
-          options: {},
+          options: { llmProvider: `google` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
@@ -524,14 +524,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         model: `claude-sonnet-4-20250514`,
@@ -569,14 +569,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         model: `claude-sonnet-4-20250514`,
@@ -616,14 +616,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
@@ -656,14 +656,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
@@ -699,14 +699,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         model: `claude-sonnet-4-20250514`,
@@ -731,7 +731,12 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         userId: `test-user-id`,
         orgId: `org-1`,
         tools: [`web_search`],
-        maxSteps: 10,
+        customFunctions: [],
+        environment: { temperature: 0.7 },
+        db: expect.objectContaining({
+          createMessage: expect.any(Function),
+          listMessages: expect.any(Function),
+        }),
         llmConfig: expect.objectContaining({
           apiKey: `sk-test-key`,
           model: `claude-sonnet-4-20250514`,
@@ -745,6 +750,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           timeout: 300000,
         }),
         onEvent: expect.any(Function),
+        onExecuteFunction: expect.any(Function),
       })
     )
   })
@@ -767,14 +773,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
@@ -816,14 +822,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
@@ -874,14 +880,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
@@ -918,14 +924,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],
@@ -961,14 +967,14 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
-          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: {} },
+          { id: `prov-1`, type: `ai`, orgId: `org-1`, name: `anthropic`, options: { llmProvider: `anthropic` } },
         ],
         primaryProvider: {
           id: `prov-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
-          options: {},
+          options: { llmProvider: `anthropic` },
         },
         secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
         tools: [],

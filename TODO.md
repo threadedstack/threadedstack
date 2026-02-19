@@ -9,6 +9,13 @@
   * Sometimes navigating to Endpoints page doesn't load the Endpoints
     * Shows spinner forever
     * Refresh fixes it
+  * Opening the EndpointDrawer shows error:
+    ```
+    MUI: You have provided an out-of-range value `b0000000-0000-0000-0000-000000000002` for the select (name="function-select") component.
+    Consider providing a value that matches one of the available options or ''.
+    The available values are "".
+    ```
+
   * Agent type
     * Basically all options in AgentDrawer should be exposed to Agent Overrides
     * Allow selecting custom function tools in agent overrides
@@ -68,6 +75,11 @@
 
 #### Work
 
+* Currently the AI providers use `options.llmProvider` to set the name of the selected provider 
+  * This works but because `options` is stored as a `Record<string, any>` JSON object in the database its not properly typed.
+  * Really anything could be saved for `options.llmProvider` and it's not properly validated
+  * A better option would be to add a new column to the provider table called `key` which would could replace the `options.llmProvider`.
+  * This would allow it to be properly type, and ensure the value exists 
 * Create Selector components for Providers, Agents, Functions, Endpoints, Secrets, ENVs
   * Reuse the Selector component across entities Drawers for consistency
   * Ensure item can be selected and loaded and linked to each other

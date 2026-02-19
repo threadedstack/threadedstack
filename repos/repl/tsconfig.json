@@ -10,6 +10,8 @@
     "declaration": false,
     "skipLibCheck": true,
     "noEmitOnError": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
     "noImplicitAny": false,
     "declarationMap": false,
     "esModuleInterop": true,

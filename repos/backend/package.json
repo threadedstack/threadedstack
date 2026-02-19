@@ -8,9 +8,10 @@
   "scripts": {
     "script": "STL_FORCE_DISABLE_SAFE=1 tsx -r ./configs/aliases.ts scripts/script.ts",
     "build": "tsup --config configs/tsup.config.ts",
-    "clean": "rm -rf dist",
+    "clean": "pnpm clean:dist && pnpm clean:nm",
+    "clean:full": "pnpm clean",
+    "clean:dist": "rm -rf dist",
     "clean:nm": "rm -rf node_modules",
-    "clean:full": "pnpm clean && pnpm clean:nm",
     "start": "tsup --config ./configs/tsup.config.ts --watch ./src --watch ./configs --watch ../domain/src --watch ../logger/src --watch ../database/src --onSuccess 'pnpm serve'",
     "serve": "node --enable-source-maps dist/index.cjs",
     "biome": "biome",

@@ -6,7 +6,10 @@
   "scripts": {
     "build": "vite build -c configs/vite.config.ts",
     "host": "vite --open --host -c configs/vite.config.ts",
-    "clean": "rm -rf ./node_modules",
+    "clean": "pnpm clean:dist && pnpm clean:nm",
+    "clean:full": "pnpm clean",
+    "clean:dist": "rm -rf ./dist",
+    "clean:nm": "rm -rf ./node_modules",
     "biome": "biome",
     "lint": "pnpm biome:lint --write",
     "format": "pnpm biome:format --write",

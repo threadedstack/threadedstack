@@ -56,7 +56,9 @@
       "Bash(wc:*)",
       "Bash(pgrep:*)",
       "Bash(npx vitest run:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(NODE_TLS_REJECT_UNAUTHORIZED=0 npx vitest:*)",
+      "Bash(NODE_TLS_REJECT_UNAUTHORIZED=0 curl:*)"
     ]
   },
   "sandbox": {
