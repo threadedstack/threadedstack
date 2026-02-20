@@ -1,19 +1,20 @@
-import React, { useState, useCallback, useEffect } from 'react'
-import { Box, Text, useApp } from 'ink'
-import { useSession } from '@TRL/hooks/useSession'
-import { useMessages } from '@TRL/hooks/useMessages'
-import { AgentPicker } from './AgentPicker'
-import { ChatSession } from './ChatSession'
-import { WelcomeBox } from './WelcomeBox'
-import { ErrorMessage } from './ErrorMessage'
+import type { AuthManager } from '@TRL/auth'
+
+import { themed } from '@TRL/theme'
 import { Spinner } from './Spinner'
 import { ApiClient } from '@TRL/api'
+import { Box, Text, useApp } from 'ink'
+import { WelcomeBox } from './WelcomeBox'
+import { AgentPicker } from './AgentPicker'
+import { ChatSession } from './ChatSession'
+import { ErrorMessage } from './ErrorMessage'
 import { LocalAgentExecutor } from '@TRL/executor'
+import { useSession } from '@TRL/hooks/useSession'
+import { useMessages } from '@TRL/hooks/useMessages'
 import { ContextLoader } from '@TRL/services/context'
-import type { AuthManager } from '@TRL/auth'
-import { themed } from '@TRL/theme'
-import { parseCommand, findCommand, isPreAuthCommand } from '@TRL/commands'
+import { useState, useCallback, useEffect } from 'react'
 import { getToolDisplayName } from '@TRL/constants/tools'
+import { parseCommand, findCommand, isPreAuthCommand } from '@TRL/commands'
 
 type AppProps = {
   auth: AuthManager
@@ -69,7 +70,7 @@ export const App = (props: AppProps) => {
         const agent = await newClient.getAgent(orgId, initialAgentId)
         setAgentInfo(agent)
         session.setConnection(`connected`)
-        setPhase('chat')
+        setPhase(`chat`)
         return
       }
 
@@ -160,17 +161,17 @@ export const App = (props: AppProps) => {
         }
       }
 
-      msgs.addMessage({ type: 'user', content: text })
+      msgs.addMessage({ type: `user`, content: text })
       msgs.setIsStreaming(true)
       msgs.clearStream()
 
       try {
         const result = await executor!.run({
+          prompt: text,
+          userId: `repl-user`,
           orgId: session.orgId!,
           agentId: session.agentId!,
           threadId: session.threadId || undefined,
-          prompt: text,
-          userId: `repl-user`,
           onEvent: (event: any) => {
             switch (event.type) {
               case `text`:
@@ -200,6 +201,12 @@ export const App = (props: AppProps) => {
                   )
                 )
                 break
+              case `error`:
+                msgs.addMessage({
+                  type: `system`,
+                  content: `Error: ${event.error || `Unknown error`}`,
+                })
+                break
             }
           },
         })
@@ -207,7 +214,8 @@ export const App = (props: AppProps) => {
         session.setThreadId(result.threadId)
         msgs.addMessage({ type: `assistant`, content: msgs.streamText })
       } catch (err) {
-        setError(err as Error)
+        const errMsg = err instanceof Error ? err.message : String(err)
+        msgs.addMessage({ type: `system`, content: `Error: ${errMsg}` })
       } finally {
         msgs.setIsStreaming(false)
         msgs.clearStream()

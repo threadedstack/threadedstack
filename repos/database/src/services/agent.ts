@@ -1,5 +1,6 @@
 import type { Project as ProjectModel } from '@tdsk/domain'
 import type {
+  TDBUpdate,
   TServiceOpts,
   TDBQueryOpts,
   TDBWithRecord,
@@ -270,7 +271,7 @@ export class Agent extends Base<
   /**
    * Update an agent and manage project and function associations
    */
-  async update(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
+  async update(data: TDBUpdate<TAgentInsertOpts>, opts?: TAgentQueryOpts) {
     const { projects, functionIds, providerIds, ...agent } = data
 
     if (!agent.id)

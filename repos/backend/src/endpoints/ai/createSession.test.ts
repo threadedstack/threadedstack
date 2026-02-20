@@ -51,6 +51,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
               get: vi.fn(),
             },
             secret: {
+              get: vi.fn().mockResolvedValue({ data: null }),
               list: vi.fn().mockResolvedValue({ data: [] }),
             },
             role: {
@@ -78,7 +79,9 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
           options: {},
         },
       ],
-      secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+      secrets: [
+        { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+      ],
       ...overrides,
     } as any)
 

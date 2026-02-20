@@ -192,6 +192,12 @@ export const orgQuickstart: TEndpointConfig = {
         }
       })
 
+      // Link the API key secret to the provider
+      await db.services.provider.update({
+        id: result.provider.id,
+        secretId: result.secret.id,
+      })
+
       // Sanitize secret - never return encryptedValue
       const { encryptedValue: _ev, ...sanitizedSecret } = result.secret
 

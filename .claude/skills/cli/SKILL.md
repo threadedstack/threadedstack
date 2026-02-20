@@ -1,17 +1,15 @@
 ---
 name: "Threaded Stack - CLI Repo"
 description: "Knowledge base for the developer CLI repo - DevOps orchestration for Docker, Kubernetes, and DevSpace"
-version: "1.1.0"
 tags: ["cli", "nodejs", "devops", "kubernetes", "docker", "devspace"]
-lastUpdated: "2026-02-15"
 ---
 # CLI Repo Skill
 
 ## Overview
 
 The CLI repo (`@tdsk/cli`) is a comprehensive developer CLI tool for managing the Threaded Stack monorepo. It provides unified commands for:
-- **Docker operations**: Building and running containerized applications
-- **Kubernetes management**: Secrets, namespaces, ingress configuration
+- **Docker operations**: Building, pulling, pushing, running, and executing containerized applications
+- **Kubernetes management**: Secrets, namespaces, ingress configuration, pod inspection
 - **DevSpace orchestration**: Development environment management
 - **Web UI management**: Starting and managing the admin UI
 
@@ -25,6 +23,7 @@ repos/cli/
 │   ├── cli.config.ts     # Main CLI configuration with paths and contexts
 │   ├── aliases.ts        # Path aliases (@TSCL/*)
 │   ├── biome.json        # Linting and formatting config
+│   ├── tsup.config.ts    # Build configuration
 │   └── vitest.config.ts  # Test configuration
 ├── scripts/              # Helper scripts
 │   ├── loadEnvs.ts       # Environment loading utilities
@@ -35,20 +34,23 @@ repos/cli/
 │   ├── constants/        # Constants and filters (EnvFilter)
 │   ├── types/            # TypeScript definitions
 │   │   ├── tasks.types.ts      # Task system types
-│   │   ├── config.types.ts     # Configuration types
+│   │   ├── config.types.ts     # Configuration types (ECtxMap enum)
 │   │   ├── kube.types.ts       # Kubernetes types
-│   │   └── tdsk.types.ts       # Project-specific types
+│   │   ├── tdsk.types.ts       # Project-specific types (ETSApps enum)
+│   │   ├── helpers.types.ts    # Utility types (TValueOf)
+│   │   └── process.types.ts    # Process option types (TProcOpts)
 │   ├── tasks/            # Command definitions (hierarchical structure)
 │   │   ├── index.ts      # Task registry
-│   │   ├── docker/       # Docker commands: build, run, login
+│   │   ├── docker/       # Docker commands: build, run, exec, pull, push, login
 │   │   ├── kube/         # Kubernetes commands: secret, namespace, ingress, set, remove, pod
+│   │   │   └── secret/   # Preset secret commands: tdsk, docker, database, payments, email
 │   │   ├── devspace/     # DevSpace commands: start, enter, attach, log, clean, use, render
 │   │   └── web/          # Web UI commands: start
 │   └── utils/            # Utility functions
 │       ├── config/       # Config utilities (getCtx)
-│       ├── devspace/     # DevSpace helpers
-│       ├── docker/       # Docker helpers
-│       ├── kube/         # Kubernetes utilities (kubectl wrapper, getPod)
+│       ├── devspace/     # DevSpace helpers (devspace runner, defaults, selector, use, clean, purge, start)
+│       ├── docker/       # Docker helpers (build, run, exec, pull, push, login, auth, helpers)
+│       ├── kube/         # Kubernetes utilities (kubectl wrapper, getKubeMeta)
 │       ├── pnpm/         # PNPM command execution
 │       ├── proc/         # Process management (spawn, exec)
 │       ├── tasks/        # Task utilities (find, error, options)
@@ -62,11 +64,13 @@ repos/cli/
 |------|---------|
 | `src/cli.ts` | Main CLI entry point - parses args, loads config, executes tasks |
 | `src/tasks/index.ts` | Task registry that exports all command groups |
-| `configs/cli.config.ts` | Configuration with paths, contexts (proxy, api, admin), and environment variables |
+| `configs/cli.config.ts` | Configuration with paths, five contexts (app, proxy, backend, admin, caddy), and environment variables |
 | `src/types/tasks.types.ts` | Core type definitions for task system (TTask, TTasks, TTaskAction) |
+| `src/types/config.types.ts` | Configuration types and ECtxMap enum (context name aliases) |
 | `src/utils/tasks/find.ts` | Task resolution algorithm for nested commands and aliases |
 | `src/utils/proc/spawn.ts` | Child process spawning utility with enhanced error handling |
-| `src/utils/config/getCtx.ts` | Context resolver for proxy/api/admin repos |
+| `src/utils/config/getCtx.ts` | Context resolver using ECtxMap for context name aliasing |
+| `src/utils/kube/kubectl.ts` | Kubectl wrapper with methods: create, delete, apply, describe, getPod, getPods, ensureContext, etc. |
 
 ## Architecture
 
@@ -110,17 +114,35 @@ repos/cli/
 docker (group)
   ├── build (command)
   ├── run (command)
+  ├── exec (command)
+  ├── pull (command)
+  ├── push (command)
   └── login (command)
 
 kube (group)
   ├── secret (group)
   │   ├── tdsk (command)
   │   ├── docker (command)
-  │   └── database (command)
+  │   ├── database (command)
+  │   ├── payments (command)
+  │   └── email (command)
+  ├── pod (command)
   ├── namespace (command)
   ├── ingress (command)
   ├── set (command)
   └── remove (command)
+
+devspace (group)
+  ├── start (command)
+  ├── clean (command)
+  ├── log (command)
+  ├── enter (command)
+  ├── render (command)
+  ├── attach (command)
+  └── use (command)
+
+web (group)
+  └── start (command)
 ```
 
 ## Available Commands
@@ -150,9 +172,24 @@ pnpm tdsk docker build --context proxy --tag v1.2.3
 
 **`docker run`** - Run Docker container
 ```bash
-pnpm tdsk docker run --context api --port 3000:3000
+pnpm tdsk docker run --context backend --port 3000:3000
 ```
 - Options: `--context`, `--port`, `--detach`, `--env-file`
+
+**`docker exec`** - Execute command in running container
+```bash
+pnpm tdsk docker exec --context proxy --cmd "/bin/sh"
+```
+
+**`docker pull`** - Pull Docker image from registry
+```bash
+pnpm tdsk docker pull --context proxy
+```
+
+**`docker push`** - Push Docker image to registry
+```bash
+pnpm tdsk docker push --context proxy --tag v1.0.0
+```
 
 **`docker login`** - Authenticate with Docker registry
 ```bash
@@ -177,17 +214,18 @@ pnpm tdsk kube secret docker --env prod --namespace production
 ```
 - Aliases: `kubectl`, `kb`, `kcl`
 - Sub-commands: `docker`, `tdsk`, `database`, `payments`, `email` (preset configurations)
-- Options: `--name`, `--key`, `--value`, `--file`, `--files`, `--secrets`, `--keyvalue`, `--namespace`, `--literal`
+- Options: `--name`, `--key`, `--value`, `--file`, `--files`, `--secrets`, `--keyvalue`, `--namespace`, `--literal`, `--type`, `--context`, `--log`
 - Creates temporary files for secret values, then cleans up
 
-**`kube pod`** - Get pod information by context
+**`kube pod`** - Describe a Kubernetes pod by context or name
 ```bash
 pnpm tdsk kube pod --context proxy
-pnpm tdsk kube pod --context backend --output json
+pnpm tdsk kube pod --name my-pod-abc123 --output json
+pnpm tdsk kube pod --context backend --namespace my-namespace
 ```
-- Options: `--context` (proxy/backend/caddy), `--output` (json/yaml/wide)
-- Uses `getPod()` utility to resolve pod name from context
-- Returns pod details via `kubectl get pod`
+- Aliases: `pods`, `po`, `describe`
+- Options: `--context` (searches pod labels), `--name` (direct pod name), `--namespace`, `--output` (json/yaml/wide), `--log`
+- Uses `kubectl.getPod()` to resolve pod from context label, then calls `kubectl.describePod()`
 
 **`kube namespace`** - Manage namespaces
 ```bash
@@ -241,8 +279,8 @@ pnpm tdsk dev render               # Via 'dev' alias
 |---|---|---|---|
 | **web** | start | ui | --context (default: admin) |
 | **kube** | set, pod, secret, remove, ingress, namespace | kubectl, kb, kcl | --context, --output, --name, --namespace |
-| **docker** | build, pull, push, run, exec, login | N/A | --context, --tag, --image, --port |
-| **devspace** | start, clean, log, enter, render, attach, use | ds, space, dev | --build, --debug, --follow, --selector |
+| **docker** | build, run, exec, pull, push, login | doc, dc | --context, --tag, --image, --port |
+| **devspace** | start, clean, log, enter, render, attach, use | dev, ds | --build, --debug, --follow, --selector |
 
 ## Logic Flow
 
@@ -278,15 +316,24 @@ Step 5: task.action({ task, tasks, params, config, options })
 ```typescript
 // User specifies: --context proxy
 getCtx({ params: { context: 'proxy' }, config })
+  → ECtxMap['proxy'] → 'proxy'
   → config.contexts['proxy']
   → Returns:
     {
-      image: 'ghcr.io/org/proxy',
-      tag: 'latest',
-      location: '/path/to/repos/proxy',
+      image: TDSK_PX_IMAGE,
+      tag: TDSK_PX_IMAGE_TAG,
+      from: TDSK_PX_IMAGE_FROM,
+      dtag: TDSK_PX_DEV_IMAGE_TAG,
+      deployment: TDSK_PX_DEPLOYMENT,
       dockerfile: 'Dockerfile.proxy',
-      deployment: 'proxy-deployment'
+      location: '/path/to/repos/proxy',
+      tags: [],
+      mounts: {},
+      ports: { [TDSK_PX_PORT]: TDSK_PX_PORT }
     }
+
+// Context aliases via ECtxMap:
+//   be → backend, px → proxy, ad → admin, cd → caddy
 ```
 
 ### 3. Process Spawning Flow
@@ -314,9 +361,10 @@ Tasks support nested structures with inheritance:
 ```typescript
 export const kube: TTask = {
   name: 'kube',
-  alias: ['kubectl', 'kb'],
+  alias: ['kubectl', 'kb', 'kcl'],
   tasks: {
-    secret: { /* sub-task with its own action */ },
+    secret: { /* sub-task with its own action and nested tasks */ },
+    pod: { /* sub-task */ },
     namespace: { /* another sub-task */ }
   }
 }
@@ -353,17 +401,35 @@ options: {
 
 ### 4. Configuration Contexts
 
-Three main contexts for repos (proxy, api, admin):
+Five contexts for repos/services (app, proxy, backend, admin, caddy):
 ```typescript
 config.contexts = {
-  proxy: {
-    image: 'ghcr.io/org/proxy',
-    tag: 'v1.0.0',
-    location: '/repos/proxy',
-    dockerfile: 'Dockerfile.proxy',
-    deployment: 'proxy-deployment'
+  app: {
+    image: TDSK_IMAGE,
+    tag: TDSK_IMAGE_TAG,
+    from: TDSK_IMAGE_FROM,
+    dtag: TDSK_DEV_IMAGE_TAG,
+    deployment: TDSK_APP_DEPLOYMENT,
+    dockerfile: 'Dockerfile.app',
+    location: root,
+    tags: [],
+    mounts: { [root]: '/tdsk' },
+    ports: { ... }
   },
-  // ... api, admin
+  proxy: { ... },
+  backend: { ... },
+  admin: { ... },
+  caddy: { ... }
+}
+```
+
+Context aliases are defined in `ECtxMap` enum:
+```typescript
+enum ECtxMap {
+  backend = 'backend', be = 'backend',
+  caddy = 'caddy', cd = 'caddy',
+  admin = 'admin', ad = 'admin',
+  proxy = 'proxy', px = 'proxy',
 }
 ```
 
@@ -372,9 +438,11 @@ config.contexts = {
 EnvFilter controls which environment variables are passed to child processes:
 ```typescript
 EnvFilter = {
-  starts: ['npm_', 'HOME', 'KEG_', 'AWS'],  // Include vars starting with these
-  ends: ['_PATH', '_PORT'],                  // Include vars ending with these
-  exclude: [],                               // Explicit exclusions
+  starts: ['npm_', 'HOME', 'KEG_', 'FIREBASE', 'FIRE_BASE', 'GOOGLE', 'AZURE', 'AWS'],
+  ends: ['_PATH', '_PORT'],
+  contains: [],
+  exclude: [],
+  add: [],
 }
 ```
 
@@ -389,8 +457,12 @@ await spawn({
   output: true,        // Capture stdout/stderr
   detached: false,     // Keep process attached
   envs: { FOO: 'bar' }, // Additional env vars
-  close: (code) => {}, // Cleanup callback
-  error: (err) => {}   // Error handler
+  stdio: 'inherit',   // stdio mode (inherit, pipe, ignore)
+  close: (code) => {}, // Close callback
+  exit: (code, pid) => {}, // Exit callback
+  error: (err) => {},  // Error handler
+  stdout: (data) => {}, // stdout data handler
+  stderr: (data) => {}, // stderr data handler
 })
 ```
 
@@ -411,23 +483,22 @@ const saveTempSecret = (value: string) => {
 
 ### Core Dependencies
 - **`@keg-hub/args-parse`** (10.0.1) - Command-line argument parsing
-- **`@keg-hub/jsutils`** (10.0.0) - JavaScript utility functions (isObj, isArr, deepMerge)
+- **`@keg-hub/jsutils`** (10.0.0) - JavaScript utility functions (isObj, isArr, uuid, emptyArr, emptyObj, parseJSON)
 - **`@keg-hub/parse-config`** (2.2.0) - Configuration file parsing
 - **`alias-hq`** (6.2.4) - Path alias management for imports
+- **`tsup`** (8.3.0) - TypeScript bundler (build tool)
+- **`tsx`** (4.21.0) - TypeScript execution for dev mode (`pnpm cli`)
 
 ### Workspace Dependencies
 - **`@tdsk/domain`** (workspace) - Shared domain types and utilities (loadEnvs)
 - **`@tdsk/logger`** (workspace) - Winston-based logging service
 
-### Build Tools
-- **`esbuild`** (0.19.3) - JavaScript bundler
-- **`esbuild-register`** (3.5.0) - Runtime TypeScript support
-- **`tsup`** - Build tool (via package.json scripts)
-
 ### Dev Dependencies
-- **`typescript`** (^5.3.3)
-- **`vitest`** (^1.4.0) - Testing framework
+- **`typescript`** (5.7.3)
+- **`vitest`** (1.6.1) - Testing framework
 - **`@types/node`** (22.12.0)
+- **`module-alias`** (2.2.3) - Module alias resolution
+- **`vite-tsconfig-paths`** (4.3.2) - Vite plugin for tsconfig paths
 
 ## Available NPM/PNPM Commands
 
@@ -435,8 +506,9 @@ const saveTempSecret = (value: string) => {
 |---------|-------------|
 | `pnpm build` | Build CLI with tsup (outputs to `dist/`) |
 | `pnpm start` | Build in watch mode and run on changes |
-| `pnpm cli` | Run CLI directly with esbuild-register (dev mode) |
+| `pnpm cli` | Run CLI directly with tsx (dev mode) |
 | `pnpm test` | Run vitest tests |
+| `pnpm types` | Type-check with tsc --noEmit |
 | `pnpm clean` | Remove node_modules |
 
 ### Using the CLI
@@ -460,11 +532,11 @@ pnpm cli <command>
 
 ### 2. Logger Repo (`@tdsk/logger`)
 - **Import**: `Logger` service for structured logging
-- **Usage**: `Logger.info()`, `Logger.pair()`, `Logger.stdout()`, `Logger.stderr()`
+- **Usage**: `Logger.info()`, `Logger.pair()`, `Logger.stdout()`, `Logger.stderr()`, `Logger.colors`
 
 ### 3. Monorepo Structure
 - **Paths**: References root-level `deploy/` and `repos/` directories
-- **Contexts**: Manages three repos: proxy, api, admin
+- **Contexts**: Manages five contexts: app, proxy, backend, admin, caddy
 - **Configuration**: Shares environment variables via `@tdsk/domain`
 
 ### 4. Build System
@@ -473,15 +545,15 @@ pnpm cli <command>
 - **Linting**: Biome configuration shared across monorepo
 
 ### 5. External Tools Integration
-- **Docker**: Wraps `docker` CLI for image building and container management
+- **Docker**: Wraps `docker` CLI for image building, pushing, pulling, and container management
 - **Kubernetes**: Wraps `kubectl` CLI for cluster operations
 - **DevSpace**: Wraps `devspace` CLI for development workflows
 - **PNPM**: Executes workspace commands via `pnpm.run()`
 
 ### 6. Environment Management
-- **NODE_ENV**: Set via `--env` option (local/dev/staging/prod)
+- **NODE_ENV**: Set via `--env` option (default: `local`)
 - **Deploy Configs**: Reads from `deploy/values.{env}.yml`
-- **Image Tags**: Environment-specific tags (TDSK_PX_IMAGE_TAG, etc.)
+- **Image Tags**: Environment-specific tags (TDSK_PX_IMAGE_TAG, TDSK_BE_IMAGE_TAG, TDSK_AD_IMAGE_TAG, TDSK_CADDY_IMAGE_TAG)
 
 ## Type System
 
@@ -500,7 +572,7 @@ pnpm cli <command>
 
 **TTaskAction** - Task execution function
 ```typescript
-<P extends TTaskParams>(args: TTaskActionArgs<P>) => any
+<P extends TTaskPMap>(args: TTaskActionArgs<P>) => any
 ```
 
 **TTaskActionArgs** - Arguments passed to action
@@ -523,6 +595,8 @@ Record<string, {
   required?: boolean     // Is option required
   example?: string       // Usage example
   description?: string   // Help text
+  env?: string           // Environment variable binding
+  allowed?: string[]     // Allowed values
 }>
 ```
 
@@ -534,7 +608,7 @@ Record<string, {
 pnpm tdsk docker build --context proxy --tag v2.0.0
 
 # Build and push to registry
-pnpm tdsk docker build --context api --tag v2.0.0 --push
+pnpm tdsk docker build --context backend --tag v2.0.0 --push
 ```
 
 ### Managing Kubernetes Secrets
@@ -597,38 +671,4 @@ The CLI implements comprehensive error handling:
 3. **Process Failures**: Spawn wrapper captures exit codes and stderr
 4. **Config Errors**: Try-catch around config loading
 5. **Cleanup**: Temporary files removed even on error (Kubernetes secrets)
-
-## Future Enhancements
-
-Based on the codebase structure, potential areas for expansion:
-- Additional repo commands (build, test, deploy)
-- Helm chart management integration
-- Terraform/infrastructure commands
-- Database migration commands
-- Monitoring and observability tools
-- Multi-environment deployment pipelines
-- Comprehensive unit test coverage for all task groups
-
-## Changelog
-
-### v1.1.0 (2026-02-15)
-**Changes:**
-- Renamed `tasks/repos/` directory to `tasks/web/` for clarity
-- Updated `repos` command group to `web` with `ui` alias
-- Added `web start` command for running admin UI (`pnpm start`)
-- Enhanced `kube pod` task with `--output` flag and `getPod()` utility
-- Added `getPod()` utility in `utils/kube/` for context-based pod lookup
-- Added preset secret commands: `payments`, `email` (in addition to existing `docker`, `tdsk`, `database`)
-- Documented minimal test coverage (1 placeholder test file)
-- Updated command summary table with all task groups and key options
-
-### v1.0.0 (Initial Release)
-**Features:**
-- Docker commands: build, run, login
-- Kubernetes commands: secret, namespace, ingress, set, remove
-- DevSpace commands: start, enter, attach, log, clean, use, render
-- Repository management commands
-- Hierarchical task system with aliases
-- Configuration contexts for proxy/api/admin repos
-- Process spawning utilities
-- Environment filtering and configuration loading
+6. **Context Validation**: `getCtx()` verifies context exists in config and directory exists on disk

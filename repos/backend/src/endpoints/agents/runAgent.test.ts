@@ -71,6 +71,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
               delete: vi.fn(),
             },
             secret: {
+              get: vi.fn().mockResolvedValue({ data: null }),
               list: vi.fn().mockResolvedValue({ data: [] }),
             },
             thread: {
@@ -181,7 +182,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         orgId: `org-1`,
         providers: [],
         primaryProvider: undefined,
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
       },
     })
 
@@ -269,7 +272,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
       },
     })
@@ -431,7 +436,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           name: `invalid-provider`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
       },
     })
 
@@ -477,7 +484,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `google`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
       },
     })
@@ -531,7 +540,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `openai`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
       },
     })
@@ -585,7 +596,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         model: `claude-sonnet-4-20250514`,
         tools: [],
       },
@@ -638,7 +651,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         model: `claude-sonnet-4-20250514`,
         tools: [],
       },
@@ -693,7 +708,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
       },
     })
@@ -741,7 +758,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
       },
     })
@@ -792,7 +811,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         model: `claude-sonnet-4-20250514`,
         maxTokens: 2048,
         systemPrompt: `You are helpful.`,
@@ -874,7 +895,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
       },
     })
@@ -931,7 +954,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
         environment: {
           timeout: 600000,
@@ -997,7 +1022,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
       },
     })
@@ -1049,7 +1076,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
       },
     })
@@ -1100,7 +1129,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           brand: `anthropic`,
           options: {},
         },
-        secrets: [{ encryptedValue: fakeEncrypted(), agentId: `agent-1` }],
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
+        ],
         tools: [],
       },
     })

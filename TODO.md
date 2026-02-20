@@ -67,11 +67,15 @@
 
 ### Agent
 * Add open-router and ollama support
-* Review
+
  
 ### Repl
-* Review
 
+
+### Backend
+* When resolving a providers API secret should not fallback to other secrets
+  * The provider.secretId is required and the only secret that can be used as the API key
+  * Need to update `secretResolve` to respect this
 
 #### Work
 
@@ -85,3 +89,4 @@
   * Properly not loading properly from backend
   * Need to switch to Stripe instead
   * Whole implementation needs to be refactored
+

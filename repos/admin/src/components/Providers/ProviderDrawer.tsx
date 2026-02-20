@@ -98,7 +98,7 @@ export const ProviderDrawer = ({
   const [providerSecrets, setProviderSecrets] = useState<Secret[]>([])
 
   const secretOptions = orgSecrets.map((s) => ({
-    value: s.name || s.hashKey || s.id,
+    value: s.id,
     label: s.name || s.hashKey || s.id,
   }))
 
@@ -136,10 +136,17 @@ export const ProviderDrawer = ({
       setHeaders(objToKV(provider.headers, 'header'))
       setBodyParams(objToKV(provider.bodyParams, 'bodyParam'))
       setError(null)
-      setSecretMode('none')
       setApiKeyValue('')
       setShowApiKey(false)
-      setSelectedSecretId('')
+
+      // Pre-select the linked API key secret
+      if (provider.secretId) {
+        setSelectedSecretId(provider.secretId)
+        setSecretMode('existing')
+      } else {
+        setSelectedSecretId('')
+        setSecretMode('none')
+      }
     } else {
       setName('')
       setType('')
@@ -212,6 +219,10 @@ export const ProviderDrawer = ({
       ...(Object.keys(bodyParamsObj).length > 0
         ? { bodyParams: bodyParamsObj }
         : { bodyParams: undefined }),
+      // Link existing secret as the API key
+      ...(secretMode === 'existing' && selectedSecretId
+        ? { secretId: selectedSecretId }
+        : {}),
     }
 
     const result =
@@ -222,12 +233,12 @@ export const ProviderDrawer = ({
     if (result.error) {
       setLoading(false)
       return setError(
-        `Failed to ${isEditMode ? 'update' : 'create'} provider. Please try again.`
+        `Failed to ${isEditMode ? `update` : `create`} provider. Please try again.`
       )
     }
 
     // Create secret with dual ownership (orgId + providerId) if "new" mode
-    if (secretMode === 'new' && apiKeyValue.trim()) {
+    if (secretMode === `new` && apiKeyValue.trim()) {
       const secretName =
         template?.defaultSecretName ||
         `${name.trim().toUpperCase().replace(/\s+/g, '_')}_API_KEY`
@@ -244,6 +255,14 @@ export const ProviderDrawer = ({
           `Provider saved, but failed to create API key secret: ${secretResult.error.message}`
         )
       }
+
+      // Link the new secret as the provider's API key
+      if (secretResult.data?.id && providerId)
+        await updateProvider({
+          orgId,
+          id: providerId,
+          data: { secretId: secretResult.data.id },
+        })
     }
 
     setLoading(false)
@@ -359,10 +378,10 @@ export const ProviderDrawer = ({
                   {providerSecrets.map((s) => (
                     <Chip
                       key={s.id}
-                      label={s.name}
+                      label={provider?.secretId === s.id ? `${s.name} (API Key)` : s.name}
                       size='small'
                       variant='outlined'
-                      color='primary'
+                      color={provider?.secretId === s.id ? 'success' : 'primary'}
                     />
                   ))}
                 </Box>

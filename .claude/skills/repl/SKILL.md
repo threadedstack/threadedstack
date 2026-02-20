@@ -1,8 +1,8 @@
 ---
 name: "Threaded Stack - REPL Repo"
 description: "Knowledge base for the terminal REPL CLI for AI agent interaction"
-version: "2.0.0"
-tags: ["cli", "repl", "bun", "agent", "terminal", "interactive", "session", "proxy-adapter", "args-parse", "tasks"]
+version: "1.0.0"
+tags: ["cli", "repl", "bun", "agent", "terminal", "interactive", "session", "proxy-adapter", "args-parse", "tasks", "ink", "react", "tui"]
 ---
 # REPL Repo Skill
 
@@ -10,15 +10,20 @@ tags: ["cli", "repl", "bun", "agent", "terminal", "interactive", "session", "pro
 
 The **REPL** repo (`repos/repl`, `@tdsk/repl`) is a terminal-based interactive CLI for communicating with ThreadedStack AI agents. It provides:
 
+- **Ink React TUI** — Full terminal UI built with Ink (React for CLIs), replacing the old readline-based REPL
 - **Local Agent Execution** — Runs agent ReAct loops locally via session-based LLM proxy (API keys never leave the backend)
-- **Persistent Authentication** — API key-based login stored in `~/.config/tdsk/repl-auth.json`
-- **User Configuration** — Default org/agent/insecure preferences stored in `~/.config/tdsk/repl.json`
-- **Conversation Management** — Thread creation, switching, history loading via backend API
-- **Rich Terminal Output** — Markdown rendering, syntax highlighting, ANSI colors, tool call visualization
-- **Task-Based Architecture** — Commands implemented as `@keg-hub/args-parse` tasks with auto-generated help
-- **Compilable Binary** — Produces a standalone `tdsk-agent` binary (67MB) via `bun build --compile`
+- **Persistent Authentication** — API key-based login stored in YAML config (`~/.config/tdsk/repl/config.yaml`)
+- **Two-Layer Configuration** — Global config (`~/.config/tdsk/repl/config.yaml`) merged with project config (`.tdsk/config.yaml`)
+- **Context Injection** — Auto-detects `AGENTS.md` and `.tdsk/context/` files, prepends to prompts as XML blocks
+- **Slash Command System** — 16 slash commands in a registry with pre-auth filtering
+- **Lifecycle Hooks** — Shell commands triggered on session/tool/error events via config
+- **Rich Terminal Output** — Themed colors (dark/light), markdown rendering, streaming responses, tool call visualization
+- **Task-Based Architecture** — CLI commands implemented as `@keg-hub/args-parse` tasks with auto-generated help
+- **Compilable Binary** — Produces a standalone `tsa` binary via `bun build --compile`
 
 **Runtime**: Bun (not Node.js) — the entry point uses `#!/usr/bin/env bun`
+
+**Binary Name**: `tsa` (was `tdsk-agent` in v2.x)
 
 **Key Problem Solved**: Bridges server-hosted agent management with local execution, giving developers an interactive chat interface for testing and using agents without a browser UI. LLM API keys never leave the server — the REPL uses session tokens to proxy LLM calls through the backend.
 
@@ -28,63 +33,145 @@ The **REPL** repo (`repos/repl`, `@tdsk/repl`) is a terminal-based interactive C
 repos/repl/
 ├── configs/
 │   ├── biome.json              # Biome linter/formatter config
-│   └── vitest.config.ts        # Vitest test runner config
+│   ├── setupInkMocks.tsx       # Vitest setup: mocks ink + ink-testing-library for component tests
+│   └── vitest.config.ts        # Vitest config (node env, .test.ts + .test.tsx)
 ├── scripts/
-│   └── compile.ts              # Bun compile script for native binary
+│   └── build.ts                # Bun build script: bundle + optional compile to native binary
 ├── src/
 │   ├── index.ts                # CLI entry point (#!/usr/bin/env bun)
 │   ├── cli.ts                  # main() entry — argsParse + task dispatch
-│   ├── cli.test.ts             # 124 integration tests
-│   ├── repl.ts                 # AgentRepl main interactive loop class
-│   ├── repl.test.ts            # 52 unit tests
+│   ├── cli.test.ts             # 38 integration tests
 │   ├── constants/
-│   │   ├── index.ts            # Exports
-│   │   └── values.ts           # TDSK_REPL_VERSION constant
+│   │   ├── index.ts            # Barrel exports
+│   │   ├── values.ts           # Version, paths, defaults, retry config
+│   │   ├── errors.ts           # FRIENDLY_ERRORS patterns, toFriendlyError()
+│   │   └── tools.ts            # TOOL_DISPLAY_NAMES, getToolDisplayName()
 │   ├── types/
-│   │   ├── index.ts            # Type exports
-│   │   ├── client.types.ts     # TSessionInfo
-│   │   ├── repl.types.ts       # TAuthCredentials, TToolCallAccumulator
-│   │   └── tasks.types.ts      # TTask, TTasks, TTaskAction
-│   ├── tasks/                  # Command task definitions
-│   │   ├── index.ts            # TTasks export (task registry)
+│   │   ├── index.ts            # Barrel type exports
+│   │   ├── client.types.ts     # TSessionInfo, TProviderInfo, TConnectionStatus
+│   │   ├── commands.types.ts   # TSlashCommand, TSlashCommandContext
+│   │   ├── config.types.ts     # TReplConfig, TProjectConfig, THooksConfig, etc.
+│   │   ├── config.types.test.ts # 3 tests
+│   │   ├── context.types.ts    # TContextFile, TContextSource
+│   │   ├── repl.types.ts       # TAuthCredentials, TCliArgs, TToolCallAccumulator
+│   │   ├── session.types.ts    # TProviderInfo, TConnectionStatus
+│   │   └── tasks.types.ts      # TTask, TTasks, TTaskAction, TTaskOption
+│   ├── tasks/                  # CLI task definitions (tsa <command>)
+│   │   ├── index.ts            # tasks registry export
 │   │   ├── agents.ts           # 'agents' command
-│   │   ├── chat.ts             # 'chat' command (default)
+│   │   ├── chat.ts             # 'chat' command (default) — renders Ink App
 │   │   ├── help.ts             # 'help' command
 │   │   ├── login.ts            # 'login' command
 │   │   ├── logout.ts           # 'logout' command
 │   │   ├── status.ts           # 'status' command
 │   │   └── threads.ts          # 'threads' command
-│   ├── utils/tasks/            # Task utilities
-│   │   ├── index.ts            # Exports
-│   │   ├── addDefaults.ts      # Merges config defaults into task options
-│   │   ├── config.ts           # loadConfig/saveConfig (~/.config/tdsk/repl.json)
-│   │   ├── config.test.ts      # 8 unit tests
-│   │   ├── error.ts            # taskError (unknown command handler)
-│   │   ├── find.ts             # Task resolver with alias support
-│   │   ├── find.test.ts        # 10 unit tests
-│   │   └── requireAuth.ts      # Auth-required task wrapper
+│   ├── commands/               # Slash commands for in-REPL use (/help, /login, etc.)
+│   │   ├── index.ts            # findCommand, parseCommand, isPreAuthCommand, commands[]
+│   │   ├── index.test.ts       # 6 tests
+│   │   ├── registry.ts         # registeredCommands[] (all except help)
+│   │   ├── help.ts             # /help, /h
+│   │   ├── exit.ts             # /exit, /quit, /q
+│   │   ├── login.ts            # /login, /li
+│   │   ├── logout.ts           # /logout, /lo
+│   │   ├── clear.ts            # /clear, /cl
+│   │   ├── info.ts             # /info, /i (stub)
+│   │   ├── verbose.ts          # /verbose, /v
+│   │   ├── context.ts          # /context, /ctx (stub)
+│   │   ├── history.ts          # /history, /hist (stub)
+│   │   ├── newThread.ts        # /new, /n
+│   │   ├── addContext.ts       # /add
+│   │   ├── removeContext.ts    # /remove, /rm
+│   │   ├── listThreads.ts     # /threads, /t (stub)
+│   │   ├── switchAgent.ts      # /agent, /a
+│   │   ├── switchThread.ts     # /switch, /sw
+│   │   └── switchProvider.ts   # /provider, /p
+│   ├── components/             # Ink React components
+│   │   ├── App.tsx             # Root app — phases: login → loading → pickAgent → chat → error
+│   │   ├── App.test.tsx        # 1 test
+│   │   ├── ChatSession.tsx     # StatusBar + MessageList + StreamingResponse + Prompt
+│   │   ├── ChatSession.test.tsx # 4 tests
+│   │   ├── Prompt.tsx          # TextInput with cyan '>' prompt
+│   │   ├── Prompt.test.tsx     # 2 tests
+│   │   ├── AgentPicker.tsx     # Agent selection (auto-selects if single)
+│   │   ├── AgentPicker.test.tsx # 2 tests
+│   │   ├── SelectPrompt.tsx    # Keyboard-navigable selection list
+│   │   ├── SelectPrompt.test.tsx # 2 tests
+│   │   ├── StatusBar.tsx       # Agent name, provider, model, thread, connection indicator
+│   │   ├── StatusBar.test.tsx  # 4 tests
+│   │   ├── MessageList.tsx     # Renders user/assistant/system messages
+│   │   ├── MessageList.test.tsx # 2 tests
+│   │   ├── AssistantMessage.tsx # Markdown-rendered assistant text
+│   │   ├── AssistantMessage.test.tsx # 2 tests
+│   │   ├── UserMessage.tsx     # Dimmed "> text" display
+│   │   ├── UserMessage.test.tsx # 1 test
+│   │   ├── StreamingResponse.tsx # Spinner + ToolActivity + streaming markdown
+│   │   ├── StreamingResponse.test.tsx # 3 tests
+│   │   ├── ToolActivity.tsx    # Tool call status (✓/✗/⠙) with optional verbose output
+│   │   ├── ToolActivity.test.tsx # 4 tests
+│   │   ├── Spinner.tsx         # Braille animation spinner
+│   │   ├── Spinner.test.tsx    # 2 tests
+│   │   ├── WelcomeBox.tsx      # Bordered agent info box on session start
+│   │   ├── WelcomeBox.test.tsx # 5 tests
+│   │   ├── ErrorMessage.tsx    # Friendly error display with suggestions
+│   │   └── ErrorMessage.test.tsx # 3 tests
+│   ├── hooks/                  # React hooks for state management
+│   │   ├── index.ts            # Barrel exports
+│   │   ├── useSession.ts       # orgId, agentId, threadId, provider, connection state
+│   │   ├── useMessages.ts      # messages[], streaming state, tool calls
+│   │   ├── useAgent.ts         # agents list, selection, loading
+│   │   ├── useAuth.ts          # AuthManager wrapper
+│   │   ├── useConfig.ts        # Global + project config loading/merging
+│   │   ├── useConfig.test.ts   # 1 test
+│   │   ├── useConnection.ts    # Connection status with reconnect logic
+│   │   ├── useContext.ts       # Context file management (auto-detect, add, remove)
+│   │   ├── useInputHistory.ts  # Input history with up/down navigation
+│   │   ├── useInputHistory.test.ts # 2 tests
+│   │   └── useLifecycleHooks.ts # HooksService wrapper for lifecycle events
+│   ├── services/               # Non-React service classes
+│   │   ├── index.ts            # Barrel exports
+│   │   ├── config.ts           # ConfigService — YAML config load/save/merge
+│   │   ├── config.test.ts      # Tests
+│   │   ├── context.ts          # ContextLoader — auto-detect AGENTS.md + .tdsk/context/
+│   │   ├── context.test.ts     # Tests
+│   │   ├── hooks.ts            # HooksService — shell command lifecycle hooks
+│   │   └── hooks.test.ts       # Tests
+│   ├── theme/                  # Theming system (replaces old display/colors.ts)
+│   │   ├── index.ts            # Barrel exports
+│   │   ├── colors.ts           # getTheme(), setTheme(), themed() — picocolors-based
+│   │   ├── colors.test.ts      # 4 tests
+│   │   └── themes.ts           # darkTheme, lightTheme (TThemeColors)
 │   ├── auth/
 │   │   ├── index.ts            # AuthManager export
-│   │   ├── auth.ts             # AuthManager class (login/logout/credentials)
-│   │   └── auth.test.ts        # 19 unit tests
+│   │   ├── auth.ts             # AuthManager class (login/logout/credentials via ConfigService)
+│   │   └── auth.test.ts        # Tests
 │   ├── api/
-│   │   ├── index.ts            # ApiClient export
-│   │   ├── client.ts           # ApiClient class (HTTP API wrapper + session creation)
-│   │   └── client.test.ts      # 60 unit tests
+│   │   ├── index.ts            # ApiClient + type exports
+│   │   ├── client.ts           # ApiClient class — HTTP wrapper with retry logic
+│   │   └── client.test.ts      # 26 tests
 │   ├── executor/
 │   │   ├── index.ts            # Executor exports
 │   │   ├── executor.ts         # LocalAgentExecutor class (session-based flow)
-│   │   ├── executor.test.ts    # 12 unit tests
+│   │   ├── executor.test.ts    # Tests
 │   │   ├── httpAdapter.ts      # HttpMessageAdapter (IAgentRunnerDB impl)
-│   │   └── httpAdapter.test.ts # 3 unit tests
-│   └── display/
-│       ├── index.ts            # Renderer & colors exports
-│       ├── renderer.ts         # Renderer class (output formatting)
-│       ├── renderer.test.ts    # 35 unit tests
-│       └── colors.ts           # ANSI color functions
+│   │   └── httpAdapter.test.ts # Tests
+│   └── utils/
+│       ├── friendly-errors.ts  # Re-exports toFriendlyError from constants
+│       ├── friendly-errors.test.ts # 4 tests
+│       ├── markdown.ts         # renderMarkdown(), StreamingMarkdownBuffer
+│       ├── markdown.test.ts    # 5 tests
+│       └── tasks/
+│           ├── index.ts        # Barrel exports
+│           ├── addDefaults.ts  # Merges config defaults into task options
+│           ├── config.ts       # loadConfig/saveConfig (delegates to ConfigService)
+│           ├── config.test.ts  # Tests
+│           ├── error.ts        # taskError (prints + exits)
+│           ├── find.ts         # Task resolver with alias + subtask support
+│           ├── find.test.ts    # 8 tests
+│           ├── hasArg.ts       # CLI arg presence checker
+│           └── requireAuth.ts  # Auth-required task wrapper
 ├── dist/
-│   ├── index.js                # 2.4MB bundled JS (bun build)
-│   └── tdsk-agent              # 67MB native binary (bun build --compile)
+│   ├── index.js                # Bundled JS (bun build)
+│   └── tsa                     # Native binary (bun build --compile)
 ├── package.json
 └── tsconfig.json
 ```
@@ -95,16 +182,19 @@ repos/repl/
 |------|---------|
 | `src/index.ts` | CLI entry point — shebang (`#!/usr/bin/env bun`) + calls `main()` |
 | `src/cli.ts` | Main CLI logic — argsParse integration, task dispatch, auth/config loading |
-| `src/tasks/*.ts` | 7 task definitions (login, logout, status, agents, threads, chat, help) |
-| `src/utils/tasks/*.ts` | Task utilities (find, config, error, addDefaults, requireAuth) |
-| `src/repl.ts` | AgentRepl class — interactive readline loop with 10 slash commands |
-| `src/auth/auth.ts` | AuthManager — persistent API key storage and validation |
-| `src/api/client.ts` | ApiClient — HTTP wrapper for backend API (`/_/*` endpoints) |
-| `src/executor/executor.ts` | LocalAgentExecutor — creates sessions, ProxyAdapter, threads, runs AgentRunner |
-| `src/executor/httpAdapter.ts` | HttpMessageAdapter — implements IAgentRunnerDB for message persistence via HTTP |
-| `src/display/renderer.ts` | Renderer — event-driven terminal output with markdown and tool call formatting |
-| `src/display/colors.ts` | ANSI color utility functions (red, green, cyan, yellow, dim, bold, gray) |
-| `scripts/compile.ts` | Bun compile wrapper for native binary output |
+| `src/tasks/*.ts` | 7 CLI task definitions (login, logout, status, agents, threads, chat, help) |
+| `src/commands/*.ts` | 16 slash commands for in-REPL use (/help, /login, /agent, etc.) |
+| `src/components/App.tsx` | Root Ink component — phase-based UI (login → loading → pickAgent → chat) |
+| `src/components/ChatSession.tsx` | Chat UI: StatusBar + MessageList + StreamingResponse + Prompt |
+| `src/hooks/*.ts` | 10 React hooks for session, messages, config, context, auth state |
+| `src/services/*.ts` | ConfigService (YAML), ContextLoader (auto-detect), HooksService (lifecycle) |
+| `src/theme/*.ts` | Dark/light theming via picocolors |
+| `src/auth/auth.ts` | AuthManager — persistent API key storage via ConfigService |
+| `src/api/client.ts` | ApiClient — HTTP wrapper with retry logic for backend API |
+| `src/executor/executor.ts` | LocalAgentExecutor — sessions, ProxyAdapter, threads, AgentRunner |
+| `src/executor/httpAdapter.ts` | HttpMessageAdapter — IAgentRunnerDB over HTTP |
+| `src/utils/markdown.ts` | renderMarkdown() + StreamingMarkdownBuffer for incremental rendering |
+| `scripts/build.ts` | Bun build script with devtools stub plugin for Ink compatibility |
 
 ## Architecture
 
@@ -112,687 +202,578 @@ repos/repl/
 
 ```
 CLI Entry (index.ts) → main() (cli.ts)
-    ├── argsParse() — Parse CLI arguments with task-specific options
-    │
+    ├── hasArg() — Handle --version/-v directly
     ├── find() — Resolve task from registry by name/alias
-    │
-    ├── loadConfig() — Load user defaults from ~/.config/tdsk/repl.json
-    │
-    ├── addDefaults() — Merge config defaults into task option defaults
-    │
-    ├── AuthManager — Persistent login (API key + proxy URL → ~/.config/tdsk/repl-auth.json)
-    │
-    ├── Renderer — Terminal output formatting
+    ├── loadConfig() — Load user config (global YAML + project YAML, merged)
+    ├── addDefaults() — Merge config defaults into task option definitions
+    ├── argsParse() — Parse CLI arguments with task-specific options
+    ├── AuthManager — Persistent login (API key + proxy URL via ConfigService)
     │
     └── task.action(context) — Dispatch to task handler:
         │
-        ├── login → Validate API key, store credentials
-        ├── logout → Remove credentials
-        ├── status → Show login status
-        ├── agents → List agents (auth required)
-        ├── threads → List threads (auth required)
-        ├── help → Show command list
+        ├── login → Validate API key against /_/orgs, store in config.yaml
+        ├── logout → Remove auth config
+        ├── status → Show login status (masked API key)
+        ├── agents → List agents for org (auth required)
+        ├── threads → List threads for agent (auth required)
+        ├── help → Show command list with examples
         │
-        └── chat (default) → Interactive REPL:
-            ├── ApiClient — HTTP wrapper (Bearer token auth to proxy /_/* endpoints)
-            │   └── createSession(agentId) → TSessionInfo (sessionToken, provider, model)
+        └── chat (default) → Ink React TUI:
+            │
+            ├── render(<App />) → Ink application lifecycle
+            │
+            ├── App.tsx — Phase-based root component:
+            │   ├── 'login' phase → Login prompt with pre-auth slash commands
+            │   ├── 'loading' phase → Spinner while connecting
+            │   ├── 'pickAgent' phase → AgentPicker component
+            │   ├── 'chat' phase → WelcomeBox + ChatSession
+            │   └── 'error' phase → ErrorMessage component
+            │
+            ├── ChatSession.tsx — Main chat interface:
+            │   ├── StatusBar (agent, provider, model, thread, connection)
+            │   ├── MessageList (user/assistant/system messages)
+            │   ├── StreamingResponse (spinner + tool activity + live text)
+            │   └── Prompt (TextInput with '>' prefix)
+            │
+            ├── Slash Command System:
+            │   ├── parseCommand() → { name, args }
+            │   ├── findCommand() → TSlashCommand | null
+            │   ├── isPreAuthCommand() → boolean (login, help, exit allowed before auth)
+            │   └── 16 registered commands (see Slash Commands section)
+            │
+            ├── State Management (React hooks):
+            │   ├── useSession() → orgId, agentId, threadId, provider, connection
+            │   ├── useMessages() → messages[], streaming, toolCalls, clearStream
+            │   ├── useAgent() → agents list, selection
+            │   ├── useContext() → contextFiles, autoDetect, add/remove
+            │   └── useConfig() → global + project config merged
             │
             ├── LocalAgentExecutor — Orchestrator:
-            │   ├── createSession(agentId) → TSessionInfo (backend resolves API key server-side)
+            │   ├── createSession(agentId, providerId?) → TSessionInfo
             │   ├── ProxyAdapter — LLM calls proxied through backend SSE (/ai/chat)
             │   ├── createThread() → thread ID
+            │   ├── Context injection (XML <context> blocks)
             │   └── AgentRunner.run() — Local ReAct loop with ProxyAdapter
             │
-            ├── HttpMessageAdapter — IAgentRunnerDB implementation
-            │   ├── listMessages() → GET /_/orgs/:orgId/agents/:agentId/threads/:threadId/messages
-            │   └── createMessage() → POST same endpoint
-            │
-            └── AgentRepl — Interactive loop:
-                ├── #selectOrg() — Interactive org picker
-                ├── #selectAgent() — Interactive agent picker
-                └── #loop() — Readline prompt (> )
+            └── HttpMessageAdapter — IAgentRunnerDB over HTTP
 ```
 
 ### Request Flow
 
 ```
-1. User types message at > prompt
-2. AgentRepl.#sendMessage(prompt)
+1. User types message at > prompt (Ink TextInput)
+2. App.handleSubmit(text)
+   - If starts with '/': parseCommand → findCommand → handler(args, context)
+   - Otherwise: proceed with agent execution
 3. LocalAgentExecutor.run()
-   a. createSession(agentId) → backend resolves API key, returns session token
-   b. ProxyAdapter created with session token (LLM calls go through backend SSE)
-   c. Creates thread if none exists
+   a. createSession(agentId, providerId?) → backend resolves API key, returns session token
+   b. Creates thread if none exists
+   c. Prepends context files as <context> XML blocks
    d. AgentRunner.run() with:
-      - adapter: ProxyAdapter (proxies LLM calls through /ai/chat)
-      - llmConfig (provider + model, NO apiKey)
-      - db: HttpMessageAdapter (persists messages via API)
-      - onEvent callback (streams events to Renderer)
+      - proxyConfig: { backendUrl, sessionToken } (LLM calls go through backend SSE)
+      - llmConfig: { provider, model, maxTokens, systemPrompt }
+      - db: HttpMessageAdapter (persists messages via HTTP)
+      - onEvent: callback for streaming events
 4. ProxyAdapter → POST /ai/chat with Authorization: Session <token>
    - Backend injects API key server-side, streams SSE response
-5. Renderer displays streaming response:
-   - text → rendered markdown
-   - tool_call_start → tool header
-   - tool_call_args → streaming args
-   - tool_result → formatted result
-   - done → completion
-6. Messages persisted to backend via HttpMessageAdapter
+5. Event handling in App.tsx:
+   - 'text' → append to streamText (rendered as markdown)
+   - 'tool_call_start' → add tool to toolCalls[] (shows ⠙ spinner)
+   - 'tool_result' → update tool status (✓ success / ✗ error)
+   - 'error' → add system message
+6. On completion: save threadId, add assistant message, clear stream
+7. Messages persisted to backend via HttpMessageAdapter
 ```
 
-## Task-Based Architecture
+## Two Command Systems
 
-### Task System (`@keg-hub/args-parse`)
+The REPL has **two separate command systems**:
 
-All commands are implemented as tasks with standardized structure:
+### 1. CLI Tasks (`src/tasks/`) — Terminal Commands
+
+Invoked from the terminal: `tsa login`, `tsa chat`, `tsa agents`, etc. Use `@keg-hub/args-parse` for argument parsing.
 
 ```typescript
 type TTask = {
   name: string                    // Command name (e.g., 'login', 'chat')
   alias?: string[]                // Short aliases (e.g., ['li'], ['ch'])
   description: string             // Help text
-  default?: boolean               // Default command if no args
-  options?: Record<string, {      // CLI flags (auto-parsed by argsParse)
-    alias?: string[]
-    description?: string
-    type?: string
-    default?: any
-  }>
-  action: TTaskAction             // Handler function
+  example?: string                // Usage example
+  options?: Record<string, TTaskOption>  // CLI flags
+  action?: TTaskAction            // Handler function
 }
 
 type TTaskAction = (context: {
   params: Record<string, any>     // Parsed CLI args
   task: TTask                     // Current task
-  tasks: TTasks                   // All tasks (for help)
+  tasks: TTasks                   // All tasks
   auth: AuthManager               // Auth manager instance
-  renderer: Renderer              // Renderer instance
-  config: TReplConfig             // User config from ~/.config/tdsk/repl.json
-  options: Record<string, any>    // Original options (pre-parse)
+  config?: TReplConfig            // Merged user config
+  options?: string[]              // Remaining unparsed args
 }) => Promise<void>
 ```
 
-### Task Registry (`src/tasks/index.ts`)
+**Task Registry** (`src/tasks/index.ts`):
+
+| Task | Alias | Description |
+|------|-------|-------------|
+| `chat` | `ch` | Start interactive chat (default, renders Ink App) |
+| `login` | `li` | Authenticate with API key |
+| `logout` | `lo` | Remove stored credentials |
+| `status` | `st` | Show authentication status |
+| `agents` | `ag` | List agents (auth required) |
+| `threads` | `th` | List threads for agent (auth required) |
+| `help` | `--help`, `-h` | Show available commands |
+
+### 2. Slash Commands (`src/commands/`) — In-REPL Commands
+
+Invoked within the Ink chat session: `/help`, `/login <key>`, `/agent <id>`, etc. Use `TSlashCommandContext` for state manipulation.
 
 ```typescript
-export const TTasks: TTask[] = [
-  loginTask,      // 'login', alias: ['li']
-  logoutTask,     // 'logout', alias: ['lo']
-  statusTask,     // 'status', alias: ['st']
-  agentsTask,     // 'agents', alias: ['ag']
-  threadsTask,    // 'threads', alias: ['th']
-  chatTask,       // 'chat', alias: ['ch'], default: true
-  helpTask        // 'help' (also --help, -h)
-]
+type TSlashCommand = {
+  name: string
+  aliases: string[]
+  description: string
+  handler: (args: string, ctx: TSlashCommandContext) => Promise<string | void>
+}
+
+type TSlashCommandContext = {
+  orgId: string
+  agentId: string
+  verbose: boolean
+  threadId: string | null
+  exit: () => void
+  output: (text: string) => void
+  setAgentId: (id: string) => void
+  setVerbose: (v: boolean) => void
+  setProviderId: (id: string) => void
+  setThreadId: (id: string | null) => void
+  addContextFile: (path: string) => void
+  removeContextFile: (index: number) => void
+  auth: { isLoggedIn: boolean, logout: () => void, login: (...) => Promise<void> }
+}
 ```
 
-### Task Resolution Flow
+**Slash Command Registry** (`src/commands/registry.ts`):
 
-```
-1. main() parses process.argv
-2. Handles --version/-v flag directly (prints version, exits)
-3. Defaults to 'chat' if:
-   - No args provided
-   - First arg is a value flag (--org, --agent, --thread)
-4. Calls find(tasks, commandName) to resolve task
-   - Returns task if found (by name or alias)
-   - Returns null if not found
-5. If not found: calls taskError() (suggests similar commands)
-6. Calls loadConfig() to load ~/.config/tdsk/repl.json
-7. Calls addDefaults() to merge config into task option defaults
-8. Calls argsParse() with task-specific options
-9. Instantiates AuthManager, Renderer
-10. Applies insecure mode from stored credentials
-11. Calls task.action() with full context
-```
+| Command | Aliases | Description | Status |
+|---------|---------|-------------|--------|
+| `/help` | `/h` | Show available commands | Working |
+| `/exit` | `/quit`, `/q` | Exit the REPL | Working |
+| `/login` | `/li` | Authenticate with API key | Working |
+| `/logout` | `/lo` | Remove credentials | Working |
+| `/clear` | `/cl` | Clear screen | Working |
+| `/verbose` | `/v` | Toggle verbose mode | Working |
+| `/new` | `/n` | Start new thread | Working |
+| `/agent` | `/a` | Switch to different agent | Working |
+| `/switch` | `/sw` | Switch to different thread | Working |
+| `/provider` | `/p` | Switch LLM provider | Working |
+| `/add` | — | Add context file | Working |
+| `/remove` | `/rm` | Remove context file | Working |
+| `/info` | `/i` | Show session info | Stub |
+| `/context` | `/ctx` | List context files | Stub |
+| `/history` | `/hist` | Show thread history | Stub |
+| `/threads` | `/t` | List threads | Stub |
+
+**Pre-Auth Commands**: `login`, `help`, `exit`, `quit`, `q`, `h`, `li` — allowed before authentication.
 
 ## Key Components
 
 ### 1. CLI Entry (`src/cli.ts`)
 
-Main entry point for the CLI. Orchestrates argument parsing, config loading, and task dispatch.
-
 ```typescript
-export async function main(): Promise<void> {
-  const args = process.argv.slice(2)
+export const main = async (): Promise<any> => {
+  const argv = process.argv.slice(2)
 
-  // Handle --version/-v
-  if (args.includes('--version') || args.includes('-v')) {
-    console.log(TDSK_REPL_VERSION)
-    return
-  }
+  if (hasArg(argv, 'version', ['v'])) return process.stdout.write(`tsa v${Version}\n`)
 
-  // Default to 'chat' command
-  const firstArg = args[0]
-  const isValueFlag = firstArg?.startsWith('--')
-  const commandName = !firstArg || isValueFlag ? 'chat' : firstArg
+  // Default to 'chat' when no args or first arg is a value flag (not --help)
+  const args = !argv.length || (argv[0].startsWith('--') && argv[0] !== '--help')
+    ? ['chat', ...argv]
+    : argv
 
-  // Find task
-  const task = find(TTasks, commandName)
-  if (!task) return taskError(commandName, TTasks)
-
-  // Load user config
+  const { task, options } = find(tasks, args)
   const config = loadConfig()
-
-  // Merge config defaults into task options
-  const options = addDefaults(task.options, config)
-
-  // Parse args
-  const params = argsParse(args, options)
-
-  // Setup context
+  const params = await argsParse({ args: options, task: { options: addDefaults(task, config) } })
   const auth = new AuthManager()
-  const renderer = new Renderer()
 
-  // Apply insecure mode from stored credentials
-  const credentials = auth.getCredentials()
-  if (credentials?.insecure) {
+  if (storedCreds?.insecure || hasArg(argv, 'insecure', ['ins'])) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
   }
 
-  // Dispatch to task
-  await task.action({ params, task, tasks: TTasks, auth, renderer, config, options })
+  await task.action?.({ task, auth, tasks, config, params, options })
 }
 ```
 
-### 2. Task Utilities (`src/utils/tasks/`)
+### 2. App Component (`src/components/App.tsx`)
 
-#### `find.ts` — Task Resolution
-
-```typescript
-export function find(tasks: TTask[], name: string): TTask | null
-```
-
-Resolves a task by name or alias. Returns `null` if not found.
-
-#### `config.ts` — User Configuration
+Root Ink component managing the full application lifecycle through phases:
 
 ```typescript
-type TReplConfig = {
-  org?: string       // Default org ID
-  agent?: string     // Default agent ID
-  insecure?: boolean // Allow self-signed certs
-}
+type TAppPhase = 'login' | 'loading' | 'pickAgent' | 'chat' | 'error'
 
-export function loadConfig(): TReplConfig
-export function saveConfig(config: TReplConfig): void
-```
-
-- **Config Path**: `~/.config/tdsk/repl.json`
-- **Purpose**: Store user preferences (default org/agent, insecure mode)
-- **Behavior**: Returns `{}` if file doesn't exist
-
-#### `addDefaults.ts` — Config Injection
-
-```typescript
-export function addDefaults(
-  options: Record<string, any>,
-  config: TReplConfig
-): Record<string, any>
-```
-
-Merges config values into task option defaults:
-- `config.org` → `options.org.default`
-- `config.agent` → `options.agent.default`
-- `config.insecure` → `options.insecure.default`
-
-#### `requireAuth.ts` — Auth Wrapper
-
-```typescript
-export function requireAuth(action: TTaskAction): TTaskAction
-```
-
-Wraps a task action to enforce authentication. Checks `auth.isLoggedIn()` and exits with error if not authenticated.
-
-#### `error.ts` — Unknown Command Handler
-
-```typescript
-export function taskError(name: string, tasks: TTask[]): void
-```
-
-Prints error message and suggests similar commands based on name/alias matching.
-
-### 3. Task Definitions (`src/tasks/`)
-
-#### `login.ts`
-
-```typescript
-export const loginTask: TTask = {
-  name: 'login',
-  alias: ['li'],
-  description: 'Authenticate with API key',
-  options: {
-    key: { description: 'API key (tdsk_...)', type: 'string', required: true },
-    url: { description: 'Proxy URL', type: 'string' },
-    insecure: { description: 'Allow self-signed certs', type: 'boolean' }
-  },
-  action: async ({ params, auth, renderer }) => {
-    await auth.login(params.key, params.url, params.insecure)
-    renderer.renderSuccess('Logged in successfully')
-  }
+const App = ({ auth, initialOrgId?, initialAgentId?, initialThreadId? }) => {
+  // Phase transitions:
+  // 1. 'login' — if not authenticated, shows login prompt with pre-auth slash commands
+  // 2. 'loading' — spinner while connecting + resolving org
+  // 3. 'pickAgent' — AgentPicker if no initialAgentId
+  // 4. 'chat' — WelcomeBox + ChatSession with full slash command support
+  // 5. 'error' — ErrorMessage display
 }
 ```
 
-#### `logout.ts`
+**Event Handling** in chat phase:
+- `text` → `setStreamText(prev => prev + event.text)` (live markdown rendering)
+- `tool_call_start` → adds tool to `toolCalls[]` with `status: 'running'`
+- `tool_result` → updates last tool's status to `'success'` or `'error'`
+- `error` → adds system message
 
-```typescript
-export const logoutTask: TTask = {
-  name: 'logout',
-  alias: ['lo'],
-  description: 'Remove stored credentials',
-  action: async ({ auth, renderer }) => {
-    auth.logout()
-    renderer.renderSuccess('Logged out successfully')
-  }
-}
-```
+### 3. AuthManager (`src/auth/auth.ts`)
 
-#### `status.ts`
-
-```typescript
-export const statusTask: TTask = {
-  name: 'status',
-  alias: ['st'],
-  description: 'Show authentication status',
-  action: async ({ auth, renderer }) => {
-    const credentials = auth.getCredentials()
-    if (credentials) {
-      renderer.renderInfo(`Logged in to ${credentials.proxyUrl}`)
-    } else {
-      renderer.renderWarning('Not logged in')
-    }
-  }
-}
-```
-
-#### `agents.ts`
-
-```typescript
-export const agentsTask: TTask = {
-  name: 'agents',
-  alias: ['ag'],
-  description: 'List agents',
-  options: {
-    org: { alias: ['o'], description: 'Organization ID', type: 'string' }
-  },
-  action: requireAuth(async ({ params, auth, renderer }) => {
-    const client = new ApiClient(auth)
-    const orgId = await resolveOrgId(params.org, client, renderer)
-    const agents = await client.listAgents(orgId)
-    // ... render agents table
-  })
-}
-```
-
-#### `threads.ts`
-
-```typescript
-export const threadsTask: TTask = {
-  name: 'threads',
-  alias: ['th'],
-  description: 'List threads for an agent',
-  options: {
-    agent: { alias: ['a'], description: 'Agent ID', type: 'string', required: true },
-    org: { alias: ['o'], description: 'Organization ID', type: 'string' }
-  },
-  action: requireAuth(async ({ params, auth, renderer }) => {
-    const client = new ApiClient(auth)
-    const orgId = await resolveOrgId(params.org, client, renderer)
-    const threads = await client.listThreads(orgId, params.agent)
-    // ... render threads table
-  })
-}
-```
-
-#### `chat.ts`
-
-```typescript
-export const chatTask: TTask = {
-  name: 'chat',
-  alias: ['ch'],
-  description: 'Start interactive chat',
-  default: true,
-  options: {
-    org: { alias: ['o'], description: 'Organization ID', type: 'string' },
-    agent: { alias: ['a'], description: 'Agent ID', type: 'string' },
-    thread: { alias: ['t'], description: 'Thread ID', type: 'string' }
-  },
-  action: requireAuth(async ({ params, auth, renderer }) => {
-    const client = new ApiClient(auth)
-    const executor = new LocalAgentExecutor(client)
-    const repl = new AgentRepl(executor, renderer)
-    await repl.start({
-      orgId: params.org,
-      agentId: params.agent,
-      threadId: params.thread
-    })
-  })
-}
-```
-
-#### `help.ts`
-
-```typescript
-export const helpTask: TTask = {
-  name: 'help',
-  description: 'Show available commands',
-  action: async ({ tasks, renderer }) => {
-    // Renders table of all tasks with name, alias, description
-  }
-}
-```
-
-### 4. AuthManager (`src/auth/auth.ts`)
-
-Handles persistent authentication via API key stored on disk.
+Handles persistent authentication via `ConfigService`.
 
 ```typescript
 class AuthManager {
-  getCredentials(): TAuthCredentials | null   // Read ~/.config/tdsk/repl-auth.json
+  getCredentials(): TAuthCredentials | null   // Read from ConfigService.loadGlobal().auth
   isLoggedIn(): boolean
-  async login(apiKey, proxyUrl?, insecure?)   // Validate against /_/orgs + store
-  logout(): void                               // Delete config file
-}
-
-type TAuthCredentials = {
-  apiKey: string
-  proxyUrl: string
-  insecure?: boolean
+  async login(apiKey, proxyUrl?, insecure?)   // Validate against /_/orgs + store via ConfigService.saveGlobal()
+  logout(): void                               // Remove auth from config
 }
 ```
 
-- **Config Path**: `~/.config/tdsk/repl-auth.json`
+- **Config Path**: `~/.config/tdsk/repl/config.yaml` (auth section)
 - **Default Proxy**: `https://px.local.threadedstack.app`
 - **Validation**: Fetches `/_/orgs` endpoint to verify API key works
-- **Insecure Mode**: Sets `NODE_TLS_REJECT_UNAUTHORIZED=0` for self-signed certs (persisted to config)
+- **API Key Prefix**: `tdsk_` (validated on login)
 
-### 5. ApiClient (`src/api/client.ts`)
+### 4. ApiClient (`src/api/client.ts`)
 
-HTTP wrapper for all backend API interactions.
+HTTP wrapper for all backend API interactions with automatic retry.
 
 ```typescript
 class ApiClient {
-  // Proxy URL getter (throws if not logged in)
   get proxyUrl(): string
 
   // Organizations
-  listOrgs(): Promise<unknown[]>
-  getOrg(orgId): Promise<unknown>
+  listOrgs(): Promise<Organization[]>
+  getOrg(orgId): Promise<Organization>
 
   // Agents
-  listAgents(orgId): Promise<unknown[]>
-  getAgent(orgId, agentId): Promise<unknown>
+  listAgents(orgId): Promise<Agent[]>
+  getAgent(orgId, agentId): Promise<Agent>
 
-  // Sessions (replaces resolveAgent — API keys never leave the server)
-  createSession(agentId): Promise<TSessionInfo>
+  // Sessions
+  createSession(agentId, providerId?): Promise<TSessionInfo>
+
+  // Providers
+  listProviders(orgId, agentId): Promise<TProviderInfo[]>
 
   // Threads
-  listThreads(orgId, agentId): Promise<unknown[]>
-  getThread(orgId, agentId, threadId): Promise<unknown>
-  createThread(orgId, agentId, name?): Promise<unknown>
+  listThreads(orgId, agentId): Promise<Thread[]>
+  getThread(orgId, agentId, threadId): Promise<Thread>
+  createThread(orgId, agentId, name?): Promise<Thread>
 
   // Messages
-  listMessages(orgId, agentId, threadId): Promise<unknown[]>
-  createMessage(orgId, agentId, threadId, data): Promise<unknown>
-}
-
-type TSessionInfo = {
-  sessionToken: string
-  provider: TLLMProviderType
-  model: string
-  maxTokens?: number
-  systemPrompt?: string
+  listMessages(orgId, agentId, threadId): Promise<Message[]>
+  createMessage(orgId, agentId, threadId, data): Promise<Message>
 }
 ```
 
-- **Auth**: `Authorization: Bearer <apiKey>` header on all `/_/*` requests
-- **Session Creation**: `POST /_/ai/sessions` with `{ agentId }` → returns `TSessionInfo`
-- **Base URL**: `${proxyUrl}/_` (all paths prefixed with `/_`)
-- **Response Format**: Unwraps `{ data: T }` envelope from backend
+- **Auth**: `Authorization: Bearer <apiKey>` on all `/_/*` requests
+- **Session Creation**: `POST /_/ai/sessions` with `{ agentId, providerId? }` → `TSessionInfo`
+- **Retry**: Up to `MaxRetries` (3) with delays `[1000, 3000, 9000]ms` on ECONNREFUSED, ETIMEDOUT, ENOTFOUND, 429, 5xx
+- **Response Format**: Unwraps `{ data: T }` envelope
 
-### 6. LocalAgentExecutor (`src/executor/executor.ts`)
+### 5. LocalAgentExecutor (`src/executor/executor.ts`)
 
-Orchestrates local agent execution with session-based LLM proxying. API keys never leave the server.
+Orchestrates local agent execution with session-based LLM proxying.
 
 ```typescript
 class LocalAgentExecutor {
-  #client: ApiClient
-
-  async createSession(agentId: string): Promise<TSessionInfo>
-
-  async run(opts: {
+  get client(): ApiClient
+  createSession(agentId, providerId?): Promise<TSessionInfo>
+  run(opts: {
     orgId: string
     agentId: string
-    threadId?: string
     prompt: string
-    onEvent?: (event: TStreamEvent) => void
-  }): Promise<{ threadId: string }>
+    userId: string
+    threadId?: string
+    providerId?: string
+    maxSteps?: number
+    contextFiles?: TContextFile[]
+    onEvent: (event: TStreamEvent) => void
+  }): Promise<TRunResult>
 }
 ```
 
-- **Session Creation**: Calls `POST /_/ai/sessions` → backend resolves API key, returns session token + LLM config
-- **ProxyAdapter**: Creates `ProxyAdapter` with session token — LLM calls go through backend SSE (`/ai/chat`)
-- **Thread Management**: Creates thread if none provided, reuses existing
-- **Execution**: Delegates to `AgentRunner.run()` with:
-  - `adapter`: ProxyAdapter (no API key)
-  - `llmConfig`: provider + model from session
-  - `db`: HttpMessageAdapter
-  - `onEvent`: streams to renderer
-  - `maxSteps`: 10 (hardcoded)
-- **Persistence**: Uses `HttpMessageAdapter` as the database layer
+**Run flow**:
+1. Creates session → backend resolves API key, returns session token
+2. Creates thread if none provided
+3. Prepends context files as `<context>--- name ---\ncontent\n</context>` blocks
+4. Creates `HttpMessageAdapter` for message persistence
+5. Calls `AgentRunner.run()` with `proxyConfig` (LLM calls through backend SSE) and `llmConfig`
 
-### 7. HttpMessageAdapter (`src/executor/httpAdapter.ts`)
+### 6. ConfigService (`src/services/config.ts`)
 
-Implements `IAgentRunnerDB` interface from `@tdsk/agent` using HTTP instead of direct DB access.
+YAML-based configuration management with two layers.
 
 ```typescript
-class HttpMessageAdapter implements IAgentRunnerDB {
-  #client: ApiClient
-  #orgId: string
-  #agentId: string
-  #threadId: string
-
-  async listMessages(opts): Promise<{ data?: Array<{...}> }>
-  async createMessage(data): Promise<void>
+class ConfigService {
+  static loadGlobal(): TReplConfig           // ~/.config/tdsk/repl/config.yaml
+  static saveGlobal(config: TReplConfig)     // YAML dump, chmod 0600, mkdir 0700
+  static loadProject(cwd?): TProjectConfig   // .tdsk/config.yaml
+  static merge(global, project): TReplConfig // Project org/agent override; hooks/tools merge
 }
 ```
 
-### 8. AgentRepl (`src/repl.ts`)
+**Config Schema** (`TReplConfig`):
+```yaml
+org: "org_xxx"          # Default organization ID
+agent: "agent_xxx"      # Default agent ID
+project: "proj_xxx"     # Default project
+auth:
+  apiKey: "tdsk_..."
+  proxyUrl: "https://px.local.threadedstack.app"
+  insecure: false
+display:
+  theme: "dark"         # dark | light | auto
+  verbose: false
+  markdown: true
+  timestamps: false
+behavior:
+  autoResume: false
+  maxHistory: 50
+  confirmTools: false
+sandbox:
+  provider: "local"     # local | e2b
+  timeout: 300000
+hooks:
+  onSessionStart: "echo started"
+  onSessionEnd: "echo ended"
+  onToolCall: "echo tool called"
+  onToolResult: "echo tool result"
+  onError: "echo error"
+  onMessage: "echo message"
+tools:
+  confirm: ["shellExec"]
+  block: ["deleteFile"]
+```
 
-Main interactive REPL with slash commands and session management.
+**Project Config** (`.tdsk/config.yaml`):
+```yaml
+org: "org_xxx"
+agent: "agent_xxx"
+context: ["./docs/api.md"]
+hooks:
+  onSessionStart: "echo project session"
+tools:
+  confirm: ["writeFile"]
+  block: []
+```
+
+### 7. ContextLoader (`src/services/context.ts`)
+
+Auto-detects context files for injection into agent prompts.
 
 ```typescript
-class AgentRepl {
-  #client: ApiClient
-  #executor: LocalAgentExecutor
-  #renderer: Renderer
-  #orgId: string | null = null
-  #agentId: string | null = null
-  #threadId: string | null = null
-
-  async start(opts?: { orgId?, agentId?, threadId? }): Promise<void>
+class ContextLoader {
+  static autoDetect(cwd): TContextFile[]   // Scans AGENTS.md + .tdsk/context/
+  static loadFile(path): TContextFile | null  // Manual file loading
 }
 ```
 
-**Slash Commands** (10 total):
+- **Auto-detected sources**: `AGENTS.md` at cwd root, all files in `.tdsk/context/`
+- **TContextFile**: `{ path, name, source: 'auto'|'manual', content, sizeBytes }`
+- **Injection**: Context files prepended to prompt as XML `<context>` blocks by executor
 
-| Command | Aliases | Description |
-|---------|---------|-------------|
-| `/help` | `/h` | Show available commands |
-| `/new` | — | Start new thread |
-| `/threads` | — | List threads for current agent |
-| `/switch <id>` | — | Switch to a different thread |
-| `/history` | — | Load and display thread messages |
-| `/agent` | — | Switch to a different agent |
-| `/info` | — | Show current session info |
-| `/exit` | `/quit`, `/q` | Exit the REPL |
+### 8. HooksService (`src/services/hooks.ts`)
 
-**Interactive Flows**:
-- `#selectOrg()` — Lists orgs, prompts user to pick one (auto-selects if only 1)
-- `#selectAgent()` — Lists agents, prompts user to pick one (auto-selects if only 1)
-- `#loop()` — Readline prompt (`> `), dispatches messages to executor
-
-### 9. Renderer (`src/display/renderer.ts`)
-
-Event-driven terminal output with rich formatting.
+Lifecycle hooks that execute shell commands on events.
 
 ```typescript
-class Renderer {
-  renderEvent(event: TStreamEvent): void
-  renderWelcome(agentName: string, threadId?: string): void
-  renderInfo(msg: string): void
-  renderSuccess(msg: string): void
-  renderWarning(msg: string): void
-  spinner(msg: string): { stop: () => void }
-  clear(): void
+class HooksService {
+  constructor(config: THooksConfig)
+  run(name: keyof THooksConfig, env: Record<string, string>): Promise<void>
 }
 ```
 
-**Event Types Handled**: `text`, `tool_call_start`, `tool_call_args`, `tool_result`, `error`, `done`
+- Executes via `execFile('/bin/sh', ['-c', command], { env, timeout: 10000 })`
+- Silently swallows errors (writes to stderr only)
+- Available hooks: `onSessionStart`, `onSessionEnd`, `onToolCall`, `onToolResult`, `onError`, `onMessage`
 
-**Tool Call Formatting**:
-- Tree structure using `┌ │ ├ └` characters
-- ✓ (green) for success, ✗ (red) for errors
-- Truncates args >80 chars, results >500 chars
-- Syntax highlighting for JSON/code blocks
+### 9. Theme System (`src/theme/`)
 
-**Spinner**:
-- ANSI animation: `⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏`
-- 80ms interval
-- `.stop()` method to clear
+Replaces the old `display/colors.ts` with a configurable theming system.
+
+```typescript
+type TThemeColors = {
+  primary: (s: string) => string    // cyan (dark) / blue (light)
+  secondary: (s: string) => string  // dim
+  success: (s: string) => string    // green
+  warning: (s: string) => string    // yellow
+  error: (s: string) => string      // red
+  muted: (s: string) => string      // gray
+  accent: (s: string) => string     // magenta
+  border: (s: string) => string     // dim
+  bold: (s: string) => string       // bold
+}
+
+function getTheme(name: 'dark' | 'light' | 'auto'): TThemeColors
+function setTheme(name): void
+function themed(color: keyof TThemeColors, text: string): string  // NO_COLOR aware
+```
+
+### 10. Ink Components
+
+| Component | Props | Purpose |
+|-----------|-------|---------|
+| `App` | `auth, initialOrgId?, initialAgentId?, initialThreadId?` | Root — phase-based lifecycle |
+| `ChatSession` | `agentName, verbose?, modelName?, streamText, threadName?, isStreaming, providerName?, toolCalls, connection, onSubmit, messages` | Main chat UI |
+| `Prompt` | `onSubmit, disabled` | TextInput with cyan `>` prefix |
+| `AgentPicker` | `agents, onSelect` | Auto-selects single agent, otherwise shows list |
+| `SelectPrompt` | `items, prompt, onSelect` | Keyboard-navigable (↑↓ Enter, number keys) |
+| `StatusBar` | `agentName, providerName?, modelName?, threadName?, connection` | Status line with connection indicator |
+| `MessageList` | `messages, markdown?` | Renders UserMessage/AssistantMessage/system |
+| `AssistantMessage` | `text, markdown?` | Markdown-rendered text |
+| `UserMessage` | `text` | Dimmed `> text` |
+| `StreamingResponse` | `text, toolCalls, isStreaming, verbose?` | Live response with tool activity |
+| `ToolActivity` | `tools, verbose?` | Per-tool status: ✓/✗/⠙ with optional result |
+| `Spinner` | `message?` | Braille animation (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`, 80ms) |
+| `WelcomeBox` | `agentName, agentDescription?, providerName?, modelName?, threadName?, contextFileCount?, tools?` | Bordered info box |
+| `ErrorMessage` | `message?, suggestion?, error?` | Friendly error with `toFriendlyError()` |
+
+### 11. React Hooks
+
+| Hook | Returns | Purpose |
+|------|---------|---------|
+| `useSession()` | `{ orgId, setOrgId, agentId, setAgentId, threadId, setThreadId, provider, setProvider, connection, setConnection }` | Session state |
+| `useMessages()` | `{ messages, addMessage, setMessages, isStreaming, setIsStreaming, streamText, setStreamText, toolCalls, setToolCalls, clearStream }` | Message + streaming state |
+| `useAgent(client)` | `{ agents, currentAgent, loading, loadAgents(orgId), selectAgent(agent) }` | Agent discovery |
+| `useAuth()` | `{ auth, isLoggedIn, login, logout }` | AuthManager wrapper |
+| `useConfig()` | `{ config, global, project }` | Merged config |
+| `useConnection()` | `{ status, connect, disconnect, reconnect }` | Connection with 3s reconnect delay |
+| `useContextFiles()` | `{ contextFiles, autoDetect(cwd), addFile(path), removeFile(index) }` | Context management |
+| `useInputHistory(maxSize?)` | `{ add, up, down, reset, history }` | Input history (default 100) |
+| `useLifecycleHooks(config?)` | `{ run(name, env?) }` | HooksService wrapper |
 
 ## CLI Commands
 
 ```bash
 # Authentication
-tdsk-agent login <api-key> [--url <proxy-url>] [--insecure]
-tdsk-agent logout
-tdsk-agent status
+tsa login <api-key> [--url <proxy-url>] [--insecure]
+tsa logout
+tsa status
 
 # Discovery
-tdsk-agent agents [--org <id>]
-tdsk-agent threads <agent-id> [--org <id>]
+tsa agents [--org <id>]
+tsa threads <agent-id> [--org <id>]
 
-# Interactive Chat
-tdsk-agent chat [--org <id>] [--agent <id>] [--thread <id>]
-tdsk-agent                    # Default: launches chat
+# Interactive Chat (Ink TUI)
+tsa chat [--org <id>] [--agent <id>] [--thread <id>]
+tsa                    # Default: launches chat
 
 # Help
-tdsk-agent help / --help / -h
-tdsk-agent --version / -v
+tsa help / --help / -h
+tsa --version / -v
 ```
 
-**Command Aliases**:
-- `login` → `li`
-- `logout` → `lo`
-- `status` → `st`
-- `agents` → `ag`
-- `threads` → `th`
-- `chat` → `ch`
+## Configuration
 
-**Global Flags**:
-- `--org <id>` / `-o <id>` — Organization ID
-- `--agent <id>` / `-a <id>` — Agent ID
-- `--thread <id>` / `-t <id>` — Thread ID (chat only)
-- `--url <proxy-url>` — Custom proxy URL (login only)
-- `--insecure` — Allow self-signed TLS certs (login only)
+### Config Paths
 
-**Default Command Behavior**:
-- No args: launches `chat`
-- Args starting with `--`: launches `chat` with those flags
-- Other args: dispatches to named command
+| Path | Format | Purpose |
+|------|--------|---------|
+| `~/.config/tdsk/repl/config.yaml` | YAML | Global config (auth, display, behavior, hooks, tools) |
+| `.tdsk/config.yaml` | YAML | Project config (org, agent, context, hooks, tools) |
+| `~/.config/tdsk/repl/history` | — | Input history (future) |
+| `AGENTS.md` | Markdown | Auto-detected agent context file |
+| `.tdsk/context/` | Directory | Auto-detected context files |
+
+### Config Merge Rules
+
+- Project `org`/`agent` **override** global
+- Project `hooks` **merge** with global (project wins per-key)
+- Project `tools.confirm`/`tools.block` **concatenate** with global arrays
+
+## Constants (`src/constants/values.ts`)
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `Version` | from package.json | App version |
+| `ConfigDir` | `~/.config/tdsk/repl` | Global config directory |
+| `ConfigPath` | `~/.config/tdsk/repl/config.yaml` | Global config file |
+| `HistoryPath` | `~/.config/tdsk/repl/history` | Input history file |
+| `ProjectDir` | `.tdsk` | Project directory |
+| `AgentsFile` | `AGENTS.md` | Agent context file |
+| `ContextDir` | `.tdsk/context` | Context files directory |
+| `ProjectConfig` | `.tdsk/config.yaml` | Project config file |
+| `DefaultMaxSteps` | `10` | Agent runner max steps |
+| `DefaultMaxHistory` | `50` | Max input history entries |
+| `DefaultTheme` | `"dark"` | Default color theme |
+| `DefaultSandboxTimeout` | `300000` | 5 minutes |
+| `DefaultProxyUrl` | `https://px.local.threadedstack.app` | Default proxy URL |
+| `MaxRetries` | `3` | HTTP retry attempts |
+| `RetryDelays` | `[1000, 3000, 9000]` | Retry delay progression (ms) |
 
 ## Key Patterns
 
-### 1. Task-Based Architecture
+### 1. Ink React TUI
 
-All commands follow the task pattern:
+The chat task renders a full Ink application:
 
 ```typescript
-export const exampleTask: TTask = {
-  name: 'example',
-  alias: ['ex'],
-  description: 'Example command',
-  options: {
-    flag: { alias: ['f'], description: 'Example flag', type: 'boolean' }
-  },
-  action: async ({ params, auth, renderer, config }) => {
-    // Implementation
+// src/tasks/chat.ts
+export const chat: TTask = {
+  name: 'chat',
+  action: async ({ params, auth }) => {
+    const { waitUntilExit } = render(React.createElement(App, { auth, ... }))
+    await waitUntilExit()
   }
 }
 ```
 
-### 2. Config-Driven Defaults
+### 2. Phase-Based App Lifecycle
 
-User preferences stored in `~/.config/tdsk/repl.json` are merged into task option defaults:
-
-```typescript
-// User config: { org: 'abc', agent: 'xyz' }
-// Task options: { org: { default: undefined } }
-// After addDefaults(): { org: { default: 'abc' } }
+The App component transitions through phases:
+```
+Not logged in → 'login' → /login → 'loading' → 'pickAgent' → 'chat'
+Already logged in → 'loading' → 'pickAgent' or 'chat'
+Error at any point → 'error'
 ```
 
-### 3. Private Fields (#)
+### 3. Two Command Systems
 
-Uses JavaScript private fields for encapsulation throughout all classes:
+- **CLI tasks** (`src/tasks/`): Terminal-level commands parsed by `@keg-hub/args-parse`
+- **Slash commands** (`src/commands/`): In-REPL commands with registry + pre-auth filtering
 
-```typescript
-class AgentRepl {
-  #client: ApiClient
-  #executor: LocalAgentExecutor
-  #renderer: Renderer
-  #orgId: string | null = null
-  #agentId: string | null = null
-  #threadId: string | null = null
-}
-```
+### 4. Context Injection
 
-### 4. Event Streaming
+Context files are auto-detected from `AGENTS.md` and `.tdsk/context/` and can be manually added/removed via slash commands. They're prepended to prompts as XML blocks.
 
-Agent execution streams events to the renderer in real-time:
+### 5. YAML Configuration
 
-```typescript
-await executor.run({
-  prompt,
-  onEvent: (event: TStreamEvent) => renderer.renderEvent(event)
-})
-```
+Config uses `js-yaml` with two layers (global + project). Auth credentials are stored within the YAML config, not in a separate JSON file.
 
-### 5. Config Path Convention
+### 6. Private Fields (#)
 
-Follows XDG convention for user configuration:
-- `~/.config/tdsk/repl-auth.json` — Auth credentials
-- `~/.config/tdsk/repl.json` — User preferences
+Uses JavaScript private fields for encapsulation throughout all classes.
 
-### 6. API Envelope Unwrapping
+### 7. Event-Driven Streaming
 
-All API responses unwrap the `{ data: T }` envelope:
+Agent execution streams events to React state in real-time via `onEvent` callback, which updates `streamText`, `toolCalls`, and `messages` state.
+
+### 8. Build-Time Version Injection
 
 ```typescript
-async #request<T>(path: string, opts?): Promise<T> {
-  const json = await response.json()
-  return json.data
-}
+// scripts/build.ts
+define: { __TDSK_REPL_VERSION__: JSON.stringify(pkg.version) }
+
+// src/constants/values.ts — falls back to package.json when running from source
 ```
 
-### 7. Graceful Error Handling
+### 9. Devtools Stub Plugin
 
-All async operations wrap errors with context:
-
-```typescript
-throw new Error(`Authentication failed (${response.status}): ${body}`)
-```
-
-### 8. Auth-Required Tasks
-
-Tasks requiring authentication use the `requireAuth()` wrapper:
-
-```typescript
-export const agentsTask: TTask = {
-  name: 'agents',
-  action: requireAuth(async ({ params, auth }) => {
-    // Only runs if authenticated
-  })
-}
-```
+The build script stubs `react-devtools-core` and `ws` which Ink statically imports but never executes in production. Without this, the binary fails at runtime.
 
 ## Dependencies
 
@@ -803,101 +784,136 @@ export const agentsTask: TTask = {
 | `@keg-hub/args-parse` | 10.0.1 | CLI argument parser (task-based architecture) |
 | `@keg-hub/jsutils` | 10.0.0 | JavaScript utility functions |
 | `@tdsk/agent` | workspace:* | AgentRunner for local ReAct loop execution |
-| `@tdsk/domain` | workspace:* | Shared types (TStreamEvent, TLLMAdapterConfig, TMessageContent) |
-| `@tdsk/sandbox` | workspace:* | Sandbox provider abstraction (imported but not actively used) |
-| `marked` | 15.0.0 | Markdown parsing for agent responses |
-| `marked-terminal` | 7.0.0 | Terminal-friendly markdown rendering (ANSI) |
-| `cli-highlight` | 2.1.11 | Syntax highlighting for code blocks in output |
+| `@tdsk/domain` | workspace:* | Shared types (TStreamEvent, TLLMProviderBrand, TMessageContent) |
+| `@tdsk/sandbox` | workspace:* | Sandbox provider abstraction |
+| `ink` | 6.7.0 | React-based terminal UI framework |
+| `ink-text-input` | 6.0.0 | Text input component for Ink |
+| `react` | ^19.0.0 | React runtime for Ink components |
+| `picocolors` | 1.1.1 | Lightweight ANSI color library (theming) |
+| `js-yaml` | 4.1.1 | YAML config parsing/serialization |
+| `marked` | ^15.0.0 | Markdown parsing for agent responses |
+| `marked-terminal` | ^7.0.0 | Terminal-friendly markdown rendering (ANSI) |
+| `cli-highlight` | ^2.1.11 | Syntax highlighting for code blocks |
+| `ora` | 9.3.0 | Terminal spinner |
 
 ### Development Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| `@biomejs/biome` | Linting and formatting |
-| `typescript` | Type checking |
-| `vitest` | Test framework |
-| `vite-tsconfig-paths` | Path alias resolution in tests |
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@biomejs/biome` | 2.1.2 | Linting and formatting |
+| `@types/bun` | 1.3.9 | Bun type definitions |
+| `@types/js-yaml` | 4.0.9 | js-yaml type definitions |
+| `@types/node` | 22.12.0 | Node.js type definitions |
+| `@types/react` | ^19.0.0 | React type definitions |
+| `ink-testing-library` | 4.0.0 | Ink component testing utilities |
+| `typescript` | 5.7.3 | Type checking |
+| `vite-tsconfig-paths` | 4.3.2 | Path alias resolution in tests |
+| `vitest` | 1.6.1 | Test framework |
 
 ## Commands
 
 ### Development
 
 ```bash
-pnpm dev             # Run directly via bun (bun run src/index.ts)
+pnpm start           # Run directly via bun (bun run src/index.ts)
 ```
 
 ### Building
 
 ```bash
-pnpm build           # Bundle via bun (bun build → dist/index.js, 2.4MB)
-pnpm compile         # Native binary (bun build --compile → dist/tdsk-agent, 67MB)
-pnpm clean           # Remove dist/
+pnpm build           # Bundle via bun (bun build → dist/index.js)
+pnpm compile         # Native binary (bun build --compile → dist/tsa)
+pnpm clean           # Remove dist/ and node_modules/
 ```
 
 ### Testing
 
 ```bash
-pnpm test            # Run vitest (149 tests, 9 files)
+pnpm test            # Run vitest (189 tests, 31 files)
 ```
 
 ### Commands Notes
 
 * Linting and formatting run automatically via Biome — `pnpm lint` and `pnpm format` should be ignored.
-* The `dev` command requires `bun` to be installed (not Node.js).
+* The `start` command requires `bun` to be installed (not Node.js).
 * The `compile` command produces a standalone native binary that doesn't require bun at runtime.
+* Binary name is `tsa` (not `tdsk-agent`).
 
 ## Testing
 
-### Current Coverage (149 tests, 9 files)
+### Current Coverage (189 tests, 31 files)
 
 | Test File | Tests | What's Covered |
 |-----------|-------|----------------|
-| `src/cli.test.ts` | 124 | CLI arg parsing, task dispatch, help/version output, error handling, config defaults, insecure mode |
-| `src/api/client.test.ts` | 60 | All CRUD endpoints, session creation, proxyUrl getter, auth headers, error handling |
-| `src/repl.test.ts` | 52 | Interactive loop, slash commands, session management, org/agent selection |
-| `src/display/renderer.test.ts` | 35 | Event rendering, markdown output, tool call formatting, spinner |
-| `src/auth/auth.test.ts` | 19 | Login flow, credential storage, API validation, logout, insecure mode |
-| `src/executor/executor.test.ts` | 12 | Session creation, ProxyAdapter construction, thread management, runner integration |
-| `src/utils/tasks/find.test.ts` | 10 | Task resolution by name/alias, null handling |
-| `src/utils/tasks/config.test.ts` | 8 | Config load/save, JSON parsing, file creation |
-| `src/executor/httpAdapter.test.ts` | 3 | Message list/create, null handling |
-
-**Note**: Test counts add up to more than 149 due to nested `describe` blocks. The actual test output reports 149 total tests.
+| `src/cli.test.ts` | 38 | CLI arg parsing, task dispatch, help/version, config defaults, insecure mode |
+| `src/api/client.test.ts` | 26 | CRUD endpoints, session creation, retry logic, proxyUrl, auth headers |
+| `src/commands/index.test.ts` | 6 | Command finding, parsing, pre-auth filtering |
+| `src/utils/friendly-errors.test.ts` | 4 | Error pattern matching, friendly messages |
+| `src/utils/markdown.test.ts` | 5 | Markdown rendering, streaming buffer |
+| `src/utils/tasks/find.test.ts` | 8 | Task resolution by name/alias |
+| `src/theme/colors.test.ts` | 4 | Theme get/set, themed() function, NO_COLOR |
+| `src/types/config.types.test.ts` | 3 | Config type validation |
+| `src/hooks/useInputHistory.test.ts` | 2 | History add/navigate |
+| `src/hooks/useConfig.test.ts` | 1 | Config loading/merging |
+| `src/services/config.test.ts` | — | ConfigService YAML load/save |
+| `src/services/context.test.ts` | — | ContextLoader auto-detect |
+| `src/services/hooks.test.ts` | — | HooksService execution |
+| `src/auth/auth.test.ts` | — | Login flow, credential storage |
+| `src/executor/executor.test.ts` | — | Session, thread, runner integration |
+| `src/executor/httpAdapter.test.ts` | — | Message list/create |
+| **Component tests (14 files):** | | |
+| `App.test.tsx` | 1 | Root app rendering |
+| `ChatSession.test.tsx` | 4 | Chat UI composition |
+| `Prompt.test.tsx` | 2 | Input submission |
+| `AgentPicker.test.tsx` | 2 | Agent selection |
+| `SelectPrompt.test.tsx` | 2 | Keyboard navigation |
+| `StatusBar.test.tsx` | 4 | Status display |
+| `MessageList.test.tsx` | 2 | Message rendering |
+| `AssistantMessage.test.tsx` | 2 | Markdown rendering |
+| `UserMessage.test.tsx` | 1 | User message display |
+| `StreamingResponse.test.tsx` | 3 | Streaming + tool activity |
+| `ToolActivity.test.tsx` | 4 | Tool status display |
+| `Spinner.test.tsx` | 2 | Spinner animation |
+| `WelcomeBox.test.tsx` | 5 | Welcome box rendering |
+| `ErrorMessage.test.tsx` | 3 | Error display |
 
 **Testing Patterns**:
-- Mocks `fetch` globally via `vi.stubGlobal()`
-- Co-located test files (`.test.ts` adjacent to source)
-- Full mock coverage of external dependencies
-- `beforeEach()` setup/cleanup in all suites
+- Mocks `fetch` globally via `vi.stubGlobal()` for API tests
+- Co-located test files (`.test.ts`/`.test.tsx` adjacent to source)
+- Component tests use `ink-testing-library` with custom mocks in `configs/setupInkMocks.tsx`
+- `setupInkMocks.tsx` provides a minimal React hooks dispatcher for synchronous component testing
+
+**Note**: `setupInkMocks.tsx` is NOT wired into `vitest.config.ts` via `setupFiles`. Component tests rely on module-level `vi.mock()` calls within the setup file being loaded through imports.
 
 ## Integration Points
 
 ### With Agent (`@tdsk/agent`)
 
-- Imports `AgentRunner` for local ReAct loop execution
-- Imports `ProxyAdapter` — LLM calls proxied through backend SSE (`/ai/chat`)
-- Implements `IAgentRunnerDB` interface via `HttpMessageAdapter`
-- Uses `TStreamEvent` for real-time event handling
+- `AgentRunner` — local ReAct loop execution
+- `ProxyAdapter` — LLM calls proxied through backend SSE (`/ai/chat`)
+- `IAgentRunnerDB` — implemented by `HttpMessageAdapter`
+- `TStreamEvent` — real-time event streaming
 
 ### With Domain (`@tdsk/domain`)
 
-- `TStreamEvent` — Event types for agent streaming output
-- `TLLMAdapterConfig` — LLM provider configuration (apiKey is optional when using ProxyAdapter)
-- `TLLMProviderType` — Provider type enum used in `TSessionInfo`
-- `TMessageContent` — Message content structure
+- `TStreamEvent` — event types for agent streaming
+- `TLLMProviderBrand` — provider type enum
+- `TMessageContent` — message content structure
+- `Organization`, `Agent`, `Thread`, `Message` — API response types
 
 ### With Backend API
 
-- **Auth**: API key validated against `/_/orgs` endpoint
-- **Sessions**: `POST /_/ai/sessions` — creates session token, resolves API key server-side
-- **LLM Proxy**: `POST /ai/chat` — streams LLM responses via SSE (session token auth, no API key auth)
+- **Auth**: API key validated against `/_/orgs`
+- **Sessions**: `POST /_/ai/sessions` — session token + LLM config
+- **LLM Proxy**: `POST /ai/chat` — SSE streaming (session token auth)
+- **Providers**: `GET /_/orgs/:orgId/agents/:agentId/providers`
 - **Agents**: `/_/orgs/:orgId/agents` for listing
 - **Threads**: `/_/orgs/:orgId/agents/:agentId/threads` for CRUD
-- **Messages**: `/_/orgs/:orgId/agents/:agentId/threads/:threadId/messages` for persistence
+- **Messages**: `/_/orgs/:orgId/agents/:agentId/threads/:threadId/messages`
 
 ### With Proxy
 
-- All API requests route through the proxy at the configured URL
+- All API requests route through proxy at configured URL
 - Default: `https://px.local.threadedstack.app`
 - Auth: `Authorization: Bearer <apiKey>` header
 
@@ -905,15 +921,17 @@ pnpm test            # Run vitest (149 tests, 9 files)
 
 ```json
 {
-  "@TRL": ["src"],
-  "@TRL/*": ["src/*"],
-  "@TRL/configs": ["configs"],
+  "@TRL": ["./src"],
+  "@TRL/*": ["./src/*"],
+  "@TRL/configs": ["./configs"],
+  "@TRL/configs/*": ["./configs/*"],
   "@TDM/*": ["../domain/src/*"],
   "@TAG/*": ["../agent/src/*"],
   "@TSB/*": ["../sandbox/src/*"],
   "@tdsk/domain": ["../domain/src"],
   "@tdsk/agent": ["../agent/src"],
-  "@tdsk/sandbox": ["../sandbox/src"]
+  "@tdsk/sandbox": ["../sandbox/src"],
+  "@tdsk/logger": ["../logger/src"]
 }
 ```
 
@@ -922,153 +940,82 @@ pnpm test            # Run vitest (149 tests, 9 files)
 ### Adding a New CLI Command
 
 1. Create task file in `src/tasks/<command>.ts`
-2. Export task definition with name, alias, description, options, action
-3. Add task to `TTasks` array in `src/tasks/index.ts`
+2. Export task definition with name, alias, description, example, options, action
+3. Add to `tasks` record in `src/tasks/index.ts`
 4. If it needs auth, wrap action with `requireAuth()`
-5. If it needs API access, use `ApiClient` in action
-6. If it needs display, use `Renderer` in action
-
-Example:
 
 ```typescript
 // src/tasks/example.ts
 import type { TTask } from '@TRL/types'
 import { requireAuth } from '@TRL/utils/tasks'
 
-export const exampleTask: TTask = {
+export const example: TTask = {
   name: 'example',
   alias: ['ex'],
   description: 'Example command',
+  example: 'tsa example [--flag]',
   options: {
-    flag: { alias: ['f'], description: 'Example flag', type: 'boolean' }
+    flag: { alias: ['f'], description: 'Example flag', type: 'bool' }
   },
-  action: requireAuth(async ({ params, auth, renderer }) => {
+  action: requireAuth(async ({ params, auth }) => {
     // Implementation
   })
 }
-
-// src/tasks/index.ts
-import { exampleTask } from './example'
-export const TTasks = [loginTask, ..., exampleTask, helpTask]
 ```
 
 ### Adding a New Slash Command
 
-1. Add case to `AgentRepl.#handleCommand()` in `src/repl.ts`
-2. Implement the handler method on the class
-3. Update `/help` output in `#showHelp()`
-
-Example:
+1. Create command file in `src/commands/<name>.ts`
+2. Export `TSlashCommand` with name, aliases, description, handler
+3. Add to `registeredCommands[]` in `src/commands/registry.ts`
+4. If pre-auth, add name/aliases to `PRE_AUTH_COMMANDS` set in `src/commands/index.ts`
 
 ```typescript
-// In AgentRepl class
-#handleCommand(input: string): boolean {
-  if (input === '/example') {
-    this.#handleExample()
-    return true
+// src/commands/example.ts
+import type { TSlashCommand } from '@TRL/types'
+
+export const exampleCommand: TSlashCommand = {
+  name: 'example',
+  aliases: ['ex'],
+  description: 'Example slash command',
+  handler: async (args, ctx) => {
+    ctx.output('Example output')
   }
-  // ... existing commands
-}
-
-#handleExample(): void {
-  this.#renderer.renderInfo('Example command')
-}
-
-#showHelp(): void {
-  console.log(`
-Available commands:
-  /example        - Example slash command
-  ...
-  `)
 }
 ```
 
-### Adding a New Task Utility
+### Adding a New Ink Component
 
-1. Create utility file in `src/utils/tasks/<name>.ts`
-2. Export function that operates on task context
-3. Add to `src/utils/tasks/index.ts`
+1. Create component in `src/components/<Name>.tsx`
+2. Create co-located test in `src/components/<Name>.test.tsx`
+3. Use `themed()` for colors, `useInput` from ink for keyboard handling
+4. Import from other components as needed
 
-Example:
+### Adding a New React Hook
 
-```typescript
-// src/utils/tasks/example.ts
-import type { TTaskAction } from '@TRL/types'
-
-export function exampleWrapper(action: TTaskAction): TTaskAction {
-  return async (context) => {
-    // Pre-processing
-    await action(context)
-    // Post-processing
-  }
-}
-
-// src/utils/tasks/index.ts
-export { exampleWrapper } from './example'
-```
+1. Create hook in `src/hooks/use<Name>.ts`
+2. Export from `src/hooks/index.ts`
+3. Follow pattern: `export function use<Name>() { ... return { ... } }`
 
 ### Authentication Flow
 
 ```
-1. User runs: tdsk-agent login <api-key> [--url <url>] [--insecure]
-2. AuthManager.login() validates key by fetching /_/orgs
-3. On success: writes { apiKey, proxyUrl, insecure } to ~/.config/tdsk/repl-auth.json
-4. All subsequent commands read credentials from disk
+1. User runs: tsa login <api-key> [--url <url>] [--insecure]
+   OR in REPL: /login <api-key> [--insecure]
+2. AuthManager.login() validates tdsk_ prefix, fetches /_/orgs
+3. On success: stores { auth: { apiKey, proxyUrl, insecure } } in config.yaml
+4. All subsequent operations read credentials via ConfigService
 5. ApiClient uses stored apiKey as Bearer token
-6. Insecure mode persisted to config, applied at startup
+6. Insecure mode stored in config, applied at CLI startup
 ```
 
 ### Config Flow
 
 ```
-1. User runs command with flags: tdsk-agent chat --org abc --agent xyz
-2. loadConfig() reads ~/.config/tdsk/repl.json (e.g., { org: 'def' })
-3. addDefaults() merges config into task option defaults
+1. User runs: tsa chat --org abc --agent xyz
+2. loadConfig() → ConfigService.loadGlobal() + ConfigService.loadProject() → merge()
+3. addDefaults() injects config values as task option defaults
 4. argsParse() parses CLI args (--org abc overrides default)
 5. Final params: { org: 'abc', agent: 'xyz' }
-6. Config can be updated by modifying ~/.config/tdsk/repl.json
 ```
 
----
-
-**Last Updated:** 2026-02-15
-**Version:** 2.0.0
-
-### Changelog
-
-#### v2.0.0 (2026-02-15)
-- **Breaking**: Migrated to `@keg-hub/args-parse` task-based architecture
-- **Breaking**: Command dispatch now uses task registry instead of switch statement
-- **New**: Task system (`src/tasks/`) with 7 task definitions
-- **New**: Task utilities (`src/utils/tasks/`) — find, config, error, addDefaults, requireAuth
-- **New**: User config system (`~/.config/tdsk/repl.json`) for default org/agent/insecure
-- **New**: `addDefaults()` merges config values into task option defaults
-- **New**: `requireAuth()` wrapper enforces authentication on tasks
-- **New**: `taskError()` suggests similar commands on unknown input
-- **New**: Insecure mode persisted to auth config, applied at startup
-- **New**: Default command behavior (no args or value flags → `chat`)
-- **New**: Command aliases (login→li, logout→lo, status→st, agents→ag, threads→th, chat→ch)
-- **Improved**: Config path now `~/.config/tdsk/repl.json` (was only auth JSON)
-- **Improved**: Help text auto-generated from task registry
-- **Testing**: 149/149 tests passing across 9 test files (was 138/7)
-- **Docs**: Updated SKILL.md to reflect task-based architecture
-
-#### v1.1.0 (2026-02-14)
-- **Breaking**: Replaced `resolveAgent()` with session-based LLM proxy flow
-- **New**: `createSession(agentId)` → `TSessionInfo` (session token + LLM config, no API key)
-- **New**: `ProxyAdapter` from `@tdsk/agent` — LLM calls proxied through backend SSE (`/ai/chat`)
-- **New**: `proxyUrl` getter on ApiClient
-- **Removed**: `resolveAgent()` method and `TResolvedAgentConfig` type
-- **Security**: API keys never leave the server — session tokens used for LLM proxy auth
-- **Testing**: 138/138 tests passing across 7 test files
-
-#### v1.0.0 (2026-02-13)
-- **Initial Release**: Terminal REPL for AI agent interaction
-- **New**: AuthManager with persistent API key storage
-- **New**: ApiClient HTTP wrapper for backend API
-- **New**: LocalAgentExecutor with server-side credential resolution
-- **New**: HttpMessageAdapter (IAgentRunnerDB over HTTP)
-- **New**: AgentRepl interactive loop with 9 slash commands
-- **New**: Renderer with markdown, syntax highlighting, tool call visualization
-- **New**: Compilable to standalone binary via `bun build --compile`
-- **Testing**: 59/59 tests passing across 4 test files

@@ -1,7 +1,6 @@
 ---
 name: "Threaded Stack - Database Repo"
 description: "Knowledge base for the database ORM & migrations repo"
-version: "2.0.0"
 tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas", "subscriptions", "agents", "domains", "invitations"]
 ---
 # Database Repo Skill
@@ -11,12 +10,12 @@ tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas
 The `repos/database` repository provides the **ORM layer and migration system** for the Threaded Stack platform. Built on **Drizzle ORM** and **PostgreSQL (Neon.com)**, it defines all database schemas, relationships, and provides a service-based API for database operations across all other repos.
 
 **Key Responsibilities:**
-- Define database schemas with Drizzle ORM (18 Drizzle-managed tables + 2 external)
+- Define database schemas with Drizzle ORM (19 Drizzle-managed tables + 2 external)
 - Provide type-safe database services (17 services with CRUD operations)
 - Implement polymorphic relationships via "Exclusive Arc" pattern
 - Handle database connection pooling via pg.Pool singleton
 - Convert database records to domain models (Organization, Agent, Domain, etc.)
-- Manage AI agent configurations with many-to-many project associations
+- Manage AI agent configurations with many-to-many project, function, and provider associations
 - Handle custom domain management with SSL certificate storage
 - Track organization invitations with status workflows
 
@@ -40,7 +39,7 @@ repos/database/
 │   └── *.sql              # Generated SQL migration files
 ├── scripts/               # Utility scripts
 │   ├── addToProcess.ts    # Process environment helper
-│   ├── loadEnvs.ts        # Environment loader
+│   ├── addProviderSecretFk.ts  # Provider secret FK migration script
 │   ├── seed.ts            # Database seeder
 │   ├── purge.ts           # Database purge
 │   └── script.ts          # General script runner
@@ -50,18 +49,19 @@ repos/database/
 │   ├── constants/
 │   │   ├── index.ts
 │   │   └── values.ts      # DefDBProto constant
-│   ├── schemas/           # Drizzle table schemas (21 files)
-│   │   ├── schemas.ts     # Drizzle-managed schema barrel (17 tables)
+│   ├── schemas/           # Drizzle table schemas (23 files)
+│   │   ├── schemas.ts     # Drizzle-managed schema barrel (19 tables)
 │   │   ├── index.ts       # Full schema barrel (schemas.ts + users + certificates)
 │   │   ├── orgs.ts
 │   │   ├── roles.ts
 │   │   ├── users.ts           # External: Neon Auth managed (pgSchema 'neon_auth')
 │   │   ├── agents.ts
 │   │   ├── agentProjects.ts   # Junction: agent-project many-to-many
+│   │   ├── agentFunctions.ts  # Junction: agent-function many-to-many
+│   │   ├── agentProviders.ts  # Junction: agent-provider many-to-many (with priority)
 │   │   ├── assets.ts
 │   │   ├── apiKeys.ts
 │   │   ├── certificates.ts   # External: Caddy certmagic storage
-│   │   ├── configs.ts        # REMOVED (file does not exist)
 │   │   ├── domains.ts
 │   │   ├── endpoints.ts
 │   │   ├── functions.ts
@@ -73,39 +73,23 @@ repos/database/
 │   │   ├── secrets.ts
 │   │   ├── subscriptions.ts
 │   │   └── threads.ts
-│   ├── seeds/             # 19 seed files
+│   ├── seeds/             # 3 seed files
 │   │   ├── index.ts
 │   │   ├── ids.seed.ts
-│   │   ├── fullorg.ts
-│   │   ├── orgs.seed.ts
-│   │   ├── users.seed.ts
-│   │   ├── roles.seed.ts
-│   │   ├── agents.seed.ts
-│   │   ├── apiKeys.seed.ts
-│   │   ├── assets.seed.ts
-│   │   ├── endpoints.seed.ts
-│   │   ├── functions.seed.ts
-│   │   ├── invitations.seed.ts
-│   │   ├── messages.seed.ts
-│   │   ├── projects.seed.ts
-│   │   ├── providers.seed.ts
-│   │   ├── quotas.seed.ts
-│   │   ├── secrets.seed.ts
-│   │   ├── subscriptions.seed.ts
-│   │   └── threads.seed.ts
+│   │   └── fullorg.ts
 │   ├── services/          # 17 service classes + base + tests
-│   │   ├── base.ts        # Abstract Base<TTable, S, I, M> class
+│   │   ├── base.ts        # Base<TTable, S, I, M> class
 │   │   ├── org.ts
-│   │   ├── role.ts        # 26 specialized queries
+│   │   ├── role.ts        # 14 specialized queries
 │   │   ├── user.ts        # byEmail(), getByIds()
-│   │   ├── agent.ts       # 261 lines, secrets+projects auto-loading
+│   │   ├── agent.ts       # 425 lines, secrets+projects+functions+providers auto-loading
 │   │   ├── apiKey.ts
-│   │   ├── asset.ts
+│   │   ├── asset.ts       # listByThread(), listByMessage()
 │   │   ├── domain.ts      # DomainService, 299 lines
 │   │   ├── endpoint.ts
-│   │   ├── function.ts
+│   │   ├── function.ts    # listByAgent(), setAgents(), addAgent(), removeAgent()
 │   │   ├── invitation.ts  # 243 lines, status workflow
-│   │   ├── message.ts
+│   │   ├── message.ts     # listByThread(), createBatch()
 │   │   ├── project.ts
 │   │   ├── provider.ts
 │   │   ├── quota.ts       # Atomic SQL increment
@@ -118,7 +102,7 @@ repos/database/
 │   ├── types/
 │   │   ├── index.ts
 │   │   ├── db.types.ts        # TDatabase, TDBServices, TDBConfig, EDBDialects
-│   │   ├── schema.types.ts    # TDB*Select/Insert for all 16 entity types
+│   │   ├── schema.types.ts    # TDB*Select/Insert for all 18 entity types
 │   │   ├── helper.types.ts
 │   │   └── service.types.ts   # TServiceOpts
 │   └── utils/
@@ -148,9 +132,9 @@ repos/database/
 | File | Purpose |
 |------|---------|
 | `src/database.ts` | Singleton database factory with Pool management + `disconnectDatabase()` |
-| `src/schemas/schemas.ts` | Barrel for 17 Drizzle-managed tables (excludes users, certificates) |
+| `src/schemas/schemas.ts` | Barrel for 19 Drizzle-managed tables (excludes users, certificates) |
 | `src/schemas/index.ts` | Full barrel: schemas.ts + users + certificates |
-| `src/services/base.ts` | Abstract `Base<TTable, S, I, M>` class with CRUD, `model()`, `with()` |
+| `src/services/base.ts` | `Base<TTable, S, I, M>` class with CRUD, `model()`, `with()` |
 | `src/services/index.ts` | 17 named service exports |
 | `src/types/schema.types.ts` | TDB*Select/Insert types via `$inferSelect`/`$inferInsert` |
 | `src/types/db.types.ts` | TDatabase (NodePgDatabase + services), TDBConfig, TDBServices |
@@ -159,25 +143,28 @@ repos/database/
 
 ## Schema Overview
 
-### Tables (21 total)
+### Tables (23 total)
 
-**18 Drizzle-managed tables** (defined in `schemas.ts`):
-`orgs`, `roles`, `quotas`, `agents`, `agentProjects`, `assets`, `threads`, `domains`, `secrets`, `apiKeys`, `messages`, `projects`, `functions`, `providers`, `endpoints`, `invitations`, `subscriptions`, `configs` (schema file removed -- not in codebase)
+**19 Drizzle-managed tables** (defined in `schemas.ts`):
+`orgs`, `roles`, `quotas`, `agents`, `agentProjects`, `agentFunctions`, `agentProviders`, `assets`, `threads`, `domains`, `secrets`, `apiKeys`, `messages`, `projects`, `functions`, `providers`, `endpoints`, `invitations`, `subscriptions`
 
 **2 External tables** (read-only, not in Drizzle migrations):
 - **`users`** -- Neon Auth managed, `pgSchema('neon_auth')`, table name `user`
 - **`certificates`** (`caddy_certmagic_objects`) -- Caddy certmagic storage plugin
 
-**1 Junction table** (Drizzle-managed):
+**3 Junction tables** (Drizzle-managed):
 - **`agentProjects`** (`agent_projects`) -- Many-to-many agents-projects
+- **`agentFunctions`** (`agent_functions`) -- Many-to-many agents-functions
+- **`agentProviders`** (`agent_providers`) -- Many-to-many agents-providers (with priority ordering)
 
 ---
 
 ### User & Organization Management
 
 #### `organizations` (variable: `orgs`)
-- Fields: `id`, `name`(notNull), `description`, `createdAt`, `updatedAt`
-- Relations: users(via roles), quotas, assets, agents, secrets, projects, providers, invitations
+- Fields: `id`, `name`(notNull), `description`, `ownerId`(notNull FK->users), `createdAt`, `updatedAt`
+- Index: `ownerId`
+- Relations: owner(user), users(via roles), quotas, assets, agents, secrets, projects, providers, invitations
 
 #### `users` (Neon Auth, pgSchema `neon_auth`, table `user`)
 - Fields: `id`(PK), `name`, `email`, `image`, `role`, `banned`, `banReason`, `banExpires`, `emailVerified`, `createdAt`(notNull), `updatedAt`(notNull)
@@ -199,9 +186,9 @@ repos/database/
 ### AI & Agent Management
 
 #### `agents`
-- Fields: `id`, `name`(notNull), `description`, `orgId`(notNull FK->orgs), `providerId`(notNull FK->providers), `systemPrompt`, `model`, `maxTokens`(default 100000), `tools`(jsonb default []), `envVars`(jsonb default {}), `environment`(jsonb default {}), `active`(boolean default true), `createdAt`, `updatedAt`
-- Relations: org, secrets(many), threads(many), projects(many via agentProjects), provider
-- **Not an exclusive arc** -- belongs to org + provider (both required)
+- Fields: `id`, `name`(notNull), `description`, `orgId`(notNull FK->orgs), `systemPrompt`, `model`, `maxTokens`(default 100000), `tools`(jsonb default []), `envVars`(jsonb default {}), `environment`(jsonb default {}), `active`(boolean default true), `createdAt`, `updatedAt`
+- Relations: org, secrets(many), threads(many), projects(many via agentProjects), functions(many via agentFunctions), providers(many via agentProviders)
+- **No direct provider FK** -- providers are associated via the `agentProviders` junction table
 
 #### `agentProjects` (`agent_projects`)
 - Fields: `id`, `agentId`(notNull FK->agents), `projectId`(notNull FK->projects), `alias`, `createdAt`, `updatedAt`
@@ -209,8 +196,21 @@ repos/database/
 - Relations: agent, project
 - **Junction table** for many-to-many agent-project relationships
 
+#### `agentFunctions` (`agent_functions`)
+- Fields: `id`, `agentId`(notNull FK->agents, onDelete cascade), `functionId`(notNull FK->functions, onDelete cascade), `createdAt`, `updatedAt`
+- Constraint: `unique(agentId, functionId)`
+- Relations: agent, function
+- **Junction table** for many-to-many agent-function relationships
+
+#### `agentProviders` (`agent_providers`)
+- Fields: `id`, `agentId`(notNull FK->agents, onDelete cascade), `providerId`(notNull FK->providers, onDelete cascade), `priority`(integer default 0), `createdAt`, `updatedAt`
+- Constraint: `unique(agentId, providerId)`
+- Index: `(agentId, priority)`
+- Relations: agent, provider
+- **Junction table** for many-to-many agent-provider relationships with priority ordering (0 = primary/default)
+
 #### `threads`
-- Fields: `id`, `name`, `meta`(jsonb), `public`(boolean default false), `parentThreadId`(uuid self-ref), `branchMessageId`(uuid FK->messages), `providerId`(FK->providers, onDelete set null), `agentId`(FK->agents, onDelete set null), `orgId`(FK->orgs), `projectId`(FK->projects), `userId`(notNull FK->users), `createdAt`, `updatedAt`
+- Fields: `id`, `name`, `meta`(jsonb), `public`(boolean default false), `parentThreadId`(uuid self-ref), `branchMessageId`(uuid FK->messages), `providerId`(FK->providers, onDelete set null), `agentId`(FK->agents, onDelete set null), `orgId`(FK->orgs, onDelete cascade), `projectId`(FK->projects, onDelete cascade), `userId`(notNull FK->users, onDelete cascade), `createdAt`, `updatedAt`
 - Indexes: `userId`, `agentId`, `parentThreadId`
 - Relations: messages(many), user, provider, agent, org, project, parentThread(self), branches(self many), branchMessage
 - Supports thread branching via `parentThreadId` + `branchMessageId`
@@ -222,7 +222,7 @@ repos/database/
 ### Project & Code Management
 
 #### `projects`
-- Fields: `id`, `meta`(jsonb), `gitUrl`, `name`(notNull), `branch`(default 'main'), `orgId`(notNull FK->orgs), `createdAt`, `updatedAt`
+- Fields: `id`, `meta`(jsonb), `gitUrl`, `name`(notNull), `description`, `branch`(default 'main'), `orgId`(notNull FK->orgs, onDelete cascade), `createdAt`, `updatedAt`
 - Unique index: `(orgId, name)`
 - Index: `orgId`
 - Relations: assets, secrets, providers, endpoints, agents(via agentProjects), org
@@ -233,15 +233,15 @@ repos/database/
 - Relations: functions(many), project
 
 #### `functions`
-- Fields: `id`, `name`(notNull), `description`, `content`(notNull), `branch`(default 'main'), `defaultArgs`(jsonb default {}), `dependencies`(jsonb default {}), `language`(varchar 50 default EFunLanguage.typescript), `endpointId`(FK->endpoints), `projectId`(notNull FK->projects), `createdAt`, `updatedAt`
+- Fields: `id`, `name`(notNull), `description`, `content`(text notNull), `branch`(default 'main'), `defaultArgs`(jsonb default {}), `dependencies`(jsonb default {}), `inputSchema`(jsonb default [], typed as `TFunctionParam[]`), `language`(varchar 50 default EFunLanguage.typescript), `endpointId`(FK->endpoints, onDelete cascade), `projectId`(notNull FK->projects, onDelete cascade), `createdAt`, `updatedAt`
 - Indexes: `projectId`, `endpointId`
-- Relations: endpoint, project
+- Relations: endpoint, project, agents(many via agentFunctions)
 
 ### Configuration & Secrets
 
 #### `providers` -- ORG-SCOPED ONLY
-- Fields: `id`, `name`, `options`(jsonb), `headers`(jsonb), `bodyParams`(jsonb, column `body_params`), `type`(notNull), `orgId`(notNull FK->orgs), `createdAt`, `updatedAt`
-- Relations: org
+- Fields: `id`, `name`, `type`(notNull, typed as `EProvider`), `brand`(typed as `TProviderBrand`), `options`(jsonb), `headers`(jsonb), `bodyParams`(jsonb, column `body_params`), `secretId`(uuid), `orgId`(notNull FK->orgs, onDelete cascade), `createdAt`, `updatedAt`
+- Relations: org, agents(many via agentProviders)
 - **NOT an exclusive arc** -- only has `orgId` (required). No `userId` or `projectId`.
 
 #### `secrets` -- 4-WAY ARC + COMBO
@@ -316,9 +316,9 @@ repos/database/
 └─────────────┬────────────────────────┘
               │
 ┌─────────────▼────────────────────────┐
-│  Schema Layer (src/schemas/)         │  21 table definitions
+│  Schema Layer (src/schemas/)         │  23 table definitions
 │  - Drizzle table definitions         │  + relations
-│  - schemas.ts (17 managed)           │
+│  - schemas.ts (19 managed)           │
 │  - index.ts (+ users + certs)        │
 └─────────────┬────────────────────────┘
               │
@@ -379,22 +379,20 @@ Exported from `services/index.ts`:
 | `org` | `Org` | `orgs` | `Organization` | Inherits base CRUD |
 | `role` | `Role` | `roles` | `Role` | `getOrgRole`, `getProjectRole`, `getUserRoles`, `getOrgMembers`, `getOrgOwner`, `getProjectMembers`, `isOrgMember`, `isProjectMember`, `updateOrgRole`, `updateProjectRole`, `removeFromOrg`, `removeFromProject`, `getUserOrgs`, `getUserProjects` |
 | `user` | `User` | `users` | `User` | `byEmail()`, `getByIds()` |
-| `asset` | `Asset` | `assets` | -- | Inherits base CRUD |
+| `asset` | `Asset` | `assets` | `Asset` | `listByThread()`, `listByMessage()` |
 | `quota` | `Quota` | `quotas` | `Quota` | `getUsage`, `findByOrgAndPeriod`, `increment` (atomic SQL), `initializePeriod` |
-| `agent` | `Agent` | `agents` | `Agent` | Auto-loads secrets+projects, `create`/`update`/`upsert` with project associations, `addProject`, `removeProject`, sanitization |
+| `agent` | `Agent` | `agents` | `Agent` | Auto-loads secrets+projects+functions+providers, `create`/`update`/`upsert` with junction associations, `addProject`, `removeProject`, `addFunction`, `removeFunction`, `addProvider`, `removeProvider`, `setProviders`, sanitization |
 | `apiKey` | `ApiKey` | `apiKeys` | -- | Inherits base CRUD |
 | `secret` | `Secret` | `secrets` | -- | Inherits base CRUD |
 | `thread` | `Thread` | `threads` | `Thread` | `listByAgent`, `listByUser`, `getWithMessages`, `branchThread` |
 | `project` | `Project` | `projects` | -- | Inherits base CRUD |
-| `message` | `Message` | `messages` | -- | Inherits base CRUD |
+| `message` | `Message` | `messages` | `Message` | `listByThread()`, `createBatch()` |
 | `endpoint` | `Endpoint` | `endpoints` | -- | Inherits base CRUD |
-| `function` | `Function` | `functions` | -- | Inherits base CRUD |
+| `function` | `Function` | `functions` | `Function` | Auto-loads agents relation, `listByAgent()`, `setAgents()`, `addAgent()`, `removeAgent()` |
 | `provider` | `Provider` | `providers` | -- | Inherits base CRUD |
 | `domain` | `DomainService` | `domains` | `Domain` | `find` (cert check), `validate`, `verified`, `enableSSL`, `disableSSL`, `owner`, custom cert storage via DB transactions |
 | `invitation` | `Invitation` | `invitations` | `Invitation` | `getByToken`, `getByEmailAndOrg`, `getPendingByOrg`, `getAllByOrg`, `getPendingByEmail`, `accept`, `revoke`, `markExpired`, `isValid` |
 | `subscription` | `Subscription` | `subscriptions` | `Subscription` | `findByUser`, `findByPolarId`, `upsertByUser` |
-
-**No config service** -- the config schema file and service were removed.
 
 ### Base Service Class
 
@@ -431,16 +429,22 @@ class Base<
 
 **Return pattern**: All methods return `{ data, error }` -- never throw.
 
-### Agent Service (261 lines)
+### Agent Service (425 lines)
 
-The Agent service is the most complex, with automatic relation loading and secret sanitization:
+The Agent service is the most complex, with automatic relation loading for secrets, projects, functions, and providers, plus secret sanitization:
 
 ```typescript
 class Agent extends Base<typeof agents, TAgentSelectOpts, TDBAgentInsert, AgentModel> {
-  // with() override: always loads secrets, provider, projects (with nested project)
-  with = (opts) => ({ secrets: true, provider: true, ...opts, projects: { with: { project: true } } })
+  // with() override: always loads secrets, projects (nested), functions (nested), providers (nested)
+  with = (opts) => ({
+    secrets: true,
+    ...opts,
+    projects: { with: { project: true } },
+    functions: { with: { function: true } },
+    providers: { with: { provider: true } },
+  })
 
-  // model() sanitizes secrets by default (strips encryptedValue)
+  // model() maps junction records, sorts providers by priority, sanitizes secrets by default
   model = (data, sanitizeOpts?) => { ... }
 
   // get/by/list all auto-load relations and sanitize
@@ -448,14 +452,72 @@ class Agent extends Base<typeof agents, TAgentSelectOpts, TDBAgentInsert, AgentM
   async by(prop, value?, opts?)
   async list(opts?: TAgentQueryOpts)
 
-  // create/update/upsert handle agentProjects junction table
-  async create(data: TAgentInsertOpts)     // data.projects creates associations
-  async update(data: TAgentInsertOpts)     // replaces all project associations
+  // create/update/upsert handle agentProjects, agentFunctions, agentProviders junction tables
+  async create(data: TAgentInsertOpts)     // data.projects, data.functionIds, data.providerIds
+  async update(data: TAgentInsertOpts)     // replaces all junction associations
   async upsert(data: TAgentInsertOpts)
 
-  // Direct junction management
+  // Direct junction management -- projects
   async addProject(agentId, projectId, alias?)
   async removeProject(agentId, projectId)
+
+  // Direct junction management -- functions
+  async addFunction(agentId, functionId)
+  async removeFunction(agentId, functionId)
+
+  // Direct junction management -- providers
+  async addProvider(agentId, providerId, priority?)
+  async removeProvider(agentId, providerId)
+  async setProviders(agentId, providerIds: string[])  // replaces all, sets priority by array order
+}
+
+// Extended insert type
+type TAgentInsertOpts = TDBAgentInsert & {
+  functionIds?: string[]
+  providerIds?: string[]
+  projects?: Array<Partial<ProjectModel>>
+}
+```
+
+### Function Service (130 lines)
+
+Manages functions with agent junction table associations:
+
+```typescript
+class Function extends Base<typeof functions, TDBFunctionSelect, TDBFunctionInsert, FunctionModel> {
+  // with() override: always loads agents relation
+  with = (opts?) => ({ agents: true, ...opts })
+
+  // model() maps junction records to agentIds array
+  model = (data) => { ... }
+
+  // get/list auto-load agent relations
+  async get(id, opts?)
+  async list(opts?)
+
+  // Agent association management
+  async listByAgent(agentId)              // list functions for a specific agent
+  async setAgents(functionId, agentIds)   // replace all agent associations
+  async addAgent(functionId, agentId)     // add single agent association
+  async removeAgent(functionId, agentId)  // remove single agent association
+}
+```
+
+### Message Service (53 lines)
+
+```typescript
+class Message extends Base<typeof messages, ...> {
+  async listByThread(threadId, opts?)      // ordered by createdAt asc
+  async createBatch(data: TDBMessageInsert[])  // bulk insert with returning
+}
+```
+
+### Asset Service (36 lines)
+
+```typescript
+class Asset extends Base<typeof assets, ...> {
+  async listByThread(threadId)
+  async listByMessage(messageId)
 }
 ```
 
@@ -499,7 +561,7 @@ class Invitation extends Base<typeof invitations, ...> {
 
 ### Role Service (270 lines)
 
-26 specialized query methods for org/project role management:
+14 specialized query methods for org/project role management:
 
 ```typescript
 class Role extends Base<typeof roles, ...> {
@@ -606,7 +668,7 @@ The secrets table allows 5 valid scope combinations:
 
 - **`providers`**: org-scoped only (`orgId` notNull, no other scope columns)
 - **`apiKeys`**: both `orgId` and `projectId` are optional, no constraint enforcing exclusivity
-- **`agents`**: both `orgId` and `providerId` are required (notNull), not polymorphic
+- **`agents`**: org-scoped only (`orgId` notNull), providers associated via junction table
 
 ## Key Patterns
 
@@ -674,8 +736,9 @@ export const agentsRelations = relations(agents, ({ one, many }) => ({
   org: one(orgs, { fields: [agents.orgId], references: [orgs.id] }),
   secrets: many(secrets),
   threads: many(threads),
-  projects: many(agentProjects),  // via junction table
-  provider: one(providers, { fields: [agents.providerId], references: [providers.id] }),
+  projects: many(agentProjects),     // via junction table
+  functions: many(agentFunctions),   // via junction table
+  providers: many(agentProviders),   // via junction table
 }))
 ```
 
@@ -699,6 +762,9 @@ tools: jsonb('tools').default('[]').$type<string[]>()
 envVars: jsonb('env_vars').default({}).$type<Record<string, string>>()
 environment: jsonb('environment').default({}).$type<{ timeout?, memory?, streaming?, ... }>()
 
+// Function input schema
+inputSchema: jsonb('input_schema').default([]).$type<TFunctionParam[]>()
+
 // Provider extras
 headers: jsonb('headers')
 bodyParams: jsonb('body_params')
@@ -710,8 +776,10 @@ options: jsonb('options')
 Two-level barrel pattern separates Drizzle-managed from external:
 
 ```typescript
-// schemas/schemas.ts -- 17 Drizzle-managed tables only (used for migrations)
+// schemas/schemas.ts -- 19 Drizzle-managed tables only (used for migrations)
 export { orgs, orgsRelations } from '@TDB/schemas/orgs'
+export { agentFunctions, agentFunctionsRelations } from '@TDB/schemas/agentFunctions'
+export { agentProviders, agentProvidersRelations } from '@TDB/schemas/agentProviders'
 // ... 16 more
 
 // schemas/index.ts -- full export including external read-only tables
@@ -844,7 +912,7 @@ export * from './database'   // database(), disconnectDatabase()
 
 // Types are the primary cross-repo interface:
 // TDatabase, TDBServices, TDBConfig
-// TDB*Select, TDB*Insert for all 16 entity types
+// TDB*Select, TDB*Insert for all 18 entity types
 // TDBApiRes<M>, TDBApiResType<T>, TDBQueryOpts, IDBApi
 ```
 
@@ -907,44 +975,3 @@ export * from './database'   // database(), disconnectDatabase()
 - [Neon Database Docs](https://neon.tech/docs)
 - [PostgreSQL Docs](https://www.postgresql.org/docs/)
 - [Drizzle Kit CLI](https://orm.drizzle.team/kit-docs/overview)
-
----
-
-**Last Updated:** 2026-02-15
-**Version:** 2.0.0
-**Maintained By:** Lance Tipton
-**License:** ISC (Private)
-
-## Changelog
-
-### v2.0.0 (2026-02-15) -- Major Schema Rewrite
-- **Rewritten** from scratch to reflect actual codebase state
-- **Tables**: Documented all 21 tables (18 Drizzle-managed + 2 external + 1 junction)
-- **Services**: Documented all 17 services with complete method signatures
-- **Removed**: configs schema/service references (no longer exist)
-- **Removed**: teams/repos references (renamed to orgs/projects long ago)
-- **Corrected**: providers is org-scoped only (orgId notNull), NOT an exclusive arc
-- **Corrected**: secrets has 4-way arc + combo (5 valid combinations including orgId+providerId)
-- **Corrected**: apiKeys.scopes is text type (not jsonb), has keyHash/keyPrefix/active/userId fields
-- **Corrected**: assets has 5-way exclusive arc (orgId/projectId/userId/threadId/messageId)
-- **Added**: Full documentation for agents, agentProjects, domains, certificates, invitations tables
-- **Added**: Complete Agent service API (261 lines, auto-relation loading, sanitization)
-- **Added**: Complete DomainService API (299 lines, SSL cert management, Caddy integration)
-- **Added**: Complete Invitation service API (243 lines, status workflow)
-- **Added**: Complete Role service API (270 lines, 14 specialized methods)
-- **Added**: Thread service branching support
-- **Added**: Quota atomic increment details
-- **Added**: Schema barrel organization (schemas.ts vs index.ts)
-- **Tests**: 312 tests across 13 files
-
-### v1.4.0 (2026-02-08)
-- Updated with quota/subscription services, base service model conversion, pagination support
-
-### v1.3.0 (2026-02-08) -- Audit Fix Release
-- Security, bug fixes, and test coverage improvements (133 tests)
-
-### v1.2.0 (2026-01-18)
-- Added quotas and subscriptions tables and services
-
-### v1.1.0 (Previous)
-- Organizations and Projects schemas, API Keys and Secrets management

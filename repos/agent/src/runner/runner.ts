@@ -74,6 +74,10 @@ export class AgentRunner {
 
       // 5. Create pi-mono model
       const model = getModel(llmConfig.provider as any, llmConfig.model as any)
+      if (!model)
+        throw new Error(
+          `Unknown model "${llmConfig.model}" for provider "${llmConfig.provider}"`
+        )
 
       // 6. Build stream function — use proxy when proxyConfig is provided
       const streamFn = opts.proxyConfig ? createStreamProxy(opts.proxyConfig) : undefined

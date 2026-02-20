@@ -1,7 +1,6 @@
 ---
 name: "Threaded Stack - Admin Repo"
 description: "Knowledge base for the admin SPA dashboard repo"
-version: "2.0.0"
 tags: ["react", "vite", "mui", "jotai", "tanstack-query", "frontend", "admin-dashboard", "billing", "quotas", "agents", "ai-chat"]
 ---
 # Admin Repo Skill
@@ -20,7 +19,7 @@ The **Admin** repo (`repos/admin`) is the Single Page Application (SPA) dashboar
 - **Styling**: Emotion (CSS-in-JS) + Material-UI theming system
 - **Toasts**: Sonner 2.0.7
 - **Analytics**: PostHog (`posthog-js` 1.242.2)
-- **Total Files**: ~400+ TypeScript/TSX files across 18 action domains, 38+ component directories, 22+ services, 21 state atoms, 32+ hooks
+- **Total Files**: ~400+ TypeScript/TSX files across 18 action domains, 39 component directories, 22+ services, 18 state atoms, 32+ hooks
 
 ## Directory Structure
 
@@ -90,14 +89,14 @@ repos/admin/
     │   │   ├── api/                 # branchThread, createThread, deleteThread, fetchThreads, updateThread
     │   │   └── local/               # upsertThread, upsertThreads, removeThread
     │   └── users/                   # inviteToOrg, listOrgUsers, removeFromOrg, updateOrgRole
-    ├── components/                  # 38+ directories, 140+ files
+    ├── components/                  # 39 directories, 140+ files
     │   ├── ActionIconButton/
-    │   ├── Agents/                  # AgentDrawer, AgentSettingsForm, BasicInfoForm, ModelConfigForm, SecretsSelector, ToolsSelector
+    │   ├── Agents/                  # AgentDrawer, AgentSection, AgentSettingsForm, BasicInfoForm, FunctionsSelector, ModelConfigForm, SecretsSelector, ToolsSelector
     │   ├── AI/                      # AssetsTab, ChatView, CreateThreadDrawer, EditThreadDrawer, MessageBubble, MessagesTab, ThreadsTab, ToolCallDisplay
     │   ├── AppError/
     │   ├── ArrayEditor/
     │   ├── Billing/                 # CurrentPlan, PlanCard, QuotaUsage
-    │   ├── Breadcrumbs/             # OrgSelector, OrgsMenu, ProjectSelector
+    │   ├── Breadcrumbs/             # Breadcrumbs, OrgSelector, OrgsMenu, ProjectSelector
     │   ├── CardGrid/
     │   ├── Code/
     │   ├── DataTable/
@@ -109,28 +108,29 @@ repos/admin/
     │   │   └── Proxy/               # EndpointAuth, EndpointBasicOptions, EndpointHeaders, EndpointOAuth, EndpointProxy, EndpointTransform, EndpointWhitelist, ProxyInputs
     │   ├── ErrorAlert/
     │   ├── FilterSelect/
-    │   ├── Functions/               # FunctionCard, FunctionDrawer, FunctionsGrid, NoFunctions
-    │   ├── Header/
+    │   ├── Functions/               # FunctionDrawer, Functions, NoFunctions
+    │   ├── Header/                  # Header, Header.styled, Settings, Settings.styled, Tabs
     │   ├── InfoField/
     │   ├── ItemCard/
     │   ├── KeyValueEditor/
     │   ├── Link/
     │   ├── LoadingButton/
     │   ├── LoadingSpinner/
-    │   ├── Login/                   # GithubBtn, GitlabBtn, GoogleBtn, VercelBtn, LoginError
-    │   ├── Orgs/                    # CreateApiKeyDrawer, CreateOrgDrawer, EditOrgDrawer, NoOrgs, OrgCard, OrgIcon, OrgsGrid
+    │   ├── Login/                   # GithubBtn, GitlabBtn, GoogleBtn, Login, Login.styles, LoginError, VercelBtn
+    │   ├── Orgs/                    # CreateApiKeyDrawer, CreateOrgDrawer, EditOrgDrawer, NoOrgs, OrgCard, OrgIcon, Orgs, OrgsGrid
     │   ├── PageHeader/
     │   ├── PageLayout/
+    │   ├── ParamsEditor/             # ParamsEditor (function parameter editor)
     │   ├── Permissions/             # PermissionGate
-    │   ├── Projects/                # CreateProjectDrawer, NoProjects, ProjectCard, ProjectIcon, ProjectsGrid, ProjectsMenu
+    │   ├── Projects/                # CreateProjectDrawer, NoProjects, ProjectCard, ProjectIcon, Projects, ProjectsGrid, ProjectsMenu
     │   ├── Providers/               # ProviderDrawer, Providers
-    │   ├── Quickstart/              # AgentStep, ProviderStep, QuickstartButton, QuickstartWizard, ReviewStep
+    │   ├── Quickstart/              # AgentStep, ProviderStep, Quickstart, QuickstartButton, QuickstartWizard, ReviewStep
     │   ├── Roles/                   # EditRoleDrawer, RoleSelect
     │   ├── SearchBar/
     │   ├── Secrets/                 # SecretDrawer, Secrets
     │   ├── Settings/                # DangerZoneCard, InfoCard, SettingsFormCard
-    │   ├── Sidebar/                 # SBLogo, SBNavList, SBProjectSelector, SBSection, Sidebar
-    │   ├── Users/                   # InviteUserDrawer, NoUsers, UserCard, UsersGrid
+    │   ├── Sidebar/                 # SBLogo, SBNavList, SBProjectSelector, SBSection, Sidebar, Sidebar.styles
+    │   ├── Users/                   # InviteUserDrawer, NoUsers, UserCard, Users, UsersGrid
     │   └── Version/
     ├── constants/
     │   ├── endpoints.ts             # Default endpoint form states (DefProxyState, DefFaasState, DefAgentState)
@@ -170,12 +170,14 @@ repos/admin/
     │   │   ├── useAgentsSidebarSync.ts # Sync agents to sidebar nav
     │   │   └── useDynamicNav.ts      # Dynamic navigation based on context
     │   ├── org/
+    │   │   ├── useOrgSecrets.ts      # Fetch org-scoped secrets
     │   │   ├── useOrgsState.ts       # Fetch orgs on mount, provide orgs/loading/error
     │   │   └── useOrgUsersList.ts    # Org users list hook
     │   ├── permissions/
     │   │   ├── useCanPerform.tsx     # Check if user can perform action
     │   │   └── usePermissions.tsx    # Permissions resolution hook
     │   ├── project/
+    │   │   ├── useProjectSecrets.ts  # Fetch project-scoped secrets
     │   │   └── useProjectsState.ts   # Fetch projects on mount, provide projects/loading/error
     │   └── theme/
     │       ├── useMakeTheme.ts       # MUI theme builder hook (watches themeTypeState)
@@ -246,7 +248,7 @@ repos/admin/
     │   ├── templates.ts             # Templates class for {{mustache}} template handling
     │   ├── threadsApi.ts            # ThreadsApi
     │   └── usersApi.ts              # UsersApi
-    ├── state/                       # 21 Jotai atom files + accessors + selectors
+    ├── state/                       # 18 Jotai atom files + accessors + selectors
     │   ├── accessors.ts             # Global store (createStore) + get*/set*/reset* functions for all atoms
     │   ├── selectors.ts             # Hook-based selectors: useRecState, useDerivedState, and per-entity hooks
     │   ├── agents.ts                # agentsState, activeAgentIdState, activeAgentState (derived)
@@ -269,7 +271,8 @@ repos/admin/
     │   └── user.ts                  # userState
     ├── theme/
     │   └── GlobalStyles.tsx         # Global CSS styles component
-    ├── types/                       # 15 type definition files
+    ├── types/                       # 16 type definition files
+    │   ├── agent.types.ts           # EAgentThreadTab, TAgentThreadTab
     │   ├── api.types.ts             # TApiRes, TApiReq, TApiData, TApiReqEx, TApiService, TFetchOpts, TApiCacheKeys, EAPIMethod
     │   ├── auth.types.ts            # TAuthData, TAuthSession, TAuthError, TAuthResp
     │   ├── components.types.ts      # Component prop types
@@ -289,7 +292,7 @@ repos/admin/
         │   ├── apiUrl.ts            # Build API URL from env vars (TDSK_CADDY_PX_HOST takes priority)
         │   ├── authHeader.ts        # Auth header utility
         │   ├── genFormData.ts       # Convert object to FormData
-        │   ├── objToQuery.ts        # Convert object to URL query string (alias: toQueryParams)
+        │   ├── objToQuery.tsx       # Convert object to URL query string (alias: toQueryParams)
         │   ├── toQueryParams.ts     # (see objToQuery)
         │   └── validateUrl.ts       # URL validation
         ├── endpoints/
@@ -298,6 +301,7 @@ repos/admin/
         ├── errors/
         │   └── ApiError.ts          # Custom ApiError class (message + status code)
         ├── nav/
+        │   ├── buildProjectNavItems.tsx  # Build project-scoped nav items dynamically from agents
         │   ├── buildRoute.ts        # Build parameterized route string from context (replaces :orgId, :projectId, etc.)
         │   ├── getDynamicNav.ts     # Dynamic navigation builder
         │   └── getParamValue.ts     # Extract route param values
@@ -405,7 +409,7 @@ enum ERoutePath {
 export const store = createStore()
 ```
 
-**21 State Atom Files** with the following pattern:
+**18 State Atom Files** with the following pattern:
 ```typescript
 // state/<entity>.ts
 import { atomWithReset } from 'jotai/utils'
@@ -423,7 +427,7 @@ export const activeEntityIdState = atomWithReset<string | undefined>(undefined)
 export const getOrgs = () => store.get(orgsState)
 export const setOrgs = (orgs: Record<string, Organization>) => store.set(orgsState, orgs)
 export const resetOrgs = () => store.set(orgsState, undefined)
-// ... same pattern for all 21 entities
+// ... same pattern for all 18 entities
 ```
 
 Special accessors for `apiKeys` include `setApiKey` (single upsert) and `removeApiKey` (single delete).
@@ -1010,40 +1014,3 @@ export const MyContainer = styled(Box)(({ theme }) => ({
 12. **Theme-aware styling** - Use `theme` parameter in styled components
 
 ---
-
-**Last Updated**: 2026-02-15
-**Version**: 2.0.0
-**Maintainer**: ThreadedStack Team
-
-## Changelog
-
-### v2.0.0 (2026-02-15)
-- **Complete rewrite** based on actual codebase audit
-- **Fixed**: Directory structure now reflects all 38+ component dirs, 18 action domains, 22+ services, 21 state atoms
-- **Fixed**: Route definitions corrected (relative vs absolute paths, actual ERoutePath enum values)
-- **Fixed**: Removed stale "Teams" and "Repos" references (now Organizations and Projects everywhere)
-- **Fixed**: State management section updated with actual accessor/selector pattern (useRecState/useDerivedState)
-- **Fixed**: API service architecture documented (ApiService → BaseApi → domain APIs with TanStack Query)
-- **Fixed**: Dependencies list corrected (added @tanstack/react-query, posthog-js, sonner v2.0.7, vitest v1.6.1)
-- **Added**: Agent chat SSE streaming documentation (useAgentChat hook)
-- **Added**: Quickstart wizard flow (ProviderStep → AgentStep → ReviewStep)
-- **Added**: All 18 action domains with api/local split documented
-- **Added**: Context providers (OrgsProvider, ProjectsProvider) data loading pattern
-- **Added**: Navigation system (NavService, buildRoute, OrgNavItems, ProjectNavItems)
-- **Added**: Templates service for {{mustache}} syntax
-- **Added**: Complete environment variables list
-- **Added**: Test files inventory (6 test files)
-- **Removed**: Outdated code examples referencing Teams/Repos/Page component patterns
-
-### v1.2.0 (2026-01-18)
-- Added Billing & Subscriptions (Polar.sh)
-- Added Quota Management (12 resource types)
-- Added subscriptionsApi, quotasApi services
-- Added /billing and /orgs/:orgId/usage pages
-- Added Billing components and state atoms
-
-### v1.1.0 (2026-01-15)
-- Teams renamed to Organizations (orgs)
-- Repos renamed to Projects
-- Added API Keys, Secrets, Endpoints, Functions management
-- Added nested routing (Projects under Organizations)

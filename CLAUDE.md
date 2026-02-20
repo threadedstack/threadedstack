@@ -57,7 +57,7 @@ The platform solves three key problems:
 1. **Fragmented stacks** - Replaces stitching together Vercel + Lambda + LangChain + Vault
 2. **Security gaps** - Secrets are injected server-side; AI never sees API keys
 3. **Context management** - Built-in RAG and memory management for LLM applications
-4, **Billing & Quotas** - Tiered subscription plans (free/basic/developer/pro) via Polar.sh with usage quota tracking for 12 resource types
+4. **Billing & Quotas** - Tiered subscription plans (free/basic/developer/pro) via Polar.sh with usage quota tracking for 12 resource types
 
 ### important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
@@ -93,14 +93,14 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
          FaaS: /faas/* → Backend Compute Engine
          AI: /ai/* → Backend AI Engine
             ├── /_/ai/sessions  - Create LLM session (JWT/API key auth)
-            └── /ai/chat        - LLM proxy SSE stream (session token auth)
+            └── /ai/stream      - LLM proxy SSE stream (session token auth)
 ```
 
 **Authentication Flow**:
 - Client-side auth via Neon Auth (social login)
 - Proxy validates JWT using JWKS from Neon
 - Protected routes require valid JWT token or API key (`tdsk_*` Bearer token)
-- `/ai/chat` uses session token auth (`Authorization: Session <token>`) — skips JWT/API key
+- `/ai/stream` uses session token auth (`Authorization: Session <token>`) — skips JWT/API key
 
 ### Workspace Structure (`repos/`)
 
@@ -109,7 +109,7 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `proxy/` | Auth Gateway - JWT/JWKS validation, backend proxying | Express 5, jose, http-proxy-middleware | `.claude/skills/proxy/SKILL.md` |
 | `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/backend/SKILL.md` |
 | `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/admin/SKILL.md` |
-| `agent/` | Headless AI Agent - LLM adapters, ReAct loop, tool execution | TypeScript, streaming SSE | `.claude/skills/agent/SKILL.md` |
+| `agent/` | Headless AI Agent - pi-mono integration, AgentRunner, tool execution | TypeScript, streaming SSE | `.claude/skills/agent/SKILL.md` |
 | `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/database/SKILL.md` |
 | `domain/` | Shared types, models, utilities | TypeScript | `.claude/skills/domain/SKILL.md` |
 | `components/` | Shared React components/hooks | React, MUI | `.claude/skills/components/SKILL.md` |
@@ -135,15 +135,14 @@ Load the relevant skill when working on a specific repo:
 | Skill File | Contents |
 |------------|----------|
 | `admin/SKILL.md` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services, Billing pages/components, Quota tracking |
-| `agent/SKILL.md` | AI Agent runtime, LLM adapters (Anthropic/OpenAI/Google/Proxy), ProxyAdapter for session-based LLM proxy, AgentRunner, ReAct loop, tool execution |
-| `backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, AI session/chat proxy endpoints, Subscription/Quota/Payment endpoints, PaymentsService |
+| `agent/SKILL.md` | AI Agent runtime, pi-mono integration (@mariozechner/pi-agent-core, pi-ai), AgentRunner, event bridge, tool execution |
+| `backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, AI session/stream proxy endpoints, endpoint type system (Agent/Proxy/FaaS), PaymentsService |
 | `cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
-| `components/SKILL.md` | 29 React components, 8 hook categories, Monaco editor, Definitions, theming |
-| `database/SKILL.md` | Drizzle ORM, organizations/projects schemas, apiKeys table, model converters, quotas/subscriptions tables |
-| `domain/SKILL.md` | Organization/Project/ApiKey/Secret/Endpoint/Function models, crypto utilities, Plan model, payment types (TPayPlanMeta) |
-| `logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, Express middleware |
-| `proxy/SKILL.md` | JWKS auth validation, API key auth, session token auth for /ai/chat, http-proxy-middleware backend forwarding |
-| `shell/SKILL.md` | ARCHIVED — redirects to sandbox/SKILL.md (shell repo migrated to sandbox) |
+| `components/SKILL.md` | 30+ React components, 8 hook categories, Monaco editor, Drawer, Definitions, theming |
+| `database/SKILL.md` | Drizzle ORM, 23 schemas (incl. agentFunctions/agentProviders junction tables), model converters, quotas/subscriptions tables |
+| `domain/SKILL.md` | 16 model classes, crypto utilities (AES-256-GCM, HKDF, API key hashing), permissions system, provider templates |
+| `logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, stdio monkey-patching |
+| `proxy/SKILL.md` | JWKS auth validation, API key auth, session token auth for /ai/stream, http-proxy-middleware backend forwarding |
 | `repl/SKILL.md` | Terminal REPL CLI, task-based architecture (@keg-hub/args-parse), config system, 7 commands, session-based LLM proxy, Bun binary |
 | `sandbox/SKILL.md` | Pluggable sandbox factory, E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |

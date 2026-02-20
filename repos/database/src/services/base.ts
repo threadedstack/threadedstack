@@ -3,6 +3,7 @@ import type {
   IDBApi,
   TDatabase,
   TDBApiRes,
+  TDBUpdate,
   TDBQueryOpts,
   TTableSchema,
   TDBWithRecord,
@@ -132,7 +133,7 @@ export class Base<
     }
   }
 
-  async update(data: I): Promise<TDBApiRes<M>> {
+  async update(data: TDBUpdate<I>): Promise<TDBApiRes<M>> {
     try {
       const { id, createdAt, updatedAt, ...rest } = data
       !id && DBIdError.throw()

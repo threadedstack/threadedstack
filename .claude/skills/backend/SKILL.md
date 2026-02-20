@@ -1,8 +1,7 @@
 ---
 name: "Threaded Stack - Backend Repo"
 description: "Knowledge base for the backend Core API repo"
-version: "2.0.0"
-tags: ["express", "nodejs", "api", "websocket", "backend", "payments", "polar", "ai", "session", "proxy", "secrets"]
+tags: ["express", "nodejs", "api", "backend", "payments", "polar", "ai", "session", "proxy", "secrets", "pi-ai"]
 ---
 # Backend Repo Skill
 
@@ -11,8 +10,8 @@ tags: ["express", "nodejs", "api", "websocket", "backend", "payments", "polar", 
 The **Backend** repo (`repos/backend`) serves as the Core API server for Threaded Stack. It is built on Express 5.1.0 and acts as the central orchestration layer for:
 
 - **Admin CRUD operations** - Organization, project, user, API key, secret, endpoint, provider, agent, thread, invitation, and subscription management
-- **Proxy Engine** - Secure API proxying with secret injection, OAuth 2.0, retry logic, and header/body transforms
-- **AI Engine** - LLM proxy with SSE streaming, session-based API key resolution, and AgentRunner integration
+- **Proxy Engine** - Secure API proxying with secret injection, OAuth 2.0, retry logic, and header/body transforms via endpoint type services (ProxyEndpoint, AgentEndpoint, FaaSEndpoint)
+- **AI Engine** - LLM proxy with SSE streaming via `@mariozechner/pi-ai`, session-based API key resolution, and AgentRunner integration
 - **Payment Integration** - Polar.sh subscription management with quota tracking
 - **Email Service** - Invitation and notification emails via Resend/Mailgun/Console
 
@@ -34,20 +33,21 @@ repos/backend/
 │   │   ├── values.ts       # Static values (AuthIgnore, AllowedRetryCodes, DBPaging)
 │   │   └── index.ts
 │   ├── endpoints/           # API route definitions
-│   │   ├── agents/         # 9 files: CRUD + runAgent (SSE streaming)
-│   │   ├── ai/             # 6 files: sessions + chatProxy (SSE LLM proxy)
-│   │   │   ├── ai.ts       # Top-level /ai group (no JWT auth — session-token only)
-│   │   │   ├── sessions.ts # /_/ai/sessions group (normal auth, under accounts)
-│   │   │   ├── createSession.ts  # POST /sessions — creates LLM session
-│   │   │   └── chatProxy.ts      # POST /chat — SSE LLM proxy
-│   │   ├── apiKeys/        # 8 files: CRUD with generation, scoping, rate limiting
-│   │   ├── auth/           # 3 files: Authentication endpoints
-│   │   ├── base/           # 3 files: Base + health endpoints
-│   │   ├── domains/        # 7 files: Domain CRUD
-│   │   ├── endpoints/      # 8 files: Endpoint definitions CRUD
-│   │   ├── functions/      # 8 files: Function CRUD
-│   │   ├── invitations/    # 6 files: Invitation CRUD + accept/revoke/pending
-│   │   ├── orgs/           # 23 files: Orgs CRUD + members + roles + quickstart + nested resources
+│   │   ├── agents/         # 10 files: CRUD + runAgent (SSE streaming via AgentEndpoint)
+│   │   ├── ai/             # 7 files: sessions + streamChat (SSE LLM proxy via pi-ai)
+│   │   │   ├── ai.ts       # /_/ai group (JWT/API key auth, under accounts)
+│   │   │   ├── stream.ts   # /ai group (top-level, no JWT auth — session-token only)
+│   │   │   ├── createSession.ts  # POST /_/ai/sessions — creates LLM session
+│   │   │   ├── streamChat.ts     # POST /ai/stream — SSE LLM proxy via pi-ai
+│   │   │   └── index.ts
+│   │   ├── apiKeys/        # CRUD with generation, scoping, rate limiting
+│   │   ├── auth/           # Authentication endpoints
+│   │   ├── base/           # Base + health endpoints
+│   │   ├── domains/        # Domain CRUD
+│   │   ├── endpoints/      # Endpoint definitions CRUD
+│   │   ├── functions/      # Function CRUD
+│   │   ├── invitations/    # Invitation CRUD + accept/revoke/pending
+│   │   ├── orgs/           # Orgs CRUD + members + roles + quickstart + nested resources
 │   │   │   ├── orgs.ts
 │   │   │   ├── createOrg.ts, getOrg.ts, updateOrg.ts, deleteOrg.ts, listOrgs.ts
 │   │   │   ├── listOrgMembers.ts, addOrgMember.ts, removeOrgMember.ts, updateMemberRole.ts
@@ -56,27 +56,29 @@ repos/backend/
 │   │   │   ├── orgQuickstart.ts  # Single-transaction create (Provider+Secret+Project+Agent+Endpoint)
 │   │   │   ├── orgAgents.ts, orgApiKeys.ts, orgDomains.ts, orgProjects.ts, orgProviders.ts, orgSecrets.ts, orgQuotas.ts
 │   │   │   └── index.ts
-│   │   ├── payments/       # 3 files: Payment endpoints + webhook
-│   │   ├── projects/       # 8 files: Projects CRUD
-│   │   ├── providers/      # 8 files: Provider configurations
-│   │   ├── proxy/          # 3 files: Proxy endpoint routing
-│   │   ├── quotas/         # 6 files: Quota checking and limits
-│   │   ├── secrets/        # 8 files: Secrets with AES-256-GCM encryption
-│   │   ├── subscriptions/  # 8 files: Subscription management
-│   │   ├── threads/        # 11 files: Thread CRUD + messages + branching
-│   │   ├── users/          # 8 files: Users CRUD
-│   │   ├── accounts.ts     # Main accounts routes (/_/*)
-│   │   ├── endpoints.ts    # Endpoint registry (ai, proxy, accounts)
+│   │   ├── payments/       # Payment endpoints + webhook
+│   │   ├── projects/       # Projects CRUD
+│   │   ├── providers/      # Provider configurations
+│   │   ├── proxy/          # Proxy endpoint routing (dispatches to endpoint type services)
+│   │   │   ├── proxy.ts    # /proxy group
+│   │   │   └── endpoint.ts # /proxy/:projectId/:endpointId — dispatches via getEPService
+│   │   ├── quotas/         # Quota checking and limits
+│   │   ├── secrets/        # Secrets with AES-256-GCM encryption
+│   │   ├── subscriptions/  # Subscription management
+│   │   ├── threads/        # Thread CRUD + messages + branching
+│   │   ├── users/          # Users CRUD
+│   │   ├── accounts.ts     # Main accounts routes (/_/*) — auth middleware applied here
+│   │   ├── endpoints.ts    # Endpoint registry (aiStream, proxy, accounts)
 │   │   └── index.ts
 │   ├── middleware/          # Express middleware setup
-│   │   ├── authorize.ts    # Authorization middleware (12 tests)
-│   │   ├── setupAuth.ts    # JWT authentication
+│   │   ├── authorize.ts    # Authorization middleware
+│   │   ├── setupAuth.ts    # JWT authentication (authenticate function)
 │   │   ├── setupDatabase.ts # Database connection with validation
-│   │   ├── setupEndpoints.ts # Dynamic route builder
+│   │   ├── setupEndpoints.ts # Dynamic route builder with UUID param auto-validation
 │   │   ├── setupErrorHandler.ts # Error handling
 │   │   ├── setupLogger.ts  # Winston logging
 │   │   ├── setupProxy.ts   # Proxy to Auth-Proxy
-│   │   ├── setupServer.ts  # CORS, DB, base setup
+│   │   ├── setupServer.ts  # CORS, base setup
 │   │   ├── setupSubscription.ts # Auto-create free tier subscription
 │   │   └── index.ts
 │   ├── mocks/              # Test mocks
@@ -88,14 +90,22 @@ repos/backend/
 │   │   ├── server.ts       # HTTP/HTTPS server creation
 │   │   └── index.ts
 │   ├── services/            # Service layer
-│   │   ├── agent/          # Agent service
+│   │   ├── endpoints/      # Endpoint type services (polymorphic dispatch)
+│   │   │   ├── base.ts           # BaseEndpoint abstract class (permissions, secrets, validation)
+│   │   │   ├── agentEndpoint.ts  # AgentEndpoint — loads agent, resolves secrets, streams via AgentRunner
+│   │   │   ├── proxyEndpoint.ts  # ProxyEndpoint — proxy requests with auth, transforms, retries
+│   │   │   ├── faasEndpoint.ts   # FaaSEndpoint — FaaS function execution via sandbox
+│   │   │   ├── getEPService.ts   # Singleton registry mapping endpoint type to service
+│   │   │   └── index.ts
+│   │   ├── functions/      # Function execution
+│   │   │   └── functionExecutor.ts # FunctionExecutor — sandboxed function execution with esbuild transpile
 │   │   ├── email/          # Email service with strategy pattern
 │   │   │   ├── email.ts    # EmailService (Resend/Mailgun/Console)
-│   │   │   ├── templates/  # Handlebars templates (invitation, member-notification)
-│   │   │   └── strategies/ # resend.ts, mailgun.ts, console.ts
+│   │   │   ├── templates.ts # TemplatesService — Handlebars template compilation with caching
+│   │   │   └── strategies/ # resend.ts, mailgun.ts, console.ts, base.ts
 │   │   ├── payments/       # Payment services
 │   │   │   ├── payments.ts # PaymentsService factory (Polar/Console)
-│   │   │   └── strategies/ # polar.ts (53 tests), console.ts, base.ts
+│   │   │   └── strategies/ # polar.ts, console.ts, base.ts
 │   │   ├── proxy/          # Proxy services
 │   │   │   ├── proxyService.ts  # OAuth 2.0, auth types, domain validation, transforms
 │   │   │   └── retryService.ts  # Exponential backoff retry logic
@@ -103,10 +113,10 @@ repos/backend/
 │   │   │   └── secretResolver.ts # SecretResolver class ({{SECRET}} template substitution, 3-tier API key lookup)
 │   │   ├── api.ts          # API service utilities
 │   │   ├── invite.ts       # Invitation service
-│   │   ├── llm.ts          # Spyable wrapper for createLLMAdapter
-│   │   ├── sessionStore.ts # In-memory LLM session store with TTL (10 tests)
+│   │   ├── sessionStore.ts # In-memory LLM session store with TTL
 │   │   └── index.ts
 │   ├── types/               # TypeScript type definitions
+│   │   ├── agent.types.ts  # Agent execution options (TAgentExecOpts)
 │   │   ├── api.types.ts    # API types
 │   │   ├── backend.types.ts # Backend configuration
 │   │   ├── email.types.ts  # Email strategy types
@@ -119,30 +129,29 @@ repos/backend/
 │   │   ├── simple-oauth2.d.ts # OAuth type declarations
 │   │   └── index.ts
 │   ├── utils/               # Utility functions
-│   │   ├── api/            # API utilities
-│   │   ├── auth/           # Auth utilities (6+ files)
-│   │   │   ├── checkPermission.ts     # Permission checking (20 tests)
-│   │   │   ├── generateApiKey.ts      # API key generation
+│   │   ├── api/            # API utilities (objToQuery, toFormData)
+│   │   ├── auth/           # Auth utilities
+│   │   │   ├── checkPermission.ts     # Permission checking
 │   │   │   ├── generateInvitationToken.ts # Invitation token generation
 │   │   │   ├── getBillingPeriod.ts    # Billing period calculation
 │   │   │   ├── pxToBeHeader.ts        # Proxy→Backend header conversion
-│   │   │   ├── requireResource.ts     # requireResourceWithPermission helper (11 tests)
+│   │   │   ├── requireResource.ts     # requireResourceWithPermission helper
 │   │   │   ├── shouldIgnore.ts        # Auth ignore logic
 │   │   │   ├── validateApiKey.ts      # API key validation
 │   │   │   └── index.ts
-│   │   ├── errors/         # Error handling (Exception, errorHandler, withEx)
+│   │   ├── errors/         # Error handling (Exception, errorHandler, server, withEx)
 │   │   ├── providers/      # Provider utilities
-│   │   │   ├── resolveProviderType.ts  # Resolve LLM provider type (anthropic/openai/google)
-│   │   │   ├── validateProviderType.ts # Validate provider type
+│   │   │   ├── resolveProviderType.ts  # Resolve LLM provider type from provider config
+│   │   │   ├── validateProviderType.ts # Validate provider type string
+│   │   │   ├── validateLLMProvider.ts  # Validate AI providers have valid ELLMProviderBrand
 │   │   │   └── index.ts
-│   │   ├── proxy/          # Proxy utilities (buildProxy, endpointProxy, proxyHeaders)
-│   │   ├── secrets/        # Secret utilities
+│   │   ├── proxy/          # Proxy utilities (buildProxy, buildProxyUrl, endpointProxy, proxyError, proxyHeaders)
 │   │   ├── validation/     # Validation utilities
-│   │   │   ├── exclusiveArc.ts # Exclusive arc validation (13 tests)
-│   │   │   └── uuid.ts     # UUID validation helper (14 tests)
-│   │   ├── helpers.ts      # General utilities
+│   │   │   ├── exclusiveArc.ts # Exclusive arc validation
+│   │   │   └── uuid.ts     # UUID validation helper (auto-injected for :id/:xxxId params)
 │   │   ├── logger.ts       # Winston logger instance
-│   │   ├── pagination.ts   # List endpoint pagination (10 tests)
+│   │   ├── paths.ts        # Path constants (public directory)
+│   │   ├── pagination.ts   # List endpoint pagination
 │   │   └── signals.ts      # Process signal handling
 │   ├── index.ts            # Entry export (re-exports start.ts)
 │   ├── start.ts            # Application bootstrap
@@ -170,11 +179,33 @@ repos/backend/
 - **`src/middleware/setupDatabase.ts`** - Initializes database connection with validation and error handling
 - **`src/middleware/setupLogger.ts`** - Sets up Winston request/error logging
 - **`src/middleware/setupServer.ts`** - Disables `x-powered-by`, sets up CORS
-- **`src/middleware/setupAuth.ts`** - JWT authentication middleware via Neon Auth
-- **`src/middleware/setupSubscription.ts`** - Auto-creates free tier subscription for new users
-- **`src/middleware/setupEndpoints.ts`** - Dynamically builds Express routes from endpoint configs
+- **`src/middleware/setupAuth.ts`** - Exports `authenticate` function for JWT authentication via Neon Auth (used as middleware in `accounts.ts`)
+- **`src/middleware/setupSubscription.ts`** - Exports `setupSubscription` for auto-creating free tier subscription for new users (used as middleware in `accounts.ts`)
+- **`src/middleware/setupEndpoints.ts`** - Dynamically builds Express routes from endpoint configs with auto UUID param validation
 - **`src/middleware/setupProxy.ts`** - Proxies remaining requests to Auth-Proxy service
 - **`src/middleware/setupErrorHandler.ts`** - Error handling middleware
+- **`src/middleware/authorize.ts`** - Role-based authorization middleware
+
+### Endpoint Type Services (`src/services/endpoints/`)
+
+The endpoint type system uses polymorphic dispatch to handle different endpoint types (proxy, FaaS, agent). Each type has a dedicated service class that extends `BaseEndpoint`.
+
+- **`base.ts`** - Abstract `BaseEndpoint` class providing shared operations: permission checks (`checkPermission`), project validation (`validateProject`), method validation (`validateMethod`), and secret fetching (`fetchSecrets`)
+- **`agentEndpoint.ts`** - `AgentEndpoint` class: loads agent + provider + secrets, resolves API key via `SecretResolver`, resolves headers/bodyParams, loads custom functions, creates/reuses thread, streams SSE via `AgentRunner.run()` from `@tdsk/agent`. Shared `run()` method is used by both the admin `POST /_/agents/:id/run` route and the proxy engine
+- **`proxyEndpoint.ts`** - `ProxyEndpoint` class: HTTP proxy requests through configured endpoints with auth, transforms, and retries via `ProxyService`
+- **`faasEndpoint.ts`** - `FaaSEndpoint` class: FaaS function execution via `FunctionExecutor` in sandboxed environment
+- **`getEPService.ts`** - Singleton registry mapping `EEndpointType` to service instance. Used by `endpoints/proxy/endpoint.ts` to dispatch requests
+
+### Function Executor (`src/services/functions/functionExecutor.ts`)
+
+Executes user-defined functions inside a sandboxed environment. TypeScript functions are transpiled via esbuild before execution. The sandbox is always torn down in a finally block.
+
+**Key Features:**
+- TypeScript transpilation via `esbuild` (ts -> esm)
+- Local sandbox execution via `@tdsk/sandbox` `createSandboxProvider('local')`
+- Runner wrapper pattern: writes `function.mjs` + `runner.mjs` to sandbox, executes with `node`
+- Input passed via `__FUNCTION_INPUT__` env var
+- 1 MB output cap, configurable timeout (default 30s)
 
 ### Services
 
@@ -246,12 +277,13 @@ Provider-agnostic email service using the Strategy Pattern. Switches between Res
 
 **Key Methods:**
 - `send(options)` - Send email via configured provider strategy
-- `invitation(data)` - Send organization invitation email to new users (uses Handlebars template: `templates/invitation.html`)
-- `sendMemberNotification(data)` - Send notification email to existing users added to org (uses Handlebars template: `templates/member-notification.html`)
+- `invitation(data)` - Send organization invitation email to new users
+- `sendMemberNotification(data)` - Send notification email to existing users added to org
 
-**Handlebars Templates:**
-- `invitation.html` - Organization invitation email
-- `member-notification.html` - Member added notification email
+**Templates** (`src/services/email/templates.ts`):
+- `TemplatesService` loads HTML templates from `public/templates/` directory
+- Handlebars compilation with in-memory caching
+- Templates: `invitation.html`, `member-notification.html`
 
 #### PaymentsService (`src/services/payments/payments.ts`)
 Provider-agnostic payments service using the Strategy Pattern. Switches between Polar or Console logging based on configuration.
@@ -280,19 +312,23 @@ In-memory LLM session store with 1-hour TTL and periodic cleanup. Used by AI pro
 #### Agent Execution (`src/endpoints/agents/runAgent.ts`)
 **POST `/_/agents/:id/run`** - Run an agent with SSE streaming
 
+The endpoint delegates to `AgentEndpoint.run()` from `services/endpoints/agentEndpoint.ts`.
+
 **Request Flow:**
 1. Load agent with provider and secrets (unsanitized to access secret values)
-2. Check permission to run agents in this org
-3. Load provider
-4. Resolve secrets via `SecretResolver.resolveApiKey()` (3-tier lookup: agent → provider → org)
-5. Resolve provider type via `resolveProviderType(provider)`
-6. Resolve provider headers and bodyParams via `SecretResolver.resolveHeaders()` and `SecretResolver.resolveBodyParams()`
-7. Get or create thread
-8. Stream SSE via `AgentRunner` from `@tdsk/agent`
+2. Select provider: explicit `providerId` override, or `agent.primaryProvider`
+3. Resolve API key via `SecretResolver.resolveApiKey()` (3-tier lookup: agent → provider → org)
+4. Resolve provider headers and bodyParams via `SecretResolver.resolveHeaders()` and `SecretResolver.resolveBodyParams()`
+5. Load custom functions attached to agent via junction table
+6. Get or create thread
+7. Build LLM config with optional overrides (model, maxTokens, systemPrompt, tools, envVars)
+8. Build sandbox config from agent environment
+9. Stream SSE via `AgentRunner.run()` from `@tdsk/agent`, with `onExecuteFunction` callback for custom function execution via `FunctionExecutor`
 
 **Body:**
 - `prompt` (required) - User prompt
 - `threadId` (optional) - Existing thread ID to continue conversation
+- `providerId` (optional) - Override which provider to use
 
 **Response:** Server-Sent Events stream from AgentRunner
 
@@ -327,29 +363,38 @@ In-memory LLM session store with 1-hour TTL and periodic cleanup. Used by AI pro
 **POST `/_/ai/sessions`** - Creates LLM session, resolves API key server-side, returns session token
 
 **Request Flow:**
-1. Validate request (agentId, providerId, model required)
+1. Validate request (`agentId` required)
 2. Load agent with provider and secrets (unsanitized)
-3. Check permission to use agents in this org
-4. Load provider
-5. Resolve API key via `SecretResolver.resolveApiKey()`
-6. Resolve provider headers and bodyParams via `SecretResolver`
-7. Create session via `sessionStore.create()`
-8. Return session token
+3. Check permission to read agents in this org
+4. Get primary provider from `agent.primaryProvider`
+5. Resolve API key via `SecretResolver.resolveApiKey(agent, provider)`
+6. Resolve provider type via `resolveProviderType(provider)`
+7. Resolve provider headers and bodyParams via `SecretResolver`
+8. Build LLM config (apiKey stays server-side, includes model, systemPrompt, maxTokens, temperature)
+9. Create session via `sessionStore.create()`
+10. Return session token + non-sensitive config (no apiKey)
+
+**Body:** `{ agentId: string }`
 
 **Auth:** JWT or API key (normal auth, under `/_/ai/sessions`)
 
-#### AI Chat Proxy (`src/endpoints/ai/chatProxy.ts`)
-**POST `/ai/chat`** - SSE LLM proxy that streams LLM responses using cached session config
+#### AI Stream Proxy (`src/endpoints/ai/streamChat.ts`)
+**POST `/ai/stream`** - SSE LLM proxy that streams LLM responses using cached session config via `@mariozechner/pi-ai`
 
 **Request Flow:**
 1. Extract session token from `Authorization: Session <token>` header
 2. Load session from `sessionStore`
-3. Create LLM adapter via `createLLMAdapter()` from `@tdsk/agent`
-4. Stream SSE response from LLM
+3. Validate `context.messages` array in request body
+4. Get model via `getModel(provider, model)` from `pi-ai`
+5. Build stream context with server-side system prompt + client messages/tools
+6. Stream SSE via `streamSimple(model, context, options)` from `pi-ai`
+7. Convert `AssistantMessageEvent` to `ProxyAssistantMessageEvent` (strips `partial` field for bandwidth)
+
+**Body:** `{ model?: string, context: { messages: Array, tools?: Array }, options?: { maxTokens?, temperature? } }`
 
 **Auth:** Session token only (no JWT/API key — session token already validated at creation time)
 
-**Response:** Server-Sent Events stream
+**Response:** Server-Sent Events stream with event types: `start`, `text_start`, `text_delta`, `text_end`, `thinking_start`, `thinking_delta`, `thinking_end`, `toolcall_start`, `toolcall_delta`, `toolcall_end`, `done`, `error`
 
 #### Thread Management (`src/endpoints/threads/`)
 - **GET `/_/threads`** - List threads
@@ -427,13 +472,15 @@ validateExclusiveArc(
 #### Provider Utilities (`src/utils/providers/`)
 - **`resolveProviderType(provider)`** - Resolve LLM provider type (anthropic/openai/google) from provider config
 - **`validateProviderType(type)`** - Validate provider type string
+- **`validateLLMProvider(type, brand)`** - Validate AI-type providers have `brand` set to a valid `ELLMProviderBrand` value (non-AI provider types are not validated)
 
 #### Auth Utilities (`src/utils/auth/`)
-- **`generateApiKey()`** - Generate new API key with `tdsk_` prefix
+- **`checkPermission(req, action, resource, scope)`** - Check user permission for action on resource in scope
 - **`generateInvitationToken()`** - Generate invitation token
 - **`getBillingPeriod()`** - Calculate billing period start/end dates
-- **`checkPermission(req, action, resource, scope)`** - Check user permission for action on resource in scope
+- **`pxToBeHeader()`** - Convert Proxy-to-Backend headers
 - **`shouldIgnore(path, method)`** - Determine if request should bypass auth
+- **`validateApiKey()`** - API key validation logic
 
 #### Pagination (`src/utils/pagination.ts`)
 Parse pagination query parameters with defaults and max limits.
@@ -464,16 +511,19 @@ index.ts
 start.ts → loads backend.config.ts
   ↓
 main.ts
-  ├─ setupLoggerReq(app)          # Request logging
-  ├─ setupDatabase(app)           # DB connection with validation + error handling
+  ├─ app.locals.config = config   # Store config
+  ├─ app.locals.email = EmailService  # Email service instance
+  ├─ app.locals.payments = PaymentsService  # Payments service instance
+  ├─ setupLogger(app)             # Winston request/error logging
   ├─ setupServer(app, router)     # CORS, router mount
-  ├─ setupAuth(app)               # JWT authentication + ensureSubscription
-  ├─ setupEndpoints(router, config) # Dynamic route building (includes setupProxy via EPMethod.All)
-  ├─ setupLoggerErr(app)          # Error logging
+  ├─ setupDatabase(app)           # DB connection with validation + error handling
+  ├─ setupEndpoints(app, router)  # Dynamic route building (auth is in accounts middleware)
   ├─ setupErrorHandler(app)       # Error middleware
   ├─ initServer()                 # HTTP/HTTPS server creation
   └─ signals(server)              # Graceful shutdown handlers
 ```
+
+**Note:** Authentication (`authenticate`) and subscription auto-creation (`setupSubscription`) are applied as middleware in `accounts.ts`, not as global middleware in `main.ts`.
 
 ### Endpoint Definition Pattern
 
@@ -487,12 +537,12 @@ export const base: TEndpointConfig = {
   action: async (req, res) => { /* handler */ }
 }
 
-// Dynamic endpoint with builder
-export const accounts: TEndpointBuilder = (config) => ({
+// Dynamic endpoint with builder (receives app instance)
+export const accounts: TEndpointBuilder = (app) => ({
   method: EPMethod.Use,
-  path: adminPath(config),  // e.g., /_
-  middleware: [express.json(), authenticate],
-  endpoints: { auth, base, health }
+  path: adminPath(app.locals.config.server),  // e.g., /_
+  middleware: [express.json(), authenticate, setupSubscription],
+  endpoints: { ai, auth, base, orgs, users, health, payments, invitations, subscriptions }
 })
 ```
 
@@ -500,51 +550,57 @@ export const accounts: TEndpointBuilder = (config) => ({
 
 The middleware stack is set up in this critical order:
 
-1. **Logger Request** - Logs incoming requests (from `@tdsk/logger`)
-2. **Database** - Database connection with validation
-3. **Server Setup** - CORS, basic Express config
-4. **Auth** - JWT authentication + `setupSubscription` (auto-create free tier)
-5. **Endpoints** - Dynamic route registration from `endpoints/` directory
-6. **Proxy** - Catch-all proxy to Auth-Proxy service for unhandled routes
-7. **Logger Error** - Logs errors (from `@tdsk/logger`)
-8. **Error Handler** - Formats and sends error responses
+1. **Logger** - Winston request/error logging (from `@tdsk/logger`)
+2. **Server Setup** - CORS, basic Express config, router mount
+3. **Database** - Database connection with validation
+4. **Endpoints** - Dynamic route registration from `endpoints/` directory
+   - `accounts` routes get `express.json()`, `authenticate`, and `setupSubscription` middleware
+   - `aiStream` routes get `express.json()` middleware (session-token auth in handler)
+   - `proxy` routes dispatch to endpoint type services
+5. **Error Handler** - Formats and sends error responses
 
 ### AI Endpoint Architecture
 
 AI endpoints are split into two groups with different auth mechanisms:
 
-1. **Session Creation** (`/_/ai/sessions`) - Normal JWT/API key auth under accounts
-   - Creates LLM session
-   - Resolves API key server-side (API keys never leave the backend)
-   - Returns session token
+1. **Session Creation** (`/_/ai/sessions`) - Normal JWT/API key auth under accounts (`ai.ts`)
+   - Creates LLM session with agent's resolved API key, provider, model config
+   - API key resolved server-side via SecretResolver (never leaves the backend)
+   - Returns session token + non-sensitive config
 
-2. **Chat Proxy** (`/ai/chat`) - Session-token auth at top level (no JWT/API key)
+2. **Stream Proxy** (`/ai/stream`) - Session-token auth at top level (`stream.ts` exports `aiStream`)
    - Uses session token from `Authorization: Session <token>` header
-   - Streams SSE from LLM using cached session config
+   - Streams SSE from LLM via `@mariozechner/pi-ai` `streamSimple()` using cached session config
+   - Converts `AssistantMessageEvent` to bandwidth-optimized `ProxyAssistantMessageEvent`
    - No API key validation needed (already validated at session creation time)
 
 **Rationale:**
 - API keys are never sent over the wire to the client
 - Session tokens are scoped to a single agent+provider+model configuration
 - Session tokens expire after 1 hour (TTL in sessionStore)
+- `pi-ai` provides unified multi-provider LLM streaming (Anthropic, OpenAI, Google)
 
 ### Agent Run Flow
 
-When executing an agent via `POST /_/agents/:id/run`:
+When executing an agent via `POST /_/agents/:id/run` (handled by `AgentEndpoint.run()`):
 
 1. Load agent + provider + secrets (unsanitized to access encrypted values)
-2. Resolve API key via `SecretResolver.resolveApiKey()`:
+2. Select provider: explicit `providerId` override, or `agent.primaryProvider`
+3. Resolve API key via `SecretResolver.resolveApiKey(agent, provider)`:
    - Try agent-scoped secrets first
    - Fall back to provider-scoped secrets
    - Fall back to org-scoped secrets
-3. Resolve provider headers via `SecretResolver.resolveHeaders()`:
+4. Resolve provider headers via `SecretResolver.resolveHeaders()`:
    - Load provider-scoped + org-scoped secrets
    - Decrypt each secret
    - Replace `{{SECRET_NAME}}` templates in headers
-4. Resolve provider bodyParams via `SecretResolver.resolveBodyParams()`:
+5. Resolve provider bodyParams via `SecretResolver.resolveBodyParams()`:
    - Same as headers, but handles non-string values (numbers, booleans, objects)
-5. Create LLM adapter via `createLLMAdapter()` from `@tdsk/agent`
-6. Stream SSE via `AgentRunner.run()` from `@tdsk/agent`
+6. Load custom functions attached to agent via junction table (`db.services.function.listByAgent`)
+7. Get or create thread
+8. Build LLM config with optional overrides (model, maxTokens, systemPrompt, tools, envVars)
+9. Build sandbox config from agent environment options
+10. Stream SSE via `AgentRunner.run()` from `@tdsk/agent` with `onExecuteFunction` callback for custom function execution via `FunctionExecutor`
 
 ## API Routes
 
@@ -685,12 +741,13 @@ Routes are protected by JWT authentication middleware except those in `AuthIgnor
 
 ### AI Routes (`/ai/*`)
 
-**Chat Proxy:**
-- **POST `/ai/chat`** - LLM proxy SSE stream (session token auth: `Authorization: Session <token>`)
+**Stream Proxy:**
+- **POST `/ai/stream`** - LLM proxy SSE stream via `pi-ai` (session token auth: `Authorization: Session <token>`)
 
-### Proxy Routes (`/**`)
+### Proxy Engine Routes (`/proxy/*`)
 
-All routes not matched by endpoints are proxied to the Auth-Proxy service configured via `TDSK_BE_REMOTE` and `TDSK_BE_REMOTE_PORT`.
+**Endpoint Dispatch:**
+- **ALL `/proxy/:projectId/:endpointId`** - Dispatches to appropriate endpoint type service (ProxyEndpoint, FaaSEndpoint, AgentEndpoint) via `getEPService()`
 
 ## Logic Flow
 
@@ -698,30 +755,34 @@ All routes not matched by endpoints are proxied to the Auth-Proxy service config
 
 ```
 1. Request arrives at Express app
-2. Winston request logger logs the request
-3. Database connection validated
-4. CORS middleware checks origin
-5. JWT authentication (if not in AuthIgnore)
-   └─ setupSubscription ensures free tier subscription exists
-6. Router attempts to match endpoint
-   ├─ If matched: Execute endpoint handler
-   │  └─ If protected: User already authenticated
-   └─ If not matched: Proxy to Auth-Proxy service
-7. Response sent or error thrown
-8. Winston error logger logs errors
-9. Error handler formats error response
+2. Winston logger logs the request
+3. CORS middleware checks origin
+4. Database connection validated
+5. Router attempts to match endpoint:
+   ├─ /_/* routes (accounts):
+   │  ├─ express.json() parses body
+   │  ├─ authenticate (JWT auth)
+   │  ├─ setupSubscription (ensures free tier subscription exists)
+   │  └─ Execute endpoint handler
+   ├─ /ai/* routes (aiStream):
+   │  ├─ express.json() parses body
+   │  └─ Execute handler (session-token auth in handler)
+   └─ /proxy/* routes:
+      └─ Dispatch to endpoint type service via getEPService()
+6. Response sent or error thrown
+7. Error handler formats error response
 ```
 
 ### Authentication Flow
 
 ```
-1. Request enters authenticate middleware
-2. Check if path should be ignored (shouldIgnore)
+1. Request enters authenticate middleware (applied in accounts.ts)
+2. Check if path should be ignored (shouldIgnore: /, /health)
    ├─ Yes: Skip to next middleware
    └─ No: Continue authentication
 3. Extract Bearer token from Authorization header
 4. Validate token with database (Neon Auth)
-   ├─ Valid: Attach user to res.locals.user
+   ├─ Valid: Attach user to req.user
    └─ Invalid: Return 401 error
 5. setupSubscription middleware ensures free tier subscription exists
 6. Continue to endpoint handler
@@ -730,18 +791,19 @@ All routes not matched by endpoints are proxied to the Auth-Proxy service config
 ### Endpoint Registration Flow
 
 ```
-1. setupEndpoints called with router and config
-2. Iterate through endpoints object
+1. setupEndpoints called with app and router
+2. Iterate through endpoints object (aiStream, proxy, accounts)
 3. For each endpoint:
-   ├─ If builder function: Call with config
+   ├─ If builder function: Call with app
    └─ If config object: Use directly
 4. Validate endpoint (method, path)
-5. Determine endpoint type:
-   ├─ EPMethod.Use: Create nested router
-   ├─ Has proxy config: Create proxy middleware
+5. Auto-inject UUID param validation for routes with :id or :xxxId params
+6. Determine endpoint type:
+   ├─ EPMethod.Use: Create nested router, recursively build children
+   ├─ EPMethod.Proxy or has proxy config: Create proxy middleware via endpointProxy
    └─ Has action: Use action handler
-6. Register with Express router
-7. If public: Add to publicRoutes list
+7. Register with Express router
+8. If public: Add to publicRoutes list
 ```
 
 ## Key Patterns
@@ -766,13 +828,15 @@ export const createAsyncRouter = () => {
 Endpoints are defined declaratively, then dynamically registered:
 
 ```typescript
-// Define
+// Define (src/endpoints/endpoints.ts)
 export const endpoints = {
-  accounts,  // Builder function or config object
+  proxy,
+  accounts,   // Builder function
+  aiStream,   // Config object
 }
 
 // Register
-setupEndpoints(router, config) // Iterates and registers
+setupEndpoints(app, router) // Iterates and registers
 ```
 
 ### 3. Middleware Composition
@@ -895,14 +959,15 @@ await payments.service.createCheckoutSession({ ... })
 | `handlebars` | 4.7.8 | Email template rendering |
 | `zod` | 4.3.5 | Schema validation |
 | `date-fns` | 4.1.0 | Date utilities |
+| `esbuild` | 0.27.3 | TypeScript transpilation for FaaS functions |
 
 ### LLM Integration
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `@anthropic-ai/sdk` | ^0.39.0 | Anthropic Claude API client |
-| `openai` | ^4.77.0 | OpenAI API client |
-| `@google/genai` | ^1.0.0 | Google Gemini API client |
+| `@mariozechner/pi-ai` | 0.52.12 | Unified multi-provider LLM streaming (used by streamChat for SSE proxy) |
+
+**Note:** Individual LLM SDKs (`@anthropic-ai/sdk`, `openai`, `@google/genai`) are dependencies of `@tdsk/agent`, not the backend directly. The backend's AI stream proxy uses `pi-ai` which provides its own unified interface.
 
 ### Payment Integration
 
@@ -951,7 +1016,6 @@ pnpm clean          # Remove dist folder
 
 ```bash
 pnpm test           # Run vitest test suite
-                    # 790 tests across 44 test files
 ```
 
 ### Commands Notes
@@ -1006,8 +1070,7 @@ DBPaging = {
 ### Logger Integration
 
 - Uses `@tdsk/logger` package for Winston-based logging
-- Request logging via `setupLoggerReq(app)`
-- Error logging via `setupLoggerErr(app)`
+- Request and error logging via `setupLogger(app)`
 - Logger instance configured from `config.logger`
 
 ### Domain Integration
@@ -1018,9 +1081,10 @@ DBPaging = {
 
 ### Agent Integration
 
-- Uses `@tdsk/agent` package for AgentRunner and LLM adapters
-- `AgentRunner.run()` for SSE streaming execution
-- `createLLMAdapter()` for creating LLM clients (Anthropic/OpenAI/Google/Proxy)
+- Uses `@tdsk/agent` package for `AgentRunner` and `IAgentRunnerDB` interface
+- `AgentRunner.run()` for SSE streaming execution with tool use, function callbacks, and sandbox config
+- Backend creates `IAgentRunnerDB` adapter wrapping database services for message persistence
+- Uses `@mariozechner/pi-ai` (`getModel`, `streamSimple`) for AI stream proxy endpoint (not `@tdsk/agent`)
 
 ### Sandbox Integration
 
@@ -1100,84 +1164,3 @@ The `pnpm start` command watches multiple packages:
 Changes to any of these trigger automatic rebuild and server restart.
 
 ---
-
-**Last Updated:** 2026-02-15
-**Version:** 2.0.0
-
-### Changelog
-
-#### v2.0.0 (2026-02-15)
-- **BREAKING**: Removed configs endpoints — configs table deprecated
-- **New**: `SecretResolver` service — `{{SECRET}}` template resolution in provider headers/bodyParams, 3-tier API key lookup (agent → provider → org), multi-scope decryption
-- **New**: `ProxyService` — OAuth 2.0 token exchange, auth types (Bearer/Basic/API Key), domain whitelist validation, path regex, request/response transforms with secret injection
-- **New**: `RetryService` — Exponential backoff, configurable retries (default 3), retryable status codes [408, 429, 500, 502, 503, 504]
-- **New**: `EmailService` — Strategy pattern (mailgun, resend, console), Handlebars templates (invitation, member-notification)
-- **New**: `PaymentsService` — Strategy pattern (polar, console)
-- **New**: `POST /_/orgs/:orgId/quickstart` — Single-transaction create (Provider + Secret + Project + Agent + Endpoint)
-- **New**: `POST /_/agents/:id/run` — SSE streaming agent execution with ReAct loop via AgentRunner
-- **New**: Thread CRUD + messages + branching (11 files, 12 endpoints)
-- **New**: Invitation management (accept, revoke, pending) (6 files, 4 endpoints)
-- **New**: Org nested resources (agents, api-keys, domains, secrets, projects, providers under `/_/orgs/:orgId/`)
-- **New**: `POST /_/orgs/:id/invite` — Email invitation
-- **New**: `PATCH /_/orgs/:orgId/members/:userId/role` — Update member role
-- **New**: `PATCH /_/orgs/:id/roles/:roleId` and `DELETE /_/orgs/:id/roles/:roleId`
-- **New**: `POST /_/subscriptions/cancel` (was `DELETE /_/subscriptions/current`)
-- **New**: Provider utilities: `resolveProviderType()`, `validateProviderType()`
-- **New**: Auth utilities: `generateApiKey()`, `generateInvitationToken()`, `getBillingPeriod()`
-- **Improved**: Subscription endpoints use PATCH/POST instead of PUT/DELETE
-- **Improved**: AI endpoint split: `/_/ai/sessions` (JWT auth under accounts) vs `/ai/chat` (session-token auth at top level)
-- **Improved**: Agent run flow: load agent + provider + secrets → SecretResolver.resolveApiKey → resolve headers/bodyParams → stream SSE via AgentRunner
-- **Middleware**: Added `setupDatabase` and `setupLogger` to middleware list; `setupSubscription` auto-creates free tier
-- **Dependencies**: Added `@tdsk/agent`, `@tdsk/sandbox`, `@anthropic-ai/sdk`, `@google/genai`, `openai`, `@polar-sh/express`, `@polar-sh/sdk`, `zod`, `date-fns`, `nodemailer`, `axios`
-- **Testing**: 790/790 tests passing across 44 test files (was 745/745 across 44 in v1.5.0)
-- **Directory**: Updated structure to reflect actual file layout (agents/, ai/, invitations/, orgs/, threads/, payments/, services/email/, services/proxy/, services/secrets/, utils/providers/)
-
-#### v1.5.0 (2026-02-14)
-- **New**: Session-based LLM proxy architecture — API keys never leave the backend
-- **New**: `POST /_/ai/sessions` — Creates LLM session, resolves API key server-side, returns session token
-- **New**: `POST /ai/chat` — SSE proxy that streams LLM responses using cached session config
-- **New**: `sessionStore.ts` — In-memory session store with 1-hour TTL and periodic cleanup (10 tests)
-- **New**: `llm.ts` — Spyable wrapper for `createLLMAdapter` (enables `vi.spyOn` in tests)
-- **New**: `uuid.ts` — UUID validation utility (14 tests)
-- **New**: `decryptSecret.ts` — Provider API key decryption utility
-- **Removed**: `resolveAgent` endpoint — decrypted API keys no longer sent over the wire
-- **Routing**: AI endpoints split: `/_/ai/sessions` (normal auth under accounts) + `/ai/chat` (session-token only at top level)
-- **Testing**: 745/745 tests passing across 44 test files (was 584/584 across 36 files)
-
-#### v1.4.0 (2026-02-08)
-- **New**: Pagination for all 13 list endpoints (`?limit=N&offset=N`, default 50, max 200)
-- **New**: `requireResourceWithPermission()` helper — eliminates permission boilerplate from ~15 endpoints
-- **New**: `validateExclusiveArc()` utility — centralizes exclusive arc validation
-- **New**: `agentId` scope support in secrets endpoints
-- **Refactored**: BaseService to abstract class (REFACT-003)
-- **Performance**: `fetchPlans()` parallelized with Promise.all
-- **Performance**: PolarService product cache now has 5-minute TTL
-- **New**: 153+ new tests (agents 25, domains 30, middleware 16, error utils 14, proxy utils 19, validation 13, pagination 10, permission 11, plus existing test updates)
-- **Testing**: 584/584 tests passing across 36 test files (was 431/431 across 25 files)
-
-#### v1.3.0 (2026-02-08)
-- **Fixed**: 5 critical bugs (inverted validation, uninitialized token, subscription upsert, exclusive arc, price/product confusion)
-- **Fixed**: 7 security vulnerabilities (Neon admin backdoor removed, timing attack, quota bypass, TOCTOU documented, body auth context removed, webhook replay protection, provider secret auth)
-- **Fixed**: 2 performance issues (DB-level filtering for 5 list endpoints, N+1 batch query for listUsers)
-- **Improved**: EPMethod enum simplified to PascalCase-only variants
-- **Improved**: Delete responses standardized to `{ data: { success: true } }`
-- **Improved**: Error handler includes error `code` in responses
-- **Improved**: Graceful shutdown via signals()
-- **Improved**: Database connection validation on startup
-- **New**: `getCurrentPeriod()` utility for quota period calculation
-- **New**: 85+ new tests (checkPermission, authorize, polar, database services)
-
-#### v1.2.0 (2026-01-18)
-- **New**: Payment integration via Polar.sh
-- **New**: `PolarService` class with complete API integration (340 lines, 53 tests passing)
-- **New**: Subscription endpoints (`/subscriptions/*`)
-- **New**: Quota endpoints (`/quotas/*`)
-- **New**: Payment webhook handler (`/payments/webhook`)
-- **New**: `ensureSubscription` middleware for free-tier auto-assignment
-- **New**: Methods: `fetchPlans()`, `createCheckoutSession()`, `cancelSubscription()`, `validateWebhookSignature()`
-- **New**: Environment variables for Polar configuration
-
-#### v1.1.0 (Previous)
-- Organizations and Projects CRUD
-- API Keys and Secrets management
-- Endpoint and Provider management

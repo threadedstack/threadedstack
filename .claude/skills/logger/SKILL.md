@@ -1,7 +1,6 @@
 ---
 name: "Threaded Stack - Logger Repo"
 description: "Knowledge base for the Winston logging service repo"
-version: "1.0.0"
 tags: ["winston", "logging", "nodejs", "service", "express-middleware", "security"]
 ---
 # Logger Repo Skill
@@ -9,11 +8,11 @@ tags: ["winston", "logging", "nodejs", "service", "express-middleware", "securit
 ## Overview
 
 The `@tdsk/logger` package is a Winston-based logging service that provides:
-- **CLI Logger**: Terminal/console logging with colored output (`Logger` class)
-- **API Logger**: Winston-powered structured logging for backend services (`ApiLogger`, `buildLogger`)
+- **CLI Logger**: Terminal/console logging with colored output (`Log` class, `Logger` singleton)
+- **API Logger**: Winston-powered structured logging for backend services (`ApiLogger`, `buildApiLogger`)
 - **Express Middleware**: Request/error logging middleware for Express apps
 - **Security**: Automatic redaction of sensitive data (passwords, tokens, API keys, secrets)
-- **stdout/stderr Interception**: Global process stream hijacking to sanitize all output
+- **stderr Interception**: Global `process.stderr` hijacking to sanitize error output (stdout interception is currently disabled)
 
 This is a shared utility consumed by `backend` and `proxy` repos for consistent logging across the platform.
 
@@ -22,19 +21,21 @@ This is a shared utility consumed by `backend` and `proxy` repos for consistent 
 ```
 repos/logger/
 ├── src/
-│   ├── index.ts                    # Main entry point (exports all)
+│   ├── index.ts                    # Main entry point (re-exports all modules)
 │   ├── logger.ts                   # CLI Logger class (colored console output)
-│   ├── apiLogger.ts                # API Logger (Winston wrapper)
+│   ├── logger.test.ts              # Logger unit test
+│   ├── apiLogger.ts                # API Logger + buildApiLogger factory (Winston wrapper)
 │   ├── middleware.ts               # Express middleware (request/error logging)
-│   ├── stdio.ts                    # Process stdout/stderr interception
+│   ├── stdio.ts                    # Process stdout/stderr interception (side-effect import)
 │   ├── types/
 │   │   ├── logger.types.ts         # TypeScript type definitions
-│   │   └── index.ts                # Type exports
+│   │   └── index.ts                # Type re-exports
 │   └── utils/
+│       ├── index.ts                # Utils re-exports (helpers, stripColors, injectKeyValues)
 │       ├── buildLogger.ts          # Winston logger factory
 │       ├── colors.ts               # ANSI color helpers
 │       ├── levels.ts               # Log level utilities (npm levels)
-│       ├── helpers.ts              # Type checking utilities
+│       ├── helpers.ts              # Re-exports from @keg-hub/jsutils (isStr, isNum, exists, isColl, identity, capitalize)
 │       ├── safeReplacer.ts         # Secret redaction logic
 │       ├── injectKeyValues.ts      # Dynamic secret injection
 │       └── stripColors.ts          # ANSI color stripping
@@ -47,7 +48,8 @@ repos/logger/
 │   └── addToProcess.ts             # Process injection
 ├── package.json                    # Package metadata
 ├── tsconfig.json                   # TypeScript config
-└── index.js                        # CJS entry point
+├── index.js                        # CJS entry point (redirects to dist/log)
+└── index.mjs                       # ESM entry point (re-exports from dist/log)
 ```
 
 ## Key Files
@@ -56,76 +58,79 @@ repos/logger/
 
 **`src/logger.ts`** - CLI Logger (Log class)
 - Terminal/console logging with ANSI colors
-- Tag support for message prefixing
-- Helper methods: `header()`, `subHeader()`, `pair()`, `table()`, `highlight()`
-- Color methods: `red()`, `green()`, `yellow()`, `cyan()`, `error()`, `warn()`, `success()`
-- Direct console access via singleton `Logger` instance
+- Tag support for message prefixing (`setTag()`, `removeTag()`, `toggleTag()`)
+- Helper methods: `header()`, `subHeader()`, `pair()`, `label()`, `spacedMsg()`, `table()`, `highlight()`
+- Color methods: `red()`, `green()`, `yellow()`, `cyan()`, `blue()`, `magenta()`, `gray()`, `error()`, `warn()`, `success()`, `fail()`, `info()`, `data()`, `dir()`, `text()`
+- Output methods: `print()`, `stdout()`, `stderr()`, `clear()`, `empty()`
+- Color customization: `setColors()`, `color()`
+- Singleton `Logger` instance exported for direct use
 
-**`src/apiLogger.ts`** - API Logger
-- Winston wrapper for structured backend logging
-- Auto-initialization with default config
-- Methods: `info()`, `error()`, `warn()`, `debug()`, `verbose()`, `silly()`
-- Structured message formatting with label metadata
+**`src/apiLogger.ts`** - API Logger + `buildApiLogger` factory
+- Imports `stdio.ts` as side-effect (triggers stream interception on load)
+- `setupLogger({ tag, label, ...opts })` - Configure the default API logger instance
+- `buildApiLogger(label?, level?, logger?)` - Factory that creates API logger objects with positional params (not options object)
+- `ApiLogger` - Default singleton created via `buildApiLogger()`
+- **Known behavior**: `debug()`, `verbose()`, and `silly()` methods all map to Winston `info` level internally (via `loggerWrap('info', ...)`). This means these log levels are not distinguished in output.
+- Additional methods: `empty()`, `pair()`, `highlight()`, `data()`, `log()`, `success()`
+- Formats messages as structured objects with `{ message, label, data }` shape
 
 **`src/middleware.ts`** - Express Middleware
-- `setupLoggerReq()` - Request logging middleware (uses `express-winston.logger`)
-- `setupLoggerErr()` - Error logging middleware (uses `express-winston.errorLogger`)
-- Filters OPTIONS requests to reduce noise
+- `setupLoggerReq(app, middlewareOpts?)` - Request logging middleware (uses `express-winston.logger`)
+- `setupLoggerErr(app, middlewareOpts?)` - Error logging middleware (uses `express-winston.errorLogger`)
 - Metadata logging enabled at `verbose` level or higher
+- Accepts optional `middlewareOpts` to override default express-winston configuration
 
-**`src/stdio.ts`** - Global Stream Interception
+**`src/stdio.ts`** - Global Stream Interception (side-effect module)
+- Imported by `apiLogger.ts` as a side-effect (`import './stdio'`)
 - Hijacks `process.stdout.write` and `process.stderr.write`
-- Automatically strips colors in test environments
-- Applies `replaceUnsafe()` to redact secrets from ALL output
-- Bypass via `STL_FORCE_DISABLE_SAFE=true` environment variable
+- **stdout**: Strips colors (when `TDSK_TEST_COLORS` disabled) but `replaceUnsafe()` is currently commented out (no secret redaction on stdout)
+- **stderr**: Strips colors AND applies `replaceUnsafe()` for secret redaction, bypassed via `STL_FORCE_DISABLE_SAFE=true`
 
 ### Utilities
 
 **`src/utils/buildLogger.ts`** - Winston Factory
-- Creates Winston logger instances via `buildLogger()` (general use) or `buildApiLogger()` (API services)
-- Transports: Console only (configurable)
+- Creates Winston logger instances via `buildLogger(options?, defaultLogger?)`
+- `defaultLogger` param (default: `true`): when true, returns singleton `__LOGGER`; when false, creates a new instance
+- Transports: Console only
 - Formatters: `simple`, `json`, `prettyPrint` (dev), `timestamp`, `label`
-- Filters OPTIONS requests from logs
-- Singleton pattern for default logger
-
-**`buildApiLogger()`** - Factory for API-specific loggers:
-```typescript
-// Creates a pre-configured logger for API services
-const logger = buildApiLogger({
-  label: 'Backend API',
-  level: 'info',
-  pretty: true,  // Enable pretty printing in dev
-  silent: false,
-})
-```
+- `filterOptionsReq()` custom format filter removes OPTIONS requests from logs
+- Singleton `__LOGGER` pattern for default logger
 
 **`src/utils/safeReplacer.ts`** - Secret Redaction
-- Redacts sensitive data from logs: passwords, tokens, API keys, secrets, credit cards
-- Regex patterns for keys (`/token/i`, `/passw(or)?d/i`, `/api[-._]?key/i`)
-- Dynamic injection via `injectUnsafe()` for runtime secrets
+- `safeReplacer(key, value)` - JSON.stringify replacer that redacts sensitive data
+- `replaceUnsafe(str)` - Applies safeReplacer to a raw string (used in stderr interception)
+- `injectUnsafe(items)` - Add runtime values to the redaction list
+- `resetInjectedLogs()` - Clear injected redaction values
+- Regex patterns for keys: `/passw(or)?d/i`, `/pass/i`, `/secret/i`, `/token/i`, `/api[-._]?key/i`, `/session[-._]?id/i`, `/^connect\.sid$/`
+- Value-level patterns for credit card numbers
+- Key-value pair patterns: `authorization` + bearer, `token`, `password`, `secret`
 - Replaces matches with `****`
-- Used as JSON.stringify replacer and in stdio interception
 
 **`src/utils/levels.ts`** - Log Level Management
-- NPM log levels: `error(0)`, `warn(1)`, `info(2)`, `http(3)`, `verbose(4)`, `debug(5)`, `silly(6)`
-- Level comparison utilities
-- Dynamic method generation based on current log level
+- `npmLevels` - Winston npm log levels from `config.npm.levels`
+- `levelMap` - Maps level names to priority numbers
+- `compare(level1, level2)` - Compare two log levels
+- `levels` - Structured object with `.check`, `.levels`, `.compare` for level querying
+- `getLevelMethods(Logger, logMethod)` - Generate level-gated methods for a CLI logger
 
 **`src/utils/colors.ts`** - ANSI Color Helpers
 - ANSI escape codes for terminal colors
 - Basic colors: `red`, `green`, `yellow`, `cyan`, `blue`, `magenta`, `white`, `gray`
-- Bright variants: `brightRed`, `brightGreen`, `brightYellow`, etc.
-- Decorators: `underline`, `dim`
+- Bright variants: `brightRed`, `brightGreen`, `brightYellow`, `brightCyan`, `brightBlue`, `brightWhite`, `brightMagenta`
+- Decorators: `underline.<color>()`, `dim.<color>()` (nested color+decorator combos)
+- `addColor(...args)` utility for composing color sequences
 
 **`src/utils/injectKeyValues.ts`** - Dynamic Secret Injection
-- Extracts keys/values from objects (e.g., API responses with secrets)
-- Injects them into `safeReplacer` regex list
+- Extracts keys and values from objects (e.g., API responses with secrets)
+- Injects them into `safeReplacer` via `injectUnsafe()`
 - Ensures dynamically loaded secrets are redacted from logs
 
 **`src/utils/stripColors.ts`** - Color Stripping
-- Removes ANSI escape codes from strings
-- Controlled by `TDSK_TEST_COLORS` environment variable
-- Used in stdio interception for clean test output
+- `stripColors(str)` - Removes ANSI escape codes from strings when colors are disabled
+- `loggerColorDisabled()` - Checks `TDSK_TEST_COLORS` env var (`0` or starts with `f`)
+
+**`src/utils/helpers.ts`** - Re-exports from `@keg-hub/jsutils`
+- Exports: `isStr`, `isNum`, `exists`, `isColl`, `identity`, `capitalize`
 
 ## Logger Configuration
 
@@ -134,20 +139,24 @@ const logger = buildApiLogger({
 Built via `buildLogger()` with options:
 
 ```typescript
-type TLogOpts = {
-  silent?: boolean         // Disable all logging (default: false)
-  level?: string           // Log level: error|warn|info|http|verbose|debug|silly (default: 'silly')
-  label?: string           // Logger label for identification (default: 'TDSK')
-  exitOnError?: boolean    // Exit process on error (default: false)
-  handleExceptions?: boolean // Handle uncaught exceptions (default: true)
+// TLogOpts extends winston.LoggerOptions
+type TLogOpts = winston.LoggerOptions & {
+  label: string              // Logger label for identification (default: 'TDSK')
 }
+
+// Defaults used in buildLogger():
+// silent: false
+// level: 'silly'
+// label: 'TDSK'
+// exitOnError: false
+// handleExceptions: true
 ```
 
 ### Environment Variables
 
-- **`NODE_ENV`**: `production` → minimal logging; `development` → pretty-printed logs
-- **`TDSK_TEST_COLORS`**: `0` or `false` → disable colors in logs
-- **`STL_FORCE_DISABLE_SAFE`**: `true` → disable secret redaction (dangerous!)
+- **`NODE_ENV`**: `production` -> minimal JSON logging; non-production -> pretty-printed logs with colors
+- **`TDSK_TEST_COLORS`**: `0` or starts with `f` (e.g., `false`) -> disable colors in logs/strip ANSI codes
+- **`STL_FORCE_DISABLE_SAFE`**: `true` -> disable secret redaction on stderr (stdout redaction already disabled)
 
 ### Log Levels (npm standard)
 
@@ -167,19 +176,19 @@ Currently configured with **Console transport only**:
 
 ```typescript
 new transports.Console({
-  level: 'silly',                    // Log level
-  format: getFormatter(label),       // Combined format
-  handleExceptions: true,            // Log uncaught exceptions
+  level,                             // Log level (default: 'silly')
+  format: getFormatter(label),       // Combined format pipeline
+  handleExceptions,                  // Handle uncaught exceptions (default: true)
 })
 ```
 
-**Format Pipeline (Development)**:
+**Format Pipeline (Development / non-production)**:
 1. `filterOptionsReq()` - Remove OPTIONS requests
 2. `timestamp()` - Add timestamp
 3. `label({ label })` - Add label
 4. `simple()` - Simple text format
 5. `json()` - JSON structure
-6. `prettyPrint({ colorize: true })` - Pretty output
+6. `prettyPrint({ depth: 10, colorize: true })` - Pretty output with depth 10
 
 **Format Pipeline (Production)**:
 1. `filterOptionsReq()` - Remove OPTIONS requests
@@ -188,42 +197,39 @@ new transports.Console({
 4. `label({ label })` - Add label
 5. `json()` - JSON output only
 
-**Future Transports** (not implemented):
-- File transport (rotating logs)
-- HTTP transport (remote logging)
-- Stream transport (log aggregation)
-
 ## Architecture
 
 ### Two Logger Systems
 
-**1. CLI Logger (`Logger` class)**
+**1. CLI Logger (`Log` class, `Logger` singleton)**
 - For CLI tools, scripts, and terminal output
 - Colored console output with ANSI codes
 - Singleton instance exported as `Logger`
-- Methods map to console methods with color wrapping
+- Methods map to console methods with color wrapping via `logData()`
 
-**2. API Logger (`ApiLogger`, `buildLogger`)**
+**2. API Logger (`ApiLogger`, `buildApiLogger`)**
 - For backend/proxy API services
 - Winston-powered structured logging
-- Express middleware integration
-- Automatic secret redaction
+- Express middleware integration via `setupLoggerReq` / `setupLoggerErr`
+- Automatic secret redaction via `stdio.ts` side-effect import
+- `buildApiLogger()` is defined in `apiLogger.ts` (not in `utils/buildLogger.ts`)
 
 ### Security Architecture
 
 **Multi-Layer Secret Protection**:
 
-1. **JSON Serialization**: `safeReplacer()` used in `JSON.stringify()`
-2. **Stream Interception**: `stdio.ts` hijacks stdout/stderr globally
-3. **Dynamic Injection**: `injectKeyValues()` adds runtime secrets to redaction list
-4. **Regex Patterns**: Pre-defined patterns for common secrets
+1. **JSON Serialization**: `safeReplacer()` used as `JSON.stringify()` replacer
+2. **Stream Interception**: `stdio.ts` hijacks stderr globally (stdout redaction currently disabled)
+3. **Dynamic Injection**: `injectKeyValues()` / `injectUnsafe()` add runtime secrets to redaction list
+4. **Regex Patterns**: Pre-defined patterns for common secret keys and values
 
 ### Singleton Pattern
 
 Both loggers use singleton pattern:
-- `Logger` - Exported CLI logger instance
-- `__LOGGER` - Internal Winston instance (via `buildLogger()`)
-- `__logger` - Internal API logger (via `setupLogger()`)
+- `Logger` - Exported CLI logger instance (from `logger.ts`)
+- `__LOGGER` - Internal Winston instance (from `buildLogger()` in `utils/buildLogger.ts`)
+- `__logger` - Internal API logger (from `setupLogger()` in `apiLogger.ts`)
+- `ApiLogger` - Default API logger singleton (from `buildApiLogger()` in `apiLogger.ts`)
 
 ## Usage Patterns
 
@@ -276,11 +282,20 @@ ApiLogger.info('Server started', { port: 3000 })
 ApiLogger.error('Database connection failed', { error: err })
 ApiLogger.warn('Rate limit exceeded', { ip: req.ip })
 
-// Automatic secret redaction
-ApiLogger.info('User authenticated', {
-  token: 'secret-token-123',  // Logged as ****
-  apiKey: 'my-api-key',       // Logged as ****
-})
+// Note: debug/verbose/silly all map to 'info' internally
+ApiLogger.debug('This logs at info level')
+```
+
+### Custom API Logger
+
+```typescript
+import { buildApiLogger } from '@tdsk/logger'
+
+// Create custom API logger with positional params: (label, level, logger?)
+const dbLogger = buildApiLogger('Database', 'debug')
+
+dbLogger.info('Connection pool initialized')
+dbLogger.error('Query failed', { duration: '23ms' })
 ```
 
 ### Express Middleware
@@ -319,7 +334,7 @@ app.use((err, req, res, next) => {
 ```typescript
 import { buildLogger } from '@tdsk/logger'
 
-// Create custom logger instance
+// Create custom Winston logger instance
 const dbLogger = buildLogger({
   label: 'Database',
   level: 'debug',
@@ -342,9 +357,8 @@ const apiResponse = {
 }
 injectKeyValues(apiResponse)
 
-// Now these values are redacted from ALL logs
-console.log('Token:', apiResponse.access_token)
-// Output: Token: ****
+// Now these values are redacted from ALL logs (stderr)
+// and from JSON.stringify with safeReplacer
 ```
 
 ## Key Patterns
@@ -353,7 +367,7 @@ console.log('Token:', apiResponse.access_token)
 Both logger systems maintain singleton instances to ensure consistent configuration across the application.
 
 ### 2. Factory Pattern
-`buildLogger()` acts as a factory for creating Winston instances with default configuration.
+`buildLogger()` acts as a factory for creating Winston instances with default configuration. `buildApiLogger()` wraps Winston loggers with structured message formatting.
 
 ### 3. Decorator Pattern
 `logData()` wraps console methods with color decorators and tag injection.
@@ -368,7 +382,7 @@ Log level strategies determine which messages are logged based on priority.
 `stdio.ts` hijacks process streams to observe and sanitize all output globally.
 
 ### 7. Proxy Pattern
-`ApiLogger` proxies Winston methods with auto-initialization and formatting.
+`ApiLogger` proxies Winston methods with auto-initialization and formatting via `loggerWrap()`.
 
 ## Dependencies
 
@@ -378,7 +392,7 @@ Log level strategies determine which messages are logged based on priority.
 |---------|---------|---------|
 | `winston` | 3.17.0 | Core logging framework |
 | `express-winston` | 4.2.0 | Express middleware for Winston |
-| `@keg-hub/jsutils` | 10.0.0 | Utility helpers (isObj, exists, etc.) |
+| `@keg-hub/jsutils` | 10.0.0 | Utility helpers (isObj, isStr, exists, etc.) |
 | `@keg-hub/parse-config` | 2.2.0 | Environment config parsing |
 
 ### DevDependencies
@@ -386,18 +400,24 @@ Log level strategies determine which messages are logged based on priority.
 | Package | Version | Purpose |
 |---------|---------|---------|
 | `tsup` | 8.3.6 | Build tool (esbuild wrapper) |
-| `vitest` | ^1.4.0 | Testing framework |
+| `vitest` | 1.6.1 | Testing framework |
+| `typescript` | 5.7.3 | TypeScript compiler |
 | `@types/node` | 22.12.0 | Node.js types |
 | `alias-hq` | 6.2.4 | Path alias resolution |
+| `module-alias` | 2.2.3 | Module alias registration |
+| `vite-tsconfig-paths` | 4.3.2 | Vite tsconfig path resolution |
 
 ## Commands
 
 ```bash
 # Build
-pnpm build                 # Compile with tsup → dist/log/
+pnpm build                 # Compile with tsup -> dist/log/
 
 # Testing
 pnpm test                  # Run vitest tests
+
+# Type check
+pnpm types                 # Run tsc --noEmit --pretty
 
 # Clean
 pnpm clean                 # Remove node_modules
@@ -405,7 +425,7 @@ pnpm clean                 # Remove node_modules
 
 ### Commands Notes
 
-* Linting and formatting are automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
+* Linting and formatting run automatically, so `pnpm lint` and `pnpm format` commands should be ignored.
 
 ## Integration Points
 
@@ -428,35 +448,47 @@ pnpm clean                 # Remove node_modules
 ### Export Surface
 
 ```typescript
-// Main exports (src/index.ts)
-export { Logger, Log } from './logger'              // CLI Logger
-export { ApiLogger, setupLogger } from './apiLogger' // API Logger
-export { setupLoggerReq, setupLoggerErr } from './middleware' // Middleware
-export { buildLogger, buildApiLogger } from './utils/buildLogger' // Factories
-export { levels, levelMap } from './utils/levels'   // Levels
-export { colors } from './utils/colors'             // Colors
-export { stripColors } from './utils/stripColors'   // Utilities
-export { safeReplacer, injectUnsafe } from './utils/safeReplacer' // Security
-export { injectKeyValues } from './utils/injectKeyValues' // Security
+// Main exports (src/index.ts) - uses `export *` from each module
+// From ./logger:
+export { Log, Logger } from './logger'
+
+// From ./apiLogger:
+export { setupLogger, buildApiLogger, ApiLogger } from './apiLogger'
+
+// From ./middleware:
+export { setupLoggerReq, setupLoggerErr } from './middleware'
+
+// From ./utils/buildLogger:
+export { buildLogger } from './utils/buildLogger'
+
+// From ./utils/levels:
+export { npmLevels, levelMap, compare, levels, getLevelMethods } from './utils/levels'
+
+// From ./utils/colors:
+export { colors } from './utils/colors'
+
+// From ./utils/stripColors:
+export { loggerColorDisabled, stripColors } from './utils/stripColors'
+
+// From ./utils/safeReplacer:
+export { resetInjectedLogs, injectUnsafe, safeReplacer, replaceUnsafe } from './utils/safeReplacer'
+
+// From ./utils/injectKeyValues:
+export { injectKeyValues } from './utils/injectKeyValues'
 ```
 
 ### Build Output
 
 - **Entry**: `src/index.ts`
-- **Output**: `dist/log/index.js` (CommonJS only)
-- **External**: All dependencies externalized (not bundled)
-- **Sourcemaps**: Yes
-- **Main Entry**: `index.js` (root) redirects to `dist/log/index.js`
+- **Output**: `dist/log/index.cjs` (CommonJS only)
+- **External**: All dependencies (runtime + dev) externalized via esbuild
+- **Sourcemaps**: Yes (`dist/log/index.cjs.map`)
+- **Root Entry Points**: `index.js` (CJS, `require('./dist/log')`) and `index.mjs` (ESM, `export * from './dist/log'`)
 
 ## Testing Strategy
 
 Tests in `src/logger.test.ts`:
-- Logger instance creation
-- Color output verification
-- Tag functionality
-- Level filtering
-- Secret redaction validation
-- Winston integration
+- Logger instance creation (verifies `Logger` is instance of `Log`)
 
 Run with: `pnpm test` (Vitest)
 
@@ -466,25 +498,15 @@ Run with: `pnpm test` (Vitest)
 - Passwords (`password`, `passwd`, `pw`, `pass`)
 - API Keys (`api_key`, `api-key`, `apikey`)
 - Tokens (`token`, `bearer`, `authorization`)
+- Secrets (`secret`)
 - Sessions (`session_id`, `connect.sid`)
 - Credit Cards (4x4 digit pattern)
 - Custom injected secrets (via `injectUnsafe()`)
 
 **Bypass for Debugging**:
 ```bash
-STL_FORCE_DISABLE_SAFE=true npm start  # DANGEROUS - disables redaction
+STL_FORCE_DISABLE_SAFE=true npm start  # Disables redaction on stderr only
 ```
-
-## Future Enhancements
-
-1. **File Transport**: Rotating log files for persistence
-2. **Remote Logging**: HTTP transport to log aggregation service
-3. **Log Levels per Module**: Granular level control by namespace
-4. **Structured Queries**: JSON log parsing utilities
-5. **Custom Formatters**: Plugin system for custom log formats
-6. **Performance Metrics**: Built-in latency/throughput tracking
-7. **Log Sampling**: Reduce log volume in high-traffic scenarios
-8. **Context Propagation**: Request ID tracking across logs
 
 ---
 

@@ -46,7 +46,7 @@ export const createSession: TEndpointConfig = {
 
     // Resolve secrets
     const secrets = new SecretResolver(db)
-    const apiKey = await secrets.resolveApiKey(agent, provider.id)
+    const apiKey = await secrets.resolveApiKey(agent, provider)
 
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 

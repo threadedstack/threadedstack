@@ -39,3 +39,6 @@ export const DBPaging = {
   max: 200,
   default: 50,
 }
+
+export const SecretRefTest = /\{\{([^}]+)\}\}/
+export const SecretRefPattern = /\{\{([^}]+)\}\}/g

@@ -98,7 +98,7 @@ export class AgentEndpoint extends BaseEndpoint {
 
     // Resolve secrets
     const secrets = new SecretResolver(db)
-    const apiKey = await secrets.resolveApiKey(agent, provider.id)
+    const apiKey = await secrets.resolveApiKey(agent, provider)
 
     if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
 
@@ -146,7 +146,7 @@ export class AgentEndpoint extends BaseEndpoint {
       systemPrompt: overrides?.systemPrompt || agent.systemPrompt,
       model: overrides?.model || agent.model || provider.options?.model,
 
-      // TODO: fix this, need to add differnt Provider class types
+      // TODO: fix these typescript types, need to add different Provider class types
       // I.E. need AIProvider, GitProvider, etc...
       provider: resolveProviderType<TLLMProviderBrand>(provider as any),
     }

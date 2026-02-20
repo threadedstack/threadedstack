@@ -1,5 +1,6 @@
 import type {
   TDBApiRes,
+  TDBUpdate,
   TServiceOpts,
   TDBQueryOpts,
   TDBDomainsSelect,
@@ -57,7 +58,7 @@ export class DomainService extends Base<
     return result
   }
 
-  async update(data: TDBDomainsInsert) {
+  async update(data: TDBUpdate<TDBDomainsInsert>) {
     // Update the domain record first
     const result = await super.update(data)
 

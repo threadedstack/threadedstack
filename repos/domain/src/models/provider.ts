@@ -5,6 +5,7 @@ import { Base } from './base'
 export class Provider extends Base {
   name?: string
   orgId: string
+  secretId?: string
   type: TProviderType
   brand: TProviderBrand
   options: Record<string, any> = {}

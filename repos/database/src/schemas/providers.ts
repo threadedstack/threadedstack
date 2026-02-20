@@ -14,6 +14,7 @@ export const providers = pgTable(`providers`, {
   options: jsonb(`options`).$type<Record<string, any>>(),
   headers: jsonb(`headers`).$type<Record<string, string>>(),
   bodyParams: jsonb(`body_params`).$type<Record<string, any>>(),
+  secretId: uuid(`secret_id`),
   orgId: uuid(`org_id`)
     .notNull()
     .references(() => orgs.id, { onDelete: `cascade` }),

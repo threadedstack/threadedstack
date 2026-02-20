@@ -167,6 +167,129 @@ describe(`SecretResolver.replaceInObj`, () => {
   })
 })
 
+// ── SecretResolver#resolveApiKey ──────────────────────────────────
+
+describe(`SecretResolver#resolveApiKey`, () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it(`should resolve via direct secretId lookup (Tier 0)`, async () => {
+    const db = createMockDb()
+    ;(db.services.secret.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { encryptedValue: fakeEncrypted(), orgId: `org-1` },
+    })
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.resolveApiKey(
+      { orgId: `org-1`, secrets: [] },
+      { id: `prov-1`, secretId: `secret-direct` }
+    )
+
+    expect(result).toBe(`decrypted-secret-value`)
+    expect(db.services.secret.get).toHaveBeenCalledWith(`secret-direct`)
+    // Should NOT fall through to list-based lookups
+    expect(db.services.secret.list).not.toHaveBeenCalled()
+  })
+
+  it(`should fall back to Tier 1 when secretId is not set`, async () => {
+    const db = createMockDb()
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.resolveApiKey(
+      {
+        orgId: `org-1`,
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `a-1`, providerId: `prov-1` },
+        ],
+      },
+      { id: `prov-1` }
+    )
+
+    expect(result).toBe(`decrypted-secret-value`)
+    expect(db.services.secret.get).not.toHaveBeenCalled()
+  })
+
+  it(`should fall back when secretId lookup returns no data`, async () => {
+    const db = createMockDb()
+    ;(db.services.secret.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+    })
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.resolveApiKey(
+      {
+        orgId: `org-1`,
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `a-1`, providerId: `prov-1` },
+        ],
+      },
+      { id: `prov-1`, secretId: `secret-missing` }
+    )
+
+    expect(result).toBe(`decrypted-secret-value`)
+    expect(db.services.secret.get).toHaveBeenCalledWith(`secret-missing`)
+  })
+
+  it(`should fall back when direct secret decryption fails`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    const mockDecrypt = decryptValue as ReturnType<typeof vi.fn>
+    // First call (Tier 0) fails, second call (Tier 1) succeeds
+    mockDecrypt.mockResolvedValueOnce(null).mockResolvedValueOnce(`tier1-key`)
+
+    const db = createMockDb()
+    ;(db.services.secret.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { encryptedValue: fakeEncrypted(), orgId: `org-1` },
+    })
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.resolveApiKey(
+      {
+        orgId: `org-1`,
+        secrets: [
+          { encryptedValue: fakeEncrypted(), agentId: `a-1`, providerId: `prov-1` },
+        ],
+      },
+      { id: `prov-1`, secretId: `secret-broken` }
+    )
+
+    expect(result).toBe(`tier1-key`)
+  })
+
+  it(`should fall back through all tiers to org-scoped`, async () => {
+    const { decryptValue } = await import(`@tdsk/domain`)
+    const mockDecrypt = decryptValue as ReturnType<typeof vi.fn>
+    mockDecrypt.mockResolvedValueOnce(`org-key`)
+
+    const orgSecrets = [{ encryptedValue: fakeEncrypted(), orgId: `org-1` }]
+    const db = createMockDb([], orgSecrets)
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.resolveApiKey(
+      { orgId: `org-1`, secrets: [] },
+      { id: `prov-1` }
+    )
+
+    expect(result).toBe(`org-key`)
+    expect(db.services.secret.list).toHaveBeenCalledWith({
+      where: { providerId: `prov-1` },
+    })
+    expect(db.services.secret.list).toHaveBeenCalledWith({ where: { orgId: `org-1` } })
+  })
+
+  it(`should return empty string when no secrets found anywhere`, async () => {
+    const db = createMockDb()
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.resolveApiKey(
+      { orgId: `org-1`, secrets: [] },
+      { id: `prov-1` }
+    )
+
+    expect(result).toBe(``)
+  })
+})
+
 // ── SecretResolver#resolveBodyParams ──────────────────────────────
 
 const fakeEncrypted = () =>
@@ -179,6 +302,7 @@ const fakeEncrypted = () =>
 const createMockDb = (providerSecrets: any[] = [], orgSecrets: any[] = []) => ({
   services: {
     secret: {
+      get: vi.fn().mockResolvedValue({ data: null }),
       list: vi.fn().mockImplementation((opts: any) => {
         if (opts.where.providerId) return Promise.resolve({ data: providerSecrets })
         if (opts.where.orgId) return Promise.resolve({ data: orgSecrets })

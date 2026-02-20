@@ -1,7 +1,6 @@
 ---
 name: "Threaded Stack - Domain Repo"
 description: "Knowledge base for the shared types, models, and utilities repo"
-version: "2.0.0"
 tags: ["typescript", "types", "models", "domain", "shared", "utilities", "payments", "ai", "quotas", "subscriptions"]
 ---
 # Domain Repo Skill
@@ -18,93 +17,93 @@ The `@tdsk/domain` repo is the **shared foundation** for the Threaded Stack mono
 - **Custom error handling** with the `Exception` class
 - **Constants** including provider templates for quickstart flows
 
-This repo is consumed by `backend`, `proxy`, `admin`, `agent`, `shell`, `repl`, and `sandbox` repos as the single source of truth for shared logic.
+This repo is consumed by `backend`, `proxy`, `admin`, `agent`, `repl`, and `sandbox` repos as the single source of truth for shared logic.
 
 ## Directory Structure
 
 ```
 repos/domain/
-├── src/
-│   ├── api/              # Express API utilities
-│   │   ├── adminPath.ts        # Admin path utilities
-│   │   ├── authHeaders.ts      # Auth header extraction/forwarding
-│   │   ├── behindLBProxy.ts    # Load balancer proxy detection
-│   │   ├── checkAuthHeader.ts  # Auth header validation
-│   │   └── inKube.ts           # Kubernetes environment detection
-│   ├── constants/        # Constants
-│   │   ├── providers.ts        # ProviderTemplates (anthropic, openai, google, zai, custom)
-│   │   └── values.ts           # AuthHeaders, RoleHierarchy, PermissionMatrix
-│   ├── crypto/           # Crypto utilities
-│   │   ├── apiKey.ts           # hashApiKey() for API key storage/validation
-│   │   ├── crypto.ts           # AES-256-GCM encryption/decryption (Node.js crypto)
-│   │   ├── generateKey.ts      # Key generation (Web Crypto API - browser/edge only)
-│   │   └── index.ts
-│   ├── models/           # Domain model classes
-│   │   ├── agent.ts            # Agent model (AI agent configuration)
-│   │   ├── apiKey.ts           # API key model with scope validation
-│   │   ├── asset.ts            # Asset model (files, images, uploads)
-│   │   ├── base.ts             # Base class with id, createdAt, updatedAt
-│   │   ├── certificate.ts      # Certificate model (SSL cert tree structure)
-│   │   ├── domain.ts           # Domain model (custom domains for projects)
-│   │   ├── endpoint.ts         # Endpoint model with Proxy/FaaS/Agent subclasses
-│   │   ├── function.ts         # Function model (FaaS code storage)
-│   │   ├── invitation.ts       # Invitation model (team invite flow)
-│   │   ├── message.ts          # Message model (LLM chat messages)
-│   │   ├── organization.ts     # Organization model
-│   │   ├── plan.ts             # Plan model for payment plans
-│   │   ├── project.ts          # Project model
-│   │   ├── provider.ts         # Provider model (ai/git/auth/storage)
-│   │   ├── quota.ts            # Quota model (resource usage tracking)
-│   │   ├── role.ts             # Role model with permission helpers
-│   │   ├── secret.ts           # Secret model with 4-way exclusive arc
-│   │   ├── subscription.ts     # Subscription model (Polar.sh integration)
-│   │   ├── thread.ts           # Thread model (LLM conversation threads)
-│   │   └── user.ts             # User model with name parsing
-│   ├── types/            # TypeScript type definitions
-│   │   ├── ai.types.ts         # AI/LLM related types (TLLMAdapterConfig, ILLMAdapter, TStreamEvent, TAIMessage, TLLMToolDef)
-│   │   ├── endpoint.types.ts   # Express types: TApp, TRequest, TResponse, TRouter
-│   │   ├── epd.types.ts        # Endpoint data types
-│   │   ├── functions.types.ts  # Function/FaaS types
-│   │   ├── headers.types.ts    # HTTP header types
-│   │   ├── helpers.types.ts    # Generic helpers: TAnyCB, TValueOf, EStatus, EContainerState
-│   │   ├── http.types.ts       # HTTP method/request types
-│   │   ├── invitation.types.ts # Invitation types
-│   │   ├── payments.types.ts   # Payment plan types (TPayPlanMeta, TPayPlanRaw, TPayPlans)
-│   │   ├── permissions.types.ts # Permission enums and types
-│   │   ├── provider.types.ts   # EProvider enum (ai/git/auth/storage)
-│   │   ├── quickstart.types.ts # TProviderModel, TProviderTemplate, TQuickstartRequest, TQuickstartResponse
-│   │   ├── sandbox.types.ts    # ESandboxProvider, ISandbox, ISandboxProvider, TSandboxConfig
-│   │   ├── scopes.types.ts     # EApiKeyScope, EApiKeyExpire
-│   │   └── server.types.ts     # Server configuration types
-│   ├── utils/            # Utility functions
-│   │   ├── payments/           # Payment utilities
-│   │   │   ├── parsePayPlans.ts    # Parse payment plan configs
-│   │   │   ├── rawPlanToMeta.ts    # Convert raw to typed metadata
-│   │   │   └── index.ts
-│   │   ├── permissions/        # Permission utilities
-│   │   │   ├── permissions.ts      # canPerform, hasMinRole, getRoleLevel, etc. (9 functions)
-│   │   │   ├── permissions.test.ts
-│   │   │   └── index.ts
-│   │   ├── cleanSplit.ts       # String splitting utilities (splitBy, cleanSplit)
-│   │   ├── isDomain.ts         # Domain name validation
-│   │   ├── nextFrame.ts        # Animation frame utilities
-│   │   ├── shortId.ts          # Short ID generation
-│   │   └── time.ts             # Timestamp utility
-│   ├── error/            # Error handling
-│   │   ├── exception.ts        # Exception class with status codes
-│   │   └── overrideErr.ts      # Error override utilities
-│   ├── environment/      # Environment configuration
-│   │   ├── loadEnvs.ts         # Load environment from deploy/values.*.yml
-│   │   └── addToProcess.ts     # Add envs to process.env
-│   ├── services/         # Services (empty placeholder)
-│   ├── index.ts          # Main export (all modules)
-│   └── web.ts            # Web-safe exports (excludes Node.js-specific code)
-├── configs/
-│   ├── aliases.ts        # Path alias setup using alias-hq
-│   ├── biome.json        # Biome linting/formatting config
-│   └── vitest.config.ts  # Vitest testing config
-├── package.json          # Package metadata and scripts
-└── tsconfig.json         # TypeScript configuration with path aliases
++-- src/
+|   +-- api/              # Express API utilities
+|   |   +-- adminPath.ts        # Admin path utilities
+|   |   +-- authHeaders.ts      # Auth header extraction/forwarding
+|   |   +-- behindLBProxy.ts    # Load balancer proxy detection
+|   |   +-- checkAuthHeader.ts  # Auth header validation
+|   |   +-- inKube.ts           # Kubernetes environment detection
+|   +-- constants/        # Constants
+|   |   +-- providers.ts        # ProviderTemplates (anthropic, openai, google, zai, custom)
+|   |   +-- values.ts           # ApiKeyPrefix, AuthHeaders, RoleHierarchy, PermissionMatrix
+|   +-- crypto/           # Crypto utilities
+|   |   +-- crypto.ts           # AES-256-GCM encryption/decryption, hashKey, generateApiKey, createHashKey
+|   |   +-- generateKey.ts      # Key generation (Web Crypto API - browser/edge only, NOT USED)
+|   |   +-- index.ts
+|   +-- models/           # Domain model classes
+|   |   +-- agent.ts            # Agent model (AI agent configuration)
+|   |   +-- apiKey.ts           # API key model with scope validation
+|   |   +-- asset.ts            # Asset model (files, images, uploads)
+|   |   +-- base.ts             # Base class with id, createdAt, updatedAt
+|   |   +-- certificate.ts      # Certificate model (SSL cert tree structure)
+|   |   +-- domain.ts           # Domain model (custom domains for projects)
+|   |   +-- endpoint.ts         # Endpoint model with Proxy/FaaS/Agent subclasses
+|   |   +-- function.ts         # Function model (FaaS code storage)
+|   |   +-- invitation.ts       # Invitation model (team invite flow)
+|   |   +-- message.ts          # Message model (LLM chat messages)
+|   |   +-- organization.ts     # Organization model
+|   |   +-- plan.ts             # Plan model for payment plans
+|   |   +-- project.ts          # Project model
+|   |   +-- provider.ts         # Provider model (ai/git/auth/storage with brand)
+|   |   +-- quota.ts            # Quota model (resource usage tracking)
+|   |   +-- role.ts             # Role model with permission helpers
+|   |   +-- secret.ts           # Secret model with 4-way exclusive arc
+|   |   +-- subscription.ts     # Subscription model (Polar.sh integration)
+|   |   +-- thread.ts           # Thread model (LLM conversation threads)
+|   |   +-- user.ts             # User model with name parsing
+|   +-- types/            # TypeScript type definitions
+|   |   +-- ai.types.ts         # AI/LLM types (EMsgType, EAgentTool, ELLMProviderBrand, TLLMAdapterConfig, ILLMAdapter, TStreamEvent, TAIMessage, TLLMToolDef, TAgentRunRequest)
+|   |   +-- endpoint.types.ts   # Express types: TApp, TRequest, TResponse, TRouter
+|   |   +-- epd.types.ts        # Endpoint data types (EEndpointType, TEndpointOpts, TProxyEndpointConfig, TFaaSEndpointConfig, TAgentEndpointConfig)
+|   |   +-- functions.types.ts  # Function/FaaS types (EFunLanguage, TFunctionParam, TFunctionRequest, TFunctionContext, TFunctionResponse)
+|   |   +-- git.types.ts        # Git provider types (EGitProvider, TGitBrand)
+|   |   +-- headers.types.ts    # HTTP header types (TAuthHeaderObj)
+|   |   +-- helpers.types.ts    # Generic helpers: TAnyCB, TValueOf, TAnyObj, TKeyLike, TCapKeys
+|   |   +-- http.types.ts       # HTTP method types (EHttpMethod)
+|   |   +-- invitation.types.ts # Invitation types (EInviteStatus, TCreateInvitationInput)
+|   |   +-- payments.types.ts   # Payment plan types (TPayPlanMeta, TPayPlanRaw, TPayPlans, ESubscriptionTier, ESubscriptionStatus)
+|   |   +-- permissions.types.ts # Permission enums and types (ERoleType, EPermAction, EPermResource, EPermScope)
+|   |   +-- provider.types.ts   # EProvider enum (ai/git/auth/storage), TProviderBrand
+|   |   +-- quickstart.types.ts # TProviderModel, TProviderTemplate, TQuickstartRequest, TQuickstartResponse
+|   |   +-- sandbox.types.ts    # ESandboxProvider, ISandbox, ISandboxProvider, TSandboxConfig
+|   |   +-- scopes.types.ts     # EApiKeyScope, EApiKeyExpire, TKeyHash, TApiKeyScope
+|   |   +-- server.types.ts     # Server configuration types (TSSLCreds)
+|   +-- utils/            # Utility functions
+|   |   +-- payments/           # Payment utilities
+|   |   |   +-- parsePayPlans.ts    # Parse payment plan configs
+|   |   |   +-- rawPlanToMeta.ts    # Convert raw to typed metadata
+|   |   |   +-- index.ts
+|   |   +-- permissions/        # Permission utilities
+|   |   |   +-- permissions.ts      # canPerform, hasMinRole, getRoleLevel, canAccessSecretValue, isSuperAdmin, getHighestRole, canManageRole, getAllowedActions, isValidRoleType
+|   |   |   +-- permissions.test.ts
+|   |   |   +-- index.ts
+|   |   +-- cleanSplit.ts       # String splitting utilities (splitBy, cleanSplit)
+|   |   +-- isDomain.ts         # Domain name validation
+|   |   +-- nextFrame.ts        # Animation frame utilities
+|   |   +-- shortId.ts          # Short ID generation
+|   |   +-- time.ts             # Timestamp utility
+|   +-- error/            # Error handling
+|   |   +-- exception.ts        # Exception class with status codes
+|   |   +-- overrideErr.ts      # Error override utilities
+|   +-- environment/      # Environment configuration
+|   |   +-- loadEnvs.ts         # Load environment from deploy/values.*.yml
+|   |   +-- addToProcess.ts     # Add envs to process.env
+|   +-- services/         # Services (empty placeholder)
+|   +-- index.ts          # Main export (all modules)
+|   +-- web.ts            # Web-safe exports (excludes Node.js-specific code)
++-- configs/
+|   +-- aliases.ts        # Path alias setup using alias-hq
+|   +-- biome.json        # Biome linting/formatting config
+|   +-- vitest.config.ts  # Vitest testing config
++-- package.json          # Package metadata and scripts
++-- tsconfig.json         # TypeScript configuration with path aliases
 ```
 
 ## Key Files
@@ -112,15 +111,18 @@ repos/domain/
 | File | Purpose |
 |------|---------|
 | `src/index.ts` | Main export barrel - exports all modules |
-| `src/web.ts` | Web-safe exports (excludes Node.js code) |
+| `src/web.ts` | Web-safe exports (excludes Node.js code: api, environment, services, crypto) |
 | `src/types/endpoint.types.ts` | Express API type definitions (TApp, TRequest, TResponse, TRouter) |
-| `src/types/ai.types.ts` | AI/LLM adapter types (TLLMAdapterConfig, ILLMAdapter, TStreamEvent) |
+| `src/types/ai.types.ts` | AI/LLM adapter types (TLLMAdapterConfig, ILLMAdapter, TStreamEvent, ELLMProviderBrand) |
+| `src/types/epd.types.ts` | Endpoint configuration types (EEndpointType, TProxyEndpointConfig, TFaaSEndpointConfig, TAgentEndpointConfig) |
 | `src/types/quickstart.types.ts` | Quickstart wizard types (TProviderTemplate, TQuickstartRequest) |
 | `src/types/sandbox.types.ts` | Sandbox execution types (ISandbox, ISandboxProvider, ESandboxProvider) |
+| `src/types/permissions.types.ts` | RBAC types (ERoleType, EPermAction, EPermResource, EPermScope) |
+| `src/types/git.types.ts` | Git provider types (EGitProvider, TGitBrand) |
 | `src/models/base.ts` | Base model class with id, createdAt, updatedAt |
-| `src/crypto/crypto.ts` | AES-256-GCM encryption with HKDF key derivation |
-| `src/crypto/apiKey.ts` | hashApiKey() for API key storage/validation |
+| `src/crypto/crypto.ts` | AES-256-GCM encryption with HKDF key derivation, hashKey, generateApiKey, createHashKey |
 | `src/constants/providers.ts` | ProviderTemplates (anthropic, openai, google, zai, custom) |
+| `src/constants/values.ts` | ApiKeyPrefix, AuthHeaders, RoleHierarchy, PermissionMatrix |
 | `src/api/authHeaders.ts` | Auth header extraction and forwarding utilities |
 | `src/error/exception.ts` | Custom Exception class for structured error handling |
 | `src/environment/loadEnvs.ts` | Environment loading from deploy/values.*.yml files |
@@ -131,94 +133,172 @@ repos/domain/
 ### Express API Types (`types/endpoint.types.ts`)
 
 **Core Types:**
-- `TApp<C, L>` - Express app with typed locals (config, db)
-- `TRequest<ReqParams, ResBody, ReqBody, ReqQuery, Locals>` - Extended Express request with `auth` property
+- `TApp<C, D, P, E, A, L>` - Express app with typed locals (config, db, payments, email, auth)
+- `TRequest<App, ReqParams, ResBody, ReqBody, ReqQuery, Locals>` - Extended Express request with `user` property
 - `TResponse<ResBody, Locals>` - Extended Express response with typed locals
-- `TRouter` - Type-safe Express router with `asyncWrap` integration
+- `TRouter` - Type-safe Express router with all HTTP methods typed
 - `TReqHandler` - Request handler with optional error handler
 - `TAsyncWrap` - Async wrapper utility type
 
 **Auth Types:**
-- `TTokenUser` - JWT decoded user: `{ user_id, token, subdomain, username?, status }`
 - `TResLocals` - Response locals: `{ user?, subdomain? }`
 
 ### AI/LLM Types (`types/ai.types.ts`)
+
+**EMsgType:**
+```typescript
+enum EMsgType {
+  user = 'user',
+  tool = 'tool',
+  system = 'system',
+  action = 'action',
+  assistant = 'assistant',
+}
+```
+
+**EAgentTool:**
+```typescript
+enum EAgentTool {
+  mkdir = 'mkdir',
+  listDir = 'listDir',
+  readFile = 'readFile',
+  shellExec = 'shellExec',
+  webSearch = 'webSearch',
+  writeFile = 'writeFile',
+  deleteFile = 'deleteFile',
+  fileExists = 'fileExists',
+}
+```
+
+**ELLMProviderBrand:**
+```typescript
+enum ELLMProviderBrand {
+  zai = 'zai',
+  openai = 'openai',
+  google = 'google',
+  custom = 'custom',
+  anthropic = 'anthropic',
+}
+```
+
+**TAgentRunRequest:**
+```typescript
+{
+  orgId: string
+  prompt: string
+  agentId: string
+  threadId?: string
+  projectId?: string
+  providerId?: string
+  overrides?: TAgentRunOverrides
+}
+```
 
 **TLLMAdapterConfig:**
 ```typescript
 {
   model: string
-  apiKey?: string          // Optional when using ProxyAdapter (session-based)
+  apiKey?: string
   maxTokens?: number
   temperature?: number
-  topP?: number
-  stream?: boolean
   systemPrompt?: string
-  headers?: Record<string, string>      // Custom headers for LLM requests
-  bodyParams?: Record<string, unknown>  // Extra LLM request parameters
+  provider: TLLMProviderBrand
+  options?: Record<string, unknown>
+  headers?: Record<string, string>
+  bodyParams?: Record<string, unknown>
 }
 ```
 
 **ILLMAdapter Interface:**
-- `chat(messages: TAIMessage[], options?: TLLMAdapterConfig): AsyncIterable<TStreamEvent>`
-- `chatCompletion(messages: TAIMessage[], options?: TLLMAdapterConfig): Promise<string>`
-
-**TStreamEvent:**
-- `{ type: 'content' | 'tool_use' | 'done' | 'error', ... }`
+```typescript
+interface ILLMAdapter {
+  readonly provider: TLLMProviderBrand
+  stream(
+    messages: TAIMessage[],
+    tools: TLLMToolDef[],
+    config: TLLMAdapterConfig
+  ): AsyncIterable<TStreamEvent>
+}
+```
 
 **TAIMessage:**
-- `{ role: 'user' | 'assistant' | 'system', content: string | TLLMToolDef[], ... }`
+- `{ role: TMessageRole, content: TMessageContent[] }`
+- Content is an array of `TTextContent | TToolUseContent | TToolResultContent`
+
+**TStreamEvent:**
+- Union of: `TStreamTextEvent`, `TStreamToolCallStartEvent`, `TStreamToolCallArgsEvent`, `TStreamToolResultEvent`, `TStreamToolExecutionUpdateEvent`, `TStreamErrorEvent`, `TStreamDoneEvent`
+- Event types: `text`, `tool_call_start`, `tool_call_args`, `tool_result`, `tool_execution_update`, `error`, `done`
 
 **TLLMToolDef:**
-- Tool definition for function calling
+- Tool definition with `name`, `description`, and `inputSchema` (JSON Schema format)
+
+### Endpoint Data Types (`types/epd.types.ts`)
+
+**EEndpointType:**
+```typescript
+enum EEndpointType {
+  proxy = 'proxy',
+  faas = 'faas',
+  agent = 'agent',
+}
+```
+
+**TEndpointOpts<T>** - Discriminated union based on endpoint type:
+- `TProxyEndpointConfig`: `{ url, transform?, ...shared }`
+- `TFaaSEndpointConfig`: `{ functionId, arguments?, envVars?, secrets?, memory?, ...shared }`
+- `TAgentEndpointConfig`: `{ agentId, overrides?, ...shared }`
+- Shared options include: `timeout`, `pathRegex`, `oauth`, `auth`, `headers`, `retries`, `domainWhitelist`
 
 ### Quickstart Types (`types/quickstart.types.ts`)
 
 **TProviderModel:**
 ```typescript
 {
-  id: string        // 'anthropic' | 'openai' | 'google' | 'zai' | 'custom'
+  id: string
   name: string
-  type: 'ai'
-  apiUrl: string
-  secretName: string
-  secretValue: string
+  maxTokens: number
+  description?: string
 }
 ```
 
 **TProviderTemplate:**
 ```typescript
 {
-  id: string
   name: string
-  type: 'ai'
-  apiUrl: string
-  secretName: string
-  secretPlaceholder: string
-  models: string[]   // Available model IDs
+  baseUrl: string
+  defaultModel: string
+  id: TLLMProviderBrand
+  apiKeyPattern?: string
+  defaultSecretName: string
+  apiKeyPlaceholder: string
+  models: TProviderModel[]
 }
 ```
 
 **TQuickstartRequest:**
 ```typescript
 {
-  orgId: string
-  providerId: string
-  secretValue: string
+  apiKey: string
   projectName: string
   agentName: string
-  agentModel: string
+  agentDescription?: string
+  model?: string
+  maxTokens?: number
+  systemPrompt?: string
+  providerUrl?: string
+  providerName?: string
+  providerBrand: TLLMProviderBrand
 }
 ```
 
 **TQuickstartResponse:**
 ```typescript
 {
-  provider: TProvider
-  secret: TSecret
-  project: TProject
-  agent: TAgent
-  endpoint: TEndpoint
+  provider: Record<string, any>
+  secret: Record<string, any>
+  project: Record<string, any>
+  agent: Record<string, any>
+  endpoint: Record<string, any>
 }
 ```
 
@@ -233,19 +313,28 @@ enum ESandboxProvider {
 ```
 
 **ISandbox Interface:**
-- `execute(code: string, language: string, timeout?: number): Promise<{ stdout, stderr, exitCode }>`
-- `cleanup(): Promise<void>`
+- `exec(command: string, args?: string[]): Promise<TSandboxResult>`
+- `readFile(path: string): Promise<string>`
+- `writeFile(path: string, content: string): Promise<void>`
+- `listDir(path: string): Promise<string[]>`
+- `deleteFile(path: string): Promise<void>`
+- `mkdir(path: string): Promise<void>`
+- `fileExists(path: string): Promise<boolean>`
+- `close(): Promise<void>`
 
 **ISandboxProvider Interface:**
+- `readonly type: TSandboxProviderType`
 - `create(config: TSandboxConfig): Promise<ISandbox>`
 
 **TSandboxConfig:**
 ```typescript
 {
-  provider: ESandboxProvider
+  provider: TSandboxProviderType
+  apiKey?: string
+  template?: string
   timeout?: number
-  environment?: Record<string, string>
-  workDir?: string
+  envVars?: Record<string, string>
+  options?: Record<string, unknown>
 }
 ```
 
@@ -254,21 +343,27 @@ enum ESandboxProvider {
 **EApiKeyScope:**
 ```typescript
 enum EApiKeyScope {
-  admin = 'admin',
+  read = 'read',
   write = 'write',
-  read = 'read'
+  admin = 'admin'
 }
 ```
 
 **EApiKeyExpire:**
 ```typescript
 enum EApiKeyExpire {
-  never = 'never',
-  days_30 = '30d',
-  days_90 = '90d',
-  days_180 = '180d',
-  year_1 = '1y'
+  d7 = 7,
+  d30 = 30,
+  d90 = 90,
+  d180 = 180,
+  y1 = 365,
+  never = 'none'
 }
+```
+
+**TKeyHash:**
+```typescript
+{ key: string, hash: string, prefix: string }
 ```
 
 ### Provider Types (`types/provider.types.ts`)
@@ -281,6 +376,33 @@ enum EProvider {
   storage = 'storage'
 }
 type TProviderType = `${EProvider}`
+type TProviderBrand = TLLMProviderBrand | TGitBrand
+```
+
+### Git Types (`types/git.types.ts`)
+
+```typescript
+enum EGitProvider {
+  github = 'github',
+  gitlab = 'gitlab'
+}
+type TGitBrand = `${EGitProvider}`
+```
+
+### Permission Types (`types/permissions.types.ts`)
+
+```typescript
+enum ERoleType {
+  super = 'super',   // Platform admin
+  owner = 'owner',   // Org/Project creator
+  admin = 'admin',   // Can manage members, settings, secrets
+  member = 'member', // Can create/edit resources
+  viewer = 'viewer'  // Read-only access
+}
+
+enum EPermAction { create, read, update, delete, manage }
+enum EPermResource { org, project, user, role, secret, apiKey, endpoint, provider, domain, function, agent, subscription, quota, invitation, thread, message, asset }
+enum EPermScope { global, org, project }
 ```
 
 ### Helper Types (`types/helpers.types.ts`)
@@ -289,56 +411,62 @@ type TProviderType = `${EProvider}`
 - `TAnyCB` - Generic callback type
 - `TValueOf<T>` - Extract value types from object
 - `TCapKeys<T>` - Capitalize object keys
-- `TUserHash` - User hash string type
+- `TAnyObj` - `Record<string, any>`
+- `TKeyLike` - `string | number | symbol`
 
-**Enums:**
-```typescript
-enum EStatus {
-  error, paused, waiting, unknown, pending,
-  started, running, stopped, finished, initialized
-}
-
-enum EContainerState {
-  Error, Missing, Running, Stopped,
-  Creating, Succeeded, Terminated
-}
-```
-
-### Error Types (`types/errors.types.ts`)
+### Functions Types (`types/functions.types.ts`)
 
 ```typescript
-type TErrorArgs = [number, string, string?]
-type TErrorMethod = (...args: any[]) => TErrorArgs
-type TErrorItems = Record<string, TErrorArgs | TErrorMethod>
-type TThrowExceptions = Record<string, (...args: any) => void>
+enum EFunLanguage { python, typescript, javascript }
+
+type TFunctionParam = {
+  name: string
+  default?: unknown
+  required?: boolean
+  type: TFunParamType  // 'array' | 'string' | 'object' | 'number' | 'boolean'
+  description?: string
+}
+
+type TFunctionRequest = { path?, body?, method?, query?, headers? }
+type TFunctionContext = { args?, envVars?, secrets? }
+type TFunctionResponse = { body?, statusCode?, headers? }
+type TFunctionExecResult = { error?, output, duration, success }
 ```
 
 ## Models
 
-All models extend `Base` class with common fields: `id`, `createdAt`, `updatedAt`.
+All models extend `Base` class with common fields: `id`, `createdAt?`, `updatedAt?`.
+
+### Base Model
+
+```typescript
+class Base {
+  id: string
+  createdAt?: string | Date
+  updatedAt?: string | Date
+  /** Used only during test, should not be used at runtime */
+  _isModel?: boolean
+}
+```
 
 ### User Model
 
 ```typescript
 class User extends Base {
-  first: string
-  last: string
-  email?: string
-  image: string
-  role?: string
+  first?: string
+  last?: string
+  image?: string
   name?: string
+  email?: string
   banned?: boolean
-  provider?: string
+  provider?: string       // Runtime-only field from auth provider, not persisted
   banReason?: string
   emailVerified?: boolean
+  role?: TRoleType | string
   banExpires?: string | Date
 
-  // Computed property
-  get displayName(): string
-
-  constructor(usr: Partial<User>) {
-    // Auto-parses 'name' into 'first' and 'last' if needed
-  }
+  get displayName(): string  // Computed from name or first+last
+  constructor(usr: Partial<User>)  // Auto-parses 'name' into 'first' and 'last'
 }
 ```
 
@@ -347,6 +475,7 @@ class User extends Base {
 ```typescript
 class Organization extends Base {
   name: string
+  ownerId: string
   description?: string
 }
 ```
@@ -356,8 +485,9 @@ class Organization extends Base {
 ```typescript
 class Project extends Base {
   name: string
-  orgId: string         // Organization ID (renamed from teamId)
+  orgId: string
   gitUrl?: string
+  description?: string
   branch: string = 'main'
   meta: Record<string, any> = {}
 }
@@ -367,24 +497,25 @@ class Project extends Base {
 
 ```typescript
 class ApiKey extends Base {
+  key?: string           // Only returned on creation (hashed in DB)
   name: string
-  key?: string          // Only returned on creation (hashed in DB)
-  orgId: string
-  userId?: string       // Link to user who created the key
-  scopes: string        // Comma-separated string (e.g., 'read,write,admin')
-  keyHash: string       // SHA-256 hash of the full key
-  keyPrefix: string     // First 8 chars for display (e.g., 'tdsk_abc')
-  active: boolean = true
-  rateLimit?: number    // Requests per minute
-  expiresAt?: string | Date
-  lastUsedAt?: string | Date
+  orgId?: string
+  userId?: string        // Link to user who created the key
+  keyHash: string        // SHA-256 hash of the full key
+  scopes?: string        // Comma-separated string (e.g., 'read,write,admin')
+  active: boolean
+  keyPrefix: string      // First 12 chars for display (e.g., 'tdsk_abc12345')
+  rateLimit?: number
+  projectId?: string
+  expiresAt?: Date | string
+  lastUsedAt?: Date | string
 
   // Methods
-  hasScope(scope: string): boolean
+  hasScope(scope: TApiKeyScope): boolean
   isExpired(): boolean
   isValid(): boolean
   getRateLimit(): number
-  sanitize(): ApiKey    // Returns copy without sensitive fields
+  sanitize(): ApiKey     // Returns copy without key and keyHash
 }
 ```
 
@@ -393,49 +524,37 @@ class ApiKey extends Base {
 ```typescript
 class Secret extends Base {
   name: string
-  value?: string        // Decrypted value (only when requested)
-  description?: string  // Human-readable description
-  hashKey: string       // SHA-256 hash of name for lookup
-  encryptedValue: string // Base64-encoded encrypted value
-  orgId?: string        // Exclusive arc: orgId OR agentId OR projectId OR providerId
+  value?: string          // Decrypted value (only when requested)
+  description?: string
+  hashKey: string         // Truncated SHA-256 hash of name for lookup
+  encryptedValue: string  // Base64-encoded encrypted value
+  orgId?: string          // Exclusive arc: orgId OR agentId OR projectId OR providerId
   agentId?: string
   projectId?: string
   providerId?: string
+
+  sanitize(): Secret      // Returns copy without value and encryptedValue
 }
 ```
 
 ### Endpoint Model
 
 ```typescript
-class Endpoint extends Base {
+class Endpoint<T extends TEndpointType = TEndpointType> extends Base {
+  type: T
+  path: string
+  name?: string
   projectId: string
-  name: string
-  type: 'proxy' | 'faas' | 'agent'
-  path: string          // URL path (e.g., '/api/users')
   method: string = 'GET'
-  public: boolean = false
-  options: Record<string, any> = {}
-  headers: Record<string, string> = {}
+  public?: boolean = false
+  options?: TEndpointOpts<T>    // Typed options based on endpoint type
+  headers?: Record<string, string>
 }
 
 // Subclasses:
-class ProxyEndpoint extends Endpoint {
-  type = 'proxy'
-  targetUrl: string
-  // proxy-specific options
-}
-
-class FaaSEndpoint extends Endpoint {
-  type = 'faas'
-  functionId: string
-  // faas-specific options
-}
-
-class AgentEndpoint extends Endpoint {
-  type = 'agent'
-  agentId: string
-  // agent-specific options
-}
+class ProxyEndpoint extends Endpoint<EEndpointType.proxy> {}
+class FaaSEndpoint extends Endpoint<EEndpointType.faas> {}
+class AgentEndpoint extends Endpoint<EEndpointType.agent> {}
 ```
 
 ### Function Model
@@ -443,14 +562,16 @@ class AgentEndpoint extends Endpoint {
 ```typescript
 class Function extends Base {
   name: string
+  content: string
   projectId: string
-  endpointId: string
-  content?: string      // Function code (TypeScript/JavaScript)
+  endpointId?: string
   description?: string
+  agentIds?: string[]            // Agents that can use this function
   branch: string = 'main'
-  defaultArgs: Record<string, any> = {}
-  dependencies: Record<string, string> = {}
-  language: string = 'typescript'
+  inputSchema?: TFunctionParam[]
+  defaultArgs?: Record<string, any>
+  dependencies?: Record<string, any>
+  language: string = EFunLanguage.typescript
 }
 ```
 
@@ -458,13 +579,14 @@ class Function extends Base {
 
 ```typescript
 class Role extends Base {
+  name?: string
+  type: ERoleType           // ERoleType enum (not string)
   userId: string
-  orgId: string
-  projectId?: string    // Optional project-specific role
-  type: string = 'member'  // 'owner' | 'admin' | 'member' | 'viewer'
+  orgId?: string
+  projectId?: string
 
   // Methods
-  hasMinRole(minRole: string): boolean
+  hasMinRole(required: ERoleType): boolean
   isAdmin(): boolean
   isOwner(): boolean
   isSuperAdmin(): boolean
@@ -475,12 +597,14 @@ class Role extends Base {
 
 ```typescript
 class Provider extends Base {
-  orgId: string         // Org-scoped only (no longer userId/projectId)
-  type: TProviderType   // 'ai' | 'git' | 'auth' | 'storage'
-  name: string
+  name?: string
+  orgId: string
+  type: TProviderType          // 'ai' | 'git' | 'auth' | 'storage'
+  brand: TProviderBrand        // TLLMProviderBrand | TGitBrand (e.g., 'anthropic', 'openai', 'github')
   options: Record<string, any> = {}
-  headers?: Record<string, string>      // Custom headers for provider requests
-  bodyParams?: Record<string, any>      // Extra parameters for provider requests
+  headers?: Record<string, string>
+  bodyParams?: Record<string, any>
+  secretId?: string            // Link to associated secret
 }
 ```
 
@@ -489,17 +613,22 @@ class Provider extends Base {
 ```typescript
 class Agent extends Base {
   name: string
-  model: string         // LLM model ID (e.g., 'claude-3-5-sonnet-20241022')
-  maxTokens?: number
   orgId: string
-  providerId: string
-  provider?: Provider   // Populated provider object
-  secrets?: Secret[]    // Array of linked secrets
-  projects?: Project[]  // Array of linked projects
-  tools?: any[]         // Tool definitions
+  model?: string              // LLM model ID (e.g., 'claude-sonnet-4-20250514')
+  maxTokens?: number
+  description?: string
+  tools: string[] = []        // Tool names (EAgentTool values)
   systemPrompt?: string
-  envVars?: Record<string, string>
-  environment?: Record<string, any>
+  active: boolean = true
+  secrets: Secret[] = []      // Populated secret objects
+  projects: Project[] = []    // Populated project objects
+  providers: Provider[] = []  // Populated provider objects (replaces single providerId)
+  envVars: TAgentEnvVars = {}
+  functions: FunctionModel[] = []  // Populated function objects
+  environment: TAgentEnvironment = {}
+
+  get primaryProvider(): Provider | undefined  // First provider in array
+  sanitize(): Agent                            // Returns copy with sanitized secrets
 }
 ```
 
@@ -507,16 +636,16 @@ class Agent extends Base {
 
 ```typescript
 class Thread extends Base {
-  name: string
+  name?: string
   userId: string
-  orgId: string
-  agentId: string
+  orgId?: string
+  agentId?: string
   projectId?: string
   providerId?: string
   public: boolean = false
   parentThreadId?: string      // For thread branching
   branchMessageId?: string     // Message where branch occurred
-  meta: Record<string, any> = {}
+  meta?: Record<string, any>
 }
 ```
 
@@ -524,12 +653,12 @@ class Thread extends Base {
 
 ```typescript
 class Message extends Base {
-  type: 'user' | 'assistant' | 'system'
-  content: string
+  type: TMsgType                // EMsgType: 'user' | 'tool' | 'system' | 'action' | 'assistant'
+  content: TMessageContent[]    // Array of TTextContent | TToolUseContent | TToolResultContent
   threadId: string
   projectId?: string
   orgId?: string
-  meta: Record<string, any> = {}
+  meta?: Record<string, any>
 }
 ```
 
@@ -538,7 +667,7 @@ class Message extends Base {
 ```typescript
 class Asset extends Base {
   url?: string
-  content?: string      // For text-based assets
+  content?: any
   name: string
   type: string          // MIME type or custom type
   orgId?: string
@@ -555,8 +684,8 @@ class Asset extends Base {
 
 ```typescript
 class Domain extends Base {
-  domain: string        // e.g., 'api.example.com'
-  orgId: string
+  domain: string          // e.g., 'api.example.com'
+  orgId?: string          // Exclusive arc: orgId OR projectId
   projectId?: string
   verified: boolean = false
   verifiedAt?: string | Date
@@ -564,7 +693,9 @@ class Domain extends Base {
   sslPrivateKey?: string
   sslCertificate?: string
   sslExpiresAt?: string | Date
-  certificates?: Certificate[]  // SSL cert chain
+  certificates?: Certificate[] = []
+
+  get certificate(): string | undefined  // First found certificate content
 }
 ```
 
@@ -572,13 +703,16 @@ class Domain extends Base {
 
 ```typescript
 class Certificate {
-  parent?: string       // Parent certificate ID (for chains)
+  _isModel?: boolean           // Test-only field
+  parent: string               // Parent directory/path
   name: string
-  isFile: boolean
-  value: string
+  isFile: boolean              // True for file, false for directory
+  value: Buffer | null         // File content (null for directories)
   modified: string | Date
 }
 ```
+
+Note: Certificate does NOT extend Base.
 
 ### Invitation Model
 
@@ -586,22 +720,23 @@ class Certificate {
 class Invitation extends Base {
   email: string
   orgId: string
-  token: string         // Unique invitation token
-  userId?: string       // User who was invited (after acceptance)
-  roleType: string = 'member'
-  invitedBy: string     // User ID of inviter
-  revokedBy?: string    // User ID who revoked (if revoked)
+  token: string
+  userId?: string
+  roleType: string
+  invitedBy?: string
+  revokedBy?: string
   revokedAt?: string | Date
   expiresAt: string | Date
   acceptedAt?: string | Date
-  status: 'pending' | 'accepted' | 'revoked' | 'expired'
+  status: TInviteStatus | string   // 'pending' | 'accepted' | 'expired' | 'revoked'
 
   // Methods
+  sanitize(): Invitation     // Returns copy without token
+  isPending(): boolean
   isExpired(): boolean
   isAccepted(): boolean
   isRevoked(): boolean
-  isPending(): boolean
-  canAccept(): boolean
+  daysUntilExpiration(): number
 }
 ```
 
@@ -610,6 +745,7 @@ class Invitation extends Base {
 ```typescript
 class Quota extends Base {
   orgId: string
+  period: string
   // 12 resource usage fields:
   projects: number = 0
   members: number = 0
@@ -630,16 +766,16 @@ class Quota extends Base {
 
 ```typescript
 class Subscription extends Base {
-  tier: string          // 'free' | 'basic' | 'developer' | 'pro'
-  status: string        // 'active' | 'canceled' | 'past_due' | 'trialing'
+  tier: string = ESubscriptionTier.free    // 'free' | 'basic' | 'developer' | 'pro'
+  status: string = ESubscriptionStatus.active  // 'active' | 'canceled' | 'past_due' | 'incomplete'
   userId: string
-  polarId?: string      // Polar.sh subscription ID
+  polarId?: string
+  seats: number = 0
+  polarPriceId?: string
   polarCustomerId?: string
-  seats: number = 1
-  currentPeriodStart?: string | Date
-  currentPeriodEnd?: string | Date
-  cancelAtPeriodEnd: boolean = false
-  trialEnd?: string | Date
+  currentPeriodEnd?: string
+  currentPeriodStart?: string
+  cancelAtPeriodEnd?: boolean
 }
 ```
 
@@ -650,54 +786,86 @@ class Plan {
   id: string
   name: string
   description?: string
-  recurring?: boolean
-  metadata: TPayPlanMeta  // Typed metadata with numeric values
+  recurring?: { count?: number, active?: boolean, interval?: string }
+  metadata: TPayPlanMeta
 
   constructor(opts: TPlanOpts) {
-    // Auto-converts raw metadata to typed metadata
+    // Auto-converts raw metadata to typed metadata via rawPlanToMeta()
   }
 }
-
-// Usage:
-const plan = new Plan({
-  id: 'prod_123',
-  name: 'pro',
-  metadata: {
-    price: '29',
-    runtime: '3600',
-    projects: '50'
-  }
-})
-// plan.metadata = { price: 29, runtime: 3600, projects: 50 }
 ```
+
+Note: Plan does NOT extend Base.
 
 ## Constants
 
 ### Provider Templates (`constants/providers.ts`)
 
 ```typescript
-const ProviderTemplates = {
+const ProviderTemplates: Record<ELLMProviderBrand, TProviderTemplate> = {
   anthropic: {
     id: 'anthropic',
     name: 'Anthropic',
-    type: 'ai',
-    apiUrl: 'https://api.anthropic.com/v1/messages',
-    secretName: 'ANTHROPIC_API_KEY',
-    secretPlaceholder: 'sk-ant-...',
-    models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', ...]
+    baseUrl: 'https://api.anthropic.com',
+    defaultModel: 'claude-sonnet-4-20250514',
+    defaultSecretName: 'ANTHROPIC_API_KEY',
+    apiKeyPlaceholder: 'sk-ant-api03-...',
+    apiKeyPattern: '^sk-ant-',
+    models: [
+      { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', maxTokens: 64000 },
+      { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', maxTokens: 32000 },
+      { id: 'claude-haiku-3-5-20241022', name: 'Claude Haiku 3.5', maxTokens: 8192 },
+    ]
   },
-  openai: { ... },
-  google: { ... },
-  zai: { ... },
-  custom: { ... }
+  openai: {
+    id: 'openai',
+    name: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1',
+    defaultModel: 'gpt-4o',
+    models: [
+      { id: 'gpt-4o', name: 'GPT-4o', maxTokens: 16384 },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', maxTokens: 16384 },
+      { id: 'o3-mini', name: 'o3 Mini', maxTokens: 100000 },
+    ]
+  },
+  google: {
+    id: 'google',
+    name: 'Google AI',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1',
+    defaultModel: 'gemini-2.0-flash',
+    models: [
+      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', maxTokens: 8192 },
+      { id: 'gemini-2.0-pro', name: 'Gemini 2.0 Pro', maxTokens: 8192 },
+    ]
+  },
+  zai: {
+    id: 'zai',
+    name: 'Z.AI',
+    baseUrl: 'https://api.z.ai/api/paas/v4',
+    defaultModel: 'glm-5',
+    models: [
+      { id: 'glm-5', name: 'GLM-5', maxTokens: 131072 },
+      { id: 'glm-4.7', name: 'GLM-4.7', maxTokens: 131072 },
+      { id: 'glm-4.6', name: 'GLM-4.6', maxTokens: 131072 },
+      { id: 'glm-4.5', name: 'GLM-4.5', maxTokens: 131072 },
+    ]
+  },
+  custom: {
+    id: 'custom',
+    name: 'Custom Provider',
+    baseUrl: '',
+    defaultModel: '',
+    models: []
+  }
 }
 ```
 
 ### Values (`constants/values.ts`)
 
-- `AuthHeaders` - Auth header name constants
-- `RoleHierarchy` - Role priority levels
-- `PermissionMatrix` - Role-to-permission mapping
+- `ApiKeyPrefix` - `tdsk_` prefix for API keys
+- `AuthHeaders` - Auth header name constants (X-User-Id, X-User-Role, X-User-Email)
+- `RoleHierarchy` - Role priority levels: `[viewer, member, admin, owner, super]`
+- `PermissionMatrix` - Role-to-permission mapping for 17 resource types
 
 ## Utilities
 
@@ -721,60 +889,57 @@ decryptValue(
   authTag: Buffer
 ): Promise<string>
 
-// Base64 encoding of encrypted data
-encodeEncrypted(encrypted: Buffer, iv: Buffer, authTag: Buffer): string
+// Base64 encoding of encrypted data (iv + authTag + encrypted)
+encodeEncrypted(iv: Buffer, authTag: Buffer, encrypted: Buffer): string
 
 // PostgreSQL bytea conversion
 bufferToBytea(buffer: Buffer): string  // => "\\x..."
 byteaToBuffer(byteaString: string): Buffer
+
+// Truncated SHA-256 hash for secret name lookup (16 hex chars)
+createHashKey(name: string): string
+
+// SHA-256 hash for API key storage/validation
+hashKey(key: string): string
+
+// Generate a new API key with tdsk_ prefix, hash, and prefix
+generateApiKey(): TKeyHash  // { key, hash, prefix }
 ```
 
 **Environment Variables:**
-- `TDSK_MASTER_KEY` (required) - Hex-encoded master key for encryption
-
-### Crypto (`crypto/apiKey.ts`)
-
-**API Key Hashing:**
-
-```typescript
-// SHA-256 hash for API key storage/validation
-hashApiKey(key: string): string
-
-// Truncated SHA-256 hash for secret name lookup
-createHashKey(name: string): string
-```
+- `TDSK_MASTER_KEY` (required) - Hex-encoded master key for encryption (minimum 64 hex characters / 32 bytes)
 
 ### Permissions (`utils/permissions/permissions.ts`)
 
 **9 Permission Helper Functions:**
 
 ```typescript
-// Check if user can perform action on resource
-canPerform(userRole: string, requiredPermission: string): boolean
+// Get numeric role level (viewer=0, member=1, admin=2, owner=3, super=4)
+getRoleLevel(role: ERoleType): number
 
 // Check if user has minimum role level
-hasMinRole(userRole: string, minRole: string): boolean
+hasMinRole(userRole: ERoleType, requiredRole: ERoleType): boolean
 
-// Get numeric role level (owner=4, admin=3, member=2, viewer=1)
-getRoleLevel(role: string): number
+// Check if user can perform action on resource (main permission check)
+canPerform(userRole: ERoleType, action: EPermAction, resource: EPermResource): TPermCheckResult
 
-// Get all permissions for role
-getPermissionsForRole(role: string): string[]
+// Check if user can access secret values (requires admin+)
+canAccessSecretValue(userRole: ERoleType): boolean
 
-// Check if role has specific permission
-hasPermission(role: string, permission: string): boolean
+// Check if user is super admin
+isSuperAdmin(userRole: ERoleType): boolean
 
-// Validate role type
-isValidRole(role: string): boolean
+// Get highest role from multiple role assignments
+getHighestRole(roles: ERoleType[]): ERoleType
 
-// Get role from numeric level
-getRoleFromLevel(level: number): string
+// Check if a role can manage another role (must be strictly higher level)
+canManageRole(managerRole: ERoleType, targetRole: ERoleType): boolean
 
-// Compare two roles
-compareRoles(role1: string, role2: string): number
+// Get all actions allowed for a role on a resource
+getAllowedActions(userRole: ERoleType, resource: EPermResource): EPermAction[]
 
-// Get minimum required role for permission
-getMinRoleForPermission(permission: string): string
+// Validate role type string
+isValidRoleType(role: string): role is ERoleType
 ```
 
 ### Time (`utils/time.ts`)
@@ -902,22 +1067,24 @@ Adds loaded environment variables to `process.env` with optional overrides.
 ### Type Composition Pattern
 
 All types use TypeScript generics for flexibility:
-- `TApp<C, L>` allows custom config and locals
-- `TRequest<Params, ResBody, ReqBody, Query, Locals>` for full type safety
+- `TApp<C, D, P, E, A, L>` allows custom config, db, payments, email, auth, and locals
+- `TRequest<App, ReqParams, ResBody, ReqBody, ReqQuery, Locals>` for full type safety
+- `Endpoint<T>` uses discriminated generics for type-specific options
 - Model classes use `Partial<T>` in constructors for flexible initialization
 
 ### Exclusive Arc Pattern
 
 Multiple models implement the exclusive arc pattern:
-- `Provider`: `orgId` only (no longer userId/projectId)
+- `Provider`: `orgId` only (org-scoped)
 - `Secret`: `orgId` XOR `agentId` XOR `projectId` XOR `providerId` (4-way arc)
+- `Domain`: `orgId` XOR `projectId` (2-way arc)
 - Database enforces this with constraints
 - Matches the broader schema pattern used in `database` repo
 
 ### Export Strategy
 
-- `src/index.ts` - Full exports (includes Node.js stdlib code)
-- `src/web.ts` - Web-safe exports (excludes `api`, `environment`, `services`)
+- `src/index.ts` - Full exports (includes Node.js stdlib code: api, environment, services, crypto)
+- `src/web.ts` - Web-safe exports (types, utils, models, constants, error)
 - Consumers choose based on runtime environment
 
 ### Barrel Exports
@@ -935,13 +1102,16 @@ Each module has an `index.ts` that re-exports all sub-modules:
 Custom Express types provide full type safety:
 
 ```typescript
-type TRequest<ReqParams, ResBody, ReqBody, ReqQuery, Locals> = {
-  app: TApp            // Typed app with config/db
-  auth?: TTokenUser    // Decoded JWT user
-  params: ReqParams    // Route params
-  body: ReqBody        // Request body
-  query: ReqQuery      // Query params
-  // ...Express Request
+type TRequest<
+  App extends TApp = TApp,
+  ReqParams extends Record<string, any> = Record<string, any>,
+  ResBody = any,
+  ReqBody = any,
+  ReqQuery extends Record<string, any> = Record<string, any>,
+  Locals extends Record<string, any> = Record<string, any>,
+> = Omit<Request<ReqParams, ResBody, ReqBody, ReqQuery, Locals>, 'app'> & {
+  app: App
+  user?: User
 }
 ```
 
@@ -952,8 +1122,8 @@ All models extend `Base` for consistent timestamps:
 ```typescript
 class Base {
   id: string
-  createdAt: string | Date
-  updatedAt: string | Date
+  createdAt?: string | Date
+  updatedAt?: string | Date
 }
 
 // All models get these fields automatically
@@ -966,7 +1136,7 @@ class Organization extends Base { /* ... */ }
 HKDF (HMAC-based Key Derivation Function) pattern:
 
 ```typescript
-// Master key (hex) → HKDF with user ID → 32-byte derived key
+// Master key (hex) -> HKDF with user ID -> 32-byte derived key
 const derivedKey = await deriveKey(userId)
 
 // Each user gets unique encryption key
@@ -978,12 +1148,13 @@ const encrypted = await encryptValue(derivedKey, secretValue)
 SHA-256 hashing for API key storage:
 
 ```typescript
-// Hash full key for database storage
-const keyHash = hashApiKey('tdsk_abc123...')
+// Generate new API key
+const { key, hash, prefix } = generateApiKey()
+// key = "tdsk_abc123...", hash = SHA-256 hex, prefix = first 12 chars
 
 // Validate key on auth
-const inputHash = hashApiKey(req.headers.authorization)
-const isValid = keyHash === inputHash
+const inputHash = hashKey(req.headers.authorization)
+const isValid = storedHash === inputHash
 ```
 
 ### 5. Environment Cascading
@@ -1011,8 +1182,9 @@ Environment loading follows precedence:
 |---------|---------|---------|
 | `@types/express` | 5.0.0 | Express type definitions |
 | `@types/node` | 22.12.0 | Node.js type definitions |
-| `vite-tsconfig-paths` | ^4.3.1 | Vite tsconfig paths plugin |
-| `vitest` | ^1.4.0 | Testing framework |
+| `typescript` | 5.7.3 | TypeScript compiler |
+| `vite-tsconfig-paths` | 4.3.2 | Vite tsconfig paths plugin |
+| `vitest` | 1.6.1 | Testing framework |
 
 ## Commands
 
@@ -1021,6 +1193,9 @@ All commands use PNPM:
 ```bash
 # Testing (Vitest)
 pnpm test               # Run tests
+
+# Type checking
+pnpm types              # tsc --noEmit --pretty
 
 # Cleanup
 pnpm clean              # Remove node_modules
@@ -1036,18 +1211,18 @@ pnpm clean              # Remove node_modules
 
 **Backend (`@tdsk/backend`)**:
 - Uses full `index.ts` exports
-- Imports: types, models, api helpers, error handling, environment loading, permissions
+- Imports: types, models, api helpers, error handling, environment loading, permissions, crypto
 - Extends: `TApp`, `TRequest`, `TResponse`
-- Uses: `adminPath`, `authHeaders`, `Exception`, `loadEnvs`, `canPerform`, `hasMinRole`
+- Uses: `adminPath`, `authHeaders`, `Exception`, `loadEnvs`, `canPerform`, `hasMinRole`, `hashKey`, `generateApiKey`
 
 **Proxy (`@tdsk/proxy`)**:
 - Uses full `index.ts` exports
 - Imports: types, models, api helpers, crypto utilities
-- Uses: `checkAuthHeader`, `behindLBProxy`, `inKube`, `hashApiKey`, encryption utilities
+- Uses: `checkAuthHeader`, `behindLBProxy`, `inKube`, `hashKey`, encryption utilities
 
 **Admin (`@tdsk/admin`)**:
 - Uses `web.ts` exports (web-safe only)
-- Imports: types, models, error handling
+- Imports: types, models, error handling, constants
 - Uses: `Exception`, model classes for client-side state, `ProviderTemplates`
 
 **Database (`@tdsk/database`)**:
@@ -1076,7 +1251,7 @@ All repos can import using these aliases:
 import { User, Organization } from '@TDM/models'
 import { TRequest, TResponse } from '@TDM/types'
 import { Exception } from '@TDM/error'
-import { encryptValue, decryptValue, hashApiKey } from '@TDM/crypto'
+import { encryptValue, decryptValue, hashKey } from '@TDM/crypto'
 import { canPerform, hasMinRole } from '@TDM/utils/permissions'
 import { ProviderTemplates } from '@TDM/constants'
 ```
@@ -1107,7 +1282,7 @@ This ensures all internal packages use the local workspace version.
 4. **Type-safe requests** - Use TRequest/TResponse with generics for full type safety
 5. **Environment-specific configs** - Use loadEnvs for all environment configuration
 6. **Secure encryption** - Always use HKDF key derivation, never share master key
-7. **Hash API keys** - Use `hashApiKey()` for storage, never store plaintext keys
+7. **Hash API keys** - Use `hashKey()` for storage, never store plaintext keys
 8. **Structured errors** - Use Exception class with status codes and details
 9. **Path aliases** - Use @TDM/* imports for consistency across repos
 10. **Permission checks** - Use `canPerform()` and `hasMinRole()` utilities
@@ -1117,7 +1292,7 @@ This ensures all internal packages use the local workspace version.
 
 ### Master Key Management
 
-- `TDSK_MASTER_KEY` must be 32 bytes (64 hex characters)
+- `TDSK_MASTER_KEY` must be at least 32 bytes (64 hex characters)
 - Generate with: `openssl rand -hex 32`
 - Store in `.env` files (never commit)
 - Each user gets unique derived key via HKDF
@@ -1125,11 +1300,12 @@ This ensures all internal packages use the local workspace version.
 
 ### API Key Security
 
-- API keys use `tdsk_` prefix for identification
-- Full keys are SHA-256 hashed before storage
-- Only prefix (first 8 chars) stored for display
+- API keys use `tdsk_` prefix for identification (`ApiKeyPrefix` constant)
+- Full keys are SHA-256 hashed before storage via `hashKey()`
+- Only prefix (first 12 chars) stored for display
 - Validation compares hashes, not plaintext
 - Keys have expiration and rate limits
+- New keys generated via `generateApiKey()` which returns `{ key, hash, prefix }`
 
 ### Encryption Algorithm
 
@@ -1142,19 +1318,18 @@ This ensures all internal packages use the local workspace version.
 ### Permission Enforcement
 
 - All protected endpoints validate user roles
-- Permission matrix enforces least privilege
-- Role hierarchy: viewer < member < admin < owner
+- Permission matrix enforces least privilege across 17 resource types
+- Role hierarchy: viewer < member < admin < owner < super
 - Project-specific roles override org roles
 
 ## Testing
 
-**280 tests passing across 18 test files**
+**281 tests passing across 18 test files**
 
 Tests use Vitest with config in `configs/vitest.config.ts`:
 
 ```bash
 pnpm test               # Run all tests
-pnpm test:watch         # Watch mode (if configured)
 ```
 
 Example test structure:
@@ -1181,69 +1356,3 @@ describe(`isDomain`, () => {
   })
 })
 ```
-
----
-
-**Last Updated**: 2026-02-15
-**Version**: 2.0.0
-
-## Changelog
-
-### v2.0.0 (2026-02-15)
-- **BREAKING**: Provider model now org-scoped only — removed `userId` and `projectId` fields
-- **NEW**: Provider model adds `headers` and `bodyParams` for custom LLM request params
-- **BREAKING**: ApiKey `scopes` is now `string` (comma-separated), not `string[]`
-- **NEW**: ApiKey adds `userId`, `keyHash`, `keyPrefix`, `active` fields
-- **NEW**: ApiKey adds methods: `hasScope()`, `isExpired()`, `isValid()`, `getRateLimit()`, `sanitize()`
-- **NEW**: Secret model adds `agentId` to exclusive arc (4-way: orgId/agentId/projectId/providerId)
-- **NEW**: Secret model adds `hashKey`, `encryptedValue`, `description` fields
-- **BREAKING**: Endpoint model restructured with `type`, `path`, `method`, `public`, `options`, `headers`
-- **NEW**: Endpoint subclasses: `ProxyEndpoint`, `FaaSEndpoint`, `AgentEndpoint`
-- **BREAKING**: Function model restructured with `content`, `description`, `branch`, `defaultArgs`, `dependencies`, `language`
-- **BREAKING**: Role model field renamed from `role` to `type`
-- **NEW**: Role model adds `projectId` and methods: `hasMinRole()`, `isAdmin()`, `isOwner()`, `isSuperAdmin()`
-- **REMOVED**: Config model (no longer exists)
-- **NEW**: Agent model (name, model, maxTokens, orgId, providerId, provider, secrets, projects, tools, systemPrompt, envVars, environment)
-- **NEW**: Asset model (url, content, name, type, orgId, userId, threadId, projectId, messageId, providerId, meta)
-- **NEW**: Thread model (name, userId, orgId, agentId, projectId, providerId, public, parentThreadId, branchMessageId, meta)
-- **NEW**: Message model (type, content, threadId, meta, projectId, orgId)
-- **NEW**: Domain model (domain, orgId, projectId, verified, verifiedAt, sslEnabled, sslPrivateKey, sslCertificate, sslExpiresAt, certificates)
-- **NEW**: Certificate model (parent, name, isFile, value, modified)
-- **NEW**: Invitation model (email, orgId, token, userId, roleType, invitedBy, revokedBy, revokedAt, expiresAt, acceptedAt, status + methods)
-- **NEW**: Quota model (12 resource fields: projects, members, endpoints, threads, messages, functionCalls, runtime, orgSecrets, projectSecrets, organizations, price, retention)
-- **NEW**: Subscription model (tier, status, userId, polarId, seats, etc.)
-- **NEW**: `types/quickstart.types.ts` — TProviderModel, TProviderTemplate, TQuickstartRequest, TQuickstartResponse
-- **NEW**: `types/sandbox.types.ts` — ESandboxProvider, ISandbox, ISandboxProvider, TSandboxConfig
-- **NEW**: `types/scopes.types.ts` — EApiKeyScope, EApiKeyExpire
-- **NEW**: `constants/providers.ts` — ProviderTemplates (anthropic, openai, google, zai, custom)
-- **NEW**: `crypto/apiKey.ts` — `hashApiKey()` and `createHashKey()` for API key hashing
-- **NEW**: `crypto/crypto.ts` adds `encodeEncrypted()` for base64 encoding
-- **NEW**: AI types `TLLMAdapterConfig` adds `headers` and `bodyParams` fields
-- **NEW**: AI types document `ILLMAdapter`, `TStreamEvent`, `TAIMessage`, `TLLMToolDef`
-- **NEW**: Permission utilities — 9 functions: `canPerform`, `hasMinRole`, `getRoleLevel`, etc.
-- **NEW**: User model adds `displayName` getter
-- **UPDATED**: Test count: 280 tests passing (18 files)
-
-### v1.3.0 (2026-02-14)
-- **Changed**: `apiKey` is now optional in `TLLMAdapterConfig` (`ai.types.ts` line 213)
-- When using `ProxyAdapter` (session-based LLM proxy), no apiKey is passed from the client
-- Server-side code that requires apiKey validates it before calling the LLM adapter
-
-### v1.2.0 (2026-01-18)
-- **New**: `Plan` model for payment plans with metadata conversion
-- **New**: `payments.types.ts` - Payment plan types (TPayPlanRaw, TPayPlanMeta, TPayPlans)
-- **New**: `utils/payments/` - Payment utilities (parsePayPlans, rawPlanToMeta)
-- **Refactor**: Crypto utilities moved to `crypto/` subdirectory
-- **Refactor**: Permissions utilities moved to `utils/permissions/` subdirectory
-- **New**: `rawPlanToMeta()` - Converts raw string metadata to typed numbers
-
-### v1.1.0 (Previous)
-- Base models and types
-- Crypto utilities
-- Express API helpers
-
-## Future Enhancements
-
-Based on empty placeholder modules:
-
-- `services/` - Planned for shared service layer logic (currently empty)

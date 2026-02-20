@@ -44,6 +44,9 @@ describe(`Quickstart endpoint`, () => {
         db: {
           transaction: mockTransaction,
           services: {
+            provider: {
+              update: vi.fn().mockResolvedValue({ data: {}, error: null }),
+            },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),

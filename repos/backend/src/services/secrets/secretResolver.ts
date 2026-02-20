@@ -1,16 +1,8 @@
 import type { Secret } from '@tdsk/domain'
+import type { TSecretResolverDb } from '@TBE/types'
+
 import { deriveKey, decryptValue } from '@tdsk/domain'
-
-const SECRET_REF_PATTERN = /\{\{([^}]+)\}\}/g
-const SECRET_REF_TEST = /\{\{([^}]+)\}\}/
-
-export type TSecretResolverDb = {
-  services: {
-    secret: {
-      list: (opts: any) => Promise<{ data?: any[] }>
-    }
-  }
-}
+import { SecretRefTest, SecretRefPattern } from '@TBE/constants/values'
 
 /**
  * SecretResolver
@@ -32,9 +24,8 @@ export class SecretResolver {
    * Fast-path check: does any string value contain a {{...}} template?
    */
   static hasSecretRefs = (values: Iterable<string>): boolean => {
-    for (const v of values) {
-      if (SECRET_REF_TEST.test(v)) return true
-    }
+    for (const v of values) if (SecretRefTest.test(v)) return true
+
     return false
   }
 
@@ -54,7 +45,7 @@ export class SecretResolver {
       }
     })
 
-    return value.replace(SECRET_REF_PATTERN, (match, secretName) => {
+    return value.replace(SecretRefPattern, (match, secretName) => {
       const secretValue = secretMap.get(secretName.trim())
       return secretValue ?? match
     })
@@ -162,8 +153,9 @@ export class SecretResolver {
   }
 
   /**
-   * Resolve an API key from secrets using a 3-tier fallback:
-   * 1. Agent-scoped secrets (from agent relation)
+   * Resolve an API key from secrets using a 4-tier fallback:
+   * 0. Direct secret link via provider.secretId (O(1) lookup)
+   * 1. Agent+provider-scoped secrets (agent relation filtered by providerId)
    * 2. Provider-scoped secrets (query by providerId)
    * 3. Org-scoped secrets (query by orgId)
    */
@@ -178,13 +170,25 @@ export class SecretResolver {
       }>
       orgId: string
     },
-    providerId: string
+    provider: { id: string; secretId?: string }
   ): Promise<string> => {
     let apiKey = ``
 
-    // 1. Try agent-scoped secrets
+    // 0. Direct secret link (O(1) lookup)
+    if (provider.secretId) {
+      const { data: secret } = await this.db.services.secret.get(provider.secretId)
+      if (secret?.encryptedValue) {
+        const value = await this.decrypt(secret, agent.orgId)
+        if (value) return value
+      }
+    }
+
+    const providerId = provider.id
+
+    // 1. Try agent-scoped secrets that match the target provider
     if (agent.secrets?.length) {
-      for (const secret of agent.secrets) {
+      const providerSecrets = agent.secrets.filter((s) => s.providerId === providerId)
+      for (const secret of providerSecrets) {
         const value = await this.decrypt(secret, agent.orgId)
         if (value) {
           apiKey = value

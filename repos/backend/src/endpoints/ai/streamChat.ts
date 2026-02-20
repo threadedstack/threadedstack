@@ -106,6 +106,12 @@ export const streamChat: TEndpointConfig = {
       session.llmConfig.model as any
     )
 
+    if (!model)
+      throw new Exception(
+        400,
+        `Unknown model "${session.llmConfig.model}" for provider "${session.llmConfig.provider}"`
+      )
+
     // Build the context with server-side system prompt
     const streamContext = {
       systemPrompt: session.llmConfig.systemPrompt,
@@ -132,9 +138,9 @@ export const streamChat: TEndpointConfig = {
 
       for await (const event of streamSimple(model, streamContext, {
         apiKey: session.llmConfig.apiKey,
-        temperature: options.temperature ?? session.llmConfig.temperature,
-        maxTokens: options.maxTokens ?? session.llmConfig.maxTokens,
         headers: session.llmConfig.headers,
+        maxTokens: options.maxTokens ?? session.llmConfig.maxTokens,
+        temperature: options.temperature ?? session.llmConfig.temperature,
       })) {
         if (aborted) break
         const proxyEvent = toProxyEvent(event)

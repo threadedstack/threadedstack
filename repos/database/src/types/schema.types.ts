@@ -134,6 +134,13 @@ export type TDBEntityInsert =
   | TDBInvitationInsert
   | TDBSubscriptionInsert
 
+export type TDBUpdate<T extends TDBEntityInsert = TDBEntityInsert> = Omit<
+  Partial<T>,
+  `id`
+> & {
+  id: string
+}
+
 type TTableWithId = {
   id: any
 }
@@ -183,7 +190,7 @@ export interface IDBApi<M extends BaseModel, I extends TDBEntityInsert> {
   create: (data: I, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
   list: (opts?: TDBQueryOpts) => Promise<TDBApiRes<M[]>>
   get: (id: string, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
-  update: (data: I, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
+  update: (data: TDBUpdate<I>, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
   upsert: (data: I, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
   delete: (id: string, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>
 }
