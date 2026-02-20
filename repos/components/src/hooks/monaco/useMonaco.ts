@@ -21,8 +21,8 @@ const themes = {
 }
 
 const useMonacoRefs = (props: THMonaco) => {
-  const mRef = useRef<Monaco>()
-  const eRef = useRef<TMonEditor>()
+  const mRef = useRef<Monaco | null>(null)
+  const eRef = useRef<TMonEditor | null>(null)
 
   return {
     ...props,

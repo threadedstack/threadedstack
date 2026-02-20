@@ -1,5 +1,5 @@
-import type { SxProps } from '@mui/material'
-import type { CSSProperties, ComponentProps, ReactNode } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ComponentProps, ReactNode } from 'react'
 
 import { Text } from '@TSC/components/Text'
 import { gutter } from '@TSC/theme'
@@ -72,14 +72,14 @@ export const Loading = (props: TLoading) => {
           containerSx,
           full ? styles.full : emptyObj,
           fixed ? styles.fixed : full ? styles.fullNoFix : emptyObj,
-        ] as CSSProperties[]
+        ] as SxProps<Theme>
       }
     >
       {message && pos !== `after` && (
         <Text
           variant={textVariant}
           className='tdsk-loading-text before'
-          sx={[styles.message, messageSx] as CSSProperties[]}
+          sx={[styles.message, messageSx] as SxProps<Theme>}
         >
           {message}
         </Text>
@@ -89,7 +89,7 @@ export const Loading = (props: TLoading) => {
         <Text
           variant={textVariant}
           className='tdsk-loading-text after'
-          sx={[styles.message, messageSx] as CSSProperties[]}
+          sx={[styles.message, messageSx] as SxProps<Theme>}
         >
           {message}
         </Text>

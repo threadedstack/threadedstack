@@ -1,5 +1,6 @@
 import type { TSectionAction } from '@TSC/types'
-import type { ReactNode, CSSProperties, ComponentProps, ComponentType } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode, ComponentProps, ComponentType } from 'react'
 
 import { cls } from '@keg-hub/jsutils/cls'
 import { inherit } from '@TSC/theme/helpers'
@@ -20,7 +21,7 @@ export type TSection = {
   square?: boolean
   elevation?: number
   title?: ReactNode
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   className?: string
   stackClass?: string
   children?: ReactNode

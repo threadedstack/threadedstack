@@ -1,11 +1,9 @@
-import type { CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
 
 import { emptyArr, ensureArr } from '@keg-hub/jsutils'
 import { useMemo } from 'react'
 
-export const useJoinSx = (
-  ...styles: (undefined | null | CSSProperties | CSSProperties[])[]
-) => {
+export const useJoinSx = (...styles: (undefined | null | SxProps<Theme>)[]) => {
   return useMemo(
     () =>
       styles.reduce(
@@ -13,7 +11,7 @@ export const useJoinSx = (
           ...ensureArr(joined),
           ...(style ? ensureArr(style) : emptyArr),
         ],
-        [] as CSSProperties[]
+        [] as SxProps<Theme>[]
       ),
     styles
   )

@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode } from 'react'
 
 import {
   AccordionInfoTip,
@@ -13,7 +14,7 @@ export type AccordionInfoAction = {
   info?: ReactNode
   Icon?: ReactNode
   className?: string
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   inactive?: boolean
   children?: ReactNode
   separatorAfter?: boolean

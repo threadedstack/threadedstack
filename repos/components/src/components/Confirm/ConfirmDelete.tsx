@@ -1,4 +1,5 @@
-import type { ReactNode, CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode } from 'react'
 
 import { Typography } from '@mui/material'
 import { Confirm } from '@TSC/components/Confirm/Confirm'
@@ -9,7 +10,7 @@ export type TConfirmDelete = {
   title?: ReactNode
   itemName: string
   deleting?: boolean
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   warnText?: string
   cancelText?: string
   deleteText?: string

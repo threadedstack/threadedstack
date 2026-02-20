@@ -11,8 +11,8 @@ import { Type } from '@mariozechner/pi-ai'
 export const createSandboxTools = (
   sandbox: ISandbox,
   allowedTools?: string[]
-): AgentTool[] => {
-  const tools: AgentTool[] = [
+): AgentTool<any>[] => {
+  const tools: AgentTool<any>[] = [
     {
       name: `shellExec`,
       label: `Shell`,
@@ -23,7 +23,12 @@ export const createSandboxTools = (
           Type.Array(Type.String(), { description: `Command arguments` })
         ),
       }),
-      execute: async (_toolCallId, params, _signal, onUpdate) => {
+      execute: async (
+        _toolCallId: string,
+        params: { command: string; args?: string[] },
+        _signal,
+        onUpdate
+      ) => {
         onUpdate?.({
           content: [
             {
@@ -48,7 +53,12 @@ export const createSandboxTools = (
       parameters: Type.Object({
         path: Type.String({ description: `The file path to read` }),
       }),
-      execute: async (_toolCallId, params, _signal, onUpdate) => {
+      execute: async (
+        _toolCallId: string,
+        params: { path: string },
+        _signal,
+        onUpdate
+      ) => {
         onUpdate?.({
           content: [{ type: `text`, text: `Reading: ${params.path}` }],
           details: { status: `running` },
@@ -68,7 +78,12 @@ export const createSandboxTools = (
         path: Type.String({ description: `The file path to write` }),
         content: Type.String({ description: `The content to write` }),
       }),
-      execute: async (_toolCallId, params, _signal, onUpdate) => {
+      execute: async (
+        _toolCallId: string,
+        params: { path: string; content: string },
+        _signal,
+        onUpdate
+      ) => {
         onUpdate?.({
           content: [{ type: `text`, text: `Writing: ${params.path}` }],
           details: { status: `running` },
@@ -87,7 +102,12 @@ export const createSandboxTools = (
       parameters: Type.Object({
         path: Type.String({ description: `The directory path to list` }),
       }),
-      execute: async (_toolCallId, params, _signal, onUpdate) => {
+      execute: async (
+        _toolCallId: string,
+        params: { path: string },
+        _signal,
+        onUpdate
+      ) => {
         onUpdate?.({
           content: [{ type: `text`, text: `Listing: ${params.path}` }],
           details: { status: `running` },
@@ -106,7 +126,12 @@ export const createSandboxTools = (
       parameters: Type.Object({
         path: Type.String({ description: `The file path to delete` }),
       }),
-      execute: async (_toolCallId, params, _signal, onUpdate) => {
+      execute: async (
+        _toolCallId: string,
+        params: { path: string },
+        _signal,
+        onUpdate
+      ) => {
         onUpdate?.({
           content: [{ type: `text`, text: `Deleting: ${params.path}` }],
           details: { status: `running` },
@@ -125,7 +150,12 @@ export const createSandboxTools = (
       parameters: Type.Object({
         path: Type.String({ description: `The directory path to create` }),
       }),
-      execute: async (_toolCallId, params, _signal, onUpdate) => {
+      execute: async (
+        _toolCallId: string,
+        params: { path: string },
+        _signal,
+        onUpdate
+      ) => {
         onUpdate?.({
           content: [{ type: `text`, text: `Creating directory: ${params.path}` }],
           details: { status: `running` },
@@ -144,7 +174,7 @@ export const createSandboxTools = (
       parameters: Type.Object({
         path: Type.String({ description: `The file path to check` }),
       }),
-      execute: async (_toolCallId, params) => {
+      execute: async (_toolCallId: string, params: { path: string }) => {
         const exists = await sandbox.fileExists(params.path)
         return {
           content: [{ type: `text`, text: String(exists) }],
@@ -260,7 +290,7 @@ const buildFunctionParameters = (fn: FunctionModel) => {
 export const buildCustomFunctionTools = (
   functions: FunctionModel[],
   onExecute: (functionId: string, input: unknown) => Promise<TFunctionExecResult>
-): AgentTool[] => {
+): AgentTool<any>[] => {
   return functions.map((fn) => ({
     name: fn.name,
     label: fn.name,

@@ -3,14 +3,14 @@ import { AuthManager } from '@TRL/auth'
 import { Version } from '@TRL/constants'
 import { find } from '@TRL/utils/tasks/find'
 import { argsParse } from '@keg-hub/args-parse'
+import { hasArg } from '@TRL/utils/tasks/hasArg'
 import { loadConfig } from '@TRL/utils/tasks/config'
 import { addDefaults } from '@TRL/utils/tasks/addDefaults'
 
 export const main = async (): Promise<any> => {
   const argv = process.argv.slice(2)
 
-  if (argv[0] === `--version` || argv[0] === `-v`)
-    return process.stdout.write(`tdsk-agent v${Version}\n`)
+  if (hasArg(argv, `version`, [`v`])) return process.stdout.write(`tsa v${Version}\n`)
 
   // Default to 'chat' when no args or first arg is a value flag
   // --help is a task alias, not a value flag
@@ -30,9 +30,14 @@ export const main = async (): Promise<any> => {
   })
   const auth = new AuthManager()
 
-  // Apply insecure mode from stored credentials
+  // Apply insecure mode from stored credentials or --insecure argument
   const storedCreds = auth.getCredentials()
-  if (storedCreds?.insecure) process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
+  if (storedCreds?.insecure || hasArg(argv, `insecure`, [`ins`]))
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
+
+  console.log(`------- params -------`)
+  console.log(params)
+  process.exit()
 
   await task.action?.({
     task,

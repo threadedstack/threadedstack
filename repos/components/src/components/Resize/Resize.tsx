@@ -1,7 +1,12 @@
-import type { MutableRefObject, ReactNode, ComponentProps } from 'react'
+import type { MutableRefObject, ReactNode } from 'react'
+import type {
+  PanelProps,
+  PanelGroupProps,
+  ImperativePanelGroupHandle,
+} from 'react-resizable-panels'
 
-import { Fragment, useEffect } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
+import { Fragment, useEffect } from 'react'
 
 import {
   Panel,
@@ -22,28 +27,15 @@ export type TResizeRef = {
   panels?: Record<string, TResizePanelRef>
 }
 
-export type TResizePanel = ComponentProps<typeof Panel> & {
-  //id?: string;
-  //order?: number;
-  //style?: object;
-  //className?: string;
-  //onExpand?: PanelOnExpand;
-  //onResize?: PanelOnResize;
-  //maxSize?: number | undefined;
-  //minSize?: number | undefined;
-  //onCollapse?: PanelOnCollapse;
-  //collapsedSize?: number | undefined;
-  //collapsible?: boolean | undefined;
-  //defaultSize?: number | undefined;
-  //tagName?: keyof HTMLElementTagNameMap | undefined;
+export type TResizePanel = PanelProps & {
   handle?: boolean
   key?: string | number
-  component: ReactNode
+  component: PanelProps['children']
 }
 
-export type TResize = ComponentProps<typeof PanelGroup> & {
+export type TResize = PanelGroupProps & {
   panels: TResizePanel[]
-  panelRef?: MutableRefObject<any>
+  panelRef?: MutableRefObject<ImperativePanelGroupHandle>
   resizeRef?: MutableRefObject<TResizeRef>
 }
 

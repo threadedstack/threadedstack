@@ -1,5 +1,5 @@
 import { noOp } from '@keg-hub/jsutils'
-import { MutableRefObject, useMemo, useRef } from 'react'
+import { RefObject, useMemo, useRef } from 'react'
 
 /*
  * Uses some typescript utility types to allow references to this in the memoized ref
@@ -28,8 +28,8 @@ const useRefFunc = <T>(func: T) => {
  * But the memoizedRef current value stays consistent
  * This allows using the function in places like useEffect with a consistent identity
  */
-const useMemoizedRef = <T extends TMemoFunc>(funcRef: MutableRefObject<T>) => {
-  const memoizedRef = useRef<TRefFunction<T>>()
+const useMemoizedRef = <T extends TMemoFunc>(funcRef: RefObject<T>) => {
+  const memoizedRef = useRef<TRefFunction<T> | null>(null)
   !memoizedRef.current &&
     (memoizedRef.current = function (this, ...args) {
       return funcRef.current.apply(this, args)

@@ -1,4 +1,5 @@
-import type { ComponentType, CSSProperties, ReactNode } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ComponentType, ReactNode } from 'react'
 
 import {
   ConfirmTitle,
@@ -26,12 +27,12 @@ export type TConfirm = {
   confirm?: ReactNode
   children?: ReactNode
   fullWidth?: boolean
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   loading?: boolean
-  iconSx?: CSSProperties
-  titleSx?: CSSProperties
-  contentSx?: CSSProperties
-  actionsSx?: CSSProperties
+  iconSx?: SxProps<Theme>
+  titleSx?: SxProps<Theme>
+  contentSx?: SxProps<Theme>
+  actionsSx?: SxProps<Theme>
   disableEscape?: boolean
   scroll?: `body` | `paper`
   className?: string | string[]

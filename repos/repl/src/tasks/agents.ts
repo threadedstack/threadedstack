@@ -8,7 +8,7 @@ export const agents: TTask = {
   name: `agents`,
   alias: [`ag`],
   description: `List available agents`,
-  example: `tdsk-agent agents [--org <id>]`,
+  example: `tsa agents [--org <id>]`,
   options: {
     org: {
       description: `Organization ID`,

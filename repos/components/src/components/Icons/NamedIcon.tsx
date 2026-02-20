@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
 import type { SvgIconProps } from '@mui/material/SvgIcon'
 
 import { forwardRef } from 'react'
@@ -112,7 +112,7 @@ export const IconList = {
 }
 
 type TRenderIcon = Omit<SvgIconProps, `sx`> & {
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   icon: keyof typeof IconList
 }
 

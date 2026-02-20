@@ -1,4 +1,5 @@
-import type { CSSProperties, MouseEvent, ReactNode } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { MouseEvent, ReactNode } from 'react'
 
 import { cls } from '@keg-hub/jsutils'
 import { CardActions as CActions, CardAction } from './Card.styled'
@@ -8,15 +9,15 @@ export type TCardAction = {
   text?: ReactNode
   Icon?: ReactNode
   id?: string | number
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   children?: ReactNode
   onClick: (event: MouseEvent) => void
 }
 
 export type TCardActions = {
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   actions: TCardAction[]
-  actionSx?: CSSProperties
+  actionSx?: SxProps<Theme>
 }
 
 export const CardActions = (props: TCardActions) => {
@@ -32,7 +33,7 @@ export const CardActions = (props: TCardActions) => {
         return (
           <CardAction
             onClick={onClick}
-            sx={[actionSx, sx]}
+            sx={[actionSx, sx] as SxProps<Theme>}
             key={`${id || name || text || idx}`}
             className={cls(
               `tdsk-card-action`,

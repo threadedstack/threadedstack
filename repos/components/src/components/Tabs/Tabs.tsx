@@ -1,4 +1,5 @@
-import type { CSSProperties, ComponentType, ReactNode, ComponentProps } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ComponentType, ReactNode, ComponentProps } from 'react'
 
 import MuiTab from '@mui/material/Tab'
 import MuiTabs from '@mui/material/Tabs'
@@ -16,7 +17,7 @@ export type TTab = {
   id?: string
   label: ReactNode
   icon?: ReactNode
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   className?: string
   disabled?: boolean
   content?: ReactNode
@@ -31,11 +32,11 @@ export type TTab = {
 export type TTabs = {
   label?: string
   active?: TTRef
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   className?: string
   tabsClass?: string
   centered?: boolean
-  tabsSx?: CSSProperties
+  tabsSx?: SxProps<Theme>
   disabled?: boolean | string[]
   scrollButtons?: boolean | `auto`
   allowScrollButtonsMobile?: boolean

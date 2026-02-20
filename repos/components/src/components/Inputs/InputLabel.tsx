@@ -1,5 +1,6 @@
 import type { NotificationCountProps } from '@TSC/types'
-import type { CSSProperties, ReactNode, ElementType } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode, ElementType } from 'react'
 
 import Box from '@mui/material/Box'
 import Tooltip from '@mui/material/Tooltip'
@@ -17,7 +18,7 @@ type InputLabelProps = {
   children?: ReactNode
   label?: string | number
   component?: ElementType<any>
-  sx?: CSSProperties | CSSProperties[]
+  sx?: SxProps<Theme>
   notificationsProps?: NotificationCountProps
 }
 

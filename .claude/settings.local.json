@@ -59,7 +59,12 @@
       "Bash(grep:*)",
       "Bash(NODE_TLS_REJECT_UNAUTHORIZED=0 npx vitest:*)",
       "Bash(NODE_TLS_REJECT_UNAUTHORIZED=0 curl:*)",
-      "Bash(tsc:*)"
+      "Bash(tsc:*)",
+      "Bash(./dist/tda:*)",
+      "Bash(tsa:*)",
+      "Bash(npm view:*)",
+      "Bash(/Users/lancetipton/keg-hub/external/apps/threadedstack/repos/repl/dist/tsa:*)",
+      "Bash(./dist/tsa:*)"
     ]
   },
   "sandbox": {

@@ -15,7 +15,7 @@ const hasDocument = typeof document !== `undefined`
 export const Portal = (props: TPortal) => {
   const { id, children, elementRef } = props
 
-  const portalRef = useRef<HTMLElement>()
+  const portalRef = useRef<HTMLElement | null>(null)
   const forceUpdate = useForceUpdate()
 
   useEffect(() => {

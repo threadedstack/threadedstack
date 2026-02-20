@@ -6,7 +6,7 @@ export const login: TTask = {
   name: `login`,
   alias: [`li`],
   description: `Authenticate with a ThreadedStack API key`,
-  example: `tdsk-agent login <api-key> [--url <proxy-url>] [--insecure]`,
+  example: `tsa login <api-key> [--url <proxy-url>] [--insecure]`,
   options: {
     apiKey: {
       description: `API key for authentication`,
@@ -29,7 +29,7 @@ export const login: TTask = {
     const apiKey = params.apiKey || options?.[0]
     if (!apiKey) {
       process.stdout.write(
-        `${themed('warning', `Usage: tdsk-agent login <api-key> [--url <proxy-url>] [--insecure]`)}\n`
+        `${themed('warning', `Usage: tsa login <api-key> [--url <proxy-url>] [--insecure]`)}\n`
       )
       process.exit(1)
     }

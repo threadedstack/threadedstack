@@ -7,7 +7,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "moduleResolution": "bundler",
-    "rootDir": ".",
+    "rootDir": "../../",
     "paths": {
       "@TIT/*": ["./src/*"],
       "@TIT": ["./src"],

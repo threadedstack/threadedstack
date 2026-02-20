@@ -11,7 +11,7 @@ export const requireAuth =
   (args) => {
     if (!args.auth.isLoggedIn()) {
       process.stdout.write(
-        `${themed('error', `Not logged in.`)} Run ${themed('primary', `tdsk-agent login <api-key>`)} first.\n`
+        `${themed('error', `Not logged in.`)} Run ${themed('primary', `tsa login <api-key>`)} first.\n`
       )
       process.exit(1)
     }

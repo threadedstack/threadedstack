@@ -1,3 +1,6 @@
+import type { Mock } from 'vitest'
+import type { TFunctionExecResult } from '@tdsk/domain'
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createSandboxTools, buildCustomFunctionTools } from './tools'
 
@@ -389,7 +392,7 @@ describe(`buildCustomFunctionTools`, () => {
     ...overrides,
   })
 
-  let onExecute: ReturnType<typeof vi.fn>
+  let onExecute: Mock<[string, unknown], Promise<TFunctionExecResult>>
 
   beforeEach(() => {
     onExecute = vi.fn().mockResolvedValue({

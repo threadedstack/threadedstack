@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
 
 import { useMemo } from 'react'
 import { styled } from '@mui/material/styles'
@@ -20,7 +20,7 @@ export type TExpandIcon = {
   openDir?: TIconDirection
   closedDir?: TIconDirection
   noIconTransform?: boolean
-  sx?: CSSProperties | CSSProperties[]
+  sx?: SxProps<Theme>
 }
 
 const iconDirMap = {

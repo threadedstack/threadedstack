@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "rootDir": "./",
+    "rootDir": "../../",
     "outDir": "./dist",
     "target": "esnext",
     "module": "esnext",
@@ -28,12 +28,20 @@
       "@TSB/configs": ["./configs"],
       "@TSB/configs/*": ["./configs/*"],
 
+      "@TDM": ["../domain/src"],
+      "@TDM/*": ["../domain/src/*"],
       "@tdsk/domain": ["../domain/src"],
-      "@tdsk/domain/*": ["../domain/src/*"]
+      "@tdsk/domain/*": ["../domain/src/*"],
+
+      "@keg-hub/jsutils": ["./node_modules/@keg-hub/jsutils/build/esm"],
+      "@keg-hub/jsutils/*": ["./node_modules/@keg-hub/jsutils/build/esm/*"],
+      "@keg-hub/jsutils/src/node": ["./node_modules/@keg-hub/jsutils/build/esm/node"],
+      "@keg-hub/jsutils/src/node/*": ["./node_modules/@keg-hub/jsutils/build/esm/node"]
     }
   },
   "include": [
     "src",
-    "configs"
+    "configs",
+    "../domain/src"
   ]
 }

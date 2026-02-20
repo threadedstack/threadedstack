@@ -46,14 +46,19 @@
       "@TSB": ["../sandbox/src"],
       "@TSB/*": ["../sandbox/src/*"],
       "@tdsk/sandbox": ["../sandbox/src"],
-      "@tdsk/sandbox/*": ["../sandbox/src/*"]
+      "@tdsk/sandbox/*": ["../sandbox/src/*"],
+
+      "@tdsk/logger": ["../logger/src"],
+      "@tdsk/logger/*": ["../logger/src/*"]
     }
   },
   "include": [
     "src",
     "configs",
+    "scripts",
     "../domain/src",
     "../agent/src",
-    "../sandbox/src"
+    "../sandbox/src",
+    "../logger/src"
   ]
 }

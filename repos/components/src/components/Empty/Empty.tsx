@@ -7,17 +7,18 @@ import {
 } from '@TSC/components/Empty/Empty.styles'
 import { cls } from '@keg-hub/jsutils/cls'
 import { isStr } from '@keg-hub/jsutils/isStr'
-import type { CSSProperties, ReactNode } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode } from 'react'
 
 export type TEmpty = {
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   icon?: ReactNode
   title?: ReactNode
   className?: string
   content?: ReactNode
-  textSx?: CSSProperties
-  titleSx?: CSSProperties
-  contentSx?: CSSProperties
+  textSx?: SxProps<Theme>
+  titleSx?: SxProps<Theme>
+  contentSx?: SxProps<Theme>
 }
 
 export const Empty = (props: TEmpty) => {

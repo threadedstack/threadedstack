@@ -11,7 +11,7 @@ vi.mock(`@TRL/services/config`, () => ({
     loadGlobal: (...args: any[]) => mockLoadGlobal(...args),
     saveGlobal: (...args: any[]) => mockSaveGlobal(...args),
     loadProject: (...args: any[]) => mockLoadProject(...args),
-    merge: (...args: any[]) => mockMerge(...args),
+    merge: (global: any, project: any) => mockMerge(global, project),
   },
 }))
 
@@ -76,7 +76,7 @@ describe(`main`, () => {
   })
 
   const setArgv = (...args: string[]) => {
-    process.argv = [`node`, `tdsk-agent`, ...args]
+    process.argv = [`node`, `tsa`, ...args]
   }
 
   const runMain = async () => {
@@ -95,7 +95,7 @@ describe(`main`, () => {
       setLoggedOut()
       await runMain()
       expect(joined()).toContain(`Commands:`)
-      expect(joined()).toContain(`tdsk-agent login`)
+      expect(joined()).toContain(`tsa login`)
       expect(exitCode).toBeUndefined()
     })
 
@@ -149,7 +149,7 @@ describe(`main`, () => {
       setArgv(`login`)
       setLoggedOut()
       await runMain()
-      expect(joined()).toContain(`Usage: tdsk-agent login`)
+      expect(joined()).toContain(`Usage: tsa login`)
       expect(exitCode).toBe(1)
     })
 
@@ -359,7 +359,7 @@ describe(`main`, () => {
       setArgv(`threads`)
       setLoggedIn()
       await runMain()
-      expect(joined()).toContain(`Usage: tdsk-agent threads`)
+      expect(joined()).toContain(`Usage: tsa threads`)
       expect(exitCode).toBe(1)
     })
 
@@ -437,20 +437,22 @@ describe(`main`, () => {
   })
 
   describe(`chat command`, () => {
-    it(`should require auth`, async () => {
+    it(`should render Ink App when not logged in (REPL handles auth)`, async () => {
       setArgv(`chat`)
       setLoggedOut()
       await runMain()
-      expect(joined()).toContain(`Not logged in`)
-      expect(exitCode).toBe(1)
+
+      expect(mockInkRender).toHaveBeenCalledTimes(1)
+      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
     })
 
-    it(`should require auth for default (empty) command`, async () => {
+    it(`should render Ink App for default (empty) command when not logged in`, async () => {
       setArgv()
       setLoggedOut()
       await runMain()
-      expect(joined()).toContain(`Not logged in`)
-      expect(exitCode).toBe(1)
+
+      expect(mockInkRender).toHaveBeenCalledTimes(1)
+      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
     })
 
     it(`should render Ink App with flags`, async () => {

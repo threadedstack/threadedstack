@@ -131,7 +131,7 @@ export const useFetch = <T extends Record<string, any> = Record<string, any>>(
   } = resolveArgs<T>(opts, func, extOpts)
 
   const callback = useInline(cb)
-  const cacheKeyRef = useRef<string>()
+  const cacheKeyRef = useRef<string | null>(null)
   const cache = cacheObj as TCacheEnableObj
   const [data, setData] = useState<T | undefined>()
   const cacheService = useCache()

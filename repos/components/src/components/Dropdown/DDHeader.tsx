@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode } from 'react'
 
 import { cls } from '@keg-hub/jsutils/cls'
 import {
@@ -12,10 +13,10 @@ export type TDDHeader = {
   className?: string
   text?: ReactNode
   Icon?: ReactNode
-  textSx?: CSSProperties
-  iconSx?: CSSProperties
-  contentSx?: CSSProperties
-  containerSx?: CSSProperties
+  textSx?: SxProps<Theme>
+  iconSx?: SxProps<Theme>
+  contentSx?: SxProps<Theme>
+  containerSx?: SxProps<Theme>
 }
 
 export const DDHeader = (props: TDDHeader) => {

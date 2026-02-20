@@ -8,7 +8,7 @@ export const threads: TTask = {
   name: `threads`,
   alias: [`th`],
   description: `List threads for an agent`,
-  example: `tdsk-agent threads <agent-id> [--org <id>]`,
+  example: `tsa threads <agent-id> [--org <id>]`,
   options: {
     agentId: {
       description: `Agent ID to list threads for`,
@@ -25,7 +25,7 @@ export const threads: TTask = {
     const agentId = params.agentId || options?.[0]
     if (!agentId) {
       process.stdout.write(
-        `${themed('warning', `Usage: tdsk-agent threads <agent-id> [--org <id>]`)}\n`
+        `${themed('warning', `Usage: tsa threads <agent-id> [--org <id>]`)}\n`
       )
       process.exit(1)
     }

@@ -1,5 +1,5 @@
 import type { TTextRef } from './Text'
-import type { ReactNode, CSSProperties } from 'react'
+import type { ReactNode } from 'react'
 import type { SxProps, Theme } from '@mui/material'
 import type { TypographyProps } from '@mui/material/Typography'
 
@@ -82,7 +82,7 @@ export const TextPair = forwardRef((props: TTextPair, ref: TTextRef) => {
             fontSize: size,
           },
           sx,
-        ] as CSSProperties[]
+        ] as SxProps<Theme>
       }
       className={cls(`tdsk-tp-container`, className)}
     >
@@ -92,7 +92,7 @@ export const TextPair = forwardRef((props: TTextPair, ref: TTextRef) => {
           color={labelColor || rest.color}
           component={labelComponent || rest.component}
           {...labelProps}
-          sx={[labelProps?.sx, labelSx] as CSSProperties[]}
+          sx={[labelProps?.sx, labelSx] as SxProps<Theme>}
           className={cls(
             `tdsk-tp-label`,
             labelClass,
@@ -109,7 +109,7 @@ export const TextPair = forwardRef((props: TTextPair, ref: TTextRef) => {
           color={textColor || rest.color}
           component={textComponent || rest.component}
           {...textProps}
-          sx={[textProps?.sx, textSx] as CSSProperties[]}
+          sx={[textProps?.sx, textSx] as SxProps<Theme>}
           className={cls(`tdsk-tp-text`, textClass, textProps?.className)}
         >
           {children}

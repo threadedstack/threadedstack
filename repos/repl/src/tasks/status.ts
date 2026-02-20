@@ -6,7 +6,7 @@ export const status: TTask = {
   name: `status`,
   alias: [`st`],
   description: `Show current authentication status`,
-  example: `tdsk-agent status`,
+  example: `tsa status`,
   action: async ({ auth }) => {
     const creds = auth.getCredentials()
     if (creds) {

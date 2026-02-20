@@ -1,4 +1,5 @@
-import type { ReactNode, CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode } from 'react'
 import type { TCardAction } from './CardActions'
 
 import { cls } from '@keg-hub/jsutils'
@@ -7,13 +8,13 @@ import { CardActions } from './CardActions'
 import { CardMain, CardContent, CardContainer } from './Card.styled'
 
 export type TCard = {
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   children?: ReactNode
-  cardSx?: CSSProperties
+  cardSx?: SxProps<Theme>
   actions?: TCardAction[]
-  actionSx?: CSSProperties
-  contentSx?: CSSProperties
-  actionsSx?: CSSProperties
+  actionSx?: SxProps<Theme>
+  contentSx?: SxProps<Theme>
+  actionsSx?: SxProps<Theme>
   className?: string | string[]
   cardClass?: string | string[]
   onClick?: (evt: any) => void

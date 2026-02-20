@@ -3,13 +3,12 @@ import type { TTask } from '@TRL/types'
 import React from 'react'
 import { render } from 'ink'
 import { App } from '@TRL/components/App'
-import { requireAuth } from '@TRL/utils/tasks/requireAuth'
 
 export const chat: TTask = {
   name: `chat`,
   alias: [`ch`],
   description: `Start an interactive chat session`,
-  example: `tdsk-agent chat [--org <id>] [--agent <id>] [--thread <id>]`,
+  example: `tsa chat [--org <id>] [--agent <id>] [--thread <id>]`,
   options: {
     org: {
       description: `Organization ID`,
@@ -27,7 +26,7 @@ export const chat: TTask = {
       type: `str`,
     },
   },
-  action: requireAuth(async ({ params, auth }) => {
+  action: async ({ params, auth }) => {
     const { waitUntilExit } = render(
       React.createElement(App, {
         auth,
@@ -37,5 +36,5 @@ export const chat: TTask = {
       })
     )
     await waitUntilExit()
-  }),
+  },
 }

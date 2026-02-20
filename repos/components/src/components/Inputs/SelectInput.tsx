@@ -1,7 +1,7 @@
 import type { IInput, TSelectItem } from '@TSC/types'
-import type { SxProps } from '@mui/material'
+import type { SxProps, Theme } from '@mui/material'
 import type { SelectChangeEvent, SelectProps } from '@mui/material/Select'
-import type { CSSProperties, MouseEvent, ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 
 import { grey, primary, gutter } from '@TSC/theme'
 import { cls } from '@keg-hub/jsutils/cls'
@@ -23,7 +23,7 @@ export type TSelectInput = IInput &
     placeholder?: string
     items?: TSelectItem[]
     value?: string | number
-    selectSx?: CSSProperties
+    selectSx?: SxProps<Theme>
     children?: React.ReactNode
     renderLabel?: () => string
     itemMap?: Record<string, any>

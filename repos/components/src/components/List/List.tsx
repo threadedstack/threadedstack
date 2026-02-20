@@ -1,6 +1,7 @@
 import type { TListItemToggleRef } from '@TSC/types'
 import type MuiList from '@mui/material/List'
-import type { CSSProperties, ComponentProps, ComponentType, ReactNode } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ComponentProps, ComponentType, ReactNode } from 'react'
 import type { TListItem } from './ListItem'
 
 import { ListItem } from './ListItem'
@@ -10,14 +11,14 @@ import { ListComp, ListContainer, ListSubHeader } from './List.styled'
 
 export type TList = Omit<ComponentProps<typeof MuiList>, `title`> & {
   title?: ReactNode
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   className?: string
   items?: TListItem[]
   children?: ReactNode
   containerClass?: string
   Item?: ComponentType<any>
   List?: ComponentType<any>
-  containerSx?: CSSProperties
+  containerSx?: SxProps<Theme>
   itemProps?: Record<string, any>
   Container?: ComponentType<any>
   Header?: ComponentType<any> | ReactNode

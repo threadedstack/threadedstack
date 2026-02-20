@@ -1,5 +1,5 @@
 import type { IInput } from '@TSC/types'
-import type { CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
 import type { CheckboxProps } from '@mui/material/Checkbox'
 import type { FormControlLabelProps } from '@mui/material/FormControlLabel'
 
@@ -11,9 +11,9 @@ import FormControlLabel from '@mui/material/FormControlLabel'
 
 export type TCheckboxInput = IInput &
   CheckboxProps & {
-    labelSx?: CSSProperties
+    labelSx?: SxProps<Theme>
     labelClass?: string
-    checkboxSx?: CSSProperties
+    checkboxSx?: SxProps<Theme>
     checkboxClass?: string
   } & Pick<FormControlLabelProps, `labelPlacement`>
 
@@ -74,7 +74,7 @@ export const CheckboxInput = (props: TCheckboxInput) => {
                   color: (theme) => theme.palette.primary.main,
                 },
               },
-              labelSx,
+              ...(Array.isArray(labelSx) ? labelSx : labelSx ? [labelSx] : []),
             ]}
           >
             {label}
@@ -98,7 +98,7 @@ export const CheckboxInput = (props: TCheckboxInput) => {
                 color: (theme) => (!checked ? `grey.500` : theme.palette.primary.main),
               },
             },
-            checkboxSx,
+            ...(Array.isArray(checkboxSx) ? checkboxSx : checkboxSx ? [checkboxSx] : []),
           ]}
           {...rest}
         />

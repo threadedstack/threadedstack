@@ -9,7 +9,7 @@ export default defineConfig(async () => {
       globals: true,
       environment: `node`,
       include: [`**/*.test.ts`, `**/*.test.tsx`],
-      setupFiles: [`./configs/setupInkMocks.tsx`],
+      setupFiles: [],
     },
     plugins: [viteTsconfigPaths()],
   } as unknown as UserConfig

@@ -1,19 +1,20 @@
 import type { TProviderStepData } from '@TAF/types'
+import type { TLLMProviderBrand } from '@tdsk/domain'
 
 import { useMemo } from 'react'
-import { styled, alpha } from '@mui/material/styles'
 import { ProviderTemplates } from '@tdsk/domain'
+import { styled, alpha } from '@mui/material/styles'
 import { TextInput, SelectInput } from '@tdsk/components'
+import CloudQueueIcon from '@mui/icons-material/CloudQueue'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import {
   Box,
   Card,
+  Collapse,
   Typography,
   CardContent,
   CardActionArea,
-  Collapse,
 } from '@mui/material'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import CloudQueueIcon from '@mui/icons-material/CloudQueue'
 
 const SectionHeader = styled(Box)(({ theme }) => ({
   display: `flex`,
@@ -29,8 +30,8 @@ const SectionIcon = styled(Box)(({ theme }) => ({
   alignItems: `center`,
   justifyContent: `center`,
   borderRadius: theme.spacing(0.75),
-  backgroundColor: alpha(theme.palette.primary.main, 0.1),
   color: theme.palette.primary.main,
+  backgroundColor: alpha(theme.palette.primary.main, 0.1),
 }))
 
 const ProvidersGrid = styled(Box)(({ theme }) => ({
@@ -103,12 +104,12 @@ export const ProviderStep = (props: TProviderStep) => {
     }))
   }, [template])
 
-  const onSelectProvider = (id: string) => {
+  const onSelectProvider = (id: TLLMProviderBrand) => {
     const tmpl = ProviderTemplates[id]
     onChange({
       providerUrl: ``,
-      providerBrand: id,
       providerName: ``,
+      providerBrand: id,
       apiKey: data.apiKey,
       model: tmpl?.defaultModel || ``,
     })

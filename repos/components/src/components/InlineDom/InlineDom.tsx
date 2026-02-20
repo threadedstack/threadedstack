@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
 
 import Box from '@mui/material/Box'
 import convert from 'react-from-dom'
@@ -8,7 +8,7 @@ export type TInlineDom = {
   id?: string
   html: string
   className?: string
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
 }
 
 export const InlineDom = (props: TInlineDom) => {

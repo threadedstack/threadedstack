@@ -1,4 +1,5 @@
-import type { ComponentProps, CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ComponentProps } from 'react'
 import type { TTextRef } from './Text'
 
 import { Text } from './Text'
@@ -13,7 +14,7 @@ export const H1 = forwardRef((props: TTextEl, ref: TTextRef) => (
     component='h1'
     {...props}
     ref={ref}
-    sx={useMemo(() => [inherit, props.sx], [inherit, props.sx]) as CSSProperties[]}
+    sx={useMemo(() => [inherit, props.sx], [inherit, props.sx]) as SxProps<Theme>}
   />
 ))
 export const H2 = forwardRef((props: TTextEl, ref: TTextRef) => (
@@ -69,7 +70,7 @@ export const Span = forwardRef((props: TTextEl, ref: TTextRef) => (
     component='span'
     {...props}
     ref={ref}
-    sx={useMemo(() => [inherit, props.sx], [inherit, props.sx]) as CSSProperties[]}
+    sx={useMemo(() => [inherit, props.sx], [inherit, props.sx]) as SxProps<Theme>}
   />
 ))
 export const Label = forwardRef((props: TTextEl, ref: TTextRef) => (

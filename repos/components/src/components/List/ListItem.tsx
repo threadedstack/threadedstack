@@ -1,11 +1,6 @@
 import type { TListItemToggleRef } from '@TSC/types'
-import type {
-  ReactNode,
-  MouseEvent,
-  ForwardedRef,
-  CSSProperties,
-  ComponentType,
-} from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode, MouseEvent, ForwardedRef, ComponentType } from 'react'
 
 import { List, TList } from './List'
 import {
@@ -38,7 +33,7 @@ export type TListItem<
   text?: ReactNode
   divider?: boolean
   selected?: boolean
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   className?: string
   iconClass?: string
   textClass?: string
@@ -48,13 +43,13 @@ export type TListItem<
   items?: TListItem[]
   expandClass?: string
   defaultOpen?: boolean
-  textSx?: CSSProperties
-  iconSx?: CSSProperties
+  textSx?: SxProps<Theme>
+  iconSx?: SxProps<Theme>
   expandOnClick?: boolean
   disableRipple?: boolean
-  itemsSx?: CSSProperties
+  itemsSx?: SxProps<Theme>
   itemsClassName?: string
-  expandSx?: CSSProperties
+  expandSx?: SxProps<Theme>
   itemsSubheader?: ReactNode
   disableTouchRipple?: boolean
   itemsContainerClass?: string
@@ -64,7 +59,7 @@ export type TListItem<
   itemsListProps?: Partial<TList>
   ItemExpand?: ComponentType<any>
   ChildList?: ComponentType<any>
-  itemsContainerSx?: CSSProperties
+  itemsContainerSx?: SxProps<Theme>
   onClick?: (...args: any[]) => void
   Icon?: ComponentType<any> | ReactNode
   itemsToggleRef?: TListItemToggleRef

@@ -1,5 +1,6 @@
 import type { AccordionProps } from '@mui/material'
-import type { CSSProperties, ReactNode, ComponentType } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode, ComponentType } from 'react'
 import type { TIconDirection } from '@TSC/components/Icons/ExpandIcon'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
@@ -30,21 +31,21 @@ export type TDropdown = Omit<AccordionProps, `children` | `onChange` | `title`> 
   children?: ReactNode
   headerClass?: string
   headerText?: ReactNode
-  bodySx?: CSSProperties
+  bodySx?: SxProps<Theme>
   transformIconOn?: number
   showExpandIcon?: boolean
   headerTextClass?: string
   transformIconOff?: number
   noIconTransform?: boolean
-  headerTextSx?: CSSProperties
-  headerContentSx?: CSSProperties
+  headerTextSx?: SxProps<Theme>
+  headerContentSx?: SxProps<Theme>
   expandIconOpenDir?: TIconDirection
   expandIconClosedDir?: TIconDirection
   onChange?: (expanded: boolean) => void
-  headerSx?: CSSProperties | CSSProperties[]
+  headerSx?: SxProps<Theme>
   ExpandIcon?: ComponentType<typeof ExpandIconComp>
-  expandIconSx?: CSSProperties | Record<string, string | number | boolean>
-  expandIconContainerSx?: CSSProperties | Record<string, string | number | boolean>
+  expandIconSx?: SxProps<Theme>
+  expandIconContainerSx?: SxProps<Theme>
 }
 
 export const Dropdown = (props: TDropdown) => {
@@ -152,7 +153,7 @@ export const Dropdown = (props: TDropdown) => {
               [`& .MuiAccordionSummary-content`]: headerContentSx,
               [`& .MuiAccordionSummary-expandIconWrapper`]: expandIconContainerSx,
             },
-          ] as CSSProperties[]
+          ] as SxProps<Theme>
         }
         expandIcon={
           noExpandIcon ? (

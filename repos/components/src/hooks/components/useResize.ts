@@ -21,7 +21,7 @@ export const useResize = (props: THUseResize) => {
     maxWidth = window.innerWidth,
   } = props
 
-  const elRef = useRef<HTMLDivElement>()
+  const elRef = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(initialWidth)
   const [resizing, setResizing] = useState(false)
   const onResize = useCallback(

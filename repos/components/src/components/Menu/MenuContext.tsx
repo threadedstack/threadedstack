@@ -1,9 +1,10 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ReactNode } from 'react'
 import Box from '@mui/material/Box'
 import { gutter } from '@TSC/theme/gutter'
 
 export type TMenuContext = {
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   children: ReactNode
 }
 

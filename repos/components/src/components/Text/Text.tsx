@@ -1,4 +1,5 @@
-import type { ElementType, ForwardedRef, CSSProperties, ComponentProps } from 'react'
+import type { SxProps, Theme } from '@mui/material'
+import type { ElementType, ForwardedRef, ComponentProps } from 'react'
 
 import { forwardRef, useMemo } from 'react'
 import Typography from '@mui/material/Typography'
@@ -28,7 +29,7 @@ export const Text = forwardRef((props: TText, ref: ForwardedRef<any>) => {
 
     return {
       clr: undefined,
-      style: [...ensureArr<CSSProperties>(sx), { color: resolved }] as CSSProperties[],
+      style: [...ensureArr(sx), { color: resolved }] as SxProps<Theme>,
     }
   }, [sx, resolved])
 

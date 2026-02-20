@@ -1,5 +1,6 @@
+import type { SxProps, Theme } from '@mui/material'
 import type { TAccordionAction } from '@TSC/types'
-import type { ComponentProps, ComponentType, CSSProperties, ReactNode } from 'react'
+import type { ComponentProps, ComponentType, ReactNode } from 'react'
 
 import { cls } from '@keg-hub/jsutils/cls'
 import { isStr } from '@keg-hub/jsutils/isStr'
@@ -22,7 +23,7 @@ export type TAccordion = {
   panel: string
   title?: ReactNode
   header?: ReactNode
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   className?: string
   square?: boolean
   elevation?: number

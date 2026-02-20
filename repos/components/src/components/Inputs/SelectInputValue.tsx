@@ -1,5 +1,5 @@
 import type { TSelectItem } from '@TSC/types'
-import type { CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
 
 import { cls } from '@keg-hub/jsutils/cls'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
@@ -12,7 +12,7 @@ import {
 
 export type TSelectInputValue = {
   className?: string
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   item: TSelectItem
   bold?: boolean
   spacer?: boolean

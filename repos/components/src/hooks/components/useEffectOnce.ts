@@ -4,7 +4,7 @@ export const useEffectOnce = (effect: () => void | (() => void)) => {
   const rendered = useRef(false)
   const effectCalled = useRef(false)
   const [, setVal] = useState<number>(0)
-  const destroyFn = useRef<void | (() => void)>()
+  const destroyFn = useRef<void | (() => void) | null>(null)
   const effectFn = useRef<() => void | (() => void)>(effect)
 
   // Track if our useEffect has been called

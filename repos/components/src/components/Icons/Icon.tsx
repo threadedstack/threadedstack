@@ -56,11 +56,17 @@ export const Icon = forwardRef((props: TIconProps, ref) => {
     ...rootProps
   } = props
 
-  const joinedSx = useJoinSx(sx as CSSProperties, svgStyle, styles, style, {
-    height,
-    width,
-    color,
-  })
+  const joinedSx = useJoinSx(
+    sx,
+    svgStyle as SxProps<Theme>,
+    styles as SxProps<Theme>,
+    style as SxProps<Theme>,
+    {
+      height,
+      width,
+      color,
+    }
+  )
 
   const withViewBox = useMemo(() => {
     return exists(inheritViewBox) ? inheritViewBox : !viewBox
