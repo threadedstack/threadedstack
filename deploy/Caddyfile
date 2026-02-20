@@ -85,7 +85,11 @@
 # ---------------------------------------------------------
 *.local.threadedstack.app, local.threadedstack.app {
 	# Force internal self-signed certs (No ACME, No Validation)
-	tls internal
+	tls {
+		issuer internal {
+			lifetime 365d
+		}
+	}
 
 	# Import the shared logic defined above
 	import app_logic
@@ -93,7 +97,11 @@
 
 *.localhost, localhost {
 	# Force internal self-signed certs (No ACME, No Validation)
-	tls internal
+	tls {
+		issuer internal {
+			lifetime 365d
+		}
+	}
 
 	# Import the shared logic defined above
 	import app_logic
