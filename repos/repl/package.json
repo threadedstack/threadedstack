@@ -4,10 +4,10 @@
   "description": "Terminal REPL for interacting with ThreadedStack AI agents",
   "type": "module",
   "bin": {
-    "tdsk-agent": "./dist/tdsk-agent"
+    "tda": "./dist/index.js"
   },
   "scripts": {
-    "serve": "./dist/tdsk-agent",
+    "serve": "./dist/index.js",
     "start": "bun run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun --minify --external react-devtools-core",
     "compile": "bun build src/index.ts --compile --outfile dist/tdsk-agent --external react-devtools-core",
