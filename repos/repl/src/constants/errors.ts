@@ -14,7 +14,7 @@ export const FRIENDLY_ERRORS: TErrorPattern[] = [
   {
     match: (e) => hasStatus(e, 401),
     message: 'Your session has expired.',
-    suggestion: 'Run `tdsk-agent login` to reconnect.',
+    suggestion: 'Run `tsa login` to reconnect.',
   },
   {
     match: (e) => hasStatus(e, 403),
@@ -46,17 +46,17 @@ function hasStatus(e: unknown, status: number): boolean {
   return e instanceof Error && e.message.includes(`(${status})`)
 }
 
-export function toFriendlyError(error: unknown): {
+export function toFriendlyError(error: Error): {
   message: string
   suggestion?: string
 } {
   for (const pattern of FRIENDLY_ERRORS) {
-    if (pattern.match(error)) {
+    if (pattern.match(error))
       return { message: pattern.message, suggestion: pattern.suggestion }
-    }
   }
+
   return {
-    message: 'Something unexpected happened.',
-    suggestion: 'Your conversation is saved — just restart the REPL.',
+    message: `Something unexpected happened.\n[Error] ${error.message}`,
+    suggestion: `Your conversation is saved — just restart the REPL.`,
   }
 }

@@ -1,6 +1,6 @@
 import type { FabProps } from '@mui/material/Fab'
 import type { THocTooltip } from '@TSC/hocs/TooltipHoc'
-import type { ComponentProps, ComponentType, ForwardedRef, ReactNode } from 'react'
+import type { ComponentProps, ComponentType, ForwardedRef, JSX, ReactNode } from 'react'
 
 import { forwardRef } from 'react'
 import Fab from '@mui/material/Fab'

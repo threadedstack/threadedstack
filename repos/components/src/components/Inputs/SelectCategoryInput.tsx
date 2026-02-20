@@ -15,7 +15,7 @@ export type SelectCategoryProps = {
   items: CategoryItem[]
 } & Omit<TSelectInput, 'items'>
 
-export const SelectCategoryInput = (props: SelectCategoryProps): JSX.Element => {
+export const SelectCategoryInput = (props: SelectCategoryProps) => {
   const { items, value, ...rest } = props
 
   const isDarkMode = useIsDarkMode()

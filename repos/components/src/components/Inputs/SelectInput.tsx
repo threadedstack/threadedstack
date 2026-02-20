@@ -62,7 +62,7 @@ const RenderValue = (props: TRenderValue) => {
   )
 }
 
-export const SelectInput = (props: TSelectInput): JSX.Element => {
+export const SelectInput = (props: TSelectInput) => {
   const {
     id,
     sx,

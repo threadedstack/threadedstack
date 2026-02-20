@@ -1,6 +1,7 @@
 import type { AuthManager } from '@TRL/auth'
 import type { TSessionInfo, TProviderInfo } from '@TRL/types'
-import { MAX_RETRIES, RETRY_DELAYS } from '@TRL/constants'
+
+import { MaxRetries, RetryDelays } from '@TRL/constants'
 import { Agent, Thread, Message, Organization } from '@tdsk/domain'
 
 export class ApiClient {
@@ -12,13 +13,13 @@ export class ApiClient {
 
   #getProxyUrl(): string {
     const creds = this.#auth.getCredentials()
-    if (!creds) throw new Error(`Not logged in. Run "tdsk-agent login" first.`)
+    if (!creds) throw new Error(`Not logged in. Run "tsa login" first.`)
     return creds.proxyUrl
   }
 
   async #request<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
     const creds = this.#auth.getCredentials()
-    if (!creds) throw new Error(`Not logged in. Run "tdsk-agent login" first.`)
+    if (!creds) throw new Error(`Not logged in. Run "tsa login" first.`)
 
     const url = `${creds.proxyUrl}/_${path}`
     const res = await fetch(url, {
@@ -41,14 +42,14 @@ export class ApiClient {
 
   async #requestWithRetry<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
     let lastError: Error | undefined
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    for (let attempt = 0; attempt <= MaxRetries; attempt++) {
       try {
         return await this.#request<T>(path, opts)
       } catch (error) {
         lastError = error as Error
         const isRetryable = this.#isRetryableError(lastError)
-        if (!isRetryable || attempt === MAX_RETRIES) throw lastError
-        await this.#delay(RETRY_DELAYS[attempt])
+        if (!isRetryable || attempt === MaxRetries) throw lastError
+        await this.#delay(RetryDelays[attempt])
       }
     }
     throw lastError!
@@ -58,14 +59,14 @@ export class ApiClient {
     const msg = error.message
     if ('code' in error) {
       const code = (error as any).code
-      if (code === 'ECONNREFUSED' || code === 'ETIMEDOUT' || code === 'ENOTFOUND')
+      if (code === `ECONNREFUSED` || code === `ETIMEDOUT` || code === `ENOTFOUND`)
         return true
     }
     if (
-      msg.includes('(429)') ||
-      msg.includes('(500)') ||
-      msg.includes('(502)') ||
-      msg.includes('(503)')
+      msg.includes(`(429)`) ||
+      msg.includes(`(500)`) ||
+      msg.includes(`(502)`) ||
+      msg.includes(`(503)`)
     )
       return true
     return false
@@ -78,7 +79,7 @@ export class ApiClient {
   async #postRequest<T = unknown>(path: string, body: unknown): Promise<T> {
     return this.#requestWithRetry<T>(path, {
       method: `POST`,
-      headers: { 'Content-Type': `application/json` },
+      headers: { [`Content-Type`]: `application/json` },
       body: JSON.stringify(body),
     })
   }

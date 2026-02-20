@@ -16,7 +16,7 @@ type InputStateHandlerProps = {
   labelClass?: string
 } & IInput
 
-const InputStateHandler = (props: InputStateHandlerProps): JSX.Element => {
+const InputStateHandler = (props: InputStateHandlerProps) => {
   const {
     sx,
     id,

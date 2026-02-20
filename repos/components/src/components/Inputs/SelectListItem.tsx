@@ -1,3 +1,4 @@
+import type { JSX } from 'react'
 import type { TSelectItem } from '@TSC/types'
 import type { MenuItemProps } from '@mui/material/MenuItem'
 

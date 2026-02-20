@@ -10,7 +10,7 @@ type LinkProps = {
 } & RRLinkProps &
   MLinkProps
 
-export const Link = forwardRef(({ children, ...rest }: LinkProps, ref): JSX.Element => {
+export const Link = forwardRef(({ children, ...rest }: LinkProps, ref) => {
   return (
     <MLink
       ref={ref}

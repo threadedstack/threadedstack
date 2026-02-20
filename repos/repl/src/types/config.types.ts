@@ -38,19 +38,20 @@ export type TToolsConfig = {
 }
 
 export type TReplConfig = {
-  auth?: TAuthConfig
   org?: string
   agent?: string
-  display?: TDisplayConfig
-  behavior?: TBehaviorConfig
-  sandbox?: TSandboxConfig
+  project?: string
+  auth?: TAuthConfig
   hooks?: THooksConfig
   tools?: TToolsConfig
+  sandbox?: TSandboxConfig
+  display?: TDisplayConfig
+  behavior?: TBehaviorConfig
 }
 
 export type TProjectConfig = {
-  agent?: string
   org?: string
+  agent?: string
   context?: string[]
   hooks?: THooksConfig
   tools?: TToolsConfig

@@ -1,43 +1,35 @@
-import React, { useState } from 'react'
-import { Box, Text, useInput } from 'ink'
-import { themed } from '@TRL/theme'
+import { Box, Text } from 'ink'
+import TextInput from 'ink-text-input'
+import { useState, useCallback } from 'react'
 
 type PromptProps = {
-  onSubmit: (text: string) => void
   disabled: boolean
+  onSubmit: (text: string) => void
 }
 
 export function Prompt({ onSubmit, disabled }: PromptProps) {
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(``)
 
-  useInput((input, key) => {
-    if (disabled) return
+  const handleSubmit = useCallback(
+    (text: string) => {
+      const val = text.trim()
+      if (!val) return
 
-    if (key.return) {
-      if (value.trim()) {
-        onSubmit(value.trim())
-        setValue('')
-      }
-      return
-    }
-
-    if (key.backspace || key.delete) {
-      setValue((prev) => prev.slice(0, -1))
-      return
-    }
-
-    if (!key.ctrl && !key.meta && input) {
-      setValue((prev) => prev + input)
-    }
-  })
+      onSubmit(text.trim())
+      setValue(``)
+    },
+    [onSubmit]
+  )
 
   return (
     <Box>
-      <Text>
-        {themed(disabled ? 'muted' : 'primary', '> ')}
-        {value}
-        {!disabled && themed('primary', '█')}
-      </Text>
+      <Text color={disabled ? `gray` : `cyan`}>{`> `}</Text>
+      <TextInput
+        value={value}
+        onChange={setValue}
+        onSubmit={handleSubmit}
+        focus={!disabled}
+      />
     </Box>
   )
 }

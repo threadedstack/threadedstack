@@ -1,4 +1,4 @@
-import type { ComponentProps, CSSProperties } from 'react'
+import type { ComponentProps } from 'react'
 
 import WorkspacesIcon from '@mui/icons-material/Workspaces'
 
@@ -21,7 +21,11 @@ export const ProjectIcon = (props: TProjectIcon) => {
   return (
     <WorkspacesIcon
       {...rest}
-      sx={[style.default, text ? style.text : undefined, sx] as CSSProperties[]}
+      sx={[
+        style.default,
+        text ? style.text : undefined,
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
     />
   )
 }

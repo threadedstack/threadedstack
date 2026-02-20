@@ -1,20 +1,20 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import type { TContextFile } from '@TRL/types'
-import { AGENTS_FILE, CONTEXT_DIR } from '@TRL/constants'
+import { AgentsFile, ContextDir } from '@TRL/constants'
 
 export class ContextLoader {
   static autoDetect(cwd: string): TContextFile[] {
     const files: TContextFile[] = []
 
     // Check for AGENTS.md
-    const agentsPath = join(cwd, AGENTS_FILE)
+    const agentsPath = join(cwd, AgentsFile)
     if (existsSync(agentsPath)) {
       const content = readFileSync(agentsPath, 'utf-8')
       const stat = statSync(agentsPath)
       files.push({
         path: agentsPath,
-        name: AGENTS_FILE,
+        name: AgentsFile,
         source: 'auto',
         content,
         sizeBytes: stat.size,
@@ -22,7 +22,7 @@ export class ContextLoader {
     }
 
     // Scan .tdsk/context/ directory
-    const contextDir = join(cwd, CONTEXT_DIR)
+    const contextDir = join(cwd, ContextDir)
     if (existsSync(contextDir)) {
       const entries = readdirSync(contextDir)
       for (const entry of entries) {

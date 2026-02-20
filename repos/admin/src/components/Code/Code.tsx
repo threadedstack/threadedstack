@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react'
 import type { TMonaco } from '@tdsk/components'
+import type { SxProps, Theme } from '@mui/material'
 
 import Box from '@mui/material/Box'
 import { cls } from '@keg-hub/jsutils/cls'
@@ -12,12 +12,12 @@ export type TCode = TMonaco & {
   label?: string
   error?: string
   tooltip?: string
-  sx?: CSSProperties
   className?: string
   labelClass?: string
+  sx?: SxProps<Theme>
   noLabelDim?: boolean
   defaultValue?: string
-  labelSx?: CSSProperties
+  labelSx?: SxProps<Theme>
 }
 
 const opts = {

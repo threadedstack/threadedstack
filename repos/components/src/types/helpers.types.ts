@@ -1,9 +1,10 @@
 import type {
+  JSX,
+  ReactNode,
+  ReactElement,
   CSSProperties,
   ComponentType,
   FunctionComponent,
-  ReactElement,
-  ReactNode,
 } from 'react'
 import { ButtonProps } from '@mui/material/Button'
 

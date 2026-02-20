@@ -67,7 +67,7 @@ export const TextInput = ({
   size = `small`,
   description = helperText,
   ...rest
-}: TTextInput): JSX.Element => {
+}: TTextInput) => {
   const theme = useTheme()
   const aLabel = isStr(label) ? label : undefined
   const inSx = useMemo(() => {

@@ -1,5 +1,5 @@
 import type { TNavItem, TNavCtx } from '@TAF/types'
-import type { CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
 
 import { cls } from '@keg-hub/jsutils/cls'
 import { stopEvent } from '@tdsk/components'
@@ -11,9 +11,9 @@ import { NavItem, NavList } from '@TAF/components/Sidebar/Sidebar.styles'
 export type TSBNavList = {
   open?: boolean
   items: TNavItem[]
-  sx?: CSSProperties
-  className?: string
   context?: TNavCtx
+  className?: string
+  sx?: SxProps<Theme>
 }
 
 export const SBNavItem = (props: TNavItem) => {

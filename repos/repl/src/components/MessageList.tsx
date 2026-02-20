@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box } from 'ink'
+import { Box, Text } from 'ink'
 import { UserMessage } from './UserMessage'
 import { AssistantMessage } from './AssistantMessage'
 
@@ -24,6 +24,8 @@ export function MessageList({ messages, markdown = true }: Props) {
         >
           {msg.type === 'user' ? (
             <UserMessage text={msg.content} />
+          ) : msg.type === 'system' ? (
+            <Text color="gray">{msg.content}</Text>
           ) : (
             <AssistantMessage
               text={msg.content}

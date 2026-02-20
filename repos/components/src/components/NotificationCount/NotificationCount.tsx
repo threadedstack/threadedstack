@@ -6,10 +6,7 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import useTheme from '@mui/material/styles/useTheme'
 
-const NotificationCount = ({
-  count,
-  inputProps,
-}: NotificationCountProps): JSX.Element | null => {
+const NotificationCount = ({ count, inputProps }: NotificationCountProps) => {
   const theme = useTheme()
 
   if (!count) return null

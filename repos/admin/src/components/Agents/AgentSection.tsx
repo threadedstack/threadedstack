@@ -1,4 +1,4 @@
-import type { ReactNode, CSSProperties } from 'react'
+import type { ReactNode } from 'react'
 import type { SxProps, Theme } from '@mui/material'
 
 import { Box, Card, Divider, Typography, CardContent } from '@mui/material'
@@ -14,7 +14,7 @@ export const AgentSection = (props: TAgentSection) => {
   const { sx, title, children, description } = props
 
   return (
-    <Card sx={[{ mb: 3 }, sx] as CSSProperties[]}>
+    <Card sx={[{ mb: 3 }, ...(Array.isArray(sx) ? sx : [sx])]}>
       <CardContent>
         <Typography
           variant='h6'

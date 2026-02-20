@@ -1,35 +1,15 @@
 import type { TSlashCommand } from '@TRL/types'
 import { helpCommand } from './help'
-import { newThreadCommand } from './newThread'
-import { switchThreadCommand } from './switchThread'
-import { listThreadsCommand } from './listThreads'
-import { historyCommand } from './history'
-import { switchAgentCommand } from './switchAgent'
-import { switchProviderCommand } from './switchProvider'
-import { infoCommand } from './info'
-import { contextCommand } from './context'
-import { addContextCommand } from './addContext'
-import { removeContextCommand } from './removeContext'
-import { verboseCommand } from './verbose'
-import { clearCommand } from './clear'
-import { exitCommand } from './exit'
+import { registeredCommands } from './registry'
 
-export const commands: TSlashCommand[] = [
-  helpCommand,
-  newThreadCommand,
-  switchThreadCommand,
-  listThreadsCommand,
-  historyCommand,
-  switchAgentCommand,
-  switchProviderCommand,
-  infoCommand,
-  contextCommand,
-  addContextCommand,
-  removeContextCommand,
-  verboseCommand,
-  clearCommand,
-  exitCommand,
-]
+/** Commands that work without authentication */
+const PRE_AUTH_COMMANDS = new Set(['login', 'help', 'exit', 'quit', 'q', 'h', 'li'])
+
+export function isPreAuthCommand(nameOrAlias: string): boolean {
+  return PRE_AUTH_COMMANDS.has(nameOrAlias)
+}
+
+export const commands: TSlashCommand[] = [helpCommand, ...registeredCommands]
 
 export function findCommand(name: string): TSlashCommand | null {
   return commands.find((c) => c.name === name || c.aliases.includes(name)) || null

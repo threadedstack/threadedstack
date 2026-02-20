@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { TOnLogin } from '@TAF/types'
 import { GhButton } from '@TAF/components/Login/GithubBtn'
 import { GgButton } from '@TAF/components/Login/GoogleBtn'
@@ -20,7 +21,7 @@ import {
   LoginMainContainer,
 } from '@TAF/components/Login/Login.styles'
 
-type TLoginBtn = (props: TLoginBtnProps) => JSX.Element
+type TLoginBtn = (props: TLoginBtnProps) => ReactNode
 
 export type TLoginBtnProps = {
   error?: string

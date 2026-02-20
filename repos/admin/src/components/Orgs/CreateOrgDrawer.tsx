@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { SxProps, Theme } from '@mui/material'
 
 import { useState } from 'react'
 import { Box } from '@mui/material'
@@ -17,12 +17,12 @@ const CreateBox = styled(Box)`
 
 export type TCreateOrgDrawer = {
   open: boolean
-  sx?: CSSProperties
+  sx?: SxProps<Theme>
   createText?: string
   onClose: () => void
   hideCreate?: boolean
-  createSx?: CSSProperties
-  createBtnSx?: CSSProperties
+  createSx?: SxProps<Theme>
+  createBtnSx?: SxProps<Theme>
   onCreate?: (evt: any) => void
 }
 

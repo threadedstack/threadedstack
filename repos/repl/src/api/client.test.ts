@@ -5,8 +5,8 @@ vi.mock('@TRL/constants', async () => {
   const actual = await vi.importActual('@TRL/constants')
   return {
     ...actual,
-    MAX_RETRIES: 3,
-    RETRY_DELAYS: [0, 0, 0],
+    MaxRetries: 3,
+    RetryDelays: [0, 0, 0],
   }
 })
 

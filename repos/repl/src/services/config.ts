@@ -1,14 +1,15 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from 'node:fs'
-import { join } from 'node:path'
-import yaml from 'js-yaml'
 import type { TReplConfig, TProjectConfig } from '@TRL/types'
-import { CONFIG_PATH, CONFIG_DIR, PROJECT_CONFIG } from '@TRL/constants'
+
+import yaml from 'js-yaml'
+import { join } from 'node:path'
+import { ConfigPath, ConfigDir, ProjectConfig } from '@TRL/constants'
+import { chmodSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 export class ConfigService {
   static loadGlobal(): TReplConfig {
-    if (!existsSync(CONFIG_PATH)) return {}
+    if (!existsSync(ConfigPath)) return {}
     try {
-      const content = readFileSync(CONFIG_PATH, 'utf-8')
+      const content = readFileSync(ConfigPath, 'utf-8')
       return (yaml.load(content) as TReplConfig) || {}
     } catch {
       return {}
@@ -16,14 +17,14 @@ export class ConfigService {
   }
 
   static saveGlobal(config: TReplConfig): void {
-    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
+    mkdirSync(ConfigDir, { recursive: true, mode: 0o700 })
     const content = yaml.dump(config, { sortKeys: true, lineWidth: 120 })
-    writeFileSync(CONFIG_PATH, content, 'utf-8')
-    chmodSync(CONFIG_PATH, 0o600)
+    writeFileSync(ConfigPath, content, 'utf-8')
+    chmodSync(ConfigPath, 0o600)
   }
 
   static loadProject(cwd?: string): TProjectConfig {
-    const configPath = join(cwd || process.cwd(), PROJECT_CONFIG)
+    const configPath = join(cwd || process.cwd(), ProjectConfig)
     if (!existsSync(configPath)) return {}
     try {
       const content = readFileSync(configPath, 'utf-8')

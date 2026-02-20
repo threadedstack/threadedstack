@@ -32,12 +32,9 @@ export const main = async (): Promise<any> => {
 
   // Apply insecure mode from stored credentials or --insecure argument
   const storedCreds = auth.getCredentials()
-  if (storedCreds?.insecure || hasArg(argv, `insecure`, [`ins`]))
+  if (storedCreds?.insecure || hasArg(argv, `insecure`, [`ins`])) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
-
-  console.log(`------- params -------`)
-  console.log(params)
-  process.exit()
+  }
 
   await task.action?.({
     task,

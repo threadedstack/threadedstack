@@ -46,7 +46,7 @@ const omitProps = [
   `inline`,
 ]
 
-export const FormInput = (props: TFormInput): JSX.Element => {
+export const FormInput = (props: TFormInput) => {
   if (props?.hidden) return null
 
   const { element } = props

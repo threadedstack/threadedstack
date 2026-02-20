@@ -1,4 +1,4 @@
-import type { ComponentProps, CSSProperties } from 'react'
+import type { ComponentProps } from 'react'
 
 import GridView from '@mui/icons-material/GridView'
 
@@ -21,7 +21,11 @@ export const OrgIcon = (props: TOrgIcon) => {
   return (
     <GridView
       {...rest}
-      sx={[style.default, text ? style.text : undefined, sx] as CSSProperties[]}
+      sx={[
+        style.default,
+        text ? style.text : undefined,
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
     />
   )
 }

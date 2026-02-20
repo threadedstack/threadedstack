@@ -3,7 +3,7 @@ import type { ApiClient, TSessionInfo } from '@TRL/api'
 import type { TContextFile } from '@TRL/types'
 
 import { AgentRunner } from '@tdsk/agent'
-import { DEFAULT_MAX_STEPS } from '@TRL/constants'
+import { DefaultMaxSteps } from '@TRL/constants'
 import { HttpMessageAdapter } from './httpAdapter'
 
 export type TRunResult = {
@@ -76,7 +76,7 @@ export class LocalAgentExecutor {
       agentId,
       threadId,
       prompt: finalPrompt,
-      maxSteps: opts.maxSteps || DEFAULT_MAX_STEPS,
+      maxSteps: opts.maxSteps || DefaultMaxSteps,
       proxyConfig: {
         backendUrl: this.#client.proxyUrl,
         sessionToken: session.sessionToken,

@@ -1,6 +1,6 @@
 import type { TAuthCredentials } from '@TRL/types'
 import { ConfigService } from '@TRL/services/config'
-import { DEFAULT_PROXY_URL } from '@TRL/constants'
+import { DefaultProxyUrl } from '@TRL/constants'
 
 const ApiKeyPrefix = `tdsk_`
 
@@ -11,8 +11,8 @@ export class AuthManager {
       if (!config.auth?.apiKey) return null
       return {
         apiKey: config.auth.apiKey,
-        proxyUrl: config.auth.proxyUrl || DEFAULT_PROXY_URL,
         insecure: config.auth.insecure,
+        proxyUrl: config.auth.proxyUrl || DefaultProxyUrl,
       }
     } catch {
       return null
@@ -24,7 +24,7 @@ export class AuthManager {
   }
 
   async login(apiKey: string, proxyUrl?: string, insecure?: boolean): Promise<void> {
-    const url = proxyUrl || DEFAULT_PROXY_URL
+    const url = proxyUrl || DefaultProxyUrl
 
     if (!apiKey.startsWith(ApiKeyPrefix)) {
       throw new Error(`Invalid API key format. Keys must start with "${ApiKeyPrefix}"`)

@@ -1,10 +1,9 @@
-import type { FocusEvent, ChangeEvent, KeyboardEvent, MutableRefObject } from 'react'
-import type { ReactNode } from 'react'
 import type { NotificationCountProps } from './notification.types'
+import type { ReactNode, FocusEvent, ChangeEvent, JSX, KeyboardEvent } from 'react'
 
 type TFocusOpts = {
-  text: string | number
   element?: HtmlInEl
+  text: string | number
 }
 
 export type TOnKeyDown = (evt: KeyboardEvent<any>) => void

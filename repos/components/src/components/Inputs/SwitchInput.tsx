@@ -15,7 +15,7 @@ type SwitchInputProps = IInput &
     onChange: (event?: React.ChangeEvent<HTMLInputElement>, checked?: boolean) => void
   }
 
-const SwitchInput = (props: SwitchInputProps): JSX.Element => {
+const SwitchInput = (props: SwitchInputProps) => {
   const {
     id,
     size,

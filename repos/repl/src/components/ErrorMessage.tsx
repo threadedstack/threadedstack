@@ -1,12 +1,11 @@
-import React from 'react'
 import { Box, Text } from 'ink'
 import { themed } from '@TRL/theme'
 import { toFriendlyError } from '@TRL/constants/errors'
 
 type ErrorMessageProps = {
+  error?: Error
   message?: string
   suggestion?: string
-  error?: unknown
 }
 
 export function ErrorMessage({ message, suggestion, error }: ErrorMessageProps) {
@@ -21,8 +20,8 @@ export function ErrorMessage({ message, suggestion, error }: ErrorMessageProps) 
 
   return (
     <Box
-      flexDirection="column"
       marginY={1}
+      flexDirection="column"
     >
       <Text>
         {themed('error', '✗')} {displayMessage}

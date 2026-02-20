@@ -1,4 +1,4 @@
-import type { ReactNode, CSSProperties } from 'react'
+import type { ReactNode } from 'react'
 import { IconButton, Tooltip } from '@mui/material'
 import type { IconButtonProps } from '@mui/material'
 
@@ -26,7 +26,7 @@ export const ActionIconButton = ({
       {...rest}
       onClick={onClick}
       disabled={disabled}
-      sx={[{ minHeight: 44, minWidth: 44 }, sx] as CSSProperties[]}
+      sx={[{ minHeight: 44, minWidth: 44 }, ...(Array.isArray(sx) ? sx : [sx])]}
     >
       {icon}
     </IconButton>

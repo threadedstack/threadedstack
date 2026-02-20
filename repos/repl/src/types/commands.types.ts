@@ -1,15 +1,21 @@
 export type TSlashCommandContext = {
   orgId: string
   agentId: string
-  threadId: string | null
-  setThreadId: (id: string | null) => void
-  setAgentId: (id: string) => void
-  setProviderId: (id: string) => void
-  addContextFile: (path: string) => void
-  removeContextFile: (index: number) => void
-  setVerbose: (v: boolean) => void
   verbose: boolean
   exit: () => void
+  threadId: string | null
+  output: (text: string) => void
+  setAgentId: (id: string) => void
+  setVerbose: (v: boolean) => void
+  setProviderId: (id: string) => void
+  addContextFile: (path: string) => void
+  setThreadId: (id: string | null) => void
+  removeContextFile: (index: number) => void
+  auth: {
+    isLoggedIn: boolean
+    logout: () => void
+    login: (apiKey: string, proxyUrl?: string, insecure?: boolean) => Promise<void>
+  }
 }
 
 export type TSlashCommand = {

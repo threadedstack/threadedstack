@@ -1,5 +1,5 @@
-import type { ReactNode, CSSProperties } from 'react'
-import type { SxProps } from '@mui/material'
+import type { ReactNode } from 'react'
+import type { SxProps, Theme } from '@mui/material'
 
 import { useState } from 'react'
 import Box from '@mui/material/Box'
@@ -11,7 +11,7 @@ import { HeaderSettingsItems } from '@TAF/constants/nav'
 import { Loading, useEffectOnce, dims } from '@tdsk/components'
 
 export type TPage = {
-  sx?: SxProps | CSSProperties
+  sx?: SxProps<Theme>
   className?: string
   children?: ReactNode
 }
@@ -66,18 +66,16 @@ export const Page = (props: TPage) => {
           <Box
             component='main'
             className={className}
-            sx={
-              [
-                defs.main.sx,
-                {
-                  transition: theme.transitions.create(`margin`, {
-                    easing: theme.transitions.easing.sharp,
-                    duration: theme.transitions.duration.leavingScreen,
-                  }),
-                },
-                sx,
-              ] as CSSProperties[]
-            }
+            sx={[
+              defs.main.sx,
+              {
+                transition: theme.transitions.create(`margin`, {
+                  easing: theme.transitions.easing.sharp,
+                  duration: theme.transitions.duration.leavingScreen,
+                }),
+              },
+              ...(Array.isArray(sx) ? sx : [sx]),
+            ]}
           >
             {children}
           </Box>

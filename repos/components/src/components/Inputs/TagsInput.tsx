@@ -14,7 +14,7 @@ type TagsInputProps = {
 } & IInput &
   Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'color'>
 
-const TagsInput = (props: TagsInputProps): JSX.Element => {
+const TagsInput = (props: TagsInputProps) => {
   const {
     id,
     label,

@@ -37,7 +37,7 @@ export type TInlineSelect = IInput &
     onItemMouseLeave?: (e: MouseEvent<HTMLLIElement>) => void
   }
 
-export const InlineSelect = (props: TInlineSelect): JSX.Element => {
+export const InlineSelect = (props: TInlineSelect) => {
   const {
     id,
     sx,
