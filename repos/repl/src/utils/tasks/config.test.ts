@@ -14,7 +14,7 @@ vi.mock(`@TRL/services/config`, () => ({
   },
 }))
 
-import { loadConfig, saveConfig } from './config'
+import { loadConfig } from './config'
 
 describe(`loadConfig`, () => {
   beforeEach(() => {
@@ -53,25 +53,5 @@ describe(`loadConfig`, () => {
 
     const config = loadConfig()
     expect(config).toEqual({})
-  })
-})
-
-describe(`saveConfig`, () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it(`should call ConfigService.saveGlobal`, () => {
-    const config = { org: `org1` }
-    saveConfig(config as any)
-    expect(mockSaveGlobal).toHaveBeenCalledWith(config)
-  })
-
-  it(`should silently ignore write failures`, () => {
-    mockSaveGlobal.mockImplementation(() => {
-      throw new Error(`EACCES`)
-    })
-
-    expect(() => saveConfig({ org: `org1` } as any)).not.toThrow()
   })
 })

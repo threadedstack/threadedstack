@@ -23,6 +23,7 @@ export const loginCommand: TSlashCommand = {
 
     try {
       await ctx.auth.login(apiKey, proxyUrl || DefaultProxyUrl, insecure)
+      ctx.output(`Logged in successfully.`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : `Login failed`
       ctx.output(`Error: ${msg}`)

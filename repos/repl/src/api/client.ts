@@ -123,10 +123,8 @@ export class ApiClient {
 
   // --- Providers ---
 
-  async listProviders(orgId: string, agentId: string): Promise<TProviderInfo[]> {
-    return this.#requestWithRetry<TProviderInfo[]>(
-      `/orgs/${orgId}/agents/${agentId}/providers`
-    )
+  async listProviders(orgId: string): Promise<TProviderInfo[]> {
+    return this.#requestWithRetry<TProviderInfo[]>(`/orgs/${orgId}/providers`)
   }
 
   // --- Threads ---
@@ -160,11 +158,15 @@ export class ApiClient {
   async listMessages(
     orgId: string,
     agentId: string,
-    threadId: string
+    threadId: string,
+    opts?: { limit?: number; offset?: number }
   ): Promise<Message[]> {
-    const resp = await this.#requestWithRetry<Message[]>(
-      `/orgs/${orgId}/agents/${agentId}/threads/${threadId}/messages`
-    )
+    const params = new URLSearchParams()
+    if (opts?.limit != null) params.set('limit', String(opts.limit))
+    if (opts?.offset != null) params.set('offset', String(opts.offset))
+    const qs = params.toString()
+    const path = `/orgs/${orgId}/agents/${agentId}/threads/${threadId}/messages${qs ? `?${qs}` : ''}`
+    const resp = await this.#requestWithRetry<Message[]>(path)
     return resp.map((item) => new Message(item))
   }
 

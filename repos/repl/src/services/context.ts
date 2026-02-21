@@ -1,7 +1,8 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, basename } from 'node:path'
 import type { TContextFile } from '@TRL/types'
-import { AgentsFile, ContextDir } from '@TRL/constants'
+
+import { join, basename } from 'node:path'
+import { AgentsFile, ContextDir } from '@TRL/constants/paths'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 
 export class ContextLoader {
   static autoDetect(cwd: string): TContextFile[] {

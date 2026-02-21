@@ -6,6 +6,15 @@ export const switchThreadCommand: TSlashCommand = {
   description: 'Switch to a different thread',
   handler: async (args, ctx) => {
     if (!args) return 'Usage: /switch <thread-id>'
-    ctx.setThreadId(args.trim())
+    const threadId = args.trim()
+    ctx.setThreadId(threadId)
+    ctx.clearMessages()
+    try {
+      await ctx.loadThreadMessages(threadId)
+      ctx.output(`Switched to thread ${threadId}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      ctx.output(`Error loading thread: ${msg}`)
+    }
   },
 }

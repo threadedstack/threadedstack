@@ -19,6 +19,8 @@ export type TRunResult = {
  */
 export class LocalAgentExecutor {
   #client: ApiClient
+  #cachedSession: { session: TSessionInfo; agentId: string; providerId?: string } | null =
+    null
 
   constructor(client: ApiClient) {
     this.#client = client
@@ -30,6 +32,23 @@ export class LocalAgentExecutor {
 
   async createSession(agentId: string, providerId?: string): Promise<TSessionInfo> {
     return this.#client.createSession(agentId, providerId)
+  }
+
+  async #getOrCreateSession(agentId: string, providerId?: string): Promise<TSessionInfo> {
+    if (
+      this.#cachedSession &&
+      this.#cachedSession.agentId === agentId &&
+      this.#cachedSession.providerId === providerId
+    ) {
+      return this.#cachedSession.session
+    }
+    const session = await this.createSession(agentId, providerId)
+    this.#cachedSession = { session, agentId, providerId }
+    return session
+  }
+
+  clearSessionCache(): void {
+    this.#cachedSession = null
   }
 
   async run(opts: {
@@ -45,8 +64,8 @@ export class LocalAgentExecutor {
   }): Promise<TRunResult> {
     const { orgId, agentId, prompt, userId, onEvent } = opts
 
-    // 1. Create session (backend resolves API key, returns session token)
-    const session = await this.createSession(agentId, opts.providerId)
+    // 1. Get or reuse session (backend resolves API key, returns session token)
+    const session = await this.#getOrCreateSession(agentId, opts.providerId)
 
     // 2. Create or reuse thread
     let threadId = opts.threadId

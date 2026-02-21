@@ -10,11 +10,3 @@ export const loadConfig = (): TReplConfig | undefined => {
     return undefined
   }
 }
-
-export const saveConfig = (config: TReplConfig): void => {
-  try {
-    ConfigService.saveGlobal(config)
-  } catch {
-    // Config is optional — silently ignore write failures
-  }
-}

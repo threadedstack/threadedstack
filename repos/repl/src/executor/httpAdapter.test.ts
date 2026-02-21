@@ -28,7 +28,10 @@ describe(`HttpMessageAdapter`, () => {
         offset: 0,
       })
 
-      expect(client.listMessages).toHaveBeenCalledWith(`org-1`, `agent-1`, `t1`)
+      expect(client.listMessages).toHaveBeenCalledWith(`org-1`, `agent-1`, `t1`, {
+        limit: 50,
+        offset: 0,
+      })
       expect(result.data).toHaveLength(2)
       expect(result.data![0].type).toBe(`user`)
     })

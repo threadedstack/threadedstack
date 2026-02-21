@@ -9,7 +9,7 @@
   "scripts": {
     "serve": "./dist/tsa",
     "tsa": "./dist/tsa",
-    "start": "bun run src/index.ts",
+    "start": "bun --watch src/index.ts",
     "build": "bun run scripts/build.ts",
     "compile": "bun run scripts/build.ts --compile",
     "clean": "pnpm clean:dist && pnpm clean:nm",
@@ -43,7 +43,6 @@
     "js-yaml": "4.1.1",
     "marked": "^15.0.0",
     "marked-terminal": "^7.0.0",
-    "ora": "9.3.0",
     "picocolors": "1.1.1",
     "react": "^19.0.0"
   },

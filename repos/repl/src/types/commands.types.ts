@@ -4,6 +4,7 @@ export type TSlashCommandContext = {
   verbose: boolean
   exit: () => void
   threadId: string | null
+  connection: string
   output: (text: string) => void
   setAgentId: (id: string) => void
   setVerbose: (v: boolean) => void
@@ -11,6 +12,11 @@ export type TSlashCommandContext = {
   addContextFile: (path: string) => void
   setThreadId: (id: string | null) => void
   removeContextFile: (index: number) => void
+  clearMessages: () => void
+  messages: Array<{ type: string; content: string }>
+  contextFiles: Array<{ path: string; name: string; content: string; sizeBytes: number }>
+  listThreads: () => Promise<Array<{ id: string; name?: string; createdAt?: string }>>
+  loadThreadMessages: (threadId: string) => Promise<void>
   auth: {
     isLoggedIn: boolean
     logout: () => void

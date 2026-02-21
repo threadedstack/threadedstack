@@ -7,9 +7,9 @@ export default defineConfig(async () => {
   return {
     test: {
       globals: true,
+      setupFiles: [],
       environment: `node`,
       include: [`**/*.test.ts`, `**/*.test.tsx`],
-      setupFiles: [],
     },
     plugins: [viteTsconfigPaths()],
   } as unknown as UserConfig

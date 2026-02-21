@@ -25,7 +25,8 @@ export class HttpMessageAdapter implements IAgentRunnerDB {
     const data = await this.#client.listMessages(
       this.#orgId,
       this.#agentId,
-      opts.where.threadId
+      opts.where.threadId,
+      { limit: opts.limit, offset: opts.offset }
     )
     return { data: data || [] }
   }

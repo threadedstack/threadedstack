@@ -423,10 +423,10 @@ describe(`ApiClient`, () => {
         }),
       })
 
-      const result = await client.listProviders(`org1`, `agent1`)
+      const result = await client.listProviders(`org1`)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `https://proxy.test/_/orgs/org1/agents/agent1/providers`,
+        `https://proxy.test/_/orgs/org1/providers`,
         expect.any(Object)
       )
       expect(result).toHaveLength(2)

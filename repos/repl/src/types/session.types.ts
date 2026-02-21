@@ -7,4 +7,10 @@ export type TProviderInfo = {
   provider: TLLMProviderBrand
 }
 
-export type TConnectionStatus = 'connected' | 'disconnected' | 'reconnecting'
+export enum EConnectionStatus {
+  connected = `connected`,
+  disconnected = `disconnected`,
+  reconnecting = `reconnecting`,
+}
+
+export type TConnectionStatus = `${EConnectionStatus}`

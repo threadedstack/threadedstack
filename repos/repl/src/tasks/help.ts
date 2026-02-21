@@ -1,7 +1,7 @@
 import type { TTask, TTaskAction } from '@TRL/types'
 
 import { themed } from '@TRL/theme'
-import { Version } from '@TRL/constants'
+import { Version } from '@TRL/constants/version'
 
 const action: TTaskAction = async ({ tasks }) => {
   process.stdout.write(

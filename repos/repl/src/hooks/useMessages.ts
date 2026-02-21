@@ -1,9 +1,13 @@
 import { useState, useCallback } from 'react'
 
-type TDisplayMessage = {
+export type TDisplayMessage = {
+  id: string
   type: string
   content: string
 }
+
+let msgCounter = 0
+const nextId = () => `msg-${++msgCounter}`
 
 export function useMessages() {
   const [messages, setMessages] = useState<TDisplayMessage[]>([])
@@ -11,8 +15,8 @@ export function useMessages() {
   const [streamText, setStreamText] = useState('')
   const [toolCalls, setToolCalls] = useState<any[]>([])
 
-  const addMessage = useCallback((msg: TDisplayMessage) => {
-    setMessages((prev) => [...prev, msg])
+  const addMessage = useCallback((msg: Omit<TDisplayMessage, 'id'>) => {
+    setMessages((prev) => [...prev, { ...msg, id: nextId() }])
   }, [])
 
   const clearStream = useCallback(() => {
@@ -22,14 +26,14 @@ export function useMessages() {
 
   return {
     messages,
+    toolCalls,
     addMessage,
+    streamText,
     setMessages,
     isStreaming,
-    setIsStreaming,
-    streamText,
-    setStreamText,
-    toolCalls,
-    setToolCalls,
     clearStream,
+    setToolCalls,
+    setStreamText,
+    setIsStreaming,
   }
 }

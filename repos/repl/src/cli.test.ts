@@ -1,5 +1,5 @@
 import { main } from './cli'
-import { Version } from '@TRL/constants'
+import { Version } from '@TRL/constants/version'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockLoadGlobal = vi.fn()

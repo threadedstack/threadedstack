@@ -1,3 +1,4 @@
+export * from './paths'
 export * from './values'
 export * from './errors'
-export * from './tools'
+export * from './version'

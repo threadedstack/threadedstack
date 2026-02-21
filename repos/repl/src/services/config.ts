@@ -2,7 +2,7 @@ import type { TReplConfig, TProjectConfig } from '@TRL/types'
 
 import yaml from 'js-yaml'
 import { join } from 'node:path'
-import { ConfigPath, ConfigDir, ProjectConfig } from '@TRL/constants'
+import { ConfigPath, ConfigDir, ProjectConfig } from '@TRL/constants/paths'
 import { chmodSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 export class ConfigService {

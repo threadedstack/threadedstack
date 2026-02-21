@@ -26,10 +26,11 @@ export const chat: TTask = {
       type: `str`,
     },
   },
-  action: async ({ params, auth }) => {
+  action: async ({ params, auth, config }) => {
     const { waitUntilExit } = render(
       React.createElement(App, {
         auth,
+        config,
         initialOrgId: params.org as string | undefined,
         initialAgentId: params.agent as string | undefined,
         initialThreadId: params.thread as string | undefined,
