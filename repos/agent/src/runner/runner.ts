@@ -51,9 +51,7 @@ export class AgentRunner {
       if (sandboxConfig?.provider) {
         const provider = createSandboxProvider(sandboxConfig.provider as any)
         sandbox = await provider.create({
-          apiKey: sandboxConfig.apiKey,
           envVars: sandboxConfig.envVars,
-          template: sandboxConfig.template,
           provider: sandboxConfig.provider as any,
           timeout: sandboxConfig.timeout ?? 300000,
         })

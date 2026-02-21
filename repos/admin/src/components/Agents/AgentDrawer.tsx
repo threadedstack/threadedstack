@@ -6,6 +6,7 @@ import { Code } from '@TAF/components/Code'
 import { MonacoOptions } from '@TAF/constants/monaco'
 import { fetchProviders } from '@TAF/actions/providers'
 import { fetchFunctions } from '@TAF/actions/functions'
+import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { useSecrets, useOrgSecrets } from '@TAF/state/selectors'
 import { createAgent } from '@TAF/actions/agents/api/createAgent'
@@ -14,7 +15,7 @@ import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { Box, Stack, Divider, Typography } from '@mui/material'
+import { Autocomplete, Box, Stack, Divider, TextField, Typography } from '@mui/material'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import {
   BasicInfoForm,
@@ -28,7 +29,7 @@ import {
 export type TAgentDrawer = {
   open: boolean
   orgId: string
-  projectId: string
+  projectId?: string
   agent: Agent | null
   onClose: () => void
   onSuccess?: () => void
@@ -54,6 +55,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [aiProviders, setAiProviders] = useState<Array<{ id: string; name: string }>>([])
   const [availableFunctions, setAvailableFunctions] = useState<FunctionModel[]>([])
   const [selectedFunctionIds, setSelectedFunctionIds] = useState<string[]>([])
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
+  const [orgProjects, setOrgProjects] = useState<Array<{ id: string; name: string }>>([])
 
   // Form state
   const [name, setName] = useState('')
@@ -97,13 +100,23 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         setAiProviders(aiProvidersOnly)
       }
 
-      // Load functions for the project
-      const functionsResult = await fetchFunctions({ orgId, projectId })
-      functionsResult?.functions &&
-        setAvailableFunctions(Object.values(functionsResult.functions))
+      // Load functions for the project (if project-scoped)
+      if (projectId) {
+        const functionsResult = await fetchFunctions({ orgId, projectId })
+        functionsResult?.functions &&
+          setAvailableFunctions(Object.values(functionsResult.functions))
+      }
+
+      // Load org projects for project assignment
+      const projectsResp = await fetchProjects({ orgId })
+      if (projectsResp?.projects) {
+        setOrgProjects(
+          Object.values(projectsResp.projects).map((p) => ({ id: p.id, name: p.name }))
+        )
+      }
     }
 
-    open && projectId && loadData()
+    open && orgId && loadData()
   }, [open, orgId, projectId])
 
   // Pre-populate form with agent data when drawer opens
@@ -135,6 +148,9 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         (agent.secrets || []).map((s) => s.id || s.name || s.hashKey || '')
       )
       setSelectedFunctionIds((agent.functions || []).map((f) => f.id))
+      setSelectedProjectIds(
+        agent.projects?.map((p) => p.id) || (projectId ? [projectId] : [])
+      )
     } else {
       // Reset form for new agent
       setName('')
@@ -150,6 +166,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setSelectedTools([])
       setSelectedSecrets([])
       setSelectedFunctionIds([])
+      setSelectedProjectIds(projectId ? [projectId] : [])
     }
     setError(null)
     setShowDeleteConfirm(false)
@@ -187,6 +204,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         systemPrompt,
         envVars: envVarsObj,
         tools: selectedTools,
+        projectIds: selectedProjectIds,
         functionIds: selectedFunctionIds,
         environment: { streaming, temperature },
         secrets: selectedSecrets
@@ -285,6 +303,33 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             onProviderChange={setProviderIds}
             onDescriptionChange={setDescription}
           />
+
+          <Divider />
+
+          <Box>
+            <Typography
+              variant='subtitle2'
+              sx={{ fontWeight: 600, mb: 2 }}
+            >
+              Project Assignment
+            </Typography>
+            <Autocomplete
+              multiple
+              id='agent-projects'
+              value={selectedProjectIds}
+              options={orgProjects.map((p) => p.id)}
+              getOptionLabel={(id) => orgProjects.find((p) => p.id === id)?.name || id}
+              onChange={(_, updates) => setSelectedProjectIds(updates)}
+              disabled={loading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder='Select projects...'
+                  size='small'
+                />
+              )}
+            />
+          </Box>
 
           <Divider />
 

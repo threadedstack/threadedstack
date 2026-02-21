@@ -112,6 +112,7 @@ describe(`getDynamicNav`, () => {
         `Functions`,
         `Secrets`,
         `Agents`,
+        `Members`,
         `Domains`,
         `Settings`,
       ])
@@ -251,6 +252,7 @@ describe(`OrgNavItems`, () => {
     it(`should have all required items`, () => {
       const expectedItems = [
         `Projects`,
+        `Agents`,
         `Users`,
         `Secrets`,
         `Providers`,
@@ -398,6 +400,7 @@ describe(`ProjectNavItems`, () => {
         `Functions`,
         `Secrets`,
         `Agents`,
+        `Members`,
         `Domains`,
         `Settings`,
       ]

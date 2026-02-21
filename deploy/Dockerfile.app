@@ -28,6 +28,9 @@ ADD repos/proxy/package.json ./repos/proxy/package.json
 ADD repos/backend/package.json ./repos/backend/package.json
 ADD repos/agent/package.json ./repos/agent/package.json
 ADD repos/sandbox/package.json ./repos/sandbox/package.json
+# Build tools for native addons (isolated-vm requires node-gyp compilation on Alpine musl)
+RUN apk add --no-cache python3 make g++
+
 RUN pnpm install --frozen-lockfile --prefer-offline
 
 ADD repos/logger ./repos/logger

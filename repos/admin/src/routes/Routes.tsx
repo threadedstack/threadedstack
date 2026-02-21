@@ -23,6 +23,7 @@ const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgDomains = lazy(() => import('@TAF/pages/Orgs/OrgDomains'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
+const OrgAgents = lazy(() => import('@TAF/pages/Orgs/OrgAgents'))
 
 // Project pages
 const Project = lazy(() => import('@TAF/pages/Projects/Project'))
@@ -36,6 +37,7 @@ const ProjectThreads = lazy(() => import('@TAF/pages/Projects/ProjectThreads'))
 const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
+const ProjectMembers = lazy(() => import('@TAF/pages/Projects/ProjectMembers'))
 const AgentChat = lazy(() => import('@TAF/components/AI/ChatView'))
 
 // Helper component to wrap pages in Suspense
@@ -120,6 +122,10 @@ export const Routes = createBrowserRouter([
             Component: () => <SuspensePage Component={OrgApiKeys} />,
           },
           {
+            path: ERoutePath.Agents,
+            Component: () => <SuspensePage Component={OrgAgents} />,
+          },
+          {
             path: ERoutePath.Projects,
             Component: () => (
               <SuspensePage
@@ -178,6 +184,10 @@ export const Routes = createBrowserRouter([
               {
                 path: ERoutePath.Settings,
                 Component: () => <SuspensePage Component={ProjectSettings} />,
+              },
+              {
+                path: ERoutePath.Members,
+                Component: () => <SuspensePage Component={ProjectMembers} />,
               },
             ],
           },

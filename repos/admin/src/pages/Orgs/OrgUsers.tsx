@@ -5,7 +5,7 @@ export type TOrgUsers = {}
 
 export const OrgUsers = (props: TOrgUsers) => {
   return (
-    <Page className='tdsk-org-users-page'>
+    <Page className='tdsk-org-members-page'>
       <Users />
     </Page>
   )

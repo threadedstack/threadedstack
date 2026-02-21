@@ -1,8 +1,7 @@
 import Box from '@mui/material/Box'
 import { Stack } from '@mui/material'
-import { cls } from '@keg-hub/jsutils/cls'
-import Autocomplete from '@mui/material/Autocomplete'
-import { Text, TextInput, AutoInputText, InputStateHandler } from '@tdsk/components'
+import { Text, TextInput } from '@tdsk/components'
+import { ProviderPriorityList } from './ProviderPriorityList'
 
 export type TBasicInfoFormProps = {
   name: string
@@ -60,36 +59,12 @@ export const BasicInfoForm = (props: TBasicInfoFormProps) => {
           onChange={(e) => onDescriptionChange(e.target.value)}
         />
 
-        <InputStateHandler
-          id='agent-providers'
-          disabled={loading}
-          label='AI Providers'
-          description={
-            loading
-              ? 'Loading providers...'
-              : aiProviders.length === 0
-                ? 'No AI providers available. Create a provider first.'
-                : 'Select AI providers for this agent (first selected is primary)'
-          }
-        >
-          <Autocomplete
-            multiple
-            id='agent-providers'
-            className={cls('tdsk-auto-input', loading && 'disabled')}
-            value={providerIds}
-            options={aiProviders.map((p) => p.id)}
-            getOptionLabel={(id) => aiProviders.find((p) => p.id === id)?.name || id}
-            onChange={(_, updates) => onProviderChange(updates)}
-            disabled={loading || aiProviders.length === 0}
-            renderInput={(params) => (
-              <AutoInputText
-                {...params}
-                sx={{ padding: '0px' }}
-                placeholder='Select providers...'
-              />
-            )}
-          />
-        </InputStateHandler>
+        <ProviderPriorityList
+          loading={loading}
+          providerIds={providerIds}
+          aiProviders={aiProviders}
+          onChange={onProviderChange}
+        />
       </Stack>
     </Box>
   )

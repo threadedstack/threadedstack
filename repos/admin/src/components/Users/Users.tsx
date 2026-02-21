@@ -13,7 +13,6 @@ import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EditRoleDrawer } from '@TAF/components/Roles/EditRoleDrawer'
 import { useLocalSearch } from '@TAF/hooks/components/useLocalSearch'
 import { InviteUserDrawer } from '@TAF/components/Users/InviteUserDrawer'
-import { SearchBar, ErrorAlert, FilterSelect, LoadingSpinner } from '@TAF/components'
 
 export type TUsers = {}
 
@@ -88,7 +87,7 @@ export const Users = (props: TUsers) => {
     <>
       <PageLayout
         error={error}
-        title='Users'
+        title='Members'
         query={query}
         searchCount={0}
         loading={loading}

@@ -1,8 +1,6 @@
 import type { ISandbox, ISandboxProvider, TSandboxConfig } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock(`e2b`, () => ({ Sandbox: { create: vi.fn() } }))
-
 import { TSAgent } from '@TAG/tsagent'
 
 describe(`TSAgent`, () => {
@@ -23,7 +21,7 @@ describe(`TSAgent`, () => {
     }
 
     mockProvider = {
-      type: `e2b`,
+      type: `local`,
       create: vi.fn().mockResolvedValue(mockSandbox),
     }
 
@@ -42,7 +40,7 @@ describe(`TSAgent`, () => {
   })
 
   describe(`createSandbox`, () => {
-    const config: TSandboxConfig = { provider: `e2b`, template: `base` }
+    const config: TSandboxConfig = { provider: `local` }
 
     it(`should call provider.create and store the sandbox`, async () => {
       const sandbox = await agent.createSandbox(`session-1`, config)
@@ -88,7 +86,7 @@ describe(`TSAgent`, () => {
     })
 
     it(`should return the sandbox for a known sessionId`, async () => {
-      await agent.createSandbox(`session-1`, { provider: `e2b`, template: `base` })
+      await agent.createSandbox(`session-1`, { provider: `local` })
       const sandbox = await agent.getSandbox(`session-1`)
       expect(sandbox).toBe(mockSandbox)
     })
@@ -96,7 +94,7 @@ describe(`TSAgent`, () => {
 
   describe(`destroySandbox`, () => {
     it(`should call close and remove the sandbox from the map`, async () => {
-      await agent.createSandbox(`session-1`, { provider: `e2b`, template: `base` })
+      await agent.createSandbox(`session-1`, { provider: `local` })
       expect(agent.getStats().activeSandboxes).toBe(1)
 
       await agent.destroySandbox(`session-1`)
@@ -109,7 +107,7 @@ describe(`TSAgent`, () => {
       ;(mockSandbox.close as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error(`already destroyed`)
       )
-      await agent.createSandbox(`session-1`, { provider: `e2b`, template: `base` })
+      await agent.createSandbox(`session-1`, { provider: `local` })
 
       await agent.destroySandbox(`session-1`)
       expect(agent.getStats().activeSandboxes).toBe(0)
@@ -124,7 +122,7 @@ describe(`TSAgent`, () => {
 
   describe(`cleanup`, () => {
     it(`should close all sandboxes`, async () => {
-      await agent.createSandbox(`s1`, { provider: `e2b`, template: `base` })
+      await agent.createSandbox(`s1`, { provider: `local` })
 
       const sb2Close = vi.fn().mockResolvedValue(undefined)
       const sb2: ISandbox = {
@@ -138,7 +136,7 @@ describe(`TSAgent`, () => {
         close: sb2Close,
       }
       ;(mockProvider.create as ReturnType<typeof vi.fn>).mockResolvedValueOnce(sb2)
-      await agent.createSandbox(`s2`, { provider: `e2b`, template: `base` })
+      await agent.createSandbox(`s2`, { provider: `local` })
 
       expect(agent.getStats().activeSandboxes).toBe(2)
 
@@ -152,7 +150,7 @@ describe(`TSAgent`, () => {
       ;(mockSandbox.close as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error(`fail`)
       )
-      await agent.createSandbox(`s1`, { provider: `e2b`, template: `base` })
+      await agent.createSandbox(`s1`, { provider: `local` })
 
       await agent.cleanup()
       expect(agent.getStats().activeSandboxes).toBe(0)
@@ -163,10 +161,10 @@ describe(`TSAgent`, () => {
     it(`should return correct counts for sandboxes`, async () => {
       expect(agent.getStats()).toEqual({ activeSandboxes: 0 })
 
-      await agent.createSandbox(`s1`, { provider: `e2b`, template: `base` })
+      await agent.createSandbox(`s1`, { provider: `local` })
       expect(agent.getStats()).toEqual({ activeSandboxes: 1 })
 
-      await agent.createSandbox(`s2`, { provider: `e2b`, template: `base` })
+      await agent.createSandbox(`s2`, { provider: `local` })
       expect(agent.getStats().activeSandboxes).toBe(2)
     })
   })

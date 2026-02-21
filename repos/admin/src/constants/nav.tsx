@@ -53,7 +53,13 @@ export const OrgNavItems: TNavItem[] = [
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   {
-    text: `Users`,
+    text: `Agents`,
+    to: buildRoute(ERoutePath.OrgAgents),
+    Icon: <RobotIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  {
+    text: `Members`,
     to: buildRoute(ERoutePath.OrgUsers),
     Icon: <PersonIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
@@ -134,6 +140,12 @@ export const ProjectNavItems: TNavItem[] = [
         to: buildRoute(ERoutePath.ProjectAgentChat),
       },
     ],
+  },
+  {
+    text: `Members`,
+    Icon: <PersonIcon />,
+    to: buildRoute(ERoutePath.ProjectMembers),
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
   },
   {
     text: `Domains`,

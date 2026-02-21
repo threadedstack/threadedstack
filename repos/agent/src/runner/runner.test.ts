@@ -160,21 +160,17 @@ describe(`AgentRunner`, () => {
     const opts = {
       ...baseOpts(),
       sandboxConfig: {
-        provider: `e2b`,
-        apiKey: `e2b-key`,
-        template: `base`,
+        provider: `local`,
         timeout: 60000,
         envVars: { FOO: `bar` },
       },
     }
     await AgentRunner.run(opts)
 
-    expect(createSandboxProvider).toHaveBeenCalledWith(`e2b`)
+    expect(createSandboxProvider).toHaveBeenCalledWith(`local`)
     expect(mockSandboxCreate).toHaveBeenCalledWith({
-      apiKey: `e2b-key`,
       envVars: { FOO: `bar` },
-      template: `base`,
-      provider: `e2b`,
+      provider: `local`,
       timeout: 60000,
     })
     expect(createSandboxTools).toHaveBeenCalled()
@@ -184,7 +180,7 @@ describe(`AgentRunner`, () => {
     const opts = {
       ...baseOpts(),
       sandboxConfig: {
-        provider: `e2b`,
+        provider: `local`,
       },
     }
     await AgentRunner.run(opts)
@@ -331,7 +327,7 @@ describe(`AgentRunner`, () => {
   it(`should close sandbox in finally block`, async () => {
     const opts = {
       ...baseOpts(),
-      sandboxConfig: { provider: `e2b` },
+      sandboxConfig: { provider: `local` },
     }
     await AgentRunner.run(opts)
 
@@ -367,7 +363,7 @@ describe(`AgentRunner`, () => {
 
     const opts = {
       ...baseOpts(),
-      sandboxConfig: { provider: `e2b` },
+      sandboxConfig: { provider: `local` },
     }
     await AgentRunner.run(opts)
 
@@ -409,7 +405,7 @@ describe(`AgentRunner`, () => {
   it(`should pass sandbox and tools list to createSandboxTools`, async () => {
     const opts = {
       ...baseOpts(),
-      sandboxConfig: { provider: `e2b` },
+      sandboxConfig: { provider: `local` },
       tools: [`shellExec`, `readFile`],
     }
     await AgentRunner.run(opts)

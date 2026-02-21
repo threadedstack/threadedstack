@@ -40,6 +40,8 @@ export enum ERoutePath {
   ApiKeys = `api-keys`,
   OrgApiKeys = `/orgs/:orgId/api-keys`,
 
+  OrgAgents = `/orgs/:orgId/agents`,
+
   // Project routes (nested under org)
   ProjectId = `projects/:projectId`,
   OrgProject = `/orgs/:orgId/projects/:projectId`,
@@ -66,6 +68,9 @@ export enum ERoutePath {
 
   Functions = `functions`,
   ProjectFunctions = `/orgs/:orgId/projects/:projectId/functions`,
+
+  Members = `members`,
+  ProjectMembers = `/orgs/:orgId/projects/:projectId/members`,
 
   Function = `functions`,
   ProjectFunction = `/orgs/:orgId/projects/:projectId/functions/:functionId`,
