@@ -1,12 +1,13 @@
+import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect } from 'vitest'
-import { createSandboxProvider } from './factory'
 import { LocalSandboxProvider } from './local'
+import { createSandboxProvider } from './factory'
 
 describe(`createSandboxProvider`, () => {
-  it(`should create a LocalSandboxProvider for 'local'`, () => {
-    const provider = createSandboxProvider(`local`)
+  it(`should create a LocalSandboxProvider for '${ESandboxType.local}'`, () => {
+    const provider = createSandboxProvider(ESandboxType.local)
     expect(provider).toBeInstanceOf(LocalSandboxProvider)
-    expect(provider.type).toBe(`local`)
+    expect(provider.type).toBe(ESandboxType.local)
   })
 
   it(`should throw for unknown provider type`, () => {
@@ -16,13 +17,13 @@ describe(`createSandboxProvider`, () => {
   })
 
   it(`should create new local instances on each call`, () => {
-    const p1 = createSandboxProvider(`local`)
-    const p2 = createSandboxProvider(`local`)
+    const p1 = createSandboxProvider(ESandboxType.local)
+    const p2 = createSandboxProvider(ESandboxType.local)
     expect(p1).not.toBe(p2)
   })
 
   it(`should return a local provider that implements ISandboxProvider`, () => {
-    const provider = createSandboxProvider(`local`)
+    const provider = createSandboxProvider(ESandboxType.local)
     expect(provider).toHaveProperty(`type`)
     expect(provider).toHaveProperty(`create`)
     expect(typeof provider.create).toBe(`function`)

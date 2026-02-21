@@ -2,11 +2,11 @@
  * Sandbox provider types for modular sandbox integration
  */
 
-export enum ESandboxProvider {
+export enum ESandboxType {
   local = `local`,
 }
 
-export type TSandboxProviderType = `${ESandboxProvider}`
+export type TSandboxType = `${ESandboxType}`
 
 /**
  * Result of a command/file operation in the sandbox
@@ -22,7 +22,7 @@ export type TSandboxResult = {
  * Sandbox configuration
  */
 export type TSandboxConfig = {
-  provider: TSandboxProviderType
+  provider: TSandboxType
   /** Timeout in milliseconds for sandbox operations */
   timeout?: number
   /** Environment variables to set in sandbox */
@@ -81,7 +81,7 @@ export interface ISandbox {
  * ISandboxProvider - factory for creating sandbox instances
  */
 export interface ISandboxProvider {
-  readonly type: TSandboxProviderType
+  readonly type: TSandboxType
   /** Create a new sandbox instance */
   create(config: TSandboxConfig): Promise<ISandbox>
 }

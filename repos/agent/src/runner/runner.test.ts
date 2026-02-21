@@ -1,5 +1,7 @@
 import type { TAgentRunOpts } from '@TAG/types'
 import type { AgentEvent } from '@mariozechner/pi-agent-core'
+
+import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const {
@@ -160,17 +162,17 @@ describe(`AgentRunner`, () => {
     const opts = {
       ...baseOpts(),
       sandboxConfig: {
-        provider: `local`,
+        provider: ESandboxType.local,
         timeout: 60000,
         envVars: { FOO: `bar` },
       },
     }
     await AgentRunner.run(opts)
 
-    expect(createSandboxProvider).toHaveBeenCalledWith(`local`)
+    expect(createSandboxProvider).toHaveBeenCalledWith(ESandboxType.local)
     expect(mockSandboxCreate).toHaveBeenCalledWith({
       envVars: { FOO: `bar` },
-      provider: `local`,
+      provider: ESandboxType.local,
       timeout: 60000,
     })
     expect(createSandboxTools).toHaveBeenCalled()
@@ -180,7 +182,7 @@ describe(`AgentRunner`, () => {
     const opts = {
       ...baseOpts(),
       sandboxConfig: {
-        provider: `local`,
+        provider: ESandboxType.local,
       },
     }
     await AgentRunner.run(opts)
@@ -327,7 +329,7 @@ describe(`AgentRunner`, () => {
   it(`should close sandbox in finally block`, async () => {
     const opts = {
       ...baseOpts(),
-      sandboxConfig: { provider: `local` },
+      sandboxConfig: { provider: ESandboxType.local },
     }
     await AgentRunner.run(opts)
 
@@ -363,7 +365,7 @@ describe(`AgentRunner`, () => {
 
     const opts = {
       ...baseOpts(),
-      sandboxConfig: { provider: `local` },
+      sandboxConfig: { provider: ESandboxType.local },
     }
     await AgentRunner.run(opts)
 
@@ -405,7 +407,7 @@ describe(`AgentRunner`, () => {
   it(`should pass sandbox and tools list to createSandboxTools`, async () => {
     const opts = {
       ...baseOpts(),
-      sandboxConfig: { provider: `local` },
+      sandboxConfig: { provider: ESandboxType.local },
       tools: [`shellExec`, `readFile`],
     }
     await AgentRunner.run(opts)

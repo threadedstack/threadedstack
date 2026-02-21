@@ -6,8 +6,8 @@ import type {
 
 import { transform } from 'esbuild'
 import { logger } from '@TBE/utils/logger'
-import { EFunLanguage } from '@tdsk/domain'
 import { createSandboxProvider } from '@tdsk/sandbox'
+import { EFunLanguage, ESandboxType } from '@tdsk/domain'
 
 /** 1 MB output cap */
 const MAX_OUTPUT_BYTES = 1_048_576
@@ -86,9 +86,9 @@ export class FunctionExecutor {
       }
 
       // 2. Create a local sandbox
-      const provider = createSandboxProvider(`local`)
+      const provider = createSandboxProvider(ESandboxType.local)
       sandbox = await provider.create({
-        provider: `local`,
+        provider: ESandboxType.local,
         timeout: opts?.timeout || DEFAULT_TIMEOUT_MS,
       })
 

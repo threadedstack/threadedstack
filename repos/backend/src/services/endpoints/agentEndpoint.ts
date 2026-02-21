@@ -6,8 +6,8 @@ import type { Endpoint, TLLMProviderBrand } from '@tdsk/domain'
 
 import { BaseEndpoint } from './base'
 import { AgentRunner } from '@tdsk/agent'
-import { EEndpointType } from '@tdsk/domain'
 import { Exception } from '@TBE/utils/errors/exception'
+import { ESandboxType, EEndpointType } from '@tdsk/domain'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
@@ -155,7 +155,7 @@ export class AgentEndpoint extends BaseEndpoint {
     const sandboxConfig = {
       envVars: { ...agent.envVars, ...overrides?.envVars },
       timeout: agent.environment?.timeout ?? 300000,
-      provider: `local` as const,
+      provider: ESandboxType.local,
     }
 
     // Handle client disconnect

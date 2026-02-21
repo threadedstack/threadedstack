@@ -1,5 +1,6 @@
 import type { TReplConfig, TAuthConfig, TProjectConfig } from '@TRL/types/config.types'
 
+import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect } from 'vitest'
 
 describe(`Config Types`, () => {
@@ -7,14 +8,14 @@ describe(`Config Types`, () => {
     const config: TReplConfig = {
       org: `org_1`,
       agent: `agent_1`,
-      sandbox: { provider: `local`, timeout: 300000 },
+      sandbox: { provider: ESandboxType.local, timeout: 300000 },
       auth: { apiKey: `tdsk_test`, proxyUrl: `https://example.com` },
       behavior: { autoResume: true, maxHistory: 50, confirmTools: false },
       display: { theme: `dark`, verbose: false, markdown: true, timestamps: false },
     }
     expect(config.auth.apiKey).toBe(`tdsk_test`)
     expect(config.display.theme).toBe(`dark`)
-    expect(config.sandbox.provider).toBe(`local`)
+    expect(config.sandbox.provider).toBe(ESandboxType.local)
   })
 
   it(`TProjectConfig has correct shape`, () => {

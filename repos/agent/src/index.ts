@@ -1,6 +1,5 @@
 export * from './stream'
 export * from './types'
 export * from './tools'
-export * from './tsagent'
 export * from './runner'
 export * from './adapters'

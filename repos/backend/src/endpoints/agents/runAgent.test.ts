@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { runAgent } from './runAgent'
 import { EPMethod } from '@TBE/types'
+import { ESandboxType } from '@tdsk/domain'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
 import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
@@ -851,7 +852,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           systemPrompt: `You are helpful.`,
         }),
         sandboxConfig: expect.objectContaining({
-          provider: `local`,
+          provider: ESandboxType.local,
           timeout: 300000,
         }),
         onEvent: expect.any(Function),
@@ -910,7 +911,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     expect(AgentRunner.run).toHaveBeenCalledWith(
       expect.objectContaining({
         sandboxConfig: expect.objectContaining({
-          provider: `local`,
+          provider: ESandboxType.local,
           timeout: 300000,
         }),
       })

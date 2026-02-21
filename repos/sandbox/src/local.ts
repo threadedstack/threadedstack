@@ -1,15 +1,17 @@
 import type {
   ISandbox,
-  ISandboxProvider,
   TSandboxConfig,
+  TSandboxResult,
+  ISandboxProvider,
   TSandboxEvalOpts,
   TSandboxEvalResult,
-  TSandboxResult,
 } from '@tdsk/domain'
 
 import type { IFileSystem } from 'just-bash'
-import { Bash, InMemoryFs } from 'just-bash'
+
 import { IsolateRunner } from './isolate'
+import { Bash, InMemoryFs } from 'just-bash'
+import { ESandboxType } from '@tdsk/domain'
 
 /**
  * Local sandbox instance using just-bash virtual shell/filesystem
@@ -18,9 +20,9 @@ import { IsolateRunner } from './isolate'
  */
 export class LocalSandbox implements ISandbox {
   private bash: Bash
+  private cwd: string
   private fs: IFileSystem
   private isolateRunner: IsolateRunner | null
-  private cwd: string
 
   constructor(
     bash: Bash,
@@ -28,10 +30,10 @@ export class LocalSandbox implements ISandbox {
     isolateRunner?: IsolateRunner | null,
     cwd = `/workspace`
   ) {
-    this.bash = bash
     this.fs = fs
-    this.isolateRunner = isolateRunner || null
+    this.bash = bash
     this.cwd = cwd
+    this.isolateRunner = isolateRunner || null
   }
 
   exec = async (command: string, args: string[] = []): Promise<TSandboxResult> => {
@@ -39,10 +41,10 @@ export class LocalSandbox implements ISandbox {
     const result = await this.bash.exec(fullCommand, { cwd: this.cwd })
 
     return {
-      success: result.exitCode === 0,
       output: result.stdout,
-      error: result.stderr || undefined,
       exitCode: result.exitCode,
+      success: result.exitCode === 0,
+      error: result.stderr || undefined,
     }
   }
 
@@ -120,7 +122,7 @@ export class LocalSandbox implements ISandbox {
  * No external services required — works fully offline
  */
 export class LocalSandboxProvider implements ISandboxProvider {
-  readonly type = `local` as const
+  readonly type = ESandboxType.local
 
   create = async (config: TSandboxConfig): Promise<ISandbox> => {
     const fs = new InMemoryFs()

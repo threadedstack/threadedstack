@@ -1,3 +1,4 @@
+import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { LocalSandbox, LocalSandboxProvider } from './local'
 
@@ -278,7 +279,7 @@ describe(`LocalSandbox`, () => {
 describe(`LocalSandboxProvider`, () => {
   it(`should have type 'local'`, () => {
     const provider = new LocalSandboxProvider()
-    expect(provider.type).toBe(`local`)
+    expect(provider.type).toBe(ESandboxType.local)
   })
 
   it(`should implement ISandboxProvider create method`, () => {

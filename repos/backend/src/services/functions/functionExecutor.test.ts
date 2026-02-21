@@ -1,3 +1,4 @@
+import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── Hoisted mocks (accessible inside vi.mock factories) ──────────────
@@ -21,7 +22,7 @@ const { mockClose, mockEvaluate, mockSandbox, mockCreate } = vi.hoisted(() => {
 
 vi.mock(`@tdsk/sandbox`, () => ({
   createSandboxProvider: vi.fn().mockReturnValue({
-    type: `local`,
+    type: ESandboxType.local,
     create: mockCreate,
   }),
 }))
@@ -90,12 +91,12 @@ describe(`FunctionExecutor`, () => {
     })
 
     // Sandbox provider should be created
-    expect(createSandboxProvider).toHaveBeenCalledWith(`local`)
+    expect(createSandboxProvider).toHaveBeenCalledWith(ESandboxType.local)
 
     // Provider.create should receive config
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: `local`,
+        provider: ESandboxType.local,
         timeout: 30_000,
       })
     )

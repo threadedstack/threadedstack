@@ -20,8 +20,6 @@ describe(`@tdsk/agent public API`, () => {
     `convertToLlmMessages`,
     `convertAssistantToContent`,
     `convertToolResultToContent`,
-    // tsagent
-    `TSAgent`,
   ]
 
   it.each(expectedExports)(`should export "%s"`, (name) => {
