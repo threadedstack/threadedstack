@@ -1,11 +1,9 @@
 import type { TAuthCredentials } from '@TRL/types'
 import { ConfigService } from '@TRL/services/config'
-import { DefaultProxyUrl } from '@TRL/constants'
-
-const ApiKeyPrefix = `tdsk_`
+import { ApiKeyPrefix, DefaultProxyUrl } from '@TRL/constants'
 
 export class AuthManager {
-  getCredentials(): TAuthCredentials | null {
+  creds(): TAuthCredentials | null {
     try {
       const config = ConfigService.loadGlobal()
       if (!config.auth?.apiKey) return null
@@ -19,8 +17,8 @@ export class AuthManager {
     }
   }
 
-  isLoggedIn(): boolean {
-    return this.getCredentials() !== null
+  loggedIn(): boolean {
+    return this.creds() !== null
   }
 
   async login(apiKey: string, proxyUrl?: string, insecure?: boolean): Promise<void> {
@@ -34,8 +32,8 @@ export class AuthManager {
 
     const res = await fetch(`${url}/_/orgs`, {
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         Accept: `application/json`,
+        Authorization: `Bearer ${apiKey}`,
       },
     })
 

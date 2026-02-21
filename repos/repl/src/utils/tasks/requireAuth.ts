@@ -9,7 +9,7 @@ import { themed } from '@TRL/theme'
 export const requireAuth =
   (action: TTaskAction): TTaskAction =>
   (args) => {
-    if (!args.auth.isLoggedIn()) {
+    if (!args.auth.loggedIn()) {
       process.stdout.write(
         `${themed('error', `Not logged in.`)} Run ${themed('primary', `tsa login <api-key>`)} first.\n`
       )

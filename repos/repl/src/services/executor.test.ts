@@ -1,4 +1,4 @@
-import type { ApiClient } from '@TRL/api'
+import type { ApiClient } from '@TRL/services/api'
 
 import { AgentRunner } from '@tdsk/agent'
 import { Executor } from '@TRL/services/executor'

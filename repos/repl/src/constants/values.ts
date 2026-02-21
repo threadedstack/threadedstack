@@ -1,6 +1,8 @@
 import type { TThemeColors, TConnectionStatus } from '@TRL/types'
 import { EConnectionStatus } from '@TRL/types'
 
+export const ApiKeyPrefix = `tdsk_`
+
 // Defaults
 export const DefaultMaxSteps = 10
 export const DefaultMaxHistory = 50

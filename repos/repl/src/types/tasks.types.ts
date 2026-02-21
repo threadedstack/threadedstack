@@ -1,4 +1,4 @@
-import type { AuthManager } from '@TRL/auth'
+import type { AuthManager } from '@TRL/services/auth'
 import type { TReplConfig } from '@TRL/types/config.types'
 
 export type TTaskOptionTypeMap = {

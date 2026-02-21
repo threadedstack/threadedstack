@@ -1,6 +1,6 @@
 import type { IAgentRunnerDB } from '@tdsk/agent'
 import type { Message, TMessageContent } from '@tdsk/domain'
-import type { ApiClient } from '@TRL/api'
+import type { ApiClient } from '@TRL/services/api'
 
 /**
  * HTTP-based implementation of IAgentRunnerDB.

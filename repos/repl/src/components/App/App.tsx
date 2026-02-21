@@ -1,14 +1,15 @@
-import type { AuthManager } from '@TRL/auth'
 import type { TStreamEvent } from '@tdsk/domain'
-import type { TReplConfig, TContextFile } from '@TRL/types'
+import type { AuthManager } from '@TRL/services/auth'
+import type { TAppPhase, TReplConfig, TContextFile } from '@TRL/types'
 
-import { ApiClient } from '@TRL/api'
 import { Box, Text, useApp } from 'ink'
+import { ApiClient } from '@TRL/services/api'
 import { themed, setTheme } from '@TRL/theme'
 import { Executor } from '@TRL/services/executor'
 import { useSession } from '@TRL/hooks/useSession'
 import { useMessages } from '@TRL/hooks/useMessages'
 import { ContextLoader } from '@TRL/services/context'
+import { resolveOrg } from '@TRL/utils/api/resolveOrg'
 import { Spinner } from '@TRL/components/Spinner/Spinner'
 import { getToolName } from '@TRL/utils/tools/getToolName'
 import { ErrorMessage } from '@TRL/components/Message/Error'
@@ -26,14 +27,6 @@ type TApp = {
   initialThreadId?: string
 }
 
-type TAppPhase = `login` | `loading` | `pickAgent` | `chat` | `error`
-
-const resolveOrg = async (client: ApiClient): Promise<string> => {
-  const orgs = (await client.listOrgs()) as any[]
-  if (orgs.length === 0) throw new Error(`No organizations found`)
-  return orgs[0].id
-}
-
 export const App = (props: TApp) => {
   const { auth, config, initialOrgId, initialAgentId, initialThreadId } = props
 
@@ -45,11 +38,11 @@ export const App = (props: TApp) => {
   const [agents, setAgents] = useState<any[]>([])
   const [error, setError] = useState<Error>(null)
   const [agentInfo, setAgentInfo] = useState<any>(null)
-  const [loggedIn, setLoggedIn] = useState(auth.isLoggedIn())
+  const [loggedIn, setLoggedIn] = useState(auth.loggedIn())
   const [contextFiles, setContextFiles] = useState<TContextFile[]>([])
   const [providerId, setProviderId] = useState<string | null>(null)
   const [client, setClient] = useState(() => (loggedIn ? new ApiClient(auth) : null))
-  const [phase, setPhase] = useState<TAppPhase>(auth.isLoggedIn() ? `loading` : `login`)
+  const [phase, setPhase] = useState<TAppPhase>(auth.loggedIn() ? `loading` : `login`)
   const [executor, setExecutor] = useState(() => (client ? new Executor(client) : null))
 
   // Refs to avoid stale closures in callbacks (P0-1, P0-4, P0-5)
@@ -119,7 +112,7 @@ export const App = (props: TApp) => {
   // Memoized auth context to avoid recreating handleLoginSubmit each render (P3-6)
   const authContext = useMemo(
     () => ({
-      isLoggedIn: loggedIn,
+      loggedIn: loggedIn,
       logout: () => {
         auth.logout()
         setLoggedIn(false)

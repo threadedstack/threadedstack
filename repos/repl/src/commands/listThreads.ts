@@ -1,14 +1,14 @@
 import type { TSlashCommand } from '@TRL/types'
 
 export const listThreadsCommand: TSlashCommand = {
-  name: 'threads',
-  aliases: ['t'],
-  description: 'List conversation threads',
+  name: `threads`,
+  aliases: [`t`],
+  description: `List conversation threads`,
   handler: async (_args, ctx) => {
     try {
       const threads = await ctx.listThreads()
       if (!threads.length) {
-        ctx.output('No threads found.')
+        ctx.output(`No threads found.`)
         return
       }
       const lines = threads.map((t) => `  ${t.id}${t.name ? ` — ${t.name}` : ''}`)

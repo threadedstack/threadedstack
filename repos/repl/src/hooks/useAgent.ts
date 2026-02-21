@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { ApiClient } from '@TRL/api'
+import type { ApiClient } from '@TRL/services/api'
 
 type TAgentInfo = {
   id: string

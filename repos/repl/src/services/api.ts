@@ -1,4 +1,4 @@
-import type { AuthManager } from '@TRL/auth'
+import type { AuthManager } from '@TRL/services/auth'
 import type { TSessionInfo, TProviderInfo } from '@TRL/types'
 
 import { MaxRetries, RetryDelays } from '@TRL/constants'
@@ -12,13 +12,13 @@ export class ApiClient {
   }
 
   #getProxyUrl(): string {
-    const creds = this.#auth.getCredentials()
+    const creds = this.#auth.creds()
     if (!creds) throw new Error(`Not logged in. Run "tsa login" first.`)
     return creds.proxyUrl
   }
 
   async #request<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
-    const creds = this.#auth.getCredentials()
+    const creds = this.#auth.creds()
     if (!creds) throw new Error(`Not logged in. Run "tsa login" first.`)
 
     const url = `${creds.proxyUrl}/_${path}`

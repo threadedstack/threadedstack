@@ -18,7 +18,7 @@ export type TSlashCommandContext = {
   listThreads: () => Promise<Array<{ id: string; name?: string; createdAt?: string }>>
   contextFiles: Array<{ path: string; name: string; content: string; sizeBytes: number }>
   auth: {
-    isLoggedIn: boolean
+    loggedIn: boolean
     logout: () => void
     login: (apiKey: string, proxyUrl?: string, insecure?: boolean) => Promise<void>
   }

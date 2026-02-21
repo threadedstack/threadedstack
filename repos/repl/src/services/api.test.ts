@@ -1,8 +1,11 @@
-import type { AuthManager } from '@TRL/auth'
+import type { AuthManager } from '@TRL/services/auth'
+
+import { ApiClient } from './api'
+import { Agent } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@TRL/constants', async () => {
-  const actual = await vi.importActual('@TRL/constants')
+vi.mock(`@TRL/constants`, async () => {
+  const actual = await vi.importActual(`@TRL/constants`)
   return {
     ...actual,
     MaxRetries: 3,
@@ -13,16 +16,13 @@ vi.mock('@TRL/constants', async () => {
 const mockFetch = vi.fn()
 vi.stubGlobal(`fetch`, mockFetch)
 
-import { ApiClient } from './client'
-import { Agent, Thread, Message, Organization } from '@tdsk/domain'
-
 const makeCreds = () => ({
   apiKey: `tdsk_test123`,
   proxyUrl: `https://proxy.test`,
 })
 
 const makeAuth = (creds: ReturnType<typeof makeCreds> | null = makeCreds()) =>
-  ({ getCredentials: vi.fn().mockReturnValue(creds) }) as unknown as AuthManager
+  ({ creds: vi.fn().mockReturnValue(creds) }) as unknown as AuthManager
 
 describe(`ApiClient`, () => {
   let client: ApiClient
@@ -173,7 +173,7 @@ describe(`ApiClient`, () => {
         expect.objectContaining({
           method: `POST`,
           headers: expect.objectContaining({
-            'Content-Type': `application/json`,
+            [`Content-Type`]: `application/json`,
           }),
           body: JSON.stringify({ agentId: `agent1` }),
         })

@@ -1,4 +1,4 @@
-import type { ApiClient } from '@TRL/api'
+import type { ApiClient } from '@TRL/services/api'
 
 import { DBProxy } from './dbProxy'
 import { describe, it, expect, vi, beforeEach } from 'vitest'

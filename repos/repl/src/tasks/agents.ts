@@ -1,7 +1,7 @@
 import type { TTask } from '@TRL/types'
 
 import { themed } from '@TRL/theme'
-import { ApiClient } from '@TRL/api'
+import { ApiClient } from '@TRL/services/api'
 import { requireAuth } from '@TRL/utils/tasks/requireAuth'
 
 export const agents: TTask = {

@@ -1,11 +1,11 @@
 import type { TSlashCommand } from '@TRL/types'
 
 export const switchThreadCommand: TSlashCommand = {
-  name: 'switch',
-  aliases: ['sw'],
-  description: 'Switch to a different thread',
+  name: `switch`,
+  aliases: [`sw`],
+  description: `Switch to a different thread`,
   handler: async (args, ctx) => {
-    if (!args) return 'Usage: /switch <thread-id>'
+    if (!args) return `Usage: /switch <thread-id>`
     const threadId = args.trim()
     ctx.setThreadId(threadId)
     ctx.clearMessages()

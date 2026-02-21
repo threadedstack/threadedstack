@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react'
-import { AuthManager } from '@TRL/auth'
+import { AuthManager } from '@TRL/services/auth'
 
 export function useAuth() {
   const [auth] = useState(() => new AuthManager())
-  const [isLoggedIn, setIsLoggedIn] = useState(auth.isLoggedIn())
+  const [loggedIn, setIsLoggedIn] = useState(auth.loggedIn())
 
   const login = useCallback(
     async (apiKey: string, proxyUrl?: string, insecure?: boolean) => {
@@ -18,5 +18,5 @@ export function useAuth() {
     setIsLoggedIn(false)
   }, [auth])
 
-  return { auth, isLoggedIn, login, logout }
+  return { auth, loggedIn, login, logout }
 }

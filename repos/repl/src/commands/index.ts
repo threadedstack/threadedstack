@@ -1,9 +1,10 @@
 import type { TSlashCommand } from '@TRL/types'
-import { helpCommand } from './help'
-import { registeredCommands } from './registry'
+
+import { helpCommand } from '@TRL/commands/help'
+import { registeredCommands } from '@TRL/commands/registry'
 
 /** Commands that work without authentication */
-const PRE_AUTH_COMMANDS = new Set(['login', 'help', 'exit', 'quit', 'q', 'h', 'li'])
+const PRE_AUTH_COMMANDS = new Set([`login`, `help`, `exit`, `quit`, `q`, `h`, `li`])
 
 export function isPreAuthCommand(nameOrAlias: string): boolean {
   return PRE_AUTH_COMMANDS.has(nameOrAlias)

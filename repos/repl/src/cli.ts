@@ -1,9 +1,9 @@
 import { tasks } from '@TRL/tasks'
-import { AuthManager } from '@TRL/auth'
 import { find } from '@TRL/utils/tasks/find'
 import { argsParse } from '@keg-hub/args-parse'
 import { hasArg } from '@TRL/utils/tasks/hasArg'
 import { Version } from '@TRL/constants/version'
+import { AuthManager } from '@TRL/services/auth'
 import { loadConfig } from '@TRL/utils/tasks/config'
 import { addDefaults } from '@TRL/utils/tasks/addDefaults'
 
@@ -31,7 +31,7 @@ export const main = async (): Promise<any> => {
   const auth = new AuthManager()
 
   // Apply insecure mode from stored credentials or --insecure argument
-  const storedCreds = auth.getCredentials()
+  const storedCreds = auth.creds()
   if (storedCreds?.insecure || hasArg(argv, `insecure`, [`ins`]))
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
 

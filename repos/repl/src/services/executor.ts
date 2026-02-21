@@ -1,4 +1,4 @@
-import type { ApiClient } from '@TRL/api'
+import type { ApiClient } from '@TRL/services/api'
 import type { TExecRunOpts, TSessionInfo, TRunResult } from '@TRL/types'
 
 import { AgentRunner } from '@tdsk/agent'
