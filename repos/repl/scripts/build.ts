@@ -20,7 +20,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 
 const root = resolve(import.meta.dirname, `..`)
 const distDir = join(root, `dist`)
-const entrypoint = join(root, `src`, `index.ts`)
+const entrypoint = join(root, `src`, `main`)
 const pkg = JSON.parse(readFileSync(join(root, `package.json`), `utf-8`))
 
 if (!existsSync(distDir)) mkdirSync(distDir, { recursive: true })

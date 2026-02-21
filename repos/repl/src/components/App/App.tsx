@@ -379,6 +379,7 @@ export const App = (props: TApp) => {
           connection="disconnected"
           messages={msgs.messages}
           isStreaming={false}
+          isPreAuth={true}
           streamText=""
           toolCalls={[]}
           onSubmit={handleLoginSubmit}

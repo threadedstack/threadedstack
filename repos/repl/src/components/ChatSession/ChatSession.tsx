@@ -13,6 +13,7 @@ type TChatSession = {
   streamText: string
   threadName?: string
   isStreaming: boolean
+  isPreAuth?: boolean
   messages: TMessage[]
   providerName?: string
   toolCalls: TToolCall[]
@@ -29,6 +30,7 @@ export const ChatSession = (props: TChatSession) => {
     agentName,
     modelName,
     threadName,
+    isPreAuth,
     connection,
     streamText,
     isStreaming,
@@ -59,6 +61,7 @@ export const ChatSession = (props: TChatSession) => {
       <Prompt
         onSubmit={onSubmit}
         disabled={isStreaming}
+        isPreAuth={isPreAuth}
       />
     </Box>
   )

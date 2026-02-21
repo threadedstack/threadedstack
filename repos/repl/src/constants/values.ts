@@ -34,3 +34,6 @@ export const ToolDisplayNames: Record<string, string> = {
 }
 
 export const SpinnerFrames = [`⠋`, `⠙`, `⠹`, `⠸`, `⠼`, `⠴`, `⠦`, `⠧`, `⠇`, `⠏`]
+
+/** Commands that work without authentication */
+export const PreAuthCommands = new Set([`login`, `help`, `exit`, `quit`, `q`, `h`, `li`])

@@ -1,6 +1,6 @@
 /**
  * Package version — injected at build time via Bun's `define` option.
- * When running from source (bun run src/index.ts), the global is undefined
+ * When running from source (bun run src/main.ts), the global is undefined
  * and we fall back to reading package.json dynamically.
  */
 const resolveVersion = (): string => {

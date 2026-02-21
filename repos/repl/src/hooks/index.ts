@@ -1,4 +1,6 @@
 export { useSession } from './useSession'
 export { useMessages } from './useMessages'
+export { useSlashMenu } from './useSlashMenu'
+export { useEditorState } from './useEditorState'
 export { useInputHistory } from './useInputHistory'
 export { useLifecycleHooks } from './useLifecycleHooks'

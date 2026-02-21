@@ -1,10 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
-import { env } from '../utils/env'
 import { readContext } from '../utils/test-context'
 import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/repl-auth'
 import { cleanupQuickstart, cleanupThread } from '../utils/repl-cleanup'
-import { ApiClient } from '@tdsk/repl/api'
+import { ApiClient } from '@tdsk/repl'
 import { Organization, Agent, Thread, Message } from '@tdsk/domain'
 
 /**

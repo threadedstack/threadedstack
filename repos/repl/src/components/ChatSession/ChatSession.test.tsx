@@ -17,7 +17,8 @@ describe(`ChatSession`, () => {
     )
     const frame = lastFrame()!
     expect(frame).toContain(`Test Agent`)
-    expect(frame).toContain(`>`)
+    // Prompt renders a bordered box (round border style)
+    expect(frame).toContain(`╭`)
   })
 
   it(`should render messages when provided`, () => {
