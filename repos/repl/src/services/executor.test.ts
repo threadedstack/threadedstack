@@ -1,3 +1,7 @@
+import type { ApiClient } from '@TRL/api'
+
+import { AgentRunner } from '@tdsk/agent'
+import { Executor } from '@TRL/services/executor'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock(`@tdsk/agent`, () => ({
@@ -5,10 +9,6 @@ vi.mock(`@tdsk/agent`, () => ({
     run: vi.fn().mockResolvedValue(undefined),
   },
 }))
-
-import { LocalAgentExecutor } from './executor'
-import { AgentRunner } from '@tdsk/agent'
-import type { ApiClient } from '@TRL/api'
 
 const makeClient = () =>
   ({
@@ -31,14 +31,14 @@ const makeClient = () =>
     getThread: vi.fn(),
   }) as unknown as ApiClient
 
-describe(`LocalAgentExecutor`, () => {
-  let executor: LocalAgentExecutor
+describe(`Executor`, () => {
+  let executor: Executor
   let client: ReturnType<typeof makeClient>
 
   beforeEach(() => {
     vi.clearAllMocks()
     client = makeClient()
-    executor = new LocalAgentExecutor(client)
+    executor = new Executor(client)
   })
 
   describe(`client`, () => {
@@ -151,7 +151,7 @@ describe(`LocalAgentExecutor`, () => {
       expect(call.llmConfig.apiKey).toBeUndefined()
     })
 
-    it(`should pass an HttpMessageAdapter as db`, async () => {
+    it(`should pass an DBProxy as db`, async () => {
       const onEvent = vi.fn()
 
       await executor.run({

@@ -1,3 +1,5 @@
+import type { TThemeType } from '@TRL/types/theme.types'
+
 export type TAuthConfig = {
   apiKey: string
   proxyUrl?: string
@@ -5,8 +7,8 @@ export type TAuthConfig = {
 }
 
 export type TDisplayConfig = {
-  theme?: 'dark' | 'light' | 'auto'
   verbose?: boolean
+  theme?: TThemeType
   markdown?: boolean
   timestamps?: boolean
 }
@@ -18,18 +20,18 @@ export type TBehaviorConfig = {
 }
 
 export type TSandboxConfig = {
-  provider?: 'local' | 'e2b'
   timeout?: number
+  provider?: `local` | `e2b`
   envVars?: Record<string, string>
 }
 
 export type THooksConfig = {
-  onSessionStart?: string
-  onSessionEnd?: string
-  onToolCall?: string
-  onToolResult?: string
   onError?: string
   onMessage?: string
+  onToolCall?: string
+  onToolResult?: string
+  onSessionEnd?: string
+  onSessionStart?: string
 }
 
 export type TToolsConfig = {

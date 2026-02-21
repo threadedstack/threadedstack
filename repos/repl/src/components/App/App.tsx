@@ -5,7 +5,7 @@ import type { TReplConfig, TContextFile } from '@TRL/types'
 import { ApiClient } from '@TRL/api'
 import { Box, Text, useApp } from 'ink'
 import { themed, setTheme } from '@TRL/theme'
-import { LocalAgentExecutor } from '@TRL/executor'
+import { Executor } from '@TRL/services/executor'
 import { useSession } from '@TRL/hooks/useSession'
 import { useMessages } from '@TRL/hooks/useMessages'
 import { ContextLoader } from '@TRL/services/context'
@@ -18,7 +18,7 @@ import { AgentPicker } from '@TRL/components/AgentPicker/AgentPicker'
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { parseCommand, findCommand, isPreAuthCommand } from '@TRL/commands'
 
-type AppProps = {
+type TApp = {
   auth: AuthManager
   config?: TReplConfig
   initialOrgId?: string
@@ -34,7 +34,7 @@ const resolveOrg = async (client: ApiClient): Promise<string> => {
   return orgs[0].id
 }
 
-export const App = (props: AppProps) => {
+export const App = (props: TApp) => {
   const { auth, config, initialOrgId, initialAgentId, initialThreadId } = props
 
   const { exit } = useApp()
@@ -50,13 +50,11 @@ export const App = (props: AppProps) => {
   const [providerId, setProviderId] = useState<string | null>(null)
   const [client, setClient] = useState(() => (loggedIn ? new ApiClient(auth) : null))
   const [phase, setPhase] = useState<TAppPhase>(auth.isLoggedIn() ? `loading` : `login`)
-  const [executor, setExecutor] = useState(() =>
-    client ? new LocalAgentExecutor(client) : null
-  )
+  const [executor, setExecutor] = useState(() => (client ? new Executor(client) : null))
 
   // Refs to avoid stale closures in callbacks (P0-1, P0-4, P0-5)
   const streamTextRef = useRef(``)
-  const executorRef = useRef<LocalAgentExecutor | null>(executor)
+  const executorRef = useRef<Executor | null>(executor)
   const threadIdRef = useRef<string | null>(session.threadId)
   const contextFilesRef = useRef<TContextFile[]>(contextFiles)
   const clientRef = useRef<ApiClient | null>(client)
@@ -84,7 +82,7 @@ export const App = (props: AppProps) => {
     try {
       setPhase(`loading`)
       const newClient = new ApiClient(auth)
-      const newExecutor = new LocalAgentExecutor(newClient)
+      const newExecutor = new Executor(newClient)
       setClient(newClient)
       setExecutor(newExecutor)
 
@@ -162,7 +160,7 @@ export const App = (props: AppProps) => {
     setAgentId: (id: string) => {
       session.setAgentId(id)
       // Clear session cache when switching agents
-      executorRef.current?.clearSessionCache()
+      executorRef.current?.clearSession()
     },
     setThreadId: (id: string | null) => {
       session.setThreadId(id)
@@ -171,7 +169,7 @@ export const App = (props: AppProps) => {
     setProviderId: (id: string) => {
       setProviderId(id)
       // Clear session cache when switching providers
-      executorRef.current?.clearSessionCache()
+      executorRef.current?.clearSession()
     },
     addContextFile: (path: string) => {
       const file = ContextLoader.loadFile(path)

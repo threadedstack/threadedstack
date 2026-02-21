@@ -1,14 +1,9 @@
-import type { TStreamEvent } from '@tdsk/domain'
-import type { ApiClient, TSessionInfo } from '@TRL/api'
-import type { TContextFile } from '@TRL/types'
+import type { ApiClient } from '@TRL/api'
+import type { TExecRunOpts, TSessionInfo, TRunResult } from '@TRL/types'
 
 import { AgentRunner } from '@tdsk/agent'
+import { DBProxy } from '@TRL/services/dbProxy'
 import { DefaultMaxSteps } from '@TRL/constants'
-import { HttpMessageAdapter } from './httpAdapter'
-
-export type TRunResult = {
-  threadId: string
-}
 
 /**
  * Runs the agent loop locally while proxying LLM calls through the backend.
@@ -17,7 +12,7 @@ export type TRunResult = {
  * 2. Creates/reuses a thread via backend
  * 3. Runs AgentRunner locally with proxyConfig (LLM calls go through backend SSE)
  */
-export class LocalAgentExecutor {
+export class Executor {
   #client: ApiClient
   #cachedSession: { session: TSessionInfo; agentId: string; providerId?: string } | null =
     null
@@ -34,7 +29,7 @@ export class LocalAgentExecutor {
     return this.#client.createSession(agentId, providerId)
   }
 
-  async #getOrCreateSession(agentId: string, providerId?: string): Promise<TSessionInfo> {
+  async #ensureSession(agentId: string, providerId?: string): Promise<TSessionInfo> {
     if (
       this.#cachedSession &&
       this.#cachedSession.agentId === agentId &&
@@ -47,25 +42,15 @@ export class LocalAgentExecutor {
     return session
   }
 
-  clearSessionCache(): void {
+  clearSession(): void {
     this.#cachedSession = null
   }
 
-  async run(opts: {
-    orgId: string
-    agentId: string
-    prompt: string
-    userId: string
-    threadId?: string
-    providerId?: string
-    maxSteps?: number
-    contextFiles?: TContextFile[]
-    onEvent: (event: TStreamEvent) => void
-  }): Promise<TRunResult> {
+  async run(opts: TExecRunOpts): Promise<TRunResult> {
     const { orgId, agentId, prompt, userId, onEvent } = opts
 
     // 1. Get or reuse session (backend resolves API key, returns session token)
-    const session = await this.#getOrCreateSession(agentId, opts.providerId)
+    const session = await this.#ensureSession(agentId, opts.providerId)
 
     // 2. Create or reuse thread
     let threadId = opts.threadId
@@ -84,7 +69,7 @@ export class LocalAgentExecutor {
     }
 
     // 4. Create HTTP message adapter
-    const db = new HttpMessageAdapter(this.#client, orgId, agentId)
+    const db = new DBProxy(this.#client, orgId, agentId)
 
     // 5. Run agent locally — LLM calls go through backend SSE
     await AgentRunner.run({

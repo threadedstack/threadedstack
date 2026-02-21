@@ -1,4 +1,4 @@
-export type TContextSource = 'auto' | 'manual'
+export type TContextSource = `auto` | `manual`
 
 export type TContextFile = {
   path: string

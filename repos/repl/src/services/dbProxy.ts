@@ -6,7 +6,7 @@ import type { ApiClient } from '@TRL/api'
  * HTTP-based implementation of IAgentRunnerDB.
  * Persists messages through the backend API instead of direct DB access.
  */
-export class HttpMessageAdapter implements IAgentRunnerDB {
+export class DBProxy implements IAgentRunnerDB {
   #client: ApiClient
   #orgId: string
   #agentId: string

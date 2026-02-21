@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { HttpMessageAdapter } from './httpAdapter'
 import type { ApiClient } from '@TRL/api'
+
+import { DBProxy } from './dbProxy'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const makeClient = () =>
   ({
@@ -11,13 +12,13 @@ const makeClient = () =>
     createMessage: vi.fn().mockResolvedValue({ id: `m-new` }),
   }) as unknown as ApiClient
 
-describe(`HttpMessageAdapter`, () => {
-  let adapter: HttpMessageAdapter
+describe(`DBProxy`, () => {
+  let adapter: DBProxy
   let client: ReturnType<typeof makeClient>
 
   beforeEach(() => {
     client = makeClient()
-    adapter = new HttpMessageAdapter(client, `org-1`, `agent-1`)
+    adapter = new DBProxy(client, `org-1`, `agent-1`)
   })
 
   describe(`listMessages`, () => {

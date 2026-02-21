@@ -1,4 +1,5 @@
-import type { TReplConfig, TAuthConfig, TProjectConfig } from './config.types'
+import type { TReplConfig, TAuthConfig, TProjectConfig } from '@TRL/types/config.types'
+
 import { describe, it, expect } from 'vitest'
 
 describe(`Config Types`, () => {
