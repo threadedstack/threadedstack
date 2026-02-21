@@ -17,8 +17,24 @@ export const createAgent: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { projectIds = [], functionIds = [], providerIds = [], ...agent } = req.body
+    const {
+      projectIds = [],
+      functionIds = [],
+      providerIds: rawProviderIds = [],
+      providers: providersWithPriority,
+      ...agent
+    } = req.body
     const orgId = req.params.orgId || agent.orgId
+
+    // Support both formats: providerIds[] (ordered array) or providers[{id, priority}]
+    const providerIds = providersWithPriority?.length
+      ? providersWithPriority
+          .sort(
+            (a: { priority?: number }, b: { priority?: number }) =>
+              (a.priority ?? 0) - (b.priority ?? 0)
+          )
+          .map((p: { id: string }) => p.id)
+      : rawProviderIds
 
     // Validate required fields
     if (!orgId)
@@ -27,7 +43,7 @@ export const createAgent: TEndpointConfig = {
     if (!providerIds.length)
       throw new Exception(
         400,
-        `Agent must have at least one provider (providerIds required)`
+        `Agent must have at least one provider (providerIds or providers required)`
       )
 
     // Validate all providers exist, are AI type, and belong to the same org

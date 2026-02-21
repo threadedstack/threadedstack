@@ -41,6 +41,8 @@ describe(`Agents endpoints`, () => {
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+              isProjectMember: vi.fn().mockResolvedValue({ data: true }),
+              getUserProjects: vi.fn().mockResolvedValue({ data: [] }),
             },
           },
         },
@@ -330,7 +332,7 @@ describe(`Agents endpoints`, () => {
         name: `Agent One`,
         orgId: `org-1`,
         providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
-        projects: [],
+        projects: [{ id: `project-1`, name: `P1`, orgId: `org-1` }] as any,
         secrets: [
           { id: `s1`, key: `API_KEY`, value: `secret-value`, orgId: `org-1` },
         ] as any,
@@ -347,6 +349,11 @@ describe(`Agents endpoints`, () => {
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
       mockGetOrgRole.mockResolvedValue({ data: { type: `viewer` } })
+
+      // Agent has projects and user is a project member, so access check passes
+      const mockGetUserProjects = mockReq.app?.locals.db.services.role
+        .getUserProjects as ReturnType<typeof vi.fn>
+      mockGetUserProjects.mockResolvedValue({ data: [`project-1`] })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Admin or higher role required to view secret values`
@@ -403,7 +410,7 @@ describe(`Agents endpoints`, () => {
       mockReq.body = { orgId: `org-1`, name: `Test Agent` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Agent must have at least one provider (providerIds required)`
+        `Agent must have at least one provider (providerIds or providers required)`
       )
     })
 
@@ -555,6 +562,83 @@ describe(`Agents endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
       expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should accept providers with explicit priority and sort by priority`, async () => {
+      const createdAgent = new Agent({
+        id: `agent-new`,
+        name: `New Agent`,
+        orgId: `org-1`,
+        providers: [
+          { id: `provider-2`, type: `ai`, orgId: `org-1` },
+          { id: `provider-1`, type: `ai`, orgId: `org-1` },
+        ] as any,
+        projects: [],
+      })
+      mockReq.body = {
+        orgId: `org-1`,
+        providers: [
+          { id: `provider-1`, priority: 1 },
+          { id: `provider-2`, priority: 0 },
+        ],
+        name: `New Agent`,
+      }
+
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet
+        .mockResolvedValueOnce({
+          data: { id: `provider-2`, type: `ai`, name: `Anthropic`, orgId: `org-1` },
+        })
+        .mockResolvedValueOnce({
+          data: { id: `provider-1`, type: `ai`, name: `OpenAI`, orgId: `org-1` },
+        })
+
+      const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockCreate).toHaveBeenCalled()
+      const createArg = mockCreate.mock.calls[0][0]
+      // providerIds should be sorted by priority: provider-2 (priority 0) first, then provider-1 (priority 1)
+      expect(createArg.providerIds).toEqual([`provider-2`, `provider-1`])
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should fall back to providerIds when providers not provided`, async () => {
+      const createdAgent = new Agent({
+        id: `agent-new`,
+        name: `New Agent`,
+        orgId: `org-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
+        projects: [],
+      })
+      mockReq.body = {
+        orgId: `org-1`,
+        providerIds: [`provider-1`],
+        name: `New Agent`,
+      }
+
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic`, orgId: `org-1` },
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const createArg = mockCreate.mock.calls[0][0]
+      expect(createArg.providerIds).toEqual([`provider-1`])
     })
 
     it(`should return 500 on database error`, async () => {

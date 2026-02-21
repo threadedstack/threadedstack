@@ -49,8 +49,6 @@ export type TAgentRunOpts = {
   /** Sandbox config */
   sandboxConfig?: {
     provider: string
-    apiKey?: string
-    template?: string
     timeout?: number
     envVars?: Record<string, string>
   }

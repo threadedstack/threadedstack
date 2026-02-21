@@ -2,29 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── Hoisted mocks (accessible inside vi.mock factories) ──────────────
 
-const { mockClose, mockWriteFile, mockExec, mockSandbox, mockCreate } = vi.hoisted(() => {
+const { mockClose, mockEvaluate, mockSandbox, mockCreate } = vi.hoisted(() => {
   const mockClose = vi.fn().mockResolvedValue(undefined)
-  const mockWriteFile = vi.fn().mockResolvedValue(undefined)
-  const mockExec = vi.fn().mockResolvedValue({
-    success: true,
-    output: JSON.stringify({ success: true, output: { result: 42 } }),
-    exitCode: 0,
+  const mockEvaluate = vi.fn().mockResolvedValue({
+    output: ``,
+    result: { success: true, output: { result: 42 } },
   })
 
   const mockSandbox = {
-    writeFile: mockWriteFile,
-    exec: mockExec,
+    evaluate: mockEvaluate,
     close: mockClose,
-    readFile: vi.fn(),
-    listDir: vi.fn(),
-    deleteFile: vi.fn(),
-    mkdir: vi.fn(),
-    fileExists: vi.fn(),
   }
 
   const mockCreate = vi.fn().mockResolvedValue(mockSandbox)
 
-  return { mockClose, mockWriteFile, mockExec, mockSandbox, mockCreate }
+  return { mockClose, mockEvaluate, mockSandbox, mockCreate }
 })
 
 vi.mock(`@tdsk/sandbox`, () => ({
@@ -78,18 +70,16 @@ describe(`FunctionExecutor`, () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockCreate.mockResolvedValue(mockSandbox)
-    mockExec.mockResolvedValue({
-      success: true,
-      output: JSON.stringify({ success: true, output: { result: 42 } }),
-      exitCode: 0,
+    mockEvaluate.mockResolvedValue({
+      output: ``,
+      result: { success: true, output: { result: 42 } },
     })
-    mockWriteFile.mockResolvedValue(undefined)
     mockClose.mockResolvedValue(undefined)
   })
 
   // ── Test 1: Execute a TypeScript function ────────────────────────
 
-  it(`should transpile TypeScript, write files, execute, and close sandbox`, async () => {
+  it(`should transpile TypeScript, evaluate wrapper, and close sandbox`, async () => {
     const func = makeFunc()
     const result = await FunctionExecutor.execute(func)
 
@@ -102,29 +92,22 @@ describe(`FunctionExecutor`, () => {
     // Sandbox provider should be created
     expect(createSandboxProvider).toHaveBeenCalledWith(`local`)
 
-    // Provider.create should receive env vars with the input payload
+    // Provider.create should receive config
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: `local`,
-        envVars: expect.objectContaining({
-          __FUNCTION_INPUT__: expect.any(String),
-        }),
+        timeout: 30_000,
       })
     )
 
-    // Should write two files: function.mjs (transpiled code) and runner.mjs
-    expect(mockWriteFile).toHaveBeenCalledTimes(2)
-    expect(mockWriteFile).toHaveBeenCalledWith(
-      `/workspace/function.mjs`,
-      expect.any(String) // transpiled code from esbuild
+    // Should evaluate wrapper code with function module
+    expect(mockEvaluate).toHaveBeenCalledWith(
+      expect.stringContaining(`import handler from 'function'`),
+      expect.objectContaining({
+        timeout: 30_000,
+        modules: { function: expect.any(String) },
+      })
     )
-    expect(mockWriteFile).toHaveBeenCalledWith(
-      `/workspace/runner.mjs`,
-      expect.stringContaining(`import handler from './function.mjs'`)
-    )
-
-    // Should execute node runner.mjs
-    expect(mockExec).toHaveBeenCalledWith(`node`, [`runner.mjs`])
 
     // Should close sandbox
     expect(mockClose).toHaveBeenCalledTimes(1)
@@ -145,30 +128,29 @@ describe(`FunctionExecutor`, () => {
     // esbuild should NOT be called
     expect(transform).not.toHaveBeenCalled()
 
-    // Should still write the original content as function.mjs
-    expect(mockWriteFile).toHaveBeenCalledWith(`/workspace/function.mjs`, func.content)
+    // Should pass the original content as the function module
+    expect(mockEvaluate).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        modules: { function: func.content },
+      })
+    )
 
-    // Should still execute and succeed
+    // Should still succeed
     expect(result.success).toBe(true)
-    expect(mockExec).toHaveBeenCalledWith(`node`, [`runner.mjs`])
     expect(mockClose).toHaveBeenCalledTimes(1)
   })
 
-  // ── Test 3: Sandbox exec fails ────────────────────────────────
+  // ── Test 3: Evaluate throws ────────────────────────────────────
 
-  it(`should return error result when sandbox exec fails`, async () => {
-    mockExec.mockResolvedValue({
-      success: false,
-      output: ``,
-      error: `Command not found: node`,
-      exitCode: 127,
-    })
+  it(`should return error result when evaluate throws`, async () => {
+    mockEvaluate.mockRejectedValue(new Error(`V8 isolate timeout`))
 
     const func = makeFunc()
     const result = await FunctionExecutor.execute(func)
 
     expect(result.success).toBe(false)
-    expect(result.error).toBe(`Command not found: node`)
+    expect(result.error).toBe(`V8 isolate timeout`)
     expect(result.output).toBeNull()
     expect(result.duration).toBeGreaterThanOrEqual(0)
     expect(mockClose).toHaveBeenCalledTimes(1)
@@ -176,42 +158,41 @@ describe(`FunctionExecutor`, () => {
 
   // ── Test 4: Always closes sandbox even on error ─────────────────
 
-  it(`should close sandbox even when writeFile throws`, async () => {
-    mockWriteFile.mockRejectedValueOnce(new Error(`Disk full`))
+  it(`should close sandbox even when evaluate throws`, async () => {
+    mockEvaluate.mockRejectedValueOnce(new Error(`Isolate crashed`))
 
     const func = makeFunc()
     const result = await FunctionExecutor.execute(func)
 
     expect(result.success).toBe(false)
-    expect(result.error).toBe(`Disk full`)
+    expect(result.error).toBe(`Isolate crashed`)
     expect(mockClose).toHaveBeenCalledTimes(1)
   })
 
-  // ── Test 5: Passes request and context via env var ──────────────
+  // ── Test 5: Passes request and context in wrapper code ──────────
 
-  it(`should pass request and context via __FUNCTION_INPUT__ env var`, async () => {
+  it(`should embed request and context in wrapper code`, async () => {
     const func = makeFunc()
     const request = { method: `POST`, path: `/test`, body: { key: `val` } }
     const context = { secrets: { API_KEY: `secret-123` } }
 
     await FunctionExecutor.execute(func, { request, context })
 
-    // Check that create was called with the correct env var payload
-    const createCall = mockCreate.mock.calls[0][0]
-    const inputPayload = JSON.parse(createCall.envVars.__FUNCTION_INPUT__)
-
-    expect(inputPayload.request).toEqual(request)
-    expect(inputPayload.context).toEqual(context)
+    // Wrapper code should contain the serialized request/context
+    const wrapperCode = mockEvaluate.mock.calls[0][0]
+    expect(wrapperCode).toContain(`import handler from 'function'`)
+    expect(wrapperCode).toContain(`JSON.parse(`)
+    expect(wrapperCode).toContain(`POST`)
+    expect(wrapperCode).toContain(`/test`)
   })
 
   // ── Test 6: Output exceeds 1MB cap ─────────────────────────────
 
   it(`should return error when output exceeds 1MB`, async () => {
     const hugeOutput = `x`.repeat(1_048_577)
-    mockExec.mockResolvedValue({
-      success: true,
-      output: hugeOutput,
-      exitCode: 0,
+    mockEvaluate.mockResolvedValue({
+      output: ``,
+      result: { success: true, output: hugeOutput },
     })
 
     const func = makeFunc()
@@ -222,13 +203,12 @@ describe(`FunctionExecutor`, () => {
     expect(mockClose).toHaveBeenCalledTimes(1)
   })
 
-  // ── Test 7: Runner returns error JSON ──────────────────────────
+  // ── Test 7: Wrapper returns error ────────────────────────────
 
-  it(`should propagate runner error from JSON output`, async () => {
-    mockExec.mockResolvedValue({
-      success: true,
-      output: JSON.stringify({ success: false, error: `TypeError: x is not a function` }),
-      exitCode: 0,
+  it(`should propagate error from wrapper result`, async () => {
+    mockEvaluate.mockResolvedValue({
+      output: ``,
+      result: { success: false, error: `TypeError: x is not a function` },
     })
 
     const func = makeFunc()
@@ -245,6 +225,10 @@ describe(`FunctionExecutor`, () => {
     await FunctionExecutor.execute(func)
 
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ timeout: 30_000 }))
+    expect(mockEvaluate).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ timeout: 30_000 })
+    )
   })
 
   // ── Test 9: Custom timeout is passed through ───────────────────
@@ -254,21 +238,24 @@ describe(`FunctionExecutor`, () => {
     await FunctionExecutor.execute(func, { timeout: 60_000 })
 
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ timeout: 60_000 }))
+    expect(mockEvaluate).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ timeout: 60_000 })
+    )
   })
 
-  // ── Test 10: Non-JSON output treated as raw ────────────────────
+  // ── Test 10: No result from evaluate ──────────────────────────
 
-  it(`should return raw output when stdout is not valid JSON`, async () => {
-    mockExec.mockResolvedValue({
-      success: true,
-      output: `Hello, World!`,
-      exitCode: 0,
+  it(`should return error when evaluate produces no result`, async () => {
+    mockEvaluate.mockResolvedValue({
+      output: ``,
+      result: undefined,
     })
 
     const func = makeFunc()
     const result = await FunctionExecutor.execute(func)
 
-    expect(result.success).toBe(true)
-    expect(result.output).toBe(`Hello, World!`)
+    expect(result.success).toBe(false)
+    expect(result.error).toBe(`Function produced no result`)
   })
 })

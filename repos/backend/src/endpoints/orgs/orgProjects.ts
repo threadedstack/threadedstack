@@ -31,6 +31,10 @@ import { listAgents } from '@TBE/endpoints/agents/listAgents'
 import { createAgent } from '@TBE/endpoints/agents/createAgent'
 import { updateAgent } from '@TBE/endpoints/agents/updateAgent'
 import { deleteAgent } from '@TBE/endpoints/agents/deleteAgent'
+import { addProjectMember } from '@TBE/endpoints/projects/addProjectMember'
+import { listProjectMembers } from '@TBE/endpoints/projects/listProjectMembers'
+import { removeProjectMember } from '@TBE/endpoints/projects/removeProjectMember'
+import { updateProjectMemberRole } from '@TBE/endpoints/projects/updateProjectMemberRole'
 
 const projectEndpoints: TEndpointConfig = {
   path: `/:projectId/endpoints`,
@@ -92,6 +96,17 @@ const projectAgents: TEndpointConfig = {
   },
 }
 
+const projectMembers: TEndpointConfig = {
+  path: `/:projectId/members`,
+  method: EPMethod.Use,
+  endpoints: {
+    listProjectMembers,
+    addProjectMember,
+    updateProjectMemberRole,
+    removeProjectMember,
+  },
+}
+
 export const orgProjects: TEndpointConfig = {
   path: `/:orgId/projects`,
   method: EPMethod.Use,
@@ -106,5 +121,6 @@ export const orgProjects: TEndpointConfig = {
     projectSecrets,
     projectDomains,
     projectAgents,
+    projectMembers,
   },
 }

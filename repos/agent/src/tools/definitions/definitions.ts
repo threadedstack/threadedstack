@@ -3,12 +3,18 @@ import type { Function as FunctionModel } from '@tdsk/domain'
 
 import { fsTools } from './fs/fs'
 import { webTools } from './web/web'
+import { codeTools } from './code/code'
 import { shellTools } from './shell/definition'
 
 /**
  * All available agent tool definitions
  */
-export const allToolDefs: TLLMToolDef[] = [...fsTools, ...shellTools, ...webTools]
+export const allToolDefs: TLLMToolDef[] = [
+  ...fsTools,
+  ...shellTools,
+  ...webTools,
+  ...codeTools,
+]
 
 /**
  * Get tool definitions filtered by allowed tool names

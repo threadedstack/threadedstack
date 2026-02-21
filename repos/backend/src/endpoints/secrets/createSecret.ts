@@ -100,10 +100,10 @@ export const createSecret: TEndpointConfig = {
         hashKey,
         description,
         encryptedValue,
-        ...(orgId && { orgId }),
         ...(agentId && { agentId }),
         ...(projectId && { projectId }),
         ...(providerId && { providerId }),
+        ...(orgId && !projectId && !agentId && { orgId }),
       })
 
       const { data, error } = await db.services.secret.create(secret)

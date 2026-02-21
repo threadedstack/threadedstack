@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
-import { get, post, api, del } from '../utils/api-client'
+import { get, post, api } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 
@@ -11,10 +11,7 @@ import { tryDelete } from '../utils/cleanup'
  *
  * Flow: quickstart → create function → create FaaS endpoint → execute via /proxy
  *
- * NOTE: Sandbox execution may fail in CI or local environments where the
- * sandbox runtime (esbuild + node runner) is not fully available. Tests are
- * designed to be resilient — we verify routing and error handling even when
- * sandbox execution itself cannot complete.
+ * The sandbox uses V8 isolate execution (IsolateRunner + isolated-vm).
  */
 describe('Tier 3: FaaS Endpoint Execution Flow', () => {
   const ctx = readContext()
@@ -23,11 +20,13 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
   let setupFailed = false
   let quickstartResult: Record<string, any> = {}
   let projectId = ''
-  let functionId = ''
-  let faasEndpointId = ''
+  let tsFunctionId = ''
+  let jsFunctionId = ''
+  let tsEndpointId = ''
+  let jsEndpointId = ''
   let badEndpointId = ''
 
-  const simpleFunctionContent = `export default async function handler(request: any, context: any) {
+  const tsFunctionContent = `export default async function handler(request: any, context: any) {
   return {
     statusCode: 200,
     headers: { 'X-Custom-Header': 'test-value' },
@@ -35,6 +34,17 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       message: 'hello from faas',
       receivedMethod: request?.method,
       receivedBody: request?.body
+    }
+  }
+}`
+
+  const jsFunctionContent = `export default async function handler(request, context) {
+  return {
+    statusCode: 200,
+    body: {
+      message: 'hello from js faas',
+      receivedQuery: request?.query,
+      contextArgs: context?.args
     }
   }
 }`
@@ -59,45 +69,83 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
     quickstartResult = qsRes.data.data
     projectId = quickstartResult.project.id
 
-    // Step 2: Create a TypeScript function in the project
-    const fnRes = await post<{ data: Record<string, any> }>(
+    // Step 2: Create a TypeScript function
+    const tsFnRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
-        name: `FaaS Test Function ${timestamp}`,
-        content: simpleFunctionContent,
+        name: `FaaS TS Function ${timestamp}`,
+        content: tsFunctionContent,
         language: 'typescript',
         projectId,
       }
     )
 
-    if (fnRes.status !== 201 || !fnRes.data?.data?.id) {
+    if (tsFnRes.status !== 201 || !tsFnRes.data?.data?.id) {
       setupFailed = true
       return
     }
 
-    functionId = fnRes.data.data.id
+    tsFunctionId = tsFnRes.data.data.id
 
-    // Step 3: Create a FaaS-type endpoint linked to the function
-    const epRes = await post<{ data: Record<string, any> }>(
-      `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
+    // Step 3: Create a JavaScript function (no esbuild transpile needed)
+    const jsFnRes = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
-        name: `FaaS Test Endpoint ${timestamp}`,
-        path: `/faas/test-${timestamp}`,
-        type: 'faas',
-        method: 'post',
+        name: `FaaS JS Function ${timestamp}`,
+        content: jsFunctionContent,
+        language: 'javascript',
         projectId,
-        options: { functionId },
       }
     )
 
-    if (epRes.status !== 201 || !epRes.data?.data?.id) {
+    if (jsFnRes.status !== 201 || !jsFnRes.data?.data?.id) {
       setupFailed = true
       return
     }
 
-    faasEndpointId = epRes.data.data.id
+    jsFunctionId = jsFnRes.data.data.id
 
-    // Step 4: Create a FaaS endpoint with an invalid functionId for error testing
+    // Step 4: Create FaaS endpoint linked to TypeScript function
+    const tsEpRes = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
+      {
+        name: `FaaS TS Endpoint ${timestamp}`,
+        path: `/faas/ts-test-${timestamp}`,
+        type: 'faas',
+        method: 'post',
+        projectId,
+        options: { functionId: tsFunctionId },
+      }
+    )
+
+    if (tsEpRes.status !== 201 || !tsEpRes.data?.data?.id) {
+      setupFailed = true
+      return
+    }
+
+    tsEndpointId = tsEpRes.data.data.id
+
+    // Step 5: Create FaaS endpoint linked to JavaScript function
+    const jsEpRes = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
+      {
+        name: `FaaS JS Endpoint ${timestamp}`,
+        path: `/faas/js-test-${timestamp}`,
+        type: 'faas',
+        method: 'post',
+        projectId,
+        options: { functionId: jsFunctionId },
+      }
+    )
+
+    if (jsEpRes.status !== 201 || !jsEpRes.data?.data?.id) {
+      setupFailed = true
+      return
+    }
+
+    jsEndpointId = jsEpRes.data.data.id
+
+    // Step 6: Create FaaS endpoint with invalid functionId for error testing
     const badEpRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
@@ -116,13 +164,16 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
   }, 30_000)
 
   afterAll(async () => {
-    // Clean up in reverse creation order
     if (badEndpointId)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${badEndpointId}`)
-    if (faasEndpointId)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${faasEndpointId}`)
-    if (functionId)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`)
+    if (jsEndpointId)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${jsEndpointId}`)
+    if (tsEndpointId)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${tsEndpointId}`)
+    if (jsFunctionId)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/functions/${jsFunctionId}`)
+    if (tsFunctionId)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/functions/${tsFunctionId}`)
     if (quickstartResult.endpoint?.id)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${quickstartResult.endpoint.id}`)
     if (quickstartResult.agent?.id)
@@ -135,31 +186,32 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
   })
 
-  test('FaaS endpoint exists and is accessible', async () => {
+  // --- Endpoint verification ---
+
+  test('FaaS endpoint exists with correct configuration', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    // Verify the endpoint was created with correct type
     const res = await get<{ data: Record<string, any> }>(
-      `/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${faasEndpointId}`
+      `/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${tsEndpointId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.data).toBeDefined()
 
     const ep = res.data.data ?? res.data
-    expect(ep).toBeDefined()
     expect(ep.type).toBe('faas')
-    expect(ep.id).toBe(faasEndpointId)
+    expect(ep.id).toBe(tsEndpointId)
     expect(ep.options).toBeDefined()
-    expect(ep.options.functionId).toBe(functionId)
+    expect(ep.options.functionId).toBe(tsFunctionId)
   })
 
-  test('execute function via proxy returns response', async () => {
+  // --- TypeScript function execution ---
+
+  test('execute TypeScript function via proxy', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    // POST to /proxy/:projectId/:endpointId to trigger FaaS execution
     const res = await api<any>(
-      `/proxy/${projectId}/${faasEndpointId}`,
+      `/proxy/${projectId}/${tsEndpointId}`,
       {
         method: 'POST',
         rawPath: true,
@@ -167,28 +219,17 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       }
     )
 
-    // The FaaS execution may succeed (200) or fail due to sandbox limitations (500).
-    // Either way, the proxy routing should work — we should not get 404 (endpoint not found).
-    expect(res.status).not.toBe(404)
-
-    if (res.ok) {
-      // If sandbox execution succeeded, verify the function's response
-      const body = res.data
-      expect(body).toBeDefined()
-      expect(body.message).toBe('hello from faas')
-    } else {
-      // If execution failed (sandbox not available, transpile error, etc.),
-      // verify we get a structured error response (not a raw crash)
-      expect([400, 500, 502, 503]).toContain(res.status)
-    }
+    expect(res.status).toBe(200)
+    expect(res.data).toBeDefined()
+    expect(res.data.message).toBe('hello from faas')
   })
 
-  test('function receives request data', async () => {
+  test('TypeScript function receives request method and body', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const requestBody = { greeting: 'world', count: 42 }
     const res = await api<any>(
-      `/proxy/${projectId}/${faasEndpointId}`,
+      `/proxy/${projectId}/${tsEndpointId}`,
       {
         method: 'POST',
         rawPath: true,
@@ -196,32 +237,53 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       }
     )
 
-    expect(res.status).not.toBe(404)
-
-    if (res.ok) {
-      // If sandbox executed successfully, the function should echo back
-      // the request body and method it received
-      const body = res.data
-      expect(body).toBeDefined()
-      expect(body.receivedMethod).toBe('POST')
-      expect(body.receivedBody).toEqual(requestBody)
-    } else {
-      // Sandbox execution failed — still validates routing worked
-      expect([400, 500, 502, 503]).toContain(res.status)
-    }
+    expect(res.status).toBe(200)
+    expect(res.data).toBeDefined()
+    expect(res.data.receivedMethod).toBe('POST')
+    expect(res.data.receivedBody).toEqual(requestBody)
   })
 
-  test('function without valid functionId returns error', async () => {
+  test('TypeScript function sets custom response headers', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    // Skip if the bad endpoint was not created (e.g., validation rejected it)
-    if (!badEndpointId) {
-      // If the endpoint creation was rejected, that is also acceptable behavior —
-      // the system prevented an invalid endpoint from being created
-      return
-    }
+    const res = await api<any>(
+      `/proxy/${projectId}/${tsEndpointId}`,
+      {
+        method: 'POST',
+        rawPath: true,
+        body: { test: true },
+      }
+    )
 
-    // Execute against the endpoint with a non-existent functionId
+    expect(res.status).toBe(200)
+    expect(res.data?.message).toBe('hello from faas')
+  })
+
+  // --- JavaScript function execution ---
+
+  test('JavaScript function executes without esbuild transpile', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await api<any>(
+      `/proxy/${projectId}/${jsEndpointId}`,
+      {
+        method: 'POST',
+        rawPath: true,
+        body: { data: 'js-test' },
+      }
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.data).toBeDefined()
+    expect(res.data.message).toBe('hello from js faas')
+  })
+
+  // --- Error handling ---
+
+  test('endpoint with non-existent functionId returns error', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+    if (!badEndpointId) return
+
     const res = await api<any>(
       `/proxy/${projectId}/${badEndpointId}`,
       {
@@ -231,35 +293,104 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       }
     )
 
-    // Should fail with 404 (function not found) or 500 (execution error)
     expect(res.ok).toBe(false)
     expect([400, 404, 500]).toContain(res.status)
   })
 
+  test('non-existent endpoint returns 404', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await api<any>(
+      `/proxy/${projectId}/00000000-0000-0000-0000-000000000000`,
+      {
+        method: 'POST',
+        rawPath: true,
+        body: {},
+      }
+    )
+
+    expect(res.ok).toBe(false)
+    expect(res.status).toBe(404)
+  })
+
+  // --- Method handling ---
+
   test('GET request to FaaS endpoint is handled', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    // Test that a GET request also routes correctly to the FaaS handler
-    // The proxy endpoint uses EPMethod.All, so any HTTP method should work
     const res = await api<any>(
-      `/proxy/${projectId}/${faasEndpointId}`,
+      `/proxy/${projectId}/${tsEndpointId}`,
       {
         method: 'GET',
         rawPath: true,
       }
     )
 
-    // Should not 404 — the endpoint exists and routing should work
-    expect(res.status).not.toBe(404)
+    // FaaS endpoints accept all methods via EPMethod.All
+    expect(res.status).toBe(200)
+    expect(res.data).toBeDefined()
+    expect(res.data.message).toBe('hello from faas')
+    expect(res.data.receivedMethod).toBe('GET')
+  })
 
-    if (res.ok) {
-      const body = res.data
-      expect(body).toBeDefined()
-      expect(body.message).toBe('hello from faas')
-      expect(body.receivedMethod).toBe('GET')
-    } else {
-      // Method mismatch (405) or sandbox failure (500) are acceptable
-      expect([400, 405, 500, 502, 503]).toContain(res.status)
+  // --- Request data passthrough ---
+
+  test('function receives empty body gracefully', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await api<any>(
+      `/proxy/${projectId}/${tsEndpointId}`,
+      {
+        method: 'POST',
+        rawPath: true,
+        body: {},
+      }
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.data).toBeDefined()
+    expect(res.data.message).toBe('hello from faas')
+    expect(res.data.receivedBody).toEqual({})
+  })
+
+  test('function handles complex nested request body', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const complexBody = {
+      users: [{ name: 'Alice', age: 30 }, { name: 'Bob', age: 25 }],
+      metadata: { source: 'integration-test', nested: { deep: true } },
     }
+
+    const res = await api<any>(
+      `/proxy/${projectId}/${tsEndpointId}`,
+      {
+        method: 'POST',
+        rawPath: true,
+        body: complexBody,
+      }
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.data).toBeDefined()
+    expect(res.data.receivedBody).toEqual(complexBody)
+  })
+
+  // --- Auth ---
+
+  test('proxy request without auth returns 401', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await api<any>(
+      `/proxy/${projectId}/${tsEndpointId}`,
+      {
+        method: 'POST',
+        rawPath: true,
+        body: {},
+        noAuth: true,
+      }
+    )
+
+    expect(res.ok).toBe(false)
+    expect(res.status).toBe(401)
   })
 })

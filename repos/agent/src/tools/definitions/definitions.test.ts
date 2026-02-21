@@ -35,6 +35,8 @@ describe(`Tool definitions`, () => {
       expect(names).toContain(`writeFile`)
       // shell tools
       expect(names).toContain(`shellExec`)
+      // code tools
+      expect(names).toContain(`evalCode`)
     })
   })
 

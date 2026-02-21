@@ -183,6 +183,45 @@ export const createSandboxTools = (
       },
     },
     {
+      name: `evalCode`,
+      label: `Evaluate Code`,
+      description: `Evaluate JavaScript code in an isolated V8 sandbox`,
+      parameters: Type.Object({
+        code: Type.String({
+          description: `JavaScript code to evaluate. Use 'export default' to return a value.`,
+        }),
+        timeout: Type.Optional(
+          Type.Number({
+            description: `Execution timeout in milliseconds (default: 5000)`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: { code: string; timeout?: number },
+        _signal,
+        onUpdate
+      ) => {
+        onUpdate?.({
+          content: [{ type: `text`, text: `Evaluating code...` }],
+          details: { status: `running` },
+        })
+        const result = await sandbox.evaluate(params.code, {
+          timeout: params.timeout,
+        })
+        const output =
+          result.result !== undefined
+            ? typeof result.result === `string`
+              ? result.result
+              : JSON.stringify(result.result)
+            : result.output || `(no output)`
+        return {
+          content: [{ type: `text`, text: output }],
+          details: { success: true, consoleOutput: result.output },
+        }
+      },
+    },
+    {
       name: `webSearch`,
       label: `Web Search`,
       description: `Search the web for information`,

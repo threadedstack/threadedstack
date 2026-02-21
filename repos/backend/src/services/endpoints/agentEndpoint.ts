@@ -152,15 +152,10 @@ export class AgentEndpoint extends BaseEndpoint {
     }
 
     // Build sandbox config
-    const sandbox = agent.environment?.options?.sandbox as
-      | Record<string, unknown>
-      | undefined
     const sandboxConfig = {
       envVars: { ...agent.envVars, ...overrides?.envVars },
       timeout: agent.environment?.timeout ?? 300000,
-      apiKey: sandbox?.apiKey as string | undefined,
-      template: sandbox?.template as string | undefined,
-      provider: (sandbox?.provider as string) || `local`,
+      provider: `local` as const,
     }
 
     // Handle client disconnect

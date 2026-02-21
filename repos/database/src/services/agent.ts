@@ -150,13 +150,16 @@ export class Agent extends Base<
    * Checks a custom sanitize flag on the data object
    */
   model = (data: TAgentSelectOpts, sanitizeOpts?: { sanitize?: boolean }) => {
+    const sortedProviders = (data.providers || []).sort(
+      (a, b) => (a.priority ?? 0) - (b.priority ?? 0)
+    )
+
     const agent = new AgentModel({
       ...data,
       projects: (data.projects || []).map((link) => link.project),
       functions: (data.functions || []).map((link) => link.function),
-      providers: (data.providers || [])
-        .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
-        .map((link) => link.provider),
+      providerPriorities: sortedProviders.map((link) => link.priority ?? 0),
+      providers: sortedProviders.map((link) => link.provider),
     })
 
     // If sanitize is not explicitly false, sanitize the secrets

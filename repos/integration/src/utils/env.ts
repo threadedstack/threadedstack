@@ -65,6 +65,15 @@ export const env = {
     return process.env.TDSK_IT_PROVIDER_KEY || ''
   },
 
+  /**
+   * Echo endpoint URL reachable from inside the backend K8s pod.
+   * Used as the target URL for proxy-type endpoint integration tests.
+   * Defaults to the proxy's K8s internal service address.
+   */
+  get echoUrl() {
+    return process.env.TDSK_IT_ECHO_URL || 'http://tdsk-proxy:7118/echo'
+  },
+
   /** Neon Auth URL pattern for Playwright interception */
   neonAuthPattern: '**/neondb/auth/get-session**',
 } as const

@@ -5,6 +5,7 @@ import type { Endpoint, Secret, TEndpointOpts } from '@tdsk/domain'
 
 import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import type { EEndpointType } from '@tdsk/domain'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -54,14 +55,25 @@ export abstract class BaseEndpoint {
   }
 
   /**
-   * Fetch secrets scoped to the endpoint's project.
-   * Fixes the previous un-scoped db.services.secret.list() call.
+   * Fetch and decrypt secrets scoped to the endpoint's project.
+   * Secrets are decrypted so {{template}} resolution and auth injection work.
    */
   async fetchSecrets(db: TDatabase, endpoint: Endpoint): Promise<Secret[]> {
     const { data: secrets = [] } = await db.services.secret.list({
       where: { projectId: endpoint.projectId },
     })
-    return secrets as Secret[]
+
+    if (!secrets.length) return []
+
+    const resolver = new SecretResolver(db)
+    const decrypted: Secret[] = []
+
+    for (const secret of secrets) {
+      const value = await resolver.decrypt(secret, secret.orgId || '')
+      decrypted.push(value ? ({ ...secret, value } as Secret) : (secret as Secret))
+    }
+
+    return decrypted
   }
 
   /**

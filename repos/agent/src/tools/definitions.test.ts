@@ -9,13 +9,14 @@ const expectedToolNames = [
   `mkdir`,
   `fileExists`,
   `shellExec`,
+  `evalCode`,
   `webSearch`,
 ]
 
 describe(`Tool definitions`, () => {
   describe(`allToolDefs`, () => {
-    it(`should contain 8 tool definitions`, () => {
-      expect(allToolDefs).toHaveLength(8)
+    it(`should contain 9 tool definitions`, () => {
+      expect(allToolDefs).toHaveLength(9)
     })
 
     it(`should include all expected tool names`, () => {
@@ -71,13 +72,13 @@ describe(`Tool definitions`, () => {
     it(`should return all tools when no args provided`, () => {
       const result = getToolDefs()
       expect(result).toEqual(allToolDefs)
-      expect(result).toHaveLength(8)
+      expect(result).toHaveLength(9)
     })
 
     it(`should return all tools when empty array provided`, () => {
       const result = getToolDefs([])
       expect(result).toEqual(allToolDefs)
-      expect(result).toHaveLength(8)
+      expect(result).toHaveLength(9)
     })
 
     it(`should filter to only the requested tools`, () => {

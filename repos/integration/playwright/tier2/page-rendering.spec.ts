@@ -93,7 +93,7 @@ test.describe('Org Pages', () => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/users`, 'tdsk-org-users-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/users`, 'tdsk-org-members-page')
 
     // PageLayout renders "Users" as the title via PageHeader
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()

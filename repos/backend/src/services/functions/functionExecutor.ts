@@ -9,29 +9,11 @@ import { logger } from '@TBE/utils/logger'
 import { EFunLanguage } from '@tdsk/domain'
 import { createSandboxProvider } from '@tdsk/sandbox'
 
-// TODO: Move this to be constants, should not be hardcoded
 /** 1 MB output cap */
 const MAX_OUTPUT_BYTES = 1_048_576
 
 /** Default execution timeout in ms */
 const DEFAULT_TIMEOUT_MS = 30_000
-
-/**
- * Runner wrapper that imports the function module, parses input from
- * the __FUNCTION_INPUT__ env var, calls the handler, and writes JSON to stdout.
- */
-const RUNNER_CODE = `import handler from './function.mjs';
-const input = JSON.parse(process.env.__FUNCTION_INPUT__ || '{}');
-try {
-  const result = await handler(input.request || {}, input.context || {});
-  process.stdout.write(JSON.stringify({ success: true, output: result }));
-} catch (err) {
-  process.stdout.write(JSON.stringify({
-    success: false,
-    error: err instanceof Error ? err.message : String(err),
-  }));
-}
-`
 
 type TFunctionRecord = {
   id: string
@@ -48,21 +30,44 @@ type TExecuteOpts = {
 }
 
 /**
+ * Build the wrapper code that imports the user function module,
+ * calls the handler with the serialized input, and exports the result.
+ */
+const buildWrapperCode = (
+  request: TFunctionRequest,
+  context: TFunctionContext
+): string => {
+  const requestJson = JSON.stringify(request)
+  const contextJson = JSON.stringify(context)
+
+  return `import handler from 'function';
+const request = JSON.parse(${JSON.stringify(requestJson)});
+const context = JSON.parse(${JSON.stringify(contextJson)});
+let output;
+try {
+  output = { success: true, output: await handler(request, context) };
+} catch (err) {
+  output = { success: false, error: err?.message || String(err) };
+}
+export default output;`
+}
+
+/**
  * FunctionExecutor
  *
- * Executes user-defined functions inside a sandboxed environment.
+ * Executes user-defined functions inside an isolated V8 sandbox.
  * TypeScript functions are transpiled via esbuild before execution.
  * The sandbox is always torn down in a finally block.
  */
 export class FunctionExecutor {
   /**
-   * Execute a function record inside a local sandbox.
+   * Execute a function record inside a local sandbox using V8 isolate evaluation.
    *
    * 1. If TypeScript, strip types via esbuild
-   * 2. Create a local sandbox with __FUNCTION_INPUT__ as an env var
-   * 3. Write the function code + runner wrapper to the sandbox
-   * 4. Run the runner via `node runner.mjs`
-   * 5. Parse the stdout JSON as TFunctionExecResult
+   * 2. Create a local sandbox
+   * 3. Register the function code as a named module
+   * 4. Build wrapper code that imports and calls the handler
+   * 5. Evaluate the wrapper via sandbox.evaluate()
    * 6. Always close the sandbox in finally
    */
   static execute = async (
@@ -80,34 +85,39 @@ export class FunctionExecutor {
         code = result.code
       }
 
-      // 2. Build the input payload for the env var
-      const inputPayload = JSON.stringify({
-        request: opts?.request || {},
-        context: opts?.context || {},
-      })
-
-      // 3. Create a local sandbox with the input as an env var
+      // 2. Create a local sandbox
       const provider = createSandboxProvider(`local`)
       sandbox = await provider.create({
         provider: `local`,
         timeout: opts?.timeout || DEFAULT_TIMEOUT_MS,
-        envVars: {
-          __FUNCTION_INPUT__: inputPayload,
-        },
       })
 
-      // 4. Write function code and runner wrapper
-      await sandbox.writeFile(`/workspace/function.mjs`, code)
-      await sandbox.writeFile(`/workspace/runner.mjs`, RUNNER_CODE)
+      // 3. Build wrapper that imports 'function' module and calls handler
+      const wrapperCode = buildWrapperCode(opts?.request || {}, opts?.context || {})
 
-      // 5. Run the runner in the sandbox
-      const sandboxResult = await sandbox.exec(`node`, [`runner.mjs`])
+      // 4. Evaluate via V8 isolate with function code registered as module
+      const evalResult = await sandbox.evaluate(wrapperCode, {
+        timeout: opts?.timeout || DEFAULT_TIMEOUT_MS,
+        modules: { function: code },
+      })
 
-      // 6. Parse the output
-      const rawOutput = sandboxResult.output || ``
+      // 5. Parse the result
+      const parsed = evalResult.result as
+        | { success: boolean; output?: unknown; error?: string }
+        | undefined
+
+      if (!parsed) {
+        return {
+          success: false,
+          output: null,
+          duration: Date.now() - startTime,
+          error: `Function produced no result`,
+        }
+      }
 
       // Cap output at 1MB
-      if (rawOutput.length > MAX_OUTPUT_BYTES) {
+      const outputStr = JSON.stringify(parsed.output ?? null)
+      if (outputStr.length > MAX_OUTPUT_BYTES) {
         return {
           success: false,
           output: null,
@@ -116,33 +126,11 @@ export class FunctionExecutor {
         }
       }
 
-      if (!sandboxResult.success) {
-        return {
-          success: false,
-          output: null,
-          duration: Date.now() - startTime,
-          error:
-            sandboxResult.error ||
-            `Function execution failed with exit code ${sandboxResult.exitCode}`,
-        }
-      }
-
-      // Try to parse JSON output from the runner
-      try {
-        const parsed = JSON.parse(rawOutput)
-        return {
-          success: parsed.success ?? false,
-          output: parsed.output ?? null,
-          duration: Date.now() - startTime,
-          error: parsed.error,
-        }
-      } catch {
-        // If output is not JSON, return raw output
-        return {
-          success: true,
-          output: rawOutput,
-          duration: Date.now() - startTime,
-        }
+      return {
+        success: parsed.success ?? false,
+        output: parsed.output ?? null,
+        duration: Date.now() - startTime,
+        error: parsed.error,
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

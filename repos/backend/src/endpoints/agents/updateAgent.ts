@@ -16,7 +16,23 @@ export const updateAgent: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const { projectIds = [], functionIds = [], providerIds = [], ...agent } = req.body
+    const {
+      projectIds = [],
+      functionIds = [],
+      providerIds: rawProviderIds = [],
+      providers: providersWithPriority,
+      ...agent
+    } = req.body
+
+    // Support both formats: providerIds[] (ordered array) or providers[{id, priority}]
+    const providerIds = providersWithPriority?.length
+      ? providersWithPriority
+          .sort(
+            (a: { priority?: number }, b: { priority?: number }) =>
+              (a.priority ?? 0) - (b.priority ?? 0)
+          )
+          .map((p: { id: string }) => p.id)
+      : rawProviderIds
 
     // First get the agent to check permissions
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)

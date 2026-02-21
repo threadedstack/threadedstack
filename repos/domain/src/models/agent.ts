@@ -1,4 +1,4 @@
-import type { TAgentEnvVars, TAgentEnvironment } from '@TDM/types'
+import type { TAgentEnvVars, TAgentEnvironment, TAgentProvider } from '@TDM/types'
 
 import { Base } from './base'
 import { Secret } from './secret'
@@ -18,6 +18,7 @@ export class Agent extends Base {
   secrets: Secret[] = []
   projects: Project[] = []
   providers: Provider[] = []
+  providerPriorities: number[] = []
   envVars: TAgentEnvVars = {}
   functions: FunctionModel[] = []
   environment: TAgentEnvironment = {}
@@ -25,7 +26,7 @@ export class Agent extends Base {
   constructor(agent: Partial<Agent>) {
     super()
 
-    const { secrets, functions, providers, projects, ...rest } = agent
+    const { secrets, functions, providers, projects, providerPriorities, ...rest } = agent
 
     Object.assign(this, {
       ...rest,
@@ -45,11 +46,23 @@ export class Agent extends Base {
         providers?.map((prov) =>
           prov instanceof Provider ? prov : new Provider(prov)
         ) || [],
+      providerPriorities: providerPriorities || [],
     })
   }
 
   get primaryProvider(): Provider | undefined {
     return this.providers?.[0]
+  }
+
+  /**
+   * Returns providers with their priority metadata.
+   * If providerPriorities is empty, defaults priority to the array index.
+   */
+  get agentProviders(): TAgentProvider[] {
+    return this.providers.map((provider, index) => ({
+      provider,
+      priority: this.providerPriorities[index] ?? index,
+    }))
   }
 
   sanitize = () => {

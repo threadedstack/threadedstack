@@ -3,8 +3,9 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
-import { EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
+import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
 import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
+import { EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
 
 /**
  * GET /_/agents/:id - Get an agent by ID
@@ -31,6 +32,9 @@ export const getAgent: TEndpointConfig = {
     await checkPermission(req, EPermAction.read, EPermResource.agent, {
       orgId: agent.orgId,
     })
+
+    // Enforce project-level access for non-admin users
+    await requireAgentAccess(req, id, agent.orgId, agent)
 
     // If user wants unsanitized secrets, check they have permission
     if (!sanitize) {

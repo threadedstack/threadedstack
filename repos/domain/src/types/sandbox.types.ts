@@ -3,7 +3,6 @@
  */
 
 export enum ESandboxProvider {
-  e2b = `e2b`,
   local = `local`,
 }
 
@@ -24,16 +23,34 @@ export type TSandboxResult = {
  */
 export type TSandboxConfig = {
   provider: TSandboxProviderType
-  /** E2B API key or other provider credentials */
-  apiKey?: string
-  /** Sandbox template/image to use */
-  template?: string
   /** Timeout in milliseconds for sandbox operations */
   timeout?: number
   /** Environment variables to set in sandbox */
   envVars?: Record<string, string>
   /** Provider-specific options */
   options?: Record<string, unknown>
+}
+
+/**
+ * Result of evaluating code in the sandbox
+ */
+export type TSandboxEvalResult = {
+  /** Captured console output */
+  output: string
+  /** Default export from the evaluated module (if any) */
+  result: any
+}
+
+/**
+ * Options for eval()
+ */
+export type TSandboxEvalOpts = {
+  /** Execution timeout in ms (default: 5000) */
+  timeout?: number
+  /** Named ES modules to register before evaluation.
+   *  Keys are import specifiers, values are module source code.
+   *  The evaluated code can import from them by name. */
+  modules?: Record<string, string>
 }
 
 /**
@@ -54,6 +71,8 @@ export interface ISandbox {
   mkdir(path: string): Promise<void>
   /** Check if a file exists */
   fileExists(path: string): Promise<boolean>
+  /** Execute JavaScript code in an isolated V8 environment */
+  evaluate(code: string, opts?: TSandboxEvalOpts): Promise<TSandboxEvalResult>
   /** Close/destroy the sandbox */
   close(): Promise<void>
 }

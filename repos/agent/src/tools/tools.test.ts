@@ -12,6 +12,7 @@ const ALL_TOOL_NAMES = [
   `deleteFile`,
   `mkdir`,
   `fileExists`,
+  `evalCode`,
   `webSearch`,
 ]
 
@@ -33,13 +34,17 @@ describe(`createSandboxTools`, () => {
         output: `cmd output`,
         error: ``,
       }),
+      evaluate: vi.fn().mockResolvedValue({
+        output: `console output`,
+        result: 42,
+      }),
     }
   })
 
   describe(`tool creation and filtering`, () => {
-    it(`should return all 8 tools when no filter is provided`, () => {
+    it(`should return all 9 tools when no filter is provided`, () => {
       const tools = createSandboxTools(mockSandbox as any)
-      expect(tools).toHaveLength(8)
+      expect(tools).toHaveLength(9)
       expect(tools.map((t) => t.name)).toEqual(ALL_TOOL_NAMES)
     })
 
@@ -51,7 +56,7 @@ describe(`createSandboxTools`, () => {
 
     it(`should return all tools when allowedTools is an empty array`, () => {
       const tools = createSandboxTools(mockSandbox as any, [])
-      expect(tools).toHaveLength(8)
+      expect(tools).toHaveLength(9)
       expect(tools.map((t) => t.name)).toEqual(ALL_TOOL_NAMES)
     })
 
@@ -329,6 +334,125 @@ describe(`createSandboxTools`, () => {
     })
   })
 
+  describe(`evalCode`, () => {
+    it(`should call sandbox.evaluate with code and return result`, async () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `evalCode`)!
+      const result = await tool.execute(
+        `call-1`,
+        { code: `export default 42` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(mockSandbox.evaluate).toHaveBeenCalledWith(`export default 42`, {
+        timeout: undefined,
+      })
+      expect(result.content).toEqual([{ type: `text`, text: `42` }])
+      expect(result.details).toEqual({ success: true, consoleOutput: `console output` })
+    })
+
+    it(`should pass timeout to sandbox.evaluate`, async () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `evalCode`)!
+      await tool.execute(
+        `call-1`,
+        { code: `export default 1`, timeout: 10000 },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(mockSandbox.evaluate).toHaveBeenCalledWith(`export default 1`, {
+        timeout: 10000,
+      })
+    })
+
+    it(`should return string result directly`, async () => {
+      mockSandbox.evaluate.mockResolvedValue({
+        output: ``,
+        result: `hello world`,
+      })
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `evalCode`)!
+      const result = await tool.execute(
+        `call-1`,
+        { code: `export default 'hello world'` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([{ type: `text`, text: `hello world` }])
+    })
+
+    it(`should JSON.stringify non-string result`, async () => {
+      mockSandbox.evaluate.mockResolvedValue({
+        output: ``,
+        result: { key: `value` },
+      })
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `evalCode`)!
+      const result = await tool.execute(
+        `call-1`,
+        { code: `export default { key: 'value' }` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([{ type: `text`, text: `{"key":"value"}` }])
+    })
+
+    it(`should fallback to output when result is undefined`, async () => {
+      mockSandbox.evaluate.mockResolvedValue({
+        output: `logged something`,
+        result: undefined,
+      })
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `evalCode`)!
+      const result = await tool.execute(
+        `call-1`,
+        { code: `console.log('logged something')` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([{ type: `text`, text: `logged something` }])
+    })
+
+    it(`should return (no output) when both result and output are empty`, async () => {
+      mockSandbox.evaluate.mockResolvedValue({
+        output: ``,
+        result: undefined,
+      })
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `evalCode`)!
+      const result = await tool.execute(
+        `call-1`,
+        { code: `const x = 1` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([{ type: `text`, text: `(no output)` }])
+    })
+
+    it(`should call onUpdate with running status`, async () => {
+      const onUpdate = vi.fn()
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `evalCode`)!
+      await tool.execute(
+        `call-1`,
+        { code: `export default 1` },
+        undefined as any,
+        onUpdate
+      )
+
+      expect(onUpdate).toHaveBeenCalledWith({
+        content: [{ type: `text`, text: `Evaluating code...` }],
+        details: { status: `running` },
+      })
+    })
+  })
+
   describe(`webSearch`, () => {
     it(`should return not yet implemented message`, async () => {
       const tools = createSandboxTools(mockSandbox as any)
@@ -359,6 +483,7 @@ describe(`createSandboxTools`, () => {
         `Delete File`,
         `Create Directory`,
         `File Exists`,
+        `Evaluate Code`,
         `Web Search`,
       ])
     })
