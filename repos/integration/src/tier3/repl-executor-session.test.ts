@@ -3,21 +3,21 @@ import { readContext } from '../utils/test-context'
 import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/repl-auth'
 import { cleanupQuickstart, cleanupThread } from '../utils/repl-cleanup'
-import { ApiClient } from '@tdsk/repl/api'
-import { LocalAgentExecutor } from '@tdsk/repl/executor'
+import { ApiClient } from '@tdsk/repl/services/api'
+import { Executor } from '@tdsk/repl/services/executor'
 import { env } from '../utils/env'
 
 /**
- * Tier 3: REPL LocalAgentExecutor — Session & Thread Orchestration
+ * Tier 3: REPL Executor — Session & Thread Orchestration
  *
- * Validates that LocalAgentExecutor correctly orchestrates session creation
+ * Validates that Executor correctly orchestrates session creation
  * and thread creation against the live backend. Does NOT require a real LLM key
  * since session/thread creation use the backend admin API (API key auth), not LLM calls.
  */
-describe('Tier 3: REPL LocalAgentExecutor — session orchestration (live)', () => {
+describe('Tier 3: REPL Executor — session orchestration (live)', () => {
   const ctx = readContext()
   const timestamp = Date.now()
-  let executor: LocalAgentExecutor
+  let executor: Executor
 
   // Quickstart resources
   let agentId = ''
@@ -27,7 +27,7 @@ describe('Tier 3: REPL LocalAgentExecutor — session orchestration (live)', () 
   beforeAll(async () => {
     const auth = createTestAuth()
     const client = new ApiClient(auth as any)
-    executor = new LocalAgentExecutor(client)
+    executor = new Executor(client)
 
     // Create quickstart agent
     const res = await post<{ data: Record<string, any> }>(

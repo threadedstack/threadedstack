@@ -3,23 +3,23 @@ import { readContext } from '../utils/test-context'
 import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/repl-auth'
 import { cleanupQuickstart, cleanupThread } from '../utils/repl-cleanup'
-import { ApiClient } from '@tdsk/repl/api'
-import { LocalAgentExecutor } from '@tdsk/repl/executor'
+import { ApiClient } from '@tdsk/repl/services/api'
+import { Executor } from '@tdsk/repl/services/executor'
 import { env } from '../utils/env'
 import type { TStreamEvent } from '@tdsk/domain'
 
 /**
- * Tier 3: REPL LocalAgentExecutor — Full LLM E2E
+ * Tier 3: REPL Executor — Full LLM E2E
  *
- * Runs LocalAgentExecutor.run() with a real LLM provider key.
+ * Runs Executor.run() with a real LLM provider key.
  * All tests skip when TDSK_IT_PROVIDER_KEY is not set.
  */
 const hasProviderKey = () => !!env.testProviderKey
 
-describe('Tier 3: REPL LocalAgentExecutor — LLM E2E (live)', () => {
+describe('Tier 3: REPL Executor — LLM E2E (live)', () => {
   const ctx = readContext()
   const timestamp = Date.now()
-  let executor: LocalAgentExecutor
+  let executor: Executor
 
   // Quickstart resources (created with real key)
   let agentId = ''
@@ -31,7 +31,7 @@ describe('Tier 3: REPL LocalAgentExecutor — LLM E2E (live)', () => {
 
     const auth = createTestAuth()
     const client = new ApiClient(auth as any)
-    executor = new LocalAgentExecutor(client)
+    executor = new Executor(client)
 
     // Create quickstart agent with a REAL provider key
     const res = await post<{ data: Record<string, any> }>(

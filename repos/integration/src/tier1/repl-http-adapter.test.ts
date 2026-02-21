@@ -3,21 +3,21 @@ import { readContext } from '../utils/test-context'
 import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/repl-auth'
 import { cleanupQuickstart, cleanupThread } from '../utils/repl-cleanup'
-import { ApiClient } from '@tdsk/repl/api'
-import { HttpMessageAdapter } from '@tdsk/repl/executor'
+import { ApiClient } from '@tdsk/repl/services/api'
+import { DBProxy } from '@tdsk/repl/services/dbProxy'
 
 /**
- * Tier 1: REPL HttpMessageAdapter — IAgentRunnerDB Contract
+ * Tier 1: REPL DBProxy — IAgentRunnerDB Contract
  *
- * Validates that HttpMessageAdapter correctly implements the IAgentRunnerDB
+ * Validates that DBProxy correctly implements the IAgentRunnerDB
  * interface against the live backend. This is the bridge between AgentRunner
  * and the backend's message persistence.
  */
-describe('Tier 1: REPL HttpMessageAdapter (live)', () => {
+describe('Tier 1: REPL DBProxy (live)', () => {
   const ctx = readContext()
   const timestamp = Date.now()
   let client: ApiClient
-  let adapter: HttpMessageAdapter
+  let adapter: DBProxy
 
   // Quickstart resources
   let agentId = ''
@@ -48,7 +48,7 @@ describe('Tier 1: REPL HttpMessageAdapter (live)', () => {
     threadId = thread.id
 
     // Create adapter
-    adapter = new HttpMessageAdapter(client, ctx.orgId, agentId)
+    adapter = new DBProxy(client, ctx.orgId, agentId)
   })
 
   afterAll(async () => {

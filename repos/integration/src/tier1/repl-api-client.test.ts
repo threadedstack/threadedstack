@@ -132,13 +132,10 @@ describe('Tier 1: REPL ApiClient (live)', () => {
   // ─── Providers ────────────────────────────────────────────────────
 
   describe('providers', () => {
-    // Backend does not yet have GET /orgs/:orgId/agents/:agentId/providers
-    // The REPL client method exists for a future endpoint.
-    // This test validates the expected 404 until the backend adds the route.
-    test('listProviders returns 404 (endpoint not yet implemented)', async () => {
-      await expect(
-        client.listProviders(ctx.orgId, agentId)
-      ).rejects.toThrow('API error (404)')
+    test('listProviders returns array of providers', async () => {
+      const providers = await client.listProviders(ctx.orgId)
+      expect(Array.isArray(providers)).toBe(true)
+      expect(providers.length).toBeGreaterThan(0)
     })
   })
 

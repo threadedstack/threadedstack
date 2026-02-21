@@ -9,12 +9,12 @@ export const createTestAuth = (overrides?: {
   proxyUrl?: string
   insecure?: boolean
 }) => ({
-  getCredentials: () => ({
+  creds: () => ({
     apiKey: overrides?.apiKey ?? env.testApiKey,
     proxyUrl: overrides?.proxyUrl ?? env.proxyUrl,
     insecure: overrides?.insecure ?? true,
   }),
-  isLoggedIn: () => true,
+  loggedIn: () => true,
   login: async () => {},
   logout: () => {},
 })

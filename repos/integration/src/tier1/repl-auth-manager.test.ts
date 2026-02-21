@@ -21,7 +21,7 @@ vi.mock('@TRL/services/config', () => ({
   },
 }))
 
-import { AuthManager } from '@tdsk/repl/auth'
+import { AuthManager } from '@tdsk/repl/services/auth'
 
 describe('Tier 1: REPL AuthManager (live)', () => {
   const ctx = readContext()
@@ -55,15 +55,15 @@ describe('Tier 1: REPL AuthManager (live)', () => {
     expect(store.auth.apiKey).toBe(ctx.apiKey)
   })
 
-  test('isLoggedIn returns true after login', async () => {
+  test('loggedIn returns true after login', async () => {
     await auth.login(ctx.apiKey, env.proxyUrl, true)
-    expect(auth.isLoggedIn()).toBe(true)
+    expect(auth.loggedIn()).toBe(true)
   })
 
-  test('getCredentials returns stored values after login', async () => {
+  test('creds returns stored values after login', async () => {
     await auth.login(ctx.apiKey, env.proxyUrl, true)
 
-    const creds = auth.getCredentials()
+    const creds = auth.creds()
     expect(creds).not.toBeNull()
     expect(creds!.apiKey).toBe(ctx.apiKey)
     expect(creds!.proxyUrl).toBe(env.proxyUrl)
@@ -94,15 +94,15 @@ describe('Tier 1: REPL AuthManager (live)', () => {
 
   test('logout removes auth from store', async () => {
     await auth.login(ctx.apiKey, env.proxyUrl, true)
-    expect(auth.isLoggedIn()).toBe(true)
+    expect(auth.loggedIn()).toBe(true)
 
     auth.logout()
     expect(store.auth).toBeUndefined()
   })
 
-  test('isLoggedIn returns false after logout', async () => {
+  test('loggedIn returns false after logout', async () => {
     await auth.login(ctx.apiKey, env.proxyUrl, true)
     auth.logout()
-    expect(auth.isLoggedIn()).toBe(false)
+    expect(auth.loggedIn()).toBe(false)
   })
 })
