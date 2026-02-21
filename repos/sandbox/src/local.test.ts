@@ -188,6 +188,79 @@ describe(`LocalSandbox`, () => {
     })
   })
 
+  describe(`evaluate`, () => {
+    it(`should call isolateRunner eval with code and timeout`, async () => {
+      mockIsolateRunner.eval = vi.fn().mockResolvedValue({
+        output: `logged`,
+        result: 42,
+      })
+
+      const result = await sandbox.evaluate(`export default 42`, { timeout: 10000 })
+
+      expect(mockIsolateRunner.eval).toHaveBeenCalledWith(`export default 42`, 10000)
+      expect(result).toEqual({ output: `logged`, result: 42 })
+    })
+
+    it(`should use default timeout when not specified`, async () => {
+      mockIsolateRunner.eval = vi.fn().mockResolvedValue({
+        output: ``,
+        result: undefined,
+      })
+
+      await sandbox.evaluate(`const x = 1`)
+
+      expect(mockIsolateRunner.eval).toHaveBeenCalledWith(`const x = 1`, undefined)
+    })
+
+    it(`should register modules before evaluation`, async () => {
+      mockIsolateRunner.registerModule = vi.fn().mockResolvedValue(undefined)
+      mockIsolateRunner.eval = vi.fn().mockResolvedValue({
+        output: ``,
+        result: `ok`,
+      })
+
+      await sandbox.evaluate(`import fn from 'mymod'; export default fn()`, {
+        modules: { mymod: `export default () => 'ok'` },
+      })
+
+      expect(mockIsolateRunner.registerModule).toHaveBeenCalledWith(
+        `mymod`,
+        `export default () => 'ok'`
+      )
+      expect(mockIsolateRunner.eval).toHaveBeenCalled()
+    })
+
+    it(`should register multiple modules`, async () => {
+      mockIsolateRunner.registerModule = vi.fn().mockResolvedValue(undefined)
+      mockIsolateRunner.eval = vi.fn().mockResolvedValue({
+        output: ``,
+        result: undefined,
+      })
+
+      await sandbox.evaluate(`import a from 'a'; import b from 'b'`, {
+        modules: { a: `export default 1`, b: `export default 2` },
+      })
+
+      expect(mockIsolateRunner.registerModule).toHaveBeenCalledTimes(2)
+      expect(mockIsolateRunner.registerModule).toHaveBeenCalledWith(
+        `a`,
+        `export default 1`
+      )
+      expect(mockIsolateRunner.registerModule).toHaveBeenCalledWith(
+        `b`,
+        `export default 2`
+      )
+    })
+
+    it(`should throw when isolateRunner is null`, async () => {
+      const sandboxNoIsolate = new LocalSandbox(mockBash, mockFs, null)
+
+      await expect(sandboxNoIsolate.evaluate(`code`)).rejects.toThrow(
+        `Code execution not available`
+      )
+    })
+  })
+
   describe(`close`, () => {
     it(`should dispose the isolate runner`, async () => {
       await sandbox.close()

@@ -23,7 +23,7 @@ export type IsolateRunnerOptions = {
 /**
  * IsolateRunner wraps isolated-vm for safe JS code execution
  * Uses V8 isolates with configurable memory limits
- * Node.js API shims (fs, path, shell) route to just-bash
+ * Node.js API shims (fs, path, shell) route to just-bash; fetch bridges to host
  */
 export class IsolateRunner {
   #bash: Bash
@@ -163,6 +163,48 @@ export class IsolateRunner {
       )
     )
 
+    // Fetch callback — bridges to Node.js native fetch for HTTP requests
+    await jail.set(
+      `_fetch`,
+      new ivm.Callback(
+        async (url: string, optsJson: string) => {
+          const opts = optsJson ? JSON.parse(optsJson) : {}
+          const response = await fetch(url, opts)
+          const body = await response.text()
+          return JSON.stringify({
+            ok: response.ok,
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            body,
+            url: response.url,
+          })
+        },
+        { async: true }
+      )
+    )
+
+    // Fetch global — provides standard fetch() API inside the isolate
+    await this.#context.eval(`
+      globalThis.fetch = async (url, opts) => {
+        const raw = await _fetch(url, opts ? JSON.stringify(opts) : '')
+        const data = JSON.parse(raw)
+        return {
+          ok: data.ok,
+          status: data.status,
+          statusText: data.statusText,
+          url: data.url,
+          headers: {
+            get: (n) => data.headers[n.toLowerCase()] || null,
+            has: (n) => n.toLowerCase() in data.headers,
+            entries: () => Object.entries(data.headers),
+          },
+          text: async () => data.body,
+          json: async () => JSON.parse(data.body),
+        }
+      }
+    `)
+
     await this.#compile()
     this.#initialized = true
   }
@@ -174,23 +216,14 @@ export class IsolateRunner {
     const fsSource = `
       export const readFile = globalThis._fsReadFile
       export const writeFile = globalThis._fsWriteFile
-      export const existsSync = globalThis._fsExists
       export const exists = globalThis._fsExists
-      export const mkdirSync = globalThis._fsMkdir
       export const mkdir = globalThis._fsMkdir
-      export const readdirSync = globalThis._fsReaddir
       export const readdir = globalThis._fsReaddir
-      export const unlinkSync = globalThis._fsUnlink
       export const unlink = globalThis._fsUnlink
-      export const statSync = globalThis._fsStat
       export const stat = globalThis._fsStat
-      export const readFileSync = globalThis._fsReadFile
-      export const writeFileSync = globalThis._fsWriteFile
       export default {
-        readFile, writeFile, exists, existsSync,
-        mkdir, mkdirSync, readdir, readdirSync,
-        unlink, unlinkSync, stat, statSync,
-        readFileSync, writeFileSync,
+        readFile, writeFile, exists,
+        mkdir, readdir, unlink, stat,
       }
     `
     const fsMod = await this.#isolate.compileModule(fsSource, { filename: `node:fs` })
@@ -240,12 +273,10 @@ export class IsolateRunner {
     this.#shims.set(`node:path`, pathMod)
 
     // Shell shim — routes commands to just-bash virtual shell
-    // Named as child_process for Node.js API compatibility
     const shellSource = `
       const run = globalThis._shellRun
-      export { run as execSync }
       export { run }
-      export default { execSync: run, run }
+      export default { run }
     `
     const shellMod = await this.#isolate.compileModule(shellSource, {
       filename: `node:child_process`,
@@ -256,6 +287,23 @@ export class IsolateRunner {
     await shellMod.evaluate()
     this.#shims.set(`child_process`, shellMod)
     this.#shims.set(`node:child_process`, shellMod)
+  }
+
+  /**
+   * Register a named ES module that can be imported by user code.
+   * The module's imports are resolved against existing shims (fs, path, shell).
+   */
+  async registerModule(name: string, code: string): Promise<void> {
+    if (!this.#initialized) await this.init()
+
+    const mod = await this.#isolate!.compileModule(code, { filename: name })
+    await mod.instantiate(this.#context!, (specifier: string) => {
+      const shim = this.#shims.get(specifier)
+      if (!shim) throw new Error(`Module not found: ${specifier}`)
+      return shim
+    })
+    await mod.evaluate()
+    this.#shims.set(name, mod)
   }
 
   async eval(code: string, timeout = 5000): Promise<{ output: string; result: any }> {

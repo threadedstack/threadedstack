@@ -192,6 +192,22 @@ describe(`IsolateRunner`, () => {
       const setCallArgs = mockSet.mock.calls.map((c: any) => c[0])
       expect(setCallArgs).toContain(`_shellRun`)
     })
+
+    it(`should set up fetch callback`, async () => {
+      await runner.init()
+
+      const setCallArgs = mockSet.mock.calls.map((c: any) => c[0])
+      expect(setCallArgs).toContain(`_fetch`)
+    })
+
+    it(`should set up globalThis.fetch via context eval`, async () => {
+      await runner.init()
+
+      // context.eval called twice: once for console, once for fetch
+      expect(mockContextEval).toHaveBeenCalledTimes(2)
+      const fetchEvalCall = mockContextEval.mock.calls[1][0]
+      expect(fetchEvalCall).toContain(`globalThis.fetch`)
+    })
   })
 
   describe(`code evaluation`, () => {
@@ -256,6 +272,43 @@ describe(`IsolateRunner`, () => {
       const result = await runIsolate(runner, `const x = 1`)
 
       expect(result.result).toBeUndefined()
+    })
+  })
+
+  describe(`registerModule`, () => {
+    it(`should compile and instantiate a named module`, async () => {
+      await runner.registerModule(`mylib`, `export default 42`)
+
+      // compileModule called for shims (3) + user module (1)
+      expect(mockCompileModule).toHaveBeenCalledWith(`export default 42`, {
+        filename: `mylib`,
+      })
+      expect(mockInstantiate).toHaveBeenCalled()
+      expect(mockEvaluate).toHaveBeenCalled()
+    })
+
+    it(`should auto-init if not yet initialized`, async () => {
+      // runner has not been init()'d yet
+      await runner.registerModule(`lib`, `export const x = 1`)
+
+      // createContext should have been called (auto-init)
+      expect(mockCreateContext).toHaveBeenCalledOnce()
+      // compileModule for 3 shims + the registered module
+      expect(mockCompileModule).toHaveBeenCalledWith(`export const x = 1`, {
+        filename: `lib`,
+      })
+    })
+
+    it(`should make registered module available for subsequent eval`, async () => {
+      await runner.init()
+      await runner.registerModule(`helper`, `export default () => 'help'`)
+
+      // The module should be compiled with filename 'helper'
+      const helperCall = mockCompileModule.mock.calls.find(
+        (c: any) => c[1]?.filename === `helper`
+      )
+      expect(helperCall).toBeDefined()
+      expect(helperCall![0]).toBe(`export default () => 'help'`)
     })
   })
 

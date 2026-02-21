@@ -2,6 +2,8 @@ import type {
   ISandbox,
   ISandboxProvider,
   TSandboxConfig,
+  TSandboxEvalOpts,
+  TSandboxEvalResult,
   TSandboxResult,
 } from '@tdsk/domain'
 
@@ -12,7 +14,7 @@ import { IsolateRunner } from './isolate'
 /**
  * Local sandbox instance using just-bash virtual shell/filesystem
  * and isolated-vm for V8-isolated JS code execution
- * Implements ISandbox interface — drop-in replacement for E2B sandbox
+ * Implements ISandbox interface for local code/shell execution
  */
 export class LocalSandbox implements ISandbox {
   private bash: Bash
@@ -85,6 +87,26 @@ export class LocalSandbox implements ISandbox {
     } catch {
       return false
     }
+  }
+
+  evaluate = async (
+    code: string,
+    opts?: TSandboxEvalOpts
+  ): Promise<TSandboxEvalResult> => {
+    if (!this.isolateRunner) {
+      throw new Error(
+        `Code execution not available — isolated-vm is required but not loaded`
+      )
+    }
+
+    // Register any provided modules before evaluation
+    if (opts?.modules) {
+      for (const [name, moduleCode] of Object.entries(opts.modules)) {
+        await this.isolateRunner.registerModule(name, moduleCode)
+      }
+    }
+
+    return await this.isolateRunner['eval'](code, opts?.timeout)
   }
 
   close = async (): Promise<void> => {
