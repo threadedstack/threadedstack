@@ -1,5 +1,6 @@
 import type { TMessage } from '@TRL/types'
 
+import { memo } from 'react'
 import { Box, Text } from 'ink'
 import { EMessageType } from '@TRL/types'
 import { AssistantMessage } from './Assistant'
@@ -10,7 +11,7 @@ type TMessageList = {
   messages: TMessage[]
 }
 
-export const MessageList = (props: TMessageList) => {
+export const MessageList = memo((props: TMessageList) => {
   const { messages, markdown = true } = props
 
   return (
@@ -34,4 +35,4 @@ export const MessageList = (props: TMessageList) => {
       ))}
     </Box>
   )
-}
+})

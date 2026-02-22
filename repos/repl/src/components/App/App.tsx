@@ -18,8 +18,8 @@ import { WelcomeBox } from '@TRL/components/WelcomeBox/WelcomeBox'
 import { ChatSession } from '@TRL/components/ChatSession/ChatSession'
 import { AgentPicker } from '@TRL/components/AgentPicker/AgentPicker'
 import { ProjectPicker } from '@TRL/components/ProjectPicker/ProjectPicker'
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { parseCommand, findCommand, isPreAuthCommand } from '@TRL/commands'
+import { useState, useCallback, useEffect, useRef, useMemo, startTransition } from 'react'
 
 type TApp = {
   auth: AuthManager
@@ -84,6 +84,25 @@ export const App = (props: TApp) => {
   useEffect(() => {
     if (config?.display?.theme) setTheme(config.display.theme as any)
   }, [])
+
+  // Cleanup executor on unmount to abort in-flight requests
+  useEffect(() => {
+    return () => {
+      executorRef.current?.destroy()
+    }
+  }, [])
+
+  // Throttled stream text flush — batches rapid SSE text events into 50ms intervals
+  // to reduce React reconciliations during streaming from 100+/sec to 20/sec
+  useEffect(() => {
+    if (!msgs.isStreaming) return
+    const timer = setInterval(() => {
+      if (streamTextRef.current) {
+        startTransition(() => msgs.setStreamText(streamTextRef.current))
+      }
+    }, 50)
+    return () => clearInterval(timer)
+  }, [msgs.isStreaming])
 
   const connectAfterLogin = useCallback(async () => {
     try {
@@ -295,7 +314,10 @@ export const App = (props: TApp) => {
     },
     showMenu: subMenu.show,
     closeMenu: subMenu.close,
-    exit,
+    exit: () => {
+      executorRef.current?.destroy()
+      exit()
+    },
     verbose,
     setVerbose,
     auth: authContext,
@@ -365,7 +387,6 @@ export const App = (props: TApp) => {
             switch (event.type) {
               case `text`:
                 streamTextRef.current += event.text || ``
-                msgs.setStreamText((prev: string) => prev + (event.text || ``))
                 break
               case `tool_call_start`:
                 msgs.setToolCalls((prev: any[]) => [
@@ -442,6 +463,36 @@ export const App = (props: TApp) => {
     [session.orgId, session.agentId, providerId, verbose, loggedIn]
   )
 
+  // Stable subMenu prop object to avoid identity changes on every render
+  const subMenuProps = useMemo(
+    () => ({
+      items: subMenu.items,
+      prompt: subMenu.prompt,
+      visible: subMenu.visible,
+      selectedIndex: subMenu.selectedIndex,
+    }),
+    [subMenu.items, subMenu.prompt, subMenu.visible, subMenu.selectedIndex]
+  )
+
+  // Stable metadata prop object
+  const metadataProps = useMemo(
+    () => ({
+      orgName: orgName || undefined,
+      connection: session.connection,
+      projectName: projectName || undefined,
+      threadName: session.threadId || undefined,
+      agentName: agentInfo?.name || session.agentId || undefined,
+    }),
+    [
+      orgName,
+      session.connection,
+      projectName,
+      session.threadId,
+      agentInfo,
+      session.agentId,
+    ]
+  )
+
   // Login phase — not authenticated
   if (phase === `login`) {
     return (
@@ -473,12 +524,7 @@ export const App = (props: TApp) => {
           messages={msgs.messages}
           connection="disconnected"
           onSubmit={handleLoginSubmit}
-          subMenu={{
-            items: subMenu.items,
-            prompt: subMenu.prompt,
-            visible: subMenu.visible,
-            selectedIndex: subMenu.selectedIndex,
-          }}
+          subMenu={subMenuProps}
           onSubMenuUp={subMenu.moveUp}
           onSubMenuClose={subMenu.close}
           onSubMenuDown={subMenu.moveDown}
@@ -547,30 +593,19 @@ export const App = (props: TApp) => {
       <ChatSession
         verbose={verbose}
         onSubmit={onSubmit}
+        subMenu={subMenuProps}
+        metadata={metadataProps}
         messages={msgs.messages}
         toolCalls={msgs.toolCalls}
+        onSubMenuUp={subMenu.moveUp}
         streamText={msgs.streamText}
         isStreaming={msgs.isStreaming}
         connection={session.connection}
-        agentName={agentInfo?.name || session.agentId || 'Agent'}
-        subMenu={{
-          items: subMenu.items,
-          prompt: subMenu.prompt,
-          visible: subMenu.visible,
-          selectedIndex: subMenu.selectedIndex,
-        }}
-        onSubMenuUp={subMenu.moveUp}
         onSubMenuClose={subMenu.close}
         onSubMenuDown={subMenu.moveDown}
         onSubMenuSelect={subMenu.select}
         onSubMenuAction={subMenu.action}
-        metadata={{
-          orgName: orgName || undefined,
-          connection: session.connection,
-          projectName: projectName || undefined,
-          threadName: session.threadId || undefined,
-          agentName: agentInfo?.name || session.agentId || undefined,
-        }}
+        agentName={agentInfo?.name || session.agentId || 'Agent'}
       />
     </Box>
   )

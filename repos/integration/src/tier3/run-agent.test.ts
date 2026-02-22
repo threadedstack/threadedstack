@@ -3,12 +3,14 @@ import { post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
 import { tryDelete } from '../utils/cleanup'
+import { cleanupThread } from '../utils/repl-cleanup'
 
 describe('Tier 3: Run Agent SSE Flow', () => {
   const ctx = readContext()
   let agentId = ''
   let quickstartResult: Record<string, any> = {}
   let setupFailed = false
+  const threadIds: string[] = []
 
   beforeAll(async () => {
     const timestamp = Date.now()
@@ -32,6 +34,9 @@ describe('Tier 3: Run Agent SSE Flow', () => {
   })
 
   afterAll(async () => {
+    for (const tid of threadIds) {
+      if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
+    }
     if (quickstartResult.endpoint?.id)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project?.id}/endpoints/${quickstartResult.endpoint.id}`)
     if (quickstartResult.agent?.id)
@@ -47,10 +52,11 @@ describe('Tier 3: Run Agent SSE Flow', () => {
   test('SSE stream starts with thread event', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false) // fail with context
 
-    const { events } = await consumeSSE(
+    const { events, threadId } = await consumeSSE(
       `/orgs/${ctx.orgId}/agents/${agentId}/run`,
       { prompt: 'Say hello' }
     )
+    if (threadId) threadIds.push(threadId)
 
     expect(events).toBeDefined()
     expect(events.length).toBeGreaterThanOrEqual(1)
@@ -65,6 +71,7 @@ describe('Tier 3: Run Agent SSE Flow', () => {
       `/orgs/${ctx.orgId}/agents/${agentId}/run`,
       { prompt: 'Say hello' }
     )
+    if (threadId) threadIds.push(threadId)
 
     expect(threadId).toBeTruthy()
   })
@@ -74,10 +81,11 @@ describe('Tier 3: Run Agent SSE Flow', () => {
 
     // With a fake API key the LLM call will fail, but the SSE mechanics
     // should still work — we expect at least a thread event and an error event
-    const { events } = await consumeSSE(
+    const { events, threadId } = await consumeSSE(
       `/orgs/${ctx.orgId}/agents/${agentId}/run`,
       { prompt: 'Say hello' }
     )
+    if (threadId) threadIds.push(threadId)
 
     expect(events).toBeDefined()
 

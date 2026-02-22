@@ -1,5 +1,6 @@
 import type { TToolCall } from '@TRL/types'
 
+import { memo, useMemo } from 'react'
 import { Box, Text } from 'ink'
 import { renderMarkdown } from '@TRL/utils/markdown'
 import { Spinner } from '@TRL/components/Spinner/Spinner'
@@ -12,9 +13,10 @@ type TStreaming = {
   toolCalls: TToolCall[]
 }
 
-export const Streaming = (props: TStreaming) => {
+export const Streaming = memo((props: TStreaming) => {
   const { text, toolCalls, isStreaming, verbose } = props
   const showSpinner = isStreaming && !text && toolCalls.length === 0
+  const rendered = useMemo(() => (text ? renderMarkdown(text) : ''), [text])
 
   return (
     <Box flexDirection="column">
@@ -25,7 +27,7 @@ export const Streaming = (props: TStreaming) => {
           verbose={verbose}
         />
       )}
-      {text && <Text>{renderMarkdown(text)}</Text>}
+      {text && <Text>{rendered}</Text>}
     </Box>
   )
-}
+})

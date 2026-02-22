@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useReducer, useCallback, useMemo } from 'react'
 
 /**
  * Convert a 1D cursor offset into a 2D {row, col} position.
@@ -58,12 +58,174 @@ export function findWordBoundaryRight(text: string, cursor: number): number {
   return i
 }
 
+export type TEditorAction =
+  | { type: 'INSERT'; chars: string }
+  | { type: 'DELETE_BACKWARD' }
+  | { type: 'DELETE_FORWARD' }
+  | { type: 'DELETE_WORD_BACKWARD' }
+  | { type: 'KILL_TO_END' }
+  | { type: 'KILL_TO_START' }
+  | { type: 'MOVE_LEFT' }
+  | { type: 'MOVE_RIGHT' }
+  | { type: 'MOVE_UP' }
+  | { type: 'MOVE_DOWN' }
+  | { type: 'MOVE_WORD_LEFT' }
+  | { type: 'MOVE_WORD_RIGHT' }
+  | { type: 'MOVE_TO_LINE_START' }
+  | { type: 'MOVE_TO_LINE_END' }
+  | { type: 'SET_TEXT'; text: string }
+  | { type: 'CLEAR' }
+
+type TInternalState = {
+  text: string
+  cursor: number
+  desiredCol: number
+}
+
+const initialState: TInternalState = { text: ``, cursor: 0, desiredCol: 0 }
+
+function withDesiredCol(
+  state: TInternalState,
+  text: string,
+  cursor: number
+): TInternalState {
+  const pos = positionFromOffset(text, cursor)
+  return { text, cursor, desiredCol: pos.col }
+}
+
+export function editorReducer(
+  state: TInternalState,
+  action: TEditorAction
+): TInternalState {
+  switch (action.type) {
+    case 'INSERT': {
+      const newText =
+        state.text.slice(0, state.cursor) + action.chars + state.text.slice(state.cursor)
+      const newCursor = state.cursor + action.chars.length
+      return withDesiredCol(state, newText, newCursor)
+    }
+
+    case 'DELETE_BACKWARD': {
+      if (state.cursor <= 0) return state
+      const newText =
+        state.text.slice(0, state.cursor - 1) + state.text.slice(state.cursor)
+      const newCursor = state.cursor - 1
+      return withDesiredCol(state, newText, newCursor)
+    }
+
+    case 'DELETE_FORWARD': {
+      if (state.cursor <= 0) return state
+      const newText =
+        state.text.slice(0, state.cursor - 1) + state.text.slice(state.cursor)
+      const newCursor = state.cursor - 1
+      return withDesiredCol(state, newText, newCursor)
+    }
+
+    case 'DELETE_WORD_BACKWARD': {
+      if (state.cursor <= 0) return state
+      const target = findWordBoundaryLeft(state.text, state.cursor)
+      const newText = state.text.slice(0, target) + state.text.slice(state.cursor)
+      return withDesiredCol(state, newText, target)
+    }
+
+    case 'KILL_TO_END': {
+      const lines = state.text.split(`\n`)
+      const pos = positionFromOffset(state.text, state.cursor)
+      const lineEnd = lines[pos.row].length
+
+      if (pos.col === lineEnd && pos.row < lines.length - 1) {
+        const endOffset = offsetFromPosition(lines, pos.row, lineEnd)
+        const newText = state.text.slice(0, endOffset) + state.text.slice(endOffset + 1)
+        return { ...state, text: newText }
+      }
+
+      const endOffset = offsetFromPosition(lines, pos.row, lineEnd)
+      const newText = state.text.slice(0, state.cursor) + state.text.slice(endOffset)
+      return { ...state, text: newText }
+    }
+
+    case 'KILL_TO_START': {
+      const lines = state.text.split(`\n`)
+      const pos = positionFromOffset(state.text, state.cursor)
+      if (pos.col === 0) return state
+      const lineStartOffset = offsetFromPosition(lines, pos.row, 0)
+      const newText =
+        state.text.slice(0, lineStartOffset) + state.text.slice(state.cursor)
+      return { text: newText, cursor: lineStartOffset, desiredCol: 0 }
+    }
+
+    case 'MOVE_LEFT': {
+      if (state.cursor <= 0) return state
+      const newCursor = state.cursor - 1
+      return withDesiredCol(state, state.text, newCursor)
+    }
+
+    case 'MOVE_RIGHT': {
+      if (state.cursor >= state.text.length) return state
+      const newCursor = state.cursor + 1
+      return withDesiredCol(state, state.text, newCursor)
+    }
+
+    case 'MOVE_UP': {
+      const lines = state.text.split(`\n`)
+      const pos = positionFromOffset(state.text, state.cursor)
+      if (pos.row <= 0) return state
+      const targetRow = pos.row - 1
+      const targetCol = Math.min(state.desiredCol, lines[targetRow].length)
+      return { ...state, cursor: offsetFromPosition(lines, targetRow, targetCol) }
+    }
+
+    case 'MOVE_DOWN': {
+      const lines = state.text.split(`\n`)
+      const pos = positionFromOffset(state.text, state.cursor)
+      if (pos.row >= lines.length - 1) return state
+      const targetRow = pos.row + 1
+      const targetCol = Math.min(state.desiredCol, lines[targetRow].length)
+      return { ...state, cursor: offsetFromPosition(lines, targetRow, targetCol) }
+    }
+
+    case 'MOVE_WORD_LEFT': {
+      const target = findWordBoundaryLeft(state.text, state.cursor)
+      return withDesiredCol(state, state.text, target)
+    }
+
+    case 'MOVE_WORD_RIGHT': {
+      const target = findWordBoundaryRight(state.text, state.cursor)
+      return withDesiredCol(state, state.text, target)
+    }
+
+    case 'MOVE_TO_LINE_START': {
+      const lines = state.text.split(`\n`)
+      const pos = positionFromOffset(state.text, state.cursor)
+      const lineStartOffset = offsetFromPosition(lines, pos.row, 0)
+      return { text: state.text, cursor: lineStartOffset, desiredCol: 0 }
+    }
+
+    case 'MOVE_TO_LINE_END': {
+      const lines = state.text.split(`\n`)
+      const pos = positionFromOffset(state.text, state.cursor)
+      const lineEndCol = lines[pos.row].length
+      const lineEndOffset = offsetFromPosition(lines, pos.row, lineEndCol)
+      return { text: state.text, cursor: lineEndOffset, desiredCol: lineEndCol }
+    }
+
+    case 'SET_TEXT': {
+      const newCursor = action.text.length
+      return withDesiredCol(state, action.text, newCursor)
+    }
+
+    case 'CLEAR':
+      return initialState
+  }
+}
+
 type TEditorState = {
   text: string
   cursor: number
   lines: string[]
   cursorRow: number
   cursorCol: number
+  dispatch: (action: TEditorAction) => void
   insert: (chars: string) => void
   deleteBackward: () => void
   deleteForward: () => void
@@ -83,165 +245,42 @@ type TEditorState = {
 }
 
 export function useEditorState(): TEditorState {
-  const [text, setTextState] = useState(``)
-  const [cursor, setCursor] = useState(0)
-  const desiredColRef = useRef(0)
+  const [state, dispatch] = useReducer(editorReducer, initialState)
 
-  const lines = useMemo(() => text.split(`\n`), [text])
+  const lines = useMemo(() => state.text.split(`\n`), [state.text])
   const { row: cursorRow, col: cursorCol } = useMemo(
-    () => positionFromOffset(text, cursor),
-    [text, cursor]
+    () => positionFromOffset(state.text, state.cursor),
+    [state.text, state.cursor]
   )
 
-  const updateDesiredCol = useCallback((col: number) => {
-    desiredColRef.current = col
-  }, [])
-
-  const insert = useCallback(
-    (chars: string) => {
-      setTextState((prev) => prev.slice(0, cursor) + chars + prev.slice(cursor))
-      setCursor((prev) => prev + chars.length)
-      // After insert, update desired col
-      const newText = text.slice(0, cursor) + chars + text.slice(cursor)
-      const newCursor = cursor + chars.length
-      const pos = positionFromOffset(newText, newCursor)
-      updateDesiredCol(pos.col)
-    },
-    [cursor, text, updateDesiredCol]
+  // All callbacks are stable — dispatch identity never changes
+  const insert = useCallback((chars: string) => dispatch({ type: 'INSERT', chars }), [])
+  const deleteBackward = useCallback(() => dispatch({ type: 'DELETE_BACKWARD' }), [])
+  const deleteForward = useCallback(() => dispatch({ type: 'DELETE_FORWARD' }), [])
+  const deleteWordBackward = useCallback(
+    () => dispatch({ type: 'DELETE_WORD_BACKWARD' }),
+    []
   )
-
-  const deleteBackward = useCallback(() => {
-    if (cursor <= 0) return
-    setTextState((prev) => prev.slice(0, cursor - 1) + prev.slice(cursor))
-    setCursor((prev) => prev - 1)
-    const newText = text.slice(0, cursor - 1) + text.slice(cursor)
-    const newCursor = cursor - 1
-    const pos = positionFromOffset(newText, newCursor)
-    updateDesiredCol(pos.col)
-  }, [cursor, text, updateDesiredCol])
-
-  const deleteForward = useCallback(() => {
-    if (cursor <= 0) return
-    setTextState((prev) => prev.slice(0, cursor - 1) + prev.slice(cursor))
-    setCursor((prev) => prev - 1)
-    const newText = text.slice(0, cursor - 1) + text.slice(cursor)
-    const newCursor = cursor - 1
-    const pos = positionFromOffset(newText, newCursor)
-    updateDesiredCol(pos.col)
-  }, [cursor, text, updateDesiredCol])
-
-  const deleteWordBackward = useCallback(() => {
-    if (cursor <= 0) return
-    const target = findWordBoundaryLeft(text, cursor)
-    setTextState((prev) => prev.slice(0, target) + prev.slice(cursor))
-    setCursor(target)
-    const pos = positionFromOffset(text.slice(0, target) + text.slice(cursor), target)
-    updateDesiredCol(pos.col)
-  }, [cursor, text, updateDesiredCol])
-
-  const killToEnd = useCallback(() => {
-    const currentLines = text.split(`\n`)
-    const pos = positionFromOffset(text, cursor)
-    const lineEnd = currentLines[pos.row].length
-
-    if (pos.col === lineEnd && pos.row < currentLines.length - 1) {
-      // At end of line but not last line: join with next line (delete the \n)
-      const endOffset = offsetFromPosition(currentLines, pos.row, lineEnd)
-      setTextState((prev) => prev.slice(0, endOffset) + prev.slice(endOffset + 1))
-    } else {
-      // Delete from cursor to end of current line
-      const endOffset = offsetFromPosition(currentLines, pos.row, lineEnd)
-      setTextState((prev) => prev.slice(0, cursor) + prev.slice(endOffset))
-    }
-    // cursor stays the same
-  }, [cursor, text])
-
-  const killToStart = useCallback(() => {
-    const currentLines = text.split(`\n`)
-    const pos = positionFromOffset(text, cursor)
-    if (pos.col === 0) return
-    const lineStartOffset = offsetFromPosition(currentLines, pos.row, 0)
-    setTextState((prev) => prev.slice(0, lineStartOffset) + prev.slice(cursor))
-    setCursor(lineStartOffset)
-    updateDesiredCol(0)
-  }, [cursor, text, updateDesiredCol])
-
-  const moveLeft = useCallback(() => {
-    if (cursor <= 0) return
-    setCursor((prev) => prev - 1)
-    const pos = positionFromOffset(text, cursor - 1)
-    updateDesiredCol(pos.col)
-  }, [cursor, text, updateDesiredCol])
-
-  const moveRight = useCallback(() => {
-    if (cursor >= text.length) return
-    setCursor((prev) => prev + 1)
-    const pos = positionFromOffset(text, cursor + 1)
-    updateDesiredCol(pos.col)
-  }, [cursor, text, updateDesiredCol])
-
-  const moveUp = useCallback(() => {
-    if (cursorRow <= 0) return
-    const targetRow = cursorRow - 1
-    const targetCol = Math.min(desiredColRef.current, lines[targetRow].length)
-    setCursor(offsetFromPosition(lines, targetRow, targetCol))
-  }, [cursorRow, lines])
-
-  const moveDown = useCallback(() => {
-    if (cursorRow >= lines.length - 1) return
-    const targetRow = cursorRow + 1
-    const targetCol = Math.min(desiredColRef.current, lines[targetRow].length)
-    setCursor(offsetFromPosition(lines, targetRow, targetCol))
-  }, [cursorRow, lines])
-
-  const moveToLineStart = useCallback(() => {
-    const lineStartOffset = offsetFromPosition(lines, cursorRow, 0)
-    setCursor(lineStartOffset)
-    updateDesiredCol(0)
-  }, [lines, cursorRow, updateDesiredCol])
-
-  const moveToLineEnd = useCallback(() => {
-    const lineEndOffset = offsetFromPosition(lines, cursorRow, lines[cursorRow].length)
-    setCursor(lineEndOffset)
-    updateDesiredCol(lines[cursorRow].length)
-  }, [lines, cursorRow, updateDesiredCol])
-
-  const moveWordLeft = useCallback(() => {
-    const target = findWordBoundaryLeft(text, cursor)
-    setCursor(target)
-    const pos = positionFromOffset(text, target)
-    updateDesiredCol(pos.col)
-  }, [cursor, text, updateDesiredCol])
-
-  const moveWordRight = useCallback(() => {
-    const target = findWordBoundaryRight(text, cursor)
-    setCursor(target)
-    const pos = positionFromOffset(text, target)
-    updateDesiredCol(pos.col)
-  }, [cursor, text, updateDesiredCol])
-
-  const setText = useCallback(
-    (newText: string) => {
-      setTextState(newText)
-      setCursor(newText.length)
-      const pos = positionFromOffset(newText, newText.length)
-      updateDesiredCol(pos.col)
-    },
-    [updateDesiredCol]
-  )
-
-  const clear = useCallback(() => {
-    setTextState(``)
-    setCursor(0)
-    updateDesiredCol(0)
-  }, [updateDesiredCol])
+  const killToEnd = useCallback(() => dispatch({ type: 'KILL_TO_END' }), [])
+  const killToStart = useCallback(() => dispatch({ type: 'KILL_TO_START' }), [])
+  const moveLeft = useCallback(() => dispatch({ type: 'MOVE_LEFT' }), [])
+  const moveRight = useCallback(() => dispatch({ type: 'MOVE_RIGHT' }), [])
+  const moveUp = useCallback(() => dispatch({ type: 'MOVE_UP' }), [])
+  const moveDown = useCallback(() => dispatch({ type: 'MOVE_DOWN' }), [])
+  const moveToLineStart = useCallback(() => dispatch({ type: 'MOVE_TO_LINE_START' }), [])
+  const moveToLineEnd = useCallback(() => dispatch({ type: 'MOVE_TO_LINE_END' }), [])
+  const moveWordLeft = useCallback(() => dispatch({ type: 'MOVE_WORD_LEFT' }), [])
+  const moveWordRight = useCallback(() => dispatch({ type: 'MOVE_WORD_RIGHT' }), [])
+  const setText = useCallback((text: string) => dispatch({ type: 'SET_TEXT', text }), [])
+  const clear = useCallback(() => dispatch({ type: 'CLEAR' }), [])
 
   return {
-    text,
-    cursor,
+    text: state.text,
+    cursor: state.cursor,
     lines,
     cursorRow,
     cursorCol,
+    dispatch,
     insert,
     deleteBackward,
     deleteForward,

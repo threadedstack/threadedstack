@@ -1,5 +1,6 @@
 import type { TToolCall } from '@TRL/types'
 
+import { memo } from 'react'
 import { Box, Text } from 'ink'
 import { themed } from '@TRL/theme'
 import { EToolStatus } from '@TRL/types'
@@ -10,7 +11,7 @@ type TToolActivity = {
   verbose?: boolean
 }
 
-export const ToolActivity = (props: TToolActivity) => {
+export const ToolActivity = memo((props: TToolActivity) => {
   const { tools, verbose = false } = props
   if (tools.length === 0) return null
 
@@ -42,4 +43,4 @@ export const ToolActivity = (props: TToolActivity) => {
       <Text>{themed(`border`, `──`)}</Text>
     </Box>
   )
-}
+})

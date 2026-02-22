@@ -1,13 +1,15 @@
+import type { TEditorAction } from '@TRL/hooks/useEditorState'
 import type { TConnectionStatus, TSelectItem } from '@TRL/types'
 
 import { Box, useInput } from 'ink'
-import { useCallback } from 'react'
+import { useSlashMenu } from '@TRL/hooks/useSlashMenu'
 import { Editor } from '@TRL/components/Prompt/Editor'
 import { SubMenu } from '@TRL/components/Prompt/SubMenu'
+import { useInputBuffer } from '@TRL/hooks/useInputBuffer'
+import { memo, useCallback, useRef, useEffect } from 'react'
 import { SlashMenu } from '@TRL/components/Prompt/SlashMenu'
 import { MetadataBar } from '@TRL/components/Prompt/MetadataBar'
-import { useSlashMenu } from '@TRL/hooks/useSlashMenu'
-import { useEditorState } from '@TRL/hooks/useEditorState'
+import { useEditorState, editorReducer } from '@TRL/hooks/useEditorState'
 
 type TSubMenuProps = {
   visible: boolean
@@ -37,7 +39,10 @@ type TPrompt = {
   metadata?: TMetadata
 }
 
-export const Prompt = (props: TPrompt) => {
+type TShadowState = { text: string; cursor: number; desiredCol: number }
+const initialShadow: TShadowState = { text: ``, cursor: 0, desiredCol: 0 }
+
+export const Prompt = memo((props: TPrompt) => {
   const {
     onSubmit: onSubmitCB,
     disabled,
@@ -54,11 +59,29 @@ export const Prompt = (props: TPrompt) => {
   const editor = useEditorState()
   const menu = useSlashMenu(isPreAuth)
 
-  const syncMenu = useCallback(
-    (value: string) => {
-      menu.onTextChange(value)
+  // Shadow ref tracks the "true" editor state synchronously — always current
+  // even before React processes buffered dispatches. Used by Enter to read text.
+  const shadowRef = useRef<TShadowState>(initialShadow)
+
+  // Keep shadow in sync after React state updates (covers direct dispatches)
+  useEffect(() => {
+    shadowRef.current = { text: editor.text, cursor: editor.cursor, desiredCol: 0 }
+  }, [editor.text, editor.cursor])
+
+  // Sync slash menu when editor text changes (fires after React render)
+  useEffect(() => {
+    menu.onTextChange(editor.text)
+  }, [editor.text, menu.onTextChange])
+
+  const buffer = useInputBuffer(editor.dispatch)
+
+  // Buffer an action and update shadow state synchronously
+  const bufferAction = useCallback(
+    (action: TEditorAction) => {
+      shadowRef.current = editorReducer(shadowRef.current, action)
+      buffer(action)
     },
-    [menu.onTextChange]
+    [buffer]
   )
 
   const subMenuVisible = subMenu?.visible ?? false
@@ -104,62 +127,70 @@ export const Prompt = (props: TPrompt) => {
       if (key.return && !key.shift) {
         // If menu visible and user navigated to a different command, fill it
         if (menu.menuVisible && menu.selectedCommand) {
-          const typed = editor.text.trim().slice(1).toLowerCase()
+          const typed = shadowRef.current.text.trim().slice(1).toLowerCase()
           const selected = menu.selectedCommand.name.toLowerCase()
           if (typed !== selected) {
             const filled = menu.accept()
             if (filled) {
+              // Synchronous — need immediate visual feedback
               editor.setText(filled)
-              syncMenu(filled)
+              shadowRef.current = editorReducer(shadowRef.current, {
+                type: 'SET_TEXT',
+                text: filled,
+              })
               return
             }
           }
         }
 
-        const val = editor.text.trim()
+        // Read from shadow ref — always has latest text even if buffer hasn't flushed
+        const val = shadowRef.current.text.trim()
         if (!val) return
         onSubmitCB?.(val)
+        // Synchronous clear
         editor.clear()
         menu.close()
+        shadowRef.current = initialShadow
         return
       }
 
       // Newline: Shift+Enter
       if (key.return && key.shift) {
-        editor.insert(`\n`)
-        syncMenu(
-          editor.text.slice(0, editor.cursor) + `\n` + editor.text.slice(editor.cursor)
-        )
+        bufferAction({ type: 'INSERT', chars: `\n` })
         return
       }
 
-      // Tab: menu accept or no-op
+      // Tab: menu accept or no-op (synchronous — immediate feedback)
       if (key.tab) {
         if (menu.menuVisible) {
           const filled = menu.accept()
           if (filled) {
             editor.setText(filled)
-            syncMenu(filled)
+            shadowRef.current = editorReducer(shadowRef.current, {
+              type: 'SET_TEXT',
+              text: filled,
+            })
           }
         }
         return
       }
 
-      // Escape: close menu or no-op
+      // Escape: close menu or no-op (synchronous)
       if (key.escape) {
         if (menu.menuVisible) {
           menu.close()
           editor.clear()
+          shadowRef.current = initialShadow
         }
         return
       }
 
-      // Up/Down: menu nav when visible, editor nav when hidden
+      // Up/Down: menu nav (synchronous) or editor nav (buffered)
       if (key.upArrow) {
         if (menu.menuVisible) {
           menu.moveUp()
         } else {
-          editor.moveUp()
+          bufferAction({ type: 'MOVE_UP' })
         }
         return
       }
@@ -168,92 +199,78 @@ export const Prompt = (props: TPrompt) => {
         if (menu.menuVisible) {
           menu.moveDown()
         } else {
-          editor.moveDown()
+          bufferAction({ type: 'MOVE_DOWN' })
         }
         return
       }
 
       // Left/Right with ctrl/meta: word navigation
       if (key.leftArrow) {
-        if (key.ctrl || key.meta) {
-          editor.moveWordLeft()
-        } else {
-          editor.moveLeft()
-        }
+        bufferAction(
+          key.ctrl || key.meta ? { type: 'MOVE_WORD_LEFT' } : { type: 'MOVE_LEFT' }
+        )
         return
       }
 
       if (key.rightArrow) {
-        if (key.ctrl || key.meta) {
-          editor.moveWordRight()
-        } else {
-          editor.moveRight()
-        }
+        bufferAction(
+          key.ctrl || key.meta ? { type: 'MOVE_WORD_RIGHT' } : { type: 'MOVE_RIGHT' }
+        )
         return
       }
 
       // Home / End
       if (key.home) {
-        editor.moveToLineStart()
+        bufferAction({ type: 'MOVE_TO_LINE_START' })
         return
       }
 
       if (key.end) {
-        editor.moveToLineEnd()
+        bufferAction({ type: 'MOVE_TO_LINE_END' })
         return
       }
 
       // Backspace
       if (key.backspace) {
-        editor.deleteBackward()
-        // Compute new text after deletion for menu sync
-        const c = editor.cursor
-        const newText = editor.text.slice(0, Math.max(0, c - 1)) + editor.text.slice(c)
-        syncMenu(newText)
+        bufferAction({ type: 'DELETE_BACKWARD' })
         return
       }
 
       // Delete
       if (key.delete) {
-        editor.deleteForward()
-        const c = editor.cursor
-        const newText = editor.text.slice(0, Math.max(0, c - 1)) + editor.text.slice(c)
-        syncMenu(newText)
+        bufferAction({ type: 'DELETE_FORWARD' })
         return
       }
 
       // Ctrl shortcuts
       if (key.ctrl) {
         if (input === `a`) {
-          editor.moveToLineStart()
+          bufferAction({ type: 'MOVE_TO_LINE_START' })
           return
         }
         if (input === `e`) {
-          editor.moveToLineEnd()
+          bufferAction({ type: 'MOVE_TO_LINE_END' })
           return
         }
         if (input === `k`) {
-          editor.killToEnd()
+          bufferAction({ type: 'KILL_TO_END' })
           return
         }
         if (input === `u`) {
-          editor.killToStart()
+          bufferAction({ type: 'KILL_TO_START' })
           return
         }
         if (input === `w`) {
-          editor.deleteWordBackward()
+          bufferAction({ type: 'DELETE_WORD_BACKWARD' })
           return
         }
         // Don't insert ctrl chars
         return
       }
 
-      // Regular character input
+      // Regular character input — buffered for performance
       if (input && !key.ctrl && !key.meta) {
-        editor.insert(input)
-        const newText =
-          editor.text.slice(0, editor.cursor) + input + editor.text.slice(editor.cursor)
-        syncMenu(newText)
+        bufferAction({ type: 'INSERT', chars: input })
       }
     },
     { isActive: !disabled }
@@ -263,9 +280,9 @@ export const Prompt = (props: TPrompt) => {
     <Box flexDirection="column">
       {subMenuVisible ? (
         <SubMenu
-          visible={subMenu!.visible}
-          prompt={subMenu!.prompt}
           items={subMenu!.items}
+          prompt={subMenu!.prompt}
+          visible={subMenu!.visible}
           selectedIndex={subMenu!.selectedIndex}
         />
       ) : (
@@ -291,11 +308,11 @@ export const Prompt = (props: TPrompt) => {
         <MetadataBar
           orgName={metadata.orgName}
           agentName={metadata.agentName}
+          connection={metadata.connection}
           threadName={metadata.threadName}
           projectName={metadata.projectName}
-          connection={metadata.connection}
         />
       )}
     </Box>
   )
-}
+})

@@ -16,6 +16,7 @@ export class Executor {
   #client: ApiClient
   #cachedSession: { session: TSessionInfo; agentId: string; providerId?: string } | null =
     null
+  #abortController: AbortController | null = null
 
   constructor(client: ApiClient) {
     this.#client = client
@@ -46,53 +47,70 @@ export class Executor {
     this.#cachedSession = null
   }
 
+  abort(): void {
+    this.#abortController?.abort()
+  }
+
+  destroy(): void {
+    this.abort()
+    this.clearSession()
+    this.#abortController = null
+  }
+
   async run(opts: TExecRunOpts): Promise<TRunResult> {
-    const { orgId, agentId, prompt, userId, onEvent } = opts
+    this.#abortController = new AbortController()
 
-    // 1. Get or reuse session (backend resolves API key, returns session token)
-    const session = await this.#ensureSession(agentId, opts.providerId)
+    try {
+      const { orgId, agentId, prompt, userId, onEvent } = opts
 
-    // 2. Create or reuse thread
-    let threadId = opts.threadId
-    if (!threadId) {
-      const thread = await this.#client.createThread(orgId, agentId)
-      threadId = thread.id
+      // 1. Get or reuse session (backend resolves API key, returns session token)
+      const session = await this.#ensureSession(agentId, opts.providerId)
+
+      // 2. Create or reuse thread
+      let threadId = opts.threadId
+      if (!threadId) {
+        const thread = await this.#client.createThread(orgId, agentId)
+        threadId = thread.id
+      }
+
+      // 3. Build final prompt with optional context files
+      let finalPrompt = prompt
+      if (opts.contextFiles?.length) {
+        const contextBlock = opts.contextFiles
+          .map((f) => `--- ${f.name} ---\n${f.content}`)
+          .join('\n\n')
+        finalPrompt = `<context>\n${contextBlock}\n</context>\n\n${prompt}`
+      }
+
+      // 4. Create HTTP message adapter
+      const db = new DBProxy(this.#client, orgId, agentId)
+
+      // 5. Run agent locally — LLM calls go through backend SSE
+      await AgentRunner.run({
+        db,
+        orgId,
+        userId,
+        onEvent,
+        agentId,
+        threadId,
+        prompt: finalPrompt,
+        signal: this.#abortController.signal,
+        maxSteps: opts.maxSteps || DefaultMaxSteps,
+        proxyConfig: {
+          backendUrl: this.#client.proxyUrl,
+          sessionToken: session.sessionToken,
+        },
+        llmConfig: {
+          model: session.model,
+          provider: session.provider,
+          maxTokens: session.maxTokens,
+          systemPrompt: session.systemPrompt,
+        },
+      })
+
+      return { threadId }
+    } finally {
+      this.#abortController = null
     }
-
-    // 3. Build final prompt with optional context files
-    let finalPrompt = prompt
-    if (opts.contextFiles?.length) {
-      const contextBlock = opts.contextFiles
-        .map((f) => `--- ${f.name} ---\n${f.content}`)
-        .join('\n\n')
-      finalPrompt = `<context>\n${contextBlock}\n</context>\n\n${prompt}`
-    }
-
-    // 4. Create HTTP message adapter
-    const db = new DBProxy(this.#client, orgId, agentId)
-
-    // 5. Run agent locally — LLM calls go through backend SSE
-    await AgentRunner.run({
-      db,
-      orgId,
-      userId,
-      onEvent,
-      agentId,
-      threadId,
-      prompt: finalPrompt,
-      maxSteps: opts.maxSteps || DefaultMaxSteps,
-      proxyConfig: {
-        backendUrl: this.#client.proxyUrl,
-        sessionToken: session.sessionToken,
-      },
-      llmConfig: {
-        model: session.model,
-        provider: session.provider,
-        maxTokens: session.maxTokens,
-        systemPrompt: session.systemPrompt,
-      },
-    })
-
-    return { threadId }
   }
 }

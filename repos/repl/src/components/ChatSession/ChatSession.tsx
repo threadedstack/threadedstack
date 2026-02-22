@@ -1,5 +1,6 @@
 import type { TConnectionStatus, TMessage, TSelectItem, TToolCall } from '@TRL/types'
 
+import { memo } from 'react'
 import { Box } from 'ink'
 import { Prompt } from '@TRL/components/Prompt'
 import { StatusBar } from '@TRL/components/StatusBar/StatusBar'
@@ -43,7 +44,7 @@ type TChatSession = {
   onSubmit: (text: string) => void
 }
 
-export const ChatSession = (props: TChatSession) => {
+export const ChatSession = memo((props: TChatSession) => {
   const {
     verbose,
     subMenu,
@@ -101,4 +102,4 @@ export const ChatSession = (props: TChatSession) => {
       />
     </Box>
   )
-}
+})

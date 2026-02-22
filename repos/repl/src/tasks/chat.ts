@@ -40,8 +40,10 @@ export const chat: TTask = {
         initialAgentId: params.agent as string | undefined,
         initialThreadId: params.thread as string | undefined,
         initialProjectId: params.project as string | undefined,
-      })
+      }),
+      { concurrent: true, patchConsole: false }
     )
     await waitUntilExit()
+    process.exit(0)
   },
 }
