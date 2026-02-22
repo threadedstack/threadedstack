@@ -1,10 +1,25 @@
-import type { TConnectionStatus, TMessage, TToolCall } from '@TRL/types'
+import type { TConnectionStatus, TMessage, TSelectItem, TToolCall } from '@TRL/types'
 
 import { Box } from 'ink'
 import { Prompt } from '@TRL/components/Prompt'
 import { StatusBar } from '@TRL/components/StatusBar/StatusBar'
 import { MessageList } from '@TRL/components/Message/MessageList'
 import { Streaming } from '@TRL/components/Streaming/Streaming'
+
+type TSubMenuProps = {
+  prompt: string
+  visible: boolean
+  items: TSelectItem[]
+  selectedIndex: number
+}
+
+type TMetadata = {
+  orgName?: string
+  agentName?: string
+  threadName?: string
+  projectName?: string
+  connection: TConnectionStatus
+}
 
 type TChatSession = {
   agentName: string
@@ -15,8 +30,15 @@ type TChatSession = {
   isStreaming: boolean
   isPreAuth?: boolean
   messages: TMessage[]
+  metadata?: TMetadata
   providerName?: string
   toolCalls: TToolCall[]
+  subMenu?: TSubMenuProps
+  onSubMenuUp?: () => void
+  onSubMenuDown?: () => void
+  onSubMenuClose?: () => void
+  onSubMenuSelect?: () => void
+  onSubMenuAction?: () => void
   connection: TConnectionStatus
   onSubmit: (text: string) => void
 }
@@ -24,7 +46,9 @@ type TChatSession = {
 export const ChatSession = (props: TChatSession) => {
   const {
     verbose,
+    subMenu,
     onSubmit,
+    metadata,
     messages,
     toolCalls,
     agentName,
@@ -35,6 +59,11 @@ export const ChatSession = (props: TChatSession) => {
     streamText,
     isStreaming,
     providerName,
+    onSubMenuUp,
+    onSubMenuDown,
+    onSubMenuClose,
+    onSubMenuSelect,
+    onSubMenuAction,
   } = props
 
   return (
@@ -52,16 +81,23 @@ export const ChatSession = (props: TChatSession) => {
       <MessageList messages={messages} />
       {isStreaming && (
         <Streaming
+          verbose={verbose}
           text={streamText}
           toolCalls={toolCalls}
           isStreaming={isStreaming}
-          verbose={verbose}
         />
       )}
       <Prompt
+        subMenu={subMenu}
+        metadata={metadata}
         onSubmit={onSubmit}
-        disabled={isStreaming}
         isPreAuth={isPreAuth}
+        disabled={isStreaming}
+        onSubMenuUp={onSubMenuUp}
+        onSubMenuDown={onSubMenuDown}
+        onSubMenuSelect={onSubMenuSelect}
+        onSubMenuAction={onSubMenuAction}
+        onSubMenuClose={onSubMenuClose}
       />
     </Box>
   )

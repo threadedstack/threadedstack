@@ -23,6 +23,7 @@ import { objToQuery } from '@TAF/utils/api/objToQuery'
 import { deepMerge } from '@keg-hub/jsutils/deepMerge'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 import { genFormData } from '@TAF/utils/api/genFormData'
+import { tokenRefresh } from '@TAF/services/tokenRefresh'
 
 export class ApiService {
   base: string
@@ -87,6 +88,11 @@ export class ApiService {
     }
   }
 
+  clearBearer = () => {
+    const { Authorization, ...rest } = this.options.headers
+    this.options.headers = rest
+  }
+
   configure = (cfg: TApiService = emptyObj) => {
     const { url, path, options = {} } = cfg
 
@@ -95,7 +101,9 @@ export class ApiService {
     this.options = deepMerge<TApiReq>(this.options, options)
   }
 
-  fetch = async <R extends TApiData = TApiData>(opts: TApiReq): Promise<TApiRes<R>> => {
+  #doFetch = async <R extends TApiData = TApiData>(
+    opts: TApiReq
+  ): Promise<TApiRes<R>> => {
     const { data, path, form, responseType = `json`, ...rest } = opts
     const { body, ...ext } = this.#ext(opts)
     const { url, ...options } = deepMerge<TFetchOpts>(this.options, rest, ext)
@@ -116,6 +124,17 @@ export class ApiService {
     const resp = err ? { error: err } : res
 
     return resp
+  }
+
+  fetch = async <R extends TApiData = TApiData>(opts: TApiReq): Promise<TApiRes<R>> => {
+    const result = await this.#doFetch<R>(opts)
+
+    if (result.error instanceof ApiError && result.error.status === 401) {
+      const refreshed = await tokenRefresh.refreshAndRetry()
+      if (refreshed) return this.#doFetch<R>(opts)
+    }
+
+    return result
   }
 
   get = async <D extends TApiData = TApiData>(opts: TApiReq): Promise<TApiRes<D>> => {

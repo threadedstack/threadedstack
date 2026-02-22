@@ -31,7 +31,12 @@ export const requireResourceWithPermission = async <
 ): Promise<T> => {
   const { data, error } = await service.get(id)
 
-  if (error) throw new Exception(500, error.message)
+  // DB service returns { error: DBError('X not found') } for missing records
+  if (error) {
+    if (error.message?.toLowerCase().includes(`not found`))
+      throw new Exception(404, `${label} not found`)
+    throw new Exception(500, error.message)
+  }
   if (!data) throw new Exception(404, `${label} not found`)
 
   const context = getContext

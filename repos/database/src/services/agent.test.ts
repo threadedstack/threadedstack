@@ -42,6 +42,17 @@ vi.mock(`@TDB/schemas/agentProjects`, () => ({
   },
 }))
 
+// Mock the secrets schema
+vi.mock(`@TDB/schemas/secrets`, () => ({
+  secrets: {
+    id: { name: `id` },
+    agentId: { name: `agent_id` },
+    orgId: { name: `org_id` },
+    projectId: { name: `project_id` },
+    providerId: { name: `provider_id` },
+  },
+}))
+
 // Mock the Agent domain model
 vi.mock(`@tdsk/domain`, async () => {
   const orig = await vi.importActual(`@tdsk/domain`)
@@ -536,6 +547,33 @@ describe(`Agent service`, () => {
       expect(result.error).toBeDefined()
       expect(result.error.message).toBe(`DB failure`)
     })
+
+    it(`should create agent with secretIds (reassigns secrets to agent)`, async () => {
+      const record = { id: `agent-1`, name: `TestAgent` }
+      const fullRecord = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        secrets: [{ id: `s1`, name: `MySecret`, sanitize: vi.fn(() => ({ id: `s1` })) }],
+      }
+
+      // super.create returning
+      mocks.returningFn.mockResolvedValueOnce([record])
+      // #relations: update secrets (set agentId)
+      mocks.whereReturningFn.mockResolvedValue(undefined)
+      // this.get() -> findFirst
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      const result = await service.create({
+        name: `TestAgent`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        secretIds: [`s1`],
+      } as any)
+
+      expect(result.data).toBeDefined()
+      expect(mocks.insertFn).toHaveBeenCalled()
+    })
   })
 
   // ---------- update() ----------
@@ -588,6 +626,66 @@ describe(`Agent service`, () => {
       expect(result.data._isModel).toBe(true)
       // db.delete should be called for clearing old agentProjects
       expect(mocks.deleteFn).toHaveBeenCalled()
+    })
+
+    it(`should detach old secrets and re-attach new ones on update with secretIds`, async () => {
+      const record = { id: `agent-1`, name: `Updated`, orgId: `org-1` }
+      const fullRecord = {
+        id: `agent-1`,
+        name: `Updated`,
+        orgId: `org-1`,
+        projects: [],
+        secrets: [{ id: `s2`, name: `NewSecret`, sanitize: vi.fn(() => ({ id: `s2` })) }],
+      }
+
+      // super.update returning
+      mocks.whereReturningFn.mockResolvedValue([record])
+      // this.get() -> findFirst
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      const result = await service.update({
+        id: `agent-1`,
+        name: `Updated`,
+        secretIds: [`s2`],
+      } as any)
+
+      expect(result.data).toBeDefined()
+      expect(result.data._isModel).toBe(true)
+      expect(mocks.setFn).toHaveBeenCalled()
+    })
+
+    it(`should detach all secrets when secretIds is empty array`, async () => {
+      const record = { id: `agent-1`, name: `Updated`, orgId: `org-1` }
+      const fullRecord = {
+        id: `agent-1`,
+        name: `Updated`,
+        orgId: `org-1`,
+        projects: [],
+        secrets: [],
+      }
+
+      mocks.whereReturningFn.mockResolvedValue([record])
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      const result = await service.update({
+        id: `agent-1`,
+        name: `Updated`,
+        secretIds: [],
+      } as any)
+
+      expect(result.data).toBeDefined()
+      // update called for agent + detach (no attach since secretIds is empty)
+      expect(mocks.setFn).toHaveBeenCalled()
+    })
+
+    it(`should not touch secrets when secretIds is undefined`, async () => {
+      const record = { id: `agent-1`, name: `Updated` }
+      mocks.whereReturningFn.mockResolvedValue([record])
+
+      await service.update({ id: `agent-1`, name: `Updated` } as any)
+
+      // Only one set call for the agent update itself
+      expect(mocks.setFn).toHaveBeenCalledOnce()
     })
   })
 

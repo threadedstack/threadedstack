@@ -153,6 +153,21 @@ export class ApiClient {
     return new Thread(resp)
   }
 
+  // --- Projects ---
+
+  async listProjects(orgId: string): Promise<any[]> {
+    return this.#requestWithRetry<any[]>(`/orgs/${orgId}/projects`)
+  }
+
+  // --- Thread Deletion ---
+
+  async deleteThread(orgId: string, agentId: string, threadId: string): Promise<void> {
+    await this.#requestWithRetry<void>(
+      `/orgs/${orgId}/agents/${agentId}/threads/${threadId}`,
+      { method: `DELETE` }
+    )
+  }
+
   // --- Messages ---
 
   async listMessages(

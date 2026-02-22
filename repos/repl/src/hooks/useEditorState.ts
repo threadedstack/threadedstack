@@ -121,10 +121,12 @@ export function useEditorState(): TEditorState {
   }, [cursor, text, updateDesiredCol])
 
   const deleteForward = useCallback(() => {
-    if (cursor >= text.length) return
-    setTextState((prev) => prev.slice(0, cursor) + prev.slice(cursor + 1))
-    // cursor stays the same
-    const pos = positionFromOffset(text, cursor)
+    if (cursor <= 0) return
+    setTextState((prev) => prev.slice(0, cursor - 1) + prev.slice(cursor))
+    setCursor((prev) => prev - 1)
+    const newText = text.slice(0, cursor - 1) + text.slice(cursor)
+    const newCursor = cursor - 1
+    const pos = positionFromOffset(newText, newCursor)
     updateDesiredCol(pos.col)
   }, [cursor, text, updateDesiredCol])
 

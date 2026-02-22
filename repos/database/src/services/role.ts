@@ -29,7 +29,7 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
         .where(and(eq(roles.userId, userId), eq(roles.orgId, orgId)))
         .limit(1)
 
-      return { data: this.model(result[0]) || null }
+      return { data: result[0] ? this.model(result[0]) : null }
     } catch (error: any) {
       return { error }
     }
@@ -46,7 +46,7 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
         .where(and(eq(roles.userId, userId), eq(roles.projectId, projectId)))
         .limit(1)
 
-      return { data: this.model(result[0]) || null }
+      return { data: result[0] ? this.model(result[0]) : null }
     } catch (error: any) {
       return { error }
     }

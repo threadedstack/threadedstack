@@ -23,6 +23,7 @@
   "license": "ISC",
   "dependencies": {
     "@tdsk/domain": "workspace:*",
+    "@keg-hub/jsutils": "10.0.0",
     "alias-hq": "6.2.4",
     "isolated-vm": "6.0.2",
     "just-bash": "2.5.5"

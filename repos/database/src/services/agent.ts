@@ -15,6 +15,7 @@ import { eq, and } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { agents } from '@TDB/schemas/agents'
 import { isStr, isObj } from '@keg-hub/jsutils'
+import { secrets } from '@TDB/schemas/secrets'
 import { exists } from '@keg-hub/jsutils/exists'
 import { DBError } from '@TDB/utils/error/error'
 import { Agent as AgentModel } from '@tdsk/domain'
@@ -26,6 +27,7 @@ import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
 export type TAgentInsertOpts = TDBAgentInsert & {
   functionIds?: string[]
   providerIds?: string[]
+  secretIds?: string[]
   projects?: Array<Partial<ProjectModel>>
 }
 
@@ -53,6 +55,7 @@ type TAgentRelations = {
   id: string
   functionIds?: string[]
   providerIds?: string[]
+  secretIds?: string[]
   projects?: Array<Partial<ProjectModel>>
 }
 
@@ -103,7 +106,7 @@ export class Agent extends Base<
   }
 
   #relations = async (opts: TAgentRelations) => {
-    const { id, projects, functionIds, providerIds } = opts
+    const { id, projects, functionIds, providerIds, secretIds } = opts
 
     if (projects?.length)
       for (const proj of projects) {
@@ -142,6 +145,22 @@ export class Agent extends Base<
             priority: i,
           })
           .onConflictDoNothing()
+      }
+
+    // Reassign secrets to this agent (FK pattern, not junction table)
+    // Clears exclusive arc columns to satisfy the secret_scope_check constraint
+    if (secretIds?.length)
+      for (const secretId of secretIds) {
+        if (!secretId) continue
+        await this.db
+          .update(secrets)
+          .set({
+            agentId: id,
+            orgId: null,
+            projectId: null,
+            providerId: null,
+          })
+          .where(eq(secrets.id, secretId))
       }
   }
 
@@ -257,13 +276,25 @@ export class Agent extends Base<
    * Create an agent and optionally associate it with projects and functions
    */
   async create(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, functionIds, providerIds, ...agentData } = data
+    const { projects, functionIds, providerIds, secretIds, ...agentData } = data
 
     // Create the agent
     const result = await super.create(agentData as TDBAgentInsert)
 
-    if (result.data && (projects?.length || functionIds?.length || providerIds?.length)) {
-      await this.#relations({ id: result.data.id, projects, functionIds, providerIds })
+    if (
+      result.data &&
+      (projects?.length ||
+        functionIds?.length ||
+        providerIds?.length ||
+        secretIds?.length)
+    ) {
+      await this.#relations({
+        id: result.data.id,
+        projects,
+        functionIds,
+        providerIds,
+        secretIds,
+      })
       const updated = await this.get(result.data.id, opts)
       result.data = updated.data
     }
@@ -275,14 +306,20 @@ export class Agent extends Base<
    * Update an agent and manage project and function associations
    */
   async update(data: TDBUpdate<TAgentInsertOpts>, opts?: TAgentQueryOpts) {
-    const { projects, functionIds, providerIds, ...agent } = data
+    const { projects, functionIds, providerIds, secretIds, ...agent } = data
 
     if (!agent.id)
       return { data: null, error: new DBError(`Agent ID is required for update`) }
 
     const result = await super.update(agent)
 
-    if (result.data && (projects?.length || functionIds?.length || providerIds?.length)) {
+    if (
+      result.data &&
+      (projects?.length ||
+        functionIds?.length ||
+        providerIds?.length ||
+        secretIds !== undefined)
+    ) {
       if (projects?.length)
         await this.db.delete(agentProjects).where(eq(agentProjects.agentId, agent.id))
 
@@ -292,7 +329,22 @@ export class Agent extends Base<
       if (providerIds?.length)
         await this.db.delete(agentProviders).where(eq(agentProviders.agentId, agent.id))
 
-      await this.#relations({ id: agent.id, projects, functionIds, providerIds })
+      // Detach all currently agent-scoped secrets before re-attaching
+      // Uses `secretIds !== undefined` (not `.length`) so passing [] detaches all
+      // Must set orgId to satisfy secret_scope_check (at least one scope column non-null)
+      if (secretIds !== undefined)
+        await this.db
+          .update(secrets)
+          .set({ agentId: null, orgId: result.data.orgId })
+          .where(eq(secrets.agentId, agent.id))
+
+      await this.#relations({
+        id: agent.id,
+        projects,
+        functionIds,
+        providerIds,
+        secretIds,
+      })
       const updated = await this.get(agent.id, opts)
       result.data = updated.data
     }
@@ -301,11 +353,23 @@ export class Agent extends Base<
   }
 
   async upsert(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, functionIds, providerIds, ...agent } = data
+    const { projects, functionIds, providerIds, secretIds, ...agent } = data
     const result = await super.upsert(agent)
 
-    if (result.data && (projects?.length || functionIds?.length || providerIds?.length)) {
-      await this.#relations({ id: agent.id, projects, functionIds, providerIds })
+    if (
+      result.data &&
+      (projects?.length ||
+        functionIds?.length ||
+        providerIds?.length ||
+        secretIds?.length)
+    ) {
+      await this.#relations({
+        id: agent.id,
+        projects,
+        functionIds,
+        providerIds,
+        secretIds,
+      })
       const updated = await this.get(agent.id, opts)
       result.data = updated.data
     }

@@ -15,6 +15,11 @@ export const chat: TTask = {
       example: `--org org_xxx`,
       type: `str`,
     },
+    project: {
+      description: `Project ID`,
+      example: `--project proj_xxx`,
+      type: `str`,
+    },
     agent: {
       description: `Agent ID to chat with`,
       example: `--agent agent_xxx`,
@@ -34,6 +39,7 @@ export const chat: TTask = {
         initialOrgId: params.org as string | undefined,
         initialAgentId: params.agent as string | undefined,
         initialThreadId: params.thread as string | undefined,
+        initialProjectId: params.project as string | undefined,
       })
     )
     await waitUntilExit()

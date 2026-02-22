@@ -9,6 +9,12 @@ export interface TestContext {
   agentId: string
   orgName: string
   projectId: string
+  /** API key scoped to an admin-role user — for role hierarchy tests */
+  adminApiKey?: string
+  /** ID of the admin API key record — for teardown cleanup */
+  adminApiKeyId?: string
+  /** userId of the admin-role user */
+  adminUserId?: string
 }
 
 const contextDir = join(tmpdir(), 'tdsk-integration')

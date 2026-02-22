@@ -34,6 +34,7 @@ vi.mock('@TAF/services/api', () => {
     put: vi.fn().mockResolvedValue({ data: {} }),
     delete: vi.fn().mockResolvedValue({ data: {} }),
     bearer: vi.fn(),
+    clearBearer: vi.fn(),
     config: {},
     configure: vi.fn(),
   }

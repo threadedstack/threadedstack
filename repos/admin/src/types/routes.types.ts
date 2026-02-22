@@ -16,8 +16,7 @@ export enum ERoutePath {
   Orgs = `/orgs`,
   Org = `/orgs/:orgId`,
 
-  Users = `users`,
-  OrgUsers = `/orgs/:orgId/users`,
+  OrgMembers = `/orgs/:orgId/members`,
 
   Usage = `usage`,
   OrgUsage = `/orgs/:orgId/usage`,

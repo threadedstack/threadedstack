@@ -35,16 +35,17 @@ export const checkQuota: TEndpointConfig = {
 
     const currentUsage = usageResult.data?.[resource] || 0
 
-    // Get org owner through roles table
-    const ownerRole = await db.services.role.getOrgOwner(orgId)
+    // Get org to determine owner
+    const orgResult = await db.services.org.get(orgId)
 
-    if (ownerRole.error || !ownerRole.data)
-      throw new Exception(500, ownerRole.error?.message || `Org owner not found`)
+    if (orgResult.error || !orgResult.data?.ownerId)
+      throw new Exception(500, orgResult.error?.message || `Organization not found`)
 
-    const ownerId = ownerRole.data.userId
+    const ownerId = orgResult.data.ownerId
 
     // Get owner's subscription to find limits
     const subResult = await db.services.subscription.findByUser(ownerId)
+    if (subResult.error) throw new Exception(500, subResult.error.message)
 
     // Use subscription tier or default to free
     const tier = subResult.data?.tier || `free`

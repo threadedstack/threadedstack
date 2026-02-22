@@ -434,6 +434,41 @@ describe(`ApiClient`, () => {
     })
   })
 
+  describe(`listProjects`, () => {
+    it(`should call GET /_/orgs/:orgId/projects`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: [{ id: `p1`, name: `My Project` }] }),
+      })
+
+      const result = await client.listProjects(`org1`)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://proxy.test/_/orgs/org1/projects`,
+        expect.any(Object)
+      )
+      expect(result).toEqual([{ id: `p1`, name: `My Project` }])
+    })
+  })
+
+  describe(`deleteThread`, () => {
+    it(`should call DELETE on the thread endpoint`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: undefined }),
+      })
+
+      await client.deleteThread(`org1`, `agent1`, `t1`)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://proxy.test/_/orgs/org1/agents/agent1/threads/t1`,
+        expect.objectContaining({
+          method: `DELETE`,
+        })
+      )
+    })
+  })
+
   describe(`createSession with providerId`, () => {
     it(`should POST with providerId when specified`, async () => {
       mockFetch.mockResolvedValue({

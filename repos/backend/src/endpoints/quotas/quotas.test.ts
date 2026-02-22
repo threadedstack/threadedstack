@@ -32,8 +32,10 @@ describe('Quota Endpoints', () => {
           quota: {
             findByOrgAndPeriod: vi.fn(),
           },
+          org: {
+            get: vi.fn(),
+          },
           role: {
-            getOrgOwner: vi.fn(),
             isOrgMember: vi.fn(),
           },
           subscription: {
@@ -243,13 +245,14 @@ describe('Quota Endpoints', () => {
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
         .isOrgMember as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
         .findByUser as ReturnType<typeof vi.fn>
 
       mockIsOrgMember.mockResolvedValue({ data: true })
-      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
         data: { tier: 'basic', polarPriceId: 'price_basic_123' },
       })
@@ -260,7 +263,7 @@ describe('Quota Endpoints', () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockIsOrgMember).toHaveBeenCalledWith(mockUserId, mockOrgId)
-      expect(mockGetOrgOwner).toHaveBeenCalledWith(mockOrgId)
+      expect(mockGetOrg).toHaveBeenCalledWith(mockOrgId)
       expect(mockFindByUser).toHaveBeenCalledWith('owner_123')
       expect(mockGetProductIdForTier).toHaveBeenCalledWith('basic')
       expect(mockGetPlanLimits).toHaveBeenCalledWith('prod_basic_456')
@@ -289,13 +292,14 @@ describe('Quota Endpoints', () => {
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
         .isOrgMember as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
         .findByUser as ReturnType<typeof vi.fn>
 
       mockIsOrgMember.mockResolvedValue({ data: true })
-      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: null }) // No subscription
 
       // Mock payment service methods
@@ -330,19 +334,37 @@ describe('Quota Endpoints', () => {
       )
     })
 
-    it('should return 500 if org owner not found', async () => {
+    it('should return 500 if org not found', async () => {
       mockReq.params = { orgId: mockOrgId }
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
         .isOrgMember as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
 
       mockIsOrgMember.mockResolvedValue({ data: true })
-      mockGetOrgOwner.mockResolvedValue({ data: null })
+      mockGetOrg.mockResolvedValue({ data: null })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        'Org owner not found'
+        'Organization not found'
+      )
+    })
+
+    it('should return 500 if org has no ownerId', async () => {
+      mockReq.params = { orgId: mockOrgId }
+
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
+
+      mockIsOrgMember.mockResolvedValue({ data: true })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: null } })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Organization not found'
       )
     })
 
@@ -352,11 +374,12 @@ describe('Quota Endpoints', () => {
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
         .isOrgMember as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
 
       mockIsOrgMember.mockResolvedValue({ data: true })
-      mockGetOrgOwner.mockResolvedValue({ error: mockError })
+      mockGetOrg.mockResolvedValue({ error: mockError })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         'Database query failed'
@@ -383,8 +406,9 @@ describe('Quota Endpoints', () => {
         .isOrgMember as ReturnType<typeof vi.fn>
       const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
         .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
         .findByUser as ReturnType<typeof vi.fn>
 
@@ -392,7 +416,7 @@ describe('Quota Endpoints', () => {
       mockFindByOrgAndPeriod.mockResolvedValue({
         data: { projects: 2 },
       })
-      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
         data: { tier: 'basic', polarPriceId: 'price_basic_123' },
       })
@@ -424,8 +448,9 @@ describe('Quota Endpoints', () => {
         .isOrgMember as ReturnType<typeof vi.fn>
       const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
         .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
         .findByUser as ReturnType<typeof vi.fn>
 
@@ -433,7 +458,7 @@ describe('Quota Endpoints', () => {
       mockFindByOrgAndPeriod.mockResolvedValue({
         data: { projects: 4 },
       })
-      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
         data: { tier: 'basic', polarPriceId: 'price_basic_123' },
       })
@@ -464,8 +489,9 @@ describe('Quota Endpoints', () => {
         .isOrgMember as ReturnType<typeof vi.fn>
       const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
         .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
         .findByUser as ReturnType<typeof vi.fn>
 
@@ -473,7 +499,7 @@ describe('Quota Endpoints', () => {
       mockFindByOrgAndPeriod.mockResolvedValue({
         data: { projects: 3 },
       })
-      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
         data: { tier: 'basic', polarPriceId: 'price_basic_123' },
       })
@@ -538,14 +564,15 @@ describe('Quota Endpoints', () => {
         .isOrgMember as ReturnType<typeof vi.fn>
       const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
         .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
         .findByUser as ReturnType<typeof vi.fn>
 
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({ data: {} })
-      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
         data: { tier: 'basic', polarPriceId: 'price_basic_123' },
       })
@@ -558,7 +585,7 @@ describe('Quota Endpoints', () => {
       )
     })
 
-    it('should return 500 if org owner not found', async () => {
+    it('should return 500 if org not found', async () => {
       mockReq.params = { orgId: mockOrgId }
       mockReq.body = { resource: 'projects', amount: 1 }
 
@@ -566,15 +593,40 @@ describe('Quota Endpoints', () => {
         .isOrgMember as ReturnType<typeof vi.fn>
       const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
         .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
 
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({ data: { projects: 2 } })
-      mockGetOrgOwner.mockResolvedValue({ data: null })
+      mockGetOrg.mockResolvedValue({ data: null })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        'Org owner not found'
+        'Organization not found'
+      )
+    })
+
+    it('should return 500 on subscription lookup error', async () => {
+      mockReq.params = { orgId: mockOrgId }
+      mockReq.body = { resource: 'projects', amount: 1 }
+
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+
+      mockIsOrgMember.mockResolvedValue({ data: true })
+      mockFindByOrgAndPeriod.mockResolvedValue({ data: { projects: 2 } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
+      mockFindByUser.mockResolvedValue({ error: new Error('Subscription DB error') })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Subscription DB error'
       )
     })
 
@@ -586,14 +638,15 @@ describe('Quota Endpoints', () => {
         .isOrgMember as ReturnType<typeof vi.fn>
       const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
         .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
         .findByUser as ReturnType<typeof vi.fn>
 
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({ data: { projects: 2 } })
-      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({ data: null }) // No subscription
 
       // Mock payment service method to return undefined
@@ -612,14 +665,15 @@ describe('Quota Endpoints', () => {
         .isOrgMember as ReturnType<typeof vi.fn>
       const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
         .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
         .findByUser as ReturnType<typeof vi.fn>
 
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({ data: { projects: 2 } })
-      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
         data: { tier: 'basic', polarPriceId: 'price_basic_123' },
       })
@@ -674,8 +728,9 @@ describe('Quota Endpoints', () => {
         .isOrgMember as ReturnType<typeof vi.fn>
       const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
         .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrgOwner = mockReq.app?.locals.db.services.role
-        .getOrgOwner as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
         .findByUser as ReturnType<typeof vi.fn>
 
@@ -683,7 +738,7 @@ describe('Quota Endpoints', () => {
       mockFindByOrgAndPeriod.mockResolvedValue({
         data: { projects: 2 },
       })
-      mockGetOrgOwner.mockResolvedValue({ data: { userId: 'owner_123' } })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
         data: { tier: 'pro', polarPriceId: 'polar_price_pro_monthly' },
       })

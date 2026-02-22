@@ -60,7 +60,7 @@ export const OrgNavItems: TNavItem[] = [
   },
   {
     text: `Members`,
-    to: buildRoute(ERoutePath.OrgUsers),
+    to: buildRoute(ERoutePath.OrgMembers),
     Icon: <PersonIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },

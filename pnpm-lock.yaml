@@ -789,6 +789,9 @@ importers:
 
   repos/sandbox:
     dependencies:
+      '@keg-hub/jsutils':
+        specifier: 10.0.0
+        version: 10.0.0
       '@tdsk/domain':
         specifier: workspace:*
         version: link:../domain

@@ -10,6 +10,7 @@ export enum EAppPhase {
   login = `login`,
   loading = `loading`,
   pickAgent = `pickAgent`,
+  pickProject = `pickProject`,
 }
 
 export type TAppPhase = `${EAppPhase}`

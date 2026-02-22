@@ -165,12 +165,12 @@ describe(`getDynamicNav`, () => {
 
 describe(`OrgNavItems`, () => {
   describe(`path generation`, () => {
-    it(`should generate correct path for Users with orgId`, () => {
+    it(`should generate correct path for Members with orgId`, () => {
       const context: TNavCtx = { orgId: `abc-123` }
-      const usersItem = OrgNavItems.find((item) => item.text === `Users`)
+      const membersItem = OrgNavItems.find((item) => item.text === `Members`)
       const path =
-        typeof usersItem?.to === `function` ? usersItem.to(context) : usersItem?.to
-      expect(path).toBe(`/orgs/abc-123/users`)
+        typeof membersItem?.to === `function` ? membersItem.to(context) : membersItem?.to
+      expect(path).toBe(`/orgs/abc-123/members`)
     })
 
     it(`should generate correct path for Projects with orgId`, () => {
@@ -215,9 +215,9 @@ describe(`OrgNavItems`, () => {
   describe(`fallback behavior`, () => {
     it(`should return # when orgId is missing`, () => {
       const context: TNavCtx = {}
-      const usersItem = OrgNavItems.find((item) => item.text === `Users`)
+      const membersItem = OrgNavItems.find((item) => item.text === `Members`)
       const path =
-        typeof usersItem?.to === `function` ? usersItem.to(context) : usersItem?.to
+        typeof membersItem?.to === `function` ? membersItem.to(context) : membersItem?.to
       expect(path).toBe(`#`)
     })
 
@@ -253,7 +253,7 @@ describe(`OrgNavItems`, () => {
       const expectedItems = [
         `Projects`,
         `Agents`,
-        `Users`,
+        `Members`,
         `Secrets`,
         `Providers`,
         `Domains`,

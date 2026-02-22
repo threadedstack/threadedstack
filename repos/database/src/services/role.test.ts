@@ -225,14 +225,12 @@ describe(`Role service`, () => {
       expect(mocks.limitFn).toHaveBeenCalledWith(1)
     })
 
-    it(`should return model wrapping undefined when role is not found`, async () => {
+    it(`should return null data when role is not found`, async () => {
       setupSelectWithLimit(mocks, [])
 
       const result = await service.getOrgRole(`user-1`, `org-missing`)
 
-      // The code does `this.model(result[0]) || null` -- result[0] is undefined,
-      // so model(undefined) is called. The mock returns { ...undefined, _isModel: true }
-      // which is truthy, so `|| null` won't kick in. This tests actual behavior.
+      expect(result.data).toBeNull()
       expect(result.error).toBeUndefined()
     })
 
@@ -264,12 +262,12 @@ describe(`Role service`, () => {
       expect(mocks.limitFn).toHaveBeenCalledWith(1)
     })
 
-    it(`should return model wrapping undefined when role is not found`, async () => {
+    it(`should return null data when role is not found`, async () => {
       setupSelectWithLimit(mocks, [])
 
       const result = await service.getProjectRole(`user-1`, `proj-missing`)
 
-      // Same behavior as getOrgRole not-found case
+      expect(result.data).toBeNull()
       expect(result.error).toBeUndefined()
     })
 

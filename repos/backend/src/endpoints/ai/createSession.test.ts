@@ -51,7 +51,9 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
               get: vi.fn(),
             },
             secret: {
-              get: vi.fn().mockResolvedValue({ data: null }),
+              get: vi.fn().mockResolvedValue({
+                data: { encryptedValue: fakeEncrypted(), orgId: `org-1` },
+              }),
               list: vi.fn().mockResolvedValue({ data: [] }),
             },
             role: {
@@ -72,6 +74,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
       providers: [
         {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -177,6 +180,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -206,6 +210,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `invalid-provider`,
@@ -235,6 +240,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `Google AI`,
@@ -268,6 +274,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `My Custom Name`,
@@ -304,6 +311,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -350,6 +358,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `openai`,

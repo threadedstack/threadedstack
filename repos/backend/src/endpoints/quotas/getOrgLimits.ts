@@ -22,13 +22,13 @@ export const getOrgLimits: TEndpointConfig = {
     // Check membership
     await requireOrgMember(req, orgId)
 
-    // Get org owner through roles table
-    const ownerRole = await db.services.role.getOrgOwner(orgId)
+    // Get org to determine owner
+    const orgResult = await db.services.org.get(orgId)
 
-    if (ownerRole.error || !ownerRole.data)
-      throw new Exception(500, ownerRole.error?.message || `Org owner not found`)
+    if (orgResult.error || !orgResult.data?.ownerId)
+      throw new Exception(500, orgResult.error?.message || `Organization not found`)
 
-    const ownerId = ownerRole.data.userId
+    const ownerId = orgResult.data.ownerId
 
     // Get owner's subscription to determine tier
     const subResult = await db.services.subscription.findByUser(ownerId)

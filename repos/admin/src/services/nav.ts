@@ -1,3 +1,4 @@
+import type { Agent } from '@tdsk/domain'
 import type { TNavCtx } from '@TAF/types'
 import { ERoutePath } from '@TAF/types'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
@@ -19,18 +20,24 @@ export class NavService {
 
   context = (ctx?: TNavCtx): TNavCtx => {
     const orgs = getOrgs()
-    const agents = getAgents()
+    const allAgents = getAgents()
     const projects = getProjects()
     const orgId = ctx?.orgId || getActiveOrgId()
     const agentId = ctx?.agentId || getActiveAgentId()
     const projectId = ctx?.projectId || getActiveProjectId()
+    const agents = allAgents
+      ? Object.values(allAgents).reduce<Record<string, Agent>>(
+          (acc, scope) => ({ ...acc, ...scope }),
+          {}
+        )
+      : undefined
     return {
       orgId,
+      agents,
       agentId,
       projectId,
       org: orgs?.[orgId],
       project: projects?.[projectId],
-      agents: agents || undefined,
     }
   }
 
