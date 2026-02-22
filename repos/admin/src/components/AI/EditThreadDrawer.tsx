@@ -7,9 +7,14 @@ import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
   Stack,
   Alert,
+  Select,
   Switch,
+  Divider,
+  MenuItem,
   TextField,
   Typography,
+  InputLabel,
+  FormControl,
   FormControlLabel,
 } from '@mui/material'
 
@@ -124,25 +129,45 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
               />
 
               <TextField
-                label='AI Provider'
-                value={selectedProviderId}
-                onChange={(e) => setSelectedProviderId(e.target.value)}
+                label='Thread ID'
+                value={thread.id}
                 fullWidth
-                select
-                SelectProps={{
-                  native: true,
+                size='small'
+                variant='outlined'
+                slotProps={{ input: { readOnly: true } }}
+                sx={{
+                  '& .MuiInputBase-input': {
+                    fontFamily: 'monospace',
+                    fontSize: '0.85rem',
+                  },
                 }}
-              >
-                <option value=''>None (use agent's primary provider)</option>
-                {availableProviders.map((provider) => (
-                  <option
-                    key={provider.id}
-                    value={provider.id}
-                  >
-                    {provider.name}
-                  </option>
-                ))}
-              </TextField>
+              />
+
+              <Divider />
+
+              <FormControl fullWidth>
+                <InputLabel id='edit-thread-provider-label'>AI Provider</InputLabel>
+                <Select
+                  labelId='edit-thread-provider-label'
+                  value={selectedProviderId}
+                  label='AI Provider'
+                  onChange={(e) => setSelectedProviderId(e.target.value)}
+                >
+                  <MenuItem value=''>
+                    <em>None (use agent's primary provider)</em>
+                  </MenuItem>
+                  {availableProviders.map((provider) => (
+                    <MenuItem
+                      key={provider.id}
+                      value={provider.id}
+                    >
+                      {provider.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Divider />
 
               <FormControlLabel
                 control={
@@ -153,13 +178,6 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
                 }
                 label='Public Thread'
               />
-
-              <Typography
-                variant='caption'
-                color='text.secondary'
-              >
-                Thread ID: {thread.id}
-              </Typography>
             </Stack>
           </form>
         </>

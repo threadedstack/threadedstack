@@ -19,7 +19,6 @@ export const createFunction: TEndpointConfig = {
     const {
       name,
       content,
-      agentId,
       language,
       endpointId,
       description,
@@ -28,11 +27,6 @@ export const createFunction: TEndpointConfig = {
       dependencies,
     } = req.body
 
-    const agentIds = req.body.agentIds?.length
-      ? req.body.agentIds
-      : agentId
-        ? [agentId]
-        : undefined
     const projectId = req.params.projectId || req.body.projectId
 
     if (!name) throw new Exception(400, `Function name is required`)
@@ -40,7 +34,9 @@ export const createFunction: TEndpointConfig = {
     if (!content) throw new Exception(400, `Function content is required`)
 
     // Check permission - requires admin+
+    // Include orgId so org-level roles (e.g., org admin) are considered
     await checkPermission(req, EPermAction.create, EPermResource.function, {
+      orgId: req.params.orgId,
       projectId,
     })
 
@@ -59,12 +55,6 @@ export const createFunction: TEndpointConfig = {
 
       const { data, error } = await db.services.function.create(func)
       if (error) throw new Exception(500, error.message)
-
-      // Set agent associations via junction table
-      if (data && agentIds?.length) {
-        await db.services.function.setAgents(data.id, agentIds)
-        data.agentIds = agentIds
-      }
 
       res.status(201).json({ data })
     } catch (err) {

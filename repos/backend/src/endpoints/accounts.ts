@@ -13,6 +13,7 @@ import { health } from '@TBE/endpoints/base/health'
 import { invitations } from './invitations/invitations'
 import { authenticate } from '@TBE/middleware/setupAuth'
 import { subscriptions } from '@TBE/endpoints/subscriptions'
+import { providerModels } from '@TBE/endpoints/providers/providers'
 import { setupSubscription } from '@TBE/middleware/setupSubscription'
 
 export const accounts: TEndpointBuilder = (app) => {
@@ -30,6 +31,7 @@ export const accounts: TEndpointBuilder = (app) => {
       payments,
       invitations,
       subscriptions,
+      providerModels,
     },
   }
 }

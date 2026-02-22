@@ -1,7 +1,7 @@
-import { setMessages, getMessages } from '@TAF/state/accessors'
+import { getThreadMessages, setThreadMessages } from '@TAF/state/accessors'
 
-export const removeMessage = (id: string) => {
-  const current = getMessages() || {}
+export const removeMessage = (threadId: string, id: string) => {
+  const current = getThreadMessages(threadId) || {}
   const { [id]: _, ...rest } = current
-  setMessages(rest)
+  setThreadMessages(threadId, rest)
 }

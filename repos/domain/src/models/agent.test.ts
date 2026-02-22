@@ -164,4 +164,198 @@ describe(`Agent model`, () => {
       expect(result[1]?.priority).toBe(5)
     })
   })
+
+  describe(`projectConfigs`, () => {
+    it(`should default to empty array`, () => {
+      const agent = new Agent({
+        name: `Test Agent`,
+        orgId: `org-1`,
+      })
+      expect(agent.projectConfigs).toEqual([])
+    })
+
+    it(`should store projectConfigs from constructor`, () => {
+      const configs = [
+        { agentId: `agent-1`, projectId: `proj-1`, model: `gpt-4o` },
+        { agentId: `agent-1`, projectId: `proj-2`, model: `claude-3` },
+      ]
+      const agent = new Agent({
+        name: `Test Agent`,
+        orgId: `org-1`,
+        projectConfigs: configs,
+      })
+      expect(agent.projectConfigs).toHaveLength(2)
+      expect(agent.projectConfigs[0]?.projectId).toBe(`proj-1`)
+      expect(agent.projectConfigs[1]?.projectId).toBe(`proj-2`)
+    })
+
+    it(`should handle undefined projectConfigs gracefully`, () => {
+      const agent = new Agent({
+        name: `Test Agent`,
+        orgId: `org-1`,
+        projectConfigs: undefined,
+      })
+      expect(agent.projectConfigs).toEqual([])
+    })
+  })
+
+  describe(`getProjectConfig`, () => {
+    const configs = [
+      { agentId: `agent-1`, projectId: `proj-1`, model: `gpt-4o`, maxTokens: 1000 },
+      { agentId: `agent-1`, projectId: `proj-2`, model: `claude-3`, tools: [`search`] },
+    ]
+
+    it(`should return matching config by projectId`, () => {
+      const agent = new Agent({
+        name: `Test Agent`,
+        orgId: `org-1`,
+        projectConfigs: configs,
+      })
+      const result = agent.getProjectConfig(`proj-1`)
+      expect(result).toBeDefined()
+      expect(result?.projectId).toBe(`proj-1`)
+      expect(result?.model).toBe(`gpt-4o`)
+      expect(result?.maxTokens).toBe(1000)
+    })
+
+    it(`should return undefined when no matching config`, () => {
+      const agent = new Agent({
+        name: `Test Agent`,
+        orgId: `org-1`,
+        projectConfigs: configs,
+      })
+      const result = agent.getProjectConfig(`proj-nonexistent`)
+      expect(result).toBeUndefined()
+    })
+
+    it(`should return undefined when projectConfigs is empty`, () => {
+      const agent = new Agent({
+        name: `Test Agent`,
+        orgId: `org-1`,
+      })
+      const result = agent.getProjectConfig(`proj-1`)
+      expect(result).toBeUndefined()
+    })
+  })
+
+  describe(`getEffectiveConfig`, () => {
+    const baseAgent = () =>
+      new Agent({
+        id: `agent-1`,
+        name: `Test Agent`,
+        orgId: `org-1`,
+        model: `gpt-4`,
+        maxTokens: 2000,
+        systemPrompt: `You are helpful`,
+        tools: [`tool-a`, `tool-b`],
+        envVars: { API_URL: `https://base.example.com`, SHARED_KEY: `base-value` },
+        environment: { temperature: 0.5, streaming: true },
+        projectConfigs: [
+          {
+            agentId: `agent-1`,
+            projectId: `proj-1`,
+            model: `claude-3-opus`,
+            maxTokens: 4000,
+            systemPrompt: `You are a project assistant`,
+            tools: [`tool-c`],
+            envVars: { SHARED_KEY: `project-value`, PROJECT_VAR: `proj-only` },
+            environment: { temperature: 1, streaming: false },
+          },
+          {
+            agentId: `agent-1`,
+            projectId: `proj-2`,
+            model: null,
+            maxTokens: null,
+            systemPrompt: null,
+            tools: null,
+            envVars: null,
+            environment: null,
+          },
+        ],
+      })
+
+    it(`should return self when no projectId provided`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig()
+      expect(result).toBe(agent)
+    })
+
+    it(`should return self when projectId has no matching config`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig(`proj-unknown`)
+      expect(result).toBe(agent)
+    })
+
+    it(`should override model when config has non-null model`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig(`proj-1`)
+      expect(result.model).toBe(`claude-3-opus`)
+    })
+
+    it(`should keep base model when config model is null`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig(`proj-2`)
+      expect(result.model).toBe(`gpt-4`)
+    })
+
+    it(`should override maxTokens, systemPrompt, tools`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig(`proj-1`)
+      expect(result.maxTokens).toBe(4000)
+      expect(result.systemPrompt).toBe(`You are a project assistant`)
+      expect(result.tools).toEqual([`tool-c`])
+    })
+
+    it(`should deep merge envVars (project keys win)`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig(`proj-1`)
+      expect(result.envVars).toEqual({
+        API_URL: `https://base.example.com`,
+        SHARED_KEY: `project-value`,
+        PROJECT_VAR: `proj-only`,
+      })
+    })
+
+    it(`should deep merge environment (project keys win)`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig(`proj-1`)
+      expect(result.environment).toEqual({
+        temperature: 1,
+        streaming: false,
+      })
+    })
+
+    it(`should preserve projectConfigs on effective config`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig(`proj-1`)
+      expect(result.projectConfigs).toEqual(agent.projectConfigs)
+      expect(result.projectConfigs).toHaveLength(2)
+    })
+
+    it(`should return a new Agent instance (not mutate original)`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig(`proj-1`)
+      expect(result).not.toBe(agent)
+      expect(result).toBeInstanceOf(Agent)
+      expect(agent.model).toBe(`gpt-4`)
+      expect(agent.maxTokens).toBe(2000)
+      expect(agent.systemPrompt).toBe(`You are helpful`)
+      expect(agent.tools).toEqual([`tool-a`, `tool-b`])
+      expect(agent.envVars).toEqual({
+        API_URL: `https://base.example.com`,
+        SHARED_KEY: `base-value`,
+      })
+    })
+  })
+
+  describe(`removed fields`, () => {
+    it(`should NOT have a functions property`, () => {
+      const agent = new Agent({
+        name: `Test Agent`,
+        orgId: `org-1`,
+      })
+      expect(`functions` in agent).toBe(false)
+      expect((agent as any).functions).toBeUndefined()
+    })
+  })
 })

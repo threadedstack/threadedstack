@@ -1,8 +1,8 @@
 import type { Agent } from '@tdsk/domain'
-import { setAgents, getAgents } from '@TAF/state/accessors'
+import { getContextAgents, setContextAgents } from '@TAF/state/accessors'
 
-export const upsertAgents = (agents: Agent[]) => {
-  const current = getAgents() || {}
+export const upsertAgents = (contextKey: string, agents: Agent[]) => {
+  const current = getContextAgents(contextKey) || {}
   const agentsMap = agents.reduce(
     (acc, agent) => {
       acc[agent.id] = agent
@@ -11,5 +11,5 @@ export const upsertAgents = (agents: Agent[]) => {
     {} as Record<string, Agent>
   )
 
-  setAgents({ ...current, ...agentsMap })
+  setContextAgents(contextKey, { ...current, ...agentsMap })
 }

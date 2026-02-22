@@ -27,7 +27,9 @@ export const listAgents: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
-    const projectId = req.query.projectId as string | undefined
+    // TODO: investigate if the `req.query.projectId` should actually be used
+    // Should come from the URL when getting project agents list
+    const projectId = (req.params.projectId || req.query.projectId) as string | undefined
     const sanitize = req.query.sanitize !== `false`
 
     if (!orgId) throw new Exception(400, `orgId parameter required`)
@@ -79,6 +81,8 @@ export const listAgents: TEndpointConfig = {
       filteredData = filteredData.filter((agent) =>
         agent.projects?.some((p) => p.id === projectId)
       )
+      // Merge project overrides into each agent
+      filteredData = filteredData.map((agent) => agent.getEffectiveConfig(projectId))
     }
 
     res.status(200).json({ data: filteredData, limit, offset })

@@ -6,6 +6,8 @@ import { auth } from '@TAF/services/auth'
 import { ife } from '@keg-hub/jsutils/ife'
 import { AuthContext } from '@TAF/contexts/AuthContext'
 import { initAuth } from '@TAF/actions/auth/local/init'
+import { signout } from '@TAF/actions/auth/local/signout'
+import { tokenRefresh } from '@TAF/services/tokenRefresh'
 import { LoginError } from '@TAF/components/Login/LoginError'
 import { NeonAuthUIProvider } from '@neondatabase/neon-js/auth/react'
 import { Loading, MemoChildren, useEffectOnce } from '@tdsk/components'
@@ -22,6 +24,8 @@ export type TAuthProvider = {
  * 2. NeonAuthUIProvider handles OAuth redirects and token management
  * 3. JWT tokens from Neon Auth are sent to proxy in Authorization header
  * 4. Proxy validates JWT using JWKS from Neon Auth
+ * 5. Token is proactively refreshed before expiry via TokenRefreshManager
+ * 6. On 401 responses, token is refreshed and request retried once
  */
 export const AuthProvider = (props: TAuthProvider) => {
   const [error, setError] = useState<string>()
@@ -35,9 +39,13 @@ export const AuthProvider = (props: TAuthProvider) => {
     ife(async () => {
       try {
         setLoading(true)
-        const { session, error } = await initAuth()
+        const { session: authSession, error } = await initAuth()
         if (error) return setError(error.message)
-        session && setSession(session)
+
+        if (authSession) {
+          setSession(authSession)
+          tokenRefresh.start(authSession, setSession, signout)
+        }
       } catch (err) {
         console.error(err)
         err?.message && setError(err?.message)
@@ -45,6 +53,8 @@ export const AuthProvider = (props: TAuthProvider) => {
         setLoading(false)
       }
     })
+
+    return () => tokenRefresh.stop()
   })
 
   return (

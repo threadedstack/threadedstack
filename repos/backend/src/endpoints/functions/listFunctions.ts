@@ -21,8 +21,9 @@ export const listFunctions: TEndpointConfig = {
     // projectId is required
     if (!projectId) throw new Exception(400, `projectId parameter required`)
 
-    // Check permission
+    // Check permission — include orgId so org-level roles are considered
     await checkPermission(req, EPermAction.read, EPermResource.function, {
+      orgId: req.params.orgId,
       projectId: projectId as string,
     })
 

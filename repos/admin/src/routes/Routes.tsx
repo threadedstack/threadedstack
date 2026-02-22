@@ -94,7 +94,7 @@ export const Routes = createBrowserRouter([
             Component: () => <SuspensePage Component={Org} />,
           },
           {
-            path: ERoutePath.Users,
+            path: ERoutePath.Members,
             Component: () => <SuspensePage Component={OrgUsers} />,
           },
           {

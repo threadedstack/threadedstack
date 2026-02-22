@@ -1,5 +1,4 @@
 import type { Domain } from '@tdsk/domain'
-
 import { domainsApi } from '@TAF/services'
 import { upsertDomain } from '@TAF/actions/domains/local/upsertDomain'
 
@@ -15,7 +14,8 @@ export const updateDomain = async (opts: TUpdateDomainOpts) => {
   const resp = await domainsApi.update(orgId, id, data, projectId)
 
   if (resp.error) return resp
-  resp.data && upsertDomain(resp.data)
+  const contextKey = projectId || 'org'
+  resp.data && upsertDomain(contextKey, resp.data)
 
   return resp
 }

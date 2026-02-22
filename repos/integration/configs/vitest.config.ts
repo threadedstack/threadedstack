@@ -11,10 +11,7 @@ export default defineConfig({
     fileParallelism: false,
     include: [`src/**/*.test.ts`],
     globalSetup: [`src/setup/global-setup.ts`],
-    // Ensure TLS bypass is inherited by worker processes
-    env: {
-      NODE_TLS_REJECT_UNAUTHORIZED: `0`,
-    },
+    setupFiles: [`src/setup/test-env.ts`],
   },
   plugins: [viteTsconfigPaths()],
 } as UserConfig)

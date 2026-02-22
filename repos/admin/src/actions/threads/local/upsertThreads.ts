@@ -1,8 +1,8 @@
 import type { Thread } from '@tdsk/domain'
-import { setThreads, getThreads } from '@TAF/state/accessors'
+import { getContextThreads, setContextThreads } from '@TAF/state/accessors'
 
-export const upsertThreads = (threads: Thread[]) => {
-  const current = getThreads() || {}
+export const upsertThreads = (contextKey: string, threads: Thread[]) => {
+  const current = getContextThreads(contextKey) || {}
   const threadsMap = threads.reduce(
     (acc, thread) => {
       acc[thread.id] = thread
@@ -11,5 +11,5 @@ export const upsertThreads = (threads: Thread[]) => {
     {} as Record<string, Thread>
   )
 
-  setThreads({ ...current, ...threadsMap })
+  setContextThreads(contextKey, { ...current, ...threadsMap })
 }

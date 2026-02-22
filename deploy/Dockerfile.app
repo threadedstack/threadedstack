@@ -32,6 +32,12 @@ ADD repos/sandbox/package.json ./repos/sandbox/package.json
 RUN apk add --no-cache python3 make g++
 
 RUN pnpm install --frozen-lockfile --prefer-offline
+# Compile isolated-vm native addon for Alpine/musl — pnpm install skips
+# lifecycle scripts when packages are pre-fetched with --ignore-scripts
+RUN cd /tdsk/node_modules/.pnpm/isolated-vm@6.0.2/node_modules/isolated-vm && \
+    npx --yes node-gyp rebuild --release -j max
+# Verify the native addon compiled successfully (fail build early if not)
+RUN node -e "require('/tdsk/node_modules/.pnpm/isolated-vm@6.0.2/node_modules/isolated-vm'); console.log('isolated-vm: native addon verified')"
 
 ADD repos/logger ./repos/logger
 ADD repos/domain ./repos/domain

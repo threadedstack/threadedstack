@@ -1,9 +1,8 @@
 import type { Asset } from '@tdsk/domain'
+import { getContextAssets, setContextAssets } from '@TAF/state/accessors'
 
-import { setAssets, getAssets } from '@TAF/state/accessors'
-
-export const upsertAssets = (assets: Asset[]) => {
-  const current = getAssets() || {}
+export const upsertAssets = (contextKey: string, assets: Asset[]) => {
+  const current = getContextAssets(contextKey) || {}
   const assetsMap = assets.reduce(
     (acc, asset) => {
       acc[asset.id] = asset
@@ -12,5 +11,5 @@ export const upsertAssets = (assets: Asset[]) => {
     {} as Record<string, Asset>
   )
 
-  setAssets({ ...current, ...assetsMap })
+  setContextAssets(contextKey, { ...current, ...assetsMap })
 }

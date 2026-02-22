@@ -1,10 +1,14 @@
-import type { TAgentEnvVars, TAgentEnvironment, TAgentProvider } from '@TDM/types'
+import type {
+  TAgentEnvVars,
+  TAgentProvider,
+  TAgentEnvironment,
+  TAgentProjectConfig,
+} from '@TDM/types'
 
 import { Base } from './base'
 import { Secret } from './secret'
 import { Project } from './project'
 import { Provider } from './provider'
-import { Function as FunctionModel } from './function'
 
 export class Agent extends Base {
   name: string
@@ -18,25 +22,29 @@ export class Agent extends Base {
   secrets: Secret[] = []
   projects: Project[] = []
   providers: Provider[] = []
-  providerPriorities: number[] = []
   envVars: TAgentEnvVars = {}
-  functions: FunctionModel[] = []
+  providerPriorities: number[] = []
   environment: TAgentEnvironment = {}
+  projectConfigs: TAgentProjectConfig[] = []
 
   constructor(agent: Partial<Agent>) {
     super()
 
-    const { secrets, functions, providers, projects, providerPriorities, ...rest } = agent
+    // biome-ignore format: None
+    const {
+      secrets,
+      projects,
+      providers,
+      projectConfigs,
+      providerPriorities,
+      ...rest
+    } = agent
 
     Object.assign(this, {
       ...rest,
       secrets:
         secrets?.map((secret) =>
           secret instanceof Secret ? secret : new Secret(secret)
-        ) || [],
-      functions:
-        functions?.map((fn) =>
-          fn instanceof FunctionModel ? fn : new FunctionModel(fn)
         ) || [],
       projects:
         projects?.map((project) =>
@@ -47,6 +55,7 @@ export class Agent extends Base {
           prov instanceof Provider ? prov : new Provider(prov)
         ) || [],
       providerPriorities: providerPriorities || [],
+      projectConfigs: projectConfigs || [],
     })
   }
 
@@ -65,7 +74,38 @@ export class Agent extends Base {
     }))
   }
 
-  sanitize = () => {
+  /**
+   * Get the project config for a specific project
+   */
+  getProjectConfig(projectId: string): TAgentProjectConfig | undefined {
+    return this.projectConfigs?.find((c) => c.projectId === projectId)
+  }
+
+  /**
+   * Get the effective agent config for a specific project context.
+   * Merges base agent config with project-level overrides.
+   * NULL override fields = inherit from base agent.
+   * envVars and environment are deep merged (project keys win).
+   * Returns a new Agent instance with merged config.
+   */
+  getEffectiveConfig(projectId?: string): Agent {
+    if (!projectId) return this
+    const config = this.getProjectConfig(projectId)
+    if (!config) return this
+
+    return new Agent({
+      ...this,
+      model: config.model ?? this.model,
+      tools: config.tools ?? this.tools,
+      projectConfigs: this.projectConfigs,
+      maxTokens: config.maxTokens ?? this.maxTokens,
+      systemPrompt: config.systemPrompt ?? this.systemPrompt,
+      envVars: { ...this.envVars, ...(config.envVars || {}) },
+      environment: { ...this.environment, ...(config.environment || {}) },
+    })
+  }
+
+  sanitize() {
     return new Agent({
       ...this,
       secrets: this.secrets.map((secret) => secret.sanitize()),

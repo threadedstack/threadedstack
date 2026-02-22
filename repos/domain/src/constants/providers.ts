@@ -1,6 +1,16 @@
 import type { TProviderTemplate } from '@TDM/types'
 import { ELLMProviderBrand } from '@TDM/types'
 
+// TODO: combine this with the provider templates
+// Allow it to be configurable from the admin UI
+export const DefProviderModelUrls = {
+  ollamaUrl: `http://localhost:11434/api/tags`,
+  openAiUrl: `https://api.openai.com/v1/models`,
+  openRouterUrl: `https://openrouter.ai/api/v1/models`,
+  zaiUrl: `https://api.z.ai/api/coding/paas/v4/models`,
+  googleUrl: `https://generativelanguage.googleapis.com/v1beta/models`,
+}
+
 /**
  * TODO: Figure out how to Replace this with a dynamic look up of AI models
  * Use one of:
@@ -123,6 +133,51 @@ export const ProviderTemplates: Record<ELLMProviderBrand, TProviderTemplate> = {
         description: `Efficient with thinking mode`,
       },
     ],
+  },
+  [ELLMProviderBrand.openrouter]: {
+    id: ELLMProviderBrand.openrouter,
+    name: `OpenRouter`,
+    baseUrl: `https://openrouter.ai/api/v1`,
+    defaultModel: `anthropic/claude-sonnet-4`,
+    defaultSecretName: `OPENROUTER_API_KEY`,
+    apiKeyPlaceholder: `sk-or-v1-...`,
+    apiKeyPattern: `^sk-or-`,
+    models: [
+      {
+        id: `anthropic/claude-sonnet-4`,
+        name: `Claude Sonnet 4`,
+        maxTokens: 64000,
+        description: `Anthropic's balanced model via OpenRouter`,
+      },
+      {
+        id: `openai/gpt-4o`,
+        name: `GPT-4o`,
+        maxTokens: 16384,
+        description: `OpenAI's flagship model via OpenRouter`,
+      },
+      {
+        id: `meta-llama/llama-3.3-70b-instruct`,
+        name: `Llama 3.3 70B`,
+        maxTokens: 8192,
+        description: `Meta's open-source model`,
+      },
+      {
+        id: `mistralai/mistral-large-latest`,
+        name: `Mistral Large`,
+        maxTokens: 32768,
+        description: `Mistral's most capable model`,
+      },
+    ],
+  },
+  [ELLMProviderBrand.ollama]: {
+    id: ELLMProviderBrand.ollama,
+    name: `Ollama`,
+    baseUrl: `http://localhost:11434/v1`,
+    defaultModel: `llama3.2`,
+    defaultSecretName: `OLLAMA_API_KEY`,
+    apiKeyPlaceholder: `Optional — Ollama typically runs without auth`,
+    apiKeyPattern: ``,
+    models: [],
   },
   [ELLMProviderBrand.custom]: {
     id: ELLMProviderBrand.custom,

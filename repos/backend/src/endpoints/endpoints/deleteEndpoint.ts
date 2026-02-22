@@ -23,7 +23,8 @@ export const deleteEndpoint: TEndpointConfig = {
       id,
       EPermAction.delete,
       EPermResource.endpoint,
-      `Endpoint`
+      `Endpoint`,
+      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
     )
 
     const { data, error } = await db.services.endpoint.delete(id)

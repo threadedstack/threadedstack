@@ -197,6 +197,43 @@ describe('Tier 1: REPL ApiClient (live)', () => {
     })
   })
 
+  // ─── Projects ─────────────────────────────────────────────────────
+
+  describe('projects', () => {
+    test('listProjects returns array', async () => {
+      const projects = await client.listProjects(ctx.orgId)
+      expect(Array.isArray(projects)).toBe(true)
+      expect(projects.length).toBeGreaterThan(0)
+    })
+
+    test('listProjects includes quickstart project', async () => {
+      const projects = await client.listProjects(ctx.orgId)
+      const found = projects.find((p: any) => p.id === projectId)
+      expect(found).toBeDefined()
+    })
+  })
+
+  // ─── Delete thread ───────────────────────────────────────────────
+
+  describe('deleteThread', () => {
+    test('deleteThread removes a thread', async () => {
+      const thread = await client.createThread(ctx.orgId, agentId, 'IT delete test')
+
+      await client.deleteThread(ctx.orgId, agentId, thread.id)
+
+      // Verify deleted: getThread should throw 404
+      await expect(
+        client.getThread(ctx.orgId, agentId, thread.id)
+      ).rejects.toThrow('API error')
+    })
+
+    test('deleteThread on non-existent thread throws', async () => {
+      await expect(
+        client.deleteThread(ctx.orgId, agentId, '00000000-0000-0000-0000-000000000000')
+      ).rejects.toThrow('API error')
+    })
+  })
+
   // ─── Auth error ───────────────────────────────────────────────────
 
   describe('auth errors', () => {

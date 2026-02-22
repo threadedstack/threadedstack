@@ -13,7 +13,8 @@ export type TCreateSecretOpts = {
 export const createSecret = async (opts: TCreateSecretOpts) => {
   const { orgId, projectId, ...data } = opts
   const resp = await secretsApi.create(orgId, data, projectId)
-  if (resp.data) projectId ? upsertSecret(resp.data) : upsertOrgSecret(resp.data)
+  if (resp.data)
+    projectId ? upsertSecret(projectId, resp.data) : upsertOrgSecret(resp.data)
 
   return resp
 }

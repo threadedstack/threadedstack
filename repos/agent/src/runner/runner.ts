@@ -3,7 +3,7 @@ import type { ISandbox, TStreamEvent } from '@tdsk/domain'
 import type { AgentEvent } from '@mariozechner/pi-agent-core'
 import type { AssistantMessage, Message, ToolResultMessage } from '@mariozechner/pi-ai'
 
-import { EContentType } from '@tdsk/domain'
+import { EContentType, buildFallbackModel } from '@tdsk/domain'
 import { buildApiLogger } from '@tdsk/logger'
 import { getModel } from '@mariozechner/pi-ai'
 import { Agent } from '@mariozechner/pi-agent-core'
@@ -70,8 +70,12 @@ export class AgentRunner {
       // 4. Convert history to pi-mono messages
       const history = convertToLlmMessages(existingMessages || [])
 
-      // 5. Create pi-mono model
-      const model = getModel(llmConfig.provider as any, llmConfig.model as any)
+      // 5. Create pi-mono model — try static registry first, fall back to
+      // constructed model for OpenAI-compatible providers (OpenRouter, Ollama, custom)
+      const model =
+        getModel(llmConfig.provider as any, llmConfig.model as any) ??
+        buildFallbackModel(llmConfig)
+
       if (!model)
         throw new Error(
           `Unknown model "${llmConfig.model}" for provider "${llmConfig.provider}"`

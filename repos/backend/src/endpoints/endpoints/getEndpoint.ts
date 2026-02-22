@@ -22,7 +22,8 @@ export const getEndpoint: TEndpointConfig = {
       id,
       EPermAction.read,
       EPermResource.endpoint,
-      `Endpoint`
+      `Endpoint`,
+      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
     )
 
     res.status(200).json({ data })

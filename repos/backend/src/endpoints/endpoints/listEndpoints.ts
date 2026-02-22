@@ -22,7 +22,9 @@ export const listEndpoints: TEndpointConfig = {
     if (!projectId) throw new Exception(400, `projectId parameter required`)
 
     // Check permission - requires member+ (viewer can also read per matrix)
+    // Include orgId so org-level roles (e.g., org admin) are considered
     await checkPermission(req, EPermAction.read, EPermResource.endpoint, {
+      orgId: req.params.orgId,
       projectId: projectId as string,
     })
 

@@ -1,6 +1,6 @@
 import type { TStreamEvent } from '@tdsk/domain'
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
-
+import type { TAgentProjectConfig } from '@tdsk/domain'
 import { Agent } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
 import { apiUrl } from '@TAF/utils/api/apiUrl'
@@ -25,6 +25,10 @@ export class AgentsApi extends BaseApi {
     return projectId
       ? `/orgs/${orgId}/projects/${projectId}/agents`
       : `/orgs/${orgId}/agents`
+  }
+
+  #configPath(orgId: string, projectId: string, agentId: string) {
+    return `/orgs/${orgId}/projects/${projectId}/agents/${agentId}/config`
   }
 
   /**
@@ -148,6 +152,60 @@ export class AgentsApi extends BaseApi {
 
     return resp
   }
+
+  /**
+   * Get project-level config overrides for an agent
+   */
+  async getConfig(
+    orgId: string,
+    projectId: string,
+    agentId: string
+  ): Promise<TApiRes<TAgentProjectConfig>> {
+    const resp = await this.api.get<TAgentProjectConfig>({
+      path: this.#configPath(orgId, projectId, agentId),
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to load agent config`))
+
+    return resp
+  }
+
+  /**
+   * Create or update project-level config overrides for an agent
+   */
+  async upsertConfig(
+    orgId: string,
+    projectId: string,
+    agentId: string,
+    data: Partial<TAgentProjectConfig>
+  ): Promise<TApiRes<TAgentProjectConfig>> {
+    const resp = await this.api.put<TAgentProjectConfig>({
+      data,
+      path: this.#configPath(orgId, projectId, agentId),
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to save agent config`))
+
+    return resp
+  }
+
+  /**
+   * Reset all project-level config overrides for an agent
+   */
+  async deleteConfig(
+    orgId: string,
+    projectId: string,
+    agentId: string
+  ): Promise<TApiRes<TAgentProjectConfig>> {
+    const resp = await this.api.delete<TAgentProjectConfig>({
+      path: this.#configPath(orgId, projectId, agentId),
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to reset agent config`))
+
+    return resp
+  }
+
   /**
    * Run an agent with SSE streaming
    * Returns an object with the Response for reading SSE events

@@ -1,8 +1,8 @@
 import type { Domain } from '@tdsk/domain'
-import { setDomains, getDomains } from '@TAF/state/accessors'
+import { getContextDomains, setContextDomains } from '@TAF/state/accessors'
 
-export const upsertDomain = (domain: Domain) =>
-  setDomains({
-    ...getDomains(),
+export const upsertDomain = (contextKey: string, domain: Domain) =>
+  setContextDomains(contextKey, {
+    ...getContextDomains(contextKey),
     [domain.id]: domain,
   })

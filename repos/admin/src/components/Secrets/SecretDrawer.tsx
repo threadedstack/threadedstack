@@ -51,8 +51,10 @@ export const SecretDrawer = ({
   const duplicateName = useMemo(() => {
     if (isEditMode || !temp?.name?.trim() || !secrets) return false
     const name = temp.name.trim().toLowerCase()
-    return Object.values(secrets).some(
-      (s) => s.name?.toLowerCase() === name || s.hashKey?.toLowerCase() === name
+    return Object.values(secrets).some((scope) =>
+      Object.values(scope).some(
+        (s) => s.name?.toLowerCase() === name || s.hashKey?.toLowerCase() === name
+      )
     )
   }, [temp?.name, secrets, isEditMode])
 

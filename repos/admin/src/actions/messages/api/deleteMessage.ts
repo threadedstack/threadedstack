@@ -12,7 +12,7 @@ export const deleteMessage = async (opts: TDeleteMessageOpts) => {
   const { orgId, agentId, threadId, messageId } = opts
   const resp = await messagesApi.delete(orgId, agentId, threadId, messageId)
   if (resp.error) return { error: resp.error }
-  removeMessage(messageId)
+  removeMessage(threadId, messageId)
 
   return resp
 }

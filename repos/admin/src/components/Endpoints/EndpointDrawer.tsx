@@ -11,7 +11,8 @@ import { Box } from '@mui/material'
 import { vep } from '@TAF/utils/endpoints'
 import { EEndpointType } from '@tdsk/domain'
 import { useState, useEffect, useRef } from 'react'
-import { useFunctions, useSecrets } from '@TAF/state/selectors'
+import { useProjectSecrets, useProjectFunctions } from '@TAF/state/selectors'
+import { fetchFunctions } from '@TAF/actions/functions/fetchFunctions'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
@@ -68,10 +69,10 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   const validateTriggerRef = useRef(0)
   const validationErrorRef = useRef<string | null>(null)
 
-  const [secretsMap] = useSecrets()
+  const [secretsMap] = useProjectSecrets()
   const availableSecrets = secretsMap ? Object.values(secretsMap) : []
 
-  const [functionsMap] = useFunctions()
+  const [functionsMap] = useProjectFunctions()
   const availableFunctions = functionsMap ? Object.values(functionsMap) : []
 
   useEffect(() => {
@@ -95,6 +96,12 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       setUiState({ loading: false, error: null, showDeleteConfirm: false })
     }
   }, [endpoint])
+
+  useEffect(() => {
+    if (open && orgId && projectId) {
+      fetchFunctions({ orgId, projectId })
+    }
+  }, [open, orgId, projectId])
 
   const onSharedStateChange = (updates: Partial<typeof sharedState>) => {
     setSharedState((prev) => ({ ...prev, ...updates }))

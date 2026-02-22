@@ -6,6 +6,7 @@ import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { getSession } from '@TBE/services/sessionStore'
 import { getModel, streamSimple } from '@mariozechner/pi-ai'
+import { buildFallbackModel } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 
 const SessionPrefix = `Session `
@@ -100,11 +101,11 @@ export const streamChat: TEndpointConfig = {
       throw new Exception(400, `context.messages is required and must be an array`)
     }
 
-    // Use server-side model from session, but allow client to override provider/model
-    const model = getModel(
-      session.llmConfig.provider as any,
-      session.llmConfig.model as any
-    )
+    // Use server-side model from session — try static registry first, fall back to
+    // constructed model for OpenAI-compatible providers (OpenRouter, Ollama, custom)
+    const model =
+      getModel(session.llmConfig.provider as any, session.llmConfig.model as any) ??
+      buildFallbackModel(session.llmConfig)
 
     if (!model)
       throw new Exception(

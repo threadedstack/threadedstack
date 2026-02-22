@@ -88,6 +88,7 @@ describe(`Providers endpoints`, () => {
       expect(providers.path).toBe(`/providers`)
       expect(providers.method).toBe(`use`)
       expect(providers.endpoints).toBeDefined()
+      expect(providers.endpoints?.fetchModels).toBeDefined()
       expect(providers.endpoints?.getProvider).toBeDefined()
       expect(providers.endpoints?.listProviders).toBeDefined()
       expect(providers.endpoints?.createProvider).toBeDefined()

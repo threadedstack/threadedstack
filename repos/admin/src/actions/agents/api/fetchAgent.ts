@@ -11,7 +11,9 @@ export const fetchAgent = async (opts: TFetchAgentOpts) => {
   const { orgId, id, projectId } = opts
   const resp = await agentsApi.get(orgId, id, projectId)
   if (resp.error) return { error: resp.error }
-  resp.data && upsertAgent(resp.data)
+
+  const contextKey = projectId || 'org'
+  resp.data && upsertAgent(contextKey, resp.data)
 
   return resp
 }

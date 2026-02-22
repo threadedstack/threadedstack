@@ -22,7 +22,8 @@ export const getFunction: TEndpointConfig = {
       id,
       EPermAction.read,
       EPermResource.function,
-      `Function`
+      `Function`,
+      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
     )
 
     res.status(200).json({ data: func })

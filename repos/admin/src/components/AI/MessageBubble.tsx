@@ -46,7 +46,7 @@ export const MessageBubble = (props: TMessageBubble) => {
 
       <Box
         sx={{
-          maxWidth: `75%`,
+          maxWidth: isUser ? `75%` : `85%`,
           minWidth: 0,
         }}
       >
@@ -59,6 +59,10 @@ export const MessageBubble = (props: TMessageBubble) => {
             color: isUser ? `primary.contrastText` : `text.primary`,
             border: isUser ? `none` : 1,
             borderColor: `divider`,
+            '& pre, & code': {
+              overflowX: `auto`,
+              maxWidth: `100%`,
+            },
           }}
         >
           {message.text ? (

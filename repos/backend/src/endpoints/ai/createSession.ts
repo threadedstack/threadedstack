@@ -62,6 +62,7 @@ export const createSession: TEndpointConfig = {
       apiKey,
       headers,
       bodyParams,
+      baseUrl: provider.options?.baseUrl as string | undefined,
       provider: providerType as any,
       systemPrompt: agent.systemPrompt,
       maxTokens: agent.maxTokens || 4096,

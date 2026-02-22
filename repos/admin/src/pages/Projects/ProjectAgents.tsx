@@ -17,7 +17,7 @@ import { fetchProviders } from '@TAF/actions/providers'
 import {
   useActiveOrgId,
   useActiveProjectId,
-  useAgents,
+  useProjectAgents,
   useProviders,
 } from '@TAF/state/selectors'
 import { Box, Chip, Typography } from '@mui/material'
@@ -32,7 +32,7 @@ import {
 export type TProjectAgents = {}
 
 export const ProjectAgents = (props: TProjectAgents) => {
-  const [agents] = useAgents()
+  const [agents] = useProjectAgents()
   const [orgId] = useActiveOrgId()
   const [providers] = useProviders()
   const [projectId] = useActiveProjectId()
@@ -58,7 +58,7 @@ export const ProjectAgents = (props: TProjectAgents) => {
   }
 
   const agentsList = useMemo(() => {
-    const list = Object.values(agents || {}).filter((agent) => agent.orgId === orgId)
+    const list = Object.values(agents || {})
     if (!searchQuery.trim()) return list
 
     const query = searchQuery.toLowerCase()
@@ -68,12 +68,9 @@ export const ProjectAgents = (props: TProjectAgents) => {
         agent.description?.toLowerCase().includes(query) ||
         agent.model?.toLowerCase().includes(query)
     )
-  }, [agents, orgId, searchQuery])
+  }, [agents, searchQuery])
 
-  const totalCount = useMemo(
-    () => Object.values(agents || {}).filter((agent) => agent.orgId === orgId).length,
-    [agents, orgId]
-  )
+  const totalCount = useMemo(() => Object.keys(agents || {}).length, [agents])
 
   const onOpenCreate = () => {
     setEditingAgent(null)
@@ -110,9 +107,9 @@ export const ProjectAgents = (props: TProjectAgents) => {
 
       setAgentToDelete(null)
       setDeleteDialogOpen(false)
-      toast.success(`Agent deleted successfully`)
+      toast.success(`Agent removed from project`)
     } catch (error) {
-      toast.error(`Failed to delete agent`)
+      toast.error(`Failed to remove agent`)
       console.error(`onDelete error:`, error)
     } finally {
       setLoading(false)
@@ -166,7 +163,9 @@ export const ProjectAgents = (props: TProjectAgents) => {
           variant='body2'
           color='text.secondary'
         >
-          {agent.primaryProvider?.name || '-'}
+          {agent.primaryProvider?.name ||
+            getProviderName(agent.providers?.[0]?.id) ||
+            '-'}
         </Typography>
       ),
     },
@@ -235,7 +234,7 @@ export const ProjectAgents = (props: TProjectAgents) => {
             }}
           />
           <ActionIconButton
-            tooltip='Delete agent'
+            tooltip='Remove from project'
             icon={<DeleteIcon fontSize='small' />}
             size='small'
             color='error'
@@ -304,7 +303,7 @@ export const ProjectAgents = (props: TProjectAgents) => {
             setAgentToDelete(null)
           }}
           onConfirm={onDeleteConfirm}
-          warnText='This will permanently delete this agent and all its configuration.'
+          warnText='This will remove the agent from this project. The agent will remain available at the org level and in other projects.'
         />
       </PageLayout>
     </Page>

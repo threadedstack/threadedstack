@@ -9,7 +9,7 @@ import { EmptyState, DataTable } from '@TAF/components'
 import { useActiveProjectId } from '@TAF/state/selectors'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { NoFunctions } from '@TAF/components/Functions/NoFunctions'
-import { useFunctions, useActiveOrgId } from '@TAF/state/selectors'
+import { useProjectFunctions, useActiveOrgId } from '@TAF/state/selectors'
 import { deleteFunction } from '@TAF/actions/functions/deleteFunction'
 import { fetchFunctions } from '@TAF/actions/functions/fetchFunctions'
 import { FunctionDrawer } from '@TAF/components/Functions/FunctionDrawer'
@@ -20,7 +20,7 @@ import { Code as CodeIcon, Delete as DeleteIcon } from '@mui/icons-material'
 export type TFunctions = {}
 
 export const Functions = (props: TFunctions) => {
-  const [functions] = useFunctions()
+  const [functions] = useProjectFunctions()
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(true)
@@ -48,9 +48,9 @@ export const Functions = (props: TFunctions) => {
   }, [orgId, projectId])
 
   const filteredFunctions = useMemo(() => {
-    if (!functions || !projectId) return []
+    if (!functions) return []
 
-    let filtered = Object.values(functions).filter((func) => func.projectId === projectId)
+    let filtered = Object.values(functions)
 
     if (languageFilter !== 'all') {
       filtered = filtered.filter((func) => func.language === languageFilter)
@@ -67,24 +67,22 @@ export const Functions = (props: TFunctions) => {
     }
 
     return filtered
-  }, [functions, projectId, searchQuery, languageFilter])
+  }, [functions, searchQuery, languageFilter])
 
   const languageFilterOptions = useMemo(() => {
-    if (!functions || !projectId) return []
+    if (!functions) return []
     const languages = new Set<string>()
 
-    Object.values(functions)
-      .filter((func) => func.projectId === projectId)
-      .forEach((func) => func.language && languages.add(func.language))
+    Object.values(functions).forEach(
+      (func) => func.language && languages.add(func.language)
+    )
 
     return Array.from(languages)
       .sort()
       .map((lang) => ({ value: lang, label: lang }))
-  }, [functions, projectId])
+  }, [functions])
 
-  const functionsCount = functions
-    ? Object.values(functions).filter((f) => f.projectId === projectId).length
-    : 0
+  const functionsCount = functions ? Object.keys(functions).length : 0
 
   const onDelete = (func: FunctionModel) => {
     setFunctionToDelete({ id: func.id, name: func.name })

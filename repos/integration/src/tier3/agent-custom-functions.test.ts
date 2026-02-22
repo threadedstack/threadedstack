@@ -1,8 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
-import { post, get } from '../utils/api-client'
+import { post, get, put } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
 import { tryDelete } from '../utils/cleanup'
+import { cleanupThread } from '../utils/repl-cleanup'
 
 describe('Tier 3: Agent with Custom Functions', () => {
   const ctx = readContext()
@@ -12,6 +13,7 @@ describe('Tier 3: Agent with Custom Functions', () => {
   let functionId = ''
   let agentId = ''
   let projectId = ''
+  const threadIds: string[] = []
 
   const functionContent = `export default async function handler(request, context) {
   const name = context?.args?.name || 'world'
@@ -45,7 +47,7 @@ describe('Tier 3: Agent with Custom Functions', () => {
     agentId = quickstartResult.agent.id
     projectId = quickstartResult.project.id
 
-    // Step 2: Create a function linked to the agent via agentId
+    // Step 2: Create a function in the project
     const fnRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
@@ -53,7 +55,6 @@ describe('Tier 3: Agent with Custom Functions', () => {
         content: functionContent,
         language: 'typescript',
         description: 'Greeting function for agent tool testing',
-        agentId,
         inputSchema,
       }
     )
@@ -64,9 +65,24 @@ describe('Tier 3: Agent with Custom Functions', () => {
     }
 
     functionId = fnRes.data.data.id
+
+    // Step 3: Link the function to the agent via project config functionIds
+    const configRes = await put(
+      `/orgs/${ctx.orgId}/projects/${projectId}/agents/${agentId}/config`,
+      { functionIds: [functionId] }
+    )
+
+    if (!configRes.ok) {
+      setupFailed = true
+      return
+    }
   })
 
   afterAll(async () => {
+    // Clean up threads created by consumeSSE calls
+    for (const tid of threadIds) {
+      if (agentId) await cleanupThread(ctx.orgId, agentId, tid)
+    }
     // Cleanup in reverse dependency order
     if (functionId)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`)
@@ -82,9 +98,10 @@ describe('Tier 3: Agent with Custom Functions', () => {
       await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
   })
 
-  test('function is linked to agent', async () => {
+  test('function is linked to agent via project config', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
+    // Verify function exists
     const res = await get<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`
     )
@@ -92,16 +109,24 @@ describe('Tier 3: Agent with Custom Functions', () => {
     expect(res.status).toBe(200)
     expect(res.data.data).toBeDefined()
     expect(res.data.data.id).toBe(functionId)
-    expect(res.data.data.agentIds).toContain(agentId)
+
+    // Verify the agent's project config has the function linked via functionIds
+    const configRes = await get<{ data: { functionIds: string[] } }>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/agents/${agentId}/config`
+    )
+
+    expect(configRes.status).toBe(200)
+    expect(configRes.data.data.functionIds).toContain(functionId)
   })
 
   test('agent run with custom function starts SSE stream', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const { events } = await consumeSSE(
+    const { events, threadId } = await consumeSSE(
       `/orgs/${ctx.orgId}/agents/${agentId}/run`,
       { prompt: 'Say hello' }
     )
+    if (threadId) threadIds.push(threadId)
 
     expect(events).toBeDefined()
     expect(events.length).toBeGreaterThanOrEqual(1)
@@ -115,6 +140,7 @@ describe('Tier 3: Agent with Custom Functions', () => {
       `/orgs/${ctx.orgId}/agents/${agentId}/run`,
       { prompt: 'Say hello' }
     )
+    if (threadId) threadIds.push(threadId)
 
     expect(threadId).toBeTruthy()
   })
@@ -122,10 +148,11 @@ describe('Tier 3: Agent with Custom Functions', () => {
   test('agent run stream contains events', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const { events } = await consumeSSE(
+    const { events, threadId } = await consumeSSE(
       `/orgs/${ctx.orgId}/agents/${agentId}/run`,
       { prompt: 'Say hello' }
     )
+    if (threadId) threadIds.push(threadId)
 
     expect(events).toBeDefined()
     expect(events.length).toBeGreaterThanOrEqual(1)
@@ -137,10 +164,11 @@ describe('Tier 3: Agent with Custom Functions', () => {
     // With a fake API key the LLM call will fail, but the SSE mechanics
     // should still work — we expect at least a thread event, and either
     // an error (from the LLM) or a completion event
-    const { events } = await consumeSSE(
+    const { events, threadId } = await consumeSSE(
       `/orgs/${ctx.orgId}/agents/${agentId}/run`,
       { prompt: 'Say hello' }
     )
+    if (threadId) threadIds.push(threadId)
 
     expect(events).toBeDefined()
 

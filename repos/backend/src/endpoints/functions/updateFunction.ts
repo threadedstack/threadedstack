@@ -20,8 +20,6 @@ export const updateFunction: TEndpointConfig = {
       name,
       content,
       language,
-      agentId,
-      agentIds: rawAgentIds,
       endpointId,
       description,
       defaultArgs,
@@ -29,21 +27,14 @@ export const updateFunction: TEndpointConfig = {
       dependencies,
     } = req.body
 
-    // Accept both agentId (singular) and agentIds (array)
-    const agentIds =
-      rawAgentIds !== undefined
-        ? rawAgentIds
-        : agentId !== undefined
-          ? [agentId]
-          : undefined
-
     const existingFunc = await requireResourceWithPermission(
       req,
       db.services.function,
       id,
       EPermAction.update,
       EPermResource.function,
-      `Function`
+      `Function`,
+      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
     )
 
     const func = new FunctionModel({
@@ -60,12 +51,6 @@ export const updateFunction: TEndpointConfig = {
 
     const { data, error } = await db.services.function.update(func)
     if (error) throw new Exception(500, error.message)
-
-    // Update agent associations via junction table if provided
-    if (data && agentIds !== undefined) {
-      await db.services.function.setAgents(data.id, agentIds || [])
-      data.agentIds = agentIds || []
-    }
 
     res.status(200).json({ data })
   },

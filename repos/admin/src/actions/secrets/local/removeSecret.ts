@@ -1,14 +1,14 @@
 import {
-  setSecrets,
-  getSecrets,
+  getProjectSecrets,
+  setProjectSecrets,
   getOrgSecrets,
   setOrgSecrets,
 } from '@TAF/state/accessors'
 
-export const removeSecret = (id: string) => {
-  const current = getSecrets() || {}
+export const removeSecret = (projectId: string, id: string) => {
+  const current = getProjectSecrets(projectId) || {}
   const { [id]: removed, ...secrets } = current
-  setSecrets(secrets)
+  setProjectSecrets(projectId, secrets)
 }
 
 export const removeOrgSecret = (id: string) => {

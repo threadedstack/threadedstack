@@ -12,7 +12,8 @@ export const deleteAgent = async (opts: TDeleteAgentOpts) => {
   const resp = await agentsApi.delete(orgId, id, projectId)
 
   if (resp.error) return { error: resp.error }
-  removeAgent(id)
+  const contextKey = projectId || 'org'
+  removeAgent(contextKey, id)
 
   return resp
 }

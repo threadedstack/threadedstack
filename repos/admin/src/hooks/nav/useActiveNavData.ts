@@ -2,7 +2,7 @@ import type { TNavCtx } from '@TAF/types'
 import { useMemo } from 'react'
 import {
   useOrgs,
-  useAgents,
+  useProjectAgents,
   useProjects,
   useActiveOrgId,
   useActiveAgentId,
@@ -11,7 +11,7 @@ import {
 
 export const useActiveNavData = () => {
   const [orgs] = useOrgs()
-  const [agents] = useAgents()
+  const [agents] = useProjectAgents()
   const [projects] = useProjects()
   const [activeOrgId] = useActiveOrgId()
   const [activeAgentId] = useActiveAgentId()

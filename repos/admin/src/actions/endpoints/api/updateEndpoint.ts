@@ -1,5 +1,4 @@
 import type { Endpoint } from '@tdsk/domain'
-
 import { endpointsApi } from '@TAF/services'
 import { upsertEndpoint } from '@TAF/actions/endpoints/local/upsertEndpoint'
 
@@ -15,7 +14,7 @@ export const updateEndpoint = async (opts: TUpdateEndpointOpts) => {
   const resp = await endpointsApi.update(orgId, projectId, id, data)
 
   if (resp.error) return { error: resp.error }
-  resp.data && upsertEndpoint(resp.data)
+  resp.data && upsertEndpoint(projectId, resp.data)
 
   return resp
 }

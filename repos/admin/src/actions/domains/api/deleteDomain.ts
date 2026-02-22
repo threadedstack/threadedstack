@@ -12,7 +12,8 @@ export const deleteDomain = async (opts: TDeleteDomainOpts) => {
   const resp = await domainsApi.delete(orgId, id, projectId)
 
   if (resp.error) return resp
-  removeDomain(id)
+  const contextKey = projectId || 'org'
+  removeDomain(contextKey, id)
 
   return resp
 }

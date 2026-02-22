@@ -1,5 +1,9 @@
 import type { Asset } from '@tdsk/domain'
-import { useActiveOrgId, useActiveProjectId, useAssets } from '@TAF/state/selectors'
+import {
+  useActiveOrgId,
+  useActiveProjectId,
+  useProjectAssets,
+} from '@TAF/state/selectors'
 import { fetchAssets } from '@TAF/actions/assets/api/fetchAssets'
 import { deleteAsset } from '@TAF/actions/assets/api/deleteAsset'
 import { useState, useEffect, useMemo } from 'react'
@@ -24,7 +28,7 @@ export type TAssetsTab = {}
 export const AssetsTab = (props: TAssetsTab) => {
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
-  const [assets] = useAssets()
+  const [assets] = useProjectAssets()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,7 +47,7 @@ export const AssetsTab = (props: TAssetsTab) => {
       setLoading(true)
       setError(null)
 
-      const result = await fetchAssets({ orgId, projectId })
+      const result = await fetchAssets(projectId, { orgId, projectId })
 
       if (result.error) {
         setError(result.error.message)
@@ -56,8 +60,8 @@ export const AssetsTab = (props: TAssetsTab) => {
   }, [orgId, projectId])
 
   const projectAssets = useMemo(() => {
-    if (!assets || !projectId) return []
-    let filtered = Object.values(assets).filter((asset) => asset.projectId === projectId)
+    if (!assets) return []
+    let filtered = Object.values(assets)
 
     if (typeFilter !== 'all') {
       filtered = filtered.filter((asset) => asset.type === typeFilter)
@@ -77,22 +81,18 @@ export const AssetsTab = (props: TAssetsTab) => {
     return filtered.sort(
       (a, b) => ((b as any).createdAt || 0) - ((a as any).createdAt || 0)
     )
-  }, [assets, projectId, searchQuery, typeFilter])
+  }, [assets, searchQuery, typeFilter])
 
   const totalAssetsCount = useMemo(() => {
-    if (!assets || !projectId) return 0
-    return Object.values(assets).filter((asset) => asset.projectId === projectId).length
-  }, [assets, projectId])
+    if (!assets) return 0
+    return Object.keys(assets).length
+  }, [assets])
 
   const assetTypes = useMemo(() => {
-    if (!assets || !projectId) return []
-    const types = new Set(
-      Object.values(assets)
-        .filter((asset) => asset.projectId === projectId)
-        .map((asset) => asset.type)
-    )
+    if (!assets) return []
+    const types = new Set(Object.values(assets).map((asset) => asset.type))
     return Array.from(types).sort()
-  }, [assets, projectId])
+  }, [assets])
 
   const onDeleteAsset = (asset: Asset) => {
     setSelectedAsset(asset)
@@ -102,7 +102,7 @@ export const AssetsTab = (props: TAssetsTab) => {
   const onDeleteConfirm = async () => {
     if (!selectedAsset) return
 
-    const result = await deleteAsset(selectedAsset.id)
+    const result = await deleteAsset(projectId, selectedAsset.id)
 
     if (result.error) {
       setError(result.error.message)
@@ -113,7 +113,7 @@ export const AssetsTab = (props: TAssetsTab) => {
       setTimeout(() => setSuccess(null), 2000)
       // Refresh assets
       if (orgId && projectId) {
-        await fetchAssets({ orgId, projectId })
+        await fetchAssets(projectId, { orgId, projectId })
       }
     }
   }

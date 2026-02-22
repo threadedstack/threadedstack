@@ -6,9 +6,9 @@ import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
 import { ConfirmDelete, Drawer, TextInput, RobotOutlineIcon } from '@tdsk/components'
 import {
-  useAgents,
-  useEndpoints,
-  useFunctions,
+  useProjectAgents,
+  useProjectEndpoints,
+  useProjectFunctions,
   useActiveOrgId,
   useActiveProject,
   useActiveProjectId,
@@ -38,34 +38,21 @@ export const Project = (props: TProject) => {
   const [orgId] = useActiveOrgId()
   const [project] = useActiveProject()
   const [projectId] = useActiveProjectId()
-  const [endpoints] = useEndpoints()
-  const [functions] = useFunctions()
-  const [agents] = useAgents()
+  const [endpoints] = useProjectEndpoints()
+  const [functions] = useProjectFunctions()
+  const [agents] = useProjectAgents()
 
   const endpointCount = useMemo(
-    () =>
-      endpoints
-        ? Object.values(endpoints).filter((e) => e.projectId === projectId).length
-        : 0,
-    [endpoints, projectId]
+    () => (endpoints ? Object.keys(endpoints).length : 0),
+    [endpoints]
   )
 
   const functionCount = useMemo(
-    () =>
-      functions
-        ? Object.values(functions).filter((f) => f.projectId === projectId).length
-        : 0,
-    [functions, projectId]
+    () => (functions ? Object.keys(functions).length : 0),
+    [functions]
   )
 
-  const agentCount = useMemo(
-    () =>
-      agents
-        ? Object.values(agents).filter((a) => a.projects?.some((p) => p.id === projectId))
-            .length
-        : 0,
-    [agents, projectId]
-  )
+  const agentCount = useMemo(() => (agents ? Object.keys(agents).length : 0), [agents])
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)

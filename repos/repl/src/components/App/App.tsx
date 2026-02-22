@@ -7,6 +7,7 @@ import { ApiClient } from '@TRL/services/api'
 import { themed, setTheme } from '@TRL/theme'
 import { Executor } from '@TRL/services/executor'
 import { useSession } from '@TRL/hooks/useSession'
+import { useSubMenu } from '@TRL/hooks/useSubMenu'
 import { useMessages } from '@TRL/hooks/useMessages'
 import { ContextLoader } from '@TRL/services/context'
 import { resolveOrg } from '@TRL/utils/api/resolveOrg'
@@ -16,6 +17,7 @@ import { ErrorMessage } from '@TRL/components/Message/Error'
 import { WelcomeBox } from '@TRL/components/WelcomeBox/WelcomeBox'
 import { ChatSession } from '@TRL/components/ChatSession/ChatSession'
 import { AgentPicker } from '@TRL/components/AgentPicker/AgentPicker'
+import { ProjectPicker } from '@TRL/components/ProjectPicker/ProjectPicker'
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { parseCommand, findCommand, isPreAuthCommand } from '@TRL/commands'
 
@@ -23,20 +25,32 @@ type TApp = {
   auth: AuthManager
   config?: TReplConfig
   initialOrgId?: string
+  initialProjectId?: string
   initialAgentId?: string
   initialThreadId?: string
 }
 
 export const App = (props: TApp) => {
-  const { auth, config, initialOrgId, initialAgentId, initialThreadId } = props
+  const {
+    auth,
+    config,
+    initialOrgId,
+    initialProjectId,
+    initialAgentId,
+    initialThreadId,
+  } = props
 
   const { exit } = useApp()
   const msgs = useMessages()
   const session = useSession()
+  const subMenu = useSubMenu()
 
   const [verbose, setVerbose] = useState(config?.display?.verbose ?? false)
   const [agents, setAgents] = useState<any[]>([])
+  const [projects, setProjects] = useState<any[]>([])
   const [error, setError] = useState<Error>(null)
+  const [orgName, setOrgName] = useState<string>(``)
+  const [projectName, setProjectName] = useState<string>(``)
   const [agentInfo, setAgentInfo] = useState<any>(null)
   const [loggedIn, setLoggedIn] = useState(auth.loggedIn())
   const [contextFiles, setContextFiles] = useState<TContextFile[]>([])
@@ -82,12 +96,22 @@ export const App = (props: TApp) => {
       const orgId = initialOrgId || (await resolveOrg(newClient))
       session.setOrgId(orgId)
 
+      // Resolve org name for MetadataBar
+      try {
+        const org = await newClient.getOrg(orgId)
+        setOrgName(org.name || orgId)
+      } catch {
+        setOrgName(orgId)
+      }
+
       const ctx = ContextLoader.autoDetect(process.cwd())
       setContextFiles(ctx)
 
+      // If agent provided directly, skip project and agent selection
       if (initialAgentId) {
         session.setAgentId(initialAgentId)
         session.setThreadId(initialThreadId || null)
+        if (initialProjectId) session.setProjectId(initialProjectId)
         const agent = await newClient.getAgent(orgId, initialAgentId)
         setAgentInfo(agent)
         session.setConnection(`connected`)
@@ -95,15 +119,39 @@ export const App = (props: TApp) => {
         return
       }
 
-      const agentList = await newClient.listAgents(orgId)
-      setAgents(agentList as any[])
+      // If project provided, skip project selection
+      if (initialProjectId) {
+        session.setProjectId(initialProjectId)
+        setProjectName(initialProjectId)
+        const agentList = await newClient.listAgents(orgId)
+        setAgents(agentList as any[])
+        session.setConnection(`connected`)
+        setPhase(`pickAgent`)
+        return
+      }
+
+      // Fetch projects to see if we need project selection
+      const projectList = await newClient.listProjects(orgId)
       session.setConnection(`connected`)
-      setPhase(`pickAgent`)
+
+      if (projectList.length > 1) {
+        setProjects(projectList)
+        setPhase(`pickProject`)
+      } else {
+        // 0 or 1 projects — skip project selection
+        if (projectList.length === 1) {
+          session.setProjectId(projectList[0].id)
+          setProjectName(projectList[0].name || projectList[0].id)
+        }
+        const agentList = await newClient.listAgents(orgId)
+        setAgents(agentList as any[])
+        setPhase(`pickAgent`)
+      }
     } catch (err) {
       setError(err as Error)
       setPhase(`error`)
     }
-  }, [initialOrgId, initialAgentId, initialThreadId])
+  }, [initialOrgId, initialProjectId, initialAgentId, initialThreadId])
 
   useEffect(() => {
     if (loggedIn) connectAfterLogin()
@@ -121,12 +169,16 @@ export const App = (props: TApp) => {
         session.setOrgId(``)
         session.setAgentId(``)
         session.setThreadId(null)
+        session.setProjectId(null)
         session.setConnection(`disconnected`)
         msgs.setMessages([])
         msgs.clearStream()
         streamTextRef.current = ``
         setAgents([])
+        setProjects([])
         setAgentInfo(null)
+        setOrgName(``)
+        setProjectName(``)
         setContextFiles([])
         setProviderId(null)
         setClient(null)
@@ -149,6 +201,7 @@ export const App = (props: TApp) => {
     orgId: session.orgId!,
     agentId: session.agentId!,
     threadId: session.threadId,
+    projectId: session.projectId,
     connection: session.connection,
     setAgentId: (id: string) => {
       session.setAgentId(id)
@@ -158,6 +211,9 @@ export const App = (props: TApp) => {
     setThreadId: (id: string | null) => {
       session.setThreadId(id)
       threadIdRef.current = id
+    },
+    setProjectId: (id: string) => {
+      session.setProjectId(id)
     },
     setProviderId: (id: string) => {
       setProviderId(id)
@@ -185,6 +241,38 @@ export const App = (props: TApp) => {
         createdAt: t.createdAt,
       }))
     },
+    listProjects: async () => {
+      if (!clientRef.current || !session.orgId) return []
+      const projects = await clientRef.current.listProjects(session.orgId)
+      return projects.map((p: any) => ({
+        id: p.id,
+        label: p.name || p.id,
+        description: p.description,
+      }))
+    },
+    listAgents: async () => {
+      if (!clientRef.current || !session.orgId) return []
+      const agents = await clientRef.current.listAgents(session.orgId)
+      return agents.map((a: any) => ({
+        id: a.id,
+        label: a.name || a.id,
+        description: a.description,
+      }))
+    },
+    deleteThread: async (threadId: string) => {
+      if (!clientRef.current || !session.orgId || !session.agentId) return
+      await clientRef.current.deleteThread(session.orgId, session.agentId, threadId)
+    },
+    createThread: async (name?: string) => {
+      if (!clientRef.current || !session.orgId || !session.agentId)
+        throw new Error(`Not connected`)
+      const thread = await clientRef.current.createThread(
+        session.orgId,
+        session.agentId,
+        name
+      )
+      return { id: thread.id, name: thread.name }
+    },
     loadThreadMessages: async (threadId: string) => {
       if (!clientRef.current || !session.orgId || !session.agentId) return
       const messages = await clientRef.current.listMessages(
@@ -205,6 +293,8 @@ export const App = (props: TApp) => {
         msgs.addMessage(dm)
       }
     },
+    showMenu: subMenu.show,
+    closeMenu: subMenu.close,
     exit,
     verbose,
     setVerbose,
@@ -357,11 +447,11 @@ export const App = (props: TApp) => {
     return (
       <Box flexDirection="column">
         <Box
-          flexDirection="column"
-          borderStyle="round"
-          borderColor="cyan"
           paddingX={2}
           paddingY={1}
+          borderColor="cyan"
+          borderStyle="round"
+          flexDirection="column"
         >
           <Text>{themed(`bold`, `ThreadedStack Agent REPL`)}</Text>
           <Text> </Text>
@@ -376,13 +466,24 @@ export const App = (props: TApp) => {
         </Box>
         <ChatSession
           agentName=""
-          connection="disconnected"
-          messages={msgs.messages}
-          isStreaming={false}
-          isPreAuth={true}
           streamText=""
           toolCalls={[]}
+          isPreAuth={true}
+          isStreaming={false}
+          messages={msgs.messages}
+          connection="disconnected"
           onSubmit={handleLoginSubmit}
+          subMenu={{
+            items: subMenu.items,
+            prompt: subMenu.prompt,
+            visible: subMenu.visible,
+            selectedIndex: subMenu.selectedIndex,
+          }}
+          onSubMenuUp={subMenu.moveUp}
+          onSubMenuClose={subMenu.close}
+          onSubMenuDown={subMenu.moveDown}
+          onSubMenuSelect={subMenu.select}
+          onSubMenuAction={subMenu.action}
         />
       </Box>
     )
@@ -391,6 +492,29 @@ export const App = (props: TApp) => {
   if (phase === `loading`) return <Spinner message="Connecting..." />
 
   if (phase === `error`) return <ErrorMessage error={error} />
+
+  if (phase === `pickProject`) {
+    return (
+      <Box flexDirection="column">
+        <Text>{themed(`bold`, `Welcome back!`)}</Text>
+        <ProjectPicker
+          projects={projects}
+          onSelect={async (project: any) => {
+            session.setProjectId(project.id)
+            setProjectName(project.name || project.id)
+            try {
+              const agentList = await clientRef.current!.listAgents(session.orgId!)
+              setAgents(agentList as any[])
+              setPhase(`pickAgent`)
+            } catch (err) {
+              setError(err as Error)
+              setPhase(`error`)
+            }
+          }}
+        />
+      </Box>
+    )
+  }
 
   if (phase === `pickAgent`) {
     return (
@@ -415,9 +539,9 @@ export const App = (props: TApp) => {
     >
       {agentInfo && (
         <WelcomeBox
-          agentName={agentInfo.name || agentInfo.id}
-          agentDescription={agentInfo.description}
           contextFileCount={contextFiles.length}
+          agentDescription={agentInfo.description}
+          agentName={agentInfo.name || agentInfo.id}
         />
       )}
       <ChatSession
@@ -429,6 +553,24 @@ export const App = (props: TApp) => {
         isStreaming={msgs.isStreaming}
         connection={session.connection}
         agentName={agentInfo?.name || session.agentId || 'Agent'}
+        subMenu={{
+          items: subMenu.items,
+          prompt: subMenu.prompt,
+          visible: subMenu.visible,
+          selectedIndex: subMenu.selectedIndex,
+        }}
+        onSubMenuUp={subMenu.moveUp}
+        onSubMenuClose={subMenu.close}
+        onSubMenuDown={subMenu.moveDown}
+        onSubMenuSelect={subMenu.select}
+        onSubMenuAction={subMenu.action}
+        metadata={{
+          orgName: orgName || undefined,
+          connection: session.connection,
+          projectName: projectName || undefined,
+          threadName: session.threadId || undefined,
+          agentName: agentInfo?.name || session.agentId || undefined,
+        }}
       />
     </Box>
   )

@@ -26,7 +26,9 @@ import {
   resetActiveOrgRole,
   resetActiveApiKeyId,
   resetActiveThreadId,
+  resetOrgSecrets,
   resetActiveSecretId,
+  resetActiveOrgSecretId,
   resetActiveDomainId,
   resetAgentFormState,
   resetQuickstartOpen,
@@ -65,7 +67,9 @@ export const reset = () => {
   resetActiveOrgRole?.()
   resetActiveApiKeyId?.()
   resetActiveThreadId?.()
+  resetOrgSecrets?.()
   resetActiveSecretId?.()
+  resetActiveOrgSecretId?.()
   resetActiveDomainId?.()
   resetAgentFormState?.()
   resetProxyFormState?.()

@@ -23,7 +23,8 @@ export const deleteFunction: TEndpointConfig = {
       id,
       EPermAction.delete,
       EPermResource.function,
-      `Function`
+      `Function`,
+      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
     )
 
     const { error } = await db.services.function.delete(id)

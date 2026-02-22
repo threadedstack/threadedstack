@@ -1,18 +1,55 @@
+import type { TConnectionStatus, TSelectItem } from '@TRL/types'
+
 import { Box, useInput } from 'ink'
 import { useCallback } from 'react'
 import { Editor } from '@TRL/components/Prompt/Editor'
+import { SubMenu } from '@TRL/components/Prompt/SubMenu'
 import { SlashMenu } from '@TRL/components/Prompt/SlashMenu'
+import { MetadataBar } from '@TRL/components/Prompt/MetadataBar'
 import { useSlashMenu } from '@TRL/hooks/useSlashMenu'
 import { useEditorState } from '@TRL/hooks/useEditorState'
+
+type TSubMenuProps = {
+  visible: boolean
+  prompt: string
+  items: TSelectItem[]
+  selectedIndex: number
+}
+
+type TMetadata = {
+  orgName?: string
+  agentName?: string
+  threadName?: string
+  projectName?: string
+  connection: TConnectionStatus
+}
 
 type TPrompt = {
   disabled: boolean
   onSubmit: (text: string) => void
   isPreAuth?: boolean
+  subMenu?: TSubMenuProps
+  onSubMenuUp?: () => void
+  onSubMenuDown?: () => void
+  onSubMenuSelect?: () => void
+  onSubMenuAction?: () => void
+  onSubMenuClose?: () => void
+  metadata?: TMetadata
 }
 
 export const Prompt = (props: TPrompt) => {
-  const { onSubmit: onSubmitCB, disabled, isPreAuth = false } = props
+  const {
+    onSubmit: onSubmitCB,
+    disabled,
+    isPreAuth = false,
+    subMenu,
+    onSubMenuUp,
+    onSubMenuDown,
+    onSubMenuSelect,
+    onSubMenuAction,
+    onSubMenuClose,
+    metadata,
+  } = props
 
   const editor = useEditorState()
   const menu = useSlashMenu(isPreAuth)
@@ -24,8 +61,45 @@ export const Prompt = (props: TPrompt) => {
     [menu.onTextChange]
   )
 
+  const subMenuVisible = subMenu?.visible ?? false
+
   useInput(
     (input, key) => {
+      // Sub-menu takes priority when visible
+      if (subMenuVisible) {
+        if (key.upArrow) {
+          onSubMenuUp?.()
+          return
+        }
+        if (key.downArrow) {
+          onSubMenuDown?.()
+          return
+        }
+        if (key.return) {
+          onSubMenuSelect?.()
+          return
+        }
+        if (key.escape) {
+          onSubMenuClose?.()
+          return
+        }
+        // Ctrl+D: action (e.g., delete)
+        if (key.ctrl && input === `d`) {
+          onSubMenuAction?.()
+          return
+        }
+        // Number keys for direct selection
+        if (input && !key.ctrl && !key.meta) {
+          const num = Number.parseInt(input, 10)
+          if (num >= 1 && num <= (subMenu?.items.length ?? 0)) {
+            onSubMenuSelect?.()
+            return
+          }
+        }
+        // All other keys are no-ops during sub-menu
+        return
+      }
+
       // Submit: Enter without Shift
       if (key.return && !key.shift) {
         // If menu visible and user navigated to a different command, fill it
@@ -143,7 +217,7 @@ export const Prompt = (props: TPrompt) => {
       if (key.delete) {
         editor.deleteForward()
         const c = editor.cursor
-        const newText = editor.text.slice(0, c) + editor.text.slice(c + 1)
+        const newText = editor.text.slice(0, Math.max(0, c - 1)) + editor.text.slice(c)
         syncMenu(newText)
         return
       }
@@ -187,23 +261,41 @@ export const Prompt = (props: TPrompt) => {
 
   return (
     <Box flexDirection="column">
-      <SlashMenu
-        commands={menu.filteredCommands}
-        selectedIndex={menu.selectedIndex}
-        visible={menu.menuVisible && !disabled}
-      />
+      {subMenuVisible ? (
+        <SubMenu
+          visible={subMenu!.visible}
+          prompt={subMenu!.prompt}
+          items={subMenu!.items}
+          selectedIndex={subMenu!.selectedIndex}
+        />
+      ) : (
+        <SlashMenu
+          commands={menu.filteredCommands}
+          selectedIndex={menu.selectedIndex}
+          visible={menu.menuVisible && !disabled}
+        />
+      )}
       <Box
         borderStyle="round"
-        borderColor={disabled ? `gray` : `cyan`}
+        borderColor={disabled || subMenuVisible ? `gray` : `cyan`}
         paddingX={1}
       >
         <Editor
           lines={editor.lines}
           cursorRow={editor.cursorRow}
           cursorCol={editor.cursorCol}
-          disabled={disabled}
+          disabled={disabled || subMenuVisible}
         />
       </Box>
+      {metadata && (
+        <MetadataBar
+          orgName={metadata.orgName}
+          agentName={metadata.agentName}
+          threadName={metadata.threadName}
+          projectName={metadata.projectName}
+          connection={metadata.connection}
+        />
+      )}
     </Box>
   )
 }

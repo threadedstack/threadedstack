@@ -9,8 +9,8 @@ import { updateMessage } from '@TAF/actions/messages/api/updateMessage'
 import { deleteMessage } from '@TAF/actions/messages/api/deleteMessage'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
-  useThreads,
-  useMessages,
+  useOrgThreads,
+  useThreadMessages,
   useActiveOrgId,
   useActiveThreadId,
 } from '@TAF/state/selectors'
@@ -55,8 +55,8 @@ export type TMessagesTab = {}
 export const MessagesTab = (props: TMessagesTab) => {
   const [orgId] = useActiveOrgId()
   const [activeThreadId, setActiveThreadId] = useActiveThreadId()
-  const [threads] = useThreads()
-  const [messages] = useMessages()
+  const [threads] = useOrgThreads()
+  const [messages] = useThreadMessages()
 
   const activeThread = activeThreadId ? threads?.[activeThreadId] : undefined
   const agentId = activeThread?.agentId
@@ -95,10 +95,8 @@ export const MessagesTab = (props: TMessagesTab) => {
   }, [orgId, agentId, activeThreadId])
 
   const threadMessages = useMemo(() => {
-    if (!messages || !activeThreadId) return []
-    let filtered = Object.values(messages).filter(
-      (message) => message.threadId === activeThreadId
-    )
+    if (!messages) return []
+    let filtered = Object.values(messages)
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
@@ -114,7 +112,7 @@ export const MessagesTab = (props: TMessagesTab) => {
     return filtered.sort(
       (a, b) => ((a.createdAt || 0) as any) - ((b.createdAt || 0) as any)
     )
-  }, [messages, activeThreadId, searchQuery])
+  }, [messages, searchQuery])
 
   useEffect(() => {
     if (viewMode === 'chat' && messagesEndRef.current) {
@@ -265,6 +263,7 @@ export const MessagesTab = (props: TMessagesTab) => {
       agentId,
       threadId: activeThreadId,
       messageId: selectedMessage.id,
+      contextKey: 'org',
     })
 
     if (result.error) {
@@ -360,10 +359,12 @@ export const MessagesTab = (props: TMessagesTab) => {
             gap: 2,
             maxHeight: 'calc(100vh - 350px)',
             minHeight: 300,
-            maxWidth: 900,
-            mx: 'auto',
             width: '100%',
             overflow: 'auto',
+            '& pre, & code': {
+              overflowX: 'auto',
+              maxWidth: '100%',
+            },
             p: 2,
             bgcolor: 'background.default',
             borderRadius: 1,
@@ -402,7 +403,7 @@ export const MessagesTab = (props: TMessagesTab) => {
                   {getMsgIcon(message.type)}
                 </Box>
 
-                <Box sx={{ maxWidth: '75%', minWidth: 0 }}>
+                <Box sx={{ maxWidth: isUser ? '75%' : '85%', minWidth: 0 }}>
                   <Box
                     sx={{
                       px: 2,

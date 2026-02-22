@@ -1,7 +1,6 @@
 import type { Function as FunctionModel } from '@tdsk/domain'
-
 import { functionsApi } from '@TAF/services'
-import { setFunctions, getFunctions } from '@TAF/state/accessors'
+import { getProjectFunctions, setProjectFunctions } from '@TAF/state/accessors'
 
 export type TFetchFunctionOpts = {
   orgId: string
@@ -25,9 +24,8 @@ export const fetchFunction = async (
   }
 
   if (resp.data) {
-    // Update functions state with the fetched function
-    const currentFunctions = getFunctions() || {}
-    setFunctions({ ...currentFunctions, [resp.data.id]: resp.data })
+    const current = getProjectFunctions(projectId) || {}
+    setProjectFunctions(projectId, { ...current, [resp.data.id]: resp.data })
   }
 
   return { function: resp.data }

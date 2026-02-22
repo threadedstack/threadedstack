@@ -18,7 +18,7 @@ export const updateAgent: TEndpointConfig = {
     const { db } = req.app.locals
     const {
       projectIds = [],
-      functionIds = [],
+      secretIds,
       providerIds: rawProviderIds = [],
       providers: providersWithPriority,
       ...agent
@@ -43,6 +43,54 @@ export const updateAgent: TEndpointConfig = {
     await checkPermission(req, EPermAction.update, EPermResource.agent, {
       orgId: existingAgent.orgId,
     })
+
+    // Project context: update project-level overrides, not the base agent
+    const { projectId } = req.params
+    if (projectId) {
+      const {
+        model,
+        maxTokens,
+        systemPrompt,
+        tools,
+        functionIds,
+        envVars,
+        environment,
+        enabled,
+      } = req.body
+
+      // Validate functionIds belong to the project if provided
+      if (functionIds?.length) {
+        for (const funcId of functionIds) {
+          const { data: func, error: funcErr } = await db.services.function.get(funcId)
+          if (funcErr || !func) throw new Exception(404, `Function ${funcId} not found`)
+          if (func.projectId !== projectId)
+            throw new Exception(
+              400,
+              `Function ${funcId} does not belong to project ${projectId}`
+            )
+        }
+      }
+
+      const config: Record<string, any> = {}
+      if (model !== undefined) config.model = model
+      if (maxTokens !== undefined) config.maxTokens = maxTokens
+      if (systemPrompt !== undefined) config.systemPrompt = systemPrompt
+      if (tools !== undefined) config.tools = tools
+      if (functionIds !== undefined) config.functionIds = functionIds
+      if (envVars !== undefined) config.envVars = envVars
+      if (environment !== undefined) config.environment = environment
+      if (enabled !== undefined) config.enabled = enabled
+
+      await db.services.agent.upsertProjectConfig(id, projectId, config)
+
+      // Return the effective (merged) agent
+      const { data: updatedAgent } = await db.services.agent.get(id)
+      if (!updatedAgent) throw new Exception(500, `Failed to load updated agent`)
+
+      const effectiveAgent = updatedAgent.getEffectiveConfig(projectId)
+      res.status(200).json({ data: effectiveAgent.sanitize() })
+      return
+    }
 
     const { data: projects, error: projErr } = projectIds?.length
       ? await db.services.project.list({ where: { id: projectIds } })
@@ -72,8 +120,8 @@ export const updateAgent: TEndpointConfig = {
 
     agent.id = id
     if (projects?.length) agent.projects = projects
-    if (functionIds?.length) agent.functionIds = functionIds
     if (providerIds?.length) agent.providerIds = providerIds
+    if (secretIds !== undefined) agent.secretIds = secretIds
     const { data, error } = await db.services.agent.update(agent)
 
     if (error) throw new Exception(500, error.message)

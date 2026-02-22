@@ -1,3 +1,4 @@
+import type { TProviderModel } from '@tdsk/domain'
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
 
 import { Provider } from '@tdsk/domain'
@@ -107,6 +108,25 @@ export class ProvidersApi extends BaseApi {
     resp.error && (await this._onError(resp.error, `Failed to delete Provider`))
 
     return resp
+  }
+
+  /**
+   * Fetch available models for a provider brand
+   * Uses top-level /providers/:brand/models (not org-scoped)
+   */
+  async fetchModels(
+    brand: string,
+    opts?: { baseUrl?: string; providerKey?: string }
+  ): Promise<TApiRes<TProviderModel[]>> {
+    const resp = await this.api.post<TProviderModel[]>({
+      path: `/providers/${brand}/models`,
+      data: { baseUrl: opts?.baseUrl, providerKey: opts?.providerKey },
+    })
+
+    return {
+      ...resp,
+      data: resp?.data || [],
+    }
   }
 }
 

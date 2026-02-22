@@ -11,7 +11,7 @@ export const fetchMessages = async (opts: TFetchMessagesOpts) => {
   const { orgId, agentId, threadId } = opts
   const resp = await messagesApi.listByThread(orgId, agentId, threadId)
   if (resp.error) return { error: resp.error }
-  upsertMessages(resp.data)
+  upsertMessages(threadId, resp.data)
 
   return resp
 }

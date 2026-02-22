@@ -8,9 +8,13 @@ import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import {
   Stack,
   Alert,
+  Select,
   Switch,
+  MenuItem,
   TextField,
   Typography,
+  InputLabel,
+  FormControl,
   FormControlLabel,
 } from '@mui/material'
 
@@ -118,26 +122,27 @@ export const CreateThreadDrawer = (props: TCreateThreadDrawerProps) => {
                 onChange={(e) => setName(e.target.value)}
               />
 
-              <TextField
-                select
-                fullWidth
-                value={selectedProviderId}
-                label='AI Provider'
-                onChange={(e) => setSelectedProviderId(e.target.value)}
-                SelectProps={{
-                  native: true,
-                }}
-              >
-                <option value=''>None (use agent's primary provider)</option>
-                {availableProviders.map((provider) => (
-                  <option
-                    key={provider.id}
-                    value={provider.id}
-                  >
-                    {provider.name}
-                  </option>
-                ))}
-              </TextField>
+              <FormControl fullWidth>
+                <InputLabel id='create-thread-provider-label'>AI Provider</InputLabel>
+                <Select
+                  labelId='create-thread-provider-label'
+                  value={selectedProviderId}
+                  label='AI Provider'
+                  onChange={(e) => setSelectedProviderId(e.target.value)}
+                >
+                  <MenuItem value=''>
+                    <em>None (use agent's primary provider)</em>
+                  </MenuItem>
+                  {availableProviders.map((provider) => (
+                    <MenuItem
+                      key={provider.id}
+                      value={provider.id}
+                    >
+                      {provider.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <FormControlLabel
                 control={

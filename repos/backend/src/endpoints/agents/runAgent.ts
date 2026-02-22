@@ -21,7 +21,8 @@ export const runAgent: TEndpointConfig = {
     const { db } = req.app.locals
     const agentId = req.params.id
     const userId = req.user?.id
-    const { prompt, threadId, providerId } = req.body
+    const { prompt, threadId, providerId, projectId: bodyProjectId } = req.body
+    const projectId = req.params.projectId || bodyProjectId
 
     if (!userId) throw new Exception(401, `Authentication required`)
     if (!prompt) throw new Exception(400, `prompt is required`)
@@ -32,6 +33,7 @@ export const runAgent: TEndpointConfig = {
       prompt,
       userId,
       threadId,
+      projectId,
       providerId,
     })
   },

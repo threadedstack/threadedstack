@@ -61,9 +61,6 @@ export type TAgentRunRequest = {
 }
 
 /**
- * TODO: Figure out a good way to expand this list
- * Support xai, zai, huggingface, open-router, vercel, etc.
- *
  * Supported LLM providers
  */
 export enum ELLMProviderBrand {
@@ -71,7 +68,9 @@ export enum ELLMProviderBrand {
   openai = `openai`,
   google = `google`,
   custom = `custom`,
+  ollama = `ollama`,
   anthropic = `anthropic`,
+  openrouter = `openrouter`,
 }
 
 export type TLLMProviderBrand = `${ELLMProviderBrand}`
@@ -223,6 +222,7 @@ export type TLLMToolDef = {
 export type TLLMAdapterConfig = {
   model: string
   apiKey?: string
+  baseUrl?: string
   maxTokens?: number
   temperature?: number
   systemPrompt?: string

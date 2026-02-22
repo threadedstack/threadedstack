@@ -1,5 +1,4 @@
 import type { Domain } from '@tdsk/domain'
-
 import { domainsApi } from '@TAF/services'
 import { upsertDomains } from '@TAF/actions/domains/local/upsertDomains'
 
@@ -20,7 +19,8 @@ export const fetchDomains = async (opts: TFetchDomainsOpts) => {
       return acc
     }, {}) || {}
 
-  upsertDomains(domainsMap)
+  const contextKey = projectId || 'org'
+  upsertDomains(contextKey, domainsMap)
 
   return { ...resp, data: domainsMap }
 }

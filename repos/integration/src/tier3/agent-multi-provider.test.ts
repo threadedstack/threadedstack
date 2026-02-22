@@ -4,6 +4,7 @@ import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
 import { consumeSessionSSE } from '../utils/session-sse'
 import { tryDelete } from '../utils/cleanup'
+import { cleanupThread } from '../utils/repl-cleanup'
 import { env } from '../utils/env'
 
 /**
@@ -34,6 +35,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
   describe('quickstart agent with real provider key', () => {
     let qsResult: Record<string, any> = {}
     let setupFailed = false
+    const threadIds: string[] = []
 
     beforeAll(async () => {
       if (!hasProviderKey()) return
@@ -58,6 +60,9 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     })
 
     afterAll(async () => {
+      for (const tid of threadIds) {
+        if (qsResult.agent?.id) await cleanupThread(ctx.orgId, qsResult.agent.id, tid)
+      }
       if (qsResult.endpoint?.id)
         await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
       if (qsResult.agent?.id) await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
@@ -138,6 +143,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}/run`,
         { prompt: `Say hello in exactly 3 words` }
       )
+      if (threadId) threadIds.push(threadId)
 
       expect(events).toBeDefined()
       expect(events.length).toBeGreaterThanOrEqual(1)
@@ -256,6 +262,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     let provider2Id = ''
     let projectId = ''
     let secretId = ''
+    let secret2Id = ''
     let setupFailed = false
 
     beforeAll(async () => {
@@ -296,7 +303,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       provider1Id = qs.provider.id
       secretId = qs.secret?.id
 
-      // Create a second zai provider (same template, will share org secrets)
+      // Create a second zai provider (same template)
       const prov2Res = await post<{ data: { id: string } }>(
         `/orgs/${ctx.orgId}/providers`,
         {
@@ -314,6 +321,22 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       }
       provider2Id = prov2Res.data.data.id
 
+      // Create a secret for provider2 so it can resolve API keys for sessions
+      const secret2Res = await post<{ data: { id: string } }>(
+        `/orgs/${ctx.orgId}/secrets`,
+        {
+          name: `MP Switch Secret 2 ${timestamp}`,
+          value: env.testProviderKey,
+          providerId: provider2Id,
+        }
+      )
+
+      if (secret2Res.status === 201 && secret2Res.data?.data?.id) {
+        secret2Id = secret2Res.data.data.id
+        // Explicitly link provider2 to its secret (createSecret doesn't auto-set provider.secretId)
+        await put(`/orgs/${ctx.orgId}/providers/${provider2Id}`, { secretId: secret2Id })
+      }
+
       // Clean up the quickstart's project and endpoint (we use our own project)
       if (qs.endpoint?.id)
         await tryDelete(`/orgs/${ctx.orgId}/projects/${qs.project?.id}/endpoints/${qs.endpoint.id}`)
@@ -326,6 +349,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (provider1Id) await tryDelete(`/orgs/${ctx.orgId}/providers/${provider1Id}`)
       if (provider2Id) await tryDelete(`/orgs/${ctx.orgId}/providers/${provider2Id}`)
       if (secretId) await tryDelete(`/orgs/${ctx.orgId}/secrets/${secretId}`)
+      if (secret2Id) await tryDelete(`/orgs/${ctx.orgId}/secrets/${secret2Id}`)
     })
 
     test.skipIf(!hasProviderKey())('session before switch uses original primary provider', async () => {
@@ -473,6 +497,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     let qsResult: Record<string, any> = {}
     let provider2Id = ''
     let setupFailed = false
+    const threadIds: string[] = []
 
     beforeAll(async () => {
       if (!hasProviderKey()) return
@@ -522,6 +547,9 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     })
 
     afterAll(async () => {
+      for (const tid of threadIds) {
+        if (qsResult.agent?.id) await cleanupThread(ctx.orgId, qsResult.agent.id, tid)
+      }
       if (qsResult.endpoint?.id)
         await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
       if (qsResult.agent?.id) await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
@@ -538,6 +566,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}/run`,
         { prompt: 'Say hello' }
       )
+      if (threadId) threadIds.push(threadId)
 
       expect(events).toBeDefined()
       expect(events.length).toBeGreaterThanOrEqual(1)
@@ -556,6 +585,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}/run`,
         { prompt: 'What is 1+1?' }
       )
+      if (threadId) threadIds.push(threadId)
 
       expect(threadId).toBeTruthy()
     })

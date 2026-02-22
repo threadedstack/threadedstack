@@ -1,7 +1,7 @@
-import { setEndpoints, getEndpoints } from '@TAF/state/accessors'
+import { getProjectEndpoints, setProjectEndpoints } from '@TAF/state/accessors'
 
-export const removeEndpoint = (id: string) => {
-  const current = getEndpoints() || {}
+export const removeEndpoint = (projectId: string, id: string) => {
+  const current = getProjectEndpoints(projectId) || {}
   const { [id]: removed, ...eps } = current
-  setEndpoints(eps)
+  setProjectEndpoints(projectId, eps)
 }

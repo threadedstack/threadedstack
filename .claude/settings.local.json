@@ -65,7 +65,8 @@
       "Bash(npm view:*)",
       "Bash(/Users/lancetipton/keg-hub/external/apps/threadedstack/repos/repl/dist/tsa:*)",
       "Bash(./dist/tsa:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(npm run test:*)"
     ]
   },
   "sandbox": {

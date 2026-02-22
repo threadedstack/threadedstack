@@ -1,5 +1,10 @@
 import type { TKeyValuePair } from '@TAF/types'
-import type { Agent, Secret, Function as FunctionModel } from '@tdsk/domain'
+import type {
+  Agent,
+  Secret,
+  TAgentProjectConfig,
+  Function as FunctionModel,
+} from '@tdsk/domain'
 
 import { useState, useEffect } from 'react'
 import { Code } from '@TAF/components/Code'
@@ -15,6 +20,7 @@ import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { agentsApi } from '@TAF/services'
 import { Autocomplete, Box, Stack, Divider, TextField, Typography } from '@mui/material'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import {
@@ -44,6 +50,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     onClose: onCloseCB,
     onSuccess: onSuccessCB,
   } = props
+
+  const isOverrideMode = !!projectId && !!agent
 
   // TODO: Secrets list should come form the jotai store
   const [secrets] = useSecrets()
@@ -100,9 +108,13 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         setAiProviders(aiProvidersOnly)
       }
 
-      // Load functions for the project (if project-scoped)
-      if (projectId) {
-        const functionsResult = await fetchFunctions({ orgId, projectId })
+      // Load functions for the project or agent's first linked project
+      const effectiveProjectId = projectId || agent?.projects?.[0]?.id
+      if (effectiveProjectId) {
+        const functionsResult = await fetchFunctions({
+          orgId,
+          projectId: effectiveProjectId,
+        })
         functionsResult?.functions &&
           setAvailableFunctions(Object.values(functionsResult.functions))
       }
@@ -117,7 +129,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     }
 
     open && orgId && loadData()
-  }, [open, orgId, projectId])
+  }, [open, orgId, projectId, agent])
 
   // Pre-populate form with agent data when drawer opens
   useEffect(() => {
@@ -128,6 +140,17 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setSelectedTools(agent.tools || [])
       setDescription(agent.description || '')
       setProviderIds(agent.providers?.map((p) => p.id) || [])
+
+      // Seed aiProviders from agent data to avoid empty tag flash before async fetch
+      if (agent.providers?.length) {
+        setAiProviders((prev) =>
+          prev?.length
+            ? prev
+            : agent
+                .providers!.filter((p: any) => p.type === 'ai')
+                .map((p: any) => ({ id: p.id, name: p.name || p.id }))
+        )
+      }
       setMaxTokens(agent.maxTokens || 100000)
       setSystemPrompt(agent.systemPrompt || '')
       setStreaming(agent.environment?.streaming ?? true)
@@ -147,7 +170,14 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setSelectedSecrets(
         (agent.secrets || []).map((s) => s.id || s.name || s.hashKey || '')
       )
-      setSelectedFunctionIds((agent.functions || []).map((f) => f.id))
+
+      // Seed secretsList from agent data to avoid UUID flash before async fetch
+      if (agent.secrets?.length) {
+        setSecretsList((prev) => (prev?.length ? prev : agent.secrets!))
+      }
+
+      const projectConfig = agent.getProjectConfig?.(projectId!)
+      setSelectedFunctionIds(projectConfig?.functionIds || [])
       setSelectedProjectIds(
         agent.projects?.map((p) => p.id) || (projectId ? [projectId] : [])
       )
@@ -179,8 +209,9 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
-    if (!providerIds.length) return setError(`At least one provider is required`)
-    if (!name.trim()) return setError(`Agent name is required`)
+    if (!isOverrideMode && !providerIds.length)
+      return setError(`At least one provider is required`)
+    if (!isOverrideMode && !name.trim()) return setError(`Agent name is required`)
 
     try {
       setError(null)
@@ -207,25 +238,34 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         projectIds: selectedProjectIds,
         functionIds: selectedFunctionIds,
         environment: { streaming, temperature },
-        secrets: selectedSecrets
-          .map((secretId) =>
-            secretsList.find((s) => s.id === secretId || s.name === secretId)
-          )
-          .filter(Boolean) as Secret[],
+        secretIds: selectedSecrets,
       }
 
-      agent
-        ? await updateAgent({
-            orgId,
-            projectId,
-            id: agent.id,
-            data: agentData,
-          })
-        : await createAgent({
-            orgId,
-            projectId,
-            data: agentData,
-          })
+      if (isOverrideMode) {
+        const configData: Partial<TAgentProjectConfig> = {
+          model: model || null,
+          maxTokens,
+          systemPrompt: systemPrompt || null,
+          tools: selectedTools.length ? selectedTools : null,
+          functionIds: selectedFunctionIds.length ? selectedFunctionIds : null,
+          envVars: Object.keys(envVarsObj).length ? envVarsObj : null,
+          environment: { streaming, temperature },
+        }
+        await agentsApi.upsertConfig(orgId, projectId!, agent!.id, configData)
+      } else if (agent) {
+        await updateAgent({
+          orgId,
+          projectId,
+          id: agent.id,
+          data: agentData,
+        })
+      } else {
+        await createAgent({
+          orgId,
+          projectId,
+          data: agentData,
+        })
+      }
 
       onSuccessCB?.()
       onClose()
@@ -253,7 +293,11 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     }
   }
 
-  const title = agent ? `Edit Agent` : `Create Agent`
+  const title = isOverrideMode
+    ? `Configure Agent for Project`
+    : agent
+      ? `Edit Agent`
+      : `Create Agent`
   const { actions } = useDrawerActions({
     onSave,
     onClose,
@@ -284,6 +328,25 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             />
           )}
 
+          {isOverrideMode && (
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 1,
+                bgcolor: 'info.main',
+                color: 'info.contrastText',
+              }}
+            >
+              <Typography
+                variant='body2'
+                fontWeight='medium'
+              >
+                Project Override Mode — Changes only affect this project. Identity fields
+                (name, providers) are inherited from the org-level agent.
+              </Typography>
+            </Box>
+          )}
+
           {showDeleteConfirm && (
             <ConfirmDelete
               deleting={loading}
@@ -295,7 +358,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
           <BasicInfoForm
             name={name}
-            loading={loading}
+            loading={loading || isOverrideMode}
             onNameChange={setName}
             providerIds={providerIds}
             aiProviders={aiProviders}
@@ -304,32 +367,38 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             onDescriptionChange={setDescription}
           />
 
-          <Divider />
+          {!isOverrideMode && (
+            <>
+              <Divider />
 
-          <Box>
-            <Typography
-              variant='subtitle2'
-              sx={{ fontWeight: 600, mb: 2 }}
-            >
-              Project Assignment
-            </Typography>
-            <Autocomplete
-              multiple
-              id='agent-projects'
-              value={selectedProjectIds}
-              options={orgProjects.map((p) => p.id)}
-              getOptionLabel={(id) => orgProjects.find((p) => p.id === id)?.name || id}
-              onChange={(_, updates) => setSelectedProjectIds(updates)}
-              disabled={loading}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  placeholder='Select projects...'
-                  size='small'
+              <Box>
+                <Typography
+                  variant='subtitle2'
+                  sx={{ fontWeight: 600, mb: 2 }}
+                >
+                  Project Assignment
+                </Typography>
+                <Autocomplete
+                  multiple
+                  id='agent-projects'
+                  value={selectedProjectIds}
+                  options={orgProjects.map((p) => p.id)}
+                  getOptionLabel={(id) =>
+                    orgProjects.find((p) => p.id === id)?.name || id
+                  }
+                  onChange={(_, updates) => setSelectedProjectIds(updates)}
+                  disabled={loading}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder='Select projects...'
+                      size='small'
+                    />
+                  )}
                 />
-              )}
-            />
-          </Box>
+              </Box>
+            </>
+          )}
 
           <Divider />
 
@@ -371,14 +440,18 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             selectedTools={selectedTools}
           />
 
-          <Divider />
+          {projectId && (
+            <>
+              <Divider />
 
-          <FunctionsSelector
-            loading={loading}
-            onChange={setSelectedFunctionIds}
-            selectedFunctionIds={selectedFunctionIds}
-            availableFunctions={availableFunctions}
-          />
+              <FunctionsSelector
+                loading={loading}
+                onChange={setSelectedFunctionIds}
+                selectedFunctionIds={selectedFunctionIds}
+                availableFunctions={availableFunctions}
+              />
+            </>
+          )}
 
           <Divider />
 
@@ -393,14 +466,18 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             valuePlaceholder='Value or {{secret-name}}'
           />
 
-          <Divider />
+          {!isOverrideMode && (
+            <>
+              <Divider />
 
-          <SecretsSelector
-            loading={loading}
-            secretsList={secretsList}
-            onChange={setSelectedSecrets}
-            selectedSecrets={selectedSecrets}
-          />
+              <SecretsSelector
+                loading={loading}
+                secretsList={secretsList}
+                onChange={setSelectedSecrets}
+                selectedSecrets={selectedSecrets}
+              />
+            </>
+          )}
 
           <Divider />
 

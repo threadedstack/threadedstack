@@ -1,7 +1,7 @@
-import { setAgents, getAgents } from '@TAF/state/accessors'
+import { getContextAgents, setContextAgents } from '@TAF/state/accessors'
 
-export const removeAgent = (id: string) => {
-  const current = getAgents() || {}
+export const removeAgent = (contextKey: string, id: string) => {
+  const current = getContextAgents(contextKey) || {}
   const { [id]: _, ...rest } = current
-  setAgents(rest)
+  setContextAgents(contextKey, rest)
 }

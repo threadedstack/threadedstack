@@ -40,7 +40,9 @@ export const createEndpoint: TEndpointConfig = {
     if (!projectId) throw new Exception(400, `Endpoint projectId is required`)
 
     // Check permission - requires member+
+    // Include orgId so org-level roles (e.g., org admin) are considered
     await checkPermission(req, EPermAction.create, EPermResource.endpoint, {
+      orgId: req.params.orgId,
       projectId,
     })
 

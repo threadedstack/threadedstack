@@ -87,16 +87,16 @@ test.describe('Org Pages', () => {
     expect(errors).toEqual([])
   })
 
-  test('Org Users - renders Users heading', async ({ authenticatedPage: page, ctx }) => {
+  test('Org Members - renders Members heading', async ({ authenticatedPage: page, ctx }) => {
     const errors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/users`, 'tdsk-org-members-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/members`, 'tdsk-org-members-page')
 
-    // PageLayout renders "Users" as the title via PageHeader
-    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+    // PageLayout renders "Members" as the title via PageHeader
+    await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible()
 
     // At least 1 member should be shown (the org owner)
     await expect(page.locator('.MuiCard-root').first()).toBeVisible()
@@ -274,6 +274,19 @@ test.describe('Project Pages', () => {
     await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`, 'tdsk-project-threads-page')
 
     await expect(page.getByRole('heading', { name: 'AI Threads' })).toBeVisible()
+
+    expect(errors).toEqual([])
+  })
+
+  test('Project Members - renders Project Members heading', async ({ authenticatedPage: page, ctx }) => {
+    const errors: string[] = []
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
+    })
+
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/members`, 'tdsk-project-members-page')
+
+    await expect(page.getByRole('heading', { name: 'Project Members' })).toBeVisible()
 
     expect(errors).toEqual([])
   })

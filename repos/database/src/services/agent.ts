@@ -1,4 +1,4 @@
-import type { Project as ProjectModel } from '@tdsk/domain'
+import type { Project as ProjectModel, TAgentProjectConfig } from '@tdsk/domain'
 import type {
   TDBUpdate,
   TServiceOpts,
@@ -7,7 +7,6 @@ import type {
   TDBAgentSelect,
   TDBAgentInsert,
   TDBProjectSelect,
-  TDBFunctionSelect,
   TDBProviderSelect,
 } from '@TDB/types'
 
@@ -20,15 +19,24 @@ import { exists } from '@keg-hub/jsutils/exists'
 import { DBError } from '@TDB/utils/error/error'
 import { Agent as AgentModel } from '@tdsk/domain'
 import { agentProjects } from '@TDB/schemas/agentProjects'
-import { agentFunctions } from '@TDB/schemas/agentFunctions'
 import { agentProviders } from '@TDB/schemas/agentProviders'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
 
 export type TAgentInsertOpts = TDBAgentInsert & {
-  functionIds?: string[]
   providerIds?: string[]
   secretIds?: string[]
-  projects?: Array<Partial<ProjectModel>>
+  projects?: Array<
+    Partial<ProjectModel> & {
+      model?: string | null
+      maxTokens?: number | null
+      systemPrompt?: string | null
+      tools?: string[] | null
+      functionIds?: string[] | null
+      envVars?: Record<string, string> | null
+      environment?: Record<string, any> | null
+      enabled?: boolean
+    }
+  >
 }
 
 export type TAgentSelectOpts = TDBAgentSelect & {
@@ -37,11 +45,14 @@ export type TAgentSelectOpts = TDBAgentSelect & {
     agentId: string
     projectId: string
     project: ProjectModel | TDBProjectSelect
-  }[]
-  functions?: {
-    agentId: string
-    functionId: string
-    function: TDBFunctionSelect
+    model?: string | null
+    maxTokens?: number | null
+    systemPrompt?: string | null
+    tools?: string[] | null
+    functionIds?: string[] | null
+    envVars?: Record<string, string> | null
+    environment?: Record<string, any> | null
+    enabled?: boolean
   }[]
   providers?: {
     agentId: string
@@ -53,10 +64,20 @@ export type TAgentSelectOpts = TDBAgentSelect & {
 
 type TAgentRelations = {
   id: string
-  functionIds?: string[]
   providerIds?: string[]
   secretIds?: string[]
-  projects?: Array<Partial<ProjectModel>>
+  projects?: Array<
+    Partial<ProjectModel> & {
+      model?: string | null
+      maxTokens?: number | null
+      systemPrompt?: string | null
+      tools?: string[] | null
+      functionIds?: string[] | null
+      envVars?: Record<string, string> | null
+      environment?: Record<string, any> | null
+      enabled?: boolean
+    }
+  >
 }
 
 /**
@@ -69,7 +90,8 @@ export type TAgentQueryOpts = TDBQueryOpts & {
 /**
  * Agent service for managing AI agents
  * Automatically loads and sanitizes secrets when fetching agents
- * Handles many-to-many relationship with projects
+ * Handles many-to-many relationship with projects via agentProjects
+ * Project-level overrides are stored on the agentProjects junction table
  */
 export class Agent extends Base<
   typeof agents,
@@ -92,11 +114,6 @@ export class Agent extends Base<
           project: true,
         },
       },
-      functions: {
-        with: {
-          function: true,
-        },
-      },
       providers: {
         with: {
           provider: true,
@@ -106,7 +123,7 @@ export class Agent extends Base<
   }
 
   #relations = async (opts: TAgentRelations) => {
-    const { id, projects, functionIds, providerIds, secretIds } = opts
+    const { id, projects, providerIds, secretIds } = opts
 
     if (projects?.length)
       for (const proj of projects) {
@@ -117,18 +134,14 @@ export class Agent extends Base<
             agentId: id,
             alias: proj.name,
             projectId: proj.id,
-          })
-          .onConflictDoNothing()
-      }
-
-    if (functionIds?.length)
-      for (const functionId of functionIds) {
-        if (!functionId) continue
-        await this.db
-          .insert(agentFunctions)
-          .values({
-            agentId: id,
-            functionId,
+            ...(proj.model !== undefined && { model: proj.model }),
+            ...(proj.maxTokens !== undefined && { maxTokens: proj.maxTokens }),
+            ...(proj.systemPrompt !== undefined && { systemPrompt: proj.systemPrompt }),
+            ...(proj.tools !== undefined && { tools: proj.tools }),
+            ...(proj.functionIds !== undefined && { functionIds: proj.functionIds }),
+            ...(proj.envVars !== undefined && { envVars: proj.envVars }),
+            ...(proj.environment !== undefined && { environment: proj.environment }),
+            ...(proj.enabled !== undefined && { enabled: proj.enabled }),
           })
           .onConflictDoNothing()
       }
@@ -166,7 +179,7 @@ export class Agent extends Base<
 
   /**
    * Model factory that creates Agent instances with optional sanitization
-   * Checks a custom sanitize flag on the data object
+   * Extracts project override data from junction records into projectConfigs
    */
   model = (data: TAgentSelectOpts, sanitizeOpts?: { sanitize?: boolean }) => {
     const sortedProviders = (data.providers || []).sort(
@@ -176,7 +189,19 @@ export class Agent extends Base<
     const agent = new AgentModel({
       ...data,
       projects: (data.projects || []).map((link) => link.project),
-      functions: (data.functions || []).map((link) => link.function),
+      projectConfigs: (data.projects || []).map((link) => ({
+        projectId: link.projectId,
+        agentId: link.agentId,
+        alias: link.alias ?? null,
+        model: link.model ?? null,
+        maxTokens: link.maxTokens ?? null,
+        systemPrompt: link.systemPrompt ?? null,
+        tools: link.tools ?? null,
+        functionIds: link.functionIds ?? null,
+        envVars: link.envVars ?? null,
+        environment: link.environment ?? null,
+        enabled: link.enabled ?? true,
+      })),
       providerPriorities: sortedProviders.map((link) => link.priority ?? 0),
       providers: sortedProviders.map((link) => link.provider),
     })
@@ -273,25 +298,18 @@ export class Agent extends Base<
   }
 
   /**
-   * Create an agent and optionally associate it with projects and functions
+   * Create an agent and optionally associate it with projects and providers
    */
   async create(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, functionIds, providerIds, secretIds, ...agentData } = data
+    const { projects, providerIds, secretIds, ...agentData } = data
 
     // Create the agent
     const result = await super.create(agentData as TDBAgentInsert)
 
-    if (
-      result.data &&
-      (projects?.length ||
-        functionIds?.length ||
-        providerIds?.length ||
-        secretIds?.length)
-    ) {
+    if (result.data && (projects?.length || providerIds?.length || secretIds?.length)) {
       await this.#relations({
         id: result.data.id,
         projects,
-        functionIds,
         providerIds,
         secretIds,
       })
@@ -303,10 +321,10 @@ export class Agent extends Base<
   }
 
   /**
-   * Update an agent and manage project and function associations
+   * Update an agent and manage project and provider associations
    */
   async update(data: TDBUpdate<TAgentInsertOpts>, opts?: TAgentQueryOpts) {
-    const { projects, functionIds, providerIds, secretIds, ...agent } = data
+    const { projects, providerIds, secretIds, ...agent } = data
 
     if (!agent.id)
       return { data: null, error: new DBError(`Agent ID is required for update`) }
@@ -315,16 +333,10 @@ export class Agent extends Base<
 
     if (
       result.data &&
-      (projects?.length ||
-        functionIds?.length ||
-        providerIds?.length ||
-        secretIds !== undefined)
+      (projects?.length || providerIds?.length || secretIds !== undefined)
     ) {
       if (projects?.length)
         await this.db.delete(agentProjects).where(eq(agentProjects.agentId, agent.id))
-
-      if (functionIds?.length)
-        await this.db.delete(agentFunctions).where(eq(agentFunctions.agentId, agent.id))
 
       if (providerIds?.length)
         await this.db.delete(agentProviders).where(eq(agentProviders.agentId, agent.id))
@@ -341,7 +353,6 @@ export class Agent extends Base<
       await this.#relations({
         id: agent.id,
         projects,
-        functionIds,
         providerIds,
         secretIds,
       })
@@ -353,20 +364,13 @@ export class Agent extends Base<
   }
 
   async upsert(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, functionIds, providerIds, secretIds, ...agent } = data
+    const { projects, providerIds, secretIds, ...agent } = data
     const result = await super.upsert(agent)
 
-    if (
-      result.data &&
-      (projects?.length ||
-        functionIds?.length ||
-        providerIds?.length ||
-        secretIds?.length)
-    ) {
+    if (result.data && (projects?.length || providerIds?.length || secretIds?.length)) {
       await this.#relations({
         id: agent.id,
         projects,
-        functionIds,
         providerIds,
         secretIds,
       })
@@ -401,37 +405,6 @@ export class Agent extends Base<
       .delete(agentProjects)
       .where(
         and(eq(agentProjects.agentId, agentId), eq(agentProjects.projectId, projectId))
-      )
-
-    return { data: null, error: null }
-  }
-
-  /**
-   * Add a function to an agent
-   */
-  async addFunction(agentId: string, functionId: string) {
-    const [result] = await this.db
-      .insert(agentFunctions)
-      .values({
-        agentId,
-        functionId,
-      })
-      .returning()
-
-    return { data: result, error: null }
-  }
-
-  /**
-   * Remove a function from an agent
-   */
-  async removeFunction(agentId: string, functionId: string) {
-    await this.db
-      .delete(agentFunctions)
-      .where(
-        and(
-          eq(agentFunctions.agentId, agentId),
-          eq(agentFunctions.functionId, functionId)
-        )
       )
 
     return { data: null, error: null }
@@ -489,5 +462,69 @@ export class Agent extends Base<
     }
 
     return { data: null, error: null }
+  }
+
+  /**
+   * Upsert project-level config overrides for an agent
+   * Updates the agentProjects row with override fields
+   */
+  async upsertProjectConfig(
+    agentId: string,
+    projectId: string,
+    config: Partial<Omit<TAgentProjectConfig, 'agentId' | 'projectId'>>
+  ) {
+    try {
+      const [result] = await this.db
+        .update(agentProjects)
+        .set({
+          ...config,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(eq(agentProjects.agentId, agentId), eq(agentProjects.projectId, projectId))
+        )
+        .returning()
+
+      if (!result) return { error: new DBError(`Agent is not linked to this project`) }
+
+      return { data: result }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Get project-level config overrides for an agent
+   * Returns the agentProjects row for the given agent+project pair
+   */
+  async getProjectConfig(agentId: string, projectId: string) {
+    try {
+      const result = await this.db.query.agentProjects.findFirst({
+        where: and(
+          eq(agentProjects.agentId, agentId),
+          eq(agentProjects.projectId, projectId)
+        ),
+      })
+
+      if (!result) return { error: new DBError(`Agent is not linked to this project`) }
+
+      return {
+        data: {
+          projectId: result.projectId,
+          agentId: result.agentId,
+          alias: result.alias ?? null,
+          model: result.model ?? null,
+          maxTokens: result.maxTokens ?? null,
+          systemPrompt: result.systemPrompt ?? null,
+          tools: result.tools ?? null,
+          functionIds: result.functionIds ?? null,
+          envVars: result.envVars ?? null,
+          environment: result.environment ?? null,
+          enabled: result.enabled ?? true,
+        } as TAgentProjectConfig,
+      }
+    } catch (error: any) {
+      return { error }
+    }
   }
 }

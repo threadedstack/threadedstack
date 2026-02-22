@@ -1,7 +1,7 @@
-import { setAssets, getAssets } from '@TAF/state/accessors'
+import { getContextAssets, setContextAssets } from '@TAF/state/accessors'
 
-export const removeAsset = (id: string) => {
-  const current = getAssets() || {}
+export const removeAsset = (contextKey: string, id: string) => {
+  const current = getContextAssets(contextKey) || {}
   const { [id]: _, ...rest } = current
-  setAssets(rest)
+  setContextAssets(contextKey, rest)
 }

@@ -1,6 +1,17 @@
 import type { Atom } from 'jotai'
 import type { atomWithReset } from 'jotai/utils'
-import type { Agent, Organization, Project } from '@tdsk/domain'
+import type {
+  Agent,
+  Asset,
+  Domain,
+  Endpoint,
+  Function as FunctionModel,
+  Message,
+  Organization,
+  Project,
+  Secret,
+  Thread,
+} from '@tdsk/domain'
 
 import { useAtom } from 'jotai'
 import { useResetAtom } from 'jotai/utils'
@@ -11,19 +22,49 @@ import { themeTypeState } from '@TAF/state/theme'
 import { providersState } from '@TAF/state/providers'
 import { quickstartState } from '@TAF/state/quickstart'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
-import { assetsState, activeAssetIdState } from '@TAF/state/assets'
-import { domainsState, activeDomainIdState } from '@TAF/state/domains'
+import {
+  assetsState,
+  activeAssetIdState,
+  orgAssetsState,
+  projectAssetsState,
+} from '@TAF/state/assets'
+import {
+  domainsState,
+  activeDomainIdState,
+  orgDomainsState,
+  projectDomainsState,
+} from '@TAF/state/domains'
 import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
-import { threadsState, activeThreadIdState } from '@TAF/state/threads'
-import { messagesState, activeMessageIdState } from '@TAF/state/messages'
-import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
+import {
+  threadsState,
+  activeThreadIdState,
+  orgThreadsState,
+  projectThreadsState,
+} from '@TAF/state/threads'
+import {
+  messagesState,
+  activeMessageIdState,
+  threadMessagesState,
+} from '@TAF/state/messages'
+import {
+  functionsState,
+  activeFunctionIdState,
+  projectFunctionsState,
+} from '@TAF/state/functions'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
-import { agentsState, activeAgentIdState, activeAgentState } from '@TAF/state/agents'
+import {
+  agentsState,
+  activeAgentIdState,
+  activeAgentState,
+  orgAgentsState,
+  projectAgentsState,
+} from '@TAF/state/agents'
 import {
   secretsState,
   activeSecretIdState,
   orgSecretsState,
   activeOrgSecretIdState,
+  projectSecretsState,
 } from '@TAF/state/secrets'
 import {
   faasFormState,
@@ -31,6 +72,7 @@ import {
   agentFormState,
   endpointsState,
   activeEndpointIdState,
+  projectEndpointsState,
 } from '@TAF/state/endpoints'
 import {
   projectsState,
@@ -118,3 +160,31 @@ export const useActiveAgent = () => useDerivedState<Agent>(activeAgentState)
 export const useProxyFormState = () => useRecState(proxyFormState)
 export const useFaasFormState = () => useRecState(faasFormState)
 export const useAgentFormState = () => useRecState(agentFormState)
+
+// Project-scoped derived selectors
+export const useProjectEndpoints = () =>
+  useDerivedState<Record<string, Endpoint>>(projectEndpointsState)
+export const useProjectFunctions = () =>
+  useDerivedState<Record<string, FunctionModel>>(projectFunctionsState)
+export const useProjectSecrets = () =>
+  useDerivedState<Record<string, Secret>>(projectSecretsState)
+export const useProjectAgents = () =>
+  useDerivedState<Record<string, Agent>>(projectAgentsState)
+export const useProjectDomains = () =>
+  useDerivedState<Record<string, Domain>>(projectDomainsState)
+export const useProjectThreads = () =>
+  useDerivedState<Record<string, Thread>>(projectThreadsState)
+export const useProjectAssets = () =>
+  useDerivedState<Record<string, Asset>>(projectAssetsState)
+
+// Org-scoped derived selectors (for dual-context atoms)
+export const useOrgAgents = () => useDerivedState<Record<string, Agent>>(orgAgentsState)
+export const useOrgDomains = () =>
+  useDerivedState<Record<string, Domain>>(orgDomainsState)
+export const useOrgThreads = () =>
+  useDerivedState<Record<string, Thread>>(orgThreadsState)
+export const useOrgAssets = () => useDerivedState<Record<string, Asset>>(orgAssetsState)
+
+// Thread-scoped messages
+export const useThreadMessages = () =>
+  useDerivedState<Record<string, Message>>(threadMessagesState)

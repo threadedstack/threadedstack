@@ -1,5 +1,5 @@
 import { functionsApi } from '@TAF/services'
-import { setFunctions, getFunctions } from '@TAF/state/accessors'
+import { getProjectFunctions, setProjectFunctions } from '@TAF/state/accessors'
 
 export type TDeleteFunctionOpts = {
   orgId: string
@@ -20,10 +20,9 @@ export const deleteFunction = async (
 
   if (resp.error) return { error: resp.error }
 
-  // Remove function from state
-  const currentFunctions = getFunctions() || {}
-  const { [id]: removed, ...remainingFunctions } = currentFunctions
-  setFunctions(remainingFunctions)
+  const current = getProjectFunctions(projectId) || {}
+  const { [id]: removed, ...remaining } = current
+  setProjectFunctions(projectId, remaining)
 
   return { success: true }
 }

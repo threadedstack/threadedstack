@@ -36,7 +36,8 @@ export const updateEndpoint: TEndpointConfig = {
       id,
       EPermAction.update,
       EPermResource.endpoint,
-      `Endpoint`
+      `Endpoint`,
+      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
     )
 
     // Validate HTTP method if provided

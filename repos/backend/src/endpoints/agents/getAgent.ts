@@ -36,6 +36,10 @@ export const getAgent: TEndpointConfig = {
     // Enforce project-level access for non-admin users
     await requireAgentAccess(req, id, agent.orgId, agent)
 
+    const { projectId } = req.params
+    const responseAgent = projectId ? agent.getEffectiveConfig(projectId) : agent
+    const projectConfig = projectId ? agent.getProjectConfig(projectId) : null
+
     // If user wants unsanitized secrets, check they have permission
     if (!sanitize) {
       const userRole = await getUserRole(req, { orgId: agent.orgId })
@@ -43,9 +47,9 @@ export const getAgent: TEndpointConfig = {
       if (!canAccessSecretValue(userRole))
         throw new Exception(403, `Admin or higher role required to view secret values`)
 
-      res.status(200).json({ data: agent })
+      res.status(200).json({ data: responseAgent, overrides: projectConfig })
     } else {
-      res.status(200).json({ data: agent.sanitize() })
+      res.status(200).json({ data: responseAgent.sanitize(), overrides: projectConfig })
     }
   },
 }

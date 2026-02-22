@@ -31,3 +31,8 @@ The following are a list of confirmed issues found or required updates across th
       * Monaco Editor language should match the response `content-type`
         * `content-type: text/html` => HTML
         * `content-type: application/json` => JSON 
+
+
+## Agent
+* Update the Agent to use the `Log` class or default `Logger` exported from `@tdsk/logger`
+  * The Agent repo is not an API, and should not be using the apiLogger, which leverages `winston`

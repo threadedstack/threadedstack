@@ -72,6 +72,7 @@ export class AgentEndpoint extends BaseEndpoint {
       userId,
       agentId,
       overrides,
+      projectId,
       providerId,
       threadId: existingThreadId,
     } = opts
@@ -82,6 +83,9 @@ export class AgentEndpoint extends BaseEndpoint {
     })
 
     if (agentErr || !agent) throw new Exception(404, `Agent not found`)
+
+    // Apply project-level overrides if projectId is provided
+    const effectiveAgent = projectId ? agent.getEffectiveConfig(projectId) : agent
 
     // Select provider: explicit override, or primary (first in priority order)
     let provider = agent.primaryProvider
@@ -106,11 +110,19 @@ export class AgentEndpoint extends BaseEndpoint {
     const headers = await secrets.resolveHeaders(provider)
     const bodyParams = await secrets.resolveBodyParams(provider)
 
-    // Load custom functions attached to this agent via junction table
-    const { data: agentFunctions } = await db.services.function.listByAgent(agent.id)
+    // Load custom functions from project config (functions are project-scoped only)
+    const projectConfig = projectId ? agent.getProjectConfig(projectId) : null
+    const functionIds = projectConfig?.functionIds || []
+    let agentFunctions: any[] = []
+    if (functionIds.length) {
+      const results = await Promise.all(
+        functionIds.map((fid: string) => db.services.function.get(fid))
+      )
+      agentFunctions = results.filter((r) => r.data).map((r) => r.data)
+    }
 
     // Build function lookup for the execution callback
-    const functionMap = new Map((agentFunctions || []).map((fn: any) => [fn.id, fn]))
+    const functionMap = new Map(agentFunctions.map((fn: any) => [fn.id, fn]))
 
     // Get or create thread
     let threadId = existingThreadId
@@ -119,6 +131,7 @@ export class AgentEndpoint extends BaseEndpoint {
         userId,
         agentId,
         orgId: agent.orgId,
+        projectId,
         name: prompt.substring(0, 100),
       })
 
@@ -141,10 +154,11 @@ export class AgentEndpoint extends BaseEndpoint {
       apiKey,
       headers,
       bodyParams,
-      temperature: agent.environment?.temperature,
-      maxTokens: overrides?.maxTokens || agent.maxTokens,
-      systemPrompt: overrides?.systemPrompt || agent.systemPrompt,
-      model: overrides?.model || agent.model || provider.options?.model,
+      baseUrl: provider.options?.baseUrl as string | undefined,
+      temperature: effectiveAgent.environment?.temperature,
+      maxTokens: overrides?.maxTokens || effectiveAgent.maxTokens,
+      systemPrompt: overrides?.systemPrompt || effectiveAgent.systemPrompt,
+      model: overrides?.model || effectiveAgent.model || provider.options?.model,
 
       // TODO: fix these typescript types, need to add different Provider class types
       // I.E. need AIProvider, GitProvider, etc...
@@ -153,8 +167,8 @@ export class AgentEndpoint extends BaseEndpoint {
 
     // Build sandbox config
     const sandboxConfig = {
-      envVars: { ...agent.envVars, ...overrides?.envVars },
-      timeout: agent.environment?.timeout ?? 300000,
+      envVars: { ...effectiveAgent.envVars, ...overrides?.envVars },
+      timeout: effectiveAgent.environment?.timeout ?? 300000,
       provider: ESandboxType.local,
     }
 
@@ -176,8 +190,8 @@ export class AgentEndpoint extends BaseEndpoint {
         sandboxConfig,
         orgId: agent.orgId,
         db: createDBAdapter(db),
-        environment: agent.environment,
-        tools: (overrides?.tools || agent.tools) as string[] | undefined,
+        environment: effectiveAgent.environment,
+        tools: (overrides?.tools || effectiveAgent.tools) as string[] | undefined,
         customFunctions: agentFunctions || [],
         onExecuteFunction: async (functionId, input) => {
           const func = functionMap.get(functionId)

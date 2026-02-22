@@ -1,7 +1,7 @@
-import { setThreads, getThreads } from '@TAF/state/accessors'
+import { getContextThreads, setContextThreads } from '@TAF/state/accessors'
 
-export const removeThread = (id: string) => {
-  const current = getThreads() || {}
+export const removeThread = (contextKey: string, id: string) => {
+  const current = getContextThreads(contextKey) || {}
   const { [id]: _, ...rest } = current
-  setThreads(rest)
+  setContextThreads(contextKey, rest)
 }

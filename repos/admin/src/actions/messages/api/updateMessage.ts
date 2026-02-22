@@ -13,7 +13,7 @@ export const updateMessage = async (opts: TUpdateMessageOpts) => {
   const { orgId, agentId, threadId, messageId, data } = opts
   const resp = await messagesApi.update(orgId, agentId, threadId, messageId, data)
   if (resp.error) return { error: resp.error }
-  resp.data && upsertMessage(resp.data)
+  resp.data && upsertMessage(threadId, resp.data)
 
   return resp
 }

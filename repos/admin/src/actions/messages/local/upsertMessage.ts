@@ -1,7 +1,7 @@
 import type { Message } from '@tdsk/domain'
+import { getThreadMessages, setThreadMessages } from '@TAF/state/accessors'
 
-import { setMessages, getMessages } from '@TAF/state/accessors'
-
-export const upsertMessage = (message: Message) => {
-  setMessages({ ...getMessages(), [message.id]: message })
+export const upsertMessage = (threadId: string, message: Message) => {
+  const current = getThreadMessages(threadId) || {}
+  setThreadMessages(threadId, { ...current, [message.id]: message })
 }

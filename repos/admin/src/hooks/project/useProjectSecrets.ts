@@ -1,6 +1,6 @@
 import { ife } from '@keg-hub/jsutils/ife'
 import { useEffect, useState } from 'react'
-import { useSecrets } from '@TAF/state/selectors'
+import { useProjectSecrets as useProjectSecretsSelector } from '@TAF/state/selectors'
 import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 
 export type THOrgSecrets = {
@@ -11,12 +11,12 @@ export type THOrgSecrets = {
 export const useProjectSecrets = (props: THOrgSecrets) => {
   const { orgId, projectId } = props
 
-  const [secrets] = useSecrets()
+  const [secrets] = useProjectSecretsSelector()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
-    if (!orgId || !projectId || secrets) return
+    if (!orgId || !projectId) return
 
     ife(async () => {
       setLoading(true)
@@ -25,7 +25,7 @@ export const useProjectSecrets = (props: THOrgSecrets) => {
       result.error && setError(result.error)
       setLoading(false)
     })
-  }, [orgId, projectId, secrets])
+  }, [orgId, projectId])
 
   return {
     error,

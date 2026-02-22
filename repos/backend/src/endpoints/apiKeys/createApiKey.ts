@@ -5,8 +5,15 @@ import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { Exception } from '@TBE/utils/errors/exception'
 import { validateApiKey } from '@TBE/utils/auth/validateApiKey'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { ApiKey, EPermAction, EPermResource, generateApiKey } from '@tdsk/domain'
+import { checkPermission, getUserRole } from '@TBE/utils/auth/checkPermission'
+import {
+  ApiKey,
+  EPermAction,
+  EPermResource,
+  ERoleType,
+  hasMinRole,
+  generateApiKey,
+} from '@tdsk/domain'
 
 /**
  * POST /api-keys - Generate a new API key
@@ -29,6 +36,23 @@ export const createApiKey: TEndpointConfig = {
       orgId,
     })
 
+    // Resolve target userId — allow super/owner to create keys for other org members
+    let targetUserId = req.user?.id
+    if (keyData.userId && keyData.userId !== req.user?.id) {
+      const callerRole = await getUserRole(req, { orgId })
+      if (!hasMinRole(callerRole, ERoleType.owner))
+        throw new Exception(
+          403,
+          `Only owners and super admins can create API keys for other users`
+        )
+
+      const { data: isMember } = await db.services.role.isOrgMember(keyData.userId, orgId)
+      if (!isMember)
+        throw new Exception(400, `Target user is not a member of this organization`)
+
+      targetUserId = keyData.userId
+    }
+
     try {
       const { key, hash, prefix } = generateApiKey()
       const apiKeyData = new ApiKey({
@@ -36,7 +60,7 @@ export const createApiKey: TEndpointConfig = {
         active: true,
         keyHash: hash,
         keyPrefix: prefix,
-        userId: req.user?.id,
+        userId: targetUserId,
         scopes: scopes || `read`,
         rateLimit: rateLimit || 100,
         ...(orgId && { orgId }),

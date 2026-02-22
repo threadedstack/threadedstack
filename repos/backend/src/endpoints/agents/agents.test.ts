@@ -139,6 +139,34 @@ describe(`Agents endpoints`, () => {
       expect(responseData).toHaveLength(2)
     })
 
+    it(`should return agents with hydrated provider objects`, async () => {
+      const mockAgents = [
+        new Agent({
+          id: `agent-1`,
+          name: `Agent One`,
+          orgId: `org-1`,
+          providers: [
+            { id: `provider-1`, name: `Anthropic`, type: `ai`, orgId: `org-1` },
+          ] as any,
+          projects: [],
+        }),
+      ]
+
+      const mockList = mockReq.app?.locals.db.services.agent.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: mockAgents })
+      mockReq.params = { orgId: `org-1` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).toHaveLength(1)
+      expect(responseData[0].providers).toHaveLength(1)
+      expect(responseData[0].providers[0].name).toBe(`Anthropic`)
+      expect(responseData[0].primaryProvider?.name).toBe(`Anthropic`)
+    })
+
     it(`should return 400 when no orgId param`, async () => {
       const app = buildApp()
       mockReq.params = {}
@@ -308,7 +336,7 @@ describe(`Agents endpoints`, () => {
       expect(mockGet).toHaveBeenCalledWith(`agent-1`, { sanitize: false })
       expect(mockStatus).toHaveBeenCalledWith(200)
       // When admin requests sanitize=false, the raw agent is returned (not sanitized)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockAgent })
+      expect(mockJson).toHaveBeenCalledWith({ data: mockAgent, overrides: null })
     })
 
     it(`should return 404 when agent not found`, async () => {
@@ -639,6 +667,42 @@ describe(`Agents endpoints`, () => {
 
       const createArg = mockCreate.mock.calls[0][0]
       expect(createArg.providerIds).toEqual([`provider-1`])
+    })
+
+    it(`should pass secretIds through to agent.create`, async () => {
+      const createdAgent = new Agent({
+        id: `agent-new`,
+        name: `New Agent`,
+        orgId: `org-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
+        projects: [],
+        secrets: [{ id: `s1`, name: `TestSecret` }] as any,
+      })
+      mockReq.body = {
+        orgId: `org-1`,
+        providerIds: [`provider-1`],
+        name: `New Agent`,
+        secretIds: [`s1`],
+      }
+
+      const mockProvGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProvGet.mockResolvedValue({
+        data: { id: `provider-1`, type: `ai`, name: `Anthropic`, orgId: `org-1` },
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.agent.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ secretIds: [`s1`] })
+      )
+      expect(mockStatus).toHaveBeenCalledWith(201)
     })
 
     it(`should return 500 on database error`, async () => {
@@ -987,6 +1051,69 @@ describe(`Agents endpoints`, () => {
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Provider provider-other-org does not belong to organization org-1`
       )
+    })
+
+    it(`should pass secretIds through to agent.update`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent One`,
+        orgId: `org-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
+        projects: [],
+        secrets: [{ id: `s1`, name: `OldSecret` }] as any,
+      })
+      const updatedAgent = new Agent({
+        ...existingAgent,
+        secrets: [{ id: `s2`, name: `NewSecret` }] as any,
+      })
+
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { name: `Updated`, secretIds: [`s2`] }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      mockUpdate.mockResolvedValue({ data: updatedAgent })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ secretIds: [`s2`] })
+      )
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it(`should pass empty secretIds to detach all secrets`, async () => {
+      const existingAgent = new Agent({
+        id: `agent-1`,
+        name: `Agent One`,
+        orgId: `org-1`,
+        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
+        projects: [],
+        secrets: [{ id: `s1`, name: `OldSecret` }] as any,
+      })
+
+      mockReq.params = { id: `agent-1` }
+      mockReq.body = { name: `Updated`, secretIds: [] }
+
+      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ data: existingAgent })
+
+      const mockUpdate = mockReq.app?.locals.db.services.agent.update as ReturnType<
+        typeof vi.fn
+      >
+      mockUpdate.mockResolvedValue({ data: { ...existingAgent, secrets: [] } })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ secretIds: [] }))
     })
   })
 

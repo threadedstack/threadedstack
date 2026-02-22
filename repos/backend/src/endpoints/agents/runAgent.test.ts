@@ -72,7 +72,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
               delete: vi.fn(),
             },
             secret: {
-              get: vi.fn().mockResolvedValue({ data: null }),
+              get: vi.fn().mockResolvedValue({
+                data: { encryptedValue: fakeEncrypted(), orgId: `org-1` },
+              }),
               list: vi.fn().mockResolvedValue({ data: [] }),
             },
             thread: {
@@ -81,7 +83,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
             },
             function: {
               list: vi.fn().mockResolvedValue({ data: [] }),
-              listByAgent: vi.fn().mockResolvedValue({ data: [] }),
+              get: vi.fn().mockResolvedValue({ data: null }),
             },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -194,7 +196,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     )
   })
 
-  it(`should throw 400 when no API key found across all scopes`, async () => {
+  it(`should throw 400 when no API key found`, async () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
@@ -210,6 +212,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -219,6 +222,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -228,20 +232,15 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         secrets: [],
       },
     })
-    // secret.list returns empty for both provider and org scoped
-    const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
-      typeof vi.fn
-    >
-    mockSecretList.mockResolvedValue({ data: [] })
 
     await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
       `No API key found for agent provider`
     )
   })
 
-  it(`should resolve API key from agent-scoped secrets`, async () => {
+  it(`should resolve API key via direct secretId lookup`, async () => {
     const { decryptValue } = await import(`@tdsk/domain`)
-    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-agent-key`)
+    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-direct-key`)
 
     const ep = getEndpointCfg(runAgent as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
@@ -258,6 +257,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -267,145 +267,32 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
           brand: `anthropic`,
           options: {},
         },
-        secrets: [
-          { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
-        ],
+        secrets: [],
         tools: [],
       },
     })
     mockThreadCreate.mockResolvedValue({
-      data: { id: `thread-agent`, name: `Hello agent` },
+      data: { id: `thread-direct`, name: `Hello agent` },
     })
 
     await ep.action(mockReq as TRequest, mockRes as Response)
 
-    // Should NOT query provider or org secrets when agent secret found
+    // Should use secret.get (direct lookup), NOT secret.list (fallback)
+    const mockSecretGet = mockReq.app?.locals.db.services.secret.get as ReturnType<
+      typeof vi.fn
+    >
     const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
       typeof vi.fn
     >
+    expect(mockSecretGet).toHaveBeenCalledWith(`secret-1`)
     expect(mockSecretList).not.toHaveBeenCalled()
-  })
-
-  it(`should fall back to provider-scoped secrets when agent has none`, async () => {
-    const { decryptValue } = await import(`@tdsk/domain`)
-    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-provider-key`)
-
-    const ep = getEndpointCfg(runAgent as any)
-    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
-      typeof vi.fn
-    >
-    const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
-      typeof vi.fn
-    >
-    const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
-      typeof vi.fn
-    >
-
-    mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providers: [
-          {
-            id: `prov-1`,
-            type: `ai`,
-            orgId: `org-1`,
-            name: `anthropic`,
-            brand: `anthropic`,
-            options: {},
-          },
-        ],
-        primaryProvider: {
-          id: `prov-1`,
-          type: `ai`,
-          orgId: `org-1`,
-          name: `anthropic`,
-          brand: `anthropic`,
-          options: {},
-        },
-        secrets: [],
-        tools: [],
-      },
-    })
-    mockSecretList.mockResolvedValueOnce({
-      data: [{ encryptedValue: fakeEncrypted(), providerId: `prov-1` }],
-    })
-    mockThreadCreate.mockResolvedValue({
-      data: { id: `thread-prov`, name: `Hello agent` },
-    })
-
-    await ep.action(mockReq as TRequest, mockRes as Response)
-
-    expect(mockSecretList).toHaveBeenCalledWith({
-      where: { providerId: `prov-1` },
-    })
-  })
-
-  it(`should fall back to org-scoped secrets when provider has none`, async () => {
-    const { decryptValue } = await import(`@tdsk/domain`)
-    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-org-key`)
-
-    const ep = getEndpointCfg(runAgent as any)
-    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
-      typeof vi.fn
-    >
-    const mockSecretList = mockReq.app?.locals.db.services.secret.list as ReturnType<
-      typeof vi.fn
-    >
-    const mockThreadCreate = mockReq.app?.locals.db.services.thread.create as ReturnType<
-      typeof vi.fn
-    >
-
-    mockAgentGet.mockResolvedValue({
-      data: {
-        id: `agent-1`,
-        orgId: `org-1`,
-        providers: [
-          {
-            id: `prov-1`,
-            type: `ai`,
-            orgId: `org-1`,
-            name: `anthropic`,
-            brand: `anthropic`,
-            options: {},
-          },
-        ],
-        primaryProvider: {
-          id: `prov-1`,
-          type: `ai`,
-          orgId: `org-1`,
-          name: `anthropic`,
-          brand: `anthropic`,
-          options: {},
-        },
-        secrets: [],
-        tools: [],
-      },
-    })
-    // Provider secrets empty
-    mockSecretList.mockResolvedValueOnce({ data: [] })
-    // Org secrets found
-    mockSecretList.mockResolvedValueOnce({
-      data: [{ encryptedValue: fakeEncrypted(), orgId: `org-1` }],
-    })
-    mockThreadCreate.mockResolvedValue({
-      data: { id: `thread-org`, name: `Hello agent` },
-    })
-
-    await ep.action(mockReq as TRequest, mockRes as Response)
-
-    expect(mockSecretList).toHaveBeenCalledWith({
-      where: { providerId: `prov-1` },
-    })
-    expect(mockSecretList).toHaveBeenCalledWith({
-      where: { orgId: `org-1` },
-    })
   })
 
   it(`should throw 400 for unsupported LLM provider`, async () => {
@@ -424,6 +311,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `invalid-provider`,
@@ -432,6 +320,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `invalid-provider`,
@@ -470,6 +359,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `Google AI`,
@@ -479,6 +369,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `Google AI`,
@@ -526,6 +417,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `My Custom Name`,
@@ -535,6 +427,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `My Custom Name`,
@@ -582,6 +475,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -591,6 +485,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -637,6 +532,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -646,6 +542,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -694,6 +591,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -703,6 +601,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -744,6 +643,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -753,6 +653,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -797,6 +698,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -806,6 +708,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -881,6 +784,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -890,6 +794,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -937,6 +842,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -946,6 +852,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -991,6 +898,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -1000,6 +908,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,
@@ -1044,6 +953,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         providers: [
           {
             id: `prov-1`,
+            secretId: `secret-1`,
             type: `ai`,
             orgId: `org-1`,
             name: `anthropic`,
@@ -1053,6 +963,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         primaryProvider: {
           id: `prov-1`,
+          secretId: `secret-1`,
           type: `ai`,
           orgId: `org-1`,
           name: `anthropic`,

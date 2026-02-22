@@ -15,6 +15,8 @@ export interface TestContext {
   adminApiKeyId?: string
   /** userId of the admin-role user */
   adminUserId?: string
+  /** userId of a lower-role org member — target for role hierarchy tests */
+  targetMemberUserId?: string
 }
 
 const contextDir = join(tmpdir(), 'tdsk-integration')

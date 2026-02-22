@@ -5,6 +5,7 @@ export type TAgentExecOpts = {
   prompt: string
   userId: string
   threadId?: string
+  projectId?: string
   providerId?: string
   overrides?: TAgentEndpointConfig['overrides']
 }

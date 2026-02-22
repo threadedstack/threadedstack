@@ -408,6 +408,93 @@ describe(`API Keys endpoints`, () => {
         `Expiration date must be in the future`
       )
     })
+
+    it(`should allow owner/super to create API key with custom userId`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `owner` } })
+
+      const mockIsOrgMember = vi.fn().mockResolvedValue({ data: true })
+      ;(mockReq.app?.locals.db.services.role as any).isOrgMember = mockIsOrgMember
+
+      mockReq.body = { name: `Delegated Key`, orgId: `org-123`, userId: `other-user-id` }
+      const createdApiKey = new ApiKey({
+        id: `delegated-1`,
+        name: `Delegated Key`,
+        keyHash: `hash`,
+        keyPrefix: `tdsk_dele`,
+        scopes: `read`,
+        active: true,
+        orgId: `org-123`,
+        userId: `other-user-id`,
+        createdAt: new Date(),
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdApiKey })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: `other-user-id` })
+      )
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should return 403 when non-owner tries to specify userId`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `admin` } })
+
+      mockReq.body = { name: `Delegated Key`, orgId: `org-123`, userId: `other-user-id` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Only owners and super admins can create API keys for other users`
+      )
+    })
+
+    it(`should return 400 when target userId is not an org member`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `owner` } })
+
+      const mockIsOrgMember = vi.fn().mockResolvedValue({ data: false })
+      ;(mockReq.app?.locals.db.services.role as any).isOrgMember = mockIsOrgMember
+
+      mockReq.body = { name: `Bad Key`, orgId: `org-123`, userId: `non-member-id` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Target user is not a member of this organization`
+      )
+    })
+
+    it(`should use req.user.id when userId matches caller`, async () => {
+      mockReq.body = { name: `Self Key`, orgId: `org-123`, userId: `test-user-id` }
+      const createdApiKey = new ApiKey({
+        id: `self-1`,
+        name: `Self Key`,
+        keyHash: `hash`,
+        keyPrefix: `tdsk_self`,
+        scopes: `read`,
+        active: true,
+        orgId: `org-123`,
+        userId: `test-user-id`,
+        createdAt: new Date(),
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdApiKey })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      // Should NOT call getUserRole since userId matches caller
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: `test-user-id` })
+      )
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
   })
 
   describe(`PUT /_/api-keys/:id - Update API key`, () => {

@@ -27,8 +27,6 @@ describe(`Functions endpoints`, () => {
               create: vi.fn(),
               update: vi.fn(),
               delete: vi.fn(),
-              setAgents: vi.fn().mockResolvedValue({ data: null, error: null }),
-              listByAgent: vi.fn().mockResolvedValue({ data: [] }),
             },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),

@@ -19,7 +19,7 @@ export const createAgent: TEndpointConfig = {
     const { db } = req.app.locals
     const {
       projectIds = [],
-      functionIds = [],
+      secretIds,
       providerIds: rawProviderIds = [],
       providers: providersWithPriority,
       ...agent
@@ -78,8 +78,8 @@ export const createAgent: TEndpointConfig = {
 
     if (projErr) throw new Exception(500, projErr.message)
     if (projects?.length) agent.projects = projects
-    if (functionIds?.length) agent.functionIds = functionIds
     if (providerIds?.length) agent.providerIds = providerIds
+    if (secretIds?.length) agent.secretIds = secretIds
 
     const { data, error } = await db.services.agent.create(agent)
 

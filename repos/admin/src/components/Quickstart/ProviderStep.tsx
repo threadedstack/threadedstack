@@ -1,8 +1,9 @@
 import type { TProviderStepData } from '@TAF/types'
-import type { TLLMProviderBrand } from '@tdsk/domain'
+import type { TLLMProviderBrand, TProviderModel } from '@tdsk/domain'
 
-import { useMemo } from 'react'
-import { ProviderTemplates } from '@tdsk/domain'
+import { useMemo, useState, useCallback } from 'react'
+import { ELLMProviderBrand, ProviderTemplates } from '@tdsk/domain'
+import { providersApi } from '@TAF/services/providersApi'
 import { styled, alpha } from '@mui/material/styles'
 import { TextInput, SelectInput } from '@tdsk/components'
 import CloudQueueIcon from '@mui/icons-material/CloudQueue'
@@ -14,6 +15,7 @@ import {
   Typography,
   CardContent,
   CardActionArea,
+  CircularProgress,
 } from '@mui/material'
 
 const SectionHeader = styled(Box)(({ theme }) => ({
@@ -92,20 +94,52 @@ export type TProviderStep = {
   onChange: (updates: Partial<TProviderStepData>) => void
 }
 
+const dynamicBrands = new Set<string>([
+  ELLMProviderBrand.openai,
+  ELLMProviderBrand.google,
+  ELLMProviderBrand.ollama,
+  ELLMProviderBrand.openrouter,
+])
+
+// Brands that need the user's API key to fetch models
+const keyRequiredBrands = new Set<string>([
+  ELLMProviderBrand.openai,
+  ELLMProviderBrand.google,
+])
+
 export const ProviderStep = (props: TProviderStep) => {
   const { data, onChange, disabled } = props
   const template = ProviderTemplates[data.providerBrand]
 
+  const [dynamicModels, setDynamicModels] = useState<TProviderModel[]>([])
+  const [fetchingModels, setFetchingModels] = useState(false)
+
   const modelOptions = useMemo(() => {
-    if (!template?.models?.length) return []
-    return template.models.map((m) => ({
+    const models = dynamicModels.length > 0 ? dynamicModels : template?.models || []
+    if (!models.length) return []
+    return models.map((m) => ({
       value: m.id,
       label: m.name,
     }))
-  }, [template])
+  }, [template, dynamicModels])
+
+  const fetchDynamicModels = useCallback(
+    async (brand: string, opts?: { baseUrl?: string; providerKey?: string }) => {
+      setFetchingModels(true)
+      try {
+        const resp = await providersApi.fetchModels(brand, opts)
+        setDynamicModels(resp.data || [])
+      } catch {
+        setDynamicModels([])
+      }
+      setFetchingModels(false)
+    },
+    []
+  )
 
   const onSelectProvider = (id: TLLMProviderBrand) => {
     const tmpl = ProviderTemplates[id]
+    setDynamicModels([])
     onChange({
       providerUrl: ``,
       providerName: ``,
@@ -113,6 +147,14 @@ export const ProviderStep = (props: TProviderStep) => {
       apiKey: data.apiKey,
       model: tmpl?.defaultModel || ``,
     })
+    // Auto-fetch for brands that don't need a key (openrouter, ollama)
+    // Key-required brands (openai, google) fetch after API key is entered
+    if (dynamicBrands.has(id) && !keyRequiredBrands.has(id)) fetchDynamicModels(id)
+  }
+
+  const onApiKeyBlur = () => {
+    if (data.apiKey && keyRequiredBrands.has(data.providerBrand))
+      fetchDynamicModels(data.providerBrand, { providerKey: data.apiKey })
   }
 
   return (
@@ -188,9 +230,22 @@ export const ProviderStep = (props: TProviderStep) => {
             id='quickstart-api-key'
             placeholder={template?.apiKeyPlaceholder || `Enter your API key...`}
             onChange={(e) => onChange({ apiKey: e.target.value })}
+            onBlur={onApiKeyBlur}
           />
 
-          {data.providerBrand === `custom` ? (
+          {data.providerBrand === ELLMProviderBrand.ollama && (
+            <TextInput
+              fullWidth
+              label='Ollama Base URL'
+              value={data.providerUrl}
+              disabled={disabled}
+              id='quickstart-ollama-url'
+              placeholder='http://localhost:11434/v1'
+              onChange={(e) => onChange({ providerUrl: e.target.value })}
+            />
+          )}
+
+          {data.providerBrand === ELLMProviderBrand.custom ? (
             <>
               <TextInput
                 required
@@ -223,6 +278,16 @@ export const ProviderStep = (props: TProviderStep) => {
                 onChange={(e) => onChange({ model: e.target.value })}
               />
             </>
+          ) : fetchingModels ? (
+            <Box sx={{ display: `flex`, alignItems: `center`, gap: 1.5, py: 1 }}>
+              <CircularProgress size={18} />
+              <Typography
+                variant='body2'
+                color='text.secondary'
+              >
+                Loading models...
+              </Typography>
+            </Box>
           ) : modelOptions.length > 0 ? (
             <SelectInput
               fullWidth
@@ -232,6 +297,17 @@ export const ProviderStep = (props: TProviderStep) => {
               id='quickstart-model'
               items={modelOptions}
               onChange={(e) => onChange({ model: e.target.value as string })}
+            />
+          ) : dynamicBrands.has(data.providerBrand) ? (
+            <TextInput
+              required
+              fullWidth
+              label='Model'
+              value={data.model}
+              disabled={disabled}
+              id='quickstart-dynamic-model'
+              placeholder='e.g., llama3.2'
+              onChange={(e) => onChange({ model: e.target.value })}
             />
           ) : null}
         </ConfigSection>

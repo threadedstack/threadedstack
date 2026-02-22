@@ -8,17 +8,23 @@ export type TBranchThreadOpts = {
   agentId: string
   threadId: string
   messageId: string
+  contextKey?: string
 }
 
 export const branchThread = async (opts: TBranchThreadOpts) => {
-  const { orgId, agentId, threadId, messageId } = opts
+  const { orgId, agentId, threadId, messageId, contextKey = 'org' } = opts
   const resp = await threadsApi.branch(orgId, agentId, threadId, messageId)
   if (resp.error) return { error: resp.error }
 
   if (resp.data) {
-    upsertThread(resp.data)
+    upsertThread(contextKey, resp.data)
     const messages = (resp.data as any).messages
-    messages?.length && upsertMessages(messages.map((m: any) => new Message(m)))
+    if (messages?.length) {
+      upsertMessages(
+        resp.data.id,
+        messages.map((m: any) => new Message(m))
+      )
+    }
   }
 
   return resp

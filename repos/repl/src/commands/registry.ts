@@ -14,6 +14,7 @@ import { listThreadsCommand } from './listThreads'
 import { switchAgentCommand } from './switchAgent'
 import { switchThreadCommand } from './switchThread'
 import { removeContextCommand } from './removeContext'
+import { projectsCommand } from './projects'
 import { switchProviderCommand } from './switchProvider'
 
 /** All commands except help (help imports this to avoid circular deps) */
@@ -26,6 +27,7 @@ export const registeredCommands: TSlashCommand[] = [
   contextCommand,
   historyCommand,
   verboseCommand,
+  projectsCommand,
   newThreadCommand,
   addContextCommand,
   listThreadsCommand,

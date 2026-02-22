@@ -1,30 +1,26 @@
 import type { TKeyValuePair } from '@TAF/types'
+import type { TParamRow } from '@TAF/components/ParamsEditor'
 import type { Function as FunctionModel } from '@tdsk/domain'
 
+import { Box } from '@mui/material'
 import { useAtomValue } from 'jotai'
 import { EFunLanguage } from '@tdsk/domain'
-import { cls } from '@keg-hub/jsutils/cls'
-import { Box, Autocomplete } from '@mui/material'
 import { Code } from '@TAF/components/Code/Code'
 import { LanguageOpts } from '@TAF/constants/values'
 import { useState, useEffect, useMemo } from 'react'
-import { endpointsState } from '@TAF/state/endpoints'
 import { fetchEndpoints } from '@TAF/actions/endpoints'
-import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
-import type { TParamRow } from '@TAF/components/ParamsEditor'
 import { ParamsEditor } from '@TAF/components/ParamsEditor'
+import { projectEndpointsState } from '@TAF/state/endpoints'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createFunction, updateFunction, deleteFunction } from '@TAF/actions/functions'
 import {
-  ConfirmDelete,
   Drawer,
-  DrawerActions,
   TextInput,
   SelectInput,
-  AutoInputText,
-  InputStateHandler,
+  DrawerActions,
+  ConfirmDelete,
 } from '@tdsk/components'
 
 export type TFunctionDrawer = {
@@ -45,7 +41,7 @@ export const FunctionDrawer = ({
   onSuccess: onSuccessCB,
 }: TFunctionDrawer) => {
   const isEditMode = Boolean(func)
-  const endpoints = useAtomValue(endpointsState)
+  const endpoints = useAtomValue(projectEndpointsState)
 
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(func?.name || ``)
@@ -54,27 +50,15 @@ export const FunctionDrawer = ({
   const [branch, setBranch] = useState(func?.branch || `main`)
   const [inputSchema, setInputSchema] = useState<TParamRow[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [agentIds, setAgentIds] = useState<string[]>(func?.agentIds || [])
-  const [agents, setAgents] = useState<Array<{ id: string; name: string }>>([])
   const [endpointId, setEndpointId] = useState(func?.endpointId || ``)
   const [description, setDescription] = useState(func?.description || ``)
   const [content, setContent] = useState(func?.content || `\n\n\n\n\n\n`)
   const [dependencyPairs, setDependencyPairs] = useState<TKeyValuePair[]>([])
   const [language, setLanguage] = useState(func?.language || EFunLanguage.typescript)
 
-  // Fetch endpoints and agents when the drawer opens
+  // Fetch endpoints when the drawer opens
   useEffect(() => {
-    if (open && orgId && projectId) {
-      fetchEndpoints({ orgId, projectId })
-      fetchAgents({ orgId, projectId }).then((result) => {
-        if (result?.data) {
-          const agentList = (
-            Array.isArray(result.data) ? result.data : Object.values(result.data)
-          ).map((a: any) => ({ id: a.id, name: a.name || a.id }))
-          setAgents(agentList)
-        }
-      })
-    }
+    open && orgId && projectId && fetchEndpoints({ orgId, projectId })
   }, [open, orgId, projectId])
 
   // Create endpoint options for the select dropdown
@@ -90,17 +74,12 @@ export const FunctionDrawer = ({
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [endpoints, projectId])
 
-  const agentOptions = useMemo(() => {
-    return agents.map((a) => ({ label: a.name, value: a.id }))
-  }, [agents])
-
   useEffect(() => {
     if (!func || loaded) return
 
     setLoaded(true)
     setName(func.name || ``)
     setBranch(func.branch || `main`)
-    setAgentIds(func.agentIds || [])
     setEndpointId(func.endpointId || ``)
     setDescription(func.description || ``)
     setContent(func?.content || `\n\n\n\n\n\n`)
@@ -154,7 +133,6 @@ export const FunctionDrawer = ({
     setError(null)
     setContent(``)
     setLoaded(false)
-    setAgentIds([])
     setEndpointId(``)
     setBranch(`main`)
     setDescription(``)
@@ -220,7 +198,6 @@ export const FunctionDrawer = ({
       inputSchema: parsedInputSchema,
       branch: branch.trim() || 'main',
       dependencies: parsedDependencies,
-      agentIds: agentIds.length > 0 ? agentIds : undefined,
       endpointId: endpointId || undefined,
       description: description.trim() || undefined,
     }
@@ -345,35 +322,6 @@ export const FunctionDrawer = ({
                 : `Select an endpoint to associate with this function`
             }
           />
-
-          <InputStateHandler
-            id='function-agents'
-            disabled={loading || agents.length === 0}
-            label='Agents'
-            description={
-              agents.length === 0
-                ? `No agents available. Create an agent first.`
-                : `Select agents to attach this function as a tool`
-            }
-          >
-            <Autocomplete
-              multiple
-              id='function-agents'
-              className={cls(`tdsk-auto-input`, loading && `disabled`)}
-              value={agentIds}
-              options={agents.map((a) => a.id)}
-              getOptionLabel={(id) => agents.find((a) => a.id === id)?.name || id}
-              onChange={(_, updates) => setAgentIds(updates)}
-              disabled={loading || agents.length === 0}
-              renderInput={(params) => (
-                <AutoInputText
-                  {...params}
-                  sx={{ padding: `0px` }}
-                  placeholder='Select agents...'
-                />
-              )}
-            />
-          </InputStateHandler>
 
           <TextInput
             fullWidth

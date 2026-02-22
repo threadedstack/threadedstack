@@ -10,7 +10,7 @@ import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { AgentSection } from '@TAF/components/Agents/AgentSection'
 import {
-  useAgents,
+  useProjectAgents,
   useActiveOrgId,
   useActiveAgent,
   useActiveAgentId,
@@ -30,7 +30,7 @@ export type TProjectAgent = {}
 
 export const ProjectAgent = (props: TProjectAgent) => {
   const navigate = useNavigate()
-  const [agents] = useAgents()
+  const [agents] = useProjectAgents()
   const [orgId] = useActiveOrgId()
   const [agent] = useActiveAgent()
   const [agentId] = useActiveAgentId()

@@ -112,7 +112,7 @@ export const setProviders = (providers: Record<string, Provider>) =>
 
 export const getSecrets = () => store.get(secretsState)
 export const resetSecrets = () => store.set(secretsState, undefined)
-export const setSecrets = (secrets: Record<string, Secret>) =>
+export const setSecrets = (secrets: Record<string, Record<string, Secret>>) =>
   store.set(secretsState, secrets)
 
 export const getActiveSecretId = () => store.get(activeSecretIdState)
@@ -130,7 +130,7 @@ export const setActiveOrgSecretId = (id: string) => store.set(activeOrgSecretIdS
 
 export const getDomains = () => store.get(domainsState)
 export const resetDomains = () => store.set(domainsState, undefined)
-export const setDomains = (domains: Record<string, Domain>) =>
+export const setDomains = (domains: Record<string, Record<string, Domain>>) =>
   store.set(domainsState, domains)
 
 export const getActiveDomainId = () => store.get(activeDomainIdState)
@@ -139,7 +139,7 @@ export const setActiveDomainId = (id: string) => store.set(activeDomainIdState, 
 
 export const getEndpoints = () => store.get(endpointsState)
 export const resetEndpoints = () => store.set(endpointsState, undefined)
-export const setEndpoints = (endpoints: Record<string, Endpoint>) =>
+export const setEndpoints = (endpoints: Record<string, Record<string, Endpoint>>) =>
   store.set(endpointsState, endpoints)
 
 export const getActiveEndpointId = () => store.get(activeEndpointIdState)
@@ -148,7 +148,7 @@ export const setActiveEndpointId = (id: string) => store.set(activeEndpointIdSta
 
 export const getFunctions = () => store.get(functionsState)
 export const resetFunctions = () => store.set(functionsState, undefined)
-export const setFunctions = (functions: Record<string, FunctionModel>) =>
+export const setFunctions = (functions: Record<string, Record<string, FunctionModel>>) =>
   store.set(functionsState, functions)
 
 export const getActiveFunctionId = () => store.get(activeFunctionIdState)
@@ -194,7 +194,7 @@ export const setOrgLimits = (limits: TLimitsData | undefined) =>
 
 export const getThreads = () => store.get(threadsState)
 export const resetThreads = () => store.set(threadsState, undefined)
-export const setThreads = (threads: Record<string, Thread>) =>
+export const setThreads = (threads: Record<string, Record<string, Thread>>) =>
   store.set(threadsState, threads)
 
 export const getActiveThreadId = () => store.get(activeThreadIdState)
@@ -203,7 +203,7 @@ export const setActiveThreadId = (id: string) => store.set(activeThreadIdState, 
 
 export const getMessages = () => store.get(messagesState)
 export const resetMessages = () => store.set(messagesState, undefined)
-export const setMessages = (messages: Record<string, Message>) =>
+export const setMessages = (messages: Record<string, Record<string, Message>>) =>
   store.set(messagesState, messages)
 
 export const getActiveMessageId = () => store.get(activeMessageIdState)
@@ -212,7 +212,8 @@ export const setActiveMessageId = (id: string) => store.set(activeMessageIdState
 
 export const getAssets = () => store.get(assetsState)
 export const resetAssets = () => store.set(assetsState, undefined)
-export const setAssets = (assets: Record<string, Asset>) => store.set(assetsState, assets)
+export const setAssets = (assets: Record<string, Record<string, Asset>>) =>
+  store.set(assetsState, assets)
 
 export const getActiveAssetId = () => store.get(activeAssetIdState)
 export const resetActiveAssetId = () => store.set(activeAssetIdState, undefined)
@@ -220,7 +221,8 @@ export const setActiveAssetId = (id: string) => store.set(activeAssetIdState, id
 
 export const getAgents = () => store.get(agentsState)
 export const resetAgents = () => store.set(agentsState, undefined)
-export const setAgents = (agents: Record<string, Agent>) => store.set(agentsState, agents)
+export const setAgents = (agents: Record<string, Record<string, Agent>>) =>
+  store.set(agentsState, agents)
 
 export const getActiveAgentId = () => store.get(activeAgentIdState)
 export const resetActiveAgentId = () => store.set(activeAgentIdState, undefined)
@@ -240,3 +242,59 @@ export const getAgentFormState = () => store.get(agentFormState)
 export const resetAgentFormState = () => store.set(agentFormState, DefAgentState)
 export const setAgentFormState = (state: TAgentFormState) =>
   store.set(agentFormState, state)
+
+// --- Scope-keyed accessors ---
+
+// Project-keyed: endpoints, functions, secrets
+export const getProjectEndpoints = (projectId: string) => getEndpoints()?.[projectId]
+export const setProjectEndpoints = (projectId: string, eps: Record<string, Endpoint>) => {
+  const all = getEndpoints() || {}
+  setEndpoints({ ...all, [projectId]: eps })
+}
+
+export const getProjectFunctions = (projectId: string) => getFunctions()?.[projectId]
+export const setProjectFunctions = (
+  projectId: string,
+  fns: Record<string, FunctionModel>
+) => {
+  const all = getFunctions() || {}
+  setFunctions({ ...all, [projectId]: fns })
+}
+
+export const getProjectSecrets = (projectId: string) => getSecrets()?.[projectId]
+export const setProjectSecrets = (projectId: string, secs: Record<string, Secret>) => {
+  const all = getSecrets() || {}
+  setSecrets({ ...all, [projectId]: secs })
+}
+
+// Context-keyed: agents, domains, threads, assets
+export const getContextAgents = (key: string) => getAgents()?.[key]
+export const setContextAgents = (key: string, agents: Record<string, Agent>) => {
+  const all = getAgents() || {}
+  setAgents({ ...all, [key]: agents })
+}
+
+export const getContextDomains = (key: string) => getDomains()?.[key]
+export const setContextDomains = (key: string, domains: Record<string, Domain>) => {
+  const all = getDomains() || {}
+  setDomains({ ...all, [key]: domains })
+}
+
+export const getContextThreads = (key: string) => getThreads()?.[key]
+export const setContextThreads = (key: string, threads: Record<string, Thread>) => {
+  const all = getThreads() || {}
+  setThreads({ ...all, [key]: threads })
+}
+
+export const getContextAssets = (key: string) => getAssets()?.[key]
+export const setContextAssets = (key: string, assets: Record<string, Asset>) => {
+  const all = getAssets() || {}
+  setAssets({ ...all, [key]: assets })
+}
+
+// Thread-keyed: messages
+export const getThreadMessages = (threadId: string) => getMessages()?.[threadId]
+export const setThreadMessages = (threadId: string, msgs: Record<string, Message>) => {
+  const all = getMessages() || {}
+  setMessages({ ...all, [threadId]: msgs })
+}

@@ -8,8 +8,8 @@ import { deleteThread } from '@TAF/actions/threads/api/deleteThread'
 import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
 import { CreateThreadDrawer } from '@TAF/components/AI/CreateThreadDrawer'
 import {
-  useAgents,
-  useThreads,
+  useOrgAgents,
+  useOrgThreads,
   useProviders,
   useActiveOrgId,
   useActiveAgentId,
@@ -20,13 +20,17 @@ import {
   Chip,
   Alert,
   Table,
+  Select,
   Tooltip,
+  MenuItem,
   TableRow,
   TableCell,
   TableBody,
   TableHead,
   Typography,
   IconButton,
+  InputLabel,
+  FormControl,
   TableContainer,
 } from '@mui/material'
 import {
@@ -38,14 +42,14 @@ import {
 } from '@mui/icons-material'
 
 export type TThreadsTab = {
-  onSwitchToMessages?: () => void
+  onViewThread?: (threadId: string) => void
 }
 
 export const ThreadsTab = (props: TThreadsTab) => {
-  const { onSwitchToMessages } = props
+  const { onViewThread: onViewThreadCB } = props
   const [orgId] = useActiveOrgId()
-  const [agents] = useAgents()
-  const [threads] = useThreads()
+  const [agents] = useOrgAgents()
+  const [threads] = useOrgThreads()
   const [providers] = useProviders()
   const [, setActiveThreadId] = useActiveThreadId()
   const [activeAgentId] = useActiveAgentId()
@@ -55,12 +59,38 @@ export const ThreadsTab = (props: TThreadsTab) => {
   const [success, setSuccess] = useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterProviderId, setFilterProviderId] = useState<string>('all')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null)
 
   const agent = activeAgentId ? agents?.[activeAgentId] : undefined
+
+  const filterProviders = useMemo(() => {
+    const providerMap = new Map<string, string>()
+
+    if (agent?.primaryProvider) {
+      providerMap.set(
+        agent.primaryProvider.id,
+        agent.primaryProvider.name || 'Primary Provider'
+      )
+    }
+
+    if (threads && providers) {
+      Object.values(threads).forEach((thread) => {
+        if (
+          thread.agentId === activeAgentId &&
+          thread.providerId &&
+          providers[thread.providerId]
+        ) {
+          providerMap.set(thread.providerId, providers[thread.providerId].name)
+        }
+      })
+    }
+
+    return Array.from(providerMap, ([id, name]) => ({ id, name }))
+  }, [threads, providers, agent, activeAgentId])
 
   useEffect(() => {
     const loadData = async () => {
@@ -69,7 +99,11 @@ export const ThreadsTab = (props: TThreadsTab) => {
       setLoading(true)
       setError(null)
 
-      const result = await fetchThreads({ orgId, agentId: activeAgentId })
+      const result = await fetchThreads({
+        orgId,
+        agentId: activeAgentId,
+        contextKey: 'org',
+      })
 
       if (result.error) {
         setError(result.error.message)
@@ -87,6 +121,17 @@ export const ThreadsTab = (props: TThreadsTab) => {
       (thread) => thread.agentId === activeAgentId
     )
 
+    if (filterProviderId !== 'all') {
+      if (filterProviderId === 'primary') {
+        filtered = filtered.filter(
+          (thread) =>
+            !thread.providerId || thread.providerId === agent?.primaryProvider?.id
+        )
+      } else {
+        filtered = filtered.filter((thread) => thread.providerId === filterProviderId)
+      }
+    }
+
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter((thread) => {
@@ -98,7 +143,7 @@ export const ThreadsTab = (props: TThreadsTab) => {
     }
 
     return filtered
-  }, [threads, activeAgentId, searchQuery])
+  }, [threads, activeAgentId, searchQuery, filterProviderId, agent])
 
   const totalThreadsCount = useMemo(() => {
     if (!threads || !activeAgentId) return 0
@@ -120,7 +165,7 @@ export const ThreadsTab = (props: TThreadsTab) => {
 
   const onCreateSuccess = async () => {
     if (orgId && activeAgentId) {
-      await fetchThreads({ orgId, agentId: activeAgentId })
+      await fetchThreads({ orgId, agentId: activeAgentId, contextKey: 'org' })
     }
     setSuccess('Thread created successfully')
     setTimeout(() => setSuccess(null), 2000)
@@ -133,7 +178,7 @@ export const ThreadsTab = (props: TThreadsTab) => {
 
   const onEditSuccess = async () => {
     if (orgId && activeAgentId) {
-      await fetchThreads({ orgId, agentId: activeAgentId })
+      await fetchThreads({ orgId, agentId: activeAgentId, contextKey: 'org' })
     }
     setSuccess('Thread updated successfully')
     setTimeout(() => setSuccess(null), 2000)
@@ -147,7 +192,7 @@ export const ThreadsTab = (props: TThreadsTab) => {
   const onDeleteConfirm = async () => {
     if (!selectedThread || !activeAgentId) return
 
-    const result = await deleteThread(orgId, activeAgentId, selectedThread.id)
+    const result = await deleteThread(orgId, activeAgentId, selectedThread.id, 'org')
 
     if (result.error) {
       setError(result.error.message)
@@ -157,14 +202,14 @@ export const ThreadsTab = (props: TThreadsTab) => {
       setDeleteDialogOpen(false)
       setTimeout(() => setSuccess(null), 2000)
       if (orgId && activeAgentId) {
-        await fetchThreads({ orgId, agentId: activeAgentId })
+        await fetchThreads({ orgId, agentId: activeAgentId, contextKey: 'org' })
       }
     }
   }
 
   const onViewThread = (thread: Thread) => {
     setActiveThreadId(thread.id)
-    onSwitchToMessages?.()
+    onViewThreadCB?.(thread.id)
   }
 
   if (!activeAgentId) {
@@ -195,6 +240,34 @@ export const ThreadsTab = (props: TThreadsTab) => {
         >
           {success}
         </Alert>
+      )}
+
+      {filterProviders.length > 1 && (
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <FormControl
+            size='small'
+            sx={{ minWidth: 200 }}
+          >
+            <InputLabel id='thread-provider-filter-label'>Filter by Provider</InputLabel>
+            <Select
+              labelId='thread-provider-filter-label'
+              value={filterProviderId}
+              label='Filter by Provider'
+              onChange={(e) => setFilterProviderId(e.target.value)}
+            >
+              <MenuItem value='all'>All Providers</MenuItem>
+              <MenuItem value='primary'>Primary Provider</MenuItem>
+              {filterProviders.map((p) => (
+                <MenuItem
+                  key={p.id}
+                  value={p.id}
+                >
+                  {p.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       )}
 
       {totalThreadsCount === 0 && !loading && (
@@ -228,6 +301,8 @@ export const ThreadsTab = (props: TThreadsTab) => {
                 <TableRow
                   key={thread.id}
                   hover
+                  sx={{ cursor: 'pointer' }}
+                  onClick={() => onViewThread(thread)}
                 >
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -320,7 +395,10 @@ export const ThreadsTab = (props: TThreadsTab) => {
                     <IconButton
                       size='small'
                       color='info'
-                      onClick={() => onViewThread(thread)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onViewThread(thread)
+                      }}
                       title='View messages'
                     >
                       <ViewIcon fontSize='small' />
@@ -328,7 +406,10 @@ export const ThreadsTab = (props: TThreadsTab) => {
                     <IconButton
                       size='small'
                       color='primary'
-                      onClick={() => onEditThread(thread)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEditThread(thread)
+                      }}
                       title='Edit thread'
                     >
                       <EditIcon fontSize='small' />
@@ -336,7 +417,10 @@ export const ThreadsTab = (props: TThreadsTab) => {
                     <IconButton
                       size='small'
                       color='error'
-                      onClick={() => onDeleteThread(thread)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDeleteThread(thread)
+                      }}
                       title='Delete thread'
                     >
                       <DeleteIcon fontSize='small' />

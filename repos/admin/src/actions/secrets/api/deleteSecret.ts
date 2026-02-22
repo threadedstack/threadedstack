@@ -12,6 +12,6 @@ export const deleteSecret = async (opts: TDeleteSecretOpts) => {
   const resp = await secretsApi.delete(orgId, id, projectId)
   if (resp.error) return { error: resp.error }
 
-  projectId ? removeSecret(id) : removeOrgSecret(id)
+  projectId ? removeSecret(projectId, id) : removeOrgSecret(id)
   return { success: true }
 }

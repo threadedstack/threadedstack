@@ -1,7 +1,7 @@
 import type { Domain } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { useDomains } from '@TAF/state/selectors'
+import { useProjectDomains, useOrgDomains } from '@TAF/state/selectors'
 import { fetchDomains } from '@TAF/actions/domains/api'
 import { useEffect, useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
@@ -24,7 +24,6 @@ export type TDomains = {
 }
 
 export const Domains = ({ orgId, projectId }: TDomains) => {
-  const [domains] = useDomains()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -34,6 +33,10 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
   // Determine context type
   const isOrgContext = !!orgId && !projectId
   const isProjectContext = !!projectId
+
+  const [projectDomains] = useProjectDomains()
+  const [orgDomains] = useOrgDomains()
+  const domains = isProjectContext ? projectDomains : orgDomains
 
   // Load domains based on context
   useEffect(() => {
@@ -82,38 +85,19 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
   const filteredDomains = useMemo(() => {
     const domainsArray = domains ? Object.values(domains) : []
 
-    // Filter by context
-    const contextFilteredDomains = domainsArray.filter((domain) => {
-      if (isProjectContext) {
-        return domain.projectId === projectId
-      }
-      if (isOrgContext) {
-        return domain.orgId === orgId && !domain.projectId
-      }
-      return false
-    })
-
-    // Filter by search query
-    if (!searchQuery.trim()) return contextFilteredDomains
+    if (!searchQuery.trim()) return domainsArray
 
     const query = searchQuery.toLowerCase()
-    return contextFilteredDomains.filter(
+    return domainsArray.filter(
       (domain) =>
         domain.domain?.toLowerCase().includes(query) ||
         domain.id?.toLowerCase().includes(query)
     )
-  }, [domains, searchQuery, orgId, projectId, isOrgContext, isProjectContext])
+  }, [domains, searchQuery])
 
   const domainsCount = useMemo(() => {
-    const domainsArray = domains ? Object.values(domains) : []
-    if (isProjectContext) {
-      return domainsArray.filter((d) => d.projectId === projectId).length
-    }
-    if (isOrgContext) {
-      return domainsArray.filter((d) => d.orgId === orgId && !d.projectId).length
-    }
-    return 0
-  }, [domains, orgId, projectId, isOrgContext, isProjectContext])
+    return domains ? Object.keys(domains).length : 0
+  }, [domains])
 
   const columns: TDataTableColumn<Domain>[] = [
     {

@@ -11,7 +11,7 @@ export const deleteEndpoint = async (opts: TDeleteEndpointOpts) => {
   const { orgId, projectId, id } = opts
   const resp = await endpointsApi.delete(orgId, projectId, id)
   if (resp.error) return { error: resp.error }
-  removeEndpoint(id)
+  removeEndpoint(projectId, id)
 
   return resp
 }

@@ -13,7 +13,7 @@ import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import { fetchProviders } from '@TAF/actions/providers'
-import { useActiveOrgId, useAgents, useProviders } from '@TAF/state/selectors'
+import { useActiveOrgId, useOrgAgents, useProviders } from '@TAF/state/selectors'
 import { Box, Chip, Typography } from '@mui/material'
 import {
   Add as AddIcon,
@@ -25,7 +25,7 @@ import {
 export type TOrgAgents = {}
 
 export const OrgAgents = (props: TOrgAgents) => {
-  const [agents] = useAgents()
+  const [agents] = useOrgAgents()
   const [orgId] = useActiveOrgId()
   const [providers] = useProviders()
   const [loading, setLoading] = useState(false)
@@ -43,8 +43,14 @@ export const OrgAgents = (props: TOrgAgents) => {
     orgId && fetchProviders({ orgId })
   }, [orgId])
 
+  const getProviderName = (providerId: string) => {
+    if (!providers || !providerId) return '-'
+    const provider = providers[providerId]
+    return provider?.name || '-'
+  }
+
   const agentsList = useMemo(() => {
-    const list = Object.values(agents || {}).filter((agent) => agent.orgId === orgId)
+    const list = Object.values(agents || {})
     if (!searchQuery.trim()) return list
 
     const query = searchQuery.toLowerCase()
@@ -54,12 +60,9 @@ export const OrgAgents = (props: TOrgAgents) => {
         agent.description?.toLowerCase().includes(query) ||
         agent.model?.toLowerCase().includes(query)
     )
-  }, [agents, orgId, searchQuery])
+  }, [agents, searchQuery])
 
-  const totalCount = useMemo(
-    () => Object.values(agents || {}).filter((agent) => agent.orgId === orgId).length,
-    [agents, orgId]
-  )
+  const totalCount = useMemo(() => Object.keys(agents || {}).length, [agents])
 
   const onOpenCreate = () => {
     setEditingAgent(null)
@@ -148,7 +151,9 @@ export const OrgAgents = (props: TOrgAgents) => {
           variant='body2'
           color='text.secondary'
         >
-          {agent.primaryProvider?.name || '-'}
+          {agent.primaryProvider?.name ||
+            getProviderName(agent.providers?.[0]?.id) ||
+            '-'}
         </Typography>
       ),
     },

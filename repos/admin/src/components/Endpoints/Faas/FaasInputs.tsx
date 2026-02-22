@@ -59,6 +59,10 @@ export const FaasInputs = (props: TFaasInputs) => {
     label: `${fn.name} (${fn.language})`,
   }))
 
+  const safeFunctionId = availableFunctions?.some((f) => f.id === functionId)
+    ? functionId
+    : ''
+
   return (
     <>
       {/* Function Selection */}
@@ -68,7 +72,7 @@ export const FaasInputs = (props: TFaasInputs) => {
         disabled={loading}
         label='Select Function'
         items={functionOptions}
-        value={functionId}
+        value={safeFunctionId}
         onChange={(e) => props.onFunctionIdChange(e.target.value)}
         placeholder='Choose a function to execute'
       />

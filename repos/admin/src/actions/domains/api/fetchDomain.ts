@@ -10,7 +10,8 @@ export type TFetchDomainOpts = {
 export const fetchDomain = async (opts: TFetchDomainOpts) => {
   const { orgId, id, projectId } = opts
   const resp = await domainsApi.get(orgId, id, projectId)
-  resp.data && upsertDomain(resp.data)
+  const contextKey = projectId || 'org'
+  resp.data && upsertDomain(contextKey, resp.data)
 
   return resp
 }

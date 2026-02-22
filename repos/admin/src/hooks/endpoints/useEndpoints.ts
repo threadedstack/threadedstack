@@ -2,18 +2,17 @@ import type { Endpoint } from '@tdsk/domain'
 
 import { ife } from '@keg-hub/jsutils/ife'
 import { useEffect, useState } from 'react'
-import { exists } from '@keg-hub/jsutils/exists'
 import { fetchEndpoints } from '@TAF/actions/endpoints/api/fetchEndpoints'
 import { deleteEndpoint } from '@TAF/actions/endpoints/api/deleteEndpoint'
 import { useEndpointFilter } from '@TAF/hooks/endpoints/useEndpointFilter'
 import {
-  useEndpoints as useEps,
+  useProjectEndpoints,
   useActiveProjectId,
   useActiveOrgId,
 } from '@TAF/state/selectors'
 
 export const useEndpoints = () => {
-  const [endpoints] = useEps()
+  const [endpoints] = useProjectEndpoints()
   const [orgId] = useActiveOrgId()
   const [query, setQuery] = useState(``)
   const [projectId] = useActiveProjectId()
@@ -23,18 +22,16 @@ export const useEndpoints = () => {
   const [endpoint, setEndpoint] = useState<Endpoint | null>(null)
 
   useEffect(() => {
-    orgId &&
-      projectId &&
-      !exists(endpoints) &&
-      ife(async () => {
-        try {
-          setLoading(true)
-          await fetchEndpoints({ orgId, projectId })
-        } finally {
-          setLoading(false)
-        }
-      })
-  }, [orgId, projectId, endpoints])
+    if (!orgId || !projectId) return
+    ife(async () => {
+      try {
+        setLoading(true)
+        await fetchEndpoints({ orgId, projectId })
+      } finally {
+        setLoading(false)
+      }
+    })
+  }, [orgId, projectId])
 
   const {
     count,
@@ -45,7 +42,6 @@ export const useEndpoints = () => {
     endpoints: filtered,
   } = useEndpointFilter({
     query,
-    projectId,
     endpoints,
   })
 

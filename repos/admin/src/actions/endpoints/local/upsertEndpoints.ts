@@ -1,8 +1,8 @@
 import type { Endpoint } from '@tdsk/domain'
+import { getProjectEndpoints, setProjectEndpoints } from '@TAF/state/accessors'
 
-import { setEndpoints, getEndpoints } from '@TAF/state/accessors'
-
-export const upsertEndpoints = (endpoints: Endpoint[]) => {
+export const upsertEndpoints = (projectId: string, endpoints: Endpoint[]) => {
+  const current = getProjectEndpoints(projectId) || {}
   const endpointsMap =
     endpoints?.reduce(
       (acc, endpoint: Endpoint) => {
@@ -12,5 +12,5 @@ export const upsertEndpoints = (endpoints: Endpoint[]) => {
       {} as Record<string, Endpoint>
     ) || {}
 
-  setEndpoints({ ...getEndpoints(), ...endpointsMap })
+  setProjectEndpoints(projectId, { ...current, ...endpointsMap })
 }

@@ -7,7 +7,7 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 
 #### General
 
-* **[P2] Search inputs should have white background**
+* **[P2] Search inputs should have white background in light-mode**
   * `SearchBar` (`repos/admin/src/components/SearchBar/SearchBar.tsx`) renders a `TextInput` without explicit background styling
   * The input inherits the default theme background, which blends into the page container
   * **Fix**: Add `sx={{ bgcolor: 'background.paper' }}` to the `TextInput` in `SearchBar.tsx`
@@ -46,75 +46,57 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
     * **Fix**: Add `pb: 3` or `pb: 4` to review step content container
     * **Files**: `repos/admin/src/components/Quickstart/ReviewStep.tsx`
 
-#### Agent Drawer
-
-* **[P4] Project-level agent overrides — prevent projects from modifying shared agent config (cross-repo)**
-  * The `AgentDrawer` component is shared between org and project contexts. When opened from `ProjectAgents.tsx:288-296`, `projectId` is passed but the drawer still allows **full modification** of the org-scoped agent (name, model, system prompt, tools, secrets, providers). Changes impact ALL projects using that agent
-  * Functions are project-scoped (`functions.projectId`) but tied to org-scoped agents via `agentFunctions` junction table — no project context in the relationship. The `agentProjects` table (`repos/database/src/schemas/agentProjects.ts`) only stores membership (agentId + projectId + alias), with no override data
-  * **Fix (database — new schema)**:
-    1. Create `agentProjectConfigs` table with override fields: `agentId`, `projectId`, optional `model`, `maxTokens`, `temperature`, `systemPrompt`, `tools`, `functionIds`, `envVars`, `environment`, `enabled`
-    2. Add optional `projectId` to `agentFunctions` table to support project-scoped function assignments
-  * **Fix (backend — new endpoints)**:
-    1. Add CRUD endpoints for agent project overrides: `POST/GET/PUT/DELETE /orgs/:orgId/projects/:projectId/agents/:agentId/overrides`
-    2. Update `listAgents` to merge base agent config with project overrides when `projectId` is provided
-    3. When update is called from project context, route to override endpoints instead of modifying base agent
-  * **Fix (domain — model update)**:
-    1. Add `overrides?: TAgentOverride` field to Agent model
-    2. Add `getEffectiveConfig(projectId?)` method that merges base config with project overrides
-  * **Fix (admin — UI update)**:
-    1. When `projectId` is set in `AgentDrawer`, show "Project Override Mode" — disable base fields, only allow overrides
-    2. Show which fields are overridden vs. using defaults, with "Reset to default" per field
-    3. Only show function selector in project context (where project-scoped functions can be added)
-    4. Hide project assignment section in project context
-  * **Files**:
-    * New: `repos/database/src/schemas/agentProjectConfigs.ts`
-    * Modify: `repos/database/src/schemas/agentFunctions.ts` (add optional `projectId`)
-    * Modify: `repos/database/src/services/agent.ts` (load overrides)
-    * New: `repos/database/src/services/agentProjectConfig.ts`
-    * Modify: `repos/domain/src/models/agent.ts` (add overrides, getEffectiveConfig)
-    * New: `repos/domain/src/types/agent.types.ts` (TAgentOverride)
-    * New: `repos/backend/src/endpoints/agents/agentProjectConfig.ts`
-    * Modify: `repos/backend/src/endpoints/agents/listAgents.ts`, `updateAgent.ts`
-    * Modify: `repos/admin/src/components/Agents/AgentDrawer.tsx` (conditional UI)
-    * Modify: `repos/admin/src/services/agentsApi.ts` (add override methods)
-
-#### Thread / Chat Pages
-
-* **[P2] AI messages are squished in Thread history and Chat**
-  * Message display components use `maxWidth: '75%'` and container `maxWidth: 900` which constrains content too aggressively. AI messages with code blocks or explanations need more horizontal space
-  * **Fix**: Increase message bubble `maxWidth` to `'90%'` for assistant messages. Increase container max-width or make responsive. Ensure code blocks scroll horizontally
-  * **Files**: `repos/admin/src/components/AI/MessagesTab.tsx`, `repos/admin/src/components/AI/MessageBubble.tsx`
-
-* **[P2] Edit Thread Drawer — UI all squished together**
-  * Parent container constraints or missing `fullWidth` props on form elements in `EditThreadDrawer.tsx`
-  * **Fix**: Ensure all TextField/Select components have `fullWidth` prop. Set adequate drawer width
-  * **Files**: `repos/admin/src/components/AI/EditThreadDrawer.tsx`
-
-* **[P2] Threads page has Agent selector — should be Provider selector**
-  * `ThreadsTab.tsx` uses `activeAgentId` from state to filter threads. The intent is to allow easy switching of AI providers attached to an agent
-  * **Fix**: Add (or replace with) a provider selector dropdown showing providers attached to the active agent. When selected, it becomes the active provider for agent interactions
-  * **Files**: `repos/admin/src/components/AI/ThreadsTab.tsx`
-
-#### Threads Page
-
-* **[P1] Clicking on thread does not navigate to Thread page**
-  * `ThreadsTab.tsx` table rows have no `onClick` handler. The "View" action button calls `onViewThread` which sets `activeThreadId` and calls `onSwitchToMessages()` — this just switches to the messages tab within the same page, not a dedicated thread page
-  * **Fix**: Add `onClick` to table rows that navigates to the thread detail URL. Make the "View" action button also navigate instead of just switching tabs
-  * **Files**: `repos/admin/src/components/AI/ThreadsTab.tsx`
 
 #### Sidebar Nav
+  * **[P2]: Context-Sensitive Sub-Navigation Panel**
+    * **Issues**
+      * Sub Agent items under Agents nav get cut off
+        * Sidebar nav item for "Agents" has sub-items (Threads, Chat) defined in `nav.tsx:131-142`. Sub-item text overflows due to limited sidebar width
+      * Sidebar has too many items — needs simplification
+        * OrgNavItems has 9 items, ProjectNavItems has 7+ items. When both visible, the sidebar is very long
 
-* **[P2] Sub Agent items under Agents nav get cut off**
-  * Sidebar nav item for "Agents" has sub-items (Threads, Chat) defined in `nav.tsx:131-142`. Sub-item text overflows without proper text handling at normal sidebar width
-  * **Fix**: Add `textOverflow: 'ellipsis'`, `overflow: 'hidden'`, `whiteSpace: 'nowrap'` to nav sub-item text. Add tooltip showing full name on hover
-  * **Files**: `repos/admin/src/components/Sidebar/SBNavList.tsx` (or the nav item render component)
+    * **What Exists**
+      * The admin app already has a primary sidebar navigation — a vertical icon-only rail on the far left edge of the screen. Each icon represents a top-level section (e.g., Home, Projects, Agents, Settings, etc.). Clicking an icon navigates to that section.
+    * **What to Add**
+      * Add a secondary sub-navigation panel that renders immediately to the right of the existing icon sidebar. This panel is context-sensitive — its content changes based on which item is currently active in the primary icon nav.
+      * Grouped sections:
+        * Org level: "Resources" (Projects, Agents, Users), "Security" (Secrets, Providers, API Keys, Domains), "Management" (Usage, Settings)
+        * Project level: "Development" (Endpoints, Functions), "AI" (Agents + sub-items), "Security" (Secrets, Domains), "Management" (Members, Settings)
+    * **Sub-Nav Panel Behavior**
+      1. **Visibility**: The sub-nav panel appears when a primary nav item has sub-pages to show. If a primary nav item has no sub-pages (e.g., a simple
+  dashboard landing), the sub-nav panel should not render, and the main content area should take the full remaining width.
+      1. **Header**: At the top of the sub-nav panel, display the name of the active primary nav section (e.g., "Settings", "Project", "Agents") as a title.
+      2. **Grouped Links**: Below the header, display navigation links organized into labeled groups. Each group has:
+        * A section header in uppercase small text (e.g., "PROJECT SETTINGS", "CONFIGURATION", "BILLING")
+        * A list of clickable nav items beneath it, each routing to a sub-page within that section
+      3. **Active State**: The currently active sub-nav item should be visually highlighted (e.g., background highlight or bold text) similar to the existing Sidebar navigation to indicate which sub-page the user is on.
+    * **Layout**
 
-* **[P2] Sidebar has too many items — needs simplification**
-  * OrgNavItems has 9 items, ProjectNavItems has 7+ items. When both visible, the sidebar is very long
-  * **Fix**: Group into collapsible sections:
-    * Org level: "Resources" (Projects, Agents, Users), "Security" (Secrets, Providers, API Keys, Domains), "Management" (Usage, Settings)
-    * Project level: "Development" (Endpoints, Functions), "AI" (Agents + sub-items), "Security" (Secrets, Domains), "Management" (Members, Settings)
-  * **Files**: `repos/admin/src/constants/nav.tsx`, sidebar rendering components
+      ┌──────┬──────────────────┬──────────────────────────────────┐
+      │ Icon │  Sub-Nav Panel   │         Main Content Area        │
+      │ Rail │                  │                                  │
+      │      │  [Section Title] │                                  │
+      │  🏠  │                  │                                  │
+      │  📁  │  GROUP HEADER    │                                  │
+      │  ⚙️  │    Link 1        │                                  │
+      │  ... │    Link 2        │                                  │
+      │      │    Link 3        │                                  │
+      │      │                  │                                  │
+      │      │  GROUP HEADER    │                                  │
+      │      │    Link 4  ↗     │                                  │
+      │      │    Link 5        │                                  │
+      │      │                  │                                  │
+      └──────┴──────────────────┴──────────────────────────────────┘
+
+    * **Data-Driven Configuration**
+      * The sub-nav items for each primary nav section should be defined as a configuration object/map — not hardcoded JSX. This makes it easy to add/remove/reorder items per section. Something like:
+
+    * **Key Constraints**
+      * The sub-nav panel should have a fixed width and remain visible (not collapsible) when active.
+      * The panel should be scrollable independently if the list of links exceeds the viewport height.
+      * Routing should use the existing router — clicking a sub-nav item updates the URL and renders the corresponding page in the main content area.
+      * The sub-nav panel replaces no existing UI — it is a new addition inserted between the icon rail and the main content.
+
 
 #### Org Page
 
@@ -129,20 +111,6 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
   * `Users.tsx` renders a `UsersGrid` component with a card/grid layout. Other list pages (Agents, Endpoints) use `DataTable`
   * **Fix**: Replace `UsersGrid` with `DataTable` component (already used elsewhere) with columns for name, email, role, status, and actions
   * **Files**: `repos/admin/src/components/Users/Users.tsx`, `repos/admin/src/components/Users/UsersGrid.tsx`
-
-
-### Agent
-
-* **[P3] Add OpenRouter and Ollama support**
-  * `ELLMProviderBrand` enum in `repos/domain/src/types/ai.types.ts:69-75` only includes `zai`, `openai`, `google`, `custom`, `anthropic`. OpenRouter and Ollama are missing
-  * Agent runtime uses `getModel()` from `@mariozechner/pi-ai` (`repos/agent/src/runner/runner.ts:74`). Both OpenRouter and Ollama are OpenAI-compatible APIs (same wire format)
-  * **Fix**:
-    1. Add `openrouter` and `ollama` to `ELLMProviderBrand` enum in `repos/domain/src/types/ai.types.ts`
-    2. Add entries in `PROVIDER_TEMPLATES` (`repos/domain/src/utils/providers/providerTemplates.ts`) with default base URLs: OpenRouter `https://openrouter.ai/api/v1`, Ollama `http://localhost:11434/v1`
-    3. Update `resolveProviderType.ts` in backend to handle new brands
-    4. Verify `pi-ai`'s `getModel()` works with these (OpenAI-compatible; may need `custom` fallback)
-    5. Update admin QuickstartWizard provider templates
-  * **Files**: `repos/domain/src/types/ai.types.ts`, `repos/domain/src/utils/providers/providerTemplates.ts`, `repos/backend/src/utils/providers/resolveProviderType.ts`, `repos/agent/src/runner/runner.ts`, `repos/admin/src/components/Quickstart/ProviderStep.tsx`
 
 
 
@@ -172,8 +140,8 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 
 | Priority | Issues | Count |
 |----------|--------|-------|
-| **P1** — UX blockers | Thread click, org members | 2 |
-| **P2** — UI polish | Search bg, quickstart UI (4 sub), proxy endpoint UX, messages squished (2), thread drawer, provider selector, sidebar (2), users table | 12 |
-| **P3** — New features | Agent endpoint overrides, OpenRouter/Ollama, reusable selectors | 3 |
+| **P1** — UX blockers | Org members | 1 |
+| **P2** — UI polish | Search bg, quickstart UI (4 sub), proxy endpoint UX, sidebar (2), users table | 9 |
+| **P3** — New features | Agent endpoint overrides, reusable selectors | 2 |
 | **P4** — Major refactor | Project-level agent overrides | 1 |
 

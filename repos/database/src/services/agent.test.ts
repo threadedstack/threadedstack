@@ -96,6 +96,8 @@ const createMockDb = () => {
   const findFirst = vi.fn()
   const findMany = vi.fn()
 
+  const apFindFirst = vi.fn()
+
   return {
     db: {
       insert: insertFn,
@@ -103,6 +105,7 @@ const createMockDb = () => {
       delete: deleteFn,
       query: {
         agents: { findFirst, findMany },
+        agentProjects: { findFirst: apFindFirst },
       },
     } as any,
     returningFn,
@@ -117,6 +120,7 @@ const createMockDb = () => {
     onConflictDoNothingFn,
     onConflictDoUpdateFn,
     deleteFn,
+    apFindFirst,
   }
 }
 
@@ -143,16 +147,14 @@ describe(`Agent service`, () => {
       expect(result).toBeDefined()
       expect(result.secrets).toBe(true)
       expect(result.providers).toEqual({ with: { provider: true } })
-      expect(result.functions).toEqual({ with: { function: true } })
       expect(result.projects).toEqual({ with: { project: true } })
     })
 
-    it(`should always include secrets, providers, functions, and projects`, () => {
+    it(`should always include secrets, providers, and projects`, () => {
       const result = service.with({})
 
       expect(result.secrets).toBe(true)
       expect(result.providers).toEqual({ with: { provider: true } })
-      expect(result.functions).toEqual({ with: { function: true } })
       expect(result.projects).toEqual({ with: { project: true } })
     })
 
@@ -162,7 +164,6 @@ describe(`Agent service`, () => {
       expect(result.org).toBe(true)
       expect(result.secrets).toBe(true)
       expect(result.providers).toEqual({ with: { provider: true } })
-      expect(result.functions).toEqual({ with: { function: true } })
       expect(result.projects).toEqual({ with: { project: true } })
     })
 
@@ -785,6 +786,221 @@ describe(`Agent service`, () => {
       expect(result.error).toBeNull()
       expect(mocks.deleteFn).toHaveBeenCalledOnce()
       expect(mocks.deleteWhereFn).toHaveBeenCalledOnce()
+    })
+  })
+
+  // ---------- upsertProjectConfig() ----------
+  describe(`upsertProjectConfig`, () => {
+    it(`should update agentProjects row with config overrides`, async () => {
+      const row = {
+        agentId: `agent-1`,
+        projectId: `p1`,
+        model: `gpt-4`,
+        maxTokens: 2048,
+        updatedAt: new Date(),
+      }
+      mocks.whereReturningFn.mockResolvedValue([row])
+
+      const result = await service.upsertProjectConfig(`agent-1`, `p1`, {
+        model: `gpt-4`,
+        maxTokens: 2048,
+      })
+
+      expect(result.data).toEqual(row)
+      expect(result.error).toBeUndefined()
+      expect(mocks.setFn).toHaveBeenCalledOnce()
+      expect(mocks.whereFn).toHaveBeenCalledOnce()
+    })
+
+    it(`should return error when agent is not linked to project`, async () => {
+      mocks.whereReturningFn.mockResolvedValue([])
+
+      const result = await service.upsertProjectConfig(`agent-1`, `p-missing`, {
+        model: `gpt-4`,
+      })
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toContain(`Agent is not linked to this project`)
+      expect(result.data).toBeUndefined()
+    })
+
+    it(`should handle db errors gracefully`, async () => {
+      mocks.whereReturningFn.mockRejectedValue(new Error(`DB update failed`))
+
+      const result = await service.upsertProjectConfig(`agent-1`, `p1`, {
+        model: `gpt-4`,
+      })
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`DB update failed`)
+    })
+  })
+
+  // ---------- getProjectConfig() ----------
+  describe(`getProjectConfig`, () => {
+    it(`should return project config for linked agent+project`, async () => {
+      const row = {
+        agentId: `agent-1`,
+        projectId: `p1`,
+        alias: `MyAlias`,
+        model: `gpt-4`,
+        maxTokens: 4096,
+        systemPrompt: `You are helpful.`,
+        tools: [`tool-a`],
+        functionIds: [`fn-1`],
+        envVars: { KEY: `val` },
+        environment: { sandbox: true },
+        enabled: true,
+      }
+      mocks.apFindFirst.mockResolvedValue(row)
+
+      const result = await service.getProjectConfig(`agent-1`, `p1`)
+
+      expect(result.data).toEqual({
+        agentId: `agent-1`,
+        projectId: `p1`,
+        alias: `MyAlias`,
+        model: `gpt-4`,
+        maxTokens: 4096,
+        systemPrompt: `You are helpful.`,
+        tools: [`tool-a`],
+        functionIds: [`fn-1`],
+        envVars: { KEY: `val` },
+        environment: { sandbox: true },
+        enabled: true,
+      })
+      expect(result.error).toBeUndefined()
+      expect(mocks.apFindFirst).toHaveBeenCalledOnce()
+    })
+
+    it(`should return error when agent is not linked to project`, async () => {
+      mocks.apFindFirst.mockResolvedValue(undefined)
+
+      const result = await service.getProjectConfig(`agent-1`, `p-missing`)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toContain(`Agent is not linked to this project`)
+      expect(result.data).toBeUndefined()
+    })
+
+    it(`should default enabled to true when not set`, async () => {
+      const row = {
+        agentId: `agent-1`,
+        projectId: `p1`,
+        alias: null,
+        model: null,
+        maxTokens: null,
+        systemPrompt: null,
+        tools: null,
+        functionIds: null,
+        envVars: null,
+        environment: null,
+        enabled: undefined,
+      }
+      mocks.apFindFirst.mockResolvedValue(row)
+
+      const result = await service.getProjectConfig(`agent-1`, `p1`)
+
+      expect(result.data).toBeDefined()
+      expect(result.data!.enabled).toBe(true)
+    })
+
+    it(`should handle db errors gracefully`, async () => {
+      mocks.apFindFirst.mockRejectedValue(new Error(`DB query failed`))
+
+      const result = await service.getProjectConfig(`agent-1`, `p1`)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`DB query failed`)
+    })
+  })
+
+  // ---------- model() projectConfigs extraction ----------
+  describe(`model projectConfigs extraction`, () => {
+    it(`should extract projectConfigs from junction data`, () => {
+      const projA = { id: `p1`, name: `ProjectA` }
+      const projB = { id: `p2`, name: `ProjectB` }
+      const data = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [
+          { agentId: `agent-1`, projectId: `p1`, project: projA, alias: `AliasA` },
+          { agentId: `agent-1`, projectId: `p2`, project: projB, alias: `AliasB` },
+        ],
+        secrets: [],
+      } as any
+
+      const result = service.model(data)
+
+      expect(result.projectConfigs).toBeDefined()
+      expect(result.projectConfigs).toHaveLength(2)
+      expect(result.projectConfigs[0].projectId).toBe(`p1`)
+      expect(result.projectConfigs[0].agentId).toBe(`agent-1`)
+      expect(result.projectConfigs[0].alias).toBe(`AliasA`)
+      expect(result.projectConfigs[1].projectId).toBe(`p2`)
+      expect(result.projectConfigs[1].alias).toBe(`AliasB`)
+    })
+
+    it(`should handle projects with override fields`, () => {
+      const proj = { id: `p1`, name: `Proj` }
+      const data = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [
+          {
+            agentId: `agent-1`,
+            projectId: `p1`,
+            project: proj,
+            alias: `Alias`,
+            model: `gpt-4`,
+            maxTokens: 2048,
+            systemPrompt: `Be concise.`,
+            tools: [`search`, `code`],
+            functionIds: [`fn-1`, `fn-2`],
+            envVars: { API_URL: `https://example.com` },
+            environment: { debug: true },
+            enabled: false,
+          },
+        ],
+        secrets: [],
+      } as any
+
+      const result = service.model(data)
+
+      expect(result.projectConfigs).toHaveLength(1)
+      const config = result.projectConfigs[0]
+      expect(config.model).toBe(`gpt-4`)
+      expect(config.maxTokens).toBe(2048)
+      expect(config.systemPrompt).toBe(`Be concise.`)
+      expect(config.tools).toEqual([`search`, `code`])
+      expect(config.functionIds).toEqual([`fn-1`, `fn-2`])
+      expect(config.envVars).toEqual({ API_URL: `https://example.com` })
+      expect(config.environment).toEqual({ debug: true })
+      expect(config.enabled).toBe(false)
+    })
+
+    it(`should default override fields to null/true when not present`, () => {
+      const proj = { id: `p1`, name: `Proj` }
+      const data = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [{ agentId: `agent-1`, projectId: `p1`, project: proj }],
+        secrets: [],
+      } as any
+
+      const result = service.model(data)
+
+      expect(result.projectConfigs).toHaveLength(1)
+      const config = result.projectConfigs[0]
+      expect(config.alias).toBeNull()
+      expect(config.model).toBeNull()
+      expect(config.maxTokens).toBeNull()
+      expect(config.systemPrompt).toBeNull()
+      expect(config.tools).toBeNull()
+      expect(config.functionIds).toBeNull()
+      expect(config.envVars).toBeNull()
+      expect(config.environment).toBeNull()
+      expect(config.enabled).toBe(true)
     })
   })
 

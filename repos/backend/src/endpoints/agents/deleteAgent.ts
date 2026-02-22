@@ -26,6 +26,14 @@ export const deleteAgent: TEndpointConfig = {
       orgId: agent.orgId,
     })
 
+    // Project context: unlink agent from project (don't delete the org-level agent)
+    const { projectId } = req.params
+    if (projectId) {
+      await db.services.agent.removeProject(id, projectId)
+      res.status(200).json({ data: { id, unlinked: true } })
+      return
+    }
+
     // Delete the agent
     const { data, error } = await db.services.agent.delete(id)
 

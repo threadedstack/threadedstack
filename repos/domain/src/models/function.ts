@@ -8,7 +8,6 @@ export class Function extends Base {
   projectId: string
   endpointId?: string
   description?: string
-  agentIds?: string[]
   branch: string = `main`
   inputSchema?: TFunctionParam[]
   defaultArgs?: Record<string, any>

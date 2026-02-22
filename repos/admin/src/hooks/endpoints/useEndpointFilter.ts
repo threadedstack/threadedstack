@@ -4,24 +4,22 @@ import { useState, useMemo } from 'react'
 
 export type THEndpointFilter = {
   query: string
-  projectId: string
   endpoints: Record<string, Endpoint>
 }
 
 export const useEndpointFilter = (props: THEndpointFilter) => {
-  const { query, projectId, endpoints } = props
+  const { query, endpoints } = props
 
   const [methodFilter, setMethodFilter] = useState<string>(`all`)
   const [visibilityFilter, setVisibilityFilter] = useState<string>(`all`)
 
   const { count, filtered } = useMemo(() => {
-    if (!endpoints || !projectId) return { filtered: [], count: 0 }
+    if (!endpoints) return { filtered: [], count: 0 }
 
     const eps = Object.values(endpoints)
+    const count = eps.length
 
-    const count = endpoints ? eps.filter((e) => e.projectId === projectId).length : 0
-
-    let filtered = eps.filter((endpoint) => endpoint.projectId === projectId)
+    let filtered = [...eps]
 
     if (methodFilter !== `all`)
       filtered = filtered.filter((endpoint) => endpoint.method === methodFilter)
@@ -42,7 +40,7 @@ export const useEndpointFilter = (props: THEndpointFilter) => {
     }
 
     return { filtered, count }
-  }, [query, endpoints, projectId, methodFilter, visibilityFilter])
+  }, [query, endpoints, methodFilter, visibilityFilter])
 
   return {
     count,

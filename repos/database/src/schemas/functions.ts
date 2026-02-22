@@ -5,7 +5,6 @@ import { EFunLanguage } from '@tdsk/domain'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { endpoints } from '@TDB/schemas/endpoints'
-import { agentFunctions } from '@TDB/schemas/agentFunctions'
 import { uuid, text, jsonb, varchar, index, pgTable } from 'drizzle-orm/pg-core'
 
 export const functions = pgTable(
@@ -33,7 +32,7 @@ export const functions = pgTable(
   ]
 )
 
-export const functionsRelations = relations(functions, ({ one, many }) => ({
+export const functionsRelations = relations(functions, ({ one }) => ({
   endpoint: one(endpoints, {
     fields: [functions.endpointId],
     references: [endpoints.id],
@@ -42,5 +41,4 @@ export const functionsRelations = relations(functions, ({ one, many }) => ({
     fields: [functions.projectId],
     references: [projects.id],
   }),
-  agents: many(agentFunctions),
 }))

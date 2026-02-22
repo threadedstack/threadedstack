@@ -3,7 +3,7 @@ import { useParams } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { useAgentChat } from '@TAF/hooks/chat/useAgentChat'
 import { MessageBubble } from '@TAF/components/AI/MessageBubble'
-import { useActiveOrgId, useAgents } from '@TAF/state/selectors'
+import { useActiveOrgId, useActiveAgent } from '@TAF/state/selectors'
 import {
   Box,
   Alert,
@@ -35,7 +35,7 @@ export const ChatView = (props: TChatViewProps) => {
     agentId,
   } = useParams<{ orgId: string; projectId: string; agentId: string }>()
   const [orgId] = useActiveOrgId()
-  const [agents] = useAgents()
+  const [agent] = useActiveAgent()
   const [input, setInput] = useState(``)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -48,8 +48,6 @@ export const ChatView = (props: TChatViewProps) => {
     if (urlProjectId) setActiveProjectId(urlProjectId)
     if (agentId) setActiveAgentId(agentId)
   }, [urlOrgId, urlProjectId, agentId])
-
-  const agent = agentId ? agents?.[agentId] : undefined
 
   const { messages, sendMessage, isStreaming, threadId, error, reset } = useAgentChat({
     orgId: urlOrgId || orgId || ``,
@@ -152,8 +150,6 @@ export const ChatView = (props: TChatViewProps) => {
             display: `flex`,
             flexDirection: `column`,
             gap: 2,
-            maxWidth: 900,
-            mx: `auto`,
             width: `100%`,
           }}
         >
