@@ -46,6 +46,8 @@ const logData = (logger: Log, type: string) => {
 
 type TLogFun = (...args: any[]) => void
 type TLog = {
+  tag?: string
+  color?: string
   default?: string
 }
 
@@ -102,13 +104,14 @@ export class Log {
     // Add the colors module for easy access
     this.colors = colors
     this.log = this.print
+    props?.tag && this.setTag(props?.tag, props?.color)
   }
 
   /**
    * Set a tag value for all logged messages
    * @memberof Log
    */
-  setTag = (tag: string, color: string) => {
+  setTag = (tag: string, color?: string) => {
     if (!tag) return this.warn(`Tag must be of type string`, tag)
 
     this.tag = color ? colors[this.colorMap[color] || color](tag) : tag

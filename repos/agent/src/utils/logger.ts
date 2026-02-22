@@ -1,4 +1,6 @@
-import { config } from '@TAG/configs/agent.config'
-import { buildApiLogger } from '@tdsk/logger'
+import { Log } from '@tdsk/logger'
 
-export const logger = buildApiLogger(config?.logger?.label, config?.logger?.level)
+export const logger = new Log({
+  color: `blue`,
+  tag: `TDSK - Agent`,
+})

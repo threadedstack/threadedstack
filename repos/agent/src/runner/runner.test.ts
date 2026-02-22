@@ -48,11 +48,11 @@ vi.mock(`@tdsk/sandbox`, () => ({
 }))
 
 vi.mock(`@tdsk/logger`, () => ({
-  buildApiLogger: vi.fn().mockReturnValue({
+  Logger: {
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
-  }),
+  },
 }))
 
 vi.mock(`@TAG/tools/tools`, () => ({

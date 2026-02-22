@@ -62,6 +62,8 @@ export type TAgentRunOpts = {
   proxyConfig?: TProxyConfig
   /** Callback for each streaming event */
   onEvent: (event: TStreamEvent) => void
+  /** AbortSignal to cancel the agent run */
+  signal?: AbortSignal
   /** Custom functions attached to this agent */
   customFunctions?: FunctionModel[]
   /** Callback to execute a custom function (provided by backend) */

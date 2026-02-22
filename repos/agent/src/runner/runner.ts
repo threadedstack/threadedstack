@@ -3,13 +3,13 @@ import type { ISandbox, TStreamEvent } from '@tdsk/domain'
 import type { AgentEvent } from '@mariozechner/pi-agent-core'
 import type { AssistantMessage, Message, ToolResultMessage } from '@mariozechner/pi-ai'
 
-import { EContentType, buildFallbackModel } from '@tdsk/domain'
-import { buildApiLogger } from '@tdsk/logger'
+import { logger } from '@TAG/utils/logger'
 import { getModel } from '@mariozechner/pi-ai'
 import { Agent } from '@mariozechner/pi-agent-core'
 import { createSandboxProvider } from '@tdsk/sandbox'
 import { createStreamProxy } from '@TAG/stream/stream'
 import { mapAgentEvent } from '@TAG/adapters/eventBridge'
+import { EContentType, buildFallbackModel } from '@tdsk/domain'
 import { createSandboxTools, buildCustomFunctionTools } from '@TAG/tools/tools'
 import {
   convertToLlmMessages,
@@ -17,17 +17,18 @@ import {
   convertToolResultToContent,
 } from '@TAG/adapters/messageConverter'
 
-const logger = buildApiLogger(`pi-agent-runner`)
-
 /**
  * AgentRunner - Replacement for AgentRunner using pi-mono's Agent class.
  * Preserves the TAgentRunOpts contract so callers (backend, REPL) need minimal changes.
  */
 export class AgentRunner {
   static run = async (opts: TAgentRunOpts): Promise<void> => {
+    if (opts.signal?.aborted) throw new Error(`Agent run aborted`)
+
     const { db, prompt, onEvent, threadId, llmConfig, sandboxConfig } = opts
 
     let sandbox: ISandbox | undefined
+    let abortHandler: (() => void) | undefined
 
     try {
       // 1. Load conversation history
@@ -96,7 +97,13 @@ export class AgentRunner {
         getApiKey: llmConfig.apiKey ? () => llmConfig.apiKey : undefined,
       })
 
-      // 8. Subscribe to events — bridge to TStreamEvent + persist messages
+      // 8. Wire abort signal to agent
+      if (opts.signal) {
+        abortHandler = () => agent.abort()
+        opts.signal.addEventListener(`abort`, abortHandler, { once: true })
+      }
+
+      // 9. Subscribe to events — bridge to TStreamEvent + persist messages
       const unsubscribe = agent.subscribe((event: AgentEvent) => {
         // Map and emit SSE events
         const streamEvent = mapAgentEvent(event)
@@ -127,7 +134,7 @@ export class AgentRunner {
         }
       })
 
-      // 9. Run the agent
+      // 10. Run the agent
       await agent.prompt(prompt)
       await agent.waitForIdle()
 
@@ -137,6 +144,9 @@ export class AgentRunner {
       logger.error(`AgentRunner error: ${message}`)
       onEvent({ type: `error`, error: message } as TStreamEvent)
     } finally {
+      if (abortHandler && opts.signal) {
+        opts.signal.removeEventListener('abort', abortHandler)
+      }
       if (sandbox) {
         try {
           await sandbox.close()
