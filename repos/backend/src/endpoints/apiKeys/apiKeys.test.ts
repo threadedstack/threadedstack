@@ -203,6 +203,40 @@ describe(`API Keys endpoints`, () => {
       expect(response.offset).toBe(0)
     })
 
+    it(`should filter by userId when provided in query`, async () => {
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { userId: `user-123` }
+
+      const mockList = mockReq.app?.locals.db.services.apiKey.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [] })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1`, userId: `user-123` },
+        limit: 50,
+        offset: 0,
+      })
+    })
+
+    it(`should filter by both projectId and userId when provided`, async () => {
+      mockReq.params = { orgId: `org-1` }
+      mockReq.query = { projectId: `proj-1`, userId: `user-123` }
+
+      const mockList = mockReq.app?.locals.db.services.apiKey.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [] })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockList).toHaveBeenCalledWith({
+        where: { orgId: `org-1`, projectId: `proj-1`, userId: `user-123` },
+        limit: 50,
+        offset: 0,
+      })
+    })
+
     it(`should return 500 with error message on database failure`, async () => {
       const mockError = new Error(`Database connection failed`)
 

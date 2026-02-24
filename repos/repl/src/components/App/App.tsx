@@ -1,4 +1,5 @@
 import type { TStreamEvent } from '@tdsk/domain'
+import { EStreamEventType } from '@tdsk/domain'
 import type { AuthManager } from '@TRL/services/auth'
 import type { TAppPhase, TReplConfig, TContextFile } from '@TRL/types'
 
@@ -92,7 +93,7 @@ export const App = (props: TApp) => {
     }
   }, [])
 
-  // Throttled stream text flush — batches rapid SSE text events into 50ms intervals
+  // Throttled stream text flush — batches rapid WS text events into 50ms intervals
   // to reduce React reconciliations during streaming from 100+/sec to 20/sec
   useEffect(() => {
     if (!msgs.isStreaming) return
@@ -385,10 +386,10 @@ export const App = (props: TApp) => {
           contextFiles: contextFilesRef.current,
           onEvent: (event: TStreamEvent) => {
             switch (event.type) {
-              case `text`:
+              case EStreamEventType.text:
                 streamTextRef.current += event.text || ``
                 break
-              case `tool_call_start`:
+              case EStreamEventType.toolCallStart:
                 msgs.setToolCalls((prev: any[]) => [
                   ...prev,
                   {
@@ -399,7 +400,7 @@ export const App = (props: TApp) => {
                   },
                 ])
                 break
-              case `tool_call_args`:
+              case EStreamEventType.toolCallArgs:
                 msgs.setToolCalls((prev: any[]) =>
                   prev.map((t: any, i: number) =>
                     i === prev.length - 1
@@ -408,7 +409,7 @@ export const App = (props: TApp) => {
                   )
                 )
                 break
-              case `tool_result`:
+              case EStreamEventType.toolResult:
                 msgs.setToolCalls((prev: any[]) =>
                   prev.map((t: any, i: number) =>
                     i === prev.length - 1
@@ -421,7 +422,7 @@ export const App = (props: TApp) => {
                   )
                 )
                 break
-              case `tool_execution_update`:
+              case EStreamEventType.toolExecutionUpdate:
                 msgs.setToolCalls((prev: any[]) =>
                   prev.map((t: any, i: number) =>
                     i === prev.length - 1
@@ -430,13 +431,13 @@ export const App = (props: TApp) => {
                   )
                 )
                 break
-              case `error`:
+              case EStreamEventType.error:
                 msgs.addMessage({
                   type: `system`,
                   content: `Error: ${event.error || `Unknown error`}`,
                 })
                 break
-              case `done`:
+              case EStreamEventType.done:
                 // Completion handled after executor.run() resolves
                 break
             }

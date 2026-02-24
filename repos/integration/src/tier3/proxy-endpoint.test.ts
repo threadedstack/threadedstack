@@ -3,6 +3,7 @@ import { get, post, api } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { env } from '../utils/env'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 3: Proxy Endpoint Execution Flow
@@ -38,8 +39,8 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
-        projectName: `Proxy Test Project ${timestamp}`,
-        agentName: `Proxy Test Agent ${timestamp}`,
+        projectName: uniqueName('Proxy Test Project'),
+        agentName: uniqueName('Proxy Test Agent'),
       }
     )
 
@@ -72,7 +73,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     const basicRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
-        name: `Basic Proxy ${timestamp}`,
+        name: uniqueName('Basic Proxy'),
         path: `/proxy/basic-${timestamp}`,
         type: 'proxy',
         method: 'get',
@@ -92,7 +93,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     const headersRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
-        name: `Headers Proxy ${timestamp}`,
+        name: uniqueName('Headers Proxy'),
         path: `/proxy/headers-${timestamp}`,
         type: 'proxy',
         method: 'get',
@@ -116,7 +117,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     const authRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
-        name: `Auth Proxy ${timestamp}`,
+        name: uniqueName('Auth Proxy'),
         path: `/proxy/auth-${timestamp}`,
         type: 'proxy',
         method: 'get',
@@ -142,7 +143,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     const publicRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
-        name: `Public Proxy ${timestamp}`,
+        name: uniqueName('Public Proxy'),
         path: `/proxy/public-${timestamp}`,
         type: 'proxy',
         method: 'get',

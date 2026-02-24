@@ -92,6 +92,7 @@ vi.mock(`@tdsk/domain`, () => ({
 const createMockDb = () => {
   // select chain
   const limitFn = vi.fn()
+  const offsetFn = vi.fn()
   const selectWhereFn = vi.fn()
   const selectFromFn = vi.fn(() => ({ where: selectWhereFn }))
   const selectFn = vi.fn(() => ({ from: selectFromFn }))
@@ -125,6 +126,7 @@ const createMockDb = () => {
     selectFromFn,
     selectWhereFn,
     limitFn,
+    offsetFn,
     setFn,
     updateWhereFn,
     updateReturningFn,
@@ -152,6 +154,24 @@ const setupSelectWithLimit = (mocks: ReturnType<typeof createMockDb>, data: any[
  */
 const setupSelectNoLimit = (mocks: ReturnType<typeof createMockDb>, data: any[]) => {
   mocks.selectWhereFn.mockResolvedValue(data)
+}
+
+/**
+ * Helper: configure select chain for methods with optional `.limit()` / `.offset()`.
+ * Returns a thenable object that also exposes `.limit()` and `.offset()` for chaining.
+ * Used by getOrgMembers/getProjectMembers which optionally chain pagination.
+ */
+const setupSelectChainable = (mocks: ReturnType<typeof createMockDb>, data: any[]) => {
+  const resolved = Promise.resolve(data)
+  const chainObj = {
+    limit: mocks.limitFn,
+    offset: mocks.offsetFn,
+    then: resolved.then.bind(resolved),
+    catch: resolved.catch.bind(resolved),
+  }
+  mocks.selectWhereFn.mockReturnValue(chainObj)
+  mocks.limitFn.mockReturnValue(chainObj)
+  mocks.offsetFn.mockReturnValue(chainObj)
 }
 
 /**
@@ -329,7 +349,7 @@ describe(`Role service`, () => {
         fakeRoleRow({ id: `role-2`, userId: `user-2`, type: `member` }),
         fakeRoleRow({ id: `role-3`, userId: `user-3`, type: `admin` }),
       ]
-      setupSelectNoLimit(mocks, rows)
+      setupSelectChainable(mocks, rows)
 
       const result = await service.getOrgMembers(`org-1`)
 
@@ -341,12 +361,34 @@ describe(`Role service`, () => {
     })
 
     it(`should return empty array when org has no members`, async () => {
-      setupSelectNoLimit(mocks, [])
+      setupSelectChainable(mocks, [])
 
       const result = await service.getOrgMembers(`org-empty`)
 
       expect(result.data).toEqual([])
       expect(result.error).toBeUndefined()
+    })
+
+    it(`should apply limit and offset when provided`, async () => {
+      const rows = [fakeRoleRow({ id: `role-1` })]
+      setupSelectChainable(mocks, rows)
+
+      const result = await service.getOrgMembers(`org-1`, { limit: 10, offset: 5 })
+
+      expect(result.data).toHaveLength(1)
+      expect(mocks.limitFn).toHaveBeenCalledWith(10)
+      expect(mocks.offsetFn).toHaveBeenCalledWith(5)
+    })
+
+    it(`should work without pagination params (backward compat)`, async () => {
+      const rows = [fakeRoleRow({ id: `role-1` })]
+      setupSelectChainable(mocks, rows)
+
+      const result = await service.getOrgMembers(`org-1`)
+
+      expect(result.data).toHaveLength(1)
+      expect(mocks.limitFn).not.toHaveBeenCalled()
+      expect(mocks.offsetFn).not.toHaveBeenCalled()
     })
 
     it(`should return error on DB exception`, async () => {
@@ -417,7 +459,7 @@ describe(`Role service`, () => {
           type: `member`,
         }),
       ]
-      setupSelectNoLimit(mocks, rows)
+      setupSelectChainable(mocks, rows)
 
       const result = await service.getProjectMembers(`proj-1`)
 
@@ -428,12 +470,34 @@ describe(`Role service`, () => {
     })
 
     it(`should return empty array when project has no members`, async () => {
-      setupSelectNoLimit(mocks, [])
+      setupSelectChainable(mocks, [])
 
       const result = await service.getProjectMembers(`proj-empty`)
 
       expect(result.data).toEqual([])
       expect(result.error).toBeUndefined()
+    })
+
+    it(`should apply limit and offset when provided`, async () => {
+      const rows = [fakeRoleRow({ id: `role-1`, orgId: null, projectId: `proj-1` })]
+      setupSelectChainable(mocks, rows)
+
+      const result = await service.getProjectMembers(`proj-1`, { limit: 10, offset: 5 })
+
+      expect(result.data).toHaveLength(1)
+      expect(mocks.limitFn).toHaveBeenCalledWith(10)
+      expect(mocks.offsetFn).toHaveBeenCalledWith(5)
+    })
+
+    it(`should work without pagination params (backward compat)`, async () => {
+      const rows = [fakeRoleRow({ id: `role-1`, orgId: null, projectId: `proj-1` })]
+      setupSelectChainable(mocks, rows)
+
+      const result = await service.getProjectMembers(`proj-1`)
+
+      expect(result.data).toHaveLength(1)
+      expect(mocks.limitFn).not.toHaveBeenCalled()
+      expect(mocks.offsetFn).not.toHaveBeenCalled()
     })
 
     it(`should return error on DB exception`, async () => {

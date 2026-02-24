@@ -7,7 +7,6 @@ import { logger } from '@TAG/utils/logger'
 import { getModel } from '@mariozechner/pi-ai'
 import { Agent } from '@mariozechner/pi-agent-core'
 import { createSandboxProvider } from '@tdsk/sandbox'
-import { createStreamProxy } from '@TAG/stream/stream'
 import { mapAgentEvent } from '@TAG/adapters/eventBridge'
 import { EContentType, buildFallbackModel } from '@tdsk/domain'
 import { createSandboxTools, buildCustomFunctionTools } from '@TAG/tools/tools'
@@ -29,6 +28,7 @@ export class AgentRunner {
 
     let sandbox: ISandbox | undefined
     let abortHandler: (() => void) | undefined
+    let unsubscribe: (() => void) | undefined
 
     try {
       // 1. Load conversation history
@@ -82,19 +82,15 @@ export class AgentRunner {
           `Unknown model "${llmConfig.model}" for provider "${llmConfig.provider}"`
         )
 
-      // 6. Build stream function — use proxy when proxyConfig is provided
-      const streamFn = opts.proxyConfig ? createStreamProxy(opts.proxyConfig) : undefined
-
-      // 7. Build pi-mono Agent
+      // 6. Build pi-mono Agent
       const agent = new Agent({
+        getApiKey: llmConfig.apiKey ? () => llmConfig.apiKey : undefined,
         initialState: {
           model,
           tools: agentTools,
           messages: history as Message[],
           systemPrompt: llmConfig.systemPrompt || ``,
         },
-        streamFn,
-        getApiKey: llmConfig.apiKey ? () => llmConfig.apiKey : undefined,
       })
 
       // 8. Wire abort signal to agent
@@ -104,8 +100,8 @@ export class AgentRunner {
       }
 
       // 9. Subscribe to events — bridge to TStreamEvent + persist messages
-      const unsubscribe = agent.subscribe((event: AgentEvent) => {
-        // Map and emit SSE events
+      unsubscribe = agent.subscribe((event: AgentEvent) => {
+        // Map and emit streaming events
         const streamEvent = mapAgentEvent(event)
         if (streamEvent) onEvent(streamEvent)
 
@@ -137,13 +133,12 @@ export class AgentRunner {
       // 10. Run the agent
       await agent.prompt(prompt)
       await agent.waitForIdle()
-
-      unsubscribe()
     } catch (err) {
       const message = err instanceof Error ? err.message : `Unknown agent error`
       logger.error(`AgentRunner error: ${message}`)
       onEvent({ type: `error`, error: message } as TStreamEvent)
     } finally {
+      unsubscribe?.()
       if (abortHandler && opts.signal) {
         opts.signal.removeEventListener('abort', abortHandler)
       }

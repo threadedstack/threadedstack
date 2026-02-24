@@ -14,6 +14,7 @@ import {
   IconButton,
 } from '@mui/material'
 import {
+  Stop as StopIcon,
   Send as SendIcon,
   Refresh as RefreshIcon,
   ArrowBack as BackIcon,
@@ -49,10 +50,11 @@ export const ChatView = (props: TChatViewProps) => {
     if (agentId) setActiveAgentId(agentId)
   }, [urlOrgId, urlProjectId, agentId])
 
-  const { messages, sendMessage, isStreaming, threadId, error, reset } = useAgentChat({
-    orgId: urlOrgId || orgId || ``,
-    agentId: agentId || ``,
-  })
+  const { messages, sendMessage, isStreaming, threadId, error, reset, cancel, usage } =
+    useAgentChat({
+      orgId: urlOrgId || orgId || ``,
+      agentId: agentId || ``,
+    })
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: `smooth` })
@@ -130,6 +132,26 @@ export const ChatView = (props: TChatViewProps) => {
               </Typography>
             )}
           </Box>
+          {usage.total > 0 && (
+            <Typography
+              variant='caption'
+              color='text.secondary'
+              sx={{ mr: 1 }}
+            >
+              Tokens: {usage.total.toLocaleString()}
+            </Typography>
+          )}
+          {isStreaming && (
+            <Button
+              size='small'
+              color='warning'
+              variant='outlined'
+              startIcon={<StopIcon />}
+              onClick={cancel}
+            >
+              Stop
+            </Button>
+          )}
           <Button
             size='small'
             variant='outlined'
@@ -219,13 +241,22 @@ export const ChatView = (props: TChatViewProps) => {
             variant='outlined'
             size='small'
           />
-          <IconButton
-            type='submit'
-            color='primary'
-            disabled={isStreaming || !input.trim()}
-          >
-            <SendIcon />
-          </IconButton>
+          {isStreaming ? (
+            <IconButton
+              color='warning'
+              onClick={cancel}
+            >
+              <StopIcon />
+            </IconButton>
+          ) : (
+            <IconButton
+              type='submit'
+              color='primary'
+              disabled={!input.trim()}
+            >
+              <SendIcon />
+            </IconButton>
+          )}
         </Paper>
       </Box>
     </Page>

@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { post, api } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 3: FaaS Edge Cases
@@ -66,8 +67,8 @@ describe('Tier 3: FaaS Edge Cases', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
-        projectName: `FaaS Edge Project ${timestamp}`,
-        agentName: `FaaS Edge Agent ${timestamp}`,
+        projectName: uniqueName('FaaS Edge Project'),
+        agentName: uniqueName('FaaS Edge Agent'),
       }
     )
 
@@ -107,11 +108,11 @@ describe('Tier 3: FaaS Edge Cases', () => {
   throw new Error('intentional test error')
 }`
 
-    const fnId = await createFunction(`Throwing Function ${timestamp}`, content)
+    const fnId = await createFunction(uniqueName('Throwing Function'), content)
     expect(fnId).toBeTruthy()
 
     const epId = await createEndpoint(
-      `Throwing Endpoint ${timestamp}`,
+      uniqueName('Throwing Endpoint'),
       `/faas/throw-${timestamp}`,
       fnId!
     )
@@ -133,11 +134,11 @@ describe('Tier 3: FaaS Edge Cases', () => {
   return null
 }`
 
-    const fnId = await createFunction(`Null Return Function ${timestamp}`, content)
+    const fnId = await createFunction(uniqueName('Null Return Function'), content)
     expect(fnId).toBeTruthy()
 
     const epId = await createEndpoint(
-      `Null Return Endpoint ${timestamp}`,
+      uniqueName('Null Return Endpoint'),
       `/faas/null-${timestamp}`,
       fnId!
     )
@@ -161,11 +162,11 @@ describe('Tier 3: FaaS Edge Cases', () => {
   return { body: { answer: 42 } }
 }`
 
-    const fnId = await createFunction(`Plain Return Function ${timestamp}`, content)
+    const fnId = await createFunction(uniqueName('Plain Return Function'), content)
     expect(fnId).toBeTruthy()
 
     const epId = await createEndpoint(
-      `Plain Return Endpoint ${timestamp}`,
+      uniqueName('Plain Return Endpoint'),
       `/faas/plain-${timestamp}`,
       fnId!
     )
@@ -188,11 +189,11 @@ describe('Tier 3: FaaS Edge Cases', () => {
   return { statusCode: 201, body: { created: true } }
 }`
 
-    const fnId = await createFunction(`Custom Status Function ${timestamp}`, content)
+    const fnId = await createFunction(uniqueName('Custom Status Function'), content)
     expect(fnId).toBeTruthy()
 
     const epId = await createEndpoint(
-      `Custom Status Endpoint ${timestamp}`,
+      uniqueName('Custom Status Endpoint'),
       `/faas/status-${timestamp}`,
       fnId!
     )
@@ -223,14 +224,14 @@ export default async function handler(request: any): Promise<{ body: Result }> {
 }`
 
     const fnId = await createFunction(
-      `TypeScript Typed Function ${timestamp}`,
+      uniqueName('TypeScript Typed Function'),
       content,
       'typescript'
     )
     expect(fnId).toBeTruthy()
 
     const epId = await createEndpoint(
-      `TypeScript Typed Endpoint ${timestamp}`,
+      uniqueName('TypeScript Typed Endpoint'),
       `/faas/typed-${timestamp}`,
       fnId!
     )
@@ -258,11 +259,11 @@ export default async function handler(request: any): Promise<{ body: Result }> {
   this is not valid javascript {{{{
 }`
 
-    const fnId = await createFunction(`Syntax Error Function ${timestamp}`, content)
+    const fnId = await createFunction(uniqueName('Syntax Error Function'), content)
     expect(fnId).toBeTruthy()
 
     const epId = await createEndpoint(
-      `Syntax Error Endpoint ${timestamp}`,
+      uniqueName('Syntax Error Endpoint'),
       `/faas/syntax-${timestamp}`,
       fnId!
     )

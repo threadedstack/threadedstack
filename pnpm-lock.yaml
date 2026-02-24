@@ -190,10 +190,10 @@ importers:
         version: 2.1.0
       '@mariozechner/pi-agent-core':
         specifier: 0.52.12
-        version: 0.52.12(ws@8.18.3)(zod@4.3.5)
+        version: 0.52.12(ws@8.19.0)(zod@4.3.5)
       '@mariozechner/pi-ai':
         specifier: 0.52.12
-        version: 0.52.12(ws@8.18.3)(zod@4.3.5)
+        version: 0.52.12(ws@8.19.0)(zod@4.3.5)
       '@tdsk/database':
         specifier: workspace:*
         version: link:../database
@@ -251,7 +251,7 @@ importers:
         version: 2.1.0
       '@mariozechner/pi-ai':
         specifier: 0.52.12
-        version: 0.52.12(ws@8.18.3)(zod@4.3.5)
+        version: 0.52.12(ws@8.19.0)(zod@4.3.5)
       '@polar-sh/express':
         specifier: 0.6.3
         version: 0.6.3(express@5.1.0)
@@ -336,6 +336,9 @@ importers:
       winston:
         specifier: 3.17.0
         version: 3.17.0
+      ws:
+        specifier: 8.19.0
+        version: 8.19.0
       zod:
         specifier: 4.3.5
         version: 4.3.5
@@ -373,6 +376,9 @@ importers:
       '@types/supertest':
         specifier: ^6.0.2
         version: 6.0.3
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
       nock:
         specifier: ^13.5.4
         version: 13.5.6
@@ -606,6 +612,9 @@ importers:
       '@types/node':
         specifier: 25.2.3
         version: 25.2.3
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       typescript:
         specifier: 5.7.3
         version: 5.7.3
@@ -615,6 +624,9 @@ importers:
       vitest:
         specifier: 1.6.1
         version: 1.6.1(@types/node@25.2.3)(jsdom@24.1.3)(terser@5.43.1)
+      ws:
+        specifier: ^8.19.0
+        version: 8.19.0
 
   repos/logger:
     dependencies:
@@ -725,15 +737,9 @@ importers:
       '@keg-hub/jsutils':
         specifier: 10.0.0
         version: 10.0.0
-      '@tdsk/agent':
-        specifier: workspace:*
-        version: link:../agent
       '@tdsk/domain':
         specifier: workspace:*
         version: link:../domain
-      '@tdsk/sandbox':
-        specifier: workspace:*
-        version: link:../sandbox
       cli-highlight:
         specifier: ^2.1.11
         version: 2.1.11
@@ -758,6 +764,9 @@ importers:
       react:
         specifier: ^19.0.0
         version: 19.2.4
+      ws:
+        specifier: ^8.19.0
+        version: 8.19.0
     devDependencies:
       '@biomejs/biome':
         specifier: 2.1.2
@@ -774,6 +783,9 @@ importers:
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       ink-testing-library:
         specifier: 4.0.0
         version: 4.0.0(@types/react@19.2.14)
@@ -4843,6 +4855,9 @@ packages:
 
   '@types/wrap-ansi@3.0.0':
     resolution: {integrity: sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@vitejs/plugin-react-swc@3.7.2':
     resolution: {integrity: sha512-y0byko2b2tSVVf5Gpng1eEhX1OvPC7x8yns1Fx8jDzlJp4LS6CMkCPfLw47cjyoMrshQDoQw4qcgjsU9VvlCew==}
@@ -10454,6 +10469,18 @@ packages:
       utf-8-validate:
         optional: true
 
+  ws@8.19.0:
+    resolution: {integrity: sha512-blAT2mjOEIi0ZzruJfIhb3nps74PRWTCz1IjglWEEpQl5XS/UNama6u2/rjFkDDouqr4L67ry+1aGIALViWjDg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   xml-name-validator@5.0.0:
     resolution: {integrity: sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg==}
     engines: {node: '>=18'}
@@ -13318,7 +13345,7 @@ snapshots:
       google-auth-library: 10.5.0
       p-retry: 7.1.1
       protobufjs: 7.5.4
-      ws: 8.18.3
+      ws: 8.19.0
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -13567,9 +13594,9 @@ snapshots:
       shell-exec: 1.0.2
       tree-kill: 1.2.2
 
-  '@mariozechner/pi-agent-core@0.52.12(ws@8.18.3)(zod@4.3.5)':
+  '@mariozechner/pi-agent-core@0.52.12(ws@8.19.0)(zod@4.3.5)':
     dependencies:
-      '@mariozechner/pi-ai': 0.52.12(ws@8.18.3)(zod@4.3.5)
+      '@mariozechner/pi-ai': 0.52.12(ws@8.19.0)(zod@4.3.5)
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
       - aws-crt
@@ -13579,7 +13606,7 @@ snapshots:
       - ws
       - zod
 
-  '@mariozechner/pi-ai@0.52.12(ws@8.18.3)(zod@4.3.5)':
+  '@mariozechner/pi-ai@0.52.12(ws@8.19.0)(zod@4.3.5)':
     dependencies:
       '@anthropic-ai/sdk': 0.73.0(zod@4.3.5)
       '@aws-sdk/client-bedrock-runtime': 3.990.0
@@ -13589,7 +13616,7 @@ snapshots:
       ajv: 8.17.1
       ajv-formats: 3.0.1(ajv@8.17.1)
       chalk: 5.6.2
-      openai: 6.10.0(ws@8.18.3)(zod@4.3.5)
+      openai: 6.10.0(ws@8.19.0)(zod@4.3.5)
       partial-json: 0.1.7
       proxy-agent: 6.5.0
       undici: 7.22.0
@@ -16246,6 +16273,10 @@ snapshots:
 
   '@types/wrap-ansi@3.0.0': {}
 
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 20.17.16
+
   '@vitejs/plugin-react-swc@3.7.2(vite@5.4.14(@types/node@20.17.16)(terser@5.43.1))':
     dependencies:
       '@swc/core': 1.10.11
@@ -18489,7 +18520,7 @@ snapshots:
       type-fest: 5.4.4
       widest-line: 6.0.0
       wrap-ansi: 9.0.2
-      ws: 8.18.3
+      ws: 8.19.0
       yoga-layout: 3.2.1
     optionalDependencies:
       '@types/react': 19.2.14
@@ -19664,9 +19695,9 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  openai@6.10.0(ws@8.18.3)(zod@4.3.5):
+  openai@6.10.0(ws@8.19.0)(zod@4.3.5):
     optionalDependencies:
-      ws: 8.18.3
+      ws: 8.19.0
       zod: 4.3.5
 
   openapi-types@12.1.3: {}
@@ -22235,6 +22266,8 @@ snapshots:
       write-file-atomic: 3.0.3
 
   ws@8.18.3: {}
+
+  ws@8.19.0: {}
 
   xml-name-validator@5.0.0: {}
 

@@ -4,6 +4,7 @@ import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
 import { tryDelete } from '../utils/cleanup'
 import { cleanupThread } from '../utils/repl-cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 describe('Tier 3: Agent with Custom Functions', () => {
   const ctx = readContext()
@@ -25,16 +26,14 @@ describe('Tier 3: Agent with Custom Functions', () => {
   ]
 
   beforeAll(async () => {
-    const timestamp = Date.now()
-
     // Step 1: Quickstart to create agent + provider + secret + project + endpoint
     const qsRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
-        projectName: `Agent Fn Test Project ${timestamp}`,
-        agentName: `Agent Fn Test Agent ${timestamp}`,
+        projectName: uniqueName('Agent Fn Test Project'),
+        agentName: uniqueName('Agent Fn Test Agent'),
       }
     )
 
@@ -51,7 +50,7 @@ describe('Tier 3: Agent with Custom Functions', () => {
     const fnRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
-        name: `greet-handler-${timestamp}`,
+        name: uniqueName('greet-handler'),
         content: functionContent,
         language: 'typescript',
         description: 'Greeting function for agent tool testing',

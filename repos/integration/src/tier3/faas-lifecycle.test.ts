@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { post, put, del, api } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 3: FaaS Function Lifecycle
@@ -35,8 +36,8 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
-        projectName: `FaaS Lifecycle Project ${timestamp}`,
-        agentName: `FaaS Lifecycle Agent ${timestamp}`,
+        projectName: uniqueName('FaaS Lifecycle Project'),
+        agentName: uniqueName('FaaS Lifecycle Agent'),
       }
     )
 
@@ -52,7 +53,7 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
     const fnRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
-        name: `Lifecycle Function ${timestamp}`,
+        name: uniqueName('Lifecycle Function'),
         content: v1Content,
         language: 'javascript',
         projectId,
@@ -70,7 +71,7 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
     const epRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
-        name: `Lifecycle Endpoint ${timestamp}`,
+        name: uniqueName('Lifecycle Endpoint'),
         path: `/faas/lifecycle-${timestamp}`,
         type: 'faas',
         method: 'post',

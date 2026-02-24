@@ -68,9 +68,15 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
   /**
    * Get all members of an org with their roles
    */
-  async getOrgMembers(orgId: string): Promise<TDBApiRes<RoleModel[]>> {
+  async getOrgMembers(
+    orgId: string,
+    opts?: { limit?: number; offset?: number }
+  ): Promise<TDBApiRes<RoleModel[]>> {
     try {
-      const result = await this.db.select().from(roles).where(eq(roles.orgId, orgId))
+      let query = this.db.select().from(roles).where(eq(roles.orgId, orgId))
+      if (opts?.limit) query = query.limit(opts.limit) as typeof query
+      if (opts?.offset) query = query.offset(opts.offset) as typeof query
+      const result = await query
 
       return { data: result.map((item) => this.model(item)) }
     } catch (error: any) {
@@ -98,12 +104,15 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
   /**
    * Get all members of a project with their roles
    */
-  async getProjectMembers(projectId: string): Promise<TDBApiRes<RoleModel[]>> {
+  async getProjectMembers(
+    projectId: string,
+    opts?: { limit?: number; offset?: number }
+  ): Promise<TDBApiRes<RoleModel[]>> {
     try {
-      const result = await this.db
-        .select()
-        .from(roles)
-        .where(eq(roles.projectId, projectId))
+      let query = this.db.select().from(roles).where(eq(roles.projectId, projectId))
+      if (opts?.limit) query = query.limit(opts.limit) as typeof query
+      if (opts?.offset) query = query.offset(opts.offset) as typeof query
+      const result = await query
 
       return { data: result.map((item) => this.model(item)) }
     } catch (error: any) {

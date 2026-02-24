@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 describe('Tier 1: Functions CRUD', () => {
   const ctx = readContext()
@@ -16,7 +17,10 @@ describe('Tier 1: Functions CRUD', () => {
   /** ID of the second function (with inputSchema) */
   let schemaFunctionId = ''
 
-  const timestamp = Date.now()
+  const basicFnName = uniqueName('test-fn-basic')
+  const schemaFnName = uniqueName('test-fn-schema')
+  const updatedFnName = uniqueName('test-fn-updated')
+
 
   const functionContent = `export default async function handler(request, context) {
   return { body: { message: 'hello from test function' } }
@@ -38,8 +42,8 @@ describe('Tier 1: Functions CRUD', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
-        projectName: `Functions Test Project ${timestamp}`,
-        agentName: `Functions Test Agent ${timestamp}`,
+        projectName: uniqueName('Functions Test Project'),
+        agentName: uniqueName('Functions Test Agent'),
       }
     )
 
@@ -80,7 +84,7 @@ describe('Tier 1: Functions CRUD', () => {
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
-        name: `test-fn-basic-${timestamp}`,
+        name: basicFnName,
         content: functionContent,
         language: 'typescript',
         projectId,
@@ -107,7 +111,7 @@ describe('Tier 1: Functions CRUD', () => {
 
     const fn = res.data.data
     expect(fn.id).toBe(functionId)
-    expect(fn.name).toBe(`test-fn-basic-${timestamp}`)
+    expect(fn.name).toBe(basicFnName)
     expect(fn.content).toBe(functionContent)
     expect(fn.language).toBe('typescript')
     expect(fn.projectId).toBe(projectId)
@@ -131,7 +135,7 @@ describe('Tier 1: Functions CRUD', () => {
 
     const found = res.data.data.find((f: any) => f.id === functionId)
     expect(found).toBeDefined()
-    expect(found?.name).toBe(`test-fn-basic-${timestamp}`)
+    expect(found?.name).toBe(basicFnName)
   })
 
   // --- Get ---
@@ -147,7 +151,7 @@ describe('Tier 1: Functions CRUD', () => {
     expect(res.ok).toBe(true)
     expect(res.data.data).toBeDefined()
     expect(res.data.data.id).toBe(functionId)
-    expect(res.data.data.name).toBe(`test-fn-basic-${timestamp}`)
+    expect(res.data.data.name).toBe(basicFnName)
   })
 
   // --- Create with inputSchema ---
@@ -158,7 +162,7 @@ describe('Tier 1: Functions CRUD', () => {
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
-        name: `test-fn-schema-${timestamp}`,
+        name: schemaFnName,
         content: schemaFunctionContent,
         language: 'typescript',
         projectId,
@@ -205,16 +209,15 @@ describe('Tier 1: Functions CRUD', () => {
   test('PUT updates function name', async () => {
     if (setupFailed || !functionId) return expect(setupFailed).toBe(false)
 
-    const updatedName = `test-fn-updated-${timestamp}`
     const res = await put<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`,
-      { name: updatedName }
+      { name: updatedFnName }
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
     expect(res.data.data).toBeDefined()
-    expect(res.data.data.name).toBe(updatedName)
+    expect(res.data.data.name).toBe(updatedFnName)
   })
 
   test('PUT updates inputSchema', async () => {

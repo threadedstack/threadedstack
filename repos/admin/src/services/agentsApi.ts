@@ -1,6 +1,6 @@
-import type { TStreamEvent } from '@tdsk/domain'
-import type { TApiRes, TApiCacheKeys } from '@TAF/types'
 import type { TAgentProjectConfig } from '@tdsk/domain'
+import type { TApiRes, TApiCacheKeys, TAgentSessionData } from '@TAF/types'
+
 import { Agent } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
 import { apiUrl } from '@TAF/utils/api/apiUrl'
@@ -207,7 +207,25 @@ export class AgentsApi extends BaseApi {
   }
 
   /**
-   * Run an agent with SSE streaming
+   * Create a session for WebSocket agent execution.
+   * Returns session token + non-sensitive agent config.
+   */
+  async createSession(
+    orgId: string,
+    agentId: string
+  ): Promise<TApiRes<TAgentSessionData>> {
+    const resp = await this.api.post<TAgentSessionData>({
+      data: { agentId },
+      path: `/ai/sessions`,
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to create session`))
+
+    return resp
+  }
+
+  /**
+   * Run an agent (legacy SSE method — use WebSocket flow instead)
    * Returns an object with the Response for reading SSE events
    */
   async run(

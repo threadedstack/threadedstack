@@ -2,6 +2,7 @@ import { describe, test, expect, afterAll } from 'vitest'
 import { get, post, put } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 1: Provider LLM Validation Contract Tests
@@ -16,7 +17,6 @@ import { tryDelete } from '../utils/cleanup'
  */
 describe('Tier 1: Provider LLM Validation', () => {
   const ctx = readContext()
-  const timestamp = Date.now()
   const createdIds: string[] = []
 
   afterAll(async () => {
@@ -32,7 +32,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `LLM Validation Anthropic ${timestamp}`,
+          name: uniqueName('LLM Validation Anthropic'),
           type: 'ai',
           orgId: ctx.orgId,
           brand: 'anthropic',
@@ -53,7 +53,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `LLM Validation OpenAI ${timestamp}`,
+          name: uniqueName('LLM Validation OpenAI'),
           type: 'ai',
           orgId: ctx.orgId,
           brand: 'openai',
@@ -71,7 +71,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `LLM Validation Google ${timestamp}`,
+          name: uniqueName('LLM Validation Google'),
           type: 'ai',
           orgId: ctx.orgId,
           brand: 'google',
@@ -88,7 +88,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `LLM Validation ZAI ${timestamp}`,
+          name: uniqueName('LLM Validation ZAI'),
           type: 'ai',
           orgId: ctx.orgId,
           brand: 'zai',
@@ -110,7 +110,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ error?: string }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `Should Fail No Brand ${timestamp}`,
+          name: uniqueName('Should Fail No Brand'),
           type: 'ai',
           orgId: ctx.orgId,
         }
@@ -124,7 +124,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ error?: string }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `Should Fail No Brand Field ${timestamp}`,
+          name: uniqueName('Should Fail No Brand Field'),
           type: 'ai',
           orgId: ctx.orgId,
         }
@@ -138,7 +138,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ error?: string }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `Should Fail Invalid LLM ${timestamp}`,
+          name: uniqueName('Should Fail Invalid LLM'),
           type: 'ai',
           orgId: ctx.orgId,
           brand: 'huggingface',
@@ -153,7 +153,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ error?: string }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `Should Fail Numeric LLM ${timestamp}`,
+          name: uniqueName('Should Fail Numeric LLM'),
           type: 'ai',
           orgId: ctx.orgId,
           brand: 123,
@@ -172,7 +172,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `LLM Validation Git ${timestamp}`,
+          name: uniqueName('LLM Validation Git'),
           type: 'git',
           orgId: ctx.orgId,
           options: { repoUrl: 'https://github.com/example/repo' },
@@ -190,7 +190,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `LLM Validation Storage ${timestamp}`,
+          name: uniqueName('LLM Validation Storage'),
           type: 'storage',
           orgId: ctx.orgId,
         }
@@ -213,7 +213,7 @@ describe('Tier 1: Provider LLM Validation', () => {
       const res = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/providers`,
         {
-          name: `LLM Update Test ${timestamp}`,
+          name: uniqueName('LLM Update Test'),
           type: 'ai',
           orgId: ctx.orgId,
           brand: 'anthropic',
@@ -230,7 +230,7 @@ describe('Tier 1: Provider LLM Validation', () => {
 
       const res = await put<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/providers/${aiProviderId}`,
-        { name: `LLM Update Test Renamed ${timestamp}` }
+        { name: uniqueName('LLM Update Test Renamed') }
       )
 
       expect(res.status).toBe(200)

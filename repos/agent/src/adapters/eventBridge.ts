@@ -5,7 +5,25 @@ import type { TStreamEvent } from '@tdsk/domain'
 import { EStreamEventType, EStreamStopReason } from '@tdsk/domain'
 
 /**
- * Maps a pi-mono AgentEvent to ThreadedStack's TStreamEvent for SSE output.
+ * pi-mono internal event type strings.
+ * Kept local to the agent repo to decouple the WS protocol enum
+ * from pi-mono's internal event naming.
+ */
+const PiMonoEventType = {
+  // AssistantMessageEvent.type values
+  TextDelta: `text_delta`,
+  ToolCallStart: `toolcall_start`,
+  ToolCallDelta: `toolcall_delta`,
+  Done: `done`,
+  Error: `error`,
+  // AgentEvent.type values
+  ToolExecutionUpdate: `tool_execution_update`,
+  ToolExecutionEnd: `tool_execution_end`,
+  AgentEnd: `agent_end`,
+} as const
+
+/**
+ * Maps a pi-mono AgentEvent to ThreadedStack's TStreamEvent for WebSocket output.
  * Returns undefined for events that have no ThreadedStack equivalent.
  */
 export const mapAgentEvent = (event: AgentEvent): TStreamEvent | undefined => {
@@ -13,13 +31,13 @@ export const mapAgentEvent = (event: AgentEvent): TStreamEvent | undefined => {
     case `message_update`: {
       const ame = event.assistantMessageEvent
       switch (ame.type) {
-        case `text_delta`:
+        case PiMonoEventType.TextDelta:
           return {
             type: EStreamEventType.text,
             text: ame.delta,
           }
 
-        case `toolcall_start`: {
+        case PiMonoEventType.ToolCallStart: {
           const tc = ame.partial.content[ame.contentIndex] as ToolCall | undefined
           return {
             type: EStreamEventType.toolCallStart,
@@ -28,14 +46,14 @@ export const mapAgentEvent = (event: AgentEvent): TStreamEvent | undefined => {
           }
         }
 
-        case `toolcall_delta`:
+        case PiMonoEventType.ToolCallDelta:
           return {
             type: EStreamEventType.toolCallArgs,
             id: (ame.partial.content[ame.contentIndex] as ToolCall | undefined)?.id ?? ``,
             args: ame.delta,
           }
 
-        case `done`:
+        case PiMonoEventType.Done:
           return {
             type: EStreamEventType.done,
             stopReason:
@@ -46,7 +64,7 @@ export const mapAgentEvent = (event: AgentEvent): TStreamEvent | undefined => {
                   : EStreamStopReason.endTurn,
           }
 
-        case `error`:
+        case PiMonoEventType.Error:
           return {
             type: EStreamEventType.error,
             error: ame.error.errorMessage ?? `LLM error`,
@@ -57,14 +75,14 @@ export const mapAgentEvent = (event: AgentEvent): TStreamEvent | undefined => {
       }
     }
 
-    case `tool_execution_update`:
+    case PiMonoEventType.ToolExecutionUpdate:
       return {
         type: EStreamEventType.toolExecutionUpdate,
         toolUseId: event.toolCallId,
         content: extractTextFromContent(event.partialResult?.content),
       }
 
-    case `tool_execution_end`:
+    case PiMonoEventType.ToolExecutionEnd:
       return {
         type: EStreamEventType.toolResult,
         toolUseId: event.toolCallId,
@@ -72,13 +90,13 @@ export const mapAgentEvent = (event: AgentEvent): TStreamEvent | undefined => {
         isError: event.isError,
       }
 
-    case `agent_end`:
+    case PiMonoEventType.AgentEnd:
       return {
         type: EStreamEventType.done,
         stopReason: EStreamStopReason.endTurn,
       }
 
-    // Events we don't need to forward to SSE
+    // Events we don't need to forward to WebSocket
     case `agent_start`:
     case `turn_start`:
     case `turn_end`:

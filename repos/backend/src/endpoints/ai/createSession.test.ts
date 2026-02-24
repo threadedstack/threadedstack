@@ -17,21 +17,9 @@ vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
   checkPermission: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock(`@tdsk/domain`, async () => {
-  const actual = await vi.importActual(`@tdsk/domain`)
-  return {
-    ...actual,
-    deriveKey: vi.fn().mockResolvedValue(Buffer.alloc(32, `key`)),
-    decryptValue: vi.fn().mockResolvedValue(`sk-test-key`),
-  }
-})
-
-const fakeEncrypted = () =>
-  Buffer.concat([
-    Buffer.alloc(12, `iv`),
-    Buffer.alloc(16, `tag`),
-    Buffer.from(`ciphertext`),
-  ]).toString(`base64`)
+vi.mock(`@TBE/services/sessionToken`, () => ({
+  signSessionToken: vi.fn().mockReturnValue(`signed.jwt.token`),
+}))
 
 describe(`POST /ai/sessions - Create LLM session`, () => {
   let mockReq: Partial<TRequest>
@@ -49,12 +37,6 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
           services: {
             agent: {
               get: vi.fn(),
-            },
-            secret: {
-              get: vi.fn().mockResolvedValue({
-                data: { encryptedValue: fakeEncrypted(), orgId: `org-1` },
-              }),
-              list: vi.fn().mockResolvedValue({ data: [] }),
             },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -81,9 +63,6 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
           brand: `anthropic`,
           options: {},
         },
-      ],
-      secrets: [
-        { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
       ],
       ...overrides,
     } as any)
@@ -114,7 +93,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
   })
 
   it(`should have correct endpoint config`, () => {
@@ -165,41 +144,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     )
   })
 
-  it(`should throw 400 when no API key found`, async () => {
-    const { decryptValue } = await import(`@tdsk/domain`)
-    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-    const ep = getEndpointCfg(createSession as any)
-    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
-      typeof vi.fn
-    >
-
-    mockAgentGet.mockResolvedValue({
-      data: buildAgent({
-        secrets: [],
-        providers: [
-          {
-            id: `prov-1`,
-            secretId: `secret-1`,
-            type: `ai`,
-            orgId: `org-1`,
-            name: `anthropic`,
-            brand: `anthropic`,
-            options: {},
-          },
-        ],
-      }),
-    })
-
-    await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-      `No API key found for agent provider`
-    )
-  })
-
   it(`should throw 400 for unsupported LLM provider`, async () => {
-    const { decryptValue } = await import(`@tdsk/domain`)
-    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-key`)
-
     const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -226,9 +171,6 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
   })
 
   it(`should resolve google provider from brand`, async () => {
-    const { decryptValue } = await import(`@tdsk/domain`)
-    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-google-key`)
-
     const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -261,9 +203,6 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
   })
 
   it(`should use brand regardless of provider name`, async () => {
-    const { decryptValue } = await import(`@tdsk/domain`)
-    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-key`)
-
     const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -294,10 +233,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     })
   })
 
-  it(`should return session token without apiKey`, async () => {
-    const { decryptValue } = await import(`@tdsk/domain`)
-    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
-
+  it(`should return signed session token without apiKey`, async () => {
     const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -328,10 +264,8 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
 
     const responseData = mockJson.mock.calls[0][0]
 
-    // Session token is a UUID string
-    expect(responseData.data.sessionToken).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-    )
+    // Session token is a signed JWT
+    expect(responseData.data.sessionToken).toBe(`signed.jwt.token`)
 
     // Non-sensitive config is returned
     expect(responseData.data.provider).toBe(`anthropic`)
@@ -343,10 +277,28 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     expect(responseData.data).not.toHaveProperty(`apiKey`)
   })
 
-  it(`should use default model when agent has none`, async () => {
-    const { decryptValue } = await import(`@tdsk/domain`)
-    ;(decryptValue as ReturnType<typeof vi.fn>).mockResolvedValue(`sk-test-key`)
+  it(`should call signSessionToken with correct payload`, async () => {
+    const { signSessionToken } = await import(`@TBE/services/sessionToken`)
 
+    const ep = getEndpointCfg(createSession as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: buildAgent(),
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    expect(signSessionToken).toHaveBeenCalledWith({
+      userId: `test-user-id`,
+      agentId: `agent-1`,
+      orgId: `org-1`,
+    })
+  })
+
+  it(`should use default model when agent has none`, async () => {
     const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
       typeof vi.fn
@@ -377,5 +329,60 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
         model: `gpt-4o`,
       }),
     })
+  })
+
+  it(`should include tools in session response`, async () => {
+    const ep = getEndpointCfg(createSession as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: buildAgent({
+        tools: [`shellExec`, `readFile`, `writeFile`],
+      }),
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    const responseData = mockJson.mock.calls[0][0]
+    expect(responseData.data.tools).toEqual([`shellExec`, `readFile`, `writeFile`])
+  })
+
+  it(`should include environment in session response`, async () => {
+    const ep = getEndpointCfg(createSession as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: buildAgent({
+        environment: { timeout: 60000, temperature: 0.7 },
+      }),
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    const responseData = mockJson.mock.calls[0][0]
+    expect(responseData.data.environment).toEqual({ timeout: 60000, temperature: 0.7 })
+  })
+
+  it(`should NOT include envVars in session response`, async () => {
+    const ep = getEndpointCfg(createSession as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: buildAgent({
+        envVars: { SECRET_KEY: `never-expose-this` },
+      }),
+    })
+
+    await ep.action(mockReq as TRequest, mockRes as Response)
+
+    const responseData = mockJson.mock.calls[0][0]
+    expect(responseData.data).not.toHaveProperty(`envVars`)
+    expect(responseData.data).not.toHaveProperty(`customFunctions`)
   })
 })

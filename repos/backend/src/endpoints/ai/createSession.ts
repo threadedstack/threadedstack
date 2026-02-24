@@ -4,18 +4,17 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@TBE/utils/errors/exception'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { createSession as createStoreSession } from '@TBE/services/sessionStore'
+import { signSessionToken } from '@TBE/services/sessionToken'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
-import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 /**
  * POST /ai/sessions - Create a session for proxied LLM calls
  * Body: { agentId: string }
  *
- * Resolves the agent's API key server-side, caches it in memory,
- * and returns an opaque session token. The client uses this token
- * for subsequent /ai/chat requests without ever receiving the API key.
+ * Validates the agent exists, checks permission, and returns a signed
+ * session JWT. The client uses this token for subsequent /ai/ws WebSocket
+ * connections. Secrets are resolved at WS connect time, not here.
  */
 export const createSession: TEndpointConfig = {
   path: `/sessions`,
@@ -28,10 +27,8 @@ export const createSession: TEndpointConfig = {
     if (!userId) throw new Exception(401, `Authentication required`)
     if (!agentId) throw new Exception(400, `agentId is required`)
 
-    // Load agent with secrets (unsanitized)
-    const { data: agent, error: agentErr } = await db.services.agent.get(agentId, {
-      sanitize: false,
-    })
+    // Load agent (sanitized — only need metadata for the response)
+    const { data: agent, error: agentErr } = await db.services.agent.get(agentId)
 
     if (agentErr || !agent) throw new Exception(404, `Agent not found`)
 
@@ -44,48 +41,26 @@ export const createSession: TEndpointConfig = {
     const provider = agent.primaryProvider
     if (!provider) throw new Exception(404, `Agent has no provider configured`)
 
-    // Resolve secrets
-    const secrets = new SecretResolver(db)
-    const apiKey = await secrets.resolveApiKey(agent, provider)
-
-    if (!apiKey) throw new Exception(400, `No API key found for agent provider`)
-
     // Determine and validate provider type
     const providerType = resolveProviderType(provider)
 
-    // Resolve provider headers and body params (with {{SECRET}} template substitution)
-    const headers = await secrets.resolveHeaders(provider)
-    const bodyParams = await secrets.resolveBodyParams(provider)
-
-    // Build LLM config (apiKey stays server-side)
-    const llmConfig = {
-      apiKey,
-      headers,
-      bodyParams,
-      baseUrl: provider.options?.baseUrl as string | undefined,
-      provider: providerType as any,
-      systemPrompt: agent.systemPrompt,
-      maxTokens: agent.maxTokens || 4096,
-      temperature: agent.environment?.temperature,
-      model: agent.model || provider.options?.model || `claude-sonnet-4-20250514`,
-    }
-
-    // Create session with cached config
-    const sessionToken = createStoreSession({
+    // Sign a short-lived JWT with session identity claims
+    const sessionToken = signSessionToken({
+      userId,
       agentId: agent.id,
       orgId: agent.orgId,
-      userId,
-      llmConfig,
     })
 
-    // Return token + non-sensitive config (no apiKey)
+    // Return token + non-sensitive config (no apiKey, no envVars)
     res.status(200).json({
       data: {
         sessionToken,
-        model: llmConfig.model,
+        tools: agent.tools,
+        model: agent.model || provider.options?.model,
         provider: providerType,
-        maxTokens: llmConfig.maxTokens,
-        systemPrompt: llmConfig.systemPrompt,
+        maxTokens: agent.maxTokens || 4096,
+        environment: agent.environment,
+        systemPrompt: agent.systemPrompt,
       },
     })
   },

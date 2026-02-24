@@ -1,51 +1,71 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
-import { post } from '../utils/api-client'
+import { env } from '../utils/env'
+import { post, get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { uniqueName } from '../utils/unique-name'
+
+const getAgentId = () => env.testZaiAgentId || env.testAgentId
+const hasLLM = () => !!env.testProviderKey || !!getAgentId()
 
 describe('Tier 1: AI Sessions', () => {
   const ctx = readContext()
   let agentId = ''
-  let quickstartResult: Record<string, any> = {}
-  let setupFailed = false
+  let qsResult: Record<string, any> | null = null
 
   beforeAll(async () => {
-    const timestamp = Date.now()
-    const res = await post<{ data: Record<string, any> }>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'anthropic',
-        apiKey: 'sk-test-fake-key-sessions',
-        projectName: `Session Test Project ${timestamp}`,
-        agentName: `Session Test Agent ${timestamp}`,
-      }
-    )
+    if (!hasLLM()) return
 
-    if (res.status !== 201 || !res.data?.data?.agent?.id) {
-      setupFailed = true
-      return
+    if (env.testProviderKey) {
+      const qsRes = await post<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/quickstart`,
+        {
+          providerBrand: 'zai',
+          apiKey: env.testProviderKey,
+          projectName: uniqueName('Session Test Project'),
+          agentName: uniqueName('Session Test Agent'),
+        }
+      )
+
+      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
+        qsResult = qsRes.data.data
+        agentId = qsResult!.agent.id
+      }
     }
 
-    quickstartResult = res.data.data
-    agentId = quickstartResult.agent.id
+    if (!agentId) {
+      agentId = getAgentId()
+    }
+
+    if (!agentId) return
+
+    const res = await get<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${agentId}`
+    )
+
+    if (!res.ok) {
+      throw new Error(
+        `Agent (${agentId}) not accessible: ${res.status}\n` +
+        `  Hint: Verify the agent exists and belongs to org ${ctx.orgId}`
+      )
+    }
   })
 
   afterAll(async () => {
-    if (quickstartResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project?.id}/endpoints/${quickstartResult.endpoint.id}`)
-    if (quickstartResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-    if (quickstartResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-    if (quickstartResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-    if (quickstartResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    if (!qsResult) return
+    if (qsResult.endpoint?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
+    if (qsResult.agent?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
+    if (qsResult.project?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
+    if (qsResult.secret?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
+    if (qsResult.provider?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
   })
 
-  test('POST /_/ai/sessions creates session with valid agent', async () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
-
+  test.skipIf(!hasLLM())('POST /_/ai/sessions creates session with valid agent', async () => {
     const res = await post<{ data: Record<string, any> }>(
       `/_/ai/sessions`,
       { agentId }
@@ -59,9 +79,7 @@ describe('Tier 1: AI Sessions', () => {
     expect(res.data.data.model).toBeTruthy()
   })
 
-  test('session response does not leak apiKey', async () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
-
+  test.skipIf(!hasLLM())('session response does not leak apiKey', async () => {
     const res = await post<{ data: Record<string, any> }>(
       `/_/ai/sessions`,
       { agentId }
@@ -71,9 +89,7 @@ describe('Tier 1: AI Sessions', () => {
     expect(res.data.data).not.toHaveProperty('apiKey')
   })
 
-  test('session returns expected metadata', async () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
-
+  test.skipIf(!hasLLM())('session returns expected metadata', async () => {
     const res = await post<{ data: Record<string, any> }>(
       `/_/ai/sessions`,
       { agentId }
@@ -88,9 +104,52 @@ describe('Tier 1: AI Sessions', () => {
     expect(typeof data.maxTokens).toBe('number')
   })
 
-  test('POST /_/ai/sessions without agentId returns 400', async () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
+  test.skipIf(!hasLLM())('session response includes tools array (when agent has tools)', async () => {
+    const res = await post<{ data: Record<string, any> }>(
+      `/_/ai/sessions`,
+      { agentId }
+    )
 
+    expect(res.status).toBe(200)
+    const { data } = res.data
+
+    // tools may be undefined/null if agent has no tools configured
+    // but if present, it must be an array
+    if (data.tools !== undefined && data.tools !== null) {
+      expect(Array.isArray(data.tools)).toBe(true)
+    }
+  })
+
+  test.skipIf(!hasLLM())('session response includes environment (when agent has environment)', async () => {
+    const res = await post<{ data: Record<string, any> }>(
+      `/_/ai/sessions`,
+      { agentId }
+    )
+
+    expect(res.status).toBe(200)
+    const { data } = res.data
+
+    // environment may be undefined/null if agent has no environment configured
+    // but if present, it must be an object
+    if (data.environment !== undefined && data.environment !== null) {
+      expect(typeof data.environment).toBe('object')
+    }
+  })
+
+  test.skipIf(!hasLLM())('session response does not leak envVars', async () => {
+    const res = await post<{ data: Record<string, any> }>(
+      `/_/ai/sessions`,
+      { agentId }
+    )
+
+    expect(res.status).toBe(200)
+    const { data } = res.data
+
+    // envVars should stay server-side — never in the response
+    expect(data).not.toHaveProperty('envVars')
+  })
+
+  test.skipIf(!hasLLM())('POST /_/ai/sessions without agentId returns 400', async () => {
     const res = await post<{ error?: string }>(
       `/_/ai/sessions`,
       {}
@@ -100,9 +159,7 @@ describe('Tier 1: AI Sessions', () => {
     expect(res.ok).toBe(false)
   })
 
-  test('POST /_/ai/sessions with non-existent agentId returns 404', async () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
-
+  test.skipIf(!hasLLM())('POST /_/ai/sessions with non-existent agentId returns 404', async () => {
     const res = await post<{ error?: string }>(
       `/_/ai/sessions`,
       { agentId: '00000000-0000-0000-0000-000000000000' }

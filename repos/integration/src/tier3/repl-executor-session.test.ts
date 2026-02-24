@@ -6,6 +6,7 @@ import { cleanupQuickstart, cleanupThread } from '../utils/repl-cleanup'
 import { ApiClient } from '@tdsk/repl/services/api'
 import { Executor } from '@tdsk/repl/services/executor'
 import { env } from '../utils/env'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 3: REPL Executor — Session & Thread Orchestration
@@ -16,7 +17,6 @@ import { env } from '../utils/env'
  */
 describe('Tier 3: REPL Executor — session orchestration (live)', () => {
   const ctx = readContext()
-  const timestamp = Date.now()
   let executor: Executor
 
   // Quickstart resources
@@ -35,8 +35,8 @@ describe('Tier 3: REPL Executor — session orchestration (live)', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-ant-test-repl-executor-session',
-        projectName: `REPL Executor IT ${timestamp}`,
-        agentName: `REPL Executor Agent ${timestamp}`,
+        projectName: uniqueName('REPL Executor IT'),
+        agentName: uniqueName('REPL Executor Agent'),
       }
     )
 

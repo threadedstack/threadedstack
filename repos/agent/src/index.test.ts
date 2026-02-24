@@ -13,8 +13,6 @@ describe(`@tdsk/agent public API`, () => {
     // tools
     `getToolDefs`,
     `createSandboxTools`,
-    // llm
-    `createStreamProxy`,
     // adapters
     `mapAgentEvent`,
     `convertToLlmMessages`,

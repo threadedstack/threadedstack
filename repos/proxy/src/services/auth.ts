@@ -9,6 +9,7 @@ import {
   SessionRoutes,
   BearerPrefix,
   SessionPrefix,
+  QueryTokenRoutes,
 } from '@TPX/constants/values'
 
 export type TAuth = {
@@ -50,20 +51,32 @@ export class Auth {
   isSession = (path: string): boolean =>
     SessionRoutes.some((route) => path.startsWith(route))
 
+  usesQueryToken = (path: string): boolean =>
+    QueryTokenRoutes.some((route) => path.startsWith(route))
+
   /**
    * Extract JWT token from Authorization header
    */
   extract = (req: Request): string | null => {
     const authHeader = req.headers.authorization
-    if (!authHeader) return null
+    if (authHeader) {
+      if (authHeader.startsWith(BearerPrefix))
+        return authHeader.slice(BearerPrefix.length).trim()
 
-    if (authHeader.startsWith(BearerPrefix))
-      return authHeader.slice(BearerPrefix.length).trim()
+      if (authHeader.startsWith(SessionPrefix))
+        return authHeader.slice(SessionPrefix.length).trim()
 
-    if (authHeader.startsWith(SessionPrefix))
-      return authHeader.slice(SessionPrefix.length).trim()
+      logger.error(`Invalid Authorization header:`, authHeader)
+      return null
+    }
 
-    logger.error(`Invalid Authorization header:`, authHeader)
+    if (req.path && this.usesQueryToken(req.path)) {
+      // Fallback: check query param (used by WebSocket connections)
+      const url = new URL(req.url || ``, `http://localhost`)
+      const queryToken = url.searchParams.get(`token`)
+      if (queryToken) return queryToken
+    }
+
     return null
   }
 

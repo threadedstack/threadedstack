@@ -5,6 +5,7 @@ import { createTestAuth } from '../utils/repl-auth'
 import { cleanupQuickstart, cleanupThread } from '../utils/repl-cleanup'
 import { ApiClient } from '@tdsk/repl'
 import { Organization, Agent, Thread, Message } from '@tdsk/domain'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 1: REPL ApiClient — Live Backend Validation
@@ -14,7 +15,6 @@ import { Organization, Agent, Thread, Message } from '@tdsk/domain'
  */
 describe('Tier 1: REPL ApiClient (live)', () => {
   const ctx = readContext()
-  const timestamp = Date.now()
   let client: ApiClient
 
   // Quickstart resources for agent/thread tests
@@ -37,8 +37,8 @@ describe('Tier 1: REPL ApiClient (live)', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-ant-test-repl-api-client',
-        projectName: `REPL ApiClient IT ${timestamp}`,
-        agentName: `REPL ApiClient Agent ${timestamp}`,
+        projectName: uniqueName('REPL ApiClient IT'),
+        agentName: uniqueName('REPL ApiClient Agent'),
       }
     )
 

@@ -8,8 +8,9 @@ export const PublicRoutes = [`/health`, `/domains/validate`, `/echo`]
 
 export const BearerPrefix = `Bearer `
 export const SessionPrefix = `Session `
-export const SessionRoutes = [`/ai/chat`, `/ai/stream`]
+export const QueryTokenRoutes = [`/ai/ws`]
 export const ProxyForwardRoutes = [`/ai`, `/proxy`]
+export const SessionRoutes = [`/ai/chat`, `/ai/ws`]
 
 export const LoggerIgnore = {
   methods: [`OPTIONS`],

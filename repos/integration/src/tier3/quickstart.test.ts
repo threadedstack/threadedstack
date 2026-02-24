@@ -2,17 +2,17 @@ import { describe, test, expect, afterAll } from 'vitest'
 import { get, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 describe('Tier 3: Quickstart E2E Flow', () => {
   const ctx = readContext()
   let result: Record<string, any> = {}
 
-  const timestamp = Date.now()
   const body = {
     providerBrand: 'anthropic',
     apiKey: 'sk-test-fake-key-12345',
-    projectName: `QS Test Project ${timestamp}`,
-    agentName: `QS Test Agent ${timestamp}`,
+    projectName: uniqueName('QS Test Project'),
+    agentName: uniqueName('QS Test Agent'),
   }
 
   afterAll(async () => {

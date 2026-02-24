@@ -131,6 +131,7 @@ export enum EStreamEventType {
   toolResult = `tool_result`,
   toolCallArgs = `tool_call_args`,
   toolCallStart = `tool_call_start`,
+  turnEnd = `turn_end`,
   toolExecutionUpdate = `tool_execution_update`,
 }
 
@@ -171,6 +172,11 @@ export type TStreamToolExecutionUpdateEvent = {
   type: `${EStreamEventType.toolExecutionUpdate}`
 }
 
+export type TStreamTurnEndEvent = {
+  usage: { input: number; output: number }
+  type: `${EStreamEventType.turnEnd}`
+}
+
 export enum EStreamStopReason {
   error = `error`,
   endTurn = `end_turn`,
@@ -189,6 +195,7 @@ export type TStreamEvent =
   | TStreamDoneEvent
   | TStreamErrorEvent
   | TStreamTextEvent
+  | TStreamTurnEndEvent
   | TStreamToolResultEvent
   | TStreamToolCallArgsEvent
   | TStreamToolCallStartEvent

@@ -105,7 +105,10 @@ describe(`Project Members endpoints`, () => {
 
       await listProjectMembers.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockGetProjectMembers).toHaveBeenCalledWith(`project-1`)
+      expect(mockGetProjectMembers).toHaveBeenCalledWith(`project-1`, {
+        limit: 50,
+        offset: 0,
+      })
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: mockMembers, limit: 50, offset: 0 })
     })
@@ -121,7 +124,7 @@ describe(`Project Members endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({ data: [], limit: 50, offset: 0 })
     })
 
-    it(`should pass pagination params in response`, async () => {
+    it(`should pass pagination params to DB and include in response`, async () => {
       const mockGetProjectMembers = mockReq.app?.locals.db.services.role
         .getProjectMembers as ReturnType<typeof vi.fn>
       mockGetProjectMembers.mockResolvedValue({ data: [] })
@@ -129,6 +132,10 @@ describe(`Project Members endpoints`, () => {
 
       await listProjectMembers.action(mockReq as TRequest, mockRes as Response)
 
+      expect(mockGetProjectMembers).toHaveBeenCalledWith(`project-1`, {
+        limit: 10,
+        offset: 20,
+      })
       expect(mockStatus).toHaveBeenCalledWith(200)
       const response = mockJson.mock.calls[0][0]
       expect(response.limit).toBe(10)

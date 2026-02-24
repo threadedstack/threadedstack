@@ -3,6 +3,7 @@ import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { env } from '../utils/env'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 1: Agent-Provider Relationship Contract Tests
@@ -29,13 +30,12 @@ describe('Tier 1: Agent-Provider Relationship', () => {
   let agentId = ''
   let setupFailed = false
 
-  const timestamp = Date.now()
 
   beforeAll(async () => {
     // Create a project for agents
     const projRes = await post<{ data: { id: string } }>(
       `/orgs/${ctx.orgId}/projects`,
-      { name: `AP Test Project ${timestamp}`, orgId: ctx.orgId }
+      { name: uniqueName('AP Test Project'), orgId: ctx.orgId }
     )
 
     if (projRes.status !== 201 || !projRes.data?.data?.id) {
@@ -47,21 +47,21 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     // Create three AI providers in the same org
     const [prov1Res, prov2Res, prov3Res] = await Promise.all([
       post<{ data: { id: string } }>(`/orgs/${ctx.orgId}/providers`, {
-        name: `AP Provider Anthropic ${timestamp}`,
+        name: uniqueName('AP Provider Anthropic'),
         type: 'ai',
         orgId: ctx.orgId,
         brand: 'anthropic',
         options: { baseUrl: 'https://api.anthropic.com' },
       }),
       post<{ data: { id: string } }>(`/orgs/${ctx.orgId}/providers`, {
-        name: `AP Provider OpenAI ${timestamp}`,
+        name: uniqueName('AP Provider OpenAI'),
         type: 'ai',
         orgId: ctx.orgId,
         brand: 'openai',
         options: { baseUrl: 'https://api.openai.com/v1' },
       }),
       post<{ data: { id: string } }>(`/orgs/${ctx.orgId}/providers`, {
-        name: `AP Provider Google ${timestamp}`,
+        name: uniqueName('AP Provider Google'),
         type: 'ai',
         orgId: ctx.orgId,
         brand: 'google',
@@ -100,7 +100,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/agents`,
       {
-        name: `AP Test Agent ${timestamp}`,
+        name: uniqueName('AP Test Agent'),
         orgId: ctx.orgId,
         providerIds: [provider1Id],
         projectIds: [projectId],
@@ -122,7 +122,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/agents`,
       {
-        name: `AP Multi Provider Agent ${timestamp}`,
+        name: uniqueName('AP Multi Provider Agent'),
         orgId: ctx.orgId,
         providerIds: [provider1Id, provider2Id, provider3Id],
         projectIds: [projectId],
@@ -344,7 +344,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const res = await post<{ error?: string }>(
       `/orgs/${ctx.orgId}/agents`,
       {
-        name: `Should Fail Agent ${timestamp}`,
+        name: uniqueName('Should Fail Agent'),
         orgId: ctx.orgId,
         model: 'claude-sonnet-4-5-20250929',
       }
@@ -360,7 +360,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const res = await post<{ error?: string }>(
       `/orgs/${ctx.orgId}/agents`,
       {
-        name: `Should Fail Agent 2 ${timestamp}`,
+        name: uniqueName('Should Fail Agent 2'),
         orgId: ctx.orgId,
         providerIds: [],
         model: 'claude-sonnet-4-5-20250929',
@@ -377,7 +377,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const res = await post<{ error?: string }>(
       `/orgs/${ctx.orgId}/agents`,
       {
-        name: `Should Fail Agent 3 ${timestamp}`,
+        name: uniqueName('Should Fail Agent 3'),
         orgId: ctx.orgId,
         providerIds: ['00000000-0000-0000-0000-000000000000'],
         model: 'claude-sonnet-4-5-20250929',
@@ -394,7 +394,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/agents`,
       {
-        name: `AP Dedup Agent ${timestamp}`,
+        name: uniqueName('AP Dedup Agent'),
         orgId: ctx.orgId,
         providerIds: [provider1Id, provider1Id],
         projectIds: [projectId],
@@ -440,8 +440,8 @@ describe('Tier 1: Agent-Provider Relationship', () => {
         {
           providerBrand: 'anthropic',
           apiKey: providerKey,
-          projectName: `AP QS Project ${timestamp}`,
-          agentName: `AP QS Agent ${timestamp}`,
+          projectName: uniqueName('AP QS Project'),
+          agentName: uniqueName('AP QS Agent'),
         }
       )
 
@@ -494,7 +494,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const createRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/agents`,
       {
-        name: `AP Cleanup Agent ${timestamp}`,
+        name: uniqueName('AP Cleanup Agent'),
         orgId: ctx.orgId,
         providerIds: [provider1Id, provider2Id],
         projectIds: [projectId],

@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 1: Agent-Functions Relationship
@@ -38,7 +39,6 @@ const functionContent = `export default async function handler(request, context)
 
 describe('Tier 1: Agent-Functions Relationship', () => {
   const ctx = readContext()
-  const timestamp = Date.now()
 
   let setupFailed = false
   let quickstart: QuickstartResult | undefined
@@ -60,8 +60,8 @@ describe('Tier 1: Agent-Functions Relationship', () => {
         {
           providerBrand: 'anthropic',
           apiKey: 'sk-test-fake-key-agent-fn',
-          projectName: `AgentFn Project ${timestamp}`,
-          agentName: `AgentFn Agent ${timestamp}`,
+          projectName: uniqueName('AgentFn Project'),
+          agentName: uniqueName('AgentFn Agent'),
         }
       )
 
@@ -113,7 +113,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
     }
 
     const res = await post<{ data: FunctionRecord }>(functionsPath(), {
-      name: `Linked Function 1 ${timestamp}`,
+      name: uniqueName('Linked Function 1'),
       content: functionContent,
     })
 
@@ -159,7 +159,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
     }
 
     const res = await post<{ data: FunctionRecord }>(functionsPath(), {
-      name: `Linked Function 2 ${timestamp}`,
+      name: uniqueName('Linked Function 2'),
       content: functionContent,
     })
 
@@ -200,7 +200,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
     }
 
     const res = await post<{ data: FunctionRecord }>(functionsPath(), {
-      name: `Unlinked Function ${timestamp}`,
+      name: uniqueName('Unlinked Function'),
       content: functionContent,
     })
 

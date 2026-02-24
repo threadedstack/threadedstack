@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { cleanupQuickstart } from '../utils/repl-cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Validates that the backend API returns correctly scoped data per project.
@@ -12,7 +13,6 @@ import { cleanupQuickstart } from '../utils/repl-cleanup'
  */
 describe('Tier 1: Project State Scoping', () => {
   const ctx = readContext()
-  const timestamp = Date.now()
 
   let quickstartA: Record<string, any> = {}
   let quickstartB: Record<string, any> = {}
@@ -25,8 +25,8 @@ describe('Tier 1: Project State Scoping', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-test-scope-a-12345',
-        projectName: `Scoping Test A ${timestamp}`,
-        agentName: `Scoping Agent A ${timestamp}`,
+        projectName: uniqueName('Scoping Test A'),
+        agentName: uniqueName('Scoping Agent A'),
       }
     )
 
@@ -42,8 +42,8 @@ describe('Tier 1: Project State Scoping', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-test-scope-b-12345',
-        projectName: `Scoping Test B ${timestamp}`,
-        agentName: `Scoping Agent B ${timestamp}`,
+        projectName: uniqueName('Scoping Test B'),
+        agentName: uniqueName('Scoping Agent B'),
       }
     )
 

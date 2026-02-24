@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, post, api } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 3: FaaS Endpoint Execution Flow
@@ -56,8 +57,8 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
-        projectName: `FaaS Test Project ${timestamp}`,
-        agentName: `FaaS Test Agent ${timestamp}`,
+        projectName: uniqueName('FaaS Test Project'),
+        agentName: uniqueName('FaaS Test Agent'),
       }
     )
 
@@ -73,7 +74,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
     const tsFnRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
-        name: `FaaS TS Function ${timestamp}`,
+        name: uniqueName('FaaS TS Function'),
         content: tsFunctionContent,
         language: 'typescript',
         projectId,
@@ -91,7 +92,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
     const jsFnRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
-        name: `FaaS JS Function ${timestamp}`,
+        name: uniqueName('FaaS JS Function'),
         content: jsFunctionContent,
         language: 'javascript',
         projectId,
@@ -109,7 +110,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
     const tsEpRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
-        name: `FaaS TS Endpoint ${timestamp}`,
+        name: uniqueName('FaaS TS Endpoint'),
         path: `/faas/ts-test-${timestamp}`,
         type: 'faas',
         method: 'post',
@@ -129,7 +130,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
     const jsEpRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
-        name: `FaaS JS Endpoint ${timestamp}`,
+        name: uniqueName('FaaS JS Endpoint'),
         path: `/faas/js-test-${timestamp}`,
         type: 'faas',
         method: 'post',
@@ -149,7 +150,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
     const badEpRes = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
-        name: `FaaS Bad Endpoint ${timestamp}`,
+        name: uniqueName('FaaS Bad Endpoint'),
         path: `/faas/bad-${timestamp}`,
         type: 'faas',
         method: 'post',

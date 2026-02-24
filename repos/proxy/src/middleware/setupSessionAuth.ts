@@ -4,7 +4,7 @@ import type { Request, Response, NextFunction } from 'express'
 import { logger } from '@TPX/utils/logger'
 
 /**
- * Session-token authentication middleware for /ai/chat and /ai/stream
+ * Session-token authentication middleware for /ai/chat and /ai/ws
  *
  * Ensures a session token is present in the Authorization header.
  * The actual token validation happens in the backend — this middleware

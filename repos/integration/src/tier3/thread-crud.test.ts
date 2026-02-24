@@ -3,6 +3,7 @@ import { get, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
 import { tryDelete } from '../utils/cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 describe('Tier 3: Thread CRUD Flow', () => {
   const ctx = readContext()
@@ -12,14 +13,13 @@ describe('Tier 3: Thread CRUD Flow', () => {
   let setupFailed = false
 
   beforeAll(async () => {
-    const timestamp = Date.now()
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-test-fake-key-12345',
-        projectName: `Thread CRUD Test Project ${timestamp}`,
-        agentName: `Thread CRUD Test Agent ${timestamp}`,
+        projectName: uniqueName('Thread CRUD Test Project'),
+        agentName: uniqueName('Thread CRUD Test Agent'),
       }
     )
 

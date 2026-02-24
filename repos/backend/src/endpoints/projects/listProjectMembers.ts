@@ -22,7 +22,10 @@ export const listProjectMembers: TEndpointConfig = {
 
     const { limit, offset } = parsePagination(req)
 
-    const { data, error } = await db.services.role.getProjectMembers(projectId)
+    const { data, error } = await db.services.role.getProjectMembers(projectId, {
+      limit,
+      offset,
+    })
 
     if (error) throw new Exception(500, error.message)
 

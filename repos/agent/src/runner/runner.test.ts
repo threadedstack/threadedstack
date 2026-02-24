@@ -48,11 +48,12 @@ vi.mock(`@tdsk/sandbox`, () => ({
 }))
 
 vi.mock(`@tdsk/logger`, () => ({
-  Logger: {
+  Log: vi.fn().mockImplementation(() => ({
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
-  },
+    debug: vi.fn(),
+  })),
 }))
 
 vi.mock(`@TAG/tools/tools`, () => ({
@@ -62,10 +63,6 @@ vi.mock(`@TAG/tools/tools`, () => ({
 
 vi.mock(`@TAG/adapters/eventBridge`, () => ({
   mapAgentEvent: vi.fn().mockReturnValue(undefined),
-}))
-
-vi.mock(`@TAG/stream/stream`, () => ({
-  createStreamProxy: vi.fn().mockReturnValue(vi.fn()),
 }))
 
 vi.mock(`@TAG/adapters/messageConverter`, () => ({
@@ -79,7 +76,6 @@ import { getModel } from '@mariozechner/pi-ai'
 import { Agent } from '@mariozechner/pi-agent-core'
 import { createSandboxProvider } from '@tdsk/sandbox'
 import { createSandboxTools } from '@TAG/tools/tools'
-import { createStreamProxy } from '@TAG/stream/stream'
 import { mapAgentEvent } from '@TAG/adapters/eventBridge'
 import { convertToLlmMessages } from '@TAG/adapters/messageConverter'
 
@@ -205,36 +201,6 @@ describe(`AgentRunner`, () => {
     await AgentRunner.run(opts)
 
     expect(getModel).toHaveBeenCalledWith(`anthropic`, `claude-sonnet-4-20250514`)
-  })
-
-  it(`should create proxy stream function when proxyConfig is provided`, async () => {
-    const opts = {
-      ...baseOpts(),
-      proxyConfig: {
-        backendUrl: `https://api.example.com`,
-        sessionToken: `session-123`,
-      },
-    }
-    await AgentRunner.run(opts)
-
-    expect(createStreamProxy).toHaveBeenCalledWith({
-      backendUrl: `https://api.example.com`,
-      sessionToken: `session-123`,
-    })
-
-    // Verify streamFn was passed to Agent constructor
-    const agentCtorArgs = vi.mocked(Agent).mock.calls[0][0]
-    expect(agentCtorArgs.streamFn).toBeDefined()
-  })
-
-  it(`should NOT create proxy stream function when proxyConfig is absent`, async () => {
-    const opts = baseOpts()
-    await AgentRunner.run(opts)
-
-    expect(createStreamProxy).not.toHaveBeenCalled()
-
-    const agentCtorArgs = vi.mocked(Agent).mock.calls[0][0]
-    expect(agentCtorArgs.streamFn).toBeUndefined()
   })
 
   it(`should set up getApiKey from llmConfig.apiKey`, async () => {

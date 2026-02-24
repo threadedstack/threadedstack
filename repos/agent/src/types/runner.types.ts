@@ -9,8 +9,8 @@ import type {
 
 /**
  * Narrow interface for message persistence.
- * Backend implements this via direct DB calls,
- * REPL implements this via HTTP calls to the backend API.
+ * Backend implements this via direct DB calls.
+ * REPL delegates all persistence to the backend (no local implementation).
  */
 export interface IAgentRunnerDB {
   listMessages(opts: {
@@ -25,15 +25,6 @@ export interface IAgentRunnerDB {
     content: TMessageContent[]
     orgId: string
   }): Promise<unknown>
-}
-
-/**
- * Config for routing LLM calls through the backend SSE proxy.
- * Used by REPL to avoid requiring the LLM API key directly.
- */
-export type TProxyConfig = {
-  backendUrl: string
-  sessionToken: string
 }
 
 export type TAgentRunOpts = {
@@ -58,8 +49,6 @@ export type TAgentRunOpts = {
   environment?: TAgentEnvironment
   /** Max conversation loop steps (prevents infinite tool-call loops) */
   maxSteps?: number
-  /** Config for routing LLM calls through the backend SSE proxy */
-  proxyConfig?: TProxyConfig
   /** Callback for each streaming event */
   onEvent: (event: TStreamEvent) => void
   /** AbortSignal to cancel the agent run */

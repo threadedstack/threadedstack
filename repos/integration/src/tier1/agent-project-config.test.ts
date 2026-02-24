@@ -3,6 +3,7 @@ import { get, put, post, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { cleanupQuickstart } from '../utils/repl-cleanup'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 1: Agent Project Config (Override) CRUD
@@ -16,7 +17,6 @@ import { cleanupQuickstart } from '../utils/repl-cleanup'
  */
 describe('Tier 1: Agent Project Config', () => {
   const ctx = readContext()
-  const timestamp = Date.now()
 
   // Resources created by quickstart
   let orgId = ''
@@ -44,8 +44,8 @@ describe('Tier 1: Agent Project Config', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-ant-test-config-override',
-        projectName: `Config Override IT ${timestamp}`,
-        agentName: `Config Override Agent ${timestamp}`,
+        projectName: uniqueName('Config Override IT'),
+        agentName: uniqueName('Config Override Agent'),
         agentDescription: 'Base agent description',
         model: 'claude-sonnet-4-20250514',
         maxTokens: 50000,
@@ -67,7 +67,7 @@ describe('Tier 1: Agent Project Config', () => {
     const funcRes = await post<{ data: { id: string } }>(
       `/orgs/${orgId}/projects/${projectId}/functions`,
       {
-        name: `config-test-func-${timestamp}`,
+        name: uniqueName('config-test-func'),
         content: 'export default () => "hello"',
         projectId,
         language: 'typescript',

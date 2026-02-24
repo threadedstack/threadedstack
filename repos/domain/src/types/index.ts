@@ -1,4 +1,5 @@
 export * from './ai.types'
+export * from './ws.types'
 export * from './epd.types'
 export * from './git.types'
 export * from './http.types'

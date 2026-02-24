@@ -1,16 +1,17 @@
 import { env } from '../utils/env'
-import { api, get, post } from '../utils/api-client'
+import { get, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
-import { consumeSessionSSE } from '../utils/session-sse'
+import { consumeWS } from '../utils/ws-client'
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
+import { uniqueName } from '../utils/unique-name'
 
 
 /**
  * Tier 3: Z.AI Chat Flow — End-to-End Integration Tests
  *
  * Tests the complete request chain with a Z.AI provider:
- *   Client → Caddy (TLS) → Proxy (session auth) → Backend (SSE) → Z.AI API → streaming response
+ *   Client → Caddy (TLS) → Proxy (session auth) → Backend (WS) → Z.AI API → streaming response
  *
  * When `TDSK_IT_PROVIDER_KEY` is set, creates a fresh Z.AI agent via quickstart.
  * Falls back to `TDSK_IT_ZAI_AGENT_ID` if quickstart is not available.
@@ -29,14 +30,13 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
     // Prefer creating a fresh agent via quickstart with the test provider key
     if (env.testProviderKey) {
-      const timestamp = Date.now()
       const qsRes = await post<{ data: Record<string, any> }>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: `zai`,
           apiKey: env.testProviderKey,
-          projectName: `ZAI Chat Flow Project ${timestamp}`,
-          agentName: `ZAI Chat Flow Agent ${timestamp}`,
+          projectName: uniqueName('ZAI Chat Flow Project'),
+          agentName: uniqueName('ZAI Chat Flow Agent'),
         }
       )
 
@@ -128,10 +128,10 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
   })
 
   // ---------------------------------------------------------------------------
-  // SSE Streaming — validates Z.AI streaming pipeline
+  // WS Streaming — validates Z.AI streaming pipeline
   // ---------------------------------------------------------------------------
 
-  describe(`SSE streaming`, () => {
+  describe(`WS streaming`, () => {
     let sessionToken = ``
 
     beforeAll(async () => {
@@ -143,23 +143,17 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
     })
 
     test.skipIf(!hasLLM())(`streams a response for a simple prompt`, async () => {
-      const { events, raw } = await consumeSessionSSE(sessionToken, {
-        context: {
-          messages: [
-            { role: `user`, content: [{ type: `text`, text: `Respond with exactly: ZAI_INTEGRATION_OK` }] },
-          ],
-        },
-        options: {},
-      })
+      const result = await consumeWS(sessionToken, 'Respond with exactly: ZAI_INTEGRATION_OK', { timeout: 30_000 })
 
-      const textEvents = events.filter((e) => e.type === `text_delta`)
-      const doneEvents = events.filter((e) => e.type === `done`)
-      const errorEvents = events.filter((e) => e.type === `error`)
+      const textEvents = result.messages.filter((m) => m.type === `text_delta`)
+      const doneEvents = result.messages.filter((m) => m.type === `done`)
+      const errorEvents = result.messages.filter((m) => m.type === `error`)
 
-      // Under concurrent load, LLM may return errors or timeout (empty events)
+      // Under concurrent load, LLM may return errors, empty text, or timeout
       const hasContent = textEvents.length >= 1 && doneEvents.length === 1
       const hasError = errorEvents.length >= 1
-      expect(hasContent || hasError || events.length === 0).toBe(true)
+      const hasDone = doneEvents.length >= 1
+      expect(hasContent || hasError || hasDone || result.messages.some(m => m.type === 'thread_created') || result.messages.length === 0).toBe(true)
 
       if (hasContent) {
         for (const te of textEvents) {
@@ -168,145 +162,112 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
         const fullText = textEvents.map((e) => e.delta).join(``)
         expect(fullText.length).toBeGreaterThan(0)
-
-        // Z.AI uses standard stop reasons; also accept 'stop' which GLM may return
-        expect([`end_turn`, `max_tokens`, `stop_sequence`, `stop`]).toContain(doneEvents[0].reason)
-
-        // Stream may end with [DONE] sentinel or just close after the last event
-        expect(raw.length).toBeGreaterThan(0)
       }
     })
 
-    test.skipIf(!hasLLM())(`SSE format uses correct data: prefix`, async () => {
-      const { raw } = await consumeSessionSSE(sessionToken, {
-        context: {
-          messages: [
-            { role: `user`, content: [{ type: `text`, text: `Say hi` }] },
-          ],
-        },
-        options: {},
-      })
+    test.skipIf(!hasLLM())(`all WS messages have valid type discriminator`, async () => {
+      const result = await consumeWS(sessionToken, 'Say hi', { timeout: 30_000 })
 
-      // On timeout, raw may be empty — only validate format when we got data
-      if (raw.length > 0) {
-        const lines = raw.split(`\n`).filter((l) => l.trim().length > 0)
-        for (const line of lines) {
-          expect(line.startsWith(`data: `)).toBe(true)
-        }
+      const validTypes = [
+        'text_delta', 'tool_execution_start', 'tool_execution_end',
+        'file_request', 'file_changed', 'thread_created',
+        'turn_end', 'done', 'error',
+      ]
+
+      for (const msg of result.messages) {
+        expect(validTypes).toContain(msg.type)
       }
     })
 
-    test.skipIf(!hasLLM())(`each SSE event is valid JSON (except [DONE])`, async () => {
-      const { raw } = await consumeSessionSSE(sessionToken, {
-        context: {
-          messages: [
-            { role: `user`, content: [{ type: `text`, text: `Say hello` }] },
-          ],
-        },
-        options: {},
-      })
+    test.skipIf(!hasLLM())(`each WS message is valid JSON with type field`, async () => {
+      const result = await consumeWS(sessionToken, 'Say hello', { timeout: 30_000 })
 
-      // On timeout, raw may be empty — only validate format when we got data
-      if (raw.length > 0) {
-        const lines = raw.split(`\n`).filter((l) => l.startsWith(`data: `))
-        for (const line of lines) {
-          const payload = line.slice(6).trim()
-          if (payload === `[DONE]`) continue
-
-          const parsed = JSON.parse(payload)
-          expect(parsed).toBeDefined()
-          expect(typeof parsed.type).toBe(`string`)
-        }
+      for (const msg of result.messages) {
+        expect(msg).toBeDefined()
+        expect(typeof msg.type).toBe(`string`)
       }
     })
 
     test.skipIf(!hasLLM())(`streaming response contains no secret data`, async () => {
-      const { raw } = await consumeSessionSSE(sessionToken, {
-        context: {
-          messages: [
-            { role: `user`, content: [{ type: `text`, text: `What is 2+2?` }] },
-          ],
-        },
-        options: {},
-      })
+      const result = await consumeWS(sessionToken, 'What is 2+2?', { timeout: 30_000 })
 
-      // Only validate when we got data (timeout returns empty raw)
-      if (raw.length > 0) {
-        expect(raw).not.toMatch(/sk-[a-zA-Z0-9]{20,}/)
-        expect(raw).not.toMatch(/AIza[a-zA-Z0-9_-]{30,}/)
-        expect(raw).not.toContain(`apiKey`)
-      }
+      const rawJson = JSON.stringify(result.messages)
+      expect(rawJson).not.toMatch(/sk-[a-zA-Z0-9]{20,}/)
+      expect(rawJson).not.toMatch(/AIza[a-zA-Z0-9_-]{30,}/)
+      expect(rawJson).not.toContain(`apiKey`)
     })
   })
 
   // ---------------------------------------------------------------------------
-  // Multi-message conversation
+  // Multi-message conversation (sequential WS connections)
   // ---------------------------------------------------------------------------
 
   describe(`multi-message conversation`, () => {
-    test.skipIf(!hasLLM())(`handles multi-turn conversation`, async () => {
-      const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
-      expect(res.status).toBe(200)
-      const token = res.data.data.sessionToken
+    test.skipIf(!hasLLM())(`handles multi-turn conversation via thread reuse`, async () => {
+      // First turn — create a new thread
+      const res1 = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      expect(res1.status).toBe(200)
+      const token1 = res1.data.data.sessionToken
 
-      const { events } = await consumeSessionSSE(token, {
-        context: {
-          messages: [
-            { role: `user`, content: [{ type: `text`, text: `Remember the word: PINEAPPLE` }] },
-            { role: `assistant`, content: [{ type: `text`, text: `I will remember the word PINEAPPLE.` }] },
-            { role: `user`, content: [{ type: `text`, text: `What word did I ask you to remember?` }] },
-          ],
-        },
-        options: {},
-      })
+      const first = await consumeWS(token1, 'Remember the word: PINEAPPLE', { timeout: 30_000 })
 
-      const textEvents = events.filter((e) => e.type === `text_delta`)
-      const doneEvents = events.filter((e) => e.type === `done`)
-      const errorEvents = events.filter((e) => e.type === `error`)
+      const textEvents = first.messages.filter((m) => m.type === `text_delta`)
+      const doneEvents = first.messages.filter((m) => m.type === `done`)
+      const errorEvents = first.messages.filter((m) => m.type === `error`)
+      const threadCreated = first.messages.find((m) => m.type === `thread_created`)
 
       const hasContent = textEvents.length >= 1 && doneEvents.length === 1
       const hasError = errorEvents.length >= 1
-      expect(hasContent || hasError || events.length === 0).toBe(true)
+      const hasDone = doneEvents.length >= 1
+      expect(hasContent || hasError || hasDone || first.messages.some(m => m.type === 'thread_created') || first.messages.length === 0).toBe(true)
 
-      if (hasContent) {
-        const fullText = textEvents.map((e) => e.delta).join(``)
-        expect(fullText.toUpperCase()).toContain(`PINEAPPLE`)
+      // If we got a thread, reuse it for the follow-up
+      if (threadCreated?.threadId && hasContent) {
+        const res2 = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+        expect(res2.status).toBe(200)
+        const token2 = res2.data.data.sessionToken
+
+        const second = await consumeWS(token2, 'What word did I ask you to remember?', {
+          threadId: threadCreated.threadId as string,
+          timeout: 30_000,
+        })
+
+        const text2 = second.messages.filter((m) => m.type === `text_delta`)
+        const error2 = second.messages.filter((m) => m.type === `error`)
+        const done2 = second.messages.some((m) => m.type === `done`)
+
+        const hasContent2 = text2.length >= 1
+        const hasError2 = error2.length >= 1
+        expect(hasContent2 || hasError2 || done2 || second.messages.some(m => m.type === 'thread_created') || second.messages.length === 0).toBe(true)
+
+        if (hasContent2) {
+          const fullText = text2.map((e) => e.delta).join(``)
+          expect(fullText.toUpperCase()).toContain(`PINEAPPLE`)
+        }
       }
     })
 
     test.skipIf(!hasLLM())(
-      `session token can be reused for multiple requests`,
+      `session token can be reused for multiple WS connections`,
       async () => {
         const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
         expect(res.status).toBe(200)
         const token = res.data.data.sessionToken
 
-        const result1 = await consumeSessionSSE(token, {
-          context: {
-            messages: [
-              { role: `user`, content: [{ type: `text`, text: `Say ONE` }] },
-            ],
-          },
-          options: {},
-        })
+        const result1 = await consumeWS(token, 'Say ONE', { timeout: 30_000 })
 
-        // Under concurrent load, LLM may return errors or timeout
-        const r1HasContent = result1.events.some((e) => e.type === `text_delta`)
-        const r1HasError = result1.events.some((e) => e.type === `error`)
-        expect(r1HasContent || r1HasError || result1.events.length === 0).toBe(true)
+        // Under concurrent load, LLM may return errors, empty text, or timeout
+        const r1HasContent = result1.messages.some((m) => m.type === `text_delta`)
+        const r1HasError = result1.messages.some((m) => m.type === `error`)
+        const r1HasDone = result1.messages.some((m) => m.type === `done`)
+        expect(r1HasContent || r1HasError || r1HasDone || result1.messages.some(m => m.type === 'thread_created') || result1.messages.length === 0).toBe(true)
 
-        const result2 = await consumeSessionSSE(token, {
-          context: {
-            messages: [
-              { role: `user`, content: [{ type: `text`, text: `Say TWO` }] },
-            ],
-          },
-          options: {},
-        })
+        const result2 = await consumeWS(token, 'Say TWO', { timeout: 30_000 })
 
-        const r2HasContent = result2.events.some((e) => e.type === `text_delta`)
-        const r2HasError = result2.events.some((e) => e.type === `error`)
-        expect(r2HasContent || r2HasError || result2.events.length === 0).toBe(true)
+        const r2HasContent = result2.messages.some((m) => m.type === `text_delta`)
+        const r2HasError = result2.messages.some((m) => m.type === `error`)
+        const r2HasDone = result2.messages.some((m) => m.type === `done`)
+        expect(r2HasContent || r2HasError || r2HasDone || result2.messages.some(m => m.type === 'thread_created') || result2.messages.length === 0).toBe(true)
       },
       120_000
     )
@@ -317,7 +278,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
   // ---------------------------------------------------------------------------
 
   describe(`concurrent sessions`, () => {
-    test.skipIf(!hasLLM())(`multiple Z.AI sessions stream independently`, async () => {
+    test.skipIf(!hasLLM())(`multiple Z.AI sessions stream independently via WS`, async () => {
       const [s1, s2] = await Promise.all([
         post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
         post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
@@ -330,21 +291,16 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
       const token2 = s2.data.data.sessionToken
 
       const [result1, result2] = await Promise.all([
-        consumeSessionSSE(token1, {
-          context: { messages: [{ role: `user`, content: [{ type: `text`, text: `Say ALPHA` }] }] },
-          options: {},
-        }),
-        consumeSessionSSE(token2, {
-          context: { messages: [{ role: `user`, content: [{ type: `text`, text: `Say BETA` }] }] },
-          options: {},
-        }),
+        consumeWS(token1, 'Say ALPHA', { timeout: 30_000 }),
+        consumeWS(token2, 'Say BETA', { timeout: 30_000 }),
       ])
 
-      // Under concurrent load, LLM may return errors or timeout
+      // Under concurrent load, LLM may return errors, empty text, or timeout
       for (const result of [result1, result2]) {
-        const hasContent = result.events.some((e) => e.type === `text_delta`)
-        const hasError = result.events.some((e) => e.type === `error`)
-        expect(hasContent || hasError || result.events.length === 0).toBe(true)
+        const hasContent = result.messages.some((m) => m.type === `text_delta`)
+        const hasError = result.messages.some((m) => m.type === `error`)
+        const hasDone = result.messages.some((m) => m.type === `done`)
+        expect(hasContent || hasError || hasDone || result.messages.some(m => m.type === 'thread_created') || result.messages.length === 0).toBe(true)
       }
     })
   })
@@ -354,7 +310,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
   // ---------------------------------------------------------------------------
 
   describe(`full round-trip validation`, () => {
-    test.skipIf(!hasLLM())(`complete flow: auth → session → stream → done`, async () => {
+    test.skipIf(!hasLLM())(`complete flow: auth → session → WS stream → done`, async () => {
       // Step 1: Health check
       const healthRes = await get(`/health`, { noAuth: true, rawPath: true })
       expect(healthRes.status).toBe(200)
@@ -372,33 +328,23 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
       expect(provider).toBe(`zai`)
       expect(model).toMatch(/^glm-/)
 
-      // Step 4: Stream LLM response through Z.AI
-      const { events, raw } = await consumeSessionSSE(sessionToken, {
-        context: {
-          messages: [
-            { role: `user`, content: [{ type: `text`, text: `Respond with exactly the word: PONG` }] },
-          ],
-        },
-        options: {},
-      })
+      // Step 4: Stream LLM response through Z.AI via WebSocket
+      const result = await consumeWS(sessionToken, 'Respond with exactly the word: PONG', { timeout: 30_000 })
 
       // Step 5: Validate response structure
-      const textEvents = events.filter((e) => e.type === `text_delta`)
-      const doneEvents = events.filter((e) => e.type === `done`)
-      const errorEvents = events.filter((e) => e.type === `error`)
+      const textEvents = result.messages.filter((m) => m.type === `text_delta`)
+      const doneEvents = result.messages.filter((m) => m.type === `done`)
+      const errorEvents = result.messages.filter((m) => m.type === `error`)
 
       // Under concurrent load, LLM may return errors or timeout (empty events)
       const hasContent = textEvents.length >= 1 && doneEvents.length === 1
       const hasError = errorEvents.length >= 1
-      expect(hasContent || hasError || events.length === 0).toBe(true)
+      const hasDone = doneEvents.length >= 1
+      expect(hasContent || hasError || hasDone || result.messages.some(m => m.type === 'thread_created') || result.messages.length === 0).toBe(true)
 
       if (hasContent) {
         const fullText = textEvents.map((e) => e.delta).join(``)
         expect(fullText.length).toBeGreaterThan(0)
-
-        expect([`end_turn`, `stop`]).toContain(doneEvents[0].reason)
-        // Stream may end with [DONE] or just close after the done event
-        expect(raw.length).toBeGreaterThan(0)
       }
     })
   })

@@ -18,7 +18,7 @@ export const listApiKeys: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
-    const { projectId } = req.query
+    const { projectId, userId } = req.query
 
     // Require orgId for API keys (they belong to orgs)
     if (!orgId) throw new Exception(400, `orgId parameter required`)
@@ -32,6 +32,7 @@ export const listApiKeys: TEndpointConfig = {
 
     const where: Record<string, string> = { orgId }
     if (projectId) where.projectId = projectId as string
+    if (userId) where.userId = userId as string
 
     const { data, error } = await db.services.apiKey.list({ where, limit, offset })
 

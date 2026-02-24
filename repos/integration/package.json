@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf node_modules",
-    "test": "pnpm test:api && pnpm test:ui",
+    "test": "pnpm test:api",
+    "test:all": "pnpm test:api && pnpm test:ui",
     "test:api": "vitest run --config configs/vitest.config.ts",
     "test:ui": "playwright test --config configs/playwright.config.ts",
     "pwi": "playwright install chromium"
@@ -14,10 +15,12 @@
     "@keg-hub/parse-config": "2.2.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.42.0",
+    "@playwright/test": "1.42.0",
     "@types/node": "25.2.3",
+    "@types/ws": "8.18.1",
     "typescript": "5.7.3",
     "vite-tsconfig-paths": "4.3.2",
-    "vitest": "1.6.1"
+    "vitest": "1.6.1",
+    "ws": "8.19.0"
   }
 }

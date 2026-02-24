@@ -1,4 +1,4 @@
-import type { TLLMProviderBrand } from '@tdsk/domain'
+import type { TLLMProviderBrand, TAgentEnvironment } from '@tdsk/domain'
 
 export type TProviderInfo = {
   id: string
@@ -17,10 +17,12 @@ export type TConnectionStatus = `${EConnectionStatus}`
 
 export type TSessionInfo = {
   model: string
+  tools?: string[]
   maxTokens?: number
   sessionToken: string
   systemPrompt?: string
   provider: TLLMProviderBrand
+  environment?: TAgentEnvironment
 }
 
 export type TCachedSession = {

@@ -95,6 +95,36 @@ describe(`Auth`, () => {
 
       expect(auth.extract(mockReq)).toBeNull()
     })
+
+    it(`should extract token from query param when no Authorization header`, () => {
+      const mockReq = {
+        headers: {},
+        path: `/ai/ws`,
+        url: `/ai/ws?token=session-from-query`,
+      } as unknown as Request
+
+      expect(auth.extract(mockReq)).toBe(`session-from-query`)
+    })
+
+    it(`should not extract token from query param for non-QueryToken routes`, () => {
+      const mockReq = {
+        headers: {},
+        path: `/fake-route`,
+        url: `/fake-route?token=session-from-query`,
+      } as unknown as Request
+
+      expect(auth.extract(mockReq)).toBeNull()
+    })
+
+    it(`should prefer Authorization header over query param`, () => {
+      const mockReq = {
+        path: `/ai/ws`,
+        headers: { authorization: `Session header-token` },
+        query: { token: `query-token` },
+      } as unknown as Request
+
+      expect(auth.extract(mockReq)).toBe(`header-token`)
+    })
   })
 
   describe(`verify`, () => {

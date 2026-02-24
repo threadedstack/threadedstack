@@ -4,6 +4,7 @@ import { post } from '../utils/api-client'
 import { createTestAuth } from '../utils/repl-auth'
 import { cleanupQuickstart } from '../utils/repl-cleanup'
 import { ApiClient } from '@tdsk/repl'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 1: REPL Project Flow — Live Backend Validation
@@ -13,7 +14,6 @@ import { ApiClient } from '@tdsk/repl'
  */
 describe('Tier 1: REPL Project Flow (live)', () => {
   const ctx = readContext()
-  const timestamp = Date.now()
   let client: ApiClient
 
   let agentId = ''
@@ -32,8 +32,8 @@ describe('Tier 1: REPL Project Flow (live)', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-ant-test-project-flow',
-        projectName: `REPL Project Flow IT ${timestamp}`,
-        agentName: `REPL Project Flow Agent ${timestamp}`,
+        projectName: uniqueName('REPL Project Flow IT'),
+        agentName: uniqueName('REPL Project Flow Agent'),
       }
     )
 

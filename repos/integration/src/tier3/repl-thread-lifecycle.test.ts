@@ -5,6 +5,7 @@ import { createTestAuth } from '../utils/repl-auth'
 import { cleanupQuickstart, cleanupThread } from '../utils/repl-cleanup'
 import { ApiClient } from '@tdsk/repl'
 import { Thread } from '@tdsk/domain'
+import { uniqueName } from '../utils/unique-name'
 
 /**
  * Tier 3: REPL Thread Lifecycle — Full CRUD Validation
@@ -15,7 +16,6 @@ import { Thread } from '@tdsk/domain'
  */
 describe('Tier 3: REPL Thread Lifecycle (live)', () => {
   const ctx = readContext()
-  const timestamp = Date.now()
   let client: ApiClient
 
   let agentId = ''
@@ -36,8 +36,8 @@ describe('Tier 3: REPL Thread Lifecycle (live)', () => {
       {
         providerBrand: 'anthropic',
         apiKey: 'sk-ant-test-thread-lifecycle',
-        projectName: `REPL Thread Lifecycle IT ${timestamp}`,
-        agentName: `REPL Thread Lifecycle Agent ${timestamp}`,
+        projectName: uniqueName('REPL Thread Lifecycle IT'),
+        agentName: uniqueName('REPL Thread Lifecycle Agent'),
       }
     )
 
@@ -65,7 +65,7 @@ describe('Tier 3: REPL Thread Lifecycle (live)', () => {
     })
 
     test('createThread with custom name preserves it', async () => {
-      const name = `custom-name-${timestamp}`
+      const name = uniqueName('custom-name')
       const thread = await client.createThread(ctx.orgId, agentId, name)
       expect(thread.name).toBe(name)
       threadIds.push(thread.id)

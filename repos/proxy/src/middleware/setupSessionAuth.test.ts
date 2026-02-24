@@ -174,4 +174,41 @@ describe(`validateSessionAuth`, () => {
     expect(mockNext).toHaveBeenCalled()
     expect(mockRes.status).not.toHaveBeenCalled()
   })
+
+  it(`should call next when session token is in query param on /ai/ws`, () => {
+    mockAuth.isSession.mockImplementation((path: string) =>
+      [`/ai/chat`, `/ai/stream`, `/ai/ws`].some((route) => path.startsWith(route))
+    )
+    mockAuth.extract.mockReturnValue(`abc-session-token`)
+
+    const mockReq = {
+      path: `/ai/ws`,
+      query: { token: `abc-session-token` },
+      headers: {},
+    } as unknown as Request
+
+    const middleware = validateSessionAuth(mockApp)
+    middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  it(`should return 401 when no token on /ai/ws path`, () => {
+    mockAuth.isSession.mockImplementation((path: string) =>
+      [`/ai/chat`, `/ai/stream`, `/ai/ws`].some((route) => path.startsWith(route))
+    )
+    mockAuth.extract.mockReturnValue(null)
+
+    const mockReq = {
+      path: `/ai/ws`,
+      query: {},
+      headers: {},
+    } as unknown as Request
+
+    const middleware = validateSessionAuth(mockApp)
+    middleware(mockReq, mockRes, mockNext)
+
+    expect(mockRes.status).toHaveBeenCalledWith(401)
+  })
 })

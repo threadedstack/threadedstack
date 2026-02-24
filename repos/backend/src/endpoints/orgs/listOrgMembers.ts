@@ -22,7 +22,7 @@ export const listOrgMembers: TEndpointConfig = {
 
     const { limit, offset } = parsePagination(req)
 
-    const { data, error } = await db.services.role.getOrgMembers(orgId)
+    const { data, error } = await db.services.role.getOrgMembers(orgId, { limit, offset })
 
     if (error) throw new Exception(500, error.message)
 

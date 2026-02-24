@@ -1,47 +1,76 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
-import { api, post } from '../utils/api-client'
+import { env } from '../utils/env'
+import { post, get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
-import { env } from '../utils/env'
+import { consumeWS } from '../utils/ws-client'
+import { EWSEventType } from '@tdsk/domain'
+import { uniqueName } from '../utils/unique-name'
 
-describe('Tier 3: Session Chat SSE Flow', () => {
+/**
+ * Tier 3: WebSocket Session Chat Flow
+ *
+ * Validates the full session → WebSocket → agent execution pipeline.
+ * Replaces the old SSE /ai/stream tests with WebSocket /ai/ws tests.
+ *
+ * Uses a real LLM provider key (TDSK_IT_PROVIDER_KEY) via quickstart, or
+ * falls back to pre-configured agents (TDSK_IT_AGENT_ID / TDSK_IT_ZAI_AGENT_ID).
+ */
+
+const getAgentId = () => env.testZaiAgentId || env.testAgentId
+const hasLLM = () => !!env.testProviderKey || !!getAgentId()
+
+describe('Tier 3: WebSocket Session Chat Flow', () => {
   const ctx = readContext()
   let agentId = ''
   let sessionToken = ''
   let sessionProvider = ''
-  let quickstartResult: Record<string, any> = {}
-  let setupFailed = false
+  let qsResult: Record<string, any> | null = null
 
   beforeAll(async () => {
-    // 1. Quickstart to create agent + provider + secret
-    const timestamp = Date.now()
-    const qsRes = await post<{ data: Record<string, any> }>(
-      `/orgs/${ctx.orgId}/quickstart`,
-      {
-        providerBrand: 'anthropic',
-        apiKey: 'sk-test-fake-key-chat-sse',
-        projectName: `Chat SSE Test Project ${timestamp}`,
-        agentName: `Chat SSE Test Agent ${timestamp}`,
-      }
-    )
+    if (!hasLLM()) return
 
-    if (qsRes.status !== 201 || !qsRes.data?.data?.agent?.id) {
-      setupFailed = true
-      return
+    if (env.testProviderKey) {
+      const qsRes = await post<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/quickstart`,
+        {
+          providerBrand: 'zai',
+          apiKey: env.testProviderKey,
+          projectName: uniqueName('WS Chat Test Project'),
+          agentName: uniqueName('WS Chat Test Agent'),
+        }
+      )
+
+      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
+        qsResult = qsRes.data.data
+        agentId = qsResult!.agent.id
+      }
     }
 
-    quickstartResult = qsRes.data.data
-    agentId = quickstartResult.agent.id
+    if (!agentId) {
+      agentId = getAgentId()
+    }
 
-    // 2. Create session
+    if (!agentId) return
+
+    const agentRes = await get<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${agentId}`
+    )
+
+    if (!agentRes.ok) {
+      throw new Error(
+        `Agent (${agentId}) not accessible: ${agentRes.status}\n` +
+        `  Hint: Verify the agent exists and belongs to org ${ctx.orgId}`
+      )
+    }
+
     const sessionRes = await post<{ data: Record<string, any> }>(
       `/_/ai/sessions`,
       { agentId }
     )
 
     if (sessionRes.status !== 200 || !sessionRes.data?.data?.sessionToken) {
-      setupFailed = true
-      return
+      throw new Error(`Session creation failed: ${sessionRes.status}`)
     }
 
     sessionToken = sessionRes.data.data.sessionToken
@@ -49,113 +78,56 @@ describe('Tier 3: Session Chat SSE Flow', () => {
   })
 
   afterAll(async () => {
-    if (quickstartResult.endpoint?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project?.id}/endpoints/${quickstartResult.endpoint.id}`)
-    if (quickstartResult.agent?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/agents/${quickstartResult.agent.id}`)
-    if (quickstartResult.project?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/projects/${quickstartResult.project.id}`)
-    if (quickstartResult.secret?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/secrets/${quickstartResult.secret.id}`)
-    if (quickstartResult.provider?.id)
-      await tryDelete(`/orgs/${ctx.orgId}/providers/${quickstartResult.provider.id}`)
+    if (!qsResult) return
+    if (qsResult.endpoint?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project?.id}/endpoints/${qsResult.endpoint.id}`)
+    if (qsResult.agent?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`)
+    if (qsResult.project?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${qsResult.project.id}`)
+    if (qsResult.secret?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/secrets/${qsResult.secret.id}`)
+    if (qsResult.provider?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/providers/${qsResult.provider.id}`)
   })
 
-  test('session token was created successfully', () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
+  test.skipIf(!hasLLM())('session token was created successfully', () => {
     expect(sessionToken).toBeTruthy()
     expect(typeof sessionToken).toBe('string')
   })
 
-  test('session returns correct provider from quickstart', () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
-    expect(sessionProvider).toBe('anthropic')
+  test.skipIf(!hasLLM())('session returns valid provider', () => {
+    expect(['anthropic', 'openai', 'google', 'zai']).toContain(sessionProvider)
   })
 
-  test('POST /ai/stream with valid session is accepted by backend', async () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
+  test.skipIf(!hasLLM())('WS with valid session is accepted by backend', async () => {
+    const result = await consumeWS(sessionToken, 'WS chat test prompt', { timeout: 60_000 })
 
-    // With a fake API key, the LLM adapter may hang while connecting
-    // to the external provider. We test that the request passes through
-    // auth + validation by using a short timeout — either we get a
-    // response (200 SSE or error) or the timeout proves the backend
-    // accepted the request and is attempting the LLM call.
-    const url = `${env.proxyUrl}/ai/stream`
-    let gotResponse = false
-    let responseStatus = 0
-
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Session ${sessionToken}`,
-        },
-        body: JSON.stringify({
-          context: {
-            messages: [
-              { role: 'user', content: [{ type: 'text', text: 'Say hello' }] },
-            ],
-          },
-          options: {},
-        }),
-        signal: AbortSignal.timeout(8_000),
-      })
-
-      gotResponse = true
-      responseStatus = res.status
-    } catch (err: any) {
-      // TimeoutError means the request was accepted but the backend
-      // is busy trying to reach the LLM provider — this is expected
-      // with a fake API key and confirms auth/validation passed
-      if (err.name === 'TimeoutError') {
-        gotResponse = true // timeout = backend accepted the request
-        return // pass — timeout with fake key is expected
-      }
-      throw err
-    }
-
-    // If we got a response, verify it's a valid status
-    if (gotResponse && responseStatus > 0) {
-      // 200 = SSE stream started, 401 = should NOT happen (token is valid)
-      expect(responseStatus).not.toBe(401)
-    }
+    expect(result.closeCode).not.toBe(4001)
+    expect(result.messages.length).toBeGreaterThanOrEqual(1)
   })
 
-  test('POST /ai/stream with invalid messages returns 400', async () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
+  test.skipIf(!hasLLM())('WS creates a thread for new conversation', async () => {
+    const result = await consumeWS(sessionToken, 'Thread creation test', { timeout: 60_000 })
 
-    const res = await api('/ai/stream', {
-      method: 'POST',
-      body: { context: { messages: 'not-an-array' }, options: {} },
-      rawPath: true,
-      noAuth: true,
-      headers: { 'Authorization': `Session ${sessionToken}` },
-    })
-
-    expect(res.status).toBe(400)
+    const threadMsg = result.messages.find(m => m.type === EWSEventType.ThreadCreated)
+    expect(threadMsg).toBeDefined()
+    expect(typeof threadMsg!.threadId).toBe('string')
+    expect((threadMsg!.threadId as string).length).toBeGreaterThan(0)
   })
 
-  test('POST /ai/stream with expired/deleted session returns 401', async () => {
-    if (setupFailed) return expect(setupFailed).toBe(false)
+  test.skipIf(!hasLLM())('WS with empty prompt returns error', async () => {
+    const result = await consumeWS(sessionToken, '', { timeout: 10_000 })
 
-    // Use a UUID that looks valid but doesn't exist in the store
+    const errorMsg = result.messages.find(m => m.type === EWSEventType.Error)
+    expect(errorMsg).toBeDefined()
+  })
+
+  test('WS with expired/deleted session is rejected', async () => {
     const fakeToken = '12345678-1234-1234-1234-123456789abc'
-    const res = await api('/ai/stream', {
-      method: 'POST',
-      body: {
-        context: {
-          messages: [
-            { role: 'user', content: [{ type: 'text', text: 'hello' }] },
-          ],
-        },
-        options: {},
-      },
-      rawPath: true,
-      noAuth: true,
-      headers: { 'Authorization': `Session ${fakeToken}` },
-    })
+    const result = await consumeWS(fakeToken, 'Should fail', { timeout: 10_000 })
 
-    expect(res.status).toBe(401)
+    const hasThread = result.messages.some(m => m.type === EWSEventType.ThreadCreated)
+    expect(hasThread).toBe(false)
   })
 })
