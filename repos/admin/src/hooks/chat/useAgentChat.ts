@@ -1,6 +1,7 @@
-import type { TMsgType, TWSServerMsg } from '@tdsk/domain'
+import type { TMsgType, TWSServerMsg, TMessageContent } from '@tdsk/domain'
 
 import { EMsgType, EWSEventType } from '@tdsk/domain'
+import { threadsApi } from '@TAF/services/threadsApi'
 import { AgentWSService } from '@TAF/services/agentWSService'
 import { useState, useRef, useCallback, useEffect } from 'react'
 
@@ -50,6 +51,12 @@ export const useAgentChat = (opts: TUseAgentChatOpts) => {
 
   // Keep threadId ref in sync with state
   threadIdRef.current = threadId
+
+  // Sync external threadId prop to internal state (e.g. when URL param changes)
+  useEffect(() => {
+    setThreadId(opts.threadId)
+    threadIdRef.current = opts.threadId
+  }, [opts.threadId])
 
   /**
    * Process an incoming WS event from the backend.
@@ -147,6 +154,54 @@ export const useAgentChat = (opts: TUseAgentChatOpts) => {
       serviceRef.current = null
     }
   }, [orgId, agentId, processWSEvent])
+
+  // Load existing messages when resuming a thread
+  useEffect(() => {
+    if (!opts.threadId || !orgId || !agentId) return
+
+    let cancelled = false
+
+    const loadHistory = async () => {
+      const resp = await threadsApi.listMessages(orgId, agentId, opts.threadId!)
+      if (cancelled || !resp.data) return
+
+      const mapped: TChatMessage[] = resp.data.map((msg: Record<string, any>) => {
+        const content: TMessageContent[] = msg.content || []
+
+        const text = content
+          .filter((c: TMessageContent) => c.type === `text`)
+          .map((c: TMessageContent) => (c as { text: string }).text)
+          .join(``)
+
+        const toolCalls: TChatToolCall[] = content
+          .filter((c: TMessageContent) => c.type === `tool_use`)
+          .map((c: TMessageContent) => {
+            const tu = c as { id: string; name: string; input: Record<string, unknown> }
+            return { id: tu.id, name: tu.name, args: JSON.stringify(tu.input) }
+          })
+
+        return {
+          id: msg.id,
+          text,
+          role: msg.type as TMsgType,
+          timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
+          ...(toolCalls.length > 0 ? { toolCalls } : {}),
+        }
+      })
+
+      setMessages(mapped)
+    }
+
+    loadHistory().catch((err) => {
+      if (!cancelled) {
+        setError(err instanceof Error ? err.message : `Failed to load thread history`)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [opts.threadId, orgId, agentId])
 
   const sendMessage = useCallback(
     async (prompt: string) => {

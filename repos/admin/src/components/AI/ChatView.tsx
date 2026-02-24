@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useParams } from 'react-router'
+import { useParams, useSearchParams } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { useAgentChat } from '@TAF/hooks/chat/useAgentChat'
 import { MessageBubble } from '@TAF/components/AI/MessageBubble'
@@ -38,6 +38,9 @@ export const ChatView = (props: TChatViewProps) => {
   const [orgId] = useActiveOrgId()
   const [agent] = useActiveAgent()
   const [input, setInput] = useState(``)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const threadParam = searchParams.get(`thread`) || undefined
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -54,6 +57,7 @@ export const ChatView = (props: TChatViewProps) => {
     useAgentChat({
       orgId: urlOrgId || orgId || ``,
       agentId: agentId || ``,
+      threadId: threadParam,
     })
 
   useEffect(() => {
@@ -156,7 +160,10 @@ export const ChatView = (props: TChatViewProps) => {
             size='small'
             variant='outlined'
             startIcon={<RefreshIcon />}
-            onClick={reset}
+            onClick={() => {
+              reset()
+              setSearchParams({})
+            }}
             disabled={isStreaming}
           >
             New Chat

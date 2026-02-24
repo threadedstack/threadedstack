@@ -37,16 +37,18 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Chat as ChatIcon,
   CallSplit as BranchIcon,
   Visibility as ViewIcon,
 } from '@mui/icons-material'
 
 export type TThreadsTab = {
   onViewThread?: (threadId: string) => void
+  onChatWithThread?: (threadId: string, agentId: string) => void
 }
 
 export const ThreadsTab = (props: TThreadsTab) => {
-  const { onViewThread: onViewThreadCB } = props
+  const { onViewThread: onViewThreadCB, onChatWithThread } = props
   const [orgId] = useActiveOrgId()
   const [agents] = useOrgAgents()
   const [threads] = useOrgThreads()
@@ -392,6 +394,19 @@ export const ThreadsTab = (props: TThreadsTab) => {
                     </Typography>
                   </TableCell>
                   <TableCell align='right'>
+                    {onChatWithThread && (
+                      <IconButton
+                        size='small'
+                        color='success'
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onChatWithThread(thread.id, thread.agentId)
+                        }}
+                        title='Continue in chat'
+                      >
+                        <ChatIcon fontSize='small' />
+                      </IconButton>
+                    )}
                     <IconButton
                       size='small'
                       color='info'

@@ -26,6 +26,8 @@ import {
 export type TCreateApiKeyDrawer = {
   orgId: string
   projectId?: string
+  userId?: string
+  userName?: string
   open: boolean
   onClose: () => void
   onSuccess?: () => void
@@ -38,7 +40,15 @@ const ScopeIcons = {
 }
 
 export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
-  const { open, orgId, projectId, onClose: onCloseCB, onSuccess: onSuccessCB } = props
+  const {
+    open,
+    orgId,
+    projectId,
+    userId,
+    userName,
+    onClose: onCloseCB,
+    onSuccess: onSuccessCB,
+  } = props
 
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<TApiKeyScope[]>([`read`])
@@ -70,6 +80,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     const result = await createApiKey({
       orgId,
       data: {
+        userId,
         projectId,
         expiresAt,
         name: name.trim(),
@@ -184,6 +195,18 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
               message={error}
               onClose={() => setError(null)}
             />
+          )}
+
+          {userName && (
+            <Box sx={{ mb: 2 }}>
+              <InputLabel>User</InputLabel>
+              <Typography
+                variant='body2'
+                color='text.secondary'
+              >
+                {userName}
+              </Typography>
+            </Box>
           )}
 
           <TextInput

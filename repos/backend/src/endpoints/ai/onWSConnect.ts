@@ -119,26 +119,23 @@ export const onWSConnect = async (
     return
   }
 
-  // 2. Resolve full session from DB (agent + secrets)
-  const session = await resolveSession(payload, app)
-  if (!session) {
-    ws.close(4001, `Failed to resolve agent session`)
-    return
-  }
+  // 2. Start resolving session (async) but register event handlers FIRST
+  //    to avoid losing messages that arrive during DB resolution.
+  const sessionPromise = resolveSession(payload, app)
 
-  logger.info(`WS connected: agent=${session.agentId}, user=${session.userId}`)
-
-  // 3. Execution state
   let running = false
   const { db } = app.locals
 
-  // 4. Handle WebSocket errors (fires before close on abnormal disconnects)
+  // 3. Handle WebSocket errors (fires before close on abnormal disconnects)
   ws.on(`error`, (err: Error) => {
     logger.error(`WebSocket error`, { error: err.message })
   })
 
-  // 5. Handle incoming messages
+  // 4. Handle incoming messages — waits for session before processing
   ws.on(`message`, async (raw: Buffer | string) => {
+    const session = await sessionPromise
+    if (!session) return
+
     try {
       const msg = parseClientMsg(raw)
       if (!msg) {
@@ -193,13 +190,26 @@ export const onWSConnect = async (
     }
   })
 
-  // 6. Cleanup on disconnect
+  // 5. Cleanup on disconnect
   ws.on(`close`, () => {
-    logger.info(`WS disconnected: agent=${session.agentId}, user=${session.userId}`)
+    sessionPromise.then((session) => {
+      if (session) {
+        logger.info(`WS disconnected: agent=${session.agentId}, user=${session.userId}`)
+      }
+    })
     if (service.abortController) {
       service.abortController.abort()
       service.abortController = null
     }
     service.close()
   })
+
+  // 6. Await session resolution — close if it fails
+  const session = await sessionPromise
+  if (!session) {
+    ws.close(4001, `Failed to resolve agent session`)
+    return
+  }
+
+  logger.info(`WS connected: agent=${session.agentId}, user=${session.userId}`)
 }

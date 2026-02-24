@@ -98,8 +98,8 @@ test.describe('Org Pages', () => {
     // PageLayout renders "Members" as the title via PageHeader
     await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible()
 
-    // At least 1 member should be shown (the org owner)
-    await expect(page.locator('.MuiCard-root').first()).toBeVisible()
+    // At least 1 member should be shown in the DataTable (the org owner)
+    await expect(page.locator('tbody tr').first()).toBeVisible()
 
     expect(errors).toEqual([])
   })

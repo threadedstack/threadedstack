@@ -7,7 +7,7 @@ import type {
   TAgentEndpointConfig,
 } from '@tdsk/domain'
 
-import { Box } from '@mui/material'
+import { Box, Tab, Tabs } from '@mui/material'
 import { vep } from '@TAF/utils/endpoints'
 import { EEndpointType } from '@tdsk/domain'
 import { useState, useEffect, useRef } from 'react'
@@ -23,6 +23,7 @@ import { FaasEndpoint } from '@TAF/components/Endpoints/Faas/EndpointFass'
 import { EndpointFormBase } from '@TAF/components/Endpoints/EndpointFormBase'
 import { EndpointProxy } from '@TAF/components/Endpoints/Proxy/EndpointProxy'
 import { EndpointAgent } from '@TAF/components/Endpoints/Agent/EndpointAgent'
+import { EndpointTestPanel } from '@TAF/components/Endpoints/EndpointTestPanel'
 
 export type TEndpointDrawer = {
   open: boolean
@@ -44,6 +45,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   } = props
 
   const isEditMode = Boolean(endpoint)
+  const [activeTab, setActiveTab] = useState<'configure' | 'test'>('configure')
 
   // Shared state (basic fields)
   const [sharedState, setSharedState] = useState({
@@ -85,6 +87,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
         endpointType: endpoint.type || EEndpointType.proxy,
       })
       setUiState({ loading: false, error: null, showDeleteConfirm: false })
+      setActiveTab('configure')
     } else {
       setSharedState({
         name: '',
@@ -94,6 +97,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
         endpointType: EEndpointType.proxy,
       })
       setUiState({ loading: false, error: null, showDeleteConfirm: false })
+      setActiveTab('configure')
     }
   }, [endpoint])
 
@@ -137,6 +141,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       faasConfigRef.current = null
       agentConfigRef.current = null
       validationErrorRef.current = null
+      setActiveTab('configure')
       onCloseCB?.()
     }
   }
@@ -258,72 +263,100 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
       onClose={onClose}
       title={isEditMode ? 'Edit Endpoint' : 'Create New Endpoint'}
       actions={
-        <DrawerActions
-          actions={actions}
-          form='endpoint-form'
-          editing={isEditMode}
-          loading={uiState.loading}
-          disabled={uiState.loading || uiState.showDeleteConfirm}
-        />
+        activeTab === 'configure' ? (
+          <DrawerActions
+            actions={actions}
+            form='endpoint-form'
+            editing={isEditMode}
+            loading={uiState.loading}
+            disabled={uiState.loading || uiState.showDeleteConfirm}
+          />
+        ) : undefined
       }
     >
-      <form id='endpoint-form'>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {uiState.error && (
-            <ErrorAlert
-              message={uiState.error}
-              onClose={() => setUiState({ ...uiState, error: null })}
-            />
-          )}
-
-          {uiState.showDeleteConfirm && (
-            <ConfirmDelete
-              onConfirm={onRemove}
-              deleting={uiState.loading}
-              itemName={sharedState.name}
-              warnText='This action can not be undone!'
-              onCancel={() => setUiState({ ...uiState, showDeleteConfirm: false })}
-            />
-          )}
-
-          <EndpointFormBase
-            sharedState={sharedState}
-            disabled={uiState.loading}
-            onChange={onSharedStateChange}
+      {isEditMode && (
+        <Tabs
+          value={activeTab}
+          onChange={(_, val) => setActiveTab(val)}
+          sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+        >
+          <Tab
+            label='Configure'
+            value='configure'
           />
+          <Tab
+            label='Test'
+            value='test'
+          />
+        </Tabs>
+      )}
 
-          {sharedState.endpointType === EEndpointType.proxy && (
-            <EndpointProxy
-              endpoint={endpoint}
-              onValidate={onValidate}
-              loading={uiState.loading}
-              availableSecrets={availableSecrets}
-              onConfigChange={onProxyConfigChange}
-            />
-          )}
+      {activeTab === 'configure' && (
+        <form id='endpoint-form'>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {uiState.error && (
+              <ErrorAlert
+                message={uiState.error}
+                onClose={() => setUiState({ ...uiState, error: null })}
+              />
+            )}
 
-          {sharedState.endpointType === EEndpointType.faas && (
-            <FaasEndpoint
-              endpoint={endpoint}
-              onValidate={onValidate}
-              loading={uiState.loading}
-              availableSecrets={availableSecrets}
-              availableFunctions={availableFunctions}
-              onConfigChange={onFaasConfigChange}
-            />
-          )}
+            {uiState.showDeleteConfirm && (
+              <ConfirmDelete
+                onConfirm={onRemove}
+                deleting={uiState.loading}
+                itemName={sharedState.name}
+                warnText='This action can not be undone!'
+                onCancel={() => setUiState({ ...uiState, showDeleteConfirm: false })}
+              />
+            )}
 
-          {sharedState.endpointType === EEndpointType.agent && (
-            <EndpointAgent
-              endpoint={endpoint}
-              onValidate={onValidate}
-              loading={uiState.loading}
-              availableSecrets={availableSecrets}
-              onConfigChange={onAgentConfigChange}
+            <EndpointFormBase
+              sharedState={sharedState}
+              disabled={uiState.loading}
+              onChange={onSharedStateChange}
             />
-          )}
-        </Box>
-      </form>
+
+            {sharedState.endpointType === EEndpointType.proxy && (
+              <EndpointProxy
+                endpoint={endpoint}
+                onValidate={onValidate}
+                loading={uiState.loading}
+                availableSecrets={availableSecrets}
+                onConfigChange={onProxyConfigChange}
+              />
+            )}
+
+            {sharedState.endpointType === EEndpointType.faas && (
+              <FaasEndpoint
+                endpoint={endpoint}
+                onValidate={onValidate}
+                loading={uiState.loading}
+                availableSecrets={availableSecrets}
+                availableFunctions={availableFunctions}
+                onConfigChange={onFaasConfigChange}
+              />
+            )}
+
+            {sharedState.endpointType === EEndpointType.agent && (
+              <EndpointAgent
+                endpoint={endpoint}
+                onValidate={onValidate}
+                loading={uiState.loading}
+                availableSecrets={availableSecrets}
+                onConfigChange={onAgentConfigChange}
+              />
+            )}
+          </Box>
+        </form>
+      )}
+
+      {activeTab === 'test' && endpoint && (
+        <EndpointTestPanel
+          projectId={projectId}
+          endpointId={endpoint.id}
+        />
+      )}
     </Drawer>
   )
 }

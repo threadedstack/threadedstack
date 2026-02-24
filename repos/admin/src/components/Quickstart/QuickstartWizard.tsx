@@ -9,6 +9,7 @@ import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { Box, Step, Stepper, StepLabel, Fade } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
+import CloseIcon from '@mui/icons-material/Close'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined'
@@ -82,36 +83,54 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
   } = useQuickStart(props)
 
   const isLastStep = activeStep === QSSteps.length - 1
+  const isFirstStep = activeStep === 0
 
   const { actions } = useDrawerActions({
     onSave,
     onClose,
   })
 
-  const drawerActions = {
-    ...actions,
-    cancel: {
-      ...actions.cancel,
-      ...(activeStep > 0
-        ? {
-            text: `Back`,
-            Icon: ArrowBackIcon,
-            color: `secondary` as const,
-            variant: `outlined` as const,
-            onClick: onBack,
-          }
-        : {}),
-    },
-    create: {
-      ...actions.save,
-      text: isLastStep ? `Create Everything` : `Next`,
-      Icon: isLastStep ? AddCircleOutlineIcon : ArrowForwardIcon,
-      color: isLastStep ? (`success` as const) : (`primary` as const),
-      variant: `contained` as const,
-      onClick: onSave,
-      disabled: loading || !canNext,
-    },
-  }
+  const drawerActions = isFirstStep
+    ? {
+        cancel: {
+          ...actions.cancel,
+        },
+        create: {
+          ...actions.save,
+          text: `Next`,
+          Icon: ArrowForwardIcon,
+          color: `primary` as const,
+          variant: `contained` as const,
+          onClick: onSave,
+          disabled: loading || !canNext,
+        },
+      }
+    : {
+        remove: {
+          text: `Cancel`,
+          Icon: CloseIcon,
+          color: `inherit` as const,
+          variant: `text` as const,
+          onClick: onClose,
+        },
+        cancel: {
+          ...actions.cancel,
+          text: `Back`,
+          Icon: ArrowBackIcon,
+          color: `secondary` as const,
+          variant: `outlined` as const,
+          onClick: onBack,
+        },
+        save: {
+          ...actions.save,
+          text: isLastStep ? `Create Everything` : `Next`,
+          Icon: isLastStep ? AddCircleOutlineIcon : ArrowForwardIcon,
+          color: isLastStep ? (`success` as const) : (`primary` as const),
+          variant: `contained` as const,
+          onClick: onSave,
+          disabled: loading || !canNext,
+        },
+      }
 
   return (
     <Drawer
@@ -129,8 +148,10 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
       actions={
         <DrawerActions
           actions={drawerActions}
+          editing={!isFirstStep}
           loading={loading}
           disabled={loading}
+          saveDisabled={loading || !canNext}
           createDisabled={loading || !canNext}
         />
       }

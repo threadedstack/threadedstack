@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router'
+import { useSearchParams, useNavigate, useParams } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { ThreadsTab } from '@TAF/components/AI/ThreadsTab'
 import { MessagesTab } from '@TAF/components/AI/MessagesTab'
@@ -16,6 +16,8 @@ import { capitalize } from '@keg-hub/jsutils/capitalize'
 export type TProjectThreads = {}
 
 export const ProjectThreads = (props: TProjectThreads) => {
+  const { agentId } = useParams<{ agentId: string }>()
+  const navigate = useNavigate()
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
   const [, setActiveThreadId] = useActiveThreadId()
@@ -53,6 +55,13 @@ export const ProjectThreads = (props: TProjectThreads) => {
     setActiveThreadId(threadId)
     setCurrentTab(EAgentThreadTab.messages)
     setSearchParams({ thread: threadId, tab: EAgentThreadTab.messages })
+  }
+
+  const handleChatWithThread = (threadId: string, threadAgentId: string) => {
+    const targetAgentId = threadAgentId || agentId
+    navigate(
+      `/orgs/${orgId}/projects/${projectId}/agents/${targetAgentId}/chat?thread=${threadId}`
+    )
   }
 
   if (!orgId || !projectId) return null
@@ -97,7 +106,10 @@ export const ProjectThreads = (props: TProjectThreads) => {
 
       <Box>
         {currentTab === EAgentThreadTab.threads && (
-          <ThreadsTab onViewThread={handleViewThread} />
+          <ThreadsTab
+            onViewThread={handleViewThread}
+            onChatWithThread={handleChatWithThread}
+          />
         )}
         {currentTab === EAgentThreadTab.messages && <MessagesTab />}
         {/* Assets tab hidden until backend /assets endpoint is implemented (BUG #53) */}

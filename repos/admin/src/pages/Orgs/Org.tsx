@@ -7,14 +7,33 @@ import { useActiveOrg } from '@TAF/state/selectors'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import { EditOrgDrawer } from '@TAF/components/Orgs/EditOrgDrawer'
+import { ERoleType } from '@tdsk/domain'
+import { getInitials } from '@TAF/utils/user/getInitials'
+import { getRoleColor } from '@TAF/utils/user/getRoleColor'
+import { useOrgUsersList } from '@TAF/hooks/org/useOrgUsersList'
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
-  PersonAdd as AddMemberIcon,
   VpnKey as SecretIcon,
+  PersonAdd as AddMemberIcon,
   FolderOpen as ProjectIcon,
 } from '@mui/icons-material'
-import { Box, Card, Grid, Button, Divider, Typography, CardContent } from '@mui/material'
+import {
+  Box,
+  Card,
+  Grid,
+  Chip,
+  List,
+  Avatar,
+  Button,
+  Divider,
+  ListItem,
+  Typography,
+  CardContent,
+  ListItemText,
+  ListItemAvatar,
+  CircularProgress,
+} from '@mui/material'
 
 export type TOrg = {}
 
@@ -23,6 +42,7 @@ export const Org = (props: TOrg) => {
   const navigate = useNavigate()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
+  const { users: orgUsers, loading: membersLoading } = useOrgUsersList()
 
   const onEditClick = () => setEditDrawerOpen(true)
   const onEditSuccess = () => setEditDrawerOpen(false)
@@ -286,7 +306,10 @@ export const Org = (props: TOrg) => {
               mb: 2,
             }}
           >
-            <Typography variant='h6'>Org Members</Typography>
+            <Typography variant='h6'>
+              Org Members
+              {!membersLoading && orgUsers.length > 0 && ` (${orgUsers.length})`}
+            </Typography>
             <Button
               variant='outlined'
               size='small'
@@ -298,12 +321,61 @@ export const Org = (props: TOrg) => {
           </Box>
           <Divider sx={{ mb: 2 }} />
 
-          <Typography
-            color='text.secondary'
-            align='center'
-          >
-            Visit the Users page to invite and manage organization members.
-          </Typography>
+          {membersLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : orgUsers.length === 0 ? (
+            <Typography
+              color='text.secondary'
+              align='center'
+            >
+              No members yet. Invite users from the Members page.
+            </Typography>
+          ) : (
+            <>
+              <List disablePadding>
+                {orgUsers.slice(0, 5).map((user) => (
+                  <ListItem
+                    key={user.id}
+                    sx={{ px: 0 }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar
+                        src={user.image}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        {getInitials(user)}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        user.displayName ||
+                        [user.first, user.last].filter(Boolean).join(' ') ||
+                        user.email ||
+                        'User'
+                      }
+                      secondary={user.email}
+                    />
+                    <Chip
+                      size='small'
+                      color={getRoleColor(user.role as ERoleType)}
+                      label={(user.role || ERoleType.viewer)?.toUpperCase()}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+              {orgUsers.length > 5 && (
+                <Button
+                  size='small'
+                  onClick={() => navigate(`/orgs/${org.id}/users`)}
+                  sx={{ mt: 1 }}
+                >
+                  View all {orgUsers.length} members
+                </Button>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 

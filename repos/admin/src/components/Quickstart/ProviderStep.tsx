@@ -8,6 +8,13 @@ import { styled, alpha } from '@mui/material/styles'
 import { TextInput, SelectInput } from '@tdsk/components'
 import CloudQueueIcon from '@mui/icons-material/CloudQueue'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import PsychologyIcon from '@mui/icons-material/Psychology'
+import TravelExploreIcon from '@mui/icons-material/TravelExplore'
+import BoltIcon from '@mui/icons-material/Bolt'
+import HubIcon from '@mui/icons-material/Hub'
+import TerminalIcon from '@mui/icons-material/Terminal'
+import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest'
 import {
   Box,
   Card,
@@ -107,6 +114,16 @@ const keyRequiredBrands = new Set<string>([
   ELLMProviderBrand.google,
 ])
 
+const ProviderIcons: Record<string, typeof AutoAwesomeIcon> = {
+  [ELLMProviderBrand.anthropic]: AutoAwesomeIcon,
+  [ELLMProviderBrand.openai]: PsychologyIcon,
+  [ELLMProviderBrand.google]: TravelExploreIcon,
+  [ELLMProviderBrand.zai]: BoltIcon,
+  [ELLMProviderBrand.openrouter]: HubIcon,
+  [ELLMProviderBrand.ollama]: TerminalIcon,
+  [ELLMProviderBrand.custom]: SettingsSuggestIcon,
+}
+
 export const ProviderStep = (props: TProviderStep) => {
   const { data, onChange, disabled } = props
   const template = ProviderTemplates[data.providerBrand]
@@ -174,6 +191,7 @@ export const ProviderStep = (props: TProviderStep) => {
         <ProvidersGrid>
           {Object.values(ProviderTemplates).map((tmpl) => {
             const isSelected = data.providerBrand === tmpl.id
+            const Icon = ProviderIcons[tmpl.id]
             return (
               <ProviderCard
                 key={tmpl.id}
@@ -197,6 +215,16 @@ export const ProviderStep = (props: TProviderStep) => {
                       px: 1.5,
                     }}
                   >
+                    {Icon && (
+                      <Icon
+                        sx={{
+                          fontSize: 28,
+                          mb: 0.5,
+                          color: isSelected ? `primary.main` : `text.secondary`,
+                          transition: `color 0.2s ease`,
+                        }}
+                      />
+                    )}
                     <Typography
                       variant='subtitle2'
                       sx={{
@@ -228,6 +256,7 @@ export const ProviderStep = (props: TProviderStep) => {
             value={data.apiKey}
             disabled={disabled}
             id='quickstart-api-key'
+            sx={{ bgcolor: `background.paper` }}
             placeholder={template?.apiKeyPlaceholder || `Enter your API key...`}
             onChange={(e) => onChange({ apiKey: e.target.value })}
             onBlur={onApiKeyBlur}
@@ -240,6 +269,7 @@ export const ProviderStep = (props: TProviderStep) => {
               value={data.providerUrl}
               disabled={disabled}
               id='quickstart-ollama-url'
+              sx={{ bgcolor: `background.paper` }}
               placeholder='http://localhost:11434/v1'
               onChange={(e) => onChange({ providerUrl: e.target.value })}
             />
@@ -254,6 +284,7 @@ export const ProviderStep = (props: TProviderStep) => {
                 value={data.providerName}
                 disabled={disabled}
                 id='quickstart-custom-name'
+                sx={{ bgcolor: `background.paper` }}
                 placeholder='e.g., My LLM Provider'
                 onChange={(e) => onChange({ providerName: e.target.value })}
               />
@@ -264,6 +295,7 @@ export const ProviderStep = (props: TProviderStep) => {
                 value={data.providerUrl}
                 disabled={disabled}
                 id='quickstart-custom-url'
+                sx={{ bgcolor: `background.paper` }}
                 placeholder='e.g., https://api.example.com/v1'
                 onChange={(e) => onChange({ providerUrl: e.target.value })}
               />
@@ -274,6 +306,7 @@ export const ProviderStep = (props: TProviderStep) => {
                 value={data.model}
                 disabled={disabled}
                 id='quickstart-custom-model'
+                sx={{ bgcolor: `background.paper` }}
                 placeholder='e.g., llama-3-70b'
                 onChange={(e) => onChange({ model: e.target.value })}
               />
@@ -296,6 +329,7 @@ export const ProviderStep = (props: TProviderStep) => {
               disabled={disabled}
               id='quickstart-model'
               items={modelOptions}
+              sx={{ bgcolor: `background.paper` }}
               onChange={(e) => onChange({ model: e.target.value as string })}
             />
           ) : dynamicBrands.has(data.providerBrand) ? (
@@ -306,6 +340,7 @@ export const ProviderStep = (props: TProviderStep) => {
               value={data.model}
               disabled={disabled}
               id='quickstart-dynamic-model'
+              sx={{ bgcolor: `background.paper` }}
               placeholder='e.g., llama3.2'
               onChange={(e) => onChange({ model: e.target.value })}
             />

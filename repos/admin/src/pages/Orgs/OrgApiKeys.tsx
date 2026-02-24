@@ -243,7 +243,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
         query={searchQuery}
         setSearchQuery={setSearchQuery}
         searchPlaceholder='Search API keys by name or prefix...'
-        searchCount={0}
+        searchCount={filteredApiKeys.length}
         onAction={apiKeysCount > 0 && onCreateApiKey}
         actionLabel={apiKeysCount > 0 && 'Generate API Key'}
         setError={(msg?: string) => setError(msg ? new Error(msg) : null)}

@@ -36,7 +36,7 @@ const getSigningKey = (): Buffer => {
  * Used by POST /ai/sessions to issue tokens.
  */
 export const signSessionToken = (payload: TSessionTokenPayload): string => {
-  return jwt.sign(payload, getSigningKey(), {
+  return jwt.sign({ ...payload, jti: crypto.randomUUID() }, getSigningKey(), {
     algorithm: `HS256`,
     expiresIn: SESSION_TTL_SEC,
   })

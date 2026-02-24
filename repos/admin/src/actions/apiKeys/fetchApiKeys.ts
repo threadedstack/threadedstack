@@ -5,6 +5,7 @@ import { setApiKeys } from '@TAF/state/accessors'
 
 export type TFetchApiKeysOpts = {
   orgId: string
+  userId?: string
 }
 
 export type TFetchApiKeysResult = {
@@ -15,8 +16,8 @@ export type TFetchApiKeysResult = {
 export const fetchApiKeys = async (
   opts: TFetchApiKeysOpts
 ): Promise<TFetchApiKeysResult> => {
-  const { orgId } = opts
-  const resp = await apiKeysApi.list(orgId)
+  const { orgId, userId } = opts
+  const resp = await apiKeysApi.list(orgId, userId ? { userId } : undefined)
 
   if (resp.error) {
     return { error: resp.error }

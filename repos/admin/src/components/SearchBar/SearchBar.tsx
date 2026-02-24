@@ -34,7 +34,7 @@ export const SearchBar = (props: TSearchBar) => {
   return (
     <TextInput
       id={id}
-      sx={sx}
+      sx={{ bgcolor: 'background.paper', ...sx }}
       size={size}
       value={value}
       disabled={disabled}

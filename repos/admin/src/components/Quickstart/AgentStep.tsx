@@ -85,6 +85,7 @@ export const AgentStep = (props: TAgentStep) => {
             label='Project Name'
             value={data.projectName}
             id='quickstart-project-name'
+            sx={{ bgcolor: `background.paper` }}
             placeholder='e.g., My AI Project'
             onChange={(e) => onChange({ projectName: e.target.value })}
           />
@@ -111,6 +112,7 @@ export const AgentStep = (props: TAgentStep) => {
             disabled={disabled}
             value={data.agentName}
             id='quickstart-agent-name'
+            sx={{ bgcolor: `background.paper` }}
             placeholder='e.g., claude-agent'
             onChange={(e) => onChange({ agentName: e.target.value })}
           />
@@ -121,6 +123,7 @@ export const AgentStep = (props: TAgentStep) => {
             disabled={disabled}
             value={data.agentDescription}
             id='quickstart-agent-description'
+            sx={{ bgcolor: `background.paper` }}
             placeholder='What does this agent do? (optional)'
             onChange={(e) => onChange({ agentDescription: e.target.value })}
           />
@@ -172,6 +175,7 @@ export const AgentStep = (props: TAgentStep) => {
               label='System Prompt'
               value={data.systemPrompt}
               id='quickstart-system-prompt'
+              sx={{ bgcolor: `background.paper` }}
               placeholder='Instructions for the agent (optional)'
               onChange={(e) => onChange({ systemPrompt: e.target.value })}
             />

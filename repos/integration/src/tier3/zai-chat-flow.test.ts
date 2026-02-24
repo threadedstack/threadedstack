@@ -170,8 +170,8 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
       const validTypes = [
         'text_delta', 'tool_execution_start', 'tool_execution_end',
-        'file_request', 'file_changed', 'thread_created',
-        'turn_end', 'done', 'error',
+        'tool_execution_update', 'file_request', 'file_changed',
+        'thread_created', 'turn_end', 'done', 'error',
       ]
 
       for (const msg of result.messages) {

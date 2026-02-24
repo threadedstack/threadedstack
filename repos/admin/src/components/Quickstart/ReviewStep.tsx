@@ -128,7 +128,7 @@ export const ReviewStep = (props: TReviewStep) => {
   }, [provider, agent, template])
 
   return (
-    <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1.5, mt: 2 }}>
+    <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1.5, mt: 2, pb: 3 }}>
       <ReviewHeader>
         <CheckCircleOutlineIcon sx={{ fontSize: 18, color: `success.main` }} />
         <Typography

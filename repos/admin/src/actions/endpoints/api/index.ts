@@ -1,5 +1,6 @@
-export * from './fetchEndpoints'
+export * from './testEndpoint'
 export * from './fetchEndpoint'
+export * from './fetchEndpoints'
 export * from './createEndpoint'
 export * from './updateEndpoint'
 export * from './deleteEndpoint'

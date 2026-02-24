@@ -201,8 +201,8 @@ describe(`onWSConnect`, () => {
       (c: any[]) => c[0] === `message`
     )[1]
 
-    // Send unknown message
-    messageHandler(JSON.stringify({ type: `unknown_type` }))
+    // Send unknown message (handler is async — await to let it process)
+    await messageHandler(JSON.stringify({ type: `unknown_type` }))
 
     const lastSent = JSON.parse(ws._sent[ws._sent.length - 1])
     expect(lastSent.type).toBe(EWSEventType.Error)
@@ -220,7 +220,7 @@ describe(`onWSConnect`, () => {
       (c: any[]) => c[0] === `message`
     )[1]
 
-    messageHandler(`not-json`)
+    await messageHandler(`not-json`)
 
     const lastSent = JSON.parse(ws._sent[ws._sent.length - 1])
     expect(lastSent.type).toBe(EWSEventType.Error)

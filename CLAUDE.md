@@ -48,7 +48,6 @@
 
 ## Project Overview
 
-
 ### 📁 File Organization Rules
 
 **Threaded Stack** is a developer platform that unifies authentication, serverless compute (FaaS), and secure API proxying for building AI agent applications. It acts as the "nervous system" between AI models and external APIs/databases, enabling orgs to build autonomous software without managing complex cloud infrastructure.
