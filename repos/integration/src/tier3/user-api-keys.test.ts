@@ -76,7 +76,7 @@ describe('Tier 3: Per-User API Key CRUD', () => {
     if (!createdKeyId) return expect(createdKeyId).toBeTruthy()
 
     const res = await get<{ data: Array<Record<string, any>> }>(
-      `/orgs/${ctx.orgId}/api-keys`
+      `/orgs/${ctx.orgId}/api-keys?limit=200`
     )
 
     expect(res.status).toBe(200)

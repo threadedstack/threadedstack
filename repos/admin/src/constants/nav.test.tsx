@@ -2,7 +2,16 @@ import type { TNavCtx } from '@TAF/types'
 
 import { describe, it, expect } from 'vitest'
 import { getDynamicNav } from '@TAF/utils/nav/getDynamicNav'
-import { OrgNavItems, ProjectNavItems, BottomNavItems } from './nav'
+import {
+  OrgNavItems,
+  ProjectNavItems,
+  BottomNavItems,
+  OrgSubNavGroups,
+  ProjectSubNavGroups,
+  HomeSubNavGroups,
+  RailNavSections,
+  GlobalNavItems,
+} from './nav'
 
 describe(`getDynamicNav`, () => {
   describe(`with no context`, () => {
@@ -431,6 +440,148 @@ describe(`BottomNavItems`, () => {
 
   it(`should have Icons for all items`, () => {
     BottomNavItems.forEach((item) => {
+      expect(item.Icon).toBeDefined()
+    })
+  })
+})
+
+// --- Sub-Nav Group Tests ---
+
+describe(`OrgSubNavGroups`, () => {
+  it(`should have 3 groups: Resources, Security, Management`, () => {
+    expect(OrgSubNavGroups).toHaveLength(3)
+    expect(OrgSubNavGroups.map((g) => g.label)).toEqual([
+      `Resources`,
+      `Security`,
+      `Management`,
+    ])
+  })
+
+  it(`Resources should have Projects, Members, Agents`, () => {
+    const resources = OrgSubNavGroups.find((g) => g.label === `Resources`)
+    const texts = resources?.items.map((i) => i.text)
+    expect(texts).toEqual([`Projects`, `Members`, `Agents`])
+  })
+
+  it(`Security should have Secrets, Providers, API Keys, Domains`, () => {
+    const security = OrgSubNavGroups.find((g) => g.label === `Security`)
+    const texts = security?.items.map((i) => i.text)
+    expect(texts).toEqual([`Secrets`, `Providers`, `API Keys`, `Domains`])
+  })
+
+  it(`Management should have Usage, Settings`, () => {
+    const management = OrgSubNavGroups.find((g) => g.label === `Management`)
+    const texts = management?.items.map((i) => i.text)
+    expect(texts).toEqual([`Usage`, `Settings`])
+  })
+
+  it(`all items should have Icons`, () => {
+    OrgSubNavGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        expect(item.Icon).toBeDefined()
+      })
+    })
+  })
+})
+
+describe(`ProjectSubNavGroups`, () => {
+  it(`should have 3 groups: Development, Security, Management`, () => {
+    expect(ProjectSubNavGroups).toHaveLength(3)
+    expect(ProjectSubNavGroups.map((g) => g.label)).toEqual([
+      `Development`,
+      `Security`,
+      `Management`,
+    ])
+  })
+
+  it(`Development should have Endpoints, Functions, Agents`, () => {
+    const dev = ProjectSubNavGroups.find((g) => g.label === `Development`)
+    const texts = dev?.items.map((i) => i.text)
+    expect(texts).toEqual([`Endpoints`, `Functions`, `Agents`])
+  })
+
+  it(`Security should have Secrets, Domains`, () => {
+    const security = ProjectSubNavGroups.find((g) => g.label === `Security`)
+    const texts = security?.items.map((i) => i.text)
+    expect(texts).toEqual([`Secrets`, `Domains`])
+  })
+
+  it(`Management should have Members, Settings`, () => {
+    const management = ProjectSubNavGroups.find((g) => g.label === `Management`)
+    const texts = management?.items.map((i) => i.text)
+    expect(texts).toEqual([`Members`, `Settings`])
+  })
+
+  it(`all items should have Icons`, () => {
+    ProjectSubNavGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        expect(item.Icon).toBeDefined()
+      })
+    })
+  })
+})
+
+describe(`HomeSubNavGroups`, () => {
+  it(`should have 1 group: Navigation`, () => {
+    expect(HomeSubNavGroups).toHaveLength(1)
+    expect(HomeSubNavGroups[0].label).toBe(`Navigation`)
+  })
+
+  it(`Navigation should have Billing and Profile`, () => {
+    const texts = HomeSubNavGroups[0].items.map((i) => i.text)
+    expect(texts).toEqual([`Billing`, `Profile`])
+  })
+})
+
+describe(`RailNavSections`, () => {
+  it(`should have Home, Org, and Project keys`, () => {
+    expect(RailNavSections).toHaveProperty(`Home`)
+    expect(RailNavSections).toHaveProperty(`Org`)
+    expect(RailNavSections).toHaveProperty(`Project`)
+  })
+
+  it(`Home section should have id "home" and HomeSubNavGroups`, () => {
+    expect(RailNavSections.Home.id).toBe(`home`)
+    expect(RailNavSections.Home.label).toBe(`Home`)
+    expect(RailNavSections.Home.groups).toBe(HomeSubNavGroups)
+    expect(RailNavSections.Home.Icon).toBeDefined()
+  })
+
+  it(`Org section should have id "org" with visibility check`, () => {
+    expect(RailNavSections.Org.id).toBe(`org`)
+    expect(RailNavSections.Org.visible).toBeDefined()
+    expect(RailNavSections.Org.visible?.({ orgId: `org-1` })).toBe(true)
+    expect(RailNavSections.Org.visible?.({})).toBe(false)
+    expect(RailNavSections.Org.groups).toBe(OrgSubNavGroups)
+    expect(RailNavSections.Org.Icon).toBeDefined()
+  })
+
+  it(`Project section should have id "project" with visibility check`, () => {
+    expect(RailNavSections.Project.id).toBe(`project`)
+    expect(RailNavSections.Project.visible).toBeDefined()
+    expect(
+      RailNavSections.Project.visible?.({ orgId: `org-1`, projectId: `proj-1` })
+    ).toBe(true)
+    expect(RailNavSections.Project.visible?.({ orgId: `org-1` })).toBe(false)
+    expect(RailNavSections.Project.visible?.({})).toBe(false)
+    expect(RailNavSections.Project.Icon).toBeDefined()
+  })
+})
+
+describe(`GlobalNavItems`, () => {
+  it(`should have Billing and Profile`, () => {
+    const texts = GlobalNavItems.map((i) => i.text)
+    expect(texts).toEqual([`Billing`, `Profile`])
+  })
+
+  it(`should have static paths`, () => {
+    GlobalNavItems.forEach((item) => {
+      expect(typeof item.to).toBe(`string`)
+    })
+  })
+
+  it(`should have Icons`, () => {
+    GlobalNavItems.forEach((item) => {
       expect(item.Icon).toBeDefined()
     })
   })

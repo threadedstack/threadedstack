@@ -3,7 +3,7 @@ import { test, expect } from '../fixtures/auth'
 /**
  * Quickstart Wizard UI validation tests.
  *
- * Verifies the wizard drawer opens from the Home page,
+ * Verifies the wizard drawer opens from the Org page,
  * renders provider cards with icons, supports multi-step
  * navigation with Cancel/Back/Next buttons, and closes correctly.
  *
@@ -37,31 +37,18 @@ async function gotoAndWait(
 }
 
 /**
- * Navigate to the org detail page to set activeOrgId in Jotai state,
- * then go back to Home where the Quick Start button becomes visible.
- * The Quickstart component only renders when activeOrgId is truthy.
+ * Navigate to the org detail page where the Quick Start button lives.
+ * The Quickstart component renders in the Quick Actions card header.
  */
-async function navigateToHomeWithActiveOrg(
+async function navigateToOrgPage(
   page: import('@playwright/test').Page,
   orgId: string
 ) {
-  // Navigate to home, click org card to set activeOrgId
-  await gotoAndWait(page, '/', 'tdsk-home-page')
-  const orgCard = page.locator('.MuiCard-root').first()
-  await expect(orgCard).toBeVisible()
-  await orgCard.click()
-
-  // Wait for org detail page (activeOrgId is now set in Jotai)
-  await expect(page.locator('.tdsk-org-page')).toBeVisible({ timeout: 10000 })
-
-  // Use browser back to preserve SPA state (Jotai activeOrgId)
-  // page.goto('/') would do a full reload and reset Jotai in-memory state
-  await page.goBack()
-  await expect(page.locator('.tdsk-home-page')).toBeVisible({ timeout: 10000 })
+  await gotoAndWait(page, `/orgs/${orgId}`, 'tdsk-org-page')
 }
 
 test.describe('Quickstart Wizard', () => {
-  test('Opens wizard from Home page and renders provider cards with icons', async ({
+  test('Opens wizard from Org page and renders provider cards with icons', async ({
     authenticatedPage: page,
     ctx,
   }) => {
@@ -70,7 +57,7 @@ test.describe('Quickstart Wizard', () => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await navigateToHomeWithActiveOrg(page, ctx.orgId)
+    await navigateToOrgPage(page, ctx.orgId)
 
     // Click the Quick Start button (visible now that activeOrgId is set)
     const quickstartBtn = page.getByRole('button', { name: /Quick Start/i })
@@ -119,7 +106,7 @@ test.describe('Quickstart Wizard', () => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await navigateToHomeWithActiveOrg(page, ctx.orgId)
+    await navigateToOrgPage(page, ctx.orgId)
 
     // Open wizard
     await page.getByRole('button', { name: /Quick Start/i }).click()
@@ -176,7 +163,7 @@ test.describe('Quickstart Wizard', () => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await navigateToHomeWithActiveOrg(page, ctx.orgId)
+    await navigateToOrgPage(page, ctx.orgId)
 
     // Open wizard
     await page.getByRole('button', { name: /Quick Start/i }).click()
@@ -227,7 +214,7 @@ test.describe('Quickstart Wizard', () => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await navigateToHomeWithActiveOrg(page, ctx.orgId)
+    await navigateToOrgPage(page, ctx.orgId)
 
     // Open wizard
     await page.getByRole('button', { name: /Quick Start/i }).click()

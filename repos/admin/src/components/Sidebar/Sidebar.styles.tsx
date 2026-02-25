@@ -3,8 +3,12 @@ import Box from '@mui/material/Box'
 import Drawer from '@mui/material/Drawer'
 import type Typography from '@mui/material/Typography'
 import MuiIconButton from '@mui/material/IconButton'
-import { SidebarWidthOpen, SidebarWidthClosed } from '@TAF/constants/values'
 import { cmx, Text, List, colors, gutter, ListItem, IconButton } from '@tdsk/components'
+import {
+  SubNavPanelWidth,
+  SidebarWidthOpen,
+  SidebarWidthClosed,
+} from '@TAF/constants/values'
 
 export const SideDrawer = styled(Drawer, {
   shouldForwardProp: (prop) => prop !== `open`,
@@ -159,3 +163,27 @@ export const SBSectionHeader = styled(Box)(({ theme }) => {
     }
   `
 })
+
+// --- Rail Navigation Styled Components (desktop sub-nav) ---
+
+export const SidebarContainer = styled(Box)`
+  height: 100%;
+  display: flex;
+  position: relative;
+  flex-direction: row;
+`
+
+export const SubNavPanelBox = styled(Box, {
+  shouldForwardProp: (prop) => prop !== `open`,
+})<{ open?: boolean }>(({ theme, open }) => ({
+  width: open ? SubNavPanelWidth : 0,
+  minWidth: open ? SubNavPanelWidth : 0,
+  overflowX: `hidden`,
+  overflowY: `auto`,
+  backgroundColor: theme.palette.background.default,
+  borderRight: open ? `1px solid ${theme.palette.divider}` : `none`,
+  transition: theme.transitions.create([`width`, `min-width`], {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.enteringScreen,
+  }),
+}))

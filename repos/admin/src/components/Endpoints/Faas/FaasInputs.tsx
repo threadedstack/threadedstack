@@ -1,10 +1,10 @@
 import type { TKeyValuePair } from '@TAF/types'
 import type { Secret, Function as FunctionModel } from '@tdsk/domain'
 
-import { SelectInput } from '@tdsk/components'
 import { Envs } from '@TAF/components/Endpoints/Envs'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
+import { FunctionSelectorSingle } from '@TAF/components/Selectors'
 import { ResourcesLimits } from '@TAF/components/Endpoints/Faas/ResourcesLimits'
 import {
   Box,
@@ -43,21 +43,16 @@ export type TFaasInputs = {
 
 export const FaasInputs = (props: TFaasInputs) => {
   const {
+    memory,
     loading,
-    functionId,
-    availableFunctions,
-    arguments: faasArguments,
     envVars,
     secrets,
-    availableSecrets,
     timeout,
-    memory,
+    functionId,
+    availableSecrets,
+    availableFunctions,
+    arguments: faasArguments,
   } = props
-
-  const functionOptions = availableFunctions.map((fn) => ({
-    value: fn.id,
-    label: `${fn.name} (${fn.language})`,
-  }))
 
   const safeFunctionId = availableFunctions?.some((f) => f.id === functionId)
     ? functionId
@@ -66,15 +61,11 @@ export const FaasInputs = (props: TFaasInputs) => {
   return (
     <>
       {/* Function Selection */}
-      <SelectInput
-        required
-        id='function-select'
-        disabled={loading}
-        label='Select Function'
-        items={functionOptions}
-        value={safeFunctionId}
-        onChange={(e) => props.onFunctionIdChange(e.target.value)}
-        placeholder='Choose a function to execute'
+      <FunctionSelectorSingle
+        loading={loading}
+        functionId={safeFunctionId}
+        availableFunctions={availableFunctions}
+        onChange={props.onFunctionIdChange}
       />
 
       {/* Function Arguments */}
@@ -151,8 +142,8 @@ export const FaasInputs = (props: TFaasInputs) => {
         memory={memory}
         timeout={timeout}
         disabled={loading}
-        onTimeoutChange={props.onTimeoutChange}
         onMemoryChange={props.onMemoryChange}
+        onTimeoutChange={props.onTimeoutChange}
       />
     </>
   )

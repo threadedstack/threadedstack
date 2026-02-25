@@ -2,26 +2,27 @@ import type { User, TRoleType, Role } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { toast } from 'sonner'
-import { useState, useEffect, useMemo } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { ConfirmDelete } from '@tdsk/components'
+import { usersApi } from '@TAF/services/usersApi'
+import { useState, useEffect, useMemo } from 'react'
+import { Drawer, DrawerActions } from '@tdsk/components'
+import { getRoleColor } from '@TAF/utils/user/getRoleColor'
+import { UserSelectorSingle } from '@TAF/components/Selectors'
+import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
-import { DataTable } from '@TAF/components/DataTable/DataTable'
-import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
 import { projectMembersApi } from '@TAF/services/projectMembersApi'
-import { usersApi } from '@TAF/services/usersApi'
+import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
 import { Box, Chip, Typography, Autocomplete, TextField } from '@mui/material'
 import { PersonAdd as PersonAddIcon, Delete as DeleteIcon } from '@mui/icons-material'
-import { Drawer, DrawerActions } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
-import { getRoleColor } from '@TAF/utils/user/getRoleColor'
 
 type TProjectMember = {
   userId: string
+  email?: string
   role: TRoleType
   displayName?: string
-  email?: string
 }
 
 export const ProjectMembers = () => {
@@ -32,9 +33,9 @@ export const ProjectMembers = () => {
   const [orgUsers, setOrgUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [addDrawerOpen, setAddDrawerOpen] = useState(false)
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
-  const [selectedRole, setSelectedRole] = useState('member')
+  const [selectedRole, setSelectedRole] = useState(`member`)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [memberToRemove, setMemberToRemove] = useState<TProjectMember | null>(null)
 
   const loadMembers = async () => {
@@ -54,12 +55,13 @@ export const ProjectMembers = () => {
       const resp = await usersApi.listByOrg(orgId)
       if (resp.data) setOrgUsers(resp.data)
     } catch {
-      toast.error('Failed to load organization users')
+      toast.error(`Failed to load organization users`)
     }
   }
 
   useEffect(() => {
     loadMembers()
+    loadOrgUsers()
   }, [orgId, projectId])
 
   const members = useMemo(() => {
@@ -106,13 +108,13 @@ export const ProjectMembers = () => {
         userId: selectedUserId,
         type: selectedRole,
       })
-      toast.success('Member added successfully')
+      toast.success(`Member added successfully`)
       setAddDrawerOpen(false)
       setSelectedUserId(null)
-      setSelectedRole('member')
+      setSelectedRole(`member`)
       await loadMembers()
     } catch (err) {
-      toast.error('Failed to add member')
+      toast.error(`Failed to add member`)
     } finally {
       setLoading(false)
     }
@@ -133,7 +135,7 @@ export const ProjectMembers = () => {
       setMemberToRemove(null)
       await loadMembers()
     } catch (err) {
-      toast.error('Failed to remove member')
+      toast.error(`Failed to remove member`)
     } finally {
       setLoading(false)
     }
@@ -255,22 +257,14 @@ export const ProjectMembers = () => {
             >
               Select an organization member to add to this project.
             </Typography>
-            <Autocomplete
-              value={selectedUserId}
-              options={availableUsers.map((u) => u.id)}
-              getOptionLabel={(id) => {
-                const user = availableUsers.find((u) => u.id === id)
-                return user ? `${user.displayName || user.email}` : id
-              }}
-              onChange={(_, value) => setSelectedUserId(value)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label='Select User'
-                  size='small'
-                />
-              )}
-              sx={{ mb: 2 }}
+            <UserSelectorSingle
+              userId={selectedUserId}
+              users={availableUsers.map((u) => ({
+                id: u.id,
+                email: u.email,
+                name: u.displayName || u.email || u.id,
+              }))}
+              onChange={setSelectedUserId}
             />
             <Autocomplete
               value={selectedRole}

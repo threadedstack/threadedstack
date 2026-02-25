@@ -1,17 +1,16 @@
 import type { TKeyValuePair } from '@TAF/types'
 import type { Secret } from '@tdsk/domain'
 
-import { TextInput, AutoInputText, InputStateHandler } from '@tdsk/components'
+import { TextInput } from '@tdsk/components'
 import { Envs } from '@TAF/components/Endpoints/Envs'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import { ToolsSelector } from '@TAF/components/Agents/ToolsSelector'
+import { ToolsSelector, AgentSelector } from '@TAF/components/Selectors'
 import {
   Box,
   Chip,
   Alert,
   Accordion,
   Typography,
-  Autocomplete,
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material'
@@ -61,43 +60,12 @@ export const AgentInputs = (props: TAgentInputs) => {
 
   return (
     <>
-      {/* TODO: Convert this to an Agent Selector component - Allow reuse */}
-      {agents && agents.length > 0 ? (
-        <InputStateHandler
-          id='agent-id'
-          label='Agent'
-          disabled={loading}
-          description='Select the AI agent to handle requests'
-        >
-          <Autocomplete
-            id='agent-id'
-            value={agentId || null}
-            options={agents.map((a) => a.id)}
-            getOptionLabel={(id) => agents.find((a) => a.id === id)?.name || id}
-            onChange={(_, value) => props.onAgentIdChange(value || '')}
-            disabled={loading}
-            renderInput={(params) => (
-              <AutoInputText
-                {...params}
-                required
-                placeholder='Select agent...'
-              />
-            )}
-          />
-        </InputStateHandler>
-      ) : (
-        <TextInput
-          required
-          fullWidth
-          value={agentId}
-          id='agent-id'
-          label='Agent ID'
-          disabled={loading}
-          onChange={(e) => props.onAgentIdChange(e.target.value)}
-          placeholder='Enter agent ID'
-          helperText='The ID of the AI agent to handle requests'
-        />
-      )}
+      <AgentSelector
+        loading={loading}
+        agentId={agentId}
+        agents={agents}
+        onChange={props.onAgentIdChange}
+      />
 
       <Accordion defaultExpanded>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>

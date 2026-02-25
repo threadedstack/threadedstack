@@ -1,10 +1,9 @@
-import { loadEnvs } from '../utils/loadEnvs'
 import { env } from '../utils/env'
-import { get, post, del } from '../utils/api-client'
+import { loadEnvs } from '../utils/loadEnvs'
 import { checkHealth } from '../utils/health'
+import { get, post, del } from '../utils/api-client'
 import { writeContext, readContext } from '../utils/test-context'
 
-// TODO: use this to suppress UNAUTHORIZED warning, not needed for integration tests
 const cancelAndSuppressTLSWarning = () => {
   const { emitWarning } = process
   process.emitWarning = (warning: string | Error, ...args: any) => {
@@ -21,6 +20,59 @@ const cancelAndSuppressTLSWarning = () => {
 
 
 /**
+ * Matches resources created by `uniqueName()` — pattern: "{prefix} {13-digit-ts}-{4-hex}".
+ * Used to detect stale test resources left over from prior interrupted runs.
+ */
+const isTestResource = (name: string) => /\s\d{13}-[0-9a-f]{4}$/.test(name)
+
+/**
+ * Best-effort delete — swallows errors so cleanup continues for remaining resources.
+ */
+const tryDel = async (path: string) => {
+  try {
+    await del(path)
+  }
+  catch {
+    /* best-effort */
+    console.warn(`Failed to delete: ${path}\nManual cleanup required!`)
+  }
+}
+
+/**
+ * Remove stale test resources from previous interrupted runs.
+ *
+ * Runs at the START of each test session so leftovers from crashed/interrupted
+ * runs don't accumulate and cause pagination-related test failures.
+ *
+ * Deletion order respects FK constraints (DB cascades handle children):
+ *   agents → projects → providers → api-keys
+ */
+const cleanupStaleTestResources = async (orgId: string) => {
+  type TResource = { id: string; name: string }
+
+  const agentsRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/agents?limit=200`)
+  for (const agent of (agentsRes.data?.data || [])) {
+    if (isTestResource(agent.name)) await tryDel(`/orgs/${orgId}/agents/${agent.id}`)
+  }
+
+  const projectsRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/projects?limit=200`)
+  for (const project of (projectsRes.data?.data || [])) {
+    if (isTestResource(project.name)) await tryDel(`/orgs/${orgId}/projects/${project.id}`)
+  }
+
+  const providersRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/providers?limit=200`)
+  for (const provider of (providersRes.data?.data || [])) {
+    if (isTestResource(provider.name)) await tryDel(`/orgs/${orgId}/providers/${provider.id}`)
+  }
+
+  const keysRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/api-keys?limit=200`)
+  for (const key of (keysRes.data?.data || [])) {
+    if (key.name === 'integration-admin' || isTestResource(key.name))
+      await tryDel(`/orgs/${orgId}/api-keys/${key.id}`)
+  }
+}
+
+/**
  * Vitest global setup — runs once before all test files.
  *
  * 1. Load envs from values.yaml files (same as other TDSK repos)
@@ -28,6 +80,7 @@ const cancelAndSuppressTLSWarning = () => {
  * 3. Validate required env vars
  * 4. Health-check proxy
  * 5. Validate org exists using API key
+ * 5b. Clean up stale test resources from prior runs
  * 6. Write context to temp file for tests to read
  */
 export default async function setup() {
@@ -73,6 +126,9 @@ export default async function setup() {
   }
 
   const orgName = orgRes.data?.data?.name || ''
+
+  // 5b. Clean up stale test resources from prior interrupted/failed runs
+  await cleanupStaleTestResources(env.testOrgId)
 
   // 6. Create admin-scoped API key for role hierarchy tests
   //    Finds any admin member in the org (not the test user, who is the owner)
@@ -150,15 +206,15 @@ export default async function setup() {
   // 8. Write context for tests
   writeContext({
     orgName,
+    adminApiKey,
+    adminUserId,
+    adminApiKeyId,
+    targetMemberUserId,
     orgId: env.testOrgId,
     apiKey: env.testApiKey,
     userId: env.testUserId,
     agentId: env.testAgentId,
     projectId: env.testProjectId,
-    adminApiKey,
-    adminApiKeyId,
-    adminUserId,
-    targetMemberUserId,
   })
 
   // Return teardown function to clean up resources

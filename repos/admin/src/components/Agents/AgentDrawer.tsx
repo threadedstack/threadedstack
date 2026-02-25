@@ -6,31 +6,28 @@ import type {
   Function as FunctionModel,
 } from '@tdsk/domain'
 
+import { agentsApi } from '@TAF/services'
 import { useState, useEffect } from 'react'
 import { Code } from '@TAF/components/Code'
 import { MonacoOptions } from '@TAF/constants/monaco'
 import { fetchProviders } from '@TAF/actions/providers'
 import { fetchFunctions } from '@TAF/actions/functions'
-import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
-import { useSecrets, useOrgSecrets } from '@TAF/state/selectors'
 import { createAgent } from '@TAF/actions/agents/api/createAgent'
 import { updateAgent } from '@TAF/actions/agents/api/updateAgent'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
-import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { agentsApi } from '@TAF/services'
-import { Autocomplete, Box, Stack, Divider, TextField, Typography } from '@mui/material'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
+import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
+import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { Autocomplete, Box, Stack, Divider, TextField, Typography } from '@mui/material'
+import { BasicInfoForm, ModelConfigForm, AgentSettingsForm } from '@TAF/components/Agents'
 import {
-  BasicInfoForm,
   ToolsSelector,
   SecretsSelector,
-  ModelConfigForm,
   FunctionsSelector,
-  AgentSettingsForm,
-} from '@TAF/components/Agents'
+} from '@TAF/components/Selectors'
 
 export type TAgentDrawer = {
   open: boolean
@@ -53,9 +50,6 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
   const isOverrideMode = !!projectId && !!agent
 
-  // TODO: Secrets list should come form the jotai store
-  const [secrets] = useSecrets()
-  const [orgSecrets] = useOrgSecrets()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)

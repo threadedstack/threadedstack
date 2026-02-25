@@ -4,24 +4,24 @@ import type {
   Agent,
   Asset,
   Domain,
-  Endpoint,
-  Function as FunctionModel,
-  Message,
-  Organization,
-  Project,
   Secret,
   Thread,
+  Project,
+  Message,
+  Endpoint,
+  Organization,
+  Function as FunctionModel,
 } from '@tdsk/domain'
 
 import { useAtom } from 'jotai'
 import { useResetAtom } from 'jotai/utils'
 import { userState } from '@TAF/state/user'
 import { noOp } from '@keg-hub/jsutils/noOp'
-import { sidebarOpenState } from '@TAF/state/app'
 import { themeTypeState } from '@TAF/state/theme'
 import { providersState } from '@TAF/state/providers'
 import { quickstartState } from '@TAF/state/quickstart'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
+import { sidebarOpenState, activeRailSectionState } from '@TAF/state/app'
 import {
   assetsState,
   activeAssetIdState,
@@ -108,6 +108,7 @@ export const useProviders = () => useRecState(providersState)
 export const useThemeType = () => useRecState(themeTypeState)
 export const useSidebarOpen = () => useRecState(sidebarOpenState)
 export const useQuickstartOpen = () => useRecState(quickstartState)
+export const useActiveRailSection = () => useRecState(activeRailSectionState)
 
 export const useOrgs = () => useRecState(orgsState)
 export const useOrgUsers = () => useRecState(orgUsersState)

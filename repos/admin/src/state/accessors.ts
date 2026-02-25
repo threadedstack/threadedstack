@@ -5,6 +5,7 @@ import type {
   TProxyFormState,
   TFaasFormState,
   TAgentFormState,
+  TRailSectionId,
 } from '@TAF/types'
 import type {
   User,
@@ -29,7 +30,12 @@ import { userState } from '@TAF/state/user'
 import { providersState } from '@TAF/state/providers'
 import { quickstartState } from '@TAF/state/quickstart'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
-import { sidebarOpenState, defSidebarOpen } from '@TAF/state/app'
+import {
+  defSidebarOpen,
+  sidebarOpenState,
+  defActiveRailSection,
+  activeRailSectionState,
+} from '@TAF/state/app'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { assetsState, activeAssetIdState } from '@TAF/state/assets'
 import { agentsState, activeAgentIdState } from '@TAF/state/agents'
@@ -70,6 +76,12 @@ export const setThemeType = (type: EThemeType) => store.set(themeTypeState, type
 export const getSidebarOpen = () => store.get(sidebarOpenState)
 export const resetSidebarOpen = () => store.set(sidebarOpenState, defSidebarOpen)
 export const setSidebarOpen = (status: boolean) => store.set(sidebarOpenState, status)
+
+export const getActiveRailSection = () => store.get(activeRailSectionState)
+export const resetActiveRailSection = () =>
+  store.set(activeRailSectionState, defActiveRailSection)
+export const setActiveRailSection = (id: TRailSectionId | null) =>
+  store.set(activeRailSectionState, id)
 
 export const getQuickstartOpen = () => store.get(quickstartState)
 export const resetQuickstartOpen = () => store.set(quickstartState, defSidebarOpen)

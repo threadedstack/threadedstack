@@ -3,7 +3,6 @@ import type { TSettingNavItem } from '@TAF/types'
 
 import Box from '@mui/material/Box'
 import { EThemeType } from '@TAF/types'
-import { useActiveOrgId } from '@TAF/state/selectors'
 import { SBLogo } from '@TAF/components/Sidebar/SBLogo'
 import { Settings } from '@TAF/components/Header/Settings'
 import { useStateReset } from '@TAF/hooks/components/useReset'
@@ -28,8 +27,6 @@ const styles = {
 
 export const Header = (props: THeaderProps) => {
   const navItems = props.navItems || []
-
-  const [orgId] = useActiveOrgId()
   const { themeType, onThemeToggle } = useThemeToggle()
 
   const [anchorEl, __, resetAnchor, updateAnchor] = useStateReset<
@@ -44,7 +41,8 @@ export const Header = (props: THeaderProps) => {
       className='tsdk-app-header'
     >
       <HeaderToolbar>
-        {(!orgId && <SBLogo full />) || <Breadcrumbs />}
+        <SBLogo full />
+        <Breadcrumbs />
         <Box flex={1} />
         <ToggleThemeAction
           onClick={() => onThemeToggle()}

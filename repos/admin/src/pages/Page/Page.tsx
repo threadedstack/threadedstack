@@ -5,10 +5,9 @@ import { useState } from 'react'
 import Box from '@mui/material/Box'
 import { init } from '@TAF/actions/init'
 import { ife } from '@keg-hub/jsutils/ife'
+import { styled } from '@mui/material/styles'
 import { useTheme } from '@TSC/hooks/theme/useTheme'
-import { Header } from '@TAF/components/Header/Header'
-import { HeaderSettingsItems } from '@TAF/constants/nav'
-import { Loading, useEffectOnce, dims } from '@tdsk/components'
+import { Loading, useEffectOnce } from '@tdsk/components'
 
 export type TPage = {
   sx?: SxProps<Theme>
@@ -16,29 +15,21 @@ export type TPage = {
   children?: ReactNode
 }
 
-const defs = {
-  page: {
-    sx: {
-      flexGrow: 1,
-      width: `100%`,
-      height: `100%`,
-    },
-  },
-  loading: {
-    full: true,
-    message: `Loading...`,
-    messageSx: { color: `text.primary` },
-  },
-  main: {
-    sx: {
-      p: 5,
-      flexGrow: 1,
-      overflow: `auto`,
-      bgcolor: `background.default`,
-      height: `calc( 100vh - ${dims.header.hpx})`,
-    },
-  },
-}
+const Container = styled(Box)`
+  flex-grow: 1;
+  width: 100%;
+  height: 100%;
+`
+
+const Main = styled(Box)(({ theme }) => {
+  return `
+    flex-grow: 1;
+    overflow: auto;
+    padding: ${theme.gutter.dpx};
+    height: calc( 100vh - ${theme.dims.header.hpx});
+    background-color: ${theme.palette.background.default};
+  `
+})
 
 export const Page = (props: TPage) => {
   const { sx, children, className } = props
@@ -54,33 +45,31 @@ export const Page = (props: TPage) => {
   })
 
   return (
-    <Box
-      sx={defs.page.sx}
-      className='tdsk-page-box'
-    >
+    <Container className='tdsk-page-box'>
       {!ready ? (
-        <Loading {...defs.loading} />
+        <Loading
+          full
+          message='Loading...'
+          messageSx={{ color: `text.primary` }}
+        />
       ) : (
-        <>
-          <Header navItems={HeaderSettingsItems} />
-          <Box
-            component='main'
-            className={className}
-            sx={[
-              defs.main.sx,
-              {
-                transition: theme.transitions.create(`margin`, {
-                  easing: theme.transitions.easing.sharp,
-                  duration: theme.transitions.duration.leavingScreen,
-                }),
-              },
-              ...(Array.isArray(sx) ? sx : [sx]),
-            ]}
-          >
-            {children}
-          </Box>
-        </>
+        <Main
+          // @ts-ignore
+          component='main'
+          className={className}
+          sx={[
+            {
+              transition: theme.transitions.create(`margin`, {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.leavingScreen,
+              }),
+            },
+            ...(Array.isArray(sx) ? sx : [sx]),
+          ]}
+        >
+          {children}
+        </Main>
       )}
-    </Box>
+    </Container>
   )
 }

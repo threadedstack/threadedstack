@@ -16,6 +16,7 @@ export const MessageBubble = (props: TMessageBubble) => {
 
   return (
     <Box
+      className='tdsk-msg-bubble-box'
       sx={{
         display: `flex`,
         gap: 1.5,
@@ -24,6 +25,7 @@ export const MessageBubble = (props: TMessageBubble) => {
       }}
     >
       <Box
+        className='tdsk-msg-icon-box'
         sx={{
           width: 32,
           height: 32,
@@ -45,12 +47,14 @@ export const MessageBubble = (props: TMessageBubble) => {
       </Box>
 
       <Box
+        className='tdsk-msg-bubble-box-container'
         sx={{
           maxWidth: isUser ? `75%` : `85%`,
           minWidth: 0,
         }}
       >
         <Box
+          className='tdsk-msg-bubble-box-text'
           sx={{
             px: 2,
             py: 1.5,
@@ -68,12 +72,14 @@ export const MessageBubble = (props: TMessageBubble) => {
           {message.text ? (
             <Typography
               variant='body2'
-              sx={{ whiteSpace: `pre-wrap`, wordBreak: `break-word` }}
+              className='tdsk-msg-bubble-text'
+              sx={{ whiteSpace: `pre-wrap`, wordBreak: `break-word`, fontSize: `14px` }}
             >
               {message.text}
               {isStreaming && !isUser && (
                 <Box
                   component='span'
+                  className='tdsk-msg-bubble-streaming-box'
                   sx={{
                     display: `inline-block`,
                     width: 6,
@@ -95,6 +101,7 @@ export const MessageBubble = (props: TMessageBubble) => {
               <Typography
                 variant='body2'
                 color='text.secondary'
+                className='tdsk-msg-bubble-thinking'
                 sx={{ fontStyle: `italic` }}
               >
                 Thinking...
@@ -104,7 +111,10 @@ export const MessageBubble = (props: TMessageBubble) => {
         </Box>
 
         {message.toolCalls && message.toolCalls.length > 0 && (
-          <Box sx={{ mt: 1 }}>
+          <Box
+            className='tdsk-msg-bubble-tool-box'
+            sx={{ mt: 1 }}
+          >
             {message.toolCalls.map((tc) => (
               <ToolCallDisplay
                 key={tc.id}

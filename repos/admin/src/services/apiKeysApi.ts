@@ -22,7 +22,10 @@ export class ApiKeysApi extends BaseApi {
 
   cache: TApiCacheKeys = {
     all: () => [`/api-keys`] as const,
-    list: () => [...this.cache.all(), `list`] as const,
+    list: (userId?: string) =>
+      userId
+        ? ([...this.cache.all(), `list`, userId] as const)
+        : ([...this.cache.all(), `list`] as const),
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
@@ -33,12 +36,13 @@ export class ApiKeysApi extends BaseApi {
    * @returns List of all API keys with masked values
    */
   async list(orgId: string, data?: Record<string, any>): Promise<TApiRes<ApiKey[]>> {
-    const { queryKey, ...rest } = data || {}
+    const { queryKey, userId, ...rest } = data || {}
+    const reqData = userId ? { userId, ...rest } : rest
 
     const resp = await this.api.get<ApiKey[]>({
-      data: rest,
+      data: reqData,
       path: this.#path(orgId),
-      queryKey: queryKey || this.cache.list(),
+      queryKey: queryKey || this.cache.list(userId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load API keys list`))

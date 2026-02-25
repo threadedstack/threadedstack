@@ -34,19 +34,35 @@ test.describe('Navigation', () => {
       `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents`
     )
 
-    // Sidebar should be present
+    // Sidebar should be present with the nav rail
     const sidebar = page.locator('.tdsk-admin-sidebar')
     await expect(sidebar).toBeVisible()
 
-    // The org section header should be visible in the sidebar,
-    // indicating the sidebar loaded with the correct org context
-    const orgSectionHeader = sidebar.locator('.tdsk-sb-section-header').first()
-    await expect(orgSectionHeader).toBeVisible()
+    const navRail = sidebar.locator('.tdsk-icon-rail')
+    await expect(navRail).toBeVisible()
 
-    // Project section header should also be present when viewing a project page
-    const sectionHeaders = sidebar.locator('.tdsk-sb-section-header')
-    const headerCount = await sectionHeaders.count()
-    expect(headerCount).toBeGreaterThanOrEqual(2)
+    // On a project page, the nav rail should have Org + Project sections + bottom items
+    const railItems = navRail.locator('.tdsk-rail-item')
+    const count = await railItems.count()
+    expect(count).toBeGreaterThanOrEqual(3)
+
+    // Sub-nav panel should be open with project-level groups
+    const subNavPanel = sidebar.locator('.tdsk-subnav-panel')
+    await expect(subNavPanel).toBeVisible()
+  })
+
+  test('Manage Members button navigates to /members', async ({
+    authenticatedPage: page, ctx,
+  }) => {
+    await gotoAndWait(page, `/orgs/${ctx.orgId}`, 'tdsk-org-page')
+
+    const button = page.getByText('Manage Members')
+    await expect(button).toBeVisible()
+    await button.click()
+    await page.waitForLoadState('networkidle')
+
+    // Should navigate to /members, not /users
+    expect(page.url()).toContain(`/orgs/${ctx.orgId}/members`)
   })
 
   test('invalid route redirects to home', async ({
@@ -105,7 +121,7 @@ test.describe('Navigation', () => {
     expect(hasErrorIndication || wasRedirected).toBe(true)
   })
 
-  test('sidebar shows Navigation header on global pages like billing (BUG #24)', async ({
+  test('sidebar on global page shows nav rail with no sections', async ({
     authenticatedPage: page, ctx,
   }) => {
     await gotoAndWait(page, '/billing', 'tdsk-billing-page')
@@ -114,23 +130,20 @@ test.describe('Navigation', () => {
     const sidebar = page.locator('.tdsk-admin-sidebar')
     await expect(sidebar).toBeVisible()
 
-    // On global pages (no org context), the sidebar should show "Navigation"
-    // as the section header per getDynamicNav logic.
-    // BUG #24: This may not display correctly.
-    const sectionHeaders = sidebar.locator('.tdsk-sb-section-header')
-    const headerCount = await sectionHeaders.count()
+    // Nav rail should be visible
+    const navRail = sidebar.locator('.tdsk-icon-rail')
+    await expect(navRail).toBeVisible()
 
-    if (headerCount > 0) {
-      const headerTexts: string[] = []
-      for (let i = 0; i < headerCount; i++) {
-        headerTexts.push(await sectionHeaders.nth(i).innerText())
-      }
-      // The global section header should contain "Navigation"
-      const hasNavigationHeader = headerTexts.some((text) =>
-        text.toUpperCase().includes('NAVIGATION')
-      )
-      expect(hasNavigationHeader).toBe(true)
-    }
+    // On global pages (no org context), the rail has no section items —
+    // only bottom items (Settings)
+    const railItems = navRail.locator('.tdsk-rail-item')
+    const count = await railItems.count()
+    expect(count).toBeGreaterThanOrEqual(1)
+
+    // Sub-nav panel should be collapsed (no active section)
+    const subNavPanel = sidebar.locator('.tdsk-subnav-panel')
+    const width = await subNavPanel.first().evaluate((el) => el.getBoundingClientRect().width)
+    expect(width).toBe(0)
   })
 
   test('browser back button navigates correctly through history', async ({

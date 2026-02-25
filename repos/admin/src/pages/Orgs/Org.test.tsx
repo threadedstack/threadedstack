@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 const mockNavigate = vi.fn()
 vi.mock(`react-router`, () => ({
@@ -54,9 +54,17 @@ vi.mock(`@TAF/actions/orgs/api/deleteOrg`, () => ({
   deleteOrg: vi.fn(),
 }))
 
-vi.mock(`@tdsk/components`, () => ({
-  ConfirmDelete: () => null,
+vi.mock(`@TAF/components/Quickstart/Quickstart`, () => ({
+  Quickstart: () => null,
 }))
+
+vi.mock(`@tdsk/components`, async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    ConfirmDelete: () => null,
+  }
+})
 
 import { Org } from './Org'
 
@@ -198,5 +206,41 @@ describe(`Org - Members Section`, () => {
   it(`renders Manage Members button`, () => {
     render(<Org />)
     expect(screen.getByText(`Manage Members`)).toBeTruthy()
+  })
+
+  it(`navigates to /members when Manage Members is clicked`, () => {
+    render(<Org />)
+    fireEvent.click(screen.getByText(`Manage Members`))
+    expect(mockNavigate).toHaveBeenCalledWith(`/orgs/org-1/members`)
+  })
+
+  it(`navigates to /members when Invite Users card is clicked`, () => {
+    render(<Org />)
+    const card = screen.getByText(`Invite Users`).closest(`[class*="MuiCard"]`)
+    fireEvent.click(card!)
+    expect(mockNavigate).toHaveBeenCalledWith(`/orgs/org-1/members`)
+  })
+
+  it(`navigates to /members when View all link is clicked`, () => {
+    const manyUsers = Array.from({ length: 7 }, (_, i) => ({
+      id: `user-${i}`,
+      displayName: `User ${i}`,
+      email: `user${i}@example.com`,
+      role: `member`,
+      first: `User`,
+      last: `${i}`,
+      image: ``,
+    }))
+    mockUseOrgUsersList.mockReturnValue({
+      users: manyUsers,
+      error: undefined,
+      loading: false,
+      setError: vi.fn(),
+      loadUsers: mockLoadUsers,
+      removeUser: mockRemoveUser,
+    })
+    render(<Org />)
+    fireEvent.click(screen.getByText(`View all 7 members`))
+    expect(mockNavigate).toHaveBeenCalledWith(`/orgs/org-1/members`)
   })
 })

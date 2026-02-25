@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
-import { userEvent } from '@testing-library/user-event'
+import { render, screen } from '@testing-library/react'
 
 const mockUpdateThread = vi.fn().mockResolvedValue({ data: {} })
 const mockOnSuccess = vi.fn()
@@ -41,6 +40,25 @@ vi.mock(`@TAF/hooks/components/useDrawerActions`, () => ({
   useDrawerActions: () => ({ actions: [] }),
 }))
 
+const mockProviderSelectorSingle = vi.fn()
+vi.mock(`@TAF/components/Selectors`, () => ({
+  ProviderSelectorSingle: (props: any) => {
+    mockProviderSelectorSingle(props)
+    return (
+      <div data-testid='provider-selector-single'>
+        {props.providers?.map((p: any) => (
+          <span
+            key={p.id}
+            data-testid={`provider-opt-${p.id}`}
+          >
+            {p.name}
+          </span>
+        ))}
+      </div>
+    )
+  },
+}))
+
 import { EditThreadDrawer } from './EditThreadDrawer'
 
 const mockThread = {
@@ -71,7 +89,7 @@ describe(`EditThreadDrawer`, () => {
     expect(container.innerHTML).toBe(``)
   })
 
-  it(`should render provider select with ai providers and exclude non-ai types`, async () => {
+  it(`should pass only AI providers to ProviderSelectorSingle, excluding non-ai types`, async () => {
     render(
       <EditThreadDrawer
         open={true}
@@ -81,16 +99,11 @@ describe(`EditThreadDrawer`, () => {
       />
     )
 
-    const selectButton = screen.getByRole(`combobox`, { name: `AI Provider` })
-    await userEvent.click(selectButton)
-
-    const listbox = screen.getByRole(`listbox`)
-    const options = within(listbox).getAllByRole(`option`)
-
-    const optionTexts = options.map((opt) => opt.textContent)
-    expect(optionTexts).toContain(`Anthropic`)
-    expect(optionTexts).toContain(`OpenAI`)
-    expect(optionTexts).not.toContain(`S3 Bucket`)
+    const lastCall = mockProviderSelectorSingle.mock.calls.at(-1)?.[0]
+    const providerNames = lastCall.providers.map((p: any) => p.name)
+    expect(providerNames).toContain(`Anthropic`)
+    expect(providerNames).toContain(`OpenAI`)
+    expect(providerNames).not.toContain(`S3 Bucket`)
   })
 
   it(`should display thread ID in a read-only field`, () => {
@@ -126,7 +139,7 @@ describe(`EditThreadDrawer`, () => {
     expect((publicSwitch as HTMLInputElement).checked).toBe(true)
   })
 
-  it(`should include a "None" option for provider selection`, async () => {
+  it(`should pass current providerId to ProviderSelectorSingle`, async () => {
     render(
       <EditThreadDrawer
         open={true}
@@ -136,11 +149,8 @@ describe(`EditThreadDrawer`, () => {
       />
     )
 
-    const selectButton = screen.getByRole(`combobox`, { name: `AI Provider` })
-    await userEvent.click(selectButton)
-
-    const listbox = screen.getByRole(`listbox`)
-    const noneOption = within(listbox).getByText(`None (use agent's primary provider)`)
-    expect(noneOption).toBeDefined()
+    const lastCall = mockProviderSelectorSingle.mock.calls.at(-1)?.[0]
+    expect(lastCall.providerId).toBe(`provider-1`)
+    expect(typeof lastCall.onChange).toBe(`function`)
   })
 })

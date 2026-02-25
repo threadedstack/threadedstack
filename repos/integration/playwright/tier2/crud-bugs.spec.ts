@@ -352,14 +352,13 @@ test.describe('BUG #31: Quickstart infinite loading', () => {
     // The quickstart wizard may show infinite loading because it depends
     // on resolving an orgId and fetching providers.
 
-    await gotoAndWait(page, '/', 'tdsk-home-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}`, 'tdsk-org-page')
 
-    // The Home page shows a "Quick Start" button (QuickstartButton component)
-    // It may appear in the "Get Started" card or next to the Orgs heading
+    // The Org page shows a "Quick Start" button in the Quick Actions card header
     const quickStartButton = page.getByRole('button', { name: /Quick Start/i })
     const qsCount = await quickStartButton.count()
 
-    test.skip(qsCount === 0, 'Quick Start button not found on home page')
+    test.skip(qsCount === 0, 'Quick Start button not found on org page')
 
     await quickStartButton.first().click()
     await page.waitForTimeout(2000)

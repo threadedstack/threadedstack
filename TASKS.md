@@ -7,24 +7,59 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 
 #### General
 
-* **[P3] Create reusable Selector components**
-  * Several entity selectors exist but aren't standardized:
-    * `FunctionsSelector` — `repos/admin/src/components/Agents/FunctionsSelector.tsx`
-    * `SecretsSelector` — `repos/admin/src/components/Agents/SecretsSelector.tsx`
-    * `ToolsSelector` — `repos/admin/src/components/Agents/ToolsSelector.tsx`
-  * All follow the same pattern (MUI Autocomplete, multiple selection, custom render option). Missing selectors: **ProviderSelector**, **AgentSelector**, **EndpointSelector**
-  * **Fix**:
-    1. Extract a generic `EntitySelector` base component with the common Autocomplete pattern
-    2. Build missing selectors: `ProviderSelector`, `AgentSelector`, `EndpointSelector`, `UserSelector`.
-    3. Move selectors from `components/Agents/` to `components/Selectors/` for shared use
-    4. Reuse across: AgentDrawer, EndpointDrawer (Agent type), ThreadsTab
-  * **Files**:
-    * New: `repos/admin/src/components/Selectors/EntitySelector.tsx`
-    * New: `repos/admin/src/components/Selectors/ProviderSelector.tsx`
-    * New: `repos/admin/src/components/Selectors/AgentSelector.tsx`
-    * New: `repos/admin/src/components/Selectors/UserSelector.tsx`
-    * Refactor: Move `FunctionsSelector`, `SecretsSelector`, `ToolsSelector`
 
+#### Organization
+
+
+* **[P3] Extract Quick Actions card into reusable component**
+  * The Quick Actions card in `repos/admin/src/pages/Orgs/Org.tsx` lines 183-297 is hardcoded inline with 3 action cards (Projects, Invite Users, Manage Secrets). Each card has an icon, title, description, and onClick handler. This should be a generic component that accepts a list of actions
+  * **Fix**:
+    1. Create a `QuickActionsCard` component that accepts an array of action configs (`{ icon, title, description, onClick }[]`) and a card title
+    2. Render the Grid layout and individual action cards from the config array
+    3. Update `Org.tsx` to use the new component with the existing 3 actions passed as config
+  * **Files**:
+    * New: `repos/admin/src/components/QuickActions/QuickActionsCard.tsx`
+    * `repos/admin/src/pages/Orgs/Org.tsx` — replace lines 183-297 with `<QuickActionsCard>` usage
+
+#### Organization Members
+
+* **[P2] Merge EditRoleDrawer and UserApiKeysDrawer into a single User management drawer**
+  * Two separate drawers exist for managing the same user: `EditRoleDrawer` (`repos/admin/src/components/Roles/EditRoleDrawer.tsx`, 135 lines) for role editing, and `UserApiKeysDrawer` (`repos/admin/src/components/Users/UserApiKeysDrawer.tsx`, 249 lines) for API key management. Users must close one drawer to open the other, and duplicate user identification/display logic exists in both
+  * In `repos/admin/src/components/Users/Users.tsx`, two separate buttons exist (lines 172-211): "API Keys" and "Edit Role", managing two separate state variables (`apiKeysUser` line 53, `selectedUser`/`editRoleDialogOpen` lines 49-52)
+  * **Fix**:
+    1. Create a single `EditUserDrawer` component with two tabs or sections: "Role" (from EditRoleDrawer) and "API Keys" (from UserApiKeysDrawer)
+    2. Consolidate the two state variables in `Users.tsx` into a single `selectedUser` state
+    3. Replace the two separate action buttons with a single "Edit" button that opens the unified drawer
+    4. Remove the old `EditRoleDrawer` and `UserApiKeysDrawer` components
+  * **Files**:
+    * New: `repos/admin/src/components/Users/EditUserDrawer.tsx`
+    * `repos/admin/src/components/Users/Users.tsx` — consolidate state and buttons
+    * Remove: `repos/admin/src/components/Roles/EditRoleDrawer.tsx`
+    * Remove: `repos/admin/src/components/Users/UserApiKeysDrawer.tsx`
+
+#### Organization API Keys
+
+* **[P3] Add User selector to CreateApiKeyDrawer**
+  * The `CreateApiKeyDrawer` (`repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx`) already accepts `userId` and `userName` props (lines 27-30) and displays the user name if provided (lines 200-210), but the parent `OrgApiKeys` page (`repos/admin/src/pages/Orgs/OrgApiKeys.tsx` lines 272-278) never populates these props
+  * The `createApiKey` action (line 83 of CreateApiKeyDrawer) already supports passing `userId` in the data payload
+  * **Fix**:
+    1. In `OrgApiKeys.tsx`, add org user loading (fetch via `usersApi.listByOrg(orgId)`) and state for available users
+    2. In `CreateApiKeyDrawer.tsx`, replace the static `userName` display (lines 200-210) with an `Autocomplete` or `Select` component that lists org users. When a user is selected, set the `userId` in the form data
+    3. Pass the user list to the drawer, or have the drawer load users itself
+  * **Files**:
+    * `repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx` — replace lines 200-210 with user selector
+    * `repos/admin/src/pages/Orgs/OrgApiKeys.tsx` — add user loading and pass to drawer (lines 272-278)
+
+#### Project Page
+
+* **[P1] Project stats show inaccurate counts until sub-pages are visited**
+  * On the Project page (`repos/admin/src/pages/Projects/Project.tsx`), stat cards for Endpoints, Functions, and Agents (lines 158-213) show 0 or incorrect counts. The page reads from Jotai selectors (`useProjectEndpoints`, `useProjectFunctions`, `useProjectAgents` at lines 41-43) but never fetches the data from the API on mount. Counts only populate after the user navigates to each sub-page (e.g., ProjectEndpoints), which triggers the actual API fetch
+  * **Fix**:
+    1. Add a `useEffect` in `Project.tsx` that fetches endpoints, functions, and agents on mount when `orgId` and `projectId` are available
+    2. Call `fetchEndpoints({ orgId, projectId })`, `fetchFunctions({ orgId, projectId })`, and `fetchAgents({ orgId, projectId })` from existing action modules
+    3. Add loading state to show spinners on the stat cards while data loads
+  * **Files**:
+    * `repos/admin/src/pages/Projects/Project.tsx` — add useEffect after line 43 with API fetch calls
 
 #### Endpoints
 
@@ -35,63 +70,23 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
   * **Fix**: Replace agent ID text input with `Autocomplete` that loads available agents. Add ProviderSelector, FunctionsSelector, SecretsSelector to the Agent Overrides section (reuse existing components from AgentDrawer)
   * **Files**: `repos/admin/src/components/Endpoints/Agent/EndpointAgent.tsx`, `repos/admin/src/components/Endpoints/Agent/AgentInputs.tsx`
 
+* **[P3] Endpoint Drawer Test Tab improvements**
+  * The `EndpointTestPanel` (`repos/admin/src/components/Endpoints/EndpointTestPanel.tsx`) has several UX issues:
+    * **Method selector is user-configurable** (lines 71-87) but should be read-only — the method should be derived from the endpoint type: Proxy endpoints use the endpoint's `method` property, FaaS and Agent endpoints are always `POST`
+    * **No query params editor** — when the method is `GET`, a Key/Value editor for query params should appear (similar to the existing headers editor at lines 97-131)
+    * **No body type selector** — non-GET requests only support raw JSON via Monaco (line 138 `language='json'`). Should offer a selector for JSON (Key/Value → JSON object), FORM (Key/Value → FormData), or RAW (current Monaco editor)
+    * **Send Request button is left-aligned** (line 147 `display: 'flex'`) but should be right-aligned
+  * **Fix**:
+    1. Replace the Method `Select` (lines 71-87) with a read-only `Chip` displaying the method derived from the endpoint
+    2. Pass the `endpoint` object from `EndpointDrawer.tsx` (lines 354-359) to the test panel via props
+    3. Add query params state and Key/Value editor in `useEndpointTest.ts` (following the existing header pattern at lines 44-59). Convert to query string on send
+    4. Add a body type selector (`JSON` / `FORM` / `RAW`) above the body editor, and switch the editor accordingly
+    5. Change the actions Box (line 147) to `justifyContent: 'flex-end'`
+  * **Files**:
+    * `repos/admin/src/components/Endpoints/EndpointTestPanel.tsx` — method display, query params, body type, button alignment
+    * `repos/admin/src/hooks/endpoints/useEndpointTest.ts` — add query params state, body type state
+    * `repos/admin/src/components/Endpoints/EndpointDrawer.tsx` — pass endpoint object to test panel (lines 354-359)
 
-
-#### Quickstart Drawer
-
-
-#### Sidebar Nav
-  * **[P2]: Context-Sensitive Sub-Navigation Panel**
-    * **Issues**
-      * Sub Agent items under Agents nav get cut off
-        * Sidebar nav item for "Agents" has sub-items (Threads, Chat) defined in `nav.tsx:131-142`. Sub-item text overflows due to limited sidebar width
-      * Sidebar has too many items — needs simplification
-        * OrgNavItems has 9 items, ProjectNavItems has 7+ items. When both visible, the sidebar is very long
-
-    * **What Exists**
-      * The admin app already has a primary sidebar navigation — a vertical icon-only rail on the far left edge of the screen. Each icon represents a top-level section (e.g., Home, Projects, Agents, Settings, etc.). Clicking an icon navigates to that section.
-    * **What to Add**
-      * Add a secondary sub-navigation panel that renders immediately to the right of the existing icon sidebar. This panel is context-sensitive — its content changes based on which item is currently active in the primary icon nav.
-      * Grouped sections:
-        * Org level: "Resources" (Projects, Agents, Users), "Security" (Secrets, Providers, API Keys, Domains), "Management" (Usage, Settings)
-        * Project level: "Development" (Endpoints, Functions), "AI" (Agents + sub-items), "Security" (Secrets, Domains), "Management" (Members, Settings)
-    * **Sub-Nav Panel Behavior**
-      1. **Visibility**: The sub-nav panel appears when a primary nav item has sub-pages to show. If a primary nav item has no sub-pages (e.g., a simple
-  dashboard landing), the sub-nav panel should not render, and the main content area should take the full remaining width.
-      1. **Header**: At the top of the sub-nav panel, display the name of the active primary nav section (e.g., "Settings", "Project", "Agents") as a title.
-      2. **Grouped Links**: Below the header, display navigation links organized into labeled groups. Each group has:
-        * A section header in uppercase small text (e.g., "PROJECT SETTINGS", "CONFIGURATION", "BILLING")
-        * A list of clickable nav items beneath it, each routing to a sub-page within that section
-      3. **Active State**: The currently active sub-nav item should be visually highlighted (e.g., background highlight or bold text) similar to the existing Sidebar navigation to indicate which sub-page the user is on.
-    * **Layout**
-
-      ┌──────┬──────────────────┬──────────────────────────────────┐
-      │ Icon │  Sub-Nav Panel   │         Main Content Area        │
-      │ Rail │                  │                                  │
-      │      │  [Section Title] │                                  │
-      │  🏠  │                  │                                  │
-      │  📁  │  GROUP HEADER    │                                  │
-      │  ⚙️  │    Link 1        │                                  │
-      │  ... │    Link 2        │                                  │
-      │      │    Link 3        │                                  │
-      │      │                  │                                  │
-      │      │  GROUP HEADER    │                                  │
-      │      │    Link 4  ↗     │                                  │
-      │      │    Link 5        │                                  │
-      │      │                  │                                  │
-      └──────┴──────────────────┴──────────────────────────────────┘
-
-    * **Data-Driven Configuration**
-      * The sub-nav items for each primary nav section should be defined as a configuration object/map — not hardcoded JSX. This makes it easy to add/remove/reorder items per section. Something like:
-
-    * **Key Constraints**
-      * The sub-nav panel should have a fixed width and remain visible (not collapsible) when active.
-      * The panel should be scrollable independently if the list of links exceeds the viewport height.
-      * Routing should use the existing router — clicking a sub-nav item updates the URL and renders the corresponding page in the main content area.
-      * The sub-nav panel replaces no existing UI — it is a new addition inserted between the icon rail and the main content.
-
-
-### Backend
 
 
 ### Repl

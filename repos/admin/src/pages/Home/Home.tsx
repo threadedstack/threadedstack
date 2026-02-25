@@ -1,12 +1,15 @@
+import { useState } from 'react'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import { Text } from '@tdsk/components'
+import Button from '@mui/material/Button'
 import { Page } from '@TAF/pages/Page/Page'
+import { useOrgs } from '@TAF/state/selectors'
 import Container from '@mui/material/Container'
 import { Orgs } from '@TAF/components/Orgs/Orgs'
 import CardContent from '@mui/material/CardContent'
-import { useOrgs } from '@TAF/state/selectors'
-import { Quickstart } from '@TAF/components/Quickstart/Quickstart'
+import { Add as AddIcon } from '@mui/icons-material'
+import { CreateOrgDrawer } from '@TAF/components/Orgs/CreateOrgDrawer'
 
 export type THome = {}
 
@@ -14,6 +17,7 @@ export const Home = (props: THome) => {
   const [orgs] = useOrgs()
   const orgsArray = orgs ? Object.values(orgs) : []
   const hasOrgs = orgsArray.length > 0
+  const [createOpen, setCreateOpen] = useState(false)
 
   return (
     <Page className='tdsk-home-page'>
@@ -31,16 +35,22 @@ export const Home = (props: THome) => {
                 variant='h5'
                 gutterBottom
               >
-                Get Started with AI Agents
+                Welcome to Threaded Stack
               </Text>
               <Text
                 variant='body1'
                 color='text.secondary'
                 sx={{ mb: 2 }}
               >
-                Create your first AI agent in under a minute
+                Create your first organization to get started
               </Text>
-              <Quickstart />
+              <Button
+                variant='contained'
+                startIcon={<AddIcon />}
+                onClick={() => setCreateOpen(true)}
+              >
+                Create Organization
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -65,12 +75,14 @@ export const Home = (props: THome) => {
               Choose an organization to continue or create a new one
             </Text>
           </Box>
-          {/* TODO: This is in the wrong place, so be added on the Org page */}
-          {/* It's not easily accessible on the Orgs list page */}
-          {hasOrgs && <Quickstart />}
         </Box>
 
         <Orgs />
+
+        <CreateOrgDrawer
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+        />
       </Container>
     </Page>
   )

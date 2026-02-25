@@ -1,49 +1,77 @@
 import { useEffect } from 'react'
+import { Box } from '@mui/material'
 import { Outlet } from 'react-router'
+import { styled } from '@mui/material/styles'
+import { Header } from '@TAF/components/Header/Header'
 import { Menu as MenuIcon } from '@mui/icons-material'
-import { useTheme, useMediaQuery, IconButton } from '@mui/material'
+import { HeaderSettingsItems } from '@TAF/constants/nav'
 import { Sidebar } from '@TAF/components/Sidebar/Sidebar'
+import { useTheme, useMediaQuery, IconButton } from '@mui/material'
 import { useActiveOrgId, useSidebarOpen } from '@TAF/state/selectors'
 import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { SignedIn, RedirectToSignIn } from '@neondatabase/neon-js/auth/react'
-import { LayoutContainer, LayoutContent } from '@TAF/pages/Layout/Layout.styles'
+
+const LayoutContainer = styled(Box)(({ theme }) => {
+  return `
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+    flex-direction: column;
+    max-height: -webkit-fill-available;
+    background-color: ${theme.palette.background.default};
+  `
+})
+
+const LayoutContent = styled(Box)`
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+  max-height: -webkit-fill-available;
+`
+
+const MobileToggle = styled(IconButton)(({ theme }) => {
+  return `
+    z-index: 1200;
+    box-shadow: ${theme.shadows[3]};
+    position: fixed;
+    left: ${theme.gutter.px};
+    bottom: ${theme.gutter.px};
+    background-color: ${theme.palette.primary.main};
+    color: ${theme.palette.primary.contrastText};
+
+    &:hover {
+      background-color: ${theme.palette.primary.dark};
+    }
+  `
+})
 
 const Layout = (props: any) => {
   const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
-  const [, setSidebarOpen] = useSidebarOpen()
   const [orgId] = useActiveOrgId()
+  const [, setSidebarOpen] = useSidebarOpen()
+  const isMobile = useMediaQuery(theme.breakpoints.down(`md`))
 
   // BUG #6: Pre-fetch projects when orgId is available so breadcrumb project selector works
   // TODO: look into other ways to accomplish this. Like adding a Project loader HOC
   useEffect(() => {
-    if (orgId) fetchProjects({ orgId }).catch(() => {})
+    orgId && fetchProjects({ orgId }).catch(() => {})
   }, [orgId])
 
   return (
     <>
       <SignedIn>
         <LayoutContainer className='tdsk-layout-container'>
+          <Header navItems={HeaderSettingsItems} />
           <LayoutContent className='tdsk-page-content'>
             <Sidebar isMobile={isMobile} />
             <Outlet />
             {props?.children}
             {isMobile && (
-              <IconButton
-                onClick={() => setSidebarOpen(true)}
-                sx={{
-                  bottom: 16,
-                  left: 16,
-                  zIndex: 1200,
-                  boxShadow: 3,
-                  position: 'fixed',
-                  bgcolor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': { bgcolor: 'primary.dark' },
-                }}
-              >
+              <MobileToggle onClick={() => setSidebarOpen(true)}>
                 <MenuIcon />
-              </IconButton>
+              </MobileToggle>
             )}
           </LayoutContent>
         </LayoutContainer>

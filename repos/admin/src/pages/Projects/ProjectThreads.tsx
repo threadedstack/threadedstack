@@ -68,7 +68,10 @@ export const ProjectThreads = (props: TProjectThreads) => {
 
   return (
     <Page className='tdsk-project-threads-page'>
-      <Box sx={{ mb: 3 }}>
+      <Box
+        className='tdsk-page-header-box'
+        sx={{ mb: 3 }}
+      >
         <Typography
           variant='h5'
           component='h1'

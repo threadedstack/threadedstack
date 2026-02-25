@@ -15,6 +15,7 @@ import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createFunction, updateFunction, deleteFunction } from '@TAF/actions/functions'
+import { EndpointSelector } from '@TAF/components/Selectors'
 import {
   Drawer,
   TextInput,
@@ -61,17 +62,20 @@ export const FunctionDrawer = ({
     open && orgId && projectId && fetchEndpoints({ orgId, projectId })
   }, [open, orgId, projectId])
 
-  // Create endpoint options for the select dropdown
+  // Create endpoint options for the selector
   const endpointOptions = useMemo(() => {
     if (!endpoints) return []
 
-    return Object.values(endpoints)
+    const items = Object.values(endpoints)
       .filter((endpoint) => endpoint.projectId === projectId)
       .map((endpoint) => ({
-        label: `${endpoint.method} ${endpoint.path}`,
-        value: endpoint.id,
+        id: endpoint.id,
+        name: `${endpoint.method} ${endpoint.path}`,
+        type: endpoint.type,
       }))
-      .sort((a, b) => a.label.localeCompare(b.label))
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    return [{ id: ``, name: `No endpoint`, type: `` }, ...items]
   }, [endpoints, projectId])
 
   useEffect(() => {
@@ -309,18 +313,12 @@ export const FunctionDrawer = ({
             onChange={(e) => setDescription(e.target.value)}
           />
 
-          <SelectInput
-            id='function-endpoint'
-            label='Endpoint'
-            value={endpointId}
-            onChange={(e) => setEndpointId(e.target.value)}
-            items={[{ label: `No endpoint`, value: `` }, ...endpointOptions]}
-            disabled={loading || endpointOptions.length === 0}
-            description={
-              endpointOptions.length === 0
-                ? `No endpoints available. Create an endpoint first.`
-                : `Select an endpoint to associate with this function`
-            }
+          <EndpointSelector
+            loading={loading}
+            disabled={loading}
+            endpointId={endpointId}
+            endpoints={endpointOptions}
+            onChange={(id) => setEndpointId(id)}
           />
 
           <TextInput

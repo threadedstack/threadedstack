@@ -11,9 +11,12 @@ import {
   EEPCredential,
 } from '@tdsk/domain'
 
+export const NavRailWidth = 60
 export const DefSettingsState = {}
+export const SubNavPanelWidth = 200
 export const SidebarWidthOpen = 240
 export const SidebarWidthClosed = 60
+export const NavRailExpandedWidth = 200
 export const HttpMethods = Object.keys(EHttpMethod)
 export const ApiKeyScopes = Object.values(EApiKeyScope)
 export const EPVisibility = Object.values(EEPVisibility)

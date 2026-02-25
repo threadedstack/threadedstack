@@ -259,4 +259,16 @@ describe(`FunctionExecutor`, () => {
     expect(result.success).toBe(false)
     expect(result.error).toBe(`Function produced no result`)
   })
+
+  // ── Test 11: Wrapper code JSON-serializes handler output ─────
+
+  it(`should generate wrapper code that JSON-sanitizes handler output`, async () => {
+    const func = makeFunc()
+    await FunctionExecutor.execute(func)
+
+    const wrapperCode = mockEvaluate.mock.calls[0][0] as string
+    // Wrapper should JSON round-trip the handler result to strip non-serializable values
+    expect(wrapperCode).toContain(`const raw = await handler(request, context)`)
+    expect(wrapperCode).toContain(`JSON.parse(JSON.stringify(raw ?? null))`)
+  })
 })

@@ -78,6 +78,12 @@ vi.mock(`@tdsk/components`, () => ({
   ConfirmDelete: () => null,
 }))
 
+vi.mock(`@TAF/components/Selectors`, () => ({
+  ToolsSelector: () => <div data-testid='tools-selector' />,
+  SecretsSelector: () => <div data-testid='secrets-selector' />,
+  FunctionsSelector: () => <div data-testid='functions-selector' />,
+}))
+
 vi.mock(`@TAF/components/Agents`, () => ({
   BasicInfoForm: ({ loading }: any) => (
     <div
@@ -85,10 +91,7 @@ vi.mock(`@TAF/components/Agents`, () => ({
       data-loading={loading}
     />
   ),
-  ToolsSelector: () => <div data-testid='tools-selector' />,
-  SecretsSelector: () => <div data-testid='secrets-selector' />,
   ModelConfigForm: () => <div data-testid='model-config-form' />,
-  FunctionsSelector: () => <div data-testid='functions-selector' />,
   AgentSettingsForm: () => <div data-testid='agent-settings-form' />,
 }))
 

@@ -323,13 +323,31 @@ export class IsolateRunner {
 
     await userModule.evaluate({ timeout })
 
-    // Try to retrieve the default export
+    // Try to retrieve the default export via structured clone
     let result: any
     try {
       const ns = userModule.namespace
       result = await ns.get(`default`, { copy: true })
     } catch {
-      // No default export
+      // Structured clone failed (non-serializable properties) — try JSON fallback
+      try {
+        const bridge = await this.#isolate!.compileModule(
+          `import val from 'user-code';\nexport default JSON.stringify(val ?? null);`,
+          { filename: `json-bridge.js` }
+        )
+        await bridge.instantiate(this.#context!, (specifier: string) => {
+          if (specifier === `user-code`) return userModule
+          const shim = this.#shims.get(specifier)
+          if (!shim) throw new Error(`Module not found: ${specifier}`)
+          return shim
+        })
+        await bridge.evaluate({ timeout: 1000 })
+        const json = await bridge.namespace.get(`default`, { copy: true })
+        if (typeof json === `string`) result = JSON.parse(json)
+        bridge.release()
+      } catch {
+        // Both structured clone and JSON serialization failed
+      }
     }
 
     userModule.release()

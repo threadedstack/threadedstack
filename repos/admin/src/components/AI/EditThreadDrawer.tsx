@@ -2,21 +2,10 @@ import type { Thread } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
 import { useProviders } from '@TAF/state/selectors'
 import { Loading, Drawer, DrawerActions } from '@tdsk/components'
+import { ProviderSelectorSingle } from '@TAF/components/Selectors'
 import { updateThread } from '@TAF/actions/threads/api/updateThread'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import {
-  Stack,
-  Alert,
-  Select,
-  Switch,
-  Divider,
-  MenuItem,
-  TextField,
-  Typography,
-  InputLabel,
-  FormControl,
-  FormControlLabel,
-} from '@mui/material'
+import { Stack, Alert, Switch, Divider, TextField, FormControlLabel } from '@mui/material'
 
 export type TEditThreadDrawerProps = {
   open: boolean
@@ -49,13 +38,13 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
   )
 
   const onClose = () => {
-    if (!loading) {
-      setName('')
-      setPublicThread(false)
-      setSelectedProviderId('')
-      setError(null)
-      onCloseCB?.()
-    }
+    if (loading) return
+
+    setName('')
+    setPublicThread(false)
+    setSelectedProviderId('')
+    setError(null)
+    onCloseCB?.()
   }
 
   const onSave = async () => {
@@ -145,27 +134,15 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
 
               <Divider />
 
-              <FormControl fullWidth>
-                <InputLabel id='edit-thread-provider-label'>AI Provider</InputLabel>
-                <Select
-                  labelId='edit-thread-provider-label'
-                  value={selectedProviderId}
-                  label='AI Provider'
-                  onChange={(e) => setSelectedProviderId(e.target.value)}
-                >
-                  <MenuItem value=''>
-                    <em>None (use agent's primary provider)</em>
-                  </MenuItem>
-                  {availableProviders.map((provider) => (
-                    <MenuItem
-                      key={provider.id}
-                      value={provider.id}
-                    >
-                      {provider.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <ProviderSelectorSingle
+                loading={loading}
+                providerId={selectedProviderId}
+                onChange={setSelectedProviderId}
+                providers={availableProviders.map((p) => ({
+                  id: p.id,
+                  name: p.name || p.id,
+                }))}
+              />
 
               <Divider />
 

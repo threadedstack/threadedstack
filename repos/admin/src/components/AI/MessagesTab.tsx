@@ -10,8 +10,8 @@ import { deleteMessage } from '@TAF/actions/messages/api/deleteMessage'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   useOrgThreads,
-  useThreadMessages,
   useActiveOrgId,
+  useThreadMessages,
   useActiveThreadId,
 } from '@TAF/state/selectors'
 import {
@@ -20,6 +20,7 @@ import {
   Table,
   Alert,
   Button,
+  Dialog,
   TableRow,
   TableCell,
   TableBody,
@@ -27,13 +28,12 @@ import {
   TextField,
   Typography,
   IconButton,
-  TableContainer,
   ToggleButton,
-  ToggleButtonGroup,
-  Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  TableContainer,
+  ToggleButtonGroup,
 } from '@mui/material'
 import {
   Edit as EditIcon,
@@ -288,11 +288,11 @@ export const MessagesTab = (props: TMessagesTab) => {
 
   return (
     <PageLayout
+      error={error}
+      searchCount={0}
       title='Messages'
       loading={loading}
-      error={error}
       setError={setError}
-      searchCount={0}
       query={searchQuery}
       countLabel='message'
       count={threadMessages.length}
@@ -300,38 +300,47 @@ export const MessagesTab = (props: TMessagesTab) => {
       searchPlaceholder='Search messages...'
     >
       <Box
+        className='tdsk-tab-box'
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
           mb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
         }}
       >
         <Typography
           variant='body2'
           color='text.secondary'
+          className='tdsk-msg-thread-name'
         >
           Thread: {activeThread?.name || 'Untitled'}
           {activeThread?.parentThreadId && (
             <Chip
-              label='branched'
               size='small'
+              label='branched'
               variant='outlined'
               sx={{ ml: 1 }}
             />
           )}
         </Typography>
         <ToggleButtonGroup
+          exclusive
           size='small'
           value={viewMode}
-          exclusive
+          className='tdsk-msg-toggle-btn-group'
           onChange={(_, v) => v && setViewMode(v)}
         >
-          <ToggleButton value='chat'>
+          <ToggleButton
+            className='tdsk-msg-toggle-btn-chat'
+            value='chat'
+          >
             <ChatViewIcon sx={{ fontSize: 18, mr: 0.5 }} />
             Chat
           </ToggleButton>
-          <ToggleButton value='table'>
+          <ToggleButton
+            className='tdsk-msg-toggle-btn-table'
+            value='table'
+          >
             <TableViewIcon sx={{ fontSize: 18, mr: 0.5 }} />
             Table
           </ToggleButton>
@@ -353,23 +362,24 @@ export const MessagesTab = (props: TMessagesTab) => {
 
       {threadMessages.length > 0 && viewMode === 'chat' && (
         <Box
+          className='tdsk-msgs-box'
           sx={{
-            display: 'flex',
-            flexDirection: 'column',
+            p: 2,
             gap: 2,
-            maxHeight: 'calc(100vh - 350px)',
-            minHeight: 300,
+            border: 1,
             width: '100%',
+            minHeight: 300,
+            display: 'flex',
             overflow: 'auto',
+            borderRadius: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.default',
+            flexDirection: 'column',
+            maxHeight: 'calc(100vh - 350px)',
             '& pre, & code': {
               overflowX: 'auto',
               maxWidth: '100%',
             },
-            p: 2,
-            bgcolor: 'background.default',
-            borderRadius: 1,
-            border: 1,
-            borderColor: 'divider',
           }}
         >
           {threadMessages.map((message) => {
@@ -378,15 +388,17 @@ export const MessagesTab = (props: TMessagesTab) => {
 
             return (
               <Box
+                className='tdsk-msg-box'
                 key={message.id}
                 sx={{
-                  display: 'flex',
                   gap: 1.5,
+                  display: 'flex',
                   alignItems: 'flex-start',
                   flexDirection: isUser ? 'row-reverse' : 'row',
                 }}
               >
                 <Box
+                  className='tdsk-msg-icon-box'
                   sx={{
                     width: 32,
                     height: 32,
@@ -403,8 +415,12 @@ export const MessagesTab = (props: TMessagesTab) => {
                   {getMsgIcon(message.type)}
                 </Box>
 
-                <Box sx={{ maxWidth: isUser ? '75%' : '85%', minWidth: 0 }}>
+                <Box
+                  className='tdsk-msg-pos-box'
+                  sx={{ maxWidth: isUser ? '75%' : '85%', minWidth: 0 }}
+                >
                   <Box
+                    className='tdsk-msg-bubble-box'
                     sx={{
                       px: 2,
                       py: 1.5,
@@ -416,7 +432,7 @@ export const MessagesTab = (props: TMessagesTab) => {
                     }}
                   >
                     {isEditing ? (
-                      <Box>
+                      <Box className='tdsk-msg-edit-box'>
                         <TextField
                           fullWidth
                           multiline
@@ -432,22 +448,25 @@ export const MessagesTab = (props: TMessagesTab) => {
                           }}
                         />
                         <Box
+                          className='tdsk-msg-edit-actions-box'
                           sx={{
-                            display: 'flex',
-                            gap: 1,
                             mt: 1,
+                            gap: 1,
+                            display: 'flex',
                             justifyContent: 'flex-end',
                           }}
                         >
                           <IconButton
                             size='small'
                             onClick={onEditCancel}
+                            className='tdsk-msg-edit-close-action'
                           >
                             <CloseIcon fontSize='small' />
                           </IconButton>
                           <IconButton
                             size='small'
                             color='primary'
+                            className='tdsk-msg-edit-save-action'
                             onClick={() => onEditSave(message)}
                           >
                             <SaveIcon fontSize='small' />
@@ -457,7 +476,12 @@ export const MessagesTab = (props: TMessagesTab) => {
                     ) : (
                       <Typography
                         variant='body2'
-                        sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                        className='tdsk-msg-edit-text'
+                        sx={{
+                          fontSize: '14px',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                        }}
                       >
                         {extractText(message.content)}
                       </Typography>
@@ -466,18 +490,20 @@ export const MessagesTab = (props: TMessagesTab) => {
 
                   {!isEditing && (
                     <Box
+                      className='tdsk-msg-display-box'
                       sx={{
-                        display: 'flex',
-                        gap: 0.5,
                         mt: 0.5,
-                        justifyContent: isUser ? 'flex-end' : 'flex-start',
+                        gap: 0.5,
                         opacity: 0.6,
+                        display: 'flex',
+                        justifyContent: isUser ? 'flex-end' : 'flex-start',
                         '&:hover': { opacity: 1 },
                       }}
                     >
                       <IconButton
                         size='small'
                         title='Edit message'
+                        className='tdsk-msg-display-edit-action'
                         onClick={() => onEditStart(message)}
                       >
                         <EditIcon sx={{ fontSize: 14 }} />
@@ -486,6 +512,7 @@ export const MessagesTab = (props: TMessagesTab) => {
                         size='small'
                         title='Branch at this message'
                         onClick={() => onBranchClick(message)}
+                        className='tdsk-msg-display-branch-action'
                       >
                         <BranchIcon sx={{ fontSize: 14 }} />
                       </IconButton>
@@ -493,6 +520,7 @@ export const MessagesTab = (props: TMessagesTab) => {
                         size='small'
                         title='Delete message'
                         onClick={() => onDeleteClick(message)}
+                        className='tdsk-msg-display-delete-action'
                       >
                         <DeleteIcon sx={{ fontSize: 14 }} />
                       </IconButton>
@@ -593,15 +621,15 @@ export const MessagesTab = (props: TMessagesTab) => {
       )}
 
       <ConfirmDelete
-        onConfirm={onDeleteConfirm}
         title='Delete Message?'
         open={deleteDialogOpen}
         itemName='this message'
+        onConfirm={onDeleteConfirm}
+        warnText='This will permanently delete this message. This action cannot be undone.'
         onCancel={() => {
           setDeleteDialogOpen(false)
           setSelectedMessage(null)
         }}
-        warnText='This will permanently delete this message. This action cannot be undone.'
       />
 
       <Dialog

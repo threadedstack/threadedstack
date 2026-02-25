@@ -8,7 +8,7 @@ export type TOrgIcon = ComponentProps<typeof GridView> & {
 
 const style = {
   default: {
-    color: `primary.main`,
+    color: `secondary.main`,
   },
   text: {
     mr: 1,

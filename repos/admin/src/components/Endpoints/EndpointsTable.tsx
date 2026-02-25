@@ -2,6 +2,7 @@ import type { Endpoint } from '@tdsk/domain'
 
 import { useState } from 'react'
 import { ConfirmDelete } from '@tdsk/components'
+import { EndpointTypeOpts } from '@TAF/constants/values'
 import {
   Card,
   Chip,
@@ -50,6 +51,7 @@ export const EndpointsTable = (props: TEndpointsTable) => {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Method</TableCell>
+              <TableCell>Type</TableCell>
               <TableCell>Path</TableCell>
               <TableCell align='center'>Public</TableCell>
               <TableCell align='right'>Actions</TableCell>
@@ -70,6 +72,17 @@ export const EndpointsTable = (props: TEndpointsTable) => {
                     size='small'
                     color='primary'
                     variant='outlined'
+                  />
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    size='small'
+                    color='secondary'
+                    variant='outlined'
+                    label={
+                      EndpointTypeOpts.find((o) => o.value === endpoint.type)?.label ||
+                      endpoint.type
+                    }
                   />
                 </TableCell>
                 <TableCell

@@ -45,7 +45,8 @@ const request = JSON.parse(${JSON.stringify(requestJson)});
 const context = JSON.parse(${JSON.stringify(contextJson)});
 let output;
 try {
-  output = { success: true, output: await handler(request, context) };
+  const raw = await handler(request, context);
+  output = { success: true, output: JSON.parse(JSON.stringify(raw ?? null)) };
 } catch (err) {
   output = { success: false, error: err?.message || String(err) };
 }

@@ -273,6 +273,31 @@ describe(`IsolateRunner`, () => {
 
       expect(result.result).toBeUndefined()
     })
+
+    it(`should fall back to JSON serialization when structured clone fails`, async () => {
+      // First call (structured clone) rejects, second call (bridge module) resolves
+      mockGet
+        .mockRejectedValueOnce(new Error(`#<Object> could not be cloned`))
+        .mockResolvedValueOnce(JSON.stringify({ data: 42 }))
+
+      const result = await runIsolate(runner, `export default { data: 42 }`)
+
+      expect(result.result).toEqual({ data: 42 })
+      // Bridge module should be compiled with the JSON fallback source
+      expect(mockCompileModule).toHaveBeenCalledWith(
+        expect.stringContaining(`import val from 'user-code'`),
+        expect.objectContaining({ filename: `json-bridge.js` })
+      )
+    })
+
+    it(`should return undefined when both structured clone and JSON fallback fail`, async () => {
+      // Both structured clone and bridge module get reject
+      mockGet.mockRejectedValue(new Error(`clone failed`))
+
+      const result = await runIsolate(runner, `export default { circular: true }`)
+
+      expect(result.result).toBeUndefined()
+    })
   })
 
   describe(`registerModule`, () => {

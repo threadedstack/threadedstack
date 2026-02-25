@@ -18,7 +18,7 @@ export const listApiKeys: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
-    const { projectId, userId } = req.query
+    const { projectId, userId, active = true } = req.query
 
     // Require orgId for API keys (they belong to orgs)
     if (!orgId) throw new Exception(400, `orgId parameter required`)
@@ -30,7 +30,7 @@ export const listApiKeys: TEndpointConfig = {
 
     const { limit, offset } = parsePagination(req)
 
-    const where: Record<string, string> = { orgId }
+    const where: Record<string, string | boolean> = { orgId, active }
     if (projectId) where.projectId = projectId as string
     if (userId) where.userId = userId as string
 

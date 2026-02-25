@@ -1,22 +1,23 @@
 import { useState } from 'react'
 import { ERoutePath } from '@TAF/types'
+import { ERoleType } from '@tdsk/domain'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { ConfirmDelete } from '@tdsk/components'
 import { useActiveOrg } from '@TAF/state/selectors'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
-import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
-import { EditOrgDrawer } from '@TAF/components/Orgs/EditOrgDrawer'
-import { ERoleType } from '@tdsk/domain'
 import { getInitials } from '@TAF/utils/user/getInitials'
 import { getRoleColor } from '@TAF/utils/user/getRoleColor'
+import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import { useOrgUsersList } from '@TAF/hooks/org/useOrgUsersList'
+import { Quickstart } from '@TAF/components/Quickstart/Quickstart'
+import { EditOrgDrawer } from '@TAF/components/Orgs/EditOrgDrawer'
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   VpnKey as SecretIcon,
-  PersonAdd as AddMemberIcon,
   FolderOpen as ProjectIcon,
+  PersonAdd as AddMemberIcon,
 } from '@mui/icons-material'
 import {
   Box,
@@ -182,12 +183,22 @@ export const Org = (props: TOrg) => {
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography
-            variant='h6'
-            gutterBottom
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 1,
+            }}
           >
-            Quick Actions
-          </Typography>
+            <Typography
+              variant='h6'
+              gutterBottom
+            >
+              Quick Actions
+            </Typography>
+            <Quickstart />
+          </Box>
           <Divider sx={{ mb: 2 }} />
           <Grid
             container
@@ -237,7 +248,7 @@ export const Org = (props: TOrg) => {
                   cursor: 'pointer',
                   '&:hover': { borderColor: 'primary.main' },
                 }}
-                onClick={() => navigate(`/orgs/${org.id}/users`)}
+                onClick={() => navigate(`/orgs/${org.id}/members`)}
               >
                 <CardContent sx={{ textAlign: 'center' }}>
                   <AddMemberIcon
@@ -314,7 +325,7 @@ export const Org = (props: TOrg) => {
               variant='outlined'
               size='small'
               startIcon={<AddMemberIcon />}
-              onClick={() => navigate(`/orgs/${org.id}/users`)}
+              onClick={() => navigate(`/orgs/${org.id}/members`)}
             >
               Manage Members
             </Button>
@@ -368,7 +379,7 @@ export const Org = (props: TOrg) => {
               {orgUsers.length > 5 && (
                 <Button
                   size='small'
-                  onClick={() => navigate(`/orgs/${org.id}/users`)}
+                  onClick={() => navigate(`/orgs/${org.id}/members`)}
                   sx={{ mt: 1 }}
                 >
                   View all {orgUsers.length} members

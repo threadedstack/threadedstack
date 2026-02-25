@@ -8,7 +8,7 @@ export type TProjectIcon = ComponentProps<typeof WorkspacesIcon> & {
 
 const style = {
   default: {
-    color: `primary.main`,
+    color: `secondary.main`,
   },
   text: {
     mr: 1,

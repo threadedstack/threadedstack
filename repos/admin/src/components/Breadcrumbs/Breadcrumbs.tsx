@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Box } from '@mui/material'
+import { styled } from '@mui/material/styles'
+import { ChevronRight } from '@mui/icons-material'
 import { useActiveOrgId } from '@TAF/state/selectors'
-import { ChevronRight as SeparatorIcon } from '@mui/icons-material'
 import { OrgSelector } from '@TAF/components/Breadcrumbs/OrgSelector'
 import { CreateOrgDrawer } from '@TAF/components/Orgs/CreateOrgDrawer'
 import { ProjectSelector } from '@TAF/components/Breadcrumbs/ProjectSelector'
@@ -11,6 +12,21 @@ export type TBreadcrumbs = {
   className?: string
 }
 
+const Container = styled(Box)`
+  gap: 0.5;
+  display: flex;
+  align-items: center;
+`
+
+const SeparatorIcon = styled(ChevronRight)(({ theme }) => {
+  return `
+    font-size: 18px;
+    margin-left: ${theme.gutter.qpx};
+    margin-right: ${theme.gutter.qpx};
+    color: ${theme.palette.text.disabled};
+  `
+})
+
 export const Breadcrumbs = (props: TBreadcrumbs) => {
   const { className } = props
 
@@ -18,28 +34,11 @@ export const Breadcrumbs = (props: TBreadcrumbs) => {
   const [createOrgOpen, setCreateOrgOpen] = useState(false)
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
 
-  const onCreateOrg = () => setCreateOrgOpen(true)
-  const onCreateProject = () => setCreateProjectOpen(true)
-
   return activeOrgId ? (
-    <Box
-      className={className}
-      sx={{
-        gap: 0.5,
-        display: 'flex',
-        alignItems: 'center',
-      }}
-    >
-      <OrgSelector onCreateOrg={onCreateOrg} />
-
-      <SeparatorIcon
-        sx={{
-          mx: 0.5,
-          fontSize: 18,
-          color: 'text.disabled',
-        }}
-      />
-      <ProjectSelector onCreateProject={onCreateProject} />
+    <Container className={className}>
+      <OrgSelector onCreateOrg={() => setCreateOrgOpen(true)} />
+      <SeparatorIcon />
+      <ProjectSelector onCreateProject={() => setCreateProjectOpen(true)} />
 
       <CreateOrgDrawer
         open={createOrgOpen}
@@ -52,6 +51,6 @@ export const Breadcrumbs = (props: TBreadcrumbs) => {
           onClose={() => setCreateProjectOpen(false)}
         />
       )}
-    </Box>
+    </Container>
   ) : null
 }

@@ -284,6 +284,7 @@ export const Users = (props: TUsers) => {
           <UserApiKeysDrawer
             orgId={orgId}
             user={apiKeysUser}
+            key={apiKeysUser.id}
             open={Boolean(apiKeysUser)}
             onClose={() => setApiKeysUser(null)}
           />

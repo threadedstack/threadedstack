@@ -12,7 +12,6 @@ export type TQuickstart = Pick<ComponentProps<typeof Button>, `variant` | `color
   buttonSx?: SxProps<Theme>
 }
 
-// TODO: move to Sidebar and Orgs page, should not be displayed on Homepage / Orgs List
 export const Quickstart = (props: TQuickstart) => {
   const [orgId] = useActiveOrgId()
 

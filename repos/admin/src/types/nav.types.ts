@@ -44,6 +44,30 @@ export type TDynamicNavConfig = {
   bottomItems: TNavItem[]
 }
 
+// --- Rail Navigation Types (desktop sub-nav panel) ---
+
+export type TRailSectionId = `home` | `org` | `project`
+
+export type TSubNavGroup = {
+  label: string
+  items: TNavItem[]
+}
+
+export type TRailSection = {
+  id: TRailSectionId
+  Icon: ReactNode
+  label: string
+  groups: TSubNavGroup[]
+  to?: TToAction
+  visible?: (context: TNavCtx) => boolean
+  header?: string | ((context: TNavCtx) => string)
+}
+
+export type TRailNavConfig = {
+  sections: TRailSection[]
+  bottomItems: TNavItem[]
+}
+
 export type TSettingNavItem = {
   id?: string
   Icon?: any

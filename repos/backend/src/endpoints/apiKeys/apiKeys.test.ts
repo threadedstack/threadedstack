@@ -145,7 +145,7 @@ describe(`API Keys endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1` },
+        where: { orgId: `org-1`, active: true },
         limit: 50,
         offset: 0,
       })
@@ -174,7 +174,7 @@ describe(`API Keys endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1` },
+        where: { orgId: `org-1`, active: true },
         limit: 10,
         offset: 20,
       })
@@ -194,7 +194,7 @@ describe(`API Keys endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1` },
+        where: { orgId: `org-1`, active: true },
         limit: 200,
         offset: 0,
       })
@@ -214,7 +214,7 @@ describe(`API Keys endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1`, userId: `user-123` },
+        where: { orgId: `org-1`, active: true, userId: `user-123` },
         limit: 50,
         offset: 0,
       })
@@ -231,7 +231,7 @@ describe(`API Keys endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1`, projectId: `proj-1`, userId: `user-123` },
+        where: { orgId: `org-1`, active: true, projectId: `proj-1`, userId: `user-123` },
         limit: 50,
         offset: 0,
       })

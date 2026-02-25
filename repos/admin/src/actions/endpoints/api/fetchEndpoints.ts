@@ -1,6 +1,6 @@
 import type { Endpoint } from '@tdsk/domain'
 import { endpointsApi } from '@TAF/services'
-import { upsertEndpoints } from '@TAF/actions/endpoints/local/upsertEndpoints'
+import { setEndpoints } from '@TAF/actions/endpoints/local/setEndpoints'
 
 export type TFetchEndpointsOpts = {
   orgId: string
@@ -17,7 +17,8 @@ export const fetchEndpoints = async (opts: TFetchEndpointsOpts) => {
   const resp = await endpointsApi.list(orgId, projectId)
 
   if (resp.error) return { error: resp.error }
-  resp.data && upsertEndpoints(projectId, resp.data)
+
+  resp.data && setEndpoints(projectId, resp.data)
 
   return resp
 }

@@ -108,4 +108,53 @@ describe(`UserApiKeysDrawer`, () => {
       expect(screen.getByText(`Failed to load keys`)).toBeTruthy()
     })
   })
+
+  it(`refetches keys when user prop changes`, async () => {
+    const userA = new User({ id: `user-a`, name: `User A`, email: `a@example.com` })
+    const userB = new User({ id: `user-b`, name: `User B`, email: `b@example.com` })
+
+    const keysA = [
+      new ApiKey({
+        id: `key-a`,
+        name: `Key A`,
+        keyPrefix: `tdsk_aaa`,
+        keyHash: `hash-a`,
+        scopes: `read`,
+        active: true,
+        orgId: `org-1`,
+        userId: `user-a`,
+      }),
+    ]
+
+    mockList.mockResolvedValue({ data: keysA, error: null })
+
+    const { rerender } = render(
+      <UserApiKeysDrawer
+        user={userA}
+        orgId='org-1'
+        open={true}
+        onClose={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(mockList).toHaveBeenCalledWith(`org-1`, { userId: `user-a` })
+    })
+
+    mockList.mockClear()
+    mockList.mockResolvedValue({ data: [], error: null })
+
+    rerender(
+      <UserApiKeysDrawer
+        user={userB}
+        orgId='org-1'
+        open={true}
+        onClose={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(mockList).toHaveBeenCalledWith(`org-1`, { userId: `user-b` })
+    })
+  })
 })

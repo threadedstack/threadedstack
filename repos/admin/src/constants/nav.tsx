@@ -1,15 +1,17 @@
-import type { TNavItem, TNavCtx } from '@TAF/types'
+import type { TNavCtx, TNavItem, TRailSection, TSubNavGroup } from '@TAF/types'
 
 import { ERoutePath } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
 import { RobotIcon } from '@tdsk/components'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
+import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { signout } from '@TAF/actions/auth/local/signout'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import {
   Dns as DnsIcon,
   Api as ApiIcon,
   Chat as ChatIcon,
+  Home as HomeIcon,
   Lock as SecretIcon,
   Api as EndpointIcon,
   Person as PersonIcon,
@@ -21,6 +23,124 @@ import {
   CreditCard as BillingIcon,
   CloudQueue as ProviderIcon,
 } from '@mui/icons-material'
+
+const OrgSubNav: Record<string, TNavItem> = {
+  Projects: {
+    text: `Projects`,
+    to: buildRoute(ERoutePath.OrgProjects),
+    Icon: <ProjectIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Agents: {
+    text: `Agents`,
+    to: buildRoute(ERoutePath.OrgAgents),
+    Icon: <RobotIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Members: {
+    text: `Members`,
+    to: buildRoute(ERoutePath.OrgMembers),
+    Icon: <PersonIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Secrets: {
+    text: `Secrets`,
+    to: buildRoute(ERoutePath.OrgSecrets),
+    Icon: <SecretIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Providers: {
+    text: `Providers`,
+    to: buildRoute(ERoutePath.OrgProviders),
+    Icon: <ProviderIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Domains: {
+    text: `Domains`,
+    to: buildRoute(ERoutePath.OrgDomains),
+    Icon: <DnsIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  APIKeys: {
+    text: `API Keys`,
+    Icon: <ApiIcon />,
+    to: buildRoute(ERoutePath.OrgApiKeys),
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Usage: {
+    text: `Usage`,
+    to: buildRoute(ERoutePath.OrgUsage),
+    Icon: <UsageIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Settings: {
+    text: `Settings`,
+    to: buildRoute(ERoutePath.OrgSettings),
+    Icon: <SettingsIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+}
+
+const ProjectSubNav: Record<string, TNavItem> = {
+  Endpoints: {
+    text: `Endpoints`,
+    to: buildRoute(ERoutePath.ProjectEndpoints),
+    Icon: <EndpointIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
+  Functions: {
+    text: `Functions`,
+    to: buildRoute(ERoutePath.ProjectFunctions),
+    Icon: <FunctionIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
+  Secrets: {
+    text: `Secrets`,
+    to: buildRoute(ERoutePath.ProjectSecrets),
+    Icon: <SecretIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
+  Agents: {
+    text: `Agents`,
+    Icon: <RobotIcon />,
+    route: ERoutePath.Agents,
+    to: buildRoute(ERoutePath.ProjectAgents),
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    items: [
+      {
+        text: `Threads`,
+        Icon: <ThreadsIcon sx={{ fontSize: 14 }} />,
+        to: buildRoute(ERoutePath.ProjectAgentThreads),
+      },
+      {
+        text: `Chat`,
+        Icon: <ChatIcon sx={{ fontSize: 14 }} />,
+        to: buildRoute(ERoutePath.ProjectAgentChat),
+      },
+    ],
+  },
+  Members: {
+    text: `Members`,
+    Icon: <PersonIcon />,
+    to: buildRoute(ERoutePath.ProjectMembers),
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
+  Domains: {
+    text: `Domains`,
+    to: buildRoute(ERoutePath.ProjectDomains),
+    Icon: <DnsIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Settings: {
+    text: `Settings`,
+    to: buildRoute(ERoutePath.ProjectSettings),
+    Icon: <SettingsIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
+}
+
+// Steps for the Quick Start section
+export const QSSteps = [`AI Provider`, `Project & Agent`, `Review & Create`]
 
 export const HeaderSettingsItems = [
   {
@@ -44,127 +164,49 @@ export const HeaderSettingsItems = [
   },
 ]
 
-// Org-scoped navigation items
-export const OrgNavItems: TNavItem[] = [
-  {
-    text: `Projects`,
-    to: buildRoute(ERoutePath.OrgProjects),
-    Icon: <ProjectIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
-    text: `Agents`,
-    to: buildRoute(ERoutePath.OrgAgents),
-    Icon: <RobotIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
-    text: `Members`,
-    to: buildRoute(ERoutePath.OrgMembers),
-    Icon: <PersonIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
-    text: `Secrets`,
-    to: buildRoute(ERoutePath.OrgSecrets),
-    Icon: <SecretIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
-    text: `Providers`,
-    to: buildRoute(ERoutePath.OrgProviders),
-    Icon: <ProviderIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
-    text: `Domains`,
-    to: buildRoute(ERoutePath.OrgDomains),
-    Icon: <DnsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
-    text: `API Keys`,
-    Icon: <ApiIcon />,
-    to: buildRoute(ERoutePath.OrgApiKeys),
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
-    text: `Usage`,
-    to: buildRoute(ERoutePath.OrgUsage),
-    Icon: <UsageIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
-    text: `Settings`,
-    to: buildRoute(ERoutePath.OrgSettings),
-    Icon: <SettingsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-]
+export const OrgNavItems: TNavItem[] = Object.values(OrgSubNav)
+export const ProjectNavItems: TNavItem[] = Object.values(ProjectSubNav)
 
-// Project-scoped navigation items
-export const ProjectNavItems: TNavItem[] = [
-  {
-    text: `Endpoints`,
-    to: buildRoute(ERoutePath.ProjectEndpoints),
-    Icon: <EndpointIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
-  },
-  {
-    text: `Functions`,
-    to: buildRoute(ERoutePath.ProjectFunctions),
-    Icon: <FunctionIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
-  },
-  {
-    text: `Secrets`,
-    to: buildRoute(ERoutePath.ProjectSecrets),
-    Icon: <SecretIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
-  },
-  {
-    text: `Agents`,
-    Icon: <RobotIcon />,
-    route: ERoutePath.Agents,
-    to: buildRoute(ERoutePath.ProjectAgents),
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
-    items: [
-      {
-        text: `Threads`,
-        Icon: <ThreadsIcon sx={{ fontSize: 14 }} />,
-        to: buildRoute(ERoutePath.ProjectAgentThreads),
-      },
-      {
-        text: `Chat`,
-        Icon: <ChatIcon sx={{ fontSize: 14 }} />,
-        to: buildRoute(ERoutePath.ProjectAgentChat),
-      },
-    ],
-  },
-  {
-    text: `Members`,
-    Icon: <PersonIcon />,
-    to: buildRoute(ERoutePath.ProjectMembers),
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
-  },
-  {
-    text: `Domains`,
-    to: buildRoute(ERoutePath.ProjectDomains),
-    Icon: <DnsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
-  },
-  {
-    text: `Settings`,
-    to: buildRoute(ERoutePath.ProjectSettings),
-    Icon: <SettingsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
-  },
-]
-
-// Global navigation items (shown when no org is selected)
 export const GlobalNavItems: TNavItem[] = [
   { to: `/${ERoutePath.Billing}`, text: `Billing`, Icon: <BillingIcon /> },
   { to: `/${ERoutePath.Profile}`, text: `Profile`, Icon: <PersonIcon /> },
+]
+
+export const HomeSubNavGroups: TSubNavGroup[] = [
+  {
+    label: `Navigation`,
+    items: GlobalNavItems,
+  },
+]
+
+export const OrgSubNavGroups: TSubNavGroup[] = [
+  {
+    label: `Resources`,
+    items: [OrgSubNav.Projects, OrgSubNav.Members, OrgSubNav.Agents],
+  },
+  {
+    label: `Security`,
+    items: [OrgSubNav.Secrets, OrgSubNav.Providers, OrgSubNav.APIKeys, OrgSubNav.Domains],
+  },
+  {
+    label: `Management`,
+    items: [OrgSubNav.Usage, OrgSubNav.Settings],
+  },
+]
+
+export const ProjectSubNavGroups: TSubNavGroup[] = [
+  {
+    label: `Development`,
+    items: [ProjectSubNav.Endpoints, ProjectSubNav.Functions, ProjectSubNav.Agents],
+  },
+  {
+    label: `Security`,
+    items: [ProjectSubNav.Secrets, ProjectSubNav.Domains],
+  },
+  {
+    label: `Management`,
+    items: [ProjectSubNav.Members, ProjectSubNav.Settings],
+  },
 ]
 
 // Bottom navigation items (always visible)
@@ -172,5 +214,30 @@ export const BottomNavItems: TNavItem[] = [
   { to: `/${ERoutePath.Settings}`, text: `Settings`, Icon: <SettingsIcon /> },
 ]
 
-// Steps for the Quick Start section
-export const QSSteps = [`AI Provider`, `Project & Agent`, `Review & Create`]
+export const RailNavSections: Record<string, TRailSection> = {
+  Home: {
+    id: `home`,
+    label: `Home`,
+    header: `Home`,
+    Icon: <HomeIcon />,
+    groups: HomeSubNavGroups,
+  },
+  Org: {
+    id: `org`,
+    Icon: <OrgIcon />,
+    label: `Organization`,
+    header: `Organization`,
+    groups: OrgSubNavGroups,
+    to: buildRoute(ERoutePath.Org),
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Project: {
+    groups: [],
+    id: `project`,
+    label: `Project`,
+    header: `Project`,
+    Icon: <ProjectIcon />,
+    to: buildRoute(ERoutePath.OrgProject),
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
+}

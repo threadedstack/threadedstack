@@ -54,9 +54,13 @@ vi.mock(`@TAF/components/Roles/EditRoleDrawer`, () => ({
   EditRoleDrawer: () => null,
 }))
 
-vi.mock(`@tdsk/components`, () => ({
-  ConfirmDelete: () => null,
-}))
+vi.mock(`@tdsk/components`, async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tdsk/components')>()
+  return {
+    ...actual,
+    ConfirmDelete: () => null,
+  }
+})
 
 import { Users } from './Users'
 

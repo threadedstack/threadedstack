@@ -1,5 +1,5 @@
 import { agentsApi } from '@TAF/services'
-import { upsertAgents } from '@TAF/actions/agents/local/upsertAgents'
+import { setAgents } from '@TAF/actions/agents/local/setAgents'
 
 export type TFetchAgentsOpts = {
   orgId: string
@@ -12,7 +12,7 @@ export const fetchAgents = async (opts: TFetchAgentsOpts) => {
   if (resp.error) return { error: resp.error }
 
   const contextKey = projectId || 'org'
-  upsertAgents(contextKey, resp.data)
+  resp.data && setAgents(contextKey, resp.data)
 
   return resp
 }
