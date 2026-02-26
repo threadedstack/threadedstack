@@ -1,5 +1,4 @@
 export * from './Users'
 export * from './NoUsers'
 export * from './UserCard'
-export * from './UsersGrid'
 export * from './InviteUserDrawer'

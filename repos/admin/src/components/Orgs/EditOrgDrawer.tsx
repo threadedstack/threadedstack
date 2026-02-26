@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { updateOrg } from '@TAF/actions/orgs/api/updateOrg'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { useAsyncAction } from '@TAF/hooks/components/useAsyncAction'
 import { Drawer, DrawerActions, TextInput } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
@@ -22,21 +23,19 @@ export const EditOrgDrawer = ({
   onSuccess: onSuccessCB,
 }: TEditOrgDrawer) => {
   const [name, setName] = useState('')
-  const [loading, setLoading] = useState(false)
   const [description, setDescription] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const { loading, error, setError, clearError, run } = useAsyncAction()
 
   // Pre-populate form when org changes
   useEffect(() => {
     if (org) {
       setName(org.name || '')
       setDescription(org.description || '')
-      setError(null)
     } else {
       setName('')
       setDescription('')
-      setError(null)
     }
+    clearError()
   }, [org])
 
   const onClose = () => {
@@ -44,7 +43,7 @@ export const EditOrgDrawer = ({
 
     setName('')
     setDescription('')
-    setError(null)
+    clearError()
     onCloseCB?.()
   }
 
@@ -54,17 +53,14 @@ export const EditOrgDrawer = ({
     if (!org?.id) return setError(`Organization ID is required`)
     if (!name.trim()) return setError(`Organization name is required`)
 
-    setLoading(true)
-    setError(null)
+    const result = await run(() =>
+      updateOrg(org.id, {
+        name: name.trim(),
+        description: description.trim() || undefined,
+      })
+    )
 
-    const result = await updateOrg(org.id, {
-      name: name.trim(),
-      description: description.trim() || undefined,
-    })
-
-    setLoading(false)
-
-    if (result.error) {
+    if (result?.error) {
       setError(
         `Failed to update organization. ${result.error?.message ?? `Please try again later.`}`
       )
@@ -105,7 +101,7 @@ export const EditOrgDrawer = ({
           {error && (
             <ErrorAlert
               message={error}
-              onClose={() => setError(null)}
+              onClose={clearError}
             />
           )}
 

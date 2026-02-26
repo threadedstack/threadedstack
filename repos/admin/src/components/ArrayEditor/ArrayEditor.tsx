@@ -1,36 +1,9 @@
 import type { SxProps, Theme } from '@mui/material'
 
+import { Box } from '@mui/material'
 import { TextInput } from '@tdsk/components'
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material'
-import { Box, Paper, Tooltip, IconButton, Typography } from '@mui/material'
 import { cls } from '@keg-hub/jsutils/cls'
-
-const styles = {
-  title: { fontWeight: 600 },
-  add: { color: `primary.main` },
-  container: {
-    mb: 1,
-    display: `flex`,
-    alignItems: `center`,
-    justifyContent: `space-between`,
-  },
-  items: {
-    box: { flex: 1 },
-    remove: { color: `error.main` },
-    container: { display: `flex`, flexDirection: `column`, gap: 1.5 },
-    nopaper: {
-      p: 3,
-      textAlign: `center`,
-      bgcolor: `action.hover`,
-    },
-    paper: {
-      p: 1.5,
-      gap: 1,
-      display: `flex`,
-      alignItems: `center`,
-    },
-  },
-}
+import { EditorList } from '@TAF/components/EditorList/EditorList'
 
 export type TArrayEditorProps = {
   label?: string
@@ -79,86 +52,33 @@ export const ArrayEditor = (props: TArrayEditorProps) => {
   }
 
   return (
-    <Box
+    <EditorList
       sx={sx}
+      label={label}
+      disabled={disabled}
       className={cls(className, `tdsk-array-editor`)}
-    >
-      <Box
-        className='tdsk-array-editor-box'
-        sx={styles.container}
-      >
-        <Typography
-          sx={styles.title}
-          variant='subtitle2'
-          className='tdsk-array-editor-title'
-        >
-          {label}
-        </Typography>
-        <Tooltip title={`Add ${placeholder.toLowerCase()}`}>
-          <IconButton
-            size='small'
-            sx={styles.add}
-            onClick={addItem}
-            disabled={disabled}
-          >
-            <AddIcon fontSize='small' />
-          </IconButton>
-        </Tooltip>
-      </Box>
-
-      {items.length === 0 ? (
-        <Paper
-          variant='outlined'
-          className='tdsk-array-editor-paper'
-          sx={styles.items.nopaper}
-        >
-          <Typography
-            variant='body2'
-            color='text.secondary'
-            className='tdsk-array-editor-paper-text'
-          >
-            No {label.toLowerCase()} added. Click + to add one.
-          </Typography>
-        </Paper>
-      ) : (
-        <Box sx={styles.items.container}>
-          {items.map((item, index) => (
-            <Paper
-              key={index}
-              variant='outlined'
-              sx={styles.items.paper}
-              className='tdsk-array-editor-paper'
-            >
-              <Box
-                className='tdsk-array-editor-item-box'
-                sx={styles.items.box}
-              >
-                <TextInput
-                  fullWidth
-                  size='small'
-                  value={item}
-                  id={undefined}
-                  disabled={disabled}
-                  placeholder={getPlaceholder(index)}
-                  className='tdsk-array-editor-item-input'
-                  onChange={(e) => updateItem(index, e.target.value)}
-                />
-              </Box>
-              <Tooltip title={`Remove ${placeholder.toLowerCase()}`}>
-                <IconButton
-                  size='small'
-                  disabled={disabled}
-                  sx={styles.items.remove}
-                  onClick={() => removeItem(index)}
-                  className='tdsk-array-editor-rm-button'
-                >
-                  <DeleteIcon fontSize='small' />
-                </IconButton>
-              </Tooltip>
-            </Paper>
-          ))}
-        </Box>
-      )}
-    </Box>
+      onAdd={addItem}
+      onRemove={removeItem}
+      addTooltip={`Add ${placeholder.toLowerCase()}`}
+      removeTooltip={`Remove ${placeholder.toLowerCase()}`}
+      emptyMessage={`No ${label.toLowerCase()} added. Click + to add one.`}
+      itemAlign='center'
+      items={items.map((item, index) => ({
+        key: String(index),
+        content: (
+          <Box sx={{ flex: 1 }}>
+            <TextInput
+              fullWidth
+              size='small'
+              value={item}
+              id={undefined}
+              disabled={disabled}
+              placeholder={getPlaceholder(index)}
+              onChange={(e) => updateItem(index, e.target.value)}
+            />
+          </Box>
+        ),
+      }))}
+    />
   )
 }

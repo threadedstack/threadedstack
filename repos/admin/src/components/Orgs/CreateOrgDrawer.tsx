@@ -7,6 +7,7 @@ import { Add as AddIcon } from '@mui/icons-material'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { createOrg } from '@TAF/actions/orgs/api/createOrg'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { useAsyncAction } from '@TAF/hooks/components/useAsyncAction'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { Button, Drawer, DrawerActions, TextInput } from '@tdsk/components'
 
@@ -40,14 +41,13 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { loading, error, setError, clearError, run } = useAsyncAction()
 
   const onClose = () => {
     if (!loading) {
       setName('')
       setDescription('')
-      setError(null)
+      clearError()
       onCloseCB?.()
     }
   }
@@ -55,22 +55,16 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
-    if (!name.trim()) {
-      setError(`Organization name is required`)
-      return
-    }
+    if (!name.trim()) return setError(`Organization name is required`)
 
-    setLoading(true)
-    setError(null)
+    const result = await run(() =>
+      createOrg({
+        name: name.trim(),
+        description: description.trim() || undefined,
+      })
+    )
 
-    const result = await createOrg({
-      name: name.trim(),
-      description: description.trim() || undefined,
-    })
-
-    setLoading(false)
-
-    if (result.error) {
+    if (result?.error) {
       setError(`Failed to create organization. Please try again.`)
     } else {
       onClose()
@@ -123,7 +117,7 @@ export const CreateOrgDrawer = (props: TCreateOrgDrawer) => {
             {error && (
               <ErrorAlert
                 message={error}
-                onClose={() => setError(null)}
+                onClose={clearError}
               />
             )}
 

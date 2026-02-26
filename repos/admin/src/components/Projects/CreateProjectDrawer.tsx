@@ -5,6 +5,7 @@ import { useOrgs } from '@TAF/state/selectors'
 import { fetchOrgs } from '@TAF/actions/orgs/api'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { useAsyncAction } from '@TAF/hooks/components/useAsyncAction'
 import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
 import { createProject } from '@TAF/actions/projects/api/createProject'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
@@ -23,8 +24,7 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
   const [orgId, setOrgId] = useState(``)
   const [gitUrl, setGitUrl] = useState(``)
   const [branch, setBranch] = useState(`main`)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { loading, error, setError, clearError, run } = useAsyncAction()
   const [orgs] = useOrgs()
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
     setOrgId(``)
     setGitUrl(``)
     setBranch(`main`)
-    setError(null)
+    clearError()
     onCloseCB?.()
   }
 
@@ -51,20 +51,17 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
     const short = name.trim()
     if (!short) return setError(`Project name is required`)
 
-    setLoading(true)
-    setError(null)
+    const result = await run(() =>
+      createProject({
+        orgId,
+        name: short,
+        description: description.trim() || undefined,
+        branch: branch.trim() || `main`,
+        gitUrl: gitUrl.trim() || undefined,
+      })
+    )
 
-    const result = await createProject({
-      orgId,
-      name: short,
-      description: description.trim() || undefined,
-      branch: branch.trim() || `main`,
-      gitUrl: gitUrl.trim() || undefined,
-    })
-
-    setLoading(false)
-
-    if (result.error) return setError(`Failed to create project. Please try again.`)
+    if (result?.error) return setError(`Failed to create project. Please try again.`)
 
     onSuccessCB?.()
     onClose()
@@ -96,7 +93,7 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
           {error && (
             <ErrorAlert
               message={error}
-              onClose={() => setError(null)}
+              onClose={clearError}
             />
           )}
 

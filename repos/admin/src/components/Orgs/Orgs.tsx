@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NoOrgs } from '@TAF/components/Orgs/NoOrgs'
-import { OrgsGrid } from '@TAF/components/Orgs/OrgsGrid'
+import { OrgCard } from '@TAF/components/Orgs/OrgCard'
+import { CardGrid } from '@TAF/components/CardGrid/CardGrid'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import { useOrgs, useActiveOrgId } from '@TAF/state/selectors'
 import { setOrgActive } from '@TAF/actions/orgs/local/setOrgActive'
@@ -36,12 +37,19 @@ export const Orgs = (props: TOrgs) => {
         <NoOrgs onCreate={onCreate} />
       ) : (
         <>
-          <OrgsGrid
-            orgs={orgsArray}
-            onDelete={onDelete}
-            onSelect={onSelect}
-            showDelete={isAdmin}
-            activeOrgId={activeOrgId}
+          <CardGrid
+            items={orgsArray}
+            getKey={(org) => org.id}
+            sx={{ mt: 1 }}
+            renderCard={(org) => (
+              <OrgCard
+                org={org}
+                onDelete={onDelete}
+                onSelect={onSelect}
+                showDelete={isAdmin}
+                active={org.id === activeOrgId}
+              />
+            )}
           />
         </>
       )}

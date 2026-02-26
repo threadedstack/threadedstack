@@ -4,17 +4,9 @@ import type { TKeyValuePair } from '@TAF/types'
 import { useState } from 'react'
 import { TextInput } from '@tdsk/components'
 import { templates } from '@TAF/services/templates'
-import { Add as AddIcon, Key as KeyIcon, Delete as DeleteIcon } from '@mui/icons-material'
-import {
-  Box,
-  Chip,
-  Paper,
-  Tooltip,
-  TextField,
-  IconButton,
-  Typography,
-  Autocomplete,
-} from '@mui/material'
+import { Key as KeyIcon } from '@mui/icons-material'
+import { EditorList } from '@TAF/components/EditorList/EditorList'
+import { Box, Chip, TextField, Typography, Autocomplete } from '@mui/material'
 
 export type TKeyValueEditorProps = {
   label?: string
@@ -62,7 +54,8 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
     onChange([...pairs, newPair])
   }
 
-  const removePair = (id: string) => {
+  const removePair = (index: number) => {
+    const id = pairs[index]?.id
     onChange(pairs.filter((p) => p.id !== id))
   }
 
@@ -103,154 +96,93 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
   }
 
   return (
-    <Box>
-      <Box
-        sx={{
-          display: `flex`,
-          alignItems: `center`,
-          justifyContent: `space-between`,
-          mb: 1,
-        }}
-      >
-        <Typography
-          variant='subtitle2'
-          sx={{ fontWeight: 600 }}
-        >
-          {label}
-        </Typography>
-        <Tooltip title='Add new key-value pair'>
-          <IconButton
-            size='small'
-            onClick={addPair}
-            disabled={disabled}
-            sx={{ color: `primary.main` }}
-          >
-            <AddIcon fontSize='small' />
-          </IconButton>
-        </Tooltip>
-      </Box>
+    <EditorList
+      label={label}
+      disabled={disabled}
+      onAdd={addPair}
+      onRemove={removePair}
+      addTooltip='Add new key-value pair'
+      removeTooltip='Remove this pair'
+      emptyMessage='No pairs added yet. Click + to add one.'
+      items={pairs.map((pair) => {
+        const secretName = templates.extract(pair.value)
+        const autocompleteOptions =
+          activeAutocomplete === pair.id ? getAutocompleteOptions(pair.value) : []
 
-      {pairs.length === 0 ? (
-        <Paper
-          variant='outlined'
-          sx={{
-            p: 3,
-            textAlign: 'center',
-            bgcolor: 'action.hover',
-          }}
-        >
-          <Typography
-            variant='body2'
-            color='text.secondary'
-          >
-            No pairs added yet. Click + to add one.
-          </Typography>
-        </Paper>
-      ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {pairs.map((pair) => {
-            const secretName = templates.extract(pair.value)
-            const autocompleteOptions =
-              activeAutocomplete === pair.id ? getAutocompleteOptions(pair.value) : []
+        return {
+          key: pair.id,
+          content: (
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <TextInput
+                fullWidth
+                size='small'
+                value={pair.key}
+                disabled={disabled}
+                id={`${pair.id}-key`}
+                placeholder={keyPlaceholder}
+                onChange={(e) => updateKey(pair.id, e.target.value)}
+              />
 
-            return (
-              <Paper
-                key={pair.id}
-                variant='outlined'
-                sx={{
-                  p: 1.5,
-                  gap: 1,
-                  display: `flex`,
-                  alignItems: `flex-start`,
-                }}
-              >
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {activeAutocomplete === pair.id && autocompleteOptions.length > 0 ? (
+                <Autocomplete
+                  freeSolo
+                  size='small'
+                  value={pair.value}
+                  disabled={disabled}
+                  options={autocompleteOptions}
+                  onChange={(_, value) =>
+                    value && onSecretSelect(pair.id, pair.value, value)
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={valuePlaceholder}
+                      onChange={(e) => onValueChange(pair.id, e.target.value, pair.value)}
+                    />
+                  )}
+                />
+              ) : (
+                <Box sx={{ position: 'relative' }}>
                   <TextInput
                     fullWidth
                     size='small'
-                    value={pair.key}
+                    value={pair.value}
                     disabled={disabled}
-                    id={`${pair.id}-key`}
-                    placeholder={keyPlaceholder}
-                    onChange={(e) => updateKey(pair.id, e.target.value)}
+                    id={`${pair.id}-value`}
+                    placeholder={valuePlaceholder}
+                    onChange={(e) => onValueChange(pair.id, e.target.value, pair.value)}
                   />
-
-                  {activeAutocomplete === pair.id && autocompleteOptions.length > 0 ? (
-                    <Autocomplete
-                      freeSolo
-                      size='small'
-                      value={pair.value}
-                      disabled={disabled}
-                      options={autocompleteOptions}
-                      onChange={(_, value) =>
-                        value && onSecretSelect(pair.id, pair.value, value)
-                      }
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          placeholder={valuePlaceholder}
-                          onChange={(e) =>
-                            onValueChange(pair.id, e.target.value, pair.value)
-                          }
-                        />
-                      )}
-                    />
-                  ) : (
-                    <Box sx={{ position: 'relative' }}>
-                      <TextInput
-                        fullWidth
+                  {enableSecretReferences && secretName && (
+                    <Box sx={{ mt: 0.5 }}>
+                      <Chip
                         size='small'
-                        value={pair.value}
-                        disabled={disabled}
-                        id={`${pair.id}-value`}
-                        placeholder={valuePlaceholder}
-                        onChange={(e) =>
-                          onValueChange(pair.id, e.target.value, pair.value)
-                        }
+                        color='primary'
+                        variant='outlined'
+                        sx={{ fontSize: '0.75rem' }}
+                        label={`Secret: ${secretName}`}
+                        icon={<KeyIcon fontSize='small' />}
                       />
-                      {enableSecretReferences && secretName && (
-                        <Box sx={{ mt: 0.5 }}>
-                          <Chip
-                            size='small'
-                            color='primary'
-                            variant='outlined'
-                            sx={{ fontSize: '0.75rem' }}
-                            label={`Secret: ${secretName}`}
-                            icon={<KeyIcon fontSize='small' />}
-                          />
-                        </Box>
-                      )}
                     </Box>
                   )}
                 </Box>
-
-                <Tooltip title='Remove this pair'>
-                  <IconButton
-                    size='small'
-                    disabled={disabled}
-                    onClick={() => removePair(pair.id)}
-                    sx={{ color: 'error.main', mt: 0.5 }}
-                  >
-                    <DeleteIcon fontSize='small' />
-                  </IconButton>
-                </Tooltip>
-              </Paper>
-            )
-          })}
-        </Box>
-      )}
-
-      {enableSecretReferences && (
-        <Typography
-          variant='caption'
-          color='text.secondary'
-          sx={{ display: 'block', mt: 1, ml: 1 }}
-        >
-          Tip: Type <code>{'{{'}</code> to reference a secret (e.g., {'{{'}
-          <strong>API_KEY</strong>
-          {'}}'})
-        </Typography>
-      )}
-    </Box>
+              )}
+            </Box>
+          ),
+        }
+      })}
+      footer={
+        enableSecretReferences ? (
+          <Typography
+            variant='caption'
+            color='text.secondary'
+            sx={{ display: 'block', mt: 1, ml: 1 }}
+          >
+            Tip: Type <code>{'{{'}</code> to reference a secret (e.g., {'{{'}
+            <strong>API_KEY</strong>
+            {'}}'})
+          </Typography>
+        ) : undefined
+      }
+    />
   )
 }

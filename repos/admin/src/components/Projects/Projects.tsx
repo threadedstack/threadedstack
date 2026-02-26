@@ -4,7 +4,8 @@ import { useActiveOrgId } from '@TAF/state/selectors'
 import { NoProjects } from '@TAF/components/Projects/NoProjects'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
-import { ProjectsGrid } from '@TAF/components/Projects/ProjectsGrid'
+import { CardGrid } from '@TAF/components/CardGrid/CardGrid'
+import { ProjectCard } from '@TAF/components/Projects/ProjectCard'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
 import { CreateProjectDrawer } from '@TAF/components/Projects/CreateProjectDrawer'
@@ -71,11 +72,17 @@ export const Projects = (props: TProjects) => {
       )}
 
       {!error && filteredProjects.length > 0 && (
-        <ProjectsGrid
-          showDelete={true}
-          onSelect={onSelectProject}
-          onDelete={onDeleteProject}
-          projects={filteredProjects}
+        <CardGrid
+          items={filteredProjects}
+          getKey={(project) => project.id}
+          renderCard={(project) => (
+            <ProjectCard
+              project={project}
+              showDelete={true}
+              onSelect={onSelectProject}
+              onDelete={onDeleteProject}
+            />
+          )}
         />
       )}
 
