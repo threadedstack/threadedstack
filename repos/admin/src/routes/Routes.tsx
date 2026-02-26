@@ -17,28 +17,33 @@ const Org = lazy(() => import('@TAF/pages/Orgs/Org'))
 const Orgs = lazy(() => import('@TAF/pages/Orgs/Orgs'))
 const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
 const OrgUsage = lazy(() => import('@TAF/pages/Orgs/OrgUsage'))
+const OrgAgents = lazy(() => import('@TAF/pages/Orgs/OrgAgents'))
 const OrgApiKeys = lazy(() => import('@TAF/pages/Orgs/OrgApiKeys'))
 const OrgsLoader = lazy(() => import('@TAF/pages/Orgs/OrgsLoader'))
 const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgDomains = lazy(() => import('@TAF/pages/Orgs/OrgDomains'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
-const OrgAgents = lazy(() => import('@TAF/pages/Orgs/OrgAgents'))
 
 // Project pages
 const Project = lazy(() => import('@TAF/pages/Projects/Project'))
 const Projects = lazy(() => import('@TAF/pages/Projects/Projects'))
-const ProjectAgent = lazy(() => import('@TAF/pages/Projects/ProjectAgent'))
 const ProjectAgents = lazy(() => import('@TAF/pages/Projects/ProjectAgents'))
 const ProjectsLoader = lazy(() => import('@TAF/pages/Projects/ProjectsLoader'))
 const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
 const ProjectDomains = lazy(() => import('@TAF/pages/Projects/ProjectDomains'))
 const ProjectThreads = lazy(() => import('@TAF/pages/Projects/ProjectThreads'))
+const ProjectMembers = lazy(() => import('@TAF/pages/Projects/ProjectMembers'))
 const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
-const ProjectMembers = lazy(() => import('@TAF/pages/Projects/ProjectMembers'))
+const ProjectThreadChat = lazy(() => import('@TAF/pages/Projects/ProjectThreadChat'))
+const ProjectThreadDetail = lazy(() => import('@TAF/pages/Projects/ProjectThreadDetail'))
+
+// TODO: Fix this, components should not be used as pages
 const AgentChat = lazy(() => import('@TAF/components/AI/ChatView'))
+const AgentLayout = lazy(() => import('@TAF/components/Agents/AgentLayout'))
+const AgentDetailTab = lazy(() => import('@TAF/components/Agents/AgentDetailTab'))
 
 // Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
@@ -167,19 +172,29 @@ export const Routes = createBrowserRouter([
               },
               {
                 path: 'agents/:agentId',
-                Component: () => <SuspensePage Component={ProjectAgent} />,
-              },
-              {
-                path: ERoutePath.Threads,
-                Component: () => <SuspensePage Component={ProjectThreads} />,
-              },
-              {
-                path: ERoutePath.AgentThreads,
-                Component: () => <SuspensePage Component={ProjectThreads} />,
-              },
-              {
-                path: ERoutePath.AgentChat,
-                Component: () => <SuspensePage Component={AgentChat} />,
+                Component: () => <SuspensePage Component={AgentLayout} />,
+                children: [
+                  {
+                    index: true,
+                    Component: () => <SuspensePage Component={AgentDetailTab} />,
+                  },
+                  {
+                    path: 'threads',
+                    Component: () => <SuspensePage Component={ProjectThreads} />,
+                  },
+                  {
+                    path: 'chat',
+                    Component: () => <SuspensePage Component={AgentChat} />,
+                  },
+                  {
+                    path: ERoutePath.AgentThreadDetail,
+                    Component: () => <SuspensePage Component={ProjectThreadDetail} />,
+                  },
+                  {
+                    path: ERoutePath.AgentThreadChat,
+                    Component: () => <SuspensePage Component={ProjectThreadChat} />,
+                  },
+                ],
               },
               {
                 path: ERoutePath.Settings,

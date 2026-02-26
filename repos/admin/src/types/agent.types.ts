@@ -1,3 +1,5 @@
+import type { TAgentEnvironment } from '@tdsk/domain'
+
 export enum EAgentThreadTab {
   assets = `assets`,
   threads = `threads`,
@@ -6,7 +8,12 @@ export enum EAgentThreadTab {
 
 export type TAgentThreadTab = `${EAgentThreadTab}`
 
-import type { TAgentEnvironment } from '@tdsk/domain'
+export enum EAgentDetailTab {
+  agent = `agent`,
+  threads = `threads`,
+}
+
+export type TAgentDetailTab = `${EAgentDetailTab}`
 
 export type TAgentSessionData = {
   model: string

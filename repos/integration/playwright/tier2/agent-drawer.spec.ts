@@ -48,8 +48,15 @@ async function gotoAndWait(
  */
 async function openAgentEditDrawer(page: import('@playwright/test').Page): Promise<boolean> {
   const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
-  const rowCount = await tableRows.count()
 
+  // Wait for async data to populate table rows
+  try {
+    await tableRows.first().waitFor({ state: 'visible', timeout: 10000 })
+  } catch {
+    return false
+  }
+
+  const rowCount = await tableRows.count()
   if (rowCount === 0) return false
 
   // Find the edit button in the first row via aria-label from MUI Tooltip
@@ -65,11 +72,13 @@ async function openAgentEditDrawer(page: import('@playwright/test').Page): Promi
 
   await page.waitForTimeout(2000)
 
-  // Verify drawer opened
+  // Verify drawer opened (project-level shows "Configure Agent for Project")
   const editTitle = page.getByText('Edit Agent')
-  const isVisible = (await editTitle.count()) > 0
+  const configTitle = page.getByText('Configure Agent for Project')
+  const isVisible = (await editTitle.count()) > 0 || (await configTitle.count()) > 0
   if (isVisible) {
-    await expect(editTitle.first()).toBeVisible({ timeout: 5000 })
+    const title = (await editTitle.count()) > 0 ? editTitle : configTitle
+    await expect(title.first()).toBeVisible({ timeout: 5000 })
   }
   return isVisible
 }

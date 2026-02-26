@@ -10,14 +10,12 @@ import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import {
   Dns as DnsIcon,
   Api as ApiIcon,
-  Chat as ChatIcon,
   Home as HomeIcon,
   Lock as SecretIcon,
   Api as EndpointIcon,
   Person as PersonIcon,
   Code as FunctionIcon,
   Logout as LogoutIcon,
-  Forum as ThreadsIcon,
   BarChart as UsageIcon,
   Settings as SettingsIcon,
   CreditCard as BillingIcon,
@@ -103,21 +101,8 @@ const ProjectSubNav: Record<string, TNavItem> = {
   Agents: {
     text: `Agents`,
     Icon: <RobotIcon />,
-    route: ERoutePath.Agents,
     to: buildRoute(ERoutePath.ProjectAgents),
     visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
-    items: [
-      {
-        text: `Threads`,
-        Icon: <ThreadsIcon sx={{ fontSize: 14 }} />,
-        to: buildRoute(ERoutePath.ProjectAgentThreads),
-      },
-      {
-        text: `Chat`,
-        Icon: <ChatIcon sx={{ fontSize: 14 }} />,
-        to: buildRoute(ERoutePath.ProjectAgentChat),
-      },
-    ],
   },
   Members: {
     text: `Members`,

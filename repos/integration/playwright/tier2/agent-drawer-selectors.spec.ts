@@ -56,6 +56,11 @@ async function gotoAndWait(
 
 async function openAgentEditDrawer(page: import('@playwright/test').Page): Promise<boolean> {
   const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
+  try {
+    await tableRows.first().waitFor({ state: 'visible', timeout: 10000 })
+  } catch {
+    return false
+  }
   const rowCount = await tableRows.count()
   if (rowCount === 0) return false
 
@@ -401,13 +406,15 @@ test.describe('ProviderSelectorSingle in EditThreadDrawer', () => {
 
     await gotoAndWait(
       page,
-      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/threads`,
-      'tdsk-project-threads-page'
+      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`,
+      'tdsk-agent-layout-page'
     )
 
-    // Look for threads in the table
+    // Look for threads in the table — wait for async data load
     const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
-    await page.waitForTimeout(2000)
+    try {
+      await tableRows.first().waitFor({ state: 'visible', timeout: 10000 })
+    } catch { /* no rows */ }
     const rowCount = await tableRows.count()
     test.skip(rowCount === 0, 'No threads found — cannot test thread edit drawer')
 

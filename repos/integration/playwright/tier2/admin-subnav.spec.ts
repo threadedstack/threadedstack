@@ -112,10 +112,10 @@ test.describe('Sub-Navigation Panel', () => {
     // Capture project sub-nav content
     const projectContent = await subNavPanel.innerText()
 
-    // Click the Org section in the nav rail (first section item, index 0)
+    // Click the Org section in the nav rail (Home=0, Org=1, Project=2)
     const navRail = page.locator('.tdsk-icon-rail')
     const railItems = navRail.locator('.tdsk-rail-item')
-    const orgItem = railItems.nth(0)
+    const orgItem = railItems.nth(1)
     await orgItem.click()
 
     // Wait for sub-nav to update
@@ -136,9 +136,9 @@ test.describe('Sub-Navigation Panel', () => {
       'tdsk-project-endpoints-page'
     )
 
-    // Click the Org section in the nav rail (first section, index 0)
+    // Click the Org section in the nav rail (Home=0, Org=1, Project=2)
     const navRail = page.locator('.tdsk-icon-rail')
-    const orgItem = navRail.locator('.tdsk-rail-item').nth(0)
+    const orgItem = navRail.locator('.tdsk-rail-item').nth(1)
     await orgItem.click()
 
     // Should navigate to the org root route
@@ -158,14 +158,14 @@ test.describe('Sub-Navigation Panel', () => {
       'tdsk-project-endpoints-page'
     )
 
-    // First switch to Org section so Project section is not active
+    // First switch to Org section so Project section is not active (Home=0, Org=1, Project=2)
     const navRail = page.locator('.tdsk-icon-rail')
-    const orgItem = navRail.locator('.tdsk-rail-item').nth(0)
+    const orgItem = navRail.locator('.tdsk-rail-item').nth(1)
     await orgItem.click()
     await expect(page.locator('.tdsk-org-page')).toBeVisible({ timeout: 10000 })
 
-    // Now click the Project section (second section, index 1)
-    const projectItem = navRail.locator('.tdsk-rail-item').nth(1)
+    // Now click the Project section (Home=0, Org=1, Project=2)
+    const projectItem = navRail.locator('.tdsk-rail-item').nth(2)
     await projectItem.click()
 
     // Should navigate to the project root route

@@ -1,8 +1,11 @@
+import type { SubmitEvent, KeyboardEvent } from 'react'
+
 import { useState, useRef, useEffect } from 'react'
-import { useParams, useSearchParams, useNavigate } from 'react-router'
+import { useParams, useNavigate } from 'react-router'
 import { useAgentChat } from '@TAF/hooks/chat/useAgentChat'
 import { MessageBubble } from '@TAF/components/AI/MessageBubble'
-import { useActiveOrgId, useActiveAgent } from '@TAF/state/selectors'
+import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
+import { useActiveOrgId, useActiveAgent, useActiveThread } from '@TAF/state/selectors'
 import {
   Box,
   Alert,
@@ -15,28 +18,30 @@ import {
 import {
   Stop as StopIcon,
   Send as SendIcon,
-  Refresh as RefreshIcon,
+  Edit as EditIcon,
   ArrowBack as BackIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material'
 
-export type TChatViewProps = {}
+type TMsgParams = {
+  agentId: string
+  threadId: string
+}
 
-export const ChatView = (props: TChatViewProps) => {
+export const ProjectThreadChat = () => {
   const navigate = useNavigate()
-  const { agentId } = useParams<{ agentId: string }>()
   const [orgId] = useActiveOrgId()
   const [agent] = useActiveAgent()
-  const [input, setInput] = useState(``)
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const threadParam = searchParams.get(`thread`) || undefined
-
+  const [thread] = useActiveThread()
+  const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false)
+  const { agentId, threadId: threadParam } = useParams<TMsgParams>()
 
-  const { messages, sendMessage, isStreaming, threadId, error, reset, cancel, usage } =
+  const { error, reset, usage, cancel, messages, sendMessage, isStreaming, threadId } =
     useAgentChat({
-      orgId: orgId || ``,
-      agentId: agentId || ``,
+      orgId: orgId || '',
+      agentId: agentId || '',
       threadId: threadParam,
     })
 
@@ -48,27 +53,23 @@ export const ChatView = (props: TChatViewProps) => {
   }, [threadId, threadParam, navigate])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: `smooth` })
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const onSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault()
+  const onSubmit = async (evt?: SubmitEvent) => {
+    evt?.preventDefault()
     if (!input.trim() || isStreaming) return
 
     const prompt = input
-    setInput(``)
+    setInput('')
     await sendMessage(prompt)
   }
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === `Enter` && !e.shiftKey) {
-      e.preventDefault()
+  const onKeyDown = (evt: KeyboardEvent) => {
+    if (evt.key === `Enter` && !evt.shiftKey) {
+      evt.preventDefault()
       onSubmit()
     }
-  }
-
-  const onBack = () => {
-    window.history.back()
   }
 
   if (!orgId || !agentId) return null
@@ -76,49 +77,38 @@ export const ChatView = (props: TChatViewProps) => {
   return (
     <Box
       sx={{
-        display: `flex`,
-        flexDirection: `column`,
-        height: `calc(100vh - 220px)`,
-        maxHeight: `calc(100vh - 220px)`,
+        display: 'flex',
+        flexDirection: 'column',
+        height: 'calc(100vh - 220px)',
+        maxHeight: 'calc(100vh - 220px)',
       }}
     >
       <Box
         sx={{
-          display: `flex`,
-          alignItems: `center`,
+          display: 'flex',
+          alignItems: 'center',
           gap: 1,
           px: 2,
           py: 1.5,
           borderBottom: 1,
-          borderColor: `divider`,
+          borderColor: 'divider',
         }}
       >
         <IconButton
           size='small'
-          onClick={onBack}
+          onClick={() => window.history.back()}
         >
           <BackIcon />
         </IconButton>
         <Box sx={{ flex: 1 }}>
-          <Typography variant='h6'>{agent?.name || `Agent Chat`}</Typography>
-          {threadId && (
+          <Typography variant='h6'>{agent?.name || 'Agent Chat'}</Typography>
+          {(threadId || threadParam) && (
             <Typography
               variant='caption'
               color='text.secondary'
               fontFamily='monospace'
             >
-              Thread: {threadId.substring(0, 12)}...
-            </Typography>
-          )}
-          {agent?.model && (
-            <Typography
-              variant='caption'
-              color='text.secondary'
-            >
-              {agent.model}
-              {agent.environment?.temperature != null
-                ? ` · Temp: ${agent.environment.temperature}`
-                : ''}
+              Thread: {(threadId || threadParam)?.substring(0, 12)}...
             </Typography>
           )}
         </Box>
@@ -142,14 +132,21 @@ export const ChatView = (props: TChatViewProps) => {
             Stop
           </Button>
         )}
+        {threadParam && thread && (
+          <Button
+            size='small'
+            variant='text'
+            startIcon={<EditIcon />}
+            onClick={() => setEditDrawerOpen(true)}
+          >
+            Edit Thread
+          </Button>
+        )}
         <Button
           size='small'
           variant='outlined'
           startIcon={<RefreshIcon />}
-          onClick={() => {
-            reset()
-            setSearchParams({})
-          }}
+          onClick={() => reset()}
           disabled={isStreaming}
         >
           New Chat
@@ -159,30 +156,29 @@ export const ChatView = (props: TChatViewProps) => {
       <Box
         sx={{
           flex: 1,
-          overflow: `auto`,
+          overflow: 'auto',
           px: 3,
           py: 2,
-          display: `flex`,
-          flexDirection: `column`,
+          display: 'flex',
+          flexDirection: 'column',
           gap: 2,
-          width: `100%`,
+          width: '100%',
         }}
       >
         {messages.length === 0 && (
           <Box
             sx={{
               flex: 1,
-              display: `flex`,
-              alignItems: `center`,
-              justifyContent: `center`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             <Typography
               variant='body1'
               color='text.secondary'
             >
-              Send a message to start chatting with{` `}
-              {agent?.name || `the agent`}
+              Send a message to start chatting with {agent?.name || 'the agent'}
             </Typography>
           </Box>
         )}
@@ -192,7 +188,7 @@ export const ChatView = (props: TChatViewProps) => {
             key={msg.id}
             message={msg}
             isStreaming={
-              isStreaming && idx === messages.length - 1 && msg.role === `assistant`
+              isStreaming && idx === messages.length - 1 && msg.role === 'assistant'
             }
           />
         ))}
@@ -213,26 +209,26 @@ export const ChatView = (props: TChatViewProps) => {
         onSubmit={onSubmit}
         elevation={2}
         sx={{
-          display: `flex`,
-          alignItems: `flex-end`,
-          gap: 1,
           p: 2,
+          gap: 1,
           borderTop: 1,
-          borderColor: `divider`,
+          display: 'flex',
+          alignItems: 'flex-end',
+          borderColor: 'divider',
         }}
       >
         <TextField
           fullWidth
+          autoFocus
           multiline
           maxRows={4}
+          size='small'
           value={input}
-          autoFocus
-          placeholder='Type a message...'
-          onChange={(e) => setInput(e.target.value)}
+          variant='outlined'
           onKeyDown={onKeyDown}
           disabled={isStreaming}
-          variant='outlined'
-          size='small'
+          placeholder='Type a message...'
+          onChange={(e) => setInput(e.target.value)}
         />
         {isStreaming ? (
           <IconButton
@@ -251,8 +247,15 @@ export const ChatView = (props: TChatViewProps) => {
           </IconButton>
         )}
       </Paper>
+
+      <EditThreadDrawer
+        open={editDrawerOpen}
+        thread={thread || null}
+        onClose={() => setEditDrawerOpen(false)}
+        onSuccess={() => setEditDrawerOpen(false)}
+      />
     </Box>
   )
 }
 
-export default ChatView
+export default ProjectThreadChat

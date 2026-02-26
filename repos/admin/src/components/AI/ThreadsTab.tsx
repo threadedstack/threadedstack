@@ -6,7 +6,6 @@ import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { fetchThreads } from '@TAF/actions/threads/api/fetchThreads'
 import { deleteThread } from '@TAF/actions/threads/api/deleteThread'
 import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
-import { CreateThreadDrawer } from '@TAF/components/AI/CreateThreadDrawer'
 import {
   useOrgAgents,
   useOrgThreads,
@@ -36,8 +35,8 @@ import {
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Chat as ChatIcon,
+  Delete as DeleteIcon,
   CallSplit as BranchIcon,
   Visibility as ViewIcon,
 } from '@mui/icons-material'
@@ -45,10 +44,11 @@ import {
 export type TThreadsTab = {
   onViewThread?: (threadId: string) => void
   onChatWithThread?: (threadId: string, agentId: string) => void
+  onCreateThread?: () => void
 }
 
 export const ThreadsTab = (props: TThreadsTab) => {
-  const { onViewThread: onViewThreadCB, onChatWithThread } = props
+  const { onCreateThread, onChatWithThread, onViewThread: onViewThreadCB } = props
   const [orgId] = useActiveOrgId()
   const [agents] = useOrgAgents()
   const [threads] = useOrgThreads()
@@ -62,7 +62,6 @@ export const ThreadsTab = (props: TThreadsTab) => {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [filterProviderId, setFilterProviderId] = useState<string>('all')
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null)
@@ -159,18 +158,6 @@ export const ThreadsTab = (props: TThreadsTab) => {
       if (provider) return provider.name
     }
     return agent?.primaryProvider?.name || '-'
-  }
-
-  const onCreateThread = () => {
-    setCreateDialogOpen(true)
-  }
-
-  const onCreateSuccess = async () => {
-    if (orgId && activeAgentId) {
-      await fetchThreads({ orgId, agentId: activeAgentId, contextKey: 'org' })
-    }
-    setSuccess('Thread created successfully')
-    setTimeout(() => setSuccess(null), 2000)
   }
 
   const onEditThread = (thread: Thread) => {
@@ -446,16 +433,6 @@ export const ThreadsTab = (props: TThreadsTab) => {
             </TableBody>
           </Table>
         </TableContainer>
-      )}
-
-      {orgId && activeAgentId && (
-        <CreateThreadDrawer
-          orgId={orgId}
-          agentId={activeAgentId}
-          open={createDialogOpen}
-          onSuccess={onCreateSuccess}
-          onClose={() => setCreateDialogOpen(false)}
-        />
       )}
 
       <EditThreadDrawer

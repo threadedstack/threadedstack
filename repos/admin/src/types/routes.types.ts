@@ -46,6 +46,7 @@ export enum ERoutePath {
   OrgProject = `/orgs/:orgId/projects/:projectId`,
 
   Agents = `agents`,
+  Agent = `agents/:agentId`,
   ProjectAgents = `/orgs/:orgId/projects/:projectId/agents`,
 
   Threads = `threads`,
@@ -56,6 +57,11 @@ export enum ERoutePath {
   ProjectAgent = `/orgs/:orgId/projects/:projectId/agents/:agentId`,
   ProjectAgentChat = `/orgs/:orgId/projects/:projectId/agents/:agentId/chat`,
   ProjectAgentThreads = `/orgs/:orgId/projects/:projectId/agents/:agentId/threads`,
+
+  AgentThreadDetail = `threads/:threadId`,
+  AgentThreadChat = `threads/:threadId/chat`,
+  ProjectAgentThreadDetail = `/orgs/:orgId/projects/:projectId/agents/:agentId/threads/:threadId`,
+  ProjectAgentThreadChat = `/orgs/:orgId/projects/:projectId/agents/:agentId/threads/:threadId/chat`,
 
   // In both organizations and projects
   ProjectSecrets = `/orgs/:orgId/projects/:projectId/secrets`,

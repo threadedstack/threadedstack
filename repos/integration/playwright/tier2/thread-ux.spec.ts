@@ -4,9 +4,9 @@ import { test, expect } from '../fixtures/auth'
  * Thread UX regression tests.
  *
  * Validates:
- * 1. Thread row click navigates to messages tab (URL params updated)
- * 2. Direct URL with ?thread=<id>&tab=messages renders messages tab
- * 3. Provider filter dropdown appears when appropriate
+ * 1. Thread row click navigates to thread detail page (route-based)
+ * 2. Edit/delete buttons do not trigger row navigation
+ * 3. Chat view page renders inside agent layout
  * 4. No unexpected console errors on thread pages
  */
 
@@ -35,81 +35,63 @@ async function gotoAndWait(
   await expect(page.locator(`.${pageClass}`)).toBeVisible({ timeout })
 }
 
+/** Wait for table rows to appear (async data fetch) then return count */
+async function waitForTableRows(page: import('@playwright/test').Page, timeout = 10000) {
+  const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
+  try {
+    await tableRows.first().waitFor({ state: 'visible', timeout })
+  } catch { /* no rows after waiting */ }
+  return tableRows.count()
+}
+
 test.describe('Thread UX: Row click navigation', () => {
-  test('clicking a thread row updates URL with thread and tab params', async ({ authenticatedPage: page, ctx }) => {
+  test('clicking a thread row navigates to thread detail page', async ({ authenticatedPage: page, ctx }) => {
     const errors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
     const threadsUrl = `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`
-    await gotoAndWait(page, threadsUrl, 'tdsk-project-threads-page')
+    await gotoAndWait(page, threadsUrl, 'tdsk-agent-layout-page')
 
     // Wait for threads table to populate
-    const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
-    const rowCount = await tableRows.count()
-
+    const rowCount = await waitForTableRows(page)
     test.skip(rowCount === 0, 'No threads found — cannot test row click navigation')
+
+    const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
 
     // Click the first thread row
     await tableRows.first().click()
+    await page.waitForLoadState('networkidle')
 
-    // Wait for tab switch
-    await page.waitForTimeout(500)
+    // URL should now contain /threads/<uuid> (route-based navigation)
+    const url = page.url()
+    expect(url).toMatch(/\/threads\/[0-9a-f-]+/)
 
-    // URL should now contain ?thread=<id>&tab=messages
-    const url = new URL(page.url())
-    expect(url.searchParams.has('thread')).toBe(true)
-    expect(url.searchParams.get('tab')).toBe('messages')
-
-    // Messages tab content should be visible (either messages or empty state)
-    const messagesContent = page.getByText(/No messages found|messages/i)
-    const hasMessages = (await messagesContent.count()) > 0
-    // The tab bar should show Messages as active
-    const activeTab = page.locator('.MuiTab-root.Mui-selected')
-    await expect(activeTab).toBeVisible()
-
-    expect(errors).toEqual([])
-  })
-})
-
-test.describe('Thread UX: Direct URL navigation', () => {
-  test('navigating with ?tab=messages shows Messages tab', async ({ authenticatedPage: page, ctx }) => {
-    const errors: string[] = []
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
-    })
-
-    // Navigate to threads page with tab=messages in URL
-    const threadsUrl = `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads?tab=messages`
-    await gotoAndWait(page, threadsUrl, 'tdsk-project-threads-page')
-
-    // The Messages tab should be active, not Threads
-    const activeTab = page.locator('.MuiTab-root.Mui-selected')
-    await expect(activeTab).toBeVisible()
-    const tabText = await activeTab.textContent()
-    expect(tabText?.toLowerCase()).toContain('messages')
+    // Thread detail page should show "Thread Details" section
+    await expect(page.getByText('Thread Details')).toBeVisible({ timeout: 10000 })
 
     expect(errors).toEqual([])
   })
 })
 
 test.describe('Thread UX: Threads page renders without errors', () => {
-  test('threads page renders AI Threads heading and tab bar', async ({ authenticatedPage: page, ctx }) => {
+  test('threads page renders inside agent layout with correct tabs', async ({ authenticatedPage: page, ctx }) => {
     const errors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
     const threadsUrl = `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`
-    await gotoAndWait(page, threadsUrl, 'tdsk-project-threads-page')
+    await gotoAndWait(page, threadsUrl, 'tdsk-agent-layout-page')
 
-    // Heading should be visible
-    await expect(page.getByRole('heading', { name: 'AI Threads' })).toBeVisible()
-
-    // Tab bar should have Threads and Messages tabs (Assets is hidden)
+    // Tab bar should have Agent and Threads tabs
+    await expect(page.getByRole('tab', { name: /Agent/i })).toBeVisible()
     await expect(page.getByRole('tab', { name: /Threads/i })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /Messages/i })).toBeVisible()
+
+    // Threads tab should be active
+    const threadsTab = page.getByRole('tab', { name: /Threads/i })
+    await expect(threadsTab).toHaveAttribute('aria-selected', 'true')
 
     expect(errors).toEqual([])
   })
@@ -121,24 +103,24 @@ test.describe('Thread UX: Threads page renders without errors', () => {
     })
 
     const threadsUrl = `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`
-    await gotoAndWait(page, threadsUrl, 'tdsk-project-threads-page')
+    await gotoAndWait(page, threadsUrl, 'tdsk-agent-layout-page')
+
+    const rowCount = await waitForTableRows(page)
+    test.skip(rowCount === 0, 'No threads found — cannot test button isolation')
 
     const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
-    const rowCount = await tableRows.count()
-
-    test.skip(rowCount === 0, 'No threads found — cannot test button isolation')
 
     // Click the edit button (title="Edit thread") on first row
     const firstRow = tableRows.first()
     const editButton = firstRow.locator('[title="Edit thread"]')
 
     if ((await editButton.count()) > 0) {
+      const urlBefore = page.url()
       await editButton.first().click()
       await page.waitForTimeout(300)
 
-      // URL should NOT have tab=messages (edit button should not navigate)
-      const url = new URL(page.url())
-      expect(url.searchParams.get('tab')).not.toBe('messages')
+      // URL should NOT have changed (edit button opens drawer, not navigates)
+      expect(page.url()).toBe(urlBefore)
 
       // Close any opened drawer
       await page.keyboard.press('Escape')
@@ -149,18 +131,22 @@ test.describe('Thread UX: Threads page renders without errors', () => {
   })
 })
 
-test.describe('Thread UX: Message container width', () => {
-  test('chat view page renders without maxWidth constraint on messages', async ({ authenticatedPage: page, ctx }) => {
+test.describe('Thread UX: Chat view', () => {
+  test('chat view page renders inside agent layout with chat input', async ({ authenticatedPage: page, ctx }) => {
     const errors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
     const chatUrl = `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/chat`
-    await gotoAndWait(page, chatUrl, 'tdsk-chat-view-page')
+    await gotoAndWait(page, chatUrl, 'tdsk-agent-layout-page')
 
     // Chat input should be visible
     await expect(page.getByPlaceholder('Type a message...')).toBeVisible()
+
+    // Tabs should NOT be visible on chat page
+    const tabs = page.getByRole('tab')
+    expect(await tabs.count()).toBe(0)
 
     expect(errors).toEqual([])
   })

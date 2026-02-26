@@ -140,10 +140,10 @@ test.describe('Navigation', () => {
     const count = await railItems.count()
     expect(count).toBeGreaterThanOrEqual(1)
 
-    // Sub-nav panel should be collapsed (no active section)
+    // Sub-nav panel should show the Home section (global pages derive to 'home' section)
     const subNavPanel = sidebar.locator('.tdsk-subnav-panel')
     const width = await subNavPanel.first().evaluate((el) => el.getBoundingClientRect().width)
-    expect(width).toBe(0)
+    expect(width).toBeGreaterThan(0)
   })
 
   test('browser back button navigates correctly through history', async ({

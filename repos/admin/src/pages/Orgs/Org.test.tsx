@@ -59,7 +59,7 @@ vi.mock(`@TAF/components/Quickstart/Quickstart`, () => ({
 }))
 
 vi.mock(`@tdsk/components`, async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = await importOriginal<Record<string, unknown>>()
   return {
     ...actual,
     ConfirmDelete: () => null,

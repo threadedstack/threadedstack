@@ -5,9 +5,10 @@ import { getRailNavConfig } from './getRailNavConfig'
 
 describe(`getRailNavConfig`, () => {
   describe(`with empty context`, () => {
-    it(`should return no sections when orgId is missing`, () => {
+    it(`should return only the Home section when orgId is missing`, () => {
       const config = getRailNavConfig({})
-      expect(config.sections).toHaveLength(0)
+      expect(config.sections).toHaveLength(1)
+      expect(config.sections[0].id).toBe(`home`)
     })
 
     it(`should have bottom items with Settings`, () => {
@@ -23,11 +24,11 @@ describe(`getRailNavConfig`, () => {
       org: { name: `Engineering` } as any,
     }
 
-    it(`should return Org and Project sections`, () => {
+    it(`should return Home, Org and Project sections`, () => {
       const config = getRailNavConfig(orgCtx)
-      expect(config.sections).toHaveLength(2)
+      expect(config.sections).toHaveLength(3)
       const ids = config.sections.map((s) => s.id)
-      expect(ids).toEqual([`org`, `project`])
+      expect(ids).toEqual([`home`, `org`, `project`])
     })
 
     it(`should use org name as label and header for org section`, () => {
@@ -94,11 +95,11 @@ describe(`getRailNavConfig`, () => {
       project: { name: `API Gateway` } as any,
     }
 
-    it(`should return Org and Project sections`, () => {
+    it(`should return Home, Org and Project sections`, () => {
       const config = getRailNavConfig(fullCtx)
-      expect(config.sections).toHaveLength(2)
+      expect(config.sections).toHaveLength(3)
       const ids = config.sections.map((s) => s.id)
-      expect(ids).toEqual([`org`, `project`])
+      expect(ids).toEqual([`home`, `org`, `project`])
     })
 
     it(`should use project name as label and header`, () => {

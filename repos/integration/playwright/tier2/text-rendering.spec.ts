@@ -108,7 +108,7 @@ test.describe('Text Rendering - Literal Quotes Detection', () => {
     await gotoAndWait(
       page,
       `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`,
-      'tdsk-project-threads-page'
+      'tdsk-agent-layout-page'
     )
 
     // Check if there are threads rendered in a table

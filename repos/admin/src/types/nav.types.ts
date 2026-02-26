@@ -12,6 +12,7 @@ export type TNavCtx = {
   orgId?: string
   agentId?: string
   project?: Project
+  threadId?: string
   projectId?: string
   org?: Organization
   agents?: Record<string, Agent>

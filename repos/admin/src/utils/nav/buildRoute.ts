@@ -1,5 +1,4 @@
 import type { TNavCtx } from '@TAF/types'
-
 import type { ERoutePath } from '@TAF/types'
 
 export const buildNavRoute = (ctx: TNavCtx, route: ERoutePath) => {

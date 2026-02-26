@@ -22,8 +22,8 @@ describe('fetchEndpoints', () => {
 
   it('should replace state for projectId with fresh data from API', async () => {
     const mockEndpoints = [
-      new Endpoint({ id: 'ep-1', name: 'Endpoint 1' }),
-      new Endpoint({ id: 'ep-2', name: 'Endpoint 2' }),
+      new Endpoint({ id: 'ep-1', name: 'Endpoint 1', type: 'proxy' }),
+      new Endpoint({ id: 'ep-2', name: 'Endpoint 2', type: 'proxy' }),
     ]
 
     mockEndpointsList.mockResolvedValueOnce({ data: mockEndpoints })
@@ -38,7 +38,9 @@ describe('fetchEndpoints', () => {
   })
 
   it('should not include stale data in the state map', async () => {
-    const mockEndpoints = [new Endpoint({ id: 'ep-new', name: 'New Endpoint' })]
+    const mockEndpoints = [
+      new Endpoint({ id: 'ep-new', name: 'New Endpoint', type: 'proxy' }),
+    ]
 
     mockEndpointsList.mockResolvedValueOnce({ data: mockEndpoints })
 

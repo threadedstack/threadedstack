@@ -16,3 +16,15 @@ export const projectThreadsState = atom((get) => {
   const projectId = get(activeProjectIdState)
   return projectId ? get(threadsState)?.[projectId] : undefined
 })
+
+// Derived: active thread (searches all scopes)
+export const activeThreadState = atom((get) => {
+  const threadId = get(activeThreadIdState)
+  if (!threadId) return undefined
+  const all = get(threadsState)
+  if (!all) return undefined
+  for (const scope of Object.values(all)) {
+    if (scope?.[threadId]) return scope[threadId]
+  }
+  return undefined
+})

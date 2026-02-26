@@ -510,36 +510,37 @@ test.describe('BUG #42-43: Agent drawer shows secrets/providers with duplicates'
       'tdsk-project-agents-page'
     )
 
-    // Check if there are any agents on the page
-    const agentCards = page.locator('.MuiCard-root')
-    const agentCardCount = await agentCards.count()
-
-    // Also check for the empty state
-    const emptyState = page.getByText('No agents yet')
-    const isEmpty = (await emptyState.count()) > 0
-
-    if (isEmpty || agentCardCount === 0) {
+    // Wait for agents table to populate (project agents page uses DataTable)
+    const tableRows = page.locator('.MuiTableBody-root .MuiTableRow-root')
+    try {
+      await tableRows.first().waitFor({ state: 'visible', timeout: 10000 })
+    } catch {
       test.skip(true, 'No agents exist - cannot test agent edit drawer')
       return
     }
 
-    // Click the edit button on the first agent
-    // The edit IconButton uses EditIcon with size="small"
-    const editButtons = page.locator(
-      '.MuiCardActions-root .MuiIconButton-root:nth-child(2)'
-    )
+    // Open the edit drawer for the first agent via aria-label
+    const firstRow = tableRows.first()
+    const editButton = firstRow.locator('[aria-label="Edit agent"]')
 
-    if ((await editButtons.count()) === 0) {
-      test.skip(true, 'No edit buttons found on agent cards')
-      return
+    if ((await editButton.count()) === 0) {
+      // Fallback: try clicking the row directly
+      await firstRow.click()
+    } else {
+      await editButton.first().click()
     }
-
-    await editButtons.first().click()
     await page.waitForTimeout(2000)
 
-    // Verify the edit drawer opened
+    // Verify the edit drawer opened (project-level may show "Configure Agent for Project")
     const editTitle = page.getByText('Edit Agent')
-    await expect(editTitle.first()).toBeVisible({ timeout: 5000 })
+    const configTitle = page.getByText('Configure Agent for Project')
+    const drawerOpened = (await editTitle.count()) > 0 || (await configTitle.count()) > 0
+    if (!drawerOpened) {
+      // Wait a bit more and retry
+      await page.waitForTimeout(2000)
+    }
+    const title = (await editTitle.count()) > 0 ? editTitle : configTitle
+    await expect(title.first()).toBeVisible({ timeout: 5000 })
 
     // Check the "Associated Secrets" section for duplicates
     const secretsHeading = page.getByText('Associated Secrets')

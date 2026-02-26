@@ -38,6 +38,7 @@ import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import {
   threadsState,
   activeThreadIdState,
+  activeThreadState,
   orgThreadsState,
   projectThreadsState,
 } from '@TAF/state/threads'
@@ -187,5 +188,7 @@ export const useOrgThreads = () =>
 export const useOrgAssets = () => useDerivedState<Record<string, Asset>>(orgAssetsState)
 
 // Thread-scoped messages
+export const useActiveThread = () => useDerivedState<Thread>(activeThreadState)
+
 export const useThreadMessages = () =>
   useDerivedState<Record<string, Message>>(threadMessagesState)

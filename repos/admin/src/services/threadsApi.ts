@@ -12,7 +12,10 @@ import { BaseApi } from '@TAF/services/api'
 export class ThreadsApi extends BaseApi {
   cache: TApiCacheKeys = {
     all: () => [`threads`] as const,
-    list: () => [...this.cache.all(), `list`] as const,
+    list: (agentId?: string) =>
+      agentId
+        ? ([...this.cache.all(), `list`, agentId] as const)
+        : ([...this.cache.all(), `list`] as const),
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
@@ -30,7 +33,7 @@ export class ThreadsApi extends BaseApi {
     const resp = await this.api.get<Thread[]>({
       data: rest,
       path: this.#path(orgId, agentId),
-      queryKey: queryKey || this.cache.list(),
+      queryKey: queryKey || this.cache.list(agentId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load Threads list`))

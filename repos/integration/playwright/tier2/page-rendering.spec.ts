@@ -265,15 +265,15 @@ test.describe('Project Pages', () => {
     expect(errors).toEqual([])
   })
 
-  test('Agent Threads - renders AI Threads heading', async ({ authenticatedPage: page, ctx }) => {
+  test('Agent Threads - renders Threads heading inside agent layout', async ({ authenticatedPage: page, ctx }) => {
     const errors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`, 'tdsk-project-threads-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`, 'tdsk-agent-layout-page')
 
-    await expect(page.getByRole('heading', { name: 'AI Threads' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Threads' })).toBeVisible()
 
     expect(errors).toEqual([])
   })
@@ -297,13 +297,13 @@ test.describe('Project Pages', () => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/chat`, 'tdsk-chat-view-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/chat`, 'tdsk-agent-layout-page')
 
     // Chat page renders a text input with placeholder "Type a message..."
     await expect(page.getByPlaceholder('Type a message...')).toBeVisible()
 
-    // The "Agent Chat" or agent name heading should be visible
-    await expect(page.getByRole('heading', { name: /Chat|Agent/i })).toBeVisible()
+    // The agent name heading (h1) should be visible in the agent layout
+    await expect(page.locator('h1').first()).toBeVisible()
 
     expect(errors).toEqual([])
   })
