@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - Backend Repo"
+name: "tdsk-backend"
 description: "Knowledge base for the backend Core API repo"
 tags: ["express", "nodejs", "api", "backend", "payments", "polar", "ai", "session", "proxy", "secrets", "pi-ai"]
 ---

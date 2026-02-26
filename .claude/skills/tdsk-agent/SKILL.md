@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - Agent Repo"
+name: "tdsk-agent"
 description: "Knowledge base for the headless AI agent orchestration library"
 tags: ["ai-agent", "llm", "streaming", "react-loop", "tool-execution", "sandbox", "typescript"]
 ---

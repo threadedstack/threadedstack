@@ -10,7 +10,6 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 
 #### Organization
 
-
 * **[P3] Extract Quick Actions card into reusable component**
   * The Quick Actions card in `repos/admin/src/pages/Orgs/Org.tsx` lines 183-297 is hardcoded inline with 3 action cards (Projects, Invite Users, Manage Secrets). Each card has an icon, title, description, and onClick handler. This should be a generic component that accepts a list of actions
   * **Fix**:

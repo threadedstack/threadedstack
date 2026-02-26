@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - REPL Repo"
+name: "tdsk-repl"
 description: "Knowledge base for the terminal REPL CLI for AI agent interaction"
 version: "1.0.0"
 tags: ["cli", "repl", "bun", "agent", "terminal", "interactive", "session", "proxy-adapter", "args-parse", "tasks", "ink", "react", "tui"]

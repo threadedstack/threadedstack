@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - Domain Repo"
+name: "tdsk-domain"
 description: "Knowledge base for the shared types, models, and utilities repo"
 tags: ["typescript", "types", "models", "domain", "shared", "utilities", "payments", "ai", "quotas", "subscriptions"]
 ---

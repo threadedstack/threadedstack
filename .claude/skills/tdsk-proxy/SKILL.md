@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - Proxy Repo"
+name: "tdsk-proxy"
 description: "Knowledge base for the Auth Gateway proxy repo"
 tags: ["express", "jwt", "jwks", "proxy", "auth", "gateway", "typescript", "jose", "session"]
 ---

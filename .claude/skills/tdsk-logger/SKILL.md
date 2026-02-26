@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - Logger Repo"
+name: "tdsk-logger"
 description: "Knowledge base for the Winston logging service repo"
 tags: ["winston", "logging", "nodejs", "service", "express-middleware", "security"]
 ---

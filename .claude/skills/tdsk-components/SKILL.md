@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - Components Repo"
+name: "tdsk-components"
 description: "Knowledge base for the shared React components library (@tdsk/components)"
 tags: ["react", "mui", "components", "hooks", "frontend", "shared-library"]
 ---

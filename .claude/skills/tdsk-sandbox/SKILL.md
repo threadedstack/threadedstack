@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - Sandbox Repo"
+name: "tdsk-sandbox"
 description: "Knowledge base for the pluggable sandbox execution layer"
 tags: ["sandbox", "isolation", "v8-isolate", "e2b", "just-bash", "wasm", "security"]
 ---

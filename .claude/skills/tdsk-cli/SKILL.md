@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - CLI Repo"
+name: "tdsk-cli"
 description: "Knowledge base for the developer CLI repo - DevOps orchestration for Docker, Kubernetes, and DevSpace"
 tags: ["cli", "nodejs", "devops", "kubernetes", "docker", "devspace"]
 ---

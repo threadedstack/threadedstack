@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - Admin Repo"
+name: "tdsk-admin"
 description: "Knowledge base for the admin SPA dashboard repo"
 tags: ["react", "vite", "mui", "jotai", "tanstack-query", "frontend", "admin-dashboard", "billing", "quotas", "agents", "ai-chat"]
 ---

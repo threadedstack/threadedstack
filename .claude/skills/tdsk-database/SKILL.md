@@ -1,5 +1,5 @@
 ---
-name: "Threaded Stack - Database Repo"
+name: "tdsk-database"
 description: "Knowledge base for the database ORM & migrations repo"
 tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas", "subscriptions", "agents", "domains", "invitations"]
 ---

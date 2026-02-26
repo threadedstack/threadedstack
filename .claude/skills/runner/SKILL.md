@@ -1,5 +1,5 @@
 ---
-name: task-runner
+name: runner
 description: "Pick and implement tasks from TASKS.md with implementation planning, unit tests, and integration tests. Use when asked to work on tasks, pick a task, or work from the task list. Do NOT use for TODOs — only for TASKS.md items."
 ---
 
