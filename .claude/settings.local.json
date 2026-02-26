@@ -67,7 +67,9 @@
       "Bash(./dist/tsa:*)",
       "Bash(psql:*)",
       "Bash(npm run test:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Skill(hookify:help)",
+      "Bash(chmod:*)"
     ]
   },
   "sandbox": {

@@ -1,0 +1,70 @@
+#!/usr/bin/env sh
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+
+# Only generate for new commits — skip -m, merge, squash, amend
+if [ -n "$COMMIT_SOURCE" ]; then
+  exit 0
+fi
+
+# Allow skipping: CLAUDE_COMMIT=0 git commit
+if [ "$CLAUDE_COMMIT" = "0" ]; then
+  exit 0
+fi
+
+# Gracefully skip if claude CLI isn't installed
+if ! command -v claude >/dev/null 2>&1; then
+  exit 0
+fi
+
+STAGED_DIFF=$(git diff --cached)
+
+if [ -z "$STAGED_DIFF" ]; then
+  exit 0
+fi
+
+echo "Generating commit message with Claude..."
+
+# Truncate to stat summary if diff exceeds ~50KB
+DIFF_SIZE=$(printf '%s' "$STAGED_DIFF" | wc -c | tr -d ' ')
+if [ "$DIFF_SIZE" -gt 50000 ]; then
+  STAGED_DIFF=$(git diff --cached --stat)
+  DIFF_NOTE="Note: Full diff was too large ($DIFF_SIZE bytes). Using stat summary only."
+else
+  DIFF_NOTE=""
+fi
+
+MESSAGE=$(claude -p \
+  --model haiku \
+  --output-format text \
+  "Generate a conventional commit message for these staged git changes.
+
+Rules:
+- Format: <type>(<scope>): <description>
+- Types: feat, fix, refactor, test, docs, style, perf, chore, ci, build, revert
+- Imperative mood: 'add' not 'added' or 'adds'
+- No capitalized first letter in description
+- No period at end of description
+- First line under 72 characters total
+- Derive scope from the primary area of change (module, feature, or directory)
+- Omit scope if changes span many unrelated areas
+- Add a body after a blank line ONLY if the first line alone doesn't explain the 'why'
+- For breaking changes: use ! after type/scope and add a BREAKING CHANGE footer
+- Output ONLY the raw commit message — no markdown, no code blocks, no explanation
+
+${DIFF_NOTE}
+
+Staged changes:
+${STAGED_DIFF}" 2>/dev/null)
+
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 0 ] && [ -n "$MESSAGE" ]; then
+  # Strip any accidental markdown code fences
+  CLEAN=$(printf '%s\n' "$MESSAGE" | sed '/^```/d')
+  printf '%s\n' "$CLEAN" > "$COMMIT_MSG_FILE"
+  echo "Commit message generated — review in your editor."
+else
+  echo "Claude did not generate a message (exit $EXIT_CODE) — using default"
+fi
