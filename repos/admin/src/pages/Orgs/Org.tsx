@@ -10,8 +10,11 @@ import { getInitials } from '@TAF/utils/user/getInitials'
 import { getRoleColor } from '@TAF/utils/user/getRoleColor'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import { useOrgUsersList } from '@TAF/hooks/org/useOrgUsersList'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import { Quickstart } from '@TAF/components/Quickstart/Quickstart'
 import { EditOrgDrawer } from '@TAF/components/Orgs/EditOrgDrawer'
+import { ActionCards } from '@TAF/components/ActionCards/ActionCards'
+import { toggleQuickStart } from '@TAF/actions/quickstart/local/toggle'
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -183,127 +186,37 @@ export const Org = (props: TOrg) => {
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: 1,
-            }}
-          >
-            <Typography
-              variant='h6'
-              gutterBottom
-            >
-              Quick Actions
-            </Typography>
-            <Quickstart />
-          </Box>
-          <Divider sx={{ mb: 2 }} />
-          <Grid
-            container
-            spacing={2}
-          >
-            <Grid
-              item
-              xs={12}
-              sm={4}
-            >
-              <Card
-                variant='outlined'
-                sx={{
-                  cursor: 'pointer',
-                  '&:hover': { borderColor: 'primary.main' },
-                }}
-                onClick={() => navigate(`/orgs/${org.id}/projects`)}
-              >
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <ProjectIcon
-                    color='primary'
-                    sx={{ fontSize: 40 }}
-                  />
-                  <Typography
-                    variant='subtitle1'
-                    sx={{ mt: 1 }}
-                  >
-                    Projects
-                  </Typography>
-                  <Typography
-                    variant='body2'
-                    color='text.secondary'
-                  >
-                    View and manage projects
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid
-              item
-              xs={12}
-              sm={4}
-            >
-              <Card
-                variant='outlined'
-                sx={{
-                  cursor: 'pointer',
-                  '&:hover': { borderColor: 'primary.main' },
-                }}
-                onClick={() => navigate(`/orgs/${org.id}/members`)}
-              >
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <AddMemberIcon
-                    color='primary'
-                    sx={{ fontSize: 40 }}
-                  />
-                  <Typography
-                    variant='subtitle1'
-                    sx={{ mt: 1 }}
-                  >
-                    Invite Users
-                  </Typography>
-                  <Typography
-                    variant='body2'
-                    color='text.secondary'
-                  >
-                    Manage team members
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid
-              item
-              xs={12}
-              sm={4}
-            >
-              <Card
-                variant='outlined'
-                sx={{
-                  cursor: 'pointer',
-                  '&:hover': { borderColor: 'primary.main' },
-                }}
-                onClick={() => navigate(`/orgs/${org.id}/secrets`)}
-              >
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <SecretIcon
-                    color='primary'
-                    sx={{ fontSize: 40 }}
-                  />
-                  <Typography
-                    variant='subtitle1'
-                    sx={{ mt: 1 }}
-                  >
-                    Manage Secrets
-                  </Typography>
-                  <Typography
-                    variant='body2'
-                    color='text.secondary'
-                  >
-                    Configure API keys and secrets
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+          <ActionCards
+            title='Quick Actions'
+            actions={[
+              {
+                title: `Quick Start`,
+                Icon: RocketLaunchIcon,
+                onClick: () => toggleQuickStart(true),
+                subtitle: `Everything you need on one place`,
+              },
+              {
+                title: `Projects`,
+                Icon: ProjectIcon,
+                subtitle: `View and manage projects`,
+                onClick: () => navigate(`/orgs/${org.id}/projects`),
+              },
+              {
+                Icon: AddMemberIcon,
+                title: `Invite Users`,
+                subtitle: `Manage team members`,
+                onClick: () => navigate(`/orgs/${org.id}/members`),
+              },
+              {
+                Icon: SecretIcon,
+                title: `Manage Secrets`,
+                subtitle: `Configure API keys and secrets`,
+                onClick: () => navigate(`/orgs/${org.id}/secrets`),
+              },
+            ]}
+          />
+
+          <Quickstart button={false} />
         </CardContent>
       </Card>
 
