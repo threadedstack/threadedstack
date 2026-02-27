@@ -167,11 +167,11 @@ export const HomeSubNavGroups: TSubNavGroup[] = [
 export const OrgSubNavGroups: TSubNavGroup[] = [
   {
     label: `Resources`,
-    items: [OrgSubNav.Projects, OrgSubNav.Members, OrgSubNav.Agents],
+    items: [OrgSubNav.Projects, OrgSubNav.Members, OrgSubNav.Providers, OrgSubNav.Agents],
   },
   {
     label: `Security`,
-    items: [OrgSubNav.Secrets, OrgSubNav.Providers, OrgSubNav.APIKeys, OrgSubNav.Domains],
+    items: [OrgSubNav.Secrets, OrgSubNav.APIKeys, OrgSubNav.Domains],
   },
   {
     label: `Management`,

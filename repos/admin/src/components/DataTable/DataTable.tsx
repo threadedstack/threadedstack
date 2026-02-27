@@ -34,17 +34,17 @@ export type TDataTable<T> = {
 }
 
 export const DataTable = <T,>({
-  columns,
+  sx,
   data,
+  columns,
   getRowKey,
   onRowClick,
-  variant = 'paper',
-  size = 'medium',
   hover = true,
-  sx,
+  variant = `paper`,
+  size = `medium`,
   initialRowsPerPage = 10,
 }: TDataTable<T>) => {
-  const Container = variant === 'card' ? Card : Paper
+  const Container = variant === `card` ? Card : Paper
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(initialRowsPerPage)
 

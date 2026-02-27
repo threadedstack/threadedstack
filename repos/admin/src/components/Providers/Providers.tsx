@@ -41,9 +41,9 @@ export const Providers = ({ orgId }: TProviders) => {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState<Provider>()
   const [error, setError] = useState<Error | null>(null)
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
-  const [deleting, setDeleting] = useState<Provider>()
 
   useEffect(() => {
     const loadProviders = async () => {
@@ -197,18 +197,18 @@ export const Providers = ({ orgId }: TProviders) => {
 
   return (
     <PageLayout
-      loading={loading}
       searchCount={0}
+      loading={loading}
+      query={searchQuery}
       countLabel='provider'
+      title='Org Providers'
       count={providersCount}
       error={error?.message}
-      title='Org Providers'
+      setSearchQuery={setSearchQuery}
       onAction={providersCount > 0 && onCreateProvider}
       actionLabel={providersCount > 0 && 'Create Provider'}
-      setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
-      query={searchQuery}
-      setSearchQuery={setSearchQuery}
       searchPlaceholder='Search providers by name, type, or URL...'
+      setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
     >
       {!error && providersCount === 0 && (
         <EmptyState

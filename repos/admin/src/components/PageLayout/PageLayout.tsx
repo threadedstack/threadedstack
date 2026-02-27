@@ -86,10 +86,11 @@ export const PageLayout = (props: TPageLayout) => {
         actionLabel={actionLabel}
       />
 
-      {!loading && setSearchQuery && count > searchCount && (
+      {setSearchQuery && count > searchCount && (
         <Box sx={onFilter ? styles.search.filter : styles.search.default}>
           <SearchBar
             value={query}
+            disabled={loading}
             onChange={setSearchQuery}
             placeholder={searchPlaceholder}
           />
@@ -99,6 +100,7 @@ export const PageLayout = (props: TPageLayout) => {
               value={filterValue}
               onChange={onFilter}
               label={filterLabel}
+              disabled={loading}
               allLabel={filterAllLabel}
               options={filterOpts || []}
             />
@@ -120,7 +122,7 @@ export const PageLayout = (props: TPageLayout) => {
         </Box>
       )}
 
-      {loading ? <LoadingSpinner /> : children}
+      {children}
     </>
   )
 }
