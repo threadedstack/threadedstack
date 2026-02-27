@@ -4,14 +4,6 @@ import { ApiKey } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
 
 /**
- * Response type for API key creation that includes the raw key
- */
-export type TCreateApiKeyResponse = ApiKey & {
-  key: string
-  warning: string
-}
-
-/**
  * API Keys API Service
  * Handles all API Key-related API operations
  */
@@ -79,18 +71,18 @@ export class ApiKeysApi extends BaseApi {
    * @param data - API key data (name, scopes, expiresAt)
    * @returns Created API key WITH the raw key (only shown once!)
    */
-  async create(
-    orgId: string,
-    data: Partial<ApiKey>
-  ): Promise<TApiRes<TCreateApiKeyResponse>> {
-    const resp = await this.api.post<TCreateApiKeyResponse>({
+  async create(orgId: string, data: Partial<ApiKey>): Promise<TApiRes<ApiKey>> {
+    const resp = await this.api.post<ApiKey>({
       data,
       path: this.#path(orgId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create API key`))
 
-    return resp
+    return {
+      ...resp,
+      data: resp.data ? new ApiKey(resp.data) : undefined,
+    }
   }
 
   /**

@@ -4,12 +4,12 @@ import { useState } from 'react'
 import { EApiKeyScope } from '@tdsk/domain'
 import { createApiKey } from '@TAF/actions/apiKeys'
 import { capitalize } from '@keg-hub/jsutils/capitalize'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import LocalPoliceIcon from '@mui/icons-material/LocalPolice'
 import { Box, Paper, Alert, Typography } from '@mui/material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-
-import VisibilityIcon from '@mui/icons-material/Visibility'
-import LocalPoliceIcon from '@mui/icons-material/LocalPolice'
+import { UserSelectorSingle } from '@TAF/components/Selectors/UserSelector'
 import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline'
 import { ApiKeyScopes, ApiKeysExpire, ApiKeyScopeDesc } from '@TAF/constants/values'
 import {
@@ -28,6 +28,7 @@ export type TCreateApiKeyDrawer = {
   projectId?: string
   userId?: string
   userName?: string
+  users?: Array<{ id: string; name: string; email?: string }>
   open: boolean
   onClose: () => void
   onSuccess?: () => void
@@ -46,6 +47,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     projectId,
     userId,
     userName,
+    users,
     onClose: onCloseCB,
     onSuccess: onSuccessCB,
   } = props
@@ -56,6 +58,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generatedKey, setGeneratedKey] = useState<string | null>()
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
   const onScopeChange = (scope: TApiKeyScope) =>
     setScopes((prev) =>
@@ -80,11 +83,11 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     const result = await createApiKey({
       orgId,
       data: {
-        userId,
         projectId,
         expiresAt,
         name: name.trim(),
         scopes: scopes.join(','),
+        userId: userId || selectedUserId || undefined,
       },
     })
 
@@ -103,6 +106,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     setExpiresIn(`none`)
     setError(null)
     setGeneratedKey(null)
+    setSelectedUserId(null)
     onCloseCB?.()
   }
 
@@ -197,7 +201,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
             />
           )}
 
-          {userName && (
+          {userId && userName && (
             <Box sx={{ mb: 2 }}>
               <InputLabel>User</InputLabel>
               <Typography
@@ -206,6 +210,16 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
               >
                 {userName}
               </Typography>
+            </Box>
+          )}
+
+          {!userId && users && users.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <UserSelectorSingle
+                users={users}
+                userId={selectedUserId}
+                onChange={setSelectedUserId}
+              />
             </Box>
           )}
 

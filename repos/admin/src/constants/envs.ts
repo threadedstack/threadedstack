@@ -30,3 +30,5 @@ export const TDSK_AUTH_PROVIDERS = (process.env.TDSK_AUTH_PROVIDERS || `github`)
 
 export const TDSK_POSTHOG_KEY = process.env.TDSK_POSTHOG_KEY
 export const TDSK_POSTHOG_HOST = process.env.TDSK_POSTHOG_HOST
+
+export const VITEST = Boolean(import.meta.env.VITEST || process.env.VITEST)

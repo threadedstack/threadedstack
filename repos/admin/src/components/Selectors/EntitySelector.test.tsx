@@ -10,7 +10,13 @@ vi.mock(`@keg-hub/jsutils/cls`, () => ({
 
 vi.mock(`@tdsk/components`, () => ({
   Text: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-  AutoInputText: ({ inputProps, InputProps, InputLabelProps, ...props }: any) => (
+  AutoInputText: ({
+    inputProps,
+    InputProps,
+    InputLabelProps,
+    fullWidth,
+    ...props
+  }: any) => (
     <div
       data-testid='auto-input'
       ref={InputProps?.ref}
@@ -22,7 +28,7 @@ vi.mock(`@tdsk/components`, () => ({
       {InputProps?.endAdornment}
     </div>
   ),
-  InputStateHandler: ({ children, label, description, disabled }: any) => (
+  InputStateHandler: ({ children, label, description, fullWidth, disabled }: any) => (
     <div
       data-testid='input-state-handler'
       data-label={label}

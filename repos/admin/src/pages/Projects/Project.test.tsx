@@ -1,0 +1,155 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+
+const mockNavigate = vi.fn()
+vi.mock(`react-router`, () => ({
+  useNavigate: () => mockNavigate,
+}))
+
+const mockFetchProject = vi.fn()
+vi.mock(`@TAF/actions/projects/api/fetchProject`, () => ({
+  fetchProject: (...args: any[]) => mockFetchProject(...args),
+}))
+
+vi.mock(`@TAF/actions/projects/api/deleteProject`, () => ({
+  deleteProject: vi.fn(),
+}))
+
+vi.mock(`@TAF/actions/projects/api/updateProject`, () => ({
+  updateProject: vi.fn(),
+}))
+
+const mockUseActiveOrgId = vi.fn(() => [`org-1`])
+const mockUseActiveProject = vi.fn(() => [undefined])
+const mockUseActiveProjectId = vi.fn(() => [`project-1`])
+
+vi.mock(`@TAF/state/selectors`, () => ({
+  useActiveOrgId: () => mockUseActiveOrgId(),
+  useActiveProject: () => mockUseActiveProject(),
+  useActiveProjectId: () => mockUseActiveProjectId(),
+}))
+
+vi.mock(`@TAF/pages/Page/Page`, () => ({
+  Page: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}))
+
+vi.mock(`@TAF/components/Projects/ProjectIcon`, () => ({
+  ProjectIcon: () => <span data-testid='project-icon' />,
+}))
+
+vi.mock(`@tdsk/components`, async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>()
+  return {
+    ...actual,
+    ConfirmDelete: () => null,
+    Drawer: () => null,
+  }
+})
+
+import { Project } from './Project'
+
+const baseProject = {
+  id: `project-1`,
+  name: `Test Project`,
+  orgId: `org-1`,
+  branch: `main`,
+  description: `A test project`,
+  meta: {},
+  createdAt: `2026-01-01`,
+  updatedAt: `2026-01-02`,
+}
+
+describe(`Project Page`, () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseActiveOrgId.mockReturnValue([`org-1`])
+    mockUseActiveProjectId.mockReturnValue([`project-1`])
+    mockUseActiveProject.mockReturnValue([undefined])
+  })
+
+  describe(`fetchProject on mount`, () => {
+    it(`should call fetchProject with orgId and projectId on mount`, () => {
+      mockUseActiveProject.mockReturnValue([baseProject])
+      render(<Project />)
+
+      expect(mockFetchProject).toHaveBeenCalledWith({ orgId: `org-1`, id: `project-1` })
+    })
+
+    it(`should not call fetchProject when orgId is missing`, () => {
+      mockUseActiveOrgId.mockReturnValue([undefined])
+      mockUseActiveProject.mockReturnValue([baseProject])
+      render(<Project />)
+
+      expect(mockFetchProject).not.toHaveBeenCalled()
+    })
+
+    it(`should not call fetchProject when projectId is missing`, () => {
+      mockUseActiveProjectId.mockReturnValue([undefined])
+      mockUseActiveProject.mockReturnValue([baseProject])
+      render(<Project />)
+
+      expect(mockFetchProject).not.toHaveBeenCalled()
+    })
+  })
+
+  describe(`stat cards with counts`, () => {
+    it(`should display endpoint, function, and agent counts from project`, () => {
+      mockUseActiveProject.mockReturnValue([
+        { ...baseProject, counts: { endpoint: 5, function: 3, agent: 2 } },
+      ])
+      render(<Project />)
+
+      expect(screen.getByText(`5`)).toBeTruthy()
+      expect(screen.getByText(`3`)).toBeTruthy()
+      expect(screen.getByText(`2`)).toBeTruthy()
+      expect(screen.getByText(`Endpoints`)).toBeTruthy()
+      expect(screen.getByText(`Functions`)).toBeTruthy()
+      expect(screen.getByText(`Agents`)).toBeTruthy()
+    })
+
+    it(`should display 0 when count fields are undefined`, () => {
+      mockUseActiveProject.mockReturnValue([baseProject])
+      render(<Project />)
+
+      const zeros = screen.getAllByText(`0`)
+      expect(zeros.length).toBe(3)
+    })
+
+    it(`should display 0 when count fields are explicitly zero`, () => {
+      mockUseActiveProject.mockReturnValue([
+        { ...baseProject, counts: { endpoint: 0, function: 0, agent: 0 } },
+      ])
+      render(<Project />)
+
+      const zeros = screen.getAllByText(`0`)
+      expect(zeros.length).toBe(3)
+    })
+  })
+
+  describe(`project not found`, () => {
+    it(`should show error message when project is not found`, () => {
+      mockUseActiveProject.mockReturnValue([undefined])
+      render(<Project />)
+
+      expect(screen.getByText(`Project not found`)).toBeTruthy()
+      expect(screen.getByText(`Back to Projects`)).toBeTruthy()
+    })
+  })
+
+  describe(`project information`, () => {
+    it(`should render project name and description`, () => {
+      mockUseActiveProject.mockReturnValue([baseProject])
+      render(<Project />)
+
+      expect(screen.getAllByText(`Test Project`).length).toBeGreaterThanOrEqual(1)
+      expect(screen.getByText(`A test project`)).toBeTruthy()
+    })
+
+    it(`should show "No description provided" when description is empty`, () => {
+      mockUseActiveProject.mockReturnValue([{ ...baseProject, description: undefined }])
+      render(<Project />)
+
+      expect(screen.getByText(`No description provided`)).toBeTruthy()
+    })
+  })
+})

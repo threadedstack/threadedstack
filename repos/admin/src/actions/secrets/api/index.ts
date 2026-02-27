@@ -1,5 +1,6 @@
-export * from './fetchSecrets'
 export * from './fetchSecret'
+export * from './fetchSecrets'
 export * from './createSecret'
 export * from './updateSecret'
 export * from './deleteSecret'
+export * from './fetchProviderSecrets'

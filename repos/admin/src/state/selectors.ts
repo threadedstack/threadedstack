@@ -18,6 +18,7 @@ import { useResetAtom } from 'jotai/utils'
 import { userState } from '@TAF/state/user'
 import { noOp } from '@keg-hub/jsutils/noOp'
 import { themeTypeState } from '@TAF/state/theme'
+import { apiKeysState } from '@TAF/state/apiKeys'
 import { providersState } from '@TAF/state/providers'
 import { quickstartState } from '@TAF/state/quickstart'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
@@ -34,7 +35,6 @@ import {
   orgDomainsState,
   projectDomainsState,
 } from '@TAF/state/domains'
-import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import {
   threadsState,
   activeThreadIdState,
@@ -138,7 +138,6 @@ export const useFunctions = () => useRecState(functionsState)
 export const useActiveFunctionId = () => useRecState(activeFunctionIdState)
 
 export const useApiKeys = () => useRecState(apiKeysState)
-export const useActiveApiKeyId = () => useRecState(activeApiKeyIdState)
 
 export const usePaymentPlans = () => useRecState(paymentPlansState)
 export const useSubscription = () => useRecState(subscriptionState)

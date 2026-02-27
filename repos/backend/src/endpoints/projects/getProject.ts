@@ -16,14 +16,21 @@ export const getProject: TEndpointConfig = {
     const { projectId } = req.params
     const { db } = req.app.locals
 
-    // First get the project to find its orgId
-    const { data, error } = await db.services.project.get(projectId)
-    if (error) throw new Exception(500, error.message)
-    if (!data) throw new Exception(404, `Project not found`)
+    const projectResult = await db.services.project.get(projectId)
+
+    if (projectResult.error) throw new Exception(500, projectResult.error.message)
+    if (!projectResult.data) throw new Exception(404, `Project not found`)
 
     // Check if user is member of the project's org
-    await requireOrgMember(req, data.orgId)
+    await requireOrgMember(req, projectResult.data.orgId)
 
-    res.status(200).json({ data })
+    const countsResult = await db.services.project.getCounts(projectId)
+
+    res.status(200).json({
+      data: {
+        ...projectResult.data,
+        counts: countsResult.data,
+      },
+    })
   },
 }

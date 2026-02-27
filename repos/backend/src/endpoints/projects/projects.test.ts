@@ -22,6 +22,9 @@ describe(`Endpoint projects`, () => {
             project: {
               list: vi.fn(),
               get: vi.fn(),
+              getCounts: vi.fn().mockResolvedValue({
+                data: { endpoint: 0, function: 0, agent: 0 },
+              }),
               create: vi.fn(),
               update: vi.fn(),
               delete: vi.fn(),
@@ -46,7 +49,7 @@ describe(`Endpoint projects`, () => {
 
   beforeEach(() => {
     mockJson = vi.fn()
-    mockStatus = vi.fn(() => mockRes as Response)
+    mockStatus = vi.fn(() => mockRes as Response) as any
 
     mockRes = {
       status: mockStatus,
@@ -163,11 +166,40 @@ describe(`Endpoint projects`, () => {
   describe(`GET /_/Projects/:projectId - Get Project by ID`, () => {
     const ep = getEndpointCfg(projects.endpoints?.getProject)
 
-    it(`should return 200 with Project data when Project exists`, async () => {
+    it(`should return 200 with Project data and counts when Project exists`, async () => {
       const mockProject = {
         id: `123`,
         name: `Get Users`,
         gitUrl: `https://api.example.com/users`,
+        orgId: `org-1`,
+      }
+      const mockCounts = { endpoint: 3, function: 2, agent: 1 }
+      mockReq.params = { projectId: `123` }
+
+      const mockGet = mockReq.app?.locals.db.services.project.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockGetCounts = mockReq.app?.locals.db.services.project
+        .getCounts as ReturnType<typeof vi.fn>
+      mockGet.mockResolvedValue({ data: mockProject })
+      mockGetCounts.mockResolvedValue({ data: mockCounts })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockGet).toHaveBeenCalledWith(`123`)
+      expect(mockGetCounts).toHaveBeenCalledWith(`123`)
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: { ...mockProject, counts: mockCounts },
+      })
+    })
+
+    it(`should return counts of zero when getCounts returns zeros`, async () => {
+      const mockProject = {
+        id: `123`,
+        name: `Empty Project`,
+        gitUrl: `https://api.example.com`,
+        orgId: `org-1`,
       }
       mockReq.params = { projectId: `123` }
 
@@ -178,9 +210,11 @@ describe(`Endpoint projects`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockGet).toHaveBeenCalledWith(`123`)
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockProject })
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData?.counts?.endpoint).toBe(0)
+      expect(responseData?.counts?.function).toBe(0)
+      expect(responseData?.counts?.agent).toBe(0)
     })
 
     it(`should return 404 when Project not found`, async () => {
@@ -193,6 +227,19 @@ describe(`Endpoint projects`, () => {
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Project not found`
+      )
+    })
+
+    it(`should return 500 when project get fails with error`, async () => {
+      mockReq.params = { projectId: `123` }
+
+      const mockGet = mockReq.app?.locals.db.services.project.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet.mockResolvedValue({ error: new Error(`Database connection failed`) })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Database connection failed`
       )
     })
   })

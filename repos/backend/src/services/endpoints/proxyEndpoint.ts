@@ -66,6 +66,7 @@ export class ProxyEndpoint extends BaseEndpoint {
               return `/${proxyPath}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`
             },
             ...proxyConfig,
+            selfHandleResponse: true,
 
             on: {
               proxyReq: async (proxyReq, request, response) => {
@@ -94,6 +95,39 @@ export class ProxyEndpoint extends BaseEndpoint {
                 async (responseBuffer, proxyRes, request, response) => {
                   try {
                     const statusCode = proxyRes.statusCode || 0
+
+                    // Follow redirects server-side to prevent CORS errors.
+                    // copyHeaders already set 3xx status/headers on `response`,
+                    // but they aren't sent until res.write() — so we can override them.
+                    if (
+                      statusCode >= 300 &&
+                      statusCode < 400 &&
+                      proxyRes.headers.location
+                    ) {
+                      const redirectUrl = new URL(
+                        proxyRes.headers.location,
+                        opts.url
+                      ).toString()
+                      logger.debug(`Following server-side redirect to ${redirectUrl}`)
+
+                      const finalRes = await fetch(redirectUrl, {
+                        redirect: 'follow',
+                      })
+                      const body = Buffer.from(await finalRes.arrayBuffer())
+
+                      // Override status and headers set by copyHeaders
+                      response.statusCode = finalRes.status
+                      for (const name of response.getHeaderNames()) {
+                        response.removeHeader(name)
+                      }
+                      finalRes.headers.forEach((value, key) => {
+                        if (key !== 'content-encoding' && key !== 'transfer-encoding') {
+                          response.setHeader(key, value)
+                        }
+                      })
+
+                      return body
+                    }
 
                     if (statusCode >= 400) {
                       ;(request as any).__proxyStatusCode = statusCode
@@ -164,6 +198,9 @@ export class ProxyEndpoint extends BaseEndpoint {
           metadata && metadata.attempt > 0 && retryService.logStatus(true)
         } catch (error) {
           lastError = error
+
+          // Don't retry if headers already sent — response is committed
+          if (res.headersSent) break
 
           const statusCode = (req as any).__proxyStatusCode
 

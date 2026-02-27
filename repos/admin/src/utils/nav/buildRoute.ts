@@ -1,5 +1,6 @@
 import type { TNavCtx } from '@TAF/types'
 import type { ERoutePath } from '@TAF/types'
+import { VITEST } from '@TAF/constants/envs'
 
 export const buildNavRoute = (ctx: TNavCtx, route: ERoutePath) => {
   const parts = route.split(`/`)
@@ -13,7 +14,8 @@ export const buildNavRoute = (ctx: TNavCtx, route: ERoutePath) => {
 
     const key = part.slice(1)
     if (ctx[key] === undefined) {
-      console.warn(`[NAV ERROR] Route key ${key} missing, does not exist in context.`)
+      !VITEST &&
+        console.warn(`[NAV ERROR] Route key ${key} missing, does not exist in context.`)
       return `#`
     }
 

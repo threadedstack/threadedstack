@@ -28,7 +28,7 @@ vi.mock(`@tdsk/components`, () => ({
       {children}
     </button>
   ),
-  TextInput: ({ label, value, onChange, id, ...props }: any) => (
+  TextInput: ({ label, value, onChange, id, fullWidth, ...props }: any) => (
     <div>
       <label htmlFor={id}>{label}</label>
       <input

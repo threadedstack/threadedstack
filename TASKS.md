@@ -51,14 +51,6 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 
 #### Project Page
 
-* **[P1] Project stats show inaccurate counts until sub-pages are visited**
-  * On the Project page (`repos/admin/src/pages/Projects/Project.tsx`), stat cards for Endpoints, Functions, and Agents (lines 158-213) show 0 or incorrect counts. The page reads from Jotai selectors (`useProjectEndpoints`, `useProjectFunctions`, `useProjectAgents` at lines 41-43) but never fetches the data from the API on mount. Counts only populate after the user navigates to each sub-page (e.g., ProjectEndpoints), which triggers the actual API fetch
-  * **Fix**:
-    1. Add a `useEffect` in `Project.tsx` that fetches endpoints, functions, and agents on mount when `orgId` and `projectId` are available
-    2. Call `fetchEndpoints({ orgId, projectId })`, `fetchFunctions({ orgId, projectId })`, and `fetchAgents({ orgId, projectId })` from existing action modules
-    3. Add loading state to show spinners on the stat cards while data loads
-  * **Files**:
-    * `repos/admin/src/pages/Projects/Project.tsx` — add useEffect after line 43 with API fetch calls
 
 #### Endpoints
 

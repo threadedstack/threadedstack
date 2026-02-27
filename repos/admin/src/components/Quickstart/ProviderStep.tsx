@@ -1,20 +1,15 @@
 import type { TProviderStepData } from '@TAF/types'
 import type { TLLMProviderBrand, TProviderModel } from '@tdsk/domain'
 
-import { useMemo, useState, useCallback } from 'react'
-import { ELLMProviderBrand, ProviderTemplates } from '@tdsk/domain'
-import { providersApi } from '@TAF/services/providersApi'
 import { styled, alpha } from '@mui/material/styles'
+import { useMemo, useState, useCallback } from 'react'
 import { TextInput, SelectInput } from '@tdsk/components'
 import CloudQueueIcon from '@mui/icons-material/CloudQueue'
+import { fetchProviderModels } from '@TAF/actions/providers'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import PsychologyIcon from '@mui/icons-material/Psychology'
-import TravelExploreIcon from '@mui/icons-material/TravelExplore'
-import BoltIcon from '@mui/icons-material/Bolt'
-import HubIcon from '@mui/icons-material/Hub'
-import TerminalIcon from '@mui/icons-material/Terminal'
-import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest'
+import { ELLMProviderBrand, ProviderTemplates } from '@tdsk/domain'
+import { DynamicBrands, ProviderIcons, KeyRequiredBrands } from '@TAF/constants/providers'
+
 import {
   Box,
   Card,
@@ -101,29 +96,6 @@ export type TProviderStep = {
   onChange: (updates: Partial<TProviderStepData>) => void
 }
 
-const dynamicBrands = new Set<string>([
-  ELLMProviderBrand.openai,
-  ELLMProviderBrand.google,
-  ELLMProviderBrand.ollama,
-  ELLMProviderBrand.openrouter,
-])
-
-// Brands that need the user's API key to fetch models
-const keyRequiredBrands = new Set<string>([
-  ELLMProviderBrand.openai,
-  ELLMProviderBrand.google,
-])
-
-const ProviderIcons: Record<string, typeof AutoAwesomeIcon> = {
-  [ELLMProviderBrand.anthropic]: AutoAwesomeIcon,
-  [ELLMProviderBrand.openai]: PsychologyIcon,
-  [ELLMProviderBrand.google]: TravelExploreIcon,
-  [ELLMProviderBrand.zai]: BoltIcon,
-  [ELLMProviderBrand.openrouter]: HubIcon,
-  [ELLMProviderBrand.ollama]: TerminalIcon,
-  [ELLMProviderBrand.custom]: SettingsSuggestIcon,
-}
-
 export const ProviderStep = (props: TProviderStep) => {
   const { data, onChange, disabled } = props
   const template = ProviderTemplates[data.providerBrand]
@@ -144,7 +116,7 @@ export const ProviderStep = (props: TProviderStep) => {
     async (brand: string, opts?: { baseUrl?: string; providerKey?: string }) => {
       setFetchingModels(true)
       try {
-        const resp = await providersApi.fetchModels(brand, opts)
+        const resp = await fetchProviderModels({ brand, ...opts })
         setDynamicModels(resp.data || [])
       } catch {
         setDynamicModels([])
@@ -166,11 +138,11 @@ export const ProviderStep = (props: TProviderStep) => {
     })
     // Auto-fetch for brands that don't need a key (openrouter, ollama)
     // Key-required brands (openai, google) fetch after API key is entered
-    if (dynamicBrands.has(id) && !keyRequiredBrands.has(id)) fetchDynamicModels(id)
+    if (DynamicBrands.has(id) && !KeyRequiredBrands.has(id)) fetchDynamicModels(id)
   }
 
   const onApiKeyBlur = () => {
-    if (data.apiKey && keyRequiredBrands.has(data.providerBrand))
+    if (data.apiKey && KeyRequiredBrands.has(data.providerBrand))
       fetchDynamicModels(data.providerBrand, { providerKey: data.apiKey })
   }
 
@@ -332,7 +304,7 @@ export const ProviderStep = (props: TProviderStep) => {
               sx={{ bgcolor: `background.paper` }}
               onChange={(e) => onChange({ model: e.target.value as string })}
             />
-          ) : dynamicBrands.has(data.providerBrand) ? (
+          ) : DynamicBrands.has(data.providerBrand) ? (
             <TextInput
               required
               fullWidth

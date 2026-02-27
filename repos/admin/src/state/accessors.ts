@@ -36,11 +36,11 @@ import {
   defActiveRailSection,
   activeRailSectionState,
 } from '@TAF/state/app'
+import { apiKeysState } from '@TAF/state/apiKeys'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { assetsState, activeAssetIdState } from '@TAF/state/assets'
 import { agentsState, activeAgentIdState } from '@TAF/state/agents'
 import { domainsState, activeDomainIdState } from '@TAF/state/domains'
-import { apiKeysState, activeApiKeyIdState } from '@TAF/state/apiKeys'
 import { threadsState, activeThreadIdState } from '@TAF/state/threads'
 import { messagesState, activeMessageIdState } from '@TAF/state/messages'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
@@ -171,19 +171,6 @@ export const getApiKeys = () => store.get(apiKeysState)
 export const resetApiKeys = () => store.set(apiKeysState, undefined)
 export const setApiKeys = (apiKeys: Record<string, ApiKey>) =>
   store.set(apiKeysState, apiKeys)
-export const setApiKey = (apiKey: ApiKey) => {
-  const current = store.get(apiKeysState) || {}
-  store.set(apiKeysState, { ...current, [apiKey.id]: apiKey })
-}
-export const removeApiKey = (id: string) => {
-  const current = store.get(apiKeysState) || {}
-  const { [id]: _, ...rest } = current
-  store.set(apiKeysState, rest)
-}
-
-export const getActiveApiKeyId = () => store.get(activeApiKeyIdState)
-export const resetActiveApiKeyId = () => store.set(activeApiKeyIdState, undefined)
-export const setActiveApiKeyId = (id: string) => store.set(activeApiKeyIdState, id)
 
 export const getSubscription = () => store.get(subscriptionState)
 export const resetSubscription = () => store.set(subscriptionState, null)

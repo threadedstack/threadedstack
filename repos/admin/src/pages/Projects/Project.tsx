@@ -1,14 +1,12 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
+import { fetchProject } from '@TAF/actions/projects/api/fetchProject'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
 import { ConfirmDelete, Drawer, TextInput, RobotOutlineIcon } from '@tdsk/components'
 import {
-  useProjectAgents,
-  useProjectEndpoints,
-  useProjectFunctions,
   useActiveOrgId,
   useActiveProject,
   useActiveProjectId,
@@ -38,21 +36,10 @@ export const Project = (props: TProject) => {
   const [orgId] = useActiveOrgId()
   const [project] = useActiveProject()
   const [projectId] = useActiveProjectId()
-  const [endpoints] = useProjectEndpoints()
-  const [functions] = useProjectFunctions()
-  const [agents] = useProjectAgents()
 
-  const endpointCount = useMemo(
-    () => (endpoints ? Object.keys(endpoints).length : 0),
-    [endpoints]
-  )
-
-  const functionCount = useMemo(
-    () => (functions ? Object.keys(functions).length : 0),
-    [functions]
-  )
-
-  const agentCount = useMemo(() => (agents ? Object.keys(agents).length : 0), [agents])
+  useEffect(() => {
+    if (orgId && projectId) fetchProject({ orgId, id: projectId })
+  }, [orgId, projectId])
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -167,7 +154,7 @@ export const Project = (props: TProject) => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <ApiIcon sx={{ fontSize: 32, color: 'primary.main', mb: 1 }} />
-              <Typography variant='h4'>{endpointCount}</Typography>
+              <Typography variant='h4'>{project?.counts?.endpoint ?? 0}</Typography>
               <Typography
                 variant='body2'
                 color='text.secondary'
@@ -184,7 +171,7 @@ export const Project = (props: TProject) => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <FunctionsIcon sx={{ fontSize: 32, color: 'secondary.main', mb: 1 }} />
-              <Typography variant='h4'>{functionCount}</Typography>
+              <Typography variant='h4'>{project?.counts?.function ?? 0}</Typography>
               <Typography
                 variant='body2'
                 color='text.secondary'
@@ -201,7 +188,7 @@ export const Project = (props: TProject) => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <RobotOutlineIcon sx={{ fontSize: 32, color: 'warning.main', mb: 1 }} />
-              <Typography variant='h4'>{agentCount}</Typography>
+              <Typography variant='h4'>{project?.counts?.agent ?? 0}</Typography>
               <Typography
                 variant='body2'
                 color='text.secondary'

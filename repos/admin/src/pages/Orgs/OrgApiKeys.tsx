@@ -2,6 +2,7 @@ import type { ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { Page } from '@TAF/pages/Page/Page'
+import { listOrgUsers } from '@TAF/actions/users'
 import { useApiKeys } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
 import { useActiveOrgId } from '@TAF/state/selectors'
@@ -32,6 +33,33 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null)
+  const [orgUsers, setOrgUsers] = useState<
+    Array<{ id: string; name: string; email?: string }>
+  >([])
+
+  // Load org users for the user selector in CreateApiKeyDrawer
+  useEffect(() => {
+    if (!orgId) return
+
+    const loadUsers = async () => {
+      const resp = await listOrgUsers(orgId)
+      if (resp.data) {
+        setOrgUsers(
+          resp.data.map((u) => ({
+            id: u.id,
+            name:
+              u.displayName ||
+              [u.first, u.last].filter(Boolean).join(' ') ||
+              u.email ||
+              `User`,
+            email: u.email,
+          }))
+        )
+      }
+    }
+
+    loadUsers()
+  }, [orgId])
 
   // Load org API keys
   useEffect(() => {
@@ -42,11 +70,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
       setError(null)
 
       const result = await fetchApiKeys({ orgId })
-
-      if (result.error) {
-        setError(result.error)
-      }
-
+      result.error && setError(result.error)
       setLoading(false)
     }
 
@@ -272,6 +296,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
         {orgId && (
           <CreateApiKeyDrawer
             orgId={orgId}
+            users={orgUsers}
             open={createDialogOpen}
             onClose={onDialogClose}
           />

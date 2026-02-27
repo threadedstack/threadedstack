@@ -1,5 +1,6 @@
-export * from './fetchProviders'
 export * from './fetchProvider'
+export * from './fetchProviders'
 export * from './createProvider'
 export * from './updateProvider'
 export * from './deleteProvider'
+export * from './fetchProviderModels'

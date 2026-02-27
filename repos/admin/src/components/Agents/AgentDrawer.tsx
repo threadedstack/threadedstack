@@ -6,7 +6,6 @@ import type {
   Function as FunctionModel,
 } from '@tdsk/domain'
 
-import { agentsApi } from '@TAF/services'
 import { useState, useEffect } from 'react'
 import { Code } from '@TAF/components/Code'
 import { MonacoOptions } from '@TAF/constants/monaco'
@@ -21,6 +20,7 @@ import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { upsertAgentConfig } from '@TAF/actions/agents/api/upsertAgentConfig'
 import { Autocomplete, Box, Stack, Divider, TextField, Typography } from '@mui/material'
 import { BasicInfoForm, ModelConfigForm, AgentSettingsForm } from '@TAF/components/Agents'
 import {
@@ -237,15 +237,20 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
       if (isOverrideMode) {
         const configData: Partial<TAgentProjectConfig> = {
-          model: model || null,
           maxTokens,
+          model: model || null,
           systemPrompt: systemPrompt || null,
-          tools: selectedTools.length ? selectedTools : null,
-          functionIds: selectedFunctionIds.length ? selectedFunctionIds : null,
-          envVars: Object.keys(envVarsObj).length ? envVarsObj : null,
           environment: { streaming, temperature },
+          tools: selectedTools.length ? selectedTools : null,
+          envVars: Object.keys(envVarsObj).length ? envVarsObj : null,
+          functionIds: selectedFunctionIds.length ? selectedFunctionIds : null,
         }
-        await agentsApi.upsertConfig(orgId, projectId!, agent!.id, configData)
+        await upsertAgentConfig({
+          orgId,
+          projectId: projectId!,
+          agentId: agent!.id,
+          data: configData,
+        })
       } else if (agent) {
         await updateAgent({
           orgId,

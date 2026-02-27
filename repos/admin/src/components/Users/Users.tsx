@@ -2,27 +2,25 @@ import type { User } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { ERoleType } from '@tdsk/domain'
-import { Box, Alert, Avatar, Chip, Typography } from '@mui/material'
 import { useState, useEffect } from 'react'
 import { ConfirmDelete } from '@tdsk/components'
 import { AllAuthRoles } from '@TAF/constants/values'
-import { useUser, useActiveOrgId } from '@TAF/state/selectors'
 import { NoUsers } from '@TAF/components/Users/NoUsers'
-import { useOrgUsersList } from '@TAF/hooks/org/useOrgUsersList'
 import { getInitials } from '@TAF/utils/user/getInitials'
 import { getRoleColor } from '@TAF/utils/user/getRoleColor'
+import { useUser, useActiveOrgId } from '@TAF/state/selectors'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
-import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import { useOrgUsersList } from '@TAF/hooks/org/useOrgUsersList'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
-import { EditRoleDrawer } from '@TAF/components/Roles/EditRoleDrawer'
+import { Box, Alert, Avatar, Chip, Typography } from '@mui/material'
+import { EditUserDrawer } from '@TAF/components/Users/EditUserDrawer'
 import { useLocalSearch } from '@TAF/hooks/components/useLocalSearch'
 import { InviteUserDrawer } from '@TAF/components/Users/InviteUserDrawer'
-import { UserApiKeysDrawer } from '@TAF/components/Users/UserApiKeysDrawer'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
-  PersonAdd as PersonAddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  VpnKey as VpnKeyIcon,
+  PersonAdd as PersonAddIcon,
 } from '@mui/icons-material'
 
 export type TUsers = {}
@@ -46,11 +44,9 @@ export const Users = (props: TUsers) => {
   const [authUser] = useUser()
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
-  const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false)
 
   const [removingUser, setRemovingUser] = useState<User | null>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [apiKeysUser, setApiKeysUser] = useState<User | null>(null)
   const { users, error, loading, setError, loadUsers, removeUser } = useOrgUsersList()
 
   const onOpenInviteDialog = () => {
@@ -66,19 +62,16 @@ export const Users = (props: TUsers) => {
     onCloseInviteDialog()
   }
 
-  const onOpenEditRole = (user: User) => {
+  const onEditUser = (user: User) => {
     setSelectedUser(user)
-    setEditRoleDialogOpen(true)
   }
 
-  const onCloseEditRole = () => {
+  const onCloseEditUser = () => {
     setSelectedUser(null)
-    setEditRoleDialogOpen(false)
   }
 
-  const onEditRoleSuccess = () => {
+  const onEditUserSuccess = () => {
     loadUsers()
-    onCloseEditRole()
   }
 
   const onRemoveUser = (user: User) => setRemovingUser(user)
@@ -170,27 +163,15 @@ export const Users = (props: TUsers) => {
       render: (user) => (
         <Box sx={styles.table.actions.box}>
           <ActionIconButton
-            tooltip='API Keys'
-            icon={<VpnKeyIcon sx={styles.table.actions.icon} />}
-            size='small'
-            color='default'
-            disabled={authUser.role === ERoleType.viewer}
-            disabledTooltip='Viewers cannot manage API keys'
-            onClick={(e) => {
-              e.stopPropagation()
-              setApiKeysUser(user)
-            }}
-          />
-          <ActionIconButton
-            tooltip='Edit Role'
+            tooltip='Edit'
             icon={<EditIcon sx={styles.table.actions.icon} />}
             size='small'
             color='primary'
             disabled={authUser.role === ERoleType.viewer}
-            disabledTooltip='Viewers cannot edit roles'
+            disabledTooltip='Viewers cannot edit users'
             onClick={(e) => {
               e.stopPropagation()
-              onOpenEditRole(user)
+              onEditUser(user)
             }}
           />
           <ActionIconButton
@@ -220,7 +201,6 @@ export const Users = (props: TUsers) => {
         error={error}
         title='Members'
         query={query}
-        searchCount={items.length}
         loading={loading}
         setError={setError}
         countLabel='member'
@@ -230,6 +210,7 @@ export const Users = (props: TUsers) => {
         filterOpts={AllAuthRoles}
         filterAllLabel='All Roles'
         setSearchQuery={onChange}
+        searchCount={items.length}
         actionIcon={<PersonAddIcon />}
         onAction={hasUser && onOpenInviteDialog}
         actionLabel={hasUser && 'Invite User'}
@@ -247,7 +228,7 @@ export const Users = (props: TUsers) => {
           <DataTable
             columns={columns}
             data={items}
-            onRowClick={onOpenEditRole}
+            onRowClick={onEditUser}
             getRowKey={(user) => user.id}
           />
         )}
@@ -260,13 +241,13 @@ export const Users = (props: TUsers) => {
         />
 
         {selectedUser && (
-          <EditRoleDrawer
+          <EditUserDrawer
             orgId={orgId}
             user={selectedUser}
             onRemove={onRemoveUser}
-            onClose={onCloseEditRole}
-            open={editRoleDialogOpen}
-            onSuccess={onEditRoleSuccess}
+            onClose={onCloseEditUser}
+            open={Boolean(selectedUser)}
+            onSuccess={onEditUserSuccess}
           />
         )}
 
@@ -279,16 +260,6 @@ export const Users = (props: TUsers) => {
           onCancel={() => setRemovingUser(undefined)}
           text={`Are you sure you want to remove "${removingUser?.displayName}" from the organization?`}
         />
-
-        {apiKeysUser && orgId && (
-          <UserApiKeysDrawer
-            orgId={orgId}
-            user={apiKeysUser}
-            key={apiKeysUser.id}
-            open={Boolean(apiKeysUser)}
-            onClose={() => setApiKeysUser(null)}
-          />
-        )}
       </PageLayout>
     </>
   )

@@ -69,7 +69,9 @@
       "Bash(npm run test:*)",
       "Bash(git diff:*)",
       "Skill(hookify:help)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(source:*)",
+      "Bash(env:*)"
     ]
   },
   "sandbox": {

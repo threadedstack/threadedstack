@@ -1,6 +1,7 @@
 import { capitalize } from '@keg-hub/jsutils/capitalize'
 import {
   ERoleType,
+  ESecretMode,
   EHttpMethod,
   EEPAuthType,
   EFunLanguage,
@@ -39,11 +40,19 @@ export const ApiKeyScopeDesc = {
 export const AllAuthRoles = [
   {
     value: ERoleType.viewer,
-    label: `Basic - Standard access`,
+    label: `Basic - View access only`,
+  },
+  {
+    value: ERoleType.member,
+    label: `Member - Standard access`,
   },
   {
     value: ERoleType.admin,
     label: `Admin - User and project management`,
+  },
+  {
+    value: ERoleType.owner,
+    label: `Owner - Full organization management`,
   },
   {
     value: ERoleType.super,
@@ -88,3 +97,9 @@ export const EndpointTypeOpts = Object.values(EEndpointType).map((value) => ({
   value,
   label: capitalize(value),
 }))
+
+export const SecretModeOptions = [
+  { value: ESecretMode.none, label: `None` },
+  { value: ESecretMode.new, label: `Create New` },
+  { value: ESecretMode.existing, label: `Select Existing` },
+]

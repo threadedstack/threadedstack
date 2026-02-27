@@ -1,5 +1,2 @@
-export * from './fetchApiKeys'
-export * from './fetchApiKey'
-export * from './createApiKey'
-export * from './updateApiKey'
-export * from './revokeApiKey'
+export * from './api'
+export * from './local'

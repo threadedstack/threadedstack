@@ -25,7 +25,7 @@ export class ApiKey extends Base {
   hasScope(scope: TApiKeyScope): boolean {
     if (!this.scopes) return false
     const scopeList = this.scopes.split(',').map((s) => s.trim())
-    return scopeList.includes(scope) || scopeList.includes('admin')
+    return scopeList.includes(scope) || scopeList.includes(`admin`)
   }
 
   isExpired(): boolean {

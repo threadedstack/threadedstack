@@ -50,8 +50,8 @@ vi.mock(`@TAF/components/Users/InviteUserDrawer`, () => ({
   InviteUserDrawer: () => null,
 }))
 
-vi.mock(`@TAF/components/Roles/EditRoleDrawer`, () => ({
-  EditRoleDrawer: () => null,
+vi.mock(`@TAF/components/Users/EditUserDrawer`, () => ({
+  EditUserDrawer: () => null,
 }))
 
 vi.mock(`@tdsk/components`, async (importOriginal) => {
@@ -168,6 +168,13 @@ describe(`Users`, () => {
     const rows = screen.getAllByRole(`row`)
     // 1 header row + 3 data rows
     expect(rows.length).toBe(4)
+  })
+
+  it(`renders two action buttons per row (Edit and Remove)`, () => {
+    render(<Users />)
+    const row = screen.getByText(`Alice Admin`).closest(`tr`)!
+    const buttons = within(row).getAllByRole(`button`)
+    expect(buttons.length).toBe(2)
   })
 
   it(`disables remove button for super admin`, () => {

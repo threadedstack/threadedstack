@@ -1,29 +1,34 @@
 import type { TKeyValuePair } from '@TAF/types'
 import type {
-  Provider,
   Secret,
+  Provider,
+  TSecretMode,
   TProviderType,
-  TLLMProviderBrand,
   TProviderBrand,
+  TLLMProviderBrand,
 } from '@tdsk/domain'
 
-import { secretsApi } from '@TAF/services'
+import { ESecretMode } from '@tdsk/domain'
 import { useProviders } from '@TAF/state/selectors'
 import { ProviderTypes } from '@TAF/constants/providers'
+import { SecretModeOptions } from '@TAF/constants/values'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { createSecret } from '@TAF/actions/secrets/api/createSecret'
+import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { createProvider, updateProvider } from '@TAF/actions/providers'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { ELLMProviderBrand, EProvider, ProviderTemplates } from '@tdsk/domain'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
+import { fetchProviderSecrets } from '@TAF/actions/secrets/api/fetchProviderSecrets'
 import {
   ExpandMore as ExpandMoreIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material'
+
 import {
   Box,
   Chip,
@@ -40,14 +45,6 @@ const LLMProviderOptions = Object.values(ELLMProviderBrand).map((value) => ({
   value,
   label: value.charAt(0).toUpperCase() + value.slice(1),
 }))
-
-type TSecretMode = 'none' | 'existing' | 'new'
-
-const SecretModeOptions = [
-  { value: 'none', label: 'None' },
-  { value: 'existing', label: 'Select Existing' },
-  { value: 'new', label: 'Create New' },
-]
 
 export type TProviderDrawer = {
   open: boolean
@@ -69,9 +66,9 @@ export const ProviderDrawer = ({
   const isEditMode = Boolean(provider)
   const [providers] = useProviders()
 
-  const [name, setName] = useState('')
-  const [type, setType] = useState('')
-  const [baseUrl, setBaseUrl] = useState('')
+  const [name, setName] = useState(``)
+  const [type, setType] = useState(``)
+  const [baseUrl, setBaseUrl] = useState(``)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [brand, setBrand] = useState<TProviderBrand>(null)
@@ -79,10 +76,10 @@ export const ProviderDrawer = ({
   const [bodyParams, setBodyParams] = useState<TKeyValuePair[]>([])
 
   // Secret management
-  const [secretMode, setSecretMode] = useState<TSecretMode>('none')
-  const [apiKeyValue, setApiKeyValue] = useState('')
+  const [secretMode, setSecretMode] = useState<TSecretMode>(ESecretMode.none)
+  const [apiKeyValue, setApiKeyValue] = useState(``)
   const [showApiKey, setShowApiKey] = useState(false)
-  const [selectedSecretId, setSelectedSecretId] = useState('')
+  const [selectedSecretId, setSelectedSecretId] = useState(``)
   const [orgSecrets, setOrgSecrets] = useState<Secret[]>([])
 
   const isAiType = type === EProvider.ai
@@ -106,7 +103,7 @@ export const ProviderDrawer = ({
   const loadSecrets = useCallback(async () => {
     if (!orgId) return
 
-    const resp = await secretsApi.list(orgId)
+    const resp = await fetchSecrets({ orgId })
     if (resp.data) setOrgSecrets(resp.data)
   }, [orgId])
 
@@ -114,7 +111,7 @@ export const ProviderDrawer = ({
   const loadProviderSecrets = useCallback(async () => {
     if (!orgId || !provider?.id) return
 
-    const resp = await secretsApi.list(orgId, undefined, { providerId: provider.id })
+    const resp = await fetchProviderSecrets({ orgId, providerId: provider.id })
     if (resp.data) setProviderSecrets(resp.data)
   }, [orgId, provider?.id])
 
@@ -129,37 +126,37 @@ export const ProviderDrawer = ({
   useEffect(() => {
     if (provider) {
       const options = provider.options || {}
-      setName(provider.name || '')
-      setType(provider.type || '')
-      setBaseUrl(options.baseUrl || '')
+      setName(provider.name || ``)
+      setType(provider.type || ``)
+      setBaseUrl(options.baseUrl || ``)
       setBrand(provider.brand || null)
       setHeaders(objToKV(provider.headers, 'header'))
       setBodyParams(objToKV(provider.bodyParams, 'bodyParam'))
       setError(null)
-      setApiKeyValue('')
+      setApiKeyValue(``)
       setShowApiKey(false)
 
       // Pre-select the linked API key secret
       if (provider.secretId) {
         setSelectedSecretId(provider.secretId)
-        setSecretMode('existing')
+        setSecretMode(ESecretMode.existing)
       } else {
-        setSelectedSecretId('')
-        setSecretMode('none')
+        setSelectedSecretId(``)
+        setSecretMode(ESecretMode.none)
       }
     } else {
-      setName('')
-      setType('')
-      setBaseUrl('')
+      setName(``)
+      setType(``)
+      setBaseUrl(``)
       setBrand(null)
       setHeaders([])
       setBodyParams([])
       setError(null)
-      setApiKeyValue('')
-      setSecretMode('none')
+      setApiKeyValue(``)
       setShowApiKey(false)
-      setSelectedSecretId('')
+      setSelectedSecretId(``)
       setProviderSecrets([])
+      setSecretMode(ESecretMode.none)
     }
   }, [provider])
 
@@ -177,29 +174,29 @@ export const ProviderDrawer = ({
   const onClose = () => {
     if (loading) return
 
-    setName('')
-    setType('')
-    setBaseUrl('')
+    setName(``)
+    setType(``)
+    setBaseUrl(``)
     setBrand(null)
     setHeaders([])
     setBodyParams([])
     setError(null)
-    setSecretMode('none')
-    setApiKeyValue('')
+    setApiKeyValue(``)
     setShowApiKey(false)
-    setSelectedSecretId('')
+    setSelectedSecretId(``)
     setProviderSecrets([])
     onCloseCB?.()
+    setSecretMode(ESecretMode.none)
   }
 
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault()
 
-    if (!name.trim()) return setError('Provider name is required')
-    if (!type) return setError('Provider type is required')
-    if (isAiType && !brand) return setError('LLM provider is required for AI providers')
-    if (secretMode === 'new' && !apiKeyValue.trim())
-      return setError('API key value is required')
+    if (!name.trim()) return setError(`Provider name is required`)
+    if (!type) return setError(`Provider type is required`)
+    if (isAiType && !brand) return setError(`LLM provider is required for AI providers`)
+    if (secretMode === ESecretMode.new && !apiKeyValue.trim())
+      return setError(`API key value is required`)
 
     setLoading(true)
     setError(null)
@@ -394,8 +391,8 @@ export const ProviderDrawer = ({
                 items={SecretModeOptions}
                 onChange={(e) => {
                   setSecretMode(e.target.value as TSecretMode)
-                  setApiKeyValue('')
-                  setSelectedSecretId('')
+                  setApiKeyValue(``)
+                  setSelectedSecretId(``)
                   setShowApiKey(false)
                 }}
                 disabled={loading}

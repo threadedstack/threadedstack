@@ -24,7 +24,6 @@ import {
   resetActiveAgentId,
   resetFaasFormState,
   resetActiveOrgRole,
-  resetActiveApiKeyId,
   resetActiveThreadId,
   resetOrgSecrets,
   resetActiveSecretId,
@@ -65,7 +64,6 @@ export const reset = () => {
   resetActiveAgentId?.()
   resetFaasFormState?.()
   resetActiveOrgRole?.()
-  resetActiveApiKeyId?.()
   resetActiveThreadId?.()
   resetOrgSecrets?.()
   resetActiveSecretId?.()
