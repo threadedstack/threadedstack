@@ -2,7 +2,7 @@ import { relations } from 'drizzle-orm'
 import { base } from '@TDB/utils/schema/base'
 import { agents } from '@TDB/schemas/agents'
 import { providers } from '@TDB/schemas/providers'
-import { uuid, pgTable, unique, integer, index } from 'drizzle-orm/pg-core'
+import { pgTable, unique, integer, index, varchar } from 'drizzle-orm/pg-core'
 
 /**
  * Agent-Providers junction table
@@ -16,12 +16,12 @@ export const agentProviders = pgTable(
   {
     ...base,
     /** Agent reference */
-    agentId: uuid(`agent_id`)
+    agentId: varchar(`agent_id`, { length: 10 })
       .references(() => agents.id, { onDelete: `cascade` })
       .notNull(),
 
     /** Provider reference */
-    providerId: uuid(`provider_id`)
+    providerId: varchar(`provider_id`, { length: 10 })
       .references(() => providers.id, { onDelete: `cascade` })
       .notNull(),
 

@@ -4,7 +4,7 @@ import { sql, relations } from 'drizzle-orm'
 import { agents } from '@TDB/schemas/agents'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
-import { uuid, text, check, index, pgTable } from 'drizzle-orm/pg-core'
+import { text, check, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const secrets = pgTable(
   `secrets`,
@@ -14,12 +14,16 @@ export const secrets = pgTable(
     description: text(`description`),
     hashKey: text(`hash_key`).notNull(),
     encryptedValue: text(`encrypted_value`).notNull(),
-    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
-    projectId: uuid(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
-    providerId: uuid(`provider_id`).references(() => providers.id, {
+    orgId: varchar(`org_id`, { length: 10 }).references(() => orgs.id, {
       onDelete: `cascade`,
     }),
-    agentId: uuid(`agent_id`).references(() => agents.id, {
+    projectId: varchar(`project_id`, { length: 10 }).references(() => projects.id, {
+      onDelete: `cascade`,
+    }),
+    providerId: varchar(`provider_id`, { length: 10 }).references(() => providers.id, {
+      onDelete: `cascade`,
+    }),
+    agentId: varchar(`agent_id`, { length: 10 }).references(() => agents.id, {
       onDelete: `cascade`,
     }),
   },

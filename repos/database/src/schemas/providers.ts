@@ -4,7 +4,7 @@ import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { base } from '@TDB/utils/schema/base'
 import { agentProviders } from '@TDB/schemas/agentProviders'
-import { uuid, jsonb, pgTable, text } from 'drizzle-orm/pg-core'
+import { jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core'
 
 export const providers = pgTable(`providers`, {
   ...base,
@@ -14,8 +14,8 @@ export const providers = pgTable(`providers`, {
   options: jsonb(`options`).$type<Record<string, any>>(),
   headers: jsonb(`headers`).$type<Record<string, string>>(),
   bodyParams: jsonb(`body_params`).$type<Record<string, any>>(),
-  secretId: uuid(`secret_id`),
-  orgId: uuid(`org_id`)
+  secretId: varchar(`secret_id`, { length: 10 }),
+  orgId: varchar(`org_id`, { length: 10 })
     .notNull()
     .references(() => orgs.id, { onDelete: `cascade` }),
 })

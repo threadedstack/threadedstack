@@ -240,7 +240,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
   // ─── Auth Rejection Close Codes ──────────────────────────────────
 
   test('expired/invalid token returns close code 4001', async () => {
-    const result = await connectWS('00000000-0000-0000-0000-000000000000')
+    const result = await connectWS('zz00000000')
     expect(result.closeCode).toBe(4001)
   })
 
@@ -251,7 +251,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
 
   // ─── Thread Created Event ────────────────────────────────────────
 
-  test.skipIf(!hasLLM())('new prompt creates thread_created with valid UUID threadId', async () => {
+  test.skipIf(!hasLLM())('new prompt creates thread_created with valid nanoid threadId', async () => {
     const token = await createSessionToken()
     expect(token).toBeTruthy()
 
@@ -261,8 +261,8 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     expect(threadCreated).toBeDefined()
     expect(typeof threadCreated!.threadId).toBe('string')
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    expect(uuidRegex.test(threadCreated!.threadId as string)).toBe(true)
+    const idRegex = /^[A-Za-z0-9_-]{10}$/
+    expect(idRegex.test(threadCreated!.threadId as string)).toBe(true)
   })
 
   // ─── Empty Prompt ────────────────────────────────────────────────

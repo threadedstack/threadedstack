@@ -50,7 +50,7 @@ describe(`Tier 1: Project Counts`, () => {
 
   test('GET /orgs/:orgId/projects/:projectId returns error for nonexistent project', async () => {
     const res = await get(
-      `/orgs/${ctx.orgId}/projects/00000000-0000-0000-0000-000000000000`
+      `/orgs/${ctx.orgId}/projects/zz00000000`
     )
 
     expect(res.ok).toBe(false)

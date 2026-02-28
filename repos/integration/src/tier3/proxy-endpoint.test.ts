@@ -396,7 +396,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await api<any>(
-      `/proxy/${projectId}/00000000-0000-0000-0000-000000000000`,
+      `/proxy/${projectId}/zz00000000`,
       { method: 'GET', rawPath: true }
     )
 
@@ -408,7 +408,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await api<any>(
-      `/proxy/00000000-0000-0000-0000-000000000000/${basicEpId}`,
+      `/proxy/zz00000000/${basicEpId}`,
       { method: 'GET', rawPath: true }
     )
 

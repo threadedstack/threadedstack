@@ -460,13 +460,13 @@ describe(`OrgSubNavGroups`, () => {
   it(`Resources should have Projects, Members, Agents`, () => {
     const resources = OrgSubNavGroups.find((g) => g.label === `Resources`)
     const texts = resources?.items.map((i) => i.text)
-    expect(texts).toEqual([`Projects`, `Members`, `Agents`])
+    expect(texts).toEqual([`Projects`, `Members`, `Providers`, `Agents`])
   })
 
   it(`Security should have Secrets, Providers, API Keys, Domains`, () => {
     const security = OrgSubNavGroups.find((g) => g.label === `Security`)
     const texts = security?.items.map((i) => i.text)
-    expect(texts).toEqual([`Secrets`, `Providers`, `API Keys`, `Domains`])
+    expect(texts).toEqual([`Secrets`, `API Keys`, `Domains`])
   })
 
   it(`Management should have Usage, Settings`, () => {

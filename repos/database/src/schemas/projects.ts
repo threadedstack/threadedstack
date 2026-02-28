@@ -6,7 +6,7 @@ import { secrets } from '@TDB/schemas/secrets'
 import { endpoints } from '@TDB/schemas/endpoints'
 import { providers } from '@TDB/schemas/providers'
 import { agentProjects } from '@TDB/schemas/agentProjects'
-import { uuid, text, jsonb, uniqueIndex, index, pgTable } from 'drizzle-orm/pg-core'
+import { text, jsonb, uniqueIndex, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const projects = pgTable(
   `projects`,
@@ -17,7 +17,7 @@ export const projects = pgTable(
     name: text(`name`).notNull(),
     description: text(`description`),
     branch: text(`branch`).default(`main`),
-    orgId: uuid(`org_id`)
+    orgId: varchar(`org_id`, { length: 10 })
       .references(() => orgs.id, { onDelete: `cascade` })
       .notNull(),
   },

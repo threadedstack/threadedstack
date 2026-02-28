@@ -24,9 +24,9 @@ export const EndpointProxy = (props: TEndpointFormProps<TProxyEndpointConfig>) =
       // Basic fields
       loading={loading}
       url={state.url}
-      method={state.method}
+      proxyMethod={state.proxyMethod}
       onUrlChange={(value) => setProxyFormField(`url`, value)}
-      onMethodChange={(value) => setProxyFormField(`method`, value)}
+      onProxyMethodChange={(value) => setProxyFormField(`proxyMethod`, value)}
       // Headers
       headers={state.headers}
       onHeadersChange={(headers) => setProxyHeaders(headers)}

@@ -137,6 +137,33 @@ describe(`ProxyEndpoint`, () => {
         })
       ).not.toThrow()
     })
+
+    it(`should pass when proxyMethod is a valid HTTP method`, () => {
+      expect(() =>
+        service.validateOptions({ url: `https://api.example.com`, proxyMethod: `get` })
+      ).not.toThrow()
+    })
+
+    it(`should pass when proxyMethod is post`, () => {
+      expect(() =>
+        service.validateOptions({ url: `https://api.example.com`, proxyMethod: `post` })
+      ).not.toThrow()
+    })
+
+    it(`should throw 400 when proxyMethod is invalid`, () => {
+      expect(() =>
+        service.validateOptions({
+          url: `https://api.example.com`,
+          proxyMethod: `invalid`,
+        })
+      ).toThrow(`Invalid proxy method`)
+    })
+
+    it(`should pass when proxyMethod is absent`, () => {
+      expect(() =>
+        service.validateOptions({ url: `https://api.example.com` })
+      ).not.toThrow()
+    })
   })
 
   describe(`execute`, () => {

@@ -3,7 +3,7 @@ import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { projects } from '@TDB/schemas/projects'
 import { base } from '@TDB/utils/schema/base'
-import { uuid, text, check, uniqueIndex, pgTable } from 'drizzle-orm/pg-core'
+import { uuid, text, check, uniqueIndex, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const roles = pgTable(
   `roles`,
@@ -11,8 +11,12 @@ export const roles = pgTable(
     ...base,
     name: text(`name`),
     type: text(`type`).notNull(),
-    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
-    projectId: uuid(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
+    orgId: varchar(`org_id`, { length: 10 }).references(() => orgs.id, {
+      onDelete: `cascade`,
+    }),
+    projectId: varchar(`project_id`, { length: 10 }).references(() => projects.id, {
+      onDelete: `cascade`,
+    }),
     userId: uuid(`user_id`)
       .references(() => users.id, { onDelete: `cascade` })
       .notNull(),

@@ -16,7 +16,7 @@ describe('useEndpointTest', () => {
     const { useEndpointTest } = await import('./useEndpointTest')
 
     const { result } = renderHook(() =>
-      useEndpointTest({ projectId: 'p1', endpointId: 'e1' })
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
     )
 
     expect(result.current.request.method).toBe('GET')
@@ -28,14 +28,12 @@ describe('useEndpointTest', () => {
     expect(result.current.error).toBeNull()
   })
 
-  it('should update method', async () => {
+  it('should use method from opts', async () => {
     const { useEndpointTest } = await import('./useEndpointTest')
 
     const { result } = renderHook(() =>
-      useEndpointTest({ projectId: 'p1', endpointId: 'e1' })
+      useEndpointTest({ method: 'POST', projectId: 'p1', endpointId: 'e1' })
     )
-
-    act(() => result.current.setMethod('POST'))
 
     expect(result.current.request.method).toBe('POST')
   })
@@ -44,7 +42,7 @@ describe('useEndpointTest', () => {
     const { useEndpointTest } = await import('./useEndpointTest')
 
     const { result } = renderHook(() =>
-      useEndpointTest({ projectId: 'p1', endpointId: 'e1' })
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
     )
 
     act(() => result.current.setBody('{"test": true}'))
@@ -56,7 +54,7 @@ describe('useEndpointTest', () => {
     const { useEndpointTest } = await import('./useEndpointTest')
 
     const { result } = renderHook(() =>
-      useEndpointTest({ projectId: 'p1', endpointId: 'e1' })
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
     )
 
     act(() => result.current.addHeader())
@@ -70,7 +68,7 @@ describe('useEndpointTest', () => {
     const { useEndpointTest } = await import('./useEndpointTest')
 
     const { result } = renderHook(() =>
-      useEndpointTest({ projectId: 'p1', endpointId: 'e1' })
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
     )
 
     act(() => result.current.updateHeader(0, 'key', 'Authorization'))
@@ -93,7 +91,7 @@ describe('useEndpointTest', () => {
     const { useEndpointTest } = await import('./useEndpointTest')
 
     const { result } = renderHook(() =>
-      useEndpointTest({ projectId: 'p1', endpointId: 'e1' })
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
     )
 
     await act(async () => {
@@ -121,7 +119,7 @@ describe('useEndpointTest', () => {
     const { useEndpointTest } = await import('./useEndpointTest')
 
     const { result } = renderHook(() =>
-      useEndpointTest({ projectId: 'p1', endpointId: 'e1' })
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
     )
 
     await act(async () => {
@@ -145,7 +143,7 @@ describe('useEndpointTest', () => {
     const { useEndpointTest } = await import('./useEndpointTest')
 
     const { result } = renderHook(() =>
-      useEndpointTest({ projectId: 'p1', endpointId: 'e1' })
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
     )
 
     await act(async () => {
@@ -178,6 +176,23 @@ describe('useEndpointTest', () => {
     expect(contentTypeToLanguage('application/octet-stream')).toBe('plaintext')
   })
 
+  it('should reset loading to false when testEndpoint throws', async () => {
+    mockTestEndpoint.mockRejectedValueOnce(new Error('Unexpected failure'))
+
+    const { useEndpointTest } = await import('./useEndpointTest')
+
+    const { result } = renderHook(() =>
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
+    )
+
+    await act(async () => {
+      await result.current.sendRequest().catch(() => {})
+    })
+
+    expect(result.current.loading).toBe(false)
+    expect(result.current.response).toBeNull()
+  })
+
   it('should not send body for GET method', async () => {
     mockTestEndpoint.mockResolvedValueOnce({
       data: {
@@ -192,7 +207,7 @@ describe('useEndpointTest', () => {
     const { useEndpointTest } = await import('./useEndpointTest')
 
     const { result } = renderHook(() =>
-      useEndpointTest({ projectId: 'p1', endpointId: 'e1' })
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
     )
 
     act(() => result.current.setBody('{"should": "be ignored"}'))

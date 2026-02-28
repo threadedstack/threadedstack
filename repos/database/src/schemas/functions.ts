@@ -5,7 +5,7 @@ import { EFunLanguage } from '@tdsk/domain'
 import { base } from '@TDB/utils/schema/base'
 import { projects } from '@TDB/schemas/projects'
 import { endpoints } from '@TDB/schemas/endpoints'
-import { uuid, text, jsonb, varchar, index, pgTable } from 'drizzle-orm/pg-core'
+import { text, jsonb, varchar, index, pgTable } from 'drizzle-orm/pg-core'
 
 export const functions = pgTable(
   `functions`,
@@ -19,10 +19,10 @@ export const functions = pgTable(
     dependencies: jsonb(`dependencies`).default({}),
     inputSchema: jsonb(`input_schema`).default([]).$type<TFunctionParam[]>(),
     language: varchar(`language`, { length: 50 }).default(EFunLanguage.typescript),
-    endpointId: uuid(`endpoint_id`).references(() => endpoints.id, {
+    endpointId: varchar(`endpoint_id`, { length: 10 }).references(() => endpoints.id, {
       onDelete: `cascade`,
     }),
-    projectId: uuid(`project_id`)
+    projectId: varchar(`project_id`, { length: 10 })
       .references(() => projects.id, { onDelete: `cascade` })
       .notNull(),
   },

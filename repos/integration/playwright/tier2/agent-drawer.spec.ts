@@ -11,7 +11,7 @@ import { test, expect } from '../fixtures/auth'
  * These tests are read-only — drawers are opened and inspected but never submitted.
  */
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const RAW_ID_REGEX = /^[A-Za-z0-9_-]{10}$/
 
 const ignoredConsolePatterns = [
   'Function components cannot be given refs',
@@ -111,13 +111,13 @@ test.describe('Agent Drawer: Secrets display names (P1 regression)', () => {
       const chips = secretsContainer.locator('.MuiChip-label')
       const chipCount = await chips.count()
 
-      // If the agent has selected secrets, verify none show as UUIDs
+      // If the agent has selected secrets, verify none show as raw IDs
       for (let i = 0; i < chipCount; i++) {
         const chipText = await chips.nth(i).textContent()
         if (chipText) {
           expect(
-            UUID_REGEX.test(chipText.trim()),
-            `Secret chip "${chipText}" should display a name, not a UUID`
+            RAW_ID_REGEX.test(chipText.trim()),
+            `Secret chip "${chipText}" should display a name, not a raw ID`
           ).toBe(false)
         }
       }
@@ -132,7 +132,7 @@ test.describe('Agent Drawer: Secrets display names (P1 regression)', () => {
 })
 
 test.describe('Agent Drawer: Providers display names (P1 regression)', () => {
-  test('provider list items show names, not UUIDs or empty strings', async ({ authenticatedPage: page, ctx }) => {
+  test('provider list items show names, not raw IDs or empty strings', async ({ authenticatedPage: page, ctx }) => {
     const errors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
@@ -171,10 +171,10 @@ test.describe('Agent Drawer: Providers display names (P1 regression)', () => {
               providerName.length > 0,
               `Provider item "${trimmed}" should have a non-empty name`
             ).toBe(true)
-            // Name should not be a UUID
+            // Name should not be a raw ID
             expect(
-              UUID_REGEX.test(providerName),
-              `Provider name "${providerName}" should not be a UUID`
+              RAW_ID_REGEX.test(providerName),
+              `Provider name "${providerName}" should not be a raw ID`
             ).toBe(false)
           }
         }

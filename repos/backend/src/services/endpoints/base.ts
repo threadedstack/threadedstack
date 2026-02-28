@@ -1,8 +1,9 @@
 import type { Response } from 'express'
 import type { TRequest } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
-import type { Endpoint, Secret, TEndpointOpts } from '@tdsk/domain'
+import type { Endpoint, Secret } from '@tdsk/domain'
 
+import { logger } from '@TBE/utils/logger'
 import { Exception } from '@TBE/utils/errors/exception'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
@@ -50,6 +51,7 @@ export abstract class BaseEndpoint {
         projectId: endpoint.projectId,
       })
     } catch (error) {
+      logger.error(`Permission check failed:`, error)
       throw new Exception(403, `Insufficient permissions to use this endpoint`)
     }
   }
@@ -86,13 +88,13 @@ export abstract class BaseEndpoint {
   }
 
   /**
-   * Validate HTTP method matches endpoint config (if specified).
+   * Validate HTTP method matches endpoint's top-level method (if specified).
    */
-  validateMethod(req: TRequest, opts: TEndpointOpts): void {
-    if (opts.method && opts.method.toLowerCase() !== req.method.toLowerCase()) {
+  validateMethod(req: TRequest, endpoint: Endpoint): void {
+    if (endpoint.method && endpoint.method.toLowerCase() !== req.method.toLowerCase()) {
       throw new Exception(
         405,
-        `Method ${req.method} not allowed. Endpoint accepts ${opts.method.toUpperCase()}`
+        `Method ${req.method} not allowed. Endpoint accepts ${endpoint.method.toUpperCase()}`
       )
     }
   }

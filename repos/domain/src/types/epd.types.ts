@@ -1,3 +1,5 @@
+import type { THttpMethod } from './http.types'
+
 /**
  * Endpoint type enumeration
  */
@@ -112,9 +114,6 @@ export type TSharedEndpointOpts<
   auth?: TEndpointAuth
   headers?: Record<string, string>
 
-  /** HTTP method */
-  method?: string
-
   // TODO: update to use retry object instead of flat properties
   //retry: TEndpointRetryOpts
 
@@ -185,6 +184,8 @@ export type TProxyEndpointConfig = TSharedEndpointOpts<
   {
     /** Target URL for proxying */
     url: string
+    /** HTTP method override for the upstream proxy request. Falls back to req.method if unset */
+    proxyMethod?: THttpMethod
     /** Transform configuration */
     transform?: TBodyTransformConfig
   }

@@ -2,15 +2,7 @@ import { relations } from 'drizzle-orm'
 import { projects } from '@TDB/schemas/projects'
 import { base } from '@TDB/utils/schema/base'
 import { functions } from '@TDB/schemas/functions'
-import {
-  uuid,
-  text,
-  jsonb,
-  varchar,
-  boolean,
-  uniqueIndex,
-  pgTable,
-} from 'drizzle-orm/pg-core'
+import { text, jsonb, varchar, boolean, uniqueIndex, pgTable } from 'drizzle-orm/pg-core'
 
 export const endpoints = pgTable(
   `endpoints`,
@@ -23,7 +15,7 @@ export const endpoints = pgTable(
     public: boolean(`public`).default(false),
     method: varchar(`method`, { length: 10 }).default(`GET`),
     type: varchar(`type`, { length: 10 }).notNull().default(`proxy`),
-    projectId: uuid(`project_id`)
+    projectId: varchar(`project_id`, { length: 10 })
       .references(() => projects.id, { onDelete: `cascade` })
       .notNull(),
   },

@@ -1,5 +1,6 @@
 import type {
   Endpoint,
+  THttpMethod,
   TProxyEndpointConfig,
   TFaaSEndpointConfig,
   TAgentEndpointConfig,
@@ -24,7 +25,7 @@ export const initProxyFromEndpoint = (endpoint: Endpoint): TProxyFormState => {
   return {
     // Basic fields
     url: opts.url || ``,
-    method: opts.method || `GET`,
+    proxyMethod: opts.proxyMethod || (opts as any).method || ``,
     headers: objToKV(opts.headers || {}, `header`),
 
     // Basic options
@@ -78,7 +79,7 @@ export const mapProxyStateToConfig = (state: TProxyFormState): TProxyEndpointCon
   }
 
   // Basic options
-  if (state.method !== `get`) config.method = state.method
+  if (state.proxyMethod) config.proxyMethod = state.proxyMethod as THttpMethod
   config.timeout = toNum(state.timeout)
   config.retries = toNum(state.retries)
   if (state.pathRegex) config.pathRegex = state.pathRegex

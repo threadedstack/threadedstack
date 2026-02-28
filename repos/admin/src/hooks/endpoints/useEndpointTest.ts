@@ -12,6 +12,7 @@ export type TEndpointTestResponse = {
 }
 
 export type TUseEndpointTestOpts = {
+  method: string
   projectId: string
   endpointId: string
 }
@@ -32,9 +33,8 @@ export const contentTypeToLanguage = (contentType: string): string => {
 }
 
 export const useEndpointTest = (opts: TUseEndpointTestOpts) => {
-  const { projectId, endpointId } = opts
+  const { method, projectId, endpointId } = opts
 
-  const [method, setMethod] = useState('GET')
   const [headers, setHeaders] = useState<THeader[]>([...defaultHeaders])
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(false)
@@ -75,21 +75,23 @@ export const useEndpointTest = (opts: TUseEndpointTestOpts) => {
 
     const isBodyless = bodylessMethods.includes(method.toUpperCase())
 
-    const result = await testEndpoint({
-      projectId,
-      endpointId,
-      method: method.toUpperCase(),
-      headers: headersObj,
-      body: isBodyless ? undefined : body || undefined,
-    })
+    try {
+      const result = await testEndpoint({
+        projectId,
+        endpointId,
+        method: method.toUpperCase(),
+        headers: headersObj,
+        body: isBodyless ? undefined : body || undefined,
+      })
 
-    if (result.error) {
-      setError(result.error.message || 'Request failed')
-    } else if (result.data) {
-      setResponse(result.data)
+      if (result.error) {
+        setError(result.error.message || 'Request failed')
+      } else if (result.data) {
+        setResponse(result.data)
+      }
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }, [projectId, endpointId, method, headers, body])
 
   const monacoLanguage = useMemo(
@@ -103,7 +105,6 @@ export const useEndpointTest = (opts: TUseEndpointTestOpts) => {
     loading,
     error,
     monacoLanguage,
-    setMethod,
     setBody,
     addHeader,
     removeHeader,

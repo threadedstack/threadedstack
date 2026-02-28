@@ -10,13 +10,15 @@ import { EndpointTransform } from '@TAF/components/Endpoints/Proxy/EndpointTrans
 import { EndpointWhitelist } from '@TAF/components/Endpoints/Proxy/EndpointWhitelist'
 import { EndpointBasicOptions } from '@TAF/components/Endpoints/Proxy/EndpointBasicOptions'
 
+const ProxyMethodOps = [{ label: `Use Endpoint Method`, value: `` }, ...HttpMethodOps]
+
 export type TProxyInputs = {
   loading: boolean
   // Basic fields
   url: string
-  method: string
+  proxyMethod: string
   onUrlChange: (value: string) => void
-  onMethodChange: (value: string) => void
+  onProxyMethodChange: (value: string) => void
 
   // Headers
   headers: TKeyValuePair[]
@@ -91,7 +93,7 @@ export const ProxyInputs = (props: TProxyInputs) => {
 
   return (
     <>
-      {/* Proxy URL and Method */}
+      {/* Proxy URL */}
       <TextInput
         required
         fullWidth
@@ -104,13 +106,12 @@ export const ProxyInputs = (props: TProxyInputs) => {
       />
 
       <SelectInput
-        required
-        id='method-select'
+        id='proxy-method-select'
         disabled={loading}
-        label='HTTP Method'
-        items={HttpMethodOps}
-        value={props.method.toLowerCase()}
-        onChange={(e) => props.onMethodChange(e.target.value)}
+        label='Proxy Method (Optional)'
+        items={ProxyMethodOps}
+        value={props.proxyMethod.toLowerCase()}
+        onChange={(e) => props.onProxyMethodChange(e.target.value)}
       />
 
       {/* Headers */}

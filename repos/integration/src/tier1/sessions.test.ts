@@ -162,7 +162,7 @@ describe('Tier 1: AI Sessions', () => {
   test.skipIf(!hasLLM())('POST /_/ai/sessions with non-existent agentId returns 404', async () => {
     const res = await post<{ error?: string }>(
       `/_/ai/sessions`,
-      { agentId: '00000000-0000-0000-0000-000000000000' }
+      { agentId: 'zz00000000' }
     )
 
     expect(res.status).toBe(404)

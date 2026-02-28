@@ -1,7 +1,7 @@
 import type { TSharedFormState } from '@TAF/types/endpoints.types'
 
 import { Box, Alert } from '@mui/material'
-import { EndpointTypeOpts } from '@TAF/constants/values'
+import { EndpointTypeOpts, HttpMethodOps } from '@TAF/constants/values'
 import { TextInput, SelectInput, SwitchInput } from '@tdsk/components'
 
 export type TEndpointFormBaseProps = {
@@ -38,6 +38,16 @@ export const EndpointFormBase = (props: TEndpointFormBaseProps) => {
             endpointType: e.target.value as typeof sharedState.endpointType,
           })
         }
+      />
+
+      <SelectInput
+        required
+        id='endpoint-method'
+        disabled={disabled}
+        label='HTTP Method'
+        items={HttpMethodOps}
+        value={sharedState.method}
+        onChange={(e) => onChange({ method: e.target.value })}
       />
 
       <TextInput

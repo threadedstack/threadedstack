@@ -11,7 +11,7 @@ import type {
 export type TProxyFormState = {
   // Basic fields
   url: string
-  method: string
+  proxyMethod: string
 
   // Headers
   headers: TKeyValuePair[]

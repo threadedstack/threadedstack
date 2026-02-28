@@ -102,7 +102,7 @@ describe('Tier 1: WebSocket Session Auth', () => {
   })
 
   test('WS with invalid session token is rejected with 4001', async () => {
-    const result = await connectWS('00000000-0000-0000-0000-000000000000')
+    const result = await connectWS('zz00000000')
     expect(result.closeCode).toBe(4001)
   })
 

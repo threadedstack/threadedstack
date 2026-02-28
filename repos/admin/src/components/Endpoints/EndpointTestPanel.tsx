@@ -2,13 +2,9 @@ import {
   Box,
   Chip,
   Button,
-  Select,
-  MenuItem,
   TextField,
   Typography,
   IconButton,
-  InputLabel,
-  FormControl,
   CircularProgress,
 } from '@mui/material'
 import {
@@ -24,7 +20,6 @@ import {
   contentTypeToLanguage,
 } from '@TAF/hooks/endpoints/useEndpointTest'
 
-const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 const bodylessMethods = ['GET', 'HEAD']
 
 const statusColor = (status: number): 'success' | 'warning' | 'error' => {
@@ -34,12 +29,13 @@ const statusColor = (status: number): 'success' | 'warning' | 'error' => {
 }
 
 export type TEndpointTestPanel = {
+  method: string
   projectId: string
   endpointId: string
 }
 
 export const EndpointTestPanel = (props: TEndpointTestPanel) => {
-  const { projectId, endpointId } = props
+  const { method, projectId, endpointId } = props
 
   const {
     request,
@@ -47,14 +43,13 @@ export const EndpointTestPanel = (props: TEndpointTestPanel) => {
     loading,
     error,
     monacoLanguage,
-    setMethod,
     setBody,
     addHeader,
     removeHeader,
     updateHeader,
     sendRequest,
     clearResponse,
-  } = useEndpointTest({ projectId, endpointId })
+  } = useEndpointTest({ method, projectId, endpointId })
 
   const showBody = !bodylessMethods.includes(request.method.toUpperCase())
 
@@ -67,24 +62,13 @@ export const EndpointTestPanel = (props: TEndpointTestPanel) => {
         />
       )}
 
-      {/* Method selector */}
-      <FormControl size='small'>
-        <InputLabel>Method</InputLabel>
-        <Select
-          value={request.method}
-          label='Method'
-          onChange={(e) => setMethod(e.target.value)}
-        >
-          {methods.map((m) => (
-            <MenuItem
-              key={m}
-              value={m}
-            >
-              {m}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      {/* Method display */}
+      <Chip
+        label={`Method: ${request.method.toUpperCase()}`}
+        variant='outlined'
+        size='small'
+        sx={{ alignSelf: 'flex-start' }}
+      />
 
       {/* Headers */}
       <Box>

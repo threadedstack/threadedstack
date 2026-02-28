@@ -379,7 +379,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('Should Fail Agent 3'),
         orgId: ctx.orgId,
-        providerIds: ['00000000-0000-0000-0000-000000000000'],
+        providerIds: ['zz00000000'],
         model: 'claude-sonnet-4-5-20250929',
       }
     )

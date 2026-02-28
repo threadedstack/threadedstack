@@ -26,8 +26,12 @@ export const apiKeys = pgTable(
     rateLimit: integer(`rate_limit`).default(100),
     keyHash: text(`key_hash`).notNull().unique(),
     keyPrefix: varchar(`key_prefix`, { length: 12 }).notNull(),
-    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
-    projectId: uuid(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
+    orgId: varchar(`org_id`, { length: 10 }).references(() => orgs.id, {
+      onDelete: `cascade`,
+    }),
+    projectId: varchar(`project_id`, { length: 10 }).references(() => projects.id, {
+      onDelete: `cascade`,
+    }),
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
   },
   (table) => [

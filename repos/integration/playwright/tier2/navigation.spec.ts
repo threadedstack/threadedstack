@@ -78,10 +78,10 @@ test.describe('Navigation', () => {
     expect(url).toMatch(/\/(orgs)?$/)
   })
 
-  test('nonexistent org with valid UUID renders empty state (BUG #46)', async ({
+  test('nonexistent org with valid ID renders empty state (BUG #46)', async ({
     authenticatedPage: page, ctx,
   }) => {
-    const fakeOrgId = '00000000-0000-0000-0000-000000000000'
+    const fakeOrgId = 'zz00000000'
     await page.goto(`/orgs/${fakeOrgId}/projects`)
     await page.waitForLoadState('networkidle')
     // Wait for app to settle - the page content container should be visible

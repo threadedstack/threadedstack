@@ -2,7 +2,15 @@ import { relations } from 'drizzle-orm'
 import { base } from '@TDB/utils/schema/base'
 import { agents } from '@TDB/schemas/agents'
 import { projects } from '@TDB/schemas/projects'
-import { uuid, text, jsonb, boolean, integer, pgTable, unique } from 'drizzle-orm/pg-core'
+import {
+  text,
+  jsonb,
+  boolean,
+  integer,
+  pgTable,
+  unique,
+  varchar,
+} from 'drizzle-orm/pg-core'
 
 /**
  * Agent-Projects junction table
@@ -18,12 +26,12 @@ export const agentProjects = pgTable(
   {
     ...base,
     /** Agent reference */
-    agentId: uuid(`agent_id`)
+    agentId: varchar(`agent_id`, { length: 10 })
       .references(() => agents.id, { onDelete: `cascade` })
       .notNull(),
 
     /** Project reference */
-    projectId: uuid(`project_id`)
+    projectId: varchar(`project_id`, { length: 10 })
       .references(() => projects.id, { onDelete: `cascade` })
       .notNull(),
 

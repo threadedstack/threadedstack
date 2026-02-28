@@ -107,7 +107,7 @@ describe('Tier 1: Endpoint Test Panel API', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await api<any>(
-      `/proxy/${ctx.projectId}/00000000-0000-0000-0000-000000000000`,
+      `/proxy/${ctx.projectId}/zz00000000`,
       { method: 'GET', rawPath: true }
     )
 

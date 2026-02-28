@@ -3,7 +3,7 @@ import { EEPCredential, EEPAuthType } from '@tdsk/domain'
 
 export const DefProxyState: TProxyFormState = {
   url: ``,
-  method: `get`,
+  proxyMethod: ``,
   headers: [],
   timeout: ``,
   pathRegex: ``,

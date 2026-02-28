@@ -332,7 +332,7 @@ describe('Tier 1: Agent Project Config', () => {
 
     // Use a fake function ID that doesn't exist
     const res = await put(configPath(), {
-      functionIds: ['00000000-0000-0000-0000-000000000000'],
+      functionIds: ['zz00000000'],
     })
 
     expect(res.ok).toBe(false)

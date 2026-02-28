@@ -139,22 +139,22 @@ describe(`BaseEndpoint`, () => {
   describe(`validateMethod`, () => {
     it(`should not throw when methods match (case-insensitive)`, () => {
       const req = { method: `POST` } as TRequest
-      const opts = { method: `post` } as any
-      expect(() => service.validateMethod(req, opts)).not.toThrow()
+      const endpoint = { method: `post` } as any
+      expect(() => service.validateMethod(req, endpoint)).not.toThrow()
     })
 
     it(`should throw 405 when methods do not match`, () => {
       const req = { method: `GET` } as TRequest
-      const opts = { method: `POST` } as any
-      expect(() => service.validateMethod(req, opts)).toThrow(
+      const endpoint = { method: `POST` } as any
+      expect(() => service.validateMethod(req, endpoint)).toThrow(
         `Method GET not allowed. Endpoint accepts POST`
       )
     })
 
-    it(`should not throw when no method specified in options`, () => {
+    it(`should not throw when no method specified on endpoint`, () => {
       const req = { method: `GET` } as TRequest
-      const opts = {} as any
-      expect(() => service.validateMethod(req, opts)).not.toThrow()
+      const endpoint = {} as any
+      expect(() => service.validateMethod(req, endpoint)).not.toThrow()
     })
   })
 })

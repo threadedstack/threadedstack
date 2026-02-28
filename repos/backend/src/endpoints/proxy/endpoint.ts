@@ -35,6 +35,9 @@ export const endpoint: TEndpointConfig = {
     // Check permissions (skipped for public endpoints)
     await service.checkPermission(req, ep)
 
+    // Validate HTTP method matches endpoint config (for all types)
+    service.validateMethod(req, ep)
+
     // Execute endpoint via type-specific service
     await service.execute(req, res, ep, db)
   },

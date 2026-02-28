@@ -1,13 +1,13 @@
 import { base } from '@TDB/utils/schema/base'
 import { orgs } from '@TDB/schemas/orgs'
 import { relations } from 'drizzle-orm'
-import { pgTable, text, integer, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, uniqueIndex, varchar } from 'drizzle-orm/pg-core'
 
 export const quotas = pgTable(
   `quotas`,
   {
     ...base,
-    orgId: uuid(`org_id`)
+    orgId: varchar(`org_id`, { length: 10 })
       .references(() => orgs.id, { onDelete: `cascade` })
       .notNull(),
     // Period Identification e.g. "2023-10" or "yearly-2023"

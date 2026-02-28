@@ -6,7 +6,7 @@ import { agents } from '@TDB/schemas/agents'
 import { messages } from '@TDB/schemas/messages'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
-import { uuid, text, jsonb, boolean, index, pgTable } from 'drizzle-orm/pg-core'
+import { uuid, text, jsonb, boolean, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const threads = pgTable(
   `threads`,
@@ -15,14 +15,20 @@ export const threads = pgTable(
     name: text(`name`),
     meta: jsonb(`meta`),
     public: boolean(`public`).default(false),
-    parentThreadId: uuid(`parent_thread_id`),
-    branchMessageId: uuid(`branch_message_id`),
-    providerId: uuid(`provider_id`).references(() => providers.id, {
+    parentThreadId: varchar(`parent_thread_id`, { length: 10 }),
+    branchMessageId: varchar(`branch_message_id`, { length: 10 }),
+    providerId: varchar(`provider_id`, { length: 10 }).references(() => providers.id, {
       onDelete: `set null`,
     }),
-    agentId: uuid(`agent_id`).references(() => agents.id, { onDelete: `set null` }),
-    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
-    projectId: uuid(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
+    agentId: varchar(`agent_id`, { length: 10 }).references(() => agents.id, {
+      onDelete: `set null`,
+    }),
+    orgId: varchar(`org_id`, { length: 10 }).references(() => orgs.id, {
+      onDelete: `cascade`,
+    }),
+    projectId: varchar(`project_id`, { length: 10 }).references(() => projects.id, {
+      onDelete: `cascade`,
+    }),
     userId: uuid(`user_id`)
       .references(() => users.id, { onDelete: `cascade` })
       .notNull(),

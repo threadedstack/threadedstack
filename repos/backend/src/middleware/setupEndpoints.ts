@@ -8,13 +8,15 @@ import type {
 } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+
 import { endpoints } from '@TBE/endpoints'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { ServerErr } from '@TBE/utils/errors/server'
+import { IDParamPattern } from '@TBE/constants/values'
 import { createAsyncRouter } from '@TBE/server/router'
+import { validateIdParams } from '@TBE/utils/validation/id'
 import { endpointProxy } from '@TBE/utils/proxy/endpointProxy'
-import { validateUUIDParams } from '@TBE/utils/validation/uuid'
 
 type TEndpointWithRouter = Omit<TEndpointConfig, `action`> & {
   action: TReqHandlerOrRouter
@@ -36,8 +38,6 @@ const isValid = (
   return true
 }
 
-const UUIDParamPattern = /:(id|[a-zA-Z]+Id)\b/
-
 const buildEndpoint = (
   app: TApp,
   router: TRouter,
@@ -45,9 +45,9 @@ const buildEndpoint = (
 ) => {
   const { path, proxy, action, method, middleware = [], endpoints: children } = endpoint
 
-  // Auto-inject UUID param validation for routes with :id or :xxxId params
-  const mw = UUIDParamPattern.test(path)
-    ? [validateUUIDParams as TReqHandler, ...middleware]
+  // Auto-inject ID param validation for routes with :id or :xxxId params
+  const mw = IDParamPattern.test(path)
+    ? [validateIdParams as TReqHandler, ...middleware]
     : middleware
 
   method === EPMethod.Use

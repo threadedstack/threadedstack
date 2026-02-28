@@ -3,7 +3,7 @@ import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
 import { EInviteStatus } from '@tdsk/domain'
-import { uuid, text, timestamp, index, pgTable } from 'drizzle-orm/pg-core'
+import { uuid, text, timestamp, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 /**
  * Organization Invitations Table
@@ -30,7 +30,7 @@ export const invitations = pgTable(
     // Which org and what role
     // 'viewer', 'member', 'admin', etc.
     roleType: text(`role_type`).notNull(),
-    orgId: uuid(`org_id`)
+    orgId: varchar(`org_id`, { length: 10 })
       .references(() => orgs.id, { onDelete: `cascade` })
       .notNull(),
 

@@ -8,6 +8,7 @@ import { logger } from '@TBE/utils/logger'
 import { BaseEndpoint } from './base'
 import { addEndpointHeaders } from '@TBE/utils/proxy'
 import { Exception } from '@TBE/utils/errors/exception'
+import { HttpMethods } from '@TBE/constants/values'
 import { RetryService, ProxyService } from '@TBE/services/proxy'
 import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware'
 
@@ -28,6 +29,14 @@ export class ProxyEndpoint extends BaseEndpoint {
     if (!options?.url) {
       throw new Exception(400, `Proxy endpoint requires a url in options`)
     }
+    if (options.proxyMethod) {
+      const lower = options.proxyMethod.toLowerCase()
+      if (!HttpMethods.includes(lower))
+        throw new Exception(
+          400,
+          `Invalid proxy method. Must be one of: ${HttpMethods.join(', ')}`
+        )
+    }
   }
 
   async execute(
@@ -38,9 +47,6 @@ export class ProxyEndpoint extends BaseEndpoint {
   ): Promise<void> {
     const opts = endpoint.options as TProxyEndpointConfig
     if (!opts?.url) throw new Exception(400, `Endpoint has no proxy configuration`)
-
-    // Validate HTTP method matches (if endpoint specifies a method)
-    this.validateMethod(req, opts)
 
     // Extract the remaining path after /:projectId/:endpointId/
     const proxyPath = req.params[0] || ''
@@ -71,6 +77,12 @@ export class ProxyEndpoint extends BaseEndpoint {
             on: {
               proxyReq: async (proxyReq, request, response) => {
                 try {
+                  // Override HTTP method for upstream if proxyMethod is set
+                  const upstreamMethod = opts.proxyMethod
+                  if (upstreamMethod) {
+                    proxyReq.method = upstreamMethod.toUpperCase()
+                  }
+
                   if (endpoint.headers)
                     addEndpointHeaders(proxyReq, endpoint.headers, secrets)
 
@@ -152,6 +164,7 @@ export class ProxyEndpoint extends BaseEndpoint {
                     return responseBuffer
                   } catch (error) {
                     logger.error(`Error in proxyRes handler:`, error)
+                    ;(response as any).setHeader('x-tdsk-transform-error', '1')
                     return responseBuffer
                   }
                 }

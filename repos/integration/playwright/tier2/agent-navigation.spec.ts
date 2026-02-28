@@ -350,9 +350,9 @@ test.describe('Threads Tab', () => {
     await tableRows.first().click()
     await page.waitForLoadState('networkidle')
 
-    // URL should now include threads/<threadId> (UUID pattern)
+    // URL should now include threads/<threadId> (nanoid pattern)
     const url = page.url()
-    expect(url).toMatch(/\/threads\/[0-9a-f-]+/)
+    expect(url).toMatch(/\/threads\/[A-Za-z0-9_-]+/)
     // Should NOT include /chat (detail page, not chat)
     expect(url).not.toMatch(/\/chat$/)
 

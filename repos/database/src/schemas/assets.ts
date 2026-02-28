@@ -6,7 +6,7 @@ import { threads } from '@TDB/schemas/threads'
 import { messages } from '@TDB/schemas/messages'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
-import { uuid, text, jsonb, check, pgTable } from 'drizzle-orm/pg-core'
+import { uuid, text, jsonb, check, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const assets = pgTable(
   `assets`,
@@ -17,14 +17,22 @@ export const assets = pgTable(
     content: jsonb(`content`),
     name: text(`name`).notNull(),
     type: text(`type`).notNull(),
-    providerId: uuid(`provider_id`).references(() => providers.id, {
+    providerId: varchar(`provider_id`, { length: 10 }).references(() => providers.id, {
       onDelete: `set null`,
     }),
-    orgId: uuid(`org_id`).references(() => orgs.id, { onDelete: `cascade` }),
+    orgId: varchar(`org_id`, { length: 10 }).references(() => orgs.id, {
+      onDelete: `cascade`,
+    }),
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `cascade` }),
-    threadId: uuid(`thread_id`).references(() => threads.id, { onDelete: `cascade` }),
-    projectId: uuid(`project_id`).references(() => projects.id, { onDelete: `cascade` }),
-    messageId: uuid(`message_id`).references(() => messages.id, { onDelete: `cascade` }),
+    threadId: varchar(`thread_id`, { length: 10 }).references(() => threads.id, {
+      onDelete: `cascade`,
+    }),
+    projectId: varchar(`project_id`, { length: 10 }).references(() => projects.id, {
+      onDelete: `cascade`,
+    }),
+    messageId: varchar(`message_id`, { length: 10 }).references(() => messages.id, {
+      onDelete: `cascade`,
+    }),
   },
   (table) => [
     check(

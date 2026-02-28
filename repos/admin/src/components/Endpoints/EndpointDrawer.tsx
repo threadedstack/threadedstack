@@ -355,6 +355,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
         <EndpointTestPanel
           projectId={projectId}
           endpointId={endpoint.id}
+          method={sharedState.method}
         />
       )}
     </Drawer>

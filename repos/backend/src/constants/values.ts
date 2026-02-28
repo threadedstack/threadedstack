@@ -42,3 +42,4 @@ export const DBPaging = {
 
 export const SecretRefTest = /\{\{([^}]+)\}\}/
 export const SecretRefPattern = /\{\{([^}]+)\}\}/g
+export const IDParamPattern = /:(id|[a-zA-Z]+Id)\b/

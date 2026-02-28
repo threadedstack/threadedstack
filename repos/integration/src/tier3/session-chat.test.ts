@@ -124,7 +124,7 @@ describe('Tier 3: WebSocket Session Chat Flow', () => {
   })
 
   test('WS with expired/deleted session is rejected', async () => {
-    const fakeToken = '12345678-1234-1234-1234-123456789abc'
+    const fakeToken = 'zz12345678'
     const result = await consumeWS(fakeToken, 'Should fail', { timeout: 10_000 })
 
     const hasThread = result.messages.some(m => m.type === EWSEventType.ThreadCreated)

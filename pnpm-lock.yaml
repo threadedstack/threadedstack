@@ -549,6 +549,9 @@ importers:
       module-alias:
         specifier: 2.2.3
         version: 2.2.3
+      nanoid:
+        specifier: 5.1.6
+        version: 5.1.6
       pg:
         specifier: 8.16.3
         version: 8.16.3
@@ -607,13 +610,13 @@ importers:
         version: 2.2.0
     devDependencies:
       '@playwright/test':
-        specifier: ^1.42.0
-        version: 1.58.2
+        specifier: 1.42.0
+        version: 1.42.0
       '@types/node':
         specifier: 25.2.3
         version: 25.2.3
       '@types/ws':
-        specifier: ^8.18.1
+        specifier: 8.18.1
         version: 8.18.1
       typescript:
         specifier: 5.7.3
@@ -625,7 +628,7 @@ importers:
         specifier: 1.6.1
         version: 1.6.1(@types/node@25.2.3)(jsdom@24.1.3)(terser@5.43.1)
       ws:
-        specifier: ^8.19.0
+        specifier: 8.19.0
         version: 8.19.0
 
   repos/logger:
@@ -765,7 +768,7 @@ importers:
         specifier: ^19.0.0
         version: 19.2.4
       ws:
-        specifier: ^8.19.0
+        specifier: 8.19.0
         version: 8.19.0
     devDependencies:
       '@biomejs/biome':
@@ -784,7 +787,7 @@ importers:
         specifier: ^19.0.0
         version: 19.2.14
       '@types/ws':
-        specifier: ^8.18.1
+        specifier: 8.18.1
         version: 8.18.1
       ink-testing-library:
         specifier: 4.0.0
@@ -2976,9 +2979,10 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
-  '@playwright/test@1.58.2':
-    resolution: {integrity: sha512-akea+6bHYBBfA9uQqSYmlJXn61cTa+jbO87xVLCWbTqbWadRVmhxlXATaOjOgcBaWU4ePo0wB41KMFv3o35IXA==}
-    engines: {node: '>=18'}
+  '@playwright/test@1.42.0':
+    resolution: {integrity: sha512-2k1HzC28Fs+HiwbJOQDUwrWMttqSLUVdjCqitBOjdCD0svWOMQUVqrXX6iFD7POps6xXAojsX/dGBpKnjZctLA==}
+    engines: {node: '>=16'}
+    deprecated: Please update to the latest version of Playwright to test up-to-date browsers.
     hasBin: true
 
   '@pnpm/config.env-replace@1.1.0':
@@ -7872,11 +7876,6 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nanoid@3.3.8:
-    resolution: {integrity: sha512-WNLf5Sd8oZxOm+TzppcYk8gVOgP+l58xNy58D0nbUnOxOWRWvlcCV4kUF7ltmI6PsrLl/BgKEyS4mqsGChFN0w==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   nanoid@5.1.6:
     resolution: {integrity: sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==}
     engines: {node: ^18 || >=20}
@@ -8587,14 +8586,14 @@ packages:
   pkg-types@1.3.1:
     resolution: {integrity: sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ==}
 
-  playwright-core@1.58.2:
-    resolution: {integrity: sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==}
-    engines: {node: '>=18'}
+  playwright-core@1.42.0:
+    resolution: {integrity: sha512-0HD9y8qEVlcbsAjdpBaFjmaTHf+1FeIddy8VJLeiqwhcNqGCBe4Wp2e8knpqiYbzxtxarxiXyNDw2cG8sCaNMQ==}
+    engines: {node: '>=16'}
     hasBin: true
 
-  playwright@1.58.2:
-    resolution: {integrity: sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A==}
-    engines: {node: '>=18'}
+  playwright@1.42.0:
+    resolution: {integrity: sha512-Ko7YRUgj5xBHbntrgt4EIw/nE//XBHOKVKnBjO1KuZkmkhlbgyggTe5s9hjqQ1LpN+Xg+kHsQyt5Pa0Bw5XpvQ==}
+    engines: {node: '>=16'}
     hasBin: true
 
   posix-character-classes@0.1.1:
@@ -14307,9 +14306,9 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@playwright/test@1.58.2':
+  '@playwright/test@1.42.0':
     dependencies:
-      playwright: 1.58.2
+      playwright: 1.42.0
 
   '@pnpm/config.env-replace@1.1.0': {}
 
@@ -16083,7 +16082,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 25.2.3
+      '@types/node': 20.17.16
 
   '@types/conventional-commits-parser@5.0.2':
     dependencies:
@@ -16160,7 +16159,7 @@ snapshots:
 
   '@types/mute-stream@0.0.4':
     dependencies:
-      '@types/node': 25.2.3
+      '@types/node': 20.17.16
 
   '@types/mysql@2.15.26':
     dependencies:
@@ -16243,7 +16242,7 @@ snapshots:
   '@types/send@0.17.4':
     dependencies:
       '@types/mime': 1.3.5
-      '@types/node': 25.2.3
+      '@types/node': 20.17.16
 
   '@types/serve-static@1.15.7':
     dependencies:
@@ -19465,10 +19464,7 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  nanoid@3.3.11:
-    optional: true
-
-  nanoid@3.3.8: {}
+  nanoid@3.3.11: {}
 
   nanoid@5.1.6: {}
 
@@ -20018,11 +20014,11 @@ snapshots:
       mlly: 1.7.4
       pathe: 2.0.3
 
-  playwright-core@1.58.2: {}
+  playwright-core@1.42.0: {}
 
-  playwright@1.58.2:
+  playwright@1.42.0:
     dependencies:
-      playwright-core: 1.58.2
+      playwright-core: 1.42.0
     optionalDependencies:
       fsevents: 2.3.2
 
@@ -20041,7 +20037,7 @@ snapshots:
 
   postcss@8.5.3:
     dependencies:
-      nanoid: 3.3.8
+      nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -20155,7 +20151,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
-      '@types/node': 25.2.3
+      '@types/node': 20.17.16
       long: 5.3.2
 
   proxy-addr@2.0.7:

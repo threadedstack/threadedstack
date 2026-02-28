@@ -116,7 +116,7 @@ describe('Tier 1: Members Pagination', () => {
   })
 
   test('GET /orgs/:orgId/api-keys?userId= filters by user', async () => {
-    // Get all keys to find a real userId (must be a valid UUID for the DB column)
+    // Get all keys to find a real userId (must be a valid ID for the DB column)
     const allRes = await get<{ data: Array<{ userId?: string }> }>(
       `/orgs/${ctx.orgId}/api-keys`
     )
@@ -143,9 +143,9 @@ describe('Tier 1: Members Pagination', () => {
     }
   })
 
-  test('GET /orgs/:orgId/api-keys?userId= with valid UUID returns empty for unknown user', async () => {
-    // Use a valid UUID that doesn't match any user
-    const fakeUserId = '00000000-0000-0000-0000-000000000099'
+  test('GET /orgs/:orgId/api-keys?userId= with valid ID returns empty for unknown user', async () => {
+    // Use a valid ID that doesn't match any user
+    const fakeUserId = 'zz00000099'
     const res = await get<{ data: unknown[] }>(
       `/orgs/${ctx.orgId}/api-keys?userId=${fakeUserId}`
     )

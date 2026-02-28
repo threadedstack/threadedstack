@@ -25,6 +25,7 @@
     "check": "drizzle-kit check --config=configs/drizzle.config.ts",
     "drop": "drizzle-kit drop --config=configs/drizzle.config.ts",
     "export": "drizzle-kit export --config=configs/drizzle.config.ts",
+    "certs": "tsx -r ./configs/aliases.ts scripts/certs.ts",
     "seed": "tsx -r ./configs/aliases.ts scripts/seed.ts",
     "purge": "tsx -r ./configs/aliases.ts scripts/purge.ts",
     "biome": "biome",
@@ -47,6 +48,7 @@
     "alias-hq": "6.2.4",
     "drizzle-orm": "0.45.1",
     "module-alias": "2.2.3",
+    "nanoid": "5.1.6",
     "pg": "8.16.3"
   },
   "devDependencies": {

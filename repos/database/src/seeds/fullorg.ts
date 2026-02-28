@@ -151,7 +151,7 @@ const projectRoles = {
     type: `admin`,
     orgId: undefined,
     projectId: projects.api.id,
-    id: `20000000-0000-0000-0000-000000000010`,
+    id: Ids.role.adminApi,
     userId: users.admin.id,
     name: `API Backend Admin`,
   }),
@@ -159,7 +159,7 @@ const projectRoles = {
     type: `member`,
     orgId: undefined,
     projectId: projects.api.id,
-    id: `20000000-0000-0000-0000-000000000011`,
+    id: Ids.role.memberApi,
     userId: users.member.id,
     name: `API Backend Member`,
   }),
@@ -167,7 +167,7 @@ const projectRoles = {
     type: `member`,
     orgId: undefined,
     projectId: projects.web.id,
-    id: `20000000-0000-0000-0000-000000000012`,
+    id: Ids.role.memberWeb,
     userId: users.member.id,
     name: `Web Dashboard Member`,
   }),
@@ -175,7 +175,7 @@ const projectRoles = {
     type: `viewer`,
     orgId: undefined,
     projectId: projects.web.id,
-    id: `20000000-0000-0000-0000-000000000013`,
+    id: Ids.role.viewerWeb,
     userId: users.viewer.id,
     name: `Web Dashboard Viewer`,
   }),
@@ -266,9 +266,10 @@ const providers = {
 }
 
 // --- Secrets (all 4 exclusive arc scopes + combo) ---
+// Provider secrets use env vars from ~/.config/tdsk/values.yaml (loaded by seed.ts via loadEnvs)
 const anthropicSecret = await encryptSecret(
   `Anthropic API Key`,
-  `sk-ant-test-key-for-seeding`,
+  process.env.TDSK_ANTHROPIC_KEY || `sk-ant-test-key-for-seeding`,
   Ids.project.acmeApi
 )
 
@@ -280,19 +281,19 @@ const zaiSecret = await encryptSecret(
 
 const databaseSecret = await encryptSecret(
   `Database Password`,
-  `SuperSecureDbPassword123!`,
+  process.env.TDSK_DB_PASS || `SuperSecureDbPassword123!`,
   Ids.project.acmeApi
 )
 
 const githubSecret = await encryptSecret(
   `GitHub Token`,
-  `ghp_test_github_token_for_seeding`,
+  process.env.GIT_TOKEN || `ghp_test_github_token_for_seeding`,
   org.id
 )
 
 const openaiProviderSecret = await encryptSecret(
   `OpenAI API Key`,
-  `sk-test-openai-key-for-seeding`,
+  process.env.TDSK_OPENAI_KEY || `sk-test-openai-key-for-seeding`,
   Ids.provider.acmeOpenai
 )
 
@@ -939,7 +940,7 @@ const domains = {
     sslEnabled: true,
     projectId: undefined,
     domain: `app.threadedstack.com`,
-    id: `10000000-0000-0000-0000-000000000100`,
+    id: Ids.domain.orgDomain,
     verifiedAt: new Date(`2024-01-01T00:00:00Z`),
     sslExpiresAt: new Date(`2025-01-01T00:00:00Z`),
   }),
@@ -948,7 +949,7 @@ const domains = {
     verified: true,
     projectId: projects.api.id,
     domain: `api.threadedstack.com`,
-    id: `10000000-0000-0000-0000-000000000101`,
+    id: Ids.domain.apiDomain,
     verifiedAt: new Date(`2024-01-01T00:00:00Z`),
     sslEnabled: true,
     sslExpiresAt: new Date(`2025-01-01T00:00:00Z`),

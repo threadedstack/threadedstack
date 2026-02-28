@@ -155,7 +155,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
         type: 'faas',
         method: 'post',
         projectId,
-        options: { functionId: '00000000-0000-0000-0000-000000000000' },
+        options: { functionId: 'zz00000000' },
       }
     )
 
@@ -302,7 +302,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await api<any>(
-      `/proxy/${projectId}/00000000-0000-0000-0000-000000000000`,
+      `/proxy/${projectId}/zz00000000`,
       {
         method: 'POST',
         rawPath: true,

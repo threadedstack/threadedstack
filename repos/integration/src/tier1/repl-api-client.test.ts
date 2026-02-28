@@ -80,7 +80,7 @@ describe('Tier 1: REPL ApiClient (live)', () => {
 
     test('getOrg with bad ID throws', async () => {
       await expect(
-        client.getOrg('00000000-0000-0000-0000-000000000000')
+        client.getOrg('zz00000000')
       ).rejects.toThrow('API error')
     })
   })
@@ -229,7 +229,7 @@ describe('Tier 1: REPL ApiClient (live)', () => {
 
     test('deleteThread on non-existent thread throws', async () => {
       await expect(
-        client.deleteThread(ctx.orgId, agentId, '00000000-0000-0000-0000-000000000000')
+        client.deleteThread(ctx.orgId, agentId, 'zz00000000')
       ).rejects.toThrow('API error')
     })
   })
