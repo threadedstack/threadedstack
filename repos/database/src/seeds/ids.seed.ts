@@ -3,13 +3,16 @@
  * Some of the entities have cross-relationship dependencies
  * Defining them here allows importing them anywhere
  *
- * ID format: 2-char entity prefix + 8-digit zero-padded number (10 chars total)
+ * Entity IDs: 2-char entity prefix + 8-digit zero-padded number (10 chars total)
  * Matches nanoid(10) column format: ^[A-Za-z0-9_-]{10}$
+ *
+ * User IDs: Must remain UUID format because neon_auth.user.id is a uuid column
+ * managed by Neon Auth (not Drizzle). All userId FK references are also uuid.
  */
 
 export const Ids = {
   super: {
-    user: `su00000000`,
+    user: `00000000-0000-0000-0000-000000000000`,
   },
   agent: {
     codingAgent: `ag00000001`,
@@ -63,9 +66,9 @@ export const Ids = {
     viewer: `th00000004`,
   },
   user: {
-    admin: `us00000001`,
-    member: `us00000002`,
-    viewer: `us00000003`,
+    admin: `00000000-0000-0000-0000-000000000001`,
+    member: `00000000-0000-0000-0000-000000000002`,
+    viewer: `00000000-0000-0000-0000-000000000003`,
   },
   asset: {
     acmeLogo: `as00000001`,
