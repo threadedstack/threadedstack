@@ -25,7 +25,7 @@ export const Home = (props: THome) => {
         maxWidth='lg'
         disableGutters
       >
-        {!hasOrgs && (
+        {!hasOrgs ? (
           <Card
             variant='outlined'
             sx={{ mb: 3, backgroundColor: `action.hover` }}
@@ -53,31 +53,32 @@ export const Home = (props: THome) => {
               </Button>
             </CardContent>
           </Card>
-        )}
-
-        <Box
-          sx={{
-            display: `flex`,
-            alignItems: `center`,
-            justifyContent: `space-between`,
-            mb: 1,
-          }}
-        >
-          <Box>
-            <Text
-              variant='h5'
-              component='h1'
-              gutterBottom
+        ) : (
+          <>
+            <Box
+              sx={{
+                display: `flex`,
+                alignItems: `center`,
+                justifyContent: `space-between`,
+                mb: 1,
+              }}
             >
-              Organizations
-            </Text>
-            <Text color='text.secondary'>
-              Choose an organization to continue or create a new one
-            </Text>
-          </Box>
-        </Box>
-
-        <Orgs />
+              <Box>
+                <Text
+                  variant='h5'
+                  component='h1'
+                  gutterBottom
+                >
+                  Organizations
+                </Text>
+                <Text color='text.secondary'>
+                  Choose an organization to continue or create a new one
+                </Text>
+              </Box>
+            </Box>
+            <Orgs />
+          </>
+        )}
 
         <CreateOrgDrawer
           open={createOpen}
