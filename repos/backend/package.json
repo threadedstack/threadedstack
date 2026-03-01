@@ -30,7 +30,7 @@
     "@elastic/ecs-winston-format": "1.5.3",
     "@keg-hub/jsutils": "^10.0.0",
     "@keg-hub/parse-config": "2.1.0",
-    "@mariozechner/pi-ai": "0.52.12",
+    "@mariozechner/pi-ai": "0.55.3",
     "@polar-sh/express": "0.6.3",
     "@polar-sh/sdk": "0.42.5",
     "@tdsk/agent": "workspace:*",

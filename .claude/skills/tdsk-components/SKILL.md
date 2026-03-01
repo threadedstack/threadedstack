@@ -15,7 +15,7 @@ The **@tdsk/components** repository is a shared React component library that pro
 - Monaco Editor integration for code editing
 - Theming system with dark/light mode support
 - TypeScript-first with comprehensive type definitions
-- Built with modern tooling (tsup for bundling, vitest for testing)
+- Built with tsup for bundling, vitest for testing
 
 ## Directory Structure
 
@@ -23,118 +23,63 @@ The **@tdsk/components** repository is a shared React component library that pro
 repos/components/
 ├── src/
 │   ├── components/          # React UI components
-│   │   ├── Accordion/       # Accordion components (Accordion, AccordionAction, AccordionActions, AccordionInfoAction)
-│   │   ├── Buttons/         # Button variants (Button, IconButton, LoadingButton, DialButton, ButtonGroup)
-│   │   ├── Card/            # Card components (Card, CardActions)
+│   │   ├── Accordion/       # Accordion, AccordionAction, AccordionActions, AccordionInfoAction
+│   │   ├── Buttons/         # Button, IconButton, LoadingButton, DialButton, ButtonGroup
+│   │   ├── Card/            # Card, CardActions
 │   │   ├── ClipboardCopy/   # Clipboard copy functionality
 │   │   ├── Collapse/        # Collapsible sections
-│   │   ├── Confirm/         # Confirmation dialogs (Confirm, ConfirmDelete)
-│   │   ├── Definitions/     # Definition lists (Definitions, Definition, ComplexDefs, DefsFilters)
-│   │   ├── Dialog/          # Dialog components (Dialog, DialogActions, DraggableDialog)
-│   │   ├── Drawer/          # Side drawer panel (Drawer, DrawerActions)
-│   │   ├── Dropdown/        # Dropdown menus (Dropdown, DDHeader)
+│   │   ├── Confirm/         # Confirm, ConfirmDelete
+│   │   ├── Definitions/     # Definitions, Definition, ComplexDefs, DefsFilters
+│   │   ├── Dialog/          # Dialog, DialogActions, DraggableDialog
+│   │   ├── Drawer/          # Drawer, DrawerActions
+│   │   ├── Dropdown/        # Dropdown, DDHeader
 │   │   ├── Empty/           # Empty state components
-│   │   ├── Icons/           # Custom icon components (20+ icons)
-│   │   ├── Image/           # Image components
-│   │   ├── InfoTip/         # Info tooltips (not exported from components barrel)
-│   │   ├── InlineDom/       # Inline DOM rendering
-│   │   ├── Inputs/          # Form input components (17 exported components + style re-exports)
-│   │   ├── List/            # List components (List, ListItem)
-│   │   ├── Loading/         # Loading indicators (Loading, LoadingDots)
+│   │   ├── Icons/           # 20+ custom SVG icons
+│   │   ├── Image/           # Image components (mui-image-alter)
+│   │   ├── InfoTip/         # Info tooltips (NOT exported from barrel)
+│   │   ├── InlineDom/       # Inline DOM rendering (react-from-dom)
+│   │   ├── Inputs/          # 17 exported input components + style re-exports
+│   │   ├── List/            # List, ListItem
+│   │   ├── Loading/         # Loading, LoadingDots
 │   │   ├── MemoChildren/    # Memoized children wrapper
-│   │   ├── Menu/            # Menu components (Menu, MenuItems, MultilevelMenu, IconMenuItem, MenuBack, MenuHeader, MenuContext)
-│   │   ├── Monaco/          # Monaco code editor wrapper (Monaco, MonacoActions, LangSelect)
-│   │   ├── NotificationCount/ # Notification badges (not exported from components barrel)
+│   │   ├── Menu/            # Menu, MenuItems, MultilevelMenu, IconMenuItem, MenuBack, MenuHeader, MenuContext
+│   │   ├── Monaco/          # Monaco, MonacoActions, LangSelect
+│   │   ├── NotificationCount/ # Notification badges (NOT exported from barrel)
 │   │   ├── Portal/          # React portal wrapper
-│   │   ├── RenderType/      # Conditional rendering (RenderType, RenderIcon)
-│   │   ├── Resize/          # Resizable panels
-│   │   ├── Section/         # Section containers (Section, SectionActions)
+│   │   ├── RenderType/      # RenderType, RenderIcon
+│   │   ├── Resize/          # Resizable panels (react-resizable-panels)
+│   │   ├── Section/         # Section, SectionActions
 │   │   ├── Tabs/            # Tab components
-│   │   ├── Text/            # Text components (Text, TextElements, TextPair)
+│   │   ├── Text/            # Text, TextElements, TextPair
 │   │   └── Tooltip/         # Tooltip components
 │   ├── hooks/               # Custom React hooks
-│   │   ├── api/             # API-related hooks (useFetch, useLoadDynamic)
-│   │   ├── components/      # Component-specific hooks (9 exported, 2 non-exported)
-│   │   ├── data/            # Data management hooks (useRecall, useTimeout, useInterval, useArrToggle)
-│   │   ├── definitions/     # Definition-related hooks (useDefsFilters) — not exported from hooks barrel
-│   │   ├── dom/             # DOM interaction hooks (9 hooks)
-│   │   ├── monaco/          # Monaco editor hooks (useMonaco exported, useMonacoActions not exported)
-│   │   └── theme/           # Theme-related hooks (5 hooks)
-│   ├── contexts/            # React contexts
-│   │   └── CacheContext.tsx  # Cache context provider
-│   ├── hocs/                # Higher-order components
-│   │   ├── TooltipHoc.tsx    # Tooltip HOC
-│   │   └── OverlayScroll.tsx # Overlay scrollbar HOC
-│   ├── services/            # Service modules
-│   │   ├── storage.ts        # Storage service
-│   │   ├── clipboard.ts      # Clipboard service
-│   │   ├── cacheService.tsx   # Cache service
-│   │   ├── eventEmitter.ts   # Event emitter
-│   │   └── overlayScrollBody.tsx # Overlay scroll utilities
-│   ├── theme/               # Theming system
-│   │   ├── colors.ts        # Color palette
-│   │   ├── theme.tsx        # Theme factory (dark/light)
-│   │   ├── helpers.ts       # Theme helpers
-│   │   ├── dims.ts          # Dimension constants
-│   │   └── gutter.ts        # Spacing/gutter system
+│   │   ├── api/             # useFetch, useLoadDynamic
+│   │   ├── components/      # 9 exported, 2 non-exported
+│   │   ├── data/            # useRecall, useTimeout, useInterval, useArrToggle
+│   │   ├── definitions/     # useDefsFilters (NOT exported from hooks barrel)
+│   │   ├── dom/             # 9 hooks
+│   │   ├── monaco/          # useMonaco (exported), useMonacoActions (not exported)
+│   │   └── theme/           # 5 hooks
+│   ├── contexts/            # CacheContext provider
+│   ├── hocs/                # TooltipHoc, OverlayScroll
+│   ├── services/            # storage, clipboard, cacheService, eventEmitter, overlayScrollBody
+│   ├── theme/               # colors, theme factory, helpers, dims, gutter
 │   ├── types/               # TypeScript type definitions
-│   │   ├── accordion.types.ts
-│   │   ├── cache.types.ts
-│   │   ├── cron.types.ts
-│   │   ├── helpers.types.ts
-│   │   ├── input.types.ts
-│   │   ├── list.types.ts
-│   │   ├── monaco.types.ts
-│   │   ├── notification.types.tsx
-│   │   ├── tabs.types.ts
-│   │   └── theme.types.ts
-│   ├── utils/               # Utility functions
-│   │   ├── omit.ts          # Object property omission
-│   │   ├── date.ts          # Date utilities
-│   │   ├── inputs.tsx       # Input utilities
-│   │   ├── helpers.ts       # General helpers
-│   │   ├── customEvt.tsx    # Custom event utilities
-│   │   ├── isValidFuncComp.tsx # Component validation
-│   │   ├── overlayScrollOpts.tsx # Scroll options
-│   │   ├── cron.ts          # Cron utilities (not exported from utils barrel)
-│   │   ├── fetcher.ts       # Fetch utility (not exported from utils barrel)
-│   │   └── input.tsx        # Input utility (not exported from utils barrel)
-│   ├── constants/           # Constants
-│   │   ├── values.ts        # Value constants
-│   │   ├── monaco.ts        # Monaco editor constants
-│   │   ├── events.ts        # Event constants
-│   │   └── elements.ts      # Element constants
+│   ├── utils/               # omit, date, inputs, helpers, customEvt, isValidFuncComp, overlayScrollOpts
+│   ├── constants/           # values, monaco, events, elements
 │   └── index.ts             # Main export barrel
-├── configs/                 # Configuration files
-│   ├── aliases.ts           # Module aliases (uses alias-hq)
-│   ├── biome.json           # Biome linter/formatter config
-│   └── vitest.config.ts     # Vitest testing config
-├── scripts/                 # Build/test scripts
-│   ├── getEntries.ts        # Entry point generation
-│   ├── setupTests.ts        # Test setup
-│   ├── loadEnvs.ts          # Environment loading
-│   └── addToProcess.ts      # Process utilities
+├── configs/                 # biome.json, vitest.config.ts, aliases.ts
+├── scripts/                 # getEntries, setupTests, loadEnvs, addToProcess
 ├── package.json
-└── tsconfig.json            # TypeScript configuration
+└── tsconfig.json
 ```
 
-**Note on barrel exports:** Several components, hooks, and utils have source files that are NOT re-exported from their parent `index.ts` barrels. These are noted inline above. The `InfoTip/` and `NotificationCount/` components exist but are not exported from `src/components/index.ts`. The `definitions/` hooks category exists but is not exported from `src/hooks/index.ts`.
+**Note on barrel exports:** Several components, hooks, and utils are NOT re-exported from their parent `index.ts` barrels. `InfoTip/` and `NotificationCount/` components are not exported from `src/components/index.ts`. The `definitions/` hooks category is not exported from `src/hooks/index.ts`. These must be imported directly from their file paths.
 
-## Key Files
+## Build
 
-### Core Entry Points
-- **`src/index.ts`** - Main export barrel that re-exports all components, hooks, utils, types, constants, contexts, hocs, services, and theme
-- **`package.json`** - Package configuration with build scripts and dependencies
-- **`tsconfig.json`** - TypeScript configuration with path aliases
-
-### Configuration
-- **`configs/biome.json`** - Biome linter and formatter configuration
-- **`configs/vitest.config.ts`** - Vitest test runner configuration
-- **`configs/aliases.ts`** - Module alias configuration using alias-hq
-
-### Build
-- **Build tool**: tsup (referenced in build script as `tsup --config ./configs/tsup.config.ts`)
-- **Build output**: `dist/` directory (not in repo)
+- **Build tool**: tsup (`tsup --config ./configs/tsup.config.ts`)
+- **Build output**: `dist/` directory
 - **Main entry**: `dist/index.js`
 - **ESM entry**: `dist/esm/index.js`
 - **Types**: `dist/index.d.ts`
@@ -188,29 +133,14 @@ Additional files not exported from barrel: `AutoInput.tsx`, `SelectInputValue.ts
 ### Icons (`src/components/Icons/`)
 Custom SVG icons (20 exported from barrel):
 - **Icon** - Base icon component
-- **CreationIcon** - Create/add icon
-- **ExpandIcon** - Expand/collapse icon
-- **ExportIcon** - Export icon
-- **GitlabIcon** - GitLab logo
-- **GridPlusIcon** - Grid plus icon
-- **ImportIcon** - Import icon
-- **ItemListIcon** - Item list icon
-- **JsonCodeIcon** - JSON code icon
-- **MCPIcon** - MCP logo
-- **NamedIcon** - Generic icon by name (uses MUI icon library, also exported separately)
-- **PencilCircleIcon** - Pencil circle icon
-- **PlayCircleIcon** - Play circle icon
-- **RobotIcon** - Robot/AI icon
-- **RobotOutlineIcon** - Robot outline icon
-- **StarCircleIcon** - Star circle icon
-- **StarPointsIcon** - Star points icon
-- **StarPointsCircleIcon** - Star points circle icon
-- **StopCircleIcon** - Stop circle icon
-- **TSIcon** - TypeScript logo
-- **VercelIcon** - Vercel logo
+- **CreationIcon**, **ExpandIcon**, **ExportIcon**, **GitlabIcon**, **GridPlusIcon**, **ImportIcon**
+- **ItemListIcon**, **JsonCodeIcon**, **MCPIcon**, **NamedIcon** (generic icon by name, uses MUI icon library)
+- **PencilCircleIcon**, **PlayCircleIcon**, **RobotIcon**, **RobotOutlineIcon**
+- **StarCircleIcon**, **StarPointsIcon**, **StarPointsCircleIcon**, **StopCircleIcon**
+- **TSIcon**, **VercelIcon**
 
 ### Layout Components
-- **Accordion** - Collapsible accordion panels (includes AccordionAction, AccordionActions, AccordionInfoAction)
+- **Accordion** - Collapsible panels (includes AccordionAction, AccordionActions, AccordionInfoAction)
 - **Card** - Card container (CardActions exists but is not exported from Card barrel)
 - **Section** - Section container with SectionActions
 - **Tabs** - Tab navigation
@@ -282,32 +212,19 @@ Not exported from barrel (files exist but not in `index.ts`):
 
 ### Monaco Editor Hooks (`src/hooks/monaco/`)
 - **useMonaco** - Monaco editor configuration and state management (exported)
-- **useMonacoActions** - Monaco actions management (file exists, not exported from barrel)
+- **useMonacoActions** - Monaco actions management (not exported from barrel)
 
 ### Definition Hooks (`src/hooks/definitions/`)
-- **useDefsFilters** - Definition filtering
-
-**Note:** The `definitions/` hook category is NOT exported from the main `src/hooks/index.ts` barrel. These hooks must be imported directly from their file path.
+- **useDefsFilters** - Definition filtering (NOT exported from main hooks barrel; import directly)
 
 ## Architecture
 
 ### Component Structure Pattern
 ```typescript
-// Component file structure
 ComponentName/
 ├── ComponentName.tsx         # Main component
 ├── ComponentName.styles.tsx  # Styled components (@emotion/styled)
 └── index.ts                  # Export barrel
-```
-
-### Export Pattern
-All modules use barrel exports (`index.ts`) for clean imports:
-```typescript
-// src/components/index.ts
-export * from './Tabs'
-export * from './List'
-export * from './Menu'
-// ... etc
 ```
 
 ### Styling Approach
@@ -316,112 +233,33 @@ export * from './Menu'
 - **Theme Factory** - `makeTheme(variant, breakpoints)` creates theme instances
 - **Component Overrides** - MUI component default props and styles are customized in theme
 
-### Type Safety
-- TypeScript-first with strict typing disabled for compatibility
-- Custom type definitions in `src/types/`
-- Type exports alongside component exports
-
 ## Key Patterns
 
-### 1. Component Composition
-Components are designed for composition with flexible prop types:
-```typescript
-<Monaco
-  title="Code Editor"
-  language="typescript"
-  value={code}
-  onChange={handleChange}
-  showActions
-  placeholder="Enter code..."
-/>
-```
-
-### 2. Theme Integration
-All components integrate with MUI theme system:
+### Theme Integration
 ```typescript
 import { makeTheme } from '@tdsk/components'
 const darkTheme = makeTheme('dark')
 const lightTheme = makeTheme('light')
 ```
 
-### 3. Prop Patterns
+### Prop Patterns
 - **Render Props** - Components accept render functions for customization
 - **Compound Components** - Related components (Dialog + DialogActions, Drawer + DrawerActions)
 - **Controlled/Uncontrolled** - Inputs support both patterns
 - **Forward Refs** - Components forward refs to underlying elements
 
-### 4. MUI Integration
-- Extends MUI components with custom styling
-- Uses MUI's `sx` prop for inline styling
-- Custom theme palette extensions
-
-### 5. Service Layer
-Services provide singleton utilities:
+### Service Layer
 ```typescript
 import { GlobalCache } from '@tdsk/components'
 GlobalCache.set('key', value)
 const cached = GlobalCache.get('key')
 ```
 
-### 6. HOC Pattern
-Higher-order components for cross-cutting concerns:
+### HOC Pattern
 ```typescript
 import { TooltipHoc, OverlayScroll } from '@tdsk/components'
 const Enhanced = TooltipHoc(MyComponent)
 ```
-
-## Dependencies
-
-### Core UI Dependencies
-- **@mui/material** (6.1.2) - Material-UI component library
-- **@mui/icons-material** (6.1.2) - Material-UI icons
-- **@mui/lab** (6.0.0-beta.10) - Experimental MUI components
-- **@emotion/react** (11.13.3) - CSS-in-JS styling
-- **@emotion/styled** (11.13.0) - Styled components
-- **react** (^18.3.1) - React framework
-- **react-dom** (^18.3.1) - React DOM
-
-### Specialized Components
-- **@monaco-editor/react** (4.6.0) - Monaco code editor React wrapper
-- **mui-chips-input** (4.0.1) - Chips input component
-- **mui-image-alter** (3.2.0) - Image component with alterations
-- **overlayscrollbars** (2.11.0) - Custom scrollbars
-- **overlayscrollbars-react** (0.5.6) - React wrapper for overlay scrollbars
-- **react-from-dom** (0.7.5) - Convert DOM to React components
-- **react-resizable-panels** (3.0.1) - Resizable panel layout
-
-### Utilities
-- **@keg-hub/jsutils** (^10.0.0) - JavaScript utilities (cls, etc.)
-
-### Dev Dependencies
-- **alias-hq** (6.2.4) - Module alias management
-- **typescript** (5.7.3) - TypeScript compiler
-- **vitest** (1.6.1) - Test runner
-- **@testing-library/react** (^14.2.1) - React testing utilities
-- **@testing-library/jest-dom** (^6.4.2) - Jest DOM matchers
-- **jsdom** (^24.0.0) - DOM testing environment
-- **glob** (10.3.10) - File globbing
-- **vite-tsconfig-paths** (4.3.2) - Vite TypeScript path support
-
-## Commands
-
-### Build & Development
-```bash
-pnpm build              # Build with tsup
-pnpm build:watch        # Build in watch mode
-pnpm clean              # Remove dist/
-```
-
-### Testing
-```bash
-pnpm test               # Run vitest tests
-pnpm types              # Type-check with tsc --noEmit
-```
-
-### Commands Notes
-
-* Linting and formatting are automatic, so `pnpm lint` and `pnpm format` commands should be ignored.
-
 
 ## Integration Points
 
@@ -430,7 +268,6 @@ pnpm types              # Type-check with tsc --noEmit
 
 ### Import Pattern
 ```typescript
-// In consuming applications (e.g., repos/admin/)
 import {
   Button,
   Dialog,
@@ -442,12 +279,8 @@ import {
 } from '@tdsk/components'
 ```
 
-### Path Aliases (in consumers)
-The admin repo uses `@TAF/*` aliases via alias-hq, which resolve `@tdsk/components` imports automatically through the monorepo workspace.
-
-### Theme Integration
+### Theme Integration in Consumers
 ```typescript
-// In consuming app (e.g., admin)
 import { makeTheme } from '@tdsk/components'
 import { ThemeProvider } from '@mui/material/styles'
 
@@ -538,38 +371,12 @@ gutter.qpx     // Quarter padding
 gutter.tpx     // Third padding
 ```
 
-## TypeScript Configuration
-
-### Path Aliases
-```json
-{
-  "@TSC": ["./src"],
-  "@TSC/*": ["./src/*"],
-  "@ROOT": ["../../"],
-  "@ROOT/*": ["../../*"],
-  "@keg-hub/jsutils": ["./node_modules/@keg-hub/jsutils/build/esm"],
-  "@keg-hub/jsutils/*": ["./node_modules/@keg-hub/jsutils/build/esm/*"],
-  "@keg-hub/jsutils/src/node": ["./node_modules/@keg-hub/jsutils/build/esm/node"],
-  "@keg-hub/jsutils/src/node/*": ["./node_modules/@keg-hub/jsutils/build/esm/node"]
-}
-```
-
-### Module Resolution
-- **Module resolution**: `bundler` (modern resolution strategy)
-- **JSX**: `react-jsx` (automatic runtime)
-- **Strict**: `false` (for compatibility)
-- **Target**: ESNext with DOM libraries
-- **Extends**: Root `tsconfig.json` at `../../tsconfig.json`
-
 ## Testing
 
-### Test Setup
-- **Runner**: Vitest
-- **Environment**: jsdom (for DOM testing)
+- **Runner**: Vitest with jsdom environment
 - **Utilities**: @testing-library/react, @testing-library/jest-dom
 - **Config**: `configs/vitest.config.ts`
 
-### Test Pattern
 ```typescript
 import { render, screen } from '@testing-library/react'
 import { Button } from './Button'
@@ -579,88 +386,3 @@ test('renders button with text', () => {
   expect(screen.getByText('Click me')).toBeInTheDocument()
 })
 ```
-
-## Best Practices
-
-### 1. Component Development
-- Keep components under 300 lines
-- Use barrel exports for clean imports
-- Provide TypeScript types for all props
-- Support both controlled and uncontrolled patterns for inputs
-
-### 2. Styling
-- Use emotion/styled for component-specific styles
-- Leverage MUI theme system for consistency
-- Use `sx` prop for one-off styling
-- Avoid inline styles except for dynamic values
-
-### 3. Hooks
-- Keep hooks focused on single responsibility
-- Document hook dependencies and effects
-- Provide TypeScript types for return values
-- Use memoization for expensive computations
-
-### 4. Performance
-- Use React.memo for expensive components
-- Memoize callbacks with useCallback
-- Avoid unnecessary re-renders
-- Leverage the MemoChildren component wrapper
-
-### 5. Accessibility
-- Use semantic HTML elements
-- Provide ARIA labels where needed
-- Ensure keyboard navigation works
-- Test with screen readers
-
-## Common Workflows
-
-### Adding a New Component
-1. Create component directory: `src/components/NewComponent/`
-2. Create main component: `NewComponent.tsx`
-3. Create styles: `NewComponent.styles.tsx` (if needed)
-4. Create types: Update `src/types/` if needed
-5. Create index: `index.ts` with exports
-6. Export from `src/components/index.ts`
-7. Test the component
-8. Build and verify types
-
-### Adding a New Hook
-1. Determine category (dom/api/components/data/theme)
-2. Create hook file: `src/hooks/{category}/useHookName.ts`
-3. Export from category index: `src/hooks/{category}/index.ts`
-4. Test the hook
-5. Document usage and parameters
-
-### Updating Theme
-1. Modify colors in `src/theme/colors.ts`
-2. Update theme factory in `src/theme/theme.tsx`
-3. Update component overrides if needed
-4. Test in both light and dark modes
-5. Verify MUI component integration
-
-### Working with Monaco
-1. Import Monaco component
-2. Configure language and options
-3. Handle value changes
-4. Customize actions toolbar
-5. Integrate with form state
-
-## Development Tips
-
-### IDE Setup
-- Use TypeScript language server
-- Configure path aliases in IDE
-- Enable auto-import for `@tdsk/components`
-- Use Biome extension for linting/formatting
-
-### Debugging
-- Use React DevTools for component inspection
-- Use browser DevTools for style debugging
-- Check MUI theme in DevTools
-- Verify cache state with CacheContext
-
-### Performance Monitoring
-- Use React Profiler to identify slow components
-- Monitor re-renders with React DevTools
-- Check bundle size with build output
-- Profile Monaco editor performance

@@ -189,11 +189,11 @@ importers:
         specifier: 2.1.0
         version: 2.1.0
       '@mariozechner/pi-agent-core':
-        specifier: 0.52.12
-        version: 0.52.12(ws@8.19.0)(zod@4.3.5)
+        specifier: 0.55.3
+        version: 0.55.3(ws@8.19.0)(zod@4.3.5)
       '@mariozechner/pi-ai':
-        specifier: 0.52.12
-        version: 0.52.12(ws@8.19.0)(zod@4.3.5)
+        specifier: 0.55.3
+        version: 0.55.3(ws@8.19.0)(zod@4.3.5)
       '@tdsk/database':
         specifier: workspace:*
         version: link:../database
@@ -250,8 +250,8 @@ importers:
         specifier: 2.1.0
         version: 2.1.0
       '@mariozechner/pi-ai':
-        specifier: 0.52.12
-        version: 0.52.12(ws@8.19.0)(zod@4.3.5)
+        specifier: 0.55.3
+        version: 0.55.3(ws@8.19.0)(zod@4.3.5)
       '@polar-sh/express':
         specifier: 0.6.3
         version: 0.6.3(express@5.1.0)
@@ -2448,12 +2448,12 @@ packages:
   '@keg-hub/spawn-cmd@0.3.2':
     resolution: {integrity: sha512-j3NgwuE6NYT01FApe+XpthsYh1pOy9zf95kre0Re5nVQboEWjIgk84qAg30ypi75gucll8wWUuVraHNCYT5FeA==}
 
-  '@mariozechner/pi-agent-core@0.52.12':
-    resolution: {integrity: sha512-fBQdwLMvTteHUP9nJxMjtMpEHH4I8tdGnkerOoCFnS9y03AHdqy96IhtL+zZjw9N3dmVCOVqh8gwGjAGLZT31Q==}
+  '@mariozechner/pi-agent-core@0.55.3':
+    resolution: {integrity: sha512-rqbfpQ9BrP6BDiW+Ps3A8Z/p9+Md/pAfc/ECq8JP6cwnZL/jQgU355KWZKtF8zM9az1p0Q9hIWi9cQygVo6Auw==}
     engines: {node: '>=20.0.0'}
 
-  '@mariozechner/pi-ai@0.52.12':
-    resolution: {integrity: sha512-oF7OMJu1aUx7MXJeJoJ/3JDXzD2a5SqK9nHVK3mCA8DRQaykv9g+wcFZaANcCl0vAR2QSDr5KN3ZMARlFNWiVg==}
+  '@mariozechner/pi-ai@0.55.3':
+    resolution: {integrity: sha512-f9jWoDzJR9Wy/H8JPMbjoM4WvVUeFZ65QdYA9UHIfoOopDfwWE8F8JHQOj5mmmILMacXuzsqA3J7MYqNWZRvvQ==}
     engines: {node: '>=20.0.0'}
     hasBin: true
 
@@ -5182,6 +5182,7 @@ packages:
   basic-ftp@5.1.0:
     resolution: {integrity: sha512-RkaJzeJKDbaDWTIPiJwubyljaEPwpVWkm9Rt5h9Nd6h7tEXTJ3VB4qxdZBioV7JO5yLUaOKwz7vDOzlncUsegw==}
     engines: {node: '>=10.0.0'}
+    deprecated: Security vulnerability fixed in 5.2.0, please upgrade
 
   before-after-hook@2.2.3:
     resolution: {integrity: sha512-NzUnlZexiaH/46WDhANlyR2bXRopNg4F/zuSA3OpZnllCUgRaOF2znDioDWrmbNVsuZk6l9pMquQB38cfBZwkQ==}
@@ -10623,7 +10624,7 @@ snapshots:
       '@aws-crypto/sha256-js': 5.2.0
       '@aws-crypto/supports-web-crypto': 5.2.0
       '@aws-crypto/util': 5.2.0
-      '@aws-sdk/types': 3.969.0
+      '@aws-sdk/types': 3.973.1
       '@aws-sdk/util-locate-window': 3.965.2
       '@smithy/util-utf8': 2.3.0
       tslib: 2.8.1
@@ -10631,7 +10632,7 @@ snapshots:
   '@aws-crypto/sha256-js@5.2.0':
     dependencies:
       '@aws-crypto/util': 5.2.0
-      '@aws-sdk/types': 3.969.0
+      '@aws-sdk/types': 3.973.1
       tslib: 2.8.1
 
   '@aws-crypto/supports-web-crypto@5.2.0':
@@ -10640,7 +10641,7 @@ snapshots:
 
   '@aws-crypto/util@5.2.0':
     dependencies:
-      '@aws-sdk/types': 3.969.0
+      '@aws-sdk/types': 3.973.1
       '@smithy/util-utf8': 2.3.0
       tslib: 2.8.1
 
@@ -13593,9 +13594,9 @@ snapshots:
       shell-exec: 1.0.2
       tree-kill: 1.2.2
 
-  '@mariozechner/pi-agent-core@0.52.12(ws@8.19.0)(zod@4.3.5)':
+  '@mariozechner/pi-agent-core@0.55.3(ws@8.19.0)(zod@4.3.5)':
     dependencies:
-      '@mariozechner/pi-ai': 0.52.12(ws@8.19.0)(zod@4.3.5)
+      '@mariozechner/pi-ai': 0.55.3(ws@8.19.0)(zod@4.3.5)
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
       - aws-crt
@@ -13605,7 +13606,7 @@ snapshots:
       - ws
       - zod
 
-  '@mariozechner/pi-ai@0.52.12(ws@8.19.0)(zod@4.3.5)':
+  '@mariozechner/pi-ai@0.55.3(ws@8.19.0)(zod@4.3.5)':
     dependencies:
       '@anthropic-ai/sdk': 0.73.0(zod@4.3.5)
       '@aws-sdk/client-bedrock-runtime': 3.990.0

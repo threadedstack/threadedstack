@@ -14,45 +14,30 @@ The **Sandbox** repo (`repos/sandbox`, `@tdsk/sandbox`) is a pluggable execution
 - **IsolateRunner** - V8 isolate wrapper providing Node.js-like APIs (fs, path, subprocess) in memory-isolated contexts
 
 **Key Characteristics**:
-- **Type**: Sandbox execution library (no server, no CLI)
+- **Type**: Sandbox execution library (no server, no CLI, no build step — consumed as TypeScript source)
 - **Pattern**: Factory + Strategy - `createSandboxProvider(type)` returns the right implementation
 - **Extensible**: Add new providers by implementing `ISandboxProvider` and registering in the factory
 - **Graceful Degradation**: Local provider works without `isolated-vm` (just shell/fs, no JS isolation)
 - **Size**: ~570 LOC across 4 source files + barrel export
 
-**Key Problem Solved**: Provides a unified API for executing code in isolated environments, supporting both cloud (E2B Firecracker) and local (just-bash + V8) backends with the same interface.
-
 ## Directory Structure
 
 ```
 repos/sandbox/
-├── configs/
-│   ├── aliases.ts              # Path alias configuration
-│   ├── biome.json              # Biome linter/formatter config
-│   └── vitest.config.ts        # Vitest test runner config
+├── configs/                       # aliases, biome, vitest config
 ├── src/
-│   ├── index.ts                # Barrel export (factory, e2b, local, isolate)
-│   ├── factory.ts              # createSandboxProvider() factory function
-│   ├── factory.test.ts         # Factory tests (7 tests)
-│   ├── isolate.ts              # IsolateRunner — V8 isolation wrapper (~325 LOC)
-│   ├── isolate.test.ts         # IsolateRunner tests (21 tests)
-│   ├── e2b.ts                  # E2bSandbox + E2bSandboxProvider (~85 LOC)
-│   ├── e2b.test.ts             # E2B tests (11 tests)
-│   ├── local.ts                # LocalSandbox + LocalSandboxProvider (~133 LOC)
-│   └── local.test.ts           # Local sandbox tests (18 tests)
+│   ├── index.ts                   # Barrel export (factory, e2b, local, isolate)
+│   ├── factory.ts                 # createSandboxProvider() factory function
+│   ├── factory.test.ts            # Factory tests (7 tests)
+│   ├── isolate.ts                 # IsolateRunner — V8 isolation wrapper (~325 LOC)
+│   ├── isolate.test.ts            # IsolateRunner tests (21 tests)
+│   ├── e2b.ts                     # E2bSandbox + E2bSandboxProvider (~85 LOC)
+│   ├── e2b.test.ts                # E2B tests (11 tests)
+│   ├── local.ts                   # LocalSandbox + LocalSandboxProvider (~133 LOC)
+│   └── local.test.ts              # Local sandbox tests (18 tests)
 ├── package.json
 └── tsconfig.json
 ```
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `src/factory.ts` | `createSandboxProvider()` - main entry point, maps type string to provider |
-| `src/isolate.ts` | IsolateRunner - V8 isolate with fs/path/subprocess shims (~325 LOC) |
-| `src/e2b.ts` | E2bSandbox + E2bSandboxProvider - Firecracker microVM wrapper |
-| `src/local.ts` | LocalSandbox + LocalSandboxProvider - just-bash + optional isolated-vm |
-| `src/index.ts` | Barrel export for all public APIs |
 
 ## Architecture
 
@@ -118,7 +103,6 @@ export const createSandboxProvider = (type: TSandboxProviderType): ISandboxProvi
 }
 ```
 
-- Uses `Map<TSandboxProviderType, () => ISandboxProvider>` (not Record/object)
 - Returns fresh instance each call (not singleton)
 - Throws for unknown types
 - Extensible: add new providers with `providers.set()`
@@ -127,17 +111,13 @@ export const createSandboxProvider = (type: TSandboxProviderType): ISandboxProvi
 
 Wraps the E2B SDK for Firecracker microVM sandboxes.
 
-**E2bSandboxProvider**:
 ```typescript
 class E2bSandboxProvider implements ISandboxProvider {
   readonly type = 'e2b' as const
   create = async (config: TSandboxConfig): Promise<ISandbox>
   // Creates E2B microVM with template, apiKey, timeout, envVars from config
 }
-```
 
-**E2bSandbox**:
-```typescript
 class E2bSandbox implements ISandbox {
   exec(command, args?)    // → sandbox.commands.run(cmd)
   readFile(path)          // → sandbox.files.read(path)
@@ -145,31 +125,17 @@ class E2bSandbox implements ISandbox {
   listDir(path)           // → sandbox.files.list(path), prefixes dirs with [DIR]
   deleteFile(path)        // → sandbox.files.remove(path)
   mkdir(path)             // → sandbox.files.makeDir(path)
-  fileExists(path)        // → try/catch on sandbox.files.read(path)
+  fileExists(path)        // → try/catch on sandbox.files.read(path) (no native exists)
   close()                 // → sandbox.kill()
 }
 ```
 
-**fileExists Implementation** (E2B SDK lacks native `exists()` method):
-```typescript
-fileExists = async (path: string): Promise<boolean> => {
-  try {
-    await this.sandbox.files.read(path)
-    return true
-  } catch {
-    return false
-  }
-}
-```
-
-- All operations delegate to E2B SDK (REST API to remote microVM)
 - Config accepts: `template`, `apiKey`, `timeout` (-> `timeoutMs`), `envVars` (-> `envs`)
 
 ### 3. LocalSandboxProvider (`src/local.ts`)
 
 Uses just-bash virtual shell with optional V8 isolation for local execution.
 
-**LocalSandboxProvider**:
 ```typescript
 class LocalSandboxProvider implements ISandboxProvider {
   readonly type = 'local' as const
@@ -178,10 +144,7 @@ class LocalSandboxProvider implements ISandboxProvider {
   // Reads memory limit from config.options?.memory (number, default: 128 MB)
   // Optionally initializes IsolateRunner (graceful fallback if unavailable)
 }
-```
 
-**LocalSandbox**:
-```typescript
 class LocalSandbox implements ISandbox {
   constructor(bash, fs, isolateRunner?, cwd = '/workspace')
   exec(command, args?)    // → bash.exec(cmd, {cwd})
@@ -195,7 +158,7 @@ class LocalSandbox implements ISandbox {
 }
 ```
 
-**Graceful Degradation**: If `isolated-vm` is not available (e.g., no native compilation), the provider logs a warning and continues without JS code isolation:
+**Graceful Degradation**: If `isolated-vm` is not available, the provider logs a warning and continues without JS code isolation:
 
 ```typescript
 try {
@@ -221,12 +184,6 @@ class IsolateRunner {
 }
 ```
 
-**Memory Configuration**:
-- Read from `config.options?.memory` (number) in LocalSandboxProvider
-- Default: 128 MB
-- Passed directly to IsolateRunner constructor
-- Controls V8 isolate heap size limit
-
 **Shims Provided** (Node.js API compatibility inside the isolate):
 
 | Module | APIs | Implementation |
@@ -239,7 +196,7 @@ class IsolateRunner {
 **Shim Compilation**: Shims are compiled in a private `#compile()` method called at the end of `init()`. Each shim is compiled as an `ivm.Module`, instantiated in the context, evaluated, and stored in `#shims` Map keyed by module name (both bare and `node:` prefixed).
 
 **Key Design Decisions**:
-- **Lazy loading**: `isolated-vm` loaded via a module-level `loadIvm()` helper using dynamic `import()` on first `init()` call (avoids crashes when native addon unavailable)
+- **Lazy loading**: `isolated-vm` loaded via a module-level `loadIvm()` helper using dynamic `import()` on first `init()` call
 - **Console capture**: `console.log/error/warn/info` intercepted via `_log` callback, output collected in `#output[]`
 - **Module system**: User code compiled as ES module (`user-code.js`), imports resolved via shim map; default export retrieved after evaluation
 - **Memory limit**: Configurable (default 128 MB)
@@ -247,21 +204,7 @@ class IsolateRunner {
 
 ## Key Patterns
 
-### 1. Strategy Pattern
-
-Both providers implement `ISandboxProvider` with the same interface, swappable at runtime:
-
-```typescript
-const provider = createSandboxProvider('local')  // or 'e2b'
-const sandbox = await provider.create(config)
-await sandbox.exec('ls', ['-la'])
-```
-
-### 2. Adapter Pattern
-
-`IsolateRunner` adapts `isolated-vm` to work with just-bash's filesystem API, providing familiar Node.js APIs inside the V8 isolate.
-
-### 3. Graceful Resource Management
+### 1. Graceful Resource Management
 
 All components handle cleanup safely:
 
@@ -283,7 +226,7 @@ async close() {
 }
 ```
 
-### 4. Lazy Initialization
+### 2. Lazy Initialization
 
 `IsolateRunner.init()` is idempotent (checks `#initialized` flag) and only loads `isolated-vm` on first call:
 
@@ -296,7 +239,7 @@ async init() {
 }
 ```
 
-### 5. Directory Listing Convention
+### 3. Directory Listing Convention
 
 Both providers prefix directory entries with `[DIR]` for type identification:
 
@@ -305,46 +248,7 @@ const entries = await sandbox.listDir('/workspace')
 // Returns: ['file.ts', '[DIR] src', '[DIR] node_modules']
 ```
 
-## Dependencies
-
-### Core Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `@tdsk/domain` | workspace | ISandbox, ISandboxProvider, TSandboxConfig types |
-| `e2b` | ^1.2.0 | Firecracker microVM SDK (cloud provider) |
-| `isolated-vm` | 6.0.2 | V8 isolate wrapper (native addon) |
-| `just-bash` | 2.5.5 | Virtual shell + in-memory filesystem |
-| `alias-hq` | 6.2.4 | Path alias resolution |
-
-### Development Dependencies
-
-| Package | Purpose |
-|---------|---------|
-| `@biomejs/biome` | Linting and formatting |
-| `@types/node` | Node.js type definitions |
-| `typescript` | Type checking |
-| `vitest` | Test framework |
-| `vite-tsconfig-paths` | Path alias resolution in tests |
-
-## Commands
-
-### Testing
-
-```bash
-pnpm test            # Run vitest (57 tests, 4 files)
-pnpm types           # TypeScript type checking (tsc --noEmit)
-```
-
-### Commands Notes
-
-* Linting and formatting run automatically via Biome - `pnpm lint` and `pnpm format` should be ignored.
-* No build step - consumed as TypeScript source via workspace path aliases.
-* `isolated-vm` requires native compilation. If it fails to install, the local provider still works (just without JS code isolation).
-
-## Testing
-
-### Current Coverage (57 tests, 4 files)
+## Testing (57 tests, 4 files)
 
 | Test File | Tests | What's Covered |
 |-----------|-------|----------------|
@@ -353,55 +257,24 @@ pnpm types           # TypeScript type checking (tsc --noEmit)
 | `src/e2b.test.ts` | 11 | exec, readFile, writeFile, listDir, deleteFile, mkdir, fileExists, close |
 | `src/local.test.ts` | 18 | exec, readFile, writeFile, listDir, deleteFile, mkdir, fileExists, close, provider creation |
 
-**Testing Strategy**:
 - All external dependencies mocked (`isolated-vm`, `e2b`, `just-bash`)
-- Vitest with Node.js environment
 - Co-located test files (`.test.ts` adjacent to source)
 - Covers happy paths, error cases, and edge cases (null runner, double dispose)
 
 ## Integration Points
 
 ### With Agent (`@tdsk/agent`)
-
 - Agent's `AgentRunner` calls `createSandboxProvider(type)` to get a sandbox
 - Sandbox used for code execution during ReAct loop
-- `ISandbox.exec()` replaces the old Executor shell bridge
 
 ### With Domain (`@tdsk/domain`)
-
-- `ISandbox` - Core sandbox interface
-- `ISandboxProvider` - Provider interface (type + create)
-- `TSandboxConfig` - Configuration passed to `create()`
-- `TSandboxResult` - Result from `exec()` (stdout, stderr, exitCode)
-- `TSandboxProviderType` - Union type (`'e2b' | 'local'`)
+- `ISandbox`, `ISandboxProvider`, `TSandboxConfig`, `TSandboxResult`, `TSandboxProviderType` types
 
 ### With REPL (`@tdsk/repl`)
-
 - REPL's `LocalAgentExecutor` passes sandbox config to AgentRunner
-- Sandbox type selected based on agent's resolved configuration
 
 ### With Backend (`@tdsk/backend`)
-
 - Backend resolves agent sandbox config and passes it to execution context
-- Sandbox provider type stored in agent configuration
-
-## Path Aliases
-
-From `tsconfig.json`:
-
-```json
-{
-  "@ROOT": ["../../"],
-  "@TSB": ["./src"],
-  "@TSB/*": ["./src/*"],
-  "@TSB/configs": ["./configs"],
-  "@TSB/configs/*": ["./configs/*"],
-  "@TDM": ["../domain/src"],
-  "@TDM/*": ["../domain/src/*"],
-  "@tdsk/domain": ["../domain/src"],
-  "@tdsk/domain/*": ["../domain/src/*"]
-}
-```
 
 ## Development Notes
 
@@ -409,14 +282,7 @@ From `tsconfig.json`:
 
 1. Create a new file in `src/` (e.g., `docker.ts`)
 2. Implement `ISandboxProvider` and `ISandbox` interfaces
-3. Register in `src/factory.ts` by adding to the `providers` Map:
-   ```typescript
-   const providers = new Map<TSandboxProviderType, () => ISandboxProvider>([
-     [`e2b`, () => new E2bSandboxProvider()],
-     [`local`, () => new LocalSandboxProvider()],
-     [`docker`, () => new DockerSandboxProvider()],  // Add here
-   ])
-   ```
+3. Register in `src/factory.ts` by adding to the `providers` Map
 4. Export from `src/index.ts`
 5. Add `TSandboxProviderType` union member in `@tdsk/domain`
 

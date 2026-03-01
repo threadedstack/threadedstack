@@ -105,17 +105,18 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 
 | Directory | Role | Tech | Skill |
 |-----------|------|------|-------|
-| `proxy/` | Auth Gateway - JWT/JWKS validation, backend proxying | Express 5, jose, http-proxy-middleware | `.claude/skills/proxy/SKILL.md` |
-| `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/backend/SKILL.md` |
-| `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/admin/SKILL.md` |
-| `agent/` | Headless AI Agent - pi-mono integration, AgentRunner, tool execution | TypeScript, streaming SSE | `.claude/skills/agent/SKILL.md` |
-| `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/database/SKILL.md` |
-| `domain/` | Shared types, models, utilities | TypeScript | `.claude/skills/domain/SKILL.md` |
-| `components/` | Shared React components/hooks | React, MUI | `.claude/skills/components/SKILL.md` |
-| `logger/` | Winston-based logging service | Winston | `.claude/skills/logger/SKILL.md` |
-| `cli/` | Developer CLI for project management | Node.js | `.claude/skills/cli/SKILL.md` |
-| `repl/` | Terminal REPL for AI agent interaction | Bun, @keg-hub/args-parse, marked | `.claude/skills/repl/SKILL.md` |
-| `sandbox/` | Pluggable sandbox execution layer | isolated-vm, E2B, just-bash | `.claude/skills/sandbox/SKILL.md` |
+| `proxy/` | Auth Gateway - JWT/JWKS validation, backend proxying | Express 5, jose, http-proxy-middleware | `.claude/skills/tdsk-proxy/SKILL.md` |
+| `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/tdsk-backend/SKILL.md` |
+| `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/tdsk-admin/SKILL.md` |
+| `agent/` | Headless AI Agent - pi-mono integration, AgentRunner, tool execution | TypeScript, streaming SSE | `.claude/skills/tdsk-agent/SKILL.md` |
+| `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/tdsk-database/SKILL.md` |
+| `domain/` | Shared types, models, utilities | TypeScript | `.claude/skills/tdsk-domain/SKILL.md` |
+| `components/` | Shared React components/hooks | React, MUI | `.claude/skills/tdsk-components/SKILL.md` |
+| `logger/` | Winston-based logging service | Winston | `.claude/skills/tdsk-logger/SKILL.md` |
+| `cli/` | Developer CLI for project management | Node.js | `.claude/skills/tdsk-cli/SKILL.md` |
+| `repl/` | Terminal REPL for AI agent interaction | Bun, Ink (React TUI), @keg-hub/args-parse | `.claude/skills/tdsk-repl/SKILL.md` |
+| `sandbox/` | Pluggable sandbox execution layer | isolated-vm, E2B, just-bash | `.claude/skills/tdsk-sandbox/SKILL.md` |
+| `integration/` | API & E2E integration tests | Vitest, Playwright | `.claude/skills/integration-testing/SKILL.md` |
 
 ## Sub-Repo Skills
 
@@ -123,28 +124,38 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 
 ### How to Use Skills
 Load the relevant skill when working on a specific repo:
-- Working on admin UI? → Read `.claude/skills/admin/SKILL.md` first
-- Adding API endpoints? → Read `.claude/skills/backend/SKILL.md` first
-- Building AI agents? → Read `.claude/skills/agent/SKILL.md` first
-- Modifying database schema? → Read `.claude/skills/database/SKILL.md` first
-- Working on the REPL CLI? → Read `.claude/skills/repl/SKILL.md` first
-- Working on sandbox execution? → Read `.claude/skills/sandbox/SKILL.md` first
+- Working on admin UI? → Read `.claude/skills/tdsk-admin/SKILL.md` first
+- Adding API endpoints? → Read `.claude/skills/tdsk-backend/SKILL.md` first
+- Building AI agents? → Read `.claude/skills/tdsk-agent/SKILL.md` first
+- Modifying database schema? → Read `.claude/skills/tdsk-database/SKILL.md` first
+- Working on the REPL CLI? → Read `.claude/skills/tdsk-repl/SKILL.md` first
+- Working on sandbox execution? → Read `.claude/skills/tdsk-sandbox/SKILL.md` first
 
 ### Available Skills
 | Skill File | Contents |
 |------------|----------|
-| `admin/SKILL.md` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services, Billing pages/components, Quota tracking |
-| `agent/SKILL.md` | AI Agent runtime, pi-mono integration (@mariozechner/pi-agent-core, pi-ai), AgentRunner, event bridge, tool execution |
-| `backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, AI session/stream proxy endpoints, endpoint type system (Agent/Proxy/FaaS), PaymentsService |
-| `cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
-| `components/SKILL.md` | 30+ React components, 8 hook categories, Monaco editor, Drawer, Definitions, theming |
-| `database/SKILL.md` | Drizzle ORM, 23 schemas (incl. agentFunctions/agentProviders junction tables), model converters, quotas/subscriptions tables |
-| `domain/SKILL.md` | 16 model classes, crypto utilities (AES-256-GCM, HKDF, API key hashing), permissions system, provider templates |
-| `logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, stdio monkey-patching |
-| `proxy/SKILL.md` | JWKS auth validation, API key auth, session token auth for /ai/stream, http-proxy-middleware backend forwarding |
-| `repl/SKILL.md` | Terminal REPL CLI, task-based architecture (@keg-hub/args-parse), config system, 7 commands, session-based LLM proxy, Bun binary |
-| `sandbox/SKILL.md` | Pluggable sandbox factory, E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
+| `tdsk-admin/SKILL.md` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services, Billing pages/components, Quota tracking |
+| `tdsk-agent/SKILL.md` | AI Agent runtime, pi-mono integration (@mariozechner/pi-agent-core, pi-ai), AgentRunner, event bridge, tool execution |
+| `tdsk-backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, AI session/stream proxy endpoints, endpoint type system (Agent/Proxy/FaaS), PaymentsService |
+| `tdsk-cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
+| `tdsk-components/SKILL.md` | 30+ React components, 8 hook categories, Monaco editor, Drawer, Definitions, theming |
+| `tdsk-database/SKILL.md` | Drizzle ORM, 23 schemas (incl. agentProjects/agentFunctions/agentProviders junction tables), model converters, quotas/subscriptions tables |
+| `tdsk-domain/SKILL.md` | 19 model classes, crypto utilities (AES-256-GCM, HKDF, API key hashing), permissions system, provider templates |
+| `tdsk-logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, stdio monkey-patching |
+| `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, session token auth for /ai/stream, http-proxy-middleware backend forwarding |
+| `tdsk-repl/SKILL.md` | Ink (React TUI) terminal CLI, tsa binary, 7 CLI tasks + 16 slash commands, config system, session-based LLM proxy, lifecycle hooks |
+| `tdsk-sandbox/SKILL.md` | Pluggable sandbox factory, E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |
+| `integration-testing/SKILL.md` | Three-tier integration testing strategy (API, Playwright UI, E2E flows) |
+
+### Workflow Skills
+| Skill File | Purpose |
+|------------|---------|
+| `commit-message/SKILL.md` | Conventional commit message generation from staged changes |
+| `react-dedup/SKILL.md` | Analyze and refactor duplicate React components |
+| `runner/SKILL.md` | Pick and implement tasks from TASKS.md |
+| `skill-builder/SKILL.md` | Create new Claude Code skills with proper structure |
+| `todo-triage/SKILL.md` | Triage TODO.md items into detailed TASKS.md entries |
 
 ### Subagents
 
@@ -216,6 +227,14 @@ pnpm push           # Push schema to DB (INTERACTIVE - requires manual confirmat
 ```
 > **Note**: `pnpm push` runs `drizzle-kit push` which is interactive and requires manual confirmation for destructive changes. Claude cannot run this automatically. The user must run it manually from `repos/database/`.
 > **IMPORTANT**: Domain and database don't have build scripts (TypeScript source consumed directly via aliases). Backend and admin have build scripts. Let me run tests for domain/database, and builds for backend/admin.
+
+**Integration** (`repos/integration/`)
+```bash
+pnpm test           # Vitest API integration tests (tier1/tier3, requires K8s)
+pnpm test:all       # API tests + Playwright E2E tests
+pnpm test:ui        # Playwright E2E tests only (tier2, requires admin UI)
+```
+> **Note**: Integration tests require K8s services running (`tdsk dev start --clean`). UI tests also require the admin dev server (`cd repos/admin && pnpm start`).
 
 ## Service Management (`tdsk` CLI)
 
