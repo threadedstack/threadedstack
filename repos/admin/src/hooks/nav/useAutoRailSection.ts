@@ -24,7 +24,7 @@ export const useAutoRailSection = (orgId?: string, projectId?: string) => {
     setActiveSection((current) => {
       if (!hasInit.current) {
         hasInit.current = true
-        return derived
+        return null
       }
       if (current === null) return current
       if (current !== derived) return derived

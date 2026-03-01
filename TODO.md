@@ -9,6 +9,13 @@ Items are split into seperate groups, with the sub repo name as the header.
 ## Admin
 
 * Org Agents Drawer
-  * Secrets Selector throwing errors
+  * **Model Configuration**
+    * `Model` should not be a Text input, it should be a select dropdown that allows selecting from a list of models for the priority AI provider
+  * **AI Providers**
+    * Multiple providers can be attached to an Agent, but only one model input is displayed
+    * There's no way to set the model used for other providers attached to the agent.
+      * Need to investigate and come up with a solution?
+  * **Associated Secrets**
+    * Secrets Selector throwing errors when clicking on the secret select input
 
 

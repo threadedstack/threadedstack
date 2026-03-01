@@ -193,7 +193,7 @@ export const Org = (props: TOrg) => {
                 title: `Quick Start`,
                 Icon: RocketLaunchIcon,
                 onClick: () => toggleQuickStart(true),
-                subtitle: `Everything you need on one place`,
+                subtitle: `Everything you need in one place`,
               },
               {
                 title: `Projects`,
