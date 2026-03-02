@@ -1,3 +1,5 @@
+import type { TAiProviderOption } from '@TAF/types/agent.types'
+
 import { TextInput } from '@tdsk/components'
 import { ProviderPriorityList } from './ProviderPriorityList'
 import { FormSection } from '@TAF/components/FormSection/FormSection'
@@ -7,10 +9,12 @@ export type TBasicInfoFormProps = {
   loading: boolean
   description: string
   providerIds: string[]
+  providerModels: Record<string, string>
   onNameChange: (value: string) => void
   onDescriptionChange: (value: string) => void
-  aiProviders: Array<{ id: string; name: string }>
+  aiProviders: TAiProviderOption[]
   onProviderChange: (providerIds: string[]) => void
+  onModelChange: (models: Record<string, string>) => void
 }
 
 export const BasicInfoForm = (props: TBasicInfoFormProps) => {
@@ -21,6 +25,8 @@ export const BasicInfoForm = (props: TBasicInfoFormProps) => {
     aiProviders,
     description,
     onNameChange,
+    onModelChange,
+    providerModels,
     onProviderChange,
     onDescriptionChange,
   } = props
@@ -56,6 +62,8 @@ export const BasicInfoForm = (props: TBasicInfoFormProps) => {
         providerIds={providerIds}
         aiProviders={aiProviders}
         onChange={onProviderChange}
+        onModelChange={onModelChange}
+        providerModels={providerModels}
       />
     </FormSection>
   )

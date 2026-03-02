@@ -53,6 +53,7 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
       id: `agent-1`,
       orgId: `org-1`,
       name: `Test Agent`,
+      model: `test-model`,
       providers: [
         {
           id: `prov-1`,

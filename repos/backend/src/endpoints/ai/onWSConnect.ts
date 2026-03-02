@@ -53,42 +53,61 @@ const resolveSession = async (
       }
     )
 
-    if (agentErr || !agent) return null
+    if (agentErr || !agent) {
+      logger.warn(`Session resolve: agent ${payload.agentId} not found`)
+      return null
+    }
 
     const provider = agent.primaryProvider
-    if (!provider) return null
+    if (!provider) {
+      logger.warn(`Session resolve: agent ${payload.agentId} has no provider`)
+      return null
+    }
 
     const secrets = new SecretResolver(db)
     const apiKey = await secrets.resolveApiKey(agent, provider)
-    if (!apiKey) return null
+    if (!apiKey) {
+      logger.warn(`Session resolve: no API key for agent ${payload.agentId}`)
+      return null
+    }
+
+    // Resolve model via 3-tier hierarchy: junction → agent → provider default
+    const model = agent.resolveModel(provider.id, provider.options?.model)
+    if (!model) {
+      logger.warn(`Session resolve: no model configured for agent ${payload.agentId}`)
+      return null
+    }
 
     const providerType = resolveProviderType(provider)
     const headers = await secrets.resolveHeaders(provider)
     const bodyParams = await secrets.resolveBodyParams(provider)
 
     return {
-      userId: payload.userId,
       agentId: agent.id,
       orgId: agent.orgId,
+      userId: payload.userId,
       tools: agent.tools as string[] | undefined,
       envVars: agent.envVars as Record<string, string> | undefined,
       environment: agent.environment,
       customFunctions: undefined as any[] | undefined,
       llmConfig: {
+        model,
         apiKey,
         headers,
         bodyParams,
+        // TODO: fix this any type
         provider: providerType as any,
         systemPrompt: agent.systemPrompt,
         maxTokens: agent.maxTokens || 4096,
         temperature: agent.environment?.temperature,
-        model: agent.model || provider.options?.model,
         baseUrl: provider.options?.baseUrl as string | undefined,
       },
     }
   } catch (err) {
     logger.error(`Failed to resolve session`, {
+      agentId: payload.agentId,
       error: err instanceof Error ? err.message : err,
+      stack: err instanceof Error ? err.stack : undefined,
     })
     return null
   }

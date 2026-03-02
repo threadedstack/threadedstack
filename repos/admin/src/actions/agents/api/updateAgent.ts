@@ -1,12 +1,13 @@
-import type { Agent } from '@tdsk/domain'
+import type { TAgentPayload } from '@TAF/types/agent.types'
+
 import { agentsApi } from '@TAF/services'
 import { upsertAgent } from '@TAF/actions/agents/local/upsertAgent'
 
 export type TUpdateAgentOpts = {
   orgId: string
   id: string
-  data: Partial<Agent>
   projectId?: string
+  data: TAgentPayload
 }
 
 export const updateAgent = async (opts: TUpdateAgentOpts) => {

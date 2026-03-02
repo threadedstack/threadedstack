@@ -1,6 +1,7 @@
 export * from './AgentDrawer'
 export * from './AgentSection'
 export * from './BasicInfoForm'
+export * from './ModelSelect'
 export * from './ModelConfigForm'
 export * from './AgentSettingsForm'
 export * from './ProviderPriorityList'

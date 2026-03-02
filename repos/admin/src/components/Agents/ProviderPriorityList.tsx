@@ -1,4 +1,7 @@
+import type { TAiProviderOption } from '@TAF/types/agent.types'
+
 import { useState } from 'react'
+import { ModelSelect } from './ModelSelect'
 import { InputStateHandler } from '@tdsk/components'
 import {
   Box,
@@ -8,7 +11,6 @@ import {
   TextField,
   IconButton,
   Typography,
-  ListItemText,
   Autocomplete,
 } from '@mui/material'
 import {
@@ -21,16 +23,22 @@ import {
 export type TProviderPriorityListProps = {
   loading: boolean
   providerIds: string[]
-  aiProviders: Array<{ id: string; name: string }>
+  aiProviders: TAiProviderOption[]
+  providerModels: Record<string, string>
   onChange: (providerIds: string[]) => void
+  onModelChange: (models: Record<string, string>) => void
 }
 
 export const ProviderPriorityList = (props: TProviderPriorityListProps) => {
-  const { loading, providerIds, aiProviders, onChange } = props
+  const { loading, onChange, aiProviders, providerIds, onModelChange, providerModels } =
+    props
+
   const [addingProvider, setAddingProvider] = useState(false)
 
   const availableProviders = aiProviders.filter((p) => !providerIds.includes(p.id))
   const getProviderName = (id: string) => aiProviders.find((p) => p.id === id)?.name || id
+  const getProviderBrand = (id: string) =>
+    aiProviders.find((p) => p.id === id)?.brand || ''
 
   const onMoveUp = (index: number) => {
     if (index === 0) return
@@ -47,13 +55,24 @@ export const ProviderPriorityList = (props: TProviderPriorityListProps) => {
   }
 
   const onRemove = (index: number) => {
+    const removedId = providerIds[index]
     onChange(providerIds.filter((_, i) => i !== index))
+    // Clean up model for removed provider
+    if (removedId && providerModels[removedId]) {
+      const updated = { ...providerModels }
+      delete updated[removedId]
+      onModelChange(updated)
+    }
   }
 
   const onAdd = (providerId: string | null) => {
     if (!providerId) return
     onChange([...providerIds, providerId])
     setAddingProvider(false)
+  }
+
+  const onProviderModelChange = (providerId: string, model: string) => {
+    onModelChange({ ...providerModels, [providerId]: model })
   }
 
   return (
@@ -84,9 +103,27 @@ export const ProviderPriorityList = (props: TProviderPriorityListProps) => {
                   borderRadius: 1,
                   mb: 0.5,
                   bgcolor: 'action.hover',
+                  flexDirection: 'column',
+                  alignItems: 'stretch',
                 }}
-                secondaryAction={
-                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant='body2'>
+                        {index + 1}. {getProviderName(id)}
+                      </Typography>
+                      {index === 0 && (
+                        <Chip
+                          label='Primary'
+                          size='small'
+                          color='primary'
+                          variant='outlined'
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
                     <IconButton
                       size='small'
                       disabled={loading || index === 0}
@@ -109,25 +146,17 @@ export const ProviderPriorityList = (props: TProviderPriorityListProps) => {
                       <RemoveIcon fontSize='small' />
                     </IconButton>
                   </Box>
-                }
-              >
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant='body2'>
-                        {index + 1}. {getProviderName(id)}
-                      </Typography>
-                      {index === 0 && (
-                        <Chip
-                          label='Primary'
-                          size='small'
-                          color='primary'
-                          variant='outlined'
-                        />
-                      )}
-                    </Box>
-                  }
-                />
+                </Box>
+                <Box sx={{ mt: 1, mb: 0.5 }}>
+                  <ModelSelect
+                    id={id}
+                    size='small'
+                    disabled={loading}
+                    brand={getProviderBrand(id)}
+                    model={providerModels[id] || ''}
+                    onChange={(model) => onProviderModelChange(id, model)}
+                  />
+                </Box>
               </ListItem>
             ))}
           </List>

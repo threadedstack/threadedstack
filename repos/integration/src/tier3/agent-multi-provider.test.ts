@@ -150,6 +150,43 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(threadEvent).toBeDefined()
       expect(threadEvent?.threadId || threadId).toBeTruthy()
     })
+
+    test.skipIf(!hasProviderKey())('GET agent returns providerModels from quickstart', async () => {
+      if (setupFailed) return expect(setupFailed).toBe(false)
+
+      const agentRes = await get<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`
+      )
+
+      expect(agentRes.status).toBe(200)
+      expect(agentRes.data.data.providerModels).toBeDefined()
+      expect(Array.isArray(agentRes.data.data.providerModels)).toBe(true)
+    })
+
+    test.skipIf(!hasProviderKey())('update agent with explicit junction model changes session model', async () => {
+      if (setupFailed) return expect(setupFailed).toBe(false)
+
+      // Set explicit junction model
+      const updateRes = await put<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
+        {
+          providers: [
+            { id: qsResult.provider.id, priority: 0, model: 'custom-junction-model' },
+          ],
+        }
+      )
+
+      expect(updateRes.status).toBe(200)
+
+      // Session should use the junction model
+      const sessionRes = await post<{ data: Record<string, any> }>(
+        `/_/ai/sessions`,
+        { agentId: qsResult.agent.id }
+      )
+
+      expect(sessionRes.status).toBe(200)
+      expect(sessionRes.data.data.model).toBe('custom-junction-model')
+    })
   })
 
   // ─── Quickstart agent: Session uses primaryProvider ──────────────
@@ -464,6 +501,69 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const hasError = errorEvents.length >= 1
       const hasDone = doneEvents.length >= 1
       expect(hasContent || hasError || hasDone || result.messages.some(m => m.type === 'thread_created') || result.messages.length === 0).toBe(true)
+    })
+
+    test.skipIf(!hasProviderKey())('each provider can have different junction model', async () => {
+      if (setupFailed) return expect(setupFailed).toBe(false)
+
+      // Update agent with per-provider models
+      const updateRes = await put<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/agents/${agentId}`,
+        {
+          providers: [
+            { id: provider1Id, priority: 0, model: 'model-for-p1' },
+            { id: provider2Id, priority: 1, model: 'model-for-p2' },
+          ],
+        }
+      )
+
+      expect(updateRes.status).toBe(200)
+
+      const getRes = await get<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/agents/${agentId}`
+      )
+
+      expect(getRes.data.data.providerModels).toBeDefined()
+      expect(getRes.data.data.providerModels[0]).toBe('model-for-p1')
+      expect(getRes.data.data.providerModels[1]).toBe('model-for-p2')
+    })
+
+    test.skipIf(!hasProviderKey())('switching primary changes session model to new primary junction model', async () => {
+      if (setupFailed) return expect(setupFailed).toBe(false)
+
+      // Current state: provider1 is primary with model-for-p1
+      const session1 = await post<{ data: Record<string, any> }>(
+        `/_/ai/sessions`,
+        { agentId }
+      )
+
+      expect(session1.status).toBe(200)
+      expect(session1.data.data.model).toBe('model-for-p1')
+
+      // Swap: provider2 becomes primary
+      await put(`/orgs/${ctx.orgId}/agents/${agentId}`, {
+        providers: [
+          { id: provider2Id, priority: 0, model: 'model-for-p2' },
+          { id: provider1Id, priority: 1, model: 'model-for-p1' },
+        ],
+      })
+
+      // Session should now use model-for-p2
+      const session2 = await post<{ data: Record<string, any> }>(
+        `/_/ai/sessions`,
+        { agentId }
+      )
+
+      expect(session2.status).toBe(200)
+      expect(session2.data.data.model).toBe('model-for-p2')
+
+      // Restore original order for cleanup
+      await put(`/orgs/${ctx.orgId}/agents/${agentId}`, {
+        providers: [
+          { id: provider1Id, priority: 0, model: 'model-for-p1' },
+          { id: provider2Id, priority: 1, model: 'model-for-p2' },
+        ],
+      })
     })
   })
 

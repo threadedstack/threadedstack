@@ -1,14 +1,13 @@
 import type { TProviderStepData } from '@TAF/types'
-import type { TLLMProviderBrand, TProviderModel } from '@tdsk/domain'
+import type { TLLMProviderBrand } from '@tdsk/domain'
 
+import { TextInput } from '@tdsk/components'
 import { styled, alpha } from '@mui/material/styles'
-import { useMemo, useState, useCallback } from 'react'
-import { TextInput, SelectInput } from '@tdsk/components'
+import { ProviderIcons } from '@TAF/constants/providers'
 import CloudQueueIcon from '@mui/icons-material/CloudQueue'
-import { fetchProviderModels } from '@TAF/actions/providers'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import { ModelSelect } from '@TAF/components/Agents/ModelSelect'
 import { ELLMProviderBrand, ProviderTemplates } from '@tdsk/domain'
-import { DynamicBrands, ProviderIcons, KeyRequiredBrands } from '@TAF/constants/providers'
 
 import {
   Box,
@@ -17,7 +16,6 @@ import {
   Typography,
   CardContent,
   CardActionArea,
-  CircularProgress,
 } from '@mui/material'
 
 const SectionHeader = styled(Box)(({ theme }) => ({
@@ -100,34 +98,7 @@ export const ProviderStep = (props: TProviderStep) => {
   const { data, onChange, disabled } = props
   const template = ProviderTemplates[data.providerBrand]
 
-  const [dynamicModels, setDynamicModels] = useState<TProviderModel[]>([])
-  const [fetchingModels, setFetchingModels] = useState(false)
-
-  const modelOptions = useMemo(() => {
-    if (!dynamicModels.length) return []
-    return dynamicModels.map((m) => ({
-      value: m.id,
-      label: m.name,
-    }))
-  }, [dynamicModels])
-
-  const fetchDynamicModels = useCallback(
-    async (brand: string, opts?: { baseUrl?: string; providerKey?: string }) => {
-      setFetchingModels(true)
-      try {
-        const resp = await fetchProviderModels({ brand, ...opts })
-        setDynamicModels(resp.data || [])
-      } catch {
-        setDynamicModels([])
-      }
-      setFetchingModels(false)
-    },
-    []
-  )
-
   const onSelectProvider = (id: TLLMProviderBrand) => {
-    const tmpl = ProviderTemplates[id]
-    setDynamicModels([])
     onChange({
       model: ``,
       providerUrl: ``,
@@ -135,13 +106,6 @@ export const ProviderStep = (props: TProviderStep) => {
       providerBrand: id,
       apiKey: data.apiKey,
     })
-    // All non-custom brands fetch models dynamically from the backend registry
-    if (DynamicBrands.has(id) && !KeyRequiredBrands.has(id)) fetchDynamicModels(id)
-  }
-
-  const onApiKeyBlur = () => {
-    if (data.apiKey && KeyRequiredBrands.has(data.providerBrand))
-      fetchDynamicModels(data.providerBrand, { providerKey: data.apiKey })
   }
 
   return (
@@ -229,7 +193,6 @@ export const ProviderStep = (props: TProviderStep) => {
             sx={{ bgcolor: `background.paper` }}
             placeholder={template?.apiKeyPlaceholder || `Enter your API key...`}
             onChange={(e) => onChange({ apiKey: e.target.value })}
-            onBlur={onApiKeyBlur}
           />
 
           {data.providerBrand === ELLMProviderBrand.ollama && (
@@ -281,40 +244,19 @@ export const ProviderStep = (props: TProviderStep) => {
                 onChange={(e) => onChange({ model: e.target.value })}
               />
             </>
-          ) : fetchingModels ? (
-            <Box sx={{ display: `flex`, alignItems: `center`, gap: 1.5, py: 1 }}>
-              <CircularProgress size={18} />
-              <Typography
-                variant='body2'
-                color='text.secondary'
-              >
-                Loading models...
-              </Typography>
+          ) : (
+            <Box sx={{ bgcolor: `background.paper`, borderRadius: 1 }}>
+              <ModelSelect
+                size='medium'
+                model={data.model}
+                disabled={disabled}
+                apiKey={data.apiKey}
+                brand={data.providerBrand}
+                baseUrl={data.providerUrl}
+                onChange={(model) => onChange({ model })}
+              />
             </Box>
-          ) : modelOptions.length > 0 ? (
-            <SelectInput
-              fullWidth
-              label='Model'
-              value={data.model}
-              disabled={disabled}
-              id='quickstart-model'
-              items={modelOptions}
-              sx={{ bgcolor: `background.paper` }}
-              onChange={(e) => onChange({ model: e.target.value as string })}
-            />
-          ) : DynamicBrands.has(data.providerBrand) ? (
-            <TextInput
-              required
-              fullWidth
-              label='Model'
-              value={data.model}
-              disabled={disabled}
-              id='quickstart-dynamic-model'
-              sx={{ bgcolor: `background.paper` }}
-              placeholder='e.g., llama3.2'
-              onChange={(e) => onChange({ model: e.target.value })}
-            />
-          ) : null}
+          )}
         </ConfigSection>
       </Collapse>
     </Box>

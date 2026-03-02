@@ -1,4 +1,5 @@
 import type { TKeyValuePair } from '@TAF/types'
+import type { TAiProviderOption } from '@TAF/types/agent.types'
 import type {
   Agent,
   Secret,
@@ -54,7 +55,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [secretsList, setSecretsList] = useState<Secret[]>([])
-  const [aiProviders, setAiProviders] = useState<Array<{ id: string; name: string }>>([])
+  const [aiProviders, setAiProviders] = useState<TAiProviderOption[]>([])
   const [availableFunctions, setAvailableFunctions] = useState<FunctionModel[]>([])
   const [selectedFunctionIds, setSelectedFunctionIds] = useState<string[]>([])
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
@@ -62,7 +63,6 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
   // Form state
   const [name, setName] = useState('')
-  const [model, setModel] = useState('')
   const [active, setActive] = useState(true)
   const [streaming, setStreaming] = useState(true)
   const [maxTokens, setMaxTokens] = useState(100000)
@@ -71,6 +71,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [systemPrompt, setSystemPrompt] = useState('')
   const [envVars, setEnvVars] = useState<TKeyValuePair[]>([])
   const [providerIds, setProviderIds] = useState<string[]>([])
+  const [providerModels, setProviderModels] = useState<Record<string, string>>({})
   const [selectedTools, setSelectedTools] = useState<string[]>([])
   const [selectedSecrets, setSelectedSecrets] = useState<string[]>([])
 
@@ -98,6 +99,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
           .map((p) => ({
             id: p.id,
             name: p.name || p.id,
+            brand: p.brand || '',
           }))
         setAiProviders(aiProvidersOnly)
       }
@@ -129,11 +131,23 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   useEffect(() => {
     if (agent) {
       setName(agent.name || '')
-      setModel(agent.model || '')
       setActive(agent.active ?? true)
       setSelectedTools(agent.tools || [])
       setDescription(agent.description || '')
       setProviderIds(agent.providers?.map((p) => p.id) || [])
+
+      // Build providerModels from agent.agentProviders junction data
+      const models: Record<string, string> = {}
+      if (agent.agentProviders?.length) {
+        for (const ap of agent.agentProviders) {
+          if (ap.model) models[ap.provider.id] = ap.model
+        }
+      }
+      // Backward compat: if no per-provider models but agent.model exists, assign to primary
+      if (!Object.keys(models).length && agent.model && agent.providers?.[0]) {
+        models[agent.providers[0].id] = agent.model
+      }
+      setProviderModels(models)
 
       // Seed aiProviders from agent data to avoid empty tag flash before async fetch
       if (agent.providers?.length) {
@@ -142,7 +156,11 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             ? prev
             : agent
                 .providers!.filter((p: any) => p.type === 'ai')
-                .map((p: any) => ({ id: p.id, name: p.name || p.id }))
+                .map((p: any) => ({
+                  id: p.id,
+                  name: p.name || p.id,
+                  brand: p.brand || '',
+                }))
         )
       }
       setMaxTokens(agent.maxTokens || 100000)
@@ -178,12 +196,12 @@ export const AgentDrawer = (props: TAgentDrawer) => {
     } else {
       // Reset form for new agent
       setName('')
-      setModel('')
       setEnvVars([])
       setActive(true)
       setDescription('')
       setStreaming(true)
       setProviderIds([])
+      setProviderModels({})
       setSystemPrompt('')
       setTemperature(0.7)
       setMaxTokens(100000)
@@ -219,12 +237,18 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         {} as Record<string, string>
       )
 
+      // Build providers array with per-provider models
+      const providers = providerIds.map((id, i) => ({
+        id,
+        priority: i,
+        model: providerModels[id] || null,
+      }))
+
       const agentData = {
         name,
-        model,
         active,
         maxTokens,
-        providerIds,
+        providers,
         description,
         systemPrompt,
         envVars: envVarsObj,
@@ -233,12 +257,14 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         functionIds: selectedFunctionIds,
         environment: { streaming, temperature },
         secretIds: selectedSecrets,
+        // Backward compat: keep model on agent for fallback
+        model: providerModels[providerIds[0]] || '',
       }
 
       if (isOverrideMode) {
         const configData: Partial<TAgentProjectConfig> = {
           maxTokens,
-          model: model || null,
+          model: providerModels[providerIds[0]] || null,
           systemPrompt: systemPrompt || null,
           environment: { streaming, temperature },
           tools: selectedTools.length ? selectedTools : null,
@@ -362,6 +388,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             providerIds={providerIds}
             aiProviders={aiProviders}
             description={description}
+            providerModels={providerModels}
+            onModelChange={setProviderModels}
             onProviderChange={setProviderIds}
             onDescriptionChange={setDescription}
           />
@@ -402,10 +430,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
           <Divider />
 
           <ModelConfigForm
-            model={model}
             loading={loading}
             maxTokens={maxTokens}
-            onModelChange={setModel}
             temperature={temperature}
             onMaxTokensChange={setMaxTokens}
             onTemperatureChange={setTemperature}

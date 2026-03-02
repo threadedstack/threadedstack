@@ -485,6 +485,276 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     })
   })
 
+  // ─── Create with providers array format ─────────────────────────────
+
+  test('POST /agents with providers array sets per-provider models', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents`,
+      {
+        name: uniqueName('AP Providers Array Agent'),
+        orgId: ctx.orgId,
+        providers: [
+          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        ],
+        projectIds: [projectId],
+      }
+    )
+
+    expect(res.status).toBe(201)
+    expect(res.data.data.id).toBeTruthy()
+
+    // Verify via GET
+    const getRes = await get<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${res.data.data.id}`
+    )
+
+    expect(getRes.status).toBe(200)
+    expect(getRes.data.data.providers.length).toBe(2)
+    expect(getRes.data.data.providers[0].id).toBe(provider1Id)
+    expect(getRes.data.data.providers[1].id).toBe(provider2Id)
+
+    // Verify providerModels parallel array
+    expect(getRes.data.data.providerModels).toBeDefined()
+    expect(getRes.data.data.providerModels[0]).toBe('claude-sonnet-4-5-20250929')
+    expect(getRes.data.data.providerModels[1]).toBe('gpt-4o')
+
+    await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.data.id}`)
+  })
+
+  test('providers array with null model creates junction without model', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents`,
+      {
+        name: uniqueName('AP Null Model Agent'),
+        orgId: ctx.orgId,
+        providers: [
+          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider3Id, priority: 1 },
+        ],
+        projectIds: [projectId],
+      }
+    )
+
+    expect(res.status).toBe(201)
+
+    const getRes = await get<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${res.data.data.id}`
+    )
+
+    expect(getRes.status).toBe(200)
+    expect(getRes.data.data.providerModels[0]).toBe('claude-sonnet-4-5-20250929')
+    expect(getRes.data.data.providerModels[1]).toBeNull()
+
+    await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.data.id}`)
+  })
+
+  // ─── Update: Per-provider models ────────────────────────────────────
+
+  test('PUT /agents/:id with providers array updates models', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    // Create agent with models
+    const createRes = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents`,
+      {
+        name: uniqueName('AP Update Models Agent'),
+        orgId: ctx.orgId,
+        providers: [
+          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        ],
+        projectIds: [projectId],
+      }
+    )
+
+    expect(createRes.status).toBe(201)
+    const testAgentId = createRes.data.data.id
+
+    // Update models
+    const updateRes = await put<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${testAgentId}`,
+      {
+        providers: [
+          { id: provider1Id, priority: 0, model: 'claude-3-opus' },
+          { id: provider2Id, priority: 1, model: 'gpt-4-turbo' },
+        ],
+      }
+    )
+
+    expect(updateRes.status).toBe(200)
+
+    // Verify models changed
+    const getRes = await get<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${testAgentId}`
+    )
+
+    expect(getRes.data.data.providerModels[0]).toBe('claude-3-opus')
+    expect(getRes.data.data.providerModels[1]).toBe('gpt-4-turbo')
+
+    await tryDelete(`/orgs/${ctx.orgId}/agents/${testAgentId}`)
+  })
+
+  test('PUT /agents/:id can clear a provider model to null', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const createRes = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents`,
+      {
+        name: uniqueName('AP Clear Model Agent'),
+        orgId: ctx.orgId,
+        providers: [
+          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        ],
+        projectIds: [projectId],
+      }
+    )
+
+    expect(createRes.status).toBe(201)
+    const testAgentId = createRes.data.data.id
+
+    // Clear model for provider1, keep model for provider2
+    const updateRes = await put<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${testAgentId}`,
+      {
+        providers: [
+          { id: provider1Id, priority: 0 },
+          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        ],
+      }
+    )
+
+    expect(updateRes.status).toBe(200)
+
+    const getRes = await get<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${testAgentId}`
+    )
+
+    expect(getRes.data.data.providerModels[0]).toBeNull()
+    expect(getRes.data.data.providerModels[1]).toBe('gpt-4o')
+
+    await tryDelete(`/orgs/${ctx.orgId}/agents/${testAgentId}`)
+  })
+
+  test('PUT /agents/:id reorder preserves models per provider', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const createRes = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents`,
+      {
+        name: uniqueName('AP Reorder Models Agent'),
+        orgId: ctx.orgId,
+        providers: [
+          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        ],
+        projectIds: [projectId],
+      }
+    )
+
+    expect(createRes.status).toBe(201)
+    const testAgentId = createRes.data.data.id
+
+    // Swap order — provider2 becomes primary
+    const updateRes = await put<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${testAgentId}`,
+      {
+        providers: [
+          { id: provider2Id, priority: 0, model: 'gpt-4o' },
+          { id: provider1Id, priority: 1, model: 'claude-sonnet-4-5-20250929' },
+        ],
+      }
+    )
+
+    expect(updateRes.status).toBe(200)
+
+    const getRes = await get<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${testAgentId}`
+    )
+
+    // Provider2 is now first
+    expect(getRes.data.data.providers[0].id).toBe(provider2Id)
+    expect(getRes.data.data.providers[1].id).toBe(provider1Id)
+
+    // Models follow their provider, not the array position
+    expect(getRes.data.data.providerModels[0]).toBe('gpt-4o')
+    expect(getRes.data.data.providerModels[1]).toBe('claude-sonnet-4-5-20250929')
+
+    await tryDelete(`/orgs/${ctx.orgId}/agents/${testAgentId}`)
+  })
+
+  // ─── Backward compatibility ─────────────────────────────────────────
+
+  test('providerIds format still works without models', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents`,
+      {
+        name: uniqueName('AP Legacy Format Agent'),
+        orgId: ctx.orgId,
+        providerIds: [provider1Id, provider2Id],
+        projectIds: [projectId],
+        model: 'some-model',
+      }
+    )
+
+    expect(res.status).toBe(201)
+
+    const getRes = await get<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${res.data.data.id}`
+    )
+
+    expect(getRes.status).toBe(200)
+    expect(getRes.data.data.providers.length).toBe(2)
+    expect(getRes.data.data.model).toBe('some-model')
+
+    // providerModels should be null for all when using providerIds format
+    expect(getRes.data.data.providerModels).toBeDefined()
+    for (const m of getRes.data.data.providerModels) {
+      expect(m).toBeNull()
+    }
+
+    await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.data.id}`)
+  })
+
+  test('providers array takes precedence over providerIds when both sent', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents`,
+      {
+        name: uniqueName('AP Both Formats Agent'),
+        orgId: ctx.orgId,
+        providerIds: [provider3Id],
+        providers: [
+          { id: provider1Id, priority: 0, model: 'override-model' },
+          { id: provider2Id, priority: 1 },
+        ],
+        projectIds: [projectId],
+      }
+    )
+
+    expect(res.status).toBe(201)
+
+    const getRes = await get<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/agents/${res.data.data.id}`
+    )
+
+    // providers array should win — provider1 and provider2, not provider3
+    expect(getRes.data.data.providers.length).toBe(2)
+    expect(getRes.data.data.providers[0].id).toBe(provider1Id)
+    expect(getRes.data.data.providers[1].id).toBe(provider2Id)
+    expect(getRes.data.data.providerModels[0]).toBe('override-model')
+
+    await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.data.id}`)
+  })
+
   // ─── Agent Delete: Junction Cleanup ────────────────────────────────
 
   test('DELETE /agents/:id cleans up provider junction', async () => {

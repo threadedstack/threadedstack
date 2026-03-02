@@ -44,6 +44,14 @@ export const createSession: TEndpointConfig = {
     // Determine and validate provider type
     const providerType = resolveProviderType(provider)
 
+    // Resolve model via 3-tier hierarchy: junction → agent → provider default
+    const model = agent.resolveModel(provider.id, provider.options?.model)
+    if (!model)
+      throw new Exception(
+        400,
+        `No model configured for agent. Set a model on the agent, its provider, or the agent-provider link.`
+      )
+
     // Sign a short-lived JWT with session identity claims
     const sessionToken = signSessionToken({
       userId,
@@ -54,13 +62,14 @@ export const createSession: TEndpointConfig = {
     // Return token + non-sensitive config (no apiKey, no envVars)
     res.status(200).json({
       data: {
+        model,
         sessionToken,
         tools: agent.tools,
-        model: agent.model || provider.options?.model,
         provider: providerType,
-        maxTokens: agent.maxTokens || 4096,
         environment: agent.environment,
         systemPrompt: agent.systemPrompt,
+        // TODO: fix this default 4096 maxTokens? Why so low?
+        maxTokens: agent.maxTokens || 4096,
       },
     })
   },

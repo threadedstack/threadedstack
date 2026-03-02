@@ -26,15 +26,28 @@ export const createAgent: TEndpointConfig = {
     } = req.body
     const orgId = req.params.orgId || agent.orgId
 
-    // Support both formats: providerIds[] (ordered array) or providers[{id, priority}]
-    const providerIds = providersWithPriority?.length
-      ? providersWithPriority
-          .sort(
-            (a: { priority?: number }, b: { priority?: number }) =>
-              (a.priority ?? 0) - (b.priority ?? 0)
-          )
-          .map((p: { id: string }) => p.id)
+    // Support both formats: providerIds[] (ordered array) or providers[{id, priority, model?}]
+    const sortedProviders = providersWithPriority?.length
+      ? [...providersWithPriority].sort(
+          (a: { priority?: number }, b: { priority?: number }) =>
+            (a.priority ?? 0) - (b.priority ?? 0)
+        )
+      : null
+
+    const providerIds = sortedProviders
+      ? sortedProviders.map((p: { id: string }) => p.id)
       : rawProviderIds
+
+    // Build providerModels map from providers array items that have a model
+    const providerModels = sortedProviders
+      ? sortedProviders.reduce(
+          (acc: Record<string, string>, p: { id: string; model?: string }) => {
+            if (p.model) acc[p.id] = p.model
+            return acc
+          },
+          {} as Record<string, string>
+        )
+      : undefined
 
     // Validate required fields
     if (!orgId)
@@ -78,8 +91,9 @@ export const createAgent: TEndpointConfig = {
 
     if (projErr) throw new Exception(500, projErr.message)
     if (projects?.length) agent.projects = projects
-    if (providerIds?.length) agent.providerIds = providerIds
     if (secretIds?.length) agent.secretIds = secretIds
+    if (providerIds?.length) agent.providerIds = providerIds
+    if (providerModels) agent.providerModels = providerModels
 
     const { data, error } = await db.services.agent.create(agent)
 

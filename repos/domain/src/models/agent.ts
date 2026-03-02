@@ -25,6 +25,7 @@ export class Agent extends Base {
   envVars: TAgentEnvVars = {}
   providerPriorities: number[] = []
   environment: TAgentEnvironment = {}
+  providerModels: (string | null)[] = []
   projectConfigs: TAgentProjectConfig[] = []
 
   constructor(agent: Partial<Agent>) {
@@ -36,6 +37,7 @@ export class Agent extends Base {
       projects,
       providers,
       projectConfigs,
+      providerModels,
       providerPriorities,
       ...rest
     } = agent
@@ -55,6 +57,7 @@ export class Agent extends Base {
           prov instanceof Provider ? prov : new Provider(prov)
         ) || [],
       providerPriorities: providerPriorities || [],
+      providerModels: providerModels || [],
       projectConfigs: projectConfigs || [],
     })
   }
@@ -70,6 +73,7 @@ export class Agent extends Base {
   get agentProviders(): TAgentProvider[] {
     return this.providers.map((provider, index) => ({
       provider,
+      model: this.providerModels[index] ?? null,
       priority: this.providerPriorities[index] ?? index,
     }))
   }
@@ -79,6 +83,18 @@ export class Agent extends Base {
    */
   getProjectConfig(projectId: string): TAgentProjectConfig | undefined {
     return this.projectConfigs?.find((c) => c.projectId === projectId)
+  }
+
+  /**
+   * Resolve the model for a given provider ID using the 3-tier hierarchy:
+   *   1. Per-provider junction model (from agentProviders.model)
+   *   2. Agent-level model (agent.model)
+   *   3. Provider default model (provider.options.model)
+   * Returns undefined if no model is configured at any tier.
+   */
+  resolveModel(providerId: string, providerDefaultModel?: string): string | undefined {
+    const junction = this.agentProviders?.find((ap) => ap.provider.id === providerId)
+    return junction?.model || this.model || providerDefaultModel || undefined
   }
 
   /**

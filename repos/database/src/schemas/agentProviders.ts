@@ -1,8 +1,8 @@
 import { relations } from 'drizzle-orm'
-import { base } from '@TDB/utils/schema/base'
 import { agents } from '@TDB/schemas/agents'
+import { base } from '@TDB/utils/schema/base'
 import { providers } from '@TDB/schemas/providers'
-import { pgTable, unique, integer, index, varchar } from 'drizzle-orm/pg-core'
+import { pgTable, unique, integer, index, varchar, text } from 'drizzle-orm/pg-core'
 
 /**
  * Agent-Providers junction table
@@ -27,6 +27,9 @@ export const agentProviders = pgTable(
 
     /** Priority order: 0 = primary/default provider, 1+ = secondary */
     priority: integer(`priority`).default(0),
+
+    /** Per-provider model override: NULL = inherit from agent.model or provider.options.model */
+    model: text(`model`),
   },
   (table) => [
     unique(`unique_agent_provider`).on(table.agentId, table.providerId),
@@ -36,11 +39,11 @@ export const agentProviders = pgTable(
 
 export const agentProvidersRelations = relations(agentProviders, ({ one }) => ({
   agent: one(agents, {
-    fields: [agentProviders.agentId],
     references: [agents.id],
+    fields: [agentProviders.agentId],
   }),
   provider: one(providers, {
-    fields: [agentProviders.providerId],
     references: [providers.id],
+    fields: [agentProviders.providerId],
   }),
 }))

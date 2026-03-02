@@ -23,8 +23,9 @@ import { agentProviders } from '@TDB/schemas/agentProviders'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
 
 export type TAgentInsertOpts = TDBAgentInsert & {
-  providerIds?: string[]
   secretIds?: string[]
+  providerIds?: string[]
+  providerModels?: Record<string, string>
   projects?: Array<
     Partial<ProjectModel> & {
       model?: string | null
@@ -44,6 +45,7 @@ export type TAgentSelectOpts = TDBAgentSelect & {
     alias?: string
     agentId: string
     projectId: string
+    enabled?: boolean
     project: ProjectModel | TDBProjectSelect
     model?: string | null
     maxTokens?: number | null
@@ -52,12 +54,12 @@ export type TAgentSelectOpts = TDBAgentSelect & {
     functionIds?: string[] | null
     envVars?: Record<string, string> | null
     environment?: Record<string, any> | null
-    enabled?: boolean
   }[]
   providers?: {
     agentId: string
     providerId: string
     priority: number
+    model?: string | null
     provider: TDBProviderSelect
   }[]
 }
@@ -65,9 +67,11 @@ export type TAgentSelectOpts = TDBAgentSelect & {
 type TAgentRelations = {
   id: string
   providerIds?: string[]
+  providerModels?: Record<string, string>
   secretIds?: string[]
   projects?: Array<
     Partial<ProjectModel> & {
+      enabled?: boolean
       model?: string | null
       maxTokens?: number | null
       systemPrompt?: string | null
@@ -75,7 +79,6 @@ type TAgentRelations = {
       functionIds?: string[] | null
       envVars?: Record<string, string> | null
       environment?: Record<string, any> | null
-      enabled?: boolean
     }
   >
 }
@@ -123,7 +126,7 @@ export class Agent extends Base<
   }
 
   #relations = async (opts: TAgentRelations) => {
-    const { id, projects, providerIds, secretIds } = opts
+    const { id, projects, providerIds, providerModels, secretIds } = opts
 
     if (projects?.length)
       for (const proj of projects) {
@@ -134,14 +137,14 @@ export class Agent extends Base<
             agentId: id,
             alias: proj.name,
             projectId: proj.id,
+            ...(proj.tools !== undefined && { tools: proj.tools }),
             ...(proj.model !== undefined && { model: proj.model }),
+            ...(proj.envVars !== undefined && { envVars: proj.envVars }),
+            ...(proj.enabled !== undefined && { enabled: proj.enabled }),
             ...(proj.maxTokens !== undefined && { maxTokens: proj.maxTokens }),
             ...(proj.systemPrompt !== undefined && { systemPrompt: proj.systemPrompt }),
-            ...(proj.tools !== undefined && { tools: proj.tools }),
             ...(proj.functionIds !== undefined && { functionIds: proj.functionIds }),
-            ...(proj.envVars !== undefined && { envVars: proj.envVars }),
             ...(proj.environment !== undefined && { environment: proj.environment }),
-            ...(proj.enabled !== undefined && { enabled: proj.enabled }),
           })
           .onConflictDoNothing()
       }
@@ -153,11 +156,15 @@ export class Agent extends Base<
         await this.db
           .insert(agentProviders)
           .values({
-            agentId: id,
             providerId,
             priority: i,
+            agentId: id,
+            model: providerModels?.[providerId] ?? null,
           })
-          .onConflictDoNothing()
+          .onConflictDoUpdate({
+            target: [agentProviders.agentId, agentProviders.providerId],
+            set: { priority: i, model: providerModels?.[providerId] ?? null },
+          })
       }
 
     // Reassign secrets to this agent (FK pattern, not junction table)
@@ -194,16 +201,17 @@ export class Agent extends Base<
         agentId: link.agentId,
         alias: link.alias ?? null,
         model: link.model ?? null,
-        maxTokens: link.maxTokens ?? null,
-        systemPrompt: link.systemPrompt ?? null,
         tools: link.tools ?? null,
-        functionIds: link.functionIds ?? null,
         envVars: link.envVars ?? null,
-        environment: link.environment ?? null,
         enabled: link.enabled ?? true,
+        maxTokens: link.maxTokens ?? null,
+        functionIds: link.functionIds ?? null,
+        environment: link.environment ?? null,
+        systemPrompt: link.systemPrompt ?? null,
       })),
-      providerPriorities: sortedProviders.map((link) => link.priority ?? 0),
       providers: sortedProviders.map((link) => link.provider),
+      providerModels: sortedProviders.map((link) => link.model ?? null),
+      providerPriorities: sortedProviders.map((link) => link.priority ?? 0),
     })
 
     // If sanitize is not explicitly false, sanitize the secrets
@@ -301,7 +309,7 @@ export class Agent extends Base<
    * Create an agent and optionally associate it with projects and providers
    */
   async create(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, providerIds, secretIds, ...agentData } = data
+    const { projects, providerIds, providerModels, secretIds, ...agentData } = data
 
     // Create the agent
     const result = await super.create(agentData as TDBAgentInsert)
@@ -310,8 +318,9 @@ export class Agent extends Base<
       await this.#relations({
         id: result.data.id,
         projects,
-        providerIds,
         secretIds,
+        providerIds,
+        providerModels,
       })
       const updated = await this.get(result.data.id, opts)
       result.data = updated.data
@@ -324,7 +333,7 @@ export class Agent extends Base<
    * Update an agent and manage project and provider associations
    */
   async update(data: TDBUpdate<TAgentInsertOpts>, opts?: TAgentQueryOpts) {
-    const { projects, providerIds, secretIds, ...agent } = data
+    const { projects, providerIds, providerModels, secretIds, ...agent } = data
 
     if (!agent.id)
       return { data: null, error: new DBError(`Agent ID is required for update`) }
@@ -353,8 +362,9 @@ export class Agent extends Base<
       await this.#relations({
         id: agent.id,
         projects,
-        providerIds,
         secretIds,
+        providerIds,
+        providerModels,
       })
       const updated = await this.get(agent.id, opts)
       result.data = updated.data
@@ -364,15 +374,16 @@ export class Agent extends Base<
   }
 
   async upsert(data: TAgentInsertOpts, opts?: TAgentQueryOpts) {
-    const { projects, providerIds, secretIds, ...agent } = data
+    const { projects, providerIds, providerModels, secretIds, ...agent } = data
     const result = await super.upsert(agent)
 
     if (result.data && (projects?.length || providerIds?.length || secretIds?.length)) {
       await this.#relations({
         id: agent.id,
         projects,
-        providerIds,
         secretIds,
+        providerIds,
+        providerModels,
       })
       const updated = await this.get(agent.id, opts)
       result.data = updated.data
@@ -413,13 +424,19 @@ export class Agent extends Base<
   /**
    * Add a provider to an agent with priority ordering
    */
-  async addProvider(agentId: string, providerId: string, priority: number = 0) {
+  async addProvider(
+    agentId: string,
+    providerId: string,
+    priority: number = 0,
+    model?: string | null
+  ) {
     const [result] = await this.db
       .insert(agentProviders)
       .values({
         agentId,
-        providerId,
         priority,
+        providerId,
+        model: model ?? null,
       })
       .returning()
 
@@ -445,7 +462,11 @@ export class Agent extends Base<
   /**
    * Replace all providers for an agent, setting priority by array order
    */
-  async setProviders(agentId: string, providerIds: string[]) {
+  async setProviders(
+    agentId: string,
+    providerIds: string[],
+    providerModels?: Record<string, string>
+  ) {
     await this.db.delete(agentProviders).where(eq(agentProviders.agentId, agentId))
 
     for (let i = 0; i < providerIds.length; i++) {
@@ -457,6 +478,7 @@ export class Agent extends Base<
           agentId,
           providerId,
           priority: i,
+          model: providerModels?.[providerId] ?? null,
         })
         .onConflictDoNothing()
     }

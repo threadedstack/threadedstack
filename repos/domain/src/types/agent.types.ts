@@ -7,8 +7,9 @@ import type { TAgentEnvVars, TAgentEnvironment } from './ai.types'
  * Stored in agentProviders junction table.
  */
 export type TAgentProvider = {
-  provider: Provider
   priority: number
+  provider: Provider
+  model?: string | null
 }
 
 /**
@@ -19,6 +20,7 @@ export type TAgentProvider = {
 export type TAgentProjectConfig = {
   agentId: string
   projectId: string
+  enabled?: boolean
   alias?: string | null
   model?: string | null
   maxTokens?: number | null
@@ -27,5 +29,4 @@ export type TAgentProjectConfig = {
   functionIds?: string[] | null
   envVars?: TAgentEnvVars | null
   environment?: TAgentEnvironment | null
-  enabled?: boolean
 }

@@ -157,7 +157,11 @@ export class AgentEndpoint extends BaseEndpoint {
       temperature: effectiveAgent.environment?.temperature,
       maxTokens: overrides?.maxTokens || effectiveAgent.maxTokens,
       systemPrompt: overrides?.systemPrompt || effectiveAgent.systemPrompt,
-      model: overrides?.model || effectiveAgent.model || provider.options?.model,
+      // Model resolution: overrides → junction → agent → provider default
+      // Note: effectiveAgent.model may include project-level overrides
+      model:
+        overrides?.model ||
+        effectiveAgent.resolveModel(provider!.id, provider!.options?.model),
 
       // TODO: fix these typescript types, need to add different Provider class types
       // I.E. need AIProvider, GitProvider, etc...

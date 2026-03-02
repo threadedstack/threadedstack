@@ -21,7 +21,6 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 | 1 | Chat app | P3 |
 | 1 | Website | P3 |
 | 1 | Playwright tests | P3 |
-| 2 | Multi-provider model config (start of serial chain) | P1 |
 | 3 | webSearch + webFetch (one agent, both tools) | P2 |
 | 4 | User selector in CreateApiKeyDrawer (start of serial chain) | P3 |
 | 5 | Agent endpoint overrides | P3 |
@@ -30,8 +29,7 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 
 | Batch | Task | Priority |
 |-------|------|----------|
-| 2 | Model field dropdown (after multi-provider) | P2 |
-| 2 | SecretsSelector errors (after AgentDrawer stable) | P2 |
+| 2 | SecretsSelector errors (AgentDrawer now stable) | P2 |
 | 4 | Project-level API keys (after user selector) | P3 |
 | 6 | Agent autonomous tools (serial within batch) | P3 |
 | 7 | S3 storage (start of serial chain) | P3 |
@@ -54,10 +52,10 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 | Shared File | Tasks That Touch It |
 |-------------|---------------------|
 | `agent/tools/tools.ts` | webSearch, webFetch, orchestration, task queue, planning, memory, scheduling, cost tracking, testing, HITL, S3 (artifact), RAG, GitHub |
-| `agent/runner/runner.ts` | multi-provider model, memory, cost tracking, RAG |
+| `agent/runner/runner.ts` | memory, cost tracking, RAG |
 | `backend/services/websocket/websocket.ts` | orchestration, cost tracking, HITL, RAG |
-| `admin/components/Agents/AgentDrawer.tsx` | model dropdown, multi-provider, SecretsSelector |
-| `domain/types/ai.types.ts` | multi-provider, webFetch, various agent tools |
+| `admin/components/Agents/AgentDrawer.tsx` | SecretsSelector |
+| `domain/types/ai.types.ts` | webFetch, various agent tools |
 | `backend/endpoints/threads/uploadFile.ts` | S3, RAG |
 | `admin/components/Orgs/CreateApiKeyDrawer.tsx` | user selector, project-level keys |
 
@@ -318,45 +316,9 @@ These tasks touch completely different files with zero overlap. All can run in W
 
 ---
 
-## Batch 2 — Agent Drawer Chain (serialized, 3 tasks)
+## Batch 2 — Agent Drawer (1 remaining task)
 
-These share `AgentDrawer.tsx` and `ModelConfigForm.tsx` — must run sequentially. Can run in parallel with Batch 1.
-
-### [P1] AgentDrawer — single model field for multiple providers, no per-provider model config *(run first)*
-
-* **Repos**: admin, database, agent, domain
-* **Key files**: `AgentDrawer.tsx`, `ModelConfigForm.tsx`, `agentProviders.ts`, `runner.ts`, `ai.types.ts`
-* An agent can have multiple AI providers attached (`providerIds` state, `BasicInfoForm` provider selector), but the drawer only has a single `model` field (`AgentDrawer.tsx` line 65). There's no way to set which model to use for each attached provider. The backend stores a single `model` column on the `agents` table. If an agent has OpenAI + Anthropic providers, only one model string can be set
-* **IMPORTANT** - The QuickStart Drawer has Model select functionality. Instead of duplicating the logic, we should extract it into it's own component, and reused it.
-* **Fix** (investigation needed — two possible approaches):
-  1. **Per-provider model field**: Add a `model` column to the `agent_providers` junction table (`repos/database/src/schemas/agentProviders.ts`). In the drawer, render a model selector per attached provider (each fetching models for its brand). The agent runner would select the model from the junction table based on which provider is active
-  2. **Priority-based model**: Keep a single model field but let the user configure the priority provider. The model selector fetches models for the priority provider only. Other providers are fallbacks using their own default models
-* This needs architectural investigation to determine which approach fits the agent runtime's provider selection logic
-* **Files**:
-  * `repos/database/src/schemas/agentProviders.ts` — possibly add `model` column to junction table
-  * `repos/admin/src/components/Agents/AgentDrawer.tsx` — render per-provider model selectors or priority selector
-  * `repos/admin/src/components/Agents/ModelConfigForm.tsx` — support multi-model or priority model UI
-  * `repos/agent/src/runner/runner.ts` — read model from junction table if per-provider approach
-  * `repos/domain/src/types/ai.types.ts` — extend agent types for per-provider model config
-
-### [P2] AgentDrawer — Model field is a text input instead of a model selector dropdown *(after multi-provider)*
-
-* **Repos**: admin
-* **Key files**: `ModelConfigForm.tsx`, `AgentDrawer.tsx`
-* `repos/admin/src/components/Agents/ModelConfigForm.tsx` lines 28-35: Model is a plain `TextInput` with a freeform placeholder (`"e.g., gpt-4o, claude-3-opus"`). The backend has a `POST /_/providers/:brand/models` endpoint (`repos/backend/src/endpoints/providers/fetchModels.ts`) that returns available models for a given provider brand via `ModelRegistry`, but this endpoint is never called from the agent drawer
-  * **IMPORTANT** - The QuickStart Drawer has Model select functionality. Instead of duplicating the logic, we should extract it into it's own component, and reused it.
-* The `AgentDrawer` (`repos/admin/src/components/Agents/AgentDrawer.tsx`) passes `model` to `ModelConfigForm` (line 404-412) but has no model list state or provider-brand-to-models fetching
-* **Fix**:
-  1. In `ModelConfigForm`, replace the `TextInput` (lines 28-35) with an MUI `Autocomplete` that accepts both selection from a list and freeform input (for custom/unknown models). Add `models` and `modelsLoading` props
-  2. In `AgentDrawer`, add state for `availableModels` and `modelsLoading`. When `providerIds` change, determine the priority provider's brand (first provider in the list), call `POST /_/providers/:brand/models` via a new action, and populate `availableModels`
-  3. Pass `availableModels` and `modelsLoading` to `ModelConfigForm`
-  4. Create a new action `repos/admin/src/actions/providers/api/fetchProviderModels.ts` that calls `POST /_/providers/:brand/models`
-* **Files**:
-  * `repos/admin/src/components/Agents/ModelConfigForm.tsx` — replace `TextInput` with `Autocomplete`, add `models`/`modelsLoading` props
-  * `repos/admin/src/components/Agents/AgentDrawer.tsx` — add model fetching when provider changes, pass models to `ModelConfigForm`
-  * New: `repos/admin/src/actions/providers/api/fetchProviderModels.ts` — API action to fetch models by brand
-
-### [P2] AgentDrawer — SecretsSelector errors when clicking the select input *(after AgentDrawer stable)*
+### [P2] AgentDrawer — SecretsSelector errors when clicking the select input
 
 * **Repos**: admin
 * **Key files**: `AgentDrawer.tsx`, `SecretsSelector.tsx`

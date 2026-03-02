@@ -43,6 +43,12 @@ const fakeEncrypted = () =>
     Buffer.from(`ciphertext`),
   ]).toString(`base64`)
 
+/** Wrap mock agent data with resolveModel (mirrors Agent class method) */
+const withResolveModel = (data: Record<string, any>) => ({
+  ...data,
+  resolveModel: (_pid: string, provDefault?: string) => data.model || provDefault,
+})
+
 describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
   let mockReq: Partial<TRequest>
   let mockRes: Partial<Response>
@@ -251,7 +257,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
@@ -276,7 +282,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         },
         secrets: [],
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-direct`, name: `Hello agent` },
@@ -305,7 +311,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
@@ -329,7 +335,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         secrets: [
           { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
         ],
-      },
+      }),
     })
 
     mockReq.body = { prompt: `Hello agent`, threadId: `thread-1` }
@@ -353,9 +359,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
+        model: `gemini-2.0-flash`,
         providers: [
           {
             id: `prov-1`,
@@ -380,7 +387,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
         ],
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-google`, name: `Hello agent` },
@@ -411,9 +418,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
+        model: `gpt-4o`,
         providers: [
           {
             id: `prov-1`,
@@ -438,7 +446,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
         ],
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-opts`, name: `Hello agent` },
@@ -469,7 +477,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
@@ -497,7 +505,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         model: `claude-sonnet-4-20250514`,
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-sse`, name: `Hello agent` },
@@ -526,7 +534,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
@@ -554,7 +562,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         ],
         model: `claude-sonnet-4-20250514`,
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-new`, name: `Hello agent` },
@@ -585,9 +593,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     mockReq.body = { prompt: `Continue`, threadId: `existing-thread` }
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
+        model: `test-model`,
         providers: [
           {
             id: `prov-1`,
@@ -612,7 +621,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
         ],
         tools: [],
-      },
+      }),
     })
 
     await ep.action(mockReq as TRequest, mockRes as Response)
@@ -637,9 +646,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
+        model: `test-model`,
         providers: [
           {
             id: `prov-1`,
@@ -664,7 +674,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
         ],
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-first`, name: `Hello agent` },
@@ -692,7 +702,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
         providers: [
@@ -723,7 +733,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
         systemPrompt: `You are helpful.`,
         tools: [`web_search`],
         environment: { temperature: 0.7 },
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-run`, name: `Hello agent` },
@@ -778,9 +788,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
+        model: `test-model`,
         providers: [
           {
             id: `prov-1`,
@@ -805,7 +816,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
         ],
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-default`, name: `Hello agent` },
@@ -836,9 +847,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
+        model: `test-model`,
         providers: [
           {
             id: `prov-1`,
@@ -863,7 +875,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
         ],
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `thread-done`, name: `Hello agent` },
@@ -892,9 +904,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
+        model: `test-model`,
         providers: [
           {
             id: `prov-1`,
@@ -919,7 +932,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
         ],
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `t-err`, name: `test` },
@@ -947,9 +960,10 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     >
 
     mockAgentGet.mockResolvedValue({
-      data: {
+      data: withResolveModel({
         id: `agent-1`,
         orgId: `org-1`,
+        model: `test-model`,
         providers: [
           {
             id: `prov-1`,
@@ -974,7 +988,7 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
           { encryptedValue: fakeEncrypted(), agentId: `agent-1`, providerId: `prov-1` },
         ],
         tools: [],
-      },
+      }),
     })
     mockThreadCreate.mockResolvedValue({
       data: { id: `t-close`, name: `test` },

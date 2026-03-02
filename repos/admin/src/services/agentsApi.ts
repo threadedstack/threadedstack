@@ -1,4 +1,5 @@
 import type { TAgentProjectConfig } from '@tdsk/domain'
+import type { TAgentPayload } from '@TAF/types/agent.types'
 import type { TApiRes, TApiCacheKeys, TAgentSessionData } from '@TAF/types'
 
 import { Agent } from '@tdsk/domain'
@@ -89,7 +90,7 @@ export class AgentsApi extends BaseApi {
    */
   async create(
     orgId: string,
-    data: Partial<Agent>,
+    data: TAgentPayload,
     projectId?: string
   ): Promise<TApiRes<Agent>> {
     const resp = await this.api.post<Agent>({
@@ -116,7 +117,7 @@ export class AgentsApi extends BaseApi {
   async update(
     orgId: string,
     id: string,
-    data: Partial<Agent>,
+    data: TAgentPayload,
     projectId?: string
   ): Promise<TApiRes<Agent>> {
     const resp = await this.api.put<Agent>({
