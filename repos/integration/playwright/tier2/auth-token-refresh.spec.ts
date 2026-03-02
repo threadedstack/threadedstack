@@ -111,7 +111,7 @@ test.describe('Auth Token 401 Retry', () => {
     })
 
     let callCount = 0
-    await page.route(`**/_/orgs/${ctx.orgId}**`, async (route) => {
+    await page.route(`**/_/users**`, async (route) => {
       if (route.request().method() === 'OPTIONS') {
         await route.fallback()
         return

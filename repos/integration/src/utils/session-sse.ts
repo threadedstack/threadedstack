@@ -5,7 +5,7 @@ import type { SSEEvent } from './sse'
  * Consume an SSE stream from /ai/stream (or legacy /ai/chat) using session-token auth.
  *
  * Unlike the regular SSE helper, this:
- * - Uses `Authorization: Session <token>` (not Bearer API key)
+ * - Uses `Authorization: Bearer <session-token>` (session JWT, not API key)
  * - Hits /ai/stream directly (no /_ prefix)
  *
  * Returns whatever events were collected, even on timeout/abort.
@@ -26,8 +26,8 @@ export const consumeSessionSSE = async (
     const res = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Session ${sessionToken}`,
+        [`Content-Type`]: `application/json`,
+        Authorization: `Bearer ${sessionToken}`,
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeout),

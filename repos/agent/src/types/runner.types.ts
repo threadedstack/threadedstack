@@ -3,8 +3,12 @@ import type {
   TMessageContent,
   TLLMAdapterConfig,
   TAgentEnvironment,
+  TAgentConfigFields,
   TFunctionExecResult,
+  TImageAttachment,
+  TFileAttachment,
   Function as FunctionModel,
+  Skill,
 } from '@tdsk/domain'
 
 /**
@@ -17,7 +21,9 @@ export interface IAgentRunnerDB {
     where: { threadId: string }
     limit: number
     offset: number
-  }): Promise<{ data?: Array<{ type: string; content: TMessageContent[] }> }>
+  }): Promise<{
+    data?: Array<{ type: string; content: TMessageContent[]; createdAt?: string | Date }>
+  }>
 
   createMessage(data: {
     threadId: string
@@ -27,10 +33,21 @@ export interface IAgentRunnerDB {
   }): Promise<unknown>
 }
 
-export type TAgentRunOpts = {
+export type TAgentHandle = {
+  steer: (message: string) => void
+  followUp: (message: string) => void
+  abort: () => void
+  waitForIdle: () => Promise<void>
+}
+
+/**
+ * Options for initializing a persistent AgentRunner instance.
+ * Contains everything needed to create the agent, sandbox, and tools.
+ * Per-turn options (prompt, images, signal) are passed to runTurn().
+ */
+export type TAgentInitOpts = {
   agentId: string
   threadId: string
-  prompt: string
   userId: string
   orgId: string
   /** Message persistence adapter */
@@ -47,14 +64,41 @@ export type TAgentRunOpts = {
   tools?: string[]
   /** Agent environment settings */
   environment?: TAgentEnvironment
-  /** Max conversation loop steps (prevents infinite tool-call loops) */
-  maxSteps?: number
   /** Callback for each streaming event */
   onEvent: (event: TStreamEvent) => void
-  /** AbortSignal to cancel the agent run */
-  signal?: AbortSignal
   /** Custom functions attached to this agent */
   customFunctions?: FunctionModel[]
   /** Callback to execute a custom function (provided by backend) */
   onExecuteFunction?: (functionId: string, input: unknown) => Promise<TFunctionExecResult>
+  /** Skills attached to this agent */
+  skills?: Skill[]
 }
+
+/**
+ * Per-turn options passed to runTurn().
+ */
+export type TAgentTurnOpts = {
+  prompt: string
+  /** Images to include with the prompt (vision models) */
+  images?: TImageAttachment[]
+  /** Attached files with extracted content */
+  files?: TFileAttachment[]
+  /** AbortSignal to cancel this turn */
+  signal?: AbortSignal
+}
+
+/**
+ * Runtime configuration that can be changed between turns
+ * via updateConfig() or the UpdateConfig WS event.
+ */
+export type TAgentConfig = TAgentConfigFields
+
+/**
+ * One-shot run options (backward compat for SSE endpoint).
+ * Combines init + turn opts into a single call.
+ */
+export type TAgentRunOpts = TAgentInitOpts &
+  TAgentTurnOpts & {
+    /** Max conversation loop steps (not yet enforced — awaiting pi-mono support) */
+    maxSteps?: number
+  }

@@ -23,6 +23,7 @@ import {
   encodeEncrypted,
   ProviderTemplates,
 } from '@tdsk/domain'
+import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 
 /**
  * POST /:orgId/quickstart - Create Provider + Secret + Project + Agent + Endpoint
@@ -78,10 +79,10 @@ export const orgQuickstart: TEndpointConfig = {
     const secretName =
       providerBrand === `custom` ? `PROVIDER_API_KEY` : template.defaultSecretName
 
-    // Resolve model defaults
-    const resolvedModel = model || template.defaultModel
-    const defaultModelEntry = template.models.find((m) => m.id === resolvedModel)
-    const resolvedMaxTokens = maxTokens || defaultModelEntry?.maxTokens || 100000
+    // Resolve model defaults — pi-mono is the source of truth for models
+    const resolvedModel = model || ModelRegistry.getDefaultModelId(providerBrand) || ``
+    const modelEntry = ModelRegistry.getModel(providerBrand, resolvedModel)
+    const resolvedMaxTokens = maxTokens || modelEntry?.maxTokens || 100000
 
     // --- Permission check ---
     await checkPermission(req, EPermAction.create, EPermResource.project, { orgId })

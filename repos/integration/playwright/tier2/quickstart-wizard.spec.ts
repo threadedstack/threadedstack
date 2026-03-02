@@ -47,6 +47,29 @@ async function navigateToOrgPage(
   await gotoAndWait(page, `/orgs/${orgId}`, 'tdsk-org-page')
 }
 
+/**
+ * Wait for the model input to appear and select/fill a model.
+ * Models are fetched dynamically from the backend. The UI renders either
+ * a SelectInput (#quickstart-model) when models load successfully,
+ * or a TextInput (#quickstart-dynamic-model) as fallback.
+ */
+async function selectModel(page: import('@playwright/test').Page) {
+  const modelSelect = page.locator('#quickstart-model')
+  const modelTextInput = page.locator('#quickstart-dynamic-model')
+  await expect(modelSelect.or(modelTextInput)).toBeVisible({ timeout: 10000 })
+
+  if (await modelSelect.isVisible()) {
+    // MUI Select: click the combobox trigger to open the dropdown
+    const wrapper = page.locator('.MuiInputBase-root').filter({ has: modelSelect })
+    await wrapper.locator('[role="combobox"]').click()
+    // Wait for dropdown listbox to appear, then select the first option
+    await page.locator('[role="listbox"]').waitFor({ state: 'visible', timeout: 5000 })
+    await page.locator('[role="listbox"] [role="option"]').first().click()
+  } else {
+    await modelTextInput.fill('claude-sonnet-4-20250514')
+  }
+}
+
 test.describe('Quickstart Wizard', () => {
   test('Opens wizard from Org page and renders provider cards with icons', async ({
     authenticatedPage: page,
@@ -59,8 +82,8 @@ test.describe('Quickstart Wizard', () => {
 
     await navigateToOrgPage(page, ctx.orgId)
 
-    // Click the Quick Start button (visible now that activeOrgId is set)
-    const quickstartBtn = page.getByRole('button', { name: /Quick Start/i })
+    // Click the Quick Start action card (rendered as a Card, not a button)
+    const quickstartBtn = page.locator('.tdsk-ac-card').filter({ hasText: 'Quick Start' })
     await expect(quickstartBtn).toBeVisible({ timeout: 5000 })
     await quickstartBtn.click()
 
@@ -109,7 +132,7 @@ test.describe('Quickstart Wizard', () => {
     await navigateToOrgPage(page, ctx.orgId)
 
     // Open wizard
-    await page.getByRole('button', { name: /Quick Start/i }).click()
+    await page.locator('.tdsk-ac-card').filter({ hasText: 'Quick Start' }).click()
     await expect(page.getByText('Quick Start').first()).toBeVisible()
 
     // Select Anthropic provider
@@ -122,9 +145,8 @@ test.describe('Quickstart Wizard', () => {
     // Fill a dummy API key (we won't submit)
     await apiKeyInput.fill('sk-ant-test-dummy-key')
 
-    // Model select should be visible (Anthropic has static models)
-    const modelSelect = page.locator('#quickstart-model')
-    await expect(modelSelect).toBeVisible()
+    // Wait for models to load and select one (required for Next to be enabled)
+    await selectModel(page)
 
     // Next should now be enabled
     await expect(page.getByRole('button', { name: /Next/i })).toBeEnabled()
@@ -166,13 +188,13 @@ test.describe('Quickstart Wizard', () => {
     await navigateToOrgPage(page, ctx.orgId)
 
     // Open wizard
-    await page.getByRole('button', { name: /Quick Start/i }).click()
+    await page.locator('.tdsk-ac-card').filter({ hasText: 'Quick Start' }).click()
     await expect(page.getByText('Quick Start').first()).toBeVisible()
 
-    // Step 0: Select Anthropic, fill API key
+    // Step 0: Select Anthropic, fill API key, select model
     await page.getByText('Anthropic', { exact: true }).click()
     await page.locator('#quickstart-api-key').fill('sk-ant-test-dummy-key')
-    await expect(page.locator('#quickstart-model')).toBeVisible()
+    await selectModel(page)
 
     // Advance to Step 1
     await page.getByRole('button', { name: /Next/i }).click()
@@ -217,7 +239,7 @@ test.describe('Quickstart Wizard', () => {
     await navigateToOrgPage(page, ctx.orgId)
 
     // Open wizard
-    await page.getByRole('button', { name: /Quick Start/i }).click()
+    await page.locator('.tdsk-ac-card').filter({ hasText: 'Quick Start' }).click()
     await expect(page.getByText('Quick Start').first()).toBeVisible()
 
     // Cancel on step 0 should close the drawer
@@ -227,11 +249,12 @@ test.describe('Quickstart Wizard', () => {
     await expect(page.getByText('AI Provider', { exact: true })).not.toBeVisible({ timeout: 3000 })
 
     // Re-open and navigate to step 1, then cancel
-    await page.getByRole('button', { name: /Quick Start/i }).click()
+    await page.locator('.tdsk-ac-card').filter({ hasText: 'Quick Start' }).click()
     await expect(page.getByText('Quick Start').first()).toBeVisible()
 
     await page.getByText('Anthropic', { exact: true }).click()
     await page.locator('#quickstart-api-key').fill('sk-ant-test-dummy-key')
+    await selectModel(page)
     await page.getByRole('button', { name: /Next/i }).click()
     await expect(page.locator('#quickstart-project-name')).toBeVisible({ timeout: 5000 })
 

@@ -3,16 +3,28 @@ import { ProviderTemplates } from './providers'
 import { ELLMProviderBrand } from '@TDM/types'
 
 describe(`ProviderTemplates`, () => {
-  it(`should have entries for all ELLMProviderBrand values`, () => {
-    const brands = Object.values(ELLMProviderBrand)
-    for (const brand of brands) {
+  it(`should have templates for configured providers only`, () => {
+    const configuredBrands = Object.keys(ProviderTemplates) as ELLMProviderBrand[]
+    for (const brand of configuredBrands) {
       expect(ProviderTemplates[brand]).toBeDefined()
-      expect(ProviderTemplates[brand].id).toBe(brand)
+      expect(ProviderTemplates[brand]!.id).toBe(brand)
     }
   })
 
   it(`should have 7 provider entries`, () => {
     expect(Object.keys(ProviderTemplates)).toHaveLength(7)
+  })
+
+  it(`should be config-only templates (no models or defaultModel)`, () => {
+    for (const tmpl of Object.values(ProviderTemplates)) {
+      expect(tmpl).not.toHaveProperty(`models`)
+      expect(tmpl).not.toHaveProperty(`defaultModel`)
+      expect(tmpl).toHaveProperty(`id`)
+      expect(tmpl).toHaveProperty(`name`)
+      expect(tmpl).toHaveProperty(`baseUrl`)
+      expect(tmpl).toHaveProperty(`defaultSecretName`)
+      expect(tmpl).toHaveProperty(`apiKeyPlaceholder`)
+    }
   })
 
   describe(`OpenRouter template`, () => {
@@ -29,18 +41,6 @@ describe(`ProviderTemplates`, () => {
 
     it(`should have correct apiKeyPattern`, () => {
       expect(tmpl.apiKeyPattern).toBe(`^sk-or-`)
-    })
-
-    it(`should have a defaultModel set`, () => {
-      expect(tmpl.defaultModel).toBeTruthy()
-    })
-
-    it(`should have static preset models`, () => {
-      expect(tmpl.models.length).toBeGreaterThan(0)
-      for (const model of tmpl.models) {
-        expect(model.id).toBeTruthy()
-        expect(model.name).toBeTruthy()
-      }
     })
   })
 
@@ -59,30 +59,22 @@ describe(`ProviderTemplates`, () => {
     it(`should have empty apiKeyPattern`, () => {
       expect(tmpl.apiKeyPattern).toBe(``)
     })
-
-    it(`should have empty models array for dynamic fetching`, () => {
-      expect(tmpl.models).toEqual([])
-    })
-
-    it(`should have a defaultModel set`, () => {
-      expect(tmpl.defaultModel).toBe(`llama3.2`)
-    })
   })
 
-  describe(`Existing providers unchanged`, () => {
-    it(`should still have Anthropic with correct baseUrl`, () => {
+  describe(`Provider baseUrls`, () => {
+    it(`should have Anthropic with correct baseUrl`, () => {
       expect(ProviderTemplates[ELLMProviderBrand.anthropic].baseUrl).toBe(
         `https://api.anthropic.com`
       )
     })
 
-    it(`should still have OpenAI with correct baseUrl`, () => {
+    it(`should have OpenAI with correct baseUrl`, () => {
       expect(ProviderTemplates[ELLMProviderBrand.openai].baseUrl).toBe(
         `https://api.openai.com/v1`
       )
     })
 
-    it(`should still have Custom with empty baseUrl`, () => {
+    it(`should have Custom with empty baseUrl`, () => {
       expect(ProviderTemplates[ELLMProviderBrand.custom].baseUrl).toBe(``)
     })
   })

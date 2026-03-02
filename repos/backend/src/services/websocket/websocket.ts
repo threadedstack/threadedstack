@@ -1,6 +1,11 @@
 import type { TApp } from '@TBE/types'
-import type { TStreamEvent, TWSServerMsg } from '@tdsk/domain'
-import type { IAgentRunnerDB } from '@tdsk/agent'
+import type { TStreamEvent, TWSServerMsg, TWSPromptMsg } from '@tdsk/domain'
+import type {
+  IAgentRunnerDB,
+  TAgentHandle,
+  TAgentInitOpts,
+  TAgentConfig,
+} from '@tdsk/agent'
 import type { TSession } from '@TBE/types'
 
 import WebSocket from 'ws'
@@ -18,6 +23,9 @@ export class Websocket {
   #app: TApp | undefined
   #ws: WebSocket | undefined
   #abortController: AbortController | null = null
+  #agentHandle: TAgentHandle | null = null
+  #runner: AgentRunner | null = null
+  #closed = false
 
   constructor(opts: TWebsocketOpts) {
     this.#ws = opts.ws
@@ -32,7 +40,20 @@ export class Websocket {
     this.#abortController = ac
   }
 
-  close() {
+  async close() {
+    this.#closed = true
+    if (this.#abortController) {
+      this.#abortController.abort()
+      this.send({ type: EWSEventType.Done, reason: `cancelled` })
+    }
+    if (this.#runner) {
+      try {
+        await this.#runner.destroy()
+      } catch (e) {
+        logger.error(`Failed to destroy AgentRunner: ${e}`)
+      }
+      this.#runner = null
+    }
     this.#ws?.close()
     this.#ws = undefined
     this.#app = undefined
@@ -57,23 +78,104 @@ export class Websocket {
   createDBAdapter = (db: any): IAgentRunnerDB => ({
     createMessage: (data) => db.services.message.create(data),
     listMessages: (opts) =>
-      db.services.message.list({
+      db.services.message.listByThread(opts.where.threadId, {
         limit: opts.limit,
-        where: opts.where,
         offset: opts.offset,
       }),
   })
 
   /**
-   * Handle a `prompt` message — run the full agent loop server-side
+   * Build the TAgentInitOpts from the session and DB.
+   */
+  async #buildInitOpts(
+    session: TSession,
+    db: any,
+    threadId: string
+  ): Promise<TAgentInitOpts> {
+    const customFunctions = session.customFunctions || []
+    const functionMap = new Map(customFunctions.map((fn: any) => [fn.id, fn]))
+
+    const { data: skills } = await db.services.skill.listForAgent(session.agentId)
+
+    return {
+      threadId,
+      tools: session.tools,
+      orgId: session.orgId,
+      userId: session.userId,
+      agentId: session.agentId,
+      db: this.createDBAdapter(db),
+      llmConfig: session.llmConfig,
+      environment: session.environment,
+      customFunctions,
+      skills,
+      sandboxConfig: {
+        provider: ESandboxType.local,
+        envVars: session.envVars ?? {},
+        timeout: session.environment?.timeout ?? 300000,
+      },
+      onExecuteFunction: async (functionId, input) => {
+        const func = functionMap.get(functionId)
+        if (!func) {
+          return {
+            duration: 0,
+            output: null,
+            success: false,
+            error: `Function not found`,
+          }
+        }
+        return FunctionExecutor.execute(func, {
+          context: { args: input as Record<string, any> },
+        })
+      },
+      onEvent: (event: TStreamEvent) => {
+        if (this.#abortController?.signal.aborted) return
+        this.bridgeEventToWS(event)
+      },
+    }
+  }
+
+  /**
+   * Ensure a persistent AgentRunner is initialized for the given thread.
+   * If the thread changes, the existing runner is destroyed and a new one created.
+   */
+  async #ensureRunner(session: TSession, db: any, threadId: string): Promise<void> {
+    if (this.#runner && this.#runner.threadId === threadId) {
+      return // Reuse existing runner for same thread
+    }
+
+    // Destroy old runner if thread changed
+    if (this.#runner) {
+      logger.info(
+        `Thread changed from ${this.#runner.threadId} to ${threadId}, reinitializing runner`
+      )
+      await this.#runner.destroy()
+      this.#runner = null
+    }
+
+    // Create and init new runner — hold in local var until init completes
+    const runner = new AgentRunner()
+    const initOpts = await this.#buildInitOpts(session, db, threadId)
+    await runner.init(initOpts)
+
+    // If close() was called during init, destroy the new runner and bail
+    if (this.#closed) {
+      await runner.destroy()
+      return
+    }
+
+    this.#runner = runner
+  }
+
+  /**
+   * Handle a `prompt` message — run a turn on the persistent agent
    * and stream events back over WebSocket.
    */
   async handlePrompt(
-    msg: { prompt: string; threadId?: string; maxSteps?: number },
+    msg: Omit<TWSPromptMsg, 'type'>,
     session: TSession,
     db: any
   ): Promise<void> {
-    const { prompt, maxSteps } = msg
+    const { prompt, images, files } = msg
     if (!prompt) {
       this.send({ type: EWSEventType.Error, message: `prompt is required` })
       this.send({ type: EWSEventType.Done, reason: `error` })
@@ -114,62 +216,84 @@ export class Websocket {
         this.send({ type: EWSEventType.ThreadCreated, threadId })
       }
 
-      // 2. Build sandbox config from session (envVars stay server-side)
-      const sandboxConfig = {
-        provider: ESandboxType.local,
-        envVars: session.envVars ?? {},
-        timeout: session.environment?.timeout ?? 300000,
+      // 2. Ensure persistent runner is initialized for this thread
+      await this.#ensureRunner(session, db, threadId)
+
+      // If closed during init, notify client and bail
+      if (this.#closed || !this.#runner) {
+        this.send({ type: EWSEventType.Done, reason: `cancelled` })
+        return
       }
 
-      // 3. Build function map for custom function execution
-      const customFunctions = session.customFunctions || []
-      const functionMap = new Map(customFunctions.map((fn: any) => [fn.id, fn]))
-
-      // 4. Run the agent — events stream back over WS
-      await AgentRunner.run({
+      // 3. Run a turn on the persistent agent
+      const handle = await this.#runner.runTurn({
         prompt,
-        threadId,
-        sandboxConfig,
+        images,
+        files,
         signal: ac.signal,
-        tools: session.tools,
-        orgId: session.orgId,
-        userId: session.userId,
-        agentId: session.agentId,
-        db: this.createDBAdapter(db),
-        llmConfig: session.llmConfig,
-        environment: session.environment,
-        customFunctions,
-        maxSteps,
-        onExecuteFunction: async (functionId, input) => {
-          const func = functionMap.get(functionId)
-          if (!func) {
-            return {
-              duration: 0,
-              output: null,
-              success: false,
-              error: `Function not found`,
-            }
-          }
-          return FunctionExecutor.execute(func, {
-            context: { args: input as Record<string, any> },
-          })
-        },
-        onEvent: (event: TStreamEvent) => {
-          if (ac.signal.aborted) return
-          this.bridgeEventToWS(event)
-        },
       })
+
+      // Store handle for steer/followUp mid-run
+      this.#agentHandle = handle
+
+      // 4. Wait for agent to finish
+      await handle.waitForIdle()
 
       // 5. Send done
       this.send({ type: EWSEventType.Done, reason: `complete` })
     } catch (err) {
-      const message = err instanceof Error ? err.message : `Agent execution failed`
-      if (!ac.signal.aborted) {
+      if (ac.signal.aborted) {
+        this.send({ type: EWSEventType.Done, reason: `cancelled` })
+      } else {
+        const message = err instanceof Error ? err.message : `Agent execution failed`
         this.send({ type: EWSEventType.Error, message })
         this.send({ type: EWSEventType.Done, reason: `error` })
       }
     } finally {
       this.#abortController = null
+      this.#agentHandle = null
+    }
+  }
+
+  /**
+   * Steer the running agent mid-execution.
+   * Interrupts after current tool execution and redirects the agent.
+   */
+  handleSteer(message: string): void {
+    if (!this.#agentHandle) {
+      this.send({ type: EWSEventType.Error, message: `No agent running to steer` })
+      return
+    }
+    this.#agentHandle.steer(message)
+  }
+
+  /**
+   * Queue a follow-up message for the running agent.
+   * Delivered after the agent finishes its current work.
+   */
+  handleFollowUp(message: string): void {
+    if (!this.#agentHandle) {
+      this.send({ type: EWSEventType.Error, message: `No agent running for follow-up` })
+      return
+    }
+    this.#agentHandle.followUp(message)
+  }
+
+  /**
+   * Update the persistent agent's runtime configuration.
+   * Takes effect on the next turn.
+   */
+  handleUpdateConfig(config: TAgentConfig): void {
+    if (!this.#runner?.initialized) {
+      this.send({ type: EWSEventType.Error, message: `No agent session to update` })
+      return
+    }
+    try {
+      this.#runner.updateConfig(config)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : `Config update failed`
+      logger.error(`[WS] Config update error:`, err)
+      this.send({ type: EWSEventType.Error, message })
     }
   }
 
@@ -197,6 +321,25 @@ export class Websocket {
           result: event.content,
           isError: event.isError ?? false,
         })
+        // Detect artifact content in tool results (from createArtifact tool)
+        if (!event.isError && event.content) {
+          let parsed: any
+          try {
+            parsed = JSON.parse(event.content)
+          } catch {
+            // Not JSON — skip artifact detection
+            break
+          }
+          if (parsed?.artifactType && parsed?.content) {
+            this.send({
+              type: EWSEventType.Artifact,
+              artifactType: parsed.artifactType,
+              content: parsed.content,
+              title: parsed.title,
+              language: parsed.language,
+            })
+          }
+        }
         break
       case EStreamEventType.toolExecutionUpdate:
         this.send({
@@ -211,12 +354,16 @@ export class Websocket {
         // The WS protocol has no equivalent message type — args are not forwarded.
         // ToolExecutionStart sends args: {} since args aren't available at start time.
         break
+      case EStreamEventType.thinking:
+        this.send({ type: EWSEventType.ThinkingDelta, delta: event.thinking })
+        break
       case EStreamEventType.error:
         this.send({ type: EWSEventType.Error, message: event.error })
         break
+      case EStreamEventType.turnEnd:
+        this.send({ type: EWSEventType.TurnEnd, usage: event.usage })
+        break
       case EStreamEventType.done:
-        // TODO: Wire actual token usage from pi-mono (currently hardcoded to zero)
-        this.send({ type: EWSEventType.TurnEnd, usage: { input: 0, output: 0 } })
         break
     }
   }

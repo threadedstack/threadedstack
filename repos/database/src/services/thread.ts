@@ -69,6 +69,23 @@ export class Thread extends Base<
     }
   }
 
+  async listBranches(
+    threadId: string,
+    opts?: { limit?: number; offset?: number }
+  ): Promise<TDBApiRes<ThreadModel[]>> {
+    try {
+      const found = await this.db.query.threads.findMany({
+        where: eq(threads.parentThreadId, threadId),
+        orderBy: desc(threads.createdAt),
+        limit: opts?.limit,
+        offset: opts?.offset,
+      })
+      return { data: found.map((row) => this.model(row)) }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
   async branchThread(
     threadId: string,
     messageId: string,

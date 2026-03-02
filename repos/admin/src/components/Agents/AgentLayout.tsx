@@ -62,11 +62,19 @@ export const AgentLayout = () => {
   const showTabs = !threadId && !pathAfterAgent.includes('/chat')
   const activeTab: TAgentDetailTab = pathAfterAgent.startsWith('/threads')
     ? EAgentDetailTab.threads
-    : EAgentDetailTab.agent
+    : pathAfterAgent.startsWith('/skills')
+      ? EAgentDetailTab.skills
+      : pathAfterAgent.startsWith('/schedules')
+        ? EAgentDetailTab.schedules
+        : EAgentDetailTab.agent
 
   const onTabChange = (_: React.SyntheticEvent, val: TAgentDetailTab) => {
     if (val === EAgentDetailTab.threads) {
       navigate(`${agentPath}/threads`)
+    } else if (val === EAgentDetailTab.skills) {
+      navigate(`${agentPath}/skills`)
+    } else if (val === EAgentDetailTab.schedules) {
+      navigate(`${agentPath}/schedules`)
     } else {
       navigate(agentPath)
     }
@@ -184,6 +192,14 @@ export const AgentLayout = () => {
             <Tab
               label='Threads'
               value={EAgentDetailTab.threads}
+            />
+            <Tab
+              label='Skills'
+              value={EAgentDetailTab.skills}
+            />
+            <Tab
+              label='Schedules'
+              value={EAgentDetailTab.schedules}
             />
           </Tabs>
         </Box>

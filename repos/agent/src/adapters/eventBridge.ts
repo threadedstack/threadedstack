@@ -1,7 +1,8 @@
 import type { AgentEvent } from '@mariozechner/pi-agent-core'
-import type { ToolCall } from '@mariozechner/pi-ai'
-import type { TStreamEvent } from '@tdsk/domain'
+import type { Api, AssistantMessage, Model, ToolCall, Usage } from '@mariozechner/pi-ai'
+import type { TStreamEvent, TTokenUsage } from '@tdsk/domain'
 
+import { calculateCost } from '@mariozechner/pi-ai'
 import { EStreamEventType, EStreamStopReason } from '@tdsk/domain'
 
 /**
@@ -12,6 +13,7 @@ import { EStreamEventType, EStreamStopReason } from '@tdsk/domain'
 const PiMonoEventType = {
   // AssistantMessageEvent.type values
   TextDelta: `text_delta`,
+  ThinkingDelta: `thinking_delta`,
   ToolCallStart: `toolcall_start`,
   ToolCallDelta: `toolcall_delta`,
   Done: `done`,
@@ -26,7 +28,10 @@ const PiMonoEventType = {
  * Maps a pi-mono AgentEvent to ThreadedStack's TStreamEvent for WebSocket output.
  * Returns undefined for events that have no ThreadedStack equivalent.
  */
-export const mapAgentEvent = (event: AgentEvent): TStreamEvent | undefined => {
+export const mapAgentEvent = (
+  event: AgentEvent,
+  model?: Model<Api>
+): TStreamEvent | undefined => {
   switch (event.type) {
     case `message_update`: {
       const ame = event.assistantMessageEvent
@@ -35,6 +40,12 @@ export const mapAgentEvent = (event: AgentEvent): TStreamEvent | undefined => {
           return {
             type: EStreamEventType.text,
             text: ame.delta,
+          }
+
+        case PiMonoEventType.ThinkingDelta:
+          return {
+            type: EStreamEventType.thinking,
+            thinking: ame.delta,
           }
 
         case PiMonoEventType.ToolCallStart: {
@@ -96,10 +107,18 @@ export const mapAgentEvent = (event: AgentEvent): TStreamEvent | undefined => {
         stopReason: EStreamStopReason.endTurn,
       }
 
+    case `turn_end`: {
+      const msg = event.message as AssistantMessage | undefined
+      const usage = extractUsage(msg?.role === `assistant` ? msg.usage : undefined, model)
+      return {
+        type: EStreamEventType.turnEnd,
+        usage,
+      }
+    }
+
     // Events we don't need to forward to WebSocket
     case `agent_start`:
     case `turn_start`:
-    case `turn_end`:
     case `message_start`:
     case `message_end`:
     case `tool_execution_start`:
@@ -121,4 +140,31 @@ const extractTextFromContent = (
     .filter((c) => c.type === `text` && c.text)
     .map((c) => c.text)
     .join(`\n`)
+}
+
+const emptyUsage: TTokenUsage = Object.freeze({
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+  cost: Object.freeze({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }),
+})
+
+/**
+ * Extract token usage from pi-mono's AssistantMessage.usage and calculate cost
+ */
+const extractUsage = (usage: Usage | undefined, model?: Model<Api>): TTokenUsage => {
+  if (!usage) return emptyUsage
+
+  const cost = model
+    ? calculateCost(model, usage)
+    : { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
+
+  return {
+    input: usage.input,
+    output: usage.output,
+    cacheRead: usage.cacheRead,
+    cacheWrite: usage.cacheWrite,
+    cost,
+  }
 }

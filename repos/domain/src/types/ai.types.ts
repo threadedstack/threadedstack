@@ -10,6 +10,21 @@ export type TMsgType = `${EMsgType}`
 
 export type TAgentEnvVars = Record<string, string>
 
+export type TThinkingLevel = `off` | `minimal` | `low` | `medium` | `high` | `xhigh`
+
+export type TThinkingBudgets = {
+  minimal?: number
+  low?: number
+  medium?: number
+  high?: number
+}
+
+export type TContextCompaction = {
+  enabled: boolean
+  strategy: `prune` | `compact`
+  compactionModel?: string
+}
+
 export type TAgentEnvironment = {
   /** Maximum memory in MB */
   memory?: number
@@ -17,10 +32,20 @@ export type TAgentEnvironment = {
   timeout?: number
   /** Whether to enable streaming responses */
   streaming?: boolean
-  /** Maximum retries for API calls */
+  /** Maximum retries for transient LLM errors (default 2) */
   maxRetries?: number
   /** Temperature for response generation */
   temperature?: number
+  /** Context budget as percentage of model context window (default 80) */
+  contextBudgetPercent?: number
+  /** Thinking/reasoning level for models that support it */
+  thinkingLevel?: TThinkingLevel
+  /** Token budgets per thinking level (token-based providers only) */
+  thinkingBudgets?: TThinkingBudgets
+  /** Context compaction configuration */
+  contextCompaction?: TContextCompaction
+  /** Prompt cache retention preference (none/short/long) — passed through to streaming providers */
+  cacheRetention?: `none` | `short` | `long`
   /** Agent-specific options */
   options?: Record<string, any>
 }
@@ -40,6 +65,15 @@ export enum EAgentTool {
 }
 
 export type TAgentToolType = `${EAgentTool}`
+
+/** Shared config fields for runtime agent configuration updates. */
+export type TAgentConfigFields = {
+  model?: string
+  provider?: string
+  tools?: string[]
+  systemPrompt?: string
+  thinkingLevel?: TThinkingLevel
+}
 
 export type TAgentRunOverrides = {
   model?: string
@@ -61,16 +95,34 @@ export type TAgentRunRequest = {
 }
 
 /**
- * Supported LLM providers
+ * Supported LLM providers.
+ * Includes all pi-mono KnownProvider values plus platform-specific providers (custom, ollama).
  */
 export enum ELLMProviderBrand {
   zai = `zai`,
+  xai = `xai`,
+  groq = `groq`,
   openai = `openai`,
   google = `google`,
   custom = `custom`,
   ollama = `ollama`,
+  mistral = `mistral`,
+  minimax = `minimax`,
+  cerebras = `cerebras`,
+  opencode = `opencode`,
   anthropic = `anthropic`,
   openrouter = `openrouter`,
+  huggingface = `huggingface`,
+  kimiCoding = `kimi-coding`,
+  minimaxCn = `minimax-cn`,
+  openaiCodex = `openai-codex`,
+  googleVertex = `google-vertex`,
+  githubCopilot = `github-copilot`,
+  amazonBedrock = `amazon-bedrock`,
+  googleGeminiCli = `google-gemini-cli`,
+  googleAntigravity = `google-antigravity`,
+  vercelAiGateway = `vercel-ai-gateway`,
+  azureOpenaiResponses = `azure-openai-responses`,
 }
 
 export type TLLMProviderBrand = `${ELLMProviderBrand}`
@@ -80,8 +132,12 @@ export type TLLMProviderBrand = `${ELLMProviderBrand}`
  */
 export enum EContentType {
   text = `text`,
+  image = `image`,
+  thinking = `thinking`,
   toolUse = `tool_use`,
   toolResult = `tool_result`,
+  file = `file`,
+  artifact = `artifact`,
 }
 
 export type TTextContent = {
@@ -96,6 +152,19 @@ export type TToolUseContent = {
   type: `${EContentType.toolUse}`
 }
 
+export type TImageContent = {
+  data: string
+  mimeType: string
+  type: `${EContentType.image}`
+}
+
+export type TThinkingContent = {
+  thinking: string
+  type: `${EContentType.thinking}`
+  thinkingSignature?: string
+  redacted?: boolean
+}
+
 export type TToolResultContent = {
   content: string
   toolUseId: string
@@ -103,7 +172,70 @@ export type TToolResultContent = {
   type: `${EContentType.toolResult}`
 }
 
-export type TMessageContent = TTextContent | TToolUseContent | TToolResultContent
+export type TFileContent = {
+  type: `${EContentType.file}`
+  assetId: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  extractedText?: string
+}
+
+export type TArtifactType =
+  | `html`
+  | `svg`
+  | `markdown`
+  | `code`
+  | `json`
+  | `csv`
+  | `yaml`
+  | `xml`
+  | `mermaid`
+  | `latex`
+  | `image`
+  | `table`
+  | `diff`
+  | `plaintext`
+
+export type TArtifactContent = {
+  type: `${EContentType.artifact}`
+  artifactType: TArtifactType
+  content: string
+  title?: string
+  language?: string
+}
+
+/**
+ * Shared attachment types used across WS messages and agent runner options
+ */
+export type TImageAttachment = { data: string; mimeType: string }
+
+export type TFileAttachment = {
+  assetId: string
+  fileName: string
+  mimeType: string
+  extractedText?: string
+  imageData?: string
+}
+
+/**
+ * Shared cost shape used in model info and token usage
+ */
+export type TModelCost = {
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+}
+
+export type TMessageContent =
+  | TTextContent
+  | TImageContent
+  | TFileContent
+  | TThinkingContent
+  | TToolUseContent
+  | TToolResultContent
+  | TArtifactContent
 
 export enum EMessageRole {
   user = `user`,
@@ -128,6 +260,7 @@ export enum EStreamEventType {
   text = `text`,
   done = `done`,
   error = `error`,
+  thinking = `thinking`,
   toolResult = `tool_result`,
   toolCallArgs = `tool_call_args`,
   toolCallStart = `tool_call_start`,
@@ -166,14 +299,30 @@ export type TStreamErrorEvent = {
   type: `${EStreamEventType.error}`
 }
 
+export type TStreamThinkingEvent = {
+  thinking: string
+  type: `${EStreamEventType.thinking}`
+}
+
 export type TStreamToolExecutionUpdateEvent = {
   content: string
   toolUseId: string
   type: `${EStreamEventType.toolExecutionUpdate}`
 }
 
+/**
+ * Token usage and cost tracking from pi-mono
+ */
+export type TTokenUsage = {
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+  cost: TModelCost & { total: number }
+}
+
 export type TStreamTurnEndEvent = {
-  usage: { input: number; output: number }
+  usage: TTokenUsage
   type: `${EStreamEventType.turnEnd}`
 }
 
@@ -195,6 +344,7 @@ export type TStreamEvent =
   | TStreamDoneEvent
   | TStreamErrorEvent
   | TStreamTextEvent
+  | TStreamThinkingEvent
   | TStreamTurnEndEvent
   | TStreamToolResultEvent
   | TStreamToolCallArgsEvent

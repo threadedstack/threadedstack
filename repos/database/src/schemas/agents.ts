@@ -1,10 +1,14 @@
+import type { TAgentEnvironment } from '@tdsk/domain'
+
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { base } from '@TDB/utils/schema/base'
 import { secrets } from '@TDB/schemas/secrets'
 import { threads } from '@TDB/schemas/threads'
 import { agentProjects } from '@TDB/schemas/agentProjects'
+import { agentSkills } from '@TDB/schemas/agentSkills'
 import { agentProviders } from '@TDB/schemas/agentProviders'
+import { schedules } from '@TDB/schemas/schedules'
 import { text, jsonb, boolean, pgTable, integer, varchar } from 'drizzle-orm/pg-core'
 
 /**
@@ -39,20 +43,7 @@ export const agents = pgTable(`agents`, {
   envVars: jsonb(`env_vars`).default({}).$type<Record<string, string>>(),
 
   /** Agent execution environment settings */
-  environment: jsonb(`environment`).default({}).$type<{
-    /** Execution timeout in milliseconds */
-    timeout?: number
-    /** Maximum memory in MB */
-    memory?: number
-    /** Whether to enable streaming responses */
-    streaming?: boolean
-    /** Temperature for response generation */
-    temperature?: number
-    /** Maximum retries for API calls */
-    maxRetries?: number
-    /** Agent-specific options */
-    options?: Record<string, any>
-  }>(),
+  environment: jsonb(`environment`).default({}).$type<TAgentEnvironment>(),
 
   /** Whether this agent is active and can be used */
   active: boolean(`active`).default(true),
@@ -67,4 +58,6 @@ export const agentsRelations = relations(agents, ({ one, many }) => ({
   threads: many(threads),
   projects: many(agentProjects),
   providers: many(agentProviders),
+  skills: many(agentSkills),
+  schedules: many(schedules),
 }))

@@ -169,7 +169,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
       const result = await consumeWS(sessionToken, 'Say hi', { timeout: 30_000 })
 
       const validTypes = [
-        'text_delta', 'tool_execution_start', 'tool_execution_end',
+        'text_delta', 'thinking_delta', 'tool_execution_start', 'tool_execution_end',
         'tool_execution_update', 'file_request', 'file_changed',
         'thread_created', 'turn_end', 'done', 'error',
       ]

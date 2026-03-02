@@ -1,17 +1,23 @@
 import type { TChatMessage } from '@TAF/hooks/chat/useAgentChat'
 
-import { Box, Typography } from '@mui/material'
+import { Box, Chip, Typography, IconButton } from '@mui/material'
 import { RobotOutlineIcon } from '@tdsk/components'
-import { Person as PersonIcon } from '@mui/icons-material'
+import {
+  Person as PersonIcon,
+  CallSplit as BranchIcon,
+  AttachFile as AttachIcon,
+} from '@mui/icons-material'
 import { ToolCallDisplay } from '@TAF/components/AI/ToolCallDisplay'
+import { ArtifactRenderer } from '@TAF/components/AI/ArtifactRenderer'
 
 export type TMessageBubble = {
   message: TChatMessage
   isStreaming?: boolean
+  onBranch?: (messageId: string) => void
 }
 
 export const MessageBubble = (props: TMessageBubble) => {
-  const { message, isStreaming } = props
+  const { message, isStreaming, onBranch } = props
   const isUser = message.role === `user`
 
   return (
@@ -69,6 +75,21 @@ export const MessageBubble = (props: TMessageBubble) => {
             },
           }}
         >
+          {message.files && message.files.length > 0 && (
+            <Box sx={{ display: `flex`, gap: 0.5, flexWrap: `wrap`, mb: 1 }}>
+              {message.files.map((f) => (
+                <Chip
+                  key={f.assetId}
+                  size='small'
+                  icon={<AttachIcon sx={{ fontSize: 14 }} />}
+                  label={f.fileName}
+                  variant='outlined'
+                  sx={{ fontSize: 12 }}
+                />
+              ))}
+            </Box>
+          )}
+
           {message.text ? (
             <Typography
               variant='body2'
@@ -121,6 +142,43 @@ export const MessageBubble = (props: TMessageBubble) => {
                 toolCall={tc}
               />
             ))}
+          </Box>
+        )}
+
+        {message.artifacts && message.artifacts.length > 0 && (
+          <Box className='tdsk-msg-bubble-artifacts-box'>
+            {message.artifacts.map((artifact, idx) => (
+              <ArtifactRenderer
+                key={`${message.id}-artifact-${idx}`}
+                content={artifact.content}
+                artifactType={artifact.artifactType}
+                title={artifact.title}
+                language={artifact.language}
+              />
+            ))}
+          </Box>
+        )}
+
+        {!isUser && !isStreaming && onBranch && (
+          <Box
+            className='tdsk-msg-bubble-actions'
+            sx={{
+              mt: 0.5,
+              opacity: 0,
+              display: `flex`,
+              justifyContent: `flex-start`,
+              transition: `opacity 0.15s`,
+              '.tdsk-msg-bubble-box:hover &': { opacity: 0.7 },
+              '&:hover': { opacity: `1 !important` },
+            }}
+          >
+            <IconButton
+              size='small'
+              title='Branch at this message'
+              onClick={() => onBranch(message.id)}
+            >
+              <BranchIcon sx={{ fontSize: 14 }} />
+            </IconButton>
           </Box>
         )}
       </Box>

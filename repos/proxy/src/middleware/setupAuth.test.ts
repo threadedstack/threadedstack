@@ -245,30 +245,30 @@ describe(`validateAuth`, () => {
     expect(mockNext).not.toHaveBeenCalled()
   })
 
-  it(`should skip JWT auth for /ai/chat paths (session token auth)`, async () => {
+  it(`should pass through /ai/chat paths without token (no JWT to verify)`, async () => {
     mockAuth.isPublic.mockReturnValue(false)
-    mockAuth.isSession.mockReturnValue(true)
+    mockAuth.extract.mockReturnValue(null)
     const mockReq = { path: `/ai/chat`, headers: {} } as unknown as Request
 
     const middleware = validateAuth(mockApp)
     await middleware(mockReq, mockRes, mockNext)
 
     expect(mockNext).toHaveBeenCalled()
-    expect(mockAuth.extract).not.toHaveBeenCalled()
+    expect(mockAuth.extract).toHaveBeenCalled()
     expect(mockAuth.verify).not.toHaveBeenCalled()
     expect(mockRes.status).not.toHaveBeenCalled()
   })
 
-  it(`should skip JWT auth for /ai/stream paths (session token auth)`, async () => {
+  it(`should pass through /ai/stream paths without token (no JWT to verify)`, async () => {
     mockAuth.isPublic.mockReturnValue(false)
-    mockAuth.isSession.mockReturnValue(true)
+    mockAuth.extract.mockReturnValue(null)
     const mockReq = { path: `/ai/stream`, headers: {} } as unknown as Request
 
     const middleware = validateAuth(mockApp)
     await middleware(mockReq, mockRes, mockNext)
 
     expect(mockNext).toHaveBeenCalled()
-    expect(mockAuth.extract).not.toHaveBeenCalled()
+    expect(mockAuth.extract).toHaveBeenCalled()
     expect(mockAuth.verify).not.toHaveBeenCalled()
     expect(mockRes.status).not.toHaveBeenCalled()
   })

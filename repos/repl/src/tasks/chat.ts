@@ -1,8 +1,7 @@
 import type { TTask } from '@TRL/types'
 
-import React from 'react'
-import { render } from 'ink'
-import { App } from '@TRL/components/App'
+import { ChatLogic } from '@TRL/renderers/chatLogic'
+import { PiTuiApp } from '@TRL/renderers/PiTuiApp'
 
 export const chat: TTask = {
   name: `chat`,
@@ -32,18 +31,27 @@ export const chat: TTask = {
     },
   },
   action: async ({ params, auth, config }) => {
-    const { waitUntilExit } = render(
-      React.createElement(App, {
-        auth,
-        config,
-        initialOrgId: params.org as string | undefined,
-        initialAgentId: params.agent as string | undefined,
-        initialThreadId: params.thread as string | undefined,
-        initialProjectId: params.project as string | undefined,
-      }),
-      { concurrent: true, patchConsole: false }
-    )
-    await waitUntilExit()
+    const logic = new ChatLogic({
+      auth,
+      config,
+      initialOrgId: params.org as string | undefined,
+      initialAgentId: params.agent as string | undefined,
+      initialThreadId: params.thread as string | undefined,
+      initialProjectId: params.project as string | undefined,
+    })
+
+    const app = new PiTuiApp(logic)
+    app.start()
+    await logic.init()
+
+    // Wait until exit
+    await new Promise<void>((resolve) => {
+      logic.onExit = () => {
+        app.stop()
+        resolve()
+      }
+    })
+
     process.exit(0)
   },
 }

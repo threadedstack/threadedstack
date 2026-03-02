@@ -32,18 +32,19 @@ export const validateApiKeyAuth = (app: TProxyApp) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (req.user) return next()
     if (app.locals.auth.isPublic(req.path)) return next()
-    if (app.locals.auth.isSession(req.path)) return next()
 
     const token = app.locals.auth.extract(req)
 
-    // No token at all — no auth provided
+    // No token at all — session routes defer to session middleware for their own 401
     if (!token) {
+      if (app.locals.auth.isSession(req.path)) return next()
       res.status(401).json({ error: `No authentication token provided` })
       return
     }
 
-    // Not an API key — token was present but not handled by JWT middleware either
+    // Not an API key — if it's a session route, let session middleware handle it
     if (!token.startsWith(ApiKeyPrefix)) {
+      if (app.locals.auth.isSession(req.path)) return next()
       res.status(401).json({ error: `Invalid authentication token` })
       return
     }

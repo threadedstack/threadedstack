@@ -105,13 +105,9 @@ export const useQuickStart = (props: THQuickStart) => {
     setLoading(true)
     setError(null)
 
-    const template = ProviderTemplates[providerData.providerBrand]
-    const modelEntry = template?.models?.find((m) => m.id === providerData.model)
-
     const resp = await createQuickstart({
       orgId,
       agent: agentData,
-      model: modelEntry,
       provider: providerData,
     })
 

@@ -50,6 +50,8 @@ export enum EPermResource {
   thread = `thread`, // Conversation threads
   message = `message`, // Thread messages
   asset = `asset`, // Uploaded assets
+  skill = `skill`, // Reusable agent skills
+  schedule = `schedule`, // Agent cron schedules
 }
 
 export type TPermAction = `${EPermAction}`

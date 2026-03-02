@@ -218,7 +218,15 @@ export const App = (props: TApp) => {
   )
 
   const buildCommandContext = () => ({
+    verbose,
+    setVerbose,
+    contextFiles,
+    auth: authContext,
+    output: outputMessage,
     orgId: session.orgId!,
+    showMenu: subMenu.show,
+    messages: msgs.messages,
+    closeMenu: subMenu.close,
     agentId: session.agentId!,
     threadId: session.threadId,
     projectId: session.projectId,
@@ -250,8 +258,6 @@ export const App = (props: TApp) => {
     clearMessages: () => {
       msgs.setMessages([])
     },
-    messages: msgs.messages,
-    contextFiles,
     listThreads: async () => {
       if (!clientRef.current || !session.orgId || !session.agentId) return []
       const threads = await clientRef.current.listThreads(session.orgId, session.agentId)
@@ -283,6 +289,40 @@ export const App = (props: TApp) => {
       if (!clientRef.current || !session.orgId || !session.agentId) return
       await clientRef.current.deleteThread(session.orgId, session.agentId, threadId)
     },
+    getThreadWithBranches: async (threadId: string) => {
+      if (!clientRef.current || !session.orgId || !session.agentId)
+        throw new Error(`Not connected`)
+      const thread = await clientRef.current.getThread(
+        session.orgId,
+        session.agentId,
+        threadId,
+        { include: [`branches`, `parent`] }
+      )
+      // The API returns extra fields (branches, parentThread) when include params
+      // are specified, but the Thread model doesn't declare them. Extract the raw
+      // object so the shape satisfies TSlashCommandContext.getThreadWithBranches.
+      const raw = thread as unknown as Record<string, unknown>
+      return {
+        id: thread.id,
+        name: thread.name,
+        parentThreadId: thread.parentThreadId,
+        branches: raw.branches as
+          | Array<{ id: string; name?: string; branchMessageId?: string }>
+          | undefined,
+        parentThread: raw.parentThread as { id: string; name?: string } | undefined,
+      }
+    },
+    branchThread: async (threadId: string, messageId: string) => {
+      if (!clientRef.current || !session.orgId || !session.agentId)
+        throw new Error(`Not connected`)
+      const thread = await clientRef.current.branchThread(
+        session.orgId,
+        session.agentId,
+        threadId,
+        messageId
+      )
+      return { id: thread.id, name: thread.name }
+    },
     createThread: async (name?: string) => {
       if (!clientRef.current || !session.orgId || !session.agentId)
         throw new Error(`Not connected`)
@@ -313,16 +353,10 @@ export const App = (props: TApp) => {
         msgs.addMessage(dm)
       }
     },
-    showMenu: subMenu.show,
-    closeMenu: subMenu.close,
     exit: () => {
       executorRef.current?.destroy()
       exit()
     },
-    verbose,
-    setVerbose,
-    auth: authContext,
-    output: outputMessage,
   })
 
   // Handler for login phase — only allows /login, /help, /exit

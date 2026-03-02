@@ -11,6 +11,8 @@ vi.mock(`@tdsk/domain`, () => ({
     text: `text`,
     done: `done`,
     error: `error`,
+    thinking: `thinking`,
+    turnEnd: `turn_end`,
     toolResult: `tool_result`,
     toolCallArgs: `tool_call_args`,
     toolCallStart: `tool_call_start`,
@@ -271,13 +273,33 @@ describe(`mapAgentEvent`, () => {
     })
   })
 
+  describe(`message_update - thinking_delta`, () => {
+    it(`should return a thinking event with the delta string`, () => {
+      const event: AgentEvent = {
+        type: `message_update`,
+        message: makePartial(),
+        assistantMessageEvent: {
+          type: `thinking_delta`,
+          contentIndex: 0,
+          delta: `Let me consider this problem...`,
+          partial: makePartial(),
+        } as any,
+      }
+
+      const result = mapAgentEvent(event)
+      expect(result).toEqual({
+        type: EStreamEventType.thinking,
+        thinking: `Let me consider this problem...`,
+      })
+    })
+  })
+
   describe(`message_update - unhandled sub-types`, () => {
     const unhandledTypes = [
       `start`,
       `text_start`,
       `text_end`,
       `thinking_start`,
-      `thinking_delta`,
       `thinking_end`,
       `toolcall_end`,
     ] as const
@@ -439,11 +461,52 @@ describe(`mapAgentEvent`, () => {
     })
   })
 
+  describe(`turn_end`, () => {
+    it(`should return a turnEnd event with usage data`, () => {
+      const event = {
+        type: `turn_end`,
+        message: makePartial(),
+        toolResults: [],
+      } as unknown as AgentEvent
+
+      const result = mapAgentEvent(event)
+      expect(result).toEqual({
+        type: EStreamEventType.turnEnd,
+        usage: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+        },
+      })
+    })
+
+    it(`should return empty usage when message is not an assistant message`, () => {
+      const event = {
+        type: `turn_end`,
+        message: { role: `user`, content: `hi`, timestamp: 1 },
+        toolResults: [],
+      } as unknown as AgentEvent
+
+      const result = mapAgentEvent(event)
+      expect(result).toEqual({
+        type: EStreamEventType.turnEnd,
+        usage: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+        },
+      })
+    })
+  })
+
   describe(`events that return undefined`, () => {
     const silentEvents: Array<{ type: string; extra?: Record<string, any> }> = [
       { type: `agent_start` },
       { type: `turn_start` },
-      { type: `turn_end`, extra: { message: makePartial(), toolResults: [] } },
       { type: `message_start`, extra: { message: makePartial() } },
       { type: `message_end`, extra: { message: makePartial() } },
       {

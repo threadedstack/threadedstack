@@ -267,6 +267,8 @@ describe(`OrgNavItems`, () => {
         `Providers`,
         `Domains`,
         `API Keys`,
+        `Skills`,
+        `Schedules`,
         `Usage`,
         `Settings`,
       ]
@@ -460,7 +462,7 @@ describe(`OrgSubNavGroups`, () => {
   it(`Resources should have Projects, Members, Agents`, () => {
     const resources = OrgSubNavGroups.find((g) => g.label === `Resources`)
     const texts = resources?.items.map((i) => i.text)
-    expect(texts).toEqual([`Projects`, `Members`, `Providers`, `Agents`])
+    expect(texts).toEqual([`Projects`, `Members`, `Providers`, `Agents`, `Skills`])
   })
 
   it(`Security should have Secrets, Providers, API Keys, Domains`, () => {
@@ -472,7 +474,7 @@ describe(`OrgSubNavGroups`, () => {
   it(`Management should have Usage, Settings`, () => {
     const management = OrgSubNavGroups.find((g) => g.label === `Management`)
     const texts = management?.items.map((i) => i.text)
-    expect(texts).toEqual([`Usage`, `Settings`])
+    expect(texts).toEqual([`Schedules`, `Usage`, `Settings`])
   })
 
   it(`all items should have Icons`, () => {

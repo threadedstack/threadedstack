@@ -34,6 +34,8 @@ const makeCtx = (
   deleteThread: vi.fn().mockResolvedValue(undefined),
   createThread: vi.fn().mockResolvedValue({ id: `t-new` }),
   loadThreadMessages: vi.fn().mockResolvedValue(undefined),
+  getThreadWithBranches: vi.fn().mockResolvedValue({ id: `t1`, branches: [] }),
+  branchThread: vi.fn().mockResolvedValue({ id: `t-branch` }),
   showMenu: vi.fn(),
   closeMenu: vi.fn(),
   auth: {

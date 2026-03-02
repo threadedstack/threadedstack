@@ -68,8 +68,11 @@ export const ReviewStep = (props: TReviewStep) => {
         ? provider.providerName || `Custom Provider`
         : template?.name || provider.providerBrand
 
-    const modelName =
-      template?.models?.find((m) => m.id === provider.model)?.name || provider.model
+    // provider.model is a raw ID (e.g., "claude-sonnet-4-20250514");
+    // format it as a friendlier display name by capitalising words
+    const modelName = provider.model
+      ? provider.model.replace(/[-_]/g, ` `).replace(/\b\w/g, (c) => c.toUpperCase())
+      : provider.model
 
     const secretName = template?.defaultSecretName || `PROVIDER_API_KEY`
 

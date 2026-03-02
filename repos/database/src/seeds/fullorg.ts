@@ -49,19 +49,19 @@ const users = {
     id: Ids.user.admin,
     name: `Test Admin`,
     emailVerified: false,
-    email: `test.admin@threadedstack.com`,
+    email: `lancetipton04+tdsk-admin@gmail.com`,
   }),
   member: new User({
     id: Ids.user.member,
     name: `Test Member`,
     emailVerified: false,
-    email: `test.member@threadedstack.com`,
+    email: `lancetipton04+tdsk-member@gmail.com`,
   }),
   viewer: new User({
     id: Ids.user.viewer,
     name: `Test Viewer`,
     emailVerified: false,
-    email: `test.viewer@threadedstack.com`,
+    email: `lancetipton04+tdsk-viewer@gmail.com`,
   }),
 }
 

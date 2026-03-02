@@ -103,11 +103,26 @@ describe(`validateSessionAuth`, () => {
     expect(mockRes.status).not.toHaveBeenCalled()
   })
 
-  it(`should return 401 when Session token is empty`, () => {
+  it(`should skip session auth when req.user is already set`, () => {
+    const mockReq = {
+      path: `/ai/chat`,
+      headers: { authorization: `Bearer some-jwt` },
+      user: { userId: `user-123`, email: `test@test.com`, role: `user` },
+    } as unknown as Request
+
+    const middleware = validateSessionAuth(mockApp)
+    middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+    expect(mockAuth.extract).not.toHaveBeenCalled()
+  })
+
+  it(`should return 401 when Bearer token is empty`, () => {
     mockAuth.extract.mockReturnValue(``)
     const mockReq = {
       path: `/ai/chat`,
-      headers: { authorization: `Session ` },
+      headers: { authorization: `Bearer ` },
     } as unknown as Request
 
     const middleware = validateSessionAuth(mockApp)
@@ -118,11 +133,11 @@ describe(`validateSessionAuth`, () => {
     expect(mockNext).not.toHaveBeenCalled()
   })
 
-  it(`should call next when valid Session token is present`, () => {
+  it(`should call next when valid session token is present via Bearer`, () => {
     mockAuth.extract.mockReturnValue(`abc-123-def-456`)
     const mockReq = {
       path: `/ai/chat`,
-      headers: { authorization: `Session abc-123-def-456` },
+      headers: { authorization: `Bearer abc-123-def-456` },
     } as unknown as Request
 
     const middleware = validateSessionAuth(mockApp)
@@ -136,7 +151,7 @@ describe(`validateSessionAuth`, () => {
     mockAuth.extract.mockReturnValue(`abc-123`)
     const mockReq = {
       path: `/ai/chat/stream`,
-      headers: { authorization: `Session abc-123` },
+      headers: { authorization: `Bearer abc-123` },
     } as unknown as Request
 
     const middleware = validateSessionAuth(mockApp)
@@ -161,11 +176,11 @@ describe(`validateSessionAuth`, () => {
     expect(mockNext).not.toHaveBeenCalled()
   })
 
-  it(`should call next when valid Session token is present on /ai/stream`, () => {
+  it(`should call next when valid session token is present on /ai/stream`, () => {
     mockAuth.extract.mockReturnValue(`abc-123-def-456`)
     const mockReq = {
       path: `/ai/stream`,
-      headers: { authorization: `Session abc-123-def-456` },
+      headers: { authorization: `Bearer abc-123-def-456` },
     } as unknown as Request
 
     const middleware = validateSessionAuth(mockApp)

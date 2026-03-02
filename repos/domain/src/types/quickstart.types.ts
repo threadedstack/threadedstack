@@ -1,27 +1,32 @@
-import type { TLLMProviderBrand } from '@TDM/types/ai.types'
+import type { TLLMProviderBrand, TModelCost } from '@TDM/types/ai.types'
 
 /**
- * Provider model entry for template definitions
+ * Provider model entry — enriched with pi-mono metadata.
+ * Only `id` and `name` are required; the rest come from pi-mono's registry.
  */
 export type TProviderModel = {
   id: string
   name: string
-  maxTokens: number
+  maxTokens?: number
   description?: string
+  contextWindow?: number
+  reasoning?: boolean
+  cost?: TModelCost
+  inputTypes?: string[]
 }
 
 /**
- * Provider template definition for quickstart wizard
+ * Provider template definition for quickstart wizard.
+ * Models are now sourced from pi-mono's registry (via backend endpoint),
+ * NOT from hardcoded arrays.
  */
 export type TProviderTemplate = {
   name: string
   baseUrl: string
-  defaultModel: string
   id: TLLMProviderBrand
   apiKeyPattern?: string
   defaultSecretName: string
   apiKeyPlaceholder: string
-  models: TProviderModel[]
 }
 
 /**

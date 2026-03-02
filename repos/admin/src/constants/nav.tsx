@@ -19,6 +19,8 @@ import {
   BarChart as UsageIcon,
   Settings as SettingsIcon,
   CreditCard as BillingIcon,
+  Timer as TimerIcon,
+  Extension as ExtensionIcon,
   CloudQueue as ProviderIcon,
 } from '@mui/icons-material'
 
@@ -63,6 +65,18 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `API Keys`,
     Icon: <ApiIcon />,
     to: buildRoute(ERoutePath.OrgApiKeys),
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Skills: {
+    text: `Skills`,
+    to: buildRoute(ERoutePath.OrgSkills),
+    Icon: <ExtensionIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Schedules: {
+    text: `Schedules`,
+    to: buildRoute(ERoutePath.OrgSchedules),
+    Icon: <TimerIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   Usage: {
@@ -167,7 +181,13 @@ export const HomeSubNavGroups: TSubNavGroup[] = [
 export const OrgSubNavGroups: TSubNavGroup[] = [
   {
     label: `Resources`,
-    items: [OrgSubNav.Projects, OrgSubNav.Members, OrgSubNav.Providers, OrgSubNav.Agents],
+    items: [
+      OrgSubNav.Projects,
+      OrgSubNav.Members,
+      OrgSubNav.Providers,
+      OrgSubNav.Agents,
+      OrgSubNav.Skills,
+    ],
   },
   {
     label: `Security`,
@@ -175,7 +195,7 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
   },
   {
     label: `Management`,
-    items: [OrgSubNav.Usage, OrgSubNav.Settings],
+    items: [OrgSubNav.Schedules, OrgSubNav.Usage, OrgSubNav.Settings],
   },
 ]
 

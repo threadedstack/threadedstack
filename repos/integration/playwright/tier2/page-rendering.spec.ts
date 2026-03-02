@@ -187,6 +187,32 @@ test.describe('Org Pages', () => {
 
     expect(errors).toEqual([])
   })
+
+  test('Org Skills - renders Skills heading', async ({ authenticatedPage: page, ctx }) => {
+    const errors: string[] = []
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
+    })
+
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/skills`, 'tdsk-org-skills-page')
+
+    await expect(page.getByRole('heading', { name: 'Skills' })).toBeVisible()
+
+    expect(errors).toEqual([])
+  })
+
+  test('Org Schedules - renders Schedules heading', async ({ authenticatedPage: page, ctx }) => {
+    const errors: string[] = []
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
+    })
+
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, 'tdsk-org-schedules-page')
+
+    await expect(page.getByRole('heading', { name: 'Schedules' })).toBeVisible()
+
+    expect(errors).toEqual([])
+  })
 })
 
 // ---------------------------------------------------------------------------

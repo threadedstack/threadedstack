@@ -99,7 +99,7 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 - Client-side auth via Neon Auth (social login)
 - Proxy validates JWT using JWKS from Neon
 - Protected routes require valid JWT token or API key (`tdsk_*` Bearer token)
-- `/ai/stream` uses session token auth (`Authorization: Session <token>`) — skips JWT/API key
+- `/ai/stream` and `/ai/chat` use session token auth (`Authorization: Bearer <session-token>`) — verified by backend, not proxy
 
 ### Workspace Structure (`repos/`)
 

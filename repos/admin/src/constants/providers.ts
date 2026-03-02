@@ -25,18 +25,13 @@ export const ProviderTypes = Object.values(EProvider).map((value) => ({
   label: wordCaps(value),
 }))
 
-export const DynamicBrands = new Set<string>([
-  ELLMProviderBrand.openai,
-  ELLMProviderBrand.google,
-  ELLMProviderBrand.ollama,
-  ELLMProviderBrand.openrouter,
-])
+// All non-custom brands fetch models from backend (pi-mono static registry)
+export const DynamicBrands = new Set<string>(
+  Object.values(ELLMProviderBrand).filter((b) => b !== ELLMProviderBrand.custom)
+)
 
-// Brands that need the user's API key to fetch models
-export const KeyRequiredBrands = new Set<string>([
-  ELLMProviderBrand.openai,
-  ELLMProviderBrand.google,
-])
+// No brands need API keys for model listing (pi-mono's static registry)
+export const KeyRequiredBrands = new Set<string>([])
 
 export const ProviderIcons: Record<string, ComponentType<any>> = {
   [ELLMProviderBrand.zai]: ZAIIcon,

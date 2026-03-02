@@ -147,4 +147,18 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
   },
+  [EPermResource.skill]: {
+    [EPermAction.create]: ERoleType.member, // Members can create skills
+    [EPermAction.read]: ERoleType.viewer,
+    [EPermAction.update]: ERoleType.member,
+    [EPermAction.delete]: ERoleType.admin,
+    [EPermAction.manage]: ERoleType.admin,
+  },
+  [EPermResource.schedule]: {
+    [EPermAction.create]: ERoleType.member, // Members can create schedules
+    [EPermAction.read]: ERoleType.viewer,
+    [EPermAction.update]: ERoleType.member,
+    [EPermAction.delete]: ERoleType.admin,
+    [EPermAction.manage]: ERoleType.admin,
+  },
 }

@@ -20,6 +20,17 @@ export type TSlashCommandContext = {
   loadThreadMessages: (threadId: string) => Promise<void>
   createThread: (name?: string) => Promise<{ id: string; name?: string }>
   listThreads: () => Promise<Array<{ id: string; name?: string; createdAt?: string }>>
+  getThreadWithBranches: (threadId: string) => Promise<{
+    id: string
+    name?: string
+    parentThreadId?: string
+    branches?: Array<{ id: string; name?: string; branchMessageId?: string }>
+    parentThread?: { id: string; name?: string }
+  }>
+  branchThread: (
+    threadId: string,
+    messageId: string
+  ) => Promise<{ id: string; name?: string }>
   listProjects: () => Promise<Array<{ id: string; label: string; description?: string }>>
   listAgents: () => Promise<Array<{ id: string; label: string; description?: string }>>
   showMenu: (

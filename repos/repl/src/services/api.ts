@@ -136,9 +136,29 @@ export class ApiClient {
     return resp.map((item) => new Thread(item))
   }
 
-  async getThread(orgId: string, agentId: string, threadId: string): Promise<Thread> {
-    const resp = await this.#requestWithRetry(
-      `/orgs/${orgId}/agents/${agentId}/threads/${threadId}`
+  async getThread(
+    orgId: string,
+    agentId: string,
+    threadId: string,
+    opts?: { include?: string[] }
+  ): Promise<Thread> {
+    const params = new URLSearchParams()
+    if (opts?.include?.length) params.set(`include`, opts.include.join(`,`))
+    const qs = params.toString()
+    const path = `/orgs/${orgId}/agents/${agentId}/threads/${threadId}${qs ? `?${qs}` : ``}`
+    const resp = await this.#requestWithRetry(path)
+    return new Thread(resp)
+  }
+
+  async branchThread(
+    orgId: string,
+    agentId: string,
+    threadId: string,
+    messageId: string
+  ): Promise<Thread> {
+    const resp = await this.#postRequest<Thread>(
+      `/orgs/${orgId}/agents/${agentId}/threads/${threadId}/branch`,
+      { messageId }
     )
     return new Thread(resp)
   }

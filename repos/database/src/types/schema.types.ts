@@ -12,6 +12,8 @@ import type { messages } from '@TDB/schemas/messages'
 import type { projects } from '@TDB/schemas/projects'
 import type { DBError } from '@TDB/utils/error/error'
 import type { endpoints } from '@TDB/schemas/endpoints'
+import type { skills } from '@TDB/schemas/skills'
+import type { schedules } from '@TDB/schemas/schedules'
 import type { functions } from '@TDB/schemas/functions'
 import type { providers } from '@TDB/schemas/providers'
 import type { invitations } from '@TDB/schemas/invitations'
@@ -55,6 +57,16 @@ export type TDBAgentSelect = TInferDates<typeof agents.$inferSelect>
 export type TDBAgentInsert = TInferDates<typeof agents.$inferInsert>
 export type TDBFunctionSelect = TInferDates<typeof functions.$inferSelect>
 export type TDBFunctionInsert = TInferDates<typeof functions.$inferInsert>
+export type TDBSkillSelect = TInferDates<typeof skills.$inferSelect>
+export type TDBSkillInsert = TInferDates<typeof skills.$inferInsert>
+export type TDBScheduleSelect = TInferDateProps<
+  typeof schedules.$inferSelect,
+  `createdAt` | `updatedAt` | `lastRunAt` | `nextRunAt`
+>
+export type TDBScheduleInsert = TInferDateProps<
+  typeof schedules.$inferInsert,
+  `createdAt` | `updatedAt` | `lastRunAt` | `nextRunAt`
+>
 export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
 export type TDBSubscriptionInsert = TInferDates<typeof subscriptions.$inferInsert>
 
@@ -111,6 +123,8 @@ export type TDBEntitySelect =
   | TDBMessageSelect
   | TDBEndpointSelect
   | TDBProviderSelect
+  | TDBSkillSelect
+  | TDBScheduleSelect
   | TDBFunctionSelect
   | TDBInvitationSelect
   | TDBSubscriptionSelect
@@ -130,6 +144,8 @@ export type TDBEntityInsert =
   | TDBMessageInsert
   | TDBEndpointInsert
   | TDBProviderInsert
+  | TDBSkillInsert
+  | TDBScheduleInsert
   | TDBFunctionInsert
   | TDBInvitationInsert
   | TDBSubscriptionInsert

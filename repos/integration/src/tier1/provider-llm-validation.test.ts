@@ -1,8 +1,11 @@
 import { describe, test, expect, afterAll } from 'vitest'
+import { ELLMProviderBrand } from '@tdsk/domain'
 import { get, post, put } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { uniqueName } from '../utils/unique-name'
+
+const validBrands = Object.values(ELLMProviderBrand) as string[]
 
 /**
  * Tier 1: Provider LLM Validation Contract Tests
@@ -141,7 +144,7 @@ describe('Tier 1: Provider LLM Validation', () => {
           name: uniqueName('Should Fail Invalid LLM'),
           type: 'ai',
           orgId: ctx.orgId,
-          brand: 'huggingface',
+          brand: 'not-a-real-provider',
         }
       )
 
@@ -277,9 +280,7 @@ describe('Tier 1: Provider LLM Validation', () => {
 
       for (const provider of aiProviders) {
         expect(provider.brand).toBeDefined()
-        expect(
-          ['anthropic', 'openai', 'google', 'zai'].includes(provider.brand)
-        ).toBe(true)
+        expect(validBrands).toContain(provider.brand)
       }
     })
   })

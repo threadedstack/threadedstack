@@ -98,10 +98,10 @@ test.describe('Navigation', () => {
   test('invalid org format in URL shows error or redirects', async ({
     authenticatedPage: page, ctx,
   }) => {
-    await page.goto('/orgs/not-a-uuid/projects')
+    await page.goto('/orgs/not-a-uuid')
     await page.waitForLoadState('networkidle')
-    // Wait for app to settle
-    await expect(page.locator('.tdsk-page-content').first()).toBeVisible({ timeout: 10000 })
+    // Wait for app to settle — org page renders "Org not found" for invalid IDs
+    await expect(page.locator('.tdsk-org-page, .tdsk-page-content').first()).toBeVisible({ timeout: 10000 })
 
     // The page should render something — either an error message or a redirect
     await expect(page.locator('body').first()).toBeVisible()

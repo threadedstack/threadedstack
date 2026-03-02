@@ -222,6 +222,71 @@ export const createSandboxTools = (
       },
     },
     {
+      name: `createArtifact`,
+      label: `Create Artifact`,
+      description: `Create a renderable artifact (HTML, SVG, Markdown, code, JSON, CSV, YAML, XML, Mermaid diagram, LaTeX math, image, table, diff, or plaintext). The artifact will be rendered in the UI for the user to view and interact with.`,
+      parameters: Type.Object({
+        artifactType: Type.Union(
+          [
+            Type.Literal(`html`),
+            Type.Literal(`svg`),
+            Type.Literal(`markdown`),
+            Type.Literal(`code`),
+            Type.Literal(`json`),
+            Type.Literal(`csv`),
+            Type.Literal(`yaml`),
+            Type.Literal(`xml`),
+            Type.Literal(`mermaid`),
+            Type.Literal(`latex`),
+            Type.Literal(`image`),
+            Type.Literal(`table`),
+            Type.Literal(`diff`),
+            Type.Literal(`plaintext`),
+          ],
+          { description: `The type of artifact to create` }
+        ),
+        content: Type.String({
+          description: `The artifact content`,
+        }),
+        title: Type.Optional(
+          Type.String({ description: `Optional title for the artifact` })
+        ),
+        language: Type.Optional(
+          Type.String({
+            description: `Programming language for code artifacts (e.g., "python", "javascript")`,
+          })
+        ),
+      }),
+      execute: async (
+        _toolCallId: string,
+        params: {
+          artifactType: string
+          content: string
+          title?: string
+          language?: string
+        }
+      ) => {
+        return {
+          content: [
+            {
+              type: `text`,
+              text: JSON.stringify({
+                artifactType: params.artifactType,
+                content: params.content,
+                title: params.title,
+                language: params.language,
+              }),
+            },
+          ],
+          details: {
+            success: true,
+            artifactType: params.artifactType,
+            title: params.title,
+          },
+        }
+      },
+    },
+    {
       name: `webSearch`,
       label: `Web Search`,
       description: `Search the web for information`,

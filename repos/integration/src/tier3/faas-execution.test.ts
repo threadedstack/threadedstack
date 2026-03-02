@@ -316,22 +316,22 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
 
   // --- Method handling ---
 
-  test('GET request to FaaS endpoint is handled', async () => {
+  test('POST request to FaaS endpoint is handled', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await api<any>(
       `/proxy/${projectId}/${tsEndpointId}`,
       {
-        method: 'GET',
+        method: 'POST',
         rawPath: true,
+        body: { method_test: true },
       }
     )
 
-    // FaaS endpoints accept all methods via EPMethod.All
     expect(res.status).toBe(200)
     expect(res.data).toBeDefined()
     expect(res.data.message).toBe('hello from faas')
-    expect(res.data.receivedMethod).toBe('GET')
+    expect(res.data.receivedMethod).toBe('POST')
   })
 
   // --- Request data passthrough ---

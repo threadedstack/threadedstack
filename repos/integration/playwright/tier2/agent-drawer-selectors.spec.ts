@@ -246,7 +246,7 @@ test.describe('AgentSelector in Endpoint Drawer', () => {
         const agentInput = page.locator('#agent-id')
         if ((await agentInput.count()) > 0) {
           await expect(agentInput).toBeVisible()
-          await expect(agentInput).toHaveRole('combobox')
+          await expect(agentInput).toHaveAttribute('role', 'combobox')
         }
       }
     } else {
@@ -259,7 +259,7 @@ test.describe('AgentSelector in Endpoint Drawer', () => {
       const agentInput = page.locator('#agent-id')
       if ((await agentInput.count()) > 0) {
         await expect(agentInput).toBeVisible()
-        await expect(agentInput).toHaveRole('combobox')
+        await expect(agentInput).toHaveAttribute('role', 'combobox')
       }
     }
 
@@ -306,7 +306,7 @@ test.describe('FunctionSelectorSingle in FaaS Endpoint', () => {
         const functionInput = page.locator('#function-select')
         if ((await functionInput.count()) > 0) {
           await expect(functionInput).toBeVisible()
-          await expect(functionInput).toHaveRole('combobox')
+          await expect(functionInput).toHaveAttribute('role', 'combobox')
         }
       }
     } else {
@@ -384,7 +384,7 @@ test.describe('EndpointSelector in FunctionDrawer', () => {
     const endpointInput = page.locator('#endpoint-id')
     if ((await endpointInput.count()) > 0) {
       await expect(endpointInput).toBeVisible()
-      await expect(endpointInput).toHaveRole('combobox')
+      await expect(endpointInput).toHaveAttribute('role', 'combobox')
     }
 
     await page.keyboard.press('Escape')
@@ -432,7 +432,7 @@ test.describe('ProviderSelectorSingle in EditThreadDrawer', () => {
     const providerInput = page.locator('#entity-provider')
     if ((await providerInput.count()) > 0) {
       await expect(providerInput).toBeVisible()
-      await expect(providerInput).toHaveRole('combobox')
+      await expect(providerInput).toHaveAttribute('role', 'combobox')
 
       // Open dropdown to verify provider options are listed
       await providerInput.click()
@@ -485,7 +485,7 @@ test.describe('UserSelectorSingle in ProjectMembers', () => {
     const userInput = page.locator('#entity-user')
     if ((await userInput.count()) > 0) {
       await expect(userInput).toBeVisible()
-      await expect(userInput).toHaveRole('combobox')
+      await expect(userInput).toHaveAttribute('role', 'combobox')
     }
 
     await page.keyboard.press('Escape')

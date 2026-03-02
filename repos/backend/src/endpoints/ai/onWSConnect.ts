@@ -14,7 +14,10 @@ import { Websocket } from '@TBE/services/websocket/websocket'
 const ClientMsgTypes = new Set<string>([
   EWSEventType.Prompt,
   EWSEventType.Cancel,
+  EWSEventType.Steer,
+  EWSEventType.FollowUp,
   EWSEventType.FileUpload,
+  EWSEventType.UpdateConfig,
   EWSEventType.WorkspaceManifest,
 ])
 
@@ -134,7 +137,13 @@ export const onWSConnect = async (
   // 4. Handle incoming messages — waits for session before processing
   ws.on(`message`, async (raw: Buffer | string) => {
     const session = await sessionPromise
-    if (!session) return
+    if (!session) {
+      service.send({
+        type: EWSEventType.Error,
+        message: `Agent session could not be resolved`,
+      })
+      return
+    }
 
     try {
       const msg = parseClientMsg(raw)
@@ -172,6 +181,24 @@ export const onWSConnect = async (
           }
           break
 
+        case EWSEventType.Steer:
+          service.handleSteer(msg.message)
+          break
+
+        case EWSEventType.FollowUp:
+          service.handleFollowUp(msg.message)
+          break
+
+        case EWSEventType.UpdateConfig:
+          service.handleUpdateConfig({
+            model: msg.model,
+            provider: msg.provider,
+            tools: msg.tools,
+            systemPrompt: msg.systemPrompt,
+            thinkingLevel: msg.thinkingLevel as any,
+          })
+          break
+
         case EWSEventType.FileUpload:
           // Phase 8 — workspace file sync (placeholder)
           logger.debug(`WS file_upload received: ${msg.path}`)
@@ -190,7 +217,7 @@ export const onWSConnect = async (
     }
   })
 
-  // 5. Cleanup on disconnect
+  // 5. Cleanup on disconnect (destroy persistent runner + close WS)
   ws.on(`close`, () => {
     sessionPromise.then((session) => {
       if (session) {
@@ -201,7 +228,9 @@ export const onWSConnect = async (
       service.abortController.abort()
       service.abortController = null
     }
-    service.close()
+    service.close().catch((err) => {
+      logger.error(`WS close error`, { error: err instanceof Error ? err.message : err })
+    })
   })
 
   // 6. Await session resolution — close if it fails

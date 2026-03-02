@@ -104,13 +104,12 @@ export const ProviderStep = (props: TProviderStep) => {
   const [fetchingModels, setFetchingModels] = useState(false)
 
   const modelOptions = useMemo(() => {
-    const models = dynamicModels.length > 0 ? dynamicModels : template?.models || []
-    if (!models.length) return []
-    return models.map((m) => ({
+    if (!dynamicModels.length) return []
+    return dynamicModels.map((m) => ({
       value: m.id,
       label: m.name,
     }))
-  }, [template, dynamicModels])
+  }, [dynamicModels])
 
   const fetchDynamicModels = useCallback(
     async (brand: string, opts?: { baseUrl?: string; providerKey?: string }) => {
@@ -130,14 +129,13 @@ export const ProviderStep = (props: TProviderStep) => {
     const tmpl = ProviderTemplates[id]
     setDynamicModels([])
     onChange({
+      model: ``,
       providerUrl: ``,
       providerName: ``,
       providerBrand: id,
       apiKey: data.apiKey,
-      model: tmpl?.defaultModel || ``,
     })
-    // Auto-fetch for brands that don't need a key (openrouter, ollama)
-    // Key-required brands (openai, google) fetch after API key is entered
+    // All non-custom brands fetch models dynamically from the backend registry
     if (DynamicBrands.has(id) && !KeyRequiredBrands.has(id)) fetchDynamicModels(id)
   }
 

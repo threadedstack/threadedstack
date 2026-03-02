@@ -21,11 +21,6 @@ export const validateAuth = (app: TProxyApp) => {
       return next()
     }
 
-    if (app.locals.auth.isSession(req.path)) {
-      logger.debug(`Session route accessed: ${req.path}`)
-      return next()
-    }
-
     const token = app.locals.auth.extract(req)
 
     if (!token) return next()

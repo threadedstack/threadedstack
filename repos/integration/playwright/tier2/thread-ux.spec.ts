@@ -64,9 +64,9 @@ test.describe('Thread UX: Row click navigation', () => {
     await tableRows.first().click()
     await page.waitForLoadState('networkidle')
 
-    // URL should now contain /threads/<uuid> (route-based navigation)
+    // URL should now contain /threads/<id> (route-based navigation)
     const url = page.url()
-    expect(url).toMatch(/\/threads\/[0-9a-f-]+/)
+    expect(url).toMatch(/\/threads\/[A-Za-z0-9_-]+/)
 
     // Thread detail page should show "Thread Details" section
     await expect(page.getByText('Thread Details')).toBeVisible({ timeout: 10000 })

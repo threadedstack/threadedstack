@@ -18,9 +18,8 @@ import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 const createDBAdapter = (db: any): IAgentRunnerDB => ({
   createMessage: (data) => db.services.message.create(data),
   listMessages: (opts) =>
-    db.services.message.list({
+    db.services.message.listByThread(opts.where.threadId, {
       limit: opts.limit,
-      where: opts.where,
       offset: opts.offset,
     }),
 })

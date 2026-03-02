@@ -34,7 +34,7 @@ describe(`Z.AI Debug`, () => {
       method: `POST`,
       headers: {
         [`Content-Type`]: `application/json`,
-        Authorization: `Session ${sessionToken}`,
+        Authorization: `Bearer ${sessionToken}`,
       },
       body: JSON.stringify({
         messages: [{ role: `user`, content: [{ type: `text`, text: `Say hi` }] }],

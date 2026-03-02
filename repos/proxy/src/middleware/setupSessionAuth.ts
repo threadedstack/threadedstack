@@ -4,7 +4,7 @@ import type { Request, Response, NextFunction } from 'express'
 import { logger } from '@TPX/utils/logger'
 
 /**
- * Session-token authentication middleware for /ai/chat and /ai/ws
+ * Session-token authentication middleware for SessionRoutes: /ai/chat, /ai/ws
  *
  * Ensures a session token is present in the Authorization header.
  * The actual token validation happens in the backend — this middleware
@@ -13,6 +13,7 @@ import { logger } from '@TPX/utils/logger'
 export const validateSessionAuth = (app: TProxyApp) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!app.locals.auth.isSession(req.path)) return next()
+    if (req.user) return next()
 
     const authHeader = req.headers.authorization
     const token = app.locals.auth.extract(req)

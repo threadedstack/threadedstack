@@ -23,6 +23,8 @@ const OrgsLoader = lazy(() => import('@TAF/pages/Orgs/OrgsLoader'))
 const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgDomains = lazy(() => import('@TAF/pages/Orgs/OrgDomains'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
+const OrgSkills = lazy(() => import('@TAF/pages/Orgs/OrgSkills'))
+const OrgSchedules = lazy(() => import('@TAF/pages/Orgs/OrgSchedules'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
 
 // Project pages
@@ -44,6 +46,8 @@ const ProjectThreadDetail = lazy(() => import('@TAF/pages/Projects/ProjectThread
 const AgentChat = lazy(() => import('@TAF/components/AI/ChatView'))
 const AgentLayout = lazy(() => import('@TAF/components/Agents/AgentLayout'))
 const AgentDetailTab = lazy(() => import('@TAF/components/Agents/AgentDetailTab'))
+const SkillsTab = lazy(() => import('@TAF/components/Skills/Skills'))
+const SchedulesTab = lazy(() => import('@TAF/components/Schedules/Schedules'))
 
 // Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
@@ -123,6 +127,14 @@ export const Routes = createBrowserRouter([
             Component: () => <SuspensePage Component={OrgUsage} />,
           },
           {
+            path: ERoutePath.Skills,
+            Component: () => <SuspensePage Component={OrgSkills} />,
+          },
+          {
+            path: ERoutePath.Schedules,
+            Component: () => <SuspensePage Component={OrgSchedules} />,
+          },
+          {
             path: ERoutePath.ApiKeys,
             Component: () => <SuspensePage Component={OrgApiKeys} />,
           },
@@ -193,6 +205,14 @@ export const Routes = createBrowserRouter([
                   {
                     path: ERoutePath.AgentThreadChat,
                     Component: () => <SuspensePage Component={ProjectThreadChat} />,
+                  },
+                  {
+                    path: 'skills',
+                    Component: () => <SuspensePage Component={SkillsTab} />,
+                  },
+                  {
+                    path: 'schedules',
+                    Component: () => <SuspensePage Component={SchedulesTab} />,
                   },
                 ],
               },

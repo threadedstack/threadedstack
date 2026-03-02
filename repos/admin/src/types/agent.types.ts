@@ -11,6 +11,8 @@ export type TAgentThreadTab = `${EAgentThreadTab}`
 export enum EAgentDetailTab {
   agent = `agent`,
   threads = `threads`,
+  skills = `skills`,
+  schedules = `schedules`,
 }
 
 export type TAgentDetailTab = `${EAgentDetailTab}`

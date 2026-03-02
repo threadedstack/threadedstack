@@ -86,4 +86,12 @@ describe(`validateIdParams`, () => {
     validateIdParams(req, mockRes, mockNext)
     expect(mockNext).toHaveBeenCalledOnce()
   })
+
+  it(`should skip userId params (UUIDs from Neon Auth)`, () => {
+    const req = {
+      params: { orgId: `V1StGXR8_Z`, userId: `550e8400-e29b-41d4-a716-446655440000` },
+    } as any
+    validateIdParams(req, mockRes, mockNext)
+    expect(mockNext).toHaveBeenCalledOnce()
+  })
 })

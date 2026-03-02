@@ -34,10 +34,9 @@ export const listMessages: TEndpointConfig = {
 
     const { limit, offset } = parsePagination(req)
 
-    const { data, error } = await db.services.message.list({
+    const { data, error } = await db.services.message.listByThread(threadId, {
       limit,
       offset,
-      where: { threadId },
     })
 
     if (error) throw new Exception(500, error)

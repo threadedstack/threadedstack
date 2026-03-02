@@ -8,7 +8,6 @@ import {
   PublicRoutes,
   SessionRoutes,
   BearerPrefix,
-  SessionPrefix,
   QueryTokenRoutes,
 } from '@TPX/constants/values'
 
@@ -63,9 +62,6 @@ export class Auth {
       if (authHeader.startsWith(BearerPrefix))
         return authHeader.slice(BearerPrefix.length).trim()
 
-      if (authHeader.startsWith(SessionPrefix))
-        return authHeader.slice(SessionPrefix.length).trim()
-
       logger.error(`Invalid Authorization header:`, authHeader)
       return null
     }
@@ -89,7 +85,7 @@ export class Auth {
     if (!this.jwks)
       return {
         valid: false,
-        error: `JWKS client not initialized. Call initJWKS first.`,
+        error: `JWKS client not initialized. Ensure Auth was constructed with a valid JWKS URL.`,
       }
 
     try {

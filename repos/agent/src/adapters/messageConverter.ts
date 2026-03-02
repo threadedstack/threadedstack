@@ -6,19 +6,29 @@ import type {
   AssistantMessage,
   ToolResultMessage,
   TextContent as PiTextContent,
+  ImageContent as PiImageContent,
+  ThinkingContent as PiThinkingContent,
 } from '@mariozechner/pi-ai'
 
 import { EContentType } from '@tdsk/domain'
 
 /**
  * Convert ThreadedStack TAIMessage[] to pi-mono Message[] for loading history.
+ * Accepts optional defaults for api/provider/model to avoid hardcoded Anthropic values
+ * when reconstructing AssistantMessages from DB.
  */
 export const convertToLlmMessages = (
-  messages: Array<{ type: string; content: TMessageContent[] }>
+  messages: Array<{
+    type: string
+    content: TMessageContent[]
+    createdAt?: string | Date
+  }>,
+  defaults?: { api?: string; provider?: string; model?: string }
 ): Message[] => {
   const result: Message[] = []
 
   for (const msg of messages) {
+    const ts = msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now()
     switch (msg.type) {
       case `user`: {
         // Check if this is a tool result message (content has tool_result blocks)
@@ -30,7 +40,7 @@ export const convertToLlmMessages = (
               result.push({
                 toolName: ``,
                 role: `toolResult`,
-                timestamp: Date.now(),
+                timestamp: ts,
                 toolCallId: tr.toolUseId,
                 isError: tr.isError ?? false,
                 content: [{ type: `text`, text: tr.content }],
@@ -38,25 +48,64 @@ export const convertToLlmMessages = (
             }
           }
         } else {
-          // Regular user text message
-          const text = msg.content
-            .filter((c) => c.type === EContentType.text)
-            .map((c) => (c as { text: string }).text)
-            .join(`\n`)
-          result.push({
-            role: `user`,
-            content: text,
-            timestamp: Date.now(),
-          } satisfies UserMessage)
+          // Regular user text/image/file message
+          const hasImages = msg.content.some((c) => c.type === EContentType.image)
+          const hasFiles = msg.content.some((c) => c.type === EContentType.file)
+          if (hasImages || hasFiles) {
+            // Mixed content: text + images/files → use array form
+            const userContent: (PiTextContent | PiImageContent)[] = []
+            for (const block of msg.content) {
+              if (block.type === EContentType.text) {
+                userContent.push({ type: `text`, text: block.text })
+              } else if (block.type === EContentType.image) {
+                userContent.push({
+                  type: `image`,
+                  data: block.data,
+                  mimeType: block.mimeType,
+                })
+              } else if (block.type === EContentType.file) {
+                const fileBlock = block as any
+                if (fileBlock.extractedText) {
+                  userContent.push({
+                    type: `text`,
+                    text: `[Attached file: ${fileBlock.fileName}]\n<extracted_content>\n${fileBlock.extractedText}\n</extracted_content>`,
+                  })
+                }
+              }
+            }
+            result.push({
+              role: `user`,
+              content: userContent,
+              timestamp: ts,
+            } satisfies UserMessage)
+          } else {
+            // Text-only → use string form
+            const text = msg.content
+              .filter((c) => c.type === EContentType.text)
+              .map((c) => (c as { text: string }).text)
+              .join(`\n`)
+            result.push({
+              role: `user`,
+              content: text,
+              timestamp: ts,
+            } satisfies UserMessage)
+          }
         }
         break
       }
 
       case `assistant`: {
-        const content: (PiTextContent | ToolCall)[] = []
+        const content: (PiTextContent | PiThinkingContent | ToolCall)[] = []
         for (const block of msg.content) {
           if (block.type === EContentType.text) {
             content.push({ type: `text`, text: block.text })
+          } else if (block.type === EContentType.thinking) {
+            content.push({
+              type: `thinking`,
+              thinking: block.thinking,
+              thinkingSignature: block.thinkingSignature,
+              redacted: block.redacted,
+            })
           } else if (block.type === EContentType.toolUse) {
             content.push({
               type: `toolCall`,
@@ -69,9 +118,9 @@ export const convertToLlmMessages = (
         result.push({
           role: `assistant`,
           content,
-          api: `anthropic-messages`,
-          provider: `anthropic`,
-          model: ``,
+          api: defaults?.api ?? `anthropic-messages`,
+          provider: defaults?.provider ?? `anthropic`,
+          model: defaults?.model ?? ``,
           usage: {
             input: 0,
             output: 0,
@@ -81,7 +130,7 @@ export const convertToLlmMessages = (
             cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
           },
           stopReason: `stop`,
-          timestamp: Date.now(),
+          timestamp: ts,
         } satisfies AssistantMessage)
         break
       }
@@ -104,6 +153,13 @@ export const convertAssistantToContent = (msg: AssistantMessage): TMessageConten
   for (const block of msg.content) {
     if (block.type === `text`) {
       content.push({ type: EContentType.text, text: block.text })
+    } else if (block.type === `thinking`) {
+      content.push({
+        type: EContentType.thinking,
+        thinking: block.thinking,
+        thinkingSignature: block.thinkingSignature,
+        redacted: block.redacted,
+      })
     } else if (block.type === `toolCall`) {
       content.push({
         id: block.id,
@@ -112,7 +168,6 @@ export const convertAssistantToContent = (msg: AssistantMessage): TMessageConten
         type: EContentType.toolUse,
       })
     }
-    // thinking blocks are not persisted in ThreadedStack format
   }
 
   return content

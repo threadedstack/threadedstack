@@ -101,7 +101,7 @@ describe('Tier 1: Project Members', () => {
     })
 
     test('POST with non-org-member userId returns 400', async () => {
-      const res = await post(basePath, { userId: 'zzffffffff' })
+      const res = await post(basePath, { userId: '00000000-0000-0000-0000-00000000ffff' })
       expect(res.status).toBe(400)
     })
 
@@ -114,7 +114,7 @@ describe('Tier 1: Project Members', () => {
   // ── Section 4: Not Found ─────────────────────────────────────────────
 
   describe('Nonexistent member', () => {
-    const fakeUserId = 'zz99999999'
+    const fakeUserId = '00000000-0000-0000-0000-000099999999'
 
     test('PUT on nonexistent member returns 404', async () => {
       const res = await put(`${basePath}/${fakeUserId}`, { type: 'viewer' })

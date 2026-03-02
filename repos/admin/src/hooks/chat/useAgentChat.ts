@@ -1,9 +1,23 @@
-import type { TMsgType, TWSServerMsg, TMessageContent } from '@tdsk/domain'
+import type {
+  TMsgType,
+  TWSServerMsg,
+  TMessageContent,
+  TArtifactType,
+  TFileAttachment,
+} from '@tdsk/domain'
 
 import { EMsgType, EWSEventType } from '@tdsk/domain'
 import { threadsApi } from '@TAF/services/threadsApi'
+import { filesApi } from '@TAF/services/filesApi'
 import { AgentWSService } from '@TAF/services/agentWSService'
 import { useState, useRef, useCallback, useEffect } from 'react'
+
+export type TChatArtifact = {
+  artifactType: TArtifactType
+  content: string
+  title?: string
+  language?: string
+}
 
 export type TChatMessage = {
   id: string
@@ -11,6 +25,8 @@ export type TChatMessage = {
   role: TMsgType
   timestamp: number
   toolCalls?: TChatToolCall[]
+  artifacts?: TChatArtifact[]
+  files?: TFileAttachment[]
 }
 
 export type TChatToolCall = {
@@ -126,6 +142,21 @@ export const useAgentChat = (opts: TUseAgentChatOpts) => {
         break
       }
 
+      case EWSEventType.Artifact: {
+        const artifact: TChatArtifact = {
+          artifactType: msg.artifactType,
+          content: msg.content,
+          title: msg.title,
+          language: msg.language,
+        }
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId ? { ...m, artifacts: [...(m.artifacts || []), artifact] } : m
+          )
+        )
+        break
+      }
+
       case EWSEventType.Error:
         setError(msg.message)
         break
@@ -204,7 +235,7 @@ export const useAgentChat = (opts: TUseAgentChatOpts) => {
   }, [opts.threadId, orgId, agentId])
 
   const sendMessage = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, pendingFiles?: File[]) => {
       // Use ref for guard — synchronous, no race condition
       if (isStreamingRef.current || !prompt.trim()) return
 
@@ -213,11 +244,31 @@ export const useAgentChat = (opts: TUseAgentChatOpts) => {
       setError(undefined)
 
       const ts = Date.now()
+
+      // Upload files if present and we have a threadId
+      let fileAttachments: TFileAttachment[] | undefined
+      if (pendingFiles?.length && threadIdRef.current) {
+        fileAttachments = []
+        for (const file of pendingFiles) {
+          const resp = await filesApi.upload(orgId, agentId, threadIdRef.current, file)
+          if (resp.data) {
+            fileAttachments.push({
+              assetId: resp.data.assetId,
+              fileName: resp.data.fileName,
+              mimeType: resp.data.fileType,
+              extractedText: resp.data.extractedText,
+              imageData: resp.data.imageData,
+            })
+          }
+        }
+      }
+
       const userMsg: TChatMessage = {
         id: `${EMsgType.user}-${ts}`,
         text: prompt,
         role: EMsgType.user,
         timestamp: ts,
+        ...(fileAttachments?.length ? { files: fileAttachments } : {}),
       }
 
       const assistantMsgId = `${EMsgType.assistant}-${ts}`
@@ -249,6 +300,7 @@ export const useAgentChat = (opts: TUseAgentChatOpts) => {
           type: EWSEventType.Prompt,
           prompt,
           threadId: threadIdRef.current,
+          ...(fileAttachments?.length ? { files: fileAttachments } : {}),
         })
       } catch (err) {
         setError(err instanceof Error ? err.message : `Connection error`)

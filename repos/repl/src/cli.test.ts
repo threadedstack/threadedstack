@@ -18,19 +18,30 @@ vi.mock(`@TRL/services/config`, () => ({
 const mockFetch = vi.fn()
 vi.stubGlobal(`fetch`, mockFetch)
 
-const mockWaitUntilExit = vi.fn().mockResolvedValue(undefined)
-const mockInkRender = vi.fn().mockReturnValue({
-  waitUntilExit: mockWaitUntilExit,
-  unmount: vi.fn(),
-  rerender: vi.fn(),
-  clear: vi.fn(),
-})
-vi.mock(`ink`, () => ({
-  render: (...args: any[]) => mockInkRender(...args),
-  Text: (props: any) => props.children,
-  Box: (props: any) => props.children,
-  useApp: () => ({ exit: () => {} }),
-  useInput: () => {},
+const mockPiTuiStart = vi.fn()
+const mockPiTuiStop = vi.fn()
+const mockChatLogicInit = vi.fn()
+
+vi.mock(`@TRL/renderers/PiTuiApp`, () => ({
+  PiTuiApp: vi.fn().mockImplementation(() => ({
+    start: mockPiTuiStart,
+    stop: mockPiTuiStop,
+  })),
+}))
+
+vi.mock(`@TRL/renderers/chatLogic`, () => ({
+  ChatLogic: vi.fn().mockImplementation(() => {
+    const instance: any = {
+      init: () => {
+        mockChatLogicInit()
+        // Trigger onExit immediately so the chat action resolves
+        setTimeout(() => instance.onExit?.(), 0)
+        return Promise.resolve()
+      },
+      onExit: null,
+    }
+    return instance
+  }),
 }))
 
 vi.mock(`@TRL/executor`, () => ({
@@ -437,40 +448,40 @@ describe(`main`, () => {
   })
 
   describe(`chat command`, () => {
-    it(`should render Ink App when not logged in (REPL handles auth)`, async () => {
+    it(`should start pi-tui chat when not logged in (REPL handles auth)`, async () => {
       setArgv(`chat`)
       setLoggedOut()
       await runMain()
 
-      expect(mockInkRender).toHaveBeenCalledTimes(1)
-      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
+      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
+      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
     })
 
-    it(`should render Ink App for default (empty) command when not logged in`, async () => {
+    it(`should start pi-tui chat for default (empty) command when not logged in`, async () => {
       setArgv()
       setLoggedOut()
       await runMain()
 
-      expect(mockInkRender).toHaveBeenCalledTimes(1)
-      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
+      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
+      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
     })
 
-    it(`should render Ink App with flags`, async () => {
+    it(`should start pi-tui chat with flags`, async () => {
       setArgv(`chat`, `--org`, `org1`, `--agent`, `a1`, `--thread`, `t1`)
       setLoggedIn()
       await runMain()
 
-      expect(mockInkRender).toHaveBeenCalledTimes(1)
-      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
+      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
+      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
     })
 
-    it(`should render Ink App without flags`, async () => {
+    it(`should start pi-tui chat without flags`, async () => {
       setArgv(`chat`)
       setLoggedIn()
       await runMain()
 
-      expect(mockInkRender).toHaveBeenCalledTimes(1)
-      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
+      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
+      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -507,8 +518,8 @@ describe(`main`, () => {
       setLoggedIn()
       await runMain()
 
-      expect(mockInkRender).toHaveBeenCalledTimes(1)
-      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
+      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
+      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -519,8 +530,8 @@ describe(`main`, () => {
       mockMerge.mockReturnValue({ org: `cfg-org`, auth: makeCreds() })
       await runMain()
 
-      expect(mockInkRender).toHaveBeenCalledTimes(1)
-      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
+      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
+      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
     })
 
     it(`should use config agent as default when no --agent flag`, async () => {
@@ -529,8 +540,8 @@ describe(`main`, () => {
       mockMerge.mockReturnValue({ org: `cfg-org`, agent: `cfg-agent`, auth: makeCreds() })
       await runMain()
 
-      expect(mockInkRender).toHaveBeenCalledTimes(1)
-      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
+      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
+      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
     })
 
     it(`should override config defaults with explicit flags`, async () => {
@@ -539,8 +550,8 @@ describe(`main`, () => {
       mockMerge.mockReturnValue({ org: `cfg-org`, agent: `cfg-agent`, auth: makeCreds() })
       await runMain()
 
-      expect(mockInkRender).toHaveBeenCalledTimes(1)
-      expect(mockWaitUntilExit).toHaveBeenCalledTimes(1)
+      expect(mockPiTuiStart).toHaveBeenCalledTimes(1)
+      expect(mockChatLogicInit).toHaveBeenCalledTimes(1)
     })
   })
 

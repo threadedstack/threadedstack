@@ -145,7 +145,7 @@ describe('Tier 1: Members Pagination', () => {
 
   test('GET /orgs/:orgId/api-keys?userId= with valid ID returns empty for unknown user', async () => {
     // Use a valid ID that doesn't match any user
-    const fakeUserId = 'zz00000099'
+    const fakeUserId = '00000000-0000-0000-0000-000000000099'
     const res = await get<{ data: unknown[] }>(
       `/orgs/${ctx.orgId}/api-keys?userId=${fakeUserId}`
     )

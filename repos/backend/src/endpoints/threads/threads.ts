@@ -10,10 +10,12 @@ import { createMessage } from '@TBE/endpoints/threads/createMessage'
 import { updateMessage } from '@TBE/endpoints/threads/updateMessage'
 import { deleteMessage } from '@TBE/endpoints/threads/deleteMessage'
 import { branchThread } from '@TBE/endpoints/threads/branchThread'
+import { uploadFile } from '@TBE/endpoints/threads/uploadFile'
 
 /**
  * Threads scoped under agents: /:orgId/agents/:agentId/threads
  * Messages scoped under threads: .../:threadId/messages
+ * Files scoped under threads: .../:threadId/files
  */
 export const agentThreads: TEndpointConfig = {
   path: `/:agentId/threads`,
@@ -28,5 +30,6 @@ export const agentThreads: TEndpointConfig = {
     updateMessage,
     deleteMessage,
     branchThread,
+    uploadFile,
   },
 }

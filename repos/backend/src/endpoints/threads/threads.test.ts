@@ -29,9 +29,11 @@ describe(`Thread endpoints`, () => {
               create: vi.fn(),
               delete: vi.fn(),
               branchThread: vi.fn(),
+              listBranches: vi.fn(),
             },
             message: {
               list: vi.fn(),
+              listByThread: vi.fn(),
               get: vi.fn(),
               create: vi.fn(),
               update: vi.fn(),
@@ -79,9 +81,9 @@ describe(`Thread endpoints`, () => {
       expect(agentThreads.endpoints).toBeDefined()
     })
 
-    it(`should have all 9 endpoint configs`, () => {
+    it(`should have all 10 endpoint configs`, () => {
       const keys = Object.keys(agentThreads.endpoints || {})
-      expect(keys).toHaveLength(9)
+      expect(keys).toHaveLength(10)
       expect(keys).toContain(`getThread`)
       expect(keys).toContain(`listThreads`)
       expect(keys).toContain(`createThread`)
@@ -91,6 +93,7 @@ describe(`Thread endpoints`, () => {
       expect(keys).toContain(`updateMessage`)
       expect(keys).toContain(`deleteMessage`)
       expect(keys).toContain(`branchThread`)
+      expect(keys).toContain(`uploadFile`)
     })
   })
 
@@ -421,6 +424,197 @@ describe(`Thread endpoints`, () => {
     })
   })
 
+  // ── GET THREAD WITH INCLUDE ───────────────────────────────────────
+
+  describe(`GET /:id?include= - Get thread with includes`, () => {
+    const ep = getEndpointCfg(agentThreads.endpoints?.getThread)
+
+    const mockThread = {
+      id: `t-1`,
+      name: `Thread 1`,
+      orgId: `org-1`,
+      agentId: `agent-1`,
+      userId: `test-user-id`,
+      parentThreadId: null as string | null,
+    }
+
+    it(`should return branches when include=branches`, async () => {
+      const branches = [
+        { id: `t-branch-1`, name: `Branch 1`, parentThreadId: `t-1` },
+        { id: `t-branch-2`, name: `Branch 2`, parentThreadId: `t-1` },
+      ]
+
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockListBranches = mockReq.app?.locals.db.services.thread
+        .listBranches as ReturnType<typeof vi.fn>
+      mockGet.mockResolvedValue({ data: { ...mockThread } })
+      mockListBranches.mockResolvedValue({ data: branches })
+      mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
+      mockReq.query = { include: `branches` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockListBranches).toHaveBeenCalledWith(`t-1`)
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          id: `t-1`,
+          branches,
+        }),
+      })
+    })
+
+    it(`should return empty branches array when listBranches returns null`, async () => {
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockListBranches = mockReq.app?.locals.db.services.thread
+        .listBranches as ReturnType<typeof vi.fn>
+      mockGet.mockResolvedValue({ data: { ...mockThread } })
+      mockListBranches.mockResolvedValue({ data: null })
+      mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
+      mockReq.query = { include: `branches` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockJson).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          branches: [],
+        }),
+      })
+    })
+
+    it(`should return parentThread when include=parent and parentThreadId exists`, async () => {
+      const parentThread = {
+        id: `t-parent`,
+        name: `Parent Thread`,
+        orgId: `org-1`,
+        agentId: `agent-1`,
+        userId: `test-user-id`,
+      }
+      const threadWithParent = { ...mockThread, parentThreadId: `t-parent` }
+
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet
+        .mockResolvedValueOnce({ data: threadWithParent })
+        .mockResolvedValueOnce({ data: parentThread })
+      mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
+      mockReq.query = { include: `parent` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockGet).toHaveBeenCalledWith(`t-parent`)
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          id: `t-1`,
+          parentThread: parentThread,
+        }),
+      })
+    })
+
+    it(`should return both branches and parentThread when include=branches,parent`, async () => {
+      const parentThread = {
+        id: `t-parent`,
+        name: `Parent Thread`,
+        orgId: `org-1`,
+        agentId: `agent-1`,
+        userId: `test-user-id`,
+      }
+      const branches = [{ id: `t-branch-1`, name: `Branch 1`, parentThreadId: `t-1` }]
+      const threadWithParent = { ...mockThread, parentThreadId: `t-parent` }
+
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockListBranches = mockReq.app?.locals.db.services.thread
+        .listBranches as ReturnType<typeof vi.fn>
+      mockGet
+        .mockResolvedValueOnce({ data: threadWithParent })
+        .mockResolvedValueOnce({ data: parentThread })
+      mockListBranches.mockResolvedValue({ data: branches })
+      mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
+      mockReq.query = { include: `branches,parent` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockListBranches).toHaveBeenCalledWith(`t-1`)
+      expect(mockGet).toHaveBeenCalledWith(`t-parent`)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          id: `t-1`,
+          branches,
+          parentThread: parentThread,
+        }),
+      })
+    })
+
+    it(`should not fetch branches or parent when no include param`, async () => {
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockListBranches = mockReq.app?.locals.db.services.thread
+        .listBranches as ReturnType<typeof vi.fn>
+      mockGet.mockResolvedValue({ data: { ...mockThread } })
+      mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
+      mockReq.query = {}
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockListBranches).not.toHaveBeenCalled()
+      // get is called once for the thread itself, not again for parent
+      expect(mockGet).toHaveBeenCalledTimes(1)
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).not.toHaveProperty(`branches`)
+      expect(responseData).not.toHaveProperty(`parentThread`)
+    })
+
+    it(`should not include parentThread when include=parent but thread has no parentThreadId`, async () => {
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      // Thread with no parentThreadId (null)
+      mockGet.mockResolvedValue({ data: { ...mockThread, parentThreadId: null } })
+      mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
+      mockReq.query = { include: `parent` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      // get called only once for the thread itself, never for a parent
+      expect(mockGet).toHaveBeenCalledTimes(1)
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).not.toHaveProperty(`parentThread`)
+    })
+
+    it(`should handle parent returning null gracefully`, async () => {
+      const threadWithParent = { ...mockThread, parentThreadId: `t-deleted` }
+
+      const mockGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
+        typeof vi.fn
+      >
+      mockGet
+        .mockResolvedValueOnce({ data: threadWithParent })
+        .mockResolvedValueOnce({ data: null })
+      mockReq.params = { id: `t-1`, agentId: `agent-1`, orgId: `org-1` }
+      mockReq.query = { include: `parent` }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          parentThread: null,
+        }),
+      })
+    })
+  })
+
   // ── DELETE THREAD ─────────────────────────────────────────────────
 
   describe(`DELETE /:id - Delete thread`, () => {
@@ -578,9 +772,8 @@ describe(`Thread endpoints`, () => {
       const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
         typeof vi.fn
       >
-      const mockListMsg = mockReq.app?.locals.db.services.message.list as ReturnType<
-        typeof vi.fn
-      >
+      const mockListMsg = mockReq.app?.locals.db.services.message
+        .listByThread as ReturnType<typeof vi.fn>
       mockGetThread.mockResolvedValue({ data: mockThread })
       mockListMsg.mockResolvedValue({ data: mockMessages })
       mockReq.params = {
@@ -592,10 +785,9 @@ describe(`Thread endpoints`, () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockGetThread).toHaveBeenCalledWith(`t-1`)
-      expect(mockListMsg).toHaveBeenCalledWith({
+      expect(mockListMsg).toHaveBeenCalledWith(`t-1`, {
         limit: 50,
         offset: 0,
-        where: { threadId: `t-1` },
       })
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({
@@ -616,9 +808,8 @@ describe(`Thread endpoints`, () => {
       const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
         typeof vi.fn
       >
-      const mockListMsg = mockReq.app?.locals.db.services.message.list as ReturnType<
-        typeof vi.fn
-      >
+      const mockListMsg = mockReq.app?.locals.db.services.message
+        .listByThread as ReturnType<typeof vi.fn>
       mockGetThread.mockResolvedValue({ data: mockThread })
       mockListMsg.mockResolvedValue({ data: [] })
       mockReq.params = {
@@ -630,10 +821,9 @@ describe(`Thread endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockListMsg).toHaveBeenCalledWith({
+      expect(mockListMsg).toHaveBeenCalledWith(`t-1`, {
         limit: 20,
         offset: 10,
-        where: { threadId: `t-1` },
       })
       expect(mockJson).toHaveBeenCalledWith({
         data: [],
@@ -653,9 +843,8 @@ describe(`Thread endpoints`, () => {
       const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
         typeof vi.fn
       >
-      const mockListMsg = mockReq.app?.locals.db.services.message.list as ReturnType<
-        typeof vi.fn
-      >
+      const mockListMsg = mockReq.app?.locals.db.services.message
+        .listByThread as ReturnType<typeof vi.fn>
       mockGetThread.mockResolvedValue({ data: mockThread })
       mockListMsg.mockResolvedValue({ data: null })
       mockReq.params = {
@@ -771,9 +960,8 @@ describe(`Thread endpoints`, () => {
       const mockGetThread = mockReq.app?.locals.db.services.thread.get as ReturnType<
         typeof vi.fn
       >
-      const mockListMsg = mockReq.app?.locals.db.services.message.list as ReturnType<
-        typeof vi.fn
-      >
+      const mockListMsg = mockReq.app?.locals.db.services.message
+        .listByThread as ReturnType<typeof vi.fn>
       mockGetThread.mockResolvedValue({ data: mockThread })
       mockListMsg.mockResolvedValue({ error: `DB error` })
       mockReq.params = {

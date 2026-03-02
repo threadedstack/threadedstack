@@ -11,24 +11,16 @@ vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }))
 
-const { mockOpenAI, mockGoogle, mockOpenRouter, mockOllama, mockZai } = vi.hoisted(
-  () => ({
-    mockOpenAI: vi.fn(),
-    mockGoogle: vi.fn(),
-    mockOpenRouter: vi.fn(),
-    mockOllama: vi.fn(),
-    mockZai: vi.fn(),
-  })
-)
+const { mockGetModels, mockFetchOllamaModels } = vi.hoisted(() => ({
+  mockGetModels: vi.fn(),
+  mockFetchOllamaModels: vi.fn(),
+}))
 
-vi.mock(`@TBE/services/providers/dynamicModels`, () => ({
-  DynamicModels: vi.fn().mockImplementation(() => ({
-    openAI: mockOpenAI,
-    google: mockGoogle,
-    openRouter: mockOpenRouter,
-    ollama: mockOllama,
-    zai: mockZai,
-  })),
+vi.mock(`@TBE/services/providers/modelRegistry`, () => ({
+  ModelRegistry: {
+    getModels: mockGetModels,
+    fetchOllamaModels: mockFetchOllamaModels,
+  },
 }))
 
 describe(`POST /_/providers/:brand/models`, () => {
@@ -58,7 +50,11 @@ describe(`POST /_/providers/:brand/models`, () => {
       query: {},
       headers: {},
     }
-    vi.clearAllMocks()
+    mockGetModels.mockReturnValue([
+      { id: `model-1`, name: `Model 1` },
+      { id: `model-2`, name: `Model 2` },
+    ])
+    mockFetchOllamaModels.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -70,38 +66,77 @@ describe(`POST /_/providers/:brand/models`, () => {
     expect(fetchModels.method).toBe(EPMethod.Post)
   })
 
-  it(`should return static models for anthropic`, async () => {
+  it(`should return pi-mono models for anthropic`, async () => {
     mockReq.params = { brand: `anthropic` }
+    mockGetModels.mockReturnValue([
+      { id: `claude-sonnet-4-20250514`, name: `Claude Sonnet 4` },
+      { id: `claude-haiku-3.5`, name: `Claude Haiku 3.5` },
+    ])
 
     await fetchModels.action!(mockReq as TRequest, mockRes as Response)
 
+    expect(mockGetModels).toHaveBeenCalledWith(`anthropic`)
     expect(mockStatus).toHaveBeenCalledWith(200)
     const result = mockJson.mock.calls[0][0]
-    expect(result.data.length).toBeGreaterThan(0)
+    expect(result.data).toHaveLength(2)
     expect(result.data[0]).toHaveProperty(`id`)
     expect(result.data[0]).toHaveProperty(`name`)
   })
 
-  it(`should return static models for openai when no provider key`, async () => {
+  it(`should return pi-mono models for openai`, async () => {
     mockReq.params = { brand: `openai` }
+    mockGetModels.mockReturnValue([
+      { id: `gpt-4o`, name: `GPT-4o` },
+      { id: `gpt-4o-mini`, name: `GPT-4o Mini` },
+    ])
 
     await fetchModels.action!(mockReq as TRequest, mockRes as Response)
 
+    expect(mockGetModels).toHaveBeenCalledWith(`openai`)
     expect(mockStatus).toHaveBeenCalledWith(200)
     const result = mockJson.mock.calls[0][0]
-    expect(result.data.length).toBeGreaterThan(0)
-    expect(mockOpenAI).not.toHaveBeenCalled()
+    expect(result.data).toHaveLength(2)
   })
 
-  it(`should return static models for google when no provider key`, async () => {
+  it(`should return pi-mono models for google`, async () => {
     mockReq.params = { brand: `google` }
+    mockGetModels.mockReturnValue([
+      { id: `gemini-2.0-flash`, name: `Gemini 2.0 Flash`, contextWindow: 1048576 },
+    ])
 
     await fetchModels.action!(mockReq as TRequest, mockRes as Response)
 
+    expect(mockGetModels).toHaveBeenCalledWith(`google`)
     expect(mockStatus).toHaveBeenCalledWith(200)
     const result = mockJson.mock.calls[0][0]
-    expect(result.data.length).toBeGreaterThan(0)
-    expect(mockGoogle).not.toHaveBeenCalled()
+    expect(result.data).toHaveLength(1)
+  })
+
+  it(`should return pi-mono models for zai`, async () => {
+    mockReq.params = { brand: `zai` }
+    mockGetModels.mockReturnValue([{ id: `gpt-4o`, name: `GPT-4o` }])
+
+    await fetchModels.action!(mockReq as TRequest, mockRes as Response)
+
+    expect(mockGetModels).toHaveBeenCalledWith(`zai`)
+    expect(mockStatus).toHaveBeenCalledWith(200)
+    const result = mockJson.mock.calls[0][0]
+    expect(result.data).toHaveLength(1)
+  })
+
+  it(`should return pi-mono models for openrouter`, async () => {
+    mockReq.params = { brand: `openrouter` }
+    mockGetModels.mockReturnValue([
+      { id: `anthropic/claude-sonnet-4`, name: `Claude Sonnet 4` },
+      { id: `openai/gpt-4o`, name: `GPT-4o` },
+    ])
+
+    await fetchModels.action!(mockReq as TRequest, mockRes as Response)
+
+    expect(mockGetModels).toHaveBeenCalledWith(`openrouter`)
+    expect(mockStatus).toHaveBeenCalledWith(200)
+    const result = mockJson.mock.calls[0][0]
+    expect(result.data).toHaveLength(2)
   })
 
   it(`should return empty array for custom provider`, async () => {
@@ -111,6 +146,7 @@ describe(`POST /_/providers/:brand/models`, () => {
 
     expect(mockStatus).toHaveBeenCalledWith(200)
     expect(mockJson).toHaveBeenCalledWith({ data: [] })
+    expect(mockGetModels).not.toHaveBeenCalled()
   })
 
   it(`should throw 400 for invalid brand`, async () => {
@@ -121,147 +157,17 @@ describe(`POST /_/providers/:brand/models`, () => {
     ).rejects.toThrow(`Invalid provider brand "invalid"`)
   })
 
-  describe(`OpenAI model fetching`, () => {
-    it(`should fetch models from OpenAI API when provider key is given`, async () => {
-      mockReq.params = { brand: `openai` }
-      mockReq.body = { providerKey: `sk-test-key` }
-      mockOpenAI.mockResolvedValue([
-        { id: `gpt-4o`, name: `gpt-4o` },
-        { id: `gpt-4o-mini`, name: `gpt-4o-mini` },
-        { id: `o1-preview`, name: `o1-preview` },
-      ])
-
-      await fetchModels.action!(mockReq as TRequest, mockRes as Response)
-
-      expect(mockOpenAI).toHaveBeenCalledWith(`sk-test-key`)
-      expect(mockStatus).toHaveBeenCalledWith(200)
-
-      const result = mockJson.mock.calls[0][0]
-      expect(result.data).toHaveLength(3)
-      expect(result.data.map((m: any) => m.id)).toEqual([
-        `gpt-4o`,
-        `gpt-4o-mini`,
-        `o1-preview`,
-      ])
-    })
-
-    it(`should fall back to static models when OpenAI API fails`, async () => {
-      mockReq.params = { brand: `openai` }
-      mockReq.body = { providerKey: `sk-bad-key` }
-      mockOpenAI.mockRejectedValue(new Error(`OpenAI API returned 401`))
-
-      await fetchModels.action!(mockReq as TRequest, mockRes as Response)
-
-      // Should fall back to static models, not throw
-      expect(mockStatus).toHaveBeenCalledWith(200)
-      const result = mockJson.mock.calls[0][0]
-      expect(result.data.length).toBeGreaterThan(0)
-    })
-  })
-
-  describe(`Google model fetching`, () => {
-    it(`should fetch models from Google API when provider key is given`, async () => {
-      mockReq.params = { brand: `google` }
-      mockReq.body = { providerKey: `AIza-test-key` }
-      mockGoogle.mockResolvedValue([
-        {
-          id: `gemini-2.0-flash`,
-          name: `Gemini 2.0 Flash`,
-          maxTokens: 8192,
-          contextWindow: 1048576,
-          description: `Fast and versatile`,
-        },
-      ])
-
-      await fetchModels.action!(mockReq as TRequest, mockRes as Response)
-
-      expect(mockGoogle).toHaveBeenCalledWith(`AIza-test-key`)
-      expect(mockStatus).toHaveBeenCalledWith(200)
-
-      const result = mockJson.mock.calls[0][0]
-      expect(result.data).toHaveLength(1)
-      expect(result.data[0]).toEqual({
-        id: `gemini-2.0-flash`,
-        name: `Gemini 2.0 Flash`,
-        maxTokens: 8192,
-        contextWindow: 1048576,
-        description: `Fast and versatile`,
-      })
-    })
-
-    it(`should fall back to static models when Google API fails`, async () => {
-      mockReq.params = { brand: `google` }
-      mockReq.body = { providerKey: `bad-key` }
-      mockGoogle.mockRejectedValue(new Error(`Google API returned 400`))
-
-      await fetchModels.action!(mockReq as TRequest, mockRes as Response)
-
-      expect(mockStatus).toHaveBeenCalledWith(200)
-      const result = mockJson.mock.calls[0][0]
-      expect(result.data.length).toBeGreaterThan(0)
-    })
-  })
-
-  describe(`OpenRouter model fetching`, () => {
-    it(`should fetch models from OpenRouter API`, async () => {
-      mockReq.params = { brand: `openrouter` }
-      mockOpenRouter.mockResolvedValue([
-        {
-          id: `anthropic/claude-sonnet-4`,
-          name: `Claude Sonnet 4`,
-          maxTokens: 64000,
-          contextWindow: 200000,
-          description: `Balanced model`,
-        },
-        {
-          id: `openai/gpt-4o`,
-          name: `GPT-4o`,
-          maxTokens: 16384,
-          contextWindow: 128000,
-        },
-      ])
-
-      await fetchModels.action!(mockReq as TRequest, mockRes as Response)
-
-      expect(mockOpenRouter).toHaveBeenCalled()
-      expect(mockStatus).toHaveBeenCalledWith(200)
-
-      const result = mockJson.mock.calls[0][0]
-      expect(result.data).toHaveLength(2)
-      expect(result.data[0]).toEqual({
-        id: `anthropic/claude-sonnet-4`,
-        name: `Claude Sonnet 4`,
-        maxTokens: 64000,
-        contextWindow: 200000,
-        description: `Balanced model`,
-      })
-    })
-
-    it(`should fall back to static models when OpenRouter API fails`, async () => {
-      mockReq.params = { brand: `openrouter` }
-      mockOpenRouter.mockRejectedValue(new Error(`OpenRouter API returned 500`))
-
-      await fetchModels.action!(mockReq as TRequest, mockRes as Response)
-
-      // OpenRouter has static preset models to fall back to
-      expect(mockStatus).toHaveBeenCalledWith(200)
-      const result = mockJson.mock.calls[0][0]
-      expect(result.data.length).toBeGreaterThan(0)
-    })
-  })
-
   describe(`Ollama model fetching`, () => {
     it(`should fetch models from Ollama API with default URL`, async () => {
       mockReq.params = { brand: `ollama` }
-      mockOllama.mockResolvedValue([
+      mockFetchOllamaModels.mockResolvedValue([
         { id: `llama3.2`, name: `llama3.2` },
         { id: `mistral:latest`, name: `mistral:latest` },
       ])
 
       await fetchModels.action!(mockReq as TRequest, mockRes as Response)
 
-      // Falls back to ProviderTemplates.ollama.baseUrl when no body baseUrl
-      expect(mockOllama).toHaveBeenCalledWith(`http://localhost:11434/v1`)
+      expect(mockFetchOllamaModels).toHaveBeenCalledWith(`http://localhost:11434/v1`)
       expect(mockStatus).toHaveBeenCalledWith(200)
 
       const result = mockJson.mock.calls[0][0]
@@ -273,47 +179,30 @@ describe(`POST /_/providers/:brand/models`, () => {
     it(`should use custom baseUrl when provided`, async () => {
       mockReq.params = { brand: `ollama` }
       mockReq.body = { baseUrl: `http://gpu-server:11434/v1` }
-      mockOllama.mockResolvedValue([])
+      mockFetchOllamaModels.mockResolvedValue([{ id: `llama3.2`, name: `llama3.2` }])
 
       await fetchModels.action!(mockReq as TRequest, mockRes as Response)
 
-      expect(mockOllama).toHaveBeenCalledWith(`http://gpu-server:11434/v1`)
+      expect(mockFetchOllamaModels).toHaveBeenCalledWith(`http://gpu-server:11434/v1`)
     })
 
-    it(`should throw 502 when Ollama is not running`, async () => {
+    it(`should return empty array when Ollama has no models installed`, async () => {
       mockReq.params = { brand: `ollama` }
-      mockOllama.mockRejectedValue(new Error(`connect ECONNREFUSED`))
+      mockFetchOllamaModels.mockResolvedValue([])
+
+      await fetchModels.action!(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({ data: [] })
+    })
+
+    it(`should throw 502 when Ollama connection fails`, async () => {
+      mockReq.params = { brand: `ollama` }
+      mockFetchOllamaModels.mockRejectedValue(new Error(`fetch failed`))
 
       await expect(
         fetchModels.action!(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`Failed to fetch models from ollama`)
-    })
-  })
-
-  describe(`ZAI model fetching`, () => {
-    it(`should fetch models from ZAI API when provider key is given`, async () => {
-      mockReq.params = { brand: `zai` }
-      mockReq.body = { providerKey: `zai-test-key` }
-      mockZai.mockResolvedValue([{ id: `gpt-4o`, name: `gpt-4o` }])
-
-      await fetchModels.action!(mockReq as TRequest, mockRes as Response)
-
-      expect(mockZai).toHaveBeenCalledWith(`zai-test-key`)
-      expect(mockStatus).toHaveBeenCalledWith(200)
-
-      const result = mockJson.mock.calls[0][0]
-      expect(result.data).toHaveLength(1)
-    })
-
-    it(`should fall back to static models when no provider key`, async () => {
-      mockReq.params = { brand: `zai` }
-
-      await fetchModels.action!(mockReq as TRequest, mockRes as Response)
-
-      expect(mockZai).not.toHaveBeenCalled()
-      expect(mockStatus).toHaveBeenCalledWith(200)
-      const result = mockJson.mock.calls[0][0]
-      expect(result.data.length).toBeGreaterThan(0)
     })
   })
 })

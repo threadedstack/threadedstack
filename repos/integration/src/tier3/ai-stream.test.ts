@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { env } from '../utils/env'
-import { post, get } from '../utils/api-client'
+import { post, get, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 import { consumeWS, connectWS } from '../utils/ws-client'
@@ -138,7 +138,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
     const result = await consumeWS(sessionToken, 'Say hi', { timeout: 60_000 })
 
     const validTypes = [
-      'text_delta', 'tool_execution_start', 'tool_execution_end',
+      'text_delta', 'thinking_delta', 'tool_execution_start', 'tool_execution_end',
       'tool_execution_update',
       'file_request', 'file_changed', 'thread_created',
       'turn_end', 'done', 'error',
@@ -281,5 +281,52 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
       { agentId: 'zz00000000' }
     )
     expect(res.status).toBe(404)
+  })
+
+  // ─── Deleted agent session → WS close 4001 ─────────────────────────
+
+  test.skipIf(!hasLLM())('WS with session for deleted agent closes with 4001', async () => {
+    // Create a temporary agent via quickstart
+    const tempQs = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/quickstart`,
+      {
+        providerBrand: 'zai',
+        apiKey: env.testProviderKey,
+        projectName: uniqueName('WS Deleted Agent'),
+        agentName: uniqueName('WS Del Agent'),
+      }
+    )
+
+    expect(tempQs.status).toBe(201)
+    const tempAgent = tempQs.data.data.agent
+    const tempProject = tempQs.data.data.project
+    const tempEndpoint = tempQs.data.data.endpoint
+    const tempSecret = tempQs.data.data.secret
+    const tempProvider = tempQs.data.data.provider
+
+    // Create session for this agent
+    const sessionRes = await post<{ data: Record<string, any> }>(
+      `/_/ai/sessions`,
+      { agentId: tempAgent.id }
+    )
+    expect(sessionRes.status).toBe(200)
+    const tempToken = sessionRes.data.data.sessionToken
+
+    // Delete the agent BEFORE using the session token
+    await del(`/orgs/${ctx.orgId}/agents/${tempAgent.id}`)
+
+    // Connect WS — resolveSession returns null → ws.close(4001)
+    const result = await connectWS(tempToken, { timeout: 10_000 })
+    expect(result.closeCode).toBe(4001)
+
+    // Cleanup remaining resources (agent already deleted)
+    if (tempEndpoint?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${tempProject?.id}/endpoints/${tempEndpoint.id}`)
+    if (tempProject?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${tempProject.id}`)
+    if (tempSecret?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/secrets/${tempSecret.id}`)
+    if (tempProvider?.id)
+      await tryDelete(`/orgs/${ctx.orgId}/providers/${tempProvider.id}`)
   })
 })

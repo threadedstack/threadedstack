@@ -13,6 +13,7 @@ const ALL_TOOL_NAMES = [
   `mkdir`,
   `fileExists`,
   `evalCode`,
+  `createArtifact`,
   `webSearch`,
 ]
 
@@ -42,9 +43,9 @@ describe(`createSandboxTools`, () => {
   })
 
   describe(`tool creation and filtering`, () => {
-    it(`should return all 9 tools when no filter is provided`, () => {
+    it(`should return all 10 tools when no filter is provided`, () => {
       const tools = createSandboxTools(mockSandbox as any)
-      expect(tools).toHaveLength(9)
+      expect(tools).toHaveLength(10)
       expect(tools.map((t) => t.name)).toEqual(ALL_TOOL_NAMES)
     })
 
@@ -56,7 +57,7 @@ describe(`createSandboxTools`, () => {
 
     it(`should return all tools when allowedTools is an empty array`, () => {
       const tools = createSandboxTools(mockSandbox as any, [])
-      expect(tools).toHaveLength(9)
+      expect(tools).toHaveLength(10)
       expect(tools.map((t) => t.name)).toEqual(ALL_TOOL_NAMES)
     })
 
@@ -453,6 +454,151 @@ describe(`createSandboxTools`, () => {
     })
   })
 
+  describe(`createArtifact`, () => {
+    it(`should return JSON-stringified artifact content with all fields`, async () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `createArtifact`)!
+      const result = await tool.execute(
+        `call-1`,
+        {
+          artifactType: `html`,
+          content: `<h1>Hello</h1>`,
+          title: `My Page`,
+          language: undefined,
+        },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([
+        {
+          type: `text`,
+          text: JSON.stringify({
+            artifactType: `html`,
+            content: `<h1>Hello</h1>`,
+            title: `My Page`,
+            language: undefined,
+          }),
+        },
+      ])
+    })
+
+    it(`should include artifactType and title in details`, async () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `createArtifact`)!
+      const result = await tool.execute(
+        `call-1`,
+        {
+          artifactType: `markdown`,
+          content: `# Heading`,
+          title: `Doc Title`,
+        },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.details).toEqual({
+        success: true,
+        artifactType: `markdown`,
+        title: `Doc Title`,
+      })
+    })
+
+    it(`should handle artifact without optional title and language`, async () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `createArtifact`)!
+      const result = await tool.execute(
+        `call-1`,
+        { artifactType: `json`, content: `{"key":"value"}` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([
+        {
+          type: `text`,
+          text: JSON.stringify({
+            artifactType: `json`,
+            content: `{"key":"value"}`,
+            title: undefined,
+            language: undefined,
+          }),
+        },
+      ])
+      expect(result.details).toEqual({
+        success: true,
+        artifactType: `json`,
+        title: undefined,
+      })
+    })
+
+    it(`should handle different artifact types`, async () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `createArtifact`)!
+
+      const types = [
+        `html`,
+        `svg`,
+        `markdown`,
+        `code`,
+        `json`,
+        `csv`,
+        `yaml`,
+        `xml`,
+        `mermaid`,
+        `latex`,
+        `image`,
+        `table`,
+        `diff`,
+        `plaintext`,
+      ] as const
+      for (const artifactType of types) {
+        const result = await tool.execute(
+          `call-1`,
+          { artifactType, content: `test content` },
+          undefined as any,
+          vi.fn()
+        )
+
+        expect(result.details).toEqual(
+          expect.objectContaining({ success: true, artifactType })
+        )
+      }
+    })
+
+    it(`should not require onUpdate callback`, async () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `createArtifact`)!
+      const result = await tool.execute(
+        `call-1`,
+        {
+          artifactType: `code`,
+          content: `console.log("hi")`,
+          title: `Snippet`,
+          language: `javascript`,
+        },
+        undefined as any
+      )
+
+      expect(result.content).toEqual([
+        {
+          type: `text`,
+          text: JSON.stringify({
+            artifactType: `code`,
+            content: `console.log("hi")`,
+            title: `Snippet`,
+            language: `javascript`,
+          }),
+        },
+      ])
+      expect(result.details).toEqual({
+        success: true,
+        artifactType: `code`,
+        title: `Snippet`,
+      })
+    })
+  })
+
   describe(`webSearch`, () => {
     it(`should return not yet implemented message`, async () => {
       const tools = createSandboxTools(mockSandbox as any)
@@ -484,6 +630,7 @@ describe(`createSandboxTools`, () => {
         `Create Directory`,
         `File Exists`,
         `Evaluate Code`,
+        `Create Artifact`,
         `Web Search`,
       ])
     })

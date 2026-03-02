@@ -28,6 +28,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
   let projectId = ''
   let secretId = ''
   let basicEpId = ''
+  let postEpId = ''
   let headersEpId = ''
   let authEpId = ''
   let publicEpId = ''
@@ -88,6 +89,26 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     }
 
     basicEpId = basicRes.data.data.id
+
+    // Step 3b: Create POST proxy endpoint for body payload tests
+    const postRes = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
+      {
+        name: uniqueName('Post Proxy'),
+        path: `/proxy/post-${timestamp}`,
+        type: 'proxy',
+        method: 'post',
+        projectId,
+        options: { url: echoUrl },
+      }
+    )
+
+    if (postRes.status !== 201 || !postRes.data?.data?.id) {
+      setupFailed = true
+      return
+    }
+
+    postEpId = postRes.data.data.id
 
     // Step 4: Create proxy endpoint with custom headers (static + secret template)
     const headersRes = await post<{ data: Record<string, any> }>(
@@ -169,6 +190,8 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${authEpId}`)
     if (headersEpId)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${headersEpId}`)
+    if (postEpId)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${postEpId}`)
     if (basicEpId)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${basicEpId}`)
 
@@ -257,7 +280,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
 
     const payload = { greeting: 'hello', count: 42 }
     const res = await api<any>(
-      `/proxy/${projectId}/${basicEpId}`,
+      `/proxy/${projectId}/${postEpId}`,
       { method: 'POST', rawPath: true, body: payload }
     )
 

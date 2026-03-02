@@ -72,12 +72,12 @@ describe(`Auth`, () => {
       expect(auth.extract(mockReq)).toBe(`my-jwt-token-123`)
     })
 
-    it(`should return token from Session header`, () => {
+    it(`should return null for Session header (no longer supported)`, () => {
       const mockReq = {
         headers: { authorization: `Session my-session-token-123` },
       } as unknown as Request
 
-      expect(auth.extract(mockReq)).toBe(`my-session-token-123`)
+      expect(auth.extract(mockReq)).toBeNull()
     })
 
     it(`should return null for missing authorization header`, () => {
@@ -88,7 +88,7 @@ describe(`Auth`, () => {
       expect(auth.extract(mockReq)).toBeNull()
     })
 
-    it(`should return null for non-Bearer/Session header`, () => {
+    it(`should return null for non-Bearer header`, () => {
       const mockReq = {
         headers: { authorization: `Basic dXNlcjpwYXNz` },
       } as unknown as Request
@@ -119,7 +119,7 @@ describe(`Auth`, () => {
     it(`should prefer Authorization header over query param`, () => {
       const mockReq = {
         path: `/ai/ws`,
-        headers: { authorization: `Session header-token` },
+        headers: { authorization: `Bearer header-token` },
         query: { token: `query-token` },
       } as unknown as Request
 
@@ -222,7 +222,7 @@ describe(`Auth`, () => {
 
       expect(result).toEqual({
         valid: false,
-        error: `JWKS client not initialized. Call initJWKS first.`,
+        error: `JWKS client not initialized. Ensure Auth was constructed with a valid JWKS URL.`,
       })
     })
   })

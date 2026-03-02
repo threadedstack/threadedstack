@@ -433,7 +433,7 @@ test.describe('Thread Detail Page', () => {
     await page.waitForLoadState('networkidle')
 
     // URL should now end with /chat
-    expect(page.url()).toMatch(/\/threads\/[0-9a-f-]+\/chat$/)
+    expect(page.url()).toMatch(/\/threads\/[A-Za-z0-9_-]+\/chat$/)
 
     // Chat input should be visible
     await expect(page.getByPlaceholder('Type a message...')).toBeVisible({ timeout: 10000 })
@@ -598,7 +598,7 @@ test.describe('Browser History Navigation', () => {
 
     // Should be back on threads list
     expect(page.url()).toContain(`/agents/${ctx.agentId}/threads`)
-    expect(page.url()).not.toMatch(/\/threads\/[0-9a-f-]+/)
+    expect(page.url()).not.toMatch(/\/threads\/[A-Za-z0-9_-]+/)
 
     // Threads tab should be active again
     const threadsTab = page.getByRole('tab', { name: /Threads/i })
