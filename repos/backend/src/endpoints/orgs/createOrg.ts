@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { ERoleType } from '@tdsk/domain'
 import { logger } from '@TDB/utils/logger'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 
 /**
  * POST /orgs - Create a new org

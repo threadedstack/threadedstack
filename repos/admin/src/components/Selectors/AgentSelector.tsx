@@ -2,15 +2,16 @@ import { useMemo } from 'react'
 import { EntitySelectorSingle } from './EntitySelector'
 
 export type TAgentSelector = {
+  agentId: string
   loading?: boolean
   disabled?: boolean
-  agentId: string
-  agents: Array<{ id: string; name: string }>
+  required?: boolean
   onChange: (agentId: string) => void
+  agents: Array<{ id: string; name: string }>
 }
 
 export const AgentSelector = (props: TAgentSelector) => {
-  const { loading, disabled, agentId, agents, onChange } = props
+  const { loading, disabled, required, agentId, agents, onChange } = props
 
   const options = useMemo(
     () =>
@@ -26,17 +27,18 @@ export const AgentSelector = (props: TAgentSelector) => {
       id='agent-id'
       label='Agent'
       loading={loading}
-      disabled={disabled}
-      value={agentId || null}
       options={options}
-      onChange={(id) => onChange(id || '')}
+      disabled={disabled}
+      required={required}
+      value={agentId || null}
       placeholder='Select agent...'
+      onChange={(id) => onChange(id || '')}
       description={
         loading
-          ? 'Loading agents...'
+          ? `Loading agents...`
           : agents.length === 0
-            ? 'No agents available. Create an agent first.'
-            : 'Select the AI agent to handle requests'
+            ? `No agents available. Create an agent first.`
+            : `Select the AI agent to handle requests`
       }
     />
   )

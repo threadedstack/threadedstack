@@ -9,7 +9,7 @@ import type {
   TPayCheckoutSession,
 } from '@TBE/types'
 
-import type { Exception } from '@TBE/utils/errors/exception'
+import type { Exception } from '@tdsk/domain'
 
 /**
  * Abstract base service for payment providers.

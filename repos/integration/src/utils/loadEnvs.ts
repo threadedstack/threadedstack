@@ -1,6 +1,6 @@
-import { loadConfigs } from '@keg-hub/parse-config'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { loadConfigs } from '@keg-hub/parse-config'
 
 let __loaded: Record<string, string> | undefined
 
@@ -30,11 +30,11 @@ export const loadEnvs = (opts?: { force?: boolean }) => {
   })
 
   if (!process.env.NODE_ENV) {
-    process.env.NODE_ENV = __loaded.NODE_ENV || 'local'
+    process.env.NODE_ENV = __loaded?.NODE_ENV || 'local'
   }
 
   // Add to process.env — don't override existing values
-  for (const [key, value] of Object.entries(__loaded)) {
+  for (const [key, value] of Object.entries(__loaded || {})) {
     if (value != null && !process.env[key]) {
       process.env[key] = String(value)
     }

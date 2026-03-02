@@ -10,7 +10,7 @@ import type {
 } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { BaseService } from '@TBE/services/payments/strategies/base'
 
 /**

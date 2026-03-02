@@ -4,17 +4,19 @@ import { EntitySelector, EntitySelectorSingle } from './EntitySelector'
 export type TUserSelector = {
   loading?: boolean
   disabled?: boolean
-  users: Array<{ id: string; name: string; email?: string }>
+  required?: boolean
   selectedUserIds: string[]
   onChange: (userIds: string[]) => void
+  users: Array<{ id: string; name: string; email?: string }>
 }
 
 export type TUserSelectorSingle = {
   loading?: boolean
   disabled?: boolean
-  users: Array<{ id: string; name: string; email?: string }>
+  required?: boolean
   userId: string | null
   onChange: (userId: string | null) => void
+  users: Array<{ id: string; name: string; email?: string }>
 }
 
 const useUserOptions = (users: TUserSelector['users']) =>
@@ -29,7 +31,7 @@ const useUserOptions = (users: TUserSelector['users']) =>
   )
 
 export const UserSelector = (props: TUserSelector) => {
-  const { loading, disabled, users, selectedUserIds, onChange } = props
+  const { loading, disabled, users, selectedUserIds, required, onChange } = props
   const options = useUserOptions(users)
 
   return (
@@ -38,11 +40,12 @@ export const UserSelector = (props: TUserSelector) => {
       title='Users'
       label='Users'
       loading={loading}
-      disabled={disabled || users.length === 0}
-      value={selectedUserIds}
       options={options}
+      required={required}
       onChange={onChange}
+      value={selectedUserIds}
       placeholder='Select users...'
+      disabled={disabled || users.length === 0}
       description={
         loading
           ? 'Loading users...'
@@ -55,19 +58,20 @@ export const UserSelector = (props: TUserSelector) => {
 }
 
 export const UserSelectorSingle = (props: TUserSelectorSingle) => {
-  const { loading, disabled, users, userId, onChange } = props
+  const { loading, disabled, users, userId, required, onChange } = props
   const options = useUserOptions(users)
 
   return (
     <EntitySelectorSingle
       id='entity-user'
       label='User'
-      loading={loading}
-      disabled={disabled || users.length === 0}
       value={userId}
       options={options}
+      loading={loading}
       onChange={onChange}
+      required={required}
       placeholder='Select user...'
+      disabled={disabled || users.length === 0}
       description={
         loading
           ? 'Loading users...'

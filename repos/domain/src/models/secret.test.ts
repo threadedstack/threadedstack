@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { Secret } from './secret'
 
-describe('Secret Model', () => {
-  describe('constructor', () => {
-    it('should create a secret with required fields', () => {
+describe(`Secret Model`, () => {
+  describe(`constructor`, () => {
+    it(`should create a secret with required fields`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'API_KEY',
-        hashKey: 'hash_abc123',
-        encryptedValue: 'encrypted_value_xyz789',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `API_KEY`,
+        hashKey: `hash_abc123`,
+        encryptedValue: `encrypted_value_xyz789`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -23,15 +23,15 @@ describe('Secret Model', () => {
       expect(secret.updatedAt).toBe(secretData.updatedAt)
     })
 
-    it('should create a org-scoped secret', () => {
+    it(`should create a org-scoped secret`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'ORG_SECRET',
-        hashKey: 'hash_org123',
-        encryptedValue: 'encrypted_org_value',
-        orgId: '456e4567-e89b-12d3-a456-426614174001',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `ORG_SECRET`,
+        hashKey: `hash_org123`,
+        encryptedValue: `encrypted_org_value`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -46,15 +46,15 @@ describe('Secret Model', () => {
       expect(secret.updatedAt).toBe(secretData.updatedAt)
     })
 
-    it('should create a project-scoped secret', () => {
+    it(`should create a project-scoped secret`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'PROJECT_SECRET',
-        hashKey: 'hash_project123',
-        encryptedValue: 'encrypted_project_value',
-        projectId: '789e4567-e89b-12d3-a456-426614174002',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `PROJECT_SECRET`,
+        hashKey: `hash_project123`,
+        encryptedValue: `encrypted_project_value`,
+        projectId: `789e4567-e89b-12d3-a456-426614174002`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -69,14 +69,14 @@ describe('Secret Model', () => {
       expect(secret.updatedAt).toBe(secretData.updatedAt)
     })
 
-    it('should handle Date objects for timestamps', () => {
+    it(`should handle Date objects for timestamps`, () => {
       const now = new Date()
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'API_KEY',
-        hashKey: 'hash_abc123',
-        encryptedValue: 'encrypted_value_xyz789',
-        orgId: '456e4567-e89b-12d3-a456-426614174001',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `API_KEY`,
+        hashKey: `hash_abc123`,
+        encryptedValue: `encrypted_value_xyz789`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
         createdAt: now,
         updatedAt: now,
       }
@@ -87,11 +87,11 @@ describe('Secret Model', () => {
       expect(secret.updatedAt).toBe(now)
     })
 
-    it('should handle partial data with only required fields', () => {
+    it(`should handle partial data with only required fields`, () => {
       const secretData = {
-        name: 'GITHUB_TOKEN',
-        hashKey: 'hash_github',
-        encryptedValue: 'encrypted_github_token',
+        name: `GITHUB_TOKEN`,
+        hashKey: `hash_github`,
+        encryptedValue: `encrypted_github_token`,
       }
 
       const secret = new Secret(secretData)
@@ -103,33 +103,33 @@ describe('Secret Model', () => {
       expect(secret.projectId).toBeUndefined()
     })
 
-    it('should handle secrets with special characters in name', () => {
+    it(`should handle secrets with special characters in name`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'DATABASE_URL_PROD',
-        hashKey: 'hash_db_123',
-        encryptedValue: 'encrypted_db_connection_string',
-        orgId: '456e4567-e89b-12d3-a456-426614174001',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `DATABASE_URL_PROD`,
+        hashKey: `hash_db_123`,
+        encryptedValue: `encrypted_db_connection_string`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
 
-      expect(secret.name).toBe('DATABASE_URL_PROD')
+      expect(secret.name).toBe(`DATABASE_URL_PROD`)
       expect(secret.hashKey).toBe(secretData.hashKey)
     })
 
-    it('should handle long encrypted values', () => {
-      const longEncryptedValue = 'A'.repeat(1000)
+    it(`should handle long encrypted values`, () => {
+      const longEncryptedValue = `A`.repeat(1000)
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'CERTIFICATE',
-        hashKey: 'hash_cert',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `CERTIFICATE`,
+        hashKey: `hash_cert`,
         encryptedValue: longEncryptedValue,
-        projectId: '789e4567-e89b-12d3-a456-426614174002',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        projectId: `789e4567-e89b-12d3-a456-426614174002`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -138,15 +138,15 @@ describe('Secret Model', () => {
       expect(secret.encryptedValue.length).toBe(1000)
     })
 
-    it('should preserve all properties when creating from object', () => {
+    it(`should preserve all properties when creating from object`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'AWS_SECRET_KEY',
-        hashKey: 'hash_aws',
-        encryptedValue: 'encrypted_aws_secret',
-        orgId: '456e4567-e89b-12d3-a456-426614174001',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-02T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `AWS_SECRET_KEY`,
+        hashKey: `hash_aws`,
+        encryptedValue: `encrypted_aws_secret`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-02T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -155,35 +155,35 @@ describe('Secret Model', () => {
     })
   })
 
-  describe('inheritance from Base', () => {
-    it('should inherit Base properties', () => {
+  describe(`inheritance from Base`, () => {
+    it(`should inherit Base properties`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'API_KEY',
-        hashKey: 'hash_abc123',
-        encryptedValue: 'encrypted_value_xyz789',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `API_KEY`,
+        hashKey: `hash_abc123`,
+        encryptedValue: `encrypted_value_xyz789`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
 
-      expect(secret).toHaveProperty('id')
-      expect(secret).toHaveProperty('createdAt')
-      expect(secret).toHaveProperty('updatedAt')
+      expect(secret).toHaveProperty(`id`)
+      expect(secret).toHaveProperty(`createdAt`)
+      expect(secret).toHaveProperty(`updatedAt`)
     })
   })
 
-  describe('exclusive arc pattern', () => {
-    it('should allow secret with orgId only', () => {
+  describe(`exclusive arc pattern`, () => {
+    it(`should allow secret with orgId only`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'ORG_API_KEY',
-        hashKey: 'hash_org',
-        encryptedValue: 'encrypted_org_api_key',
-        orgId: '456e4567-e89b-12d3-a456-426614174001',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `ORG_API_KEY`,
+        hashKey: `hash_org`,
+        encryptedValue: `encrypted_org_api_key`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -192,15 +192,15 @@ describe('Secret Model', () => {
       expect(secret.projectId).toBeUndefined()
     })
 
-    it('should allow secret with projectId only', () => {
+    it(`should allow secret with projectId only`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'PROJECT_API_KEY',
-        hashKey: 'hash_project',
-        encryptedValue: 'encrypted_project_api_key',
-        projectId: '789e4567-e89b-12d3-a456-426614174002',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `PROJECT_API_KEY`,
+        hashKey: `hash_project`,
+        encryptedValue: `encrypted_project_api_key`,
+        projectId: `789e4567-e89b-12d3-a456-426614174002`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -209,14 +209,14 @@ describe('Secret Model', () => {
       expect(secret.orgId).toBeUndefined()
     })
 
-    it('should allow secret with neither orgId nor projectId', () => {
+    it(`should allow secret with neither orgId nor projectId`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'UNSCOPED_SECRET',
-        hashKey: 'hash_unscoped',
-        encryptedValue: 'encrypted_unscoped_value',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `UNSCOPED_SECRET`,
+        hashKey: `hash_unscoped`,
+        encryptedValue: `encrypted_unscoped_value`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -225,16 +225,16 @@ describe('Secret Model', () => {
       expect(secret.projectId).toBeUndefined()
     })
 
-    it('should allow secret with both orgId and projectId (model layer does not enforce constraint)', () => {
+    it(`should allow secret with both orgId and projectId (constructor does not enforce constraint)`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'BOTH_IDS_SECRET',
-        hashKey: 'hash_both',
-        encryptedValue: 'encrypted_both_value',
-        orgId: '456e4567-e89b-12d3-a456-426614174001',
-        projectId: '789e4567-e89b-12d3-a456-426614174002',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `BOTH_IDS_SECRET`,
+        hashKey: `hash_both`,
+        encryptedValue: `encrypted_both_value`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
+        projectId: `789e4567-e89b-12d3-a456-426614174002`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -244,17 +244,17 @@ describe('Secret Model', () => {
     })
   })
 
-  describe('type safety', () => {
-    it('should handle null values if provided', () => {
+  describe(`type safety`, () => {
+    it(`should handle null values if provided`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'NULL_ORG_SECRET',
-        hashKey: 'hash_null',
-        encryptedValue: 'encrypted_null_value',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `NULL_ORG_SECRET`,
+        hashKey: `hash_null`,
+        encryptedValue: `encrypted_null_value`,
         orgId: null as any,
         projectId: null as any,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
@@ -264,86 +264,86 @@ describe('Secret Model', () => {
     })
   })
 
-  describe('real-world scenarios', () => {
-    it('should create a GitHub API token secret for a org', () => {
+  describe(`real-world scenarios`, () => {
+    it(`should create a GitHub API token secret for a org`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'GITHUB_API_TOKEN',
-        hashKey: 'sha256_hash_of_github_token',
-        encryptedValue: 'aes256_encrypted_github_token_value',
-        orgId: '456e4567-e89b-12d3-a456-426614174001',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `GITHUB_API_TOKEN`,
+        hashKey: `sha256_hash_of_github_token`,
+        encryptedValue: `aes256_encrypted_github_token_value`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
 
-      expect(secret.name).toBe('GITHUB_API_TOKEN')
+      expect(secret.name).toBe(`GITHUB_API_TOKEN`)
       expect(secret.orgId).toBeDefined()
       expect(secret.projectId).toBeUndefined()
     })
 
-    it('should create a database connection string secret for a project', () => {
+    it(`should create a database connection string secret for a project`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'DATABASE_URL',
-        hashKey: 'sha256_hash_of_db_url',
-        encryptedValue: 'aes256_encrypted_postgres_connection_string',
-        projectId: '789e4567-e89b-12d3-a456-426614174002',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `DATABASE_URL`,
+        hashKey: `sha256_hash_of_db_url`,
+        encryptedValue: `aes256_encrypted_postgres_connection_string`,
+        projectId: `789e4567-e89b-12d3-a456-426614174002`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
 
-      expect(secret.name).toBe('DATABASE_URL')
+      expect(secret.name).toBe(`DATABASE_URL`)
       expect(secret.projectId).toBeDefined()
       expect(secret.orgId).toBeUndefined()
     })
 
-    it('should create an AWS credentials secret', () => {
+    it(`should create an AWS credentials secret`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'AWS_SECRET_ACCESS_KEY',
-        hashKey: 'sha256_hash_of_aws_secret',
-        encryptedValue: 'aes256_encrypted_aws_secret_access_key',
-        orgId: '456e4567-e89b-12d3-a456-426614174001',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `AWS_SECRET_ACCESS_KEY`,
+        hashKey: `sha256_hash_of_aws_secret`,
+        encryptedValue: `aes256_encrypted_aws_secret_access_key`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
 
-      expect(secret.name).toBe('AWS_SECRET_ACCESS_KEY')
-      expect(secret.encryptedValue).toContain('aes256_encrypted')
+      expect(secret.name).toBe(`AWS_SECRET_ACCESS_KEY`)
+      expect(secret.encryptedValue).toContain(`aes256_encrypted`)
     })
 
-    it('should create an API key for external service', () => {
+    it(`should create an API key for external service`, () => {
       const secretData = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'OPENAI_API_KEY',
-        hashKey: 'sha256_hash_openai',
-        encryptedValue: 'aes256_encrypted_openai_key',
-        projectId: '789e4567-e89b-12d3-a456-426614174002',
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `OPENAI_API_KEY`,
+        hashKey: `sha256_hash_openai`,
+        encryptedValue: `aes256_encrypted_openai_key`,
+        projectId: `789e4567-e89b-12d3-a456-426614174002`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
       }
 
       const secret = new Secret(secretData)
 
-      expect(secret.name).toBe('OPENAI_API_KEY')
+      expect(secret.name).toBe(`OPENAI_API_KEY`)
       expect(secret.projectId).toBeDefined()
     })
 
-    it('should handle secret name with various formats', () => {
+    it(`should handle secret name with various formats`, () => {
       const formats = [
-        'SNAKE_CASE_SECRET',
-        'kebab-case-secret',
-        'camelCaseSecret',
-        'PascalCaseSecret',
-        'SECRET123',
-        'secret.with.dots',
-        'secret/with/slashes',
+        `SNAKE_CASE_SECRET`,
+        `kebab-case-secret`,
+        `camelCaseSecret`,
+        `PascalCaseSecret`,
+        `SECRET123`,
+        `secret.with.dots`,
+        `secret/with/slashes`,
       ]
 
       formats.forEach((name) => {
@@ -352,14 +352,86 @@ describe('Secret Model', () => {
           name,
           hashKey: `hash_${name}`,
           encryptedValue: `encrypted_${name}`,
-          orgId: '456e4567-e89b-12d3-a456-426614174001',
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z',
+          orgId: `456e4567-e89b-12d3-a456-426614174001`,
+          createdAt: `2024-01-01T00:00:00Z`,
+          updatedAt: `2024-01-01T00:00:00Z`,
         }
 
         const secret = new Secret(secretData)
         expect(secret.name).toBe(name)
       })
+    })
+  })
+
+  describe(`sanitize`, () => {
+    it(`should remove value and encryptedValue`, () => {
+      const secret = new Secret({
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `API_KEY`,
+        hashKey: `hash_abc123`,
+        value: `raw_secret_value`,
+        encryptedValue: `encrypted_value_xyz789`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
+      })
+
+      const sanitized = secret.sanitize()
+
+      expect(sanitized.value).toBeUndefined()
+      expect(sanitized.encryptedValue).toBeUndefined()
+    })
+
+    it(`should preserve all other fields`, () => {
+      const secret = new Secret({
+        id: `123e4567-e89b-12d3-a456-426614174000`,
+        name: `DB_PASSWORD`,
+        hashKey: `hash_db`,
+        value: `supersecret`,
+        encryptedValue: `encrypted_supersecret`,
+        orgId: `456e4567-e89b-12d3-a456-426614174001`,
+        projectId: `789e4567-e89b-12d3-a456-426614174002`,
+        description: `Database password`,
+        createdAt: `2024-01-01T00:00:00Z`,
+        updatedAt: `2024-01-01T00:00:00Z`,
+      })
+
+      const sanitized = secret.sanitize()
+
+      expect(sanitized.id).toBe(secret.id)
+      expect(sanitized.name).toBe(`DB_PASSWORD`)
+      expect(sanitized.hashKey).toBe(`hash_db`)
+      expect(sanitized.orgId).toBe(secret.orgId)
+      expect(sanitized.projectId).toBe(secret.projectId)
+      expect(sanitized.description).toBe(`Database password`)
+      expect(sanitized.createdAt).toBe(`2024-01-01T00:00:00Z`)
+      expect(sanitized.updatedAt).toBe(`2024-01-01T00:00:00Z`)
+    })
+
+    it(`should return a new Secret instance`, () => {
+      const secret = new Secret({
+        name: `TOKEN`,
+        hashKey: `hash_tok`,
+        encryptedValue: `encrypted_tok`,
+      })
+
+      const sanitized = secret.sanitize()
+
+      expect(sanitized).toBeInstanceOf(Secret)
+      expect(sanitized).not.toBe(secret)
+    })
+
+    it(`should work when value is not set`, () => {
+      const secret = new Secret({
+        name: `NO_VALUE`,
+        hashKey: `hash_nv`,
+        encryptedValue: `encrypted_nv`,
+      })
+
+      const sanitized = secret.sanitize()
+
+      expect(sanitized.value).toBeUndefined()
+      expect(sanitized.encryptedValue).toBeUndefined()
+      expect(sanitized.name).toBe(`NO_VALUE`)
+      expect(sanitized.hashKey).toBe(`hash_nv`)
     })
   })
 })

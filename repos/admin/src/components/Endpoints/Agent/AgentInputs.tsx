@@ -61,9 +61,9 @@ export const AgentInputs = (props: TAgentInputs) => {
   return (
     <>
       <AgentSelector
+        agents={agents}
         loading={loading}
         agentId={agentId}
-        agents={agents}
         onChange={props.onAgentIdChange}
       />
 

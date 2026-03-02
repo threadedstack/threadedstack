@@ -235,9 +235,9 @@ const streamFn = createStreamProxy({
 
 **How it works**:
 - Returns a `StreamFn` (pi-mono interface) that can be passed to `Agent` constructor
-- POSTs to `${backendUrl}/ai/stream` with `Authorization: Session ${token}`
-- Body includes `{ model, context, options }` for the backend to process
-- Reads SSE response and converts `ProxyAssistantMessageEvent` to `AssistantMessageEvent`
+- Connects to `${backendUrl}/ai/ws` with `?token=${token}` query param
+- Sends `{ model, context, options }` for the backend to process
+- Reads WebSocket messages and converts `ProxyAssistantMessageEvent` to `AssistantMessageEvent`
 - Handles text, thinking, toolcall, done, and error proxy events
 - Reconstructs a partial `AssistantMessage` as events stream in
 - API key never leaves the backend -- the session token references a cached config with the decrypted key
@@ -340,7 +340,7 @@ AgentRunner accepts a narrow DB interface rather than depending on the full data
 
 ### 3. Proxy Mode via StreamFn
 
-When `proxyConfig` is provided, `createStreamProxy()` creates a `StreamFn` that POSTs to `${backendUrl}/ai/stream` with session token auth, reads SSE response, and reconstructs pi-mono `AssistantMessageEvent` objects. API key never leaves the backend.
+When `proxyConfig` is provided, `createStreamProxy()` creates a `StreamFn` that connects to `${backendUrl}/ai/ws` with session token auth, reads WebSocket messages, and reconstructs pi-mono `AssistantMessageEvent` objects. API key never leaves the backend.
 
 ### 4. Tool Execution via AgentTool Interface
 

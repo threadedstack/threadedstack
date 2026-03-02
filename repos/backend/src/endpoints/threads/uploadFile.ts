@@ -2,27 +2,12 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
+import { FileMaxSize } from '@TBE/constants/values'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { isAllowedMimeType } from '@TBE/utils/validation/isAllowedMimeType'
 import { extractText, isImageMimeType } from '@TBE/services/files/fileExtractor'
-
-const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB
-
-const ALLOWED_MIME_PREFIXES = [`text/`, `image/`]
-const ALLOWED_MIME_TYPES = new Set([
-  `application/json`,
-  `application/xml`,
-  `application/csv`,
-  `application/javascript`,
-  `application/typescript`,
-  `application/pdf`,
-  `application/vnd.openxmlformats-officedocument.wordprocessingml.document`,
-])
-
-const isAllowedMimeType = (mimeType: string): boolean =>
-  ALLOWED_MIME_PREFIXES.some((p) => mimeType.startsWith(p)) ||
-  ALLOWED_MIME_TYPES.has(mimeType)
 
 /**
  * POST /:threadId/files - Upload a file to a thread
@@ -62,7 +47,7 @@ export const uploadFile: TEndpointConfig = {
 
     // Check estimated decoded size BEFORE allocating memory
     const estimatedSize = Math.ceil((data.length * 3) / 4)
-    if (estimatedSize > MAX_FILE_SIZE)
+    if (estimatedSize > FileMaxSize)
       throw new Exception(400, `File exceeds maximum size of 25MB`)
 
     // Validate base64 encoding before decoding

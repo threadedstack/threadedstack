@@ -1,7 +1,7 @@
 import type { NextFunction } from 'express'
 import type { TRequest, TResponse } from '@TBE/types'
 
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 
 const SidRegex = /^[A-Za-z0-9_-]{10}$/
 const UuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

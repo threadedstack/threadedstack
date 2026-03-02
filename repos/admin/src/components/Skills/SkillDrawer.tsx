@@ -1,11 +1,12 @@
 import type { Skill } from '@tdsk/domain'
+
+import { Box } from '@mui/material'
 import { useState, useEffect } from 'react'
-import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 import { skillsApi } from '@TAF/services/skillsApi'
+import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { Box, Switch, FormControlLabel } from '@mui/material'
+import { Drawer, TextInput, SwitchInput, DrawerActions } from '@tdsk/components'
 
 export type TSkillDrawer = {
   open: boolean
@@ -201,15 +202,12 @@ export const SkillDrawer = ({
             onChange={(e) => updateTemp({ triggerKeywords: e.target.value })}
           />
 
-          <FormControlLabel
-            control={
-              <Switch
-                checked={temp?.alwaysActive ?? false}
-                disabled={loading}
-                onChange={(e) => updateTemp({ alwaysActive: e.target.checked })}
-              />
-            }
+          <SwitchInput
+            id='skill-active'
+            disabled={loading}
             label='Always Active'
+            checked={temp?.alwaysActive ?? false}
+            onChange={(e) => updateTemp({ alwaysActive: e.target.checked })}
           />
         </Box>
       </form>

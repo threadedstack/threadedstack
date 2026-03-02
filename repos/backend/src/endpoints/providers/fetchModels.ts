@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { ELLMProviderBrand, ProviderTemplates } from '@tdsk/domain'
 import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 

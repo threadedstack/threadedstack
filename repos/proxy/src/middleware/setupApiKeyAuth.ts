@@ -2,18 +2,17 @@ import type { TProxyApp } from '@TPX/types'
 import type { Request, Response, NextFunction } from 'express'
 
 import { logger } from '@TPX/utils/logger'
-import { hashKey, ApiKeyPrefix } from '@tdsk/domain'
+import { hashKey, ApiKeyPrefix, EApiKeyScope, ERoleType } from '@tdsk/domain'
 
 /**
- * TODO: Use enum for scopes, no hard coded strings
  * Map API key scopes to backend-compatible roles
  */
 const scopeToRole = (scopes?: string): string => {
-  if (!scopes) return `viewer`
+  if (!scopes) return ERoleType.viewer
   const scopeList = scopes.split(`,`).map((s) => s.trim())
-  if (scopeList.includes(`admin`)) return `admin`
-  if (scopeList.includes(`write`)) return `member`
-  return `viewer`
+  if (scopeList.includes(EApiKeyScope.admin)) return ERoleType.admin
+  if (scopeList.includes(EApiKeyScope.write)) return ERoleType.member
+  return ERoleType.viewer
 }
 
 /**

@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { parsePagination } from '@TBE/utils/pagination'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { checkPermission, getUserRole } from '@TBE/utils/auth/checkPermission'
 import { EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
 

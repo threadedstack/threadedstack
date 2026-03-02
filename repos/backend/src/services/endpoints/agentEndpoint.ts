@@ -6,7 +6,7 @@ import type { Endpoint, TLLMProviderBrand } from '@tdsk/domain'
 
 import { BaseEndpoint } from './base'
 import { AgentRunner } from '@tdsk/agent'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { ESandboxType, EEndpointType } from '@tdsk/domain'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'

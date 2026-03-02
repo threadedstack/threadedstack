@@ -1,5 +1,5 @@
+import type { Exception } from '@tdsk/domain'
 import type { Plan, TPayPlanRaw } from '@tdsk/domain'
-import type { Exception } from '@TBE/utils/errors/exception'
 
 export enum EPayType {
   polar = `polar`,

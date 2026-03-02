@@ -11,7 +11,7 @@ The **proxy** repo (`@tdsk/proxy`) serves as the **Auth Gateway** and single ent
 
 - **JWT Validation**: JWKS-based token verification via jose library (integrates with Neon Auth)
 - **API Key Authentication**: Bearer token validation for `tdsk_*` API keys
-- **Session Token Validation**: `Authorization: Session <token>` validation for session routes (`/ai/chat`, `/ai/stream`)
+- **Session Token Validation**: `Authorization: Session <token>` validation for session routes (`/ai/ws`)
 - **Request Proxying**: Forwarding authenticated requests to the backend API via http-proxy-middleware (admin routes `/_/*`, AI routes `/ai/*`, and proxy routes `/proxy/*`)
 - **Certificate Pre-warming**: Caddy on_demand_tls integration for domain validation
 - **Request Logging**: Structured request/response logging with timing via Winston
@@ -20,7 +20,7 @@ The **proxy** repo (`@tdsk/proxy`) serves as the **Auth Gateway** and single ent
 **Authentication Model**: Triple-auth system:
 1. **JWT Auth** (Neon Auth via JWKS) -- validates JWT tokens for most routes
 2. **API Key Auth** -- validates `tdsk_*` Bearer tokens for programmatic access
-3. **Session Token Auth** -- validates `Authorization: Session <token>` for session routes only (`/ai/chat`, `/ai/stream`)
+3. **Session Token Auth** -- validates `Authorization: Session <token>` for session routes only (`/ai/ws`)
 
 The proxy does not handle login/register/refresh -- those are managed by the Admin SPA directly with Neon Auth.
 
@@ -46,7 +46,7 @@ repos/proxy/
 │   │   ├── setupServer.ts          # CORS, x-powered-by, urlencoded, router mount
 │   │   ├── setupAuth.ts            # JWT validation via JWKS, attaches req.user (skips session routes)
 │   │   ├── setupApiKeyAuth.ts      # API key auth for tdsk_* tokens (skips session routes)
-│   │   ├── setupSessionAuth.ts     # Session token auth for /ai/chat and /ai/stream
+│   │   ├── setupSessionAuth.ts     # Session token auth for /ai/ws
 │   │   ├── setupProxy.ts           # http-proxy-middleware → backend forwarding (/_/*, /ai/*, /proxy/*)
 │   │   ├── setupLogger.ts          # Request/response logging with timing
 │   │   ├── setupDatabase.ts        # Database initialization on app.locals.db
@@ -85,7 +85,7 @@ repos/proxy/
 | `src/services/auth.ts` | Auth class -- JWKS client init via jose, token extraction (Bearer + Session), JWT verification, public/session route checks |
 | `src/middleware/setupAuth.ts` | JWT validation middleware -- skips public routes and session routes, verifies token, attaches `req.user` |
 | `src/middleware/setupApiKeyAuth.ts` | API key validation middleware -- skips public routes and session routes, validates `tdsk_*` tokens |
-| `src/middleware/setupSessionAuth.ts` | Session token validation middleware -- ONLY applies to session routes (`/ai/chat`, `/ai/stream`), requires `Authorization: Session <token>` |
+| `src/middleware/setupSessionAuth.ts` | Session token validation middleware -- ONLY applies to session routes (`/ai/ws`), requires `Authorization: Session <token>` |
 | `src/middleware/setupProxy.ts` | http-proxy-middleware -- forwards `/_/*`, `/ai/*`, and `/proxy/*` routes to backend with auth headers |
 | `src/constants/values.ts` | ProcessSignals, PublicRoutes, SessionRoutes, ProxyForwardRoutes, BearerPrefix, SessionPrefix, LoggerIgnore |
 | `configs/proxy.config.ts` | Main config -- Server, Backend, Logger, JWKS, Domains |
@@ -97,7 +97,7 @@ export const ProcessSignals = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
 export const PublicRoutes = [`/health`, `/domains/validate`]
 export const BearerPrefix = `Bearer `
 export const SessionPrefix = `Session `
-export const SessionRoutes = [`/ai/chat`, `/ai/stream`]
+export const SessionRoutes = [`/ai/ws`]
 export const ProxyForwardRoutes = [`/ai`, `/proxy`]
 export const LoggerIgnore = { methods: [`OPTIONS`], routes: [] }
 ```
@@ -111,7 +111,7 @@ export const LoggerIgnore = { methods: [`OPTIONS`], routes: [] }
 | POST | `/auth/logout` | Protected (JWT/API key) | `auth/logout.ts` | Logout acknowledgment (client-side auth) |
 | GET | `/domains/validate` | Public | `domains/validate.ts` | Caddy on_demand_tls domain validation via DB |
 | `/_/*` | (proxied) | Protected (JWT/API key) | `setupProxy.ts` | All admin routes forwarded to backend |
-| `/ai/*` | (proxied) | Session token (`/ai/chat`, `/ai/stream`) or JWT/API key (other `/ai/*`) | `setupProxy.ts` | AI routes forwarded to backend |
+| `/ai/*` | (proxied) | Session token (`/ai/ws`)or JWT/API key (other `/ai/*`) | `setupProxy.ts` | AI routes forwarded to backend |
 | `/proxy/*` | (proxied) | Protected (JWT/API key) | `setupProxy.ts` | Proxy engine routes forwarded to backend |
 
 ## Middleware Chain Order
@@ -124,7 +124,7 @@ Defined in `src/proxy.ts`:
 3. setupDatabase       → Initialize DB singleton on app.locals.db
 4. setupAuth           → JWT validation via JWKS (skips PublicRoutes + SessionRoutes)
 5. setupApiKeyAuth     → API key validation for tdsk_* tokens (skips PublicRoutes + SessionRoutes)
-6. setupSessionAuth    → Session token validation (ONLY SessionRoutes: /ai/chat, /ai/stream)
+6. setupSessionAuth    → Session token validation (ONLY SessionRoutes: /ai/ws)
 7. setupPrewarm        → Caddy cert pre-warming (returns 200 if prewarm header present)
 8. setupEndpoints      → Register /health, /auth/me, /auth/logout, /domains/validate
 9. setupProxy          → http-proxy-middleware for /_/*, /ai/*, /proxy/* → backend
@@ -136,13 +136,13 @@ Defined in `src/proxy.ts`:
 The triple-auth system works as follows:
 
 1. **Public Routes** (`/health`, `/domains/validate`) -- Skip all auth
-2. **Session Routes** (`/ai/chat`, `/ai/stream`) -- Skip JWT + API key -- Require Session token
+2. **Session Routes** (`/ai/ws`)-- Skip JWT + API key -- Require Session token
 3. **All Other Routes** (`/_/*`, `/auth/me`, `/auth/logout`, `/proxy/*`, other `/ai/*`) -- JWT or API key required
 
 **Auth Middleware Execution**:
 - `setupAuth` -- Runs for all routes EXCEPT public + session routes
 - `setupApiKeyAuth` -- Runs for all routes EXCEPT public + session routes (fallback if JWT fails)
-- `setupSessionAuth` -- Runs ONLY for session routes (`/ai/chat`, `/ai/stream`)
+- `setupSessionAuth` -- Runs ONLY for session routes (`/ai/ws`)
 
 **Result**: Each route gets exactly ONE auth mechanism applied, never multiple.
 
@@ -155,15 +155,15 @@ class Auth {
   constructor(opts: { url: string })       // Initializes JWKS client via jose.createRemoteJWKSet()
   initialized(): boolean                   // Returns true if JWKS client is ready
   isPublic(path: string): boolean          // Checks path against PublicRoutes
-  isSession(path: string): boolean         // Checks path against SessionRoutes (/ai/chat, /ai/stream)
+  isSession(path: string): boolean         // Checks path against SessionRoutes (/ai/ws)
   extract(req: Request): string|null       // Extracts token from Authorization header (Bearer or Session prefix)
   verify(token: string): Promise<TJWTValidationResult>  // Verifies JWT via JWKS
 }
 ```
 
-**Token extraction** (`extract`) handles both prefixes:
-- `Authorization: Bearer <token>` -- returns token (JWT or API key)
-- `Authorization: Session <token>` -- returns token (session token)
+**Token extraction** (`extract`) handles tokens from:
+- `Authorization: Bearer <token>` -- returns token (JWT, API key, or session token)
+- `?token=<token>` query param -- returns token (session token for WebSocket)
 
 Error handling in `verify()` maps jose errors to structured results:
 - `JWTExpired` -- `{ valid: false, expired: true, error: "Token expired" }`
@@ -173,12 +173,12 @@ Error handling in `verify()` maps jose errors to structured results:
 ## Session Auth Middleware (`src/middleware/setupSessionAuth.ts`)
 
 **Behavior**:
-- **Only runs on session routes** (`/ai/chat`, `/ai/stream`) -- all other routes skip this middleware
-- Extracts token via `app.locals.auth.extract(req)` (handles `Session` prefix)
+- **Only runs on session routes** (`/ai/ws`)-- all other routes skip this middleware
+- Extracts token via `app.locals.auth.extract(req)` (handles Bearer header and query param)
 - **Does NOT validate the token itself** -- backend validates it
 - Returns 401 if missing or malformed
 
-**Token Format**: `Authorization: Session <token>` (note "Session " prefix with space)
+**Token Format**: `?token=<token>` query param or `Authorization: Bearer <token>` header
 
 **Why separate from JWT/API key auth**:
 - Session routes use ephemeral session tokens from backend's `/_/ai/sessions` endpoint
@@ -233,8 +233,8 @@ Uses `http-proxy-middleware` to forward requests to the backend:
 2. **API Key Request** (`GET /_/orgs` with `Authorization: Bearer tdsk_abc123`):
    - setupAuth -- Token starts with `tdsk_`, calls next() -- setupApiKeyAuth -- API key validated -- `req.user` set -- setupSessionAuth skipped -- proxied to backend
 
-3. **AI Chat Request** (`POST /ai/chat` with `Authorization: Session <token>`):
-   - setupAuth -- Skipped (session route) -- setupApiKeyAuth -- Skipped (session route) -- setupSessionAuth -- Session token present -- proxied to backend
+3. **AI WebSocket** (`WS /ai/ws` with `?token=<token>`):
+   - setupAuth -- Skipped (session route) -- setupApiKeyAuth -- Skipped (session route) -- setupSessionAuth -- Session token present -- upgraded to WebSocket
 
 4. **Public Request** (`GET /health`):
    - All auth middleware skipped -- setupEndpoints matches -- returns 200
@@ -314,7 +314,7 @@ config = {
 | `src/services/auth.test.ts` | 16 | Auth class: constructor, isPublic, isSession, extract (Bearer + Session), verify (all branches) |
 | `src/middleware/setupAuth.test.ts` | 13 | Auth middleware: public routes, 401/500 cases, req.user attachment, session route skip |
 | `src/middleware/setupApiKeyAuth.test.ts` | 17 | API key auth: validation, scope-to-role mapping, session route skip, expiry, revocation |
-| `src/middleware/setupSessionAuth.test.ts` | 9 | Session auth: /ai/chat + /ai/stream validation, missing token 401, non-session-route passthrough |
+| `src/middleware/setupSessionAuth.test.ts` | 9 | Session auth: /ai/ws validation, missing token 401, non-session-route passthrough |
 | `src/middleware/setupProxy.test.ts` | 20 | Proxy: path normalization, middleware creation, headers, /_/* and /ai/* and /proxy/* routes |
 | `src/middleware/setupLogger.test.ts` | 4 | Request logger: OPTIONS skip, logging, UUID requestId |
 | `src/utils/logger.test.ts` | 11 | Logger creation, API methods, config integration |

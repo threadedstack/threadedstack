@@ -3,9 +3,9 @@ import type { TDatabase } from '@tdsk/database'
 import type { User, Organization } from '@tdsk/domain'
 import type { EmailService } from '@TBE/services/email'
 
+import { Exception } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { EInviteStatus } from '@tdsk/domain'
-import { Exception } from '@TBE/utils/errors/exception'
 import {
   generateInvitationToken,
   getInvitationExpiration,

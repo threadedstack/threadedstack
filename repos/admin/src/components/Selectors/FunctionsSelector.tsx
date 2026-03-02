@@ -4,6 +4,7 @@ import { EntitySelector, EntitySelectorSingle } from './EntitySelector'
 
 export type TFunctionsSelector = {
   loading: boolean
+  required?: boolean
   selectedFunctionIds: string[]
   availableFunctions: FunctionModel[]
   onChange: (functionIds: string[]) => void
@@ -13,6 +14,7 @@ export type TFunctionSelectorSingle = {
   loading?: boolean
   disabled?: boolean
   functionId: string
+  required?: boolean
   availableFunctions: FunctionModel[]
   onChange: (functionId: string) => void
 }
@@ -29,20 +31,21 @@ const useFunctionOptions = (fns: FunctionModel[]) =>
   )
 
 export const FunctionsSelector = (props: TFunctionsSelector) => {
-  const { loading, onChange, selectedFunctionIds, availableFunctions } = props
+  const { loading, onChange, required, selectedFunctionIds, availableFunctions } = props
   const options = useFunctionOptions(availableFunctions)
 
   return (
     <EntitySelector
+      options={options}
+      loading={loading}
+      required={required}
+      onChange={onChange}
       id='agent-functions'
       title='Custom Functions'
       label='Custom Functions'
-      loading={loading}
-      disabled={availableFunctions.length === 0}
       value={selectedFunctionIds}
-      options={options}
-      onChange={onChange}
       placeholder='Select functions...'
+      disabled={availableFunctions.length === 0}
       description={
         loading
           ? `Loading functions...`
@@ -55,19 +58,20 @@ export const FunctionsSelector = (props: TFunctionsSelector) => {
 }
 
 export const FunctionSelectorSingle = (props: TFunctionSelectorSingle) => {
-  const { loading, disabled, functionId, availableFunctions, onChange } = props
+  const { loading, disabled, functionId, required, availableFunctions, onChange } = props
   const options = useFunctionOptions(availableFunctions)
 
   return (
     <EntitySelectorSingle
-      id='function-select'
       label='Function'
-      loading={loading}
-      disabled={disabled || availableFunctions.length === 0}
-      value={functionId || null}
       options={options}
-      onChange={(id) => onChange(id || '')}
+      loading={loading}
+      required={required}
+      id='function-select'
+      value={functionId || null}
       placeholder='Select function...'
+      onChange={(id) => onChange(id || '')}
+      disabled={disabled || availableFunctions.length === 0}
       description={
         loading
           ? `Loading functions...`

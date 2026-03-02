@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { EFunLanguage } from '@tdsk/domain'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Function as FunctionModel, EPermAction, EPermResource } from '@tdsk/domain'
 

@@ -1,5 +1,4 @@
-import { EProvider } from '@tdsk/domain'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception, EProvider } from '@tdsk/domain'
 
 const validTypes = Object.values(EProvider) as string[]
 export const validateProviderType = (type?: string) => {

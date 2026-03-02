@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 import { ERoleType, EPermAction, EPermResource, canManageRole } from '@tdsk/domain'
 

@@ -7,11 +7,11 @@ import type {
 } from '@TBE/types'
 
 import { EAPIMethod } from '@TBE/types'
+import { Exception } from '@tdsk/domain'
 import { limbo } from '@keg-hub/jsutils/limbo'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { objToQuery } from '@TBE/utils/api/objToQuery'
 import { toFormData } from '@TBE/utils/api/toFormData'
-import { Exception } from '@TBE/utils/errors/exception'
 
 type TApiOpts = Omit<
   TFetchOpts,

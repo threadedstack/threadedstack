@@ -1,7 +1,7 @@
 import type { BaseEndpoint } from './base'
 
 import { EEndpointType } from '@tdsk/domain'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { FaaSEndpoint } from '@TBE/services/endpoints/faasEndpoint'
 import { ProxyEndpoint } from '@TBE/services/endpoints/proxyEndpoint'
 import { AgentEndpoint } from '@TBE/services/endpoints/agentEndpoint'

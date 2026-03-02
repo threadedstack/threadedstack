@@ -1,7 +1,6 @@
 import type { TProviderBrand } from '@tdsk/domain'
 
-import { ELLMProviderBrand } from '@tdsk/domain'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception, ELLMProviderBrand } from '@tdsk/domain'
 
 const validProviders = Object.values(ELLMProviderBrand) as string[]
 

@@ -1,8 +1,8 @@
 import type { TRequest } from '@TBE/types'
 import type { EPermAction, EPermResource } from '@tdsk/domain'
-
-import { Exception } from '@TBE/utils/errors/exception'
 import type { TPermissionContext } from '@TBE/utils/auth/checkPermission'
+
+import { Exception } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**

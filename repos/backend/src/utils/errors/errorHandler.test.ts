@@ -9,9 +9,9 @@ vi.mock(`@TBE/utils/logger`, () => ({
   },
 }))
 
-import { errorHandler } from './errorHandler'
-import { Exception } from './exception'
+import { Exception } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
+import { errorHandler } from './errorHandler'
 
 describe(`errorHandler`, () => {
   let mockReq: any
@@ -46,7 +46,10 @@ describe(`errorHandler`, () => {
     const error = new Error(`Something failed`) as any
     errorHandler(error, mockReq, mockRes, mockNext)
     expect(mockRes.status).toHaveBeenCalledWith(500)
-    expect(mockRes.json).toHaveBeenCalledWith({ error: `Something failed` })
+    expect(mockRes.json).toHaveBeenCalledWith({
+      error: `Something failed`,
+      code: `Unknown`,
+    })
   })
 
   it(`should log the error via logger.error`, () => {
@@ -62,11 +65,11 @@ describe(`errorHandler`, () => {
     expect(jsonArg).not.toHaveProperty(`code`)
   })
 
-  it(`should include code from a generic Error when present`, () => {
+  it(`should use Unknown code for non-Exception errors even when error.code is set`, () => {
     const error = Object.assign(new Error(`fail`), { code: `ERR_CODE` }) as any
     errorHandler(error, mockReq, mockRes, mockNext)
     expect(mockRes.status).toHaveBeenCalledWith(500)
-    expect(mockRes.json).toHaveBeenCalledWith({ error: `fail`, code: `ERR_CODE` })
+    expect(mockRes.json).toHaveBeenCalledWith({ error: `fail`, code: `Unknown` })
   })
 
   describe(`SQL sanitization`, () => {

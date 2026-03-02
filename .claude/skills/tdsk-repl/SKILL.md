@@ -103,10 +103,10 @@ CLI Entry (index.ts) → main() (cli.ts)
             │
             ├── LocalAgentExecutor — Orchestrator:
             │   ├── createSession(agentId, providerId?) → TSessionInfo
-            │   ├── ProxyAdapter — LLM calls proxied through backend SSE (/ai/chat)
+            │   ├── Executor — LLM calls proxied through backend WS (/ai/ws)
             │   ├── createThread() → thread ID
             │   ├── Context injection (XML <context> blocks)
-            │   └── AgentRunner.run() — Local ReAct loop with ProxyAdapter
+            │   └── AgentRunner.run() — Local ReAct loop with Executor
             │
             └── HttpMessageAdapter — IAgentRunnerDB over HTTP
 ```
@@ -127,8 +127,8 @@ CLI Entry (index.ts) → main() (cli.ts)
       - llmConfig: { provider, model, maxTokens, systemPrompt }
       - db: HttpMessageAdapter (persists messages via HTTP)
       - onEvent: callback for streaming events
-4. ProxyAdapter → POST /ai/chat with Authorization: Session <token>
-   - Backend injects API key server-side, streams SSE response
+4. Executor → WS /ai/ws with ?token=<session-token>
+   - Backend injects API key server-side, streams responses via WebSocket
 5. Event handling in App.tsx:
    - 'text' → append to streamText (rendered as markdown)
    - 'tool_call_start' → add tool to toolCalls[] (shows spinner)
@@ -558,7 +558,7 @@ The `start` command requires `bun` (not Node.js). The `compile` command produces
 ### With Agent (`@tdsk/agent`)
 
 - `AgentRunner` — local ReAct loop execution
-- `ProxyAdapter` — LLM calls proxied through backend SSE (`/ai/chat`)
+- `Executor` — LLM calls proxied through backend WebSocket (`/ai/ws`)
 - `IAgentRunnerDB` — implemented by `HttpMessageAdapter`
 - `TStreamEvent` — real-time event streaming
 
@@ -571,7 +571,7 @@ The `start` command requires `bun` (not Node.js). The `compile` command produces
 
 - **Auth**: API key validated against `/_/orgs`
 - **Sessions**: `POST /_/ai/sessions` — session token + LLM config
-- **LLM Proxy**: `POST /ai/chat` — SSE streaming (session token auth)
+- **LLM Proxy**: `WS /ai/ws` — WebSocket streaming (session token auth)
 - **Providers**: `GET /_/orgs/:orgId/agents/:agentId/providers`
 - **Agents**: `/_/orgs/:orgId/agents` for listing
 - **Threads**: `/_/orgs/:orgId/agents/:agentId/threads` for CRUD

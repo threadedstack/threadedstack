@@ -77,11 +77,11 @@ test.describe('Org Schedules Page', () => {
     await page.waitForTimeout(1000)
 
     await expect(page.getByText('Create New Schedule')).toBeVisible()
-    await expect(page.locator('#tdsk-schedule-agent-select')).toBeVisible()
+    await expect(page.locator('#agent-id')).toBeVisible()
     await expect(page.locator('#tdsk-schedule-cron-input')).toBeVisible()
     await expect(page.locator('#tdsk-schedule-prompt-input')).toBeVisible()
     await expect(page.getByText('Enabled')).toBeVisible()
-    await expect(page.getByText('Create New Thread Per Run')).toBeVisible()
+    await expect(page.getByText('New Thread Per Run')).toBeVisible()
 
     await page.keyboard.press('Escape')
   })
@@ -95,15 +95,9 @@ test.describe('Org Schedules Page', () => {
     await page.getByRole('button', { name: 'Create Schedule' }).click()
     await page.waitForTimeout(1000)
 
-    // Both Enabled and Create New Thread Per Run default to true
-    const enabledSwitch = page
-      .locator('label')
-      .filter({ hasText: /^Enabled$/ })
-      .locator('input[type="checkbox"]')
-    const createThreadSwitch = page
-      .locator('label')
-      .filter({ hasText: 'Create New Thread Per Run' })
-      .locator('input[type="checkbox"]')
+    // Both Enabled and New Thread Per Run default to true
+    const enabledSwitch = page.locator('input[name="schedule-enabled"]')
+    const createThreadSwitch = page.locator('input[name="schedule-new-thread"]')
 
     await expect(enabledSwitch).toBeChecked()
     await expect(createThreadSwitch).toBeChecked()
@@ -121,7 +115,7 @@ test.describe('Org Schedules Page', () => {
     await page.waitForTimeout(1000)
 
     // Open the MUI Select dropdown
-    await page.locator('#tdsk-schedule-agent-select').click()
+    await page.locator('#agent-id').click()
     await page.waitForTimeout(500)
 
     // At least one agent should be in the dropdown

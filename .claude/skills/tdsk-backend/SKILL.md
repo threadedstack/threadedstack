@@ -216,20 +216,19 @@ The endpoint delegates to `AgentEndpoint.run()` from `services/endpoints/agentEn
 
 **Auth:** JWT or API key (normal auth, under `/_/ai/sessions`)
 
-#### AI Stream Proxy (`src/endpoints/ai/streamChat.ts`)
-**POST `/ai/stream`** - SSE LLM proxy that streams LLM responses using cached session config via `@mariozechner/pi-ai`
+#### AI WebSocket (`src/endpoints/ai/onWSConnect.ts`)
+**WS `/ai/ws`** - WebSocket endpoint for AI agent execution using cached session config
 
-**Request Flow:**
-1. Extract session token from `Authorization: Session <token>` header
+**Connection Flow:**
+1. Extract session token from `?token=<token>` query param
 2. Load session from `sessionStore`
-3. Validate `context.messages` array in request body
-4. Get model via `getModel(provider, model)` from `pi-ai`
-5. Stream SSE via `streamSimple(model, context, options)` from `pi-ai`
-6. Convert `AssistantMessageEvent` to `ProxyAssistantMessageEvent` (strips `partial` field for bandwidth)
+3. Validate incoming messages
+4. Execute agent with session config
+5. Stream responses via WebSocket messages
 
 **Auth:** Session token only (no JWT/API key — session token already validated at creation time)
 
-**Response:** Server-Sent Events stream with event types: `start`, `text_start`, `text_delta`, `text_end`, `thinking_start`, `thinking_delta`, `thinking_end`, `toolcall_start`, `toolcall_delta`, `toolcall_end`, `done`, `error`
+**Response:** WebSocket messages with event types: `start`, `text_start`, `text_delta`, `text_end`, `thinking_start`, `thinking_delta`, `thinking_end`, `toolcall_start`, `toolcall_delta`, `toolcall_end`, `done`, `error`
 
 ### Utilities
 
@@ -336,10 +335,9 @@ AI endpoints are split into two groups with different auth mechanisms:
    - API key resolved server-side via SecretResolver (never leaves the backend)
    - Returns session token + non-sensitive config
 
-2. **Stream Proxy** (`/ai/stream`) - Session-token auth at top level (`stream.ts` exports `aiStream`)
-   - Uses session token from `Authorization: Session <token>` header
-   - Streams SSE from LLM via `@mariozechner/pi-ai` `streamSimple()` using cached session config
-   - Converts `AssistantMessageEvent` to bandwidth-optimized `ProxyAssistantMessageEvent`
+2. **WebSocket** (`/ai/ws`) - Session-token auth via `?token=<token>` query param
+   - Uses session token from `?token=<token>` query param
+   - Streams responses via WebSocket using cached session config
    - No API key validation needed (already validated at session creation time)
 
 **Rationale:**
@@ -370,7 +368,7 @@ All routes are documented in the root CLAUDE.md architecture diagram and are dis
 - **POST `/_/agents/:id/run`** - Run agent with SSE streaming (body: `{ prompt, threadId?, providerId? }`)
 - **POST `/_/orgs/:orgId/quickstart`** - Single-transaction create (Provider + Secret + Project + Agent + Endpoint)
 - **POST `/_/ai/sessions`** - Create LLM session (JWT/API key auth)
-- **POST `/ai/stream`** - LLM proxy SSE stream (session token auth: `Authorization: Session <token>`)
+- **WS `/ai/ws`** - AI agent WebSocket (session token auth: `?token=<token>`)
 - **ALL `/proxy/:projectId/:endpointId`** - Dispatches to endpoint type service via `getEPService()`
 - **POST `/_/threads/:id/branch`** - Branch thread from specific message
 - **POST `/_/payments/webhook`** - Polar.sh webhook handler

@@ -3,7 +3,7 @@ import type { Response } from 'express'
 
 import { EPMethod } from '@TBE/types'
 import { isSuperAdmin } from '@tdsk/domain'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
 
 /**

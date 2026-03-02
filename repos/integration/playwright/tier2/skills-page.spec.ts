@@ -98,11 +98,8 @@ test.describe('Org Skills Page', () => {
     await page.getByRole('button', { name: 'Create Skill' }).click()
     await page.waitForTimeout(1000)
 
-    // The MUI Switch renders an internal checkbox
-    const switchControl = page
-      .locator('label')
-      .filter({ hasText: 'Always Active' })
-      .locator('input[type="checkbox"]')
+    // The MUI Switch renders an internal checkbox; target by name attribute
+    const switchControl = page.locator('input[name="skill-active"]')
     await expect(switchControl).not.toBeChecked()
 
     await page.keyboard.press('Escape')

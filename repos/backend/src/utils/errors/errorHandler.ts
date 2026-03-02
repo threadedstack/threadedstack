@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
-import { Exception } from './exception'
+import { Exception } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 
@@ -38,13 +38,13 @@ export const errorHandler = function errorHandler(
 ): void {
   const isCustomEx = error instanceof Exception
 
-  const code = error.code
   const message = error.message
+  const code = isCustomEx ? error.code : `Unknown`
   const rawStatus = isCustomEx ? error.status : 500
   const stack = `${label}${error.stack || message}\n${label}`
 
   // Always log the full error server-side
-  logger.error(stack, cleanColl({ status: rawStatus, code }))
+  logger.error(stack, cleanColl({ status: rawStatus, code: error.code }))
 
   // Sanitize DB/SQL errors before sending to client
   const sanitized = sanitizeDBError(message, rawStatus)

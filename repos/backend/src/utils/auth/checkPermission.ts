@@ -1,9 +1,9 @@
 import type { TRequest } from '@TBE/types'
 import type { EPermAction, EPermResource } from '@tdsk/domain'
 
-import { Exception } from '@TBE/utils/errors/exception'
 import {
   ERoleType,
+  Exception,
   canPerform,
   hasMinRole,
   isSuperAdmin,

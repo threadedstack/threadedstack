@@ -2,6 +2,8 @@ import { Base } from './base'
 import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 
 export class Secret extends Base {
+  static readonly scopeFields = [`orgId`, `projectId`, `providerId`, `agentId`] as const
+
   value?: string
   name: string
   orgId?: string

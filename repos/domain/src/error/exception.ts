@@ -1,13 +1,5 @@
 import { ensureArr } from '@keg-hub/jsutils/ensureArr'
 
-type TPGError = Error & {
-  hint: string
-  code: string
-  name: string
-  details: string
-  message: string
-}
-
 export type TErrDetail = {
   loc: string[]
   msg: string

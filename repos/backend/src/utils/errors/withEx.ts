@@ -1,7 +1,7 @@
 import type { TErrorArgs, TErrorItems, TThrowExceptions } from '@TBE/types'
 
 import { isArr } from '@keg-hub/jsutils'
-import { Exception } from '@TBE/utils/errors'
+import { Exception } from '@tdsk/domain'
 
 const throwEx = (idx: number, codeKey?: string, ...args: TErrorArgs) => {
   const [status, message, code = codeKey] = args

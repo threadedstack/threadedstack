@@ -17,7 +17,7 @@ interface RequestOptions {
   apiKey?: string
   /** Skip auth entirely — for testing 401 responses */
   noAuth?: boolean
-  /** Use path as-is without auto-prefixing /_  (e.g. for /ai/chat) */
+  /** Use path as-is without auto-prefixing /_  (e.g. for /health, /faas/*, /proxy/*) */
   rawPath?: boolean
 }
 

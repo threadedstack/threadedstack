@@ -245,24 +245,10 @@ describe(`validateAuth`, () => {
     expect(mockNext).not.toHaveBeenCalled()
   })
 
-  it(`should pass through /ai/chat paths without token (no JWT to verify)`, async () => {
+  it(`should pass through /ai/ws paths without token (no JWT to verify)`, async () => {
     mockAuth.isPublic.mockReturnValue(false)
     mockAuth.extract.mockReturnValue(null)
-    const mockReq = { path: `/ai/chat`, headers: {} } as unknown as Request
-
-    const middleware = validateAuth(mockApp)
-    await middleware(mockReq, mockRes, mockNext)
-
-    expect(mockNext).toHaveBeenCalled()
-    expect(mockAuth.extract).toHaveBeenCalled()
-    expect(mockAuth.verify).not.toHaveBeenCalled()
-    expect(mockRes.status).not.toHaveBeenCalled()
-  })
-
-  it(`should pass through /ai/stream paths without token (no JWT to verify)`, async () => {
-    mockAuth.isPublic.mockReturnValue(false)
-    mockAuth.extract.mockReturnValue(null)
-    const mockReq = { path: `/ai/stream`, headers: {} } as unknown as Request
+    const mockReq = { path: `/ai/ws`, headers: {} } as unknown as Request
 
     const middleware = validateAuth(mockApp)
     await middleware(mockReq, mockRes, mockNext)

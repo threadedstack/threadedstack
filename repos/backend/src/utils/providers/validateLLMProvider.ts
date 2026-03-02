@@ -1,5 +1,4 @@
-import { EProvider, ELLMProviderBrand } from '@tdsk/domain'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception, EProvider, ELLMProviderBrand } from '@tdsk/domain'
 
 const validLLMProviders = Object.values(ELLMProviderBrand) as string[]
 

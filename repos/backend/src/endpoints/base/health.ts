@@ -7,6 +7,10 @@ export const health: TEndpointConfig = {
   path: `/health`,
   method: EPMethod.Get,
   action: async (req: Request, res: Response): Promise<void> => {
-    res.status(200).json({ message: `Backend Server is Running!` })
+    res.status(200).json({
+      status: `ok`,
+      service: `backend`,
+      timestamp: new Date().toISOString(),
+    })
   },
 }

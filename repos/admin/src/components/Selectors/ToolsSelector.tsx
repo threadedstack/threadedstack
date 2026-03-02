@@ -3,6 +3,7 @@ import { EntitySelector } from './EntitySelector'
 
 export type TToolsSelector = {
   loading: boolean
+  required?: boolean
   selectedTools: string[]
   onChange: (tools: string[]) => void
 }
@@ -14,17 +15,18 @@ const toolOptions = AvailableTools.map((t) => ({
 }))
 
 export const ToolsSelector = (props: TToolsSelector) => {
-  const { loading, onChange, selectedTools } = props
+  const { loading, onChange, required, selectedTools } = props
 
   return (
     <EntitySelector
       id='agent-tools'
-      title='Available Tools'
-      label='Selected Tools'
       loading={loading}
-      value={selectedTools}
-      options={toolOptions}
       onChange={onChange}
+      required={required}
+      options={toolOptions}
+      value={selectedTools}
+      label='Selected Tools'
+      title='Available Tools'
       placeholder='Tools...'
       description='Choose which tools this agent access to when running'
     />

@@ -92,14 +92,14 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
          FaaS: /faas/* → Backend Compute Engine
          AI: /ai/* → Backend AI Engine
             ├── /_/ai/sessions  - Create LLM session (JWT/API key auth)
-            └── /ai/stream      - LLM proxy SSE stream (session token auth)
+            └── /ai/ws           - AI agent WebSocket (session token auth)
 ```
 
 **Authentication Flow**:
 - Client-side auth via Neon Auth (social login)
 - Proxy validates JWT using JWKS from Neon
 - Protected routes require valid JWT token or API key (`tdsk_*` Bearer token)
-- `/ai/stream` and `/ai/chat` use session token auth (`Authorization: Bearer <session-token>`) — verified by backend, not proxy
+- `/ai/ws` uses session token auth (`?token=<session-token>` query param) — verified by backend, not proxy
 
 ### Workspace Structure (`repos/`)
 
@@ -142,7 +142,7 @@ Load the relevant skill when working on a specific repo:
 | `tdsk-database/SKILL.md` | Drizzle ORM, 23 schemas (incl. agentProjects/agentFunctions/agentProviders junction tables), model converters, quotas/subscriptions tables |
 | `tdsk-domain/SKILL.md` | 19 model classes, crypto utilities (AES-256-GCM, HKDF, API key hashing), permissions system, provider templates |
 | `tdsk-logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, stdio monkey-patching |
-| `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, session token auth for /ai/stream, http-proxy-middleware backend forwarding |
+| `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, session token auth for /ai/ws, http-proxy-middleware backend forwarding |
 | `tdsk-repl/SKILL.md` | Ink (React TUI) terminal CLI, tsa binary, 7 CLI tasks + 16 slash commands, config system, session-based LLM proxy, lifecycle hooks |
 | `tdsk-sandbox/SKILL.md` | Pluggable sandbox factory, E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |

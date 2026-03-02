@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import type { ERoleType } from '@tdsk/domain'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { EPermAction, EPermResource, canManageRole } from '@tdsk/domain'
 import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 

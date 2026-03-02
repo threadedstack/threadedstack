@@ -1,8 +1,7 @@
 import type { TRequest } from '@TBE/types'
 
-import { Exception } from '@TBE/utils/errors/exception'
-import { ERoleType, hasMinRole } from '@tdsk/domain'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import { Exception, ERoleType, hasMinRole } from '@tdsk/domain'
 
 /**
  * Enforce agent access based on project membership.

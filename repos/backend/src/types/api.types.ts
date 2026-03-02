@@ -1,4 +1,4 @@
-import type { Exception } from '@TBE/utils/errors/exception'
+import type { Exception } from '@tdsk/domain'
 
 export enum EAPIMethod {
   GET = `GET`,

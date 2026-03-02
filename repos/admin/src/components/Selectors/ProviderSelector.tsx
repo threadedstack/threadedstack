@@ -4,17 +4,19 @@ import { EntitySelector, EntitySelectorSingle } from './EntitySelector'
 export type TProviderSelector = {
   loading?: boolean
   disabled?: boolean
-  providers: Array<{ id: string; name: string }>
+  required?: boolean
   selectedProviderIds: string[]
   onChange: (providerIds: string[]) => void
+  providers: Array<{ id: string; name: string }>
 }
 
 export type TProviderSelectorSingle = {
   loading?: boolean
   disabled?: boolean
-  providers: Array<{ id: string; name: string }>
+  required?: boolean
   providerId: string
   onChange: (providerId: string) => void
+  providers: Array<{ id: string; name: string }>
 }
 
 const useProviderOptions = (providers: TProviderSelector['providers']) =>
@@ -28,20 +30,21 @@ const useProviderOptions = (providers: TProviderSelector['providers']) =>
   )
 
 export const ProviderSelector = (props: TProviderSelector) => {
-  const { loading, disabled, providers, selectedProviderIds, onChange } = props
+  const { loading, disabled, providers, required, selectedProviderIds, onChange } = props
   const options = useProviderOptions(providers)
 
   return (
     <EntitySelector
-      id='entity-providers'
+      loading={loading}
+      options={options}
+      required={required}
+      onChange={onChange}
       title='AI Providers'
       label='AI Providers'
-      loading={loading}
-      disabled={disabled || providers.length === 0}
+      id='entity-providers'
       value={selectedProviderIds}
-      options={options}
-      onChange={onChange}
       placeholder='Select providers...'
+      disabled={disabled || providers.length === 0}
       description={
         loading
           ? 'Loading providers...'
@@ -54,19 +57,20 @@ export const ProviderSelector = (props: TProviderSelector) => {
 }
 
 export const ProviderSelectorSingle = (props: TProviderSelectorSingle) => {
-  const { loading, disabled, providers, providerId, onChange } = props
+  const { loading, disabled, providers, providerId, required, onChange } = props
   const options = useProviderOptions(providers)
 
   return (
     <EntitySelectorSingle
-      id='entity-provider'
-      label='AI Provider'
       loading={loading}
-      disabled={disabled}
-      value={providerId || null}
       options={options}
-      onChange={(id) => onChange(id || '')}
+      disabled={disabled}
+      label='AI Provider'
+      id='entity-provider'
+      required={required}
+      value={providerId || null}
       placeholder='Select provider...'
+      onChange={(id) => onChange(id || '')}
       description={
         loading
           ? 'Loading providers...'

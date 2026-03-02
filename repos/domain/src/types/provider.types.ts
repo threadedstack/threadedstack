@@ -10,6 +10,18 @@ export enum EProvider {
 }
 export type TProviderType = `${EProvider}`
 
-// TODO: add other provider keys here when they are built out
-// i.e.
-export type TProviderBrand = TLLMProviderBrand | TGitBrand
+export enum EAuthProviderBrand {
+  neon = `neon`,
+}
+export type TAuthProviderBrand = `${EAuthProviderBrand}`
+
+export enum EStorageProviderBrand {
+  s3 = `s3`,
+}
+export type TStorageProviderBrand = `${EStorageProviderBrand}`
+
+export type TProviderBrand =
+  | TLLMProviderBrand
+  | TGitBrand
+  | TAuthProviderBrand
+  | TStorageProviderBrand

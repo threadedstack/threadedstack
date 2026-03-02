@@ -5,12 +5,13 @@ export type TEndpointSelector = {
   loading?: boolean
   disabled?: boolean
   endpointId: string
-  endpoints: Array<{ id: string; name: string; type?: string }>
+  required?: boolean
   onChange: (endpointId: string) => void
+  endpoints: Array<{ id: string; name: string; type?: string }>
 }
 
 export const EndpointSelector = (props: TEndpointSelector) => {
-  const { loading, disabled, endpointId, endpoints, onChange } = props
+  const { loading, disabled, required, endpointId, endpoints, onChange } = props
 
   const options = useMemo(
     () =>
@@ -27,17 +28,18 @@ export const EndpointSelector = (props: TEndpointSelector) => {
       id='endpoint-id'
       label='Endpoint'
       loading={loading}
+      options={options}
+      required={required}
       disabled={disabled}
       value={endpointId || null}
-      options={options}
-      onChange={(id) => onChange(id || '')}
       placeholder='Select endpoint...'
+      onChange={(id) => onChange(id || '')}
       description={
         loading
-          ? 'Loading endpoints...'
+          ? `Loading endpoints...`
           : endpoints.length === 0
-            ? 'No endpoints available.'
-            : 'Select an endpoint'
+            ? `No endpoints available.`
+            : `Select an endpoint`
       }
     />
   )

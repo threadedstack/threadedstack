@@ -7,9 +7,9 @@ export const ProcessSignals = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
 export const PublicRoutes = [`/health`, `/domains/validate`, `/echo`]
 
 export const BearerPrefix = `Bearer `
+export const SessionRoutes = [`/ai/ws`]
 export const QueryTokenRoutes = [`/ai/ws`]
 export const ProxyForwardRoutes = [`/ai`, `/proxy`]
-export const SessionRoutes = [`/ai/chat`, `/ai/ws`]
 
 export const LoggerIgnore = {
   methods: [`OPTIONS`],

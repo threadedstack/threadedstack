@@ -4,7 +4,7 @@ import type { TDatabase } from '@tdsk/database'
 import type { Endpoint, Secret } from '@tdsk/domain'
 
 import { logger } from '@TBE/utils/logger'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import type { EEndpointType } from '@tdsk/domain'

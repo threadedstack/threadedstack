@@ -1,20 +1,14 @@
 import type { Agent, Schedule } from '@tdsk/domain'
 
+import Box from '@mui/material/Box'
 import { useState, useEffect } from 'react'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
+import { AgentSelector } from '@TAF/components/Selectors'
 import { schedulesApi } from '@TAF/services/schedulesApi'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
+import { FormSection } from '@TAF/components/FormSection/FormSection'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import {
-  Box,
-  Select,
-  Switch,
-  MenuItem,
-  InputLabel,
-  FormControl,
-  FormControlLabel,
-} from '@mui/material'
+import { Drawer, TextInput, SwitchInput, DrawerActions } from '@tdsk/components'
 
 export type TScheduleDrawer = {
   open: boolean
@@ -147,29 +141,13 @@ export const ScheduleDrawer = ({
             />
           )}
 
-          <FormControl
-            fullWidth
-            required
-          >
-            <InputLabel id='schedule-agent-label'>Agent</InputLabel>
-            <Select
-              label='Agent'
-              disabled={loading}
-              value={temp?.agentId || ``}
-              labelId='schedule-agent-label'
-              id='tdsk-schedule-agent-select'
-              onChange={(e) => updateTemp({ agentId: e.target.value as string })}
-            >
-              {agentsList.map((agent) => (
-                <MenuItem
-                  key={agent.id}
-                  value={agent.id}
-                >
-                  {agent.name || agent.id}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <AgentSelector
+            required={true}
+            loading={loading}
+            agents={agentsList}
+            agentId={temp?.agentId || ``}
+            onChange={(id) => updateTemp({ agentId: id })}
+          />
 
           <TextInput
             required
@@ -196,27 +174,23 @@ export const ScheduleDrawer = ({
             onChange={(e) => updateTemp({ prompt: e.target.value })}
           />
 
-          <FormControlLabel
-            label='Enabled'
-            control={
-              <Switch
-                disabled={loading}
-                checked={temp?.enabled ?? true}
-                onChange={(e) => updateTemp({ enabled: e.target.checked })}
-              />
-            }
-          />
+          <FormSection title='Schedule Options'>
+            <SwitchInput
+              disabled={loading}
+              id='schedule-new-thread'
+              label='New Thread Per Run'
+              checked={temp?.createThread ?? true}
+              onChange={(e) => updateTemp({ createThread: e.target.checked })}
+            />
 
-          <FormControlLabel
-            label='Create New Thread Per Run'
-            control={
-              <Switch
-                disabled={loading}
-                checked={temp?.createThread ?? true}
-                onChange={(e) => updateTemp({ createThread: e.target.checked })}
-              />
-            }
-          />
+            <SwitchInput
+              label='Enabled'
+              disabled={loading}
+              id='schedule-enabled'
+              checked={temp?.enabled ?? true}
+              onChange={(e) => updateTemp({ enabled: e.target.checked })}
+            />
+          </FormSection>
         </Box>
       </form>
     </Drawer>

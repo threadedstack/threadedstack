@@ -6,7 +6,7 @@ import type { Endpoint, TFaaSEndpointConfig, TFunctionResponse } from '@tdsk/dom
 import { EEndpointType } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { BaseEndpoint } from './base'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 
 /**

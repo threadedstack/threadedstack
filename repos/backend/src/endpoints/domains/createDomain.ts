@@ -6,7 +6,7 @@ import dns from 'node:dns'
 import { EPMethod } from '@TBE/types'
 import { Domain } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 

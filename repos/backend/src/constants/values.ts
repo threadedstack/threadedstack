@@ -43,3 +43,15 @@ export const DBPaging = {
 export const SecretRefTest = /\{\{([^}]+)\}\}/
 export const SecretRefPattern = /\{\{([^}]+)\}\}/g
 export const IDParamPattern = /:(id|[a-zA-Z]+Id)\b/
+
+export const FileMaxSize = 25 * 1024 * 1024 // 25MB
+export const FileAllowedMimePrefixes = [`text/`, `image/`]
+export const FileAllowedMimeTypes = new Set([
+  `application/json`,
+  `application/xml`,
+  `application/csv`,
+  `application/javascript`,
+  `application/typescript`,
+  `application/pdf`,
+  `application/vnd.openxmlformats-officedocument.wordprocessingml.document`,
+])

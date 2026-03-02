@@ -23,12 +23,13 @@ export type TEntitySelector = {
   id: string
   label: string
   title?: string
-  description?: string
-  placeholder?: string
+  value: string[]
   loading?: boolean
   disabled?: boolean
   multiple?: boolean
-  value: string[]
+  required?: boolean
+  description?: string
+  placeholder?: string
   options: TEntitySelectorOption[]
   onChange: (ids: string[]) => void
 }
@@ -44,8 +45,8 @@ export type TEntitySelectorSingle = Omit<
 type TOptionItem = HTMLAttributes<HTMLLIElement> & {
   key: any
   multiple: boolean
-  option: TEntitySelectorOption
   selected: string[]
+  option: TEntitySelectorOption
 }
 
 const OptionItem = (props: TOptionItem) => {
@@ -94,6 +95,7 @@ export const EntitySelector = (props: TEntitySelector) => {
     loading,
     onChange,
     disabled,
+    required,
     description,
     multiple = true,
     placeholder = `Select...`,
@@ -116,6 +118,7 @@ export const EntitySelector = (props: TEntitySelector) => {
       <InputStateHandler
         id={id}
         label={label}
+        required={required}
         disabled={isDisabled}
         description={description}
       >

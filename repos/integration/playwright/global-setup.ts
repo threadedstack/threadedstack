@@ -2,15 +2,27 @@ import { loadEnvs } from '../src/utils/loadEnvs'
 import { env } from '../src/utils/env'
 import { writeContext } from '../src/utils/test-context'
 
+
+const cancelAndSuppressTLSWarning = () => {
+  const { emitWarning } = process
+  process.emitWarning = (warning: string | Error, ...args: any) => {
+    const m = typeof warning === `string` ? warning : warning.message
+    if (m.includes(`NODE_TLS_REJECT_UNAUTHORIZED`)) {
+      process.emitWarning = emitWarning
+      return
+    }
+    return emitWarning(warning, ...args)
+  }
+
+  process.env[`NODE_TLS_REJECT_UNAUTHORIZED`] = `0`
+}
+
 /**
  * Ensure at least one thread exists for the test agent.
  * Many Playwright tests require thread data; without it they skip.
  */
 async function ensureThread(proxyUrl: string, orgId: string, agentId: string, apiKey: string) {
   if (!orgId || !agentId || !apiKey) return
-
-  const origTLS = process.env.NODE_TLS_REJECT_UNAUTHORIZED
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
   try {
     const listRes = await fetch(`${proxyUrl}/_/orgs/${orgId}/agents/${agentId}/threads`, {
@@ -34,9 +46,6 @@ async function ensureThread(proxyUrl: string, orgId: string, agentId: string, ap
     })
   } catch (err) {
     console.warn(`[global-setup] Thread seed failed: ${err}`)
-  } finally {
-    if (origTLS === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED
-    else process.env.NODE_TLS_REJECT_UNAUTHORIZED = origTLS
   }
 }
 
@@ -50,6 +59,7 @@ async function ensureThread(proxyUrl: string, orgId: string, agentId: string, ap
  */
 export default async function globalSetup() {
   loadEnvs()
+  cancelAndSuppressTLSWarning()
 
   if (!env.testApiKey) {
     throw new Error(

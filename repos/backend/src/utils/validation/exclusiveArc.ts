@@ -1,4 +1,4 @@
-import { Exception } from '@TBE/utils/errors/exception'
+import { Exception } from '@tdsk/domain'
 
 export type TArcField = {
   name: string
