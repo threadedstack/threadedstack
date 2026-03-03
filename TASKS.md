@@ -14,14 +14,12 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 |-------|------|----------|
 | 1 | ProviderDrawer null brand | P2 |
 | 1 | Quick Actions card | P3 |
-| 1 | Merge User drawers | P2 |
 | 1 | Endpoint Test Tab | P3 |
 | 1 | Email sign-up | P3 |
 | 1 | Git tool for sandbox | P3 |
 | 1 | Chat app | P3 |
 | 1 | Website | P3 |
 | 1 | Playwright tests | P3 |
-| 3 | webSearch + webFetch (one agent, both tools) | P2 |
 | 4 | User selector in CreateApiKeyDrawer (start of serial chain) | P3 |
 | 5 | Agent endpoint overrides | P3 |
 
@@ -51,11 +49,11 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 
 | Shared File | Tasks That Touch It |
 |-------------|---------------------|
-| `agent/tools/tools.ts` | webSearch, webFetch, orchestration, task queue, planning, memory, scheduling, cost tracking, testing, HITL, S3 (artifact), RAG, GitHub |
+| `agent/tools/tools.ts` | orchestration, task queue, planning, memory, scheduling, cost tracking, testing, HITL, S3 (artifact), RAG, GitHub |
 | `agent/runner/runner.ts` | memory, cost tracking, RAG |
 | `backend/services/websocket/websocket.ts` | orchestration, cost tracking, HITL, RAG |
 | `admin/components/Agents/AgentDrawer.tsx` | SecretsSelector |
-| `domain/types/ai.types.ts` | webFetch, various agent tools |
+| `domain/types/ai.types.ts` | various agent tools |
 | `backend/endpoints/threads/uploadFile.ts` | S3, RAG |
 | `admin/components/Orgs/CreateApiKeyDrawer.tsx` | user selector, project-level keys |
 
@@ -65,7 +63,7 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
 
-### [P2] ProviderDrawer — null brand value causes MUI warnings
+### [IN PROGRESS][P2] ProviderDrawer — null brand value causes MUI warnings
 
 * **Repos**: admin
 * **Key files**: `components/Providers/ProviderDrawer.tsx`
@@ -93,23 +91,6 @@ These tasks touch completely different files with zero overlap. All can run in W
 * **Files**:
   * New: `repos/admin/src/components/QuickActions/QuickActionsCard.tsx`
   * `repos/admin/src/pages/Orgs/Org.tsx` — replace lines 183-297 with `<QuickActionsCard>` usage
-
-### [P2] Merge EditRoleDrawer and UserApiKeysDrawer into a single User management drawer
-
-* **Repos**: admin
-* **Key files**: `components/Users/*`, `components/Roles/EditRoleDrawer.tsx`
-* Two separate drawers exist for managing the same user: `EditRoleDrawer` (`repos/admin/src/components/Roles/EditRoleDrawer.tsx`, 135 lines) for role editing, and `UserApiKeysDrawer` (`repos/admin/src/components/Users/UserApiKeysDrawer.tsx`, 249 lines) for API key management. Users must close one drawer to open the other, and duplicate user identification/display logic exists in both
-* In `repos/admin/src/components/Users/Users.tsx`, two separate buttons exist (lines 172-211): "API Keys" and "Edit Role", managing two separate state variables (`apiKeysUser` line 53, `selectedUser`/`editRoleDialogOpen` lines 49-52)
-* **Fix**:
-  1. Create a single `EditUserDrawer` component with two tabs or sections: "Role" (from EditRoleDrawer) and "API Keys" (from UserApiKeysDrawer)
-  2. Consolidate the two state variables in `Users.tsx` into a single `selectedUser` state
-  3. Replace the two separate action buttons with a single "Edit" button that opens the unified drawer
-  4. Remove the old `EditRoleDrawer` and `UserApiKeysDrawer` components
-* **Files**:
-  * New: `repos/admin/src/components/Users/EditUserDrawer.tsx`
-  * `repos/admin/src/components/Users/Users.tsx` — consolidate state and buttons
-  * Remove: `repos/admin/src/components/Roles/EditRoleDrawer.tsx`
-  * Remove: `repos/admin/src/components/Users/UserApiKeysDrawer.tsx`
 
 ### [P3] Endpoint Drawer Test Tab improvements
 
@@ -331,100 +312,6 @@ These tasks touch completely different files with zero overlap. All can run in W
 * **Files**:
   * `repos/admin/src/components/Agents/AgentDrawer.tsx` — fix `selectedSecrets` population at lines 163-166, ensure IDs match options
   * `repos/admin/src/components/Selectors/SecretsSelector.tsx` — add guard to filter invalid selected values
-
----
-
-## Batch 3 — Web Tools (2 tasks, one agent)
-
-Both touch `agent/tools/tools.ts`, `definitions/web/web.ts`, and `tools.test.ts`. Best approach: assign to one agent that implements both, sharing `htmlParser.ts`. Can run in parallel with Batches 1 and 2.
-
-### [P2] Implement webSearch agent tool — replace placeholder stub
-
-* **Repos**: agent
-* **Key files**: `tools/tools.ts`, `tools/definitions/web/web.ts`, `tools/tools.test.ts`
-* The `webSearch` tool is fully defined but the function is a stub that returns `"Web search not yet implemented"` (`repos/agent/src/tools/tools.ts` lines 289-300). The LLM tool definition exists (`repos/agent/src/tools/definitions/web/web.ts`), the tool is registered in `EAgentTool` (`repos/domain/src/types/ai.types.ts` line 60), and a placeholder test exists (`repos/agent/src/tools/tools.test.ts` lines 587-603). The tool needs a real implementation that performs web searches and returns results
-* **Implementation approach — lightweight, no external search packages**:
-  * Search functionality must be implemented without external search API packages. Use native Node HTTP APIs (`fetch` / `https`) to make requests directly. The approach: issue an HTTP GET to a search engine (e.g., Google, DuckDuckGo, Brave Search) and parse the HTML response to extract search results (titles, URLs, snippets)
-  * **DuckDuckGo HTML** is the simplest starting point — no API key required, returns HTML with structured result elements. Alternatively, **Brave Search API** offers a JSON API with a free tier (requires API key stored as org secret)
-  * If native HTTP + HTML parsing proves insufficient for JavaScript-heavy search pages, fall back to **Puppeteer or Playwright** for headless browser rendering — but this is a last resort due to the overhead of running a headless browser
-* **HTML parsing — use existing npm packages**:
-  * **`happydom`** or **`linkedom`** — lightweight DOM implementation for parsing search result HTML without a real browser. Parse the response HTML, query result elements (titles, links, snippets) via standard DOM APIs (`querySelectorAll`, etc.)
-  * **`turndown`** — convert extracted HTML content to clean Markdown for LLM consumption
-  * **`defuddle`** — extract main content from web pages, stripping navigation/ads/boilerplate. Useful for cleaning up search result page content
-  * These packages run in-process with no browser overhead — preferred over Puppeteer/Playwright
-* **Fix**:
-  1. Create a web search service (`repos/agent/src/tools/services/webSearch.ts`) that:
-     * Accepts a query string, optional result count (default 5-10), and optional search engine preference
-     * Issues an HTTP GET to the search engine using native `fetch` (Node 18+) with appropriate headers (User-Agent, Accept)
-     * Parses the response HTML using `happydom` or `linkedom` to extract result elements
-     * Returns structured results: `{ title, url, snippet }[]`
-  2. Update the `webSearch` tool function in `repos/agent/src/tools/tools.ts` (lines 289-300):
-     * Call the web search service with `params.query`
-     * Send progress update via `onUpdate` while searching
-     * Format results as readable text content for the LLM (title, URL, snippet per result)
-     * Return `{ content: [...], details: { success: true, resultCount, query } }`
-  3. Update the LLM tool definition (`repos/agent/src/tools/definitions/web/web.ts`) to add optional parameters: `maxResults` (number, default 5), `searchEngine` (string, optional)
-  4. Add `EAgentTool.webFetch` to the enum if not already present (for the separate webFetch task)
-  5. Update tests (`repos/agent/src/tools/tools.test.ts`) — replace the stub assertion with real behavior tests. Mock the HTTP layer (not the search service) to test parsing logic
-  6. Handle errors gracefully — network failures, rate limiting, blocked requests should return informative error messages rather than throwing
-* **Key considerations**:
-  * No external search API packages — search is implemented via raw HTTP requests + HTML parsing
-  * DuckDuckGo HTML is the easiest path (no API key), but results may be less structured. Brave Search JSON API is cleaner but requires an API key (can be stored as org secret and injected via the agent's secret system)
-  * The search service should be independent of the sandbox — it runs in the agent process, not inside the isolated VM. Web search needs real network access, which the sandbox VFS doesn't provide
-  * Rate limiting and caching — add basic request throttling (1 req/sec) and optional result caching (LRU, 5-minute TTL) to avoid hammering search engines
-  * User-Agent headers must be set to avoid bot detection. Rotate or use a standard browser UA string
-  * If DuckDuckGo HTML parsing breaks due to page structure changes, the parsing logic should be isolated and easy to update
-  * Puppeteer/Playwright should only be considered if search engines require JavaScript rendering to return results — this adds significant resource overhead (headless Chrome) and should be avoided if possible
-* **Files**:
-  * New: `repos/agent/src/tools/services/webSearch.ts` — search engine HTTP client + HTML parser
-  * `repos/agent/src/tools/tools.ts` — replace stub function (lines 289-300)
-  * `repos/agent/src/tools/definitions/web/web.ts` — add optional `maxResults` and `searchEngine` parameters
-  * `repos/agent/src/tools/tools.test.ts` — replace stub test with real behavior tests
-  * `repos/agent/package.json` — add `happydom` (or `linkedom`), `turndown`, `defuddle` dependencies if not already present
-
-### [P2] Add webFetch agent tool — load and extract content from specific URLs
-
-* **Repos**: agent
-* **Key files**: `tools/tools.ts`, `tools/definitions/web/web.ts`, `tools/tools.test.ts`
-* No tool exists for agents to fetch content from a specific URL. While `webSearch` finds pages by query, agents also need to load a known URL and extract its content — e.g., reading documentation pages, API references, or linked resources. This tool follows the same lightweight pattern as `webSearch`: native Node HTTP + HTML parsing packages, no headless browser unless absolutely necessary
-* **Implementation approach — lightweight, same pattern as webSearch**:
-  * Use native `fetch` (Node 18+) to issue HTTP GET requests to the target URL
-  * Parse the response HTML using `happydom` or `linkedom` for DOM access
-  * Use **`defuddle`** to extract the main content from the page (strips nav, ads, sidebars, footers — returns the article/body content)
-  * Use **`turndown`** to convert the extracted HTML to clean Markdown for LLM consumption
-  * If the page requires JavaScript rendering to produce content (SPAs, client-rendered pages), fall back to **Puppeteer or Playwright** — but only as a last resort
-* **Fix**:
-  1. Create a web fetch service (`repos/agent/src/tools/services/webFetch.ts`) that:
-     * Accepts a URL string and optional parameters (extract mode: `markdown` | `text` | `html`, max content length)
-     * Issues an HTTP GET with appropriate headers (User-Agent, Accept)
-     * Handles redirects (follow up to 5), timeouts (10s default), and non-200 responses
-     * Parses HTML with `happydom`/`linkedom`, runs `defuddle` to extract main content, converts to Markdown via `turndown`
-     * Returns: `{ url, title, content, contentLength, statusCode }`
-  2. Add the `webFetch` tool to `repos/agent/src/tools/tools.ts`:
-     * Register alongside existing tools in `createSandboxTools()`
-     * Parameters: `url` (required string), `extractMode` (optional: `markdown` | `text` | `html`, default `markdown`), `maxLength` (optional number, default 50000 chars)
-     * Send progress update via `onUpdate` while fetching
-     * Truncate content to `maxLength` if it exceeds the limit, appending a `[truncated]` note
-     * Return `{ content: [...], details: { success: true, url, title, contentLength } }`
-  3. Add `webFetch` to the LLM tool definition file (`repos/agent/src/tools/definitions/web/web.ts`) — add a second entry to the `webTools` array with the tool schema
-  4. Add `webFetch` to `EAgentTool` enum in `repos/domain/src/types/ai.types.ts`
-  5. Add tests in `repos/agent/src/tools/tools.test.ts` — test URL fetching, content extraction, redirect following, error handling (404, timeout, invalid URL). Mock the HTTP layer
-  6. Handle errors gracefully — invalid URLs, DNS failures, timeouts, non-HTML content types (return raw text for plain text, indicate unsupported for binary). Return informative error messages
-* **Key considerations**:
-  * Shares the same HTML parsing dependencies as `webSearch` — `happydom`/`linkedom`, `turndown`, `defuddle`. The parsing logic could be extracted into a shared utility used by both tools
-  * Content length limits are important — web pages can be very large. Default to 50K chars with truncation to avoid blowing up the LLM context window
-  * Non-HTML content types: if the response is `text/plain`, return as-is. If `application/json`, pretty-print it. If binary (images, PDFs), return metadata only (content-type, size) without attempting to parse
-  * Security: validate URLs before fetching — reject private/internal IPs (127.0.0.1, 10.x, 192.168.x, etc.) to prevent SSRF. Only allow http/https schemes
-  * Like `webSearch`, this runs in the agent process (not inside the sandbox VM) because it needs real network access
-  * Caching — add optional response caching (LRU, 5-minute TTL) keyed by URL to avoid repeated fetches of the same page within a session
-  * The same Puppeteer/Playwright fallback consideration applies — only use if pages require JS rendering, and prefer the lightweight path
-* **Files**:
-  * New: `repos/agent/src/tools/services/webFetch.ts` — URL fetcher + content extractor
-  * New (or shared): `repos/agent/src/tools/services/htmlParser.ts` — shared HTML parsing utilities used by both webSearch and webFetch (defuddle extraction, turndown conversion, happydom DOM)
-  * `repos/agent/src/tools/tools.ts` — add `webFetch` tool entry in `createSandboxTools()`
-  * `repos/agent/src/tools/definitions/web/web.ts` — add `webFetch` tool definition to `webTools` array
-  * `repos/domain/src/types/ai.types.ts` — add `webFetch` to `EAgentTool` enum
-  * `repos/agent/src/tools/tools.test.ts` — add `webFetch` tests
 
 ---
 
