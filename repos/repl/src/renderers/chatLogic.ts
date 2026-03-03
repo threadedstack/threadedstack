@@ -328,6 +328,11 @@ export class ChatLogic {
     try {
       const agentList = await this.#client!.listAgents(this.orgId!)
       this.agents = agentList as any[]
+      if (this.agents.length === 0) {
+        this.#outputMessage(`No agents found in org. Create an agent first.`)
+        this.#setPhase(`pickProject`)
+        return
+      }
       this.onAgentsLoaded?.(this.agents)
       this.#setPhase(`pickAgent`)
     } catch (err) {
@@ -343,6 +348,14 @@ export class ChatLogic {
     this.#emitStatusChange()
     this.onAgentSelected?.(agent)
     this.#setPhase(`chat`)
+  }
+
+  goBackToProjects(): void {
+    if (this.projects.length === 0) {
+      this.#outputMessage(`No projects available. Use /projects to reload.`)
+      return
+    }
+    this.#setPhase(`pickProject`)
   }
 
   // ----------------------------------------------------------------
@@ -504,6 +517,7 @@ export class ChatLogic {
   // ----------------------------------------------------------------
 
   #buildCommandContext(): TSlashCommandContext {
+    const self = this
     return {
       orgId: this.orgId!,
       agentId: this.agentId!,
@@ -512,6 +526,8 @@ export class ChatLogic {
       connection: this.connection,
       setAgentId: (id: string) => {
         this.agentId = id
+        const cached = this.agents.find((a: any) => a.id === id)
+        if (cached) this.agentInfo = cached
         this.#executor?.clearSession()
         this.#emitStatusChange()
       },
@@ -538,8 +554,12 @@ export class ChatLogic {
       clearMessages: () => {
         this.clearMessages()
       },
-      messages: this.messages,
-      contextFiles: this.contextFiles,
+      get messages() {
+        return self.messages
+      },
+      get contextFiles() {
+        return self.contextFiles
+      },
       listThreads: async () => {
         if (!this.#client || !this.orgId || !this.agentId) return []
         const threads = await this.#client.listThreads(this.orgId, this.agentId)

@@ -4,12 +4,13 @@ import type { TWebProviderConfig } from '@tdsk/domain'
 import { JinaWebProvider } from './jinaWebProvider'
 
 export const createWebProvider = (config?: TWebProviderConfig): IWebProvider => {
-  const type = config?.type ?? `jina`
+  const resolvedType = config?.type ?? `jina`
+  const opts = config?.apiKey ? { apiKey: config?.apiKey } : {}
 
-  switch (type) {
+  switch (resolvedType) {
     case `jina`:
-      return new JinaWebProvider({ apiKey: config?.apiKey })
+      return new JinaWebProvider(opts)
     default:
-      throw new Error(`Unknown web provider: ${type}`)
+      throw new Error(`Unknown web provider: ${resolvedType}`)
   }
 }

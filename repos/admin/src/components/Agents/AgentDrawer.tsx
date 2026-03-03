@@ -4,6 +4,7 @@ import type {
   Agent,
   Secret,
   TAgentProjectConfig,
+  TWebProviderBrand,
   Function as FunctionModel,
 } from '@tdsk/domain'
 
@@ -74,6 +75,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [providerModels, setProviderModels] = useState<Record<string, string>>({})
   const [selectedTools, setSelectedTools] = useState<string[]>([])
   const [selectedSecrets, setSelectedSecrets] = useState<string[]>([])
+  const [webProviderType, setWebProviderType] = useState<TWebProviderBrand | ''>('')
+  const [webProviderSecretId, setWebProviderSecretId] = useState<string>('')
 
   // Load secrets and providers for the project
   useEffect(() => {
@@ -86,10 +89,16 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         fetchSecrets({ orgId, projectId }),
       ])
 
-      setSecretsList([
+      // Merge org + project secrets, then add agent's own secrets (dedup by ID)
+      const fetched = [
         ...(orgSecretsResult.data || []),
         ...(projectSecretsResult.data || []),
-      ])
+      ].filter((s) => s.id)
+      const fetchedIds = new Set(fetched.map((s) => s.id))
+      const agentOnly = (agent?.secrets || []).filter(
+        (s) => s.id && !fetchedIds.has(s.id)
+      )
+      setSecretsList([...fetched, ...agentOnly])
 
       // Load providers
       const providersResult = await fetchProviders({ orgId })
@@ -179,14 +188,11 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setEnvVars(envVarsPairs)
 
       // Set selected secrets
-      setSelectedSecrets(
-        (agent.secrets || []).map((s) => s.id || s.name || s.hashKey || '')
-      )
+      setSelectedSecrets((agent.secrets || []).filter((s) => s.id).map((s) => s.id))
 
-      // Seed secretsList from agent data to avoid UUID flash before async fetch
-      if (agent.secrets?.length) {
-        setSecretsList((prev) => (prev?.length ? prev : agent.secrets!))
-      }
+      // Set web provider config
+      setWebProviderType(agent.environment?.webProvider?.type || '')
+      setWebProviderSecretId(agent.environment?.webProvider?.secretId || '')
 
       const projectConfig = agent.getProjectConfig?.(projectId!)
       setSelectedFunctionIds(projectConfig?.functionIds || [])
@@ -207,6 +213,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setMaxTokens(100000)
       setSelectedTools([])
       setSelectedSecrets([])
+      setWebProviderType('')
+      setWebProviderSecretId('')
       setSelectedFunctionIds([])
       setSelectedProjectIds(projectId ? [projectId] : [])
     }
@@ -244,6 +252,19 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         model: providerModels[id] || null,
       }))
 
+      const buildEnvironment = () => ({
+        streaming,
+        temperature,
+        ...(webProviderType
+          ? {
+              webProvider: {
+                type: webProviderType,
+                ...(webProviderSecretId ? { secretId: webProviderSecretId } : {}),
+              },
+            }
+          : {}),
+      })
+
       const agentData = {
         name,
         active,
@@ -255,7 +276,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         tools: selectedTools,
         projectIds: selectedProjectIds,
         functionIds: selectedFunctionIds,
-        environment: { streaming, temperature },
+        environment: buildEnvironment(),
         secretIds: selectedSecrets,
         // Backward compat: keep model on agent for fallback
         model: providerModels[providerIds[0]] || '',
@@ -266,7 +287,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
           maxTokens,
           model: providerModels[providerIds[0]] || null,
           systemPrompt: systemPrompt || null,
-          environment: { streaming, temperature },
+          environment: buildEnvironment(),
           tools: selectedTools.length ? selectedTools : null,
           envVars: Object.keys(envVarsObj).length ? envVarsObj : null,
           functionIds: selectedFunctionIds.length ? selectedFunctionIds : null,
@@ -490,6 +511,60 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             keyPlaceholder='Variable name'
             valuePlaceholder='Value or {{secret-name}}'
           />
+
+          <Divider />
+
+          <Box>
+            <Typography
+              variant='subtitle2'
+              sx={{ fontWeight: 600, mb: 2 }}
+            >
+              Web Provider
+            </Typography>
+            <Stack spacing={2}>
+              <Autocomplete
+                id='web-provider-type'
+                disabled={loading}
+                value={webProviderType || null}
+                options={['jina']}
+                getOptionLabel={(opt) => opt.charAt(0).toUpperCase() + opt.slice(1)}
+                onChange={(_, val) =>
+                  setWebProviderType((val as TWebProviderBrand) || '')
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size='small'
+                    placeholder='Select provider...'
+                  />
+                )}
+              />
+              {webProviderType && (
+                <Autocomplete
+                  id='web-provider-secret'
+                  disabled={loading}
+                  value={
+                    secretsList.some((s) => s.id === webProviderSecretId)
+                      ? webProviderSecretId
+                      : null
+                  }
+                  options={secretsList.map((s) => s.id)}
+                  getOptionLabel={(id) => {
+                    const secret = secretsList.find((s) => s.id === id)
+                    return secret?.name || id
+                  }}
+                  onChange={(_, val) => setWebProviderSecretId(val || '')}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size='small'
+                      placeholder='Select API key secret...'
+                    />
+                  )}
+                />
+              )}
+            </Stack>
+          </Box>
 
           {!isOverrideMode && (
             <>

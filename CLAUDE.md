@@ -155,6 +155,7 @@ Load the relevant skill when working on a specific repo:
 | `react-dedup/SKILL.md` | Analyze and refactor duplicate React components |
 | `runner/SKILL.md` | Pick and implement tasks from TASKS.md |
 | `skill-builder/SKILL.md` | Create new Claude Code skills with proper structure |
+| `task-validator/SKILL.md` | Validate completed TASKS.md implementations: completeness, code quality, test coverage, cross-repo impact |
 | `todo-triage/SKILL.md` | Triage TODO.md items into detailed TASKS.md entries |
 
 ### Subagents
@@ -163,6 +164,7 @@ Custom subagents live in `.claude/agents/`:
 | Agent File | Purpose |
 |------------|---------|
 | `security-reviewer.md` | Security-focused code review for auth, secrets, payments, proxy changes |
+| `task-reviewer.md` | Task implementation review for completeness, code quality, and test coverage validation |
 
 ### Database & Authentication
 

@@ -5,13 +5,13 @@ import type { ChatLogic } from '@TRL/renderers/chatLogic'
 import chalk from 'chalk'
 import {
   TUI,
-  ProcessTerminal,
-  Editor,
   Text,
-  SelectList,
-  Loader,
-  Container,
   Spacer,
+  Loader,
+  Editor,
+  Container,
+  SelectList,
+  ProcessTerminal,
   CombinedAutocompleteProvider,
 } from '@mariozechner/pi-tui'
 import { themed } from '@TRL/theme'
@@ -323,14 +323,30 @@ export class PiTuiApp {
       description: a.description,
     }))
 
+    const backItem = {
+      value: `← Back to projects`,
+      label: `← Back to projects`,
+      description: `Navigate back to the projects list.`,
+    }
+
+    items.push(backItem)
+
     this.#selectList = new SelectList(items, 15, selectListTheme)
     this.#selectList.onSelect = (item: SelectItem) => {
+      if (item.value === backItem.value) return this.#logic.goBackToProjects()
+
       const agent = this.#logic.agents.find((a: any) => a.id === item.value)
       if (agent) this.#logic.selectAgent(agent)
+
+      // TODO: Log agent "item.label" not found1
     }
     this.#selectList.onCancel = () => {
-      this.#logic.destroy()
-      this.#logic.onExit?.()
+      if (this.#logic.projects.length > 0) {
+        this.#logic.goBackToProjects()
+      } else {
+        this.#logic.destroy()
+        this.#logic.onExit?.()
+      }
     }
 
     this.#tui.addChild(this.#selectList)

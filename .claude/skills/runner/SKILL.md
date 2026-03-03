@@ -32,12 +32,14 @@ If `$ARGUMENTS` specifies task(s), use those. Otherwise:
 
 ### Step 3: Mark Tasks In Progress
 
-Edit `TASKS.md` to change the selected task markers from their current state to `[IN PROGRESS]`:
+**MANDATORY — do this IMMEDIATELY after task selection, BEFORE any other work.**
+
+Edit `TASKS.md` NOW to change the selected task header from its current state to include `[IN PROGRESS]`:
 ```
-* **[IN PROGRESS][P1] Task title here**
+### [IN PROGRESS][P3] Task title here
 ```
 
-This prevents other agents from picking up the same tasks.
+This prevents other agents from picking up the same tasks. **Do NOT proceed to Step 4 until the `[IN PROGRESS]` marker is written to TASKS.md.** Verify the edit was applied by re-reading the modified line.
 
 ### Step 4: Load Relevant Skills
 
@@ -75,19 +77,28 @@ Before reporting completion:
 3. **Integration tests pass**: Run relevant integration tests against live K8s
 4. **No regressions**: Existing tests in affected repos still pass
 
-### Step 8: Get User Approval and Remove Completed Tasks
+### Step 8: Validate and Get User Approval
 
-Once verified, **ask the user** to confirm the task is complete and should be removed from TASKS.md.
+Before presenting results to the user, invoke the `task-validator` skill:
 
-**CRITICAL**: NEVER remove a task from TASKS.md without explicit user approval. The flow is:
-1. Present the verification results (tests passing, type checks clean, integration tests green)
-2. List the task(s) you propose to remove
-3. Ask the user: "These tasks are verified. Should I remove them from TASKS.md?"
-4. Only after the user confirms → remove the entire task entry (bullet point + all sub-bullets/description) from TASKS.md
-5. If the user says no or wants changes → keep the `[IN PROGRESS]` marker and address feedback
+1. Run `/task-validate "<task title>"` to produce a validation report
+2. Review the validation report:
+   - If **PASS**: proceed to step 3
+   - If **FAIL**: address the failing items first, then re-run validation
+3. Present BOTH the Step 7 verification results AND the validation report to the user
+4. List the task(s) you propose to remove
+5. Ask the user: "These tasks are validated and verified. Should I remove them from TASKS.md?"
+6. Only after the user confirms → **immediately** remove the entire task section (header + all sub-bullets/description) from TASKS.md using the Edit tool. **Do NOT end the conversation without completing this removal.**
+7. After removal, re-read TASKS.md to verify the task entry is gone
+8. If the user says no or wants changes → keep the `[IN PROGRESS]` marker and address feedback
+
+**CRITICAL**: NEVER remove a task from TASKS.md without explicit user approval.
+**CRITICAL**: Once the user approves removal, you MUST remove the task from TASKS.md before doing anything else. This is not optional.
 
 ## Key Rules
 
+- **ALWAYS** mark tasks `[IN PROGRESS]` in TASKS.md BEFORE starting any implementation work (Step 3). This is a hard gate — do not proceed without it.
+- **ALWAYS** remove completed tasks from TASKS.md immediately after user approval (Step 8). Verify removal by re-reading the file. Do not end the session with approved tasks still in TASKS.md.
 - **NEVER** skip integration tests — unit tests alone are NOT sufficient
 - **NEVER** commit code — user handles all git operations (see MEMORY.md git rules)
 - **NEVER** implement fixes based on assumptions — read the actual code first

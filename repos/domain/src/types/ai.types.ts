@@ -141,13 +141,14 @@ export type TWebProviderBrand = `${EWebProviderBrand}`
 
 /**
  * Web search/fetch provider configuration.
- *
- * @security apiKey is stored in plaintext within the agent environment JSONB.
- * TODO: Migrate to a secretRef pattern (store as a Secret entity, decrypt at runtime)
- * to match the AES-256-GCM encryption used for other secrets in the platform.
+ * The API key is stored as an encrypted secret (secretId → secrets table).
+ * Decrypted at runtime by SecretResolver in the backend before passing to the agent runner.
  */
 export type TWebProviderConfig = {
   type?: TWebProviderBrand
+  /** Reference to an encrypted secret containing the provider API key */
+  secretId?: string
+  /** Decrypted API key (resolved at runtime by backend from secretId — never persisted) */
   apiKey?: string
 }
 

@@ -12,22 +12,19 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 
 | Batch | Task | Priority |
 |-------|------|----------|
-| 1 | Quick Actions card | P3 |
 | 1 | Endpoint Test Tab | P3 |
 | 1 | Email sign-up | P3 |
 | 1 | Git tool for sandbox | P3 |
 | 1 | Chat app | P3 |
 | 1 | Website | P3 |
 | 1 | Playwright tests | P3 |
-| 4 | User selector in CreateApiKeyDrawer (start of serial chain) | P3 |
 | 5 | Agent endpoint overrides | P3 |
 
 ### Wave 2 (after Wave 1 finishes)
 
 | Batch | Task | Priority |
 |-------|------|----------|
-| 2 | SecretsSelector errors (AgentDrawer now stable) | P2 |
-| 4 | Project-level API keys (after user selector) | P3 |
+| 4 | Project-level API keys | P3 |
 | 6 | Agent autonomous tools (serial within batch) | P3 |
 | 7 | S3 storage (start of serial chain) | P3 |
 
@@ -51,29 +48,15 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 | `agent/tools/tools.ts` | orchestration, task queue, planning, memory, scheduling, cost tracking, testing, HITL, S3 (artifact), RAG, GitHub |
 | `agent/runner/runner.ts` | memory, cost tracking, RAG |
 | `backend/services/websocket/websocket.ts` | orchestration, cost tracking, HITL, RAG |
-| `admin/components/Agents/AgentDrawer.tsx` | SecretsSelector |
 | `domain/types/ai.types.ts` | various agent tools |
 | `backend/endpoints/threads/uploadFile.ts` | S3, RAG |
-| `admin/components/Orgs/CreateApiKeyDrawer.tsx` | user selector, project-level keys |
+| `admin/components/Orgs/CreateApiKeyDrawer.tsx` | project-level keys |
 
 ---
 
-## Batch 1 — Fully Independent (all 9 run in parallel)
+## Batch 1 — Fully Independent (all run in parallel)
 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
-
-### [P3] Extract Quick Actions card into reusable component
-
-* **Repos**: admin
-* **Key files**: `pages/Orgs/Org.tsx`, new `QuickActionsCard.tsx`
-* The Quick Actions card in `repos/admin/src/pages/Orgs/Org.tsx` lines 183-297 is hardcoded inline with 3 action cards (Projects, Invite Users, Manage Secrets). Each card has an icon, title, description, and onClick handler. This should be a generic component that accepts a list of actions
-* **Fix**:
-  1. Create a `QuickActionsCard` component that accepts an array of action configs (`{ icon, title, description, onClick }[]`) and a card title
-  2. Render the Grid layout and individual action cards from the config array
-  3. Update `Org.tsx` to use the new component with the existing 3 actions passed as config
-* **Files**:
-  * New: `repos/admin/src/components/QuickActions/QuickActionsCard.tsx`
-  * `repos/admin/src/pages/Orgs/Org.tsx` — replace lines 183-297 with `<QuickActionsCard>` usage
 
 ### [P3] Endpoint Drawer Test Tab improvements
 
@@ -84,16 +67,27 @@ These tasks touch completely different files with zero overlap. All can run in W
   * **No query params editor** — when the method is `GET`, a Key/Value editor for query params should appear (similar to the existing headers editor at lines 97-131)
   * **No body type selector** — non-GET requests only support raw JSON via Monaco (line 138 `language='json'`). Should offer a selector for JSON (Key/Value to JSON object), FORM (Key/Value to FormData), or RAW (current Monaco editor)
   * **Send Request button is left-aligned** (line 147 `display: 'flex'`) but should be right-aligned
+  * **No URL display or code snippet export** — the full request URL (`{baseUrl}/proxy/{projectId}/{endpointId}`) is constructed inside `EndpointTestApi.execute()` (`repos/admin/src/services/endpointTestApi.ts` line 31) but never shown to the user. The URL, method, headers, and body should be visible in a styled URL bar, and users should be able to copy the full endpoint configuration as code snippets in multiple formats (like Postman's "Code" feature)
 * **Fix**:
   1. Replace the Method `Select` (lines 71-87) with a read-only `Chip` displaying the method derived from the endpoint
   2. Pass the `endpoint` object from `EndpointDrawer.tsx` (lines 354-359) to the test panel via props
   3. Add query params state and Key/Value editor in `useEndpointTest.ts` (following the existing header pattern at lines 44-59). Convert to query string on send
   4. Add a body type selector (`JSON` / `FORM` / `RAW`) above the body editor, and switch the editor accordingly
   5. Change the actions Box (line 147) to `justifyContent: 'flex-end'`
+  6. **URL bar**: Display the full request URL at the top of the test panel in a styled read-only input/bar showing `METHOD` chip + full URL (`https://px.local.threadedstack.app/proxy/{projectId}/{endpointId}` + query string if present). Construct the URL using `apiUrl()` from `repos/admin/src/utils/api/apiUrl.ts` (which resolves `TDSK_CADDY_PX_HOST` → `https://px.local.threadedstack.app`) combined with `/proxy/{projectId}/{endpointId}`. The URL should update live as the user edits query params. Include a simple copy-URL icon button to copy just the URL to clipboard
+  7. **Code snippet export**: Add a "Copy as" button (or dropdown/menu) next to the URL bar that generates and copies the complete request configuration in multiple formats:
+     * **cURL** — `curl -X METHOD 'URL' -H 'Header: value' ... -d 'body'` with proper escaping
+     * **fetch** — JavaScript `fetch('URL', { method, headers, body })` with proper formatting
+     * **axios** — `axios({ method, url, headers, data })` format
+     * **HTTPie** — `http METHOD URL Header:value body=...`
+     * Each format should include: full URL (with query params), all headers (including auth `Authorization: Bearer ...` from the current session), the request body (if applicable), and the HTTP method
+     * Display available formats in a MUI `Menu` or `Popover` — user clicks a format to copy it to clipboard with a brief "Copied!" snackbar confirmation
+     * Create a utility module for snippet generation that takes `{ url, method, headers, body }` and returns formatted strings per format. This keeps the logic testable and separate from the UI
 * **Files**:
-  * `repos/admin/src/components/Endpoints/EndpointTestPanel.tsx` — method display, query params, body type, button alignment
-  * `repos/admin/src/hooks/endpoints/useEndpointTest.ts` — add query params state, body type state
+  * `repos/admin/src/components/Endpoints/EndpointTestPanel.tsx` — method display, query params, body type, button alignment, URL bar with copy button, code snippet export menu
+  * `repos/admin/src/hooks/endpoints/useEndpointTest.ts` — add query params state, body type state, computed URL string (using `apiUrl()` + projectId/endpointId + query params)
   * `repos/admin/src/components/Endpoints/EndpointDrawer.tsx` — pass endpoint object to test panel (lines 354-359)
+  * New: `repos/admin/src/utils/endpoints/snippetGenerators.ts` — pure functions to generate cURL, fetch, axios, HTTPie strings from `{ url, method, headers, body }`
 
 ### [P3] Email sign-up via Neon Auth — allow account creation with email/password
 
@@ -265,27 +259,6 @@ These tasks touch completely different files with zero overlap. All can run in W
   * `repos/components/` — shared MUI theme, design tokens, and reusable components consumed by the website
   * `deploy/` — add static hosting config or Helm templates for CDN deployment
 
-### [P3] Encrypt webProvider.apiKey — migrate from plaintext to secretRef pattern
-
-* **Repos**: backend, database, domain, agent
-* **Key files**: `domain/src/types/ai.types.ts`, `backend/src/services/secrets/`, `agent/src/tools/definitions/web/`
-* `TWebProviderConfig.apiKey` is currently stored in plaintext within the agent environment JSONB column. All other secrets in the platform use AES-256-GCM encryption via the `Secret` entity and `secretResolver`. The web provider apiKey should follow the same pattern
-* **Fix**:
-  1. Add a `secretRef` field to `TWebProviderConfig` (e.g., `{ secretId: string }`) as an alternative to inline `apiKey`. When `secretRef` is present, resolve the actual key at runtime via `secretResolver.resolve()`
-  2. Update the agent runner's web provider initialization to check for `secretRef` first, falling back to inline `apiKey` for backward compatibility
-  3. Update the admin UI's agent environment editor to allow selecting an existing org/project secret for the web provider key instead of entering it as plaintext
-  4. Migrate existing plaintext `apiKey` values to encrypted secrets (one-time migration script)
-* **Key considerations**:
-  * The `apiKey` field is optional — Jina works rate-limited without it, so many agents won't have one set
-  * Backward compatibility: keep supporting inline `apiKey` during migration period, log a deprecation warning when it's used
-  * The `secretResolver` already handles AES-256-GCM decryption with HKDF key derivation — reuse the existing crypto infrastructure
-* **Files**:
-  * `repos/domain/src/types/ai.types.ts` — add `secretRef` to `TWebProviderConfig`
-  * `repos/backend/src/services/secrets/secretResolver.ts` — ensure it can resolve web provider secret refs
-  * `repos/agent/src/runner/runner.ts` — resolve secretRef at web provider initialization
-  * `repos/agent/src/tools/definitions/web/webProvider.ts` — accept resolved key from runner
-  * `repos/admin/src/components/Agents/` — UI for selecting a secret instead of entering plaintext key
-
 ### [P3] Playwright integration test coverage is minimal — only page navigation/rendering
 
 * **Repos**: integration
@@ -301,43 +274,11 @@ These tasks touch completely different files with zero overlap. All can run in W
 
 ---
 
-## Batch 2 — Agent Drawer (1 remaining task)
+## Batch 4 — API Keys (1 task)
 
-### [P2] AgentDrawer — SecretsSelector errors when clicking the select input
+Can run in parallel with Batch 1.
 
-* **Repos**: admin
-* **Key files**: `AgentDrawer.tsx`, `SecretsSelector.tsx`
-* `repos/admin/src/components/Agents/AgentDrawer.tsx` lines 163-166: `selectedSecrets` is populated from `agent.secrets` using a fallback chain: `s.id || s.name || s.hashKey || ''`. The `SecretsSelector` (`repos/admin/src/components/Selectors/SecretsSelector.tsx` line 25) creates options using `id: s.id`. If `agent.secrets[n].id` doesn't match `secretsList[n].id` (e.g., different ID formats between the agent's embedded secrets and the separately-fetched org secrets list), the `Autocomplete` will have selected values that don't exist in the options array — causing MUI errors
-* Additionally, `secretsList` is seeded from `agent.secrets` at line 170 as a temporary value before the async `fetchSecrets` response arrives. If `agent.secrets` items have a different shape or missing `id` fields compared to the full secret objects from the API, the option IDs won't match
-* **Fix**:
-  1. Ensure consistent ID usage — `selectedSecrets` should always use `s.id` (not the fallback chain). If `agent.secrets` items lack `id`, wait for the async `secretsList` to load before populating `selectedSecrets`
-  2. Add a guard in `SecretsSelector`: filter `selectedSecrets` to only include IDs that exist in the current `options` array before passing to `EntitySelector`
-  3. Investigate whether `agent.secrets` returns full `Secret` objects or partial references — if partial, map through `secretsList` by ID to get the full objects
-* **Files**:
-  * `repos/admin/src/components/Agents/AgentDrawer.tsx` — fix `selectedSecrets` population at lines 163-166, ensure IDs match options
-  * `repos/admin/src/components/Selectors/SecretsSelector.tsx` — add guard to filter invalid selected values
-
----
-
-## Batch 4 — API Keys (serialized, 2 tasks)
-
-Share `CreateApiKeyDrawer.tsx`. Run task 1 first (smaller scope), then task 2 extends the same component. Can run in parallel with Batches 1-3.
-
-### [P3] Add User selector to CreateApiKeyDrawer *(run first)*
-
-* **Repos**: admin
-* **Key files**: `CreateApiKeyDrawer.tsx`, `OrgApiKeys.tsx`
-* The `CreateApiKeyDrawer` (`repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx`) already accepts `userId` and `userName` props (lines 27-30) and displays the user name if provided (lines 200-210), but the parent `OrgApiKeys` page (`repos/admin/src/pages/Orgs/OrgApiKeys.tsx` lines 272-278) never populates these props
-* The `createApiKey` action (line 83 of CreateApiKeyDrawer) already supports passing `userId` in the data payload
-* **Fix**:
-  1. In `OrgApiKeys.tsx`, add org user loading (fetch via `usersApi.listByOrg(orgId)`) and state for available users
-  2. In `CreateApiKeyDrawer.tsx`, replace the static `userName` display (lines 200-210) with an `Autocomplete` or `Select` component that lists org users. When a user is selected, set the `userId` in the form data
-  3. Pass the user list to the drawer, or have the drawer load users itself
-* **Files**:
-  * `repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx` — replace lines 200-210 with user selector
-  * `repos/admin/src/pages/Orgs/OrgApiKeys.tsx` — add user loading and pass to drawer (lines 272-278)
-
-### [P3] Extend API keys to support project-level scoping *(after user selector)*
+### [P3] Extend API keys to support project-level scoping
 
 * **Repos**: proxy, backend, database, domain, admin
 * **Key files**: `setupApiKeyAuth.ts`, `validateApiKey.ts`, `CreateApiKeyDrawer.tsx`
@@ -645,6 +586,99 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * `repos/agent/src/tools/tools.ts` — memory tool implementations (delegate to RAG service)
   * `repos/agent/src/runner/runner.ts` — auto-inject recalled memories at turn start
   * `repos/backend/src/endpoints/agents/agentMemories.ts` — memory CRUD endpoints (thin wrapper over RAG service with agent scope)
+
+---
+
+## Batch 8 — Admin Component Extraction (1 task)
+
+No overlap with any other batch. Touches only `repos/admin/src/components/AI/` and `repos/components/`.
+
+### [P4] Extract ArtifactRenderer components from admin to shared components repo
+
+* **Repos**: admin, components
+* **Key files**: `admin/src/components/AI/ArtifactRenderer.tsx`, `admin/src/components/AI/MarkdownRenderer.tsx`, `admin/src/components/AI/MermaidRenderer.tsx`
+* The `ArtifactRenderer` component and its supporting renderers (`MarkdownRenderer`, `MermaidRenderer`) live in `repos/admin/src/components/AI/` but should be in `repos/components/` so that other planned applications (chat app, website) can reuse them without depending on `@tdsk/admin`
+* **Components to move**:
+  * `ArtifactRenderer` (`repos/admin/src/components/AI/ArtifactRenderer.tsx`, 295 lines) — main component rendering artifacts by type (HTML iframe, SVG, code, mermaid, markdown, etc.). Props: `TArtifactRendererProps` with `content`, `title`, `artifactType`, `language`. Dependencies: MUI (`Box`, `Chip`, `Paper`, `Drawer`, `Button`, `Typography`, `IconButton`), MUI icons (`Close`, `OpenInFull`, `ContentCopy`), `TArtifactType` from `@tdsk/domain`
+  * `MarkdownRenderer` (`repos/admin/src/components/AI/MarkdownRenderer.tsx`, 83 lines) — renders markdown content using `react-markdown` + `remark-gfm`. Dependencies: `react-markdown`, `remark-gfm`, MUI `Box`
+  * `MermaidRenderer` (`repos/admin/src/components/AI/MermaidRenderer.tsx`, 103 lines) — renders mermaid diagrams via dynamic import. Dependencies: `mermaid` (dynamic), MUI `Box`, `Typography`
+* **Consumers in admin**:
+  * `MessageBubble.tsx` (line 11) imports `ArtifactRenderer` — must update import to `@tdsk/components`
+  * `ArtifactRenderer` imports `MarkdownRenderer` and `MermaidRenderer` internally
+  * The `AI/index.ts` barrel file does NOT currently export these components (they're internal imports)
+* **NPM dependencies to add to `repos/components/package.json`**: `react-markdown`, `remark-gfm`, `mermaid`
+* **Fix**:
+  1. Create `repos/components/src/components/AI/` directory with `ArtifactRenderer.tsx`, `MarkdownRenderer.tsx`, `MermaidRenderer.tsx`, and `index.ts`
+  2. Move the three component files, updating internal imports to use relative paths within the components repo
+  3. Add `react-markdown`, `remark-gfm`, and `mermaid` as dependencies in `repos/components/package.json`
+  4. Export from `repos/components/src/components/index.ts` barrel
+  5. Update `repos/admin/src/components/AI/MessageBubble.tsx` line 11 to import `ArtifactRenderer` from `@tdsk/components` instead of `@TAF/components/AI/ArtifactRenderer`
+  6. Remove the original files from `repos/admin/src/components/AI/`
+  7. Verify admin build passes with the external import
+* **Files**:
+  * New: `repos/components/src/components/AI/ArtifactRenderer.tsx` — moved from admin
+  * New: `repos/components/src/components/AI/MarkdownRenderer.tsx` — moved from admin
+  * New: `repos/components/src/components/AI/MermaidRenderer.tsx` — moved from admin
+  * New: `repos/components/src/components/AI/index.ts` — barrel exports
+  * `repos/components/src/components/index.ts` — add AI exports
+  * `repos/components/package.json` — add `react-markdown`, `remark-gfm`, `mermaid` deps
+  * `repos/admin/src/components/AI/MessageBubble.tsx` — update import path (line 11)
+  * Remove: `repos/admin/src/components/AI/ArtifactRenderer.tsx`
+  * Remove: `repos/admin/src/components/AI/MarkdownRenderer.tsx`
+  * Remove: `repos/admin/src/components/AI/MermaidRenderer.tsx`
+
+---
+
+## Batch 9 — REPL Bugs and Improvements (3 tasks)
+
+No overlap with any other batch. All changes are within `repos/repl/`. Tasks within this batch can mostly run in parallel except where noted.
+
+### [P1] REPL: HUD metadata not displayed — model and provider info missing from status bar
+
+* **Repos**: repl
+* **Key files**: `repl/src/renderers/chatLogic.ts`, `repl/src/renderers/PiTuiStatus.ts`, `repl/src/renderers/PiTuiApp.ts`
+* After the pi-mono 0.55.3 upgrade (commit `5e29dc7`), the TUI status bar no longer shows model name or provider name. The `TStatusMetadata` type in `PiTuiStatus.ts` (lines 8-16) defines `modelName` and `providerName` fields, and the render method (lines 41-74) can display them, but `#emitStatusChange()` in `chatLogic.ts` (lines 492-500) never populates these fields. The `providerId` is stored in `ChatLogic` (line 79) but never converted to a display name. Model information from the agent config or pi-mono's `ModelRegistry` is never extracted
+* The old Ink-based renderer had a `StatusBar` component and `MetadataBar` component that showed org, project, agent, thread, model, and provider — all of which had proper data wiring. The pi-tui migration preserved the display components but not the data plumbing
+* **Fix**:
+  1. In `chatLogic.ts`, extract model and provider information from `agentInfo` when an agent is selected (around lines 230-236, 340-346). Store as `this.modelName` and `this.providerName` class properties
+  2. Update `#emitStatusChange()` (lines 492-500) to include `modelName` and `providerName` in the callback payload
+  3. Update the `onStatusChange` callback type signature (lines 102-110) to include `modelName` and `providerName`
+  4. When `providerId` changes (line 526 via `setProviderId()`), also update `providerName` from the provider list or agent config
+  5. Verify `PiTuiStatus.ts` render method properly displays the new fields (it already has the logic at lines 41-74)
+* **Files**:
+  * `repos/repl/src/renderers/chatLogic.ts` — populate `modelName`/`providerName` in `#emitStatusChange()` (lines 492-500), update callback type (lines 102-110), extract from `agentInfo` (lines 230-236, 340-346)
+  * `repos/repl/src/renderers/PiTuiStatus.ts` — verify render handles new fields (lines 41-74)
+  * `repos/repl/src/renderers/PiTuiApp.ts` — ensure `onStatusChange` callback passes fields to status bar (lines 156-174)
+
+### [P1] REPL: Slash command sub-menus display in inconsistent screen positions
+
+* **Repos**: repl
+* **Key files**: `repl/src/components/Prompt/SubMenu.tsx`, `repl/src/components/ChatSession/ChatSession.tsx`, `repl/src/components/Prompt/Prompt.tsx`
+* Slash commands with sub-menus (e.g., `/threads`, `/projects`) display their selection list at inconsistent vertical positions on screen. The `SubMenu` component (`repos/repl/src/components/Prompt/SubMenu.tsx`, lines 26-52) has no positioning logic — it renders inline within the Prompt's flexbox. The Prompt is a child of ChatSession's column layout (`ChatSession.tsx`, lines 70-103) where `MessageList` consumes variable space above it. As the message list grows, the Prompt (and its SubMenu) shifts down, causing the sub-menu to appear at different vertical positions depending on message count
+* **Note**: This bug applies to the Ink-based renderer components which may or may not be the active renderer. The pi-tui renderer (`PiTuiApp.ts`) uses `SelectList` from `@mariozechner/pi-tui` which has its own positioning. Verify which renderer is active for sub-menu display
+* **Fix**:
+  1. For the Ink renderer: Add fixed positioning or anchor the SubMenu to the bottom of the terminal viewport, independent of MessageList height. Ink supports `position="absolute"` on `Box` components — use it to pin the sub-menu to a consistent location
+  2. Alternatively, clear or collapse the MessageList when a sub-menu is active, so the sub-menu always renders at a predictable position
+  3. For the pi-tui renderer: Verify that `SelectList` positioning is consistent; if not, apply similar fixes using pi-tui's layout primitives
+  4. Ensure the fix works across different terminal sizes (test with small and large viewports)
+* **Files**:
+  * `repos/repl/src/components/Prompt/SubMenu.tsx` — add consistent positioning (lines 26-52)
+  * `repos/repl/src/components/ChatSession/ChatSession.tsx` — adjust layout to support fixed sub-menu position (lines 70-103)
+  * `repos/repl/src/components/Prompt/Prompt.tsx` — coordinate sub-menu positioning with prompt layout (lines 279-318)
+
+### [P2] REPL: Add opening header/banner when CLI starts
+
+* **Repos**: repl
+* **Key files**: `repl/src/renderers/PiTuiApp.ts`, `repl/src/renderers/PiTuiChat.ts`
+* When the CLI starts (`tsa` command), the user immediately sees the "Select a project" picker with no branding or introduction. The old Ink implementation displayed a "ThreadedStack Agent REPL" header. The login phase (`PiTuiApp.ts` lines 239-250) has a basic header but only shows when unauthenticated. The help task (`tasks/help.ts` lines 8-9) prints `tsa v<VERSION> — ThreadedStack AI Agent REPL` but only when running `tsa help`. The chat welcome box (`PiTuiChat.ts` lines 111-134) shows agent name and description but only after agent selection. There's no introductory header/banner displayed during the project/agent selection flow
+* **Fix**:
+  1. Create a header/banner that displays at the top of the TUI during all pre-chat phases (project selection, agent selection). Use the existing `themed()` function from `@TRL/theme` for styling
+  2. Display: app name ("ThreadedStack Agent REPL"), version from `Version` constant (`repos/repl/src/constants/version.ts`), and optionally a brief tagline
+  3. Use Unicode box-drawing characters (consistent with existing chat welcome box style in `PiTuiChat.ts` lines 115, 131) for visual framing
+  4. Add the header rendering to `PiTuiApp.ts` in the `#renderPickProjectPhase()` and `#renderPickAgentPhase()` methods, rendered above the picker label
+  5. Keep it compact (2-3 lines max) to preserve terminal space for the picker
+* **Files**:
+  * `repos/repl/src/renderers/PiTuiApp.ts` — add header rendering in `#renderPickProjectPhase()` (lines 290-312) and `#renderPickAgentPhase()` (lines 316-338)
 
 ---
 

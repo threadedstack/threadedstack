@@ -82,6 +82,35 @@ const resolveSession = async (
     const headers = await secrets.resolveHeaders(provider)
     const bodyParams = await secrets.resolveBodyParams(provider)
 
+    // Resolve web provider API key from encrypted secret and inject into environment
+    const webProviderSecretId = agent.environment?.webProvider?.secretId
+    if (webProviderSecretId) {
+      try {
+        const { data: wpSecret } = await db.services.secret.get(webProviderSecretId)
+        if (wpSecret?.encryptedValue) {
+          const decrypted = await secrets.decrypt(wpSecret, agent.orgId)
+          if (decrypted) {
+            agent.environment = {
+              ...agent.environment,
+              webProvider: { ...agent.environment?.webProvider, apiKey: decrypted },
+            }
+          } else
+            logger.warn(`Failed to decrypt webProvider secret`, {
+              secretId: webProviderSecretId,
+            })
+        } else {
+          logger.warn(`WebProvider secret not found or has no encrypted value`, {
+            secretId: webProviderSecretId,
+          })
+        }
+      } catch (err) {
+        logger.error(`Failed to resolve webProvider API key`, {
+          secretId: webProviderSecretId,
+          error: err instanceof Error ? err.message : err,
+        })
+      }
+    }
+
     return {
       agentId: agent.id,
       orgId: agent.orgId,

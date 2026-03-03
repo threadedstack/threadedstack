@@ -209,14 +209,6 @@ export class SecretResolver {
   }
 
   /**
-   * Resolves {{ name:id }} templates in provider.headers using decrypted secrets.
-   *
-   * 1. If headers is empty/undefined → returns undefined
-   * 2. If no {{...}} patterns found → returns headers as-is (no DB queries)
-   * 3. Otherwise → loads provider-scoped secrets (falls back to org-scoped),
-   *    decrypts each, and replaces template references
-   */
-  /**
    * Resolves {{ name:id }} templates in provider.bodyParams using decrypted secrets.
    *
    * Unlike resolveHeaders, bodyParams values can be non-strings (numbers, booleans, objects),
@@ -245,6 +237,14 @@ export class SecretResolver {
     return SecretResolver.replaceInObj(provider.bodyParams, decrypted)
   }
 
+  /**
+   * Resolves {{ name:id }} templates in provider.headers using decrypted secrets.
+   *
+   * 1. If headers is empty/undefined → returns undefined
+   * 2. If no {{...}} patterns found → returns headers as-is (no DB queries)
+   * 3. Otherwise → loads provider-scoped secrets (falls back to org-scoped),
+   *    decrypts each, and replaces template references
+   */
   resolveHeaders = async (provider: {
     id: string
     orgId: string

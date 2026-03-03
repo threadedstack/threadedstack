@@ -475,10 +475,9 @@ describe(`createSandboxTools`, () => {
         {
           type: `text`,
           text: JSON.stringify({
-            artifactType: `html`,
-            content: `<h1>Hello</h1>`,
             title: `My Page`,
-            language: undefined,
+            content: `<h1>Hello</h1>`,
+            artifactType: `html`,
           }),
         },
       ])
@@ -519,10 +518,8 @@ describe(`createSandboxTools`, () => {
         {
           type: `text`,
           text: JSON.stringify({
-            artifactType: `json`,
             content: `{"key":"value"}`,
-            title: undefined,
-            language: undefined,
+            artifactType: `json`,
           }),
         },
       ])
@@ -585,10 +582,10 @@ describe(`createSandboxTools`, () => {
         {
           type: `text`,
           text: JSON.stringify({
-            artifactType: `code`,
-            content: `console.log("hi")`,
             title: `Snippet`,
+            content: `console.log("hi")`,
             language: `javascript`,
+            artifactType: `code`,
           }),
         },
       ])

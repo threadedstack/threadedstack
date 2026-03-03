@@ -100,6 +100,15 @@ export class AgentRunner {
         timeout: sandboxConfig.timeout ?? 300000,
       })
     }
+    const wpApiKey = opts.environment?.webProvider?.apiKey
+    if (opts.environment?.webProvider?.secretId && !wpApiKey) {
+      logger.warn(`Web provider configured with secretId but no API key was resolved`, {
+        agentId: opts.agentId,
+        orgId: opts.orgId,
+        secretId: opts.environment.webProvider.secretId,
+        webProviderType: opts.environment.webProvider.type,
+      })
+    }
     const webProvider = createWebProvider(opts.environment?.webProvider)
     const sandboxTools = this.#sandbox
       ? createSandboxTools(this.#sandbox, opts.tools)

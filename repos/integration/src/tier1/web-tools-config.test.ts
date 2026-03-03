@@ -3,13 +3,14 @@ import { get, put, post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { cleanupQuickstart } from '../utils/repl-cleanup'
 import { uniqueName } from '../utils/unique-name'
+import { env } from '../utils/env'
 
 /**
  * Tier 1: Web Tools Configuration
  *
  * Validates API contract for the webFetch/webSearch tools and
  * webProvider environment config on agents.
- * No LLM required — uses quickstart with a test key for pure CRUD.
+ * No LLM required — uses quickstart with a real provider key for pure CRUD validation.
  */
 describe('Tier 1: Web Tools Configuration', () => {
   const ctx = readContext()
@@ -32,12 +33,11 @@ describe('Tier 1: Web Tools Configuration', () => {
     const res = await post<{ data: Record<string, any> }>(
       `/orgs/${orgId}/quickstart`,
       {
-        providerBrand: 'anthropic',
-        apiKey: 'sk-ant-test-web-tools',
+        providerBrand: 'zai',
+        apiKey: env.testProviderKey,
         projectName: uniqueName('Web Tools Config IT'),
         agentName: uniqueName('Web Tools Config Agent'),
         agentDescription: 'Agent for web tools config integration tests',
-        model: 'claude-sonnet-4-20250514',
         maxTokens: 4096,
         systemPrompt: 'You are a test assistant.',
       }
@@ -105,13 +105,22 @@ describe('Tier 1: Web Tools Configuration', () => {
     expect(getRes.data.data.environment.webProvider.type).toBe('jina')
   })
 
-  test('agent update with webProvider apiKey', async () => {
+  test('agent update with webProvider secretId referencing encrypted secret', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
+
+    // Create a secret to reference
+    const secretRes = await post<{ data: { id: string } }>(
+      `/orgs/${orgId}/secrets`,
+      { name: uniqueName('jina-api-key'), value: 'jina_test_key_123' }
+    )
+
+    expect(secretRes.status).toBe(201)
+    const secretId = secretRes.data.data.id
 
     const updateRes = await put<{
       data: { id: string; environment: Record<string, any> }
     }>(agentPath(), {
-      environment: { webProvider: { type: 'jina', apiKey: 'jina_test_key_123' } },
+      environment: { webProvider: { type: 'jina', secretId } },
     })
 
     expect(updateRes.status).toBe(200)
@@ -125,8 +134,7 @@ describe('Tier 1: Web Tools Configuration', () => {
     const webProvider = getRes.data.data.environment?.webProvider
     expect(webProvider).toBeDefined()
     expect(webProvider.type).toBe('jina')
-    // apiKey may be present or sanitized — just verify the field exists
-    expect(webProvider).toHaveProperty('apiKey')
+    expect(webProvider.secretId).toBe(secretId)
   })
 
   // ─── Project config override with web tools ───────────────────────
@@ -200,10 +208,18 @@ describe('Tier 1: Web Tools Configuration', () => {
   test('session creation reflects tools and webProvider when configured', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
+    // Create a secret for the webProvider
+    const secretRes = await post<{ data: { id: string } }>(
+      `/orgs/${orgId}/secrets`,
+      { name: uniqueName('jina-session-key'), value: 'jina_session_test_key' }
+    )
+    expect(secretRes.status).toBe(201)
+    const wpSecretId = secretRes.data.data.id
+
     // Re-set tools and webProvider for session test
     await put(agentPath(), {
       tools: ['webSearch', 'webFetch'],
-      environment: { webProvider: { type: 'jina' } },
+      environment: { webProvider: { type: 'jina', ...(wpSecretId ? { secretId: wpSecretId } : {}) } },
     })
 
     // Session creation — may fail with fake provider key, which is expected

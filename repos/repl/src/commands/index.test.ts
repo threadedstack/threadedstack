@@ -1,11 +1,12 @@
 import type { TSlashCommandContext } from '@TRL/types'
 
-import { describe, it, expect, vi } from 'vitest'
-import { parseCommand, findCommand, commands } from './index'
+import { infoCommand } from './info'
+import { clearCommand } from './clear'
 import { projectsCommand } from './projects'
+import { describe, it, expect, vi } from 'vitest'
 import { switchAgentCommand } from './switchAgent'
 import { listThreadsCommand } from './listThreads'
-import { clearCommand } from './clear'
+import { parseCommand, findCommand, commands } from './index'
 
 const makeCtx = (
   overrides: Partial<TSlashCommandContext> = {}
@@ -226,5 +227,41 @@ describe(`/clear command`, () => {
 
     expect(ctx.clearMessages).toHaveBeenCalled()
     expect(ctx.setThreadId).toHaveBeenCalledWith(null)
+  })
+})
+
+describe(`/info command with dynamic state (getter)`, () => {
+  it(`messages getter reflects live message count`, async () => {
+    let msgs: any[] = [{ type: `user`, content: `hello` }]
+    const ctx = makeCtx()
+    // Replace static property with getter
+    Object.defineProperty(ctx, `messages`, { get: () => msgs, configurable: true })
+
+    await infoCommand.handler(``, ctx)
+    expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining(`Messages: 1`))
+
+    // Simulate thread switch — messages cleared
+    msgs = []
+    ;(ctx.output as ReturnType<typeof vi.fn>).mockClear()
+    await infoCommand.handler(``, ctx)
+    expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining(`Messages: 0`))
+  })
+
+  it(`contextFiles getter reflects live file count`, async () => {
+    let files: any[] = [
+      { path: `/a`, name: `a`, source: `manual`, content: ``, sizeBytes: 0 },
+    ]
+    const ctx = makeCtx()
+    // Replace static property with getter
+    Object.defineProperty(ctx, `contextFiles`, { get: () => files, configurable: true })
+
+    await infoCommand.handler(``, ctx)
+    expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining(`Context files: 1`))
+
+    // Remove file
+    files = []
+    ;(ctx.output as ReturnType<typeof vi.fn>).mockClear()
+    await infoCommand.handler(``, ctx)
+    expect(ctx.output).toHaveBeenCalledWith(expect.stringContaining(`Context files: 0`))
   })
 })
