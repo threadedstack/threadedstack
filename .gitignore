@@ -184,5 +184,6 @@ repos/**/wit/deps
 .playwright-mcp
 .worktrees/
 repos/integration/test-results/**
+/docs/plans
 
 !**/**/.gitkeep

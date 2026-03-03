@@ -20,7 +20,11 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material'
 
-type TActiveTab = 'role' | 'apiKeys'
+enum EActiveTab {
+  role = `role`,
+  apiKeys = `apiKeys`,
+}
+type TActiveTab = `${EActiveTab}`
 
 export type TEditUserDrawer = {
   user: User
@@ -28,8 +32,8 @@ export type TEditUserDrawer = {
   orgId: string
   onClose: () => void
   onSuccess: () => void
-  onRemove: (user: User) => void
   initialTab?: TActiveTab
+  onRemove: (user: User) => void
 }
 
 const styles = {
@@ -60,9 +64,9 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
     user,
     orgId,
     onRemove,
-    initialTab = 'role',
     onClose: onCloseCB,
     onSuccess: onSuccessCB,
+    initialTab = EActiveTab.role,
   } = props
 
   const [activeTab, setActiveTab] = useState<TActiveTab>(initialTab)
@@ -130,12 +134,13 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
     const resp = await updateOrgRole(orgId, user.id, roleType)
     setRoleLoading(false)
 
-    if (resp.error) {
-      setRoleError(resp.error.message || `Failed to update role. Please try again.`)
-    } else {
-      setRoleSuccess(true)
-      onSuccessCB?.()
-    }
+    if (resp.error)
+      return setRoleError(
+        resp.error.message || `Failed to update role. Please try again.`
+      )
+
+    setRoleSuccess(true)
+    onSuccessCB?.()
   }
 
   const { actions: roleActions } = useDrawerActions({
@@ -170,8 +175,8 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
       render: (key) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <KeyIcon
-            sx={styles.icon}
             color='action'
+            sx={styles.icon}
           />
           <Typography
             variant='body2'
@@ -202,9 +207,9 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
           {key.scopes?.split(',').map((scope) => (
             <Chip
               key={scope}
-              label={scope.trim()}
               size='small'
               variant='outlined'
+              label={scope.trim()}
             />
           ))}
         </Box>
@@ -216,8 +221,8 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
       render: (key) => (
         <Chip
           size='small'
-          label={key.active ? 'Active' : 'Revoked'}
-          color={key.active ? 'success' : 'default'}
+          label={key.active ? `Active` : `Revoked`}
+          color={key.active ? `success` : `default`}
         />
       ),
     },
@@ -245,7 +250,7 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
   ]
 
   const drawerActions =
-    activeTab === 'role' ? (
+    activeTab === EActiveTab.role ? (
       <DrawerActions
         editing={true}
         actions={roleActions}
@@ -272,7 +277,6 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
         title='Edit User'
         actions={drawerActions}
       >
-        {/* User header */}
         <Box
           sx={{
             p: 2,
@@ -305,7 +309,6 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
           </Box>
         </Box>
 
-        {/* Tabs */}
         <Tabs
           value={activeTab}
           onChange={(_, v) => setActiveTab(v)}
@@ -313,16 +316,15 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
         >
           <Tab
             label='Role'
-            value='role'
+            value={EActiveTab.role}
           />
           <Tab
             label='API Keys'
-            value='apiKeys'
+            value={EActiveTab.apiKeys}
           />
         </Tabs>
 
-        {/* Role tab */}
-        {activeTab === 'role' && (
+        {activeTab === EActiveTab.role && (
           <form id='edit-role-form'>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {roleError && (
@@ -343,16 +345,15 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
 
               <RoleSelect
                 showAlert
-                disabled={roleLoading}
                 roleType={roleType}
+                disabled={roleLoading}
                 onChange={(e) => setRoleType(e.target.value as TRoleType)}
               />
             </Box>
           </form>
         )}
 
-        {/* API Keys tab */}
-        {activeTab === 'apiKeys' && (
+        {activeTab === EActiveTab.apiKeys && (
           <>
             {keysError && (
               <ErrorAlert
@@ -390,20 +391,20 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
       <CreateApiKeyDrawer
         orgId={orgId}
         userId={user.id}
-        userName={userName}
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        userName={userName}
         onSuccess={onCreateSuccess}
+        onClose={() => setCreateOpen(false)}
       />
 
       <ConfirmDelete
-        title='Revoke API Key?'
         confirmText='Revoke'
-        open={Boolean(revokingKey)}
+        onConfirm={onRevoke}
+        title='Revoke API Key?'
         deleting={revokeLoading}
+        open={Boolean(revokingKey)}
         itemName={revokingKey?.name || ''}
         onCancel={() => setRevokingKey(null)}
-        onConfirm={onRevoke}
         text={`Are you sure you want to revoke the API key "${revokingKey?.name}"? This action cannot be undone.`}
       />
     </>

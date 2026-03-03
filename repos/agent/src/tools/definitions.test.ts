@@ -2,21 +2,22 @@ import { describe, it, expect } from 'vitest'
 import { allToolDefs, getToolDefs } from '@TAG/tools/definitions/definitions'
 
 const expectedToolNames = [
-  `readFile`,
-  `writeFile`,
-  `listDir`,
-  `deleteFile`,
   `mkdir`,
+  `readFile`,
+  `listDir`,
+  `writeFile`,
+  `deleteFile`,
   `fileExists`,
   `shellExec`,
   `evalCode`,
   `webSearch`,
+  `webFetch`,
 ]
 
 describe(`Tool definitions`, () => {
   describe(`allToolDefs`, () => {
-    it(`should contain 9 tool definitions`, () => {
-      expect(allToolDefs).toHaveLength(9)
+    it(`should contain 10 tool definitions`, () => {
+      expect(allToolDefs).toHaveLength(10)
     })
 
     it(`should include all expected tool names`, () => {
@@ -44,6 +45,7 @@ describe(`Tool definitions`, () => {
     it(`should include web tools`, () => {
       const names = allToolDefs.map((t) => t.name)
       expect(names).toContain(`webSearch`)
+      expect(names).toContain(`webFetch`)
     })
 
     it(`should have name, description, and inputSchema on every tool`, () => {
@@ -72,13 +74,13 @@ describe(`Tool definitions`, () => {
     it(`should return all tools when no args provided`, () => {
       const result = getToolDefs()
       expect(result).toEqual(allToolDefs)
-      expect(result).toHaveLength(9)
+      expect(result).toHaveLength(10)
     })
 
     it(`should return all tools when empty array provided`, () => {
       const result = getToolDefs([])
       expect(result).toEqual(allToolDefs)
-      expect(result).toHaveLength(9)
+      expect(result).toHaveLength(10)
     })
 
     it(`should filter to only the requested tools`, () => {

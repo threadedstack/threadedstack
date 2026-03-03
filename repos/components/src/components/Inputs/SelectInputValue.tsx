@@ -11,12 +11,13 @@ import {
 } from '@TSC/components/Inputs/SelectInput.styles'
 
 export type TSelectInputValue = {
-  className?: string
-  sx?: SxProps<Theme>
-  item: TSelectItem
   bold?: boolean
   spacer?: boolean
   active?: boolean
+  item: TSelectItem
+  className?: string
+  sx?: SxProps<Theme>
+  disabled?: boolean
   multiple?: boolean
   selected?: boolean
   checkbox?: boolean
@@ -34,6 +35,7 @@ export const SelectInputValue = (props: TSelectInputValue) => {
     spacer,
     active,
     itemMap,
+    disabled,
     multiple,
     checkbox,
     className,
@@ -54,7 +56,12 @@ export const SelectInputValue = (props: TSelectInputValue) => {
       spacing={2}
       direction='row'
       alignItems='center'
-      className={cls(className, spacer && `spacer`, multiple && `multiple`)}
+      className={cls(
+        className,
+        spacer && `spacer`,
+        multiple && `multiple`,
+        (disabled || item?.disabled) && `disabled`
+      )}
     >
       {item?.icon ? (
         item?.icon
@@ -69,9 +76,10 @@ export const SelectInputValue = (props: TSelectInputValue) => {
         className={cls(
           `tdsk-select-item-text`,
           multiple && `multiple`,
-          item?.prefix ? `prefix` : false,
-          item?.postfix ? `postfix` : false,
-          inlineText ? `inline-text` : false
+          item?.prefix && `prefix`,
+          item?.postfix && `postfix`,
+          inlineText && `inline-text`,
+          (disabled || item?.disabled) && `disabled`
         )}
       >
         <OptionLabel

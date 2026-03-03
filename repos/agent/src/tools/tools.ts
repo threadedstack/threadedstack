@@ -1,6 +1,17 @@
+/**
+ * **IMPORTANT TODO**: Refactor this file and move tool definitions into ./definitions directory
+ * Then import definitions into here
+ * Tools in the ./definitions directory are old, and no longer used
+ * They should be replaced with the tool definitions defined here.
+ */
+
+import type { IWebProvider } from '@TAG/types'
 import type { AgentTool } from '@mariozechner/pi-agent-core'
-import type { ISandbox, TFunctionExecResult } from '@tdsk/domain'
-import type { Function as FunctionModel } from '@tdsk/domain'
+import type {
+  ISandbox,
+  TFunctionExecResult,
+  Function as FunctionModel,
+} from '@tdsk/domain'
 
 import { Type } from '@mariozechner/pi-ai'
 
@@ -10,7 +21,8 @@ import { Type } from '@mariozechner/pi-ai'
  */
 export const createSandboxTools = (
   sandbox: ISandbox,
-  allowedTools?: string[]
+  allowedTools?: string[],
+  webProvider?: IWebProvider
 ): AgentTool<any>[] => {
   const tools: AgentTool<any>[] = [
     {
@@ -289,14 +301,94 @@ export const createSandboxTools = (
     {
       name: `webSearch`,
       label: `Web Search`,
-      description: `Search the web for information`,
+      description: `Search the web for information. Returns search results with titles, URLs, and snippets.`,
       parameters: Type.Object({
         query: Type.String({ description: `The search query` }),
+        maxResults: Type.Optional(
+          Type.Number({ description: `Max results to return (default 5, max 10)` })
+        ),
       }),
-      execute: async () => ({
-        content: [{ type: `text` as const, text: `Web search not yet implemented` }],
-        details: { success: false },
+      execute: async (
+        _toolCallId: string,
+        params: { query: string; maxResults?: number },
+        _signal,
+        onUpdate
+      ) => {
+        if (!webProvider) {
+          return {
+            content: [{ type: `text` as const, text: `Web search not configured` }],
+            details: { success: false },
+          }
+        }
+        onUpdate?.({
+          content: [{ type: `text`, text: `Searching: ${params.query}` }],
+          details: { status: `running` },
+        })
+        const maxResults = Math.min(params.maxResults || 5, 10)
+        const results = await webProvider.search(params.query, maxResults)
+        const text =
+          results.length > 0
+            ? results
+                .map((r, i) => `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.snippet}`)
+                .join(`\n\n`)
+            : `No results found`
+        return {
+          content: [{ type: `text` as const, text }],
+          details: {
+            success: results.length > 0,
+            resultCount: results.length,
+            query: params.query,
+          },
+        }
+      },
+    },
+    {
+      name: `webFetch`,
+      label: `Web Fetch`,
+      description: `Fetch and extract content from a specific URL. Returns the page content as cleaned markdown text.`,
+      parameters: Type.Object({
+        url: Type.String({ description: `The URL to fetch` }),
+        maxLength: Type.Optional(
+          Type.Number({ description: `Max content length in chars (default: 50000)` })
+        ),
       }),
+      execute: async (
+        _toolCallId: string,
+        params: { url: string; maxLength?: number },
+        _signal,
+        onUpdate
+      ) => {
+        if (!webProvider) {
+          return {
+            content: [{ type: `text` as const, text: `Web fetch not configured` }],
+            details: { success: false },
+          }
+        }
+        onUpdate?.({
+          content: [{ type: `text`, text: `Fetching: ${params.url}` }],
+          details: { status: `running` },
+        })
+        try {
+          const result = await webProvider.fetch(params.url, {
+            maxLength: params.maxLength,
+          })
+          return {
+            content: [{ type: `text` as const, text: result.content }],
+            details: {
+              success: true,
+              url: result.url,
+              title: result.title,
+              contentLength: result.contentLength,
+            },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown fetch error`
+          return {
+            content: [{ type: `text` as const, text: `Fetch failed: ${message}` }],
+            details: { success: false },
+          }
+        }
+      },
     },
   ]
 

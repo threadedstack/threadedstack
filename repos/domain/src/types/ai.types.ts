@@ -38,6 +38,10 @@ export type TAgentEnvironment = {
   temperature?: number
   /** Context budget as percentage of model context window (default 80) */
   contextBudgetPercent?: number
+  /** Agent-specific options */
+  options?: Record<string, any>
+  /** Web search/fetch provider configuration */
+  webProvider?: TWebProviderConfig
   /** Thinking/reasoning level for models that support it */
   thinkingLevel?: TThinkingLevel
   /** Token budgets per thinking level (token-based providers only) */
@@ -46,8 +50,6 @@ export type TAgentEnvironment = {
   contextCompaction?: TContextCompaction
   /** Prompt cache retention preference (none/short/long) — passed through to streaming providers */
   cacheRetention?: `none` | `short` | `long`
-  /** Agent-specific options */
-  options?: Record<string, any>
 }
 
 /**
@@ -57,9 +59,10 @@ export enum EAgentTool {
   mkdir = `mkdir`,
   listDir = `listDir`,
   readFile = `readFile`,
-  shellExec = `shellExec`,
+  webFetch = `webFetch`,
   webSearch = `webSearch`,
   writeFile = `writeFile`,
+  shellExec = `shellExec`,
   deleteFile = `deleteFile`,
   fileExists = `fileExists`,
 }
@@ -111,33 +114,47 @@ export enum ELLMProviderBrand {
   cerebras = `cerebras`,
   opencode = `opencode`,
   anthropic = `anthropic`,
-  openrouter = `openrouter`,
-  huggingface = `huggingface`,
-  kimiCoding = `kimi-coding`,
   minimaxCn = `minimax-cn`,
+  openrouter = `openrouter`,
+  kimiCoding = `kimi-coding`,
+  huggingface = `huggingface`,
   openaiCodex = `openai-codex`,
   googleVertex = `google-vertex`,
   githubCopilot = `github-copilot`,
   amazonBedrock = `amazon-bedrock`,
   googleGeminiCli = `google-gemini-cli`,
-  googleAntigravity = `google-antigravity`,
   vercelAiGateway = `vercel-ai-gateway`,
+  googleAntigravity = `google-antigravity`,
   azureOpenaiResponses = `azure-openai-responses`,
 }
 
 export type TLLMProviderBrand = `${ELLMProviderBrand}`
 
 /**
+ * Supported web search/fetch providers.
+ */
+export enum EWebProviderBrand {
+  jina = `jina`,
+}
+
+export type TWebProviderBrand = `${EWebProviderBrand}`
+
+export type TWebProviderConfig = {
+  type?: TWebProviderBrand
+  apiKey?: string
+}
+
+/**
  * Unified message content types
  */
 export enum EContentType {
   text = `text`,
+  file = `file`,
   image = `image`,
   thinking = `thinking`,
   toolUse = `tool_use`,
-  toolResult = `tool_result`,
-  file = `file`,
   artifact = `artifact`,
+  toolResult = `tool_result`,
 }
 
 export type TTextContent = {
@@ -182,27 +199,27 @@ export type TFileContent = {
 }
 
 export type TArtifactType =
-  | `html`
+  | `csv`
+  | `xml`
   | `svg`
-  | `markdown`
+  | `html`
   | `code`
   | `json`
-  | `csv`
   | `yaml`
-  | `xml`
-  | `mermaid`
+  | `diff`
   | `latex`
   | `image`
   | `table`
-  | `diff`
+  | `mermaid`
+  | `markdown`
   | `plaintext`
 
 export type TArtifactContent = {
-  type: `${EContentType.artifact}`
-  artifactType: TArtifactType
   content: string
   title?: string
   language?: string
+  artifactType: TArtifactType
+  type: `${EContentType.artifact}`
 }
 
 /**
@@ -214,8 +231,8 @@ export type TFileAttachment = {
   assetId: string
   fileName: string
   mimeType: string
-  extractedText?: string
   imageData?: string
+  extractedText?: string
 }
 
 /**
@@ -230,12 +247,12 @@ export type TModelCost = {
 
 export type TMessageContent =
   | TTextContent
-  | TImageContent
   | TFileContent
-  | TThinkingContent
+  | TImageContent
   | TToolUseContent
-  | TToolResultContent
   | TArtifactContent
+  | TThinkingContent
+  | TToolResultContent
 
 export enum EMessageRole {
   user = `user`,
@@ -261,10 +278,10 @@ export enum EStreamEventType {
   done = `done`,
   error = `error`,
   thinking = `thinking`,
+  turnEnd = `turn_end`,
   toolResult = `tool_result`,
   toolCallArgs = `tool_call_args`,
   toolCallStart = `tool_call_start`,
-  turnEnd = `turn_end`,
   toolExecutionUpdate = `tool_execution_update`,
 }
 

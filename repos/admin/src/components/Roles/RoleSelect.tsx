@@ -37,10 +37,10 @@ export const RoleSelect = (props: TRoleSelect) => {
         sx={sx}
         label={label}
         items={AuthRoles}
-        disabled={disabled}
         onChange={onChange}
         value={roleType ?? ERoleType.viewer}
         className={cls(className, `tdsk-role-select`)}
+        disabled={disabled || roleType === ERoleType.super}
       />
       {(showAlert && (
         <Alert severity='info'>

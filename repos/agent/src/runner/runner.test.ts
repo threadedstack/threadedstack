@@ -503,7 +503,11 @@ describe(`AgentRunner`, () => {
     await handle.waitForIdle()
 
     const sandbox = await mockSandboxCreate.mock.results[0].value
-    expect(createSandboxTools).toHaveBeenCalledWith(sandbox, [`shellExec`, `readFile`])
+    expect(createSandboxTools).toHaveBeenCalledWith(
+      sandbox,
+      [`shellExec`, `readFile`],
+      expect.anything()
+    )
   })
 
   it(`should not call createSandboxTools when no sandbox is created`, async () => {
@@ -1195,10 +1199,11 @@ describe(`AgentRunner`, () => {
       await runner.init(baseInitOpts())
 
       runner.updateConfig({ tools: [`shellExec`, `readFile`] })
-      expect(createSandboxTools).toHaveBeenCalledWith(expect.anything(), [
-        `shellExec`,
-        `readFile`,
-      ])
+      expect(createSandboxTools).toHaveBeenCalledWith(
+        expect.anything(),
+        [`shellExec`, `readFile`],
+        expect.anything()
+      )
       expect(mockSetTools).toHaveBeenCalled()
 
       await runner.destroy()

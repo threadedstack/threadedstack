@@ -1,31 +1,32 @@
-import type {
-  TAgentRunOpts,
-  TAgentInitOpts,
-  TAgentTurnOpts,
-  TAgentHandle,
-  TAgentConfig,
-} from '@TAG/types'
 import type { ISandbox, TMessageContent, TStreamEvent } from '@tdsk/domain'
 import type { AgentEvent, AgentMessage, StreamFn } from '@mariozechner/pi-agent-core'
 import type {
+  TAgentHandle,
+  TAgentConfig,
+  TAgentRunOpts,
+  TAgentInitOpts,
+  TAgentTurnOpts,
+} from '@TAG/types'
+import type {
   Api,
-  AssistantMessage,
-  ImageContent,
-  Message,
   Model,
+  Message,
+  ImageContent,
+  AssistantMessage,
   ToolResultMessage,
 } from '@mariozechner/pi-ai'
 
 import { logger } from '@TAG/utils/logger'
-import { resolveActiveSkills } from '@TAG/utils/skillResolver'
-import { getModel, streamSimple, isContextOverflow } from '@mariozechner/pi-ai'
 import { Agent } from '@mariozechner/pi-agent-core'
 import { createSandboxProvider } from '@tdsk/sandbox'
 import { mapAgentEvent } from '@TAG/adapters/eventBridge'
 import { isTransientError } from '@TAG/utils/errorClassifier'
-import { createContextManager } from '@TAG/utils/contextManager'
+import { resolveActiveSkills } from '@TAG/utils/skillResolver'
 import { EContentType, buildFallbackModel } from '@tdsk/domain'
+import { createContextManager } from '@TAG/utils/contextManager'
+import { createWebProvider } from '@TAG/tools/definitions/web/webProvider'
 import { createSandboxTools, buildCustomFunctionTools } from '@TAG/tools/tools'
+import { getModel, streamSimple, isContextOverflow } from '@mariozechner/pi-ai'
 import {
   convertToLlmMessages,
   convertAssistantToContent,
@@ -48,13 +49,13 @@ const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
  */
 export class AgentRunner {
   #agent: Agent | null = null
-  #sandbox: ISandbox | undefined
-  #unsubscribe: (() => void) | undefined
-  #model: Model<Api> | null = null
-  #opts: TAgentInitOpts | null = null
-  #threadId: string | null = null
-  #streamFn: StreamFn | null = null
   #baseSystemPrompt: string = ``
+  #sandbox: ISandbox | undefined
+  #threadId: string | null = null
+  #model: Model<Api> | null = null
+  #streamFn: StreamFn | null = null
+  #opts: TAgentInitOpts | null = null
+  #unsubscribe: (() => void) | undefined
 
   /** The threadId this runner was initialized for */
   get threadId(): string | null {
@@ -95,7 +96,10 @@ export class AgentRunner {
         timeout: sandboxConfig.timeout ?? 300000,
       })
     }
-    const agentTools = this.#sandbox ? createSandboxTools(this.#sandbox, opts.tools) : []
+    const webProvider = createWebProvider(opts.environment?.webProvider)
+    const agentTools = this.#sandbox
+      ? createSandboxTools(this.#sandbox, opts.tools, webProvider)
+      : []
 
     // Build and merge custom function tools
     if (opts.customFunctions?.length && opts.onExecuteFunction) {
@@ -224,7 +228,12 @@ export class AgentRunner {
         const mergedToolNames = [
           ...new Set([...(initOpts.tools || []), ...resolved.tools]),
         ]
-        const mergedTools = createSandboxTools(this.#sandbox, mergedToolNames)
+        const skillWebProvider = createWebProvider(initOpts.environment?.webProvider)
+        const mergedTools = createSandboxTools(
+          this.#sandbox,
+          mergedToolNames,
+          skillWebProvider
+        )
 
         // Re-add custom function tools if present
         if (initOpts.customFunctions?.length && initOpts.onExecuteFunction) {
@@ -425,7 +434,8 @@ export class AgentRunner {
     }
 
     if (config.tools && this.#sandbox) {
-      const newTools = createSandboxTools(this.#sandbox, config.tools)
+      const configWebProvider = createWebProvider(this.#opts?.environment?.webProvider)
+      const newTools = createSandboxTools(this.#sandbox, config.tools, configWebProvider)
       this.#agent.setTools(newTools)
     }
   }

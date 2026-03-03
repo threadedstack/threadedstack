@@ -36,6 +36,7 @@ export type TSelectInput = IInput &
 type TRenderValue = {
   items?: TSelectItem[]
   multiple?: boolean
+  disabled?: boolean
   placeholder?: string
   capitalize?: boolean
   itemMap?: Record<string, any>
@@ -44,7 +45,16 @@ type TRenderValue = {
 }
 
 const RenderValue = (props: TRenderValue) => {
-  const { items, value, itemMap, multiple, capitalize, placeholder, renderLabel } = props
+  const {
+    items,
+    value,
+    itemMap,
+    multiple,
+    disabled,
+    capitalize,
+    placeholder,
+    renderLabel,
+  } = props
 
   const item = items?.find((item) => item?.value === value)
 
@@ -57,6 +67,7 @@ const RenderValue = (props: TRenderValue) => {
       item={item}
       itemMap={itemMap}
       spacer={multiple}
+      disabled={disabled}
       capitalize={capitalize}
     />
   )
@@ -255,6 +266,7 @@ export const SelectInput = (props: TSelectInput) => {
                 multiple={multiple}
                 isDarkMode={isDarkMode}
                 capitalize={capitalize}
+                disabled={item?.disabled}
                 key={item?.value || item?.label}
                 data-test={`select-item:${item.label}`}
                 onMouseLeave={(e) => onItemMouseLeave?.(e)}

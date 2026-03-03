@@ -61,7 +61,9 @@ export const AllAuthRoles = [
 ]
 
 // Does not contain the Super Admin auth role
-export const AuthRoles = AllAuthRoles.filter((role) => role.value !== ERoleType.super)
+export const AuthRoles = AllAuthRoles.map((role) => {
+  return role.value === ERoleType.super ? { ...role, disabled: true } : role
+})
 
 export const AuthTypes = [
   { value: EEPAuthType.apikey, label: `API Key` },

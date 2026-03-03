@@ -71,7 +71,7 @@ export const ProviderDrawer = ({
   const [baseUrl, setBaseUrl] = useState(``)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [brand, setBrand] = useState<TProviderBrand>(null)
+  const [brand, setBrand] = useState<TProviderBrand | ''>(``)
   const [headers, setHeaders] = useState<TKeyValuePair[]>([])
   const [bodyParams, setBodyParams] = useState<TKeyValuePair[]>([])
 
@@ -129,9 +129,9 @@ export const ProviderDrawer = ({
       setName(provider.name || ``)
       setType(provider.type || ``)
       setBaseUrl(options.baseUrl || ``)
-      setBrand(provider.brand || null)
-      setHeaders(objToKV(provider.headers, 'header'))
-      setBodyParams(objToKV(provider.bodyParams, 'bodyParam'))
+      setBrand(provider.brand || ``)
+      setHeaders(objToKV(provider.headers, `header`))
+      setBodyParams(objToKV(provider.bodyParams, `bodyParam`))
       setError(null)
       setApiKeyValue(``)
       setShowApiKey(false)
@@ -148,7 +148,7 @@ export const ProviderDrawer = ({
       setName(``)
       setType(``)
       setBaseUrl(``)
-      setBrand(null)
+      setBrand(``)
       setHeaders([])
       setBodyParams([])
       setError(null)
@@ -177,7 +177,7 @@ export const ProviderDrawer = ({
     setName(``)
     setType(``)
     setBaseUrl(``)
-    setBrand(null)
+    setBrand(``)
     setHeaders([])
     setBodyParams([])
     setError(null)
@@ -301,21 +301,21 @@ export const ProviderDrawer = ({
             id='provider-type'
             label='Provider Type'
             value={type}
-            onChange={(e) => {
-              setType(e.target.value)
-              e.target.value !== EProvider.ai && setBrand(null)
-            }}
             items={ProviderTypes}
             required
             disabled={loading}
+            onChange={(e) => {
+              setType(e.target.value)
+              e.target.value !== EProvider.ai && setBrand(``)
+            }}
           />
 
           {isAiType && (
             <SelectInput
               required
-              disabled={loading}
               value={brand}
               label='Provider'
+              disabled={loading}
               id='provider-brand'
               items={LLMProviderOptions}
               description='The AI service this provider connects to'
@@ -342,13 +342,13 @@ export const ProviderDrawer = ({
           )}
 
           <TextInput
-            id='provider-base-url'
-            label='Base URL'
-            placeholder={template?.baseUrl || 'https://api.example.com (optional)'}
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
             fullWidth
+            value={baseUrl}
+            label='Base URL'
             disabled={loading}
+            id='provider-base-url'
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder={template?.baseUrl || 'https://api.example.com (optional)'}
           />
 
           {/* API Key Secret section */}
@@ -375,10 +375,10 @@ export const ProviderDrawer = ({
                   {providerSecrets.map((s) => (
                     <Chip
                       key={s.id}
-                      label={provider?.secretId === s.id ? `${s.name} (API Key)` : s.name}
                       size='small'
                       variant='outlined'
                       color={provider?.secretId === s.id ? 'success' : 'primary'}
+                      label={provider?.secretId === s.id ? `${s.name} (API Key)` : s.name}
                     />
                   ))}
                 </Box>
@@ -386,41 +386,41 @@ export const ProviderDrawer = ({
 
               <SelectInput
                 id='provider-secret-mode'
-                label={isEditMode ? 'Change API Key' : 'API Key'}
                 value={secretMode}
+                disabled={loading}
                 items={SecretModeOptions}
+                label={isEditMode ? 'Change API Key' : 'API Key'}
                 onChange={(e) => {
                   setSecretMode(e.target.value as TSecretMode)
                   setApiKeyValue(``)
                   setSelectedSecretId(``)
                   setShowApiKey(false)
                 }}
-                disabled={loading}
               />
 
               {secretMode === 'existing' && (
                 <SelectInput
-                  id='provider-existing-secret'
-                  label='Select Secret'
-                  value={selectedSecretId}
-                  items={secretOptions}
-                  onChange={(e) => setSelectedSecretId(e.target.value)}
                   disabled={loading}
+                  label='Select Secret'
+                  items={secretOptions}
+                  value={selectedSecretId}
+                  id='provider-existing-secret'
                   description='Choose an existing org-scoped secret'
+                  onChange={(e) => setSelectedSecretId(e.target.value)}
                 />
               )}
 
               {secretMode === 'new' && (
                 <TextInput
-                  id='provider-api-key-value'
-                  label='API Key Value'
-                  placeholder={template?.apiKeyPlaceholder || 'Enter your API key...'}
-                  value={apiKeyValue}
-                  onChange={(e) => setApiKeyValue(e.target.value)}
-                  fullWidth
                   required
+                  fullWidth
                   disabled={loading}
+                  value={apiKeyValue}
+                  label='API Key Value'
+                  id='provider-api-key-value'
                   type={showApiKey ? 'text' : 'password'}
+                  onChange={(e) => setApiKeyValue(e.target.value)}
+                  placeholder={template?.apiKeyPlaceholder || 'Enter your API key...'}
                   endAdornment={
                     <InputAdornment position='end'>
                       <IconButton

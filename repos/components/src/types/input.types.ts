@@ -23,23 +23,23 @@ export enum EInputDepOutcome {
   disabled = `disabled`,
 }
 
-type TInputDependObj = {
+export type TInputDependObj = {
   id?: string
   is?: string | boolean
   not?: string | boolean
   outcome?: EInputDepOutcome
 }
 
-type TInputDepend = TInputDependObj[] | TInputDependObj
+export type TInputDepend = TInputDependObj[] | TInputDependObj
 
-type TDepOutcome = {
+export type TDepOutcome = {
   hidden: boolean
   disabled?: boolean
   hasError?: boolean
   description?: string
 }
 
-interface IInput {
+export interface IInput {
   sx?: any
   id: string
   group?: string
@@ -58,13 +58,12 @@ interface IInput {
   notificationsProps?: NotificationCountProps
 }
 
-type TSelectItem = {
+export type TSelectItem = {
   label: string
   prefix?: string
   postfix?: string
   icon?: JSX.Element
+  disabled?: boolean
   value: string | number
   notificationCount?: number
 }
-
-export type { IInput, TSelectItem, TDepOutcome, TInputDepend, TInputDependObj }

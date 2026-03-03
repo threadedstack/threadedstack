@@ -15,6 +15,7 @@ const ALL_TOOL_NAMES = [
   `evalCode`,
   `createArtifact`,
   `webSearch`,
+  `webFetch`,
 ]
 
 describe(`createSandboxTools`, () => {
@@ -43,9 +44,9 @@ describe(`createSandboxTools`, () => {
   })
 
   describe(`tool creation and filtering`, () => {
-    it(`should return all 10 tools when no filter is provided`, () => {
+    it(`should return all 11 tools when no filter is provided`, () => {
       const tools = createSandboxTools(mockSandbox as any)
-      expect(tools).toHaveLength(10)
+      expect(tools).toHaveLength(11)
       expect(tools.map((t) => t.name)).toEqual(ALL_TOOL_NAMES)
     })
 
@@ -57,7 +58,7 @@ describe(`createSandboxTools`, () => {
 
     it(`should return all tools when allowedTools is an empty array`, () => {
       const tools = createSandboxTools(mockSandbox as any, [])
-      expect(tools).toHaveLength(10)
+      expect(tools).toHaveLength(11)
       expect(tools.map((t) => t.name)).toEqual(ALL_TOOL_NAMES)
     })
 
@@ -600,7 +601,7 @@ describe(`createSandboxTools`, () => {
   })
 
   describe(`webSearch`, () => {
-    it(`should return not yet implemented message`, async () => {
+    it(`should return "not configured" when no webProvider is given`, async () => {
       const tools = createSandboxTools(mockSandbox as any)
       const tool = tools.find((t) => t.name === `webSearch`)!
       const result = await tool.execute(
@@ -611,9 +612,201 @@ describe(`createSandboxTools`, () => {
       )
 
       expect(result.content).toEqual([
-        { type: `text`, text: `Web search not yet implemented` },
+        { type: `text`, text: `Web search not configured` },
       ])
       expect(result.details).toEqual({ success: false })
+    })
+
+    it(`should call webProvider.search and format results`, async () => {
+      const mockProvider = {
+        search: vi.fn().mockResolvedValue([
+          { title: `Result 1`, url: `https://r1.com`, snippet: `First result` },
+          { title: `Result 2`, url: `https://r2.com`, snippet: `Second result` },
+        ]),
+        fetch: vi.fn(),
+      }
+      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tool = tools.find((t) => t.name === `webSearch`)!
+      const result = await tool.execute(
+        `call-1`,
+        { query: `test query` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(mockProvider.search).toHaveBeenCalledWith(`test query`, 5)
+      expect((result.content[0] as any).text).toContain(`Result 1`)
+      expect((result.content[0] as any).text).toContain(`https://r1.com`)
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: true, resultCount: 2 })
+      )
+    })
+
+    it(`should cap maxResults at 10`, async () => {
+      const mockProvider = {
+        search: vi.fn().mockResolvedValue([]),
+        fetch: vi.fn(),
+      }
+      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tool = tools.find((t) => t.name === `webSearch`)!
+      await tool.execute(
+        `call-1`,
+        { query: `test`, maxResults: 20 },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(mockProvider.search).toHaveBeenCalledWith(`test`, 10)
+    })
+
+    it(`should return "No results found" when search returns empty`, async () => {
+      const mockProvider = {
+        search: vi.fn().mockResolvedValue([]),
+        fetch: vi.fn(),
+      }
+      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tool = tools.find((t) => t.name === `webSearch`)!
+      const result = await tool.execute(
+        `call-1`,
+        { query: `obscure query` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([{ type: `text`, text: `No results found` }])
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: false, resultCount: 0 })
+      )
+    })
+
+    it(`should call onUpdate with searching status`, async () => {
+      const mockProvider = {
+        search: vi.fn().mockResolvedValue([]),
+        fetch: vi.fn(),
+      }
+      const onUpdate = vi.fn()
+      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tool = tools.find((t) => t.name === `webSearch`)!
+      await tool.execute(`call-1`, { query: `hello` }, undefined as any, onUpdate)
+
+      expect(onUpdate).toHaveBeenCalledWith({
+        content: [{ type: `text`, text: `Searching: hello` }],
+        details: { status: `running` },
+      })
+    })
+  })
+
+  describe(`webFetch`, () => {
+    it(`should return "not configured" when no webProvider is given`, async () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      const tool = tools.find((t) => t.name === `webFetch`)!
+      const result = await tool.execute(
+        `call-1`,
+        { url: `https://example.com` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([{ type: `text`, text: `Web fetch not configured` }])
+      expect(result.details).toEqual({ success: false })
+    })
+
+    it(`should call webProvider.fetch and return content`, async () => {
+      const mockProvider = {
+        search: vi.fn(),
+        fetch: vi.fn().mockResolvedValue({
+          url: `https://example.com`,
+          title: `Example`,
+          content: `Page content here`,
+          contentLength: 17,
+        }),
+      }
+      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tool = tools.find((t) => t.name === `webFetch`)!
+      const result = await tool.execute(
+        `call-1`,
+        { url: `https://example.com` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(mockProvider.fetch).toHaveBeenCalledWith(`https://example.com`, {
+        maxLength: undefined,
+      })
+      expect(result.content).toEqual([{ type: `text`, text: `Page content here` }])
+      expect(result.details).toEqual(
+        expect.objectContaining({ success: true, title: `Example`, contentLength: 17 })
+      )
+    })
+
+    it(`should pass maxLength to provider`, async () => {
+      const mockProvider = {
+        search: vi.fn(),
+        fetch: vi.fn().mockResolvedValue({
+          url: `https://example.com`,
+          title: `Example`,
+          content: `Short`,
+          contentLength: 5,
+        }),
+      }
+      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tool = tools.find((t) => t.name === `webFetch`)!
+      await tool.execute(
+        `call-1`,
+        { url: `https://example.com`, maxLength: 1000 },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(mockProvider.fetch).toHaveBeenCalledWith(`https://example.com`, {
+        maxLength: 1000,
+      })
+    })
+
+    it(`should return error message when fetch fails`, async () => {
+      const mockProvider = {
+        search: vi.fn(),
+        fetch: vi.fn().mockRejectedValue(new Error(`404 Not Found`)),
+      }
+      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tool = tools.find((t) => t.name === `webFetch`)!
+      const result = await tool.execute(
+        `call-1`,
+        { url: `https://example.com/missing` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([
+        { type: `text`, text: `Fetch failed: 404 Not Found` },
+      ])
+      expect(result.details).toEqual({ success: false })
+    })
+
+    it(`should call onUpdate with fetching status`, async () => {
+      const mockProvider = {
+        search: vi.fn(),
+        fetch: vi.fn().mockResolvedValue({
+          url: `https://example.com`,
+          title: `Example`,
+          content: `text`,
+          contentLength: 4,
+        }),
+      }
+      const onUpdate = vi.fn()
+      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tool = tools.find((t) => t.name === `webFetch`)!
+      await tool.execute(
+        `call-1`,
+        { url: `https://example.com` },
+        undefined as any,
+        onUpdate
+      )
+
+      expect(onUpdate).toHaveBeenCalledWith({
+        content: [{ type: `text`, text: `Fetching: https://example.com` }],
+        details: { status: `running` },
+      })
     })
   })
 
@@ -632,6 +825,7 @@ describe(`createSandboxTools`, () => {
         `Evaluate Code`,
         `Create Artifact`,
         `Web Search`,
+        `Web Fetch`,
       ])
     })
 
