@@ -139,6 +139,13 @@ export enum EWebProviderBrand {
 
 export type TWebProviderBrand = `${EWebProviderBrand}`
 
+/**
+ * Web search/fetch provider configuration.
+ *
+ * @security apiKey is stored in plaintext within the agent environment JSONB.
+ * TODO: Migrate to a secretRef pattern (store as a Secret entity, decrypt at runtime)
+ * to match the AES-256-GCM encryption used for other secrets in the platform.
+ */
 export type TWebProviderConfig = {
   type?: TWebProviderBrand
   apiKey?: string

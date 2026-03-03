@@ -12,7 +12,6 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 
 | Batch | Task | Priority |
 |-------|------|----------|
-| 1 | ProviderDrawer null brand | P2 |
 | 1 | Quick Actions card | P3 |
 | 1 | Endpoint Test Tab | P3 |
 | 1 | Email sign-up | P3 |
@@ -62,22 +61,6 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 ## Batch 1 — Fully Independent (all 9 run in parallel)
 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
-
-### [IN PROGRESS][P2] ProviderDrawer — null brand value causes MUI warnings
-
-* **Repos**: admin
-* **Key files**: `components/Providers/ProviderDrawer.tsx`
-* `repos/admin/src/components/Providers/ProviderDrawer.tsx` line 74: `useState<TProviderBrand>(null)` initializes the `brand` state to `null`. When the Provider Type is set to "AI", the `SelectInput` for `brand` (lines 314-323) renders with `value={brand}` which is `null`. MUI `<Select>` emits two console warnings:
-  * `Warning: value prop on input should not be null` — React warning for null-valued controlled input
-  * `MUI: You have provided an out-of-range value null for the select (name="provider-brand") component` — MUI warning because `null` doesn't match any option value
-* The same `null` initialization occurs when resetting state: line 151 (edit mode reset), line 180 (close handler), and line 306 (type change to non-AI clears brand)
-* **Fix**:
-  1. Change `useState<TProviderBrand>(null)` at line 74 to `useState<TProviderBrand | ''>('')` — empty string is a valid MUI "no selection" value
-  2. Update all `setBrand(null)` calls (lines 151, 180, 306) to `setBrand('')`
-  3. Update the `brand` type assertion in the validation logic (line 197: `if (isAiType && !brand)`) — empty string is already falsy, so no logic change needed
-  4. Update the template lookup at line 86: `const template = isAiType && brand ? ProviderTemplates[brand] : undefined` — empty string is falsy, so no change needed
-* **Files**:
-  * `repos/admin/src/components/Providers/ProviderDrawer.tsx` — change `null` to `''` for brand state at lines 74, 151, 180, 306
 
 ### [P3] Extract Quick Actions card into reusable component
 
@@ -213,7 +196,7 @@ These tasks touch completely different files with zero overlap. All can run in W
   * This is a separate deployment from admin — its own CI/CD, its own URL, its own K8s pod or static hosting. Must not couple to admin's build or routing
   * The WebSocket protocol is already stable and used by both REPL and admin — no backend changes needed for the chat app to connect
   * Start with web-only, add desktop wrapper as a follow-up once the web UI is stable
-  * The admin app's existing chat components (`ChatView`, `MessageBubble`, `ToolCallDisplay`) should be extracted into `@tdsk/components` for reuse — no app should depend on `@tdsk/admin`
+  * The admin app's existing chat and artifact components (i.e. `ChatView`, `MessageBubble`, `ToolCallDisplay`, `ArtifactRenderer`, `FilePreview`, etc.) should be extracted into `@tdsk/components` for reuse — no app should depend on `@tdsk/admin`
   * The MUI theme, design tokens, palette, and typography must be defined in `@tdsk/components` — all user-facing apps (admin, chat, website) consume the theme from there
   * Consider PWA capabilities (service worker, installable, offline thread cache) as a lighter alternative to a full desktop app
 * **Files**:
@@ -229,7 +212,7 @@ These tasks touch completely different files with zero overlap. All can run in W
 
 ### [P3] Landing page and documentation website
 
-* **Repos**: NEW `repos/website/`, components, domain
+* **Repos**: NEW `repos/website/`
 * **Key files**: Entirely new repo
 * ThreadedStack has no public-facing website — no marketing/landing page, no signup flow, no hosted documentation. Users have no way to discover the platform, understand its features, or learn how to use it. This is a separate repo and deployment from both the admin dashboard and the chat app — a simple, fast, SEO-friendly marketing and docs site on its own domain (e.g., `threadedstack.app` or `threadedstack.com`)
 * **Landing page sections**:
@@ -281,6 +264,27 @@ These tasks touch completely different files with zero overlap. All can run in W
   * New: `repos/website/vite.config.ts` — Vite configuration with React and MDX plugins
   * `repos/components/` — shared MUI theme, design tokens, and reusable components consumed by the website
   * `deploy/` — add static hosting config or Helm templates for CDN deployment
+
+### [P3] Encrypt webProvider.apiKey — migrate from plaintext to secretRef pattern
+
+* **Repos**: backend, database, domain, agent
+* **Key files**: `domain/src/types/ai.types.ts`, `backend/src/services/secrets/`, `agent/src/tools/definitions/web/`
+* `TWebProviderConfig.apiKey` is currently stored in plaintext within the agent environment JSONB column. All other secrets in the platform use AES-256-GCM encryption via the `Secret` entity and `secretResolver`. The web provider apiKey should follow the same pattern
+* **Fix**:
+  1. Add a `secretRef` field to `TWebProviderConfig` (e.g., `{ secretId: string }`) as an alternative to inline `apiKey`. When `secretRef` is present, resolve the actual key at runtime via `secretResolver.resolve()`
+  2. Update the agent runner's web provider initialization to check for `secretRef` first, falling back to inline `apiKey` for backward compatibility
+  3. Update the admin UI's agent environment editor to allow selecting an existing org/project secret for the web provider key instead of entering it as plaintext
+  4. Migrate existing plaintext `apiKey` values to encrypted secrets (one-time migration script)
+* **Key considerations**:
+  * The `apiKey` field is optional — Jina works rate-limited without it, so many agents won't have one set
+  * Backward compatibility: keep supporting inline `apiKey` during migration period, log a deprecation warning when it's used
+  * The `secretResolver` already handles AES-256-GCM decryption with HKDF key derivation — reuse the existing crypto infrastructure
+* **Files**:
+  * `repos/domain/src/types/ai.types.ts` — add `secretRef` to `TWebProviderConfig`
+  * `repos/backend/src/services/secrets/secretResolver.ts` — ensure it can resolve web provider secret refs
+  * `repos/agent/src/runner/runner.ts` — resolve secretRef at web provider initialization
+  * `repos/agent/src/tools/definitions/web/webProvider.ts` — accept resolved key from runner
+  * `repos/admin/src/components/Agents/` — UI for selecting a secret instead of entering plaintext key
 
 ### [P3] Playwright integration test coverage is minimal — only page navigation/rendering
 

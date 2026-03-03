@@ -19,6 +19,11 @@ describe(`JinaWebProvider`, () => {
     globalThis.fetch = originalFetch
   })
 
+  it(`should have type discriminant set to jina`, () => {
+    const provider = new JinaWebProvider()
+    expect(provider.type).toBe(`jina`)
+  })
+
   describe(`search`, () => {
     it(`should call Jina search API and return parsed results`, async () => {
       mockFetch({
@@ -96,6 +101,18 @@ describe(`JinaWebProvider`, () => {
       )
     })
 
+    it(`should pass AbortSignal timeout to fetch`, async () => {
+      mockFetch({ ok: true, json: () => Promise.resolve({ data: [] }) })
+      const provider = new JinaWebProvider()
+      await provider.search(`test`)
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        })
+      )
+    })
+
     it(`should return empty array on non-ok response`, async () => {
       mockFetch({
         ok: false,
@@ -108,12 +125,32 @@ describe(`JinaWebProvider`, () => {
       expect(results).toEqual([])
     })
 
+    it(`should log warning on non-ok response`, async () => {
+      const { logger } = await import('@TAG/utils/logger')
+      const warnSpy = vi.spyOn(logger, `warn`).mockImplementation(() => {})
+      mockFetch({ ok: false, status: 429, statusText: `Too Many Requests` })
+      const provider = new JinaWebProvider()
+      await provider.search(`test`)
+      expect(warnSpy).toHaveBeenCalledWith(`Jina search failed: 429 Too Many Requests`)
+      warnSpy.mockRestore()
+    })
+
     it(`should return empty array on network error`, async () => {
       mockFetchReject(new Error(`Network error`))
 
       const provider = new JinaWebProvider()
       const results = await provider.search(`test`)
       expect(results).toEqual([])
+    })
+
+    it(`should log warning on network error`, async () => {
+      const { logger } = await import('@TAG/utils/logger')
+      const warnSpy = vi.spyOn(logger, `warn`).mockImplementation(() => {})
+      mockFetchReject(new Error(`Network error`))
+      const provider = new JinaWebProvider()
+      await provider.search(`test`)
+      expect(warnSpy).toHaveBeenCalledWith(`Jina search error: Network error`)
+      warnSpy.mockRestore()
     })
   })
 
@@ -213,6 +250,147 @@ describe(`JinaWebProvider`, () => {
           }),
         })
       )
+    })
+
+    it(`should throw when Jina reader returns no data`, async () => {
+      mockFetch({ ok: true, json: () => Promise.resolve({}) })
+      const provider = new JinaWebProvider()
+      await expect(provider.fetch(`https://example.com`)).rejects.toThrow(
+        `Jina reader returned no content`
+      )
+    })
+
+    it(`should throw when Jina reader returns data without content`, async () => {
+      mockFetch({
+        ok: true,
+        json: () =>
+          Promise.resolve({ data: { title: `Page`, url: `https://example.com` } }),
+      })
+      const provider = new JinaWebProvider()
+      await expect(provider.fetch(`https://example.com`)).rejects.toThrow(
+        `Jina reader returned no content`
+      )
+    })
+
+    it(`should use fallback values when data.url and data.title are missing`, async () => {
+      mockFetch({
+        ok: true,
+        json: () => Promise.resolve({ data: { content: `some content` } }),
+      })
+      const provider = new JinaWebProvider()
+      const result = await provider.fetch(`https://example.com`)
+      expect(result.url).toBe(`https://example.com`)
+      expect(result.title).toBe(``)
+    })
+
+    it(`should pass AbortSignal timeout to fetch`, async () => {
+      mockFetch({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { title: `Page`, url: `https://example.com`, content: `text` },
+          }),
+      })
+      const provider = new JinaWebProvider()
+      await provider.fetch(`https://example.com`)
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        })
+      )
+    })
+
+    describe(`SSRF validation`, () => {
+      it(`should reject private IP URLs`, async () => {
+        const provider = new JinaWebProvider()
+        await expect(provider.fetch(`http://127.0.0.1/secret`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+        await expect(provider.fetch(`http://10.0.0.1/internal`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+        await expect(provider.fetch(`http://192.168.1.1/admin`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+        await expect(provider.fetch(`http://169.254.169.254/metadata`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+        await expect(provider.fetch(`http://172.16.0.1/internal`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+      })
+
+      it(`should reject localhost`, async () => {
+        const provider = new JinaWebProvider()
+        await expect(provider.fetch(`http://localhost/secret`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+      })
+
+      it(`should reject non-http protocols`, async () => {
+        const provider = new JinaWebProvider()
+        await expect(provider.fetch(`file:///etc/passwd`)).rejects.toThrow(
+          `Blocked URL protocol`
+        )
+        await expect(provider.fetch(`ftp://evil.com/file`)).rejects.toThrow(
+          `Blocked URL protocol`
+        )
+      })
+
+      it(`should reject invalid URLs`, async () => {
+        const provider = new JinaWebProvider()
+        await expect(provider.fetch(`not-a-url`)).rejects.toThrow(`Invalid URL`)
+      })
+
+      it(`should not call fetch for blocked URLs`, async () => {
+        mockFetch({
+          ok: true,
+          json: () => Promise.resolve({ data: { title: ``, url: ``, content: `x` } }),
+        })
+        const provider = new JinaWebProvider()
+        await expect(provider.fetch(`http://127.0.0.1/secret`)).rejects.toThrow()
+        expect(globalThis.fetch).not.toHaveBeenCalled()
+      })
+
+      it(`should reject IPv6-mapped IPv4 addresses`, async () => {
+        const provider = new JinaWebProvider()
+        await expect(provider.fetch(`http://[::ffff:127.0.0.1]/secret`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+        await expect(
+          provider.fetch(`http://[::ffff:169.254.169.254]/metadata`)
+        ).rejects.toThrow(`Blocked URL host`)
+      })
+
+      it(`should reject expanded IPv6 loopback`, async () => {
+        const provider = new JinaWebProvider()
+        await expect(provider.fetch(`http://[0:0:0:0:0:0:0:1]/secret`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+      })
+
+      it(`should reject decimal IP encoding`, async () => {
+        const provider = new JinaWebProvider()
+        // 2130706433 = 127.0.0.1 in decimal
+        await expect(provider.fetch(`http://2130706433/secret`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+      })
+
+      it(`should reject hex IP encoding`, async () => {
+        const provider = new JinaWebProvider()
+        await expect(provider.fetch(`http://0x7f000001/secret`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+      })
+
+      it(`should reject octal IP encoding`, async () => {
+        const provider = new JinaWebProvider()
+        await expect(provider.fetch(`http://0177.0.0.1/secret`)).rejects.toThrow(
+          `Blocked URL host`
+        )
+      })
     })
   })
 })

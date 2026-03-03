@@ -1,14 +1,14 @@
 import type { Secret } from '@tdsk/domain'
 import type { TSecretResolverDb } from '@TBE/types'
 
-import { deriveKey, decryptValue } from '@tdsk/domain'
-import { SecretRefTest, SecretRefPattern } from '@TBE/constants/values'
+import { logger } from '@TBE/utils/logger'
+import { deriveKey, decryptValue, SecretRefTest, SecretRefPattern } from '@tdsk/domain'
 
 /**
  * SecretResolver
  *
  * Service for resolving, decrypting, and replacing secret references.
- * Handles {{SECRET_NAME}} template substitution, multi-scope decryption,
+ * Handles {{ name:id }} template substitution, multi-scope decryption,
  * and direct provider.secretId API key resolution.
  */
 export class SecretResolver {
@@ -30,24 +30,27 @@ export class SecretResolver {
   }
 
   /**
-   * Replaces {{secret-name}} references in a string with actual secret values
+   * Replaces {{ name:id }} references in a string with actual secret values.
+   * Resolves by secret ID (the 10-char nanoid after the colon).
    */
   private static replaceRefs = (value: string, secrets: Secret[]): string => {
     if (!value || !secrets || secrets.length === 0) {
       return value
     }
 
-    const secretMap = new Map<string, string>()
-    secrets.forEach((secret) => {
-      const name = secret.name || secret.hashKey
-      if (name && secret.value) {
-        secretMap.set(name, secret.value)
+    const idMap = new Map<string, string>()
+    for (const secret of secrets) {
+      if (secret.id && secret.value) {
+        idMap.set(secret.id, secret.value)
       }
-    })
+    }
 
-    return value.replace(SecretRefPattern, (match, secretName) => {
-      const secretValue = secretMap.get(secretName.trim())
-      return secretValue ?? match
+    return value.replace(SecretRefPattern, (match, _name: string, id: string) => {
+      const resolved = idMap.get(id)
+      if (!resolved) {
+        logger.warn(`Secret reference not resolved - id: ${id}, template: ${match}`)
+      }
+      return resolved ?? match
     })
   }
 
@@ -135,7 +138,9 @@ export class SecretResolver {
         const key = await deriveKey(refId)
         return await decryptValue(key, ciphertext, iv, authTag)
       } catch {
-        // Decryption failed with scope owner — may be encrypted with a different key
+        logger.debug(`Decryption failed with scope owner, trying orgId fallback`, {
+          refId,
+        })
       }
     }
 
@@ -145,10 +150,11 @@ export class SecretResolver {
         const key = await deriveKey(orgId)
         return await decryptValue(key, ciphertext, iv, authTag)
       } catch {
-        // Both attempts failed
+        logger.debug(`Decryption failed with orgId fallback`, { orgId })
       }
     }
 
+    logger.warn(`Secret decryption failed: all attempts exhausted`, { refId, orgId })
     return null
   }
 
@@ -190,9 +196,8 @@ export class SecretResolver {
     const seen = new Set<string>()
 
     for (const secret of allSecrets) {
-      const name = secret.name || secret.hashKey
-      if (seen.has(name)) continue
-      seen.add(name)
+      if (seen.has(secret.id)) continue
+      seen.add(secret.id)
 
       const value = await this.decrypt(secret, scope.orgId)
       if (value) {
@@ -204,7 +209,7 @@ export class SecretResolver {
   }
 
   /**
-   * Resolves {{SECRET_NAME}} templates in provider.headers using decrypted secrets.
+   * Resolves {{ name:id }} templates in provider.headers using decrypted secrets.
    *
    * 1. If headers is empty/undefined → returns undefined
    * 2. If no {{...}} patterns found → returns headers as-is (no DB queries)
@@ -212,7 +217,7 @@ export class SecretResolver {
    *    decrypts each, and replaces template references
    */
   /**
-   * Resolves {{SECRET_NAME}} templates in provider.bodyParams using decrypted secrets.
+   * Resolves {{ name:id }} templates in provider.bodyParams using decrypted secrets.
    *
    * Unlike resolveHeaders, bodyParams values can be non-strings (numbers, booleans, objects),
    * so only string values are checked for {{...}} templates. Non-string values pass through.

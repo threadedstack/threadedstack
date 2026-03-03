@@ -34,4 +34,82 @@ describe(`ProxyService`, () => {
       expect(Object.keys(result)).toEqual([`timeout`])
     })
   })
+
+  describe(`applyAuth`, () => {
+    const createMockReq = () => ({ setHeader: vi.fn() }) as any
+    const mockSecret = { id: 'aaaaaaaaaa', name: 'test', value: 'secret-value' } as any
+
+    it(`should throw when secretId is missing`, async () => {
+      const req = createMockReq()
+      await expect(service.applyAuth(req, { type: 'bearer' } as any)).rejects.toThrow(
+        'Auth configured but no secretId provided'
+      )
+    })
+
+    it(`should throw when secret not found in array`, async () => {
+      const req = createMockReq()
+      await expect(
+        service.applyAuth(req, { type: 'bearer', secretId: 'zzzzzzzzzz' } as any, [])
+      ).rejects.toThrow('Secret with ID "zzzzzzzzzz" not found for auth')
+    })
+
+    it(`should throw when secret has no value`, async () => {
+      const req = createMockReq()
+      const noValueSecret = { id: 'aaaaaaaaaa', name: 'test', value: undefined } as any
+      await expect(
+        service.applyAuth(req, { type: 'bearer', secretId: 'aaaaaaaaaa' } as any, [
+          noValueSecret,
+        ])
+      ).rejects.toThrow('Secret with ID "aaaaaaaaaa" not found for auth')
+    })
+
+    it(`should set Bearer auth header`, async () => {
+      const req = createMockReq()
+      await service.applyAuth(req, { type: 'bearer', secretId: 'aaaaaaaaaa' } as any, [
+        mockSecret,
+      ])
+      expect(req.setHeader).toHaveBeenCalledWith('Authorization', 'Bearer secret-value')
+    })
+
+    it(`should set Basic auth header`, async () => {
+      const req = createMockReq()
+      await service.applyAuth(req, { type: 'basic', secretId: 'aaaaaaaaaa' } as any, [
+        mockSecret,
+      ])
+      const expectedBasic = Buffer.from('secret-value').toString('base64')
+      expect(req.setHeader).toHaveBeenCalledWith(
+        'Authorization',
+        `Basic ${expectedBasic}`
+      )
+    })
+
+    it(`should set API key header`, async () => {
+      const req = createMockReq()
+      await service.applyAuth(req, { type: 'apikey', secretId: 'aaaaaaaaaa' } as any, [
+        mockSecret,
+      ])
+      expect(req.setHeader).toHaveBeenCalledWith('Authorization', 'secret-value')
+    })
+
+    it(`should use custom headerName`, async () => {
+      const req = createMockReq()
+      await service.applyAuth(
+        req,
+        { type: 'bearer', secretId: 'aaaaaaaaaa', headerName: 'X-Custom' } as any,
+        [mockSecret]
+      )
+      expect(req.setHeader).toHaveBeenCalledWith('X-Custom', 'Bearer secret-value')
+    })
+
+    it(`should throw on unknown auth type`, async () => {
+      const req = createMockReq()
+      await expect(
+        service.applyAuth(
+          req,
+          { type: 'custom-unknown', secretId: 'aaaaaaaaaa' } as any,
+          [mockSecret]
+        )
+      ).rejects.toThrow('Unknown auth type: custom-unknown')
+    })
+  })
 })

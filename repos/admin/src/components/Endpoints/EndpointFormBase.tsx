@@ -46,7 +46,7 @@ export const EndpointFormBase = (props: TEndpointFormBaseProps) => {
         disabled={disabled}
         label='HTTP Method'
         items={HttpMethodOps}
-        value={sharedState.method}
+        value={sharedState?.method?.toLowerCase()}
         onChange={(e) => onChange({ method: e.target.value })}
       />
 

@@ -40,8 +40,6 @@ export const DBPaging = {
   default: 50,
 }
 
-export const SecretRefTest = /\{\{([^}]+)\}\}/
-export const SecretRefPattern = /\{\{([^}]+)\}\}/g
 export const IDParamPattern = /:(id|[a-zA-Z]+Id)\b/
 
 export const FileMaxSize = 25 * 1024 * 1024 // 25MB

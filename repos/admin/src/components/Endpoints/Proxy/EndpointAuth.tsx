@@ -1,3 +1,5 @@
+import type { Secret, TEPAuthType } from '@tdsk/domain'
+
 import { AuthTypes } from '@TAF/constants/values'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { TextInput, SelectInput, SwitchInput } from '@tdsk/components'
@@ -6,21 +8,29 @@ import {
   Chip,
   Alert,
   Accordion,
+  TextField,
   Typography,
+  Autocomplete,
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material'
 
+type TSecretItem = {
+  label: string
+  value: string
+}
+
 export type TEndpointAuthProps = {
   loading: boolean
   enabled: boolean
-  secretName: string
+  secretId: string
   headerName: string
-  type: `bearer` | `basic` | `apikey`
+  secrets?: Secret[]
+  type: TEPAuthType
   onEnabledChange: (value: boolean) => void
-  onSecretNameChange: (value: string) => void
+  onSecretIdChange: (value: string) => void
   onHeaderNameChange: (value: string) => void
-  onTypeChange: (value: `bearer` | `basic` | `apikey`) => void
+  onTypeChange: (value: TEPAuthType) => void
 }
 
 export const EndpointAuth = (props: TEndpointAuthProps) => {
@@ -28,13 +38,22 @@ export const EndpointAuth = (props: TEndpointAuthProps) => {
     type,
     loading,
     enabled,
-    secretName,
+    secretId,
     headerName,
+    secrets = [],
     onTypeChange,
     onEnabledChange,
-    onSecretNameChange,
+    onSecretIdChange,
     onHeaderNameChange,
   } = props
+
+  const secretItems: TSecretItem[] = secrets.map((s) => ({
+    label: `${s.name || s.hashKey} (${s.id})`,
+    value: s.id,
+  }))
+
+  const selectedSecret = secretItems.find((s) => s.value === secretId) || null
+  const secretMissing = enabled && secretId && secrets.length > 0 && !selectedSecret
 
   return (
     <Accordion>
@@ -74,15 +93,43 @@ export const EndpointAuth = (props: TEndpointAuthProps) => {
                 label='Auth Type'
                 onChange={(e) => onTypeChange(e.target.value as typeof type)}
               />
-              <TextInput
-                fullWidth
-                disabled={loading}
-                label='Secret Name'
-                id='auth-secret-name'
-                value={secretName}
-                placeholder='API_KEY or {{API_KEY}}'
-                onChange={(e) => onSecretNameChange(e.target.value)}
-              />
+              {secrets.length > 0 ? (
+                <Autocomplete
+                  size='small'
+                  disabled={loading}
+                  options={secretItems}
+                  value={selectedSecret}
+                  getOptionLabel={(option) => option.label}
+                  isOptionEqualToValue={(option, value) => option.value === value.value}
+                  onChange={(_, option) => onSecretIdChange(option?.value || ``)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label='Secret'
+                      placeholder='Select a secret'
+                    />
+                  )}
+                />
+              ) : (
+                <TextInput
+                  fullWidth
+                  disabled={loading}
+                  label='Secret ID'
+                  id='auth-secret-id'
+                  value={secretId}
+                  placeholder='Secret ID (10-char nanoid)'
+                  onChange={(e) => onSecretIdChange(e.target.value)}
+                />
+              )}
+              {secretMissing && (
+                <Alert
+                  severity='warning'
+                  sx={{ fontSize: '0.875rem' }}
+                >
+                  The referenced secret (ID: {secretId}) was not found. It may have been
+                  deleted.
+                </Alert>
+              )}
               <TextInput
                 fullWidth
                 disabled={loading}

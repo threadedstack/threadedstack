@@ -45,11 +45,11 @@ export type TProxyInputs = {
   // Auth
   authEnabled: boolean
   authType: TEPAuthType
-  authSecretName: string
+  authSecretId: string
   authHeaderName: string
   onAuthEnabledChange: (value: boolean) => void
   onAuthTypeChange: (value: TEPAuthType) => void
-  onAuthSecretNameChange: (value: string) => void
+  onAuthSecretIdChange: (value: string) => void
   onAuthHeaderNameChange: (value: string) => void
 
   // OAuth
@@ -145,12 +145,13 @@ export const ProxyInputs = (props: TProxyInputs) => {
       <EndpointAuth
         loading={loading}
         type={props.authType}
+        secrets={availableSecrets}
         enabled={props.authEnabled}
-        secretName={props.authSecretName}
+        secretId={props.authSecretId}
         headerName={props.authHeaderName}
         onTypeChange={props.onAuthTypeChange}
         onEnabledChange={props.onAuthEnabledChange}
-        onSecretNameChange={props.onAuthSecretNameChange}
+        onSecretIdChange={props.onAuthSecretIdChange}
         onHeaderNameChange={props.onAuthHeaderNameChange}
       />
 

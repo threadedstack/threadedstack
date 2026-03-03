@@ -25,7 +25,11 @@ import { resolveActiveSkills } from '@TAG/utils/skillResolver'
 import { EContentType, buildFallbackModel } from '@tdsk/domain'
 import { createContextManager } from '@TAG/utils/contextManager'
 import { createWebProvider } from '@TAG/tools/definitions/web/webProvider'
-import { createSandboxTools, buildCustomFunctionTools } from '@TAG/tools/tools'
+import {
+  createSandboxTools,
+  createWebTools,
+  buildCustomFunctionTools,
+} from '@TAG/tools/tools'
 import { getModel, streamSimple, isContextOverflow } from '@mariozechner/pi-ai'
 import {
   convertToLlmMessages,
@@ -97,9 +101,11 @@ export class AgentRunner {
       })
     }
     const webProvider = createWebProvider(opts.environment?.webProvider)
-    const agentTools = this.#sandbox
-      ? createSandboxTools(this.#sandbox, opts.tools, webProvider)
+    const sandboxTools = this.#sandbox
+      ? createSandboxTools(this.#sandbox, opts.tools)
       : []
+    const webTools = createWebTools(webProvider, opts.tools)
+    const agentTools = [...sandboxTools, ...webTools]
 
     // Build and merge custom function tools
     if (opts.customFunctions?.length && opts.onExecuteFunction) {
@@ -224,16 +230,16 @@ export class AgentRunner {
       this.#agent!.setSystemPrompt(updatedPrompt)
 
       // Merge skill-requested tools with the agent's base tool set
-      if (resolved.tools.length > 0 && this.#sandbox) {
+      if (resolved.tools.length > 0) {
         const mergedToolNames = [
           ...new Set([...(initOpts.tools || []), ...resolved.tools]),
         ]
         const skillWebProvider = createWebProvider(initOpts.environment?.webProvider)
-        const mergedTools = createSandboxTools(
-          this.#sandbox,
-          mergedToolNames,
-          skillWebProvider
-        )
+        const mergedSandboxTools = this.#sandbox
+          ? createSandboxTools(this.#sandbox, mergedToolNames)
+          : []
+        const mergedWebTools = createWebTools(skillWebProvider, mergedToolNames)
+        const mergedTools = [...mergedSandboxTools, ...mergedWebTools]
 
         // Re-add custom function tools if present
         if (initOpts.customFunctions?.length && initOpts.onExecuteFunction) {
@@ -433,10 +439,13 @@ export class AgentRunner {
       this.#agent.setThinkingLevel(config.thinkingLevel as any)
     }
 
-    if (config.tools && this.#sandbox) {
+    if (config.tools) {
       const configWebProvider = createWebProvider(this.#opts?.environment?.webProvider)
-      const newTools = createSandboxTools(this.#sandbox, config.tools, configWebProvider)
-      this.#agent.setTools(newTools)
+      const newSandboxTools = this.#sandbox
+        ? createSandboxTools(this.#sandbox, config.tools)
+        : []
+      const newWebTools = createWebTools(configWebProvider, config.tools)
+      this.#agent.setTools([...newSandboxTools, ...newWebTools])
     }
   }
 

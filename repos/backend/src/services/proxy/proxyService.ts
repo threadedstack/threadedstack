@@ -136,43 +136,40 @@ export class ProxyService {
     auth: NonNullable<TEndpointOpts[`auth`]>,
     secrets?: Secret[]
   ): Promise<void> {
-    const { type, secretName, headerName = `Authorization` } = auth
+    const { type, secretId, headerName = `Authorization` } = auth
 
-    if (!secretName) {
-      logger.warn(`Auth configured but no secretName provided`)
-      return
+    if (!secretId) {
+      logger.warn(`Auth configured but no secretId provided`)
+      throw new Error(`Auth configured but no secretId provided`)
     }
 
-    // Find secret value
-    const secret = secrets?.find((s) => s.name === secretName)
+    const secret = secrets?.find((s) => s.id === secretId)
 
     if (!secret || !secret.value) {
-      logger.warn(`Secret "${secretName}" not found for auth`)
-      return
+      logger.warn(`Secret with ID "${secretId}" not found for auth`)
+      throw new Error(`Secret with ID "${secretId}" not found for auth`)
     }
 
-    // Apply auth based on type
     switch (type) {
       case EEPAuthType.bearer:
         proxyReq.setHeader(headerName, `Bearer ${secret.value}`)
         logger.debug(`Applied Bearer auth to ${headerName}`)
         break
 
-      case EEPAuthType.basic:
-        // Assume secret.value is "username:password"
+      case EEPAuthType.basic: {
         const basicCreds = Buffer.from(secret.value).toString('base64')
         proxyReq.setHeader(headerName, `Basic ${basicCreds}`)
         logger.debug(`Applied Basic auth to ${headerName}`)
         break
+      }
 
       case EEPAuthType.apikey:
-        // API key goes directly in the specified header
         proxyReq.setHeader(headerName, secret.value)
         logger.debug(`Applied API key to ${headerName}`)
         break
 
       default:
-        logger.warn(`Unknown auth type: ${type}`)
+        throw new Error(`Unknown auth type: ${type}`)
     }
   }
 

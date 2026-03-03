@@ -4,6 +4,7 @@ type TTemplateRegex = {
   check: RegExp
   match: RegExp
   extract: RegExp
+  extractId: RegExp
 }
 
 export type TTemplates = {
@@ -17,6 +18,7 @@ export class Templates {
     check: /\{\{[^}]+\}\}/,
     match: /\{\{([^}]*)$/,
     extract: /\{\{([^}]+)\}\}/,
+    extractId: /\{\{\s*(.+?):([A-Za-z0-9_-]{10})\s*\}\}/,
   }
 
   constructor(opts?: TTemplates) {
@@ -34,16 +36,8 @@ export class Templates {
     return value.substring(value.lastIndexOf(this.regex.close) + this.regex.close.length)
   }
 
-  wrap = (value: string, check = true) => {
-    let wrapped = value.trim()
-    if (check) {
-      if (!wrapped.startsWith(this.regex.open)) wrapped = `${this.regex.open}${wrapped}`
-      if (!wrapped.endsWith(this.regex.close)) wrapped = `${wrapped}${this.regex.close}`
-    } else {
-      wrapped = `${this.regex.open}${wrapped}${this.regex.close}`
-    }
-
-    return wrapped
+  wrapWithId = (name: string, id: string) => {
+    return `${this.regex.open}  ${name.trim()}:${id}  ${this.regex.close}`
   }
 
   includes = (value: string) => value.includes(this.regex.open)
@@ -55,6 +49,17 @@ export class Templates {
   extract = (value: string) => {
     const match = value.match(this.regex.extract)
     return match ? match[1] : null
+  }
+
+  extractName = (value: string): string | null => {
+    const match = value.match(this.regex.extractId)
+    if (match) return match[1].trim()
+    return this.extract(value)
+  }
+
+  extractId = (value: string): string | null => {
+    const match = value.match(this.regex.extractId)
+    return match ? match[2] : null
   }
 }
 

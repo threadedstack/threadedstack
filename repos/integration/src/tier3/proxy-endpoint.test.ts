@@ -32,6 +32,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
   let headersEpId = ''
   let authEpId = ''
   let publicEpId = ''
+  let badAuthEpId = ''
 
   beforeAll(async () => {
     // Step 1: Quickstart to get a project context
@@ -39,6 +40,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
+        /** IGNORE THIS KEY - It is intentionally fake */
         apiKey: 'sk-test-fake-key-12345',
         projectName: uniqueName('Proxy Test Project'),
         agentName: uniqueName('Proxy Test Agent'),
@@ -122,7 +124,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
         options: { url: echoUrl },
         headers: {
           'X-Test-Header': 'static-value',
-          'X-Secret-Header': '{{proxy-test-secret}}',
+          'X-Secret-Header': `{{proxy-test-secret:${secretId}}}`,
         },
       }
     )
@@ -147,7 +149,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
           url: echoUrl,
           auth: {
             type: 'bearer',
-            secretName: 'proxy-test-secret',
+            secretId,
           },
         },
       }
@@ -180,12 +182,34 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     }
 
     publicEpId = publicRes.data.data.id
+
+    // Step 7: Create proxy endpoint with invalid auth secretId (tests error path)
+    const badAuthRes = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
+      {
+        name: uniqueName('Bad Auth Proxy'),
+        path: `/proxy/badauth-${timestamp}`,
+        type: 'proxy',
+        method: 'get',
+        projectId,
+        options: {
+          url: echoUrl,
+          auth: { type: 'bearer', secretId: 'zz00000000' },
+        },
+      }
+    )
+
+    if (badAuthRes.status === 201 && badAuthRes.data?.data?.id) {
+      badAuthEpId = badAuthRes.data.data.id
+    }
   }, 30_000)
 
   afterAll(async () => {
     // Delete proxy endpoints
     if (publicEpId)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${publicEpId}`)
+    if (badAuthEpId)
+      await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${badAuthEpId}`)
     if (authEpId)
       await tryDelete(`/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${authEpId}`)
     if (headersEpId)
@@ -243,7 +267,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     const ep = res.data.data ?? res.data
     expect(ep.headers).toBeDefined()
     expect(ep.headers['X-Test-Header']).toBe('static-value')
-    expect(ep.headers['X-Secret-Header']).toBe('{{proxy-test-secret}}')
+    expect(ep.headers['X-Secret-Header']).toBe(`{{proxy-test-secret:${secretId}}}`)
   })
 
   test('proxy endpoint stores auth configuration', async () => {
@@ -257,7 +281,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     const ep = res.data.data ?? res.data
     expect(ep.options.auth).toBeDefined()
     expect(ep.options.auth.type).toBe('bearer')
-    expect(ep.options.auth.secretName).toBe('proxy-test-secret')
+    expect(ep.options.auth.secretId).toBe(secretId)
   })
 
   // ── Section 2: Basic Proxying ──────────────────────────────────────
@@ -425,6 +449,19 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
 
     expect(res.ok).toBe(false)
     expect(res.status).toBe(404)
+  })
+
+  test('proxy with invalid auth secretId returns error (not unauthenticated pass-through)', async () => {
+    if (setupFailed || !badAuthEpId) return expect(setupFailed).toBe(false)
+
+    const res = await api<any>(
+      `/proxy/${projectId}/${badAuthEpId}`,
+      { method: 'GET', rawPath: true }
+    )
+
+    // applyAuth should throw, causing the proxy to reject with an error
+    expect(res.ok).toBe(false)
+    expect(res.status).toBeGreaterThanOrEqual(400)
   })
 
   test('non-existent project ID returns 404', async () => {

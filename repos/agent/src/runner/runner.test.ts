@@ -95,6 +95,7 @@ vi.mock(`@tdsk/logger`, () => ({
 
 vi.mock(`@TAG/tools/tools`, () => ({
   createSandboxTools: vi.fn().mockReturnValue([]),
+  createWebTools: vi.fn().mockReturnValue([]),
   buildCustomFunctionTools: vi.fn().mockReturnValue([]),
 }))
 
@@ -503,11 +504,7 @@ describe(`AgentRunner`, () => {
     await handle.waitForIdle()
 
     const sandbox = await mockSandboxCreate.mock.results[0].value
-    expect(createSandboxTools).toHaveBeenCalledWith(
-      sandbox,
-      [`shellExec`, `readFile`],
-      expect.anything()
-    )
+    expect(createSandboxTools).toHaveBeenCalledWith(sandbox, [`shellExec`, `readFile`])
   })
 
   it(`should not call createSandboxTools when no sandbox is created`, async () => {
@@ -1199,11 +1196,10 @@ describe(`AgentRunner`, () => {
       await runner.init(baseInitOpts())
 
       runner.updateConfig({ tools: [`shellExec`, `readFile`] })
-      expect(createSandboxTools).toHaveBeenCalledWith(
-        expect.anything(),
-        [`shellExec`, `readFile`],
-        expect.anything()
-      )
+      expect(createSandboxTools).toHaveBeenCalledWith(expect.anything(), [
+        `shellExec`,
+        `readFile`,
+      ])
       expect(mockSetTools).toHaveBeenCalled()
 
       await runner.destroy()

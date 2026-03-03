@@ -53,12 +53,12 @@ export const EndpointProxy = (props: TEndpointFormProps<TProxyEndpointConfig>) =
       // Auth
       authType={state.authType}
       authEnabled={state.authEnabled}
+      authSecretId={state.authSecretId}
       availableSecrets={availableSecrets}
-      authSecretName={state.authSecretName}
       authHeaderName={state.authHeaderName}
       onAuthEnabledChange={(value) => setProxyFormField(`authEnabled`, value)}
       onAuthTypeChange={(value) => setProxyFormField(`authType`, value)}
-      onAuthSecretNameChange={(value) => setProxyFormField(`authSecretName`, value)}
+      onAuthSecretIdChange={(value) => setProxyFormField(`authSecretId`, value)}
       onAuthHeaderNameChange={(value) => setProxyFormField(`authHeaderName`, value)}
       // OAuth
       oauthScopes={state.oauthScopes}

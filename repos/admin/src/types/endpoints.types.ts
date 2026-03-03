@@ -30,7 +30,7 @@ export type TProxyFormState = {
   // Auth
   authEnabled: boolean
   authType: TEPAuthType
-  authSecretName: string
+  authSecretId: string
   authHeaderName: string
 
   // OAuth

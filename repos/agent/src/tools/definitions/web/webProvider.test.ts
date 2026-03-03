@@ -28,4 +28,9 @@ describe(`createWebProvider`, () => {
       `Unknown web provider: unknown-provider`
     )
   })
+
+  it(`should return provider with type discriminant`, () => {
+    const provider = createWebProvider()
+    expect(provider.type).toBe(`jina`)
+  })
 })

@@ -50,12 +50,12 @@ async function navigateToOrgPage(
 /**
  * Wait for the model input to appear and select/fill a model.
  * Models are fetched dynamically from the backend. The UI renders either
- * a SelectInput (#quickstart-model) when models load successfully,
- * or a TextInput (#quickstart-dynamic-model) as fallback.
+ * a SelectInput (#model-select-{brand}) when models load successfully,
+ * or a TextInput (#model-input-{brand}) as fallback.
  */
-async function selectModel(page: import('@playwright/test').Page) {
-  const modelSelect = page.locator('#quickstart-model')
-  const modelTextInput = page.locator('#quickstart-dynamic-model')
+async function selectModel(page: import('@playwright/test').Page, brand = 'anthropic') {
+  const modelSelect = page.locator(`#model-select-${brand}`)
+  const modelTextInput = page.locator(`#model-input-${brand}`)
   await expect(modelSelect.or(modelTextInput)).toBeVisible({ timeout: 10000 })
 
   if (await modelSelect.isVisible()) {

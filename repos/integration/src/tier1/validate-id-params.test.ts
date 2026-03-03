@@ -46,13 +46,15 @@ describe('Tier 1: validateIdParams Middleware', () => {
   })
 
   test('PUT member role with valid UUID userId passes ID validation', async () => {
-    const memberId = ctx.targetMemberUserId || `00000000-0000-0000-0000-000000000002`
+    // Always use a non-existent UUID — never target a real org member.
+    // This test only verifies UUID format passes the validateIdParams middleware.
+    const fakeMemberId = `ffffffff-ffff-ffff-ffff-ffffffffffff`
     const res = await put(
-      `/orgs/${ctx.orgId}/members/${memberId}`,
+      `/orgs/${ctx.orgId}/members/${fakeMemberId}`,
       { type: 'member' }
     )
 
-    // Should NOT be 400 (format error) — could be 403, 404, etc.
+    // Should NOT be 400 (format error) — expected 403 or 404 for non-existent member.
     expect(res.status).not.toBe(400)
   })
 })

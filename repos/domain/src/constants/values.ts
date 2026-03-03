@@ -5,6 +5,14 @@ import { ERoleType, EPermAction, EPermResource } from '../types/permissions.type
  */
 export const ApiKeyPrefix = `tdsk_`
 
+/**
+ * Secret template reference patterns for {{ name:id }} format.
+ * SecretRefTest — quick boolean check (no capture groups).
+ * SecretRefPattern — global match with capture groups: [1]=name, [2]=10-char nanoid.
+ */
+export const SecretRefTest = /\{\{\s*.+?:[A-Za-z0-9_-]{10}\s*\}\}/
+export const SecretRefPattern = /\{\{\s*(.+?):([A-Za-z0-9_-]{10})\s*\}\}/g
+
 export const AuthHeaders = Object.freeze({
   [`user.userId`]: `X-User-Id`,
   [`user.role`]: `X-User-Role`,

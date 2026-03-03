@@ -42,7 +42,7 @@ export const initProxyFromEndpoint = (endpoint: Endpoint): TProxyFormState => {
     // Auth
     authEnabled: !!opts.auth,
     authType: opts.auth?.type || EEPAuthType.bearer,
-    authSecretName: opts.auth?.secretName || ``,
+    authSecretId: opts.auth?.secretId || ``,
     authHeaderName: opts.auth?.headerName || ``,
 
     // OAuth
@@ -96,7 +96,7 @@ export const mapProxyStateToConfig = (state: TProxyFormState): TProxyEndpointCon
   if (state.authEnabled) {
     config.auth = {
       type: state.authType,
-      secretName: state.authSecretName || undefined,
+      secretId: state.authSecretId || undefined,
       headerName: state.authHeaderName || undefined,
     }
   }

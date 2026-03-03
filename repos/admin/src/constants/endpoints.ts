@@ -15,7 +15,7 @@ export const DefProxyState: TProxyFormState = {
   retryExponentialBackoff: true,
 
   authEnabled: false,
-  authSecretName: ``,
+  authSecretId: ``,
   authHeaderName: ``,
   authType: EEPAuthType.bearer,
 

@@ -8,13 +8,17 @@ import { Key as KeyIcon } from '@mui/icons-material'
 import { EditorList } from '@TAF/components/EditorList/EditorList'
 import { Box, Chip, TextField, Typography, Autocomplete } from '@mui/material'
 
+export type TSecretOption = {
+  id: string
+  name: string
+  label: string
+}
+
 export type TKeyValueEditorProps = {
   label?: string
   pairs: TKeyValuePair[]
   disabled?: boolean
   placeholder?: string
-  // TODO: fix this - it should be a general array of items, not secrets
-  // That way it can support multiple entity types
   secrets?: Secret[]
   keyPlaceholder?: string
   valuePlaceholder?: string
@@ -40,7 +44,7 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
     keyPlaceholder = `Key`,
     label = `Key-Value Pairs`,
     enableSecretReferences = true,
-    valuePlaceholder = `Value or ${templates.regex.open}secret-name${templates.regex.close}`,
+    valuePlaceholder = `Value or ${templates.regex.open}  secret-name:id  ${templates.regex.close}`,
   } = props
 
   const [activeAutocomplete, setActiveAutocomplete] = useState<string | null>(null)
@@ -67,8 +71,7 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
     onChange(pairs.map((p) => (p.id === id ? { ...p, value } : p)))
   }
 
-  // Get autocomplete options when typing {{
-  const getAutocompleteOptions = (value: string): string[] => {
+  const getAutocompleteOptions = (value: string): TSecretOption[] => {
     if (!enableSecretReferences || !templates.includes(value)) return []
 
     const match = templates.match(value)
@@ -77,7 +80,11 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
     const partialName = match[1].toLowerCase()
     return secrets
       .filter((s) => (s.name || s.hashKey || ``).toLowerCase().includes(partialName))
-      .map((s) => s.name || s.hashKey || ``)
+      .map((s) => ({
+        id: s.id,
+        name: s.name || s.hashKey || ``,
+        label: `${s.name || s.hashKey} (${s.id})`,
+      }))
   }
 
   const onValueChange = (id: string, newValue: string, oldValue: string) => {
@@ -88,9 +95,9 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
     updateValue(id, newValue)
   }
 
-  const onSecretSelect = (id: string, currentValue: string, secretName: string) => {
+  const onSecretSelect = (id: string, currentValue: string, option: TSecretOption) => {
     const before = templates.before(currentValue)
-    const newValue = `${before}${templates.wrap(secretName)}`
+    const newValue = `${before}${templates.wrapWithId(option.name, option.id)}`
     updateValue(id, newValue)
     setActiveAutocomplete(null)
   }
@@ -101,11 +108,11 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
       disabled={disabled}
       onAdd={addPair}
       onRemove={removePair}
-      addTooltip='Add new key-value pair'
       removeTooltip='Remove this pair'
+      addTooltip='Add new key-value pair'
       emptyMessage='No pairs added yet. Click + to add one.'
       items={pairs.map((pair) => {
-        const secretName = templates.extract(pair.value)
+        const secretName = templates.extractName(pair.value)
         const autocompleteOptions =
           activeAutocomplete === pair.id ? getAutocompleteOptions(pair.value) : []
 
@@ -124,22 +131,34 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
               />
 
               {activeAutocomplete === pair.id && autocompleteOptions.length > 0 ? (
-                <Autocomplete
+                <Autocomplete<TSecretOption, false, false, true>
                   freeSolo
                   size='small'
                   value={pair.value}
                   disabled={disabled}
                   options={autocompleteOptions}
-                  onChange={(_, value) =>
-                    value && onSecretSelect(pair.id, pair.value, value)
+                  getOptionLabel={(option) =>
+                    typeof option === 'string' ? option : option.label
                   }
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder={valuePlaceholder}
-                      onChange={(e) => onValueChange(pair.id, e.target.value, pair.value)}
-                    />
-                  )}
+                  isOptionEqualToValue={(option, value) =>
+                    typeof value === 'string' ? false : option.id === value.id
+                  }
+                  onChange={(_, value) =>
+                    value &&
+                    typeof value !== 'string' &&
+                    onSecretSelect(pair.id, pair.value, value)
+                  }
+                  renderInput={(params) => {
+                    return (
+                      <TextField
+                        {...params}
+                        placeholder={valuePlaceholder}
+                        onChange={(e) =>
+                          onValueChange(pair.id, e.target.value, pair.value)
+                        }
+                      />
+                    )
+                  }}
                 />
               ) : (
                 <Box sx={{ position: 'relative' }}>
@@ -178,7 +197,7 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
             sx={{ display: 'block', mt: 1, ml: 1 }}
           >
             Tip: Type <code>{'{{'}</code> to reference a secret (e.g., {'{{'}
-            <strong>API_KEY</strong>
+            <strong>API_KEY:secret_id</strong>
             {'}}'})
           </Typography>
         ) : undefined

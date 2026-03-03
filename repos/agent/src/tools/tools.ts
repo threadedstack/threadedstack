@@ -14,6 +14,7 @@ import type {
 } from '@tdsk/domain'
 
 import { Type } from '@mariozechner/pi-ai'
+import { logger } from '@TAG/utils/logger'
 
 /**
  * Creates pi-mono AgentTool definitions backed by an ISandbox instance.
@@ -21,8 +22,7 @@ import { Type } from '@mariozechner/pi-ai'
  */
 export const createSandboxTools = (
   sandbox: ISandbox,
-  allowedTools?: string[],
-  webProvider?: IWebProvider
+  allowedTools?: string[]
 ): AgentTool<any>[] => {
   const tools: AgentTool<any>[] = [
     {
@@ -240,19 +240,19 @@ export const createSandboxTools = (
       parameters: Type.Object({
         artifactType: Type.Union(
           [
-            Type.Literal(`html`),
+            Type.Literal(`xml`),
             Type.Literal(`svg`),
-            Type.Literal(`markdown`),
+            Type.Literal(`csv`),
+            Type.Literal(`html`),
             Type.Literal(`code`),
             Type.Literal(`json`),
-            Type.Literal(`csv`),
             Type.Literal(`yaml`),
-            Type.Literal(`xml`),
-            Type.Literal(`mermaid`),
+            Type.Literal(`diff`),
             Type.Literal(`latex`),
             Type.Literal(`image`),
             Type.Literal(`table`),
-            Type.Literal(`diff`),
+            Type.Literal(`mermaid`),
+            Type.Literal(`markdown`),
             Type.Literal(`plaintext`),
           ],
           { description: `The type of artifact to create` }
@@ -283,21 +283,36 @@ export const createSandboxTools = (
             {
               type: `text`,
               text: JSON.stringify({
-                artifactType: params.artifactType,
-                content: params.content,
                 title: params.title,
+                content: params.content,
                 language: params.language,
+                artifactType: params.artifactType,
               }),
             },
           ],
           details: {
             success: true,
-            artifactType: params.artifactType,
             title: params.title,
+            artifactType: params.artifactType,
           },
         }
       },
     },
+  ]
+
+  if (!allowedTools || allowedTools.length === 0) return tools
+  return tools.filter((t) => allowedTools.includes(t.name))
+}
+
+/**
+ * Creates web tool definitions (webSearch, webFetch) independent of any sandbox.
+ * These tools only require an IWebProvider instance for HTTP operations.
+ */
+export const createWebTools = (
+  webProvider?: IWebProvider,
+  allowedTools?: string[]
+): AgentTool<any>[] => {
+  const tools: AgentTool<any>[] = [
     {
       name: `webSearch`,
       label: `Web Search`,
@@ -324,21 +339,30 @@ export const createSandboxTools = (
           content: [{ type: `text`, text: `Searching: ${params.query}` }],
           details: { status: `running` },
         })
-        const maxResults = Math.min(params.maxResults || 5, 10)
-        const results = await webProvider.search(params.query, maxResults)
-        const text =
-          results.length > 0
-            ? results
-                .map((r, i) => `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.snippet}`)
-                .join(`\n\n`)
-            : `No results found`
-        return {
-          content: [{ type: `text` as const, text }],
-          details: {
-            success: results.length > 0,
-            resultCount: results.length,
-            query: params.query,
-          },
+        try {
+          const maxResults = Math.min(params.maxResults || 5, 10)
+          const results = await webProvider.search(params.query, maxResults)
+          const text =
+            results.length > 0
+              ? results
+                  .map((r, i) => `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.snippet}`)
+                  .join(`\n\n`)
+              : `No results found`
+          return {
+            content: [{ type: `text` as const, text }],
+            details: {
+              query: params.query,
+              success: results.length > 0,
+              resultCount: results.length,
+            },
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : `Unknown search error`
+          logger.warn(`webSearch tool error: ${message}`)
+          return {
+            content: [{ type: `text` as const, text: `Search failed: ${message}` }],
+            details: { success: false },
+          }
         }
       },
     },
@@ -383,6 +407,7 @@ export const createSandboxTools = (
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : `Unknown fetch error`
+          logger.warn(`webFetch tool error: ${message}`)
           return {
             content: [{ type: `text` as const, text: `Fetch failed: ${message}` }],
             details: { success: false },

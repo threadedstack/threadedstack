@@ -1,3 +1,5 @@
+import type { TWebProviderBrand } from '@tdsk/domain'
+
 export type TJinaSearchItem = {
   title: string
   url: string
@@ -35,6 +37,7 @@ export type TFetchResult = {
 }
 
 export interface IWebProvider {
+  readonly type: TWebProviderBrand
   search(query: string, maxResults?: number): Promise<TSearchResult[]>
   fetch(url: string, opts?: { maxLength?: number }): Promise<TFetchResult>
 }

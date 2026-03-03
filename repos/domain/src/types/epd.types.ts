@@ -79,7 +79,7 @@ export type TEndpointRetryOpts = {
 }
 
 export type TEndpointAuth = {
-  secretName?: string
+  secretId?: string
   headerName?: string
   type?: TEPAuthType
 }
@@ -90,9 +90,9 @@ export type TEndpointAuth = {
 export type TOAuthConfig = {
   /** OAuth token endpoint URL */
   tokenUrl: string
-  /** Client ID - can be a secret reference like {{CLIENT_ID}} */
+  /** Client ID - can be a secret reference like {{ CLIENT_ID:secretId }} */
   clientId: string
-  /** Client secret - should be a secret reference like {{CLIENT_SECRET}} */
+  /** Client secret - should be a secret reference like {{ CLIENT_SECRET:secretId }} */
   clientSecret: string
   /** OAuth scopes to request */
   scopes?: string[]

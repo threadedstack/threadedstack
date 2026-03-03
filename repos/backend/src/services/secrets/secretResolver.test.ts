@@ -1,4 +1,10 @@
+import { logger } from '@TBE/utils/logger'
+import { SecretResolver } from './secretResolver'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+vi.mock('@TBE/utils/logger', () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}))
 
 vi.mock(`@tdsk/domain`, async () => {
   const actual = await vi.importActual(`@tdsk/domain`)
@@ -9,28 +15,37 @@ vi.mock(`@tdsk/domain`, async () => {
   }
 })
 
-import { SecretResolver } from './secretResolver'
+// ── Mock secrets with 10-char nanoid IDs ─────────────────────────────
+
+const mockSecrets = [
+  { id: `aaaaaaaaaa`, name: `API_TOKEN`, hashKey: `api_token`, value: `abc123` },
+  { id: `bbbbbbbbbb`, name: `API_KEY`, hashKey: `api_key`, value: `xyz789` },
+  {
+    id: `cccccccccc`,
+    name: `CLIENT_SECRET`,
+    hashKey: `client_secret`,
+    value: `secret-val`,
+  },
+] as any[]
 
 // ── SecretResolver.replaceInHeaders ───────────────────────────────────
 
-const mockSecrets = [
-  { name: `API_TOKEN`, hashKey: `api_token`, value: `abc123` },
-  { name: `API_KEY`, hashKey: `api_key`, value: `xyz789` },
-  { name: `CLIENT_SECRET`, hashKey: `client_secret`, value: `secret-val` },
-] as any[]
-
 describe(`SecretResolver.replaceInHeaders`, () => {
-  it(`should replace single secret reference in header value`, () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it(`should replace single {{ name:id }} reference in header value`, () => {
     const result = SecretResolver.replaceInHeaders(
-      { Authorization: `Bearer {{API_TOKEN}}` },
+      { Authorization: `Bearer {{API_TOKEN:aaaaaaaaaa}}` },
       mockSecrets
     )
     expect(result.Authorization).toBe(`Bearer abc123`)
   })
 
-  it(`should replace multiple secret references across headers`, () => {
+  it(`should replace multiple {{ name:id }} references across headers`, () => {
     const result = SecretResolver.replaceInHeaders(
-      { 'X-Key': `{{API_KEY}}`, 'X-Token': `{{API_TOKEN}}` },
+      { 'X-Key': `{{API_KEY:bbbbbbbbbb}}`, 'X-Token': `{{API_TOKEN:aaaaaaaaaa}}` },
       mockSecrets
     )
     expect(result[`X-Key`]).toBe(`xyz789`)
@@ -39,10 +54,18 @@ describe(`SecretResolver.replaceInHeaders`, () => {
 
   it(`should leave non-matching references unchanged`, () => {
     const result = SecretResolver.replaceInHeaders(
-      { 'X-Key': `{{UNKNOWN}}` },
+      { 'X-Key': `{{UNKNOWN:zzzzzzzzzz}}` },
       mockSecrets
     )
-    expect(result[`X-Key`]).toBe(`{{UNKNOWN}}`)
+    expect(result[`X-Key`]).toBe(`{{UNKNOWN:zzzzzzzzzz}}`)
+  })
+
+  it(`should leave old-format {{ name }} references unchanged`, () => {
+    const result = SecretResolver.replaceInHeaders(
+      { 'X-Key': `{{API_TOKEN}}` },
+      mockSecrets
+    )
+    expect(result[`X-Key`]).toBe(`{{API_TOKEN}}`)
   })
 
   it(`should handle empty headers object`, () => {
@@ -60,27 +83,66 @@ describe(`SecretResolver.replaceInHeaders`, () => {
 
   it(`should handle empty secrets array`, () => {
     const result = SecretResolver.replaceInHeaders(
-      { Authorization: `Bearer {{API_TOKEN}}` },
+      { Authorization: `Bearer {{API_TOKEN:aaaaaaaaaa}}` },
       []
     )
-    expect(result.Authorization).toBe(`Bearer {{API_TOKEN}}`)
+    expect(result.Authorization).toBe(`Bearer {{API_TOKEN:aaaaaaaaaa}}`)
   })
 
   it(`should replace multiple references in a single header value`, () => {
     const result = SecretResolver.replaceInHeaders(
-      { Authorization: `{{API_KEY}}:{{CLIENT_SECRET}}` },
+      { Authorization: `{{API_KEY:bbbbbbbbbb}}:{{CLIENT_SECRET:cccccccccc}}` },
       mockSecrets
     )
     expect(result.Authorization).toBe(`xyz789:secret-val`)
+  })
+
+  it(`should resolve by ID even when names are duplicated`, () => {
+    const dupeSecrets = [
+      { id: `aaaaaaaaaa`, name: `SAME_NAME`, value: `first-value` },
+      { id: `bbbbbbbbbb`, name: `SAME_NAME`, value: `second-value` },
+    ] as any[]
+    const result = SecretResolver.replaceInHeaders(
+      {
+        'X-First': `{{SAME_NAME:aaaaaaaaaa}}`,
+        'X-Second': `{{SAME_NAME:bbbbbbbbbb}}`,
+      },
+      dupeSecrets
+    )
+    expect(result[`X-First`]).toBe(`first-value`)
+    expect(result[`X-Second`]).toBe(`second-value`)
+  })
+
+  it(`should handle colons in secret names`, () => {
+    const colonSecrets = [
+      { id: `dddddddddd`, name: `my:secret:name`, value: `colon-val` },
+    ] as any[]
+    const result = SecretResolver.replaceInHeaders(
+      { 'X-Key': `{{my:secret:name:dddddddddd}}` },
+      colonSecrets
+    )
+    expect(result[`X-Key`]).toBe(`colon-val`)
+  })
+
+  it(`should handle whitespace around name:id`, () => {
+    const result = SecretResolver.replaceInHeaders(
+      { 'X-Key': `{{  API_TOKEN:aaaaaaaaaa  }}` },
+      mockSecrets
+    )
+    expect(result[`X-Key`]).toBe(`abc123`)
   })
 })
 
 // ── SecretResolver.replaceInObj ───────────────────────────────────────
 
 describe(`SecretResolver.replaceInObj`, () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it(`should replace secret refs in flat object`, () => {
     const result = SecretResolver.replaceInObj(
-      { clientId: `{{API_KEY}}`, scope: `read` },
+      { clientId: `{{API_KEY:bbbbbbbbbb}}`, scope: `read` },
       mockSecrets
     )
     expect(result.clientId).toBe(`xyz789`)
@@ -89,7 +151,7 @@ describe(`SecretResolver.replaceInObj`, () => {
 
   it(`should replace secret refs in nested objects`, () => {
     const result = SecretResolver.replaceInObj(
-      { auth: { token: `{{API_TOKEN}}` } },
+      { auth: { token: `{{API_TOKEN:aaaaaaaaaa}}` } },
       mockSecrets
     )
     expect(result.auth.token).toBe(`abc123`)
@@ -97,7 +159,7 @@ describe(`SecretResolver.replaceInObj`, () => {
 
   it(`should replace secret refs in arrays`, () => {
     const result = SecretResolver.replaceInObj(
-      { tokens: [`{{API_TOKEN}}`, `{{API_KEY}}`] },
+      { tokens: [`{{API_TOKEN:aaaaaaaaaa}}`, `{{API_KEY:bbbbbbbbbb}}`] },
       mockSecrets
     )
     expect(result.tokens).toEqual([`abc123`, `xyz789`])
@@ -105,7 +167,7 @@ describe(`SecretResolver.replaceInObj`, () => {
 
   it(`should handle null values in object`, () => {
     const result = SecretResolver.replaceInObj(
-      { key: null, val: `{{API_TOKEN}}` } as any,
+      { key: null, val: `{{API_TOKEN:aaaaaaaaaa}}` } as any,
       mockSecrets
     )
     expect(result.key).toBeNull()
@@ -114,7 +176,7 @@ describe(`SecretResolver.replaceInObj`, () => {
 
   it(`should handle non-string non-object values`, () => {
     const result = SecretResolver.replaceInObj(
-      { count: 42, flag: true, val: `{{API_TOKEN}}` } as any,
+      { count: 42, flag: true, val: `{{API_TOKEN:aaaaaaaaaa}}` } as any,
       mockSecrets
     )
     expect(result.count).toBe(42)
@@ -132,7 +194,7 @@ describe(`SecretResolver.replaceInObj`, () => {
 
   it(`should handle deeply nested objects`, () => {
     const result = SecretResolver.replaceInObj(
-      { level1: { level2: { level3: `{{CLIENT_SECRET}}` } } },
+      { level1: { level2: { level3: `{{CLIENT_SECRET:cccccccccc}}` } } },
       mockSecrets
     )
     expect(result.level1.level2.level3).toBe(`secret-val`)
@@ -140,7 +202,15 @@ describe(`SecretResolver.replaceInObj`, () => {
 
   it(`should handle arrays with mixed types`, () => {
     const result = SecretResolver.replaceInObj(
-      { items: [`{{API_TOKEN}}`, 42, true, null, { nested: `{{API_KEY}}` }] } as any,
+      {
+        items: [
+          `{{API_TOKEN:aaaaaaaaaa}}`,
+          42,
+          true,
+          null,
+          { nested: `{{API_KEY:bbbbbbbbbb}}` },
+        ],
+      } as any,
       mockSecrets
     )
     expect(result.items[0]).toBe(`abc123`)
@@ -150,20 +220,27 @@ describe(`SecretResolver.replaceInObj`, () => {
     expect(result.items[4].nested).toBe(`xyz789`)
   })
 
-  it(`should fall back to hashKey when name is empty`, () => {
-    const secretsWithHashKey = [
-      { name: ``, hashKey: `fallback_key`, value: `fallback-val` },
-    ] as any[]
-    const result = SecretResolver.replaceInObj(
-      { key: `{{fallback_key}}` },
-      secretsWithHashKey
-    )
-    expect(result.key).toBe(`fallback-val`)
+  it(`should handle empty secrets array`, () => {
+    const result = SecretResolver.replaceInObj({ key: `{{API_KEY:bbbbbbbbbb}}` }, [])
+    expect(result.key).toBe(`{{API_KEY:bbbbbbbbbb}}`)
   })
 
-  it(`should handle empty secrets array`, () => {
-    const result = SecretResolver.replaceInObj({ key: `{{API_KEY}}` }, [])
+  it(`should not resolve old-format {{ name }} without ID`, () => {
+    const result = SecretResolver.replaceInObj({ key: `{{API_KEY}}` }, mockSecrets)
     expect(result.key).toBe(`{{API_KEY}}`)
+  })
+
+  it(`should not match IDs shorter than 10 chars`, () => {
+    const result = SecretResolver.replaceInObj({ key: `{{API_KEY:short}}` }, mockSecrets)
+    expect(result.key).toBe(`{{API_KEY:short}}`)
+  })
+
+  it(`should not match IDs longer than 10 chars`, () => {
+    const result = SecretResolver.replaceInObj(
+      { key: `{{API_KEY:toolongvalue1}}` },
+      mockSecrets
+    )
+    expect(result.key).toBe(`{{API_KEY:toolongvalue1}}`)
   })
 })
 
@@ -188,7 +265,6 @@ describe(`SecretResolver#resolveApiKey`, () => {
 
     expect(result).toBe(`decrypted-secret-value`)
     expect(db.services.secret.get).toHaveBeenCalledWith(`secret-direct`)
-    // Should NOT fall through to list-based lookups
     expect(db.services.secret.list).not.toHaveBeenCalled()
   })
 
@@ -196,10 +272,7 @@ describe(`SecretResolver#resolveApiKey`, () => {
     const db = createMockDb()
     const resolver = new SecretResolver(db)
 
-    const result = await resolver.resolveApiKey(
-      { orgId: `org-1` },
-      { id: `prov-1` } // no secretId
-    )
+    const result = await resolver.resolveApiKey({ orgId: `org-1` }, { id: `prov-1` })
 
     expect(result).toBe(``)
     expect(db.services.secret.get).not.toHaveBeenCalled()
@@ -226,7 +299,7 @@ describe(`SecretResolver#resolveApiKey`, () => {
   it(`should return empty string when direct secret decryption fails`, async () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     const mockDecrypt = decryptValue as ReturnType<typeof vi.fn>
-    mockDecrypt.mockResolvedValueOnce(null) // decrypt fails
+    mockDecrypt.mockResolvedValueOnce(null)
 
     const db = createMockDb()
     ;(db.services.secret.get as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -253,7 +326,7 @@ describe(`SecretResolver#resolveApiKey`, () => {
   })
 })
 
-// ── SecretResolver#resolveBodyParams ──────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────
 
 const fakeEncrypted = () =>
   Buffer.concat([
@@ -274,6 +347,8 @@ const createMockDb = (providerSecrets: any[] = [], orgSecrets: any[] = []) => ({
     },
   },
 })
+
+// ── SecretResolver#resolveBodyParams ──────────────────────────────
 
 describe(`SecretResolver#resolveBodyParams`, () => {
   beforeEach(() => {
@@ -298,7 +373,7 @@ describe(`SecretResolver#resolveBodyParams`, () => {
     expect(result).toBeUndefined()
   })
 
-  it(`should return bodyParams as-is when no {{...}} templates`, async () => {
+  it(`should return bodyParams as-is when no {{ name:id }} templates`, async () => {
     const db = createMockDb()
     const resolver = new SecretResolver(db)
     const bodyParams = { top_p: 0.9, seed: 42, custom: `static-value` }
@@ -324,9 +399,10 @@ describe(`SecretResolver#resolveBodyParams`, () => {
     expect(db.services.secret.list).not.toHaveBeenCalled()
   })
 
-  it(`should resolve {{SECRET_NAME}} with provider-scoped secrets`, async () => {
+  it(`should resolve {{ name:id }} with provider-scoped secrets`, async () => {
     const providerSecrets = [
       {
+        id: `aaaaaaaaaa`,
         name: `API_TOKEN`,
         encryptedValue: fakeEncrypted(),
         providerId: `prov-1`,
@@ -338,7 +414,7 @@ describe(`SecretResolver#resolveBodyParams`, () => {
     const result = await resolver.resolveBodyParams({
       id: `prov-1`,
       orgId: `org-1`,
-      bodyParams: { token: `{{API_TOKEN}}`, top_p: 0.9 },
+      bodyParams: { token: `{{API_TOKEN:aaaaaaaaaa}}`, top_p: 0.9 },
     })
 
     expect(result).toEqual({
@@ -350,6 +426,7 @@ describe(`SecretResolver#resolveBodyParams`, () => {
   it(`should fall back to org-scoped secrets`, async () => {
     const orgSecrets = [
       {
+        id: `eeeeeeeeee`,
         name: `ORG_KEY`,
         encryptedValue: fakeEncrypted(),
         orgId: `org-1`,
@@ -361,7 +438,7 @@ describe(`SecretResolver#resolveBodyParams`, () => {
     const result = await resolver.resolveBodyParams({
       id: `prov-1`,
       orgId: `org-1`,
-      bodyParams: { key: `{{ORG_KEY}}` },
+      bodyParams: { key: `{{ORG_KEY:eeeeeeeeee}}` },
     })
 
     expect(result).toEqual({
@@ -372,6 +449,7 @@ describe(`SecretResolver#resolveBodyParams`, () => {
   it(`should leave non-string values untouched`, async () => {
     const providerSecrets = [
       {
+        id: `ffffffffff`,
         name: `SECRET`,
         encryptedValue: fakeEncrypted(),
         providerId: `prov-1`,
@@ -384,7 +462,7 @@ describe(`SecretResolver#resolveBodyParams`, () => {
       id: `prov-1`,
       orgId: `org-1`,
       bodyParams: {
-        ref: `{{SECRET}}`,
+        ref: `{{SECRET:ffffffffff}}`,
         count: 42,
         flag: true,
         nested: { key: `value` },
@@ -425,7 +503,7 @@ describe(`SecretResolver#resolveHeaders`, () => {
     expect(result).toBeUndefined()
   })
 
-  it(`should return headers as-is when no {{...}} templates`, async () => {
+  it(`should return headers as-is when no {{ name:id }} templates`, async () => {
     const db = createMockDb()
     const resolver = new SecretResolver(db)
     const headers = { 'X-Custom': `static-value`, Authorization: `Bearer my-token` }
@@ -435,13 +513,13 @@ describe(`SecretResolver#resolveHeaders`, () => {
       headers,
     })
     expect(result).toEqual(headers)
-    // Should NOT query DB
     expect(db.services.secret.list).not.toHaveBeenCalled()
   })
 
-  it(`should resolve {{SECRET_NAME}} with provider-scoped secrets`, async () => {
+  it(`should resolve {{ name:id }} with provider-scoped secrets`, async () => {
     const providerSecrets = [
       {
+        id: `aaaaaaaaaa`,
         name: `API_TOKEN`,
         encryptedValue: fakeEncrypted(),
         providerId: `prov-1`,
@@ -453,7 +531,7 @@ describe(`SecretResolver#resolveHeaders`, () => {
     const result = await resolver.resolveHeaders({
       id: `prov-1`,
       orgId: `org-1`,
-      headers: { Authorization: `Bearer {{API_TOKEN}}` },
+      headers: { Authorization: `Bearer {{API_TOKEN:aaaaaaaaaa}}` },
     })
 
     expect(result).toEqual({
@@ -464,6 +542,7 @@ describe(`SecretResolver#resolveHeaders`, () => {
   it(`should fall back to org-scoped secrets`, async () => {
     const orgSecrets = [
       {
+        id: `eeeeeeeeee`,
         name: `ORG_KEY`,
         encryptedValue: fakeEncrypted(),
         orgId: `org-1`,
@@ -475,7 +554,7 @@ describe(`SecretResolver#resolveHeaders`, () => {
     const result = await resolver.resolveHeaders({
       id: `prov-1`,
       orgId: `org-1`,
-      headers: { 'X-API-Key': `{{ORG_KEY}}` },
+      headers: { 'X-API-Key': `{{ORG_KEY:eeeeeeeeee}}` },
     })
 
     expect(result).toEqual({
@@ -483,18 +562,28 @@ describe(`SecretResolver#resolveHeaders`, () => {
     })
   })
 
-  it(`should prefer provider-scoped over org-scoped secrets with same name`, async () => {
+  it(`should deduplicate by ID, allowing same-name secrets with different IDs`, async () => {
     const { decryptValue } = await import(`@tdsk/domain`)
     const mockDecrypt = decryptValue as ReturnType<typeof vi.fn>
 
-    // Provider secret decrypts to "provider-value"
     mockDecrypt.mockResolvedValueOnce(`provider-value`)
+    mockDecrypt.mockResolvedValueOnce(`org-value`)
 
     const providerSecrets = [
-      { name: `SHARED_KEY`, encryptedValue: fakeEncrypted(), providerId: `prov-1` },
+      {
+        id: `aaaaaaaaaa`,
+        name: `SHARED_KEY`,
+        encryptedValue: fakeEncrypted(),
+        providerId: `prov-1`,
+      },
     ]
     const orgSecrets = [
-      { name: `SHARED_KEY`, encryptedValue: fakeEncrypted(), orgId: `org-1` },
+      {
+        id: `bbbbbbbbbb`,
+        name: `SHARED_KEY`,
+        encryptedValue: fakeEncrypted(),
+        orgId: `org-1`,
+      },
     ]
     const db = createMockDb(providerSecrets, orgSecrets)
     const resolver = new SecretResolver(db)
@@ -502,28 +591,32 @@ describe(`SecretResolver#resolveHeaders`, () => {
     const result = await resolver.resolveHeaders({
       id: `prov-1`,
       orgId: `org-1`,
-      headers: { 'X-Key': `{{SHARED_KEY}}` },
+      headers: {
+        'X-Provider': `{{SHARED_KEY:aaaaaaaaaa}}`,
+        'X-Org': `{{SHARED_KEY:bbbbbbbbbb}}`,
+      },
     })
 
     expect(result).toEqual({
-      'X-Key': `provider-value`,
+      'X-Provider': `provider-value`,
+      'X-Org': `org-value`,
     })
-    // Only one secret decrypted (provider-scoped wins, org-scoped skipped by seen set)
-    expect(mockDecrypt).toHaveBeenCalledTimes(1)
+    // Both secrets decrypted since they have different IDs
+    expect(mockDecrypt).toHaveBeenCalledTimes(2)
   })
 
-  it(`should leave unmatched {{UNKNOWN}} unchanged`, async () => {
+  it(`should leave unmatched {{ name:id }} unchanged`, async () => {
     const db = createMockDb()
     const resolver = new SecretResolver(db)
 
     const result = await resolver.resolveHeaders({
       id: `prov-1`,
       orgId: `org-1`,
-      headers: { 'X-Key': `{{UNKNOWN_SECRET}}` },
+      headers: { 'X-Key': `{{UNKNOWN:zzzzzzzzzz}}` },
     })
 
     expect(result).toEqual({
-      'X-Key': `{{UNKNOWN_SECRET}}`,
+      'X-Key': `{{UNKNOWN:zzzzzzzzzz}}`,
     })
   })
 
@@ -533,8 +626,18 @@ describe(`SecretResolver#resolveHeaders`, () => {
     mockDecrypt.mockResolvedValue(`secret-val`)
 
     const providerSecrets = [
-      { name: `TOKEN_A`, encryptedValue: fakeEncrypted(), providerId: `prov-1` },
-      { name: `TOKEN_B`, encryptedValue: fakeEncrypted(), providerId: `prov-1` },
+      {
+        id: `aaaaaaaaaa`,
+        name: `TOKEN_A`,
+        encryptedValue: fakeEncrypted(),
+        providerId: `prov-1`,
+      },
+      {
+        id: `bbbbbbbbbb`,
+        name: `TOKEN_B`,
+        encryptedValue: fakeEncrypted(),
+        providerId: `prov-1`,
+      },
     ]
     const db = createMockDb(providerSecrets)
     const resolver = new SecretResolver(db)
@@ -543,8 +646,8 @@ describe(`SecretResolver#resolveHeaders`, () => {
       id: `prov-1`,
       orgId: `org-1`,
       headers: {
-        Authorization: `Bearer {{TOKEN_A}}`,
-        'X-Custom': `{{TOKEN_B}}`,
+        Authorization: `Bearer {{TOKEN_A:aaaaaaaaaa}}`,
+        'X-Custom': `{{TOKEN_B:bbbbbbbbbb}}`,
         'X-Static': `no-template`,
       },
     })
@@ -563,7 +666,7 @@ describe(`SecretResolver#resolveHeaders`, () => {
     await resolver.resolveHeaders({
       id: `prov-1`,
       orgId: `org-1`,
-      headers: { 'X-Key': `{{SOME_SECRET}}` },
+      headers: { 'X-Key': `{{SOME_SECRET:aaaaaaaaaa}}` },
     })
 
     expect(db.services.secret.list).toHaveBeenCalledWith({
@@ -572,5 +675,83 @@ describe(`SecretResolver#resolveHeaders`, () => {
     expect(db.services.secret.list).toHaveBeenCalledWith({
       where: { orgId: `org-1` },
     })
+  })
+})
+
+// ── SecretResolver logging ──────────────────────────────────────────
+
+describe('SecretResolver logging', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should warn on unresolved secret reference', () => {
+    SecretResolver.replaceInHeaders({ 'X-Key': '{{UNKNOWN:zzzzzzzzzz}}' }, mockSecrets)
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('zzzzzzzzzz'))
+  })
+
+  it('should not warn on successful resolution', () => {
+    SecretResolver.replaceInHeaders({ 'X-Key': '{{API_TOKEN:aaaaaaaaaa}}' }, mockSecrets)
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+
+  it('should debug log on decryption scope owner fallback', async () => {
+    const { deriveKey, decryptValue } = await import('@tdsk/domain')
+    const mockDeriveKey = deriveKey as ReturnType<typeof vi.fn>
+    const mockDecrypt = decryptValue as ReturnType<typeof vi.fn>
+
+    // First call (scope owner) fails, second call (orgId) succeeds
+    mockDeriveKey.mockResolvedValueOnce(Buffer.alloc(32, 'key'))
+    mockDecrypt.mockRejectedValueOnce(new Error('wrong key'))
+    mockDeriveKey.mockResolvedValueOnce(Buffer.alloc(32, 'key'))
+    mockDecrypt.mockResolvedValueOnce('fallback-value')
+
+    const db = createMockDb()
+    const resolver = new SecretResolver(db)
+
+    await resolver.decrypt(
+      { encryptedValue: fakeEncrypted(), providerId: 'prov-1', orgId: 'org-1' },
+      'org-1'
+    )
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('Decryption failed with scope owner'),
+      expect.objectContaining({ refId: 'prov-1' })
+    )
+  })
+
+  it('should warn when both decrypt attempts fail', async () => {
+    const { deriveKey, decryptValue } = await import('@tdsk/domain')
+    const mockDeriveKey = deriveKey as ReturnType<typeof vi.fn>
+    const mockDecrypt = decryptValue as ReturnType<typeof vi.fn>
+
+    // Both calls fail
+    mockDeriveKey.mockResolvedValueOnce(Buffer.alloc(32, 'key'))
+    mockDecrypt.mockRejectedValueOnce(new Error('wrong key'))
+    mockDeriveKey.mockResolvedValueOnce(Buffer.alloc(32, 'key'))
+    mockDecrypt.mockRejectedValueOnce(new Error('wrong key'))
+
+    const db = createMockDb()
+    const resolver = new SecretResolver(db)
+
+    const result = await resolver.decrypt(
+      { encryptedValue: fakeEncrypted(), providerId: 'prov-1', orgId: 'org-2' },
+      'org-2'
+    )
+
+    expect(result).toBeNull()
+    expect(logger.debug).toHaveBeenCalledTimes(2)
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('scope owner'),
+      expect.objectContaining({ refId: 'prov-1' })
+    )
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('orgId fallback'),
+      expect.objectContaining({ orgId: 'org-2' })
+    )
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('all attempts exhausted'),
+      expect.objectContaining({ refId: 'prov-1', orgId: 'org-2' })
+    )
   })
 })

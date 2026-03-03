@@ -2,9 +2,9 @@ import type { Mock } from 'vitest'
 import type { TFunctionExecResult } from '@tdsk/domain'
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createSandboxTools, buildCustomFunctionTools } from './tools'
+import { createSandboxTools, createWebTools, buildCustomFunctionTools } from './tools'
 
-const ALL_TOOL_NAMES = [
+const SANDBOX_TOOL_NAMES = [
   `shellExec`,
   `readFile`,
   `writeFile`,
@@ -14,9 +14,9 @@ const ALL_TOOL_NAMES = [
   `fileExists`,
   `evalCode`,
   `createArtifact`,
-  `webSearch`,
-  `webFetch`,
 ]
+
+const WEB_TOOL_NAMES = [`webSearch`, `webFetch`]
 
 describe(`createSandboxTools`, () => {
   let mockSandbox: Record<string, ReturnType<typeof vi.fn>>
@@ -44,10 +44,10 @@ describe(`createSandboxTools`, () => {
   })
 
   describe(`tool creation and filtering`, () => {
-    it(`should return all 11 tools when no filter is provided`, () => {
+    it(`should return all 9 sandbox tools when no filter is provided`, () => {
       const tools = createSandboxTools(mockSandbox as any)
-      expect(tools).toHaveLength(11)
-      expect(tools.map((t) => t.name)).toEqual(ALL_TOOL_NAMES)
+      expect(tools).toHaveLength(9)
+      expect(tools.map((t) => t.name)).toEqual(SANDBOX_TOOL_NAMES)
     })
 
     it(`should filter tools by allowedTools names`, () => {
@@ -56,10 +56,10 @@ describe(`createSandboxTools`, () => {
       expect(tools.map((t) => t.name)).toEqual([`shellExec`, `readFile`])
     })
 
-    it(`should return all tools when allowedTools is an empty array`, () => {
+    it(`should return all sandbox tools when allowedTools is an empty array`, () => {
       const tools = createSandboxTools(mockSandbox as any, [])
-      expect(tools).toHaveLength(11)
-      expect(tools.map((t) => t.name)).toEqual(ALL_TOOL_NAMES)
+      expect(tools).toHaveLength(9)
+      expect(tools.map((t) => t.name)).toEqual(SANDBOX_TOOL_NAMES)
     })
 
     it(`should return no tools when allowedTools contains no matching names`, () => {
@@ -600,9 +600,68 @@ describe(`createSandboxTools`, () => {
     })
   })
 
+  describe(`tool metadata`, () => {
+    it(`should have correct labels for all tools`, () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      const labels = tools.map((t) => t.label)
+      expect(labels).toEqual([
+        `Shell`,
+        `Read File`,
+        `Write File`,
+        `List Directory`,
+        `Delete File`,
+        `Create Directory`,
+        `File Exists`,
+        `Evaluate Code`,
+        `Create Artifact`,
+      ])
+    })
+
+    it(`should have descriptions for all tools`, () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      for (const tool of tools) {
+        expect(tool.description).toBeTruthy()
+        expect(typeof tool.description).toBe(`string`)
+      }
+    })
+
+    it(`should have parameters defined for all tools`, () => {
+      const tools = createSandboxTools(mockSandbox as any)
+      for (const tool of tools) {
+        expect(tool.parameters).toBeDefined()
+      }
+    })
+  })
+})
+
+describe(`createWebTools`, () => {
+  describe(`tool creation and filtering`, () => {
+    it(`should return 2 web tools when no filter is provided`, () => {
+      const tools = createWebTools()
+      expect(tools).toHaveLength(2)
+      expect(tools.map((t) => t.name)).toEqual(WEB_TOOL_NAMES)
+    })
+
+    it(`should filter tools by allowedTools`, () => {
+      const tools = createWebTools(undefined, [`webSearch`])
+      expect(tools).toHaveLength(1)
+      expect(tools[0].name).toBe(`webSearch`)
+    })
+
+    it(`should return all web tools when allowedTools is empty`, () => {
+      const tools = createWebTools(undefined, [])
+      expect(tools).toHaveLength(2)
+    })
+
+    it(`should return no tools when allowedTools has no matches`, () => {
+      const tools = createWebTools(undefined, [`shellExec`])
+      expect(tools).toHaveLength(0)
+    })
+  })
+
   describe(`webSearch`, () => {
     it(`should return "not configured" when no webProvider is given`, async () => {
-      const tools = createSandboxTools(mockSandbox as any)
+      const tools = createWebTools()
       const tool = tools.find((t) => t.name === `webSearch`)!
       const result = await tool.execute(
         `call-1`,
@@ -619,13 +678,14 @@ describe(`createSandboxTools`, () => {
 
     it(`should call webProvider.search and format results`, async () => {
       const mockProvider = {
+        type: `jina` as const,
         search: vi.fn().mockResolvedValue([
           { title: `Result 1`, url: `https://r1.com`, snippet: `First result` },
           { title: `Result 2`, url: `https://r2.com`, snippet: `Second result` },
         ]),
         fetch: vi.fn(),
       }
-      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tools = createWebTools(mockProvider)
       const tool = tools.find((t) => t.name === `webSearch`)!
       const result = await tool.execute(
         `call-1`,
@@ -644,10 +704,11 @@ describe(`createSandboxTools`, () => {
 
     it(`should cap maxResults at 10`, async () => {
       const mockProvider = {
+        type: `jina` as const,
         search: vi.fn().mockResolvedValue([]),
         fetch: vi.fn(),
       }
-      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tools = createWebTools(mockProvider)
       const tool = tools.find((t) => t.name === `webSearch`)!
       await tool.execute(
         `call-1`,
@@ -661,10 +722,11 @@ describe(`createSandboxTools`, () => {
 
     it(`should return "No results found" when search returns empty`, async () => {
       const mockProvider = {
+        type: `jina` as const,
         search: vi.fn().mockResolvedValue([]),
         fetch: vi.fn(),
       }
-      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tools = createWebTools(mockProvider)
       const tool = tools.find((t) => t.name === `webSearch`)!
       const result = await tool.execute(
         `call-1`,
@@ -681,11 +743,12 @@ describe(`createSandboxTools`, () => {
 
     it(`should call onUpdate with searching status`, async () => {
       const mockProvider = {
+        type: `jina` as const,
         search: vi.fn().mockResolvedValue([]),
         fetch: vi.fn(),
       }
       const onUpdate = vi.fn()
-      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tools = createWebTools(mockProvider)
       const tool = tools.find((t) => t.name === `webSearch`)!
       await tool.execute(`call-1`, { query: `hello` }, undefined as any, onUpdate)
 
@@ -694,11 +757,32 @@ describe(`createSandboxTools`, () => {
         details: { status: `running` },
       })
     })
+
+    it(`should catch errors and return failure message`, async () => {
+      const mockProvider = {
+        type: `jina` as const,
+        search: vi.fn().mockRejectedValue(new Error(`Provider crashed`)),
+        fetch: vi.fn(),
+      }
+      const tools = createWebTools(mockProvider)
+      const tool = tools.find((t) => t.name === `webSearch`)!
+      const result = await tool.execute(
+        `call-1`,
+        { query: `test` },
+        undefined as any,
+        vi.fn()
+      )
+
+      expect(result.content).toEqual([
+        { type: `text`, text: `Search failed: Provider crashed` },
+      ])
+      expect(result.details).toEqual({ success: false })
+    })
   })
 
   describe(`webFetch`, () => {
     it(`should return "not configured" when no webProvider is given`, async () => {
-      const tools = createSandboxTools(mockSandbox as any)
+      const tools = createWebTools()
       const tool = tools.find((t) => t.name === `webFetch`)!
       const result = await tool.execute(
         `call-1`,
@@ -713,6 +797,7 @@ describe(`createSandboxTools`, () => {
 
     it(`should call webProvider.fetch and return content`, async () => {
       const mockProvider = {
+        type: `jina` as const,
         search: vi.fn(),
         fetch: vi.fn().mockResolvedValue({
           url: `https://example.com`,
@@ -721,7 +806,7 @@ describe(`createSandboxTools`, () => {
           contentLength: 17,
         }),
       }
-      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tools = createWebTools(mockProvider)
       const tool = tools.find((t) => t.name === `webFetch`)!
       const result = await tool.execute(
         `call-1`,
@@ -741,6 +826,7 @@ describe(`createSandboxTools`, () => {
 
     it(`should pass maxLength to provider`, async () => {
       const mockProvider = {
+        type: `jina` as const,
         search: vi.fn(),
         fetch: vi.fn().mockResolvedValue({
           url: `https://example.com`,
@@ -749,7 +835,7 @@ describe(`createSandboxTools`, () => {
           contentLength: 5,
         }),
       }
-      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tools = createWebTools(mockProvider)
       const tool = tools.find((t) => t.name === `webFetch`)!
       await tool.execute(
         `call-1`,
@@ -765,10 +851,11 @@ describe(`createSandboxTools`, () => {
 
     it(`should return error message when fetch fails`, async () => {
       const mockProvider = {
+        type: `jina` as const,
         search: vi.fn(),
         fetch: vi.fn().mockRejectedValue(new Error(`404 Not Found`)),
       }
-      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tools = createWebTools(mockProvider)
       const tool = tools.find((t) => t.name === `webFetch`)!
       const result = await tool.execute(
         `call-1`,
@@ -785,6 +872,7 @@ describe(`createSandboxTools`, () => {
 
     it(`should call onUpdate with fetching status`, async () => {
       const mockProvider = {
+        type: `jina` as const,
         search: vi.fn(),
         fetch: vi.fn().mockResolvedValue({
           url: `https://example.com`,
@@ -794,7 +882,7 @@ describe(`createSandboxTools`, () => {
         }),
       }
       const onUpdate = vi.fn()
-      const tools = createSandboxTools(mockSandbox as any, undefined, mockProvider)
+      const tools = createWebTools(mockProvider)
       const tool = tools.find((t) => t.name === `webFetch`)!
       await tool.execute(
         `call-1`,
@@ -811,34 +899,22 @@ describe(`createSandboxTools`, () => {
   })
 
   describe(`tool metadata`, () => {
-    it(`should have correct labels for all tools`, () => {
-      const tools = createSandboxTools(mockSandbox as any)
+    it(`should have correct labels for web tools`, () => {
+      const tools = createWebTools()
       const labels = tools.map((t) => t.label)
-      expect(labels).toEqual([
-        `Shell`,
-        `Read File`,
-        `Write File`,
-        `List Directory`,
-        `Delete File`,
-        `Create Directory`,
-        `File Exists`,
-        `Evaluate Code`,
-        `Create Artifact`,
-        `Web Search`,
-        `Web Fetch`,
-      ])
+      expect(labels).toEqual([`Web Search`, `Web Fetch`])
     })
 
-    it(`should have descriptions for all tools`, () => {
-      const tools = createSandboxTools(mockSandbox as any)
+    it(`should have descriptions for all web tools`, () => {
+      const tools = createWebTools()
       for (const tool of tools) {
         expect(tool.description).toBeTruthy()
         expect(typeof tool.description).toBe(`string`)
       }
     })
 
-    it(`should have parameters defined for all tools`, () => {
-      const tools = createSandboxTools(mockSandbox as any)
+    it(`should have parameters defined for all web tools`, () => {
+      const tools = createWebTools()
       for (const tool of tools) {
         expect(tool.parameters).toBeDefined()
       }

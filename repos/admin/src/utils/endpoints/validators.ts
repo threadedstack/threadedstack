@@ -8,8 +8,8 @@ class ValidateEndpoint {
   proxy = (state: TProxyFormState): string | null => {
     if (!state.url?.trim()) return `Proxy URL is required for proxy endpoints`
 
-    if (state.authEnabled && !state.authSecretName?.trim())
-      return `Auth secret name is required when authentication is enabled`
+    if (state.authEnabled && !state.authSecretId?.trim())
+      return `Auth secret is required when authentication is enabled`
 
     if (state.oauthEnabled) {
       if (!state.oauthTokenUrl?.trim())
