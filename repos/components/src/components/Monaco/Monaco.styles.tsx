@@ -6,9 +6,6 @@ import { grey } from '@TSC/theme/colors'
 import { gutter } from '@TSC/theme/gutter'
 
 export const MonacoContainer = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === `dark`
-  const outline = isDark ? grey[200] : grey[800]
-
   return `
     position: relative;
     background-color: transparent;
@@ -46,6 +43,7 @@ export const MonacoContainer = styled(Box)(({ theme }) => {
       min-height: ${dims.form.input.hpx};
       border-radius: ${dims.border.ipx};
       border: 1px solid ${theme.palette.border.default};
+      transition: border-color 0.15s ease;
       
       & .monaco-editor {
         outline: none;
@@ -66,7 +64,7 @@ export const MonacoContainer = styled(Box)(({ theme }) => {
       }
 
       &:hover {
-        border-color: ${outline};
+        border-color: ${theme.palette.border.altMuted};
       }
 
       &:focus-within {

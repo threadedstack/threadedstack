@@ -77,19 +77,17 @@ export const Label = styled(MInputLabel)<InputLabelProps>(({ theme }) => {
 })
 
 export const TextareaContainer = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === `dark`
-  const outline = isDark ? grey[200] : grey[800]
-
   return `
     flex: 1;
     width: 100%;
     display: flex;
     margin-top: ${gutter.qpx};
     border-radius: ${dims.border.ipx};
+    transition: border-color 0.15s ease;
     border: 1px solid ${theme.palette.border.default};
 
     &:hover {
-      border-color: ${outline};
+      border-color: ${theme.palette.border.altMuted};
     }
 
     &:focus-within {

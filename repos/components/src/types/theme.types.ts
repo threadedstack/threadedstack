@@ -75,6 +75,7 @@ declare module '@mui/material/styles' {
 
   interface Border {
     alt?: string
+    altMuted?: string
     muted?: string
     dark?: string
     section?: string

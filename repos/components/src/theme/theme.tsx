@@ -211,7 +211,7 @@ const components = (colors: TThemeColors) => {
             transition: `border-color 0.15s ease`,
           },
           [`&:hover .MuiOutlinedInput-notchedOutline`]: {
-            borderColor: colors.border?.dark,
+            borderColor: colors.border?.altMuted,
           },
           [`&.Mui-focused .MuiOutlinedInput-notchedOutline`]: {
             borderColor: colors.primary,
