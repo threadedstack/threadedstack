@@ -2,14 +2,15 @@ import type { JwtPayload } from 'jsonwebtoken'
 
 import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
+import { logger } from '@TBE/utils/logger'
+import { SessionTtlSec } from '@TBE/constants/values'
 
 export type TSessionTokenPayload = {
   userId: string
   agentId: string
   orgId: string
+  projectId?: string
 }
-
-const SESSION_TTL_SEC = 3600 // 1 hour
 
 let signingKey: Buffer | undefined
 
@@ -38,7 +39,7 @@ const getSigningKey = (): Buffer => {
 export const signSessionToken = (payload: TSessionTokenPayload): string => {
   return jwt.sign({ ...payload, jti: crypto.randomUUID() }, getSigningKey(), {
     algorithm: `HS256`,
-    expiresIn: SESSION_TTL_SEC,
+    expiresIn: SessionTtlSec,
   })
 }
 
@@ -55,11 +56,17 @@ export const verifySessionToken = (token: string): TSessionTokenPayload | null =
     if (!decoded.userId || !decoded.agentId || !decoded.orgId) return null
 
     return {
+      orgId: decoded.orgId,
       userId: decoded.userId,
       agentId: decoded.agentId,
-      orgId: decoded.orgId,
+      ...(decoded.projectId && { projectId: decoded.projectId }),
     }
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    message.includes(`expired`)
+      ? logger.debug(`Session token expired`)
+      : logger.warn(`Session token verification failed: ${message}`)
+
     return null
   }
 }

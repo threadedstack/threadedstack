@@ -324,6 +324,50 @@ describe(`IsolateRunner`, () => {
       })
     })
 
+    it(`should release existing module when registering with same name`, async () => {
+      await runner.init()
+
+      // Track release calls from registerModule specifically
+      const releaseCountBefore = mockRelease.mock.calls.length
+
+      // Register a module the first time
+      await runner.registerModule(`mylib`, `export default 1`)
+      const releaseCountAfterFirst = mockRelease.mock.calls.length
+
+      // Register again with the same name — should release the existing one
+      await runner.registerModule(`mylib`, `export default 2`)
+      const releaseCountAfterSecond = mockRelease.mock.calls.length
+
+      // The second registration should have called release one more time than the first
+      expect(releaseCountAfterSecond).toBeGreaterThan(releaseCountAfterFirst)
+    })
+
+    it(`should not throw when registering a module name for first time`, async () => {
+      await runner.init()
+
+      // First-time registration — no existing module to release
+      await expect(
+        runner.registerModule(`brand-new`, `export default 'new'`)
+      ).resolves.not.toThrow()
+    })
+
+    it(`should handle release() throwing gracefully (already released)`, async () => {
+      await runner.init()
+
+      // Register once
+      await runner.registerModule(`fragile`, `export default 1`)
+
+      // Make release throw (simulating an already-released module)
+      mockRelease.mockImplementationOnce(() => {
+        throw new Error(`Module already released`)
+      })
+
+      // Re-register — should not throw despite release error
+      await expect(
+        runner.registerModule(`fragile`, `export default 2`)
+      ).resolves.not.toThrow()
+    })
+
     it(`should make registered module available for subsequent eval`, async () => {
       await runner.init()
       await runner.registerModule(`helper`, `export default () => 'help'`)

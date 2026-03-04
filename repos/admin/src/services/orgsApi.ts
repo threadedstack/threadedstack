@@ -8,7 +8,7 @@ import { BaseApi } from '@TAF/services/api'
  */
 export type TOrgMemberData = {
   userId: string
-  role?: string
+  roleType?: string
 }
 
 /**
@@ -127,7 +127,7 @@ export class OrgsApi extends BaseApi {
   /**
    * Add member to org
    * @param orgId - Org ID
-   * @param memberData - Member data (userId, role)
+   * @param memberData - Member data (userId, roleType)
    * @returns Success status
    */
   async addMember(

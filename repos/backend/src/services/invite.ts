@@ -20,8 +20,8 @@ export type TInviteService = {
 type TExistingUser = {
   user: User
   email: string
-  role: string
   inviter: User
+  roleType: string
   org: Organization
 }
 
@@ -36,7 +36,7 @@ type TInvited = {
 }
 
 type TNewUser = {
-  role: string
+  roleType: string
   inviter: User
   email: string
   org: Organization
@@ -56,11 +56,11 @@ export class InviteService {
   }
 
   existing = async (opts: TExistingUser) => {
-    const { org, user, role, email, inviter } = opts
+    const { org, user, roleType, email, inviter } = opts
 
     const { data: newRole, error: createError } = await this.db.services.role.create({
-      type: role,
       orgId: org.id,
+      type: roleType,
       userId: user.id,
     })
 
@@ -70,7 +70,7 @@ export class InviteService {
     if (this.email) {
       const emailSent = await this.email.sendMemberNotification({
         email,
-        roleType: role,
+        roleType,
         orgName: org.name,
         orgUrl: `${this.config.frontendUrl}/orgs/${org.id}`,
         inviterName: inviter?.name || inviter?.email || `A team member`,
@@ -83,7 +83,7 @@ export class InviteService {
   }
 
   create = async (opts: TNewUser) => {
-    const { org, role, email, inviter, frontendUrl, expiresInDays } = opts
+    const { org, email, inviter, roleType, frontendUrl, expiresInDays } = opts
 
     const token = generateInvitationToken()
     const expiresAt = getInvitationExpiration(expiresInDays)
@@ -94,7 +94,7 @@ export class InviteService {
         token,
         expiresAt,
         orgId: org.id,
-        roleType: role,
+        roleType,
         invitedBy: inviter?.id,
         status: EInviteStatus.pending,
       })
@@ -105,8 +105,8 @@ export class InviteService {
     if (this.email) {
       const emailSent = await this.email.invitation({
         email,
+        roleType,
         expiresInDays,
-        roleType: role,
         orgName: org.name,
         inviterName: inviter?.name || inviter?.email || `A team member`,
         invitationUrl: `${frontendUrl}/invitations/accept?token=${token}`,

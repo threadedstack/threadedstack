@@ -22,7 +22,7 @@ export const createSession: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const userId = req.user?.id
-    const { agentId } = req.body
+    const { agentId, projectId } = req.body
 
     if (!userId) throw new Exception(401, `Authentication required`)
     if (!agentId) throw new Exception(400, `agentId is required`)
@@ -43,6 +43,11 @@ export const createSession: TEndpointConfig = {
 
     // Determine and validate provider type
     const providerType = resolveProviderType(provider)
+    if (!providerType)
+      throw new Exception(
+        400,
+        `Could not resolve provider type for this agent's provider`
+      )
 
     // Resolve model via 3-tier hierarchy: junction → agent → provider default
     const model = agent.resolveModel(provider.id, provider.options?.model)
@@ -57,6 +62,7 @@ export const createSession: TEndpointConfig = {
       userId,
       agentId: agent.id,
       orgId: agent.orgId,
+      ...(projectId && { projectId }),
     })
 
     // Return token + non-sensitive config (no apiKey, no envVars)

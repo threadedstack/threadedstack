@@ -675,6 +675,68 @@ No overlap with any other batch. All changes are within `repos/repl/`. Tasks wit
 
 ---
 
+## PR Review Deferred Items
+
+### [P2] Backend: `resolveAgentDeps` N+1 query — load functions in bulk
+
+* **Repos**: backend, database
+* **Key files**: `repos/backend/src/utils/agent/resolveAgentDeps.ts:60-66`, `repos/database/src/services/function.ts`
+* The `resolveAgentDeps` utility resolves custom functions with individual `db.services.function.get(fid)` calls inside `Promise.all`, creating N+1 queries. Already has a TODO comment noting the issue
+* **Fix**:
+  1. Add a `getByIds(ids: string[])` method to the function database service that uses `inArray` for a single query
+  2. Replace the `Promise.all(functionIds.map(...))` pattern in `resolveAgentDeps.ts` with the new bulk method
+* **Files**:
+  * `repos/database/src/services/function.ts` — add `getByIds` method
+  * `repos/backend/src/utils/agent/resolveAgentDeps.ts` — use bulk query
+
+### [P3] Backend: `TRequest` generic defaults to `any` — weakens type safety
+
+* **Repos**: backend
+* **Key files**: `repos/backend/src/types/backend.types.ts`
+* The `TRequest` type uses `= any` defaults for its generic parameters, so handlers that don't specify generics get no type checking on `req.params` or `req.body`. All endpoint handlers should explicitly provide their param/body types
+* **Fix**: Audit all endpoint handlers for missing `TRequest` generic args and add explicit types. Consider changing defaults to `never` or `Record<string, never>` to force explicit typing
+* **Files**: `repos/backend/src/types/backend.types.ts`, all endpoint handler files
+
+### [P3] Domain: `Organization.userRole` mixes view-projection into domain entity
+
+* **Repos**: domain
+* **Key files**: `repos/domain/src/models/organization.ts`
+* The `Organization` model has a `userRole` property that's a view-projection concern (the current user's role in that org), not an intrinsic property of the organization. This mixes API response shaping into the domain model
+* **Fix**: Create a `TOrgWithUserRole` response type that extends `Organization` with the user-specific fields, and use it only at the API response boundary. Remove `userRole` from the core model
+* **Files**: `repos/domain/src/models/organization.ts`, `repos/domain/src/types/`, backend org endpoints
+
+### [P3] Backend: `customFunctions: any[]` typing gap
+
+* **Repos**: backend, agent
+* **Key files**: `repos/backend/src/utils/agent/resolveAgentDeps.ts`, `repos/backend/src/types/session.types.ts`
+* `customFunctions` is typed as `any[]` in both `resolveAgentDeps` return type and `TSession`. The actual type should be the function record type from the database schema
+* **Fix**: Trace the function record type from `repos/database/src/schemas/functions.ts` through the service layer and use it as the concrete type instead of `any[]`
+* **Files**: `repos/backend/src/utils/agent/resolveAgentDeps.ts`, `repos/backend/src/types/session.types.ts`
+
+### [P4] Sandbox: Pool process exit cleanup
+
+* **Repos**: sandbox
+* **Key files**: `repos/sandbox/src/local.ts`
+* The sandbox pool (`LocalSandboxProvider`) has no SIGTERM handler to drain idle sandboxes on process exit. V8 cleans up on exit so this is low risk, but a graceful shutdown handler would be cleaner
+* **Fix**: Add a process exit handler that calls `close()` on all idle pool sandboxes
+* **Files**: `repos/sandbox/src/local.ts`
+
+### [P2] Test coverage gaps — resolveAgentDeps, sessionToken, createAsset
+
+* **Repos**: backend
+* **Key files**: `repos/backend/src/utils/agent/resolveAgentDeps.ts`, `repos/backend/src/services/sessionToken.ts`, `repos/backend/src/endpoints/assets/createAsset.ts`
+* Three areas lacking unit test coverage:
+  1. `resolveAgentDeps` — no test file exists. Needs tests for: webProvider secret decryption, missing secret handling, custom function loading, empty projectId case
+  2. `sessionToken` — existing tests don't cover `projectId` round-trip (sign with projectId, verify returns it)
+  3. `createAsset` — `getPermissionIds` helper's userId and projectId owner paths are untested
+* **Fix**: Create test files and add test cases for each area
+* **Files**:
+  * New: `repos/backend/src/utils/agent/resolveAgentDeps.test.ts`
+  * `repos/backend/src/services/sessionToken.test.ts` (extend if exists, or create)
+  * `repos/backend/src/endpoints/assets/assets.test.ts` (extend with owner path tests)
+
+---
+
 ## Deferred / Placeholder Tasks
 
 ### [P3] REPL: `FileRequest` and `FileChanged` events — unimplemented stubs (Phase 8 placeholder)

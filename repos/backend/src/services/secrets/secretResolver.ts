@@ -4,6 +4,17 @@ import type { TSecretResolverDb } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
 import { deriveKey, decryptValue, SecretRefTest, SecretRefPattern } from '@tdsk/domain'
 
+type TProvider = {
+  id: string
+  orgId: string
+  headers?: Record<string, string>
+  bodyParams?: Record<string, any>
+}
+type TSecretScope = {
+  orgId: string
+  providerId: string
+}
+
 /**
  * SecretResolver
  *
@@ -112,11 +123,11 @@ export class SecretResolver {
    */
   decrypt = async (
     secret: {
-      encryptedValue: string
       orgId?: string
+      agentId?: string
       projectId?: string
       providerId?: string
-      agentId?: string
+      encryptedValue: string
     },
     orgId: string
   ): Promise<string | null> => {
@@ -180,10 +191,7 @@ export class SecretResolver {
    * Loads provider-scoped + org-scoped secrets, deduplicates, and decrypts them.
    * Provider-scoped secrets take precedence over org-scoped when names collide.
    */
-  loadAndDecrypt = async (scope: {
-    providerId: string
-    orgId: string
-  }): Promise<Secret[]> => {
+  loadAndDecrypt = async (scope: TSecretScope): Promise<Secret[]> => {
     const { data: providerSecrets } = await this.db.services.secret.list({
       where: { providerId: scope.providerId },
     })
@@ -214,11 +222,9 @@ export class SecretResolver {
    * Unlike resolveHeaders, bodyParams values can be non-strings (numbers, booleans, objects),
    * so only string values are checked for {{...}} templates. Non-string values pass through.
    */
-  resolveBodyParams = async (provider: {
-    id: string
-    orgId: string
-    bodyParams?: Record<string, any>
-  }): Promise<Record<string, unknown> | undefined> => {
+  resolveBodyParams = async (
+    provider: TProvider
+  ): Promise<Record<string, unknown> | undefined> => {
     if (!provider.bodyParams || Object.keys(provider.bodyParams).length === 0)
       return undefined
 
@@ -245,11 +251,9 @@ export class SecretResolver {
    * 3. Otherwise → loads provider-scoped secrets (falls back to org-scoped),
    *    decrypts each, and replaces template references
    */
-  resolveHeaders = async (provider: {
-    id: string
-    orgId: string
-    headers?: Record<string, string>
-  }): Promise<Record<string, string> | undefined> => {
+  resolveHeaders = async (
+    provider: TProvider
+  ): Promise<Record<string, string> | undefined> => {
     if (!provider.headers || Object.keys(provider.headers).length === 0) return undefined
 
     // Fast path: no template references, return as-is

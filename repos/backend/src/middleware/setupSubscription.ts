@@ -16,7 +16,8 @@ export const setupSubscription = async (
     const { data, error } = await db.services.subscription.findByUser(userId)
 
     if (error) {
-      logger.error(`Failed to check subscription:`, error)
+      logger.warn(`Failed to check subscription:`, error)
+      res.locals.subscriptionError = true
       return next()
     }
 
@@ -28,12 +29,16 @@ export const setupSubscription = async (
         status: `active`,
       })
 
-      createError && logger.error(`Failed to create free subscription:`, createError)
+      if (createError) {
+        logger.warn(`Failed to create free subscription:`, createError)
+        res.locals.subscriptionError = true
+      }
     }
 
     next()
   } catch (err) {
     logger.error(`Unexpected error in setupSubscription:`, err)
+    res.locals.subscriptionError = true
     next()
   }
 }

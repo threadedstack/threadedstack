@@ -34,7 +34,7 @@ describe('Tier 1: Project Members', () => {
   afterAll(async () => {
     for (const userId of addedMemberUserIds) {
       // Downgrade to viewer first in case member has owner role (backend blocks owner deletion)
-      try { await put(`${basePath}/${userId}`, { type: 'viewer' }) } catch {}
+      try { await put(`${basePath}/${userId}`, { roleType: 'viewer' }) } catch {}
       await tryDelete(`${basePath}/${userId}`)
     }
   })
@@ -117,7 +117,7 @@ describe('Tier 1: Project Members', () => {
     const fakeUserId = '00000000-0000-0000-0000-000099999999'
 
     test('PUT on nonexistent member returns 404', async () => {
-      const res = await put(`${basePath}/${fakeUserId}`, { type: 'viewer' })
+      const res = await put(`${basePath}/${fakeUserId}`, { roleType: 'viewer' })
       expect(res.status).toBe(404)
     })
 
@@ -154,7 +154,7 @@ describe('Tier 1: Project Members', () => {
 
       const res = await post<SingleResponse>(basePath, {
         userId: secondUserId,
-        type: 'viewer',
+        roleType: 'viewer',
       })
 
       expect(res.status).toBe(201)
@@ -178,7 +178,7 @@ describe('Tier 1: Project Members', () => {
       if (!secondUserId) return
 
       const res = await put<SingleResponse>(`${basePath}/${secondUserId}`, {
-        type: 'member',
+        roleType: 'member',
       })
 
       expect(res.status).toBe(200)
@@ -232,7 +232,7 @@ describe('Tier 1: Project Members', () => {
 
       // Ensure they're a project member first (as viewer)
       await tryDelete(`${basePath}/${secondUserId}`)
-      const addRes = await post(basePath, { userId: secondUserId, type: 'viewer' })
+      const addRes = await post(basePath, { userId: secondUserId, roleType: 'viewer' })
       expect(addRes.status).toBe(201)
       addedMemberUserIds.push(secondUserId)
     })
@@ -241,7 +241,7 @@ describe('Tier 1: Project Members', () => {
       if (!secondUserId) return
 
       // Test user has super org role — can assign any role
-      const res = await put<SingleResponse>(`${basePath}/${secondUserId}`, { type: 'admin' })
+      const res = await put<SingleResponse>(`${basePath}/${secondUserId}`, { roleType: 'admin' })
       expect(res.status).toBe(200)
       expect(res.data.data.type).toBe('admin')
     })
@@ -249,7 +249,7 @@ describe('Tier 1: Project Members', () => {
     test('super user can assign owner role', async () => {
       if (!secondUserId) return
 
-      const res = await put<SingleResponse>(`${basePath}/${secondUserId}`, { type: 'owner' })
+      const res = await put<SingleResponse>(`${basePath}/${secondUserId}`, { roleType: 'owner' })
       expect(res.status).toBe(200)
       expect(res.data.data.type).toBe('owner')
     })
@@ -258,7 +258,7 @@ describe('Tier 1: Project Members', () => {
       if (!secondUserId) return
 
       // Downgrade from owner before deleting (backend blocks owner deletion)
-      await put(`${basePath}/${secondUserId}`, { type: 'viewer' })
+      await put(`${basePath}/${secondUserId}`, { roleType: 'viewer' })
       await tryDelete(`${basePath}/${secondUserId}`)
       const idx = addedMemberUserIds.indexOf(secondUserId)
       if (idx !== -1) addedMemberUserIds.splice(idx, 1)
@@ -281,7 +281,7 @@ describe('Tier 1: Project Members', () => {
     test.skipIf(!canRun())('setup: ensure target is a project member', async () => {
       // Clean up any prior state, then add as viewer using super key
       await tryDelete(`${basePath}/${memberUserId}`)
-      const res = await post<SingleResponse>(basePath, { userId: memberUserId, type: 'viewer' })
+      const res = await post<SingleResponse>(basePath, { userId: memberUserId, roleType: 'viewer' })
       expect(res.status).toBe(201)
       addedMemberUserIds.push(memberUserId)
     })
@@ -289,12 +289,12 @@ describe('Tier 1: Project Members', () => {
     // ── Cannot assign equal or higher roles ──
 
     test.skipIf(!canRun())('admin cannot assign owner role', async () => {
-      const res = await put(`${basePath}/${memberUserId}`, { type: 'owner' }, adminOpts())
+      const res = await put(`${basePath}/${memberUserId}`, { roleType: 'owner' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
     test.skipIf(!canRun())('admin cannot assign admin role (equal)', async () => {
-      const res = await put(`${basePath}/${memberUserId}`, { type: 'admin' }, adminOpts())
+      const res = await put(`${basePath}/${memberUserId}`, { roleType: 'admin' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
@@ -302,7 +302,7 @@ describe('Tier 1: Project Members', () => {
 
     test.skipIf(!canRun())('admin can assign member role', async () => {
       const res = await put<SingleResponse>(
-        `${basePath}/${memberUserId}`, { type: 'member' }, adminOpts()
+        `${basePath}/${memberUserId}`, { roleType: 'member' }, adminOpts()
       )
       expect(res.status).toBe(200)
       expect(res.data.data.type).toBe('member')
@@ -310,7 +310,7 @@ describe('Tier 1: Project Members', () => {
 
     test.skipIf(!canRun())('admin can update to viewer role', async () => {
       const res = await put<SingleResponse>(
-        `${basePath}/${memberUserId}`, { type: 'viewer' }, adminOpts()
+        `${basePath}/${memberUserId}`, { roleType: 'viewer' }, adminOpts()
       )
       expect(res.status).toBe(200)
       expect(res.data.data.type).toBe('viewer')
@@ -320,14 +320,14 @@ describe('Tier 1: Project Members', () => {
 
     test.skipIf(!canRun())('setup: super promotes member to admin', async () => {
       // Use super key to promote to admin role
-      const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { type: 'admin' })
+      const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'admin' })
       expect(res.status).toBe(200)
       expect(res.data.data.type).toBe('admin')
     })
 
     test.skipIf(!canRun())('admin cannot modify equal-role member', async () => {
       // Target now has admin role — our admin user cannot change it
-      const res = await put(`${basePath}/${memberUserId}`, { type: 'viewer' }, adminOpts())
+      const res = await put(`${basePath}/${memberUserId}`, { roleType: 'viewer' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
@@ -339,7 +339,7 @@ describe('Tier 1: Project Members', () => {
     // ── Cannot remove owners ──
 
     test.skipIf(!canRun())('setup: super promotes member to owner', async () => {
-      const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { type: 'owner' })
+      const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'owner' })
       expect(res.status).toBe(200)
       expect(res.data.data.type).toBe('owner')
     })
@@ -352,7 +352,7 @@ describe('Tier 1: Project Members', () => {
     // ── Can remove lower-role members ──
 
     test.skipIf(!canRun())('setup: super downgrades member to viewer', async () => {
-      const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { type: 'viewer' })
+      const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'viewer' })
       expect(res.status).toBe(200)
     })
 
@@ -367,18 +367,18 @@ describe('Tier 1: Project Members', () => {
     // ── Cannot add member with equal or higher role ──
 
     test.skipIf(!canRun())('admin cannot add member with owner role', async () => {
-      const res = await post(basePath, { userId: memberUserId, type: 'owner' }, adminOpts())
+      const res = await post(basePath, { userId: memberUserId, roleType: 'owner' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
     test.skipIf(!canRun())('admin cannot add member with admin role', async () => {
-      const res = await post(basePath, { userId: memberUserId, type: 'admin' }, adminOpts())
+      const res = await post(basePath, { userId: memberUserId, roleType: 'admin' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
     test.skipIf(!canRun())('admin can add member with viewer role', async () => {
       const res = await post<SingleResponse>(
-        basePath, { userId: memberUserId, type: 'viewer' }, adminOpts()
+        basePath, { userId: memberUserId, roleType: 'viewer' }, adminOpts()
       )
       expect(res.status).toBe(201)
       expect(res.data.data.type).toBe('viewer')

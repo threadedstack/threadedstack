@@ -73,6 +73,8 @@ export interface ISandbox {
   fileExists(path: string): Promise<boolean>
   /** Execute JavaScript code in an isolated V8 environment */
   evaluate(code: string, opts?: TSandboxEvalOpts): Promise<TSandboxEvalResult>
+  /** Reset sandbox state for reuse (clear filesystem, release user modules) */
+  reset(): Promise<void>
   /** Close/destroy the sandbox */
   close(): Promise<void>
 }

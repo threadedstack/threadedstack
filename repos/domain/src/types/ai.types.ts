@@ -60,11 +60,13 @@ export enum EAgentTool {
   listDir = `listDir`,
   readFile = `readFile`,
   webFetch = `webFetch`,
+  evalCode = `evalCode`,
   webSearch = `webSearch`,
   writeFile = `writeFile`,
   shellExec = `shellExec`,
   deleteFile = `deleteFile`,
   fileExists = `fileExists`,
+  createArtifact = `createArtifact`,
 }
 
 export type TAgentToolType = `${EAgentTool}`

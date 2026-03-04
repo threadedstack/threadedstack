@@ -12,6 +12,7 @@ import { auth } from '@TBE/endpoints/auth/auth'
 import { health } from '@TBE/endpoints/base/health'
 import { invitations } from './invitations/invitations'
 import { authenticate } from '@TBE/middleware/setupAuth'
+import { assets } from '@TBE/endpoints/assets'
 import { subscriptions } from '@TBE/endpoints/subscriptions'
 import { providerModels } from '@TBE/endpoints/providers/providers'
 import { setupSubscription } from '@TBE/middleware/setupSubscription'
@@ -27,6 +28,7 @@ export const accounts: TEndpointBuilder = (app) => {
       base,
       orgs,
       users,
+      assets,
       health,
       payments,
       invitations,

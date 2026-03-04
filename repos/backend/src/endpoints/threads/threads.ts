@@ -7,6 +7,7 @@ import { createThread } from '@TBE/endpoints/threads/createThread'
 import { deleteThread } from '@TBE/endpoints/threads/deleteThread'
 import { listMessages } from '@TBE/endpoints/threads/listMessages'
 import { createMessage } from '@TBE/endpoints/threads/createMessage'
+import { updateThread } from '@TBE/endpoints/threads/updateThread'
 import { updateMessage } from '@TBE/endpoints/threads/updateMessage'
 import { deleteMessage } from '@TBE/endpoints/threads/deleteMessage'
 import { branchThread } from '@TBE/endpoints/threads/branchThread'
@@ -24,6 +25,7 @@ export const agentThreads: TEndpointConfig = {
     getThread,
     listThreads,
     createThread,
+    updateThread,
     deleteThread,
     listMessages,
     createMessage,

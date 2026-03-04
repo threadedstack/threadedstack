@@ -14,7 +14,7 @@ loadEnvs({ force: nodeEnv === `local` })
 const {
   TDSK_LOG_LEVEL,
   TDSK_AG_LOG_LEVEL,
-  TDSK_BE_LOGGER_PRETTY,
+  TDSK_AG_LOGGER_PRETTY,
   TDSK_AG_LOGGER_SILENT,
 } = process.env
 
@@ -25,7 +25,7 @@ export const config = {
     rejections: true,
     exitOnError: false,
     level: TDSK_AG_LOG_LEVEL ?? TDSK_LOG_LEVEL,
-    pretty: toBool(TDSK_BE_LOGGER_PRETTY) ?? false,
+    pretty: toBool(TDSK_AG_LOGGER_PRETTY) ?? false,
     silent: toBool(TDSK_AG_LOGGER_SILENT) ?? false,
   },
 }

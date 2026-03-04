@@ -1,7 +1,7 @@
 import type WebSocket from 'ws'
-import type { TApp } from '@TBE/types'
 import type { IncomingMessage } from 'http'
 import type { TWSClientMsg } from '@tdsk/domain'
+import type { TSession, TSessionPayload, TApp } from '@TBE/types'
 
 import { URL } from 'url'
 import { logger } from '@TBE/utils/logger'
@@ -9,6 +9,7 @@ import { EWSEventType } from '@tdsk/domain'
 import { verifySessionToken } from '@TBE/services/sessionToken'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
+import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
 import { Websocket } from '@TBE/services/websocket/websocket'
 
 const ClientMsgTypes = new Set<string>([
@@ -31,6 +32,7 @@ const parseClientMsg = (raw: Buffer | string): TWSClientMsg | null => {
     if (!msg || typeof msg.type !== `string` || !ClientMsgTypes.has(msg.type)) return null
     return msg as TWSClientMsg
   } catch {
+    logger.debug(`WS parse failed for message: ${String(raw).slice(0, 200)}`)
     return null
   }
 }
@@ -40,9 +42,9 @@ const parseClientMsg = (raw: Buffer | string): TWSClientMsg | null => {
  * Loads the agent (unsanitized) and resolves secrets from the DB.
  */
 const resolveSession = async (
-  payload: { userId: string; agentId: string; orgId: string },
+  payload: TSessionPayload,
   app: TApp
-) => {
+): Promise<TSession | null> => {
   try {
     const { db } = app.locals
 
@@ -82,49 +84,24 @@ const resolveSession = async (
     const headers = await secrets.resolveHeaders(provider)
     const bodyParams = await secrets.resolveBodyParams(provider)
 
-    // Resolve web provider API key from encrypted secret and inject into environment
-    const webProviderSecretId = agent.environment?.webProvider?.secretId
-    if (webProviderSecretId) {
-      try {
-        const { data: wpSecret } = await db.services.secret.get(webProviderSecretId)
-        if (wpSecret?.encryptedValue) {
-          const decrypted = await secrets.decrypt(wpSecret, agent.orgId)
-          if (decrypted) {
-            agent.environment = {
-              ...agent.environment,
-              webProvider: { ...agent.environment?.webProvider, apiKey: decrypted },
-            }
-          } else
-            logger.warn(`Failed to decrypt webProvider secret`, {
-              secretId: webProviderSecretId,
-            })
-        } else {
-          logger.warn(`WebProvider secret not found or has no encrypted value`, {
-            secretId: webProviderSecretId,
-          })
-        }
-      } catch (err) {
-        logger.error(`Failed to resolve webProvider API key`, {
-          secretId: webProviderSecretId,
-          error: err instanceof Error ? err.message : err,
-        })
-      }
-    }
+    // Resolve web provider API key + custom functions (shared with SSE path)
+    const deps = await resolveAgentDeps(agent, db, secrets, payload.projectId)
+    agent.environment = deps.environment
 
     return {
       agentId: agent.id,
       orgId: agent.orgId,
       userId: payload.userId,
+      projectId: payload.projectId,
+      environment: agent.environment,
+      customFunctions: deps.customFunctions,
       tools: agent.tools as string[] | undefined,
       envVars: agent.envVars as Record<string, string> | undefined,
-      environment: agent.environment,
-      customFunctions: undefined as any[] | undefined,
       llmConfig: {
         model,
         apiKey,
         headers,
         bodyParams,
-        // TODO: fix this any type
         provider: providerType as any,
         systemPrompt: agent.systemPrompt,
         maxTokens: agent.maxTokens || 4096,

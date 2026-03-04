@@ -151,7 +151,7 @@ export class UsersApi extends BaseApi {
    */
   async inviteToOrg(
     orgId: string,
-    data: { email: string; role: string }
+    data: { email: string; roleType: string }
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.post<{ success: boolean }>({
       data,
@@ -166,18 +166,18 @@ export class UsersApi extends BaseApi {
   /**
    * Update user role in org
    * @param orgId - Org ID
-   * @param roleId - Role ID
+   * @param userId - User ID
    * @param roleType - New role type
    * @returns Success status
    */
   async updateRole(
     orgId: string,
-    roleId: string,
+    userId: string,
     roleType: string
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.put<{ success: boolean }>({
       data: { roleType },
-      path: `/orgs/${orgId}/roles/${roleId}`,
+      path: `/orgs/${orgId}/members/${userId}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update user role`))
@@ -188,15 +188,15 @@ export class UsersApi extends BaseApi {
   /**
    * Remove user from org
    * @param orgId - Org ID
-   * @param roleId - Role ID
+   * @param userId - User ID
    * @returns Success status
    */
   async removeFromOrg(
     orgId: string,
-    roleId: string
+    userId: string
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
-      path: `/orgs/${orgId}/roles/${roleId}`,
+      path: `/orgs/${orgId}/members/${userId}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to remove user from org`))

@@ -54,7 +54,7 @@ const backendUrl = () => {
 export const config: TProxyConfig = {
   server: {
     enableSSL,
-    port: toInt(TDSK_PX_PORT) || 4000,
+    port: toInt(TDSK_PX_PORT) || 7118,
     origins: (TDSK_PX_ALLOW_ORIGIN || `http://localhost:5887`).split(`,`),
     certs: enableSSL
       ? {

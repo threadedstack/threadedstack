@@ -5,14 +5,14 @@ import { EPMethod } from '@TBE/types'
 import { InviteService } from '@TBE/services/invite'
 import { Exception } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { EPermAction, EPermResource, ERoleType } from '@tdsk/domain'
 
 type TOrgReq = {
   orgId: string
 }
 
 export type TValidate = {
-  role: string
+  roleType: string
   email: string
   expiresInDays?: number
 }
@@ -21,7 +21,7 @@ export type TValidate = {
  * POST /_/orgs/:orgId/users/invite - Invite user to org
  * Requires admin+ role in the org
  *
- * Body: { email: string, role: string, expiresInDays?: number }
+ * Body: { email: string, roleType: string, expiresInDays?: number }
  *
  * Behavior:
  * - If user exists: Create role immediately + send notification email
@@ -32,11 +32,18 @@ export const inviteOrgUser: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest<TOrgReq, TValidate>, res: Response): Promise<void> => {
     const { orgId } = req.params
-    const { email, role, expiresInDays = 7 } = req.body
+    const { email, roleType, expiresInDays = 7 } = req.body
     const { db, config, email: ems } = req.app.locals
 
     if (!email) throw new Exception(400, `Email is required`)
-    if (!role) throw new Exception(400, `Role is required`)
+    if (!roleType) throw new Exception(400, `Role type is required`)
+
+    const validRoles = Object.values(ERoleType) as string[]
+    if (!validRoles.includes(roleType))
+      throw new Exception(
+        400,
+        `Invalid role type. Must be one of: ${validRoles.join(', ')}`
+      )
 
     // Validate expiration days
     if (expiresInDays < 1 || expiresInDays > 30)
@@ -71,9 +78,9 @@ export const inviteOrgUser: TEndpointConfig = {
 
       const newRole = await ins.existing({
         org,
-        role,
         user,
         email,
+        roleType,
         inviter: req.user,
       })
 
@@ -87,7 +94,7 @@ export const inviteOrgUser: TEndpointConfig = {
     // CASE 2: User doesn't exist - create invitation and send email
     const invite = await ins.create({
       org,
-      role,
+      roleType,
       email,
       expiresInDays,
       inviter: req.user,

@@ -1,12 +1,9 @@
 import type { TRequest, TResponse, TApp } from '@TBE/types'
 import type { NextFunction, Router, RequestHandler } from 'express'
 
-import type { TAuthHeaderObj } from '@tdsk/domain'
-
 import { logger } from '@TBE/utils/logger'
-import { fromAuthHeaders } from '@tdsk/domain'
 import { shouldIgnore } from '@TBE/utils/auth/shouldIgnore'
-import { pxToBeHeader } from '@TBE/utils/auth/pxToBeHeader'
+import { authenticateRequest } from '@TBE/utils/auth/authenticateRequest'
 
 export const authenticate = async (req: TRequest, res: TResponse, next: NextFunction) => {
   try {
@@ -15,25 +12,13 @@ export const authenticate = async (req: TRequest, res: TResponse, next: NextFunc
       return
     }
 
-    pxToBeHeader(req)
-
-    const { db } = req.app?.locals
-
-    const auth = fromAuthHeaders(req)
-    if (!auth.userId) throw Error(`A valid and authorized user is required.`)
-
-    // Safe cast: userId is validated above; email is assumed present from proxy headers; orgId/projectId/role/apiKeyId are optional
-    req.app.locals.auth = auth as TAuthHeaderObj
-    const { data: user, error } = await db.services.user.get(auth.userId)
-
-    if (error) throw error
-    if (!user) throw Error(`A valid and authorized user could not be found.`)
-
-    req.user = user
+    await authenticateRequest(req, res)
     next()
   } catch (err: any) {
-    logger.error(err)
-    res.status(401).json({ error: err.message })
+    const status = err?.status || 401
+    const message = err instanceof Error ? err.message : `Authentication failed`
+    logger.error(`Auth middleware error:`, { error: err })
+    res.status(status).json({ error: message })
   }
 }
 

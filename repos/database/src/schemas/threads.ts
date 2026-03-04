@@ -37,6 +37,8 @@ export const threads = pgTable(
     index(`threads_user_id_idx`).on(table.userId),
     index(`threads_agent_id_idx`).on(table.agentId),
     index(`threads_parent_thread_id_idx`).on(table.parentThreadId),
+    index(`threads_org_id_idx`).on(table.orgId),
+    index(`threads_project_id_idx`).on(table.projectId),
   ]
 )
 

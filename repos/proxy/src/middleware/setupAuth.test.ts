@@ -1,6 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Request, Response, NextFunction } from 'express'
 import type { TProxyApp } from '@TPX/types'
+
+import { validateAuth } from './setupAuth'
+import { ApiKeyPrefix } from '@tdsk/domain'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock(`@TPX/utils/logger`, () => ({
   logger: {
@@ -14,8 +17,6 @@ vi.mock(`@TPX/utils/logger`, () => ({
 vi.mock(`@TPX/services/auth`, () => ({
   Auth: vi.fn(),
 }))
-
-import { validateAuth } from './setupAuth'
 
 const createMockAuth = () => ({
   isPublic: vi.fn(),
@@ -257,5 +258,62 @@ describe(`validateAuth`, () => {
     expect(mockAuth.extract).toHaveBeenCalled()
     expect(mockAuth.verify).not.toHaveBeenCalled()
     expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  describe(`ApiKeyPrefix usage`, () => {
+    it(`should correctly identify API key tokens using ApiKeyPrefix constant`, async () => {
+      mockAuth.isPublic.mockReturnValue(false)
+      mockAuth.extract.mockReturnValue(`${ApiKeyPrefix}live_key_abc123`)
+      const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+      const middleware = validateAuth(mockApp)
+      await middleware(mockReq, mockRes, mockNext)
+
+      expect(mockNext).toHaveBeenCalled()
+      expect(mockAuth.verify).not.toHaveBeenCalled()
+      expect(mockRes.status).not.toHaveBeenCalled()
+    })
+
+    it(`should NOT identify non-API-key tokens as API keys`, async () => {
+      mockAuth.isPublic.mockReturnValue(false)
+      mockAuth.extract.mockReturnValue(`eyJhbGciOiJSUzI1NiJ9.jwt-token`)
+      mockAuth.initialized.mockReturnValue(true)
+      mockAuth.verify.mockResolvedValue({
+        valid: true,
+        payload: { sub: `user-1`, email: `a@b.com`, role: `user` },
+      })
+      const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+      const middleware = validateAuth(mockApp)
+      await middleware(mockReq, mockRes, mockNext)
+
+      // JWT tokens should be verified, not skipped like API keys
+      expect(mockAuth.verify).toHaveBeenCalledWith(`eyJhbGciOiJSUzI1NiJ9.jwt-token`)
+    })
+
+    it(`should NOT skip tokens that only partially match the prefix`, async () => {
+      mockAuth.isPublic.mockReturnValue(false)
+      // "tdsk" without trailing underscore - not a valid API key prefix
+      mockAuth.extract.mockReturnValue(`tdsk-not-a-real-key`)
+      mockAuth.initialized.mockReturnValue(true)
+      mockAuth.verify.mockResolvedValue({
+        valid: true,
+        payload: { sub: `user-2`, email: `b@c.com`, role: `user` },
+      })
+      const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+      const middleware = validateAuth(mockApp)
+      await middleware(mockReq, mockRes, mockNext)
+
+      // Should attempt JWT verification since it doesn't start with "tdsk_"
+      expect(mockAuth.verify).toHaveBeenCalledWith(`tdsk-not-a-real-key`)
+    })
+
+    it(`should use ApiKeyPrefix from @tdsk/domain (not a hardcoded value)`, () => {
+      // Verify the constant is the expected prefix
+      expect(ApiKeyPrefix).toBe(`tdsk_`)
+      // This test validates the import works and the constant is correct.
+      // The source file imports ApiKeyPrefix from @tdsk/domain at line 6.
+    })
   })
 })

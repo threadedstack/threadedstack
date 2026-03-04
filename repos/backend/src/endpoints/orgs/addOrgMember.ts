@@ -7,7 +7,7 @@ import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 import { ERoleType, EPermAction, EPermResource, canManageRole } from '@tdsk/domain'
 
 /**
- * POST /orgs/:id/members - Add a member to a org
+ * POST /orgs/:orgId/members - Add a member to an org
  * Creates a role entry linking the user to the org
  * Requires admin+ role to add members
  * Cannot add someone with higher role than yourself
@@ -18,23 +18,29 @@ export const addOrgMember: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { db } = req.app.locals
-    const { userId, type = ERoleType.member } = req.body
+    const { userId, roleType = ERoleType.member } = req.body
     const currentUserId = req.user?.id
 
     if (!currentUserId) throw new Exception(401, `Authentication required`)
     if (!userId) throw new Exception(400, `userId is required`)
+
+    const validRoles = Object.values(ERoleType) as string[]
+    if (!validRoles.includes(roleType))
+      throw new Exception(
+        400,
+        `Invalid role type. Must be one of: ${validRoles.join(', ')}`
+      )
 
     // Check permission (requires admin+ to manage members)
     await checkPermission(req, EPermAction.manage, EPermResource.org, { orgId })
 
     // Get current user's role to validate they can assign the requested role
     const currentUserRole = await getUserRole(req, { orgId })
-    const targetRole = type as ERoleType
 
-    if (!canManageRole(currentUserRole, targetRole))
+    if (!canManageRole(currentUserRole, roleType))
       throw new Exception(
         403,
-        `You cannot add a member with ${targetRole} role. You can only add members with roles below your own.`,
+        `You cannot add a member with ${roleType} role. You can only add members with roles below your own.`,
         `FORBIDDEN`
       )
 
@@ -56,7 +62,7 @@ export const addOrgMember: TEndpointConfig = {
     const { data, error } = await db.services.role.create({
       orgId,
       userId,
-      type: targetRole,
+      type: roleType,
     })
 
     if (error) throw new Exception(500, error.message)

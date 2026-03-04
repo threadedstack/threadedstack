@@ -81,12 +81,13 @@ describe(`Thread endpoints`, () => {
       expect(agentThreads.endpoints).toBeDefined()
     })
 
-    it(`should have all 10 endpoint configs`, () => {
+    it(`should have all 11 endpoint configs`, () => {
       const keys = Object.keys(agentThreads.endpoints || {})
-      expect(keys).toHaveLength(10)
+      expect(keys).toHaveLength(11)
       expect(keys).toContain(`getThread`)
       expect(keys).toContain(`listThreads`)
       expect(keys).toContain(`createThread`)
+      expect(keys).toContain(`updateThread`)
       expect(keys).toContain(`deleteThread`)
       expect(keys).toContain(`listMessages`)
       expect(keys).toContain(`createMessage`)

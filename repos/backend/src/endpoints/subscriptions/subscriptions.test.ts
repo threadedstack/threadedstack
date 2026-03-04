@@ -452,6 +452,51 @@ describe('Subscription endpoints', () => {
       expect(mockJson).toHaveBeenCalled()
     })
 
+    it('should return response with { data: { success: true, message } } shape', async () => {
+      const mockSubscription = {
+        id: 'sub_123',
+        userId: 'user_123',
+        polarId: 'polar_sub_123',
+        polarCustomerId: 'polar_cust_123',
+      }
+
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+      mockFindByUser.mockResolvedValue({ data: mockSubscription })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: {
+          success: true,
+          message: `Subscription cancelled successfully`,
+        },
+      })
+    })
+
+    it('should return 500 when payments service cancellation fails', async () => {
+      const mockSubscription = {
+        id: 'sub_123',
+        userId: 'user_123',
+        polarId: 'polar_sub_123',
+        polarCustomerId: 'polar_cust_123',
+      }
+
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+      mockFindByUser.mockResolvedValue({ data: mockSubscription })
+
+      const paymentsService = mockReq.app?.locals.payments.service as any
+      paymentsService.cancelSubscription.mockResolvedValueOnce({
+        error: new Error(`Payment provider error`),
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Payment provider error`
+      )
+    })
+
     it('should have correct endpoint configuration', () => {
       expect(ep.path).toBe('/current')
       expect(ep.method).toBe('delete')

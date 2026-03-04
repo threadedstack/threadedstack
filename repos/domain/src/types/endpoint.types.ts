@@ -35,6 +35,7 @@ export type TApp<
 export type TResLocals = {
   user?: User
   subdomain?: string
+  subscriptionError?: boolean
 }
 
 export type TResponse<ResBody = any, Locals extends TResLocals = TResLocals> = Response<

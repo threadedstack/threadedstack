@@ -3,7 +3,7 @@ import type { TRequest, TResponse } from '@TBE/types'
 import type { EPermAction, EPermResource } from '@tdsk/domain'
 import type { TPermissionContext } from '@TBE/utils/auth/checkPermission'
 
-import { ERoleType, fromAuthHeaders } from '@tdsk/domain'
+import { ERoleType, Exception, fromAuthHeaders } from '@tdsk/domain'
 import {
   checkPermission,
   requireMinRole,
@@ -46,7 +46,7 @@ export const requireOrg = () => {
         auth.orgId || req.params.orgId || req.params.id || (req.query?.orgId as string)
 
       if (!orgId) {
-        throw new Error(`Organization ID required`)
+        throw new Exception(400, `Organization ID required`)
       }
 
       await requireOrgMember(req, orgId)
@@ -67,7 +67,7 @@ export const requireProject = () => {
       const projectId =
         req.params.projectId || req.params.id || (req.query?.projectId as string)
 
-      if (!projectId) throw new Error(`Project ID required`)
+      if (!projectId) throw new Exception(400, `Project ID required`)
 
       await requireProjectMember(req, projectId)
       next()

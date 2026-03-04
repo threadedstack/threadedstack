@@ -41,36 +41,14 @@ export class FaaSEndpoint extends BaseEndpoint {
 
     if (error || !func) throw new Exception(404, `Function not found: ${functionId}`)
 
-    // Parse body from raw stream if not already parsed (proxy routes skip express.json())
-    let reqBody = req.body
-    if (reqBody === undefined || reqBody === null) {
-      const contentType = req.headers[`content-type`] || ``
-      if (contentType.includes(`application/json`)) {
-        const raw = await new Promise<string>((resolve, reject) => {
-          let data = ``
-          req.on(`data`, (chunk: Buffer) => {
-            data += chunk.toString()
-          })
-          req.on(`end`, () => resolve(data))
-          req.on(`error`, reject)
-        })
-        try {
-          reqBody = raw ? JSON.parse(raw) : {}
-        } catch {
-          reqBody = {}
-        }
-      } else {
-        reqBody = {}
-      }
-    }
-
     // Build TFunctionRequest from the Express request
+    // Body is already parsed by the endpoint dispatcher via parseJsonBody
     const functionRequest = {
       method: req.method,
       path: req.path,
       headers: req.headers as Record<string, string>,
       query: (req.query || {}) as Record<string, string>,
-      body: reqBody,
+      body: req.body || {},
     }
 
     // Build TFunctionContext from endpoint options

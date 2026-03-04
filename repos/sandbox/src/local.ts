@@ -111,6 +111,33 @@ export class LocalSandbox implements ISandbox {
     return await this.isolateRunner['eval'](code, opts?.timeout)
   }
 
+  reset = async (): Promise<void> => {
+    // Release user-registered modules to avoid V8 heap leaks on pool reuse
+    this.isolateRunner?.releaseUserModules()
+
+    // Clear filesystem contents in /workspace and /tmp
+    for (const dir of [`/workspace`, `/tmp`]) {
+      try {
+        const entries = await this.fs.readdir(dir)
+        for (const entry of entries) {
+          try {
+            await this.fs.rm(`${dir}/${entry}`)
+          } catch (err: any) {
+            // Non-empty directories are expected — only log unexpected errors
+            const code = err?.code || err?.message || ``
+            if (
+              !String(code).includes(`not empty`) &&
+              !String(code).includes(`ENOTEMPTY`)
+            )
+              console.warn(`Unexpected error clearing ${dir}/${entry}:`, err)
+          }
+        }
+      } catch {
+        /* directory may not exist */
+      }
+    }
+  }
+
   close = async (): Promise<void> => {
     this.isolateRunner?.dispose()
   }

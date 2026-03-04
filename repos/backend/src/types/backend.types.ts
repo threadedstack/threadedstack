@@ -17,7 +17,7 @@ export type TApp = TEApp<
 >
 
 export type TRequest<
-  ReqParams extends TReqParams = TReqParams,
+  ReqParams extends TReqParams = any,
   ReqBody = any,
   ResBody = any,
 > = TReq<TApp, ReqParams, ResBody, ReqBody>

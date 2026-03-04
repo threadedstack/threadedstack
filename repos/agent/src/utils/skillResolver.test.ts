@@ -148,4 +148,57 @@ describe(`resolveActiveSkills`, () => {
     const result = resolveActiveSkills(skills, `hello`)
     expect(result.instructions).toContain(`## A\nInst A\n\n## B\nInst B`)
   })
+
+  describe(`activeSkills return field`, () => {
+    it(`should return activeSkills array with matching Skill objects`, () => {
+      const skill = makeSkill({ alwaysActive: true, name: `Active One` })
+      const result = resolveActiveSkills([skill], `hello`)
+      expect(result.activeSkills).toHaveLength(1)
+      expect(result.activeSkills[0].name).toBe(`Active One`)
+    })
+
+    it(`should return empty activeSkills when no skills match`, () => {
+      const skills = [makeSkill({ triggerKeywords: [`deploy`], name: `Deploy Skill` })]
+      const result = resolveActiveSkills(skills, `hello world`)
+      expect(result.activeSkills).toEqual([])
+    })
+
+    it(`should return same skill objects (reference equality) in activeSkills`, () => {
+      const skill1 = makeSkill({ id: `s1`, alwaysActive: true, name: `Ref Test` })
+      const skill2 = makeSkill({ id: `s2`, triggerKeywords: [`code`], name: `Coding` })
+      const result = resolveActiveSkills([skill1, skill2], `write code`)
+      expect(result.activeSkills[0]).toBe(skill1)
+      expect(result.activeSkills[1]).toBe(skill2)
+    })
+
+    it(`should include both alwaysActive and keyword-triggered skills in activeSkills`, () => {
+      const always = makeSkill({ id: `s1`, alwaysActive: true, name: `Always` })
+      const keyword = makeSkill({ id: `s2`, triggerKeywords: [`deploy`], name: `Deploy` })
+      const result = resolveActiveSkills([always, keyword], `please deploy`)
+      expect(result.activeSkills).toHaveLength(2)
+      expect(result.activeSkills.map((s) => s.name)).toEqual([`Always`, `Deploy`])
+    })
+
+    it(`should return empty activeSkills when skills array is empty`, () => {
+      const result = resolveActiveSkills([], `hello`)
+      expect(result.activeSkills).toEqual([])
+    })
+
+    it(`should return empty activeSkills when skills is null`, () => {
+      const result = resolveActiveSkills(null as any, `hello`)
+      expect(result.activeSkills).toEqual([])
+    })
+
+    it(`should not include inactive keyword skills in activeSkills`, () => {
+      const active = makeSkill({ id: `s1`, alwaysActive: true, name: `Active` })
+      const inactive = makeSkill({
+        id: `s2`,
+        triggerKeywords: [`deploy`],
+        name: `Deploy`,
+      })
+      const result = resolveActiveSkills([active, inactive], `hello world`)
+      expect(result.activeSkills).toHaveLength(1)
+      expect(result.activeSkills[0].name).toBe(`Active`)
+    })
+  })
 })

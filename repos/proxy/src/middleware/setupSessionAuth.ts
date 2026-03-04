@@ -15,12 +15,11 @@ export const validateSessionAuth = (app: TProxyApp) => {
     if (!app.locals.auth.isSession(req.path)) return next()
     if (req.user) return next()
 
-    const authHeader = req.headers.authorization
     const token = app.locals.auth.extract(req)
     if (!token) {
-      logger.warn(
-        `Missing session token for ${req.path}\nAuthorization Header: ${authHeader}`
-      )
+      const authHeader = req.headers.authorization
+      const redacted = authHeader ? `${authHeader.substring(0, 12)}...` : `(none)`
+      logger.warn(`Missing session token for ${req.path} [auth: ${redacted}]`)
       res.status(401).json({ error: `Session token required` })
       return
     }

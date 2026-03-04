@@ -1,12 +1,11 @@
-import type { TApp } from '@TBE/types'
+import type { TSession, TApp } from '@TBE/types'
 import type { TStreamEvent, TWSServerMsg, TWSPromptMsg } from '@tdsk/domain'
 import type {
-  IAgentRunnerDB,
   TAgentHandle,
-  TAgentInitOpts,
   TAgentConfig,
+  TAgentInitOpts,
+  IAgentRunnerDB,
 } from '@tdsk/agent'
-import type { TSession } from '@TBE/types'
 
 import WebSocket from 'ws'
 import { logger } from '@TBE/utils/logger'
@@ -239,7 +238,7 @@ export class Websocket {
       // 4. Wait for agent to finish
       await handle.waitForIdle()
 
-      // 5. Send done
+      // 5. Send done — WS uses typed JSON messages; SSE uses `[DONE]` sentinel.
       this.send({ type: EWSEventType.Done, reason: `complete` })
     } catch (err) {
       if (ac.signal.aborted) {

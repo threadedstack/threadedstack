@@ -6,7 +6,7 @@ import { threads } from '@TDB/schemas/threads'
 import { messages } from '@TDB/schemas/messages'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
-import { uuid, text, jsonb, check, pgTable, varchar } from 'drizzle-orm/pg-core'
+import { uuid, text, jsonb, check, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const assets = pgTable(
   `assets`,
@@ -39,14 +39,18 @@ export const assets = pgTable(
       `asset_owner_check`,
       sql`
     (
-      (${table.orgId} IS NOT NULL)::int + 
-      (${table.projectId} IS NOT NULL)::int + 
-      (${table.userId} IS NOT NULL)::int + 
-      (${table.threadId} IS NOT NULL)::int + 
+      (${table.orgId} IS NOT NULL)::int +
+      (${table.projectId} IS NOT NULL)::int +
+      (${table.userId} IS NOT NULL)::int +
+      (${table.threadId} IS NOT NULL)::int +
       (${table.messageId} IS NOT NULL)::int
     ) = 1
   `
     ),
+    index(`assets_org_id_idx`).on(table.orgId),
+    index(`assets_thread_id_idx`).on(table.threadId),
+    index(`assets_project_id_idx`).on(table.projectId),
+    index(`assets_message_id_idx`).on(table.messageId),
   ]
 )
 

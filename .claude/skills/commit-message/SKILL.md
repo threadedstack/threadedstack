@@ -1,17 +1,59 @@
 ---
 name: commit-message
-description: Generate conventional commit messages from staged git changes. Use when asked to compose a commit message, write a commit, generate conventional commits, or describe staged changes.
+description: "Review changed files and compose a conventional commit message. Uses plan files as primary context when present. NEVER commits — only outputs the message. Use when asked to compose a commit message, write a commit, generate conventional commits, describe changes, or summarize work done."
 ---
 
 # Git Commit Composer
 
+Analyzes changed files in the working tree, detects plan files for context, and outputs a conventional commit message. **Never commits, stages, or modifies git history.**
+
+## Safety Rules
+
+- **NEVER** run `git add`, `git commit`, `git push`, `git reset`, `git revert`, `git rebase`, or `git cherry-pick`
+- **NEVER** modify git state in any way — read-only git operations only
+- Output the commit message as text — the user will commit manually
+
 ## Process
 
-1. Run `git diff` to read the changed files. If nothing is changed, inform the user to make changes first.
-2. Analyze the diff to determine: what changed, why it changed, and the impact.
-3. Classify the change type and generate a commit message following Conventional Commits.
+### Step 1: Gather Changes
 
-## Commit Message Format
+Run these commands to understand the full scope of changes:
+
+```bash
+git status
+git diff              # Unstaged changes
+git diff --cached     # Staged changes
+```
+
+If there are no changes (clean working tree), inform the user and stop.
+
+### Step 2: Detect Plan Files
+
+Search the changed files for plan files. Plan files are any files matching:
+- `*plan*` (e.g., `plan.md`, `implementation-plan.md`, `.claude/plan-*.md`)
+- `*PLAN*`
+- `TASKS.md` (task list that may describe planned work)
+
+If plan files are found among the changed files:
+1. **Read each plan file** to understand the intended scope and goals
+2. Use the plan as the **primary basis** for the commit message — it describes *what was intended*
+3. Cross-reference the plan against actual code changes to confirm what was implemented
+4. Note any plan items that appear unfinished or divergent from the code changes
+
+If no plan files are found, proceed with diff-only analysis.
+
+### Step 3: Analyze Changes
+
+For each changed file, determine:
+- **What** changed (added, modified, deleted)
+- **Why** it changed (feature, fix, refactor, etc.)
+- **Which repo/area** it belongs to (admin, backend, proxy, domain, etc.)
+
+Group related changes to identify the overall theme.
+
+### Step 4: Compose the Commit Message
+
+Follow Conventional Commits format:
 
 ```
 <type>(<scope>): <description>
@@ -21,7 +63,7 @@ description: Generate conventional commit messages from staged git changes. Use 
 [optional footer(s)]
 ```
 
-### Types
+#### Types
 
 | Type | When to use |
 |---|---|
@@ -37,22 +79,21 @@ description: Generate conventional commit messages from staged git changes. Use 
 | `build` | Build system or external dependency changes |
 | `revert` | Reverts a previous commit |
 
-### Scope
+#### Scope
 
-Derive the scope from the primary area of change:
-
-- File/module name: `feat(auth): add JWT refresh token rotation`
-- Feature area: `fix(checkout): prevent double charge on retry`
-- Layer: `refactor(api): extract validation middleware`
+Derive scope from the primary area of change. For this monorepo:
+- Single repo: `feat(backend): add quota tracking endpoint`
+- Multiple repos: `feat(backend,domain): add quota model and API`
+- Cross-cutting: omit scope or use feature area: `feat: add project-scoped API keys`
 
 Omit scope if the change spans many unrelated areas.
 
-### Description Rules
+#### Description Rules
 
-- Use imperative mood: "add" not "added" or "adds"
+- Imperative mood: "add" not "added" or "adds"
 - No capitalized first letter
-- No period at the end
-- Under 72 characters total (including type and scope)
+- No period at end
+- Under 72 characters total (type + scope + description)
 - Describe what the change does, not what was wrong
 
 **BAD:**
@@ -69,9 +110,9 @@ feat(form): add email format validation to signup form
 chore(deps): bump next from 14.1.0 to 14.2.0
 ```
 
-### Body
+#### Body
 
-Add a body when the description alone doesn't explain the "why":
+When plan files were used, the body should summarize the key deliverables from the plan. When changes are non-trivial, explain the "why" not just the "what".
 
 ```
 fix(api): return 404 instead of 500 for missing resources
@@ -81,7 +122,7 @@ PrismaClientKnownRequestError, resulting in a 500 response.
 Now the error is caught and mapped to a proper 404.
 ```
 
-### Breaking Changes
+#### Breaking Changes
 
 Use `!` after the type/scope and add a `BREAKING CHANGE` footer:
 
@@ -92,6 +133,9 @@ BREAKING CHANGE: GET /api/users now returns { data: User[], meta: {...} }
 instead of a plain User[] array. All clients must update their response parsing.
 ```
 
+#### Multi-Topic Changes
+
+If changes span multiple unrelated concerns, suggest splitting into multiple commits with separate messages for each logical group.
 
 ## Dependency Updates
 
@@ -105,6 +149,8 @@ fix(deps): pin prisma to 5.19.0 to resolve migration bug
 
 ## Output Format
 
+Present the commit message in a code block, followed by a brief analysis:
+
 ```
 ## Commit Message
 
@@ -113,6 +159,10 @@ fix(deps): pin prisma to 5.19.0 to resolve migration bug
 ### Analysis
 - **Type**: [type] — [reason for classification]
 - **Scope**: [scope] — [derived from]
+- **Plan file used**: [yes/no] — [filename if yes]
 - **Files changed**: [count]
+- **Repos touched**: [list]
 - **Insertions/deletions**: +[n] / -[n]
 ```
+
+If suggesting multiple commits, present each one separately with its file grouping.

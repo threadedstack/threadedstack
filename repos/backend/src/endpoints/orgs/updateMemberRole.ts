@@ -1,14 +1,14 @@
 import type { Response } from 'express'
+import { ERoleType } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import type { ERoleType } from '@tdsk/domain'
 import { Exception } from '@tdsk/domain'
 import { EPermAction, EPermResource, canManageRole } from '@tdsk/domain'
 import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
- * PUT /orgs/:id/members/:userId - Update member role in an org
+ * PUT /orgs/:orgId/members/:userId - Update member role in an org
  * Requires admin+ role to change member roles
  * Cannot promote someone to or above your own role
  */
@@ -18,19 +18,26 @@ export const updateMemberRole: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId, userId } = req.params
     const { db } = req.app.locals
-    const { type: newRoleType } = req.body
+    const { roleType } = req.body
     const currentUserId = req.user?.id
 
     if (!currentUserId) throw new Exception(401, `Authentication required`)
 
-    if (!newRoleType) throw new Exception(400, `Role type is required`)
+    if (!roleType) throw new Exception(400, `Role type is required`)
+
+    const validRoles = Object.values(ERoleType) as string[]
+    if (!validRoles.includes(roleType))
+      throw new Exception(
+        400,
+        `Invalid role type. Must be one of: ${validRoles.join(', ')}`
+      )
 
     // Check permission (requires admin+ to manage members)
     await checkPermission(req, EPermAction.manage, EPermResource.org, { orgId })
 
     // Get current user's role
     const currentUserRole = await getUserRole(req, { orgId })
-    const targetRole = newRoleType as ERoleType
+    const targetRole = roleType as ERoleType
 
     // Cannot promote to or above your own role
     if (!canManageRole(currentUserRole, targetRole))

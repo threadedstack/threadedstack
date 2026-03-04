@@ -6,7 +6,7 @@ import type { TOAuthConfig, TEndpointOpts, TBodyTransformConfig } from '@tdsk/do
 import axios from 'axios'
 import { logger } from '@TBE/utils/logger'
 import { isObj } from '@keg-hub/jsutils/isObj'
-import { EEPCredential, EEPAuthType } from '@tdsk/domain'
+import { Exception, EEPCredential, EEPAuthType } from '@tdsk/domain'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 /**
@@ -93,7 +93,7 @@ export class ProxyService {
       const response = await axios.post(tokenUrl, params.toString(), { headers })
       const { access_token: token, expires_in = 3600 } = response.data
 
-      if (!token) throw new Error(`OAuth token response missing access_token`)
+      if (!token) throw new Exception(502, `OAuth token response missing access_token`)
 
       // Cache token with 5-minute buffer before expiration
       const expiresAt = Date.now() + (expires_in - 300) * 1000
@@ -107,7 +107,7 @@ export class ProxyService {
       return token
     } catch (error) {
       logger.error(`OAuth token exchange failed:`, error)
-      throw new Error(`Failed to obtain OAuth access token`)
+      throw new Exception(502, `Failed to obtain OAuth access token`)
     }
   }
 
@@ -140,14 +140,14 @@ export class ProxyService {
 
     if (!secretId) {
       logger.warn(`Auth configured but no secretId provided`)
-      throw new Error(`Auth configured but no secretId provided`)
+      throw new Exception(400, `Auth configured but no secretId provided`)
     }
 
     const secret = secrets?.find((s) => s.id === secretId)
 
     if (!secret || !secret.value) {
       logger.warn(`Secret with ID "${secretId}" not found for auth`)
-      throw new Error(`Secret with ID "${secretId}" not found for auth`)
+      throw new Exception(404, `Secret not found for auth`)
     }
 
     switch (type) {
@@ -169,7 +169,7 @@ export class ProxyService {
         break
 
       default:
-        throw new Error(`Unknown auth type: ${type}`)
+        throw new Exception(400, `Unknown auth type: ${type}`)
     }
   }
 
@@ -309,13 +309,13 @@ export class ProxyService {
     // Validate domain whitelist (checks incoming request origin, not target URL)
     if (options.domainWhitelist) {
       const allowed = this.validateDomainWhitelist(requestOrigin, options.domainWhitelist)
-      if (!allowed) throw new Error(`Request origin not in domain whitelist`)
+      if (!allowed) throw new Exception(403, `Request origin not in domain whitelist`)
     }
 
     // Validate path regex
     if (options.pathRegex) {
       const matches = this.validatePathRegex(requestPath, options.pathRegex)
-      if (!matches) throw new Error(`Request path does not match pathRegex`)
+      if (!matches) throw new Exception(403, `Request path does not match pathRegex`)
     }
 
     // Apply OAuth (takes precedence over basic auth)

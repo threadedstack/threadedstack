@@ -26,7 +26,6 @@ export class Exception extends Error {
   message: string
   code?: string
   details?: TErrDetails
-  __isAuthError?: boolean = false
 
   constructor(
     status: number,

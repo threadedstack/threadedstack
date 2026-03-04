@@ -30,7 +30,7 @@ describe('Tier 1: validateIdParams Middleware', () => {
   test('PUT member role with invalid userId format → 400', async () => {
     const res = await put(
       `/orgs/${ctx.orgId}/members/not-a-uuid`,
-      { type: 'member' }
+      { roleType: 'member' }
     )
 
     expect(res.status).toBe(400)
@@ -39,7 +39,7 @@ describe('Tier 1: validateIdParams Middleware', () => {
   test('PUT member role with nanoid userId format → 400', async () => {
     const res = await put(
       `/orgs/${ctx.orgId}/members/V1StGXR8_Z`,
-      { type: 'member' }
+      { roleType: 'member' }
     )
 
     expect(res.status).toBe(400)
@@ -51,7 +51,7 @@ describe('Tier 1: validateIdParams Middleware', () => {
     const fakeMemberId = `ffffffff-ffff-ffff-ffff-ffffffffffff`
     const res = await put(
       `/orgs/${ctx.orgId}/members/${fakeMemberId}`,
-      { type: 'member' }
+      { roleType: 'member' }
     )
 
     // Should NOT be 400 (format error) — expected 403 or 404 for non-existent member.

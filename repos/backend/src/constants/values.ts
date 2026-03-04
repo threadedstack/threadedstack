@@ -53,3 +53,19 @@ export const FileAllowedMimeTypes = new Set([
   `application/pdf`,
   `application/vnd.openxmlformats-officedocument.wordprocessingml.document`,
 ])
+
+/** 1 MB output cap */
+export const MaxOutputBytes = 1_048_576
+
+/** 1 MB request body size limit */
+export const RequestBodyMaxSize = 1_048_576
+
+/** Default execution timeout in ms */
+export const DefaultTimeoutMS = 30_000
+
+/** Sandbox pool — max idle sandboxes and TTL before eviction */
+export const PoolMaxSize = 5
+export const PoolTtlMS = 5 * 60 * 1000
+
+// How long a session token lasts, used in websocket connections
+export const SessionTtlSec = 3600 // 1 hour

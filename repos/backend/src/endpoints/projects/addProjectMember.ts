@@ -19,11 +19,18 @@ export const addProjectMember: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId, projectId } = req.params
     const { db } = req.app.locals
-    const { userId, type = ERoleType.member } = req.body
+    const { userId, roleType = ERoleType.member } = req.body
     const currentUserId = req.user?.id
 
     if (!currentUserId) throw new Exception(401, `Authentication required`)
     if (!userId) throw new Exception(400, `userId is required`)
+
+    const validRoles = Object.values(ERoleType) as string[]
+    if (!validRoles.includes(roleType as string))
+      throw new Exception(
+        400,
+        `Invalid role type. Must be one of: ${validRoles.join(', ')}`
+      )
 
     // Check permission (requires admin+ to manage project members)
     await checkPermission(req, EPermAction.manage, EPermResource.project, {
@@ -33,7 +40,7 @@ export const addProjectMember: TEndpointConfig = {
 
     // Get current user's role to validate they can assign the requested role
     const currentUserRole = await getUserRole(req, { orgId, projectId })
-    const targetRole = type as ERoleType
+    const targetRole = roleType as ERoleType
 
     if (!canManageRole(currentUserRole, targetRole))
       throw new Exception(

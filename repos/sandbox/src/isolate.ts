@@ -296,6 +296,18 @@ export class IsolateRunner {
   async registerModule(name: string, code: string): Promise<void> {
     if (!this.#initialized) await this.init()
 
+    // Release existing module with this name to avoid V8 heap leak on pool reuse
+    const existing = this.#shims.get(name)
+    if (existing) {
+      try {
+        existing.release()
+      } catch (err: any) {
+        if (!String(err?.message || ``).includes(`released`))
+          console.warn(`Unexpected error releasing module '${name}':`, err)
+      }
+      this.#shims.delete(name)
+    }
+
     const mod = await this.#isolate!.compileModule(code, { filename: name })
     await mod.instantiate(this.#context!, (specifier: string) => {
       const shim = this.#shims.get(specifier)
@@ -304,6 +316,33 @@ export class IsolateRunner {
     })
     await mod.evaluate()
     this.#shims.set(name, mod)
+  }
+
+  /** Built-in shim names that must survive reset (not user-registered modules) */
+  static readonly #builtinNames = new Set([
+    `fs`,
+    `node:fs`,
+    `path`,
+    `node:path`,
+    `child_process`,
+    `node:child_process`,
+  ])
+
+  /**
+   * Release all user-registered modules (but keep built-in shims).
+   * Called during sandbox pool reset to avoid V8 heap leaks.
+   */
+  releaseUserModules(): void {
+    for (const [name, mod] of this.#shims) {
+      if (IsolateRunner.#builtinNames.has(name)) continue
+      try {
+        mod.release()
+      } catch (err: any) {
+        if (!String(err?.message || ``).includes(`released`))
+          console.warn(`Unexpected error releasing module '${name}':`, err)
+      }
+      this.#shims.delete(name)
+    }
   }
 
   async eval(code: string, timeout = 5000): Promise<{ output: string; result: any }> {
@@ -345,8 +384,10 @@ export class IsolateRunner {
         const json = await bridge.namespace.get(`default`, { copy: true })
         if (typeof json === `string`) result = JSON.parse(json)
         bridge.release()
-      } catch {
-        // Both structured clone and JSON serialization failed
+      } catch (err: any) {
+        // Both structured clone and JSON serialization failed — result stays undefined
+        if (!String(err?.message || ``).includes(`released`))
+          console.warn(`Failed to extract default export from user code:`, err)
       }
     }
 
@@ -362,8 +403,9 @@ export class IsolateRunner {
     for (const mod of this.#shims.values()) {
       try {
         mod.release()
-      } catch {
-        /* already released */
+      } catch (err: any) {
+        if (!String(err?.message || ``).includes(`released`))
+          console.warn(`Unexpected error releasing module during dispose:`, err)
       }
     }
     this.#shims.clear()
@@ -371,8 +413,9 @@ export class IsolateRunner {
     if (this.#context) {
       try {
         this.#context.release()
-      } catch {
-        /* already released */
+      } catch (err: any) {
+        if (!String(err?.message || ``).includes(`released`))
+          console.warn(`Unexpected error releasing context during dispose:`, err)
       }
       this.#context = null
     }
@@ -380,8 +423,9 @@ export class IsolateRunner {
     if (this.#isolate) {
       try {
         this.#isolate.dispose()
-      } catch {
-        /* already disposed */
+      } catch (err: any) {
+        if (!String(err?.message || ``).includes(`disposed`))
+          console.warn(`Unexpected error disposing isolate:`, err)
       }
       this.#isolate = null
     }

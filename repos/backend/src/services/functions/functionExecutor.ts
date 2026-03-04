@@ -1,4 +1,5 @@
 import type {
+  ISandbox,
   TFunctionRequest,
   TFunctionContext,
   TFunctionExecResult,
@@ -8,12 +9,72 @@ import { transform } from 'esbuild'
 import { logger } from '@TBE/utils/logger'
 import { createSandboxProvider } from '@tdsk/sandbox'
 import { EFunLanguage, ESandboxType } from '@tdsk/domain'
+import {
+  PoolTtlMS,
+  PoolMaxSize,
+  MaxOutputBytes,
+  DefaultTimeoutMS,
+} from '@TBE/constants/values'
 
-/** 1 MB output cap */
-const MAX_OUTPUT_BYTES = 1_048_576
+type TPoolEntry = { sandbox: ISandbox; lastUsed: number }
+const pool: TPoolEntry[] = []
+let poolTimer: ReturnType<typeof setInterval> | null = null
 
-/** Default execution timeout in ms */
-const DEFAULT_TIMEOUT_MS = 30_000
+const cleanExpired = (): void => {
+  const now = Date.now()
+  let i = pool.length
+  while (i--) {
+    if (now - pool[i].lastUsed > PoolTtlMS) {
+      const [entry] = pool.splice(i, 1)
+      entry.sandbox.close().catch((err: unknown) => {
+        logger.warn(
+          `Failed to close expired sandbox: ${err instanceof Error ? err.message : String(err)}`
+        )
+      })
+    }
+  }
+  if (!pool.length && poolTimer) {
+    clearInterval(poolTimer)
+    poolTimer = null
+  }
+}
+
+const acquireSandbox = async (timeout: number): Promise<ISandbox> => {
+  cleanExpired()
+  const entry = pool.pop()
+  if (entry) return entry.sandbox
+
+  const provider = createSandboxProvider(ESandboxType.local)
+  return provider.create({ provider: ESandboxType.local, timeout })
+}
+
+const releaseSandbox = async (sandbox: ISandbox): Promise<void> => {
+  if (pool.length >= PoolMaxSize) {
+    await sandbox.close().catch((err: unknown) => {
+      logger.warn(
+        `Failed to close sandbox (pool full): ${err instanceof Error ? err.message : String(err)}`
+      )
+    })
+    return
+  }
+  try {
+    await sandbox.reset()
+    pool.push({ sandbox, lastUsed: Date.now() })
+    if (!poolTimer) {
+      poolTimer = setInterval(cleanExpired, 60_000)
+      poolTimer.unref?.()
+    }
+  } catch (resetErr: unknown) {
+    logger.warn(
+      `Sandbox reset failed, closing instead: ${resetErr instanceof Error ? resetErr.message : String(resetErr)}`
+    )
+    await sandbox.close().catch((closeErr: unknown) => {
+      logger.warn(
+        `Failed to close sandbox after reset failure: ${closeErr instanceof Error ? closeErr.message : String(closeErr)}`
+      )
+    })
+  }
+}
 
 type TFunctionRecord = {
   id: string
@@ -58,25 +119,26 @@ export default output;`
  *
  * Executes user-defined functions inside an isolated V8 sandbox.
  * TypeScript functions are transpiled via esbuild before execution.
- * The sandbox is always torn down in a finally block.
+ * Sandboxes are pooled for reuse — V8 isolate creation is expensive.
  */
 export class FunctionExecutor {
   /**
    * Execute a function record inside a local sandbox using V8 isolate evaluation.
    *
    * 1. If TypeScript, strip types via esbuild
-   * 2. Create a local sandbox
-   * 3. Register the function code as a named module
-   * 4. Build wrapper code that imports and calls the handler
-   * 5. Evaluate the wrapper via sandbox.evaluate()
-   * 6. Always close the sandbox in finally
+   * 2. Acquire a sandbox from the pool (or create new)
+   * 3. Build wrapper code that imports and calls the handler
+   * 4. Evaluate the wrapper via sandbox.evaluate() with function code as module
+   * 5. Parse and validate the result (cap output at MaxOutputBytes)
+   * 6. Return sandbox to pool on success, close on error
    */
   static execute = async (
     func: TFunctionRecord,
     opts?: TExecuteOpts
   ): Promise<TFunctionExecResult> => {
     const startTime = Date.now()
-    let sandbox
+    let sandbox: ISandbox | undefined
+    let pooled = false
 
     try {
       // 1. Transpile TypeScript if needed
@@ -86,21 +148,21 @@ export class FunctionExecutor {
         code = result.code
       }
 
-      // 2. Create a local sandbox
-      const provider = createSandboxProvider(ESandboxType.local)
-      sandbox = await provider.create({
-        provider: ESandboxType.local,
-        timeout: opts?.timeout || DEFAULT_TIMEOUT_MS,
-      })
+      // 2. Acquire sandbox from pool (or create new)
+      sandbox = await acquireSandbox(opts?.timeout || DefaultTimeoutMS)
 
       // 3. Build wrapper that imports 'function' module and calls handler
       const wrapperCode = buildWrapperCode(opts?.request || {}, opts?.context || {})
 
       // 4. Evaluate via V8 isolate with function code registered as module
       const evalResult = await sandbox.evaluate(wrapperCode, {
-        timeout: opts?.timeout || DEFAULT_TIMEOUT_MS,
+        timeout: opts?.timeout || DefaultTimeoutMS,
         modules: { function: code },
       })
+
+      // Sandbox executed successfully — return to pool
+      pooled = true
+      await releaseSandbox(sandbox)
 
       // 5. Parse the result
       const parsed = evalResult.result as
@@ -118,12 +180,12 @@ export class FunctionExecutor {
 
       // Cap output at 1MB
       const outputStr = JSON.stringify(parsed.output ?? null)
-      if (outputStr.length > MAX_OUTPUT_BYTES) {
+      if (outputStr.length > MaxOutputBytes) {
         return {
           success: false,
           output: null,
           duration: Date.now() - startTime,
-          error: `Function output exceeded maximum size of ${MAX_OUTPUT_BYTES} bytes`,
+          error: `Function output exceeded maximum size of ${MaxOutputBytes} bytes`,
         }
       }
 
@@ -144,7 +206,7 @@ export class FunctionExecutor {
         error: message,
       }
     } finally {
-      if (sandbox) {
+      if (sandbox && !pooled) {
         await sandbox.close().catch((err: unknown) => {
           logger.error(
             `Failed to close sandbox for function ${func.id}: ${err instanceof Error ? err.message : String(err)}`

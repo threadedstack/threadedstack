@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express'
 
 import { Auth } from '@TPX/services/auth'
 import { logger } from '@TPX/utils/logger'
+import { ApiKeyPrefix } from '@tdsk/domain'
 
 /**
  * JWT Authentication middleware
@@ -25,7 +26,7 @@ export const validateAuth = (app: TProxyApp) => {
 
     if (!token) return next()
     // Token present but starts with tdsk_ — it's an API key, not a JWT
-    if (token.startsWith(`tdsk_`)) return next()
+    if (token.startsWith(ApiKeyPrefix)) return next()
 
     if (!app.locals.auth.initialized()) {
       logger.error(`Auth client not initialized`)

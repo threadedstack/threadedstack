@@ -81,9 +81,4 @@ describe(`Exception`, () => {
       expect(ex.details).toEqual([`missing resource`])
     }
   })
-
-  it(`should default __isAuthError to false`, () => {
-    const ex = new Exception(401, `Unauthorized`)
-    expect(ex.__isAuthError).toBe(false)
-  })
 })

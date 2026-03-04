@@ -5,9 +5,10 @@ import type { TRequest, TAgentExecOpts } from '@TBE/types'
 import type { Endpoint, TLLMProviderBrand } from '@tdsk/domain'
 
 import { BaseEndpoint } from './base'
-import { AgentRunner } from '@tdsk/agent'
 import { Exception } from '@tdsk/domain'
+import { AgentRunner } from '@tdsk/agent'
 import { ESandboxType, EEndpointType } from '@tdsk/domain'
+import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
@@ -15,7 +16,7 @@ import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 /**
  * Create an IAgentRunnerDB adapter wrapping backend database services
  */
-const createDBAdapter = (db: any): IAgentRunnerDB => ({
+const createDBAdapter = (db: TDatabase): IAgentRunnerDB => ({
   createMessage: (data) => db.services.message.create(data),
   listMessages: (opts) =>
     db.services.message.listByThread(opts.where.threadId, {
@@ -109,16 +110,10 @@ export class AgentEndpoint extends BaseEndpoint {
     const headers = await secrets.resolveHeaders(provider)
     const bodyParams = await secrets.resolveBodyParams(provider)
 
-    // Load custom functions from project config (functions are project-scoped only)
-    const projectConfig = projectId ? agent.getProjectConfig(projectId) : null
-    const functionIds = projectConfig?.functionIds || []
-    let agentFunctions: any[] = []
-    if (functionIds.length) {
-      const results = await Promise.all(
-        functionIds.map((fid: string) => db.services.function.get(fid))
-      )
-      agentFunctions = results.filter((r) => r.data).map((r) => r.data)
-    }
+    // Resolve web provider API key + custom functions (shared with WS path)
+    const deps = await resolveAgentDeps(effectiveAgent, db, secrets, projectId)
+    effectiveAgent.environment = deps.environment
+    const agentFunctions = deps.customFunctions
 
     // Build function lookup for the execution callback
     const functionMap = new Map(agentFunctions.map((fn: any) => [fn.id, fn]))
@@ -222,7 +217,8 @@ export class AgentEndpoint extends BaseEndpoint {
       }
     }
 
-    // End the SSE stream
+    // End the SSE stream.
+    // SSE uses OpenAI-compatible `[DONE]` sentinel; WS uses typed JSON `{ type: "done" }`.
     if (!aborted) {
       res.write(`data: [DONE]\n\n`)
       res.end()

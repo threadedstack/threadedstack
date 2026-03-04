@@ -5,7 +5,12 @@ import { Base } from '@TDB/services/base'
 import { assets } from '@TDB/schemas/assets'
 import { Asset as AssetModel } from '@tdsk/domain'
 
-export class Asset extends Base<typeof assets, TDBAssetSelect, TDBAssetInsert> {
+export class Asset extends Base<
+  typeof assets,
+  TDBAssetSelect,
+  TDBAssetInsert,
+  AssetModel
+> {
   constructor(opts: TServiceOpts) {
     super({ ...opts, table: assets })
   }

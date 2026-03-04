@@ -1,8 +1,8 @@
 export type TAuthHeaderObj = {
-  userId: string
   email: string
   role?: string
+  userId: string
   orgId?: string
-  projectId?: string
   apiKeyId?: string
+  projectId?: string
 }

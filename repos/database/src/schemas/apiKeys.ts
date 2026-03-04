@@ -3,9 +3,11 @@ import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { projects } from '@TDB/schemas/projects'
 import { base } from '@TDB/utils/schema/base'
+import { sql } from 'drizzle-orm'
 import {
   uuid,
   text,
+  check,
   index,
   integer,
   varchar,
@@ -39,6 +41,14 @@ export const apiKeys = pgTable(
     index(`api_keys_key_hash_idx`).on(table.keyHash),
     index(`api_keys_project_id_idx`).on(table.projectId),
     index(`api_keys_user_id_idx`).on(table.userId),
+    check(
+      `api_key_scope_check`,
+      sql`
+    (${table.orgId} IS NOT NULL AND ${table.projectId} IS NULL)
+    OR (${table.orgId} IS NULL AND ${table.projectId} IS NOT NULL)
+    OR (${table.orgId} IS NULL AND ${table.projectId} IS NULL)
+  `
+    ),
   ]
 )
 

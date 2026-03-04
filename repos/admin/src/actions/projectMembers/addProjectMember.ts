@@ -4,7 +4,7 @@ export type TAddProjectMemberOpts = {
   orgId: string
   projectId: string
   userId: string
-  type: string
+  roleType: string
 }
 
 export const addProjectMember = async (opts: TAddProjectMemberOpts) => {

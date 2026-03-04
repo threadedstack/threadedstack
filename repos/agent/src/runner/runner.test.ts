@@ -1267,6 +1267,102 @@ describe(`AgentRunner`, () => {
     })
   })
 
+  describe(`message persistence drain`, () => {
+    it(`should await message persistence before completing run`, async () => {
+      const persistenceOrder: string[] = []
+      mockDb.createMessage.mockImplementation(async () => {
+        persistenceOrder.push(`persisted`)
+        return {}
+      })
+
+      // Capture the init subscriber (index 0) to simulate turn_end events
+      const subscribers: Array<(event: AgentEvent) => void> = []
+      mockSubscribe.mockImplementation((fn: (event: AgentEvent) => void) => {
+        subscribers.push(fn)
+        return vi.fn()
+      })
+
+      // Make prompt fire a turn_end event to trigger persistence queueing
+      mockPrompt.mockImplementation(async () => {
+        const initSubscriber = subscribers[0]
+        initSubscriber?.({
+          type: `turn_end`,
+          message: { role: `assistant`, content: [{ type: `text`, text: `hi` }] },
+          toolResults: [],
+        } as any)
+      })
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await handle.waitForIdle()
+
+      // Persistence should have completed (user message + assistant from turn_end)
+      expect(persistenceOrder.length).toBeGreaterThan(0)
+    })
+
+    it(`should log errors for failed persistence but not throw`, async () => {
+      // Capture subscribers to simulate turn_end
+      const subscribers: Array<(event: AgentEvent) => void> = []
+      mockSubscribe.mockImplementation((fn: (event: AgentEvent) => void) => {
+        subscribers.push(fn)
+        return vi.fn()
+      })
+
+      // First call succeeds (user message), subsequent calls fail (persistence)
+      let callCount = 0
+      mockDb.createMessage.mockImplementation(async () => {
+        callCount++
+        if (callCount > 1) throw new Error(`DB write failed`)
+        return {}
+      })
+
+      mockPrompt.mockImplementation(async () => {
+        const initSubscriber = subscribers[0]
+        initSubscriber?.({
+          type: `turn_end`,
+          message: { role: `assistant`, content: [{ type: `text`, text: `hi` }] },
+          toolResults: [],
+        } as any)
+      })
+
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      // Should not throw — errors are logged, not re-thrown
+      await expect(handle.waitForIdle()).resolves.not.toThrow()
+    })
+
+    it(`should handle empty persistence queue gracefully`, async () => {
+      // No turn_end events emitted, so no persistence is queued
+      const opts = baseOpts()
+      const handle = await AgentRunner.run(opts)
+      await expect(handle.waitForIdle()).resolves.not.toThrow()
+    })
+
+    it(`should also drain persistence on destroy`, async () => {
+      const subscribers: Array<(event: AgentEvent) => void> = []
+      mockSubscribe.mockImplementation((fn: (event: AgentEvent) => void) => {
+        subscribers.push(fn)
+        return vi.fn()
+      })
+
+      const runner = new AgentRunner()
+      const opts = baseOpts()
+      const { prompt, images, signal, ...initOpts } = opts
+      await runner.init(initOpts)
+
+      // Simulate queuing a persistence promise by triggering turn_end
+      const initSubscriber = subscribers[0]
+      initSubscriber?.({
+        type: `turn_end`,
+        message: { role: `assistant`, content: [{ type: `text`, text: `bye` }] },
+        toolResults: [],
+      } as any)
+
+      // destroy() should drain persistence without throwing
+      await expect(runner.destroy()).resolves.not.toThrow()
+    })
+  })
+
   describe(`context compaction passthrough`, () => {
     it(`should pass compaction opts to createContextManager when enabled`, async () => {
       const opts = {

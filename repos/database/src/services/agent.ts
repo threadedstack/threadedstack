@@ -10,7 +10,7 @@ import type {
   TDBProviderSelect,
 } from '@TDB/types'
 
-import { eq, and } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { agents } from '@TDB/schemas/agents'
 import { isStr, isObj } from '@keg-hub/jsutils'
@@ -128,60 +128,51 @@ export class Agent extends Base<
   #relations = async (opts: TAgentRelations) => {
     const { id, projects, providerIds, providerModels, secretIds } = opts
 
-    if (projects?.length)
-      for (const proj of projects) {
-        if (!proj?.id) continue
-        await this.db
-          .insert(agentProjects)
-          .values({
-            agentId: id,
-            alias: proj.name,
-            projectId: proj.id,
-            ...(proj.tools !== undefined && { tools: proj.tools }),
-            ...(proj.model !== undefined && { model: proj.model }),
-            ...(proj.envVars !== undefined && { envVars: proj.envVars }),
-            ...(proj.enabled !== undefined && { enabled: proj.enabled }),
-            ...(proj.maxTokens !== undefined && { maxTokens: proj.maxTokens }),
-            ...(proj.systemPrompt !== undefined && { systemPrompt: proj.systemPrompt }),
-            ...(proj.functionIds !== undefined && { functionIds: proj.functionIds }),
-            ...(proj.environment !== undefined && { environment: proj.environment }),
-          })
-          .onConflictDoNothing()
-      }
+    if (projects?.length) {
+      const rows = projects
+        .filter((p) => p?.id)
+        .map((proj) => ({
+          agentId: id,
+          alias: proj.name,
+          projectId: proj.id!,
+          ...(proj.tools !== undefined && { tools: proj.tools }),
+          ...(proj.model !== undefined && { model: proj.model }),
+          ...(proj.envVars !== undefined && { envVars: proj.envVars }),
+          ...(proj.enabled !== undefined && { enabled: proj.enabled }),
+          ...(proj.maxTokens !== undefined && { maxTokens: proj.maxTokens }),
+          ...(proj.functionIds !== undefined && { functionIds: proj.functionIds }),
+          ...(proj.environment !== undefined && { environment: proj.environment }),
+          ...(proj.systemPrompt !== undefined && { systemPrompt: proj.systemPrompt }),
+        }))
+      if (rows.length)
+        await this.db.insert(agentProjects).values(rows).onConflictDoNothing()
+    }
 
-    if (providerIds?.length)
-      for (let i = 0; i < providerIds.length; i++) {
-        const providerId = providerIds[i]
-        if (!providerId) continue
-        await this.db
-          .insert(agentProviders)
-          .values({
-            providerId,
-            priority: i,
-            agentId: id,
-            model: providerModels?.[providerId] ?? null,
-          })
-          .onConflictDoUpdate({
-            target: [agentProviders.agentId, agentProviders.providerId],
-            set: { priority: i, model: providerModels?.[providerId] ?? null },
-          })
+    if (providerIds?.length) {
+      const rows = providerIds.filter(Boolean).map((providerId, i) => ({
+        providerId,
+        priority: i,
+        agentId: id,
+        model: providerModels?.[providerId] ?? null,
+      }))
+      if (rows.length) {
+        await this.db.transaction(async (tx) => {
+          await tx.delete(agentProviders).where(eq(agentProviders.agentId, id))
+          await tx.insert(agentProviders).values(rows)
+        })
       }
+    }
 
     // Reassign secrets to this agent (FK pattern, not junction table)
     // Clears exclusive arc columns to satisfy the secret_scope_check constraint
-    if (secretIds?.length)
-      for (const secretId of secretIds) {
-        if (!secretId) continue
+    if (secretIds?.length) {
+      const validIds = secretIds.filter(Boolean)
+      if (validIds.length)
         await this.db
           .update(secrets)
-          .set({
-            agentId: id,
-            orgId: null,
-            projectId: null,
-            providerId: null,
-          })
-          .where(eq(secrets.id, secretId))
-      }
+          .set({ agentId: id, orgId: null, projectId: null, providerId: null })
+          .where(inArray(secrets.id, validIds))
+    }
   }
 
   /**
@@ -469,19 +460,21 @@ export class Agent extends Base<
   ) {
     await this.db.delete(agentProviders).where(eq(agentProviders.agentId, agentId))
 
-    for (let i = 0; i < providerIds.length; i++) {
-      const providerId = providerIds[i]
-      if (!providerId) continue
-      await this.db
-        .insert(agentProviders)
-        .values({
-          agentId,
-          providerId,
-          priority: i,
-          model: providerModels?.[providerId] ?? null,
-        })
-        .onConflictDoNothing()
-    }
+    const rows = providerIds
+      .map((providerId, i) =>
+        providerId
+          ? {
+              agentId,
+              providerId,
+              priority: i,
+              model: providerModels?.[providerId] ?? null,
+            }
+          : null
+      )
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+
+    if (rows.length)
+      await this.db.insert(agentProviders).values(rows).onConflictDoNothing()
 
     return { data: null, error: null }
   }

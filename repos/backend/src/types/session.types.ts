@@ -1,9 +1,13 @@
 import type { TLLMAdapterConfig, TAgentEnvironment } from '@tdsk/domain'
 
-export type TSession = {
+export type TSessionPayload = {
   orgId: string
   userId: string
   agentId: string
+  projectId?: string
+}
+
+export type TSession = TSessionPayload & {
   tools?: string[]
   customFunctions?: any[]
   llmConfig: TLLMAdapterConfig

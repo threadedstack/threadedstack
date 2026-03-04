@@ -29,6 +29,7 @@ describe(`LocalSandbox`, () => {
 
     mockIsolateRunner = {
       dispose: vi.fn(),
+      releaseUserModules: vi.fn(),
     }
 
     sandbox = new LocalSandbox(mockBash, mockFs, mockIsolateRunner)
@@ -259,6 +260,89 @@ describe(`LocalSandbox`, () => {
       await expect(sandboxNoIsolate.evaluate(`code`)).rejects.toThrow(
         `Code execution not available`
       )
+    })
+  })
+
+  describe(`reset`, () => {
+    it(`should clear all files in /workspace on reset()`, async () => {
+      mockFs.readdir.mockImplementation(async (dir: string) => {
+        if (dir === `/workspace`) return [`file1.txt`, `file2.txt`]
+        return []
+      })
+
+      await sandbox.reset()
+
+      expect(mockFs.rm).toHaveBeenCalledWith(`/workspace/file1.txt`)
+      expect(mockFs.rm).toHaveBeenCalledWith(`/workspace/file2.txt`)
+    })
+
+    it(`should clear all files in /tmp on reset()`, async () => {
+      mockFs.readdir.mockImplementation(async (dir: string) => {
+        if (dir === `/tmp`) return [`temp1.dat`, `temp2.dat`]
+        return []
+      })
+
+      await sandbox.reset()
+
+      expect(mockFs.rm).toHaveBeenCalledWith(`/tmp/temp1.dat`)
+      expect(mockFs.rm).toHaveBeenCalledWith(`/tmp/temp2.dat`)
+    })
+
+    it(`should not throw if directories are empty`, async () => {
+      mockFs.readdir.mockResolvedValue([])
+
+      await expect(sandbox.reset()).resolves.not.toThrow()
+      expect(mockFs.rm).not.toHaveBeenCalled()
+    })
+
+    it(`should not throw if directories don't exist`, async () => {
+      mockFs.readdir.mockRejectedValue(new Error(`ENOENT: no such file or directory`))
+
+      await expect(sandbox.reset()).resolves.not.toThrow()
+    })
+
+    it(`should keep /workspace and /tmp directories themselves (just clear contents)`, async () => {
+      mockFs.readdir.mockImplementation(async (dir: string) => {
+        if (dir === `/workspace`) return [`src`]
+        if (dir === `/tmp`) return [`cache`]
+        return []
+      })
+
+      await sandbox.reset()
+
+      // rm is called on entries inside the directories, not the directories themselves
+      expect(mockFs.rm).toHaveBeenCalledWith(`/workspace/src`)
+      expect(mockFs.rm).toHaveBeenCalledWith(`/tmp/cache`)
+      expect(mockFs.rm).not.toHaveBeenCalledWith(`/workspace`)
+      expect(mockFs.rm).not.toHaveBeenCalledWith(`/tmp`)
+    })
+
+    it(`should call releaseUserModules on isolateRunner during reset`, async () => {
+      mockFs.readdir.mockResolvedValue([])
+
+      await sandbox.reset()
+
+      expect(mockIsolateRunner.releaseUserModules).toHaveBeenCalledOnce()
+    })
+
+    it(`should handle null isolateRunner during reset gracefully`, async () => {
+      const sandboxNoIsolate = new LocalSandbox(mockBash, mockFs, null)
+      mockFs.readdir.mockResolvedValue([])
+
+      await expect(sandboxNoIsolate.reset()).resolves.not.toThrow()
+    })
+
+    it(`should continue clearing remaining files when one rm fails`, async () => {
+      mockFs.readdir.mockImplementation(async (dir: string) => {
+        if (dir === `/workspace`) return [`locked.txt`, `deletable.txt`]
+        return []
+      })
+      mockFs.rm.mockImplementation(async (path: string) => {
+        if (path === `/workspace/locked.txt`) throw new Error(`permission denied`)
+      })
+
+      await expect(sandbox.reset()).resolves.not.toThrow()
+      expect(mockFs.rm).toHaveBeenCalledWith(`/workspace/deletable.txt`)
     })
   })
 

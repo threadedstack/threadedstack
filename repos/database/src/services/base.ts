@@ -154,14 +154,14 @@ export class Base<
 
   async upsert(data: I): Promise<TDBApiRes<M>> {
     try {
-      const id = data.id
+      const { id, createdAt, updatedAt, ...rest } = data
       !id && DBIdError.throw()
 
       const resp = await this.db
         .insert(this.table)
         .values(data)
         .onConflictDoUpdate({
-          set: data,
+          set: { ...rest, updatedAt: new Date() },
           target: this.table.id,
         })
         .returning()

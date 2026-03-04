@@ -3,8 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ── Hoisted mocks (accessible inside vi.mock factories) ──────────────
 
-const { mockClose, mockEvaluate, mockSandbox, mockCreate } = vi.hoisted(() => {
+const { mockClose, mockEvaluate, mockReset, mockSandbox, mockCreate } = vi.hoisted(() => {
   const mockClose = vi.fn().mockResolvedValue(undefined)
+  const mockReset = vi.fn().mockResolvedValue(undefined)
   const mockEvaluate = vi.fn().mockResolvedValue({
     output: ``,
     result: { success: true, output: { result: 42 } },
@@ -13,11 +14,12 @@ const { mockClose, mockEvaluate, mockSandbox, mockCreate } = vi.hoisted(() => {
   const mockSandbox = {
     evaluate: mockEvaluate,
     close: mockClose,
+    reset: mockReset,
   }
 
   const mockCreate = vi.fn().mockResolvedValue(mockSandbox)
 
-  return { mockClose, mockEvaluate, mockSandbox, mockCreate }
+  return { mockClose, mockEvaluate, mockReset, mockSandbox, mockCreate }
 })
 
 vi.mock(`@tdsk/sandbox`, () => ({
@@ -76,6 +78,7 @@ describe(`FunctionExecutor`, () => {
       result: { success: true, output: { result: 42 } },
     })
     mockClose.mockResolvedValue(undefined)
+    mockReset.mockResolvedValue(undefined)
   })
 
   // ── Test 1: Execute a TypeScript function ────────────────────────
@@ -110,8 +113,8 @@ describe(`FunctionExecutor`, () => {
       })
     )
 
-    // Should close sandbox
-    expect(mockClose).toHaveBeenCalledTimes(1)
+    // Successful execution returns sandbox to pool via reset (not close)
+    expect(mockReset).toHaveBeenCalledTimes(1)
 
     // Should return parsed result
     expect(result.success).toBe(true)
@@ -139,7 +142,8 @@ describe(`FunctionExecutor`, () => {
 
     // Should still succeed
     expect(result.success).toBe(true)
-    expect(mockClose).toHaveBeenCalledTimes(1)
+    // Successful execution returns sandbox to pool via reset (not close)
+    expect(mockReset).toHaveBeenCalledTimes(1)
   })
 
   // ── Test 3: Evaluate throws ────────────────────────────────────
@@ -201,7 +205,8 @@ describe(`FunctionExecutor`, () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toContain(`exceeded maximum size`)
-    expect(mockClose).toHaveBeenCalledTimes(1)
+    // Even with 1MB cap error, sandbox was returned to pool (evaluate succeeded)
+    expect(mockReset).toHaveBeenCalledTimes(1)
   })
 
   // ── Test 7: Wrapper returns error ────────────────────────────
@@ -225,7 +230,8 @@ describe(`FunctionExecutor`, () => {
     const func = makeFunc()
     await FunctionExecutor.execute(func)
 
-    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ timeout: 30_000 }))
+    // Sandbox may come from pool, so mockCreate may not be called.
+    // Always verify via evaluate which is always called.
     expect(mockEvaluate).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ timeout: 30_000 })
@@ -238,7 +244,8 @@ describe(`FunctionExecutor`, () => {
     const func = makeFunc()
     await FunctionExecutor.execute(func, { timeout: 60_000 })
 
-    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ timeout: 60_000 }))
+    // Sandbox may come from pool, so mockCreate may not be called.
+    // Always verify via evaluate which is always called.
     expect(mockEvaluate).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ timeout: 60_000 })
@@ -270,5 +277,85 @@ describe(`FunctionExecutor`, () => {
     // Wrapper should JSON round-trip the handler result to strip non-serializable values
     expect(wrapperCode).toContain(`const raw = await handler(request, context)`)
     expect(wrapperCode).toContain(`JSON.parse(JSON.stringify(raw ?? null))`)
+  })
+
+  // ── Sandbox Pool Tests ───────────────────────────────────────────
+  //
+  // The pool is module-level state that persists across tests.
+  // Previous tests may have pooled sandboxes with their own mock references.
+  // These tests work with that reality by:
+  // 1. Not assuming a specific pool state
+  // 2. Verifying behavior through execution results
+  // 3. Using custom sandbox objects to track specific interactions
+
+  describe(`sandbox pool`, () => {
+    it(`should handle multiple sequential successful executions via pool reuse`, async () => {
+      const func = makeFunc()
+
+      // Run 5 sequential executions — each should succeed.
+      // This exercises the full acquire → evaluate → release → re-acquire cycle.
+      for (let i = 0; i < 5; i++) {
+        const result = await FunctionExecutor.execute(func)
+        expect(result.success).toBe(true)
+        expect(result.output).toEqual({ result: 42 })
+      }
+    })
+
+    it(`should close sandbox on evaluate error (not return to pool)`, async () => {
+      const func = makeFunc()
+
+      // First: drain the pool by making the pooled sandbox fail
+      // This causes it to be closed (removed from pool)
+      mockEvaluate.mockRejectedValueOnce(new Error(`Drain pool`))
+      await FunctionExecutor.execute(func)
+
+      // Now pool is empty. Set up a tracked error sandbox
+      const errorSandbox = {
+        evaluate: vi.fn().mockRejectedValue(new Error(`Sandbox crashed`)),
+        close: vi.fn().mockResolvedValue(undefined),
+        reset: vi.fn().mockResolvedValue(undefined),
+      }
+      mockCreate.mockResolvedValue(errorSandbox)
+
+      // This should create errorSandbox (pool is empty) and it should fail
+      const result = await FunctionExecutor.execute(func)
+      expect(result.success).toBe(false)
+      expect(result.error).toBe(`Sandbox crashed`)
+
+      // On error, sandbox should be closed (not returned to pool via reset)
+      expect(errorSandbox.close).toHaveBeenCalled()
+      expect(errorSandbox.reset).not.toHaveBeenCalled()
+    })
+
+    it(`should close sandbox when reset fails during pool release`, async () => {
+      const func = makeFunc()
+
+      // First: drain the pool by making the pooled sandbox fail
+      mockEvaluate.mockRejectedValueOnce(new Error(`Drain pool`))
+      await FunctionExecutor.execute(func)
+
+      // Now pool is empty. Set up a sandbox whose reset will fail
+      const fragileReset = vi.fn().mockRejectedValue(new Error(`Reset failed`))
+      const fragileSandbox = {
+        evaluate: vi.fn().mockResolvedValue({
+          output: ``,
+          result: { success: true, output: { ok: 1 } },
+        }),
+        close: vi.fn().mockResolvedValue(undefined),
+        reset: fragileReset,
+      }
+
+      mockCreate.mockResolvedValue(fragileSandbox)
+
+      // This should create fragileSandbox (pool empty), evaluate succeeds,
+      // but reset fails during release, so sandbox is closed
+      const result = await FunctionExecutor.execute(func)
+      expect(result.success).toBe(true)
+
+      // fragileSandbox.reset should have been called (and failed)
+      expect(fragileReset).toHaveBeenCalled()
+      // When reset fails, sandbox should be closed instead of pooled
+      expect(fragileSandbox.close).toHaveBeenCalled()
+    })
   })
 })

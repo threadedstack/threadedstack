@@ -60,6 +60,7 @@ export class AgentRunner {
   #streamFn: StreamFn | null = null
   #opts: TAgentInitOpts | null = null
   #unsubscribe: (() => void) | undefined
+  #pendingPersistence: Promise<any>[] = []
 
   /** The threadId this runner was initialized for */
   get threadId(): string | null {
@@ -194,27 +195,31 @@ export class AgentRunner {
       const streamEvent = mapAgentEvent(event, this.#model)
       if (streamEvent) onEvent(streamEvent)
 
-      // Persist messages on turn_end
+      // Queue message persistence on turn_end (drained after agent completes)
       if (event.type === `turn_end`) {
         const assistantMsg = event.message as AssistantMessage
         if (assistantMsg?.role === `assistant`) {
           const content = convertAssistantToContent(assistantMsg)
-          db.createMessage({
-            content,
-            threadId,
-            type: `assistant`,
-            orgId: opts.orgId,
-          }).catch((err) => logger.error(`Failed to persist assistant message: ${err}`))
+          this.#pendingPersistence.push(
+            db.createMessage({
+              content,
+              threadId,
+              type: `assistant`,
+              orgId: opts.orgId,
+            })
+          )
         }
 
         for (const tr of event.toolResults) {
           const toolContent = convertToolResultToContent(tr as ToolResultMessage)
-          db.createMessage({
-            threadId,
-            type: `user`,
-            orgId: opts.orgId,
-            content: [toolContent],
-          }).catch((err) => logger.error(`Failed to persist tool result: ${err}`))
+          this.#pendingPersistence.push(
+            db.createMessage({
+              threadId,
+              type: `user`,
+              orgId: opts.orgId,
+              content: [toolContent],
+            })
+          )
         }
       }
     })
@@ -396,6 +401,7 @@ export class AgentRunner {
           logger.error(`AgentRunner error: ${message}`)
           initOpts.onEvent({ type: `error`, error: message } as TStreamEvent)
         } finally {
+          await this.#drainPersistence()
           cleanup()
         }
       })()
@@ -459,12 +465,27 @@ export class AgentRunner {
   }
 
   /**
+   * Await all queued message persistence promises and log any failures.
+   */
+  async #drainPersistence(): Promise<void> {
+    const pending = this.#pendingPersistence.splice(0)
+    if (!pending.length) return
+    const results = await Promise.allSettled(pending)
+    for (const r of results) {
+      if (r.status === `rejected`) {
+        logger.error(`Failed to persist message: ${r.reason}`)
+      }
+    }
+  }
+
+  /**
    * Destroy the runner — cleans up sandbox, subscriptions, and agent.
    * After destroy, init() can be called again for a new session.
    */
   async destroy(): Promise<void> {
     this.#unsubscribe?.()
     this.#unsubscribe = undefined
+    await this.#drainPersistence()
 
     if (this.#sandbox) {
       try {

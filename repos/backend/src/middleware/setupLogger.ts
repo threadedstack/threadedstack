@@ -15,7 +15,8 @@ const ignore = (req: Request) => {
  */
 export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
   const startTime = Date.now()
-  const requestId = crypto.randomUUID()
+  // Prefer request ID from proxy for cross-service log correlation
+  const requestId = (req.headers[`x-request-id`] as string) || crypto.randomUUID()
 
   if (ignore(req)) return next()
 

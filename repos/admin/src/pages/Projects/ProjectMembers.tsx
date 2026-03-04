@@ -115,7 +115,7 @@ export const ProjectMembers = () => {
       await addProjectMember({
         orgId,
         projectId,
-        type: selectedRole,
+        roleType: selectedRole,
         userId: selectedUserId,
       })
       toast.success(`Member added successfully`)

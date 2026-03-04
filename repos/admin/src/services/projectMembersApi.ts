@@ -12,10 +12,10 @@ export class ProjectMembersApi extends BaseApi {
   async list(orgId: string, projectId: string): Promise<TApiRes<Role[]>> {
     const resp = await this.api.get<TRole[]>({
       path: this.#path(orgId, projectId),
-      queryKey: ['projectMembers', orgId, projectId],
+      queryKey: [`projectMembers`, orgId, projectId],
     })
 
-    resp.error && (await this._onError(resp.error, 'Failed to load project members'))
+    resp.error && (await this._onError(resp.error, `Failed to load project members`))
 
     return {
       ...resp,
@@ -26,14 +26,14 @@ export class ProjectMembersApi extends BaseApi {
   async add(
     orgId: string,
     projectId: string,
-    data: { userId: string; type: string }
+    data: { userId: string; roleType: string }
   ): Promise<TApiRes<any>> {
     const resp = await this.api.post<any>({
       data,
       path: this.#path(orgId, projectId),
     })
 
-    resp.error && (await this._onError(resp.error, 'Failed to add project member'))
+    resp.error && (await this._onError(resp.error, `Failed to add project member`))
 
     return resp
   }
@@ -42,14 +42,14 @@ export class ProjectMembersApi extends BaseApi {
     orgId: string,
     projectId: string,
     userId: string,
-    type: string
+    roleType: string
   ): Promise<TApiRes<any>> {
     const resp = await this.api.put<any>({
-      data: { type },
+      data: { roleType },
       path: `${this.#path(orgId, projectId)}/${userId}`,
     })
 
-    resp.error && (await this._onError(resp.error, 'Failed to update member role'))
+    resp.error && (await this._onError(resp.error, `Failed to update member role`))
 
     return resp
   }
@@ -59,7 +59,7 @@ export class ProjectMembersApi extends BaseApi {
       path: `${this.#path(orgId, projectId)}/${userId}`,
     })
 
-    resp.error && (await this._onError(resp.error, 'Failed to remove project member'))
+    resp.error && (await this._onError(resp.error, `Failed to remove project member`))
 
     return resp
   }

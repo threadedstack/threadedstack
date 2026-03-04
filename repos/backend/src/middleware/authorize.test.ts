@@ -113,6 +113,44 @@ describe(`authorize middleware`, () => {
     })
   })
 
+  describe(`requireOrg() - Exception handling`, () => {
+    it(`should throw Exception with 400 status when org ID is missing`, async () => {
+      const { Exception } = await import('@tdsk/domain')
+      const req = buildMockReq({
+        params: {},
+        query: {},
+      })
+
+      const middleware = requireOrg()
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      expect(mockNext).toHaveBeenCalledTimes(1)
+      const error = mockNext.mock.calls[0][0]
+      expect(error).toBeInstanceOf(Exception)
+      expect(error.status).toBe(400)
+      expect(error.message).toBe(`Organization ID required`)
+    })
+  })
+
+  describe(`requireProject() - Exception handling`, () => {
+    it(`should throw Exception with 400 status when project ID is missing`, async () => {
+      const { Exception } = await import('@tdsk/domain')
+      const req = buildMockReq({
+        params: {},
+        query: {},
+      })
+
+      const middleware = requireProject()
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      expect(mockNext).toHaveBeenCalledTimes(1)
+      const error = mockNext.mock.calls[0][0]
+      expect(error).toBeInstanceOf(Exception)
+      expect(error.status).toBe(400)
+      expect(error.message).toBe(`Project ID required`)
+    })
+  })
+
   describe(`requireOrg()`, () => {
     it(`should use params.orgId and ignore body.orgId`, async () => {
       const req = buildMockReq({

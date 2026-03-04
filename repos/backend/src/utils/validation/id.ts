@@ -20,8 +20,9 @@ export const isValidId = (value: string): boolean => SidRegex.test(value)
 export const validateIdParams = (req: TRequest, res: TResponse, next: NextFunction) => {
   for (const [key, value] of Object.entries(req.params)) {
     if (key === `userId`) {
-      if (!UuidRegex.test(value)) throw new Exception(400, `Invalid userId format`)
-    } else if ((key === `id` || key.endsWith(`Id`)) && !isValidId(value)) {
+      if (!UuidRegex.test(value as string))
+        throw new Exception(400, `Invalid userId format`)
+    } else if ((key === `id` || key.endsWith(`Id`)) && !isValidId(value as string)) {
       throw new Exception(400, `Invalid ${key} format — expected a valid ID`)
     }
   }

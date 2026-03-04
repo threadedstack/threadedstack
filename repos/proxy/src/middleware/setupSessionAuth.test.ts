@@ -1,6 +1,7 @@
 import type { TProxyApp } from '@TPX/types'
 import type { Request, Response, NextFunction } from 'express'
 
+import { logger } from '@TPX/utils/logger'
 import { validateSessionAuth } from './setupSessionAuth'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -174,5 +175,70 @@ describe(`validateSessionAuth`, () => {
     middleware(mockReq, mockRes, mockNext)
 
     expect(mockRes.status).toHaveBeenCalledWith(401)
+  })
+
+  describe(`auth header redaction in logs`, () => {
+    it(`should redact authorization header in warn log output`, () => {
+      mockAuth.extract.mockReturnValue(null)
+      const fullToken = `Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.longtoken`
+      const mockReq = {
+        path: `/ai/ws`,
+        headers: { authorization: fullToken },
+      } as unknown as Request
+
+      const middleware = validateSessionAuth(mockApp)
+      middleware(mockReq, mockRes, mockNext)
+
+      const warnCall = vi.mocked(logger.warn).mock.calls[0][0] as string
+      expect(warnCall).not.toContain(fullToken)
+      expect(warnCall).toContain(`...`)
+    })
+
+    it(`should log truncated header value (first 12 chars + "...")`, () => {
+      mockAuth.extract.mockReturnValue(null)
+      const fullToken = `Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.longtoken`
+      const mockReq = {
+        path: `/ai/ws`,
+        headers: { authorization: fullToken },
+      } as unknown as Request
+
+      const middleware = validateSessionAuth(mockApp)
+      middleware(mockReq, mockRes, mockNext)
+
+      const warnCall = vi.mocked(logger.warn).mock.calls[0][0] as string
+      expect(warnCall).toContain(fullToken.substring(0, 12))
+      expect(warnCall).toContain(`...`)
+    })
+
+    it(`should log "(none)" when no authorization header is present`, () => {
+      mockAuth.extract.mockReturnValue(null)
+      const mockReq = {
+        path: `/ai/ws`,
+        headers: {},
+      } as unknown as Request
+
+      const middleware = validateSessionAuth(mockApp)
+      middleware(mockReq, mockRes, mockNext)
+
+      const warnCall = vi.mocked(logger.warn).mock.calls[0][0] as string
+      expect(warnCall).toContain(`(none)`)
+    })
+
+    it(`should still pass the full auth header to extract (redaction is log-only)`, () => {
+      const fullToken = `Bearer super-secret-session-token-12345`
+      mockAuth.extract.mockReturnValue(null)
+      const mockReq = {
+        path: `/ai/ws`,
+        headers: { authorization: fullToken },
+      } as unknown as Request
+
+      const middleware = validateSessionAuth(mockApp)
+      middleware(mockReq, mockRes, mockNext)
+
+      // extract receives the full request (with full auth header intact)
+      expect(mockAuth.extract).toHaveBeenCalledWith(mockReq)
+      // The request object still has the full header - it's not mutated
+      expect(mockReq.headers.authorization).toBe(fullToken)
+    })
   })
 })

@@ -187,7 +187,7 @@ describe(`Project Members endpoints`, () => {
         type: ERoleType.member,
       }
 
-      mockReq.body = { userId: `user-2`, type: ERoleType.member }
+      mockReq.body = { userId: `user-2`, roleType: ERoleType.member }
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
         .isOrgMember as ReturnType<typeof vi.fn>
@@ -303,7 +303,7 @@ describe(`Project Members endpoints`, () => {
     })
 
     it(`should throw 403 when trying to add member with role above own`, async () => {
-      mockReq.body = { userId: `user-2`, type: ERoleType.owner }
+      mockReq.body = { userId: `user-2`, roleType: ERoleType.owner }
 
       // Current user is admin, trying to assign owner
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
@@ -379,7 +379,7 @@ describe(`Project Members endpoints`, () => {
       }
 
       mockReq.params = { orgId: `org-1`, projectId: `project-1`, userId: `user-2` }
-      mockReq.body = { type: ERoleType.member }
+      mockReq.body = { roleType: ERoleType.member }
 
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
@@ -414,7 +414,7 @@ describe(`Project Members endpoints`, () => {
     it(`should throw 401 when user is not authenticated`, async () => {
       mockReq.user = undefined
       mockReq.params = { orgId: `org-1`, projectId: `project-1`, userId: `user-2` }
-      mockReq.body = { type: ERoleType.member }
+      mockReq.body = { roleType: ERoleType.member }
 
       await expect(
         updateProjectMemberRole.action(mockReq as TRequest, mockRes as Response)
@@ -432,7 +432,7 @@ describe(`Project Members endpoints`, () => {
 
     it(`should throw 403 when trying to assign role above own`, async () => {
       mockReq.params = { orgId: `org-1`, projectId: `project-1`, userId: `user-2` }
-      mockReq.body = { type: ERoleType.owner }
+      mockReq.body = { roleType: ERoleType.owner }
 
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
@@ -451,7 +451,7 @@ describe(`Project Members endpoints`, () => {
 
     it(`should throw 404 when target user is not a project member`, async () => {
       mockReq.params = { orgId: `org-1`, projectId: `project-1`, userId: `user-2` }
-      mockReq.body = { type: ERoleType.member }
+      mockReq.body = { roleType: ERoleType.member }
 
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
@@ -475,7 +475,7 @@ describe(`Project Members endpoints`, () => {
 
     it(`should throw 403 when trying to modify member with equal or higher role`, async () => {
       mockReq.params = { orgId: `org-1`, projectId: `project-1`, userId: `user-2` }
-      mockReq.body = { type: ERoleType.viewer }
+      mockReq.body = { roleType: ERoleType.viewer }
 
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
@@ -501,7 +501,7 @@ describe(`Project Members endpoints`, () => {
 
     it(`should throw 403 when non-admin tries to manage roles`, async () => {
       mockReq.params = { orgId: `org-1`, projectId: `project-1`, userId: `user-2` }
-      mockReq.body = { type: ERoleType.viewer }
+      mockReq.body = { roleType: ERoleType.viewer }
 
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
@@ -518,7 +518,7 @@ describe(`Project Members endpoints`, () => {
 
     it(`should throw 500 when update fails`, async () => {
       mockReq.params = { orgId: `org-1`, projectId: `project-1`, userId: `user-2` }
-      mockReq.body = { type: ERoleType.member }
+      mockReq.body = { roleType: ERoleType.member }
 
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>

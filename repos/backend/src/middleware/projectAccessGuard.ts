@@ -1,4 +1,5 @@
 import type { NextFunction } from 'express'
+import type { TAHandler } from '@tdsk/domain'
 import type { TRequest, TResponse } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
@@ -10,7 +11,7 @@ import { fromAuthHeaders } from '@tdsk/domain'
  * Project-scoped keys can only access their specific project.
  */
 export const projectAccessGuard = () => {
-  return (req: TRequest, res: TResponse, next: NextFunction) => {
+  const callback = (req: TRequest, res: TResponse, next: NextFunction) => {
     try {
       const auth = fromAuthHeaders(req)
       const keyProjectId = auth.projectId
@@ -62,4 +63,6 @@ export const projectAccessGuard = () => {
       next(error)
     }
   }
+
+  return callback as TAHandler
 }

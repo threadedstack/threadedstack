@@ -13,16 +13,6 @@ export type TTokenPayload = {
   exp?: number
 }
 
-// TODO: TAuthUser is structurally identical to TAuthHeaderObj from @tdsk/domain (already a dependency) — consolidate
-export type TAuthUser = {
-  userId: string
-  email: string
-  orgId?: string
-  role?: string
-  projectId?: string
-  apiKeyId?: string
-}
-
 export type TJWTPayload = {
   sub?: string
   userId?: string

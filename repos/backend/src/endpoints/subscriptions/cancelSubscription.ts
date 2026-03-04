@@ -32,7 +32,7 @@ export const cancelSubscription: TEndpointConfig = {
       )
 
     res.status(200).json({
-      data: { message: `Subscription cancelled successfully` },
+      data: { success: true, message: `Subscription cancelled successfully` },
     })
   },
 }
