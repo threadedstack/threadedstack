@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 import type { TOnLogin } from '@TAF/types'
+import Divider from '@mui/material/Divider'
 import { GhButton } from '@TAF/components/Login/GithubBtn'
 import { GgButton } from '@TAF/components/Login/GoogleBtn'
 import { VrButton } from '@TAF/components/Login/VercelBtn'
+import { EmailLoginForm } from '@TAF/components/Login/EmailLoginForm'
 
 import {
   TSLogo,
@@ -33,6 +35,13 @@ export type TLoginBtnProps = {
 
 export type TLogin = TLoginBtnProps & {
   providers: Array<string>
+  showEmailForm?: boolean
+  emailError?: string
+  emailSuccess?: string
+  emailLoading?: boolean
+  onEmailSignIn?: (email: string, password: string) => Promise<void>
+  onEmailSignUp?: (email: string, password: string) => Promise<void>
+  onForgotPassword?: (email: string) => Promise<void>
 }
 
 const LoginBtns: Record<string, TLoginBtn> = {
@@ -42,7 +51,21 @@ const LoginBtns: Record<string, TLoginBtn> = {
 }
 
 export const Login = (props: TLogin) => {
-  const { error, onLogin, providers, authenticating } = props
+  const {
+    error,
+    onLogin,
+    providers,
+    authenticating,
+    showEmailForm,
+    emailError,
+    emailSuccess,
+    emailLoading,
+    onEmailSignIn,
+    onEmailSignUp,
+    onForgotPassword,
+  } = props
+
+  const hasSocialProviders = providers.some((p) => LoginBtns[p])
 
   return (
     <LoginContainer className='tdsk-login-container'>
@@ -67,7 +90,7 @@ export const Login = (props: TLogin) => {
                     <Button
                       onLogin={onLogin}
                       loading={loading}
-                      disabled={Boolean(authenticating)}
+                      disabled={Boolean(authenticating) || emailLoading}
                     />
                   </BtnSection>
                 )) ||
@@ -75,6 +98,23 @@ export const Login = (props: TLogin) => {
               )
             })}
           </LoginStack>
+
+          {showEmailForm && onEmailSignIn && onEmailSignUp && (
+            <BtnSection
+              className='tdsk-login-email'
+              sx={{ flexDirection: `column` }}
+            >
+              {hasSocialProviders && <Divider sx={{ my: 1, width: `100%` }}>or</Divider>}
+              <EmailLoginForm
+                onSignIn={onEmailSignIn}
+                onSignUp={onEmailSignUp}
+                onForgotPassword={onForgotPassword}
+                error={emailError}
+                success={emailSuccess}
+                loading={emailLoading || Boolean(authenticating)}
+              />
+            </BtnSection>
+          )}
 
           {(error && (
             <ErrorSection className='tdsk-login-error-section'>

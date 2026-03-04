@@ -1,5 +1,63 @@
 import type { ApiKey } from '@tdsk/domain'
 import { AllowedScopes } from '@TBE/constants/values'
+import { ERoleType, hasMinRole, EApiKeyScope } from '@tdsk/domain'
+
+const ScopeHierarchy: Record<EApiKeyScope, number> = {
+  [EApiKeyScope.read]: 1,
+  [EApiKeyScope.write]: 2,
+  [EApiKeyScope.admin]: 3,
+}
+
+const RoleToMaxScope: Record<ERoleType, number> = {
+  [ERoleType.viewer]: 1,
+  [ERoleType.member]: 2,
+  [ERoleType.admin]: 3,
+  [ERoleType.owner]: 3,
+  [ERoleType.super]: 3,
+}
+
+/**
+ * Validates project-scoped API key creation permissions.
+ * Enforces:
+ * - Org admins (admin/owner/super roles) bypass all project-level restrictions
+ * - Non-admin project members (viewer/member) can only create keys for themselves
+ * - Scope ceiling: requested scopes cannot exceed the caller's role-derived max scope
+ */
+export const validateProjectKeyPermission = (params: {
+  requesterRole: ERoleType
+  requesterUserId: string
+  targetUserId?: string
+  requestedScopes: string
+  isOrgAdmin: boolean
+}): { valid: boolean; error?: string } => {
+  const { requesterRole, requesterUserId, targetUserId, requestedScopes, isOrgAdmin } =
+    params
+
+  if (isOrgAdmin) return { valid: true }
+
+  if (targetUserId && targetUserId !== requesterUserId) {
+    if (!hasMinRole(requesterRole, ERoleType.admin))
+      return {
+        valid: false,
+        error: `Only project admins can create API keys for other users`,
+      }
+  }
+
+  const maxAllowed = RoleToMaxScope[requesterRole] ?? 1
+  const requestedMax = Math.max(
+    ...requestedScopes
+      .split(`,`)
+      .map((s) => ScopeHierarchy[s.trim() as EApiKeyScope] ?? 0)
+  )
+
+  if (requestedMax > maxAllowed)
+    return {
+      valid: false,
+      error: `Your project role (${requesterRole}) cannot create keys with scope exceeding your permissions`,
+    }
+
+  return { valid: true }
+}
 
 export const validateApiScopes = (scopes: string) => {
   const list = scopes.split(',').map((s) => s.trim())

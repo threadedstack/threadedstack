@@ -1,6 +1,7 @@
 import type { TEndpointConfig } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { projectAccessGuard } from '@TBE/middleware/projectAccessGuard'
 
 import { getProject } from '@TBE/endpoints/projects/getProject'
 import { listProjects } from '@TBE/endpoints/projects/listProjects'
@@ -51,6 +52,7 @@ import {
 const projectEndpoints: TEndpointConfig = {
   path: `/:projectId/endpoints`,
   method: EPMethod.Use,
+  middleware: [projectAccessGuard()],
   endpoints: {
     getEndpoint,
     listEndpoints,
@@ -63,6 +65,7 @@ const projectEndpoints: TEndpointConfig = {
 const projectFunctions: TEndpointConfig = {
   path: `/:projectId/functions`,
   method: EPMethod.Use,
+  middleware: [projectAccessGuard()],
   endpoints: {
     listFunctions,
     getFunction,
@@ -75,6 +78,7 @@ const projectFunctions: TEndpointConfig = {
 const projectSecrets: TEndpointConfig = {
   path: `/:projectId/secrets`,
   method: EPMethod.Use,
+  middleware: [projectAccessGuard()],
   endpoints: {
     listSecrets,
     getSecret,
@@ -87,6 +91,7 @@ const projectSecrets: TEndpointConfig = {
 const projectDomains: TEndpointConfig = {
   path: `/:projectId/domains`,
   method: EPMethod.Use,
+  middleware: [projectAccessGuard()],
   endpoints: {
     getDomain,
     listDomains,
@@ -109,6 +114,7 @@ const projectAgentConfig: TEndpointConfig = {
 const projectAgents: TEndpointConfig = {
   path: `/:projectId/agents`,
   method: EPMethod.Use,
+  middleware: [projectAccessGuard()],
   endpoints: {
     getAgent,
     listAgents,
@@ -122,6 +128,7 @@ const projectAgents: TEndpointConfig = {
 const projectMembers: TEndpointConfig = {
   path: `/:projectId/members`,
   method: EPMethod.Use,
+  middleware: [projectAccessGuard()],
   endpoints: {
     addProjectMember,
     listProjectMembers,

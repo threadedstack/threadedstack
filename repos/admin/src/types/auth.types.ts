@@ -34,4 +34,5 @@ export type TAuthData = {
 
 export type TAuthResp = TAuthData & {
   error?: TAuthError
+  success?: boolean
 }

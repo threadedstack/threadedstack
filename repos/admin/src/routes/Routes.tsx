@@ -36,6 +36,7 @@ const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
 const ProjectDomains = lazy(() => import('@TAF/pages/Projects/ProjectDomains'))
 const ProjectThreads = lazy(() => import('@TAF/pages/Projects/ProjectThreads'))
 const ProjectMembers = lazy(() => import('@TAF/pages/Projects/ProjectMembers'))
+const ProjectApiKeys = lazy(() => import('@TAF/pages/Projects/ProjectApiKeys'))
 const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
@@ -215,6 +216,10 @@ export const Routes = createBrowserRouter([
                     Component: () => <SuspensePage Component={SchedulesTab} />,
                   },
                 ],
+              },
+              {
+                path: ERoutePath.ApiKeys,
+                Component: () => <SuspensePage Component={ProjectApiKeys} />,
               },
               {
                 path: ERoutePath.Settings,

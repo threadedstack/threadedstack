@@ -20,7 +20,7 @@ export const setAuthHeaders = (pxReq: TClientReq, req: Record<string, any>) => {
   })
 }
 
-export const fromAuthHeaders = (req: TReq) => {
+export const fromAuthHeaders = (req: TReq): Partial<TAuthHeaderObj> => {
   return Object.entries(AuthHeaders).reduce(
     (acc, [loc, key]) => {
       const name = loc.split(`.`).pop()
@@ -28,7 +28,7 @@ export const fromAuthHeaders = (req: TReq) => {
       return acc
     },
     {} as Partial<TAuthHeaderObj>
-  ) as TAuthHeaderObj
+  )
 }
 
 export const getAuthHeader = (req: TReq, name: string) => {

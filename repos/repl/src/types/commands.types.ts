@@ -31,6 +31,7 @@ export type TSlashCommandContext = {
     threadId: string,
     messageId: string
   ) => Promise<{ id: string; name?: string }>
+  switchProject: () => Promise<void>
   listProjects: () => Promise<Array<{ id: string; label: string; description?: string }>>
   listAgents: () => Promise<Array<{ id: string; label: string; description?: string }>>
   showMenu: (

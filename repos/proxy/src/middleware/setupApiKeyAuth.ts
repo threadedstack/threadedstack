@@ -75,17 +75,28 @@ export const validateApiKeyAuth = (app: TProxyApp) => {
         email: ``,
         userId: apiKey.userId,
         role: scopeToRole(apiKey.scopes),
+        ...(apiKey.orgId && { orgId: apiKey.orgId }),
+        ...(apiKey.projectId && { projectId: apiKey.projectId }),
+        apiKeyId: apiKey.id,
       }
 
       logger.debug(`API key validated for user: ${req.user.userId}`)
 
-      app.locals.db.services.apiKey
-        .touchLastUsed(apiKey.id)
-        .catch((err: Error) => logger.error(`Failed to update API key lastUsedAt:`, err))
+      app.locals.db.services.apiKey.touchLastUsed(apiKey.id).catch((err: Error) =>
+        logger.error({
+          message: `Failed to update API key lastUsedAt`,
+          apiKeyId: apiKey.id,
+          userId: apiKey.userId,
+          error: err.message,
+        })
+      )
 
       next()
     } catch (err) {
-      logger.error(`API key verification error:`, err)
+      logger.error({
+        message: `API key verification error`,
+        error: err instanceof Error ? err.message : String(err),
+      })
       res.status(500).json({ error: `Authentication error` })
     }
   }

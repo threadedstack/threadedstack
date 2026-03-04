@@ -243,6 +243,7 @@ describe(`validateApiKeyAuth`, () => {
       userId: `user-456`,
       email: ``,
       role: `member`,
+      apiKeyId: `key-4`,
     })
     expect(mockNext).toHaveBeenCalled()
     expect(mockRes.status).not.toHaveBeenCalled()
@@ -270,6 +271,7 @@ describe(`validateApiKeyAuth`, () => {
       userId: `user-789`,
       email: ``,
       role: `admin`,
+      apiKeyId: `key-5`,
     })
     expect(mockNext).toHaveBeenCalled()
   })
@@ -295,6 +297,7 @@ describe(`validateApiKeyAuth`, () => {
       userId: `user-101`,
       email: ``,
       role: `viewer`,
+      apiKeyId: `key-6`,
     })
   })
 
@@ -319,6 +322,7 @@ describe(`validateApiKeyAuth`, () => {
       userId: `user-102`,
       email: ``,
       role: `member`,
+      apiKeyId: `key-7`,
     })
   })
 
@@ -348,6 +352,90 @@ describe(`validateApiKeyAuth`, () => {
     expect(mockRes.status).not.toHaveBeenCalled()
   })
 
+  it(`should attach orgId when API key is org-scoped`, async () => {
+    const orgKey = new ApiKey({
+      id: `key-org`,
+      name: `Org Key`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_orgk`,
+      active: true,
+      scopes: `admin`,
+      userId: `user-300`,
+      orgId: `org-123`,
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_org_scoped`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: orgKey })
+    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockReq.user).toEqual({
+      userId: `user-300`,
+      email: ``,
+      role: `admin`,
+      orgId: `org-123`,
+      apiKeyId: `key-org`,
+    })
+    expect(mockNext).toHaveBeenCalled()
+  })
+
+  it(`should attach projectId when API key is project-scoped`, async () => {
+    const projKey = new ApiKey({
+      id: `key-proj`,
+      name: `Project Key`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_proj`,
+      active: true,
+      scopes: `write`,
+      userId: `user-400`,
+      projectId: `proj-456`,
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_proj_scoped`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: projKey })
+    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockReq.user).toEqual({
+      userId: `user-400`,
+      email: ``,
+      role: `member`,
+      projectId: `proj-456`,
+      apiKeyId: `key-proj`,
+    })
+    expect(mockNext).toHaveBeenCalled()
+  })
+
+  it(`should not attach orgId or projectId when API key has neither`, async () => {
+    const bareKey = new ApiKey({
+      id: `key-bare`,
+      name: `Bare Key`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_bare`,
+      active: true,
+      scopes: `read`,
+      userId: `user-500`,
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_bare_key`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: bareKey })
+    const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockReq.user).toEqual({
+      userId: `user-500`,
+      email: ``,
+      role: `viewer`,
+      apiKeyId: `key-bare`,
+    })
+    expect(mockReq.user).not.toHaveProperty(`orgId`)
+    expect(mockReq.user).not.toHaveProperty(`projectId`)
+    expect(mockNext).toHaveBeenCalled()
+  })
+
   it(`should not block request if touchLastUsed fails`, async () => {
     const validKey = new ApiKey({
       id: `key-8`,
@@ -372,6 +460,7 @@ describe(`validateApiKeyAuth`, () => {
       userId: `user-200`,
       email: ``,
       role: `viewer`,
+      apiKeyId: `key-8`,
     })
   })
 })

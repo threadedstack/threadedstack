@@ -1,0 +1,65 @@
+import type { NextFunction } from 'express'
+import type { TRequest, TResponse } from '@TBE/types'
+
+import { logger } from '@TBE/utils/logger'
+import { fromAuthHeaders } from '@tdsk/domain'
+
+/**
+ * Middleware that enforces project-level access boundaries for project-scoped API keys.
+ * Org-scoped keys and JWT auth pass through unrestricted.
+ * Project-scoped keys can only access their specific project.
+ */
+export const projectAccessGuard = () => {
+  return (req: TRequest, res: TResponse, next: NextFunction) => {
+    try {
+      const auth = fromAuthHeaders(req)
+      const keyProjectId = auth.projectId
+
+      // Org-scoped key or JWT auth — no project restriction
+      if (!keyProjectId) return next()
+
+      // Project-scoped key — check if the request targets the correct project
+      const queryProjectId = req.query?.projectId
+      const safeQueryProjectId =
+        typeof queryProjectId === `string` ? queryProjectId : undefined
+
+      const targetProjectId =
+        req.params.projectId || req.body?.projectId || safeQueryProjectId
+
+      if (!targetProjectId) {
+        logger.warn({
+          message: `Project-scoped key blocked from org-level resource`,
+          path: req.path,
+          method: req.method,
+          keyProjectId,
+        })
+        return res
+          .status(403)
+          .json({ error: `Project-scoped API key cannot access org-level resources` })
+      }
+
+      if (targetProjectId !== keyProjectId) {
+        logger.warn({
+          message: `Project-scoped key blocked from different project`,
+          path: req.path,
+          method: req.method,
+          keyProjectId,
+          targetProjectId,
+        })
+        return res
+          .status(403)
+          .json({ error: `API key does not have access to this project` })
+      }
+
+      next()
+    } catch (error) {
+      logger.error({
+        message: `projectAccessGuard error`,
+        path: req.path,
+        method: req.method,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      next(error)
+    }
+  }
+}

@@ -46,6 +46,37 @@ function hasStatus(e: unknown, status: number): boolean {
   return e instanceof Error && e.message.includes(`(${status})`)
 }
 
+export type TApiErrorKind =
+  | `auth`
+  | `forbidden`
+  | `network`
+  | `notFound`
+  | `data`
+  | `server`
+  | `unknown`
+
+export function classifyApiError(err: unknown): TApiErrorKind {
+  if (!(err instanceof Error)) return `unknown`
+  if (
+    hasCode(err, `ECONNREFUSED`) ||
+    hasCode(err, `ETIMEDOUT`) ||
+    hasCode(err, `ENOTFOUND`)
+  )
+    return `network`
+  if (hasStatus(err, 401) || err.message.includes(`Not logged in`)) return `auth`
+  if (hasStatus(err, 403)) return `forbidden`
+  if (hasStatus(err, 404)) return `notFound`
+  if (hasStatus(err, 400) || hasStatus(err, 422)) return `data`
+  if (
+    hasStatus(err, 429) ||
+    hasStatus(err, 500) ||
+    hasStatus(err, 502) ||
+    hasStatus(err, 503)
+  )
+    return `server`
+  return `unknown`
+}
+
 export function toFriendlyError(error: Error): {
   message: string
   suggestion?: string

@@ -72,6 +72,7 @@ export enum ERoutePath {
   // In both organizations and projects
   ProjectSecrets = `/orgs/:orgId/projects/:projectId/secrets`,
   ProjectDomains = `/orgs/:orgId/projects/:projectId/domains`,
+  ProjectApiKeys = `/orgs/:orgId/projects/:projectId/api-keys`,
   ProjectSettings = `/orgs/:orgId/projects/:projectId/settings`,
 
   Endpoints = `endpoints`,

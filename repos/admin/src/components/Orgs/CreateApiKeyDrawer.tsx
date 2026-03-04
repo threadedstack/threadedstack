@@ -29,9 +29,16 @@ export type TCreateApiKeyDrawer = {
   userId?: string
   userName?: string
   users?: Array<{ id: string; name: string; email?: string }>
+  maxScope?: TApiKeyScope
   open: boolean
   onClose: () => void
   onSuccess?: () => void
+}
+
+const ScopeLevel: Record<string, number> = {
+  [EApiKeyScope.read]: 1,
+  [EApiKeyScope.write]: 2,
+  [EApiKeyScope.admin]: 3,
 }
 
 const ScopeIcons = {
@@ -48,9 +55,12 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
     userId,
     userName,
     users,
+    maxScope,
     onClose: onCloseCB,
     onSuccess: onSuccessCB,
   } = props
+
+  const maxScopeLevel = maxScope ? (ScopeLevel[maxScope] ?? 3) : 3
 
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<TApiKeyScope[]>([`read`])
@@ -248,6 +258,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
             <InputLabel>Scopes</InputLabel>
             {ApiKeyScopes.map((scope) => {
               const Icon = ScopeIcons[scope]
+              const scopeDisabled = (ScopeLevel[scope] ?? 0) > maxScopeLevel
 
               return (
                 <Box
@@ -258,6 +269,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
                     id={scope}
                     sx={{ ml: 0.5 }}
                     label={capitalize(scope)}
+                    disabled={scopeDisabled}
                     checked={scopes.includes(scope)}
                     onChange={() => onScopeChange(scope)}
                   />
@@ -266,6 +278,7 @@ export const CreateApiKeyDrawer = (props: TCreateApiKeyDrawer) => {
                     sx={{ fontSize: `12px` }}
                   >
                     {ApiKeyScopeDesc[scope]}
+                    {scopeDisabled && ` (requires higher project role)`}
                   </Typography>
                 </Box>
               )

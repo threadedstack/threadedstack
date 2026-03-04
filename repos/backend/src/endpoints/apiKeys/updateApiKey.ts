@@ -25,7 +25,11 @@ export const updateApiKey: TEndpointConfig = {
       id,
       EPermAction.update,
       EPermResource.apiKey,
-      `API key`
+      `API key`,
+      (data) => ({
+        orgId: data.orgId || req.params.orgId,
+        projectId: data.projectId,
+      })
     )
 
     if (scopes) {
@@ -54,6 +58,7 @@ export const updateApiKey: TEndpointConfig = {
 
       res.status(200).json({ data: data.sanitize() })
     } catch (err) {
+      if (err instanceof Exception) throw err
       const message = err instanceof Error ? err.message : `Failed to update API key`
       throw new Exception(500, message)
     }

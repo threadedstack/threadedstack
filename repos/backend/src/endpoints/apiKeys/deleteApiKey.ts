@@ -24,7 +24,11 @@ export const deleteApiKey: TEndpointConfig = {
       id,
       EPermAction.delete,
       EPermResource.apiKey,
-      `API key`
+      `API key`,
+      (data) => ({
+        orgId: data.orgId || req.params.orgId,
+        projectId: data.projectId,
+      })
     )
 
     const { error } = await db.services.apiKey.revoke(id)

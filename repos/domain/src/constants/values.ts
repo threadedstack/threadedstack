@@ -17,6 +17,9 @@ export const AuthHeaders = Object.freeze({
   [`user.userId`]: `X-User-Id`,
   [`user.role`]: `X-User-Role`,
   [`user.email`]: `X-User-Email`,
+  [`user.orgId`]: `X-User-Org-Id`,
+  [`user.projectId`]: `X-User-Project-Id`,
+  [`user.apiKeyId`]: `X-User-Api-Key-Id`,
 })
 
 /**

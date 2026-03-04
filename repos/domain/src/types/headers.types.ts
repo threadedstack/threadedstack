@@ -3,4 +3,6 @@ export type TAuthHeaderObj = {
   email: string
   role?: string
   orgId?: string
+  projectId?: string
+  apiKeyId?: string
 }

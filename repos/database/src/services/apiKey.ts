@@ -1,4 +1,9 @@
-import type { TServiceOpts, TDBApiKeySelect, TDBApiKeyInsert } from '@TDB/types'
+import type {
+  TServiceOpts,
+  TDBApiKeySelect,
+  TDBApiKeyInsert,
+  TDBQueryOpts,
+} from '@TDB/types'
 
 import { eq } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
@@ -49,6 +54,27 @@ export class ApiKey extends Base<
     } catch (error: any) {
       return { error }
     }
+  }
+
+  /**
+   * List API keys scoped to a specific project
+   */
+  listByProject = async (projectId: string, opts: TDBQueryOpts = {}) => {
+    return this.list({
+      ...opts,
+      where: { ...opts.where, projectId },
+    })
+  }
+
+  /**
+   * List API keys scoped to an organization.
+   * Project-scoped keys are excluded because they have orgId=null (application-level exclusive arc).
+   */
+  listByOrg = async (orgId: string, opts: TDBQueryOpts = {}) => {
+    return this.list({
+      ...opts,
+      where: { ...opts.where, orgId },
+    })
   }
 
   /**

@@ -123,6 +123,7 @@ describe(`getDynamicNav`, () => {
         `Agents`,
         `Members`,
         `Domains`,
+        `API Keys`,
         `Settings`,
       ])
     })
@@ -413,6 +414,7 @@ describe(`ProjectNavItems`, () => {
         `Agents`,
         `Members`,
         `Domains`,
+        `API Keys`,
         `Settings`,
       ]
       const actualItems = ProjectNavItems.map((item) => item.text)
@@ -502,10 +504,10 @@ describe(`ProjectSubNavGroups`, () => {
     expect(texts).toEqual([`Endpoints`, `Functions`, `Agents`])
   })
 
-  it(`Security should have Secrets, Domains`, () => {
+  it(`Security should have Secrets, API Keys, Domains`, () => {
     const security = ProjectSubNavGroups.find((g) => g.label === `Security`)
     const texts = security?.items.map((i) => i.text)
-    expect(texts).toEqual([`Secrets`, `Domains`])
+    expect(texts).toEqual([`Secrets`, `API Keys`, `Domains`])
   })
 
   it(`Management should have Members, Settings`, () => {

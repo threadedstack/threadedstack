@@ -58,7 +58,7 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
 
-### [P3] Endpoint Drawer Test Tab improvements
+### [IN PROGRESS][P3] Endpoint Drawer Test Tab improvements
 
 * **Repos**: admin
 * **Key files**: `components/Endpoints/EndpointTestPanel.tsx`, `hooks/endpoints/useEndpointTest.ts`
@@ -318,7 +318,7 @@ Can run in parallel with Batch 1.
 
 No overlap with anything. Uses `Endpoints/Agent/` directory (different files than Batch 1's Endpoint Test Tab). Can run in parallel with all other batches.
 
-### [P3] Agent type endpoint — expose all AgentDrawer options to Agent Overrides
+### [IN PROGRESS][P3] Agent type endpoint — expose all AgentDrawer options to Agent Overrides
 
 * **Repos**: admin
 * **Key files**: `Endpoints/Agent/EndpointAgent.tsx`, `Endpoints/Agent/AgentInputs.tsx`
@@ -593,7 +593,7 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 
 No overlap with any other batch. Touches only `repos/admin/src/components/AI/` and `repos/components/`.
 
-### [P4] Extract ArtifactRenderer components from admin to shared components repo
+### [IN PROGRESS][P4] Extract ArtifactRenderer components from admin to shared components repo
 
 * **Repos**: admin, components
 * **Key files**: `admin/src/components/AI/ArtifactRenderer.tsx`, `admin/src/components/AI/MarkdownRenderer.tsx`, `admin/src/components/AI/MermaidRenderer.tsx`
@@ -633,52 +633,45 @@ No overlap with any other batch. Touches only `repos/admin/src/components/AI/` a
 
 No overlap with any other batch. All changes are within `repos/repl/`. Tasks within this batch can mostly run in parallel except where noted.
 
-### [P1] REPL: HUD metadata not displayed — model and provider info missing from status bar
+### [IN PROGRESS][P1] REPL: Bare `catch {}` silently swallows org-name resolution errors
 
 * **Repos**: repl
-* **Key files**: `repl/src/renderers/chatLogic.ts`, `repl/src/renderers/PiTuiStatus.ts`, `repl/src/renderers/PiTuiApp.ts`
-* After the pi-mono 0.55.3 upgrade (commit `5e29dc7`), the TUI status bar no longer shows model name or provider name. The `TStatusMetadata` type in `PiTuiStatus.ts` (lines 8-16) defines `modelName` and `providerName` fields, and the render method (lines 41-74) can display them, but `#emitStatusChange()` in `chatLogic.ts` (lines 492-500) never populates these fields. The `providerId` is stored in `ChatLogic` (line 79) but never converted to a display name. Model information from the agent config or pi-mono's `ModelRegistry` is never extracted
-* The old Ink-based renderer had a `StatusBar` component and `MetadataBar` component that showed org, project, agent, thread, model, and provider — all of which had proper data wiring. The pi-tui migration preserved the display components but not the data plumbing
+* **Key files**: `repl/src/renderers/chatLogic.ts`
+* In `chatLogic.ts` `#connectAfterLogin()`, a bare `catch {}` swallows all errors when resolving the org name via `newClient.getOrg(orgId)`. The fallback sets `this.orgName = orgId` (the raw ID), which is reasonable for a 404 (org not found), but this also silently swallows network failures, auth expiry, and server errors. The user gets no indication that something went wrong — they just see a raw ID instead of a name, with no way to know whether the API is down or their session expired
 * **Fix**:
-  1. In `chatLogic.ts`, extract model and provider information from `agentInfo` when an agent is selected (around lines 230-236, 340-346). Store as `this.modelName` and `this.providerName` class properties
-  2. Update `#emitStatusChange()` (lines 492-500) to include `modelName` and `providerName` in the callback payload
-  3. Update the `onStatusChange` callback type signature (lines 102-110) to include `modelName` and `providerName`
-  4. When `providerId` changes (line 526 via `setProviderId()`), also update `providerName` from the provider list or agent config
-  5. Verify `PiTuiStatus.ts` render method properly displays the new fields (it already has the logic at lines 41-74)
+  1. Replace the bare `catch {}` with `catch (err)` and inspect the error type
+  2. For expected "not found" errors (404 or equivalent), silently fall back to `orgId` as the display name — this is fine
+  3. For unexpected errors (network failure, auth expiry, 500), log a warning via `this.#outputMessage()` so the user knows the org name couldn't be resolved, while still falling back to `orgId` for the display name (don't block login over a cosmetic failure)
+  4. Do NOT transition to `error` phase for this — it's a non-critical operation. Just warn and continue
 * **Files**:
-  * `repos/repl/src/renderers/chatLogic.ts` — populate `modelName`/`providerName` in `#emitStatusChange()` (lines 492-500), update callback type (lines 102-110), extract from `agentInfo` (lines 230-236, 340-346)
-  * `repos/repl/src/renderers/PiTuiStatus.ts` — verify render handles new fields (lines 41-74)
-  * `repos/repl/src/renderers/PiTuiApp.ts` — ensure `onStatusChange` callback passes fields to status bar (lines 156-174)
+  * `repos/repl/src/renderers/chatLogic.ts` — replace bare `catch {}` in `#connectAfterLogin()` with error-aware catch block
 
-### [P1] REPL: Slash command sub-menus display in inconsistent screen positions
+### [IN PROGRESS][P2] REPL: `switchProject()` catch block transitions to dead-end `error` phase mid-session
 
 * **Repos**: repl
-* **Key files**: `repl/src/components/Prompt/SubMenu.tsx`, `repl/src/components/ChatSession/ChatSession.tsx`, `repl/src/components/Prompt/Prompt.tsx`
-* Slash commands with sub-menus (e.g., `/threads`, `/projects`) display their selection list at inconsistent vertical positions on screen. The `SubMenu` component (`repos/repl/src/components/Prompt/SubMenu.tsx`, lines 26-52) has no positioning logic — it renders inline within the Prompt's flexbox. The Prompt is a child of ChatSession's column layout (`ChatSession.tsx`, lines 70-103) where `MessageList` consumes variable space above it. As the message list grows, the Prompt (and its SubMenu) shifts down, causing the sub-menu to appear at different vertical positions depending on message count
-* **Note**: This bug applies to the Ink-based renderer components which may or may not be the active renderer. The pi-tui renderer (`PiTuiApp.ts`) uses `SelectList` from `@mariozechner/pi-tui` which has its own positioning. Verify which renderer is active for sub-menu display
+* **Key files**: `repl/src/renderers/chatLogic.ts`
+* The `switchProject()` method catches all errors and transitions to the `error` phase via `this.#setPhase('error')`. This destroys the user's active chat session for transient failures (e.g., a network blip when listing projects). The `error` phase is a dead-end in the pi-tui app — the user sees an error screen with no way to return to the chat. This is acceptable during initial startup (login/project selection), but NOT acceptable for a mid-session slash command (`/projects`) where the user already has an active conversation
+* The same pattern exists in `selectProject()`, but that's called during startup where the error phase is appropriate
 * **Fix**:
-  1. For the Ink renderer: Add fixed positioning or anchor the SubMenu to the bottom of the terminal viewport, independent of MessageList height. Ink supports `position="absolute"` on `Box` components — use it to pin the sub-menu to a consistent location
-  2. Alternatively, clear or collapse the MessageList when a sub-menu is active, so the sub-menu always renders at a predictable position
-  3. For the pi-tui renderer: Verify that `SelectList` positioning is consistent; if not, apply similar fixes using pi-tui's layout primitives
-  4. Ensure the fix works across different terminal sizes (test with small and large viewports)
+  1. In `switchProject()`, replace the `error` phase transition with a softer error handler: display the error message via `this.#outputMessage()` and return to the current phase (leave the user in the chat)
+  2. Preserve the user's current `agentId`, `threadId`, and `projectId` when the command fails — don't reset state before confirming success. Currently the method resets `agentId`, `threadId`, `agentInfo`, and `agents` BEFORE the API calls, so a failure leaves the user with cleared state. Move the resets to AFTER successful project/agent loading
+  3. The startup-time `selectProject()` method should keep the current error-phase behavior since there's no session to preserve
 * **Files**:
-  * `repos/repl/src/components/Prompt/SubMenu.tsx` — add consistent positioning (lines 26-52)
-  * `repos/repl/src/components/ChatSession/ChatSession.tsx` — adjust layout to support fixed sub-menu position (lines 70-103)
-  * `repos/repl/src/components/Prompt/Prompt.tsx` — coordinate sub-menu positioning with prompt layout (lines 279-318)
+  * `repos/repl/src/renderers/chatLogic.ts` — `switchProject()` catch block, state reset ordering
 
-### [P2] REPL: Add opening header/banner when CLI starts
+### [IN PROGRESS][P2] REPL: No error type discrimination in chatLogic catch blocks
 
 * **Repos**: repl
-* **Key files**: `repl/src/renderers/PiTuiApp.ts`, `repl/src/renderers/PiTuiChat.ts`
-* When the CLI starts (`tsa` command), the user immediately sees the "Select a project" picker with no branding or introduction. The old Ink implementation displayed a "ThreadedStack Agent REPL" header. The login phase (`PiTuiApp.ts` lines 239-250) has a basic header but only shows when unauthenticated. The help task (`tasks/help.ts` lines 8-9) prints `tsa v<VERSION> — ThreadedStack AI Agent REPL` but only when running `tsa help`. The chat welcome box (`PiTuiChat.ts` lines 111-134) shows agent name and description but only after agent selection. There's no introductory header/banner displayed during the project/agent selection flow
+* **Key files**: `repl/src/renderers/chatLogic.ts`
+* Multiple catch blocks in `chatLogic.ts` (`#handleCatchError`, `selectProject`, `switchProject`) treat all errors identically — auth expiry, network failures, and data errors all get the same handling (`this.error = err as Error`, transition to `error` phase). Auth expiry should trigger re-login, network errors should suggest retrying, and data errors should show a descriptive message. This lack of discrimination means transient issues (like a brief network blip) get the same catastrophic treatment (dead-end error screen) as permanent failures
 * **Fix**:
-  1. Create a header/banner that displays at the top of the TUI during all pre-chat phases (project selection, agent selection). Use the existing `themed()` function from `@TRL/theme` for styling
-  2. Display: app name ("ThreadedStack Agent REPL"), version from `Version` constant (`repos/repl/src/constants/version.ts`), and optionally a brief tagline
-  3. Use Unicode box-drawing characters (consistent with existing chat welcome box style in `PiTuiChat.ts` lines 115, 131) for visual framing
-  4. Add the header rendering to `PiTuiApp.ts` in the `#renderPickProjectPhase()` and `#renderPickAgentPhase()` methods, rendered above the picker label
-  5. Keep it compact (2-3 lines max) to preserve terminal space for the picker
+  1. Create error classification helpers — inspect error properties (status code, error type, message) to categorize as `auth` (401/403), `network` (timeout, ECONNREFUSED, fetch failures), or `data` (400, 404, 422, business logic)
+  2. For `auth` errors: clear credentials, transition to `login` phase so the user can re-authenticate
+  3. For `network` errors: display a retry-friendly message via `this.#outputMessage()` without destroying the current phase
+  4. For `data` errors: show the specific error message, remain in current phase for mid-session commands or transition to error phase for startup commands
+  5. Apply this classification to all catch blocks in `chatLogic.ts` — `#handleCatchError()`, `selectProject()`, and `switchProject()` at minimum
 * **Files**:
-  * `repos/repl/src/renderers/PiTuiApp.ts` — add header rendering in `#renderPickProjectPhase()` (lines 290-312) and `#renderPickAgentPhase()` (lines 316-338)
+  * `repos/repl/src/renderers/chatLogic.ts` — catch blocks in `#handleCatchError`, `selectProject`, `switchProject`; error classification in `repos/repl/src/constants/errors.ts`
 
 ---
 

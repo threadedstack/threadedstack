@@ -3,7 +3,7 @@ import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { apiKeys } from './apiKeys'
-import { ApiKey } from '@tdsk/domain'
+import { ApiKey, Exception } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
@@ -39,6 +39,8 @@ describe(`API Keys endpoints`, () => {
           role: {
             getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
             getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+            isProjectMember: vi.fn().mockResolvedValue({ data: true }),
+            isOrgMember: vi.fn().mockResolvedValue({ data: true }),
           },
         },
       },
@@ -49,6 +51,21 @@ describe(`API Keys endpoints`, () => {
     isFunc(endpoint) ? endpoint(mockApp) : endpoint
 
   beforeEach(() => {
+    vi.clearAllMocks()
+
+    // Reset role mocks to defaults (clearAllMocks only clears call history, not implementations)
+    const roleSvc = mockApp.locals.db.services.role
+    ;(roleSvc.getOrgRole as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { type: `admin` },
+    })
+    ;(roleSvc.getProjectRole as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { type: `admin` },
+    })
+    ;(roleSvc.isProjectMember as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: true,
+    })
+    ;(roleSvc.isOrgMember as ReturnType<typeof vi.fn>).mockResolvedValue({ data: true })
+
     mockJson = vi.fn()
     mockSetHeader = vi.fn()
     mockStatus = vi.fn(() => mockRes as Response) as ReturnType<typeof vi.fn>
@@ -220,7 +237,7 @@ describe(`API Keys endpoints`, () => {
       })
     })
 
-    it(`should filter by both projectId and userId when provided`, async () => {
+    it(`should filter by projectId when provided (without orgId in where)`, async () => {
       mockReq.params = { orgId: `org-1` }
       mockReq.query = { projectId: `proj-1`, userId: `user-123` }
 
@@ -230,8 +247,10 @@ describe(`API Keys endpoints`, () => {
       mockList.mockResolvedValue({ data: [] })
       await ep.action(mockReq as TRequest, mockRes as Response)
 
+      // When projectId is provided, orgId should NOT be in the where clause
+      // because project-scoped keys have orgId=null in the database
       expect(mockList).toHaveBeenCalledWith({
-        where: { orgId: `org-1`, active: true, projectId: `proj-1`, userId: `user-123` },
+        where: { active: true, projectId: `proj-1`, userId: `user-123` },
         limit: 50,
         offset: 0,
       })
@@ -501,6 +520,148 @@ describe(`API Keys endpoints`, () => {
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Target user is not a member of this organization`
       )
+    })
+
+    it(`should create project-scoped key when projectId is in body`, async () => {
+      mockReq.body = { name: `Project Key`, projectId: `proj-1` }
+      const createdApiKey = new ApiKey({
+        id: `proj-key-1`,
+        name: `Project Key`,
+        keyHash: `hash`,
+        keyPrefix: `tdsk_proj`,
+        scopes: `read`,
+        active: true,
+        projectId: `proj-1`,
+        userId: `test-user-id`,
+        createdAt: new Date(),
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdApiKey })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: `proj-1`,
+          userId: `test-user-id`,
+        })
+      )
+      // Should NOT have orgId set
+      const createArg = mockCreate.mock.calls[0][0]
+      expect(createArg.orgId).toBeUndefined()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should allow project admin to create key for project member`, async () => {
+      const mockGetProjectRole = mockReq.app?.locals.db.services.role
+        .getProjectRole as ReturnType<typeof vi.fn>
+      mockGetProjectRole.mockResolvedValue({ data: { type: `admin` } })
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
+
+      const mockIsProjectMember = mockReq.app?.locals.db.services.role
+        .isProjectMember as ReturnType<typeof vi.fn>
+      mockIsProjectMember.mockResolvedValue({ data: true })
+
+      mockReq.body = { name: `Member Key`, projectId: `proj-1`, userId: `other-user-id` }
+      const createdApiKey = new ApiKey({
+        id: `member-key-1`,
+        name: `Member Key`,
+        keyHash: `hash`,
+        keyPrefix: `tdsk_memb`,
+        scopes: `read`,
+        active: true,
+        projectId: `proj-1`,
+        userId: `other-user-id`,
+        createdAt: new Date(),
+      })
+
+      const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdApiKey })
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: `other-user-id`, projectId: `proj-1` })
+      )
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should reject member role from creating project-scoped key`, async () => {
+      // checkPermission blocks member role before reaching validateProjectKeyPermission
+      // Must set both org and project role to member since getUserRole takes the highest
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
+
+      const mockGetProjectRole = mockReq.app?.locals.db.services.role
+        .getProjectRole as ReturnType<typeof vi.fn>
+      mockGetProjectRole.mockResolvedValue({ data: { type: `member` } })
+
+      mockReq.body = { name: `Bad Key`, projectId: `proj-1` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Requires admin role or higher`
+      )
+    })
+
+    it(`should reject when target user is not a project member`, async () => {
+      const mockGetProjectRole = mockReq.app?.locals.db.services.role
+        .getProjectRole as ReturnType<typeof vi.fn>
+      mockGetProjectRole.mockResolvedValue({ data: { type: `admin` } })
+
+      const mockIsProjectMember = mockReq.app?.locals.db.services.role
+        .isProjectMember as ReturnType<typeof vi.fn>
+      mockIsProjectMember.mockResolvedValue({ data: false })
+
+      mockReq.body = { name: `Bad Key`, projectId: `proj-1`, userId: `non-member-id` }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Target user is not a member of this project`
+      )
+    })
+
+    it(`should re-throw Exception without wrapping`, async () => {
+      mockReq.body = { name: `Key`, orgId: `org-123` }
+
+      const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockRejectedValue(new Exception(409, `Key already exists`))
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Key already exists`
+      )
+
+      // Verify it's the original 409, not wrapped in 500
+      try {
+        await ep.action(mockReq as TRequest, mockRes as Response)
+      } catch (err) {
+        expect(err).toBeInstanceOf(Exception)
+        expect((err as Exception).status).toBe(409)
+      }
+    })
+
+    it(`should wrap non-Exception errors in 500 Exception`, async () => {
+      mockReq.body = { name: `Key`, orgId: `org-123` }
+
+      const mockCreate = mockReq.app?.locals.db.services.apiKey.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockRejectedValue(new Error(`DB connection lost`))
+
+      try {
+        await ep.action(mockReq as TRequest, mockRes as Response)
+      } catch (err) {
+        expect(err).toBeInstanceOf(Exception)
+        expect((err as Exception).status).toBe(500)
+        expect((err as Exception).message).toBe(`DB connection lost`)
+      }
     })
 
     it(`should use req.user.id when userId matches caller`, async () => {

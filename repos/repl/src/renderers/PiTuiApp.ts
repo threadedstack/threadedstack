@@ -16,6 +16,7 @@ import {
 } from '@mariozechner/pi-tui'
 import { themed } from '@TRL/theme'
 import { commands } from '@TRL/commands'
+import { Version } from '@TRL/constants/version'
 import { PiTuiChat } from '@TRL/renderers/PiTuiChat'
 import { PiTuiStatus } from '@TRL/renderers/PiTuiStatus'
 
@@ -60,6 +61,9 @@ export class PiTuiApp {
   #errorText: Text | null = null
   #selectList: SelectList | null = null
   #pickerLabel: Text | null = null
+
+  // --- Inline menu (replaces overlay for slash command menus) ---
+  #inlineMenu: Container | null = null
 
   constructor(chatLogic: ChatLogic) {
     this.#logic = chatLogic
@@ -181,11 +185,11 @@ export class PiTuiApp {
       onSelect: (item: TSelectItem) => void,
       _options?: { onAction?: (item: TSelectItem) => void }
     ) => {
-      this.#showOverlaySelectList(prompt, items, onSelect)
+      this.#showInlineSelectList(prompt, items, onSelect)
     }
 
     this.#logic._closeMenuHandler = () => {
-      this.#tui.hideOverlay()
+      this.#removeInlineMenu()
     }
   }
 
@@ -285,9 +289,27 @@ export class PiTuiApp {
     this.#renderPhase(`error`)
   }
 
+  // --- Banner ---
+
+  #renderBanner(): void {
+    const width = process.stdout.columns ?? 60
+    const border = themed(`border`, `\u2500`.repeat(Math.min(width - 4, 50)))
+    this.#welcomeText = new Text(
+      [
+        border,
+        ` ${themed(`bold`, `ThreadedStack Agent REPL`)} ${themed(`muted`, `v${Version}`)}`,
+        border,
+      ].join(`\n`),
+      1,
+      1
+    )
+    this.#tui.addChild(this.#welcomeText)
+  }
+
   // --- Pick Project Phase ---
 
   #renderPickProjectPhase(): void {
+    this.#renderBanner()
     this.#pickerLabel = new Text(themed(`bold`, `Select a project:`), 1, 1)
     this.#tui.addChild(this.#pickerLabel)
 
@@ -314,6 +336,7 @@ export class PiTuiApp {
   // --- Pick Agent Phase ---
 
   #renderPickAgentPhase(): void {
+    this.#renderBanner()
     this.#pickerLabel = new Text(themed(`bold`, `Select an agent:`), 1, 1)
     this.#tui.addChild(this.#pickerLabel)
 
@@ -364,43 +387,52 @@ export class PiTuiApp {
   }
 
   // ----------------------------------------------------------------
-  // Overlay menu (used by slash commands like /threads, /agents, etc.)
+  // Inline menu (used by slash commands like /threads, /agents, etc.)
+  // Rendered as a regular child below the editor for stable positioning.
   // ----------------------------------------------------------------
 
-  #showOverlaySelectList(
+  #showInlineSelectList(
     prompt: string,
     items: TSelectItem[],
     onSelect: (item: TSelectItem) => void
   ): void {
+    this.#removeInlineMenu()
+
     const selectItems: SelectItem[] = items.map((i) => ({
       value: i.id,
       label: i.label,
       description: i.description,
     }))
 
-    const overlayContainer = new Container()
+    this.#inlineMenu = new Container()
     const label = new Text(themed(`bold`, prompt), 1, 0)
-    overlayContainer.addChild(label)
+    this.#inlineMenu.addChild(label)
 
     const list = new SelectList(selectItems, 10, selectListTheme)
     list.onSelect = (selected: SelectItem) => {
       const original = items.find((i) => i.id === selected.value)
       if (original) {
-        this.#tui.hideOverlay()
+        this.#removeInlineMenu()
         onSelect(original)
       }
     }
     list.onCancel = () => {
-      this.#tui.hideOverlay()
+      this.#removeInlineMenu()
     }
 
-    overlayContainer.addChild(list)
+    this.#inlineMenu.addChild(list)
 
-    this.#tui.showOverlay(overlayContainer, {
-      width: `80%`,
-      maxHeight: `60%`,
-      anchor: `center`,
-    })
+    this.#tui.addChild(this.#inlineMenu)
     this.#tui.setFocus(list as any)
+    this.#tui.requestRender()
+  }
+
+  #removeInlineMenu(): void {
+    if (this.#inlineMenu) {
+      this.#tui.removeChild(this.#inlineMenu)
+      this.#inlineMenu = null
+      this.#tui.setFocus(this.#editor)
+      this.#tui.requestRender()
+    }
   }
 }

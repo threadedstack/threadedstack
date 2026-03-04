@@ -349,3 +349,26 @@ export const ErrorText = styled(Text)(({ theme }) => {
     line-height: 1.5;
   `
 })
+
+export const EmailFormContainer = styled(`form`)`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+`
+
+export const EmailFormButton = styled(LoadingButton)(({ theme }) => {
+  return `
+    width: 100%;
+    height: 42px;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: none;
+    border-radius: ${theme.dims?.border?.tpx || '4px'};
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:disabled {
+      opacity: 0.6;
+    }
+  `
+})

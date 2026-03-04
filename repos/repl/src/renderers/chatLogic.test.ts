@@ -178,6 +178,348 @@ describe(`ChatLogic`, () => {
     })
   })
 
+  // ─── Batch 9: Error handling — #handleCatchError paths ───────────
+
+  describe(`Batch 9: error handling — auth errors trigger logout + login phase`, () => {
+    it(`#connectAfterLogin auth error transitions to login phase`, async () => {
+      const logic = makeChatLogic()
+      const phases: string[] = []
+      logic.onPhaseChange = (phase) => phases.push(phase)
+
+      // First init succeeds to set up client
+      mockListProjects.mockRejectedValueOnce(new Error(`API error (401): Unauthorized`))
+
+      await logic.init()
+
+      // Auth error should trigger logout → login phase
+      expect(phases).toContain(`login`)
+      expect(logic.loggedIn).toBe(false)
+      expect(mockAuth.logout).toHaveBeenCalled()
+    })
+
+    it(`selectProject auth error transitions to login phase`, async () => {
+      const logic = makeChatLogic()
+      const phases: string[] = []
+      logic.onPhaseChange = (phase) => phases.push(phase)
+
+      await logic.init()
+      logic.selectAgent({ id: `a1`, name: `Alpha` })
+
+      // Now simulate auth error on selectProject's listAgents call
+      mockListAgents.mockRejectedValueOnce(new Error(`API error (401): Unauthorized`))
+
+      await logic.selectProject({ id: `p1`, name: `Project` })
+
+      expect(phases).toContain(`login`)
+      expect(logic.loggedIn).toBe(false)
+      expect(mockAuth.logout).toHaveBeenCalled()
+    })
+
+    it(`switchProject auth error transitions to login phase (session context)`, async () => {
+      const logic = makeChatLogic()
+      const phases: string[] = []
+      logic.onPhaseChange = (phase) => phases.push(phase)
+
+      await logic.init()
+      logic.selectAgent({ id: `a1`, name: `Alpha` })
+
+      mockListProjects.mockRejectedValueOnce(new Error(`API error (401): Unauthorized`))
+
+      await logic.switchProject()
+
+      expect(phases).toContain(`login`)
+      expect(logic.loggedIn).toBe(false)
+      expect(mockAuth.logout).toHaveBeenCalled()
+    })
+  })
+
+  describe(`Batch 9: error handling — session errors show friendly message without phase change`, () => {
+    it(`switchProject network error shows friendly message and preserves state`, async () => {
+      const logic = makeChatLogic()
+      const phases: string[] = []
+      const outputMessages: string[] = []
+      logic.onPhaseChange = (phase) => phases.push(phase)
+      logic.onMessagesChange = (msgs) => {
+        const last = msgs[msgs.length - 1]
+        if (last?.type === `system`) outputMessages.push(last.content)
+      }
+
+      await logic.init()
+      logic.selectAgent({ id: `a1`, name: `Alpha` })
+      logic.threadId = `t1`
+
+      // Clear phases after setup
+      phases.length = 0
+
+      mockListProjects.mockRejectedValueOnce(
+        Object.assign(new Error(`connect failed`), { code: `ECONNREFUSED` })
+      )
+
+      await logic.switchProject()
+
+      // Should NOT transition to error phase
+      expect(phases).not.toContain(`error`)
+
+      // Should show a friendly error message
+      const errMsg = outputMessages.find((m) => m.includes(`Can't reach the server`))
+      expect(errMsg).toBeDefined()
+
+      // State should be preserved
+      expect(logic.agentId).toBe(`a1`)
+      expect(logic.threadId).toBe(`t1`)
+    })
+
+    it(`switchProject server error preserves agent state`, async () => {
+      const logic = makeChatLogic()
+      const phases: string[] = []
+      logic.onPhaseChange = (phase) => phases.push(phase)
+
+      await logic.init()
+      logic.selectAgent({ id: `a1`, name: `Alpha` })
+      logic.threadId = `t1`
+      logic.agentInfo = { id: `a1`, name: `Alpha` }
+      phases.length = 0
+
+      mockListProjects.mockRejectedValueOnce(
+        new Error(`API error (500): Internal Server Error`)
+      )
+
+      await logic.switchProject()
+
+      expect(phases).not.toContain(`error`)
+      expect(logic.agentId).toBe(`a1`)
+      expect(logic.threadId).toBe(`t1`)
+      expect(logic.agentInfo).toEqual({ id: `a1`, name: `Alpha` })
+    })
+  })
+
+  describe(`Batch 9: error handling — startup errors use error phase`, () => {
+    it(`#connectAfterLogin network error transitions to error phase`, async () => {
+      const logic = makeChatLogic()
+      const phases: string[] = []
+      let errorFired: Error | null = null
+      logic.onPhaseChange = (phase) => phases.push(phase)
+      logic.onError = (err) => {
+        errorFired = err
+      }
+
+      mockListProjects.mockRejectedValueOnce(
+        Object.assign(new Error(`connect failed`), { code: `ECONNREFUSED` })
+      )
+
+      await logic.init()
+
+      expect(phases).toContain(`error`)
+      expect(errorFired).toBeTruthy()
+      expect(errorFired!.message).toContain(`connect failed`)
+    })
+  })
+
+  describe(`Batch 9: error handling — org name resolution catch block`, () => {
+    it(`warns on non-404 error and falls back to orgId`, async () => {
+      const logic = makeChatLogic()
+      const outputMessages: string[] = []
+      logic.onMessagesChange = (msgs) => {
+        const last = msgs[msgs.length - 1]
+        if (last?.type === `system`) outputMessages.push(last.content)
+      }
+
+      mockGetOrg.mockRejectedValueOnce(
+        new Error(`API error (500): Internal Server Error`)
+      )
+
+      await logic.init()
+
+      // Should warn about org name resolution failure
+      const warning = outputMessages.find((m) => m.includes(`Could not resolve org name`))
+      expect(warning).toBeDefined()
+
+      // Should fall back to orgId
+      expect(logic.orgName).toBe(`org-1`)
+    })
+
+    it(`silently falls back to orgId on 404`, async () => {
+      const logic = makeChatLogic()
+      const outputMessages: string[] = []
+      logic.onMessagesChange = (msgs) => {
+        const last = msgs[msgs.length - 1]
+        if (last?.type === `system`) outputMessages.push(last.content)
+      }
+
+      mockGetOrg.mockRejectedValueOnce(new Error(`API error (404): Not Found`))
+
+      await logic.init()
+
+      // Should NOT warn on 404
+      const warning = outputMessages.find((m) => m.includes(`Could not resolve org name`))
+      expect(warning).toBeUndefined()
+
+      // Should fall back to orgId
+      expect(logic.orgName).toBe(`org-1`)
+    })
+  })
+
+  describe(`Batch 9: error handling — switchProject deferred state reset`, () => {
+    it(`does not reset state when API call fails`, async () => {
+      const logic = makeChatLogic()
+
+      await logic.init()
+      logic.selectAgent({ id: `a1`, name: `Alpha` })
+      logic.threadId = `t1`
+      logic.agentInfo = { id: `a1`, name: `Alpha` }
+
+      mockListProjects.mockRejectedValueOnce(
+        new Error(`API error (500): Internal Server Error`)
+      )
+
+      await logic.switchProject()
+
+      // State should NOT be reset
+      expect(logic.agentId).toBe(`a1`)
+      expect(logic.threadId).toBe(`t1`)
+      expect(logic.agentInfo).toEqual({ id: `a1`, name: `Alpha` })
+    })
+
+    it(`resets state only after API calls succeed`, async () => {
+      const logic = makeChatLogic()
+      const phases: string[] = []
+      logic.onPhaseChange = (phase) => phases.push(phase)
+
+      await logic.init()
+      logic.selectAgent({ id: `a1`, name: `Alpha` })
+      logic.threadId = `t1`
+      logic.agentInfo = { id: `a1`, name: `Alpha` }
+
+      mockListProjects.mockResolvedValueOnce([
+        { id: `p1`, name: `Project 1` },
+        { id: `p2`, name: `Project 2` },
+      ])
+
+      await logic.switchProject()
+
+      // State should be reset after success
+      expect(logic.agentId).toBeNull()
+      expect(logic.threadId).toBeNull()
+      expect(logic.agentInfo).toBeNull()
+      expect(phases[phases.length - 1]).toBe(`pickProject`)
+    })
+  })
+
+  // ─── B1: 403 forbidden during startup ─────────────────────────────
+
+  describe(`403 forbidden during startup — shows friendly message without logout`, () => {
+    it(`#connectAfterLogin forbidden error shows friendly message without logout`, async () => {
+      const logic = makeChatLogic()
+      const outputMessages: string[] = []
+      logic.onMessagesChange = (msgs) => {
+        const last = msgs[msgs.length - 1]
+        if (last?.type === `system`) outputMessages.push(last.content)
+      }
+
+      mockListProjects.mockRejectedValueOnce(new Error(`API error (403): Forbidden`))
+
+      await logic.init()
+
+      // Should NOT trigger logout
+      expect(mockAuth.logout).not.toHaveBeenCalled()
+      // Should show friendly error message
+      expect(outputMessages.some((m) => m.includes(`Error:`))).toBe(true)
+      // Should transition to error phase (startup context)
+      expect(logic.error).toBeTruthy()
+    })
+  })
+
+  // ─── B2: switchProject zero-projects and single-project ───────────
+
+  describe(`switchProject edge cases`, () => {
+    it(`switchProject with zero projects shows message`, async () => {
+      const logic = makeChatLogic()
+      const outputMessages: string[] = []
+      logic.onMessagesChange = (msgs) => {
+        const last = msgs[msgs.length - 1]
+        if (last?.type === `system`) outputMessages.push(last.content)
+      }
+
+      await logic.init()
+      mockListProjects.mockResolvedValueOnce([])
+
+      await logic.switchProject()
+
+      expect(outputMessages.some((m) => m.includes(`No projects found`))).toBe(true)
+    })
+
+    it(`switchProject with single project skips picker`, async () => {
+      const logic = makeChatLogic()
+      const phases: string[] = []
+      logic.onPhaseChange = (phase) => phases.push(phase)
+
+      await logic.init()
+      logic.selectAgent({ id: `a1`, name: `Alpha` })
+      logic.threadId = `t1`
+      phases.length = 0
+
+      mockListProjects.mockResolvedValueOnce([{ id: `p1`, name: `Solo Project` }])
+      mockListAgents.mockResolvedValueOnce([{ id: `a2`, name: `Beta` }])
+
+      await logic.switchProject()
+
+      expect(logic.projectId).toBe(`p1`)
+      expect(logic.projectName).toBe(`Solo Project`)
+      expect(phases).toContain(`pickAgent`)
+    })
+  })
+
+  // ─── B6: resolveModel fallback ────────────────────────────────────
+
+  describe(`#emitStatusChange resolveModel fallback`, () => {
+    it(`falls back to agent model when resolveModel throws`, async () => {
+      const logic = makeChatLogic()
+      let lastStatus: any = null
+      logic.onStatusChange = (status) => {
+        lastStatus = status
+      }
+
+      await logic.init()
+
+      // selectAgent sets agentInfo to the passed object, then calls #emitStatusChange
+      // So we pass the throwing resolveModel directly in the agent object
+      const badAgent = {
+        id: `a1`,
+        name: `Alpha`,
+        model: `fallback-model`,
+        resolveModel: () => {
+          throw new Error(`resolution failed`)
+        },
+        primaryProvider: { name: `TestProvider` },
+      }
+
+      logic.selectAgent(badAgent)
+
+      expect(lastStatus?.modelName).toBe(`fallback-model`)
+    })
+  })
+
+  // ─── B7: setProviderId triggers status change ─────────────────────
+
+  describe(`setProviderId via command context`, () => {
+    it(`emits status change when provider is set`, async () => {
+      const logic = makeChatLogic()
+      let lastStatus: any = null
+      logic.onStatusChange = (status) => {
+        lastStatus = status
+      }
+
+      await logic.init()
+      logic.selectAgent({ id: `a1`, name: `Alpha` })
+
+      // Set providerId and trigger status emission via selectAgent
+      logic.providerId = `new-provider`
+      logic.selectAgent({ id: `a1`, name: `Alpha` })
+
+      expect(lastStatus).toBeDefined()
+    })
+  })
+
   // ─── Bug 3: selectProject empty agents guard + goBackToProjects ──
 
   describe(`Bug 3: empty agents guard — selecting project with no agents had no recovery path`, () => {

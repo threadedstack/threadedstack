@@ -30,6 +30,7 @@ const makeCtx = (
   messages: [],
   contextFiles: [],
   listThreads: vi.fn().mockResolvedValue([]),
+  switchProject: vi.fn().mockResolvedValue(undefined),
   listProjects: vi.fn().mockResolvedValue([]),
   listAgents: vi.fn().mockResolvedValue([]),
   deleteThread: vi.fn().mockResolvedValue(undefined),
@@ -100,34 +101,12 @@ describe(`Command Registry`, () => {
 })
 
 describe(`/projects command`, () => {
-  it(`calls listProjects and showMenu`, async () => {
-    const items = [
-      { id: `p1`, label: `Project 1`, description: `First` },
-      { id: `p2`, label: `Project 2` },
-    ]
-    const ctx = makeCtx({
-      listProjects: vi.fn().mockResolvedValue(items),
-    })
+  it(`calls switchProject to trigger phase-based project picker`, async () => {
+    const ctx = makeCtx()
 
     await projectsCommand.handler(``, ctx)
 
-    expect(ctx.listProjects).toHaveBeenCalled()
-    expect(ctx.showMenu).toHaveBeenCalledWith(
-      `Select a project:`,
-      items,
-      expect.any(Function)
-    )
-  })
-
-  it(`outputs message when no projects found`, async () => {
-    const ctx = makeCtx({
-      listProjects: vi.fn().mockResolvedValue([]),
-    })
-
-    await projectsCommand.handler(``, ctx)
-
-    expect(ctx.output).toHaveBeenCalledWith(`No projects found.`)
-    expect(ctx.showMenu).not.toHaveBeenCalled()
+    expect(ctx.switchProject).toHaveBeenCalled()
   })
 })
 

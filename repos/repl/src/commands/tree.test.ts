@@ -25,6 +25,7 @@ const makeCtx = (
   messages: [],
   contextFiles: [],
   listThreads: vi.fn().mockResolvedValue([]),
+  switchProject: vi.fn().mockResolvedValue(undefined),
   listProjects: vi.fn().mockResolvedValue([]),
   listAgents: vi.fn().mockResolvedValue([]),
   deleteThread: vi.fn().mockResolvedValue(undefined),

@@ -1,6 +1,8 @@
 import type { TRequest, TResponse, TApp } from '@TBE/types'
 import type { NextFunction, Router, RequestHandler } from 'express'
 
+import type { TAuthHeaderObj } from '@tdsk/domain'
+
 import { logger } from '@TBE/utils/logger'
 import { fromAuthHeaders } from '@tdsk/domain'
 import { shouldIgnore } from '@TBE/utils/auth/shouldIgnore'
@@ -20,7 +22,8 @@ export const authenticate = async (req: TRequest, res: TResponse, next: NextFunc
     const auth = fromAuthHeaders(req)
     if (!auth.userId) throw Error(`A valid and authorized user is required.`)
 
-    req.app.locals.auth = auth
+    // Safe cast: userId is validated above; email is assumed present from proxy headers; orgId/projectId/role/apiKeyId are optional
+    req.app.locals.auth = auth as TAuthHeaderObj
     const { data: user, error } = await db.services.user.get(auth.userId)
 
     if (error) throw error

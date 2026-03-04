@@ -80,7 +80,7 @@ env:
 
 
 # --- AUTH ENVs --- #
-  TDSK_AUTH_PROVIDERS: github,google,vercel
+  TDSK_AUTH_PROVIDERS: github,google,vercel,email
   TDSK_AUTH_URL: https://ep-flat-heart-ad7btwci.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth
   TDSK_AUTH_JWKS: https://ep-flat-heart-ad7btwci.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth/.well-known/jwks.json
 

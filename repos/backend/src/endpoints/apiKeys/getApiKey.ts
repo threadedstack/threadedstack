@@ -22,7 +22,11 @@ export const getApiKey: TEndpointConfig = {
       id,
       EPermAction.read,
       EPermResource.apiKey,
-      `API key`
+      `API key`,
+      (data) => ({
+        orgId: data.orgId || req.params.orgId,
+        projectId: data.projectId,
+      })
     )
 
     res.status(200).json({ data: data.sanitize() })

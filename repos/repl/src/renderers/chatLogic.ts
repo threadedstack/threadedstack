@@ -17,6 +17,7 @@ import { Executor } from '@TRL/services/executor'
 import { ContextLoader } from '@TRL/services/context'
 import { resolveOrg } from '@TRL/utils/api/resolveOrg'
 import { getToolName } from '@TRL/utils/tools/getToolName'
+import { classifyApiError, toFriendlyError } from '@TRL/constants/errors'
 import { parseCommand, findCommand, isPreAuthCommand } from '@TRL/commands'
 
 export type TDisplayMessage = {
@@ -106,6 +107,8 @@ export class ChatLogic {
         threadId?: string | null
         connection: TConnectionStatus
         projectName?: string
+        modelName?: string
+        providerName?: string
       }) => void)
     | null = null
 
@@ -164,6 +167,29 @@ export class ChatLogic {
     this.#addMessage({ type: `system`, content: text })
   }
 
+  #handleCatchError(err: unknown, context: `startup` | `session`): void {
+    const error = err instanceof Error ? err : new Error(String(err))
+    const kind = classifyApiError(err)
+
+    if (kind === `auth`) {
+      this.logout()
+      this.#outputMessage(`Session expired or unauthorized. Please log in again.`)
+      return
+    }
+
+    const friendly = toFriendlyError(error)
+    this.#outputMessage(
+      `Error: ${friendly.message}${friendly.suggestion ? ` ${friendly.suggestion}` : ``}`
+    )
+
+    // Startup errors transition to error phase; session errors preserve current state
+    if (context === `startup`) {
+      this.error = error
+      this.onError?.(this.error)
+      this.#setPhase(`error`)
+    }
+  }
+
   clearMessages(): void {
     this.messages = []
     this.onMessagesChange?.(this.messages)
@@ -215,8 +241,14 @@ export class ChatLogic {
       try {
         const org = await newClient.getOrg(orgId)
         this.orgName = org.name || orgId
-      } catch {
+      } catch (err) {
         this.orgName = orgId
+        const kind = classifyApiError(err)
+        if (kind !== `notFound`) {
+          this.#outputMessage(
+            `Warning: Could not resolve org name (${err instanceof Error ? err.message : `unknown error`})`
+          )
+        }
       }
 
       // Auto-detect context files
@@ -270,9 +302,7 @@ export class ChatLogic {
         this.#setPhase(`pickAgent`)
       }
     } catch (err) {
-      this.error = err as Error
-      this.onError?.(this.error)
-      this.#setPhase(`error`)
+      this.#handleCatchError(err, `startup`)
     }
   }
 
@@ -336,9 +366,7 @@ export class ChatLogic {
       this.onAgentsLoaded?.(this.agents)
       this.#setPhase(`pickAgent`)
     } catch (err) {
-      this.error = err as Error
-      this.onError?.(this.error)
-      this.#setPhase(`error`)
+      this.#handleCatchError(err, `startup`)
     }
   }
 
@@ -356,6 +384,55 @@ export class ChatLogic {
       return
     }
     this.#setPhase(`pickProject`)
+  }
+
+  async switchProject(): Promise<void> {
+    if (!this.#client || !this.orgId) {
+      this.#outputMessage(`Not connected. Please log in first.`)
+      return
+    }
+
+    this.error = null
+    try {
+      const projectList = await this.#client.listProjects(this.orgId)
+
+      if (projectList.length === 0) {
+        this.#outputMessage(`No projects found.`)
+        return
+      }
+
+      if (projectList.length === 1) {
+        const agentList = await this.#client.listAgents(this.orgId)
+        if (agentList.length === 0) {
+          this.#outputMessage(`No agents found in org. Create an agent first.`)
+          return
+        }
+
+        // API calls succeeded — now reset state
+        this.agentId = null
+        this.threadId = null
+        this.agentInfo = null
+        this.agents = agentList as any[]
+
+        this.projectId = projectList[0].id
+        this.projectName = projectList[0].name || projectList[0].id
+        this.onAgentsLoaded?.(this.agents)
+        this.#emitStatusChange()
+        this.#setPhase(`pickAgent`)
+      } else {
+        // API call succeeded — now reset state
+        this.agentId = null
+        this.threadId = null
+        this.agentInfo = null
+        this.agents = []
+
+        this.projects = projectList
+        this.onProjectsLoaded?.(this.projects)
+        this.#setPhase(`pickProject`)
+      }
+    } catch (err) {
+      this.#handleCatchError(err, `session`)
+    }
   }
 
   // ----------------------------------------------------------------
@@ -486,8 +563,20 @@ export class ChatLogic {
       if (this.#streamBuffer) {
         this.#addMessage({ type: `assistant`, content: this.#streamBuffer })
       }
-      const errMsg = err instanceof Error ? err.message : String(err)
-      this.#addMessage({ type: `system`, content: `Error: ${errMsg}` })
+
+      const error = err instanceof Error ? err : new Error(String(err))
+      const kind = classifyApiError(err)
+
+      if (kind === `auth`) {
+        // Auth expired mid-chat — partial text already saved above, logout clears messages
+        this.logout()
+        this.#outputMessage(`Session expired or unauthorized. Please log in again.`)
+      } else {
+        const friendly = toFriendlyError(error)
+        this.#outputMessage(
+          `Error: ${friendly.message}${friendly.suggestion ? ` ${friendly.suggestion}` : ``}`
+        )
+      }
     } finally {
       this.#stopStreamFlush()
       this.isStreaming = false
@@ -503,12 +592,30 @@ export class ChatLogic {
   // ----------------------------------------------------------------
 
   #emitStatusChange(): void {
+    const provider = this.agentInfo?.primaryProvider
+    let modelName: string | undefined
+    try {
+      modelName =
+        (typeof this.agentInfo?.resolveModel === `function`
+          ? this.agentInfo.resolveModel(
+              this.providerId || provider?.id,
+              provider?.options?.model
+            )
+          : undefined) || this.agentInfo?.model
+    } catch (err) {
+      console.warn(`[ChatLogic] resolveModel failed, falling back to agent model`, err)
+      modelName = this.agentInfo?.model
+    }
+    const providerName = provider?.name || provider?.brand
+
     this.onStatusChange?.({
       orgName: this.orgName || undefined,
       agentName: this.agentInfo?.name || this.agentId || undefined,
       threadId: this.threadId,
       connection: this.connection,
       projectName: this.projectName || undefined,
+      modelName: modelName || undefined,
+      providerName: providerName || undefined,
     })
   }
 
@@ -541,6 +648,7 @@ export class ChatLogic {
       setProviderId: (id: string) => {
         this.providerId = id
         this.#executor?.clearSession()
+        this.#emitStatusChange()
       },
       addContextFile: (path: string) => {
         const file = ContextLoader.loadFile(path)
@@ -569,6 +677,7 @@ export class ChatLogic {
           createdAt: t.createdAt,
         }))
       },
+      switchProject: () => this.switchProject(),
       listProjects: async () => {
         if (!this.#client || !this.orgId) return []
         const projects = await this.#client.listProjects(this.orgId)

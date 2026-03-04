@@ -130,6 +130,12 @@ const ProjectSubNav: Record<string, TNavItem> = {
     Icon: <DnsIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
+  APIKeys: {
+    text: `API Keys`,
+    Icon: <ApiIcon />,
+    to: buildRoute(ERoutePath.ProjectApiKeys),
+    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+  },
   Settings: {
     text: `Settings`,
     to: buildRoute(ERoutePath.ProjectSettings),
@@ -206,7 +212,7 @@ export const ProjectSubNavGroups: TSubNavGroup[] = [
   },
   {
     label: `Security`,
-    items: [ProjectSubNav.Secrets, ProjectSubNav.Domains],
+    items: [ProjectSubNav.Secrets, ProjectSubNav.APIKeys, ProjectSubNav.Domains],
   },
   {
     label: `Management`,
