@@ -1,8 +1,8 @@
 import type { TArtifactType } from '@tdsk/domain'
 
 import { useState } from 'react'
-import { MermaidRenderer } from '@TAF/components/AI/MermaidRenderer'
-import { MarkdownRenderer } from '@TAF/components/AI/MarkdownRenderer'
+import { MermaidRenderer } from './MermaidRenderer'
+import { MarkdownRenderer } from './MarkdownRenderer'
 import { Box, Chip, Paper, Drawer, Button, Typography, IconButton } from '@mui/material'
 import {
   Close as CloseIcon,

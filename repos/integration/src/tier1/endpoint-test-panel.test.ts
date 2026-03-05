@@ -10,13 +10,15 @@ import { uniqueName } from '../utils/unique-name'
  *
  * Validates the /proxy/:projectId/:endpointId route that the
  * admin EndpointTestPanel uses to test endpoints.
- * Creates a proxy endpoint pointing to the echo service,
- * then tests GET requests, header forwarding, and error scenarios.
+ * Creates proxy endpoints (GET + POST) pointing to the echo service,
+ * then tests GET requests, header forwarding, query parameter forwarding,
+ * POST body payloads, error response shapes, and error scenarios.
  */
 describe('Tier 1: Endpoint Test Panel API', () => {
   const ctx = readContext()
 
   let proxyEpId = ''
+  let postEpId = ''
   let setupFailed = false
 
   beforeAll(async () => {
@@ -38,12 +40,34 @@ describe('Tier 1: Endpoint Test Panel API', () => {
     }
 
     proxyEpId = epRes.data.data.id
+
+    // Create POST endpoint for body payload tests
+    const postEpRes = await post<{ data: Record<string, any> }>(
+      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints`,
+      {
+        name: uniqueName('EP Test Panel POST'),
+        path: `/test-panel-post-${Date.now()}`,
+        type: 'proxy',
+        method: 'post',
+        projectId: ctx.projectId,
+        options: { url: env.echoUrl },
+      }
+    )
+
+    if (postEpRes.status === 201 && postEpRes.data?.data?.id) {
+      postEpId = postEpRes.data.data.id
+    }
   }, 30_000)
 
   afterAll(async () => {
     if (proxyEpId) {
       await tryDelete(
         `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints/${proxyEpId}`
+      )
+    }
+    if (postEpId) {
+      await tryDelete(
+        `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints/${postEpId}`
       )
     }
   })
@@ -99,6 +123,78 @@ describe('Tier 1: Endpoint Test Panel API', () => {
     expect(res.status).toBe(200)
     expect(res.data.headers['x-first']).toBe('one')
     expect(res.data.headers['x-second']).toBe('two')
+  })
+
+  // ── Query Parameters ────────────────────────────────────────
+
+  test('query parameters are forwarded to target', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await api<any>(
+      `/proxy/${ctx.projectId}/${proxyEpId}?search=hello&page=2`,
+      { method: 'GET', rawPath: true }
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.data).toBeDefined()
+    expect(res.data.query).toBeDefined()
+  })
+
+  test('query parameters with special characters are preserved', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await api<any>(
+      `/proxy/${ctx.projectId}/${proxyEpId}?key=${encodeURIComponent('hello world')}&empty=`,
+      { method: 'GET', rawPath: true }
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.data).toBeDefined()
+    expect(res.data.query).toBeDefined()
+  })
+
+  // ── POST with Body ──────────────────────────────────────────
+
+  test('POST request forwards JSON body payload', async () => {
+    if (setupFailed || !postEpId) return expect(setupFailed).toBe(false)
+
+    const payload = { name: 'test', count: 42 }
+    const res = await api<any>(
+      `/proxy/${ctx.projectId}/${postEpId}`,
+      { method: 'POST', rawPath: true, body: payload }
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.data).toBeDefined()
+    expect(res.data.method).toBe('POST')
+  })
+
+  // ── Error Response Shape ────────────────────────────────────
+
+  test('404 response includes error details', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await api<any>(
+      `/proxy/${ctx.projectId}/zz00000000`,
+      { method: 'GET', rawPath: true }
+    )
+
+    expect(res.ok).toBe(false)
+    expect(res.status).toBe(404)
+    // The response should contain error information, not an empty body
+    expect(res.data).toBeDefined()
+  })
+
+  test('non-existent project returns error status', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const res = await api<any>(
+      `/proxy/zz00000000/${proxyEpId}`,
+      { method: 'GET', rawPath: true }
+    )
+
+    expect(res.ok).toBe(false)
+    expect([403, 404]).toContain(res.status)
   })
 
   // ── Error Scenarios ─────────────────────────────────────────

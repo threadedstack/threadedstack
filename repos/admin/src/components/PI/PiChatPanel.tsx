@@ -1,4 +1,4 @@
-import type { TChatMessage } from '@TAF/hooks/chat/useAgentChat'
+import type { TChatMessage } from '@tdsk/components'
 import type { AgentMessage } from '@mariozechner/pi-web-ui'
 
 import { useRef, useEffect, useCallback } from 'react'
@@ -115,12 +115,12 @@ export const PiChatPanel = (props: TPiChatPanel) => {
     <Box
       className='dark pi-chat-panel-wrapper'
       sx={{
-        display: `flex`,
-        flexDirection: `column`,
-        height: `100%`,
         width: `100%`,
+        height: `100%`,
+        display: `flex`,
         overflow: `hidden`,
         color: `text.primary`,
+        flexDirection: `column`,
         bgcolor: `background.default`,
       }}
       style={themeBridgeStyles}

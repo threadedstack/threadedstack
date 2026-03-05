@@ -98,5 +98,24 @@ describe(`sessionToken`, () => {
       const result = verifySessionToken(token)
       expect(Object.keys(result!).sort()).toEqual([`agentId`, `orgId`, `userId`])
     })
+
+    it(`should include projectId in result when signed with projectId`, () => {
+      const payloadWithProject = { ...payload, projectId: `proj-1` }
+      const token = signSessionToken(payloadWithProject)
+      const result = verifySessionToken(token)
+      expect(result).toEqual(payloadWithProject)
+      expect(Object.keys(result!).sort()).toEqual([
+        `agentId`,
+        `orgId`,
+        `projectId`,
+        `userId`,
+      ])
+    })
+
+    it(`should not include projectId when signed without it`, () => {
+      const token = signSessionToken(payload)
+      const result = verifySessionToken(token)
+      expect(result).not.toHaveProperty(`projectId`)
+    })
   })
 })

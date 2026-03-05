@@ -1,8 +1,8 @@
+import type { TChatMessage, TChatToolCall, TChatArtifact } from '@tdsk/components'
 import type {
   TMsgType,
   TWSServerMsg,
   TMessageContent,
-  TArtifactType,
   TFileAttachment,
 } from '@tdsk/domain'
 
@@ -11,31 +11,6 @@ import { threadsApi } from '@TAF/services/threadsApi'
 import { filesApi } from '@TAF/services/filesApi'
 import { AgentWSService } from '@TAF/services/agentWSService'
 import { useState, useRef, useCallback, useEffect } from 'react'
-
-export type TChatArtifact = {
-  artifactType: TArtifactType
-  content: string
-  title?: string
-  language?: string
-}
-
-export type TChatMessage = {
-  id: string
-  text: string
-  role: TMsgType
-  timestamp: number
-  toolCalls?: TChatToolCall[]
-  artifacts?: TChatArtifact[]
-  files?: TFileAttachment[]
-}
-
-export type TChatToolCall = {
-  id: string
-  name: string
-  args: string
-  result?: string
-  isError?: boolean
-}
 
 export type TTokenUsage = {
   input: number

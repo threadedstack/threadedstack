@@ -1,13 +1,14 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./",
+    "rootDir": "../../",
     "strict": false,
     "allowJs": false,
     "outDir": "./dist",
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "types": ["@testing-library/jest-dom/vitest"],
     "paths": {
       "@TSC": ["./src"],
       "@TSC/*": ["./src/*"],
@@ -16,10 +17,15 @@
       "@keg-hub/jsutils": ["./node_modules/@keg-hub/jsutils/build/esm"],
       "@keg-hub/jsutils/*": ["./node_modules/@keg-hub/jsutils/build/esm/*"],
       "@keg-hub/jsutils/src/node": ["./node_modules/@keg-hub/jsutils/build/esm/node"],
-      "@keg-hub/jsutils/src/node/*": ["./node_modules/@keg-hub/jsutils/build/esm/node"]
+      "@keg-hub/jsutils/src/node/*": ["./node_modules/@keg-hub/jsutils/build/esm/node"],
+
+      "@TDM/*": ["../domain/src/*"],
+      "@TDM": ["../domain/src"],
+      "@tdsk/domain": ["../domain/src/web.ts"],
+      "@tdsk/domain/web": ["../domain/src/web.ts"]
     }
   },
-  "include": ["src", "configs"],
+  "include": ["src", "configs", "../domain/src"],
   "exclude": [
     "build",
     "**/build/*",

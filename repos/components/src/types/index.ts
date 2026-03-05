@@ -1,6 +1,7 @@
 export * from './tabs.types'
 export * from './list.types'
 export * from './cron.types'
+export * from './chat.types'
 export * from './input.types'
 export * from './cache.types'
 export * from './theme.types'

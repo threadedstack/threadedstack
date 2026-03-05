@@ -1,10 +1,15 @@
 import type { TKeyValuePair } from '@TAF/types'
-import type { Secret } from '@tdsk/domain'
+import type { Secret, Function as FunctionModel } from '@tdsk/domain'
 
 import { TextInput } from '@tdsk/components'
 import { Envs } from '@TAF/components/Endpoints/Envs'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import { ToolsSelector, AgentSelector } from '@TAF/components/Selectors'
+import {
+  ToolsSelector,
+  AgentSelector,
+  ProviderSelector,
+  FunctionsSelector,
+} from '@TAF/components/Selectors'
 import {
   Box,
   Chip,
@@ -28,10 +33,16 @@ export type TAgentInputs = {
   tools: string[]
   maxTokens: string
   systemPrompt: string
-  onSystemPromptChange: (value: string) => void
+  functionIds: string[]
+  providerIds: string[]
+  availableFunctions?: FunctionModel[]
   onModelChange: (value: string) => void
-  onMaxTokensChange: (value: string) => void
   onToolsChange: (tools: string[]) => void
+  onMaxTokensChange: (value: string) => void
+  onFunctionIdsChange: (ids: string[]) => void
+  onProviderIdsChange: (ids: string[]) => void
+  onSystemPromptChange: (value: string) => void
+  providers?: Array<{ id: string; name: string }>
 
   // Environment
   secrets: string[]
@@ -45,17 +56,22 @@ export const AgentInputs = (props: TAgentInputs) => {
   const {
     model,
     tools,
-    agents = [],
     envVars,
     secrets,
     loading,
     agentId,
     maxTokens,
+    functionIds,
+    providerIds,
+    agents = [],
     systemPrompt,
+    providers = [],
     availableSecrets,
+    availableFunctions = [],
   } = props
 
-  const hasOverrides = systemPrompt || model || maxTokens
+  const hasOverrides =
+    systemPrompt || model || maxTokens || providerIds.length > 0 || functionIds.length > 0
   const hasEnvConfig = envVars.length > 0 || secrets.length > 0
 
   return (
@@ -121,6 +137,18 @@ export const AgentInputs = (props: TAgentInputs) => {
               selectedTools={tools}
               onChange={(updates: string[]) => props.onToolsChange(updates)}
             />
+            <ProviderSelector
+              loading={loading}
+              providers={providers}
+              selectedProviderIds={providerIds}
+              onChange={props.onProviderIdsChange}
+            />
+            <FunctionsSelector
+              loading={loading}
+              selectedFunctionIds={functionIds}
+              onChange={props.onFunctionIdsChange}
+              availableFunctions={availableFunctions}
+            />
             <Alert
               severity='info'
               sx={{ fontSize: '0.875rem' }}
@@ -149,15 +177,17 @@ export const AgentInputs = (props: TAgentInputs) => {
           )}
         </AccordionSummary>
         <AccordionDetails>
-          <Envs
-            envVars={envVars}
-            secrets={secrets}
-            disabled={loading}
-            secretsList={availableSecrets}
-            onEnvVarsChange={props.onEnvVarsChange}
-            onSecretsChange={props.onSecretsChange}
-            helperText='Environment variables and secrets exposed to the agent during execution'
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Envs
+              envVars={envVars}
+              secrets={secrets}
+              disabled={loading}
+              secretsList={availableSecrets}
+              onEnvVarsChange={props.onEnvVarsChange}
+              onSecretsChange={props.onSecretsChange}
+              helperText='Environment variables and secrets exposed to the agent during execution'
+            />
+          </Box>
         </AccordionDetails>
       </Accordion>
     </>

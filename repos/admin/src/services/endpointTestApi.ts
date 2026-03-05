@@ -2,22 +2,23 @@ import { BaseApi } from '@TAF/services/api'
 import { apiUrl } from '@TAF/utils/api/apiUrl'
 
 export type TEndpointTestResult = {
+  body: string
+  timing: number
   status: number
   statusText: string
-  body: string
   contentType: string
-  timing: number
 }
 
 export type TEndpointTestOpts = {
+  body?: string
   method: string
   headers?: Record<string, string>
-  body?: string
+  queryParams?: Record<string, string>
 }
 
 export type TEndpointTestRes = {
-  data?: TEndpointTestResult
   error?: Error
+  data?: TEndpointTestResult
 }
 
 export class EndpointTestApi extends BaseApi {
@@ -26,9 +27,14 @@ export class EndpointTestApi extends BaseApi {
     endpointId: string,
     opts: TEndpointTestOpts
   ): Promise<TEndpointTestRes> {
-    const { method, headers = {}, body } = opts
+    const { method, headers = {}, body, queryParams } = opts
     const baseUrl = apiUrl({}).replace(/\/$/, ``)
-    const url = `${baseUrl}/proxy/${projectId}/${endpointId}`
+    let url = `${baseUrl}/proxy/${projectId}/${endpointId}`
+
+    if (queryParams && Object.keys(queryParams).length) {
+      const params = new URLSearchParams(queryParams)
+      url = `${url}?${params.toString()}`
+    }
 
     // Read auth headers from the shared apiService instance
     const authHeaders: Record<string, string> = {}
@@ -40,8 +46,8 @@ export class EndpointTestApi extends BaseApi {
     try {
       const res = await fetch(url, {
         method,
-        headers: { ...authHeaders, ...headers },
         body: body || undefined,
+        headers: { ...authHeaders, ...headers },
       })
 
       const timing = Math.round(performance.now() - start)
@@ -50,11 +56,11 @@ export class EndpointTestApi extends BaseApi {
 
       return {
         data: {
-          status: res.status,
-          statusText: res.statusText,
-          body: responseBody,
-          contentType,
           timing,
+          contentType,
+          status: res.status,
+          body: responseBody,
+          statusText: res.statusText,
         },
       }
     } catch (err) {

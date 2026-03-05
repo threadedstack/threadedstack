@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { useParams, useSearchParams, useNavigate } from 'react-router'
+import type { TPendingFile } from '@tdsk/components'
+
 import { useAgentChat } from '@TAF/hooks/chat/useAgentChat'
-import { MessageBubble } from '@TAF/components/AI/MessageBubble'
-import { FilePreview } from '@TAF/components/AI/FilePreview'
-import type { TPendingFile } from '@TAF/components/AI/FilePreview'
 import { PiChatPanel } from '@TAF/components/PI/PiChatPanel'
+import { FilePreview, MessageBubble } from '@tdsk/components'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { branchThread } from '@TAF/actions/threads/api/branchThread'
 import { useActiveOrgId, useActiveAgent } from '@TAF/state/selectors'
+import { useParams, useSearchParams, useNavigate } from 'react-router'
 import {
   Box,
   Alert,

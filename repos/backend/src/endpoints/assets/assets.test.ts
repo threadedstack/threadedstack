@@ -51,6 +51,9 @@ describe(`Asset endpoints`, () => {
             message: {
               get: vi.fn(),
             },
+            project: {
+              get: vi.fn(),
+            },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -486,6 +489,90 @@ describe(`Asset endpoints`, () => {
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Create failed`
+      )
+    })
+
+    it(`should create asset with projectId owner`, async () => {
+      const mockProject = { id: `proj-1`, orgId: `org-1` }
+      const mockProjectGet = mockReq.app?.locals.db.services.project.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProjectGet.mockResolvedValue({ data: mockProject })
+
+      const createdAsset = {
+        id: `a-new`,
+        name: `Project Asset`,
+        type: `document`,
+        projectId: `proj-1`,
+      }
+
+      const mockCreate = mockReq.app?.locals.db.services.asset.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdAsset })
+      mockReq.body = {
+        name: `Project Asset`,
+        type: `document`,
+        projectId: `proj-1`,
+      }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockProjectGet).toHaveBeenCalledWith(`proj-1`)
+      expect(mockCreate).toHaveBeenCalledOnce()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should throw 404 when projectId references non-existent project`, async () => {
+      const mockProjectGet = mockReq.app?.locals.db.services.project.get as ReturnType<
+        typeof vi.fn
+      >
+      mockProjectGet.mockResolvedValue({ data: null })
+
+      mockReq.body = {
+        name: `Asset`,
+        type: `document`,
+        projectId: `proj-nonexistent`,
+      }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Project not found`
+      )
+    })
+
+    it(`should create asset with userId owner matching authenticated user`, async () => {
+      const createdAsset = {
+        id: `a-new`,
+        name: `User Asset`,
+        type: `image`,
+        userId: `test-user-id`,
+      }
+
+      const mockCreate = mockReq.app?.locals.db.services.asset.create as ReturnType<
+        typeof vi.fn
+      >
+      mockCreate.mockResolvedValue({ data: createdAsset })
+      mockReq.body = {
+        name: `User Asset`,
+        type: `image`,
+        userId: `test-user-id`,
+      }
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockCreate).toHaveBeenCalledOnce()
+      expect(mockStatus).toHaveBeenCalledWith(201)
+    })
+
+    it(`should throw 403 when userId does not match authenticated user`, async () => {
+      mockReq.body = {
+        name: `Asset`,
+        type: `document`,
+        userId: `different-user-id`,
+      }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `Cannot create assets for another user`
       )
     })
   })

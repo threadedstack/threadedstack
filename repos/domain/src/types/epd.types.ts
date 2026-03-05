@@ -168,6 +168,10 @@ export type TAgentEndpointConfig = TSharedEndpointOpts<
       maxTokens?: number
       /** Override tools */
       tools?: string[]
+      /** Override function IDs */
+      functionIds?: string[]
+      /** Override provider IDs */
+      providerIds?: string[]
       /** Additional environment variables */
       envVars?: Record<string, string>
       /** Additional secrets (by ID) */

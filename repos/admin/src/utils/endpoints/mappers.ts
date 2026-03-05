@@ -182,6 +182,8 @@ export const initAgentFromEndpoint = (endpoint: Endpoint): TAgentFormState => {
     model: opts.overrides?.model || ``,
     tools: opts.overrides?.tools || [],
     secrets: opts.overrides?.secrets || [],
+    functionIds: opts.overrides?.functionIds || [],
+    providerIds: opts.overrides?.providerIds || [],
     maxTokens: opts.overrides?.maxTokens?.toString() || ``,
     systemPrompt: opts.overrides?.systemPrompt || ``,
     envVars: objToKV(opts.overrides?.envVars || {}, `agent-env`),
@@ -202,6 +204,8 @@ export const mapAgentStateToConfig = (state: TAgentFormState): TAgentEndpointCon
   if (state.model) overrides.model = state.model
   if (state.maxTokens) overrides.maxTokens = toNum(state.maxTokens)
   if (state.tools.length > 0) overrides.tools = state.tools
+  if (state.functionIds.length > 0) overrides.functionIds = state.functionIds
+  if (state.providerIds.length > 0) overrides.providerIds = state.providerIds
   if (Object.keys(envVars).length > 0) overrides.envVars = envVars
   if (state.secrets.length > 0) overrides.secrets = state.secrets
 

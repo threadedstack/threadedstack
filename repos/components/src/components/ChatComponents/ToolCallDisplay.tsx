@@ -1,4 +1,4 @@
-import type { TChatToolCall } from '@TAF/hooks/chat/useAgentChat'
+import type { TChatToolCall } from '@TSC/types'
 
 import { useState } from 'react'
 import { Box, Chip, Collapse, Typography, IconButton } from '@mui/material'

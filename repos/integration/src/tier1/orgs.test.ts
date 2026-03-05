@@ -35,4 +35,24 @@ describe('Tier 1: Organizations', () => {
     expect(res.data.data.length).toBeLessThanOrEqual(1)
     expect(res.data.limit).toBe(1)
   })
+
+  test('GET /orgs includes userRole on each org in response', async () => {
+    const res = await get<{ data: Record<string, unknown>[] }>('/orgs')
+
+    expect(res.status).toBe(200)
+    expect(res.data.data.length).toBeGreaterThan(0)
+
+    for (const org of res.data.data) {
+      expect(org).toHaveProperty('userRole')
+      expect(typeof org.userRole).toBe('string')
+    }
+  })
+
+  test('GET /orgs/:orgId includes userRole in response', async () => {
+    const res = await get<{ data: Record<string, unknown> }>(`/orgs/${ctx.orgId}`)
+
+    expect(res.status).toBe(200)
+    expect(res.data.data).toHaveProperty('userRole')
+    expect(typeof res.data.data.userRole).toBe('string')
+  })
 })

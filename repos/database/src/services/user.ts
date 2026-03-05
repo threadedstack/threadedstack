@@ -38,15 +38,15 @@ export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert, UserM
     }
   }
 
-  getByIds = async (ids: string[]) => {
+  getByIds = async (ids: string[]): Promise<TDBApiResType<UserModel[]>> => {
     try {
       if (!ids.length) return { data: [] }
 
       const result = await this.db.select().from(users).where(inArray(users.id, ids))
 
       return { data: result.map((row) => this.model(row as TDBUserSelect)) }
-    } catch (error) {
-      return { error }
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error(String(err)) }
     }
   }
 }

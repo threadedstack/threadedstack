@@ -52,5 +52,7 @@ export const DefAgentState: TAgentFormState = {
   envVars: [],
   agentId: ``,
   maxTokens: ``,
+  functionIds: [],
+  providerIds: [],
   systemPrompt: ``,
 }

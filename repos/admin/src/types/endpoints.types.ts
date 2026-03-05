@@ -1,7 +1,9 @@
 import type { TKeyValuePair } from '@TAF/types'
 import type {
+  Agent,
   Secret,
   Endpoint,
+  Provider,
   TEPAuthType,
   TEPCredential,
   TEndpointType,
@@ -69,15 +71,19 @@ export type TAgentFormState = {
   secrets: string[]
   maxTokens: string
   systemPrompt: string
+  functionIds: string[]
+  providerIds: string[]
   envVars: TKeyValuePair[]
 }
 
 export type TEndpointFormProps<T> = {
   loading: boolean
+  availableAgents?: Agent[]
   endpoint?: Endpoint | null
   availableSecrets: Secret[]
-  availableFunctions?: FunctionModel[]
+  availableProviders?: Provider[]
   onConfigChange: (config: T) => void
+  availableFunctions?: FunctionModel[]
   onValidate: (error: string | null) => void
 }
 

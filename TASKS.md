@@ -12,19 +12,15 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 
 | Batch | Task | Priority |
 |-------|------|----------|
-| 1 | Endpoint Test Tab | P3 |
-| 1 | Email sign-up | P3 |
 | 1 | Git tool for sandbox | P3 |
 | 1 | Chat app | P3 |
 | 1 | Website | P3 |
 | 1 | Playwright tests | P3 |
-| 5 | Agent endpoint overrides | P3 |
 
 ### Wave 2 (after Wave 1 finishes)
 
 | Batch | Task | Priority |
 |-------|------|----------|
-| 4 | Project-level API keys | P3 |
 | 6 | Agent autonomous tools (serial within batch) | P3 |
 | 7 | S3 storage (start of serial chain) | P3 |
 
@@ -50,67 +46,12 @@ Tasks are organized into batches based on file-level dependencies. Batches with 
 | `backend/services/websocket/websocket.ts` | orchestration, cost tracking, HITL, RAG |
 | `domain/types/ai.types.ts` | various agent tools |
 | `backend/endpoints/threads/uploadFile.ts` | S3, RAG |
-| `admin/components/Orgs/CreateApiKeyDrawer.tsx` | project-level keys |
 
 ---
 
 ## Batch 1 — Fully Independent (all run in parallel)
 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
-
-### [IN PROGRESS][P3] Endpoint Drawer Test Tab improvements
-
-* **Repos**: admin
-* **Key files**: `components/Endpoints/EndpointTestPanel.tsx`, `hooks/endpoints/useEndpointTest.ts`
-* The `EndpointTestPanel` (`repos/admin/src/components/Endpoints/EndpointTestPanel.tsx`) has several UX issues:
-  * **Method selector is user-configurable** (lines 71-87) but should be read-only — the method should be derived from the endpoint type: Proxy endpoints use the endpoint's `method` property, FaaS and Agent endpoints are always `POST`
-  * **No query params editor** — when the method is `GET`, a Key/Value editor for query params should appear (similar to the existing headers editor at lines 97-131)
-  * **No body type selector** — non-GET requests only support raw JSON via Monaco (line 138 `language='json'`). Should offer a selector for JSON (Key/Value to JSON object), FORM (Key/Value to FormData), or RAW (current Monaco editor)
-  * **Send Request button is left-aligned** (line 147 `display: 'flex'`) but should be right-aligned
-  * **No URL display or code snippet export** — the full request URL (`{baseUrl}/proxy/{projectId}/{endpointId}`) is constructed inside `EndpointTestApi.execute()` (`repos/admin/src/services/endpointTestApi.ts` line 31) but never shown to the user. The URL, method, headers, and body should be visible in a styled URL bar, and users should be able to copy the full endpoint configuration as code snippets in multiple formats (like Postman's "Code" feature)
-* **Fix**:
-  1. Replace the Method `Select` (lines 71-87) with a read-only `Chip` displaying the method derived from the endpoint
-  2. Pass the `endpoint` object from `EndpointDrawer.tsx` (lines 354-359) to the test panel via props
-  3. Add query params state and Key/Value editor in `useEndpointTest.ts` (following the existing header pattern at lines 44-59). Convert to query string on send
-  4. Add a body type selector (`JSON` / `FORM` / `RAW`) above the body editor, and switch the editor accordingly
-  5. Change the actions Box (line 147) to `justifyContent: 'flex-end'`
-  6. **URL bar**: Display the full request URL at the top of the test panel in a styled read-only input/bar showing `METHOD` chip + full URL (`https://px.local.threadedstack.app/proxy/{projectId}/{endpointId}` + query string if present). Construct the URL using `apiUrl()` from `repos/admin/src/utils/api/apiUrl.ts` (which resolves `TDSK_CADDY_PX_HOST` → `https://px.local.threadedstack.app`) combined with `/proxy/{projectId}/{endpointId}`. The URL should update live as the user edits query params. Include a simple copy-URL icon button to copy just the URL to clipboard
-  7. **Code snippet export**: Add a "Copy as" button (or dropdown/menu) next to the URL bar that generates and copies the complete request configuration in multiple formats:
-     * **cURL** — `curl -X METHOD 'URL' -H 'Header: value' ... -d 'body'` with proper escaping
-     * **fetch** — JavaScript `fetch('URL', { method, headers, body })` with proper formatting
-     * **axios** — `axios({ method, url, headers, data })` format
-     * **HTTPie** — `http METHOD URL Header:value body=...`
-     * Each format should include: full URL (with query params), all headers (including auth `Authorization: Bearer ...` from the current session), the request body (if applicable), and the HTTP method
-     * Display available formats in a MUI `Menu` or `Popover` — user clicks a format to copy it to clipboard with a brief "Copied!" snackbar confirmation
-     * Create a utility module for snippet generation that takes `{ url, method, headers, body }` and returns formatted strings per format. This keeps the logic testable and separate from the UI
-* **Files**:
-  * `repos/admin/src/components/Endpoints/EndpointTestPanel.tsx` — method display, query params, body type, button alignment, URL bar with copy button, code snippet export menu
-  * `repos/admin/src/hooks/endpoints/useEndpointTest.ts` — add query params state, body type state, computed URL string (using `apiUrl()` + projectId/endpointId + query params)
-  * `repos/admin/src/components/Endpoints/EndpointDrawer.tsx` — pass endpoint object to test panel (lines 354-359)
-  * New: `repos/admin/src/utils/endpoints/snippetGenerators.ts` — pure functions to generate cURL, fetch, axios, HTTPie strings from `{ url, method, headers, body }`
-
-### [P3] Email sign-up via Neon Auth — allow account creation with email/password
-
-* **Repos**: admin, deploy
-* **Key files**: `services/auth.ts`, login pages, `values.yaml`
-* Currently the admin app only supports social OAuth login (GitHub, Google, Vercel, GitLab). The `Auth` class in `repos/admin/src/services/auth.ts` only exposes `signIn.social({ provider })` (line 25). There is no email/password sign-up or sign-in flow. The Neon Auth SDK (`@neondatabase/neon-js/auth`) supports `signIn.password()` and `signUp.password()` methods. The database schema already has `email` and `emailVerified` columns on the users table (`repos/database/src/schemas/users.ts`) via Neon's `neon_auth.user` managed table. The auth provider list is configured in `deploy/values.yaml` as `TDSK_AUTH_PROVIDERS: github,google,vercel`
-* Neon Auth email/password documentation: https://neon.com/docs/auth/guides/email-verification
-* **Fix**:
-  1. **Enable email provider in Neon Auth**: Add `email` to `TDSK_AUTH_PROVIDERS` in `deploy/values.yaml` (and `values.local.yaml`). Ensure the Neon Auth dashboard has email verification enabled for the project
-  2. **Admin auth service** (`repos/admin/src/services/auth.ts`): Add `signUpWithEmail(email, password)` method using `this.client.signUp.password({ email, password })` and `signInWithEmail(email, password)` method using `this.client.signIn.password({ email, password })`
-  3. **Admin login UI**: Add an email/password form to the login page alongside the existing social buttons. Include email input, password input, and submit button. Add a "Create Account" toggle/tab that switches between sign-in and sign-up modes. Show validation errors (weak password, email already registered, etc.)
-  4. **Email verification flow**: After sign-up, Neon Auth sends a verification email. The admin app needs to handle the verification callback URL — check if Neon Auth handles this automatically via redirect, or if a verification page is needed in the admin app
-  5. **Password reset**: Add a "Forgot Password" link on the login page. Use Neon Auth's password reset flow (`this.client.forgotPassword()` if available in the SDK)
-* **Key considerations**:
-  * Neon Auth manages the users table directly — no schema changes needed in `repos/database/`
-  * The proxy JWKS validation works the same for email-authenticated JWTs as for social OAuth JWTs — no proxy changes needed
-  * Backend endpoints don't care about the auth method — they only see the validated JWT claims. No backend changes needed unless email verification status needs to be checked
-  * The admin app's `AuthProvider` and session handling should work unchanged — `getSession()` returns the same shape regardless of auth method
-* **Files**:
-  * `repos/admin/src/services/auth.ts` — add `signUpWithEmail`, `signInWithEmail`, `forgotPassword` methods
-  * `repos/admin/src/components/` — new email/password login form component (or extend existing login page)
-  * `repos/admin/src/pages/` — login page updates to include email form alongside social buttons
-  * `deploy/values.yaml` — add `email` to `TDSK_AUTH_PROVIDERS`
 
 ### [P3] Add Git tool for agents — virtual filesystem git operations via sandbox
 
@@ -128,7 +69,7 @@ These tasks touch completely different files with zero overlap. All can run in W
   * Both options can coexist — a custom command for shell use + dedicated tools for structured calls
   * All git operations must stay within the virtual FS boundary — no system `git` binary, no real disk access
 * **Files**:
-  * New: `repos/sandbox/src/commands/git.ts` — isomorphic-git adapter wrapping `IFileSystem`, `defineCommand("git", ...)` implementation
+  * New: `repos/sandbox/src/commands/git.ts` — isomorphic-git adapter wrapping `IFileSystem`, `defineCommand("git", ...")` implementation
   * `repos/sandbox/src/local.ts` — register git custom command in `Bash` constructor's `customCommands`
   * If Option B also: `repos/agent/src/tools/definitions/git/` — LLM tool definitions for git operations
   * If Option B also: `repos/agent/src/tools/tools.ts` — add git `AgentTool` implementations
@@ -166,7 +107,7 @@ These tasks touch completely different files with zero overlap. All can run in W
   * Both targets share the same core React codebase — platform-specific code isolated to a thin shell layer
 * **Tech stack (must use shared components repo for UI consistency)**:
   * React + Vite (consistent with existing repos)
-  * **`@tdsk/components`** — must use the shared component library (`repos/components/`) as the foundation for all UI components, including the MUI theme, design tokens, palette, and typography. The theme is defined in `@tdsk/components` and consumed by all user-facing apps — nothing should depend on `@tdsk/admin`. Chat-specific components that prove reusable should be contributed back to `@tdsk/components`
+  * **`@tdsk/components`** — must use the shared component library (`repos/components/`) as the foundation for all UI components, including the MUI theme, design tokens, palette, and typography. The theme is defined in `@tdsk/components` and consumed by all user-facing apps — nothing should depend on `@tdsk/admin`
   * **MUI component library** — consumed via `@tdsk/components`, same library used across all UIs
   * Jotai for state management (consistent with admin)
   * Shared `@tdsk/domain` for types — the chat app must not depend on `@tdsk/admin`
@@ -271,61 +212,6 @@ These tasks touch completely different files with zero overlap. All can run in W
   * Agent level: Threads, Chats
 * **Fix**: Build a comprehensive Playwright test suite using the existing auth bypass pattern (mock Neon Auth `get-session`, set API key as session token). Each entity type needs Create, Read, Update, Delete test flows through the UI
 * **Files**: New test files in `repos/integration/src/` for each entity CRUD flow
-
----
-
-## Batch 4 — API Keys (1 task)
-
-Can run in parallel with Batch 1.
-
-### [P3] Extend API keys to support project-level scoping
-
-* **Repos**: proxy, backend, database, domain, admin
-* **Key files**: `setupApiKeyAuth.ts`, `validateApiKey.ts`, `CreateApiKeyDrawer.tsx`
-* API keys are currently org-scoped only. The `api_keys` table already has both `orgId` and `projectId` columns with an exclusive arc constraint (one or the other, not both), but the proxy auth flow (`repos/proxy/src/middleware/setupApiKeyAuth.ts`) doesn't enforce project-level access boundaries — an org key grants access to all child projects with no restriction. Project-level keys need full support end-to-end
-* **Scoping rules**:
-  * **Org-level key** (`orgId` set, `projectId` null): Grants access to the org and ALL child projects. Created by super, owner, or admin of the org. Can be linked to a specific user. Scopes: `read`, `write`, or `admin`
-  * **Project-level key** (`projectId` set, `orgId` null): Grants access to that project only — no access to org-level resources or sibling projects. Creation rules:
-    * Org super/owner/admin can create project keys for any user with any scope (read/write/admin)
-    * Project members can create project keys, but ONLY for themselves and ONLY with scopes that align with their current project role (e.g., a `member` role cannot create an `admin`-scoped key)
-* **Fix**:
-  1. **Proxy auth** (`repos/proxy/src/middleware/setupApiKeyAuth.ts`): When a project-level key is used, attach `projectId` to `req.user` alongside the existing `userId` and derived role. Downstream middleware/endpoints must check that the request's target resource belongs to the key's `projectId` — reject requests targeting other projects or org-level resources
-  2. **Backend validation** (`repos/backend/src/endpoints/apiKeys/validateApiKey.ts`): Add permission checks for project-level key creation — verify the requesting user's role in the project, enforce scope ceiling (member can't create admin key), enforce self-only constraint for non-admin creators
-  3. **Backend endpoints** (`repos/backend/src/endpoints/apiKeys/`): Add project-scoped CRUD routes (e.g., `/:orgId/projects/:projectId/api-keys`) or extend the existing org routes to accept `projectId` as a filter/param. List endpoint should filter by projectId when provided
-  4. **Permission checks**: Add `checkPermission` calls that validate against project membership when `projectId` is present. The scope-to-role mapping in proxy (`admin` maps to admin, `write` maps to member, `read` maps to viewer) should also apply project-level keys but scoped to the target project
-  5. **Domain types** (`repos/domain/src/types/`): Extend `TApiKey` type if needed to make the org-vs-project scoping explicit. Add any helper types for project-level permission validation
-  6. **Admin UI**: Add a "Project API Keys" page accessible from the project dashboard (similar to `OrgApiKeys`). Reuse `CreateApiKeyDrawer` but configure it for project context — pre-set `projectId`, adjust user selector to show project members, and restrict scope options based on the current user's project role
-* **Key considerations**:
-  * The exclusive arc constraint is already enforced in `validateApiKey.ts` — a key belongs to org XOR project, not both
-  * The `scopes` field uses comma-separated strings (`read`, `write`, `admin`) — no schema change needed
-  * Proxy scope-to-role mapping (`admin` maps to admin, `write` maps to member, `read` maps to viewer) stays the same for project keys
-  * Project members creating keys for themselves must not exceed their own permission level — enforce ceiling: viewer can create `read` only, member can create `read`/`write`, admin can create `read`/`write`/`admin`
-  * Org-level keys should continue to work for project resources (hierarchical access) — the proxy must allow org keys to pass through to child project endpoints
-* **Files**:
-  * `repos/proxy/src/middleware/setupApiKeyAuth.ts` — attach `projectId` to `req.user`, enforce project scope boundaries
-  * `repos/backend/src/endpoints/apiKeys/validateApiKey.ts` — project-level permission checks, scope ceiling enforcement
-  * `repos/backend/src/endpoints/apiKeys/createApiKey.ts` — support project context in creation flow
-  * `repos/backend/src/endpoints/apiKeys/listApiKeys.ts` — filter by projectId
-  * `repos/backend/src/endpoints/orgs/orgs.ts` or new route file — project-scoped API key routes
-  * `repos/domain/src/types/` — extend types if needed for project-scoped keys
-  * `repos/database/src/services/apiKey.ts` — add query methods for project-scoped keys
-  * `repos/admin/src/pages/Projects/` — new ProjectApiKeys page
-  * `repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx` — support project context, role-based scope restriction
-
----
-
-## Batch 5 — Endpoint Overrides (1 task)
-
-No overlap with anything. Uses `Endpoints/Agent/` directory (different files than Batch 1's Endpoint Test Tab). Can run in parallel with all other batches.
-
-### [IN PROGRESS][P3] Agent type endpoint — expose all AgentDrawer options to Agent Overrides
-
-* **Repos**: admin
-* **Key files**: `Endpoints/Agent/EndpointAgent.tsx`, `Endpoints/Agent/AgentInputs.tsx`
-* `EndpointAgent` component (`repos/admin/src/components/Endpoints/Agent/`) has limited overrides — only system prompt, model, max tokens, and tools. Missing: custom function tools, AI provider override, exposed secrets
-* Agent ID is a raw text input instead of a selector
-* **Fix**: Replace agent ID text input with `Autocomplete` that loads available agents. Add ProviderSelector, FunctionsSelector, SecretsSelector to the Agent Overrides section (reuse existing components from AgentDrawer)
-* **Files**: `repos/admin/src/components/Endpoints/Agent/EndpointAgent.tsx`, `repos/admin/src/components/Endpoints/Agent/AgentInputs.tsx`
 
 ---
 
@@ -589,129 +475,7 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 
 ---
 
-## Batch 8 — Admin Component Extraction (1 task)
-
-No overlap with any other batch. Touches only `repos/admin/src/components/AI/` and `repos/components/`.
-
-### [IN PROGRESS][P4] Extract ArtifactRenderer components from admin to shared components repo
-
-* **Repos**: admin, components
-* **Key files**: `admin/src/components/AI/ArtifactRenderer.tsx`, `admin/src/components/AI/MarkdownRenderer.tsx`, `admin/src/components/AI/MermaidRenderer.tsx`
-* The `ArtifactRenderer` component and its supporting renderers (`MarkdownRenderer`, `MermaidRenderer`) live in `repos/admin/src/components/AI/` but should be in `repos/components/` so that other planned applications (chat app, website) can reuse them without depending on `@tdsk/admin`
-* **Components to move**:
-  * `ArtifactRenderer` (`repos/admin/src/components/AI/ArtifactRenderer.tsx`, 295 lines) — main component rendering artifacts by type (HTML iframe, SVG, code, mermaid, markdown, etc.). Props: `TArtifactRendererProps` with `content`, `title`, `artifactType`, `language`. Dependencies: MUI (`Box`, `Chip`, `Paper`, `Drawer`, `Button`, `Typography`, `IconButton`), MUI icons (`Close`, `OpenInFull`, `ContentCopy`), `TArtifactType` from `@tdsk/domain`
-  * `MarkdownRenderer` (`repos/admin/src/components/AI/MarkdownRenderer.tsx`, 83 lines) — renders markdown content using `react-markdown` + `remark-gfm`. Dependencies: `react-markdown`, `remark-gfm`, MUI `Box`
-  * `MermaidRenderer` (`repos/admin/src/components/AI/MermaidRenderer.tsx`, 103 lines) — renders mermaid diagrams via dynamic import. Dependencies: `mermaid` (dynamic), MUI `Box`, `Typography`
-* **Consumers in admin**:
-  * `MessageBubble.tsx` (line 11) imports `ArtifactRenderer` — must update import to `@tdsk/components`
-  * `ArtifactRenderer` imports `MarkdownRenderer` and `MermaidRenderer` internally
-  * The `AI/index.ts` barrel file does NOT currently export these components (they're internal imports)
-* **NPM dependencies to add to `repos/components/package.json`**: `react-markdown`, `remark-gfm`, `mermaid`
-* **Fix**:
-  1. Create `repos/components/src/components/AI/` directory with `ArtifactRenderer.tsx`, `MarkdownRenderer.tsx`, `MermaidRenderer.tsx`, and `index.ts`
-  2. Move the three component files, updating internal imports to use relative paths within the components repo
-  3. Add `react-markdown`, `remark-gfm`, and `mermaid` as dependencies in `repos/components/package.json`
-  4. Export from `repos/components/src/components/index.ts` barrel
-  5. Update `repos/admin/src/components/AI/MessageBubble.tsx` line 11 to import `ArtifactRenderer` from `@tdsk/components` instead of `@TAF/components/AI/ArtifactRenderer`
-  6. Remove the original files from `repos/admin/src/components/AI/`
-  7. Verify admin build passes with the external import
-* **Files**:
-  * New: `repos/components/src/components/AI/ArtifactRenderer.tsx` — moved from admin
-  * New: `repos/components/src/components/AI/MarkdownRenderer.tsx` — moved from admin
-  * New: `repos/components/src/components/AI/MermaidRenderer.tsx` — moved from admin
-  * New: `repos/components/src/components/AI/index.ts` — barrel exports
-  * `repos/components/src/components/index.ts` — add AI exports
-  * `repos/components/package.json` — add `react-markdown`, `remark-gfm`, `mermaid` deps
-  * `repos/admin/src/components/AI/MessageBubble.tsx` — update import path (line 11)
-  * Remove: `repos/admin/src/components/AI/ArtifactRenderer.tsx`
-  * Remove: `repos/admin/src/components/AI/MarkdownRenderer.tsx`
-  * Remove: `repos/admin/src/components/AI/MermaidRenderer.tsx`
-
----
-
-## Batch 9 — REPL Bugs and Improvements (3 tasks)
-
-No overlap with any other batch. All changes are within `repos/repl/`. Tasks within this batch can mostly run in parallel except where noted.
-
-### [IN PROGRESS][P1] REPL: Bare `catch {}` silently swallows org-name resolution errors
-
-* **Repos**: repl
-* **Key files**: `repl/src/renderers/chatLogic.ts`
-* In `chatLogic.ts` `#connectAfterLogin()`, a bare `catch {}` swallows all errors when resolving the org name via `newClient.getOrg(orgId)`. The fallback sets `this.orgName = orgId` (the raw ID), which is reasonable for a 404 (org not found), but this also silently swallows network failures, auth expiry, and server errors. The user gets no indication that something went wrong — they just see a raw ID instead of a name, with no way to know whether the API is down or their session expired
-* **Fix**:
-  1. Replace the bare `catch {}` with `catch (err)` and inspect the error type
-  2. For expected "not found" errors (404 or equivalent), silently fall back to `orgId` as the display name — this is fine
-  3. For unexpected errors (network failure, auth expiry, 500), log a warning via `this.#outputMessage()` so the user knows the org name couldn't be resolved, while still falling back to `orgId` for the display name (don't block login over a cosmetic failure)
-  4. Do NOT transition to `error` phase for this — it's a non-critical operation. Just warn and continue
-* **Files**:
-  * `repos/repl/src/renderers/chatLogic.ts` — replace bare `catch {}` in `#connectAfterLogin()` with error-aware catch block
-
-### [IN PROGRESS][P2] REPL: `switchProject()` catch block transitions to dead-end `error` phase mid-session
-
-* **Repos**: repl
-* **Key files**: `repl/src/renderers/chatLogic.ts`
-* The `switchProject()` method catches all errors and transitions to the `error` phase via `this.#setPhase('error')`. This destroys the user's active chat session for transient failures (e.g., a network blip when listing projects). The `error` phase is a dead-end in the pi-tui app — the user sees an error screen with no way to return to the chat. This is acceptable during initial startup (login/project selection), but NOT acceptable for a mid-session slash command (`/projects`) where the user already has an active conversation
-* The same pattern exists in `selectProject()`, but that's called during startup where the error phase is appropriate
-* **Fix**:
-  1. In `switchProject()`, replace the `error` phase transition with a softer error handler: display the error message via `this.#outputMessage()` and return to the current phase (leave the user in the chat)
-  2. Preserve the user's current `agentId`, `threadId`, and `projectId` when the command fails — don't reset state before confirming success. Currently the method resets `agentId`, `threadId`, `agentInfo`, and `agents` BEFORE the API calls, so a failure leaves the user with cleared state. Move the resets to AFTER successful project/agent loading
-  3. The startup-time `selectProject()` method should keep the current error-phase behavior since there's no session to preserve
-* **Files**:
-  * `repos/repl/src/renderers/chatLogic.ts` — `switchProject()` catch block, state reset ordering
-
-### [IN PROGRESS][P2] REPL: No error type discrimination in chatLogic catch blocks
-
-* **Repos**: repl
-* **Key files**: `repl/src/renderers/chatLogic.ts`
-* Multiple catch blocks in `chatLogic.ts` (`#handleCatchError`, `selectProject`, `switchProject`) treat all errors identically — auth expiry, network failures, and data errors all get the same handling (`this.error = err as Error`, transition to `error` phase). Auth expiry should trigger re-login, network errors should suggest retrying, and data errors should show a descriptive message. This lack of discrimination means transient issues (like a brief network blip) get the same catastrophic treatment (dead-end error screen) as permanent failures
-* **Fix**:
-  1. Create error classification helpers — inspect error properties (status code, error type, message) to categorize as `auth` (401/403), `network` (timeout, ECONNREFUSED, fetch failures), or `data` (400, 404, 422, business logic)
-  2. For `auth` errors: clear credentials, transition to `login` phase so the user can re-authenticate
-  3. For `network` errors: display a retry-friendly message via `this.#outputMessage()` without destroying the current phase
-  4. For `data` errors: show the specific error message, remain in current phase for mid-session commands or transition to error phase for startup commands
-  5. Apply this classification to all catch blocks in `chatLogic.ts` — `#handleCatchError()`, `selectProject()`, and `switchProject()` at minimum
-* **Files**:
-  * `repos/repl/src/renderers/chatLogic.ts` — catch blocks in `#handleCatchError`, `selectProject`, `switchProject`; error classification in `repos/repl/src/constants/errors.ts`
-
----
-
-## PR Review Deferred Items
-
-### [P2] Backend: `resolveAgentDeps` N+1 query — load functions in bulk
-
-* **Repos**: backend, database
-* **Key files**: `repos/backend/src/utils/agent/resolveAgentDeps.ts:60-66`, `repos/database/src/services/function.ts`
-* The `resolveAgentDeps` utility resolves custom functions with individual `db.services.function.get(fid)` calls inside `Promise.all`, creating N+1 queries. Already has a TODO comment noting the issue
-* **Fix**:
-  1. Add a `getByIds(ids: string[])` method to the function database service that uses `inArray` for a single query
-  2. Replace the `Promise.all(functionIds.map(...))` pattern in `resolveAgentDeps.ts` with the new bulk method
-* **Files**:
-  * `repos/database/src/services/function.ts` — add `getByIds` method
-  * `repos/backend/src/utils/agent/resolveAgentDeps.ts` — use bulk query
-
-### [P3] Backend: `TRequest` generic defaults to `any` — weakens type safety
-
-* **Repos**: backend
-* **Key files**: `repos/backend/src/types/backend.types.ts`
-* The `TRequest` type uses `= any` defaults for its generic parameters, so handlers that don't specify generics get no type checking on `req.params` or `req.body`. All endpoint handlers should explicitly provide their param/body types
-* **Fix**: Audit all endpoint handlers for missing `TRequest` generic args and add explicit types. Consider changing defaults to `never` or `Record<string, never>` to force explicit typing
-* **Files**: `repos/backend/src/types/backend.types.ts`, all endpoint handler files
-
-### [P3] Domain: `Organization.userRole` mixes view-projection into domain entity
-
-* **Repos**: domain
-* **Key files**: `repos/domain/src/models/organization.ts`
-* The `Organization` model has a `userRole` property that's a view-projection concern (the current user's role in that org), not an intrinsic property of the organization. This mixes API response shaping into the domain model
-* **Fix**: Create a `TOrgWithUserRole` response type that extends `Organization` with the user-specific fields, and use it only at the API response boundary. Remove `userRole` from the core model
-* **Files**: `repos/domain/src/models/organization.ts`, `repos/domain/src/types/`, backend org endpoints
-
-### [P3] Backend: `customFunctions: any[]` typing gap
-
-* **Repos**: backend, agent
-* **Key files**: `repos/backend/src/utils/agent/resolveAgentDeps.ts`, `repos/backend/src/types/session.types.ts`
-* `customFunctions` is typed as `any[]` in both `resolveAgentDeps` return type and `TSession`. The actual type should be the function record type from the database schema
-* **Fix**: Trace the function record type from `repos/database/src/schemas/functions.ts` through the service layer and use it as the concrete type instead of `any[]`
-* **Files**: `repos/backend/src/utils/agent/resolveAgentDeps.ts`, `repos/backend/src/types/session.types.ts`
+## Deferred Items
 
 ### [P4] Sandbox: Pool process exit cleanup
 
@@ -721,23 +485,6 @@ No overlap with any other batch. All changes are within `repos/repl/`. Tasks wit
 * **Fix**: Add a process exit handler that calls `close()` on all idle pool sandboxes
 * **Files**: `repos/sandbox/src/local.ts`
 
-### [P2] Test coverage gaps — resolveAgentDeps, sessionToken, createAsset
-
-* **Repos**: backend
-* **Key files**: `repos/backend/src/utils/agent/resolveAgentDeps.ts`, `repos/backend/src/services/sessionToken.ts`, `repos/backend/src/endpoints/assets/createAsset.ts`
-* Three areas lacking unit test coverage:
-  1. `resolveAgentDeps` — no test file exists. Needs tests for: webProvider secret decryption, missing secret handling, custom function loading, empty projectId case
-  2. `sessionToken` — existing tests don't cover `projectId` round-trip (sign with projectId, verify returns it)
-  3. `createAsset` — `getPermissionIds` helper's userId and projectId owner paths are untested
-* **Fix**: Create test files and add test cases for each area
-* **Files**:
-  * New: `repos/backend/src/utils/agent/resolveAgentDeps.test.ts`
-  * `repos/backend/src/services/sessionToken.test.ts` (extend if exists, or create)
-  * `repos/backend/src/endpoints/assets/assets.test.ts` (extend with owner path tests)
-
----
-
-## Deferred / Placeholder Tasks
 
 ### [P3] REPL: `FileRequest` and `FileChanged` events — unimplemented stubs (Phase 8 placeholder)
 

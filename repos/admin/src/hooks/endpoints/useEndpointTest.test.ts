@@ -104,6 +104,7 @@ describe('useEndpointTest', () => {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       body: undefined,
+      queryParams: undefined,
     })
 
     expect(result.current.response).toBeDefined()
@@ -176,7 +177,7 @@ describe('useEndpointTest', () => {
     expect(contentTypeToLanguage('application/octet-stream')).toBe('plaintext')
   })
 
-  it('should reset loading to false when testEndpoint throws', async () => {
+  it('should set error state when testEndpoint throws', async () => {
     mockTestEndpoint.mockRejectedValueOnce(new Error('Unexpected failure'))
 
     const { useEndpointTest } = await import('./useEndpointTest')
@@ -186,10 +187,11 @@ describe('useEndpointTest', () => {
     )
 
     await act(async () => {
-      await result.current.sendRequest().catch(() => {})
+      await result.current.sendRequest()
     })
 
     expect(result.current.loading).toBe(false)
+    expect(result.current.error).toBe('Unexpected failure')
     expect(result.current.response).toBeNull()
   })
 
@@ -219,5 +221,131 @@ describe('useEndpointTest', () => {
     expect(mockTestEndpoint).toHaveBeenCalledWith(
       expect.objectContaining({ body: undefined })
     )
+  })
+
+  it('should add and remove query params', async () => {
+    const { useEndpointTest } = await import('./useEndpointTest')
+
+    const { result } = renderHook(() =>
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
+    )
+
+    expect(result.current.queryParams).toHaveLength(0)
+
+    act(() => result.current.addQueryParam())
+    expect(result.current.queryParams).toHaveLength(1)
+
+    act(() => result.current.updateQueryParam(0, 'key', 'search'))
+    act(() => result.current.updateQueryParam(0, 'value', 'test'))
+    expect(result.current.queryParams[0].key).toBe('search')
+    expect(result.current.queryParams[0].value).toBe('test')
+
+    act(() => result.current.removeQueryParam(0))
+    expect(result.current.queryParams).toHaveLength(0)
+  })
+
+  it('should update bodyType and sync Content-Type header', async () => {
+    const { useEndpointTest } = await import('./useEndpointTest')
+
+    const { result } = renderHook(() =>
+      useEndpointTest({ method: 'POST', projectId: 'p1', endpointId: 'e1' })
+    )
+
+    expect(result.current.bodyType).toBe('json')
+    expect(result.current.bodyLanguage).toBe('json')
+
+    act(() => result.current.changeBodyType('form'))
+    expect(result.current.bodyType).toBe('form')
+    expect(result.current.bodyLanguage).toBe('plaintext')
+    expect(result.current.request.headers[0].value).toBe(
+      'application/x-www-form-urlencoded'
+    )
+
+    act(() => result.current.changeBodyType('raw'))
+    expect(result.current.bodyType).toBe('raw')
+    expect(result.current.bodyLanguage).toBe('plaintext')
+    expect(result.current.request.headers[0].value).toBe('text/plain')
+  })
+
+  it('should prepend Content-Type header if none exists when changing body type', async () => {
+    const { useEndpointTest } = await import('./useEndpointTest')
+
+    const { result } = renderHook(() =>
+      useEndpointTest({ method: 'POST', projectId: 'p1', endpointId: 'e1' })
+    )
+
+    // Remove the default Content-Type header
+    act(() => result.current.removeHeader(0))
+    expect(result.current.request.headers).toHaveLength(0)
+
+    // Changing body type should prepend a new Content-Type header
+    act(() => result.current.changeBodyType('form'))
+    expect(result.current.request.headers).toHaveLength(1)
+    expect(result.current.request.headers[0].key).toBe('Content-Type')
+    expect(result.current.request.headers[0].value).toBe(
+      'application/x-www-form-urlencoded'
+    )
+  })
+
+  it('should include query params in requestUrl when populated', async () => {
+    const { useEndpointTest } = await import('./useEndpointTest')
+
+    const { result } = renderHook(() =>
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
+    )
+
+    act(() => result.current.addQueryParam())
+    act(() => result.current.updateQueryParam(0, 'key', 'page'))
+    act(() => result.current.updateQueryParam(0, 'value', '2'))
+
+    expect(result.current.requestUrl).toContain('?page=2')
+  })
+
+  it('should omit query string from requestUrl when params have empty keys', async () => {
+    const { useEndpointTest } = await import('./useEndpointTest')
+
+    const { result } = renderHook(() =>
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
+    )
+
+    act(() => result.current.addQueryParam())
+    // Leave key empty
+
+    expect(result.current.requestUrl).not.toContain('?')
+  })
+
+  it('should set error when result has neither error nor data', async () => {
+    mockTestEndpoint.mockResolvedValueOnce({})
+
+    const { useEndpointTest } = await import('./useEndpointTest')
+
+    const { result } = renderHook(() =>
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
+    )
+
+    await act(async () => {
+      await result.current.sendRequest()
+    })
+
+    expect(result.current.error).toBe('No response received from endpoint')
+    expect(result.current.response).toBeNull()
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('should handle non-Error thrown values in catch block', async () => {
+    mockTestEndpoint.mockRejectedValueOnce('string error')
+
+    const { useEndpointTest } = await import('./useEndpointTest')
+
+    const { result } = renderHook(() =>
+      useEndpointTest({ method: 'GET', projectId: 'p1', endpointId: 'e1' })
+    )
+
+    await act(async () => {
+      await result.current.sendRequest()
+    })
+
+    expect(result.current.error).toBe('An unexpected error occurred')
+    expect(result.current.loading).toBe(false)
   })
 })

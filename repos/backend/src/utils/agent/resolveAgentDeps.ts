@@ -1,11 +1,11 @@
-import type { Agent } from '@tdsk/domain'
+import type { Agent, Function } from '@tdsk/domain'
 import type { TDatabase } from '@tdsk/database'
 
 import { logger } from '@TBE/utils/logger'
 import type { SecretResolver } from '@TBE/services/secrets/secretResolver'
 
 type TResolvedAgentDeps = {
-  customFunctions: any[]
+  customFunctions: Function[]
   environment: Agent[`environment`]
 }
 
@@ -53,17 +53,25 @@ export const resolveAgentDeps = async (
   }
 
   // Load custom functions from project config (functions are project-scoped)
-  let customFunctions: any[] = []
+  let customFunctions: Function[] = []
   if (projectId) {
     const projectConfig = agent.getProjectConfig(projectId)
     const functionIds = projectConfig?.functionIds || []
-    // TODO: FIX THIS - This is a separate query for each function
-    // Instead we should load all functions at once based on the functionIds array
     if (functionIds.length) {
-      const results = await Promise.all(
-        functionIds.map((fid: string) => db.services.function.get(fid))
-      )
-      customFunctions = results.filter((r) => r.data).map((r) => r.data)
+      const { data, error } = await db.services.function.getByIds(functionIds)
+      if (error) {
+        logger.warn(`Failed to load custom functions`, {
+          functionIds,
+          error: error instanceof Error ? error.message : error,
+        })
+      } else if (data) {
+        customFunctions = data
+        if (data.length < functionIds.length) {
+          const loadedIds = new Set(data.map((f) => f.id))
+          const missingIds = functionIds.filter((id) => !loadedIds.has(id))
+          logger.warn(`Some custom functions not found`, { missingIds })
+        }
+      }
     }
   }
 

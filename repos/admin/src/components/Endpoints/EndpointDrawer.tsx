@@ -7,13 +7,20 @@ import type {
   TAgentEndpointConfig,
 } from '@tdsk/domain'
 
-import { Box, Tab, Tabs } from '@mui/material'
 import { vep } from '@TAF/utils/endpoints'
 import { EEndpointType } from '@tdsk/domain'
+import { Box, Tab, Tabs } from '@mui/material'
 import { useState, useEffect, useRef } from 'react'
-import { useProjectSecrets, useProjectFunctions } from '@TAF/state/selectors'
-import { fetchFunctions } from '@TAF/actions/functions/fetchFunctions'
+import {
+  useProviders,
+  useProjectAgents,
+  useProjectSecrets,
+  useProjectFunctions,
+} from '@TAF/state/selectors'
+import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { fetchProviders } from '@TAF/actions/providers/fetchProviders'
+import { fetchFunctions } from '@TAF/actions/functions/fetchFunctions'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createEndpoint } from '@TAF/actions/endpoints/api/createEndpoint'
@@ -45,13 +52,13 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   } = props
 
   const isEditMode = Boolean(endpoint)
-  const [activeTab, setActiveTab] = useState<'configure' | 'test'>('configure')
+  const [activeTab, setActiveTab] = useState<`configure` | `test`>(`configure`)
 
   // Shared state (basic fields)
   const [sharedState, setSharedState] = useState({
-    name: '',
-    path: '',
-    method: 'get',
+    name: ``,
+    path: ``,
+    method: `get`,
     public: false,
     endpointType: EEndpointType.proxy as TEndpointType,
   })
@@ -77,33 +84,41 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   const [functionsMap] = useProjectFunctions()
   const availableFunctions = functionsMap ? Object.values(functionsMap) : []
 
+  const [agentsMap] = useProjectAgents()
+  const availableAgents = agentsMap ? Object.values(agentsMap) : []
+
+  const [providersMap] = useProviders()
+  const availableProviders = providersMap ? Object.values(providersMap) : []
+
   useEffect(() => {
     if (endpoint) {
       setSharedState({
-        name: endpoint.name || '',
-        path: endpoint.path || '',
-        method: endpoint.method || 'get',
+        name: endpoint.name || ``,
+        path: endpoint.path || ``,
+        method: endpoint.method || `get`,
         public: endpoint.public || false,
         endpointType: endpoint.type || EEndpointType.proxy,
       })
       setUiState({ loading: false, error: null, showDeleteConfirm: false })
-      setActiveTab('configure')
+      setActiveTab(`configure`)
     } else {
       setSharedState({
-        name: '',
-        path: '',
-        method: 'get',
+        name: ``,
+        path: ``,
+        method: `get`,
         public: false,
         endpointType: EEndpointType.proxy,
       })
       setUiState({ loading: false, error: null, showDeleteConfirm: false })
-      setActiveTab('configure')
+      setActiveTab(`configure`)
     }
   }, [endpoint])
 
   useEffect(() => {
     if (open && orgId && projectId) {
       fetchFunctions({ orgId, projectId })
+      fetchAgents({ orgId, projectId })
+      fetchProviders({ orgId })
     }
   }, [open, orgId, projectId])
 
@@ -128,22 +143,22 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   }
 
   const onClose = () => {
-    if (!uiState.loading) {
-      setSharedState({
-        name: '',
-        path: '',
-        method: 'get',
-        public: false,
-        endpointType: EEndpointType.proxy,
-      })
-      setUiState({ loading: false, error: null, showDeleteConfirm: false })
-      proxyConfigRef.current = null
-      faasConfigRef.current = null
-      agentConfigRef.current = null
-      validationErrorRef.current = null
-      setActiveTab('configure')
-      onCloseCB?.()
-    }
+    if (uiState.loading) return
+
+    setSharedState({
+      name: ``,
+      path: ``,
+      method: `get`,
+      public: false,
+      endpointType: EEndpointType.proxy,
+    })
+    setUiState({ loading: false, error: null, showDeleteConfirm: false })
+    proxyConfigRef.current = null
+    faasConfigRef.current = null
+    agentConfigRef.current = null
+    validationErrorRef.current = null
+    setActiveTab(`configure`)
+    onCloseCB?.()
   }
 
   const onSave = async (evt: any) => {
@@ -344,6 +359,9 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
                 onValidate={onValidate}
                 loading={uiState.loading}
                 availableSecrets={availableSecrets}
+                availableAgents={availableAgents}
+                availableProviders={availableProviders}
+                availableFunctions={availableFunctions}
                 onConfigChange={onAgentConfigChange}
               />
             )}
@@ -351,11 +369,10 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
         </form>
       )}
 
-      {activeTab === 'test' && endpoint && (
+      {activeTab === `test` && endpoint && (
         <EndpointTestPanel
+          endpoint={endpoint}
           projectId={projectId}
-          endpointId={endpoint.id}
-          method={sharedState.method}
         />
       )}
     </Drawer>

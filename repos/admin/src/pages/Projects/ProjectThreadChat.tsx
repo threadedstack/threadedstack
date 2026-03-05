@@ -1,9 +1,9 @@
 import type { SubmitEvent, KeyboardEvent } from 'react'
 
+import { MessageBubble } from '@tdsk/components'
 import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { useAgentChat } from '@TAF/hooks/chat/useAgentChat'
-import { MessageBubble } from '@TAF/components/AI/MessageBubble'
 import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
 import { useActiveOrgId, useActiveAgent, useActiveThread } from '@TAF/state/selectors'
 import {

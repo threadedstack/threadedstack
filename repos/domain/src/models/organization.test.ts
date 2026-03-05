@@ -20,29 +20,17 @@ describe(`Organization model`, () => {
     })
   })
 
-  describe(`userRole property`, () => {
-    it(`should accept userRole in constructor`, () => {
-      const org = new Organization({ name: `Test`, ownerId: `u-1`, userRole: `admin` })
-      expect(org.userRole).toBe(`admin`)
-    })
-
-    it(`should leave userRole undefined when not provided`, () => {
+  describe(`TOrgWithRole response type`, () => {
+    it(`should support spreading userRole onto org for API responses`, () => {
       const org = new Organization({ name: `Test`, ownerId: `u-1` })
-      expect(org.userRole).toBeUndefined()
+      const orgWithRole = { ...org, userRole: `admin` as const }
+      expect(orgWithRole.userRole).toBe(`admin`)
+      expect(orgWithRole.name).toBe(`Test`)
     })
 
-    it(`should set userRole when provided`, () => {
-      const org = new Organization({ userRole: `member` })
-      expect(org.userRole).toBe(`member`)
-    })
-
-    it(`should accept various role strings`, () => {
-      const owner = new Organization({ userRole: `owner` })
-      const admin = new Organization({ userRole: `admin` })
-      const member = new Organization({ userRole: `member` })
-      expect(owner.userRole).toBe(`owner`)
-      expect(admin.userRole).toBe(`admin`)
-      expect(member.userRole).toBe(`member`)
+    it(`should not have userRole as an intrinsic property`, () => {
+      const org = new Organization({ name: `Test`, ownerId: `u-1` })
+      expect(`userRole` in org).toBe(false)
     })
   })
 })

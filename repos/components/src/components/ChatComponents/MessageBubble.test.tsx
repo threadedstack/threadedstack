@@ -1,22 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import '@testing-library/jest-dom/vitest'
-
-vi.mock(`@tdsk/components`, () => ({
-  RobotOutlineIcon: (props: any) => (
-    <span
-      data-testid='robot-icon'
-      {...props}
-    />
-  ),
-}))
-
-vi.mock(`@TAF/components/AI/ToolCallDisplay`, () => ({
-  ToolCallDisplay: ({ toolCall }: any) => (
-    <div data-testid={`tool-call-${toolCall.id}`} />
-  ),
-}))
-
 import { MessageBubble } from './MessageBubble'
 
 const userMessage = {
@@ -46,13 +29,16 @@ describe(`MessageBubble`, () => {
     expect(screen.getByText(`Hello, human!`)).toBeInTheDocument()
   })
 
-  it(`should render PersonIcon for user messages and RobotOutlineIcon for assistant messages`, () => {
-    const { rerender } = render(<MessageBubble message={userMessage} />)
+  it(`should render PersonIcon for user messages`, () => {
+    render(<MessageBubble message={userMessage} />)
     expect(screen.getByTestId(`PersonIcon`)).toBeInTheDocument()
-    expect(screen.queryByTestId(`robot-icon`)).not.toBeInTheDocument()
+  })
 
-    rerender(<MessageBubble message={assistantMessage} />)
-    expect(screen.getByTestId(`robot-icon`)).toBeInTheDocument()
+  it(`should render robot icon for assistant messages`, () => {
+    const { container } = render(<MessageBubble message={assistantMessage} />)
+    // RobotOutlineIcon renders an SVG element
+    const svg = container.querySelector(`svg`)
+    expect(svg).toBeInTheDocument()
     expect(screen.queryByTestId(`PersonIcon`)).not.toBeInTheDocument()
   })
 
@@ -65,10 +51,6 @@ describe(`MessageBubble`, () => {
     const assistantContentWrapper = container.firstChild!.lastChild as HTMLElement
     expect(assistantContentWrapper).toBeTruthy()
 
-    // Both render the content wrapper Box — the sx prop assigns different maxWidth
-    // values (75% for user, 85% for assistant) which MUI converts to inline styles
-    // In jsdom, MUI may or may not inject computed CSS, so we verify both render
-    // and structurally exist as distinct elements
     expect(userContentWrapper.tagName).toBe(`DIV`)
     expect(assistantContentWrapper.tagName).toBe(`DIV`)
   })
@@ -76,17 +58,15 @@ describe(`MessageBubble`, () => {
   it(`should render outer flex container with MUI Box for user messages`, () => {
     const { container } = render(<MessageBubble message={userMessage} />)
     const outerBox = container.firstChild as HTMLElement
-    // Outer container is a MUI Box that applies flex layout (row-reverse for user)
     expect(outerBox).toBeTruthy()
-    expect(outerBox.children.length).toBe(2) // avatar + content wrapper
+    expect(outerBox.children.length).toBe(2)
   })
 
   it(`should render outer flex container with MUI Box for assistant messages`, () => {
     const { container } = render(<MessageBubble message={assistantMessage} />)
     const outerBox = container.firstChild as HTMLElement
-    // Outer container is a MUI Box that applies flex layout (row for assistant)
     expect(outerBox).toBeTruthy()
-    expect(outerBox.children.length).toBe(2) // avatar + content wrapper
+    expect(outerBox.children.length).toBe(2)
   })
 
   it(`should show streaming cursor for assistant with text`, () => {
@@ -96,7 +76,6 @@ describe(`MessageBubble`, () => {
         isStreaming={true}
       />
     )
-    // The blinking cursor is a span with animation containing "blink"
     const cursor = container.querySelector(`span[class*="MuiBox"]`)
     expect(cursor).toBeInTheDocument()
   })
@@ -108,7 +87,6 @@ describe(`MessageBubble`, () => {
         isStreaming={true}
       />
     )
-    // User messages should never have the blinking cursor span
     const spans = container.querySelectorAll(`span[class*="MuiBox"]`)
     expect(spans.length).toBe(0)
   })
@@ -155,18 +133,19 @@ describe(`MessageBubble`, () => {
       ],
     }
     render(<MessageBubble message={messageWithTools} />)
-    expect(screen.getByTestId(`tool-call-tc-1`)).toBeInTheDocument()
-    expect(screen.getByTestId(`tool-call-tc-2`)).toBeInTheDocument()
+    // Real ToolCallDisplay renders tool names as Chip labels
+    expect(screen.getByText(`search`)).toBeInTheDocument()
+    expect(screen.getByText(`read_file`)).toBeInTheDocument()
   })
 
   it(`should not render tool calls section when toolCalls is empty`, () => {
     render(<MessageBubble message={assistantMessage} />)
-    expect(screen.queryByTestId(`tool-call-tc-1`)).not.toBeInTheDocument()
+    expect(screen.queryByText(`search`)).not.toBeInTheDocument()
   })
 
   it(`should not render tool calls section when toolCalls is undefined`, () => {
     const noToolsMessage = { ...assistantMessage, toolCalls: undefined }
     render(<MessageBubble message={noToolsMessage} />)
-    expect(screen.queryByTestId(`tool-call-tc-1`)).not.toBeInTheDocument()
+    expect(screen.queryByText(`search`)).not.toBeInTheDocument()
   })
 })

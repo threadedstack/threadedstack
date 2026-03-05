@@ -1,14 +1,17 @@
 import type { Asset } from '@tdsk/domain'
-import {
-  useActiveOrgId,
-  useActiveProjectId,
-  useProjectAssets,
-} from '@TAF/state/selectors'
+
+import { ConfirmDelete } from '@tdsk/components'
+import { useState, useEffect, useMemo } from 'react'
 import { fetchAssets } from '@TAF/actions/assets/api/fetchAssets'
 import { deleteAsset } from '@TAF/actions/assets/api/deleteAsset'
-import { useState, useEffect, useMemo } from 'react'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import {
+  useActiveOrgId,
+  useProjectAssets,
+  useActiveProjectId,
+} from '@TAF/state/selectors'
+import { Delete as DeleteIcon, Download as DownloadIcon } from '@mui/icons-material'
 import {
   Alert,
   Table,
@@ -20,8 +23,6 @@ import {
   IconButton,
   TableContainer,
 } from '@mui/material'
-import { Delete as DeleteIcon, Download as DownloadIcon } from '@mui/icons-material'
-import { ConfirmDelete } from '@tdsk/components'
 
 export type TAssetsTab = {}
 
@@ -223,15 +224,15 @@ export const AssetsTab = (props: TAssetsTab) => {
       )}
 
       <ConfirmDelete
-        onConfirm={onDeleteConfirm}
         title='Delete Asset?'
         open={deleteDialogOpen}
+        onConfirm={onDeleteConfirm}
         itemName={selectedAsset?.name}
+        warnText='This will permanently delete this asset. This action cannot be undone.'
         onCancel={() => {
           setDeleteDialogOpen(false)
           setSelectedAsset(null)
         }}
-        warnText='This will permanently delete this asset. This action cannot be undone.'
       />
     </PageLayout>
   )

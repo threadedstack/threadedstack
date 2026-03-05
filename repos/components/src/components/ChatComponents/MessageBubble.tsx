@@ -1,14 +1,14 @@
-import type { TChatMessage } from '@TAF/hooks/chat/useAgentChat'
+import type { TChatMessage } from '@TSC/types'
 
+import { RobotOutlineIcon } from '@TSC/components/Icons'
 import { Box, Chip, Typography, IconButton } from '@mui/material'
-import { RobotOutlineIcon } from '@tdsk/components'
+import { ArtifactRenderer } from '@TSC/components/ArtifactRenderer'
+import { ToolCallDisplay } from '@TSC/components/ChatComponents/ToolCallDisplay'
 import {
   Person as PersonIcon,
   CallSplit as BranchIcon,
   AttachFile as AttachIcon,
 } from '@mui/icons-material'
-import { ToolCallDisplay } from '@TAF/components/AI/ToolCallDisplay'
-import { ArtifactRenderer } from '@TAF/components/AI/ArtifactRenderer'
 
 export type TMessageBubble = {
   message: TChatMessage
@@ -24,8 +24,8 @@ export const MessageBubble = (props: TMessageBubble) => {
     <Box
       className='tdsk-msg-bubble-box'
       sx={{
-        display: `flex`,
         gap: 1.5,
+        display: `flex`,
         alignItems: `flex-start`,
         flexDirection: isUser ? `row-reverse` : `row`,
       }}
