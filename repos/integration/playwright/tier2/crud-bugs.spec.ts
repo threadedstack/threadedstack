@@ -37,13 +37,10 @@ const ignoredConsolePatterns = [
   'React Router Future Flag Warning',
 ]
 
-test.describe('BUG #34: Create Project drawer missing orgId', () => {
-  test('should show "Org selection is required" error when saving without orgId', async ({
+test.describe('Create Project drawer uses active orgId', () => {
+  test('should NOT show "Org selection is required" error when saving', async ({
     authenticatedPage: page, ctx,
   }) => {
-    // Known bug - see QA-BUG-REPORT.md #34
-    // The CreateProjectDrawer never sets orgId from the current route/context,
-    // so submitting always fails with the "Org selection is required" validation error.
 
     await gotoAndWait(page, `/orgs/${ctx.orgId}/projects`, 'tdsk-projects-page')
 
@@ -51,10 +48,7 @@ test.describe('BUG #34: Create Project drawer missing orgId', () => {
     const createButton = page.getByRole('button', { name: /Create Project/i })
     const createButtonCount = await createButton.count()
 
-    // If no projects exist, the button may be in the EmptyState component instead
     if (createButtonCount === 0) {
-      // No create button visible -- might mean org has no projects and uses EmptyState
-      // The NoProjects component also has a create action
       const anyCreateAction = page.locator('button:has-text("Create")')
       const count = await anyCreateAction.count()
       test.skip(count === 0, 'No create project button found on page')
@@ -65,7 +59,7 @@ test.describe('BUG #34: Create Project drawer missing orgId', () => {
 
     await page.waitForTimeout(1000)
 
-    // The drawer should now be open - verify the form is visible
+    // The drawer should now be open
     const nameInput = page.locator('#tdsk-project-name')
     await expect(nameInput).toBeVisible({ timeout: 5000 })
 
@@ -73,36 +67,54 @@ test.describe('BUG #34: Create Project drawer missing orgId', () => {
     await nameInput.fill('Test Project Bug 34')
     await page.waitForTimeout(500)
 
-    // Click the Create button in the drawer (LoadingButton with form='create-project-form')
-    const drawerCreateButton = page.locator(
-      'button[form="create-project-form"], button:has-text("Create"):not([disabled])'
-    )
-    // Find the Create button within the drawer actions area
-    const createActionBtn = drawerCreateButton.last()
-    await createActionBtn.click()
-    await page.waitForTimeout(1000)
+    // Click the Create button
+    const drawerCreateButton = page.locator('button[form="create-project-form"]')
+    await expect(drawerCreateButton).toBeEnabled({ timeout: 5_000 })
+    await drawerCreateButton.click()
+    await page.waitForTimeout(2000)
 
-    // Known bug #34: orgId is never set, so the validation error should appear
-    // The error "Org selection is required" comes from the onSave handler
-    const errorAlert = page.locator('[role="alert"]')
+    // Verify the orgId error does NOT appear (bug #34 is fixed)
     const errorText = page.getByText('Org selection is required')
+    await expect(errorText).not.toBeVisible({ timeout: 3_000 })
 
-    // Verify the error appears - this confirms the bug
-    const hasError = (await errorText.count()) > 0
-    const hasAlert = (await errorAlert.count()) > 0
-
-    // The bug manifests as an error message when trying to save
-    expect(hasError || hasAlert).toBeTruthy()
-
-    // Close the drawer by clicking Cancel
-    const cancelButton = page.getByRole('button', { name: /Cancel/i })
-    if ((await cancelButton.count()) > 0) {
-      await cancelButton.first().click()
+    // The drawer should either close (success) or show a different error
+    // If it closed, the project was created — clean it up
+    const drawerStillOpen = await page.locator('.tdsk-drawer').isVisible()
+    if (!drawerStillOpen) {
+      // Project was created — delete it via API cleanup
+      try {
+        const res = await page.request.get(
+          `https://px.local.threadedstack.app/_/orgs/${ctx.orgId}/projects?limit=200`,
+          {
+            ignoreHTTPSErrors: true,
+            headers: { Authorization: `Bearer ${ctx.apiKey}` },
+          }
+        )
+        const body = await res.json()
+        const arr: Record<string, unknown>[] = Array.isArray(body)
+          ? body
+          : Array.isArray(body?.data) ? body.data : []
+        const created = arr.find((p) => p.name === 'Test Project Bug 34')
+        if (created) {
+          await page.request.delete(
+            `https://px.local.threadedstack.app/_/orgs/${ctx.orgId}/projects/${created.id}`,
+            {
+              ignoreHTTPSErrors: true,
+              headers: { Authorization: `Bearer ${ctx.apiKey}` },
+            }
+          )
+        }
+      } catch {
+        // Best-effort cleanup
+      }
+    } else {
+      // Drawer still open — close it
+      await page.keyboard.press('Escape')
     }
   })
 })
 
-test.describe('BUG #33: Cancel button disabled on drawer open', () => {
+test.describe('Cancel button disabled on drawer open', () => {
   test('should have Cancel button available immediately when drawer opens', async ({
     authenticatedPage: page, ctx,
   }) => {
@@ -159,7 +171,7 @@ test.describe('BUG #33: Cancel button disabled on drawer open', () => {
   })
 })
 
-test.describe('BUG #2-3: Project dashboard stats show 0', () => {
+test.describe('Project dashboard stats show 0', () => {
   test('should display stats cards on project detail page', async ({
     authenticatedPage: page, ctx,
   }) => {
@@ -213,7 +225,7 @@ test.describe('BUG #2-3: Project dashboard stats show 0', () => {
   })
 })
 
-test.describe('BUG #9: Usage page shows 0 for all quotas', () => {
+test.describe('Usage page shows 0 for all quotas', () => {
   test('should render quota cards on org usage page', async ({
     authenticatedPage: page, ctx,
   }) => {
@@ -289,7 +301,7 @@ test.describe('BUG #9: Usage page shows 0 for all quotas', () => {
   })
 })
 
-test.describe('BUG #10: 0/0 quota shows 100% red progress bar', () => {
+test.describe('0/0 quota shows 100% red progress bar', () => {
   test('should handle 0/0 quota limit gracefully', async ({
     authenticatedPage: page, ctx,
   }) => {
@@ -344,7 +356,7 @@ test.describe('BUG #10: 0/0 quota shows 100% red progress bar', () => {
   })
 })
 
-test.describe('BUG #31: Quickstart infinite loading', () => {
+test.describe('Quickstart infinite loading', () => {
   test('should render quickstart wizard UI when Quick Start is clicked', async ({
     authenticatedPage: page, ctx,
   }) => {
@@ -413,7 +425,7 @@ test.describe('BUG #31: Quickstart infinite loading', () => {
   })
 })
 
-test.describe('BUG #39: Provider edit shows all secrets as linked', () => {
+test.describe('Provider edit shows all secrets as linked', () => {
   test('should check provider edit drawer for linked secrets accuracy', async ({
     authenticatedPage: page, ctx,
   }) => {
@@ -493,7 +505,7 @@ test.describe('BUG #39: Provider edit shows all secrets as linked', () => {
   })
 })
 
-test.describe('BUG #42-43: Agent drawer shows secrets/providers with duplicates', () => {
+test.describe('Agent drawer shows secrets/providers with duplicates', () => {
   test('should check agent edit drawer for duplicate secrets and providers', async ({
     authenticatedPage: page, ctx,
   }) => {
