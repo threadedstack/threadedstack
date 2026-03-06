@@ -233,6 +233,16 @@ env:
   TDSK_AD_IMAGE: 'ghcr.io/threadedstack/tdsk-admin'
 
 
+  # ---- Website ENVs --- #
+  TDSK_WEB_PORT: 5884
+  TDSK_WEB_IMAGE_TAG: latest
+  TDSK_WEB_DEV_IMAGE_TAG: main
+  TDSK_WEB_DEPLOYMENT: tdsk-web
+  TDSK_WEB_MOUNT_PATH: .:/tdsk/app
+  TDSK_WEB_IMAGE_FROM: node:20-alpine3.17
+  TDSK_WEB_IMAGE: 'ghcr.io/threadedstack/tdsk-web'
+
+
   # ---- Payments ENVs --- #
   # Email provider type - 'polar' | 'console'
   TDSK_PAY_TYPE:

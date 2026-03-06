@@ -1,0 +1,61 @@
+{
+  "compilerOptions": {
+    "rootDir": "../../",
+    "strict": false,
+    "allowJs": false,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "target": "esnext",
+    "outDir": "./dist",
+    "module": "esnext",
+    "incremental": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "strictNullChecks": false,
+    "moduleResolution": "bundler",
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "types": [
+      "./src/external",
+      "./src/overrides",
+      "vite/client"
+    ],
+    "paths": {
+      "@ROOT": ["../../"],
+      "@TAF/*": ["./src/*"],
+      "@TAF": ["./src"],
+      "@TAF/scripts/*": ["./scripts/*"],
+      "@TAF/scripts": ["./scripts"],
+      "@TSC/*": ["../components/src/*"],
+      "@TSC": ["../components/src"],
+      "@tdsk/components": ["../components/src"],
+
+      "@TDM/*": ["../domain/src/*"],
+      "@TDM": ["../domain/src"],
+      "@tdsk/domain": ["../domain/src/web.ts"],
+      "@tdsk/domain/web": ["../domain/src/web.ts"],
+
+      "@keg-hub/jsutils/*": ["./node_modules/@keg-hub/jsutils/build/esm/*"],
+      "@keg-hub/jsutils": ["./node_modules/@keg-hub/jsutils/build/esm"],
+      "@keg-hub/jsutils/src/node": ["./node_modules/@keg-hub/jsutils/build/esm/node"],
+      "@keg-hub/jsutils/src/node/*": ["./node_modules/@keg-hub/jsutils/build/esm/node"]
+    }
+  },
+  "include": [
+    "src",
+    "configs",
+    "../../configs",
+    "../domain/src",
+    "../components/src"
+  ],
+  "exclude": [
+    "build",
+    "**/build/*",
+    "node_modules",
+    "**/node_modules/*",
+    "dist",
+    "**/dist/*"
+  ]
+}
