@@ -2,58 +2,12 @@
 
 Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new features, P4 = major refactor
 
----
 
-## Execution Plan
-
-Tasks are organized into batches based on file-level dependencies. Batches with no shared files can run in parallel. Tasks within a batch may be serial (noted) or parallel.
-
-### Wave 1 (up to 13 concurrent agents, zero conflicts)
-
-| Batch | Task | Priority |
-|-------|------|----------|
-| 1 | Git tool for sandbox | P3 |
-| 1 | Chat app | P3 |
-| 1 | Website | P3 |
-| 1 | Playwright tests | P3 |
-
-### Wave 2 (after Wave 1 finishes)
-
-| Batch | Task | Priority |
-|-------|------|----------|
-| 6 | Agent autonomous tools (serial within batch) | P3 |
-| 7 | S3 storage (start of serial chain) | P3 |
-
-### Wave 3 (after relevant Wave 2 items)
-
-| Batch | Task | Priority |
-|-------|------|----------|
-| 7 | RAG system (after S3) | P3 |
-| 6 | Continue remaining autonomous tools | P3 |
-
-### Wave 4 (after Wave 3)
-
-| Batch | Task | Priority |
-|-------|------|----------|
-| 7 | Agent long-term memory (after RAG) | P3 |
-
-### Shared File Conflict Map
-
-| Shared File | Tasks That Touch It |
-|-------------|---------------------|
-| `agent/tools/tools.ts` | orchestration, task queue, planning, memory, scheduling, cost tracking, testing, HITL, S3 (artifact), RAG, GitHub |
-| `agent/runner/runner.ts` | memory, cost tracking, RAG |
-| `backend/services/websocket/websocket.ts` | orchestration, cost tracking, HITL, RAG |
-| `domain/types/ai.types.ts` | various agent tools |
-| `backend/endpoints/threads/uploadFile.ts` | S3, RAG |
-
----
-
-## Batch 1 — Fully Independent (all run in parallel)
+## Fully Independent (all run in parallel)
 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
 
-### [P3] Add Git tool for agents — virtual filesystem git operations via sandbox
+### [IN PROGRESS][P3] Add Git tool for agents — virtual filesystem git operations via sandbox
 
 * **Repos**: sandbox, (agent optional)
 * **Key files**: `sandbox/src/commands/git.ts`, `sandbox/src/local.ts`
@@ -200,7 +154,7 @@ These tasks touch completely different files with zero overlap. All can run in W
   * `repos/components/` — shared MUI theme, design tokens, and reusable components consumed by the website
   * `deploy/` — add static hosting config or Helm templates for CDN deployment
 
-### [P3] Playwright integration test coverage is minimal — only page navigation/rendering
+### [IN PROGRESS][P3] Playwright integration test coverage is minimal — only page navigation/rendering
 
 * **Repos**: integration
 * **Key files**: `integration/src/` only
@@ -215,7 +169,7 @@ These tasks touch completely different files with zero overlap. All can run in W
 
 ---
 
-## Batch 6 — Agent Autonomous Tools (8 tasks, HIGH overlap on `agent/tools/tools.ts`)
+## Agent Autonomous Tools (8 tasks, HIGH overlap on `agent/tools/tools.ts`)
 
 All 8 tasks add new entries to `agent/tools/tools.ts`. **Recommended approach**: Refactor `tools.ts` first to import tool implementations from per-feature modules (e.g., `tools/orchestration.ts`, `tools/tasks.ts`). After that refactor, each task only needs to create its own module file and add one import + registration line to `tools.ts`.
 
@@ -368,7 +322,7 @@ Without refactoring, these must be sequential. Suggested order (respecting depen
 
 ---
 
-## Batch 7 — Storage Chain (3 tasks, sequential dependency)
+## Storage Chain (3 tasks, sequential dependency)
 
 Hard dependency chain — each builds on the previous. Can run in parallel with Batches 1-5. Has overlap with Batch 6 on `agent/tools/tools.ts` (RAG adds `searchKnowledge`, memory adds `remember`/`recall`/`forget`).
 
@@ -475,7 +429,7 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 
 ---
 
-## Deferred Items
+## General
 
 ### [P4] Sandbox: Pool process exit cleanup
 

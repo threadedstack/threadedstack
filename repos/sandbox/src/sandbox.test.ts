@@ -1,7 +1,7 @@
 import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect } from 'vitest'
 import { LocalSandboxProvider } from './local'
-import { createSandboxProvider } from './factory'
+import { createSandboxProvider } from './sandbox'
 
 describe(`createSandboxProvider`, () => {
   it(`should create a LocalSandboxProvider for '${ESandboxType.local}'`, () => {

@@ -73,7 +73,7 @@ vi.mock(`isolated-vm`, () => {
   }
 })
 
-import { IsolateRunner } from './isolate'
+import { IsolateRunner } from '.'
 
 // Helper to invoke IsolateRunner's evaluate method via bracket access
 // (avoids false-positive security hook pattern matching)

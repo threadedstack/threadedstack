@@ -9,9 +9,10 @@ import type {
 
 import type { IFileSystem } from 'just-bash'
 
-import { IsolateRunner } from './isolate'
-import { Bash, InMemoryFs } from 'just-bash'
 import { ESandboxType } from '@tdsk/domain'
+import { Bash, InMemoryFs } from 'just-bash'
+import { gitCommand } from '@TSB/git/gitCommand'
+import { IsolateRunner } from '@TSB/local/isolate'
 
 /**
  * Local sandbox instance using just-bash virtual shell/filesystem
@@ -155,13 +156,14 @@ export class LocalSandboxProvider implements ISandboxProvider {
     const fs = new InMemoryFs()
 
     // Create standard directories
-    await fs.mkdir(`/workspace`, { recursive: true })
     await fs.mkdir(`/tmp`, { recursive: true })
+    await fs.mkdir(`/workspace`, { recursive: true })
 
     const bash = new Bash({
       fs,
       cwd: `/workspace`,
       env: config.envVars || {},
+      customCommands: [gitCommand],
     })
 
     // IsolateRunner is optional — sandbox works for shell/FS even without it

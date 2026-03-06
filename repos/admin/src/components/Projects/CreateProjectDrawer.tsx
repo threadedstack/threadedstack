@@ -1,12 +1,10 @@
+import { useState } from 'react'
 import { Box } from '@mui/material'
-import { useState, useEffect } from 'react'
-import { ife } from '@keg-hub/jsutils/ife'
-import { useOrgs } from '@TAF/state/selectors'
-import { fetchOrgs } from '@TAF/actions/orgs/api'
+import { useActiveOrgId } from '@TAF/state/selectors'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { useAsyncAction } from '@TAF/hooks/components/useAsyncAction'
 import { Drawer, TextInput, DrawerActions } from '@tdsk/components'
+import { useAsyncAction } from '@TAF/hooks/components/useAsyncAction'
 import { createProject } from '@TAF/actions/projects/api/createProject'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
@@ -21,29 +19,23 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
 
   const [name, setName] = useState(``)
   const [description, setDescription] = useState(``)
-  const [orgId, setOrgId] = useState(``)
   const [gitUrl, setGitUrl] = useState(``)
   const [branch, setBranch] = useState(`main`)
   const { loading, error, setError, clearError, run } = useAsyncAction()
-  const [orgs] = useOrgs()
-
-  useEffect(() => {
-    open && !orgs && ife(async () => await fetchOrgs())
-  }, [open, orgs])
+  const [orgId] = useActiveOrgId()
 
   const onClose = () => {
     if (loading) return
 
     setName(``)
     setDescription(``)
-    setOrgId(``)
     setGitUrl(``)
     setBranch(`main`)
     clearError()
     onCloseCB?.()
   }
 
-  const onSave = async (e: React.FormEvent) => {
+  const onSave = async (e: any) => {
     e.preventDefault()
 
     if (!orgId) return setError(`Org selection is required`)
@@ -55,9 +47,9 @@ export const CreateProjectDrawer = (props: TCreateProjectDrawer) => {
       createProject({
         orgId,
         name: short,
-        description: description.trim() || undefined,
         branch: branch.trim() || `main`,
         gitUrl: gitUrl.trim() || undefined,
+        description: description.trim() || undefined,
       })
     )
 

@@ -1,6 +1,8 @@
 import { ESandboxType } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { LocalSandbox, LocalSandboxProvider } from './local'
+import { Bash, InMemoryFs } from 'just-bash'
+import { LocalSandbox, LocalSandboxProvider } from '.'
+import { gitCommand } from '../git'
 
 /**
  * Tests for the local sandbox (ISandbox implementation via just-bash)
@@ -369,5 +371,141 @@ describe(`LocalSandboxProvider`, () => {
   it(`should implement ISandboxProvider create method`, () => {
     const provider = new LocalSandboxProvider()
     expect(typeof provider.create).toBe(`function`)
+  })
+})
+
+describe(`LocalSandbox git integration`, () => {
+  it(`should run full git workflow: init → add → commit → status → log → branch → checkout`, async () => {
+    const fs = new InMemoryFs()
+    await fs.mkdir(`/workspace`, { recursive: true })
+
+    const bash = new Bash({
+      fs,
+      cwd: `/workspace`,
+      customCommands: [gitCommand],
+    })
+    const sandbox = new LocalSandbox(bash, fs, null)
+
+    // git init
+    let result = await sandbox.exec(`git init`)
+    expect(result.success).toBe(true)
+    expect(result.output).toContain(`Initialized empty Git repository`)
+
+    // Write a file
+    await sandbox.writeFile(`/workspace/hello.txt`, `Hello, World!`)
+
+    // git status — should show untracked
+    result = await sandbox.exec(`git status`)
+    expect(result.success).toBe(true)
+    expect(result.output).toContain(`Untracked files:`)
+    expect(result.output).toContain(`hello.txt`)
+
+    // git add .
+    result = await sandbox.exec(`git add .`)
+    expect(result.success).toBe(true)
+
+    // git status — should show staged
+    result = await sandbox.exec(`git status`)
+    expect(result.output).toContain(`Changes to be committed:`)
+    expect(result.output).toContain(`new file:   hello.txt`)
+
+    // git commit
+    result = await sandbox.exec(`git commit -m "initial commit"`)
+    expect(result.success).toBe(true)
+    expect(result.output).toContain(`initial commit`)
+
+    // git status — should be clean
+    result = await sandbox.exec(`git status`)
+    expect(result.output).toContain(`nothing to commit, working tree clean`)
+
+    // git log --oneline
+    result = await sandbox.exec(`git log --oneline`)
+    expect(result.success).toBe(true)
+    expect(result.output).toContain(`initial commit`)
+
+    // git branch feature
+    result = await sandbox.exec(`git branch feature`)
+    expect(result.success).toBe(true)
+
+    // git branch (list)
+    result = await sandbox.exec(`git branch`)
+    expect(result.output).toContain(`* main`)
+    expect(result.output).toContain(`feature`)
+
+    // git checkout feature
+    result = await sandbox.exec(`git checkout feature`)
+    expect(result.success).toBe(true)
+    expect(result.output).toContain(`Switched to branch 'feature'`)
+
+    // Write another file on feature branch
+    await sandbox.writeFile(`/workspace/feature.txt`, `Feature work`)
+
+    // git add and commit on feature
+    result = await sandbox.exec(`git add .`)
+    expect(result.success).toBe(true)
+    result = await sandbox.exec(`git commit -m "add feature file"`)
+    expect(result.success).toBe(true)
+
+    // Switch back to main
+    result = await sandbox.exec(`git checkout main`)
+    expect(result.success).toBe(true)
+
+    // feature.txt should not exist on main
+    const exists = await sandbox.fileExists(`/workspace/feature.txt`)
+    expect(exists).toBe(false)
+
+    // git log on main — should only show initial commit
+    result = await sandbox.exec(`git log --oneline`)
+    expect(result.output).toContain(`initial commit`)
+    expect(result.output).not.toContain(`add feature file`)
+  })
+
+  it(`should handle git checkout -b (create + switch)`, async () => {
+    const fs = new InMemoryFs()
+    await fs.mkdir(`/workspace`, { recursive: true })
+
+    const bash = new Bash({
+      fs,
+      cwd: `/workspace`,
+      customCommands: [gitCommand],
+    })
+    const sandbox = new LocalSandbox(bash, fs, null)
+
+    await sandbox.exec(`git init`)
+    await sandbox.writeFile(`/workspace/file.txt`, `content`)
+    await sandbox.exec(`git add .`)
+    await sandbox.exec(`git commit -m "first"`)
+
+    const result = await sandbox.exec(`git checkout -b new-branch`)
+    expect(result.success).toBe(true)
+    expect(result.output).toContain(`Switched to a new branch 'new-branch'`)
+
+    // Verify we're on the new branch
+    const branchResult = await sandbox.exec(`git rev-parse --abbrev-ref HEAD`)
+    expect(branchResult.output.trim()).toBe(`new-branch`)
+  })
+
+  it(`should handle git diff showing changed files`, async () => {
+    const fs = new InMemoryFs()
+    await fs.mkdir(`/workspace`, { recursive: true })
+
+    const bash = new Bash({
+      fs,
+      cwd: `/workspace`,
+      customCommands: [gitCommand],
+    })
+    const sandbox = new LocalSandbox(bash, fs, null)
+
+    await sandbox.exec(`git init`)
+    await sandbox.writeFile(`/workspace/file.txt`, `original`)
+    await sandbox.exec(`git add .`)
+    await sandbox.exec(`git commit -m "initial"`)
+
+    // Modify file
+    await sandbox.writeFile(`/workspace/file.txt`, `modified`)
+
+    const result = await sandbox.exec(`git diff`)
+    expect(result.success).toBe(true)
+    expect(result.output).toContain(`modified: file.txt`)
   })
 })

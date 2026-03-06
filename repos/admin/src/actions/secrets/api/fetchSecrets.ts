@@ -8,7 +8,7 @@ export type TFetchSecretsOpts = {
 
 export const fetchSecrets = async (opts: TFetchSecretsOpts) => {
   const { orgId, projectId } = opts
-  const resp = await secretsApi.list(orgId, projectId)
+  const resp = await secretsApi.list(orgId, projectId, { limit: 200 })
   if (resp.data) projectId ? setSecrets(projectId, resp.data) : setOrgSecrets(resp.data)
 
   return resp
