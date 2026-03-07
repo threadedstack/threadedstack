@@ -1,0 +1,172 @@
+import Box from '@mui/material/Box'
+import Container from '@mui/material/Container'
+import Typography from '@mui/material/Typography'
+import Button from '@mui/material/Button'
+import Grid from '@mui/material/Grid'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import { useTheme } from '@mui/material/styles'
+import ArchitectureDiagram from './ArchitectureDiagram'
+
+const Hero = () => {
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
+
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        bgcolor: isDark ? '#1A1D21' : '#FAFBFC',
+      }}
+    >
+      {/* Background radial glow */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 0,
+          backgroundImage: isDark
+            ? 'radial-gradient(ellipse at 30% 50%, rgba(51,112,222,0.08) 0%, transparent 60%)'
+            : 'radial-gradient(ellipse at 25% 40%, rgba(51,112,222,0.07) 0%, transparent 55%), radial-gradient(ellipse at 80% 65%, rgba(51,112,222,0.06) 0%, transparent 50%)',
+        }}
+      />
+
+      {/* Floating blob 1 */}
+      <Box
+        sx={{
+          position: 'absolute',
+          width: 400,
+          height: 400,
+          borderRadius: '50%',
+          background: isDark
+            ? 'radial-gradient(circle, rgba(51,112,222,0.06) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(51,112,222,0.08) 0%, transparent 65%)',
+          top: '10%',
+          left: '5%',
+          zIndex: 0,
+          animation: 'heroFloat 20s ease-in-out infinite',
+          '@keyframes heroFloat': {
+            '0%, 100%': { transform: 'translate(0, 0)' },
+            '33%': { transform: 'translate(30px, -20px)' },
+            '66%': { transform: 'translate(-20px, 15px)' },
+          },
+        }}
+      />
+
+      {/* Floating blob 2 */}
+      <Box
+        sx={{
+          position: 'absolute',
+          width: 300,
+          height: 300,
+          borderRadius: '50%',
+          background: isDark
+            ? 'radial-gradient(circle, rgba(51,112,222,0.04) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(51,112,222,0.06) 0%, transparent 65%)',
+          bottom: '15%',
+          right: '10%',
+          zIndex: 0,
+          animation: 'heroFloat 25s ease-in-out infinite reverse',
+        }}
+      />
+
+      <Container
+        maxWidth='lg'
+        sx={{ position: 'relative', zIndex: 1 }}
+      >
+        <Grid
+          container
+          spacing={6}
+          alignItems='center'
+        >
+          <Grid
+            item
+            xs={12}
+            md={7}
+          >
+            {/* Overline */}
+            <Typography
+              variant='overline'
+              sx={{
+                color: 'primary.main',
+                letterSpacing: 3,
+                fontWeight: 600,
+                mb: 2,
+                display: 'block',
+                fontSize: '0.75rem',
+              }}
+            >
+              THE DEVELOPER PLATFORM FOR AI AGENTS
+            </Typography>
+
+            {/* Headline with gradient text */}
+            <Typography
+              variant='h1'
+              sx={{
+                mb: 3,
+                fontWeight: 800,
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                lineHeight: 1.15,
+              }}
+            >
+              <span className={isDark ? 'gradient-text-dark' : 'gradient-text-light'}>
+                Secure and Autonomous AI Agents without Headaches
+              </span>
+            </Typography>
+
+            {/* Subheadline */}
+            <Typography
+              variant='body1'
+              color='text.secondary'
+              sx={{ mb: 4, fontSize: '1.1rem', lineHeight: 1.7, maxWidth: 520 }}
+            >
+              Threaded Stack is purpose-built for secure AI agents. We handle identity,
+              execution, and external connections so your agents are secure by default,
+              not as an afterthought.
+            </Typography>
+
+            {/* CTAs */}
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+              <Button
+                variant='contained'
+                size='large'
+                endIcon={<ArrowForwardIcon />}
+                href='/docs/getting-started'
+              >
+                Get Started Free
+              </Button>
+              <Button
+                variant='outlined'
+                size='large'
+                href='mailto:demo@threadedstack.app'
+              >
+                Request a Demo
+              </Button>
+            </Box>
+
+            {/* Helper text */}
+            <Typography
+              variant='caption'
+              color='text.secondary'
+            >
+              Free tier. No credit card required.
+            </Typography>
+          </Grid>
+
+          <Grid
+            item
+            xs={12}
+            md={5}
+          >
+            <ArchitectureDiagram />
+          </Grid>
+        </Grid>
+      </Container>
+    </Box>
+  )
+}
+
+export default Hero

@@ -13,7 +13,7 @@ import type {
 import { EContentType } from '@tdsk/domain'
 
 /**
- * Convert ThreadedStack TAIMessage[] to pi-mono Message[] for loading history.
+ * Convert Threaded Stack TAIMessage[] to pi-mono Message[] for loading history.
  * Accepts optional defaults for api/provider/model to avoid hardcoded Anthropic values
  * when reconstructing AssistantMessages from DB.
  */
@@ -145,7 +145,7 @@ export const convertToLlmMessages = (
 }
 
 /**
- * Convert a pi-mono AssistantMessage to ThreadedStack TMessageContent[] for DB persistence.
+ * Convert a pi-mono AssistantMessage to Threaded Stack TMessageContent[] for DB persistence.
  */
 export const convertAssistantToContent = (msg: AssistantMessage): TMessageContent[] => {
   const content: TMessageContent[] = []
@@ -174,7 +174,7 @@ export const convertAssistantToContent = (msg: AssistantMessage): TMessageConten
 }
 
 /**
- * Convert a pi-mono ToolResultMessage to ThreadedStack TMessageContent for DB persistence.
+ * Convert a pi-mono ToolResultMessage to Threaded Stack TMessageContent for DB persistence.
  */
 export const convertToolResultToContent = (tr: ToolResultMessage): TMessageContent => ({
   type: EContentType.toolResult,

@@ -1,4 +1,4 @@
-import type { User, TRoleType, Role } from '@tdsk/domain'
+import type { User, TRoleType } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { toast } from 'sonner'
@@ -14,7 +14,11 @@ import { UserSelectorSingle } from '@TAF/components/Selectors'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
-import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
+import {
+  useActiveOrgId,
+  useActiveProjectId,
+  useActiveProjectMembers,
+} from '@TAF/state/selectors'
 import { Box, Chip, Typography, Autocomplete, TextField } from '@mui/material'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import { PersonAdd as PersonAddIcon, Delete as DeleteIcon } from '@mui/icons-material'
@@ -36,9 +40,14 @@ const AuthRoleValues = AuthRoles.map((item) => item.value)
 export const ProjectMembers = () => {
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
+  const [projectMembersMap] = useActiveProjectMembers()
   const [loading, setLoading] = useState(false)
-  const [roles, setRoles] = useState<Role[]>([])
   const [orgUsers, setOrgUsers] = useState<User[]>([])
+
+  const roles = useMemo(
+    () => (projectMembersMap ? Object.values(projectMembersMap) : []),
+    [projectMembersMap]
+  )
   const [searchQuery, setSearchQuery] = useState('')
   const [addDrawerOpen, setAddDrawerOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -50,8 +59,7 @@ export const ProjectMembers = () => {
     if (!orgId || !projectId) return
     setLoading(true)
     try {
-      const resp = await listProjectMembers({ orgId, projectId })
-      if (resp.data) setRoles(resp.data)
+      await listProjectMembers({ orgId, projectId })
     } finally {
       setLoading(false)
     }
@@ -122,7 +130,6 @@ export const ProjectMembers = () => {
       setAddDrawerOpen(false)
       setSelectedUserId(null)
       setSelectedRole(ERoleType.viewer)
-      await loadMembers()
     } catch (err) {
       toast.error(`Failed to add member`)
     } finally {
@@ -147,7 +154,6 @@ export const ProjectMembers = () => {
       toast.success(`Member removed successfully`)
       setDeleteDialogOpen(false)
       setMemberToRemove(null)
-      await loadMembers()
     } catch (err) {
       toast.error(`Failed to remove member`)
     } finally {

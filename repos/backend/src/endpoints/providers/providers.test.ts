@@ -427,6 +427,33 @@ describe(`Providers endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({ data: updatedProvider })
     })
 
+    it(`should strip secretId null from update to prevent accidental clearing`, async () => {
+      const existingProvider = new Provider({
+        id: `prov-1`,
+        name: `Provider`,
+        type: `ai`,
+        orgId: `org-1`,
+        secretId: `secret-1`,
+      })
+      mockReq.params = { id: `prov-1` }
+      mockReq.body = { name: `Updated`, secretId: null }
+
+      const mockGet = mockReq.app?.locals.db.services.provider.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockUpdate = mockReq.app?.locals.db.services.provider.update as ReturnType<
+        typeof vi.fn
+      >
+
+      mockGet.mockResolvedValue({ data: existingProvider })
+      mockUpdate.mockResolvedValue({ data: existingProvider })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      // secretId should NOT be in the update call
+      expect(mockUpdate).toHaveBeenCalledWith({ name: `Updated`, id: `prov-1` })
+    })
+
     it(`should return 500 on update error`, async () => {
       const existingProvider = new Provider({
         id: `prov-1`,

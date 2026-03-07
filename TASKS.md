@@ -7,28 +7,6 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
 
-### [IN PROGRESS][P3] Add Git tool for agents — virtual filesystem git operations via sandbox
-
-* **Repos**: sandbox, (agent optional)
-* **Key files**: `sandbox/src/commands/git.ts`, `sandbox/src/local.ts`
-* Agents currently have no git capabilities. A git tool should be added so agents can perform git operations (init, add, commit, branch, checkout, diff, log, status, merge, etc.) entirely within the sandbox's virtual filesystem (`InMemoryFs`). It must NOT touch the real filesystem
-* **Two implementation approaches**:
-  * **Option A — just-bash custom command** (recommended): Register a `git` custom command via `defineCommand("git", ...)` and pass it to the `Bash` constructor's `customCommands` array in `repos/sandbox/src/local.ts`. This makes `git` available as a native shell command in the sandbox (e.g., `git init && git add . && git commit -m "msg"`). The `CommandContext` provides `ctx.fs` (virtual FS) and `ctx.cwd` for all file operations
-  * **Option B — standalone AgentTool**: Add git-specific tools (`gitInit`, `gitAdd`, `gitCommit`, etc.) alongside existing tools in `repos/agent/src/tools/definitions/` with corresponding `AgentTool` implementations in `repos/agent/src/tools/tools.ts`. This exposes git as discrete LLM tool calls rather than shell commands
-* **Implementation**: Use `isomorphic-git` (pure JS, no native binary) with a custom FS adapter that bridges to the sandbox's `IFileSystem` interface. `isomorphic-git` accepts a pluggable `fs` object — adapt `InMemoryFs` (read/write/stat/readdir/mkdir/unlink) to match isomorphic-git's fs requirements. For HTTP operations (clone, fetch, push), either disable them or route through the sandbox's network config
-* **Key considerations**:
-  * The `IFileSystem` interface from just-bash already supports the POSIX operations isomorphic-git needs (readFile, writeFile, mkdir, readdir, stat, unlink, etc.)
-  * Option A is preferred because it integrates naturally with `shellExec` — agents already use shell commands, and `git` would work inline with other commands
-  * Option B is better if fine-grained LLM tool-call control is needed per git operation
-  * Both options can coexist — a custom command for shell use + dedicated tools for structured calls
-  * All git operations must stay within the virtual FS boundary — no system `git` binary, no real disk access
-* **Files**:
-  * New: `repos/sandbox/src/commands/git.ts` — isomorphic-git adapter wrapping `IFileSystem`, `defineCommand("git", ...")` implementation
-  * `repos/sandbox/src/local.ts` — register git custom command in `Bash` constructor's `customCommands`
-  * If Option B also: `repos/agent/src/tools/definitions/git/` — LLM tool definitions for git operations
-  * If Option B also: `repos/agent/src/tools/tools.ts` — add git `AgentTool` implementations
-  * `repos/domain/src/types/sandbox.types.ts` — possibly extend `ISandbox` if git needs dedicated methods beyond `exec()`
-  * New dependency: `isomorphic-git` in `repos/sandbox/package.json`
 
 ### [P3] Standalone chat application — web and desktop interface for agent interaction
 
@@ -99,75 +77,7 @@ These tasks touch completely different files with zero overlap. All can run in W
   * `repos/domain/src/types/ws.types.ts` — already defines all WS event types (no changes needed)
   * `deploy/` — add Helm templates or static hosting config for the chat app deployment
 
-### [P3] Landing page and documentation website
 
-* **Repos**: NEW `repos/website/`
-* **Key files**: Entirely new repo
-* ThreadedStack has no public-facing website — no marketing/landing page, no signup flow, no hosted documentation. Users have no way to discover the platform, understand its features, or learn how to use it. This is a separate repo and deployment from both the admin dashboard and the chat app — a simple, fast, SEO-friendly marketing and docs site on its own domain (e.g., `threadedstack.app` or `threadedstack.com`)
-* **Landing page sections**:
-  * Hero — tagline, value proposition, CTA (signup / get started)
-  * Features overview — auth proxy, FaaS, AI agents, secrets management, sandbox. Visual diagrams of the request flow and architecture
-  * How it works — step-by-step: create org, configure agent, connect provider, start chatting
-  * Pricing/plans — free/basic/developer/pro tiers (from existing Polar.sh subscription system). Feature comparison table
-  * Use cases — autonomous AI agents, API orchestration, serverless compute, secure proxy
-  * Social proof / testimonials (placeholder initially)
-  * Footer — links to docs, GitHub, status page, contact
-* **Signup flow**:
-  * CTA links to the admin dashboard's Neon Auth login (`admin.threadedstack.app`) — the website itself doesn't handle auth, it redirects to admin for account creation
-  * Alternatively, embed a simple signup form that calls a backend endpoint to create an org + user via Neon Auth, then redirects to admin
-* **Documentation site**:
-  * Getting started guide — account setup, first agent, first chat
-  * API reference — all REST endpoints (`/_/orgs`, `/_/agents`, `/_/threads`, etc.) with request/response examples, auth requirements, error codes
-  * WebSocket protocol — all client-to-server and server-to-client event types with payload schemas
-  * Concepts — organizations, projects, agents, threads, providers, secrets, endpoints, functions, skills, schedules
-  * Guides — REPL CLI usage, admin dashboard walkthrough, chat app setup, integration testing, self-hosting (K8s deployment)
-  * SDK / client library docs (when available)
-  * Changelog — versioned release notes
-* **Tech stack (must use shared components repo for UI consistency)**:
-  * **React + Vite** — consistent with all other repos in the workspace
-  * **`@tdsk/components`** — must use the shared component library (`repos/components/`) for all UI components, including the MUI theme, design tokens, palette, and typography. The theme is defined in `@tdsk/components` and consumed by all user-facing apps — nothing should depend on `@tdsk/admin`
-  * **MUI component library** — consumed via `@tdsk/components`, same library used across all UIs for a consistent look and feel
-  * Shared `@tdsk/domain` for types — the website must not depend on `@tdsk/admin`
-  * For docs content, use MDX or a docs-oriented routing pattern within the React app (e.g., file-based MDX content with a docs layout component). Alternatively, investigate React-compatible docs frameworks that support MUI theming (e.g., Docusaurus with MUI plugin, or a custom docs layout)
-* **Fix**:
-  1. Create a new repo `repos/website/` with Vite + React + TypeScript scaffold. Configure aliases, biome linting, and `@tdsk/domain` + `@tdsk/components` as workspace dependencies
-  2. Build landing page — hero, features, how-it-works, pricing sections. Use `@tdsk/components` and MUI for all layout and styling. Optimize for Core Web Vitals
-  3. Set up docs structure — sidebar navigation, MDX content pages, code block syntax highlighting, auto-generated table of contents. Use a docs layout component built with MUI
-  4. Write initial docs content: getting started guide, API reference (can be partially auto-generated from backend route definitions and domain types), WebSocket protocol reference, concepts overview
-  5. Add search — integrate a client-side search solution (e.g., Pagefind, Lunr, or Algolia DocSearch)
-  6. Deployment — static build output to S3 + CloudFront/Cloudflare CDN, or Vercel/Netlify for zero-config hosting. Separate CI/CD from admin/chat apps
-  7. Analytics — lightweight, privacy-respecting (Plausible, Fathom, or Simple Analytics) rather than Google Analytics
-  8. OpenGraph / SEO — meta tags, social preview images, structured data (JSON-LD), sitemap.xml, robots.txt
-* **Key considerations**:
-  * This is primarily a static/content site — no runtime backend dependency. It links to admin/chat apps but doesn't call the ThreadedStack API directly (except possibly for a signup form)
-  * The MUI theme, design tokens, palette, and typography must come from `@tdsk/components` — this ensures the website visually matches the admin dashboard and chat app
-  * Docs should be version-aware if the API changes across releases
-  * API reference docs could be auto-generated from OpenAPI/Swagger spec if one is added to the backend, or maintained manually as MDX
-  * The site should be independently deployable — pushing a docs update shouldn't require redeploying the backend
-  * Start simple — landing page + getting started guide + API reference. Expand docs as features mature
-  * Consider a blog section for announcements, tutorials, and engineering deep-dives
-* **Files**:
-  * New: `repos/website/` — entire new repo (Vite + React + TypeScript)
-  * New: `repos/website/src/pages/` — landing page, pricing page, about page
-  * New: `repos/website/src/content/docs/` — MDX documentation files (getting-started, api-reference, concepts, guides)
-  * New: `repos/website/vite.config.ts` — Vite configuration with React and MDX plugins
-  * `repos/components/` — shared MUI theme, design tokens, and reusable components consumed by the website
-  * `deploy/` — add static hosting config or Helm templates for CDN deployment
-
-### [IN PROGRESS][P3] Playwright integration test coverage is minimal — only page navigation/rendering
-
-* **Repos**: integration
-* **Key files**: `integration/src/` only
-* Current coverage only validates that pages load and render without console errors
-* Missing: full CRUD operations for all entity types through the UI
-* **Entities needing coverage**:
-  * Organization level: Agents, Secrets, Domains, Providers, Member Invites, Projects
-  * Project level: Endpoints, Functions, Secrets, Agents, Members, Domains
-  * Agent level: Threads, Chats
-* **Fix**: Build a comprehensive Playwright test suite using the existing auth bypass pattern (mock Neon Auth `get-session`, set API key as session token). Each entity type needs Create, Read, Update, Delete test flows through the UI
-* **Files**: New test files in `repos/integration/src/` for each entity CRUD flow
-
----
 
 ## Agent Autonomous Tools (8 tasks, HIGH overlap on `agent/tools/tools.ts`)
 

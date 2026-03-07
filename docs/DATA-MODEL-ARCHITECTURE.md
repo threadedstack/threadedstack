@@ -1,8 +1,8 @@
-# ThreadedStack Data Model Architecture
+# Threaded Stack Data Model Architecture
 
 ## Purpose of This Document
 
-This document provides a comprehensive analysis of every data model in the ThreadedStack platform — **why** each exists, how they relate to each other, where the current implementation diverges from intent, and specific recommendations for improvement. It is the result of a full-stack audit across all 11 repos: database, domain, backend, proxy, admin, agent, sandbox, repl, cli, components, and logger.
+This document provides a comprehensive analysis of every data model in the Threaded Stack platform — **why** each exists, how they relate to each other, where the current implementation diverges from intent, and specific recommendations for improvement. It is the result of a full-stack audit across all 11 repos: database, domain, backend, proxy, admin, agent, sandbox, repl, cli, components, and logger.
 
 ---
 
@@ -21,7 +21,7 @@ This document provides a comprehensive analysis of every data model in the Threa
 
 ## 1. Platform Overview
 
-ThreadedStack is a multi-tenant developer platform that unifies authentication, AI agent orchestration, serverless compute (FaaS), and secure API proxying. The data model serves three primary workflows:
+Threaded Stack is a multi-tenant developer platform that unifies authentication, AI agent orchestration, serverless compute (FaaS), and secure API proxying. The data model serves three primary workflows:
 
 1. **Resource Provisioning** — Orgs → Projects → Endpoints/Functions/Agents
 2. **AI Agent Execution** — Agent → Provider → Secrets → LLM → Thread/Messages
@@ -59,9 +59,9 @@ ThreadedStack is a multi-tenant developer platform that unifies authentication, 
 | **Why It Exists** | Authentication requires identity. Users own subscriptions, create threads, receive invitations, and are assigned roles within orgs/projects. |
 | **Fields** | `id`, `name`, `email`, `image`, `role`, `banned`, `banReason`, `banExpires`, `emailVerified`, `createdAt`, `updatedAt` |
 | **Key Relationships** | Has: Roles, Threads, Subscriptions (1:1), API Keys, Invitations, Assets |
-| **Managed By** | Neon Auth (external). The `users` table is in the `neon_auth` schema — ThreadedStack reads it but never writes to it. |
+| **Managed By** | Neon Auth (external). The `users` table is in the `neon_auth` schema — Threaded Stack reads it but never writes to it. |
 
-**Assessment**: Correctly implemented as a read-only reference. The domain model adds computed properties (`displayName`, `first`/`last`) that don't exist in the DB, which is fine for UI convenience. The `role` field on User is the Neon Auth platform role, NOT the ThreadedStack org/project role — this distinction is important and could be confusing.
+**Assessment**: Correctly implemented as a read-only reference. The domain model adds computed properties (`displayName`, `first`/`last`) that don't exist in the DB, which is fine for UI convenience. The `role` field on User is the Neon Auth platform role, NOT the Threaded Stack org/project role — this distinction is important and could be confusing.
 
 **Recommendation**: Consider renaming the User model's `role` field to `platformRole` or `authRole` to distinguish it from the RBAC Role entity. Currently, `user.role` from Neon Auth and `role.type` from the Roles table can be confused.
 
@@ -159,7 +159,7 @@ ThreadedStack is a multi-tenant developer platform that unifies authentication, 
 | Aspect | Detail |
 |--------|--------|
 | **Business Purpose** | HTTP route definition. Maps a URL path + method to a handler (proxy, FaaS, or agent). |
-| **Why It Exists** | The platform's API gateway capability. Users define endpoints that either proxy to external APIs, invoke serverless functions, or trigger AI agents. This is how external systems interact with ThreadedStack. |
+| **Why It Exists** | The platform's API gateway capability. Users define endpoints that either proxy to external APIs, invoke serverless functions, or trigger AI agents. This is how external systems interact with Threaded Stack. |
 | **Fields** | `id`, `name`, `path`, `method`, `type` (proxy/faas/agent), `public`, `headers` (JSONB), `options` (JSONB), `projectId`, `createdAt`, `updatedAt` |
 | **Key Relationships** | Belongs to: Project. Has: Functions (1:many). |
 | **Used By** | Backend (routing engine, endpoint execution), Admin (endpoint configuration with type-specific forms) |
@@ -393,7 +393,7 @@ No significant issues.
 | **Business Purpose** | SSL certificate storage. Caddy stores its auto-managed certificates in PostgreSQL via the certmagic storage plugin. |
 | **Why It Exists** | Caddy needs persistent certificate storage that survives pod restarts in Kubernetes. PostgreSQL is already available, so it's used as the storage backend. |
 | **Fields** | `parent` (domain name), `name` (file name), `isFile`, `value` (bytea), `modified` |
-| **Managed By** | Caddy (external). ThreadedStack reads but never writes. |
+| **Managed By** | Caddy (external). Threaded Stack reads but never writes. |
 
 **Assessment**: Correctly implemented as a read-only reference. No changes needed.
 

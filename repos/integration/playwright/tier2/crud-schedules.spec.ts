@@ -1,0 +1,209 @@
+import { test, expect } from '../fixtures/auth'
+import {
+  gotoAndWait,
+  openDrawer,
+  fillField,
+  submitForm,
+  waitForDrawerClose,
+  confirmDelete,
+  uniqueName,
+  collectErrors,
+  apiRequest,
+  apiDeleteResource,
+  searchInPage,
+  selectEntityOption,
+  ensureFullListLoad,
+} from '../utils/crud-helpers'
+
+const PAGE_CLASS = 'tdsk-org-schedules-page'
+const FORM_ID = 'schedule-form'
+
+test.describe.serial('CRUD Schedules', () => {
+  const cronExpr = '0 */6 * * *'
+  const updatedCron = '30 9 * * 1-5'
+  const promptText = `Playwright schedule test prompt ${Date.now()}`
+  let scheduleId: string | undefined
+  let hasAgents = false
+
+  test('CREATE — should create a new schedule via the drawer', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    const errors = collectErrors(page)
+
+    // Check if agents exist (schedules require an agent)
+    const agentRes = await apiRequest(
+      page,
+      'GET',
+      `/orgs/${ctx.orgId}/agents?limit=10`,
+      ctx.apiKey
+    )
+    const agentBody = await agentRes.json()
+    const agents: Record<string, unknown>[] = Array.isArray(agentBody?.data)
+      ? agentBody.data
+      : []
+    hasAgents = agents.length > 0
+
+    test.skip(!hasAgents, 'No agents exist — cannot create schedule without an agent')
+
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, PAGE_CLASS)
+
+    // Open create drawer
+    await openDrawer(page, /Create Schedule/i)
+
+    // Select agent via EntitySelector autocomplete
+    await selectEntityOption(page, 'agent-id')
+
+    // Fill cron expression
+    await fillField(page, 'tdsk-schedule-cron-input', cronExpr)
+
+    // Fill prompt
+    await fillField(page, 'tdsk-schedule-prompt-input', promptText)
+
+    // Submit the form (switches default to enabled/createThread=true, leave as-is)
+    await submitForm(page, FORM_ID)
+
+    // Wait for drawer to close (data is fetched before drawer closes)
+    await waitForDrawerClose(page)
+
+    // Verify the schedule appears in the table — look for the cron expression
+    // Use .first() in case leftover data from a prior run has the same cron
+    await expect(page.getByText(cronExpr).first()).toBeVisible({ timeout: 10_000 })
+
+    // Get schedule ID via API
+    const res = await apiRequest(
+      page,
+      'GET',
+      `/orgs/${ctx.orgId}/schedules?limit=200`,
+      ctx.apiKey
+    )
+    const body = await res.json()
+    const arr: Record<string, unknown>[] = Array.isArray(body?.data)
+      ? body.data
+      : Array.isArray(body)
+        ? body
+        : []
+    const found = arr.find((s) => s.prompt === promptText)
+    if (found?.id) scheduleId = found.id as string
+
+    expect(scheduleId).toBeTruthy()
+    expect(errors).toEqual([])
+  })
+
+  test('READ — should display the created schedule in the table', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    test.skip(!scheduleId, 'No schedule ID — CREATE must have failed')
+
+    const errors = collectErrors(page)
+    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/schedules`)
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, PAGE_CLASS)
+
+    // Verify cron expression is visible
+    await expect(page.getByText(cronExpr).first()).toBeVisible({ timeout: 10_000 })
+
+    expect(errors).toEqual([])
+  })
+
+  test('UPDATE — should edit the schedule cron expression', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    test.skip(!scheduleId, 'No schedule ID — CREATE must have failed')
+
+    const errors = collectErrors(page)
+    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/schedules`)
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, PAGE_CLASS)
+
+    // Click the schedule row to open edit drawer
+    const cronCell = page
+      .locator('.MuiTableBody-root')
+      .getByText(cronExpr)
+      .first()
+    await cronCell.click()
+
+    // Wait for edit drawer to open
+    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
+
+    // Update the cron expression
+    await fillField(page, 'tdsk-schedule-cron-input', updatedCron)
+
+    // Submit
+    await submitForm(page, FORM_ID)
+
+    // Wait for drawer to close (data is fetched before drawer closes)
+    await waitForDrawerClose(page)
+
+    // Verify updated cron appears
+    await expect(page.getByText(updatedCron)).toBeVisible({ timeout: 10_000 })
+
+    expect(errors).toEqual([])
+  })
+
+  test('DELETE — should delete the schedule', async ({
+    authenticatedPage: page,
+    ctx,
+  }) => {
+    test.skip(!scheduleId, 'No schedule ID — CREATE must have failed')
+
+    const errors = collectErrors(page)
+    await ensureFullListLoad(page, `/orgs/${ctx.orgId}/schedules`)
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/schedules`, PAGE_CLASS)
+
+    // Find the row with the updated cron and click the delete action button
+    const row = page.locator('tr', { has: page.getByText(updatedCron) })
+    const deleteButton = row.locator('[aria-label="Delete schedule"]')
+
+    if ((await deleteButton.count()) > 0) {
+      await deleteButton.first().click()
+    } else {
+      // Fallback: try error-colored icon button
+      const errorButton = row.locator('.MuiIconButton-colorError').first()
+      await errorButton.click()
+    }
+
+    // Confirm the deletion (data is fetched before dialog closes)
+    await confirmDelete(page)
+    await expect(page.locator('.MuiDialog-root')).not.toBeVisible({
+      timeout: 10_000,
+    })
+
+    // Verify the schedule is removed from the table
+    await expect(
+      page.locator('.MuiTableBody-root').getByText(updatedCron)
+    ).not.toBeVisible({ timeout: 10_000 })
+
+    // Mark as cleaned up
+    scheduleId = undefined
+
+    expect(errors).toEqual([])
+  })
+
+  // Safety-net cleanup
+  test.afterAll(async ({ browser }) => {
+    if (!scheduleId) return
+    const context = await browser.newContext({ ignoreHTTPSErrors: true })
+    const cleanupPage = await context.newPage()
+    try {
+      const { readFileSync } = await import('node:fs')
+      const { join } = await import('node:path')
+      const { tmpdir } = await import('node:os')
+      const ctx = JSON.parse(
+        readFileSync(
+          join(tmpdir(), 'tdsk-integration', 'context.json'),
+          'utf-8'
+        )
+      )
+      await apiDeleteResource(
+        cleanupPage,
+        `/orgs/${ctx.orgId}/schedules/${scheduleId}`,
+        ctx.apiKey
+      )
+    } catch {
+      // Best-effort
+    } finally {
+      await context.close()
+    }
+  })
+})

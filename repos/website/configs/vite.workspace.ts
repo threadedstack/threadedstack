@@ -1,10 +1,14 @@
 import '../scripts/registerPaths'
 
 import path from 'node:path'
+import mdx from '@mdx-js/rollup'
+import remarkGfm from 'remark-gfm'
+import rehypeSlug from 'rehype-slug'
 import react from '@vitejs/plugin-react-swc'
 import { loadConfig } from './website.config'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 import { svgrComponent } from 'vite-plugin-svgr-component'
+import rehypeAutolinkHeadings from 'rehype-autolink-headings'
 
 const rootDir = path.join(__dirname, '..')
 const { aliases, envs, port, environment } = loadConfig()
@@ -15,7 +19,7 @@ const { aliases, envs, port, environment } = loadConfig()
  * Or default to `/`
  */
 export const basePath =
-  process.env.TDSK_AD_BASE_PATH || envs[`process.env.TDSK_AD_BASE_PATH`] || `/`
+  process.env.TDSK_WEB_BASE_PATH || envs[`process.env.TDSK_WEB_BASE_PATH`] || `/`
 
 export const config = {
   root: rootDir,
@@ -38,6 +42,10 @@ export const config = {
     alias: aliases,
   },
   plugins: [
+    mdx({
+      remarkPlugins: [remarkGfm],
+      rehypePlugins: [rehypeSlug, [rehypeAutolinkHeadings, { behavior: `wrap` }]],
+    }),
     react(),
     viteTsconfigPaths({
       root: rootDir,
@@ -56,12 +64,6 @@ export const config = {
         dimensions: false,
       },
     }),
-    {
-      name: `markdown-loader`,
-      transform(code: string, id: string) {
-        if (id.slice(-3) === `.md`) return `export default ${JSON.stringify(code)}`
-      },
-    },
   ],
   build: {
     outDir: `dist`,

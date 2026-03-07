@@ -80,8 +80,9 @@ test.describe('Org Schedules Page', () => {
     await expect(page.locator('#agent-id')).toBeVisible()
     await expect(page.locator('#tdsk-schedule-cron-input')).toBeVisible()
     await expect(page.locator('#tdsk-schedule-prompt-input')).toBeVisible()
-    await expect(page.getByText('Enabled')).toBeVisible()
-    await expect(page.getByText('New Thread Per Run')).toBeVisible()
+    const form = page.locator('#schedule-form')
+    await expect(form.getByText('Enabled')).toBeVisible()
+    await expect(form.getByText('New Thread Per Run')).toBeVisible()
 
     await page.keyboard.press('Escape')
   })

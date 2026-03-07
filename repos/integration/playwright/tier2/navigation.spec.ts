@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures/auth'
 
 /**
- * Navigation integration tests for the ThreadedStack admin UI.
+ * Navigation integration tests for the Threaded Stack admin UI.
  *
  * Covers deep linking, invalid routes, sidebar context, browser history,
  * and page refresh persistence.
@@ -163,13 +163,13 @@ test.describe('Navigation', () => {
 
     // Step 4: Go back — should return to org detail
     await page.goBack()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.locator('.tdsk-org-page')).toBeVisible({ timeout: 10000 })
     expect(page.url()).toContain(`/orgs/${ctx.orgId}`)
 
     // Step 5: Go back again — should return to home
     await page.goBack()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await expect(page.locator('.tdsk-home-page')).toBeVisible({ timeout: 10000 })
     expect(page.url()).toBe(homeUrl)
   })

@@ -5,7 +5,7 @@ import { Version } from '@TRL/constants/version'
 
 const action: TTaskAction = async ({ tasks }) => {
   process.stdout.write(
-    `\n${themed(`bold`, themed(`primary`, `tsa`))} ${themed(`muted`, `v${Version}`)} — ThreadedStack AI Agent REPL\n\n`
+    `\n${themed(`bold`, themed(`primary`, `tsa`))} ${themed(`muted`, `v${Version}`)} — Threaded Stack AI Agent REPL\n\n`
   )
   process.stdout.write(`${themed(`bold`, `Commands:`)}\n`)
 

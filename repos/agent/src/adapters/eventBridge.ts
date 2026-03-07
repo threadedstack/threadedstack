@@ -25,8 +25,8 @@ const PiMonoEventType = {
 } as const
 
 /**
- * Maps a pi-mono AgentEvent to ThreadedStack's TStreamEvent for WebSocket output.
- * Returns undefined for events that have no ThreadedStack equivalent.
+ * Maps a pi-mono AgentEvent to Threaded Stack's TStreamEvent for WebSocket output.
+ * Returns undefined for events that have no Threaded Stack equivalent.
  */
 export const mapAgentEvent = (
   event: AgentEvent,

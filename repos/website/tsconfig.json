@@ -46,9 +46,7 @@
   "include": [
     "src",
     "configs",
-    "../../configs",
-    "../domain/src",
-    "../components/src"
+    "../../configs"
   ],
   "exclude": [
     "build",

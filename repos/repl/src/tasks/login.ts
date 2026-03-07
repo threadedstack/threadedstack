@@ -5,7 +5,7 @@ import { themed } from '@TRL/theme'
 export const login: TTask = {
   name: `login`,
   alias: [`li`],
-  description: `Authenticate with a ThreadedStack API key`,
+  description: `Authenticate with a Threaded Stack API key`,
   example: `tsa login <api-key> [--url <proxy-url>] [--insecure]`,
   options: {
     apiKey: {

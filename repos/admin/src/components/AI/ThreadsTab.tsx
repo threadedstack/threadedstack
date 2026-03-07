@@ -188,11 +188,8 @@ export const ThreadsTab = (props: TThreadsTab) => {
       setDeleteDialogOpen(false)
     } else {
       setSuccess('Thread deleted successfully')
-      setDeleteDialogOpen(false)
       setTimeout(() => setSuccess(null), 2000)
-      if (orgId && activeAgentId) {
-        await fetchThreads({ orgId, agentId: activeAgentId, contextKey: 'org' })
-      }
+      setDeleteDialogOpen(false)
     }
   }
 

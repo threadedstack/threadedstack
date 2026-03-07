@@ -4,16 +4,18 @@ import type { TDataTableColumn } from '@TAF/components'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import { toast } from 'sonner'
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ConfirmDelete, Text } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
-import { schedulesApi } from '@TAF/services/schedulesApi'
-import { agentsApi } from '@TAF/services/agentsApi'
 import { ScheduleDrawer } from '@TAF/components/Schedules/ScheduleDrawer'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
-import type { Agent } from '@tdsk/domain'
+import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
+import { fetchSchedules as fetchSchedulesAction } from '@TAF/actions/schedules/api/fetchSchedules'
+import { deleteSchedule } from '@TAF/actions/schedules/api/deleteSchedule'
+import { triggerSchedule } from '@TAF/actions/schedules/api/triggerSchedule'
+import { useSchedules, useOrgAgents } from '@TAF/state/selectors'
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -44,48 +46,36 @@ const styles = {
 export const Schedules = (props: TSchedules) => {
   const { orgId, agentId } = props
 
+  const [schedulesMap] = useSchedules()
+  const [orgAgents] = useOrgAgents()
+  const schedules = useMemo(() => Object.values(schedulesMap || {}), [schedulesMap])
+
   const [error, setError] = useState<Error>()
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [deleting, setDeleting] = useState<Schedule>()
-  const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [agents, setAgents] = useState<Record<string, Agent>>({})
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null)
 
-  const fetchSchedules = useCallback(async () => {
+  useEffect(() => {
     if (!orgId) return
 
     setLoading(true)
     setError(undefined)
 
-    const resp = await schedulesApi.list(orgId)
-    if (resp.error) {
-      setError(resp.error instanceof Error ? resp.error : new Error(String(resp.error)))
-    } else {
-      setSchedules(resp.data || [])
-    }
+    // Fetch agents into the store if not already loaded
+    if (!orgAgents) fetchAgents({ orgId })
 
-    setLoading(false)
+    fetchSchedulesAction(orgId)
+      .then((resp) => {
+        if (resp.error) {
+          setError(
+            resp.error instanceof Error ? resp.error : new Error(String(resp.error))
+          )
+        }
+      })
+      .finally(() => setLoading(false))
   }, [orgId])
-
-  const fetchAgents = useCallback(async () => {
-    if (!orgId) return
-
-    const resp = await agentsApi.list(orgId)
-    if (resp.data) {
-      const agentMap: Record<string, Agent> = {}
-      for (const agent of resp.data) {
-        agentMap[agent.id] = agent
-      }
-      setAgents(agentMap)
-    }
-  }, [orgId])
-
-  useEffect(() => {
-    fetchSchedules()
-    fetchAgents()
-  }, [fetchSchedules, fetchAgents])
 
   const onCreateSchedule = () => {
     setSelectedSchedule(null)
@@ -105,7 +95,7 @@ export const Schedules = (props: TSchedules) => {
   const onTrigger = async (schedule: Schedule) => {
     if (!orgId) return
 
-    const resp = await schedulesApi.trigger(orgId, schedule.id)
+    const resp = await triggerSchedule(orgId, schedule.id)
     if (resp.error) {
       toast.error(`Failed to trigger schedule`)
     } else {
@@ -119,23 +109,17 @@ export const Schedules = (props: TSchedules) => {
     setLoading(true)
     setError(undefined)
 
-    const result = await schedulesApi.delete(orgId, deleting.id)
-
-    setLoading(false)
-    setDeleting(undefined)
-    dialogOpen && setDialogOpen(false)
+    const result = await deleteSchedule(orgId, deleting.id)
 
     if (result.error) {
       setError(
         result.error instanceof Error ? result.error : new Error(String(result.error))
       )
-    } else {
-      await fetchSchedules()
     }
-  }
 
-  const onSuccess = async () => {
-    await fetchSchedules()
+    setLoading(false)
+    setDeleting(undefined)
+    dialogOpen && setDialogOpen(false)
   }
 
   const filteredSchedules = useMemo(() => {
@@ -306,12 +290,11 @@ export const Schedules = (props: TSchedules) => {
       {orgId && (
         <ScheduleDrawer
           orgId={orgId}
-          agents={agents}
+          agents={orgAgents}
           open={dialogOpen}
           onRemove={setDeleting}
           schedule={selectedSchedule}
           onClose={onDialogClose}
-          onSuccess={onSuccess}
         />
       )}
 

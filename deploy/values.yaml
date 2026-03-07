@@ -44,7 +44,7 @@ env:
   # Fallback Log level used when others are not defined
   # Allowed levels are debug | info | warn | error
   TDSK_LOG_LEVEL: debug
-  TDSK_LOG_LABEL: ThreadedStack
+  TDSK_LOG_LABEL: TDSK
   TDSK_LOG_DISABLED: false
   TDSK_LOG_EXIT_ON_ERR: false
   TDSK_LOG_PRETTY_PRINT: true

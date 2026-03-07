@@ -241,6 +241,37 @@ export async function ensureFullListLoad(page: Page, pathPattern: string) {
 }
 
 /**
+ * Toggle a MUI SwitchInput by its DOM id.
+ * SwitchInput renders <input type="checkbox" id="..." /> inside a label.
+ */
+export async function toggleSwitch(page: Page, id: string) {
+  const input = page.locator(`#${id}`)
+  await expect(input).toBeAttached({ timeout: 5_000 })
+  const label = input.locator('xpath=ancestor::label')
+  if ((await label.count()) > 0) {
+    await label.click()
+  } else {
+    await input.click({ force: true })
+  }
+}
+
+/**
+ * Select a value from an EntitySelector (MUI Autocomplete) by its DOM id.
+ * Clicks to open, then selects the first matching option.
+ */
+export async function selectEntityOption(page: Page, id: string, optionText?: string) {
+  const input = page.locator(`#${id}`)
+  await expect(input).toBeAttached({ timeout: 5_000 })
+  await input.click()
+
+  const option = optionText
+    ? page.locator('.MuiAutocomplete-popper .MuiAutocomplete-option', { hasText: optionText })
+    : page.locator('.MuiAutocomplete-popper .MuiAutocomplete-option').first()
+  await expect(option.first()).toBeVisible({ timeout: 5_000 })
+  await option.first().click()
+}
+
+/**
  * Delete a resource via API. Best-effort, swallows errors.
  */
 export async function apiDeleteResource(

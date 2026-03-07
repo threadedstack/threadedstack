@@ -4,7 +4,8 @@ import Box from '@mui/material/Box'
 import { useState, useEffect } from 'react'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
 import { AgentSelector } from '@TAF/components/Selectors'
-import { schedulesApi } from '@TAF/services/schedulesApi'
+import { createSchedule } from '@TAF/actions/schedules/api/createSchedule'
+import { updateSchedule } from '@TAF/actions/schedules/api/updateSchedule'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { FormSection } from '@TAF/components/FormSection/FormSection'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
@@ -15,7 +16,6 @@ export type TScheduleDrawer = {
   orgId?: string
   onClose: () => void
   schedule?: Schedule | null
-  onSuccess?: () => void
   onRemove: (schedule: Schedule) => void
   agents?: Record<string, Agent>
 }
@@ -35,7 +35,6 @@ export const ScheduleDrawer = ({
   schedule,
   onRemove,
   onClose: onCloseCB,
-  onSuccess: onSuccessCB,
 }: TScheduleDrawer) => {
   const isEditMode = !!schedule
   const [loading, setLoading] = useState(false)
@@ -92,9 +91,9 @@ export const ScheduleDrawer = ({
     let result: { error?: Error } | undefined
 
     if (isEditMode && schedule) {
-      result = await schedulesApi.update(orgId, schedule.id, payload)
+      result = await updateSchedule(orgId, schedule.id, payload)
     } else {
-      result = await schedulesApi.create(orgId, payload)
+      result = await createSchedule(orgId, payload)
     }
 
     setLoading(false)
@@ -104,7 +103,6 @@ export const ScheduleDrawer = ({
       const msg = result.error?.message || `Please try again.`
       setError(`Failed to ${action} schedule. ${msg}`)
     } else {
-      onSuccessCB?.()
       onClose()
     }
   }

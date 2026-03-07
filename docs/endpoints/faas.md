@@ -27,13 +27,13 @@
 
 ## 1. What is FaaS?
 
-FaaS (Function as a Service) is one of three endpoint types in ThreadedStack. It lets users write small functions in TypeScript or JavaScript, deploy them instantly, and call them via HTTP — without managing servers, containers, or infrastructure.
+FaaS (Function as a Service) is one of three endpoint types in Threaded Stack. It lets users write small functions in TypeScript or JavaScript, deploy them instantly, and call them via HTTP — without managing servers, containers, or infrastructure.
 
 Think of it like a "mini Lambda" built into the platform. You write a function, attach it to an endpoint, and call it with an HTTP request. The platform handles everything else: routing, authentication, sandboxed execution, and response formatting.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                 ThreadedStack Endpoint Types            │
+│                 Threaded Stack Endpoint Types            │
 ├──────────────┬──────────────────┬───────────────────────┤
 │    Proxy     │      FaaS        │       Agent           │
 │              │                  │                       │

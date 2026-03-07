@@ -49,6 +49,12 @@ export const createSession: TEndpointConfig = {
         `Could not resolve provider type for this agent's provider`
       )
 
+    if (!provider.secretId)
+      throw new Exception(
+        400,
+        `Provider "${provider.name || provider.id}" has no API key secret linked. Configure one in the provider settings.`
+      )
+
     // Resolve model via 3-tier hierarchy: junction → agent → provider default
     const model = agent.resolveModel(provider.id, provider.options?.model)
     if (!model)

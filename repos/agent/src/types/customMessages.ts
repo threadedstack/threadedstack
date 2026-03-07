@@ -1,5 +1,5 @@
 /**
- * Custom AgentMessage types for ThreadedStack.
+ * Custom AgentMessage types for Threaded Stack.
  *
  * Uses pi-agent-core's declaration merging to add artifact, notification,
  * and systemEvent roles. These message types are stored in the agent's

@@ -236,10 +236,20 @@ test.describe('AgentSelector in Endpoint Drawer', () => {
       await createBtn.first().click()
       await page.waitForTimeout(2000)
 
-      // Select "Agent" endpoint type
-      const agentTypeOption = page.getByText('Agent', { exact: true })
-      if ((await agentTypeOption.count()) > 0) {
-        await agentTypeOption.first().click()
+      // Select "Agent" endpoint type via the MUI Select dropdown
+      const endpointTypeInput = page.locator('#endpoint-type')
+      const isTypeSelectAttached = (await endpointTypeInput.count()) > 0
+      if (isTypeSelectAttached) {
+        const combobox = endpointTypeInput.locator('xpath=..').locator('[role="combobox"]')
+        if ((await combobox.count()) > 0) {
+          await combobox.click()
+        } else {
+          await endpointTypeInput.click()
+        }
+        const agentMenuItem = page.locator('.MuiMenuItem-root', { hasText: 'Agent' })
+        if ((await agentMenuItem.count()) > 0) {
+          await agentMenuItem.first().click()
+        }
         await page.waitForTimeout(1000)
 
         // AgentSelector: MUI puts id='agent-id' on the combobox input

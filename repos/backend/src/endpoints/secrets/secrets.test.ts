@@ -3,7 +3,7 @@ import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { secrets } from './secrets'
-import { Secret } from '@tdsk/domain'
+import { Secret, Provider } from '@tdsk/domain'
 import { isFunc } from '@keg-hub/jsutils/isFunc'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
@@ -44,6 +44,7 @@ describe(`Secrets endpoints`, () => {
             },
             provider: {
               get: vi.fn(),
+              list: vi.fn(),
             },
             agent: {
               get: vi.fn(),
@@ -680,7 +681,10 @@ describe(`Secrets endpoints`, () => {
       const mockDelete = mockReq.app?.locals.db.services.secret.delete as ReturnType<
         typeof vi.fn
       >
+      const mockProviderList = mockReq.app?.locals.db.services.provider
+        .list as ReturnType<typeof vi.fn>
       mockGet.mockResolvedValue({ data: existingSecret })
+      mockProviderList.mockResolvedValue({ data: [] })
       mockDelete.mockResolvedValue({ data: existingSecret })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -703,6 +707,37 @@ describe(`Secrets endpoints`, () => {
         `Secret not found`
       )
       expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
+    })
+
+    it(`should return 409 when secret is referenced as a provider API key`, async () => {
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `admin` } })
+
+      const existingSecret = new Secret({
+        id: `123`,
+        name: `LINKED_KEY`,
+        hashKey: `h`,
+        orgId: `o`,
+      })
+      mockReq.params = { id: `123` }
+
+      const mockGet = mockReq.app?.locals.db.services.secret.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockProviderList = mockReq.app?.locals.db.services.provider
+        .list as ReturnType<typeof vi.fn>
+
+      mockGet.mockResolvedValue({ data: existingSecret })
+      mockProviderList.mockResolvedValue({
+        data: [
+          new Provider({ id: `prov-1`, name: `My Provider`, type: `ai`, orgId: `o` }),
+        ],
+      })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        /Cannot delete secret/
+      )
     })
   })
 })

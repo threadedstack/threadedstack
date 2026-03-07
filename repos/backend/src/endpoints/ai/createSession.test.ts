@@ -299,6 +299,33 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
     })
   })
 
+  it(`should throw 400 when provider has no secretId`, async () => {
+    const ep = getEndpointCfg(createSession as any)
+    const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
+      typeof vi.fn
+    >
+
+    mockAgentGet.mockResolvedValue({
+      data: buildAgent({
+        providers: [
+          {
+            id: `prov-1`,
+            secretId: null,
+            type: `ai`,
+            orgId: `org-1`,
+            name: `anthropic`,
+            brand: `anthropic`,
+            options: {},
+          },
+        ],
+      }),
+    })
+
+    await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+      `has no API key secret linked`
+    )
+  })
+
   it(`should use default model when agent has none`, async () => {
     const ep = getEndpointCfg(createSession as any)
     const mockAgentGet = mockReq.app?.locals.db.services.agent.get as ReturnType<

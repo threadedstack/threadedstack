@@ -3,13 +3,15 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ConfirmDelete, Text } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { SkillDrawer } from '@TAF/components/Skills/SkillDrawer'
-import { skillsApi } from '@TAF/services/skillsApi'
+import { useSkills } from '@TAF/state/selectors'
+import { fetchSkills } from '@TAF/actions/skills/api/fetchSkills'
+import { deleteSkill } from '@TAF/actions/skills/api/deleteSkill'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Extension as ExtensionIcon,
@@ -39,31 +41,27 @@ const styles = {
 export const Skills = (props: TSkills) => {
   const { orgId } = props
 
+  const [skillsMap] = useSkills()
+  const skills = useMemo(() => Object.values(skillsMap || {}), [skillsMap])
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [deleting, setDeleting] = useState<Skill>()
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null)
-  const [skills, setSkills] = useState<Skill[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error>()
 
-  const fetchSkills = useCallback(async () => {
+  useEffect(() => {
     if (!orgId) return
 
     setLoading(true)
-    const resp = await skillsApi.list(orgId)
-    setLoading(false)
-
-    if (resp.error) {
-      setError(resp.error instanceof Error ? resp.error : new Error(String(resp.error)))
-    } else {
-      setSkills(resp.data || [])
-    }
+    fetchSkills(orgId).then((resp) => {
+      setLoading(false)
+      if (resp.error) {
+        setError(resp.error instanceof Error ? resp.error : new Error(String(resp.error)))
+      }
+    })
   }, [orgId])
-
-  useEffect(() => {
-    fetchSkills()
-  }, [fetchSkills])
 
   const onCreateSkill = () => {
     setSelectedSkill(null)
@@ -86,23 +84,17 @@ export const Skills = (props: TSkills) => {
     setLoading(true)
     setError(undefined)
 
-    const result = await skillsApi.delete(orgId, deleting.id)
-
-    setLoading(false)
-    setDeleting(undefined)
-    dialogOpen && setDialogOpen(false)
+    const result = await deleteSkill(orgId, deleting.id)
 
     if (result.error) {
       setError(
         result.error instanceof Error ? result.error : new Error(String(result.error))
       )
-    } else {
-      fetchSkills()
     }
-  }
 
-  const onSuccess = () => {
-    fetchSkills()
+    setLoading(false)
+    setDeleting(undefined)
+    dialogOpen && setDialogOpen(false)
   }
 
   const filteredSkills = useMemo(() => {
@@ -238,7 +230,6 @@ export const Skills = (props: TSkills) => {
           onRemove={setDeleting}
           skill={selectedSkill}
           onClose={onDialogClose}
-          onSuccess={onSuccess}
         />
       )}
 

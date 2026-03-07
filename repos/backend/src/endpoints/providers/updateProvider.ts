@@ -30,6 +30,10 @@ export const updateProvider: TEndpointConfig = {
       (provider) => ({ orgId: provider.orgId })
     )
 
+    // Prevent accidental clearing of API key link
+    // Allow secretId to be changed to a different secret, but not nulled out
+    if (providerData.secretId === null) delete providerData.secretId
+
     providerData.type && validateProviderType(providerData.type)
     validateLLMProvider(providerData.type, providerData.brand)
 

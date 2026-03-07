@@ -1,6 +1,6 @@
 # Threaded Stack - Database (@tdsk/database)
 
-The database repo is the ORM layer for the ThreadedStack platform, built on Drizzle ORM with PostgreSQL (Neon.com). It defines 18+ table schemas, a service-based CRUD API, and converts DB records to domain models.
+The database repo is the ORM layer for the Threaded Stack platform, built on Drizzle ORM with PostgreSQL (Neon.com). It defines 18+ table schemas, a service-based CRUD API, and converts DB records to domain models.
 
 
 ## Purpose & Architecture

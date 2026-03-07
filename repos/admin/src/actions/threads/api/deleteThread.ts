@@ -9,7 +9,7 @@ export const deleteThread = async (
 ) => {
   const resp = await threadsApi.delete(orgId, agentId, id)
   if (resp.error) return { error: resp.error }
-  resp.data?.success && removeThread(contextKey, id)
 
+  removeThread(contextKey, id)
   return resp
 }

@@ -69,7 +69,10 @@ const resolveSession = async (
     const secrets = new SecretResolver(db)
     const apiKey = await secrets.resolveApiKey(agent, provider)
     if (!apiKey) {
-      logger.warn(`Session resolve: no API key for agent ${payload.agentId}`)
+      logger.warn(
+        `Session resolve: provider "${provider.name || provider.id}" has no API key secret linked`,
+        { agentId: payload.agentId, providerId: provider.id }
+      )
       return null
     }
 

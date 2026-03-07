@@ -27,6 +27,18 @@ export const deleteSecret: TEndpointConfig = {
       projectId: existing.projectId,
     })
 
+    // Check if any providers reference this secret as their API key
+    const { data: linkedProviders } = await db.services.provider.list({
+      where: { secretId: id },
+    })
+    if (linkedProviders?.length) {
+      const name = linkedProviders[0].name
+      throw new Exception(
+        409,
+        `Cannot delete secret — it is the API key for provider "${name}". Unlink or replace it first.`
+      )
+    }
+
     const { error } = await db.services.secret.delete(id)
     if (error) throw new Exception(500, error.message)
 

@@ -2,8 +2,9 @@ import type { Skill } from '@tdsk/domain'
 
 import { Box } from '@mui/material'
 import { useState, useEffect } from 'react'
-import { skillsApi } from '@TAF/services/skillsApi'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
+import { createSkill } from '@TAF/actions/skills/api/createSkill'
+import { updateSkill } from '@TAF/actions/skills/api/updateSkill'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { Drawer, TextInput, SwitchInput, DrawerActions } from '@tdsk/components'
@@ -13,7 +14,6 @@ export type TSkillDrawer = {
   orgId?: string
   onClose: () => void
   skill?: Skill | null
-  onSuccess?: () => void
   onRemove?: (skill: Skill) => void
 }
 
@@ -32,7 +32,6 @@ export const SkillDrawer = ({
   skill,
   onRemove,
   onClose: onCloseCB,
-  onSuccess: onSuccessCB,
 }: TSkillDrawer) => {
   const isEditMode = !!skill
   const [loading, setLoading] = useState(false)
@@ -99,9 +98,9 @@ export const SkillDrawer = ({
     let result: { error?: Error } | undefined
 
     if (isEditMode && skill) {
-      result = await skillsApi.update(orgId, skill.id, data)
+      result = await updateSkill(orgId, skill.id, data)
     } else {
-      result = await skillsApi.create(orgId, data)
+      result = await createSkill(orgId, data)
     }
 
     setLoading(false)
@@ -111,7 +110,6 @@ export const SkillDrawer = ({
       const msg = result.error?.message || `Please try again.`
       setError(`Failed to ${action} skill. ${msg}`)
     } else {
-      onSuccessCB?.()
       onClose()
     }
   }

@@ -1,6 +1,7 @@
 import type { Atom } from 'jotai'
 import type { atomWithReset } from 'jotai/utils'
 import type {
+  Role,
   Agent,
   Asset,
   Domain,
@@ -29,6 +30,9 @@ import {
   orgAssetsState,
   projectAssetsState,
 } from '@TAF/state/assets'
+import { skillsState, activeSkillIdState } from '@TAF/state/skills'
+import { schedulesState, activeScheduleIdState } from '@TAF/state/schedules'
+import { projectMembersState, activeProjectMembersState } from '@TAF/state/projectMembers'
 import {
   domainsState,
   activeDomainIdState,
@@ -185,6 +189,18 @@ export const useOrgDomains = () =>
 export const useOrgThreads = () =>
   useDerivedState<Record<string, Thread>>(orgThreadsState)
 export const useOrgAssets = () => useDerivedState<Record<string, Asset>>(orgAssetsState)
+
+// Org-scoped flat atoms
+export const useSkills = () => useRecState(skillsState)
+export const useActiveSkillId = () => useRecState(activeSkillIdState)
+
+export const useSchedules = () => useRecState(schedulesState)
+export const useActiveScheduleId = () => useRecState(activeScheduleIdState)
+
+// Project-scoped members
+export const useProjectMembers = () => useRecState(projectMembersState)
+export const useActiveProjectMembers = () =>
+  useDerivedState<Record<string, Role>>(activeProjectMembersState)
 
 // Thread-scoped messages
 export const useActiveThread = () => useDerivedState<Thread>(activeThreadState)

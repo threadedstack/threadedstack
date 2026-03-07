@@ -7,5 +7,8 @@ export type TFetchProviderSecretsOpts = {
 
 export const fetchProviderSecrets = async (opts: TFetchProviderSecretsOpts) => {
   const { orgId, providerId } = opts
-  return secretsApi.list(orgId, undefined, { providerId })
+  return secretsApi.list(orgId, undefined, {
+    providerId,
+    queryKey: ['secrets', 'provider', providerId, 'list'],
+  })
 }

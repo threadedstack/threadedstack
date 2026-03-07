@@ -8,6 +8,8 @@ import type {
   TRailSectionId,
 } from '@TAF/types'
 import type {
+  Role,
+  Skill,
   User,
   Plan,
   Asset,
@@ -18,6 +20,7 @@ import type {
   Thread,
   Message,
   Project,
+  Schedule,
   Provider,
   Endpoint,
   Subscription,
@@ -37,6 +40,9 @@ import {
   activeRailSectionState,
 } from '@TAF/state/app'
 import { apiKeysState } from '@TAF/state/apiKeys'
+import { skillsState, activeSkillIdState } from '@TAF/state/skills'
+import { schedulesState, activeScheduleIdState } from '@TAF/state/schedules'
+import { projectMembersState } from '@TAF/state/projectMembers'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { assetsState, activeAssetIdState } from '@TAF/state/assets'
 import { agentsState, activeAgentIdState } from '@TAF/state/agents'
@@ -241,6 +247,41 @@ export const getAgentFormState = () => store.get(agentFormState)
 export const resetAgentFormState = () => store.set(agentFormState, DefAgentState)
 export const setAgentFormState = (state: TAgentFormState) =>
   store.set(agentFormState, state)
+
+// Skills (org-scoped, flat)
+export const getSkills = () => store.get(skillsState)
+export const resetSkills = () => store.set(skillsState, undefined)
+export const setSkills = (skills: Record<string, Skill>) => store.set(skillsState, skills)
+
+export const getActiveSkillId = () => store.get(activeSkillIdState)
+export const resetActiveSkillId = () => store.set(activeSkillIdState, undefined)
+export const setActiveSkillId = (id: string) => store.set(activeSkillIdState, id)
+
+// Schedules (org-scoped, flat)
+export const getSchedules = () => store.get(schedulesState)
+export const resetSchedules = () => store.set(schedulesState, undefined)
+export const setSchedules = (schedules: Record<string, Schedule>) =>
+  store.set(schedulesState, schedules)
+
+export const getActiveScheduleId = () => store.get(activeScheduleIdState)
+export const resetActiveScheduleId = () => store.set(activeScheduleIdState, undefined)
+export const setActiveScheduleId = (id: string) => store.set(activeScheduleIdState, id)
+
+// ProjectMembers (project-scoped)
+export const getProjectMembers = () => store.get(projectMembersState)
+export const resetProjectMembers = () => store.set(projectMembersState, undefined)
+export const setProjectMembersState = (members: Record<string, Record<string, Role>>) =>
+  store.set(projectMembersState, members)
+
+export const getProjectMembersForProject = (projectId: string) =>
+  getProjectMembers()?.[projectId]
+export const setProjectMembersForProject = (
+  projectId: string,
+  members: Record<string, Role>
+) => {
+  const all = getProjectMembers() || {}
+  store.set(projectMembersState, { ...all, [projectId]: members })
+}
 
 // --- Scope-keyed accessors ---
 

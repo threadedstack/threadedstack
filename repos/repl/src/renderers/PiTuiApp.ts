@@ -242,7 +242,7 @@ export class PiTuiApp {
   #renderLoginPhase(): void {
     this.#welcomeText = new Text(
       [
-        themed(`bold`, `ThreadedStack Agent REPL`),
+        themed(`bold`, `Threaded Stack Agent REPL`),
         ``,
         themed(`muted`, `You are not logged in.`),
         `${themed(`muted`, `Run `)}${themed(`primary`, `/login <api-key> [--insecure]`)}${themed(`muted`, ` to authenticate.`)}`,
@@ -297,7 +297,7 @@ export class PiTuiApp {
     this.#welcomeText = new Text(
       [
         border,
-        ` ${themed(`bold`, `ThreadedStack Agent REPL`)} ${themed(`muted`, `v${Version}`)}`,
+        ` ${themed(`bold`, `Threaded Stack Agent REPL`)} ${themed(`muted`, `v${Version}`)}`,
         border,
       ].join(`\n`),
       1,
