@@ -89,6 +89,14 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         fetchSecrets({ orgId, projectId }),
       ])
 
+      if (orgSecretsResult.error)
+        console.warn('[AgentDrawer] Failed to load org secrets:', orgSecretsResult.error)
+      if (projectSecretsResult.error)
+        console.warn(
+          '[AgentDrawer] Failed to load project secrets:',
+          projectSecretsResult.error
+        )
+
       // Merge org + project secrets, then add agent's own secrets (dedup by ID)
       const fetched = [
         ...(orgSecretsResult.data || []),
@@ -102,8 +110,10 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
       // Load providers
       const providersResult = await fetchProviders({ orgId })
-      if (providersResult.providers) {
-        const aiProvidersOnly = Object.values(providersResult.providers)
+      if (providersResult.error)
+        console.warn('[AgentDrawer] Failed to load providers:', providersResult.error)
+      if (providersResult.data) {
+        const aiProvidersOnly = providersResult.data
           .filter((p) => p.type === `ai`)
           .map((p) => ({
             id: p.id,
@@ -120,20 +130,31 @@ export const AgentDrawer = (props: TAgentDrawer) => {
           orgId,
           projectId: effectiveProjectId,
         })
-        functionsResult?.functions &&
-          setAvailableFunctions(Object.values(functionsResult.functions))
+        if (functionsResult?.error) {
+          setError(`Failed to load functions`)
+          console.warn(`[AgentDrawer] Failed to load functions:`, functionsResult.error)
+        }
+        functionsResult?.data && setAvailableFunctions(functionsResult.data)
       }
 
       // Load org projects for project assignment
       const projectsResp = await fetchProjects({ orgId })
-      if (projectsResp?.projects) {
-        setOrgProjects(
-          Object.values(projectsResp.projects).map((p) => ({ id: p.id, name: p.name }))
-        )
+      if (projectsResp?.error) {
+        setError(`Failed to load projects`)
+        console.warn(`[AgentDrawer] Failed to load projects:`, projectsResp.error)
       }
+      projectsResp?.data &&
+        setOrgProjects(
+          Object.values(projectsResp.data).map((p) => ({ id: p.id, name: p.name }))
+        )
     }
 
-    open && orgId && loadData()
+    open &&
+      orgId &&
+      loadData().catch((err) => {
+        console.warn('[AgentDrawer] Unexpected error loading data:', err)
+        setError('Failed to load drawer data. Please close and try again.')
+      })
   }, [open, orgId, projectId, agent])
 
   // Pre-populate form with agent data when drawer opens
@@ -292,25 +313,31 @@ export const AgentDrawer = (props: TAgentDrawer) => {
           envVars: Object.keys(envVarsObj).length ? envVarsObj : null,
           functionIds: selectedFunctionIds.length ? selectedFunctionIds : null,
         }
-        await upsertAgentConfig({
+        const result = await upsertAgentConfig({
           orgId,
           projectId: projectId!,
           agentId: agent!.id,
           data: configData,
         })
+        if (result.error)
+          return setError(result.error.message || `Failed to save agent config`)
       } else if (agent) {
-        await updateAgent({
+        const result = await updateAgent({
           orgId,
           projectId,
           id: agent.id,
           data: agentData,
         })
+        if (result.error)
+          return setError(result.error.message || `Failed to update agent`)
       } else {
-        await createAgent({
+        const result = await createAgent({
           orgId,
           projectId,
           data: agentData,
         })
+        if (result.error)
+          return setError(result.error.message || `Failed to create agent`)
       }
 
       onSuccessCB?.()

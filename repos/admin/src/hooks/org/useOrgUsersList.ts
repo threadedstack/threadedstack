@@ -1,8 +1,8 @@
 import type { User } from '@tdsk/domain'
 
 import { useMemo, useState, useEffect } from 'react'
-import { listOrgUsers } from '@TAF/actions/users/listOrgUsers'
-import { removeFromOrg } from '@TAF/actions/users/removeFromOrg'
+import { listOrgUsers } from '@TAF/actions/users/api/listOrgUsers'
+import { removeFromOrg } from '@TAF/actions/users/api/removeFromOrg'
 import { useOrgUsers, useActiveOrgId } from '@TAF/state/selectors'
 
 export const useOrgUsersList = () => {

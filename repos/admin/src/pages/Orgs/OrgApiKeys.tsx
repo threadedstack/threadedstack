@@ -3,9 +3,8 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import { Page } from '@TAF/pages/Page/Page'
 import { listOrgUsers } from '@TAF/actions/users'
-import { useApiKeys } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
-import { useActiveOrgId } from '@TAF/state/selectors'
+import { useApiKeys, useActiveOrgId, useOrgUsers } from '@TAF/state/selectors'
 import { Box, Typography, Chip } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
@@ -27,38 +26,28 @@ export type TOrgApiKeys = {}
 export const OrgApiKeys = (props: TOrgApiKeys) => {
   const [apiKeys] = useApiKeys()
   const [orgId] = useActiveOrgId()
+  const [orgUsersMap] = useOrgUsers()
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<Error | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null)
-  const [orgUsers, setOrgUsers] = useState<
-    Array<{ id: string; name: string; email?: string }>
-  >([])
+
+  const orgUsers = useMemo(() => {
+    const users = orgUsersMap?.[orgId] || []
+    return users.map((u) => ({
+      id: u.id,
+      name:
+        u.displayName || [u.first, u.last].filter(Boolean).join(' ') || u.email || `User`,
+      email: u.email,
+    }))
+  }, [orgUsersMap, orgId])
 
   // Load org users for the user selector in CreateApiKeyDrawer
   useEffect(() => {
     if (!orgId) return
-
-    const loadUsers = async () => {
-      const resp = await listOrgUsers(orgId)
-      if (resp.data) {
-        setOrgUsers(
-          resp.data.map((u) => ({
-            id: u.id,
-            name:
-              u.displayName ||
-              [u.first, u.last].filter(Boolean).join(' ') ||
-              u.email ||
-              `User`,
-            email: u.email,
-          }))
-        )
-      }
-    }
-
-    loadUsers()
+    listOrgUsers(orgId)
   }, [orgId])
 
   // Load org API keys

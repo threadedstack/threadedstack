@@ -104,7 +104,11 @@ export const ProviderDrawer = ({
     if (!orgId) return
 
     const resp = await fetchSecrets({ orgId })
-    if (resp.data) setOrgSecrets(resp.data)
+    if (resp.error) {
+      setError(`Failed to load org secrets`)
+      console.warn(`[ProviderDrawer] Failed to load org secrets:`, resp.error)
+    }
+    resp.data && setOrgSecrets(resp.data)
   }, [orgId])
 
   // Load provider-linked secrets in edit mode
@@ -112,7 +116,11 @@ export const ProviderDrawer = ({
     if (!orgId || !provider?.id) return
 
     const resp = await fetchProviderSecrets({ orgId, providerId: provider.id })
-    if (resp.data) setProviderSecrets(resp.data)
+    if (resp.error) {
+      setError(`Failed to load provider secrets`)
+      console.warn(`[ProviderDrawer] Failed to load provider secrets:`, resp.error)
+    }
+    resp.data && setProviderSecrets(resp.data)
   }, [orgId, provider?.id])
 
   useEffect(() => {
@@ -239,7 +247,7 @@ export const ProviderDrawer = ({
       const secretName =
         template?.defaultSecretName ||
         `${name.trim().toUpperCase().replace(/\s+/g, '_')}_API_KEY`
-      const providerId = isEditMode ? provider?.id : result.provider?.id
+      const providerId = isEditMode ? provider?.id : result.data?.id
       const secretResult = await createSecret({
         orgId,
         name: secretName,
@@ -254,12 +262,19 @@ export const ProviderDrawer = ({
       }
 
       // Link the new secret as the provider's API key
-      if (secretResult.data?.id && providerId)
-        await updateProvider({
+      if (secretResult.data?.id && providerId) {
+        const linkResult = await updateProvider({
           orgId,
           id: providerId,
           data: { secretId: secretResult.data.id },
         })
+        if (linkResult.error) {
+          setLoading(false)
+          return setError(
+            `Provider and API key saved, but failed to link them. Please edit the provider to select the secret manually.`
+          )
+        }
+      }
     }
 
     setLoading(false)

@@ -1,4 +1,2 @@
-export * from './inviteToOrg'
-export * from './listOrgUsers'
-export * from './updateOrgRole'
-export * from './removeFromOrg'
+export * from './api'
+export * from './local'

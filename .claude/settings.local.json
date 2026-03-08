@@ -76,7 +76,8 @@
       "mcp__context7__query-docs",
       "mcp__github__get_file_contents",
       "Bash(NODE_TLS_REJECT_UNAUTHORIZED=0 node:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(/dev/null:*)"
     ]
   },
   "sandbox": {

@@ -47,11 +47,14 @@ const Hero = () => {
           top: '10%',
           left: '5%',
           zIndex: 0,
-          animation: 'heroFloat 20s ease-in-out infinite',
-          '@keyframes heroFloat': {
-            '0%, 100%': { transform: 'translate(0, 0)' },
-            '33%': { transform: 'translate(30px, -20px)' },
-            '66%': { transform: 'translate(-20px, 15px)' },
+          animation: 'heroFloat1 18s ease-in-out infinite',
+          '@keyframes heroFloat1': {
+            '0%': { transform: 'translate(0, 0)' },
+            '15%': { transform: 'translate(120px, 40px)' },
+            '35%': { transform: 'translate(250px, -30px)' },
+            '55%': { transform: 'translate(180px, 120px)' },
+            '75%': { transform: 'translate(50px, 80px)' },
+            '100%': { transform: 'translate(0, 0)' },
           },
         }}
       />
@@ -69,7 +72,15 @@ const Hero = () => {
           bottom: '15%',
           right: '10%',
           zIndex: 0,
-          animation: 'heroFloat 25s ease-in-out infinite reverse',
+          animation: 'heroFloat2 22s ease-in-out infinite',
+          '@keyframes heroFloat2': {
+            '0%': { transform: 'translate(0, 0)' },
+            '20%': { transform: 'translate(-100px, -60px)' },
+            '40%': { transform: 'translate(-200px, 30px)' },
+            '60%': { transform: 'translate(-120px, -100px)' },
+            '80%': { transform: 'translate(-50px, -40px)' },
+            '100%': { transform: 'translate(0, 0)' },
+          },
         }}
       />
 
@@ -85,7 +96,7 @@ const Hero = () => {
           <Grid
             item
             xs={12}
-            md={7}
+            md={6}
           >
             {/* Overline */}
             <Typography
@@ -159,7 +170,7 @@ const Hero = () => {
           <Grid
             item
             xs={12}
-            md={5}
+            md={6}
           >
             <ArchitectureDiagram />
           </Grid>

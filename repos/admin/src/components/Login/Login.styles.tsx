@@ -1,159 +1,102 @@
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
-import { styled, darken, alpha } from '@mui/material/styles'
-import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
+import { styled, alpha } from '@mui/material/styles'
 import { Text, grey, colors, TSIcon, gutter, LoadingButton } from '@tdsk/components'
 
-export const LoginContainer = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
-  return `
-    flex: 1;
-    width: 100vw;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-    background: ${
-      isDark
-        ? `linear-gradient(135deg, ${grey[900]} 0%, ${grey[875]} 50%, ${grey[850]} 100%)`
-        : `linear-gradient(135deg, ${grey[25]} 0%, ${grey[10]} 50%, ${grey[5]} 100%)`
-    };
+// --- Layout ---
 
-    &::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      right: -20%;
-      width: 600px;
-      height: 600px;
-      border-radius: 50%;
-      background: ${
-        isDark
-          ? `radial-gradient(circle, ${alpha(colors.primary.main, 0.08)} 0%, transparent 70%)`
-          : `radial-gradient(circle, ${alpha(colors.primary.main, 0.05)} 0%, transparent 70%)`
-      };
-      animation: float 20s ease-in-out infinite;
-    }
+export const LoginContainer = styled(Box)`
+  flex: 1;
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background-color: ${grey[900]};
+`
 
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: -30%;
-      left: -10%;
-      width: 500px;
-      height: 500px;
-      border-radius: 50%;
-      background: ${
-        isDark
-          ? `radial-gradient(circle, ${alpha(colors.primary[600], 0.06)} 0%, transparent 70%)`
-          : `radial-gradient(circle, ${alpha(colors.primary[300], 0.04)} 0%, transparent 70%)`
-      };
-      animation: float 25s ease-in-out infinite reverse;
-    }
+// --- Brand Panel ---
 
-    @keyframes float {
-      0%, 100% {
-        transform: translate(0, 0) scale(1);
-      }
-      50% {
-        transform: translate(-30px, 30px) scale(1.1);
-      }
-    }
-  `
-})
+export const BrandGlow = styled(Box)`
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at 30% 50%, rgba(51,112,222,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 70%, rgba(51,112,222,0.05) 0%, transparent 50%);
+`
 
-export const LoginContent = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
+export const BrandBlob = styled(Box)`
+  position: absolute;
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+  animation: heroFloat 20s ease-in-out infinite;
 
-  return `
-    z-index: 1;
-    width: 90%;
-    min-width: 450px;
-    max-width: 500px;
-    position: relative;
-    overflow: hidden;
-    backdrop-filter: blur(20px);
-    border-radius: ${theme.dims.border.tpx};
-    border: 1px solid ${isDark ? alpha(grey[700], 0.3) : alpha(grey[200], 0.5)};
-    background: ${
-      isDark
-        ? `linear-gradient(180deg, ${alpha(grey[850], 0.95)} 0%, ${alpha(grey[875], 0.98)} 100%)`
-        : `linear-gradient(180deg, ${alpha(grey[0], 0.98)} 0%, ${alpha(grey[5], 0.95)} 100%)`
-    };
+  @keyframes heroFloat {
+    0%, 100% { transform: translate(0, 0); }
+    33% { transform: translate(30px, -20px); }
+    66% { transform: translate(-20px, 15px); }
+  }
+`
 
-    @media (max-width: 600px) {
-      min-width: 320px;
-      width: 95%;
-    }
-  `
-})
+export const BrandLogo = styled(TSIcon)`
+  width: 56px;
+  height: 56px;
+  fill: ${colors.primary.main};
+  margin-bottom: ${gutter.px};
+`
 
-export const LoginHeader = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
-  return `
-    display: flex;
-    align-items: center;
-    flex-direction: row;
-    justify-content: center;
-    padding: ${gutter.mpx};
-    background: ${isDark ? alpha(grey[825], 0.3) : alpha(grey[10], 0.5)};
-    border-bottom: 1px solid ${isDark ? alpha(grey[700], 0.2) : alpha(grey[200], 0.3)};
-  `
-})
+export const BrandHeadline = styled(Text)`
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-bottom: ${gutter.hpx};
+  background: linear-gradient(135deg, #3370DE, #6B9BEA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+`
 
-export const LoginHeaderText = styled(Text)(({ theme }) => {
-  return `
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    margin-left: ${gutter.tpx};
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background: linear-gradient(135deg, ${colors.primary.main} 0%, ${colors.primary[600]} 100%);
-    background-clip: text;
-  `
-})
+export const BrandSubtitle = styled(Text)`
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: ${gutter.mpx};
+`
 
-export const LoginMainContainer = styled(Box)(({ theme }) => {
-  return `
-    flex: 1;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    justify-content: center;
-    padding: ${gutter.dpx} ${gutter.dpx} ${gutter.size * 2.5}px;
-  `
-})
+// --- Form Card ---
 
-export const LoginMainHeader = styled(Box)(({ theme }) => {
-  return `
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: ${gutter.hpx};
-    padding: 0px 0px ${gutter.tpx};
-  `
-})
+export const LoginContent = styled(Box)`
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 90%;
+  min-width: 420px;
+  max-width: 460px;
 
-export const LoginMainText = styled(Text)(({ theme }) => {
-  return `
-    font-size: 18px;
-    font-weight: 600;
-    color: ${theme.palette.text.primary};
-    letter-spacing: -0.3px;
-  `
-})
+  @media (max-width: 600px) {
+    min-width: 320px;
+    width: 95%;
+  }
+`
 
-export const LoginMainIcon = styled(SecurityOutlinedIcon)(({ theme }) => {
-  return `
-    padding-right: ${gutter.hpx};
-    color: ${colors.primary.main};
-    font-size: 24px;
-  `
-})
+export const LoginMainContainer = styled(Box)`
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+`
 
 export const LoginStack = styled(Stack)(({ theme }) => {
   return `
@@ -168,41 +111,31 @@ export const LoginStack = styled(Stack)(({ theme }) => {
 
 export const BtnSection = styled(Box)`
   display: flex;
-  width: 80%;
-  margin: auto;
-
-  @media (max-width: 500px) {
-    width: 100%;
-  }
-  
+  width: 100%;
 `
 
+// --- Provider Buttons ---
+
 export const GgLoginButton = styled(LoadingButton)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
   return `
     width: 100%;
-    height: 52px;
-    color: ${grey[0]};
-    font-size: 15px;
-    font-weight: 600;
+    height: 44px;
+    color: rgba(255, 255, 255, 0.87);
+    font-size: 0.8125rem;
+    font-weight: 500;
     text-transform: none;
-    border-radius: ${theme.dims.border.tpx};
-    background: #34A853;
-    border: 1px solid ${alpha('#fff', 0.1)};
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: ${theme.dims.border.smpx};
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.15s ease;
 
     &:hover {
-      transform: translateY(-2px);
-      background: ${darken('#34A853', 0.1)};
-    }
-
-    &:active {
-      transform: translateY(0);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.18);
     }
 
     &:disabled {
       opacity: 0.6;
-      transform: none;
     }
   `
 })
@@ -210,28 +143,23 @@ export const GgLoginButton = styled(LoadingButton)(({ theme }) => {
 export const GhLoginButton = styled(LoadingButton)(({ theme }) => {
   return `
     width: 100%;
-    height: 52px;
-    color: ${grey[0]};
-    font-size: 15px;
-    font-weight: 600;
+    height: 44px;
+    color: rgba(255, 255, 255, 0.87);
+    font-size: 0.8125rem;
+    font-weight: 500;
     text-transform: none;
-    background: ${darken(`#909692`, 0.2)};
-    border-radius: ${theme.dims.border.tpx};
-    border: 1px solid ${alpha('#fff', 0.08)};
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: ${theme.dims.border.smpx};
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.15s ease;
 
     &:hover {
-      background: #232925;
-      transform: translateY(-2px);
-    }
-
-    &:active {
-      transform: translateY(0);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.18);
     }
 
     &:disabled {
       opacity: 0.6;
-      transform: none;
     }
   `
 })
@@ -239,28 +167,23 @@ export const GhLoginButton = styled(LoadingButton)(({ theme }) => {
 export const GlLoginButton = styled(LoadingButton)(({ theme }) => {
   return `
     width: 100%;
-    height: 52px;
-    color: ${grey[0]};
-    font-size: 15px;
-    font-weight: 600;
+    height: 44px;
+    color: rgba(255, 255, 255, 0.87);
+    font-size: 0.8125rem;
+    font-weight: 500;
     text-transform: none;
-    background: #fc6d27;
-    border-radius: ${theme.dims.border.tpx};
-    border: 1px solid ${alpha('#fff', 0.1)};
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: ${theme.dims.border.smpx};
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.15s ease;
 
     &:hover {
-      background: ${darken('#fc6d27', 0.08)};
-      transform: translateY(-2px);
-    }
-
-    &:active {
-      transform: translateY(0);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.18);
     }
 
     &:disabled {
       opacity: 0.6;
-      transform: none;
     }
   `
 })
@@ -268,104 +191,104 @@ export const GlLoginButton = styled(LoadingButton)(({ theme }) => {
 export const VrLoginButton = styled(LoadingButton)(({ theme }) => {
   return `
     width: 100%;
-    height: 52px;
-    color: ${grey[0]};
-    font-size: 15px;
-    font-weight: 600;
+    height: 44px;
+    color: rgba(255, 255, 255, 0.87);
+    font-size: 0.8125rem;
+    font-weight: 500;
     text-transform: none;
-    border-radius: ${theme.dims.border.tpx};
-    background: #2E2E2E;
-    border: 1px solid ${alpha('#fff', 0.08)};
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: ${theme.dims.border.smpx};
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.15s ease;
 
     &:hover {
-      background: #0A0A0A;
-      transform: translateY(-2px);
-    }
-
-    &:active {
-      transform: translateY(0);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.18);
     }
 
     &:disabled {
       opacity: 0.6;
-      transform: none;
     }
   `
 })
 
-export const TSLogo = styled(TSIcon)(({ theme }) => {
-  return `
-    width: 36px;
-    height: 36px;
-    fill: ${colors.primary.main};
-  `
-})
+// --- Misc ---
 
 export const ErrorSection = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
   return `
     display: flex;
     width: 100%;
     flex-direction: column;
     padding: ${gutter.tpx};
     margin-top: ${gutter.px};
-    border-radius: ${theme.dims.border.tpx};
-    background: ${
-      isDark
-        ? alpha(theme.palette.colors.states.danger, 0.12)
-        : alpha(theme.palette.colors.states.danger, 0.08)
-    };
-    border: 1px solid ${alpha(theme.palette.colors.states.danger, isDark ? 0.3 : 0.2)};
-    animation: slideIn 0.3s ease-out;
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+    border-radius: ${theme.dims.border.smpx};
+    background: ${alpha(theme.palette.colors.states.danger, 0.12)};
+    border: 1px solid ${alpha(theme.palette.colors.states.danger, 0.3)};
   `
 })
 
 export const ErrorTitle = styled(Text)(({ theme }) => {
   return `
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 0.875rem;
+    font-weight: 600;
     color: ${theme.palette.colors.states.danger};
-    margin-bottom: ${gutter.hpx};
-    letter-spacing: -0.2px;
+    margin-bottom: ${gutter.qpx};
   `
 })
 
-export const ErrorText = styled(Text)(({ theme }) => {
-  return `
-    font-size: 14px;
-    color: ${theme.palette.text.secondary};
-    line-height: 1.5;
-  `
-})
+export const ErrorText = styled(Text)`
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+`
 
 export const EmailFormContainer = styled(`form`)`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: ${gutter.px};
   width: 100%;
+
+  .MuiInputBase-root {
+    color: rgba(255, 255, 255, 0.87);
+  }
+  .MuiOutlinedInput-notchedOutline {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  .MuiInputBase-root:hover .MuiOutlinedInput-notchedOutline {
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+  .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+    border-color: ${colors.primary.main};
+  }
+  .MuiInputLabel-root {
+    color: rgba(255, 255, 255, 0.5);
+  }
+  .MuiInputLabel-root.Mui-focused {
+    color: ${colors.primary.main};
+  }
+  .MuiTypography-root {
+    color: rgba(255, 255, 255, 0.5);
+  }
+  .MuiLink-root {
+    color: #6B9BEA;
+  }
 `
 
 export const EmailFormButton = styled(LoadingButton)(({ theme }) => {
   return `
     width: 100%;
-    height: 42px;
-    font-size: 15px;
+    height: 40px;
+    font-size: 0.8125rem;
     font-weight: 600;
     text-transform: none;
-    border-radius: ${theme.dims?.border?.tpx || '4px'};
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #fff;
+    border-radius: ${theme.dims?.border?.smpx || '6px'};
+    background: linear-gradient(135deg, #3370DE, #4a8cf0);
+    transition: all 0.15s ease;
+
+    &:hover {
+      filter: brightness(0.92);
+    }
 
     &:disabled {
       opacity: 0.6;

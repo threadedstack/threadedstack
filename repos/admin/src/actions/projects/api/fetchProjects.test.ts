@@ -32,8 +32,8 @@ describe('fetchProjects', () => {
 
     expect(mockProjectsList).toHaveBeenCalledWith('org1')
     expect(mockSetProjects).toHaveBeenCalled()
-    expect(result.projects).toBeDefined()
-    expect(Object.keys(result.projects!)).toHaveLength(2)
+    expect(result.data).toBeDefined()
+    expect(Object.keys(result.data!)).toHaveLength(2)
   })
 
   it('should handle API errors', async () => {

@@ -11,7 +11,7 @@ vi.mock(`@TAF/actions/apiKeys`, () => ({
 }))
 
 const mockUpdateOrgRole = vi.fn()
-vi.mock(`@TAF/actions/users/updateOrgRole`, () => ({
+vi.mock(`@TAF/actions/users/api/updateOrgRole`, () => ({
   updateOrgRole: (...args: any[]) => mockUpdateOrgRole(...args),
 }))
 

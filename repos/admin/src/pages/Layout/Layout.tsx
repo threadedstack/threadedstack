@@ -53,7 +53,6 @@ const Layout = (props: any) => {
   const [, setSidebarOpen] = useSidebarOpen()
   const isMobile = useMediaQuery(theme.breakpoints.down(`md`))
 
-  // BUG #6: Pre-fetch projects when orgId is available so breadcrumb project selector works
   // TODO: look into other ways to accomplish this. Like adding a Project loader HOC
   useEffect(() => {
     orgId && fetchProjects({ orgId }).catch(() => {})

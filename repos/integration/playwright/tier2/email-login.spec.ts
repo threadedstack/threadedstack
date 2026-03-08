@@ -52,10 +52,9 @@ test.describe('Email Login Flow', () => {
   })
 
   test('should display login page with email form', async ({ page }) => {
-    // Verify header — scope to visible <p> elements to avoid strict-mode
-    // conflicts with <title> tag and the Sign In submit button
-    await expect(page.locator('.tdsk-login-header p', { hasText: 'Threaded Stack' })).toBeVisible()
-    await expect(page.locator('.tdsk-login-main-header p', { hasText: 'Sign In' })).toBeVisible()
+    // Verify brand headline and subtitle are visible
+    await expect(page.locator('.tdsk-login-content', { hasText: 'Threaded Stack' })).toBeVisible()
+    await expect(page.locator('.tdsk-login-content', { hasText: 'Secure AI agent orchestration' })).toBeVisible()
 
     // Verify email form fields are present
     await expect(page.getByLabel(/email/i)).toBeVisible()

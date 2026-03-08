@@ -7,19 +7,18 @@ import { VrButton } from '@TAF/components/Login/VercelBtn'
 import { EmailLoginForm } from '@TAF/components/Login/EmailLoginForm'
 
 import {
-  TSLogo,
   ErrorText,
   BtnSection,
+  BrandBlob,
+  BrandGlow,
+  BrandLogo,
   LoginStack,
   ErrorTitle,
-  LoginHeader,
+  BrandHeadline,
+  BrandSubtitle,
   LoginContent,
   ErrorSection,
-  LoginMainText,
-  LoginMainIcon,
   LoginContainer,
-  LoginHeaderText,
-  LoginMainHeader,
   LoginMainContainer,
 } from '@TAF/components/Login/Login.styles'
 
@@ -69,16 +68,38 @@ export const Login = (props: TLogin) => {
 
   return (
     <LoginContainer className='tdsk-login-container'>
+      <BrandGlow />
+      <BrandBlob
+        sx={{
+          width: 400,
+          height: 400,
+          top: '10%',
+          left: '5%',
+          background:
+            'radial-gradient(circle, rgba(51,112,222,0.07) 0%, transparent 65%)',
+        }}
+      />
+      <BrandBlob
+        sx={{
+          width: 300,
+          height: 300,
+          bottom: '15%',
+          right: '10%',
+          animationDuration: '25s',
+          animationDirection: 'reverse',
+          background:
+            'radial-gradient(circle, rgba(51,112,222,0.05) 0%, transparent 70%)',
+        }}
+      />
+
       <LoginContent className='tdsk-login-content'>
-        <LoginHeader className='tdsk-login-header'>
-          <TSLogo />
-          <LoginHeaderText>Threaded Stack</LoginHeaderText>
-        </LoginHeader>
+        <BrandLogo />
+        <BrandHeadline>Threaded Stack</BrandHeadline>
+        <BrandSubtitle>
+          Secure AI agent orchestration with enterprise-grade security
+        </BrandSubtitle>
+
         <LoginMainContainer>
-          <LoginMainHeader className='tdsk-login-main-header'>
-            <LoginMainIcon />
-            <LoginMainText>Sign In</LoginMainText>
-          </LoginMainHeader>
           <LoginStack className='tdsk-login-stack'>
             {providers.map((provider) => {
               const Button = LoginBtns[provider]
@@ -104,7 +125,18 @@ export const Login = (props: TLogin) => {
               className='tdsk-login-email'
               sx={{ flexDirection: `column` }}
             >
-              {hasSocialProviders && <Divider sx={{ my: 1, width: `100%` }}>or</Divider>}
+              {hasSocialProviders && (
+                <Divider
+                  sx={{
+                    my: 1,
+                    width: `100%`,
+                    color: `rgba(255,255,255,0.4)`,
+                    '&::before, &::after': { borderColor: `rgba(255,255,255,0.12)` },
+                  }}
+                >
+                  or
+                </Divider>
+              )}
               <EmailLoginForm
                 onSignIn={onEmailSignIn}
                 onSignUp={onEmailSignUp}

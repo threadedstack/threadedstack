@@ -9,10 +9,13 @@ Items are split into separate groups, with the sub repo name as the header.
 
 ## Admin
 
-**Login Page**
-  * The Login page has different overall styles from the rest of the admin pages
-  * It was built first before the other pages styles were updated and so doesn't align with the global styles applied everywhere.
-  * The whole page needs a re-style to make it clean, modern and professional. It is the gateway into the platform, so it should set a good first impression.
+* **Login Page**
+  * The inputs for email and password should use the TextInput component from tdsk/components repo. Because the labels use standard MUI labels which is incorrect
+  * When in light theme mode, the input background turns while, but the test of the page still looks like dark mode. The whole page should have a light them mode style. Should align with the light theme mode of the Hero component in the website repo.
+  * The background colored blobs should animate and more like they do in the Hero component in the website repo.
+
+* **Quick Start Drawer**
+  * 
 
 * **Web Provider Component**
   * The **AgentDrawer** Component defines code for setting the Web Provider settings. This should be extracted out into it's own component.
@@ -34,3 +37,10 @@ Items are split into separate groups, with the sub repo name as the header.
 * **Get Started** buttons should link to the login page of Admin web app
 * Add - `Contact` and `About` pages
   * Update links in the footer to link to these pages, currently link to nothing
+
+
+## Integration
+
+* **Failed Org Member CRUD Tests**
+  * A number of the integration tests in `crud-org-members.spec.ts` were set to **skip** because they are suddenly failing. For each of the tests remove the top level `test.skip`, and fix the issue. It could be a code issue, or test issue. You must investigate and figure out what is causing the problem.
+  * The Viewer and Member users are being unlinked from the organization. Seems like there may be a test that remove the org-id from the roles table, that ties the user to the organization

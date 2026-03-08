@@ -1,5 +1,2 @@
-export * from './fetchFunctions'
-export * from './fetchFunction'
-export * from './createFunction'
-export * from './updateFunction'
-export * from './deleteFunction'
+export * from './api'
+export * from './local'

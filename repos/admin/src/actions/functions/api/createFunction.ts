@@ -1,6 +1,6 @@
 import type { Function as FunctionModel } from '@tdsk/domain'
 import { functionsApi } from '@TAF/services'
-import { getProjectFunctions, setProjectFunctions } from '@TAF/state/accessors'
+import { upsertFunction } from '@TAF/actions/functions/local/upsertFunction'
 
 export type TCreateFunctionOpts = {
   orgId: string
@@ -14,10 +14,6 @@ export const createFunction = async (opts: TCreateFunctionOpts) => {
 
   if (resp.error) return { error: resp.error }
 
-  if (resp.data) {
-    const current = getProjectFunctions(projectId) || {}
-    setProjectFunctions(projectId, { ...current, [resp.data.id]: resp.data })
-  }
-
+  resp.data && upsertFunction(projectId, resp.data)
   return resp
 }

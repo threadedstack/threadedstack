@@ -46,19 +46,18 @@ vi.mock(`@TAF/components/Login/EmailLoginForm`, () => ({
   ),
 }))
 vi.mock(`@TAF/components/Login/Login.styles`, () => ({
-  TSLogo: () => <div data-testid='ts-logo' />,
   ErrorText: ({ children, ...p }: any) => <span {...p}>{children}</span>,
   BtnSection: ({ children }: any) => <div>{children}</div>,
+  BrandBlob: ({ children }: any) => <div>{children}</div>,
+  BrandGlow: () => <div />,
+  BrandLogo: () => <div />,
+  BrandHeadline: ({ children }: any) => <span>{children}</span>,
+  BrandSubtitle: ({ children }: any) => <span>{children}</span>,
   LoginStack: ({ children }: any) => <div>{children}</div>,
   ErrorTitle: ({ children }: any) => <span>{children}</span>,
-  LoginHeader: ({ children }: any) => <div>{children}</div>,
   LoginContent: ({ children }: any) => <div>{children}</div>,
   ErrorSection: ({ children, ...p }: any) => <div {...p}>{children}</div>,
-  LoginMainText: ({ children }: any) => <span>{children}</span>,
-  LoginMainIcon: () => <div />,
   LoginContainer: ({ children, ...p }: any) => <div {...p}>{children}</div>,
-  LoginHeaderText: ({ children }: any) => <span>{children}</span>,
-  LoginMainHeader: ({ children }: any) => <div>{children}</div>,
   LoginMainContainer: ({ children }: any) => <div>{children}</div>,
 }))
 vi.mock(`@mui/material/Divider`, () => ({
@@ -86,7 +85,6 @@ describe(`Login`, () => {
     )
 
     expect(screen.getByText(`Threaded Stack`)).toBeInTheDocument()
-    expect(screen.getByText(`Sign In`)).toBeInTheDocument()
   })
 
   it(`should render social provider buttons for known providers`, () => {

@@ -10,99 +10,108 @@ type NodeDef = {
   y: number
   w: number
   h: number
+  fontSize?: number
+  fontWeight?: number
 }
 type PathDef = { id: string; path: string }
+type DotDef = PathDef & { dur: number }
 
-const nodes: NodeDef[] = [
+/* Loop circle: center=(320, 322.5), radius=97.5
+ * Derived from path start (y=225) to path end (y=420) */
+const r = 97.5
+
+const allNodes: NodeDef[] = [
   {
     id: 'client',
     label: 'Client',
     desc: 'Your app or API consumer',
-    x: 210,
-    y: 10,
-    w: 120,
-    h: 36,
+    x: 250,
+    y: 15,
+    w: 140,
+    h: 44,
   },
   {
     id: 'proxy',
     label: 'Auth Proxy',
     desc: 'Validates JWTs and API keys',
-    x: 210,
-    y: 76,
-    w: 120,
-    h: 36,
+    x: 250,
+    y: 100,
+    w: 140,
+    h: 44,
   },
   {
-    id: 'secrets',
-    label: 'Secrets',
-    desc: 'Encrypted credential vault',
-    x: 32,
-    y: 242,
-    w: 104,
-    h: 36,
+    id: 'backend',
+    label: 'Backend',
+    desc: 'Core API — orchestrates all services',
+    x: 235,
+    y: 185,
+    w: 170,
+    h: 50,
+    fontSize: 14,
+    fontWeight: 700,
   },
   {
-    id: 'threads',
-    label: 'Threads',
-    desc: 'Conversation memory & history',
-    x: 218,
-    y: 242,
-    w: 104,
-    h: 36,
+    id: 'inject',
+    label: 'Request',
+    desc: 'Tools, context, and secrets injected into the sandbox',
+    x: 168,
+    y: 300,
+    w: 110,
+    h: 44,
   },
   {
-    id: 'tools',
-    label: 'Tools',
-    desc: 'Serverless functions & proxies',
-    x: 404,
-    y: 242,
-    w: 104,
-    h: 36,
+    id: 'response',
+    label: 'Response',
+    desc: 'Agent response returned to the backend',
+    x: 362,
+    y: 300,
+    w: 110,
+    h: 44,
+  },
+  {
+    id: 'agent',
+    label: 'AI Agent',
+    desc: 'Processes prompts and executes tools in isolation',
+    x: 245,
+    y: 410,
+    w: 150,
+    h: 48,
+    fontSize: 14,
+    fontWeight: 700,
   },
 ]
-
-const backendNode: NodeDef = {
-  id: 'backend',
-  label: 'Backend',
-  desc: 'Core API — orchestrates all services',
-  x: 195,
-  y: 150,
-  w: 150,
-  h: 42,
-}
-const agentNode: NodeDef = {
-  id: 'agent',
-  label: 'AI Agent',
-  desc: 'Runs in an isolated sandbox',
-  x: 180,
-  y: 332,
-  w: 180,
-  h: 50,
-}
-
-const allNodes = [...nodes, backendNode, agentNode]
 
 /* Request flow: Client → Proxy → Backend */
 const flowPaths: PathDef[] = [
-  { id: 'client-proxy', path: 'M270,46 L270,76' },
-  { id: 'proxy-backend', path: 'M270,112 L270,150' },
+  { id: 'client-proxy', path: 'M320,59 L320,100' },
+  { id: 'proxy-backend', path: 'M320,144 L320,185' },
 ]
 
-/* Backend orchestrates services */
-const managePaths: PathDef[] = [
-  { id: 'backend-secrets', path: 'M218,192 C188,218 106,220 84,242' },
-  { id: 'backend-threads', path: 'M270,192 L270,242' },
-  { id: 'backend-tools', path: 'M322,192 C352,218 434,220 456,242' },
+/* Counter-clockwise circular loop segments (true circle arcs) */
+const loopSegments: PathDef[] = [
+  { id: 'backend-inject', path: `M320,225 A${r},${r} 0 0,0 225,300` },
+  { id: 'inject-agent', path: `M225,344 A${r},${r} 0 0,0 320,420` },
+  { id: 'agent-response', path: `M320,420 A${r},${r} 0 0,0 415,344` },
+  { id: 'response-backend', path: `M415,300 A${r},${r} 0 0,0 320,225` },
 ]
 
-/* Services inject into Sandbox */
-const injectPaths: PathDef[] = [
-  { id: 'secrets-sandbox', path: 'M84,278 C84,300 150,314 200,332' },
-  { id: 'threads-agent', path: 'M270,278 L270,332' },
-  { id: 'tools-sandbox', path: 'M456,278 C456,300 390,314 340,332' },
-]
+const allVisiblePaths = [...flowPaths, ...loopSegments]
 
-const allForwardPaths = [...flowPaths, ...managePaths, ...injectPaths]
+/* Animated dots: full semicircles for smooth loop animation */
+const allDots: DotDef[] = [
+  { id: 'client-proxy', path: 'M320,59 L320,100', dur: 2 },
+  { id: 'proxy-backend', path: 'M320,144 L320,185', dur: 2.3 },
+  {
+    id: 'inject-dot',
+    path: `M320,225 A${r},${r} 0 0,0 320,420`,
+    dur: 3.5,
+  },
+  {
+    id: 'response-dot',
+    path: `M320,420 A${r},${r} 0 0,0 320,225`,
+    dur: 3.8,
+  },
+]
 
 const ArchitectureDiagram = () => {
   const theme = useTheme()
@@ -123,18 +132,17 @@ const ArchitectureDiagram = () => {
   const sandboxFill = isDark ? 'rgba(51,112,222,0.06)' : 'rgba(51,112,222,0.03)'
   const sandboxStroke = isDark ? 'rgba(51,112,222,0.3)' : 'rgba(51,112,222,0.2)'
   const labelColor = isDark ? 'rgba(226,232,240,0.5)' : 'rgba(26,29,33,0.4)'
-  const hubFill = isDark ? '#1a2540' : '#f0f4ff'
   const tooltipBg = isDark ? '#2A2F38' : '#FFFFFF'
   const tooltipBorder = isDark ? 'rgba(51,112,222,0.4)' : 'rgba(51,112,222,0.25)'
   const tooltipText = isDark ? '#CBD5E1' : '#475569'
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 580, mx: 'auto' }}>
+    <Box sx={{ width: '100%', mx: 'auto' }}>
       <svg
-        viewBox='0 0 560 425'
-        style={{ width: '100%', height: 'auto' }}
+        viewBox='95 0 450 510'
+        style={{ width: '100%', height: 'auto', overflow: 'visible' }}
         role='img'
-        aria-label='Threaded Stack architecture: requests flow from Client through Auth Proxy to Backend, which orchestrates Secrets, Threads, and Tools — injecting them into an isolated Sandbox where the AI Agent runs'
+        aria-label='Threaded Stack architecture: requests flow from Client through Auth Proxy to Backend, which runs a counter-clockwise execution loop — injecting tools, context, and secrets into an isolated Sandbox where the AI Agent processes them and returns a response'
       >
         <defs>
           <style>{`
@@ -168,10 +176,10 @@ const ArchitectureDiagram = () => {
 
         {/* Sandbox isolation container */}
         <rect
-          x={50}
-          y={316}
-          width={420}
-          height={86}
+          x={218}
+          y={395}
+          width={204}
+          height={95}
           rx={16}
           ry={16}
           fill={sandboxFill}
@@ -180,11 +188,11 @@ const ArchitectureDiagram = () => {
           strokeDasharray='6 3'
         />
         <text
-          x={270}
-          y={398}
+          x={320}
+          y={482}
           textAnchor='middle'
           fill={labelColor}
-          fontSize={9}
+          fontSize={10}
           fontFamily='Ubuntu, sans-serif'
           fontWeight={500}
           letterSpacing={2}
@@ -192,8 +200,8 @@ const ArchitectureDiagram = () => {
           ISOLATED SANDBOX
         </text>
 
-        {/* Forward-flow connection lines */}
-        {allForwardPaths.map((c) => (
+        {/* Connection lines */}
+        {allVisiblePaths.map((c) => (
           <path
             key={c.id}
             d={c.path}
@@ -205,8 +213,8 @@ const ArchitectureDiagram = () => {
           />
         ))}
 
-        {/* Animated dots on forward paths */}
-        {allForwardPaths.map((c, i) => (
+        {/* Animated dots */}
+        {allDots.map((c) => (
           <circle
             key={`dot-${c.id}`}
             r={3}
@@ -214,15 +222,15 @@ const ArchitectureDiagram = () => {
             filter='url(#dotGlow)'
           >
             <animateMotion
-              dur={`${2 + i * 0.3}s`}
+              dur={`${c.dur}s`}
               repeatCount='indefinite'
               path={c.path}
             />
           </circle>
         ))}
 
-        {/* Standard nodes */}
-        {nodes.map((node) => (
+        {/* All nodes — consistent styling */}
+        {allNodes.map((node) => (
           <g
             key={node.id}
             className='arch-node'
@@ -231,10 +239,10 @@ const ArchitectureDiagram = () => {
             onMouseLeave={onLeave}
           >
             <rect
-              x={node.x - 4}
-              y={node.y - 4}
-              width={node.w + 8}
-              height={node.h + 8}
+              x={node.x - 5}
+              y={node.y - 5}
+              width={node.w + 10}
+              height={node.h + 10}
               rx={14}
               ry={14}
               fill={glowColor}
@@ -242,10 +250,10 @@ const ArchitectureDiagram = () => {
             />
             <rect
               className='hover-glow'
-              x={node.x - 6}
-              y={node.y - 6}
-              width={node.w + 12}
-              height={node.h + 12}
+              x={node.x - 8}
+              y={node.y - 8}
+              width={node.w + 16}
+              height={node.h + 16}
               rx={16}
               ry={16}
               fill='none'
@@ -259,8 +267,8 @@ const ArchitectureDiagram = () => {
               y={node.y}
               width={node.w}
               height={node.h}
-              rx={10}
-              ry={10}
+              rx={12}
+              ry={12}
               fill={nodeFill}
               stroke={nodeStroke}
               strokeWidth={1.5}
@@ -273,139 +281,23 @@ const ArchitectureDiagram = () => {
               textAnchor='middle'
               dominantBaseline='middle'
               fill={textColor}
-              fontSize={11}
+              fontSize={node.fontSize ?? 13}
               fontFamily='Ubuntu, sans-serif'
-              fontWeight={600}
+              fontWeight={node.fontWeight ?? 600}
             >
               {node.label}
             </text>
           </g>
         ))}
 
-        {/* Backend hub node (highlighted as orchestrator) */}
-        <g
-          className='arch-node'
-          style={{ cursor: 'pointer' }}
-          onMouseEnter={() => onEnter(backendNode.id)}
-          onMouseLeave={onLeave}
-        >
-          <rect
-            x={backendNode.x - 4}
-            y={backendNode.y - 4}
-            width={backendNode.w + 8}
-            height={backendNode.h + 8}
-            rx={14}
-            ry={14}
-            fill={glowColor}
-            style={{ animation: 'nodePulse 3s ease-in-out infinite' }}
-          />
-          <rect
-            className='hover-glow'
-            x={backendNode.x - 6}
-            y={backendNode.y - 6}
-            width={backendNode.w + 12}
-            height={backendNode.h + 12}
-            rx={16}
-            ry={16}
-            fill='none'
-            stroke={primary}
-            strokeWidth={1}
-            strokeOpacity={0.4}
-          />
-          <rect
-            className='node-border'
-            x={backendNode.x}
-            y={backendNode.y}
-            width={backendNode.w}
-            height={backendNode.h}
-            rx={10}
-            ry={10}
-            fill={hubFill}
-            stroke={isDark ? 'rgba(51,112,222,0.6)' : 'rgba(51,112,222,0.4)'}
-            strokeWidth={2}
-            filter='url(#nodeGlow)'
-            style={{ transition: 'stroke-width 0.2s' }}
-          />
-          <text
-            x={backendNode.x + backendNode.w / 2}
-            y={backendNode.y + backendNode.h / 2 + 1}
-            textAnchor='middle'
-            dominantBaseline='middle'
-            fill={textColor}
-            fontSize={12}
-            fontFamily='Ubuntu, sans-serif'
-            fontWeight={700}
-          >
-            {backendNode.label}
-          </text>
-        </g>
-
-        {/* AI Agent node (inside sandbox, prominent) */}
-        <g
-          className='arch-node'
-          style={{ cursor: 'pointer' }}
-          onMouseEnter={() => onEnter(agentNode.id)}
-          onMouseLeave={onLeave}
-        >
-          <rect
-            x={agentNode.x - 4}
-            y={agentNode.y - 4}
-            width={agentNode.w + 8}
-            height={agentNode.h + 8}
-            rx={14}
-            ry={14}
-            fill={isDark ? 'rgba(51,112,222,0.2)' : 'rgba(51,112,222,0.1)'}
-            style={{ animation: 'nodePulse 3s ease-in-out infinite' }}
-          />
-          <rect
-            className='hover-glow'
-            x={agentNode.x - 6}
-            y={agentNode.y - 6}
-            width={agentNode.w + 12}
-            height={agentNode.h + 12}
-            rx={16}
-            ry={16}
-            fill='none'
-            stroke={primary}
-            strokeWidth={1}
-            strokeOpacity={0.4}
-          />
-          <rect
-            className='node-border'
-            x={agentNode.x}
-            y={agentNode.y}
-            width={agentNode.w}
-            height={agentNode.h}
-            rx={10}
-            ry={10}
-            fill={nodeFill}
-            stroke={isDark ? 'rgba(51,112,222,0.7)' : 'rgba(51,112,222,0.5)'}
-            strokeWidth={2}
-            filter='url(#nodeGlow)'
-            style={{ transition: 'stroke-width 0.2s' }}
-          />
-          <text
-            x={agentNode.x + agentNode.w / 2}
-            y={agentNode.y + agentNode.h / 2 + 1}
-            textAnchor='middle'
-            dominantBaseline='middle'
-            fill={primary}
-            fontSize={12}
-            fontFamily='Ubuntu, sans-serif'
-            fontWeight={700}
-          >
-            {agentNode.label}
-          </text>
-        </g>
-
-        {/* Tooltip rendered via foreignObject */}
+        {/* Tooltip */}
         {hoveredNode &&
           (() => {
             const node = allNodes.find((n) => n.id === hoveredNode)
             if (!node) return null
             const tx = node.x + node.w / 2
-            const tipW = 200
-            const tipH = 28
+            const tipW = 400
+            const tipH = 40
             const ty = node.y + node.h + 8
             return (
               <foreignObject
@@ -417,12 +309,14 @@ const ArchitectureDiagram = () => {
               >
                 <div
                   style={{
+                    width: 'fit-content',
+                    margin: '0 auto',
                     background: tooltipBg,
                     border: `1px solid ${tooltipBorder}`,
                     borderRadius: 6,
-                    padding: '4px 10px',
+                    padding: '5px 12px',
                     fontFamily: 'Ubuntu, sans-serif',
-                    fontSize: 11,
+                    fontSize: 12,
                     color: tooltipText,
                     textAlign: 'center',
                     whiteSpace: 'nowrap',

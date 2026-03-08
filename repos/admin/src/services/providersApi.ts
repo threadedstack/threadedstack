@@ -123,6 +123,8 @@ export class ProvidersApi extends BaseApi {
       data: { baseUrl: opts?.baseUrl, providerKey: opts?.providerKey },
     })
 
+    resp.error && (await this._onError(resp.error, `Failed to fetch Provider models`))
+
     return {
       ...resp,
       data: resp?.data || [],

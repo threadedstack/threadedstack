@@ -8,5 +8,8 @@ export type TFetchProviderModelsOpts = {
 
 export const fetchProviderModels = async (opts: TFetchProviderModelsOpts) => {
   const { brand, ...rest } = opts
-  return providersApi.fetchModels(brand, rest)
+  const resp = await providersApi.fetchModels(brand, rest)
+  if (resp.error) return { error: resp.error }
+
+  return resp
 }

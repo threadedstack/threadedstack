@@ -27,22 +27,24 @@ test.describe.serial('CRUD Agents', () => {
     authenticatedPage: page,
     ctx,
   }) => {
+    test.slow()
     const errors = collectErrors(page)
 
-    // First check if providers exist (agents require at least one)
+    // First check if AI providers exist (agents require at least one AI-type provider)
     const provRes = await apiRequest(
       page,
       'GET',
-      `/orgs/${ctx.orgId}/providers?limit=10`,
+      `/orgs/${ctx.orgId}/providers?limit=200`,
       ctx.apiKey
     )
     const provBody = await provRes.json()
-    const providers: Record<string, unknown>[] = Array.isArray(provBody?.data)
+    const allProviders: Record<string, unknown>[] = Array.isArray(provBody?.data)
       ? provBody.data
       : []
-    hasProviders = providers.length > 0
+    const aiProviders = allProviders.filter((p) => p.type === 'ai')
+    hasProviders = aiProviders.length > 0
 
-    test.skip(!hasProviders, 'No providers exist — cannot create agent without a provider')
+    test.skip(!hasProviders, 'No AI providers exist — cannot create agent without an AI provider')
 
     await gotoAndWait(page, `/orgs/${ctx.orgId}/agents`, PAGE_CLASS)
 

@@ -40,17 +40,17 @@ export const ProjectSettings = (props: TProjectSettings) => {
       setLoading(true)
       setError(null)
 
-      const projectResult = await fetchProject({ orgId, id: projectId })
+      const resp = await fetchProject({ orgId, id: projectId })
 
-      if (projectResult.error) {
-        setError(projectResult.error.message)
-      } else if (projectResult.project) {
-        setName(projectResult.project.name || '')
-        setGitUrl(projectResult.project.gitUrl || '')
-        setBranch(projectResult.project.branch || '')
-        setOriginalName(projectResult.project.name || '')
-        setOriginalGitUrl(projectResult.project.gitUrl || '')
-        setOriginalBranch(projectResult.project.branch || '')
+      if (resp.error) {
+        setError(resp.error.message)
+      } else if (resp.data) {
+        setName(resp.data.name || '')
+        setGitUrl(resp.data.gitUrl || '')
+        setBranch(resp.data.branch || '')
+        setOriginalName(resp.data.name || '')
+        setOriginalGitUrl(resp.data.gitUrl || '')
+        setOriginalBranch(resp.data.branch || '')
       }
 
       setLoading(false)

@@ -1,4 +1,4 @@
-import type { User, TRoleType } from '@tdsk/domain'
+import type { TRoleType } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { toast } from 'sonner'
@@ -15,6 +15,7 @@ import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import {
+  useOrgUsers,
   useActiveOrgId,
   useActiveProjectId,
   useActiveProjectMembers,
@@ -40,9 +41,11 @@ const AuthRoleValues = AuthRoles.map((item) => item.value)
 export const ProjectMembers = () => {
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
+  const [orgUsersMap] = useOrgUsers()
   const [projectMembersMap] = useActiveProjectMembers()
   const [loading, setLoading] = useState(false)
-  const [orgUsers, setOrgUsers] = useState<User[]>([])
+
+  const orgUsers = useMemo(() => orgUsersMap?.[orgId] || [], [orgUsersMap, orgId])
 
   const roles = useMemo(
     () => (projectMembersMap ? Object.values(projectMembersMap) : []),
@@ -68,8 +71,7 @@ export const ProjectMembers = () => {
   const loadOrgUsersData = async () => {
     if (!orgId) return
     try {
-      const resp = await listOrgUsers(orgId)
-      if (resp.data) setOrgUsers(resp.data)
+      await listOrgUsers(orgId)
     } catch {
       toast.error(`Failed to load organization users`)
     }
