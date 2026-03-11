@@ -1,3 +1,5 @@
+import type { TSandboxType } from './sandbox.types'
+
 export enum EMsgType {
   user = `user`,
   tool = `tool`,
@@ -50,6 +52,12 @@ export type TAgentEnvironment = {
   contextCompaction?: TContextCompaction
   /** Prompt cache retention preference (none/short/long) — passed through to streaming providers */
   cacheRetention?: `none` | `short` | `long`
+  /** Sandbox provider type. Defaults to local when omitted. */
+  sandboxType?: TSandboxType
+  /** K8s-only: explicit pod name to connect to (mutually exclusive with sandboxId) */
+  podName?: string
+  /** K8s-only: sandbox config ID — pod is auto-started via SandboxService (mutually exclusive with podName) */
+  sandboxId?: string
 }
 
 /**

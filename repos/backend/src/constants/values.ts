@@ -69,3 +69,13 @@ export const PoolTtlMS = 5 * 60 * 1000
 
 // How long a session token lasts, used in websocket connections
 export const SessionTtlSec = 3600 // 1 hour
+
+// Token preview for placeholder tokens
+export const PhTokenPrefix = `tdsk_ph_`
+
+// Egress proxy cert mount locations
+export const CACertPath = `/etc/tdsk/ca/tls.crt`
+export const CAKeyPath = `/etc/tdsk/ca/tls.key`
+
+// Real client IP from custom header injected by the front TCP server
+export const RealIpHeader = `x-tdsk-real-ip`

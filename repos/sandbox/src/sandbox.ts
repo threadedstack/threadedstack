@@ -2,9 +2,11 @@ import type { ISandboxProvider, TSandboxType } from '@tdsk/domain'
 
 import { ESandboxType } from '@tdsk/domain'
 import { LocalSandboxProvider } from '@TSB/local/local'
+import { KubeSandboxProvider } from '@TSB/kube/kubeSandboxProvider'
 
 const providers = new Map<TSandboxType, () => ISandboxProvider>([
   [ESandboxType.local, () => new LocalSandboxProvider()],
+  [ESandboxType.kubernetes, () => new KubeSandboxProvider()],
 ])
 
 /**

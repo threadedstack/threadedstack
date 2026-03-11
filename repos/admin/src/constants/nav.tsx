@@ -2,26 +2,26 @@ import type { TNavCtx, TNavItem, TRailSection, TSubNavGroup } from '@TAF/types'
 
 import { ERoutePath } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
-import { RobotIcon } from '@tdsk/components'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
 import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { signout } from '@TAF/actions/auth/local/signout'
+import { RobotIcon, DrawingBoxIcon } from '@tdsk/components'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import {
   Dns as DnsIcon,
   Api as ApiIcon,
   Home as HomeIcon,
   Lock as SecretIcon,
+  Timer as TimerIcon,
   Api as EndpointIcon,
   Person as PersonIcon,
   Code as FunctionIcon,
   Logout as LogoutIcon,
   BarChart as UsageIcon,
+  Cloud as ProviderIcon,
   Settings as SettingsIcon,
   CreditCard as BillingIcon,
-  Timer as TimerIcon,
   Extension as ExtensionIcon,
-  CloudQueue as ProviderIcon,
 } from '@mui/icons-material'
 
 const OrgSubNav: Record<string, TNavItem> = {
@@ -35,6 +35,12 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `Agents`,
     to: buildRoute(ERoutePath.OrgAgents),
     Icon: <RobotIcon />,
+    visible: (ctx: TNavCtx) => !!ctx.orgId,
+  },
+  Sandboxes: {
+    text: `Sandboxes`,
+    to: buildRoute(ERoutePath.OrgSandboxes),
+    Icon: <DrawingBoxIcon />,
     visible: (ctx: TNavCtx) => !!ctx.orgId,
   },
   Members: {
@@ -189,9 +195,9 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
     label: `Resources`,
     items: [
       OrgSubNav.Projects,
-      OrgSubNav.Members,
       OrgSubNav.Providers,
       OrgSubNav.Agents,
+      OrgSubNav.Sandboxes,
       OrgSubNav.Skills,
     ],
   },
@@ -201,7 +207,7 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
   },
   {
     label: `Management`,
-    items: [OrgSubNav.Schedules, OrgSubNav.Usage, OrgSubNav.Settings],
+    items: [OrgSubNav.Members, OrgSubNav.Schedules, OrgSubNav.Usage, OrgSubNav.Settings],
   },
 ]
 

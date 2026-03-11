@@ -1,11 +1,11 @@
 import Box from '@mui/material/Box'
-import Container from '@mui/material/Container'
-import Typography from '@mui/material/Typography'
-import Button from '@mui/material/Button'
 import Grid from '@mui/material/Grid'
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import Button from '@mui/material/Button'
+import Container from '@mui/material/Container'
 import { useTheme } from '@mui/material/styles'
+import Typography from '@mui/material/Typography'
 import ArchitectureDiagram from './ArchitectureDiagram'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 
 const Hero = () => {
   const theme = useTheme()

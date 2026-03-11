@@ -27,6 +27,9 @@ export enum EPermAction {
   update = `update`, // Modify existing resources
   delete = `delete`, // Delete resources
   manage = `manage`, // Manage members, settings, advanced operations
+
+  // TODO: Need to add a new action for execute against a resource (i.e. exec in Sandbox)
+  //exec = `exec` // Execute an action using the resource
 }
 
 /**
@@ -52,6 +55,7 @@ export enum EPermResource {
   asset = `asset`, // Uploaded assets
   skill = `skill`, // Reusable agent skills
   schedule = `schedule`, // Agent cron schedules
+  sandbox = `sandbox`, // Sandbox configurations
 }
 
 export type TPermAction = `${EPermAction}`

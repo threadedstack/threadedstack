@@ -3,13 +3,13 @@ import type { TRequest } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
 import type { Endpoint, TProxyEndpointConfig } from '@tdsk/domain'
 
-import { EEndpointType } from '@tdsk/domain'
-import { logger } from '@TBE/utils/logger'
 import { BaseEndpoint } from './base'
-import { addEndpointHeaders } from '@TBE/utils/proxy'
 import { Exception } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
+import { EEndpointType } from '@tdsk/domain'
 import { HttpMethods } from '@TBE/constants/values'
-import { RetryService, ProxyService } from '@TBE/services/proxy'
+import { addEndpointHeaders } from '@TBE/utils/proxy'
+import { ProxyService, RetryService } from '@TBE/services/proxy'
 import { createProxyMiddleware, responseInterceptor } from 'http-proxy-middleware'
 
 /**

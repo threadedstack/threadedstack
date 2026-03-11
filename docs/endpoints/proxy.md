@@ -598,8 +598,8 @@ Key files involved in the proxy endpoint system:
 | `repos/backend/src/services/endpoints/base.ts` | Abstract base class with permission checks, secret fetching, validation |
 | `repos/backend/src/services/endpoints/proxyEndpoint.ts` | ProxyEndpoint class — builds and executes the proxied request |
 | `repos/backend/src/services/endpoints/getEPService.ts` | Singleton registry mapping endpoint type to service |
-| `repos/backend/src/services/proxy/proxyService.ts` | Auth injection, OAuth token caching, domain validation, transforms |
-| `repos/backend/src/services/proxy/retryService.ts` | Exponential backoff retry logic |
+| `repos/backend/src/services/proxy/proxy.ts` | Auth injection, OAuth token caching, domain validation, transforms |
+| `repos/backend/src/services/proxy/retry.ts` | Exponential backoff retry logic |
 | `repos/backend/src/services/secrets/secretResolver.ts` | Decrypts secrets, resolves `{{template}}` references |
 
 ### Auth Proxy

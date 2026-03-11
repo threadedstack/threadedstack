@@ -19,7 +19,10 @@ vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
 
 vi.mock(`@tdsk/agent`, () => ({
   AgentRunner: {
-    run: vi.fn().mockResolvedValue(undefined),
+    run: vi.fn().mockResolvedValue({
+      waitForIdle: vi.fn().mockResolvedValue(undefined),
+      abort: vi.fn(),
+    }),
   },
 }))
 

@@ -1,13 +1,13 @@
-import Card from '@mui/material/Card'
-import CardContent from '@mui/material/CardContent'
-import Typography from '@mui/material/Typography'
+import type { ComponentType } from 'react'
 import Box from '@mui/material/Box'
-import type { SvgIconComponent } from '@mui/icons-material'
+import Card from '@mui/material/Card'
+import Typography from '@mui/material/Typography'
+import CardContent from '@mui/material/CardContent'
 
 type Props = {
-  icon: SvgIconComponent
   title: string
   description: string
+  icon: ComponentType<any>
 }
 
 const FeatureCard = ({ icon: Icon, title, description }: Props) => (

@@ -95,8 +95,11 @@ export class AgentRunner {
     // 2. Create sandbox + tools if configured
     if (sandboxConfig?.provider) {
       const provider = createSandboxProvider(sandboxConfig.provider as any)
+
+      // TODO: Figure out how to get existing app.locals.kube passed in here
       this.#sandbox = await provider.create({
         envVars: sandboxConfig.envVars,
+        options: sandboxConfig.options || {},
         provider: sandboxConfig.provider as any,
         timeout: sandboxConfig.timeout ?? 300000,
       })

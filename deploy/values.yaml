@@ -9,11 +9,13 @@ env:
   TDSK_KUBE_SCRT_DB_CFG: tdsk-db-cfg
   TDSK_KUBE_SCRT_DOC_AUTH: docker-auth
   TDSK_KUBE_SCRT_TLS_NAME: tdsk-tls-secret
+  TDSK_KUBE_SCRT_EGRESS_CA: tdsk-egress-ca
   TDSK_KUBE_SCRT_EMAIL_CFG: tdsk-email-secret
   TDSK_KUBE_SCRT_PAY_CFG: tdsk-payments-secret
 
-  # Production url for threaded stack 
+  # URLS for threaded stack
   TDSK_URL: http://threadedstack.com/
+  TDSK_HOST_DOMAIN: threadedstack.app
 
 
   # ---- Development Image ENVs ---- #
@@ -27,16 +29,20 @@ env:
   TDSK_POSTHOG_HOST: https://us.i.posthog.com
   TDSK_POSTHOG_KEY: phc_1OSMc9q9VYsvfjRwQsjsTpyik5XyuEmJfvpY8LFklBk
 
-
 # ---- Secrets ENVs ---- #
   TDSK_KUBE_SCRT_MASTER_KEY: tdsk-master-key
   # Set by the TDSK_KUBE_SCRT_MASTER_KEY secret with-in kubernetes
   TDSK_MASTER_KEY:
 
+# ---- Egress Proxy CA ENVs ---- #
+  # Paths to CA cert/key files for the egress proxy (set in ~/.config/tdsk/values.yaml)
+  TDSK_EGRESS_CA_CERT:
+  TDSK_EGRESS_CA_KEY:
+
 
 # ---- TDSK Shared ENVs ---- #
   TDSK_SH_LOCAL_MOUNT: tdsk-local
-  TDSK_SERVER_ORIGINS: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,proxy.dev.threadedstack.app,px.dev.threadedstack.app,px.threadedstack.app,px.local.threadedstack.app,http://0.0.0.0'
+  TDSK_SERVER_ORIGINS: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,local.threadedstack.app,px.threadedstack.app,px.dev.threadedstack.app,px.local.threadedstack.app,sandbox.threadedstack.app,sandbox.dev.threadedstack.app,sandbox.local.threadedstack.app,http://0.0.0.0'
   TDSK_ALLOWED_HEADERS: 'X-PINGOTHER,Origin,X-Requested-With,Content-Type,Accept,Authorization,AuthToken,x-tdsk-host,x-tdsk-proto,x-tdsk-port,x-tdsk-route,x-tdsk-job-id,x-tdsk-subdomain,x-forwarded-subdomain,x-forwarded-port,x-forwarded-proto,x-forwarded-host,x-forwarded-for,x-user-id,x-user-role,x-user-email'
 
 
@@ -222,6 +228,8 @@ env:
   # Default endpoint routes that are public and don't require authentication 
   TDSK_BE_PUBLIC_ROUTES:
 
+  # Post used by the egress proxy called by sandbox pods with outbound traffic
+  TDSK_BE_EGRESS_PORT: 8889
 
   # ---- Admin ENVs --- #
   TDSK_AD_PORT: 5887

@@ -16,6 +16,7 @@ import { orgProviders } from '@TBE/endpoints/orgs/orgProviders'
 import { orgSkills } from '@TBE/endpoints/orgs/orgSkills'
 import { orgSchedules } from '@TBE/endpoints/orgs/orgSchedules'
 import { orgQuickstart } from '@TBE/endpoints/orgs/orgQuickstart'
+import { orgSandboxes } from '@TBE/endpoints/orgs/orgSandboxes'
 import { addOrgMember } from '@TBE/endpoints/orgs/addOrgMember'
 import { inviteOrgUser } from '@TBE/endpoints/orgs/inviteOrgUser'
 import { updateOrgRole } from '@TBE/endpoints/orgs/updateOrgRole'
@@ -49,6 +50,7 @@ export const orgs: TEndpointConfig = {
     orgSkills,
     orgSchedules,
     orgProviders,
+    orgSandboxes,
     orgQuickstart,
   },
 }

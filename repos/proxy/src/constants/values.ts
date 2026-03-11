@@ -15,3 +15,10 @@ export const LoggerIgnore = {
   methods: [`OPTIONS`],
   routes: [],
 }
+
+/**
+ * Detects sandbox subdomain requests.
+ * Flat format: "3000--sb-xxxx.local.threadedstack.app"
+ * The first DNS label starts with digits followed by "--sb-".
+ */
+export const SandboxHostRx = /^\d+--sb-/

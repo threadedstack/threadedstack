@@ -1,8 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockCreateProxyMiddleware, mockAdminPath, mockSetAuthHeaders, mockLogger } =
-  vi.hoisted(() => ({
-    mockCreateProxyMiddleware: vi.fn(() => `proxy-middleware-instance`),
+const {
+  mockCreateProxyMiddleware,
+  mockProxyFn,
+  mockAdminPath,
+  mockSetAuthHeaders,
+  mockLogger,
+} = vi.hoisted(() => {
+  const mockProxyFn = Object.assign(vi.fn(), { upgrade: vi.fn() })
+  return {
+    mockProxyFn,
+    mockCreateProxyMiddleware: vi.fn(() => Object.assign(vi.fn(), { upgrade: vi.fn() })),
     mockAdminPath: vi.fn(),
     mockSetAuthHeaders: vi.fn(),
     mockLogger: {
@@ -11,7 +19,8 @@ const { mockCreateProxyMiddleware, mockAdminPath, mockSetAuthHeaders, mockLogger
       warn: vi.fn(),
       debug: vi.fn(),
     },
-  }))
+  }
+})
 
 vi.mock(`http-proxy-middleware`, () => ({
   createProxyMiddleware: mockCreateProxyMiddleware,
@@ -59,10 +68,9 @@ describe(`setupProxy`, () => {
     setupProxy(app)
 
     expect(mockAdminPath).toHaveBeenCalledWith(app.locals.config.backend)
-    // Single app.use call with array of route paths
-    expect(app.use).toHaveBeenCalledTimes(1)
+    expect(app.use).toHaveBeenCalledTimes(2)
 
-    const [pathArg] = app.use.mock.calls[0]
+    const [pathArg] = app.use.mock.calls[1]
     expect(pathArg).toEqual([`/_`, `/ai`, `/proxy`])
   })
 
@@ -72,7 +80,7 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    const [pathArg] = app.use.mock.calls[0]
+    const [pathArg] = app.use.mock.calls[1]
     expect(pathArg[0]).toBe(`/admin`)
   })
 
@@ -82,7 +90,7 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    const [pathArg] = app.use.mock.calls[0]
+    const [pathArg] = app.use.mock.calls[1]
     expect(pathArg[0]).toBe(`/api`)
   })
 
@@ -92,7 +100,7 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    const [pathArg] = app.use.mock.calls[0]
+    const [pathArg] = app.use.mock.calls[1]
     expect(pathArg[0]).toBe(`/custom`)
   })
 
@@ -102,7 +110,7 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    const [pathArg] = app.use.mock.calls[0]
+    const [pathArg] = app.use.mock.calls[1]
     expect(pathArg[0]).toBe(`/`)
   })
 
@@ -112,41 +120,58 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    // Single proxy middleware shared across all routes
-    expect(mockCreateProxyMiddleware).toHaveBeenCalledTimes(1)
+    expect(mockCreateProxyMiddleware).toHaveBeenCalledTimes(2)
 
-    const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+    const sandboxOpts = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
       string,
       any
     >
-    expect(proxyOptions.target).toBe(`http://backend-host:9000`)
+    const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
+      string,
+      any
+    >
+    expect(sandboxOpts.target).toBe(`http://backend-host:9000`)
+    expect(standardOpts.target).toBe(`http://backend-host:9000`)
   })
 
-  it(`should enable websocket support in proxy options`, () => {
+  it(`should disable automatic ws on both proxies (manual upgrade handler instead)`, () => {
     mockAdminPath.mockReturnValue(`/_`)
     const app = buildMockApp()
 
     setupProxy(app)
 
-    const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+    const sandboxOpts = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
       string,
       any
     >
-    expect(proxyOptions.ws).toBe(true)
+    expect(sandboxOpts.ws).toBe(false)
+
+    const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
+      string,
+      any
+    >
+    expect(standardOpts.ws).toBe(false)
   })
 
-  it(`should enable changeOrigin and xfwd in proxy options`, () => {
+  it(`should enable changeOrigin and xfwd for standard proxy, disable changeOrigin for sandbox proxy`, () => {
     mockAdminPath.mockReturnValue(`/_`)
     const app = buildMockApp()
 
     setupProxy(app)
 
-    const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+    const sandboxOpts = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
       string,
       any
     >
-    expect(proxyOptions.changeOrigin).toBe(true)
-    expect(proxyOptions.xfwd).toBe(true)
+    expect(sandboxOpts.changeOrigin).toBe(false)
+    expect(sandboxOpts.xfwd).toBe(true)
+
+    const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
+      string,
+      any
+    >
+    expect(standardOpts.changeOrigin).toBe(true)
+    expect(standardOpts.xfwd).toBe(true)
   })
 
   it(`should pass the logger instance to proxy options`, () => {
@@ -155,21 +180,25 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+    const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
       string,
       any
     >
-    expect(proxyOptions.logger).toBe(mockLogger)
+    expect(standardOpts.logger).toBe(mockLogger)
   })
 
-  it(`should register the proxy middleware on app.use`, () => {
+  it(`should register sandbox forwarder as first middleware and standard proxy as second`, () => {
     mockAdminPath.mockReturnValue(`/_`)
     const app = buildMockApp()
 
     setupProxy(app)
 
-    const [, middlewareArg] = app.use.mock.calls[0]
-    expect(middlewareArg).toBe(`proxy-middleware-instance`)
+    const sandboxMiddleware = app.use.mock.calls[0][0]
+    expect(sandboxMiddleware).toBeTypeOf(`function`)
+
+    const [, standardMiddleware] = app.use.mock.calls[1]
+    expect(standardMiddleware).toBeTypeOf(`function`)
+    expect(standardMiddleware.upgrade).toBeTypeOf(`function`)
   })
 
   it(`should provide a pathRewrite function in proxy options`, () => {
@@ -178,11 +207,11 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+    const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
       string,
       any
     >
-    expect(proxyOptions.pathRewrite).toBeTypeOf(`function`)
+    expect(standardOpts.pathRewrite).toBeTypeOf(`function`)
   })
 
   it(`should rewrite path to req.originalUrl`, () => {
@@ -191,12 +220,12 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+    const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
       string,
       any
     >
     const mockReq = { originalUrl: `/_/orgs?limit=10` }
-    const result = proxyOptions.pathRewrite(`/_/orgs`, mockReq)
+    const result = standardOpts.pathRewrite(`/_/orgs`, mockReq)
     expect(result).toBe(`/_/orgs?limit=10`)
   })
 
@@ -206,14 +235,14 @@ describe(`setupProxy`, () => {
 
     setupProxy(app)
 
-    const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+    const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
       string,
       any
     >
-    expect(proxyOptions.on).toBeDefined()
-    expect(proxyOptions.on.error).toBeTypeOf(`function`)
-    expect(proxyOptions.on.proxyReq).toBeTypeOf(`function`)
-    expect(proxyOptions.on.proxyRes).toBeTypeOf(`function`)
+    expect(standardOpts.on).toBeDefined()
+    expect(standardOpts.on.error).toBeTypeOf(`function`)
+    expect(standardOpts.on.proxyReq).toBeTypeOf(`function`)
+    expect(standardOpts.on.proxyRes).toBeTypeOf(`function`)
   })
 
   describe(`proxy event handlers`, () => {
@@ -223,14 +252,14 @@ describe(`setupProxy`, () => {
 
       setupProxy(app)
 
-      const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
         string,
         any
       >
       const mockProxyReq = { setHeader: vi.fn() }
       const mockReq = { headers: {} }
 
-      proxyOptions.on.proxyReq(mockProxyReq, mockReq)
+      standardOpts.on.proxyReq(mockProxyReq, mockReq)
 
       expect(mockSetAuthHeaders).toHaveBeenCalledWith(mockProxyReq, mockReq)
     })
@@ -244,14 +273,14 @@ describe(`setupProxy`, () => {
 
       setupProxy(app)
 
-      const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
         string,
         any
       >
       const mockProxyReq = { setHeader: vi.fn() }
       const mockReq = { headers: {} }
 
-      proxyOptions.on.proxyReq(mockProxyReq, mockReq)
+      standardOpts.on.proxyReq(mockProxyReq, mockReq)
 
       expect(mockProxyReq.setHeader).toHaveBeenCalledWith(`x-proxy-secret`, `my-secret`)
     })
@@ -265,14 +294,14 @@ describe(`setupProxy`, () => {
 
       setupProxy(app)
 
-      const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
         string,
         any
       >
       const mockProxyReq = { setHeader: vi.fn() }
       const mockReq = { headers: {} }
 
-      proxyOptions.on.proxyReq(mockProxyReq, mockReq)
+      standardOpts.on.proxyReq(mockProxyReq, mockReq)
 
       expect(mockProxyReq.setHeader).not.toHaveBeenCalled()
     })
@@ -283,14 +312,14 @@ describe(`setupProxy`, () => {
 
       setupProxy(app)
 
-      const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
         string,
         any
       >
       const mockProxyRes = { statusCode: 200 }
       const mockReq = { method: `GET`, url: `/_/orgs` }
 
-      proxyOptions.on.proxyRes(mockProxyRes, mockReq)
+      standardOpts.on.proxyRes(mockProxyRes, mockReq)
 
       expect(mockLogger.debug).toHaveBeenCalledWith(`Proxy response: GET /_/orgs -> 200`)
     })
@@ -301,7 +330,7 @@ describe(`setupProxy`, () => {
 
       setupProxy(app)
 
-      const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
         string,
         any
       >
@@ -313,7 +342,7 @@ describe(`setupProxy`, () => {
         end: vi.fn(),
       }
 
-      proxyOptions.on.error(mockErr, mockReq, mockRes)
+      standardOpts.on.error(mockErr, mockReq, mockRes)
 
       expect(mockLogger.error).toHaveBeenCalledWith(`Proxy error: ECONNREFUSED`, {
         stack: mockErr.stack,
@@ -332,7 +361,7 @@ describe(`setupProxy`, () => {
 
       setupProxy(app)
 
-      const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
         string,
         any
       >
@@ -344,7 +373,7 @@ describe(`setupProxy`, () => {
         end: vi.fn(),
       }
 
-      proxyOptions.on.error(mockErr, mockReq, mockRes)
+      standardOpts.on.error(mockErr, mockReq, mockRes)
 
       expect(mockLogger.error).toHaveBeenCalled()
       expect(mockRes.writeHead).not.toHaveBeenCalled()
@@ -357,15 +386,105 @@ describe(`setupProxy`, () => {
 
       setupProxy(app)
 
-      const proxyOptions = (mockCreateProxyMiddleware.mock.calls[0] as any)[0] as Record<
+      const standardOpts = (mockCreateProxyMiddleware.mock.calls[1] as any)[0] as Record<
         string,
         any
       >
       const mockErr = new Error(`connection lost`)
       const mockReq = {}
 
-      expect(() => proxyOptions.on.error(mockErr, mockReq, null)).not.toThrow()
+      expect(() => standardOpts.on.error(mockErr, mockReq, null)).not.toThrow()
       expect(mockLogger.error).toHaveBeenCalled()
+    })
+  })
+
+  describe(`sandbox subdomain forwarder`, () => {
+    it(`should forward sandbox subdomain requests to the proxy`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const forwarder = app.use.mock.calls[0][0]
+      const mockReq = { hostname: `3000--sb-abc123.local.threadedstack.app`, headers: {} }
+      const mockRes = {}
+      const mockNext = vi.fn()
+
+      forwarder(mockReq, mockRes, mockNext)
+
+      expect(mockNext).not.toHaveBeenCalled()
+    })
+
+    it(`should call next for non-sandbox hostnames`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const forwarder = app.use.mock.calls[0][0]
+      const mockReq = { hostname: `local.threadedstack.app`, headers: {} }
+      const mockRes = {}
+      const mockNext = vi.fn()
+
+      forwarder(mockReq, mockRes, mockNext)
+
+      expect(mockNext).toHaveBeenCalled()
+    })
+
+    it(`should call next for regular subdomains without sandbox pattern`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const forwarder = app.use.mock.calls[0][0]
+      const mockReq = { hostname: `px.local.threadedstack.app`, headers: {} }
+      const mockRes = {}
+      const mockNext = vi.fn()
+
+      forwarder(mockReq, mockRes, mockNext)
+
+      expect(mockNext).toHaveBeenCalled()
+    })
+  })
+
+  describe(`WebSocket upgrade handler`, () => {
+    it(`should set onUpgrade on app.locals`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      expect(app.locals.onUpgrade).toBeTypeOf(`function`)
+    })
+
+    it(`should call sandbox proxy upgrade for sandbox hostnames`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const mockReq = { headers: { host: `3000--sb-abc123.local.threadedstack.app` } }
+      const mockSocket = {}
+      const mockHead = Buffer.alloc(0)
+
+      app.locals.onUpgrade(mockReq, mockSocket, mockHead)
+
+      const sandboxForwarder = app.use.mock.calls[0][0]
+      expect(sandboxForwarder.upgrade).toBeDefined()
+    })
+
+    it(`should call backend proxy upgrade for non-sandbox hostnames`, () => {
+      mockAdminPath.mockReturnValue(`/_`)
+      const app = buildMockApp()
+
+      setupProxy(app)
+
+      const mockReq = { headers: { host: `local.threadedstack.app` } }
+      const mockSocket = {}
+      const mockHead = Buffer.alloc(0)
+
+      app.locals.onUpgrade(mockReq, mockSocket, mockHead)
     })
   })
 })

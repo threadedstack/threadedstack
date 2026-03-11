@@ -172,4 +172,11 @@ export const PermissionMatrix: Record<EPermResource, Record<EPermAction, ERoleTy
     [EPermAction.delete]: ERoleType.admin,
     [EPermAction.manage]: ERoleType.admin,
   },
+  [EPermResource.sandbox]: {
+    [EPermAction.create]: ERoleType.admin, // Sandbox configs control K8s resources
+    [EPermAction.read]: ERoleType.member,
+    [EPermAction.update]: ERoleType.admin,
+    [EPermAction.delete]: ERoleType.admin,
+    [EPermAction.manage]: ERoleType.admin,
+  },
 }

@@ -1,7 +1,7 @@
 import type { Request } from 'express'
 import type { TEndpointOpts } from '@tdsk/domain'
 
-import { RetryService } from './retryService'
+import { RetryService } from './retry'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 describe(`RetryService`, () => {

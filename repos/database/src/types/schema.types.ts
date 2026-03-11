@@ -4,6 +4,7 @@ import type { roles } from '@TDB/schemas/roles'
 import type { assets } from '@TDB/schemas/assets'
 import type { quotas } from '@TDB/schemas/quotas'
 import type { agents } from '@TDB/schemas/agents'
+import type { skills } from '@TDB/schemas/skills'
 import type { apiKeys } from '@TDB/schemas/apiKeys'
 import type { secrets } from '@TDB/schemas/secrets'
 import type { threads } from '@TDB/schemas/threads'
@@ -12,10 +13,10 @@ import type { messages } from '@TDB/schemas/messages'
 import type { projects } from '@TDB/schemas/projects'
 import type { DBError } from '@TDB/utils/error/error'
 import type { endpoints } from '@TDB/schemas/endpoints'
-import type { skills } from '@TDB/schemas/skills'
 import type { schedules } from '@TDB/schemas/schedules'
 import type { functions } from '@TDB/schemas/functions'
 import type { providers } from '@TDB/schemas/providers'
+import type { sandboxes } from '@TDB/schemas/sandboxes'
 import type { invitations } from '@TDB/schemas/invitations'
 import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import type { subscriptions } from '@TDB/schemas/subscriptions'
@@ -67,6 +68,8 @@ export type TDBScheduleInsert = TInferDateProps<
   typeof schedules.$inferInsert,
   `createdAt` | `updatedAt` | `lastRunAt` | `nextRunAt`
 >
+export type TDBSandboxSelect = TInferDates<typeof sandboxes.$inferSelect>
+export type TDBSandboxInsert = TInferDates<typeof sandboxes.$inferInsert>
 export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
 export type TDBSubscriptionInsert = TInferDates<typeof subscriptions.$inferInsert>
 
@@ -126,6 +129,7 @@ export type TDBEntitySelect =
   | TDBSkillSelect
   | TDBScheduleSelect
   | TDBFunctionSelect
+  | TDBSandboxSelect
   | TDBInvitationSelect
   | TDBSubscriptionSelect
 
@@ -147,6 +151,7 @@ export type TDBEntityInsert =
   | TDBSkillInsert
   | TDBScheduleInsert
   | TDBFunctionInsert
+  | TDBSandboxInsert
   | TDBInvitationInsert
   | TDBSubscriptionInsert
 

@@ -1,6 +1,8 @@
 import type { TDatabase } from '@tdsk/database'
+import type { KubeClient } from '@tdsk/sandbox'
 import type { config } from '@TBE/configs/backend.config'
 import type { EmailService } from '@TBE/services/email/email'
+import type { SandboxService } from '@TBE/services/sandboxes/sandbox'
 import type { PaymentsService } from '@TBE/services/payments/payments'
 import type { TApp as TEApp, TRequest as TReq, TAuthHeaderObj } from '@tdsk/domain'
 
@@ -13,7 +15,9 @@ export type TApp = TEApp<
   TDatabase,
   PaymentsService,
   EmailService,
-  TAuthHeaderObj
+  TAuthHeaderObj,
+  KubeClient,
+  SandboxService
 >
 
 export type TRequest<

@@ -21,6 +21,7 @@ import { noOp } from '@keg-hub/jsutils/noOp'
 import { themeTypeState } from '@TAF/state/theme'
 import { apiKeysState } from '@TAF/state/apiKeys'
 import { providersState } from '@TAF/state/providers'
+import { sandboxesState } from '@TAF/state/sandboxes'
 import { quickstartState } from '@TAF/state/quickstart'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { sidebarOpenState, activeRailSectionState } from '@TAF/state/app'
@@ -110,6 +111,7 @@ const useDerivedState = <T = any>(state: Atom<T>) => {
 
 export const useUser = () => useRecState(userState)
 export const useProviders = () => useRecState(providersState)
+export const useSandboxes = () => useRecState(sandboxesState)
 export const useThemeType = () => useRecState(themeTypeState)
 export const useSidebarOpen = () => useRecState(sidebarOpenState)
 export const useQuickstartOpen = () => useRecState(quickstartState)

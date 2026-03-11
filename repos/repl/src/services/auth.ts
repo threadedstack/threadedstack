@@ -28,7 +28,8 @@ export class AuthManager {
       throw new Error(`Invalid API key format. Keys must start with "${ApiKeyPrefix}"`)
     }
 
-    if (insecure) process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
+    const isLocalProxy = url.includes(`local.threadedstack.app`)
+    if (insecure || isLocalProxy) process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
 
     const res = await fetch(`${url}/_/orgs`, {
       headers: {

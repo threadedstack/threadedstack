@@ -1,2 +1,3 @@
-export * from './proxyService'
-export * from './retryService'
+export * from './proxy'
+export * from './retry'
+export * from './egress'

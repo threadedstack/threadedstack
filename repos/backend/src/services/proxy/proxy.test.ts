@@ -1,5 +1,5 @@
+import { ProxyService } from './proxy'
 import { Exception } from '@tdsk/domain'
-import { ProxyService } from './proxyService'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock(`axios`, () => ({

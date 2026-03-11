@@ -1,0 +1,260 @@
+import { Sandbox } from '@tdsk/domain'
+import { describe, it, expect } from 'vitest'
+import { VolumeMountName, CACertMountPath } from '@TSB/constants/values'
+import { buildPodName, buildPodManifest, sanitizeLabel } from './podManifest'
+import { KubeSBPrefix, PodLabelKeys, PodAnnotationKeys } from '@TSB/constants/kube'
+
+const makeSandbox = (overrides: Partial<ConstructorParameters<typeof Sandbox>[0]> = {}) =>
+  new Sandbox({
+    id: `test12345678`,
+    name: `Test Sandbox`,
+    orgId: `org1`,
+    config: {
+      image: `node:20`,
+    },
+    ...overrides,
+  })
+
+describe(`buildPodName`, () => {
+  it(`should generate a pod name with tdsk-sb- prefix and first 8 chars of sandbox ID`, () => {
+    const name = buildPodName(`abcdefghijklmnop`)
+    expect(name).toMatch(/^tdsk-sb-abcdefgh-[a-z0-9]{4}$/)
+  })
+
+  it(`should lowercase the sandbox ID slug for RFC 1123 compliance`, () => {
+    const name = buildPodName(`AbCdEfGhIjKlMnOp`)
+    expect(name).toMatch(/^tdsk-sb-abcdefgh-[a-z0-9]{4}$/)
+  })
+
+  it(`should strip non-alphanumeric characters for RFC 1123 compliance`, () => {
+    const name = buildPodName(`hX_b3jsxfU`)
+    expect(name).toMatch(/^tdsk-sb-hxb3jsxf-[a-z0-9]{4}$/)
+  })
+
+  it(`should include a random 4 character suffix`, () => {
+    const name1 = buildPodName(`test12345678`)
+    const name2 = buildPodName(`test12345678`)
+    const prefix = `tdsk-${KubeSBPrefix}-test1234-`
+    expect(name1.startsWith(prefix)).toBe(true)
+    expect(name2.startsWith(prefix)).toBe(true)
+    // Random suffixes should differ (extremely unlikely to collide)
+    // We just verify the format is correct
+    expect(name1).toMatch(/^tdsk-sb-test1234-[a-z0-9]{4}$/)
+  })
+})
+
+describe(`sanitizeLabel`, () => {
+  it(`should pass through already valid values`, () => {
+    expect(sanitizeLabel(`org-1`)).toBe(`org-1`)
+    expect(sanitizeLabel(`test12345678`)).toBe(`test12345678`)
+  })
+
+  it(`should strip leading non-alphanumeric characters`, () => {
+    expect(sanitizeLabel(`-TJvRVH2-d`)).toBe(`TJvRVH2-d`)
+  })
+
+  it(`should strip trailing non-alphanumeric characters`, () => {
+    expect(sanitizeLabel(`IgB5vBYR7-`)).toBe(`IgB5vBYR7`)
+  })
+
+  it(`should strip both leading and trailing non-alphanumeric characters`, () => {
+    expect(sanitizeLabel(`--abc--`)).toBe(`abc`)
+  })
+
+  it(`should remove characters not allowed in K8s labels`, () => {
+    expect(sanitizeLabel(`a@b#c`)).toBe(`abc`)
+  })
+
+  it(`should truncate to 63 characters`, () => {
+    const long = `a`.repeat(100)
+    expect(sanitizeLabel(long)).toHaveLength(63)
+  })
+})
+
+describe(`buildPodManifest`, () => {
+  const basePlaceholders = { '{{API_KEY}}': 'secret123' }
+  const egressOpts = {
+    servicePort: 8889,
+    serviceName: `tdsk-backend`,
+    certSecretName: `tdsk-egress-ca`,
+  }
+
+  const buildOpts = (
+    sandboxOverrides: Partial<ConstructorParameters<typeof Sandbox>[0]> = {}
+  ) => ({
+    egressOpts,
+    orgId: `org-1`,
+    userId: `user-1`,
+    projectId: `proj-1`,
+    placeholders: basePlaceholders,
+    sandbox: makeSandbox(sandboxOverrides),
+  })
+
+  it(`should produce a valid manifest with correct apiVersion and kind`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    expect(manifest.apiVersion).toBe(`v1`)
+    expect(manifest.kind).toBe(`Pod`)
+  })
+
+  it(`should set correct labels on metadata`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const labels = manifest.metadata!.labels!
+    expect(labels[PodLabelKeys.managed]).toBe(`true`)
+    expect(labels[PodLabelKeys.orgId]).toBe(`org-1`)
+    expect(labels[PodLabelKeys.userId]).toBe(`user-1`)
+    expect(labels[PodLabelKeys.sandboxId]).toBe(`test12345678`)
+    expect(labels[PodLabelKeys.projectId]).toBe(`proj-1`)
+  })
+
+  it(`should sanitize sandboxId label values with leading/trailing dashes`, () => {
+    const manifest = buildPodManifest(buildOpts({ id: `-TJvRVH2-d` }))
+    const labels = manifest.metadata!.labels!
+    expect(labels[PodLabelKeys.sandboxId]).toBe(`TJvRVH2-d`)
+  })
+
+  it(`should include containers with sandbox container`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const containers = manifest.spec!.containers!
+    expect(containers).toHaveLength(1)
+    expect(containers[0].name).toBe(`sandbox`)
+    expect(containers[0].image).toBe(`node:20`)
+  })
+
+  it(`should include iptables init container with NET_ADMIN capability`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const initContainers = manifest.spec!.initContainers!
+    expect(initContainers).toHaveLength(1)
+
+    const initContainer = initContainers[0]
+    expect(initContainer.name).toBe(`proxy-redirect`)
+    expect(initContainer.image).toBe(`alpine`)
+    expect(initContainer.securityContext!.capabilities!.add).toContain(`NET_ADMIN`)
+
+    const cmd = initContainer.command!
+    expect(cmd[0]).toBe(`sh`)
+    expect(cmd[1]).toBe(`-c`)
+    expect(cmd[2]).toContain(`iptables`)
+    expect(cmd[2]).toContain(egressOpts.serviceName)
+    expect(cmd[2]).toContain(egressOpts.servicePort)
+  })
+
+  it(`should use serviceIp directly when provided in egressOpts`, () => {
+    const built = buildOpts()
+    const opts = {
+      ...built,
+      egressOpts: { ...built.egressOpts, serviceIp: `10.1.4.50` },
+    }
+    const manifest = buildPodManifest(opts)
+    const cmd = manifest.spec!.initContainers![0].command!
+    expect(cmd[2]).toContain(`EGRESS_IP="10.1.4.50"`)
+    expect(cmd[2]).not.toContain(`getent hosts`)
+  })
+
+  it(`should include volumes with CA cert secret`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const volumes = manifest.spec!.volumes!
+    expect(volumes).toHaveLength(1)
+    expect(volumes[0].name).toBe(VolumeMountName)
+    expect(volumes[0].secret!.secretName).toBe(egressOpts.certSecretName)
+  })
+
+  it(`should allow overriding caCertSecretName`, () => {
+    const built = buildOpts()
+    const opts = {
+      ...built,
+      egressOpts: { ...built.egressOpts, certSecretName: `custom-ca-cert` },
+    }
+    const manifest = buildPodManifest(opts)
+    const volumes = manifest.spec!.volumes!
+    expect(volumes[0].secret!.secretName).toBe(`custom-ca-cert`)
+  })
+
+  it(`should store placeholders in annotations as JSON`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const annotations = manifest.metadata!.annotations!
+    const parsed = JSON.parse(annotations[PodAnnotationKeys.placeholders])
+    expect(parsed).toEqual(basePlaceholders)
+  })
+
+  it(`should store ports in annotations as JSON`, () => {
+    const opts = buildOpts({
+      config: {
+        image: `node:20`,
+        ports: { '3000': { protocol: `http` } },
+      },
+    })
+    const manifest = buildPodManifest(opts)
+    const annotations = manifest.metadata!.annotations!
+    const parsed = JSON.parse(annotations[PodAnnotationKeys.ports])
+    expect(parsed).toEqual({ '3000': { protocol: `http` } })
+  })
+
+  it(`should include environment variables when specified`, () => {
+    const opts = buildOpts({
+      config: {
+        image: `node:20`,
+        envVars: { NODE_ENV: `development`, APP_PORT: `3000` },
+      },
+    })
+    const manifest = buildPodManifest(opts)
+    const env = manifest.spec!.containers![0].env!
+    expect(env).toContainEqual({ name: `NODE_ENV`, value: `development` })
+    expect(env).toContainEqual({ name: `APP_PORT`, value: `3000` })
+  })
+
+  it(`should always include NODE_EXTRA_CA_CERTS env var`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const env = manifest.spec!.containers![0].env!
+    expect(env).toContainEqual({ name: `NODE_EXTRA_CA_CERTS`, value: CACertMountPath })
+  })
+
+  it(`should only have CA cert env var when no envVars configured`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const env = manifest.spec!.containers![0].env!
+    expect(env).toHaveLength(1)
+    expect(env[0].name).toBe(`NODE_EXTRA_CA_CERTS`)
+  })
+
+  it(`should include port mappings when specified`, () => {
+    const opts = buildOpts({
+      config: {
+        image: `node:20`,
+        ports: {
+          '3000': { protocol: `http` },
+          '8080': { protocol: `http` },
+        },
+      },
+    })
+    const manifest = buildPodManifest(opts)
+    const ports = manifest.spec!.containers![0].ports!
+    expect(ports).toContainEqual({ protocol: `TCP`, containerPort: 3000 })
+    expect(ports).toContainEqual({ protocol: `TCP`, containerPort: 8080 })
+  })
+
+  it(`should return empty ports array when no ports configured`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const ports = manifest.spec!.containers![0].ports!
+    expect(ports).toEqual([])
+  })
+
+  it(`should set restartPolicy to Never and disable service account token`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    expect(manifest.spec!.restartPolicy).toBe(`Never`)
+    expect(manifest.spec!.automountServiceAccountToken).toBe(false)
+  })
+
+  it(`should set subdomain annotation`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const annotations = manifest.metadata!.annotations!
+    expect(annotations[PodAnnotationKeys.subdomain]).toMatch(
+      new RegExp(`^${KubeSBPrefix}-test1234-[a-z0-9]{4}$`)
+    )
+  })
+
+  it(`should disable privilege escalation on sandbox container`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const sc = manifest.spec!.containers![0].securityContext!
+    expect(sc.allowPrivilegeEscalation).toBe(false)
+    expect(sc.privileged).toBe(false)
+  })
+})

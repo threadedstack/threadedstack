@@ -6,6 +6,11 @@ export type TErrorPattern = {
 
 export const FRIENDLY_ERRORS: TErrorPattern[] = [
   {
+    match: (e) => isTlsCertError(e),
+    message: `TLS certificate verification failed.`,
+    suggestion: `Re-run with --insecure or log in again: tsa login <key> --insecure`,
+  },
+  {
     match: (e) =>
       hasCode(e, `ECONNREFUSED`) || hasCode(e, `ETIMEDOUT`) || hasCode(e, `ENOTFOUND`),
     message: `Can't reach the server.`,
@@ -38,6 +43,26 @@ export const FRIENDLY_ERRORS: TErrorPattern[] = [
   },
 ]
 
+const TLS_ERROR_PATTERNS = [
+  `unable to get local issuer certificate`,
+  `self-signed certificate`,
+  `UNABLE_TO_VERIFY_LEAF_SIGNATURE`,
+  `CERT_HAS_EXPIRED`,
+  `DEPTH_ZERO_SELF_SIGNED_CERT`,
+  `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`,
+]
+
+function isTlsCertError(e: unknown): boolean {
+  if (!(e instanceof Error)) return false
+  const msg = e.message
+  const cause = (e as any).cause
+  const causeMsg = cause instanceof Error ? cause.message : ``
+  const causeCode = typeof cause?.code === `string` ? cause.code : ``
+  return TLS_ERROR_PATTERNS.some(
+    (p) => msg.includes(p) || causeMsg.includes(p) || causeCode.includes(p)
+  )
+}
+
 function hasCode(e: unknown, code: string): boolean {
   return e instanceof Error && `code` in e && (e as any).code === code
 }
@@ -53,10 +78,12 @@ export type TApiErrorKind =
   | `notFound`
   | `data`
   | `server`
+  | `tls`
   | `unknown`
 
 export function classifyApiError(err: unknown): TApiErrorKind {
   if (!(err instanceof Error)) return `unknown`
+  if (isTlsCertError(err)) return `tls`
   if (
     hasCode(err, `ECONNREFUSED`) ||
     hasCode(err, `ETIMEDOUT`) ||

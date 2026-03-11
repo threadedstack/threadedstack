@@ -6,7 +6,8 @@ env:
   DEVSPACE_INJECT_LOCAL: true
   TDSK_KUBE_NAMESPACE: tdsk-local
   TDSK_KUBE_CONTEXT: docker-desktop
-  TDSK_HOST_DOMAIN: local.threadedstack.app
+  TDSK_CADDY_PX_HOST: px.local.threadedstack.app
 
   # Disable logger hiding
   STL_FORCE_DISABLE_SAFE: true
+  

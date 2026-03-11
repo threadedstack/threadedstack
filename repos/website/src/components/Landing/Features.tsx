@@ -1,13 +1,13 @@
 import Grid from '@mui/material/Grid'
-import SecurityIcon from '@mui/icons-material/Security'
-import SmartToyIcon from '@mui/icons-material/SmartToy'
+import { RobotIcon } from '@tdsk/components'
 import CloudIcon from '@mui/icons-material/Cloud'
-import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import ForumIcon from '@mui/icons-material/Forum'
+import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import BusinessIcon from '@mui/icons-material/Business'
-import SectionContainer from '@TAF/components/Shared/SectionContainer'
-import SectionHeader from '@TAF/components/Shared/SectionHeader'
+import SecurityIcon from '@mui/icons-material/Security'
 import FeatureCard from '@TAF/components/Shared/FeatureCard'
+import SectionHeader from '@TAF/components/Shared/SectionHeader'
+import SectionContainer from '@TAF/components/Shared/SectionContainer'
 
 const features = [
   {
@@ -17,7 +17,7 @@ const features = [
       'Enterprise-grade JWT/JWKS authentication gateway that validates every request before it reaches your backend. Supports social login, API keys, and session tokens.',
   },
   {
-    icon: SmartToyIcon,
+    icon: RobotIcon,
     title: 'AI Agent Runtime',
     description:
       'Run autonomous AI agents with built-in tool execution, provider routing, and streaming support. Connect any LLM provider through a unified interface.',

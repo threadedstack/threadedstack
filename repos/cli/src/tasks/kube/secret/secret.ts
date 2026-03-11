@@ -4,6 +4,7 @@ import path from 'path'
 import { tdsk } from './tdsk'
 import { email } from './email'
 import { docker } from './docker'
+import { egress } from './egress'
 import { payments } from './payments'
 import { database } from './database'
 import { Logger } from '@tdsk/logger'
@@ -169,6 +170,7 @@ export const secret: TTask = {
     tdsk,
     email,
     docker,
+    egress,
     payments,
     database,
   },

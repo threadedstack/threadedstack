@@ -6,6 +6,8 @@ type TDB = Record<string, any>
 type TPay = Record<string, any>
 type TEmail = Record<string, any>
 type TAuth = Record<string, any>
+type TKube = Record<string, any>
+type TSandbox = Record<string, any>
 
 export type TAppLocals<
   C extends TCfg = TCfg,
@@ -13,12 +15,16 @@ export type TAppLocals<
   P extends TPay = TPay,
   E extends TEmail = TEmail,
   A extends TAuth = TAuth,
+  K extends TKube = TKube,
+  S extends TSandbox = TSandbox,
 > = {
   db: D
   email?: E
   config: C
   payments: P
   auth: A
+  kube: K
+  sandbox: S
 }
 
 export type TApp<
@@ -27,7 +33,9 @@ export type TApp<
   P extends TPay = TPay,
   E extends TEmail = TEmail,
   A extends TAuth = TAuth,
-  L = TAppLocals<C, D, P, E, A>,
+  K extends TKube = TKube,
+  S extends TSandbox = TSandbox,
+  L = TAppLocals<C, D, P, E, A, K, S>,
 > = Express & {
   locals: L
 }

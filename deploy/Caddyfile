@@ -83,7 +83,7 @@
 # BLOCK 1: Local Development
 # Matches YOUR local domain specifically
 # ---------------------------------------------------------
-*.local.threadedstack.app, local.threadedstack.app {
+*.local.{$TDSK_HOST_DOMAIN:threadedstack.app}, local.{$TDSK_HOST_DOMAIN:threadedstack.app} {
 	# Force internal self-signed certs (No ACME, No Validation)
 	tls {
 		issuer internal {
@@ -107,6 +107,17 @@
 	import app_logic
 }
 
+# ---------------------------------------------------------
+# BLOCK: Sandbox Subdomains (Production)
+# Matches *.sandbox.threadedstack.app for sandbox pod access
+# ---------------------------------------------------------
+*.sandbox.{$TDSK_HOST_DOMAIN:threadedstack.app} {
+	tls {
+		on_demand
+	}
+
+	import app_logic
+}
 
 # ---------------------------------------------------------
 # BLOCK 2: Production (Catch-All)

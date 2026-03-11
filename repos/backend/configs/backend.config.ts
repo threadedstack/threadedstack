@@ -16,6 +16,7 @@ const {
   TDSK_BE_PORT,
   TDSK_BE_LOG_LEVEL,
   TDSK_BE_HEADER_KEY,
+  TDSK_BE_DEPLOYMENT,
   TDSK_BE_HEADER_VALUE,
   TDSK_BE_ALLOW_ORIGIN,
   TDSK_BE_LOGGER_PRETTY,
@@ -23,6 +24,8 @@ const {
   TDSK_BE_PUBLIC_ROUTES,
   TDSK_BE_API_ADMIN_PATH,
   TDSK_LOG_LEVEL = `info`,
+  TDSK_BE_EGRESS_PORT = 8889,
+  TDSK_KUBE_SCRT_EGRESS_CA = `tdsk-egress-ca`,
 
   TDSK_PAY_TYPE,
   TDSK_PAY_PLANS,
@@ -51,7 +54,6 @@ const {
 } = process.env
 
 export const config = {
-  // TODO: handle this better
   frontendUrl: TDSK_FRONTEND_URL || `http://localhost:${TDSK_AD_PORT}`,
   server: {
     port: toNum(TDSK_BE_PORT),
@@ -59,6 +61,12 @@ export const config = {
     environment: process.env.NODE_ENV,
     adminPath: TDSK_BE_API_ADMIN_PATH,
     origins: (TDSK_BE_ALLOW_ORIGIN || '').split(','),
+  },
+  egress: {
+    serviceName: TDSK_BE_DEPLOYMENT,
+    servicePort: toNum(TDSK_BE_EGRESS_PORT),
+    certSecretName: TDSK_KUBE_SCRT_EGRESS_CA,
+    serviceIp: undefined as string | undefined,
   },
   proxy: {
     // Validate if this URL field is needed
@@ -71,10 +79,10 @@ export const config = {
       .filter(Boolean),
   },
   logger: {
-    label: `TDSK - Backend`,
     exceptions: true,
     rejections: true,
     exitOnError: false,
+    label: `TDSK - Backend`,
     level: TDSK_BE_LOG_LEVEL ?? TDSK_LOG_LEVEL,
     pretty: toBool(TDSK_BE_LOGGER_PRETTY) ?? false,
     silent: toBool(TDSK_BE_LOGGER_SILENT) ?? false,

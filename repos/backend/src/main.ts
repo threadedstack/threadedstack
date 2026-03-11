@@ -7,12 +7,14 @@ import { initServer } from '@TBE/server/server'
 import { EmailService } from '@TBE/services/email'
 import { setupServer } from '@TBE/middleware/setupServer'
 import { setupLogger } from '@TBE/middleware/setupLogger'
+import { setupSandbox } from '@TBE/middleware/setupSandbox'
 import { setupDatabase } from '@TBE/middleware/setupDatabase'
 import { setupEndpoints } from '@TBE/middleware/setupEndpoints'
+import { setupSandboxProxy } from '@TBE/middleware/sandboxProxy'
 import { PaymentsService } from '@TBE/services/payments/payments'
 import { setupErrorHandler } from '@TBE/middleware/setupErrorHandler'
 
-export const main = (config: TBEConfig) => {
+export const main = async (config: TBEConfig) => {
   app.locals.config = config
   app.locals.email = new EmailService(config.email)
   app.locals.payments = new PaymentsService(config.payments)
@@ -20,6 +22,10 @@ export const main = (config: TBEConfig) => {
   setupLogger(app)
   setupServer(app, router)
   setupDatabase(app)
+
+  await setupSandbox(app)
+  setupSandboxProxy(app)
+
   setupEndpoints(app, router)
   setupErrorHandler(app)
 

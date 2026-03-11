@@ -24,6 +24,7 @@ export const quotas = pgTable(
     runtime: integer(`runtime`).default(0).notNull(),
     orgSecrets: integer(`org_secrets`).default(0).notNull(),
     projectSecrets: integer(`project_secrets`).default(0).notNull(),
+    activeSandboxes: integer(`active_sandboxes`).default(0).notNull(),
   },
   (table) => [uniqueIndex(`quotas_org_period_idx`).on(table.orgId, table.period)]
 )

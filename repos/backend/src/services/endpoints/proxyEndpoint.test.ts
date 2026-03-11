@@ -1,9 +1,9 @@
 import type { Response } from 'express'
 
 import { EEndpointType } from '@tdsk/domain'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ProxyEndpoint } from '@TBE/services/endpoints/proxyEndpoint'
 import { createProxyMiddleware } from 'http-proxy-middleware'
+import { ProxyEndpoint } from '@TBE/services/endpoints/proxyEndpoint'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock logger
 vi.mock(`@TBE/utils/logger`, () => ({

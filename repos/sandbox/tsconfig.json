@@ -33,6 +33,9 @@
       "@tdsk/domain": ["../domain/src"],
       "@tdsk/domain/*": ["../domain/src/*"],
 
+      "@tdsk/logger": ["../logger/src"],
+      "@tdsk/logger/*": ["../logger/src/*"],
+
       "@keg-hub/jsutils": ["./node_modules/@keg-hub/jsutils/build/esm"],
       "@keg-hub/jsutils/*": ["./node_modules/@keg-hub/jsutils/build/esm/*"],
       "@keg-hub/jsutils/src/node": ["./node_modules/@keg-hub/jsutils/build/esm/node"],

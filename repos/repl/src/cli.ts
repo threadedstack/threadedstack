@@ -30,9 +30,10 @@ export const main = async (): Promise<any> => {
   })
   const auth = new AuthManager()
 
-  // Apply insecure mode from stored credentials or --insecure argument
+  // Apply insecure mode from stored credentials, --insecure flag, or local dev proxy
   const storedCreds = auth.creds()
-  if (storedCreds?.insecure || hasArg(argv, `insecure`, [`ins`]))
+  const isLocalProxy = storedCreds?.proxyUrl?.includes(`local.threadedstack.app`)
+  if (storedCreds?.insecure || isLocalProxy || hasArg(argv, `insecure`, [`ins`]))
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = `0`
 
   await task.action?.({

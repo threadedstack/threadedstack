@@ -11,7 +11,6 @@ import type {
 import { ESecretMode } from '@tdsk/domain'
 import { useProviders } from '@TAF/state/selectors'
 import { ProviderTypes } from '@TAF/constants/providers'
-import { SecretModeOptions } from '@TAF/constants/values'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { useState, useEffect, useCallback, useMemo } from 'react'
@@ -20,14 +19,11 @@ import { createSecret } from '@TAF/actions/secrets/api/createSecret'
 import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { createProvider, updateProvider } from '@TAF/actions/providers'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
 import { ELLMProviderBrand, EProvider, ProviderTemplates } from '@tdsk/domain'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
 import { fetchProviderSecrets } from '@TAF/actions/secrets/api/fetchProviderSecrets'
-import {
-  ExpandMore as ExpandMoreIcon,
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
-} from '@mui/icons-material'
+import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 
 import {
   Box,
@@ -35,8 +31,6 @@ import {
   Alert,
   Accordion,
   Typography,
-  IconButton,
-  InputAdornment,
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material'
@@ -78,7 +72,6 @@ export const ProviderDrawer = ({
   // Secret management
   const [secretMode, setSecretMode] = useState<TSecretMode>(ESecretMode.none)
   const [apiKeyValue, setApiKeyValue] = useState(``)
-  const [showApiKey, setShowApiKey] = useState(false)
   const [selectedSecretId, setSelectedSecretId] = useState(``)
   const [orgSecrets, setOrgSecrets] = useState<Secret[]>([])
 
@@ -142,7 +135,6 @@ export const ProviderDrawer = ({
       setBodyParams(objToKV(provider.bodyParams, `bodyParam`))
       setError(null)
       setApiKeyValue(``)
-      setShowApiKey(false)
 
       // Pre-select the linked API key secret
       if (provider.secretId) {
@@ -161,7 +153,6 @@ export const ProviderDrawer = ({
       setBodyParams([])
       setError(null)
       setApiKeyValue(``)
-      setShowApiKey(false)
       setSelectedSecretId(``)
       setProviderSecrets([])
       setSecretMode(ESecretMode.none)
@@ -190,7 +181,6 @@ export const ProviderDrawer = ({
     setBodyParams([])
     setError(null)
     setApiKeyValue(``)
-    setShowApiKey(false)
     setSelectedSecretId(``)
     setProviderSecrets([])
     onCloseCB?.()
@@ -368,89 +358,26 @@ export const ProviderDrawer = ({
 
           {/* API Key Secret section */}
           {isAiType && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant='subtitle2'>API Key Secret</Typography>
-
-              {/* Show provider-linked secrets */}
-              {isEditMode && providerSecrets.length > 0 && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    gap: 0.5,
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <Typography
-                    variant='body2'
-                    color='text.secondary'
-                  >
-                    Linked:
-                  </Typography>
-                  {providerSecrets.map((s) => (
-                    <Chip
-                      key={s.id}
-                      size='small'
-                      variant='outlined'
-                      color={provider?.secretId === s.id ? 'success' : 'primary'}
-                      label={provider?.secretId === s.id ? `${s.name} (API Key)` : s.name}
-                    />
-                  ))}
-                </Box>
-              )}
-
-              <SelectInput
-                id='provider-secret-mode'
-                value={secretMode}
-                disabled={loading}
-                items={SecretModeOptions}
-                label={isEditMode ? 'Change API Key' : 'API Key'}
-                onChange={(e) => {
-                  setSecretMode(e.target.value as TSecretMode)
-                  setApiKeyValue(``)
-                  setSelectedSecretId(``)
-                  setShowApiKey(false)
-                }}
-              />
-
-              {secretMode === 'existing' && (
-                <SelectInput
-                  disabled={loading}
-                  label='Select Secret'
-                  items={secretOptions}
-                  value={selectedSecretId}
-                  id='provider-existing-secret'
-                  description='Choose an existing org-scoped secret'
-                  onChange={(e) => setSelectedSecretId(e.target.value)}
-                />
-              )}
-
-              {secretMode === 'new' && (
-                <TextInput
-                  required
-                  fullWidth
-                  disabled={loading}
-                  value={apiKeyValue}
-                  label='API Key Value'
-                  id='provider-api-key-value'
-                  type={showApiKey ? 'text' : 'password'}
-                  onChange={(e) => setApiKeyValue(e.target.value)}
-                  placeholder={template?.apiKeyPlaceholder || 'Enter your API key...'}
-                  endAdornment={
-                    <InputAdornment position='end'>
-                      <IconButton
-                        edge='end'
-                        disabled={loading}
-                        onClick={() => setShowApiKey((prev) => !prev)}
-                        aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
-                      >
-                        {showApiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  }
-                />
-              )}
-            </Box>
+            <SecretSelector
+              label='API Key'
+              editLabel='Change API Key'
+              editing={isEditMode}
+              disabled={loading}
+              mode={secretMode}
+              selectedSecretId={selectedSecretId}
+              newSecretValue={apiKeyValue}
+              onModeChange={(mode) => {
+                setSecretMode(mode)
+                setApiKeyValue(``)
+                setSelectedSecretId(``)
+              }}
+              onSecretSelect={setSelectedSecretId}
+              onNewValueChange={setApiKeyValue}
+              secretOptions={secretOptions}
+              linkedSecrets={providerSecrets}
+              activeSecretId={provider?.secretId}
+              valuePlaceholder={template?.apiKeyPlaceholder || 'Enter your API key...'}
+            />
           )}
 
           {/* Custom Headers */}

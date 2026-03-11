@@ -9,10 +9,12 @@ import type {
 
 import type { IFileSystem } from 'just-bash'
 
+import { logger } from '@TSB/utils/logger'
 import { ESandboxType } from '@tdsk/domain'
 import { Bash, InMemoryFs } from 'just-bash'
 import { gitCommand } from '@TSB/git/gitCommand'
 import { IsolateRunner } from '@TSB/local/isolate'
+import { DefaultWorkdir, DefaultTempdir } from '@TSB/constants/values'
 
 /**
  * Local sandbox instance using just-bash virtual shell/filesystem
@@ -29,7 +31,7 @@ export class LocalSandbox implements ISandbox {
     bash: Bash,
     fs: IFileSystem,
     isolateRunner?: IsolateRunner | null,
-    cwd = `/workspace`
+    cwd = DefaultWorkdir
   ) {
     this.fs = fs
     this.bash = bash
@@ -109,7 +111,7 @@ export class LocalSandbox implements ISandbox {
       }
     }
 
-    return await this.isolateRunner['eval'](code, opts?.timeout)
+    return await this.isolateRunner[`eval`](code, opts?.timeout)
   }
 
   reset = async (): Promise<void> => {
@@ -117,7 +119,7 @@ export class LocalSandbox implements ISandbox {
     this.isolateRunner?.releaseUserModules()
 
     // Clear filesystem contents in /workspace and /tmp
-    for (const dir of [`/workspace`, `/tmp`]) {
+    for (const dir of [DefaultWorkdir, DefaultTempdir]) {
       try {
         const entries = await this.fs.readdir(dir)
         for (const entry of entries) {
@@ -130,7 +132,7 @@ export class LocalSandbox implements ISandbox {
               !String(code).includes(`not empty`) &&
               !String(code).includes(`ENOTEMPTY`)
             )
-              console.warn(`Unexpected error clearing ${dir}/${entry}:`, err)
+              logger.warn(`Unexpected error clearing ${dir}/${entry}:`, err)
           }
         }
       } catch {
@@ -156,12 +158,12 @@ export class LocalSandboxProvider implements ISandboxProvider {
     const fs = new InMemoryFs()
 
     // Create standard directories
-    await fs.mkdir(`/tmp`, { recursive: true })
-    await fs.mkdir(`/workspace`, { recursive: true })
+    await fs.mkdir(DefaultTempdir, { recursive: true })
+    await fs.mkdir(DefaultWorkdir, { recursive: true })
 
     const bash = new Bash({
       fs,
-      cwd: `/workspace`,
+      cwd: DefaultWorkdir,
       env: config.envVars || {},
       customCommands: [gitCommand],
     })
@@ -175,8 +177,7 @@ export class LocalSandboxProvider implements ISandboxProvider {
       await runner.init()
     } catch {
       runner = null
-      // TODO: Figure out how to best handle this?
-      console.warn(
+      logger.warn(
         `isolated-vm not available — sandbox running without code execution isolation`
       )
     }

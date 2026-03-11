@@ -1,5 +1,6 @@
 export * from './buildProxy'
 export * from './proxyError'
+export * from './extractSNI'
 export * from './proxyHeaders'
 export * from './endpointProxy'
 export * from './buildProxyUrl'

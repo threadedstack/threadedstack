@@ -2,7 +2,7 @@
   "name": "@tdsk/sandbox",
   "version": "0.1.0",
   "description": "",
-  "main": "index.js",
+  "main": "src",
   "type": "module",
   "scripts": {
     "clean": "rm -rf ./node_modules",
@@ -22,12 +22,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@tdsk/domain": "workspace:*",
     "@keg-hub/jsutils": "10.0.0",
+    "@kubernetes/client-node": "1.4.0",
+    "@tdsk/domain": "workspace:*",
+    "@tdsk/logger": "workspace:*",
     "alias-hq": "6.2.4",
-    "isomorphic-git": "^1.27.1",
+    "http-proxy-middleware": "3.0.5",
     "isolated-vm": "6.0.2",
-    "just-bash": "2.5.5"
+    "isomorphic-git": "^1.27.1",
+    "just-bash": "2.5.5",
+    "nanoid": "5.1.6"
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",

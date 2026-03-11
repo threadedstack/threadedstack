@@ -77,7 +77,11 @@
       "mcp__github__get_file_contents",
       "Bash(NODE_TLS_REJECT_UNAUTHORIZED=0 node:*)",
       "Bash(grep:*)",
-      "Bash(/dev/null:*)"
+      "Bash(/dev/null:*)",
+      "Bash(npm ls:*)",
+      "Bash(node:*)",
+      "Bash(jobs:*)",
+      "Bash(pnpm cli:*)"
     ]
   },
   "sandbox": {

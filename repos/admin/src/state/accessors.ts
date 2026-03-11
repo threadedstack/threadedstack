@@ -20,6 +20,7 @@ import type {
   Thread,
   Message,
   Project,
+  Sandbox,
   Schedule,
   Provider,
   Endpoint,
@@ -31,6 +32,7 @@ import type {
 import { createStore } from 'jotai'
 import { userState } from '@TAF/state/user'
 import { providersState } from '@TAF/state/providers'
+import { sandboxesState } from '@TAF/state/sandboxes'
 import { quickstartState } from '@TAF/state/quickstart'
 import { themeTypeState, defThemeType } from '@TAF/state/theme'
 import {
@@ -127,6 +129,11 @@ export const getProviders = () => store.get(providersState)
 export const resetProviders = () => store.set(providersState, undefined)
 export const setProviders = (providers: Record<string, Provider>) =>
   store.set(providersState, providers)
+
+export const getSandboxes = () => store.get(sandboxesState)
+export const resetSandboxes = () => store.set(sandboxesState, undefined)
+export const setSandboxes = (sandboxes: Record<string, Sandbox>) =>
+  store.set(sandboxesState, sandboxes)
 
 export const getSecrets = () => store.get(secretsState)
 export const resetSecrets = () => store.set(secretsState, undefined)

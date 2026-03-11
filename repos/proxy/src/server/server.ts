@@ -78,5 +78,8 @@ const setupHttpServer = (app: TProxyApp) => {
  */
 export const initServer = (app: TProxyApp) => {
   const secureServer = setupHttpsServer(app)
-  return secureServer || setupHttpServer(app)
+  const server = secureServer || setupHttpServer(app)
+  if (app.locals.onUpgrade) server.on(`upgrade`, app.locals.onUpgrade)
+
+  return server
 }

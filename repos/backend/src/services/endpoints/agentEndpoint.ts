@@ -2,9 +2,10 @@ import type { Response } from 'express'
 import type { TDatabase } from '@tdsk/database'
 import type { IAgentRunnerDB } from '@tdsk/agent'
 import type { TRequest, TAgentExecOpts } from '@TBE/types'
-import type { Endpoint, TLLMProviderBrand } from '@tdsk/domain'
+import type { Endpoint, TLLMProviderBrand, TSandboxConfig } from '@tdsk/domain'
 
 import { BaseEndpoint } from './base'
+import { logger } from '@TBE/utils/logger'
 import { Exception } from '@tdsk/domain'
 import { AgentRunner } from '@tdsk/agent'
 import { ESandboxType, EEndpointType } from '@tdsk/domain'
@@ -133,16 +134,6 @@ export class AgentEndpoint extends BaseEndpoint {
       threadId = thread.id
     }
 
-    // Set up SSE headers
-    res.setHeader(`X-Thread-Id`, threadId)
-    res.setHeader(`Connection`, `keep-alive`)
-    res.setHeader(`Cache-Control`, `no-cache`)
-    res.setHeader(`Content-Type`, `text/event-stream`)
-    res.flushHeaders()
-
-    // Send thread ID as first event
-    res.write(`data: ${JSON.stringify({ type: `thread`, threadId })}\n\n`)
-
     // Build LLM config with optional overrides
     const llmConfig = {
       apiKey,
@@ -163,12 +154,47 @@ export class AgentEndpoint extends BaseEndpoint {
       provider: resolveProviderType<TLLMProviderBrand>(provider as any),
     }
 
-    // Build sandbox config
-    const sandboxConfig = {
-      envVars: { ...effectiveAgent.envVars, ...overrides?.envVars },
+    // Build sandbox config — done BEFORE SSE headers so errors return proper JSON responses
+    const sandboxProvider = effectiveAgent.environment?.sandboxType || ESandboxType.local
+    const sandboxConfig: TSandboxConfig = {
+      provider: sandboxProvider,
       timeout: effectiveAgent.environment?.timeout ?? 300000,
-      provider: ESandboxType.local,
+      envVars: { ...effectiveAgent.envVars, ...overrides?.envVars },
     }
+
+    if (sandboxProvider === ESandboxType.kubernetes) {
+      const { config, sandbox } = req.app.locals
+      const podName = effectiveAgent.environment?.podName as string
+      if (podName) {
+        sandboxConfig.options = { podName }
+      } else if (sandbox && effectiveAgent.environment?.sandboxId) {
+        const startedPodName = await sandbox.startPod({
+          userId,
+          orgId: agent.orgId,
+          egressOpts: config.egress,
+          projectId: projectId || ``,
+          sandboxId: effectiveAgent.environment.sandboxId as string,
+        })
+        sandboxConfig.options = { podName: startedPodName }
+      }
+
+      if (!sandboxConfig.options?.podName) {
+        throw new Exception(
+          503,
+          `K8s sandbox not available — no podName or sandbox found`
+        )
+      }
+    }
+
+    // Set up SSE headers — after sandbox setup so errors above return proper JSON
+    res.setHeader(`X-Thread-Id`, threadId)
+    res.setHeader(`Connection`, `keep-alive`)
+    res.setHeader(`Cache-Control`, `no-cache`)
+    res.setHeader(`Content-Type`, `text/event-stream`)
+    res.flushHeaders()
+
+    // Send thread ID as first event
+    res.write(`data: ${JSON.stringify({ type: `thread`, threadId })}\n\n`)
 
     // Handle client disconnect
     let aborted = false
@@ -177,14 +203,12 @@ export class AgentEndpoint extends BaseEndpoint {
     })
 
     try {
-      await AgentRunner.run({
+      const handle = await AgentRunner.run({
         prompt,
         userId,
         agentId,
         threadId,
         llmConfig,
-        // TODO: Make maxSteps configurable, should not be hard-coded like this
-        //maxSteps: 10,
         sandboxConfig,
         orgId: agent.orgId,
         db: createDBAdapter(db),
@@ -210,8 +234,10 @@ export class AgentEndpoint extends BaseEndpoint {
           res.write(`data: ${JSON.stringify(event)}\n\n`)
         },
       })
+      await handle.waitForIdle()
     } catch (err) {
       const message = err instanceof Error ? err.message : `Agent execution failed`
+      logger.error(`[AgentEndpoint] Agent run failed:`, message)
       if (!aborted) {
         res.write(`data: ${JSON.stringify({ type: `error`, error: message })}\n\n`)
       }

@@ -242,6 +242,7 @@ describe(`AgentRunner`, () => {
     expect(createSandboxProvider).toHaveBeenCalledWith(ESandboxType.local)
     expect(mockSandboxCreate).toHaveBeenCalledWith({
       envVars: { FOO: `bar` },
+      options: {},
       provider: ESandboxType.local,
       timeout: 60000,
     })

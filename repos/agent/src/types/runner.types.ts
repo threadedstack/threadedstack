@@ -59,6 +59,8 @@ export type TAgentInitOpts = {
     provider: string
     timeout?: number
     envVars?: Record<string, string>
+    /** Provider-specific options (e.g. { podName } for K8s) */
+    options?: Record<string, unknown>
   }
   /** Allowed tools list (empty = all) */
   tools?: string[]

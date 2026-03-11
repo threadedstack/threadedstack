@@ -26,6 +26,7 @@ const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
 const OrgSkills = lazy(() => import('@TAF/pages/Orgs/OrgSkills'))
 const OrgSchedules = lazy(() => import('@TAF/pages/Orgs/OrgSchedules'))
 const OrgProviders = lazy(() => import('@TAF/pages/Orgs/OrgProviders'))
+const OrgSandboxes = lazy(() => import('@TAF/pages/Orgs/OrgSandboxes'))
 
 // Project pages
 const Project = lazy(() => import('@TAF/pages/Projects/Project'))
@@ -118,6 +119,10 @@ export const Routes = createBrowserRouter([
           {
             path: ERoutePath.Providers,
             Component: () => <SuspensePage Component={OrgProviders} />,
+          },
+          {
+            path: ERoutePath.Sandboxes,
+            Component: () => <SuspensePage Component={OrgSandboxes} />,
           },
           {
             path: ERoutePath.Settings,

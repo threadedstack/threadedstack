@@ -57,7 +57,7 @@ vars:
 
   TDSK_HOST_DOMAIN:
     source: env
-    default: local.threadedstack.app
+    default: threadedstack.app
 
 # ----- Docker Image Values ----- #
   TDSK_IMAGE:
@@ -143,6 +143,12 @@ vars:
   TDSK_BE_PORT:
     source: env
     default: 7119
+  TDSK_BE_EGRESS_PORT:
+    source: env
+    default: 8889
+  TDSK_KUBE_SCRT_EGRESS_CA:
+    source: env
+    default: tdsk-egress-ca
 
 # ----- Kubernetes Secrets ----- #
   TDSK_KUBE_SCRT_DOC_AUTH:
@@ -170,7 +176,7 @@ vars:
     default: 'X-PINGOTHER,Origin,X-Requested-With,Content-Type,Accept,Authorization,AuthToken,x-tdsk-host,x-tdsk-proto,x-tdsk-port,x-tdsk-route,x-tdsk-job-id,x-tdsk-subdomain,x-forwarded-subdomain,x-forwarded-port,x-forwarded-proto,x-forwarded-host,x-forwarded-for,x-user-id,x-user-role,x-user-email'
   TDSK_SERVER_ORIGINS:
     source: env
-    default: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,proxy.dev.threadedstack.app,px.dev.threadedstack.app,px.threadedstack.app,px.local.threadedstack.app,http://0.0.0.0'
+    default: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,local.threadedstack.app,px.threadedstack.app,px.dev.threadedstack.app,px.local.threadedstack.app,sandbox.threadedstack.app,sandbox.dev.threadedstack.app,sandbox.local.threadedstack.app,http://0.0.0.0'
 
 
 hooks:
@@ -217,6 +223,9 @@ deployments:
                 value: ${TDSK_PX_PORT}
               - name: TDSK_PX_DEPLOYMENT
                 value: ${TDSK_PX_DEPLOYMENT}
+
+              - name: TDSK_HOST_DOMAIN
+                value: ${TDSK_HOST_DOMAIN}
 
               - name: TDSK_CADDY_ADMIN_PORT
                 value: ${TDSK_CADDY_ADMIN_PORT}
@@ -373,6 +382,30 @@ deployments:
         - ./values.yaml
         - ./values.${NODE_ENV}.yaml
       values:
+        networkPolicy:
+          name: sandbox-egress-policy
+          podSelector:
+            tdsk.app/managed: "true"
+          egressSelector:
+            app: tdsk-backend
+          egressPorts:
+            - port: ${TDSK_BE_EGRESS_PORT}
+        serviceAccountName: tdsk-backend-sa
+        customServiceAccount:
+          name: tdsk-backend-sa
+          role:
+            name: tdsk-sandbox-manager
+            resources:
+              - pods
+              - pods/exec
+            verbs:
+              - create
+              - delete
+              - get
+              - list
+              - watch
+          binding:
+            name: tdsk-sandbox-manager-binding
         containers:
           - name: ${TDSK_BE_DEPLOYMENT}
             image: ${TDSK_BE_IMAGE}:${TDSK_BE_IMAGE_TAG}
@@ -522,11 +555,23 @@ deployments:
                     key: secure
                     name: ${TDSK_KUBE_SCRT_EMAIL_CFG}
                     optional: true
-
+            volumeMounts:
+              - containerPath: /etc/tdsk/ca
+                volume:
+                  name: egress-ca-cert
+                  readOnly: true
+        volumes:
+          - name: egress-ca-cert
+            secret:
+              secretName: ${TDSK_KUBE_SCRT_EGRESS_CA}
+              optional: true
         service:
           name: ${TDSK_BE_DEPLOYMENT}
           ports:
             - port: ${TDSK_BE_PORT}
+              name: tdsk-backend-api
+            - port: ${TDSK_BE_EGRESS_PORT}
+              name: tdsk-backend-egress
         #ingress:
         #  tls: false
         #  labels: null

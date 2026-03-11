@@ -263,6 +263,7 @@ describe(`OrgNavItems`, () => {
       const expectedItems = [
         `Projects`,
         `Agents`,
+        `Sandboxes`,
         `Members`,
         `Secrets`,
         `Providers`,
@@ -461,10 +462,10 @@ describe(`OrgSubNavGroups`, () => {
     ])
   })
 
-  it(`Resources should have Projects, Members, Agents`, () => {
+  it(`Resources should have Projects, Providers, Agents, Sandboxes, Skills`, () => {
     const resources = OrgSubNavGroups.find((g) => g.label === `Resources`)
     const texts = resources?.items.map((i) => i.text)
-    expect(texts).toEqual([`Projects`, `Members`, `Providers`, `Agents`, `Skills`])
+    expect(texts).toEqual([`Projects`, `Providers`, `Agents`, `Sandboxes`, `Skills`])
   })
 
   it(`Security should have Secrets, Providers, API Keys, Domains`, () => {
@@ -473,10 +474,10 @@ describe(`OrgSubNavGroups`, () => {
     expect(texts).toEqual([`Secrets`, `API Keys`, `Domains`])
   })
 
-  it(`Management should have Usage, Settings`, () => {
+  it(`Management should have Members, Schedules, Usage, Settings`, () => {
     const management = OrgSubNavGroups.find((g) => g.label === `Management`)
     const texts = management?.items.map((i) => i.text)
-    expect(texts).toEqual([`Schedules`, `Usage`, `Settings`])
+    expect(texts).toEqual([`Members`, `Schedules`, `Usage`, `Settings`])
   })
 
   it(`all items should have Icons`, () => {

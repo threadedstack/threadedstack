@@ -70,6 +70,11 @@ const cleanupStaleTestResources = async (orgId: string) => {
     if (key.name === 'integration-admin' || isTestResource(key.name))
       await tryDel(`/orgs/${orgId}/api-keys/${key.id}`)
   }
+
+  const sandboxesRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/sandboxes?limit=200`)
+  for (const sandbox of (sandboxesRes.data?.data || [])) {
+    if (isTestResource(sandbox.name)) await tryDel(`/orgs/${orgId}/sandboxes/${sandbox.id}`)
+  }
 }
 
 /**

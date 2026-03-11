@@ -19,12 +19,12 @@ type TWebsocketOpts = {
 }
 
 export class Websocket {
+  #closed = false
   #app: TApp | undefined
   #ws: WebSocket | undefined
-  #abortController: AbortController | null = null
-  #agentHandle: TAgentHandle | null = null
   #runner: AgentRunner | null = null
-  #closed = false
+  #agentHandle: TAgentHandle | null = null
+  #abortController: AbortController | null = null
 
   constructor(opts: TWebsocketOpts) {
     this.#ws = opts.ws
@@ -96,8 +96,35 @@ export class Websocket {
 
     const { data: skills } = await db.services.skill.listForAgent(session.agentId)
 
+    const sandboxProvider = session.environment?.sandboxType || ESandboxType.local
+    let podName = session.environment?.podName as string | undefined
+
+    // Auto-start K8s pod if sandboxId is set but no explicit podName
+    if (
+      sandboxProvider === ESandboxType.kubernetes &&
+      !podName &&
+      session.environment?.sandboxId
+    ) {
+      const { config, sandbox } = (this.#app || ({ locals: {} } as TApp))?.locals
+      if (!sandbox) throw new Error(`Sandbox service could not be loaded!`)
+
+      podName = await sandbox.startPod({
+        orgId: session.orgId,
+        userId: session.userId,
+        egressOpts: config.egress,
+        projectId: session.projectId || ``,
+        sandboxId: session.environment.sandboxId as string,
+      })
+    }
+
+    if (sandboxProvider === ESandboxType.kubernetes && !podName) {
+      throw new Error(`K8s sandbox not available — no podName or sandbox found`)
+    }
+
     return {
+      skills,
       threadId,
+      customFunctions,
       tools: session.tools,
       orgId: session.orgId,
       userId: session.userId,
@@ -105,12 +132,11 @@ export class Websocket {
       db: this.createDBAdapter(db),
       llmConfig: session.llmConfig,
       environment: session.environment,
-      customFunctions,
-      skills,
       sandboxConfig: {
-        provider: ESandboxType.local,
+        provider: sandboxProvider,
         envVars: session.envVars ?? {},
         timeout: session.environment?.timeout ?? 300000,
+        options: podName ? { podName } : undefined,
       },
       onExecuteFunction: async (functionId, input) => {
         const func = functionMap.get(functionId)
@@ -249,8 +275,8 @@ export class Websocket {
         this.send({ type: EWSEventType.Done, reason: `error` })
       }
     } finally {
-      this.#abortController = null
       this.#agentHandle = null
+      this.#abortController = null
     }
   }
 
