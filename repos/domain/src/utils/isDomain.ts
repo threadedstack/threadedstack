@@ -1,9 +1,8 @@
 import { isStr } from '@keg-hub/jsutils/isStr'
+import { DomainRegex } from '@TDM/constants/values'
 
 export const isDomain = (val: string) => {
-  if (!isStr(val) || !val.trim()) return false
-
-  const regex =
-    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/
-  return regex.test(val.trim().toLowerCase())
+  if (!isStr(val)) return false
+  const trimmed = val.trim()
+  return trimmed !== `` && DomainRegex.test(trimmed.toLowerCase())
 }

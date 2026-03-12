@@ -2,6 +2,7 @@ import type { TInviteStatus } from '@TDM/types'
 
 import { Base } from './base'
 import { EInviteStatus } from '@TDM/types'
+import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 
 /**
  * Invitation Model
@@ -31,8 +32,7 @@ export class Invitation extends Base {
    * Create a sanitized copy without the token field
    */
   sanitize() {
-    const { token, ...rest } = Object.assign({}, this)
-    return new Invitation(rest as Partial<Invitation>)
+    return new Invitation(omitKeys(this, [`token`]))
   }
 
   /**

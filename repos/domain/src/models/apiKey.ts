@@ -39,7 +39,7 @@ export class ApiKey extends Base {
   }
 
   getRateLimit(): number {
-    return this.rateLimit ? this.rateLimit : 100
+    return this.rateLimit || 100
   }
 
   sanitize = () => {

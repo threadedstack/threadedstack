@@ -24,17 +24,10 @@ const tdskAuthAct = async (props: TTaskActionArgs) => {
     )
 
   const { token: tToken, ...secParams } = params
-
-  // Get the user name in the same way docker and devspace do
   const envs = config.envs
 
-  // Get the auth token in the same way docker and devspace do
   const token = tToken || envs.TDSK_MASTER_KEY
-  const hidden = `${token.slice(0, 2 - token.length)}${token
-    .slice(2, token.length)
-    .split('')
-    .map(() => '*')
-    .join('')}`
+  const hidden = token.slice(0, 2) + '*'.repeat(Math.max(0, token.length - 2))
   token && params.log && Logger.pair(`Found value for token`, hidden)
 
   if (!token) return taskError(`A token is required to create a tdsk secret`)

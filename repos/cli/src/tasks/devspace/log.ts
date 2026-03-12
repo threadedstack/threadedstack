@@ -3,12 +3,6 @@ import type { TTask, TTaskAction } from '@TSCL/types'
 import { devspace } from '@TSCL/utils/devspace'
 import { sharedOpts } from '@TSCL/utils/tasks/options'
 
-/**
- * Runs a devspace log command and returns the output
- * @function
- * @public
- * @returns {Void}
- */
 const logAct: TTaskAction = async (args) => {
   await devspace.logs(args)
 }

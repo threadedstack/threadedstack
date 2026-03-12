@@ -53,6 +53,47 @@ const resolveArgs = <T>(callback: TCallback<T>) => {
 export const kubectl = async (opts: Omit<TSpawn, `cmd`>) =>
   await spawn({ cmd: `kubectl`, ...opts })
 
+const kubectlPipe = <T>(
+  params: Record<string, any>,
+  args: string[],
+  initial: T,
+  transform: (data: string) => T
+): Promise<T> => {
+  return new Promise((res, rej) => {
+    let output = initial
+    let resolved = false
+    kubectl({
+      ...params,
+      stdio: `pipe`,
+      output: params?.output ?? true,
+      args,
+      stderr: Logger.stderr,
+      stdout: (data: string) => {
+        output = transform(data)
+      },
+      close: () => {
+        if (resolved) return
+        resolved = true
+        res(output)
+      },
+      error: (err) => {
+        if (resolved) return
+        resolved = true
+        rej(err)
+      },
+      exit: () => {
+        if (resolved) return
+        resolved = true
+        res(output)
+      },
+    }).catch((err) => {
+      if (resolved) return
+      resolved = true
+      rej(err)
+    })
+  })
+}
+
 /**
  * Creates a kubernetes object from the passed in args
  */
@@ -66,10 +107,12 @@ kubectl.delete = resolveArgs(async (props: TTaskActionArgs, args: string | strin
   return await kubectl({ ...props.params, args: [`delete`, ...args] })
 }) as TKubeDelete
 
-kubectl.delete.pod = resolveArgs(async (props: TTaskActionArgs, args: string[]) => {
-  await kubectl.ensureContext(props, args)
-  return await kubectl.delete(props, [`pod`, ...args])
-})
+kubectl.delete.pod = resolveArgs(
+  async (props: TTaskActionArgs, args: string | string[]) => {
+    await kubectl.ensureContext(props, args)
+    return await kubectl.delete(props, [`pod`, ...args])
+  }
+)
 
 /**
  * Creates a kubernetes object from the passed in args
@@ -82,75 +125,23 @@ kubectl.apply = resolveArgs(async (props: TTaskActionArgs, args: string | string
 /**
  * Gets the current kube-context
  */
-kubectl.currentContext = resolveArgs<string>(
-  async (props: TTaskActionArgs, args: string | string[]) => {
-    return new Promise(async (res, rej) => {
-      let output = ``
-      let resolved = false
-
-      await kubectl({
-        ...props.params,
-        stdio: `pipe`,
-        output: props.params?.output ?? true,
-        args: [`config`, `current-context`],
-        stderr: Logger.stderr,
-        stdout: (data: string) => {
-          output = data.trim()
-        },
-        close: () => {
-          if (resolved) return
-          resolved = true
-          res(output)
-        },
-        error: (err) => {
-          resolved = true
-          rej(err)
-        },
-        exit: () => {
-          if (resolved) return
-          resolved = true
-          res(output)
-        },
-      })
-    })
-  }
-)
+kubectl.currentContext = resolveArgs<string>(async (props: TTaskActionArgs) => {
+  return kubectlPipe(props.params, [`config`, `current-context`], ``, (data) =>
+    data.trim()
+  )
+})
 
 /**
  * Gets all available contexts
  */
-kubectl.getContexts = resolveArgs<string[]>(
-  async (props: TTaskActionArgs, args: string | string[]) => {
-    return new Promise(async (res, rej) => {
-      let outputs = []
-      let resolved = false
-      await kubectl({
-        ...props.params,
-        stdio: `pipe`,
-        output: props.params?.output ?? true,
-        args: [`config`, `get-contexts`, `-o`, `name`],
-        stderr: Logger.stderr,
-        stdout: (data: string) => {
-          outputs = data.split(`\n`).map((ctx) => ctx.trim())
-        },
-        close: () => {
-          if (resolved) return
-          resolved = true
-          res(outputs)
-        },
-        error: (err) => {
-          resolved = true
-          rej(err)
-        },
-        exit: () => {
-          if (resolved) return
-          resolved = true
-          res(outputs)
-        },
-      })
-    })
-  }
-)
+kubectl.getContexts = resolveArgs<string[]>(async (props: TTaskActionArgs) => {
+  return kubectlPipe(
+    props.params,
+    [`config`, `get-contexts`, `-o`, `name`],
+    [] as string[],
+    (data) => data.split(`\n`).map((ctx) => ctx.trim())
+  )
+})
 
 /**
  * Sets the current kube-context to the passed in value
@@ -202,36 +193,12 @@ kubectl.ensureContext = resolveArgs<string>(
 kubectl.getPods = resolveArgs<Record<any, any>>(
   async (props: TTaskActionArgs, args: string | string[]) => {
     await kubectl.ensureContext(props, args)
-
-    return new Promise(async (res, rej) => {
-      let output: Record<any, any> = {}
-      let resolved = false
-
-      await kubectl({
-        ...props.params,
-        stdio: `pipe`,
-        output: props.params?.output ?? true,
-        args: [`get`, `pods`, `-o`, `json`, ...args],
-        stderr: Logger.stderr,
-        stdout: (data: string) => {
-          output = parseJSON(data, false)
-        },
-        close: () => {
-          if (resolved) return
-          resolved = true
-          res(output)
-        },
-        error: (err) => {
-          resolved = true
-          rej(err)
-        },
-        exit: () => {
-          if (resolved) return
-          resolved = true
-          res(output)
-        },
-      })
-    })
+    return kubectlPipe(
+      props.params,
+      [`get`, `pods`, `-o`, `json`, ...args],
+      {} as Record<any, any>,
+      (data) => parseJSON(data, false)
+    )
   }
 )
 
@@ -260,35 +227,7 @@ kubectl.getPod = resolveArgs<Record<any, any>>(
 kubectl.describe = resolveArgs<string>(
   async (props: TTaskActionArgs, args: string | string[]) => {
     await kubectl.ensureContext(props, args)
-    return new Promise(async (res, rej) => {
-      let output: string = ``
-      let resolved = false
-
-      return await kubectl({
-        ...props.params,
-        stdio: `pipe`,
-        args: [`describe`, ...args],
-        output: props.params?.output ?? true,
-        stderr: Logger.stderr,
-        stdout: (data: string) => {
-          output = data.trim()
-        },
-        close: () => {
-          if (resolved) return
-          resolved = true
-          res(output)
-        },
-        error: (err) => {
-          resolved = true
-          rej(err)
-        },
-        exit: () => {
-          if (resolved) return
-          resolved = true
-          res(output)
-        },
-      })
-    })
+    return kubectlPipe(props.params, [`describe`, ...args], ``, (data) => data.trim())
   }
 )
 

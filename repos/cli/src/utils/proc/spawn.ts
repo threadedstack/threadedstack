@@ -30,17 +30,15 @@ export type TSpawnProm = Promise<number> & {
  * Array to capture process exits and call handleExit method
  */
 const events = (child: ChildProcess) => {
-  Array.from([`exit`, `SIGINT`, `SIGUSR1`, `SIGUSR2`, `uncaughtException`, `SIGTERM`])
-    // Loop over the events, and add each one to the current process
-    // This way we watch for any time the current process is killed
-    .map((event) =>
-      process.on(event, (exitCode) => {
+  ;[`exit`, `SIGINT`, `SIGUSR1`, `SIGUSR2`, `uncaughtException`, `SIGTERM`].forEach(
+    (event) =>
+      process.on(event, () => {
         if ((child as any).__spOnExitCalled) return
 
         ;(child as any).__spOnExitCalled = true
         child.kill(`SIGKILL`)
       })
-    )
+  )
 }
 
 export const spawn = async (props: TSpawn) => {

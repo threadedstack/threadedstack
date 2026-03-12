@@ -34,11 +34,7 @@ const docAuthAct = async (props: TTaskActionArgs) => {
 
   // Get the auth token in the same way docker and devspace do
   const token = pToken || creds.password
-  const hidden = `${token.slice(0, 2 - token.length)}${token
-    .slice(2, token.length)
-    .split('')
-    .map(() => '*')
-    .join('')}`
+  const hidden = token.slice(0, 2) + '*'.repeat(Math.max(0, token.length - 2))
   token && params.log && Logger.pair(`Found value for secret token`, hidden)
 
   if (!token || !user)

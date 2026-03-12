@@ -12,6 +12,8 @@ export const ApiKeyPrefix = `tdsk_`
  */
 export const SecretRefTest = /\{\{\s*.+?:[A-Za-z0-9_-]{10}\s*\}\}/
 export const SecretRefPattern = /\{\{\s*(.+?):([A-Za-z0-9_-]{10})\s*\}\}/g
+export const DomainRegex =
+  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/
 
 export const AuthHeaders = Object.freeze({
   [`user.userId`]: `X-User-Id`,

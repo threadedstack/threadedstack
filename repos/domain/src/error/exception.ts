@@ -35,7 +35,7 @@ export class Exception extends Error {
     stack?: string
   ) {
     if (message instanceof Error) {
-      const err = message as Error
+      const err = message
       message = err.message
       if (err.stack && !stack) stack = err.stack
       if (err.cause && !details) details = err.cause as string

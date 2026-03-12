@@ -18,13 +18,13 @@ const loadCfg = async (environment: string) => {
 }
 
 ife(async () => {
-  const args = process.argv.slice(2) as string[]
+  const args = process.argv.slice(2)
   const { task, options } = find(tasks, args)
 
   !task.action && taskError(`Task ${task.name} does not have an action to preform`)
 
   const params = await argsParse(
-    { args: options, task: { options: task?.options || [] } },
+    { args: options, task: { options: task.options || [] } },
     {
       defaultArgs: {
         env: {

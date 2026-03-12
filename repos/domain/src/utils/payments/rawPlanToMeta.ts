@@ -3,10 +3,8 @@ import type { TPayPlanRaw, TPayPlanMeta } from '@TDM/types'
 import { toNum } from '@keg-hub/jsutils/toNum'
 import { camelCase } from '@keg-hub/jsutils/camelCase'
 
-const isCamelCase = (str: string): boolean => {
-  const camelCaseRegex = /^[a-z][a-zA-Z0-9]*$/
-  return camelCaseRegex.test(str)
-}
+const camelCaseRegex = /^[a-z][a-zA-Z0-9]*$/
+const isCamelCase = (str: string): boolean => camelCaseRegex.test(str)
 
 /**
  * Converts a the raw metadata values into a valid plan metadata object

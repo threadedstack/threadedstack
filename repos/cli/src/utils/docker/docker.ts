@@ -13,46 +13,19 @@ import { login } from '@TSCL/utils/docker/login'
 
 const cmd = async (opts: Omit<TSpawn, `cmd`>) => await spawn({ cmd: `docker`, ...opts })
 
+const cmdOpts = (props: { params?: Record<string, any> }) => ({
+  log: props?.params?.log,
+  envs: props?.params?.envs,
+  output: props?.params?.log,
+})
+
 export const docker = {
   login: async (props: TTaskActionArgs) =>
-    await cmd({
-      args: login(props),
-      log: props?.params?.log,
-      output: props?.params?.log,
-    }),
-  build: async (props: TUtilArgs) =>
-    await cmd({
-      args: build(props),
-      log: props?.params?.log,
-      envs: props?.params?.envs,
-      output: props?.params?.log,
-    }),
+    await cmd({ args: login(props), ...cmdOpts(props) }),
+  build: async (props: TUtilArgs) => await cmd({ args: build(props), ...cmdOpts(props) }),
   run: async (props: TUtilArgs<TDockerRunArgs>) =>
-    await cmd({
-      args: run(props),
-      log: props?.params?.log,
-      envs: props?.params?.envs,
-      output: props?.params?.log,
-    }),
-  exec: async (props: TUtilArgs) =>
-    await cmd({
-      args: exec(props),
-      log: props?.params?.log,
-      envs: props?.params?.envs,
-      output: props?.params?.log,
-    }),
-  pull: async (props: TUtilArgs) =>
-    await cmd({
-      args: pull(props),
-      log: props?.params?.log,
-      envs: props?.params?.envs,
-      output: props?.params?.log,
-    }),
-  push: async (props: TUtilArgs) =>
-    await cmd({
-      args: push(props),
-      log: props?.params?.log,
-      envs: props?.params?.envs,
-      output: props?.params?.log,
-    }),
+    await cmd({ args: run(props), ...cmdOpts(props) }),
+  exec: async (props: TUtilArgs) => await cmd({ args: exec(props), ...cmdOpts(props) }),
+  pull: async (props: TUtilArgs) => await cmd({ args: pull(props), ...cmdOpts(props) }),
+  push: async (props: TUtilArgs) => await cmd({ args: push(props), ...cmdOpts(props) }),
 }
