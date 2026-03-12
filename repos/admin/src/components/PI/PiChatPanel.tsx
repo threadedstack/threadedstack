@@ -1,7 +1,7 @@
 import type { TChatMessage } from '@tdsk/components'
 import type { AgentMessage } from '@mariozechner/pi-web-ui'
 
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect } from 'react'
 import { Box, Alert } from '@mui/material'
 import type { MessageList, MessageEditor } from '@mariozechner/pi-web-ui'
 import { getThemeBridgeStyles } from '@TAF/utils/piWebUiThemeBridge'
@@ -87,27 +87,12 @@ export const PiChatPanel = (props: TPiChatPanel) => {
     editorRef.current.isStreaming = isStreaming
   }, [isStreaming])
 
-  // Wire send callback — stable ref to avoid re-attaching
-  const handleSend = useCallback(
-    (input: string) => {
-      onSend(input)
-    },
-    [onSend]
-  )
-
-  // Wire abort callback
-  const handleAbort = useCallback(() => {
-    onCancel()
-  }, [onCancel])
-
   // Attach callbacks after mount
   useEffect(() => {
     if (!editorRef.current) return
-    editorRef.current.onSend = (input: string) => {
-      handleSend(input)
-    }
-    editorRef.current.onAbort = handleAbort
-  }, [handleSend, handleAbort])
+    editorRef.current.onSend = onSend
+    editorRef.current.onAbort = onCancel
+  }, [onSend, onCancel])
 
   const themeBridgeStyles = getThemeBridgeStyles()
 

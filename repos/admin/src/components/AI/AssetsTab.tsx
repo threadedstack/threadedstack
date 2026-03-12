@@ -36,7 +36,6 @@ export const AssetsTab = (props: TAssetsTab) => {
   const [success, setSuccess] = useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
@@ -64,10 +63,6 @@ export const AssetsTab = (props: TAssetsTab) => {
     if (!assets) return []
     let filtered = Object.values(assets)
 
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter((asset) => asset.type === typeFilter)
-    }
-
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter((asset) => {
@@ -82,17 +77,11 @@ export const AssetsTab = (props: TAssetsTab) => {
     return filtered.sort(
       (a, b) => ((b as any).createdAt || 0) - ((a as any).createdAt || 0)
     )
-  }, [assets, searchQuery, typeFilter])
+  }, [assets, searchQuery])
 
   const totalAssetsCount = useMemo(() => {
     if (!assets) return 0
     return Object.keys(assets).length
-  }, [assets])
-
-  const assetTypes = useMemo(() => {
-    if (!assets) return []
-    const types = new Set(Object.values(assets).map((asset) => asset.type))
-    return Array.from(types).sort()
   }, [assets])
 
   const onDeleteAsset = (asset: Asset) => {
@@ -104,15 +93,13 @@ export const AssetsTab = (props: TAssetsTab) => {
     if (!selectedAsset) return
 
     const result = await deleteAsset(projectId, selectedAsset.id)
+    setDeleteDialogOpen(false)
 
     if (result.error) {
       setError(result.error.message)
-      setDeleteDialogOpen(false)
     } else {
       setSuccess('Asset deleted successfully')
-      setDeleteDialogOpen(false)
       setTimeout(() => setSuccess(null), 2000)
-      // Refresh assets
       if (orgId && projectId) {
         await fetchAssets(projectId, { orgId, projectId })
       }

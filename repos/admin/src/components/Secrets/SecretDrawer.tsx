@@ -44,7 +44,6 @@ export const SecretDrawer = ({
   const [temp, setTemp] = useState<TTempSecret>({})
   const [showValue, setShowValue] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const updateTemp = (update: Partial<TTempSecret>) => setTemp({ ...temp, ...update })
 
@@ -67,12 +66,10 @@ export const SecretDrawer = ({
       })
       setError(null)
       setShowValue(false)
-      setShowDeleteConfirm(false)
     } else {
       setError(null)
       setTemp(undefined)
       setShowValue(false)
-      setShowDeleteConfirm(false)
     }
   }, [secret])
 
@@ -83,7 +80,6 @@ export const SecretDrawer = ({
     setError(null)
     setTemp(undefined)
     setShowValue(false)
-    setShowDeleteConfirm(false)
   }
 
   const onSave = async (evt: React.FormEvent) => {
@@ -144,8 +140,8 @@ export const SecretDrawer = ({
           form='secret-form'
           actions={actions}
           loading={loading}
+          disabled={loading}
           editing={isEditMode}
-          disabled={loading || showDeleteConfirm}
         />
       }
     >

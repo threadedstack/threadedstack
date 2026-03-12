@@ -103,19 +103,16 @@ export const Login = (props: TLogin) => {
           <LoginStack className='tdsk-login-stack'>
             {providers.map((provider) => {
               const Button = LoginBtns[provider]
-              const loading = authenticating === provider
+              if (!Button) return null
 
               return (
-                (Button && (
-                  <BtnSection key={provider}>
-                    <Button
-                      onLogin={onLogin}
-                      loading={loading}
-                      disabled={Boolean(authenticating) || emailLoading}
-                    />
-                  </BtnSection>
-                )) ||
-                null
+                <BtnSection key={provider}>
+                  <Button
+                    onLogin={onLogin}
+                    loading={authenticating === provider}
+                    disabled={Boolean(authenticating) || emailLoading}
+                  />
+                </BtnSection>
               )
             })}
           </LoginStack>
@@ -148,13 +145,12 @@ export const Login = (props: TLogin) => {
             </BtnSection>
           )}
 
-          {(error && (
+          {error && (
             <ErrorSection className='tdsk-login-error-section'>
               <ErrorTitle>Authentication Error</ErrorTitle>
               <ErrorText className='tdsk-login-error-text'>{error}</ErrorText>
             </ErrorSection>
-          )) ||
-            null}
+          )}
         </LoginMainContainer>
       </LoginContent>
     </LoginContainer>

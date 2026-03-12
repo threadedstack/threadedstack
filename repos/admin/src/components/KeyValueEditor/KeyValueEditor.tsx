@@ -88,10 +88,9 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
   }
 
   const onValueChange = (id: string, newValue: string, oldValue: string) => {
-    templates.includes(newValue) && !templates.includes(oldValue)
-      ? setActiveAutocomplete(id)
-      : setActiveAutocomplete(null)
-
+    setActiveAutocomplete(
+      templates.includes(newValue) && !templates.includes(oldValue) ? id : null
+    )
     updateValue(id, newValue)
   }
 
@@ -148,17 +147,13 @@ export const KeyValueEditor = (props: TKeyValueEditorProps) => {
                     typeof value !== 'string' &&
                     onSecretSelect(pair.id, pair.value, value)
                   }
-                  renderInput={(params) => {
-                    return (
-                      <TextField
-                        {...params}
-                        placeholder={valuePlaceholder}
-                        onChange={(e) =>
-                          onValueChange(pair.id, e.target.value, pair.value)
-                        }
-                      />
-                    )
-                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={valuePlaceholder}
+                      onChange={(e) => onValueChange(pair.id, e.target.value, pair.value)}
+                    />
+                  )}
                 />
               ) : (
                 <Box sx={{ position: 'relative' }}>

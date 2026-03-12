@@ -21,7 +21,6 @@ export const deleteProject = async (
     return { error: resp.error }
   }
 
-  // Remove project from state
   const currentProjects = getProjects() || {}
   const { [id]: deleted, ...remainingProjects } = currentProjects
   setProjects(remainingProjects)

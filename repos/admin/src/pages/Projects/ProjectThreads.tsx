@@ -21,7 +21,7 @@ export const ProjectThreads = (props: TProjectThreads) => {
     )
   }
 
-  const onChatWithThread = (threadId: string, threadAgentId: string) => {
+  const onChatWithThread = (threadId: string, _threadAgentId: string) => {
     navigate(
       buildNavRoute(
         { orgId, projectId, agentId, threadId },

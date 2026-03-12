@@ -3,7 +3,7 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import { useProjectDomains, useOrgDomains } from '@TAF/state/selectors'
 import { fetchDomains } from '@TAF/actions/domains/api'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
@@ -30,30 +30,24 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Determine context type
-  const isOrgContext = !!orgId && !projectId
   const isProjectContext = !!projectId
 
   const [projectDomains] = useProjectDomains()
   const [orgDomains] = useOrgDomains()
   const domains = isProjectContext ? projectDomains : orgDomains
 
-  // Load domains based on context
-  useEffect(() => {
-    const loadDomains = async () => {
-      if (!orgId && !projectId) return
-
-      setLoading(true)
-      setError(null)
-
-      const result = await fetchDomains({ orgId, projectId })
-      result.error ? setError(result.error) : setError(null)
-
-      setLoading(false)
-    }
-
-    loadDomains()
+  const loadDomains = useCallback(async () => {
+    if (!orgId && !projectId) return
+    setLoading(true)
+    setError(null)
+    const result = await fetchDomains({ orgId, projectId })
+    if (result.error) setError(result.error)
+    setLoading(false)
   }, [orgId, projectId])
+
+  useEffect(() => {
+    loadDomains()
+  }, [loadDomains])
 
   const onCreateDomain = () => {
     setSelectedDomain(null)
@@ -63,18 +57,6 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
   const onDialogClose = () => {
     setDialogOpen(false)
     setSelectedDomain(null)
-  }
-
-  const onDomainCreated = async () => {
-    if (!orgId && !projectId) return
-
-    setLoading(true)
-    setError(null)
-
-    const result = await fetchDomains({ orgId, projectId })
-    result.error ? setError(result.error) : setError(null)
-
-    setLoading(false)
   }
 
   const onEditDomain = (domain: Domain) => {
@@ -249,7 +231,7 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
           projectId={projectId}
           domain={selectedDomain}
           onClose={onDialogClose}
-          onSuccess={onDomainCreated}
+          onSuccess={loadDomains}
         />
       )}
     </PageLayout>

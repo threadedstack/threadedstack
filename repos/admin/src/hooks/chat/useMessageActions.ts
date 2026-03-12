@@ -2,7 +2,6 @@ import type { Message } from '@tdsk/domain'
 
 import { useState, useCallback } from 'react'
 import { branchThread } from '@TAF/actions/threads/api/branchThread'
-import { fetchMessages } from '@TAF/actions/messages/api/fetchMessages'
 import { updateMessage } from '@TAF/actions/messages/api/updateMessage'
 import { deleteMessage } from '@TAF/actions/messages/api/deleteMessage'
 

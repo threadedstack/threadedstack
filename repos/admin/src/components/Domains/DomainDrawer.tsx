@@ -36,19 +36,11 @@ export const DomainDrawer = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
-    if (domain) {
-      setError(null)
-      setShowDeleteConfirm(false)
-      setDomainName(domain.domain || '')
-      setSslPrivateKey(domain.sslPrivateKey || '')
-      setSslCertificate(domain.sslCertificate || '')
-    } else {
-      setError(null)
-      setDomainName('')
-      setSslPrivateKey('')
-      setSslCertificate('')
-      setShowDeleteConfirm(false)
-    }
+    setError(null)
+    setShowDeleteConfirm(false)
+    setDomainName(domain?.domain || '')
+    setSslPrivateKey(domain?.sslPrivateKey || '')
+    setSslCertificate(domain?.sslCertificate || '')
   }, [domain])
 
   const onClose = () => {
@@ -126,35 +118,22 @@ export const DomainDrawer = ({
     onRemove,
   })
 
-  const onCertificateFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const content = event.target?.result as string
-      if (content) {
-        setSslCertificate(content)
+  const onFileUpload =
+    (setter: (v: string) => void, label: string) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const content = event.target?.result as string
+        if (content) setter(content)
       }
+      reader.onerror = () => setError(`Failed to read ${label} file. Please try again.`)
+      reader.readAsText(file)
     }
-    reader.onerror = () => setError(`Failed to read certificate file. Please try again.`)
-    reader.readAsText(file)
-  }
 
-  const onPrivateKeyFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const content = event.target?.result as string
-      if (content) {
-        setSslPrivateKey(content)
-      }
-    }
-    reader.onerror = () => setError(`Failed to read private key file. Please try again.`)
-    reader.readAsText(file)
-  }
+  const onCertificateFileUpload = onFileUpload(setSslCertificate, 'certificate')
+  const onPrivateKeyFileUpload = onFileUpload(setSslPrivateKey, 'private key')
 
   return (
     <Drawer

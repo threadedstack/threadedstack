@@ -14,6 +14,5 @@ export const activeFunctionIdState = atomWithReset<string>(
 // Derived: auto-filters to active project
 export const projectFunctionsState = atom((get) => {
   const projectId = get(activeProjectIdState)
-  const all = get(functionsState)
-  return projectId && all?.[projectId] ? all[projectId] : undefined
+  return projectId ? get(functionsState)?.[projectId] : undefined
 })

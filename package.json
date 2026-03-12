@@ -16,6 +16,7 @@
     "sync": "syncpack fix-mismatches --config configs/syncpack.config.js",
     "tdsk": "cd repos/cli; pnpm cli",
     "ts": "cd repos/cli; pnpm cli",
+    "check": "pnpm test && pnpm types",
     "test": "pnpm -r --filter=!@tdsk/integration test",
     "test:full": "pnpm -r test",
     "test:integration": "cd repos/integration && pnpm test",

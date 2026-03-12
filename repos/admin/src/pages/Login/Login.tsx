@@ -1,11 +1,11 @@
 import type { TOnLogin } from '@TAF/types'
 
-import { useState, useCallback } from 'react'
-import { Login } from '@TAF/components/Login'
 import { auth } from '@TAF/services/auth'
+import { Login } from '@TAF/components/Login'
+import { useState, useCallback } from 'react'
 import { setUser } from '@TAF/state/accessors'
-import { TDSK_AUTH_PROVIDERS } from '@TAF/constants/envs'
 import { signin } from '@TAF/actions/auth/local/signin'
+import { TDSK_AUTH_PROVIDERS } from '@TAF/constants/envs'
 
 export type TLogin = {}
 
@@ -26,75 +26,70 @@ export const LoginPage = (props: TLogin) => {
     setAuthenticating(undefined)
   }, [])
 
-  const onEmailSignIn = useCallback(async (email: string, password: string) => {
-    setEmailLoading(true)
-    setEmailError(undefined)
-    setEmailSuccess(undefined)
-    setError(undefined)
-    try {
-      const resp = await auth.signInWithEmail(email, password)
-      if (resp.error) {
-        setEmailError(resp.error.message || `Sign in failed`)
-        return
+  const runEmailAction = useCallback(
+    async (fallbackMsg: string, action: () => Promise<any>) => {
+      setEmailLoading(true)
+      setEmailError(undefined)
+      setEmailSuccess(undefined)
+      setError(undefined)
+      try {
+        const resp = await action()
+        if (resp.error) {
+          setEmailError(resp.error.message || fallbackMsg)
+          return
+        }
+        return resp
+      } catch (err: any) {
+        setEmailError(err?.message || fallbackMsg)
+      } finally {
+        setEmailLoading(false)
       }
-      resp.user && setUser(resp.user)
-    } catch (err: any) {
-      setEmailError(err?.message || `Sign in failed`)
-    } finally {
-      setEmailLoading(false)
-    }
-  }, [])
+    },
+    []
+  )
 
-  const onEmailSignUp = useCallback(async (email: string, password: string) => {
-    setEmailLoading(true)
-    setEmailError(undefined)
-    setEmailSuccess(undefined)
-    setError(undefined)
-    try {
-      const resp = await auth.signUpWithEmail(email, password)
-      if (resp.error) {
-        setEmailError(resp.error.message || `Sign up failed`)
-        return
-      }
-      resp.user && setUser(resp.user)
-    } catch (err: any) {
-      setEmailError(err?.message || `Sign up failed`)
-    } finally {
-      setEmailLoading(false)
-    }
-  }, [])
+  const onEmailSignIn = useCallback(
+    async (email: string, password: string) => {
+      const resp = await runEmailAction(`Sign in failed`, () =>
+        auth.signInWithEmail(email, password)
+      )
+      resp?.user && setUser(resp.user)
+    },
+    [runEmailAction]
+  )
 
-  const onForgotPassword = useCallback(async (email: string) => {
-    setEmailLoading(true)
-    setEmailError(undefined)
-    setEmailSuccess(undefined)
-    setError(undefined)
-    try {
-      const resp = await auth.forgotPassword(email)
-      if (resp.error) {
-        setEmailError(resp.error.message || `Password reset failed`)
-        return
-      }
-      setEmailSuccess(`Password reset email sent. Check your inbox.`)
-    } catch (err: any) {
-      setEmailError(err?.message || `Password reset failed`)
-    } finally {
-      setEmailLoading(false)
-    }
-  }, [])
+  const onEmailSignUp = useCallback(
+    async (email: string, password: string) => {
+      const resp = await runEmailAction(`Sign up failed`, () =>
+        auth.signUpWithEmail(email, password)
+      )
+      resp?.user && setUser(resp.user)
+    },
+    [runEmailAction]
+  )
+
+  const onForgotPassword = useCallback(
+    async (email: string) => {
+      const resp = await runEmailAction(`Password reset failed`, () =>
+        auth.forgotPassword(email)
+      )
+      resp && setEmailSuccess(`Password reset email sent. Check your inbox.`)
+    },
+    [runEmailAction]
+  )
 
   return (
     <Login
       error={error}
       onLogin={onLogin}
-      providers={TDSK_AUTH_PROVIDERS}
-      authenticating={authenticating}
-      showEmailForm={showEmailForm}
       emailError={emailError}
       emailSuccess={emailSuccess}
       emailLoading={emailLoading}
       onEmailSignIn={onEmailSignIn}
       onEmailSignUp={onEmailSignUp}
+      showEmailForm={showEmailForm}
+      providers={TDSK_AUTH_PROVIDERS}
+      authenticating={authenticating}
       onForgotPassword={onForgotPassword}
     />
   )

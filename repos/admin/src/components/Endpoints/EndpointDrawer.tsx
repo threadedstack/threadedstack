@@ -91,27 +91,15 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
   const availableProviders = providersMap ? Object.values(providersMap) : []
 
   useEffect(() => {
-    if (endpoint) {
-      setSharedState({
-        name: endpoint.name || ``,
-        path: endpoint.path || ``,
-        method: endpoint.method || `get`,
-        public: endpoint.public || false,
-        endpointType: endpoint.type || EEndpointType.proxy,
-      })
-      setUiState({ loading: false, error: null, showDeleteConfirm: false })
-      setActiveTab(`configure`)
-    } else {
-      setSharedState({
-        name: ``,
-        path: ``,
-        method: `get`,
-        public: false,
-        endpointType: EEndpointType.proxy,
-      })
-      setUiState({ loading: false, error: null, showDeleteConfirm: false })
-      setActiveTab(`configure`)
-    }
+    setSharedState({
+      name: endpoint?.name || ``,
+      path: endpoint?.path || ``,
+      method: endpoint?.method || `get`,
+      public: endpoint?.public || false,
+      endpointType: endpoint?.type || EEndpointType.proxy,
+    })
+    setUiState({ loading: false, error: null, showDeleteConfirm: false })
+    setActiveTab(`configure`)
   }, [endpoint])
 
   useEffect(() => {
@@ -178,7 +166,7 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
 
     // 3. Build options object based on type
     let options: TEndpointOpts<TEndpointType>
-    let headers: Record<string, string> = {}
+    const headers: Record<string, string> = {}
 
     if (sharedState.endpointType === EEndpointType.proxy) {
       if (!proxyConfigRef.current)

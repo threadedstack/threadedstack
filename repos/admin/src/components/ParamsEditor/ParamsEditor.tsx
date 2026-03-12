@@ -12,20 +12,11 @@ const ParamTypeItems = Object.values(EFunParamType).map((v) => ({
   value: v,
 }))
 
+const rowBase = { flex: 1, gap: 1, display: `flex`, alignItems: `center` } as const
+
 const styles = {
-  row1: {
-    flex: 1,
-    gap: 1,
-    display: `flex`,
-    alignItems: `center`,
-  },
-  row2: {
-    flex: 1,
-    gap: 1,
-    display: `flex`,
-    alignItems: `center`,
-    mt: 0.5,
-  },
+  row1: rowBase,
+  row2: { ...rowBase, mt: 0.5 },
 }
 
 export type TParamsEditorProps = {

@@ -106,11 +106,6 @@ export const ProjectSettings = (props: TProjectSettings) => {
     }
   }
 
-  const onCopySuccess = (message: string) => {
-    setSuccess(message)
-    setTimeout(() => setSuccess(null), 2000)
-  }
-
   return (
     <Page className='tdsk-project-settings-page'>
       <Box sx={{ mb: 3 }}>
@@ -189,7 +184,6 @@ export const ProjectSettings = (props: TProjectSettings) => {
                   ]
                 : []),
             ]}
-            onCopy={onCopySuccess}
           />
 
           <DangerZoneCard

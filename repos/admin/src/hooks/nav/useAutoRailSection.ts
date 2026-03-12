@@ -26,9 +26,7 @@ export const useAutoRailSection = (orgId?: string, projectId?: string) => {
         hasInit.current = true
         return derived
       }
-      if (current === null) return current
-      if (current !== derived) return derived
-      return current
+      return current === null ? current : derived
     })
   }, [location.pathname, orgId, projectId, setActiveSection])
 

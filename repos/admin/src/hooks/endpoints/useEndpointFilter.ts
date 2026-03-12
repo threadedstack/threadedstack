@@ -16,10 +16,8 @@ export const useEndpointFilter = (props: THEndpointFilter) => {
   const { count, filtered } = useMemo(() => {
     if (!endpoints) return { filtered: [], count: 0 }
 
-    const eps = Object.values(endpoints)
-    const count = eps.length
-
-    let filtered = [...eps]
+    let filtered = Object.values(endpoints)
+    const count = filtered.length
 
     if (methodFilter !== `all`)
       filtered = filtered.filter((endpoint) => endpoint.method === methodFilter)

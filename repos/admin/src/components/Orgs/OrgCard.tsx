@@ -47,13 +47,13 @@ export type TOrgCard = {
 export const OrgCard = (props: TOrgCard) => {
   const { org, active, onDelete, onSelect, showDelete } = props
 
+  const [deleted, setDeleted] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const onDeleteCancel = () => setDeleting(false)
-  const [deleted, setDeleted] = useState<boolean>(false)
-  const [deleting, setDeleting] = useState<boolean>(false)
   const onDeleteConfirm = () => {
     if (!showDelete) return
     setDeleted(true)
-    onDelete(org.id)
+    onDelete?.(org.id)
   }
 
   return (

@@ -12,11 +12,11 @@ export const useOrgsState = () => {
   const getOrgs = async () => {
     try {
       setLoading(true)
-      error && setError(undefined)
+      setError(undefined)
       const resp = await fetchOrgs()
       resp.error && setError(resp.error.message)
     } catch (err) {
-      setError(err.message)
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }

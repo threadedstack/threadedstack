@@ -18,32 +18,39 @@ import {
 
 export type TCurrentPlan = {}
 
+const Sections = [
+  { key: `projects`, label: `Projects`, suffix: `` },
+  { key: `endpoints`, label: `Endpoints`, suffix: `` },
+  { key: `members`, label: `Team Members`, suffix: `` },
+  { key: `runtime`, label: `Runtime`, suffix: `seconds` },
+] as const
+
 const formatDate = (dateString: string | undefined): string => {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  if (!dateString) return `N/A`
+  return new Date(dateString).toLocaleDateString(`en-US`, {
+    year: `numeric`,
+    month: `long`,
+    day: `numeric`,
   })
 }
 
 const getStatusColor = (
   status: string
-): 'default' | 'primary' | 'success' | 'warning' | 'error' => {
+): `default` | `primary` | `success` | `warning` | `error` => {
   switch (status.toLowerCase()) {
-    case 'active':
-      return 'success'
-    case 'trialing':
-      return 'primary'
-    case 'past_due':
-      return 'warning'
-    case 'canceled':
-    case 'incomplete':
-    case 'incomplete_expired':
-    case 'unpaid':
-      return 'error'
+    case `active`:
+      return `success`
+    case `trialing`:
+      return `primary`
+    case `past_due`:
+      return `warning`
+    case `canceled`:
+    case `incomplete`:
+    case `incomplete_expired`:
+    case `unpaid`:
+      return `error`
     default:
-      return 'default'
+      return `default`
   }
 }
 
@@ -201,81 +208,30 @@ export const CurrentPlan = (props: TCurrentPlan) => {
                 spacing={1}
                 sx={{ mt: 1 }}
               >
-                {currentPlan.metadata.projects !== undefined && (
-                  <Stack
-                    direction='row'
-                    spacing={1}
-                    alignItems='center'
-                  >
-                    <CheckIcon
-                      fontSize='small'
-                      color='success'
-                    />
-                    <Typography variant='body2'>
-                      {currentPlan.metadata.projects === -1
-                        ? 'Unlimited'
-                        : currentPlan.metadata.projects}{' '}
-                      Projects
-                    </Typography>
-                  </Stack>
-                )}
+                {Sections.filter(
+                  ({ key }) => currentPlan.metadata[key] !== undefined
+                ).map(({ key, label, suffix }) => {
+                  const value = currentPlan.metadata[key]
+                  const display =
+                    value === -1 ? 'Unlimited' : suffix ? `${value} ${suffix}` : value
 
-                {currentPlan.metadata.endpoints !== undefined && (
-                  <Stack
-                    direction='row'
-                    spacing={1}
-                    alignItems='center'
-                  >
-                    <CheckIcon
-                      fontSize='small'
-                      color='success'
-                    />
-                    <Typography variant='body2'>
-                      {currentPlan.metadata.endpoints === -1
-                        ? 'Unlimited'
-                        : currentPlan.metadata.endpoints}{' '}
-                      Endpoints
-                    </Typography>
-                  </Stack>
-                )}
-
-                {currentPlan.metadata.members !== undefined && (
-                  <Stack
-                    direction='row'
-                    spacing={1}
-                    alignItems='center'
-                  >
-                    <CheckIcon
-                      fontSize='small'
-                      color='success'
-                    />
-                    <Typography variant='body2'>
-                      {currentPlan.metadata.members === -1
-                        ? 'Unlimited'
-                        : currentPlan.metadata.members}{' '}
-                      Team Members
-                    </Typography>
-                  </Stack>
-                )}
-
-                {currentPlan.metadata.runtime !== undefined && (
-                  <Stack
-                    direction='row'
-                    spacing={1}
-                    alignItems='center'
-                  >
-                    <CheckIcon
-                      fontSize='small'
-                      color='success'
-                    />
-                    <Typography variant='body2'>
-                      {currentPlan.metadata.runtime === -1
-                        ? 'Unlimited'
-                        : `${currentPlan.metadata.runtime} seconds`}{' '}
-                      Runtime
-                    </Typography>
-                  </Stack>
-                )}
+                  return (
+                    <Stack
+                      key={key}
+                      direction='row'
+                      spacing={1}
+                      alignItems='center'
+                    >
+                      <CheckIcon
+                        fontSize='small'
+                        color='success'
+                      />
+                      <Typography variant='body2'>
+                        {display} {label}
+                      </Typography>
+                    </Stack>
+                  )
+                })}
               </Stack>
             </>
           )}
@@ -283,8 +239,8 @@ export const CurrentPlan = (props: TCurrentPlan) => {
           <Box sx={{ mt: 3 }}>
             <Button
               variant='outlined'
-              onClick={handleManageSubscription}
               disabled={loading}
+              onClick={handleManageSubscription}
             >
               {loading ? 'Loading...' : 'Manage Subscription'}
             </Button>

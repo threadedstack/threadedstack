@@ -1,25 +1,13 @@
 import type { Secret } from '@tdsk/domain'
-import { setProjectSecrets } from '@TAF/state/accessors'
-import { setOrgSecrets as setOrgSecs } from '@TAF/state/accessors'
+import { setProjectSecrets, setOrgSecrets as setOrgSecs } from '@TAF/state/accessors'
+
+const toRecord = (secrets: Secret[]) =>
+  Object.fromEntries(secrets.map((s) => [s.id, s])) as Record<string, Secret>
 
 export const setSecrets = (projectId: string, secrets: Secret[]) => {
-  const mapped = secrets.reduce(
-    (acc, secret) => {
-      acc[secret.id] = secret
-      return acc
-    },
-    {} as Record<string, Secret>
-  )
-  setProjectSecrets(projectId, mapped)
+  setProjectSecrets(projectId, toRecord(secrets))
 }
 
 export const setOrgSecrets = (secrets: Secret[]) => {
-  const mapped = secrets.reduce(
-    (acc, secret) => {
-      acc[secret.id] = secret
-      return acc
-    },
-    {} as Record<string, Secret>
-  )
-  setOrgSecs(mapped)
+  setOrgSecs(toRecord(secrets))
 }

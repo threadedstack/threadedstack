@@ -6,7 +6,6 @@ import { TextInput } from '@tdsk/components'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 
 export type TEnvs = {
-  label?: string
   secrets: string[]
   disabled: boolean
   helperText?: string
@@ -19,17 +18,8 @@ export type TEnvs = {
 }
 
 export const Envs = (props: TEnvs) => {
-  const {
-    envVars,
-    secrets,
-    secretsList,
-    disabled,
-    onEnvVarsChange,
-    onSecretsChange,
-    label = 'Environment Variables',
-  } = props
-
-  const hasConfig = envVars.length > 0 || secrets.length > 0
+  const { envVars, secrets, secretsList, disabled, onEnvVarsChange, onSecretsChange } =
+    props
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

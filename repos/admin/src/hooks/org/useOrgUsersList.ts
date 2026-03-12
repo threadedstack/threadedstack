@@ -18,13 +18,7 @@ export const useOrgUsersList = () => {
     setLoading(true)
     setError(undefined)
     const resp = await listOrgUsers(orgId)
-
-    if (resp.error) {
-      setError(resp.error.message)
-    } else {
-      setError(undefined)
-    }
-
+    if (resp.error) setError(resp.error.message)
     setLoading(false)
   }
 
@@ -34,13 +28,7 @@ export const useOrgUsersList = () => {
     setLoading(true)
     setError(undefined)
     const resp = await removeFromOrg(orgId, user.id)
-
-    if (resp.error) {
-      setError(resp.error.message)
-    } else {
-      setError(undefined)
-    }
-
+    if (resp.error) setError(resp.error.message)
     setLoading(false)
   }
 

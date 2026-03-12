@@ -38,9 +38,8 @@ export const AuthProvider = (props: TAuthProvider) => {
 
     ife(async () => {
       try {
-        setLoading(true)
-        const { session: authSession, error } = await initAuth()
-        if (error) return setError(error.message)
+        const { session: authSession, error: authError } = await initAuth()
+        if (authError) return setError(authError.message)
 
         if (authSession) {
           setSession(authSession)

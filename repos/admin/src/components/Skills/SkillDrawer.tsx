@@ -41,6 +41,7 @@ export const SkillDrawer = ({
   const updateTemp = (update: Partial<TTempSkill>) => setTemp({ ...temp, ...update })
 
   useEffect(() => {
+    setError(null)
     if (skill) {
       setTemp({
         name: skill.name,
@@ -50,9 +51,7 @@ export const SkillDrawer = ({
         triggerKeywords: skill.triggerKeywords?.join(', ') || '',
         alwaysActive: skill.alwaysActive ?? false,
       })
-      setError(null)
     } else {
-      setError(null)
       setTemp({})
     }
   }, [skill])

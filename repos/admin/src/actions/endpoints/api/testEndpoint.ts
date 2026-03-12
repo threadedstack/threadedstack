@@ -13,12 +13,6 @@ export type TTestEndpointOpts = {
 export const testEndpoint = async (
   opts: TTestEndpointOpts
 ): Promise<TEndpointTestRes> => {
-  const { body, method, headers, projectId, endpointId, queryParams } = opts
-
-  return endpointTestApi.execute(projectId, endpointId, {
-    body,
-    method,
-    headers,
-    queryParams,
-  })
+  const { projectId, endpointId, ...params } = opts
+  return endpointTestApi.execute(projectId, endpointId, params)
 }

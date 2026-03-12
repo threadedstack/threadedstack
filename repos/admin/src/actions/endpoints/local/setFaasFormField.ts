@@ -19,19 +19,11 @@ export const setFaasFormField = <K extends keyof TFaasFormState>(
   }
 }
 
-export const setFaasEnvVars = (envVars: TKeyValuePair[]) => {
-  const current = getFaasFormState()
-  if (current) {
-    setFaasFormState({ ...current, envVars })
-  }
-}
+export const setFaasEnvVars = (envVars: TKeyValuePair[]) =>
+  setFaasFormField(`envVars`, envVars)
 
-export const setFaasArguments = (args: TKeyValuePair[]) => {
-  const current = getFaasFormState()
-  if (current) {
-    setFaasFormState({ ...current, arguments: args })
-  }
-}
+export const setFaasArguments = (args: TKeyValuePair[]) =>
+  setFaasFormField(`arguments`, args)
 
 export const initializeFaasForm = (endpoint: Endpoint) => {
   const initializedState = initFaasFromEndpoint(endpoint)

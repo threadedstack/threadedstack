@@ -65,18 +65,15 @@ export const Billing = (props: TBilling) => {
         id: 'billing-success',
         description: 'Your subscription has been successfully updated.',
       })
-      // Clean up URL params
-      setSearchParams({})
-      // Reload subscription data
       loadData()
     } else if (cancelled === 'true') {
       toast.info('Checkout Cancelled', {
         id: 'billing-cancelled',
         description: 'You cancelled the checkout process.',
       })
-      // Clean up URL params
-      setSearchParams({})
-    }
+    } else return
+
+    setSearchParams({})
   }, [searchParams, setSearchParams])
 
   const loadData = async () => {

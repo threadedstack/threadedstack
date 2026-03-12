@@ -4,13 +4,14 @@ import type { TDataTableColumn } from '@TAF/components'
 import { Page } from '@TAF/pages/Page/Page'
 import { listOrgUsers } from '@TAF/actions/users'
 import { useEffect, useState, useMemo } from 'react'
-import { useApiKeys, useActiveOrgId, useOrgUsers } from '@TAF/state/selectors'
 import { Box, Typography, Chip } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
+import { useApiKeys, useActiveOrgId, useOrgUsers } from '@TAF/state/selectors'
+import { scopeChipColor, formatScopeLabel } from '@TAF/utils/transforms/scopes'
 import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 
@@ -113,36 +114,6 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
 
   const apiKeysCount = apiKeys ? Object.keys(apiKeys).length : 0
 
-  // TODO: Convert this to enum like other constants
-  const getScopeChipColor = (
-    scope: string
-  ): 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' => {
-    switch (scope.toLowerCase()) {
-      case 'admin':
-        return 'error'
-      case 'write':
-        return 'warning'
-      case 'read':
-        return 'info'
-      default:
-        return 'default'
-    }
-  }
-
-  // TODO: Convert this to enum like other constants
-  const formatScopeLabel = (scope: string): string => {
-    switch (scope.toLowerCase()) {
-      case 'admin':
-        return 'Admin'
-      case 'write':
-        return 'Write'
-      case 'read':
-        return 'Read Only'
-      default:
-        return scope.charAt(0).toUpperCase() + scope.slice(1)
-    }
-  }
-
   const columns: TDataTableColumn<ApiKey>[] = [
     {
       id: 'name',
@@ -192,10 +163,10 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
           {apiKey.scopes?.split(',').map((scope) => (
             <Chip
               key={scope}
-              label={formatScopeLabel(scope.trim())}
               size='small'
-              color={getScopeChipColor(scope.trim())}
               variant='outlined'
+              color={scopeChipColor(scope.trim())}
+              label={formatScopeLabel(scope.trim())}
             />
           ))}
         </Box>
@@ -206,8 +177,8 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
       label: 'Status',
       render: (apiKey) => (
         <Chip
-          label={apiKey.active ? 'Active' : 'Revoked'}
           size='small'
+          label={apiKey.active ? 'Active' : 'Revoked'}
           color={apiKey.active ? 'success' : 'default'}
           variant={apiKey.active ? 'filled' : 'outlined'}
         />
@@ -231,10 +202,10 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
       align: 'right',
       render: (apiKey) => (
         <ActionIconButton
-          tooltip='Revoke API Key'
-          icon={<DeleteIcon />}
           size='small'
           color='error'
+          icon={<DeleteIcon />}
+          tooltip='Revoke API Key'
           disabled={!apiKey.active}
           onClick={(e) => {
             e.stopPropagation()
@@ -250,23 +221,23 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
       <PageLayout
         title='API Keys'
         countLabel='key'
-        count={apiKeysCount}
-        error={error?.message}
         loading={loading}
         query={searchQuery}
+        count={apiKeysCount}
+        error={error?.message}
         setSearchQuery={setSearchQuery}
-        searchPlaceholder='Search API keys by name or prefix...'
         searchCount={filteredApiKeys.length}
         onAction={apiKeysCount > 0 && onCreateApiKey}
         actionLabel={apiKeysCount > 0 && 'Generate API Key'}
+        searchPlaceholder='Search API keys by name or prefix...'
         setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
       >
         {apiKeysCount === 0 && (
           <EmptyState
-            message='No API keys yet. Generate your first API key to enable M2M authentication.'
-            actionLabel='Generate API Key'
             actionIcon={<AddIcon />}
             onAction={onCreateApiKey}
+            actionLabel='Generate API Key'
+            message='No API keys yet. Generate your first API key to enable M2M authentication.'
           />
         )}
 

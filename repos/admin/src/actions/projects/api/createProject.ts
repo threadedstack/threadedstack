@@ -10,7 +10,6 @@ export const createProject = async (opts: Partial<Project>) => {
   if (resp.error) return { error: resp.error }
 
   if (resp.data) {
-    // Update projects state with the new project
     const currentProjects = getProjects() || {}
     setProjects({ ...currentProjects, [resp.data.id]: resp.data })
   }

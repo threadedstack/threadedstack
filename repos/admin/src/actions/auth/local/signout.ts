@@ -9,7 +9,7 @@ export const signout = async () => {
 
   try {
     await auth.signout()
-  } catch (err) {}
+  } catch {}
 
   apiService.clearBearer()
   reset()

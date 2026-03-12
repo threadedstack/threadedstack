@@ -13,6 +13,5 @@ export const activeOrgRoleState = atomWithReset<string | undefined>(undefined)
 
 export const activeOrgState = atom((get) => {
   const orgId = get(activeOrgIdState)
-  const orgs = get(orgsState)
-  return orgId && orgs?.[orgId] ? orgs[orgId] : undefined
+  return orgId ? get(orgsState)?.[orgId] : undefined
 })

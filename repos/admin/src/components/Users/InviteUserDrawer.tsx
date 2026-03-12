@@ -30,12 +30,12 @@ export const InviteUserDrawer = ({
   const [roleType, setRoleType] = useState<TRoleType>(ERoleType.viewer)
 
   const onClose = () => {
-    if (!loading) {
-      setEmail('')
-      setRoleType(ERoleType.viewer)
-      setError(null)
-      onCloseCB?.()
-    }
+    if (loading) return
+
+    setEmail('')
+    setRoleType(ERoleType.viewer)
+    setError(null)
+    onCloseCB?.()
   }
 
   const onSave = async (e: React.FormEvent) => {

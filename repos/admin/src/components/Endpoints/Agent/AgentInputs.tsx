@@ -135,7 +135,7 @@ export const AgentInputs = (props: TAgentInputs) => {
             <ToolsSelector
               loading={loading}
               selectedTools={tools}
-              onChange={(updates: string[]) => props.onToolsChange(updates)}
+              onChange={props.onToolsChange}
             />
             <ProviderSelector
               loading={loading}

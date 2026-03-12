@@ -77,7 +77,7 @@ export const SettingsFormCard = (props: TSettingsFormCard) => {
             />
           ))}
           <Box sx={styles.actions}>
-            {(onReset && (
+            {onReset && (
               <Button
                 color='warning'
                 onClick={onReset}
@@ -87,8 +87,7 @@ export const SettingsFormCard = (props: TSettingsFormCard) => {
               >
                 {resetText}
               </Button>
-            )) ||
-              null}
+            )}
 
             <LoadingButton
               color='success'

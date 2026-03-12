@@ -24,78 +24,81 @@ import {
   Extension as ExtensionIcon,
 } from '@mui/icons-material'
 
+const hasOrg = (ctx: TNavCtx) => !!ctx.orgId
+const hasOrgAndProject = (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId
+
 const OrgSubNav: Record<string, TNavItem> = {
   Projects: {
     text: `Projects`,
     to: buildRoute(ERoutePath.OrgProjects),
     Icon: <ProjectIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Agents: {
     text: `Agents`,
     to: buildRoute(ERoutePath.OrgAgents),
     Icon: <RobotIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Sandboxes: {
     text: `Sandboxes`,
     to: buildRoute(ERoutePath.OrgSandboxes),
     Icon: <DrawingBoxIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Members: {
     text: `Members`,
     to: buildRoute(ERoutePath.OrgMembers),
     Icon: <PersonIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Secrets: {
     text: `Secrets`,
     to: buildRoute(ERoutePath.OrgSecrets),
     Icon: <SecretIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Providers: {
     text: `Providers`,
     to: buildRoute(ERoutePath.OrgProviders),
     Icon: <ProviderIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Domains: {
     text: `Domains`,
     to: buildRoute(ERoutePath.OrgDomains),
     Icon: <DnsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   APIKeys: {
     text: `API Keys`,
     Icon: <ApiIcon />,
     to: buildRoute(ERoutePath.OrgApiKeys),
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Skills: {
     text: `Skills`,
     to: buildRoute(ERoutePath.OrgSkills),
     Icon: <ExtensionIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Schedules: {
     text: `Schedules`,
     to: buildRoute(ERoutePath.OrgSchedules),
     Icon: <TimerIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Usage: {
     text: `Usage`,
     to: buildRoute(ERoutePath.OrgUsage),
     Icon: <UsageIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Settings: {
     text: `Settings`,
     to: buildRoute(ERoutePath.OrgSettings),
     Icon: <SettingsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
 }
 
@@ -104,49 +107,49 @@ const ProjectSubNav: Record<string, TNavItem> = {
     text: `Endpoints`,
     to: buildRoute(ERoutePath.ProjectEndpoints),
     Icon: <EndpointIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    visible: hasOrgAndProject,
   },
   Functions: {
     text: `Functions`,
     to: buildRoute(ERoutePath.ProjectFunctions),
     Icon: <FunctionIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    visible: hasOrgAndProject,
   },
   Secrets: {
     text: `Secrets`,
     to: buildRoute(ERoutePath.ProjectSecrets),
     Icon: <SecretIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    visible: hasOrgAndProject,
   },
   Agents: {
     text: `Agents`,
     Icon: <RobotIcon />,
     to: buildRoute(ERoutePath.ProjectAgents),
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    visible: hasOrgAndProject,
   },
   Members: {
     text: `Members`,
     Icon: <PersonIcon />,
     to: buildRoute(ERoutePath.ProjectMembers),
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    visible: hasOrgAndProject,
   },
   Domains: {
     text: `Domains`,
     to: buildRoute(ERoutePath.ProjectDomains),
     Icon: <DnsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   APIKeys: {
     text: `API Keys`,
     Icon: <ApiIcon />,
     to: buildRoute(ERoutePath.ProjectApiKeys),
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    visible: hasOrgAndProject,
   },
   Settings: {
     text: `Settings`,
     to: buildRoute(ERoutePath.ProjectSettings),
     Icon: <SettingsIcon />,
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    visible: hasOrgAndProject,
   },
 }
 
@@ -246,7 +249,7 @@ export const RailNavSections: Record<string, TRailSection> = {
     header: `Organization`,
     groups: OrgSubNavGroups,
     to: buildRoute(ERoutePath.Org),
-    visible: (ctx: TNavCtx) => !!ctx.orgId,
+    visible: hasOrg,
   },
   Project: {
     groups: [],
@@ -255,6 +258,6 @@ export const RailNavSections: Record<string, TRailSection> = {
     header: `Project`,
     Icon: <ProjectIcon />,
     to: buildRoute(ERoutePath.OrgProject),
-    visible: (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId,
+    visible: hasOrgAndProject,
   },
 }

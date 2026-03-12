@@ -36,8 +36,6 @@ export const OrgSettings = (props: TOrgSettings) => {
     !org &&
       orgId &&
       ife(async () => {
-        if (!orgId) return
-
         try {
           setLoading(true)
           setError(null)
@@ -89,11 +87,6 @@ export const OrgSettings = (props: TOrgSettings) => {
     } else {
       navigate(ERoutePath.Orgs)
     }
-  }
-
-  const onCopySuccess = (message: string) => {
-    setSuccess(message)
-    setTimeout(() => setSuccess(null), 2000)
   }
 
   return (
@@ -154,7 +147,6 @@ export const OrgSettings = (props: TOrgSettings) => {
 
           <InfoCard
             title='Metadata'
-            onCopy={onCopySuccess}
             items={[
               { label: `ID`, value: org.id, copyable: true },
               ...(org.createdAt

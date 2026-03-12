@@ -92,7 +92,7 @@ export const setActiveRailSection = (id: TRailSectionId | null) =>
   store.set(activeRailSectionState, id)
 
 export const getQuickstartOpen = () => store.get(quickstartState)
-export const resetQuickstartOpen = () => store.set(quickstartState, defSidebarOpen)
+export const resetQuickstartOpen = () => store.set(quickstartState, false)
 export const setQuickstartOpen = (status: boolean) => store.set(quickstartState, status)
 
 export const getUser = () => store.get(userState)

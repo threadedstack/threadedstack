@@ -3,9 +3,9 @@ import MuiMenu from '@mui/material/Menu'
 import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import { styled } from '@mui/material/styles'
+import { IconButton } from '@tdsk/components'
 import MuiIconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
-import { dims, gutter, IconButton } from '@tdsk/components'
 
 export const AppHeader = styled(AppBar)(({ theme }) => {
   return `
@@ -13,13 +13,13 @@ export const AppHeader = styled(AppBar)(({ theme }) => {
     padding-left: 0;
     box-shadow: none;
     border-radius: 0px;
-    padding: 0 ${gutter.hpx};
-    height: ${dims.header.hpx};
+    padding: 0 ${theme.gutter.hpx};
+    height: ${theme.dims.header.hpx};
     border-bottom: 1px solid ${theme.palette.divider};
     background-color: ${theme.palette.background.header};
     
     & .MuiToolbar-root {
-      min-height: ${dims.header.hpx};
+      min-height: ${theme.dims.header.hpx};
     }
   `
 })
@@ -28,7 +28,7 @@ export const HeaderToolbar = styled(Toolbar)(({ theme }) => {
   return `
     padding-left: 0px !important;
     padding-right: 0px !important;
-    height: ${dims.header.hpx};
+    height: ${theme.dims.header.hpx};
   `
 })
 
@@ -66,10 +66,14 @@ export const LogoText = styled(Typography)(
 `
 ) as typeof Typography
 
-export const ToggleBinBAction = styled(IconButton)`
-  margin-right: ${gutter.qpx};
-`
+export const ToggleBinBAction = styled(IconButton)(({ theme }) => {
+  return `
+    margin-right: ${theme.gutter.qpx};
+  `
+})
 
-export const ToggleThemeAction = styled(IconButton)`
-  margin-right: ${gutter.hpx};
-`
+export const ToggleThemeAction = styled(IconButton)(({ theme }) => {
+  return `
+    margin-right: ${theme.gutter.hpx};
+  `
+})

@@ -12,7 +12,7 @@ export class QueryService {
   client: QueryClient
   fetch: TFetchQuery
 
-  constructor(opts?: TQueryService) {
+  constructor() {
     this.#create()
   }
 

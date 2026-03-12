@@ -12,7 +12,6 @@ export const fetchProject = async (opts: TFetchProjectOpts) => {
   if (resp.error) return { error: resp.error }
 
   if (resp.data) {
-    // Update projects state with the fetched project
     const currentProjects = getProjects() || {}
     setProjects({ ...currentProjects, [resp.data.id]: resp.data })
   }

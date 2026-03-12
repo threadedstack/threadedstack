@@ -6,10 +6,10 @@ export const useThemeToggle = () => {
   const [themeType, setThemeType] = useThemeType()
 
   const onThemeToggle = (update?: EThemeType) => {
-    update =
-      update || (themeType === EThemeType.light ? EThemeType.dark : EThemeType.light)
-    setThemeType(update)
-    storage.setThemeType(update)
+    const next =
+      update ?? (themeType === EThemeType.light ? EThemeType.dark : EThemeType.light)
+    setThemeType(next)
+    storage.setThemeType(next)
   }
 
   return {

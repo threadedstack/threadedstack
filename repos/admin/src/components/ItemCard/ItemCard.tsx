@@ -1,53 +1,42 @@
 import type { ReactNode } from 'react'
-import { Card, CardContent, CardActions, Box } from '@mui/material'
 import type { SxProps, Theme } from '@mui/material'
+
+import { Card, CardContent, CardActions } from '@mui/material'
 
 export type TItemCard = {
   children: ReactNode
   actions?: ReactNode
-  onClick?: () => void
-  actionsPosition?: 'left' | 'right' | 'space-between'
   sx?: SxProps<Theme>
+  onClick?: () => void
   contentSx?: SxProps<Theme>
+  actionsPosition?: `left` | `right` | `space-between`
 }
 
-export const ItemCard = ({
-  children,
-  actions,
-  onClick,
-  actionsPosition = 'right',
-  sx,
-  contentSx,
-}: TItemCard) => {
-  const getJustifyContent = () => {
-    switch (actionsPosition) {
-      case 'left':
-        return 'flex-start'
-      case 'right':
-        return 'flex-end'
-      case 'space-between':
-        return 'space-between'
-      default:
-        return 'flex-end'
-    }
-  }
+const justifyMap = {
+  left: `flex-start`,
+  right: `flex-end`,
+  [`space-between`]: `space-between`,
+} as const
+
+export const ItemCard = (props: TItemCard) => {
+  const { sx, actions, onClick, children, contentSx, actionsPosition = `right` } = props
+
+  const justifyContent = justifyMap[actionsPosition]
 
   return (
     <Card
+      onClick={onClick}
       sx={{
-        cursor: onClick ? 'pointer' : 'default',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        cursor: onClick ? 'pointer' : 'default',
         ...sx,
       }}
-      onClick={onClick}
     >
       <CardContent sx={{ flex: 1, ...contentSx }}>{children}</CardContent>
       {actions && (
-        <CardActions sx={{ justifyContent: getJustifyContent(), px: 2, pb: 2 }}>
-          {actions}
-        </CardActions>
+        <CardActions sx={{ justifyContent, px: 2, pb: 2 }}>{actions}</CardActions>
       )}
     </Card>
   )

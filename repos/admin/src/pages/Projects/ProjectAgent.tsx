@@ -3,7 +3,6 @@ import { nav } from '@TAF/services/nav'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { useState, useEffect } from 'react'
-import { styled } from '@mui/material/styles'
 import { Button, ConfirmDelete } from '@tdsk/components'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
@@ -288,7 +287,7 @@ export const ProjectAgent = (props: TProjectAgent) => {
         </Box>
       </AgentSection>
 
-      {(agent.systemPrompt && (
+      {agent.systemPrompt && (
         <AgentSection title='System Prompt'>
           <Box
             component='pre'
@@ -305,8 +304,7 @@ export const ProjectAgent = (props: TProjectAgent) => {
             {agent.systemPrompt}
           </Box>
         </AgentSection>
-      )) ||
-        null}
+      )}
 
       <AgentSection
         title={`Tools${agent.tools?.length ? ` (${agent.tools.length})` : ''}`}
@@ -318,19 +316,14 @@ export const ProjectAgent = (props: TProjectAgent) => {
             flexWrap='wrap'
             direction='row'
           >
-            {agent.tools.map((tool) => {
-              return (
-                (tool && (
-                  <Chip
-                    key={tool}
-                    size='small'
-                    label={tool}
-                    variant='outlined'
-                  />
-                )) ||
-                null
-              )
-            })}
+            {agent.tools.filter(Boolean).map((tool) => (
+              <Chip
+                key={tool}
+                size='small'
+                label={tool}
+                variant='outlined'
+              />
+            ))}
           </Stack>
         ) : (
           <Typography color='text.secondary'>No tools configured</Typography>
@@ -347,20 +340,17 @@ export const ProjectAgent = (props: TProjectAgent) => {
             direction='row'
             flexWrap='wrap'
           >
-            {agent.secrets.map((secret) => {
-              return (
-                (secret?.id && (
-                  <Chip
-                    size='small'
-                    color='primary'
-                    key={secret.id}
-                    variant='outlined'
-                    label={secret.name || secret.hashKey}
-                  />
-                )) ||
-                null
-              )
-            })}
+            {agent.secrets
+              .filter((s) => s?.id)
+              .map((secret) => (
+                <Chip
+                  size='small'
+                  color='primary'
+                  key={secret.id}
+                  variant='outlined'
+                  label={secret.name || secret.hashKey}
+                />
+              ))}
           </Stack>
         ) : (
           <Typography color='text.secondary'>No secrets configured</Typography>
@@ -399,21 +389,18 @@ export const ProjectAgent = (props: TProjectAgent) => {
             flexWrap='wrap'
             direction='row'
           >
-            {agent.projects.map((project) => {
-              return (
-                (project?.id && (
-                  <Chip
-                    clickable
-                    size='small'
-                    key={project.id}
-                    variant='outlined'
-                    label={project.name}
-                    onClick={() => nav.to(`/orgs/${orgId}/projects/${project.id}`)}
-                  />
-                )) ||
-                null
-              )
-            })}
+            {agent.projects
+              .filter((p) => p?.id)
+              .map((project) => (
+                <Chip
+                  clickable
+                  size='small'
+                  key={project.id}
+                  variant='outlined'
+                  label={project.name}
+                  onClick={() => nav.to(`/orgs/${orgId}/projects/${project.id}`)}
+                />
+              ))}
           </Stack>
         </AgentSection>
       )}

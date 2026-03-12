@@ -64,7 +64,7 @@ export class ProjectsApi extends BaseApi {
 
     return {
       ...resp,
-      data: new Project(resp.data),
+      data: resp.data ? new Project(resp.data) : undefined,
     }
   }
 
@@ -84,7 +84,7 @@ export class ProjectsApi extends BaseApi {
 
     return {
       ...resp,
-      data: new Project(resp.data),
+      data: resp.data ? new Project(resp.data) : undefined,
     }
   }
 
@@ -109,7 +109,7 @@ export class ProjectsApi extends BaseApi {
 
     return {
       ...resp,
-      data: new Project(resp.data),
+      data: resp.data ? new Project(resp.data) : undefined,
     }
   }
 

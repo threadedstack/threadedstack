@@ -36,14 +36,12 @@ const StyledCard = styled(Card)(({ theme }) => ({
   },
 }))
 
-const StyledDivider = styled(Divider)(({ theme }) => {
-  return {
-    opacity: 0.1,
-    marginTop: theme.gutter(2),
-    marginBottom: theme.gutter(2),
-    borderColor: theme.palette.border.alt,
-  }
-})
+const StyledDivider = styled(Divider)(({ theme }) => ({
+  opacity: 0.1,
+  marginTop: theme.gutter(2),
+  marginBottom: theme.gutter(2),
+  borderColor: theme.palette.border.alt,
+}))
 
 export type TPlanCardProps = {
   plan: Plan
@@ -67,7 +65,7 @@ const formatRuntime = (seconds: number): string => {
 const formatNumber = (num: number): string => {
   if (num == null) return `Unknown`
   if (num === -1) return `Unlimited`
-  return num?.toLocaleString?.()
+  return num.toLocaleString()
 }
 
 const usePlanFeatures = (plan: Plan) => {

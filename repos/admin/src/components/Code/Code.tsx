@@ -3,10 +3,7 @@ import type { SxProps, Theme } from '@mui/material'
 
 import Box from '@mui/material/Box'
 import { cls } from '@keg-hub/jsutils/cls'
-import { styled } from '@mui/material/styles'
 import { Monaco, InputLabel } from '@tdsk/components'
-
-const CodeContainer = styled(Box)``
 
 export type TCode = TMonaco & {
   label?: string
@@ -43,7 +40,7 @@ export const Code = (props: TCode) => {
   } = props
 
   return (
-    <CodeContainer
+    <Box
       sx={sx}
       className={cls(`tdsk-code-container`, className)}
     >
@@ -80,6 +77,6 @@ export const Code = (props: TCode) => {
         options={options ? { ...options, ...opts } : opts}
         {...rest}
       />
-    </CodeContainer>
+    </Box>
   )
 }

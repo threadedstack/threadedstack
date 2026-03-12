@@ -90,7 +90,7 @@ export const SBProjectSelector = (props: TSBProjectSelector) => {
                 e.stopPropagation()
                 onClick(e as any)
               }}
-            ></IconButton>
+            />
           </>
         ) : (
           <ProjectIcon
@@ -103,7 +103,6 @@ export const SBProjectSelector = (props: TSBProjectSelector) => {
         )}
       </Box>
 
-      {/* TODO: convert this to a select dropdown */}
       <ProjectsMenu
         open={open}
         query={query}

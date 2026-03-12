@@ -17,8 +17,7 @@ export const activeEndpointIdState = atomWithReset<string>(
 // Derived: auto-filters to active project
 export const projectEndpointsState = atom((get) => {
   const projectId = get(activeProjectIdState)
-  const all = get(endpointsState)
-  return projectId && all?.[projectId] ? all[projectId] : undefined
+  return projectId ? get(endpointsState)?.[projectId] : undefined
 })
 
 export const faasFormState = atomWithReset<TFaasFormState>(DefFaasState)

@@ -19,19 +19,11 @@ export const setProxyFormField = <K extends keyof TProxyFormState>(
   }
 }
 
-export const setProxyHeaders = (headers: TKeyValuePair[]) => {
-  const current = getProxyFormState()
-  if (current) {
-    setProxyFormState({ ...current, headers })
-  }
-}
+export const setProxyHeaders = (headers: TKeyValuePair[]) =>
+  setProxyFormField(`headers`, headers)
 
-export const setProxyOAuthParams = (params: TKeyValuePair[]) => {
-  const current = getProxyFormState()
-  if (current) {
-    setProxyFormState({ ...current, oauthParams: params })
-  }
-}
+export const setProxyOAuthParams = (params: TKeyValuePair[]) =>
+  setProxyFormField(`oauthParams`, params)
 
 export const initializeProxyForm = (endpoint: Endpoint) => {
   const initializedState = initProxyFromEndpoint(endpoint)
