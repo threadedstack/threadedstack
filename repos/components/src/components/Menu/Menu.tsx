@@ -43,26 +43,14 @@ export type TMenu = Omit<ComponentProps<typeof MuiMenu>, `open` | `onClick`> & {
 const usePos = (props: TMenu) => {
   const { anchorOrigin, transformOrigin } = props
 
-  return useMemo(() => {
-    const originProps = {
-      anchorOrigin: {
-        vertical: `bottom`,
-        horizontal: `right`,
-      },
-      transformOrigin: {
-        vertical: `top`,
-        horizontal: `center`,
-      },
-    } as TMenuPos
-
-    if (!anchorOrigin && !transformOrigin) return originProps
-
-    if (anchorOrigin) originProps.anchorOrigin = anchorOrigin
-
-    if (transformOrigin) originProps.transformOrigin = transformOrigin
-
-    return originProps
-  }, [anchorOrigin, transformOrigin])
+  return useMemo(
+    () =>
+      ({
+        anchorOrigin: anchorOrigin ?? { vertical: `bottom`, horizontal: `right` },
+        transformOrigin: transformOrigin ?? { vertical: `top`, horizontal: `center` },
+      }) as TMenuPos,
+    [anchorOrigin, transformOrigin]
+  )
 }
 
 export const Menu = (props: TMenu) => {

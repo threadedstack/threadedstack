@@ -3,6 +3,7 @@ import type { TTSTheme, TThemeColors, TThemeType } from '@TSC/types'
 
 import { dims } from '@TSC/theme/dims'
 import { gutter } from '@TSC/theme/gutter'
+import { cmx } from '@TSC/theme/helpers'
 import { white, colors as DefColors } from '@TSC/theme/colors'
 import createTheme from '@mui/material/styles/createTheme'
 
@@ -59,7 +60,7 @@ const components = (colors: TThemeColors) => {
     MuiCssBaseline: {
       styleOverrides: {
         '::selection': {
-          backgroundColor: `color-mix(in srgb, ${colors.primary} 30%, transparent)`,
+          backgroundColor: cmx(colors.primary, 30),
           color: colors.foreground,
         },
       },
@@ -116,12 +117,12 @@ const components = (colors: TThemeColors) => {
           borderColor: colors.border?.default,
           [`&:hover`]: {
             borderColor: colors.primary,
-            backgroundColor: `color-mix(in srgb, ${colors.primary} 8%, transparent)`,
+            backgroundColor: cmx(colors.primary, 8),
           },
         },
         text: {
           [`&:hover`]: {
-            backgroundColor: `color-mix(in srgb, ${colors.primary} 8%, transparent)`,
+            backgroundColor: cmx(colors.primary, 8),
           },
         },
         sizeSmall: {
@@ -143,7 +144,7 @@ const components = (colors: TThemeColors) => {
           borderRadius: dims.border.smpx,
           transition: `all 0.15s ease`,
           [`&:hover`]: {
-            backgroundColor: `color-mix(in srgb, ${colors.foreground} 8%, transparent)`,
+            backgroundColor: cmx(colors.foreground, 8),
           },
         },
       },
@@ -366,7 +367,7 @@ const components = (colors: TThemeColors) => {
             backgroundColor: colors.paper,
             transition: `background-color 0.1s ease`,
             [`&:hover`]: {
-              backgroundColor: `color-mix(in srgb, ${colors.primary} 4%, transparent)`,
+              backgroundColor: cmx(colors.primary, 4),
             },
             [`&:last-child .MuiTableCell-root`]: {
               borderBottom: `none`,
@@ -429,12 +430,12 @@ const components = (colors: TThemeColors) => {
           margin: `2px 0`,
           transition: `background-color 0.1s ease`,
           [`&:hover`]: {
-            backgroundColor: `color-mix(in srgb, ${colors.primary} 8%, transparent)`,
+            backgroundColor: cmx(colors.primary, 8),
           },
           [`&.Mui-selected`]: {
-            backgroundColor: `color-mix(in srgb, ${colors.primary} 12%, transparent)`,
+            backgroundColor: cmx(colors.primary, 12),
             [`&:hover`]: {
-              backgroundColor: `color-mix(in srgb, ${colors.primary} 16%, transparent)`,
+              backgroundColor: cmx(colors.primary, 16),
             },
           },
         },
@@ -500,12 +501,12 @@ const components = (colors: TThemeColors) => {
           padding: `${gutter.hpx} ${gutter.tpx}`,
           transition: `background-color 0.1s ease`,
           [`&:hover`]: {
-            backgroundColor: `color-mix(in srgb, ${colors.foreground} 6%, transparent)`,
+            backgroundColor: cmx(colors.foreground, 6),
           },
           [`&.Mui-selected`]: {
-            backgroundColor: `color-mix(in srgb, ${colors.primary} 10%, transparent)`,
+            backgroundColor: cmx(colors.primary, 10),
             [`&:hover`]: {
-              backgroundColor: `color-mix(in srgb, ${colors.primary} 14%, transparent)`,
+              backgroundColor: cmx(colors.primary, 14),
             },
           },
         },
@@ -536,20 +537,20 @@ const components = (colors: TThemeColors) => {
           alignItems: `center`,
         },
         standardSuccess: {
-          borderColor: `color-mix(in srgb, ${colors.states?.success} 30%, transparent)`,
-          backgroundColor: `color-mix(in srgb, ${colors.states?.success} 8%, transparent)`,
+          borderColor: cmx(colors.states?.success, 30),
+          backgroundColor: cmx(colors.states?.success, 8),
         },
         standardError: {
-          borderColor: `color-mix(in srgb, ${colors.states?.danger} 30%, transparent)`,
-          backgroundColor: `color-mix(in srgb, ${colors.states?.danger} 8%, transparent)`,
+          borderColor: cmx(colors.states?.danger, 30),
+          backgroundColor: cmx(colors.states?.danger, 8),
         },
         standardWarning: {
-          borderColor: `color-mix(in srgb, ${colors.states?.warning} 30%, transparent)`,
-          backgroundColor: `color-mix(in srgb, ${colors.states?.warning} 8%, transparent)`,
+          borderColor: cmx(colors.states?.warning, 30),
+          backgroundColor: cmx(colors.states?.warning, 8),
         },
         standardInfo: {
-          borderColor: `color-mix(in srgb, ${colors.states?.info} 30%, transparent)`,
-          backgroundColor: `color-mix(in srgb, ${colors.states?.info} 8%, transparent)`,
+          borderColor: cmx(colors.states?.info, 30),
+          backgroundColor: cmx(colors.states?.info, 8),
         },
       },
     },

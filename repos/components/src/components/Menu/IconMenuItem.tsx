@@ -1,22 +1,23 @@
 import type { SxProps } from '@mui/material'
+import type { ReactNode, MouseEvent } from 'react'
 
 import Box from '@mui/material/Box'
+import { forwardRef } from 'react'
 import { styled } from '@mui/material/styles'
 import Typography from '@mui/material/Typography'
-import React, { forwardRef, RefObject } from 'react'
 import MenuItem, { MenuItemProps } from '@mui/material/MenuItem'
 
 const StyledMenuItem = styled(MenuItem)({
   display: 'flex',
-  justifyContent: 'space-between',
   paddingLeft: '4px',
   paddingRight: '4px',
+  justifyContent: 'space-between',
 })
 
 const StyledTypography = styled(Typography)({
+  textAlign: 'left',
   paddingLeft: '8px',
   paddingRight: '8px',
-  textAlign: 'left',
 })
 
 const FlexBox = styled(Box)({
@@ -28,12 +29,11 @@ type IconMenuItemProps = {
   label?: string
   className?: string
   disabled?: boolean
-  leftIcon?: React.ReactNode
-  rightIcon?: React.ReactNode
+  leftIcon?: ReactNode
+  rightIcon?: ReactNode
   MenuItemProps?: MenuItemProps
-  ref?: RefObject<HTMLLIElement>
-  renderLabel?: () => React.ReactNode
-  onClick?: (event: React.MouseEvent<HTMLElement>) => void
+  renderLabel?: () => ReactNode
+  onClick?: (event: MouseEvent<HTMLElement>) => void
 }
 
 export const IconMenuItem = forwardRef<HTMLLIElement, IconMenuItemProps>(

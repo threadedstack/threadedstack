@@ -46,7 +46,7 @@ export const Dialog = (props: DialogProps) => {
       sx={{
         borderRadius: 1,
         border: (theme) => theme.palette.border.default,
-        ...(sx || {}),
+        ...sx,
       }}
     >
       <Box
@@ -72,14 +72,7 @@ export const Dialog = (props: DialogProps) => {
           </DialogContent>
         ) : null}
 
-        {actions ? (
-          <DialogActions
-            {...actionProps}
-            sx={actionProps?.sx}
-          >
-            {actions}
-          </DialogActions>
-        ) : null}
+        {actions ? <DialogActions {...actionProps}>{actions}</DialogActions> : null}
       </Box>
     </MDialog>
   )

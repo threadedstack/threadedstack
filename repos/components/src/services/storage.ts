@@ -49,7 +49,7 @@ export class Storage {
 
     for (let i = 0; i < localStorage.length; i++) {
       const name = localStorage.key(i)
-      if (name.endsWith(key)) return this.get(name)
+      if (name?.endsWith(key)) return this.get(name)
     }
   }
 }

@@ -86,6 +86,15 @@ export const border = {
   },
 }
 
+const darkShadows = {
+  xs: `0 1px 2px 0 rgba(0, 0, 0, 0.3)`,
+  sm: `0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4)`,
+  md: `0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4)`,
+  lg: `0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4)`,
+  xl: `0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)`,
+  ring: `0 0 0 2px rgba(51, 112, 222, 0.35)`,
+}
+
 const dark = {
   grey,
   border: border.dark,
@@ -114,17 +123,19 @@ const dark = {
   ring: primary[500],
   shadowColor: grey[900],
   shadowContrast: grey[875],
-  shadow: `0 1px 2px 0 rgba(0, 0, 0, 0.3)`,
-  shadowAlt: `0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4)`,
-  shadowPaper: `0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4)`,
-  shadows: {
-    xs: `0 1px 2px 0 rgba(0, 0, 0, 0.3)`,
-    sm: `0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4)`,
-    md: `0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4)`,
-    lg: `0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4)`,
-    xl: `0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)`,
-    ring: `0 0 0 2px rgba(51, 112, 222, 0.35)`,
-  },
+  shadow: darkShadows.xs,
+  shadowAlt: darkShadows.sm,
+  shadowPaper: darkShadows.md,
+  shadows: darkShadows,
+}
+
+const lightShadows = {
+  xs: `0 1px 2px 0 rgba(0, 0, 0, 0.05)`,
+  sm: `0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08)`,
+  md: `0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06)`,
+  lg: `0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.06)`,
+  xl: `0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08)`,
+  ring: `0 0 0 2px rgba(37, 99, 235, 0.25)`,
 }
 
 const light = {
@@ -156,17 +167,10 @@ const light = {
   shadowColor: grey[50],
   placeholder: grey[700],
   shadowContrast: grey[25],
-  shadow: `0 1px 2px 0 rgba(0, 0, 0, 0.05)`,
-  shadowAlt: `0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08)`,
-  shadowPaper: `0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06)`,
-  shadows: {
-    xs: `0 1px 2px 0 rgba(0, 0, 0, 0.05)`,
-    sm: `0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08)`,
-    md: `0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06)`,
-    lg: `0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.06)`,
-    xl: `0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08)`,
-    ring: `0 0 0 2px rgba(37, 99, 235, 0.25)`,
-  },
+  shadow: lightShadows.xs,
+  shadowAlt: lightShadows.sm,
+  shadowPaper: lightShadows.md,
+  shadows: lightShadows,
 }
 
 export const colors = {

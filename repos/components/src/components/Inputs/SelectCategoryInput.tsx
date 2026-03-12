@@ -36,17 +36,8 @@ export const SelectCategoryInput = (props: SelectCategoryProps) => {
   }
 
   const renderLabel = () => {
-    let label: string | undefined = undefined
-
-    for (const item of items) {
-      const foundItem = item.items.find((el) => el.value === value)
-      if (foundItem) {
-        label = foundItem.label
-        break
-      }
-    }
-
-    return label || ''
+    const found = items.flatMap((cat) => cat.items).find((el) => el.value === value)
+    return found?.label || ''
   }
 
   return (

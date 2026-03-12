@@ -1,6 +1,5 @@
 export type TClipBoardCopy = {
   key?: string
-  clean?: boolean
   warn?: boolean
   content?: string
   element?: HTMLElement

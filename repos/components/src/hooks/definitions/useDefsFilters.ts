@@ -37,7 +37,6 @@ const findDefs = (search: string, definitions: TDef[]) => {
   const close: TDef[] = []
   const middle: TDef[] = []
 
-  const parts = search.split(` `)
   search = search.toLowerCase().trim()
 
   definitions.forEach((def) => {

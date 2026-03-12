@@ -1,6 +1,5 @@
 import Dialog from '@mui/material/Dialog'
 import { gutter } from '@TSC/theme/gutter'
-import { colors } from '@TSC/theme/colors'
 import styled from '@mui/material/styles/styled'
 import ErrorIcon from '@mui/icons-material/Error'
 import DialogTitle from '@mui/material/DialogTitle'

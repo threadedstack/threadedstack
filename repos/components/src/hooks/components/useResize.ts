@@ -24,15 +24,12 @@ export const useResize = (props: THUseResize) => {
   const elRef = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(initialWidth)
   const [resizing, setResizing] = useState(false)
-  const onResize = useCallback(
-    (evt: any) => {
-      evt?.preventDefault?.()
-      setResizing(true)
-    },
-    [setResizing]
-  )
+  const onResize = useCallback((evt: any) => {
+    evt?.preventDefault?.()
+    setResizing(true)
+  }, [])
 
-  const disableResize = useCallback(() => setResizing(false), [setResizing])
+  const disableResize = useCallback(() => setResizing(false), [])
 
   const resize = useCallback(
     (evt: MouseEvent, dims?: TResizeDims) => {
@@ -60,7 +57,7 @@ export const useResize = (props: THUseResize) => {
         ? setWidth(remaining)
         : setWidth(width)
     },
-    [minWidth, resizing, setWidth]
+    [minWidth, maxWidth, direction, resizing]
   )
 
   useEffect(() => {

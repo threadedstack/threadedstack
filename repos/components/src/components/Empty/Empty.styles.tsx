@@ -27,17 +27,15 @@ export const EmptyTitle = styled(Box)(({ theme }) => {
   `
 })
 
-export const EmptyContent = styled(Box)(({ theme }) => {
-  return `
-    display: flex;
-    max-width: 80%;
-    text-align: center;
-    align-items: center;
-    padding: ${gutter.px};
-    flex-direction: column;
-    justify-content: center;
-  `
-})
+export const EmptyContent = styled(Box)`
+  display: flex;
+  max-width: 80%;
+  text-align: center;
+  align-items: center;
+  padding: ${gutter.px};
+  flex-direction: column;
+  justify-content: center;
+`
 
 export const EmptyIcon = styled(BlockIcon)(({ theme }) => {
   const isDark = theme.palette.mode === `dark`

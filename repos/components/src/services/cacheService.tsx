@@ -1,7 +1,6 @@
 import type { TCache } from '@TSC/types'
 
 import { flatUnion } from '@keg-hub/jsutils/flatUnion'
-import { isStr } from '@keg-hub/jsutils/isStr'
 import { toStr } from '@keg-hub/jsutils/toStr'
 
 const globalCache = new Map<string, TCache>()
@@ -32,7 +31,7 @@ export class CacheService {
   set = (key: string, value: any, ttl: number = 10) => {
     const expiry = new Date()
     expiry.setSeconds(expiry.getSeconds() + ttl)
-    this.cache.set(key, { expiry: expiry, data: value })
+    this.cache.set(key, { expiry, data: value })
   }
 
   clear = () => this.cache.clear()
@@ -41,7 +40,7 @@ export class CacheService {
 
   key = (...args: any[]) => {
     return flatUnion(...args)
-      .map((item) => (isStr(item) ? item : toStr(item)))
+      .map(toStr)
       .join(`-`)
   }
 }

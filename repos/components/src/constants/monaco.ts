@@ -333,7 +333,7 @@ export const MonacoOptions = {
   revealHorizontalRightPadding: gutter.h,
   wordWrap: `bounded`,
   wrappingIndent: `deepIndent`,
-  wordWrapColumn: 100, // maybe go 80?
+  wordWrapColumn: 100,
   padding: {
     top: gutter.c,
   },

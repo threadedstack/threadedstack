@@ -24,6 +24,7 @@ const ignoredConsolePatterns = [
   'Failed to load resource',
   'net::ERR_',
   '404',
+  'ErrorBoundary',
 ]
 
 const isIgnored = (text: string): boolean =>

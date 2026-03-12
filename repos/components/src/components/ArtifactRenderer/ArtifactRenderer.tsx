@@ -17,7 +17,18 @@ export type TArtifactRendererProps = {
   language?: string
 }
 
-const monacoTypes: TArtifactType[] = [`code`, `json`, `yaml`, `xml`, `diff`]
+const thStyle = {
+  padding: `6px 12px`,
+  borderBottom: `2px solid rgba(255,255,255,0.2)`,
+  textAlign: `left` as const,
+}
+
+const tdStyle = {
+  padding: `4px 12px`,
+  borderBottom: `1px solid rgba(255,255,255,0.1)`,
+}
+
+const tableStyle = { borderCollapse: `collapse` as const, width: `100%`, fontSize: 13 }
 
 export const ArtifactRenderer = (props: TArtifactRendererProps) => {
   const { content, artifactType, title, language } = props
@@ -65,17 +76,13 @@ export const ArtifactRenderer = (props: TArtifactRendererProps) => {
         const body = rows.slice(1)
         return (
           <Box sx={{ overflowX: `auto` }}>
-            <table style={{ borderCollapse: `collapse`, width: `100%`, fontSize: 13 }}>
+            <table style={tableStyle}>
               <thead>
                 <tr>
                   {headers.map((h, i) => (
                     <th
                       key={i}
-                      style={{
-                        padding: `6px 12px`,
-                        borderBottom: `2px solid rgba(255,255,255,0.2)`,
-                        textAlign: `left`,
-                      }}
+                      style={thStyle}
                     >
                       {h.trim()}
                     </th>
@@ -88,10 +95,7 @@ export const ArtifactRenderer = (props: TArtifactRendererProps) => {
                     {row.map((cell, ci) => (
                       <td
                         key={ci}
-                        style={{
-                          padding: `4px 12px`,
-                          borderBottom: `1px solid rgba(255,255,255,0.1)`,
-                        }}
+                        style={tdStyle}
                       >
                         {cell.trim()}
                       </td>
@@ -111,17 +115,13 @@ export const ArtifactRenderer = (props: TArtifactRendererProps) => {
           const keys = Object.keys(data[0])
           return (
             <Box sx={{ overflowX: `auto` }}>
-              <table style={{ borderCollapse: `collapse`, width: `100%`, fontSize: 13 }}>
+              <table style={tableStyle}>
                 <thead>
                   <tr>
                     {keys.map((k) => (
                       <th
                         key={k}
-                        style={{
-                          padding: `6px 12px`,
-                          borderBottom: `2px solid rgba(255,255,255,0.2)`,
-                          textAlign: `left`,
-                        }}
+                        style={thStyle}
                       >
                         {k}
                       </th>
@@ -134,10 +134,7 @@ export const ArtifactRenderer = (props: TArtifactRendererProps) => {
                       {keys.map((k) => (
                         <td
                           key={k}
-                          style={{
-                            padding: `4px 12px`,
-                            borderBottom: `1px solid rgba(255,255,255,0.1)`,
-                          }}
+                          style={tdStyle}
                         >
                           {String(row[k] ?? ``)}
                         </td>

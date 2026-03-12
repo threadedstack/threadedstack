@@ -1,9 +1,6 @@
 import { Icon, TIconProps } from './Icon'
 import { forwardRef } from 'react'
 
-//width="76"
-//height="65"
-
 export const VercelIcon = forwardRef((props: TIconProps, ref) => {
   return (
     <Icon

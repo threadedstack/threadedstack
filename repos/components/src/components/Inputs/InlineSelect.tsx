@@ -9,7 +9,6 @@ import {
 } from '@TSC/components/Inputs/InlineSelect.styles'
 import { InputStateHandler } from '@TSC/components/Inputs/InputStateHandler'
 import { SelectInputValue } from '@TSC/components/Inputs/SelectInputValue'
-import { useIsDarkMode } from '@TSC/hooks/theme/useIsDarkMode'
 import { stopEvent } from '@TSC/utils/helpers'
 import { cls } from '@keg-hub/jsutils/cls'
 import { ensureArr } from '@keg-hub/jsutils/ensureArr'
@@ -58,8 +57,6 @@ export const InlineSelect = (props: TInlineSelect) => {
     disabled = false,
     description = helperText,
   } = props
-
-  const isDarkMode = useIsDarkMode()
 
   const onChange = (evt: any, item: TSelectItem) => {
     stopEvent(evt)

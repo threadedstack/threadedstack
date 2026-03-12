@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react'
 import type { SxProps, Theme } from '@mui/material'
 
 import Box from '@mui/material/Box'
 import convert from 'react-from-dom'
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 
 export type TInlineDom = {
   id?: string
@@ -14,13 +15,7 @@ export type TInlineDom = {
 export const InlineDom = (props: TInlineDom) => {
   const { sx, id, html, className } = props
 
-  const [converted, setConverted] = useState<any>(undefined)
-
-  useEffect(() => {
-    if (converted) return
-    const output = convert(html)
-    setConverted(output)
-  }, [html, converted])
+  const converted = useMemo<ReactNode>(() => convert(html) as ReactNode, [html])
 
   return (
     <Box

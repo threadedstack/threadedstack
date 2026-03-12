@@ -9,7 +9,7 @@ import {
   AccordionActionSep,
 } from '@TSC/components/Accordion/AccordionActions.styles'
 
-export type TAccordionActionComp = TAccordionAction & {}
+export type TAccordionActionComp = TAccordionAction
 
 export const AccordionAction = (props: TAccordionActionComp) => {
   const {

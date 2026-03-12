@@ -187,3 +187,7 @@ repos/integration/test-results/**
 /docs/plans
 
 !**/**/.gitkeep
+
+# Simplify script runtime output
+scripts/simplify/output/
+!scripts/simplify/output/.gitkeep

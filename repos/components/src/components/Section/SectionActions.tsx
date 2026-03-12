@@ -9,9 +9,7 @@ import {
   SectionActionIconButton,
 } from '@TSC/components/Section/SectionActions.styles'
 
-export type TSectionActionComp = TSectionAction & {}
-
-export const SectionAction = (props: TSectionActionComp) => {
+export const SectionAction = (props: TSectionAction) => {
   const {
     text,
     info,
@@ -80,7 +78,7 @@ export const SectionActions = (props: TSectionActions) => {
   const { actions } = props
 
   return (
-    <SectionActionsContainer className={cls(`tdsk-section-section-actions-container`)}>
+    <SectionActionsContainer className='tdsk-section-section-actions-container'>
       {actions.map((action) => {
         return (
           !action.hidden && (

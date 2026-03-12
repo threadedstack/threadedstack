@@ -9,13 +9,7 @@ import { useInline } from '@TSC/hooks/components/useInline'
 import { MenuItems } from '@TSC/components/Menu/MenuItems'
 import { MenuHeader } from '@TSC/components/Menu/MenuHeader'
 import { MenuContext } from '@TSC/components/Menu/MenuContext'
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
-import {
-  MuiMenu,
-  MenuBackText,
-  MenuBackButton,
-  MenuBackContainer,
-} from '@TSC/components/Menu/Menu.styles'
+import { MuiMenu } from '@TSC/components/Menu/Menu.styles'
 
 export type TMultilevelMenu = Omit<ComponentProps<typeof MuiMenu>, `open` | `onClick`> & {
   open?: boolean
@@ -96,7 +90,7 @@ export const MultilevelMenu = (props: TMultilevelMenu) => {
     setHistory(updated)
 
     setCurrentItems(updated[updated.length - 1])
-  }, [history, currentItems])
+  }, [history])
 
   const onClose = useInline((evt) => {
     stopEvent(evt)

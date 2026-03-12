@@ -4,7 +4,7 @@ import { forwardRef } from 'react'
 export const GitlabIcon = forwardRef((props: TIconProps, ref) => {
   return (
     <Icon
-      title='export'
+      title='gitlab'
       {...props}
       ref={ref}
       viewBox='0 0 24 24'

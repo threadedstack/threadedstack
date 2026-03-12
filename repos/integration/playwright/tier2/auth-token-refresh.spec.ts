@@ -24,6 +24,7 @@ const ignoredPatterns = [
   '404',
   '401',
   'Unauthorized',
+  'ErrorBoundary',
 ]
 
 const isIgnored = (text: string): boolean =>

@@ -51,28 +51,21 @@ export const AdminInput = (props: TAdminInput) => {
   const Input = props.Input || TextInput
   const Container = props.Container || (checkbox ? CheckContainer : InputContainer)
 
+  const stateClass = cls(
+    hidden && `hidden`,
+    disabled && `disabled`,
+    required && `required`,
+    touched && error && `error`
+  )
+
   return (
-    <Container
-      className={cls(
-        className,
-        hidden && `hidden`,
-        disabled && `disabled`,
-        required && `required`,
-        touched && error && `error`
-      )}
-    >
+    <Container className={cls(className, stateClass)}>
       {label && (
         <FormLabel
           htmlFor={id}
           disabled={disabled}
           required={required}
-          className={cls(
-            labelClass,
-            hidden && `hidden`,
-            disabled && `disabled`,
-            required && `required`,
-            touched && error && `error`
-          )}
+          className={cls(labelClass, stateClass)}
         >
           {label}
         </FormLabel>
@@ -86,14 +79,7 @@ export const AdminInput = (props: TAdminInput) => {
         textarea={textarea}
         placeholder={placeholder}
         {...inputProps}
-        className={cls(
-          inputClass,
-          hidden && `hidden`,
-          inputProps?.className,
-          disabled && `disabled`,
-          required && `required`,
-          touched && error && `error`
-        )}
+        className={cls(inputClass, inputProps?.className, stateClass)}
       />
       {touched && error && <FormHelperText error>{error}</FormHelperText>}
     </Container>

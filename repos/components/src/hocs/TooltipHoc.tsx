@@ -1,5 +1,5 @@
 import type { TTooltip } from '@TSC/components/Tooltip'
-import type { ComponentProps, ComponentType, ReactNode, ForwardedRef } from 'react'
+import type { ComponentProps, ComponentType, ReactNode } from 'react'
 
 import { forwardRef } from 'react'
 import { Tooltip } from '@TSC/components/Tooltip'
@@ -23,19 +23,16 @@ export const TooltipHoc = <T extends ComponentProps<any>, R extends HTMLElement 
 
   return forwardRef<R, THTooltip<T>>((props, ref) => {
     const { tooltip, ...rest } = props
-
-    return tooltip && (rest as any)?.[disabledProp] !== true ? (
-      <Tooltip {...(!isStr(tooltip) ? (tooltip as THocTooltip) : { title: tooltip })}>
-        <Component
-          {...rest}
-          ref={ref}
-        />
-      </Tooltip>
-    ) : (
+    const component = (
       <Component
         {...rest}
         ref={ref}
       />
     )
+
+    if (!tooltip || (rest as any)?.[disabledProp] === true) return component
+
+    const tooltipProps = isStr(tooltip) ? { title: tooltip } : (tooltip as THocTooltip)
+    return <Tooltip {...tooltipProps}>{component}</Tooltip>
   })
 }

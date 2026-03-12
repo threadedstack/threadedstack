@@ -13,18 +13,15 @@ export const Definitions = <T extends TDef = TDef>(props: TDefinitions<T>) => {
 
   return (
     <DefsContainer className='tdsk-defs-container'>
-      {definitions.map((def) => {
-        return (
-          (!def.editor?.sidebar?.hidden && (
-            <Definition
-              key={def.id}
-              definition={def}
-              onClick={onDefinitionClick}
-            />
-          )) ||
-          null
-        )
-      })}
+      {definitions
+        .filter((def) => !def.editor?.sidebar?.hidden)
+        .map((def) => (
+          <Definition
+            key={def.id}
+            definition={def}
+            onClick={onDefinitionClick}
+          />
+        ))}
     </DefsContainer>
   )
 }

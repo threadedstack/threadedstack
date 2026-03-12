@@ -11,6 +11,7 @@ export default defineConfig({
   testDir: '../playwright/tier2',
   globalSetup: '../playwright/global-setup.ts',
   timeout: 30_000,
+  fullyParallel: true,
   retries: 0,
   use: {
     baseURL: adminUrl,

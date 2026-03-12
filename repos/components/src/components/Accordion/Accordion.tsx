@@ -77,7 +77,7 @@ export const Accordion = (props: TAccordion) => {
       square={square}
       elevation={elevation}
       disableGutters={disableGutters}
-      onChange={() => onChange?.(open ? false : true)}
+      onChange={() => onChange?.(!open)}
       className={cls(
         className,
         `tdsk-accordion-${panel}-accordion`,

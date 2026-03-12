@@ -24,12 +24,10 @@ export const DDialog = styled(Dialog)(({ theme }) => {
   `
 })
 
-export const DDPaper = styled(Paper)(({ theme }) => {
-  return `
-    position: relative;
-    pointer-events: auto;
-  `
-})
+export const DDPaper = styled(Paper)`
+  position: relative;
+  pointer-events: auto;
+`
 
 export const DDHeader = styled(Box)(({ theme }) => {
   return `
@@ -78,10 +76,10 @@ export const DDCloseIcon = styled(CloseIcon)`
 export const DDDragBox = styled(Box)(({ theme }) => {
   return `
     cursor: grab;
-    background: transparent;
-    padding-left: ${gutter.hpx};
-    padding-right: ${gutter.hpx};
     flex-shrink: 1;
+    background: transparent;
+    padding-left: ${theme.gutter.hpx};
+    padding-right: ${theme.gutter.hpx};
   `
 })
 

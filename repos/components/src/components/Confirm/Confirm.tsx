@@ -73,18 +73,18 @@ export const Confirm = (props: TConfirm) => {
     HeaderIcon = ConfirmHeaderIcon,
   } = props
 
-  const onCloseCB = (evt?: any, reason?: any) => {
+  const onCloseCB = (evt?: any) => {
     evt && stopEvent(evt)
-    if (onClose) return onClose?.(evt)
+    if (onClose) return onClose(evt)
     onCancel?.(evt)
   }
 
-  const onCancelCB = (evt?: any, reason?: any) => {
+  const onCancelCB = (evt?: any) => {
     evt && stopEvent(evt)
     onCancel?.(evt)
   }
 
-  const onConfirmCB = async (evt: any) => {
+  const onConfirmCB = (evt: any) => {
     evt && stopEvent(evt)
     onConfirm?.(evt, true)
   }

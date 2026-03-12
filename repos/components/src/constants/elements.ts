@@ -1,7 +1,7 @@
 import { ERepeatType } from '@TSC/types'
 
 export const ElRenderMap: Record<string, string> = {
-  [`json`]: `code`,
+  json: `code`,
   [`application/json`]: `code`,
 }
 
