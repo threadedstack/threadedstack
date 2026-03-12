@@ -77,12 +77,9 @@ const findRoot = async (ctx: TSlashCommandContext, threadId: string): Promise<st
   let currentId = threadId
   for (let depth = 0; depth < maxDepth; depth++) {
     const thread = await ctx.getThreadWithBranches(currentId)
-    if (!thread.parentThreadId) return currentId
-    if (thread.parentThread) {
-      currentId = thread.parentThread.id
-    } else {
-      return currentId
-    }
+    const parentId = thread.parentThread?.id
+    if (!parentId) return currentId
+    currentId = parentId
   }
   ctx.output(`Warning: reached maximum depth (${maxDepth}) while finding root thread`)
   return currentId

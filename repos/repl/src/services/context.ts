@@ -5,39 +5,34 @@ import { AgentsFile, ContextDir } from '@TRL/constants/paths'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 
 export class ContextLoader {
+  static #readFile(
+    filePath: string,
+    name: string,
+    source: TContextFile['source']
+  ): TContextFile | null {
+    if (!existsSync(filePath)) return null
+    const stat = statSync(filePath)
+    if (!stat.isFile()) return null
+    return {
+      name,
+      source,
+      path: filePath,
+      sizeBytes: stat.size,
+      content: readFileSync(filePath, 'utf-8'),
+    }
+  }
+
   static autoDetect(cwd: string): TContextFile[] {
     const files: TContextFile[] = []
 
-    // Check for AGENTS.md
-    const agentsPath = join(cwd, AgentsFile)
-    if (existsSync(agentsPath)) {
-      const content = readFileSync(agentsPath, 'utf-8')
-      const stat = statSync(agentsPath)
-      files.push({
-        path: agentsPath,
-        name: AgentsFile,
-        source: 'auto',
-        content,
-        sizeBytes: stat.size,
-      })
-    }
+    const agentsFile = ContextLoader.#readFile(join(cwd, AgentsFile), AgentsFile, 'auto')
+    if (agentsFile) files.push(agentsFile)
 
-    // Scan .tdsk/context/ directory
     const contextDir = join(cwd, ContextDir)
     if (existsSync(contextDir)) {
-      const entries = readdirSync(contextDir)
-      for (const entry of entries) {
-        const filePath = join(contextDir, String(entry))
-        const stat = statSync(filePath)
-        if (stat.isFile()) {
-          files.push({
-            path: filePath,
-            name: String(entry),
-            source: 'auto',
-            content: readFileSync(filePath, 'utf-8'),
-            sizeBytes: stat.size,
-          })
-        }
+      for (const entry of readdirSync(contextDir)) {
+        const file = ContextLoader.#readFile(join(contextDir, entry), entry, 'auto')
+        if (file) files.push(file)
       }
     }
 
@@ -45,15 +40,6 @@ export class ContextLoader {
   }
 
   static loadFile(path: string): TContextFile | null {
-    if (!existsSync(path)) return null
-    const stat = statSync(path)
-    if (!stat.isFile()) return null
-    return {
-      path,
-      name: basename(path),
-      source: 'manual',
-      content: readFileSync(path, 'utf-8'),
-      sizeBytes: stat.size,
-    }
+    return ContextLoader.#readFile(path, basename(path), 'manual')
   }
 }

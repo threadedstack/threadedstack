@@ -6,10 +6,7 @@ export const taskError = (err: Error | string, stack: boolean = true): never => 
     err = new Error(err)
     stack = false
   }
-  process.stdout.write(`\n${themed('error', `Task Error:`)} `)
-  stack && err.stack
-    ? process.stdout.write(`${err.stack}\n`)
-    : process.stdout.write(`${err.message}\n`)
-  process.stdout.write(`\n`)
+  const detail = stack && err.stack ? err.stack : err.message
+  process.stdout.write(`\n${themed('error', `Task Error:`)} ${detail}\n\n`)
   process.exit(1)
 }

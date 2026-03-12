@@ -11,19 +11,13 @@ export const forkCommand: TSlashCommand = {
       return
     }
 
-    let messageId = args.trim()
+    const messageId = args.trim()
 
-    // If no messageId provided, use the last message in the conversation
     if (!messageId) {
-      const messages = ctx.messages
-      if (!messages.length) {
+      if (!ctx.messages.length) {
         ctx.output(`No messages in current thread. Cannot determine branch point.`)
         return
       }
-
-      // We need to get actual message IDs from the backend
-      // The ctx.messages only has display messages without IDs
-      // So we require the user to provide a messageId
       ctx.output(`Usage: /fork <messageId>\nProvide the ID of the message to branch at.`)
       return
     }

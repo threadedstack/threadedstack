@@ -49,12 +49,8 @@ export class KubeSandbox implements ISandbox {
    * Does NOT use child_process — no host-level shell access. Commands run inside the pod via sh -c.
    */
   exec = async (command: string, args: string[] = []): Promise<TSandboxResult> => {
-    const fullCmd =
-      args.length > 0
-        ? [`sh`, `-c`, `${command} ${args.join(` `)}`]
-        : [`sh`, `-c`, command]
-
-    return await this.client.runInPod(this.podName, fullCmd)
+    const cmd = args.length ? `${command} ${args.join(` `)}` : command
+    return await this.client.runInPod(this.podName, [`sh`, `-c`, cmd])
   }
 
   async readFile(path: string): Promise<string> {

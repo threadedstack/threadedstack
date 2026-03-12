@@ -9,7 +9,7 @@ export const injectKeyValues = (resp: Record<string, any>) => {
   if (!resp || !isObj(resp)) return resp
 
   const keys = Object.keys(resp).filter(Boolean)
-  if (!keys?.length) return resp
+  if (!keys.length) return resp
 
   injectUnsafe(keys)
 

@@ -72,24 +72,22 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
   }
 }
 
-const buildMeta = (opts: TBuildPodMeta) => {
-  return {
-    name: opts.podName,
-    labels: {
-      [PodLabelKeys.managed]: `true`,
-      [PodLabelKeys.orgId]: sanitizeLabel(opts.orgId),
-      [PodLabelKeys.userId]: sanitizeLabel(opts.userId),
-      [PodLabelKeys.sandboxId]: sanitizeLabel(opts.sandbox.id),
-      [PodLabelKeys.projectId]: sanitizeLabel(opts.projectId),
-    },
-    annotations: {
-      [PodAnnotationKeys.subdomain]: opts.subdomain,
-      [PodAnnotationKeys.ports]: JSON.stringify(opts.config.ports || {}),
-      /** **NOTE** - This is not a security issue, id map is arbitrary with placeholder  */
-      [PodAnnotationKeys.placeholders]: JSON.stringify(opts.placeholders),
-    },
-  }
-}
+const buildMeta = (opts: TBuildPodMeta) => ({
+  name: opts.podName,
+  labels: {
+    [PodLabelKeys.managed]: `true`,
+    [PodLabelKeys.orgId]: sanitizeLabel(opts.orgId),
+    [PodLabelKeys.userId]: sanitizeLabel(opts.userId),
+    [PodLabelKeys.sandboxId]: sanitizeLabel(opts.sandbox.id),
+    [PodLabelKeys.projectId]: sanitizeLabel(opts.projectId),
+  },
+  annotations: {
+    [PodAnnotationKeys.subdomain]: opts.subdomain,
+    [PodAnnotationKeys.ports]: JSON.stringify(opts.config.ports || {}),
+    /** **NOTE** - This is not a security issue, id map is arbitrary with placeholder  */
+    [PodAnnotationKeys.placeholders]: JSON.stringify(opts.placeholders),
+  },
+})
 
 const buildInitContainer = (opts: TPodEgressOpts): V1Container => {
   const { serviceName, servicePort, serviceIp } = opts

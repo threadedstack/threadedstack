@@ -13,7 +13,7 @@ const getTaskRef = (tasks: TTasks, task: string) => {
       (isArr(definition.alias) && definition.alias.includes(task))
   )
 
-  return found ? found[1] : undefined
+  return found?.[1]
 }
 
 const findTaskFromOptions = (task: TTask, options: string[]) => {
@@ -36,7 +36,7 @@ export const find = (
   const task = getTaskRef(tasks, taskName)
   const foundTask = task && findTaskFromOptions(task, options)
 
-  return foundTask && foundTask.task
+  return foundTask
     ? { ...foundTask, tasks }
     : taskError(`Task not found for argument: ${taskName}`)
 }

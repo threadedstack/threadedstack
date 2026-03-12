@@ -1,6 +1,18 @@
-import type { Bash } from 'just-bash'
-import type { IFileSystem } from 'just-bash'
+import type { Bash, IFileSystem } from 'just-bash'
 import type { Isolate, Context, Module } from 'isolated-vm'
+
+/**
+ * Swallow "already released/disposed" errors from isolated-vm teardown.
+ * Warns on genuinely unexpected failures.
+ */
+const safeRelease = (fn: () => void, keyword: string, label: string) => {
+  try {
+    fn()
+  } catch (err: any) {
+    if (!String(err?.message || ``).includes(keyword))
+      console.warn(`Unexpected error ${label}:`, err)
+  }
+}
 
 // Lazy-load isolated-vm via dynamic import() to:
 // 1. Avoid crashing when native addon isn't compiled (Linux pod)
@@ -299,12 +311,7 @@ export class IsolateRunner {
     // Release existing module with this name to avoid V8 heap leak on pool reuse
     const existing = this.#shims.get(name)
     if (existing) {
-      try {
-        existing.release()
-      } catch (err: any) {
-        if (!String(err?.message || ``).includes(`released`))
-          console.warn(`Unexpected error releasing module '${name}':`, err)
-      }
+      safeRelease(() => existing.release(), `released`, `releasing module '${name}'`)
       this.#shims.delete(name)
     }
 
@@ -335,12 +342,7 @@ export class IsolateRunner {
   releaseUserModules(): void {
     for (const [name, mod] of this.#shims) {
       if (IsolateRunner.#builtinNames.has(name)) continue
-      try {
-        mod.release()
-      } catch (err: any) {
-        if (!String(err?.message || ``).includes(`released`))
-          console.warn(`Unexpected error releasing module '${name}':`, err)
-      }
+      safeRelease(() => mod.release(), `released`, `releasing module '${name}'`)
       this.#shims.delete(name)
     }
   }
@@ -401,32 +403,21 @@ export class IsolateRunner {
 
   dispose(): void {
     for (const mod of this.#shims.values()) {
-      try {
-        mod.release()
-      } catch (err: any) {
-        if (!String(err?.message || ``).includes(`released`))
-          console.warn(`Unexpected error releasing module during dispose:`, err)
-      }
+      safeRelease(() => mod.release(), `released`, `releasing module during dispose`)
     }
     this.#shims.clear()
 
     if (this.#context) {
-      try {
-        this.#context.release()
-      } catch (err: any) {
-        if (!String(err?.message || ``).includes(`released`))
-          console.warn(`Unexpected error releasing context during dispose:`, err)
-      }
+      safeRelease(
+        () => this.#context!.release(),
+        `released`,
+        `releasing context during dispose`
+      )
       this.#context = null
     }
 
     if (this.#isolate) {
-      try {
-        this.#isolate.dispose()
-      } catch (err: any) {
-        if (!String(err?.message || ``).includes(`disposed`))
-          console.warn(`Unexpected error disposing isolate:`, err)
-      }
+      safeRelease(() => this.#isolate!.dispose(), `disposed`, `disposing isolate`)
       this.#isolate = null
     }
 

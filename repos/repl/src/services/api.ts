@@ -11,12 +11,6 @@ export class ApiClient {
     this.#auth = auth
   }
 
-  #getProxyUrl(): string {
-    const creds = this.#auth.creds()
-    if (!creds) throw new Error(`Not logged in. Run "tsa login" first.`)
-    return creds.proxyUrl
-  }
-
   async #request<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
     const creds = this.#auth.creds()
     if (!creds) throw new Error(`Not logged in. Run "tsa login" first.`)
@@ -56,20 +50,12 @@ export class ApiClient {
   }
 
   #isRetryableError(error: Error): boolean {
-    const msg = error.message
     if ('code' in error) {
       const code = (error as any).code
       if (code === `ECONNREFUSED` || code === `ETIMEDOUT` || code === `ENOTFOUND`)
         return true
     }
-    if (
-      msg.includes(`(429)`) ||
-      msg.includes(`(500)`) ||
-      msg.includes(`(502)`) ||
-      msg.includes(`(503)`)
-    )
-      return true
-    return false
+    return [429, 500, 502, 503].some((s) => error.message.includes(`(${s})`))
   }
 
   #delay(ms: number): Promise<void> {
@@ -85,7 +71,9 @@ export class ApiClient {
   }
 
   get proxyUrl(): string {
-    return this.#getProxyUrl()
+    const creds = this.#auth.creds()
+    if (!creds) throw new Error(`Not logged in. Run "tsa login" first.`)
+    return creds.proxyUrl
   }
 
   // --- Organizations ---

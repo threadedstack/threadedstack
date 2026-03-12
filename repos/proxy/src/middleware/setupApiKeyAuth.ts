@@ -102,8 +102,6 @@ export const validateApiKeyAuth = (app: TProxyApp) => {
   }
 }
 
-// TODO: Enforce rate limiting — `apiKey.rateLimit` from the DB record should be
-// checked against a sliding window (Redis or in-memory map) before allowing the request.
 export const setupApiKeyAuth = (app: TProxyApp) => {
   app.use(validateApiKeyAuth(app))
 }

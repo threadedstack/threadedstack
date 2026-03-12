@@ -559,24 +559,12 @@ export class ChatLogic {
       this.#addMessage({ type: `assistant`, content: this.#streamBuffer })
       this.#emitStatusChange()
     } catch (err) {
-      // Save partial streaming text on error
+      // Save partial streaming text before error handling (logout clears messages)
       if (this.#streamBuffer) {
         this.#addMessage({ type: `assistant`, content: this.#streamBuffer })
       }
 
-      const error = err instanceof Error ? err : new Error(String(err))
-      const kind = classifyApiError(err)
-
-      if (kind === `auth`) {
-        // Auth expired mid-chat — partial text already saved above, logout clears messages
-        this.logout()
-        this.#outputMessage(`Session expired or unauthorized. Please log in again.`)
-      } else {
-        const friendly = toFriendlyError(error)
-        this.#outputMessage(
-          `Error: ${friendly.message}${friendly.suggestion ? ` ${friendly.suggestion}` : ``}`
-        )
-      }
+      this.#handleCatchError(err, `session`)
     } finally {
       this.#stopStreamFlush()
       this.isStreaming = false

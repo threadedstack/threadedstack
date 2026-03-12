@@ -12,17 +12,12 @@ export const prewarm = (req: Request, res: Response, next: NextFunction) => {
   const { config } = req.app.locals
   const prewarmHeader = req.headers[config.domains.prewarmHeader]
 
-  /**
-   * Continue normal request processing
-   * Return immediately with success
-   * This triggers Caddy to generate the certificate
-   */
-  !exists(prewarmHeader)
-    ? next()
-    : res.status(200).json({
-        status: `warmed`,
-        message: `Certificate generation triggered`,
-      })
+  if (!exists(prewarmHeader)) return next()
+
+  res.status(200).json({
+    status: `warmed`,
+    message: `Certificate generation triggered`,
+  })
 }
 
 export const setupPrewarm = (app: TProxyApp) => {

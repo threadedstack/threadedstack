@@ -184,10 +184,12 @@ export class Agent extends Base<
       (a, b) => (a.priority ?? 0) - (b.priority ?? 0)
     )
 
+    const projectLinks = data.projects || []
+
     const agent = new AgentModel({
       ...data,
-      projects: (data.projects || []).map((link) => link.project),
-      projectConfigs: (data.projects || []).map((link) => ({
+      projects: projectLinks.map((link) => link.project),
+      projectConfigs: projectLinks.map((link) => ({
         projectId: link.projectId,
         agentId: link.agentId,
         alias: link.alias ?? null,

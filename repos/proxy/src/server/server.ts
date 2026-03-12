@@ -27,26 +27,22 @@ const loadCredFiles = (certs: TSSLCreds) => {
 const setupHttpsServer = (app: TProxyApp) => {
   const { certs, port, enableSSL } = app.locals.config.server
 
-  const hasCerts = enableSSL && Boolean(certs?.cert && certs?.key)
+  if (!enableSSL || !certs?.cert || !certs?.key) return
 
-  if (!hasCerts) return
+  const credentials = loadCredFiles(certs)
+  const httpsServer = https.createServer(credentials, app)
 
-  const credentials = hasCerts && loadCredFiles(certs!)
-  const httpsServer = credentials && https.createServer(credentials, app)
-
-  const server =
-    httpsServer &&
-    httpsServer
-      .listen(port, () => {
-        logger.info(`🔒 Proxy Secure Server running on port ${port}`)
+  const server = httpsServer
+    .listen(port, () => {
+      logger.info(`🔒 Proxy Secure Server running on port ${port}`)
+    })
+    .on(`error`, (e) => {
+      logger.error({
+        error: e.stack,
+        message: `FATAL Error: ${e.name} ${e.message} - Shutting down server...`,
       })
-      .on(`error`, (e) => {
-        logger.error({
-          error: e.stack,
-          message: `FATAL Error: ${e.name} ${e.message} - Shutting down server...`,
-        })
-        server.close()
-      })
+      server.close()
+    })
 
   return server
 }

@@ -103,7 +103,7 @@ export type TTagLogger = {
 export type TCLILogger = TLevelLogger &
   TUtilLogger &
   TStateLogger &
-  TTagLogger & {} & {
+  TTagLogger & {
     levels: TLogLevels
     level: string | number
 
@@ -121,7 +121,7 @@ export type TLogOpts = winston.LoggerOptions & {
   label: string
 }
 
-export type TWLogger = TWinLogger & {}
+export type TWLogger = TWinLogger
 
 export type TSetupLogger = Omit<TLogOpts, `label`> & {
   tag?: string

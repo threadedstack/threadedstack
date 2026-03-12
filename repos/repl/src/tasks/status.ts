@@ -9,18 +9,19 @@ export const status: TTask = {
   example: `tsa status`,
   action: async ({ auth }) => {
     const creds = auth.creds()
-    if (creds) {
-      process.stdout.write(
-        `\n${themed(`bold`, `Status:`)} ${themed(`primary`, `logged in`)}\n`
-      )
-      process.stdout.write(`  ${themed(`muted`, `Proxy:`)} ${creds.proxyUrl}\n`)
-      process.stdout.write(
-        `  ${themed(`muted`, `Key:`)}   ${creds.apiKey.slice(0, 8)}${`*`.repeat(8)}\n\n`
-      )
-    } else {
+    if (!creds) {
       process.stdout.write(
         `\n${themed(`bold`, `Status:`)} ${themed(`muted`, `not logged in`)}\n\n`
       )
+      return
     }
+
+    process.stdout.write(
+      `\n${themed(`bold`, `Status:`)} ${themed(`primary`, `logged in`)}\n`
+    )
+    process.stdout.write(`  ${themed(`muted`, `Proxy:`)} ${creds.proxyUrl}\n`)
+    process.stdout.write(
+      `  ${themed(`muted`, `Key:`)}   ${creds.apiKey.slice(0, 8)}${`*`.repeat(8)}\n\n`
+    )
   },
 }

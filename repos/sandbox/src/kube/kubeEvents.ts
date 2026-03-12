@@ -11,19 +11,13 @@ import { logger } from '@TSB/utils/logger'
  * K8s client library bug #596 (watch connections go stale)
  */
 export const setupKubeWatcher = (client: KubeClient) => {
+  const hydrate = (pod: V1Pod) => client.hydrateSingle(pod)
+
   const handlers = {
-    added: (pod: V1Pod) => {
-      client.hydrateSingle(pod)
-    },
-    modified: (pod: V1Pod) => {
-      client.hydrateSingle(pod)
-    },
-    deleted: (pod: V1Pod) => {
-      client.removeFromCache(pod)
-    },
-    bookmark: (_pod: V1Pod) => {
-      // Keep-alive, no action
-    },
+    added: hydrate,
+    modified: hydrate,
+    deleted: (pod: V1Pod) => client.removeFromCache(pod),
+    bookmark: () => {},
     error: (err: any) => {
       logger.error(`KubeEvents Watch error:`, err)
     },

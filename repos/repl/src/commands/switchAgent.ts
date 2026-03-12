@@ -6,10 +6,11 @@ export const switchAgentCommand: TSlashCommand = {
   description: `Switch to a different agent`,
   handler: async (args, ctx) => {
     if (args) {
-      ctx.setAgentId(args.trim())
+      const agentId = args.trim()
+      ctx.setAgentId(agentId)
       ctx.setThreadId(null)
       ctx.clearMessages()
-      ctx.output(`Switched to agent ${args.trim()}`)
+      ctx.output(`Switched to agent ${agentId}`)
       return
     }
 

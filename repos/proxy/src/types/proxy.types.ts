@@ -1,4 +1,4 @@
-import type { TApp, TAuthHeaderObj } from '@tdsk/domain'
+import type { TApp } from '@tdsk/domain'
 import type { Auth } from '@TPX/services/auth'
 import type { TDatabase } from '@tdsk/database'
 import type { TProxyConfig } from '@TPX/types/config.types'

@@ -25,13 +25,9 @@ const logData = (logger: Log, type: string) => {
     // If the type is a log type use it, otherwise use the default
     const logMethod = (console[type as keyof typeof console] && type) || logger.default
 
-    // Loop the passed in data to log, and apply the log color
     const toLog = args.map((data) => {
-      return typeof data === `object` || Array.isArray(data)
-        ? colors[logColor](JSON.stringify(data, null, 2))
-        : typeof data.toString === `function`
-          ? colors[logColor](data.toString())
-          : colors[logColor](data)
+      const str = typeof data === `object` ? JSON.stringify(data, null, 2) : String(data)
+      return colors[logColor](str)
     })
 
     if (!TAG_DISABLED && logger.tag) {
@@ -136,8 +132,7 @@ export class Log {
    *
    */
   toggleTag = () => {
-    if (!TAG_DISABLED) TAG_DISABLED = true
-    else TAG_DISABLED = false
+    TAG_DISABLED = !TAG_DISABLED
   }
 
   /**
@@ -210,8 +205,7 @@ export class Log {
     TAG_DISABLED = true
 
     const middle = `              ${title}              `
-
-    const line = middle.split('').reduce((line, item, index) => (line += ' '))
+    const line = ` `.repeat(middle.length)
 
     color = color || `green`
 
@@ -237,8 +231,7 @@ export class Log {
     TAG_DISABLED = true
 
     const middle = `          ${title}       `
-
-    const line = middle.split('').reduce((line, item, index) => (line += ' '))
+    const line = ` `.repeat(middle.length)
 
     color = color || `white`
 

@@ -44,19 +44,18 @@ export const buildLogger = (
   } = options
 
   const logger = createLogger({
-    silent: silent,
-    exitOnError: exitOnError,
+    silent,
+    exitOnError,
     transports: [
       new transports.Console({
         level,
         format: getFormatter(label),
-        handleExceptions: handleExceptions,
+        handleExceptions,
       }),
     ],
   })
 
-  if (!defaultLogger) return logger
+  if (defaultLogger) __LOGGER = logger
 
-  __LOGGER = logger
-  return __LOGGER
+  return logger
 }

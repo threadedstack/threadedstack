@@ -29,7 +29,7 @@ const loggerWrap = (
       args.length <= 1 && isStr(args[0])
         ? {
             message: args[0],
-            label: label,
+            label,
           }
         : args.reduce(
             (obj, arg) => {

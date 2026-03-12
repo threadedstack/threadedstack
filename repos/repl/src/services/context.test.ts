@@ -19,7 +19,7 @@ describe('ContextLoader', () => {
       return String(p).endsWith('AGENTS.md')
     })
     vi.mocked(fs.readFileSync).mockReturnValue('agent instructions')
-    vi.mocked(fs.statSync).mockReturnValue({ size: 100 } as any)
+    vi.mocked(fs.statSync).mockReturnValue({ size: 100, isFile: () => true } as any)
 
     const files = ContextLoader.autoDetect('/test/project')
     expect(files).toHaveLength(1)
