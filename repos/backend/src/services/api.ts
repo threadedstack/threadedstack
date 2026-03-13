@@ -34,12 +34,7 @@ export class API {
 
   #err = (message: string, status: number, text?: string) => {
     const statusText = text ? `Status: ${status} - ${text}` : ``
-    const msg = message
-      ? statusText
-        ? `${message}\n${statusText}`
-        : message
-      : statusText
-
+    const msg = [message, statusText].filter(Boolean).join(`\n`)
     return new Exception(status, msg)
   }
 

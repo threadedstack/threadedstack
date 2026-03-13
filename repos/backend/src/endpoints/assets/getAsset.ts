@@ -2,9 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /assets/:id - Get a single asset by ID

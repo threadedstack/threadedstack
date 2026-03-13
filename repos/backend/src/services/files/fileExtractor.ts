@@ -7,11 +7,11 @@
  * Image files are not extracted — they're passed as ImageContent to vision models.
  */
 
-const MAX_EXTRACTED_LENGTH = 50_000
+import { DocXMime, MaxExtractedLength, TextMimeTypes } from '@TBE/constants/values'
 
 type TExtractionResult = {
-  text: string | null
   error?: string
+  text: string | null
 }
 
 /**
@@ -22,34 +22,15 @@ export const extractText = async (
   mimeType: string
 ): Promise<TExtractionResult> => {
   // Text-based formats — direct passthrough
-  if (
-    mimeType.startsWith(`text/`) ||
-    mimeType === `application/json` ||
-    mimeType === `application/xml` ||
-    mimeType === `application/csv` ||
-    mimeType === `application/javascript` ||
-    mimeType === `application/typescript`
-  ) {
-    const text = buffer.toString(`utf-8`).slice(0, MAX_EXTRACTED_LENGTH)
+  if (mimeType.startsWith(`text/`) || TextMimeTypes.has(mimeType)) {
+    const text = buffer.toString(`utf-8`).slice(0, MaxExtractedLength)
     return { text }
   }
 
-  // PDF extraction
-  if (mimeType === `application/pdf`) {
-    return extractPdf(buffer)
-  }
-
-  // DOCX extraction
-  if (
-    mimeType === `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
-  ) {
-    return extractDocx(buffer)
-  }
-
+  if (mimeType === `application/pdf`) return extractPdf(buffer)
+  if (mimeType === DocXMime) return extractDocx(buffer)
   // Image files — no text extraction (handled as ImageContent by the agent)
-  if (mimeType.startsWith(`image/`)) {
-    return { text: null }
-  }
+  if (mimeType.startsWith(`image/`)) return { text: null }
 
   return { text: null, error: `Unsupported file type: ${mimeType}` }
 }
@@ -70,7 +51,7 @@ const extractPdf = async (buffer: Buffer): Promise<TExtractionResult> => {
   try {
     const pdfParse = await tryRequire(`pdf-parse`)
     const result = await pdfParse(buffer)
-    return { text: (result.text || ``).slice(0, MAX_EXTRACTED_LENGTH) }
+    return { text: (result.text || ``).slice(0, MaxExtractedLength) }
   } catch (err: any) {
     if (err.code === `ERR_MODULE_NOT_FOUND` || err.code === `MODULE_NOT_FOUND`) {
       return { text: null, error: `PDF extraction requires the pdf-parse package` }
@@ -86,7 +67,7 @@ const extractDocx = async (buffer: Buffer): Promise<TExtractionResult> => {
   try {
     const mammoth = await tryRequire(`mammoth`)
     const result = await mammoth.extractRawText({ buffer })
-    return { text: (result.value || ``).slice(0, MAX_EXTRACTED_LENGTH) }
+    return { text: (result.value || ``).slice(0, MaxExtractedLength) }
   } catch (err: any) {
     if (err.code === `ERR_MODULE_NOT_FOUND` || err.code === `MODULE_NOT_FOUND`) {
       return { text: null, error: `DOCX extraction requires the mammoth package` }

@@ -34,7 +34,7 @@ export type TEmailConfig = {
   apiKey?: string
 
   /**
-   * API key for Email provider
+   * API host for Email provider
    */
   apiHost?: string
 

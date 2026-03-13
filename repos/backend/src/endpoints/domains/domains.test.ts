@@ -21,11 +21,11 @@ const mockResolve4 = vi.fn()
 
 vi.mock(`node:dns`, () => ({
   default: {
-    resolveCname: (...args: any[]) => mockResolveCname(...args),
-    resolve4: (...args: any[]) => mockResolve4(...args),
+    promises: {
+      resolveCname: (...args: any[]) => mockResolveCname(...args),
+      resolve4: (...args: any[]) => mockResolve4(...args),
+    },
   },
-  resolveCname: (...args: any[]) => mockResolveCname(...args),
-  resolve4: (...args: any[]) => mockResolve4(...args),
 }))
 
 describe(`Domains endpoints`, () => {
@@ -333,11 +333,7 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should return 201 when DNS CNAME points to proxy host`, async () => {
-      mockResolveCname.mockImplementation(
-        (domain: string, cb: (err: any, addresses?: string[]) => void) => {
-          cb(null, [`proxy.example.com`])
-        }
-      )
+      mockResolveCname.mockResolvedValue([`proxy.example.com`])
 
       const mockDomain = new Domain({
         id: `dom-new`,
@@ -371,16 +367,8 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should fall back to A record when CNAME fails`, async () => {
-      mockResolveCname.mockImplementation(
-        (domain: string, cb: (err: any, addresses?: string[]) => void) => {
-          cb(new Error(`CNAME not found`))
-        }
-      )
-      mockResolve4.mockImplementation(
-        (domain: string, cb: (err: any, addresses?: string[]) => void) => {
-          cb(null, [`proxy.example.com`])
-        }
-      )
+      mockResolveCname.mockRejectedValue(new Error(`CNAME not found`))
+      mockResolve4.mockResolvedValue([`proxy.example.com`])
 
       const mockDomain = new Domain({
         id: `dom-new`,
@@ -409,11 +397,7 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should return 400 when DNS does not point to proxy host`, async () => {
-      mockResolveCname.mockImplementation(
-        (domain: string, cb: (err: any, addresses?: string[]) => void) => {
-          cb(null, [`other-host.example.com`])
-        }
-      )
+      mockResolveCname.mockResolvedValue([`other-host.example.com`])
 
       mockReq.body = { domain: `wrong-dns.example.com`, orgId: `org-1` }
 
@@ -423,16 +407,8 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should return 400 when DNS resolution fails entirely`, async () => {
-      mockResolveCname.mockImplementation(
-        (domain: string, cb: (err: any, addresses?: string[]) => void) => {
-          cb(new Error(`CNAME not found`))
-        }
-      )
-      mockResolve4.mockImplementation(
-        (domain: string, cb: (err: any, addresses?: string[]) => void) => {
-          cb(new Error(`A record not found`))
-        }
-      )
+      mockResolveCname.mockRejectedValue(new Error(`CNAME not found`))
+      mockResolve4.mockRejectedValue(new Error(`A record not found`))
 
       mockReq.body = { domain: `nodns.example.com`, orgId: `org-1` }
 
@@ -442,11 +418,7 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should create domain with projectId and verify project exists`, async () => {
-      mockResolveCname.mockImplementation(
-        (domain: string, cb: (err: any, addresses?: string[]) => void) => {
-          cb(null, [`proxy.example.com`])
-        }
-      )
+      mockResolveCname.mockResolvedValue([`proxy.example.com`])
 
       const mockProject = { id: `project-1`, orgId: `org-1`, name: `P1` }
       const mockDomain = new Domain({
@@ -482,11 +454,7 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should return 404 when project not found for projectId`, async () => {
-      mockResolveCname.mockImplementation(
-        (domain: string, cb: (err: any, addresses?: string[]) => void) => {
-          cb(null, [`proxy.example.com`])
-        }
-      )
+      mockResolveCname.mockResolvedValue([`proxy.example.com`])
 
       mockReq.body = { domain: `proj.example.com`, projectId: `project-nonexistent` }
 
@@ -501,12 +469,7 @@ describe(`Domains endpoints`, () => {
     })
 
     it(`should return 500 on database create error`, async () => {
-      // Mock DNS resolveCname to succeed with our proxy host
-      mockResolveCname.mockImplementation(
-        (domain: string, cb: (err: any, addresses?: string[]) => void) => {
-          cb(null, [`proxy.example.com`])
-        }
-      )
+      mockResolveCname.mockResolvedValue([`proxy.example.com`])
 
       mockReq.body = { domain: `test.example.com`, orgId: `org-1` }
 

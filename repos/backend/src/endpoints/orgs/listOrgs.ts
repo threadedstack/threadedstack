@@ -2,10 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { isSuperAdmin, ERoleType } from '@tdsk/domain'
-import { Exception } from '@tdsk/domain'
-import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import { parsePagination } from '@TBE/utils/pagination'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import { isSuperAdmin, ERoleType, Exception } from '@tdsk/domain'
 
 /**
  * GET /orgs - List all orgs

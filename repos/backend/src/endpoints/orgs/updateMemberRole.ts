@@ -1,11 +1,15 @@
 import type { Response } from 'express'
-import { ERoleType } from '@tdsk/domain'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource, canManageRole } from '@tdsk/domain'
 import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
+import {
+  ERoleType,
+  Exception,
+  EPermAction,
+  EPermResource,
+  canManageRole,
+} from '@tdsk/domain'
 
 /**
  * PUT /orgs/:orgId/members/:userId - Update member role in an org

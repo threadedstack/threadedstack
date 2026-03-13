@@ -26,10 +26,8 @@ export class TemplatesService {
    * @returns Rendered HTML string
    */
   render = async (template: string, variables: Record<string, any>): Promise<string> => {
-    if (this.#cache.has(template)) {
-      const compiled = this.#cache.get(template)!
-      return compiled(variables)
-    }
+    const cached = this.#cache.get(template)
+    if (cached) return cached(variables)
 
     try {
       const location = path.join(this.#directory, `${template}.html`)

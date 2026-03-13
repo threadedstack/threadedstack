@@ -22,7 +22,7 @@ export class ConsoleStrategy extends BaseEmailStrategy {
 
     logger.debug(`[EMAIL CONTENT]`, {
       html: options.html.substring(0, 200) + `...`,
-      text: options.text?.substring(0, 200) + `...` || `N/A`,
+      text: options.text ? `${options.text.substring(0, 200)}...` : `N/A`,
     })
 
     return {

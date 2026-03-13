@@ -28,12 +28,10 @@ const isValid = (
   endpoint: TEndpointWithRouter | TEndpointConfig
 ) => {
   if (!isObj(endpoint)) return false
-
   if (endpoint.method === EPMethod.Use && !isObj(endpoint.endpoints)) return false
 
-  !isFunc(router[endpoint?.method]) && ServerErr.httpMethod(endpoint?.method)
-
-  ;(!endpoint?.path || !endpoint?.path.length) && ServerErr.routePath(name)
+  if (!isFunc(router[endpoint?.method])) ServerErr.httpMethod(endpoint?.method)
+  if (!endpoint?.path || !endpoint?.path.length) ServerErr.routePath(name)
 
   return true
 }
@@ -50,17 +48,17 @@ const buildEndpoint = (
     ? [validateIdParams as TReqHandler, ...middleware]
     : middleware
 
-  method === EPMethod.Use
-    ? router.use(
-        path,
-        ...mw,
-        buildEndpoints(app, createAsyncRouter(), children, path) as unknown as TReqHandler
-      )
-    : method === EPMethod.Proxy
-      ? router.use(path, ...mw, endpointProxy(endpoint as TEndpointConfig))
-      : isObj(proxy)
-        ? router[method](path, ...mw, endpointProxy(endpoint as TEndpointConfig))
-        : router[method](path, ...mw, action as TReqHandler)
+  if (method === EPMethod.Use)
+    router.use(
+      path,
+      ...mw,
+      buildEndpoints(app, createAsyncRouter(), children, path) as unknown as TReqHandler
+    )
+  else if (method === EPMethod.Proxy)
+    router.use(path, ...mw, endpointProxy(endpoint as TEndpointConfig))
+  else if (isObj(proxy))
+    router[method](path, ...mw, endpointProxy(endpoint as TEndpointConfig))
+  else router[method](path, ...mw, action as TReqHandler)
 }
 
 const buildEndpoints = (
@@ -69,13 +67,14 @@ const buildEndpoints = (
   eps?: TEndpointsConfig,
   parentPath?: string
 ) => {
-  isObj<TEndpointsConfig>(eps) &&
-    Object.entries(eps).forEach(([name, ep]: [string, TEndpoint]) => {
-      const endpoint = isFunc<TEndpointBuilder>(ep) ? ep(app) : ep
-      isValid(router, name, endpoint) && buildEndpoint(app, router, endpoint)
-      endpoint.public &&
-        app.locals.config.proxy.publicRoutes.push(`${parentPath || ``}${endpoint.path}`)
-    })
+  if (!isObj<TEndpointsConfig>(eps)) return router
+
+  Object.entries(eps).forEach(([name, ep]: [string, TEndpoint]) => {
+    const endpoint = isFunc<TEndpointBuilder>(ep) ? ep(app) : ep
+    if (isValid(router, name, endpoint)) buildEndpoint(app, router, endpoint)
+    if (endpoint.public)
+      app.locals.config.proxy.publicRoutes.push(`${parentPath || ``}${endpoint.path}`)
+  })
 
   return router
 }

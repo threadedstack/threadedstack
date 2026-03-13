@@ -45,8 +45,6 @@ export const objToQuery = <T extends string>(
   obj: Record<string, any>,
   opts: TObjToQueryOpts = {}
 ): T => {
-  let firstSet: boolean
-
   const repeated = (opts?.array || `repeated`) == `repeated`
   return reduceObj(
     obj,
@@ -62,10 +60,7 @@ export const objToQuery = <T extends string>(
 
       if (!exists(converted)) return urlStr
 
-      urlStr = !firstSet ? `?${converted}` : `${urlStr}&${converted}`
-      firstSet = true
-
-      return urlStr
+      return urlStr ? `${urlStr}&${converted}` : `?${converted}`
     },
     ''
   ) as T

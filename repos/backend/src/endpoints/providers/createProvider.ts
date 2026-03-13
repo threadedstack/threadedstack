@@ -2,11 +2,10 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { EPermAction, EPermResource } from '@tdsk/domain'
-import { validateProviderType } from '@TBE/utils/providers/validateProviderType'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { validateLLMProvider } from '@TBE/utils/providers/validateLLMProvider'
+import { validateProviderType } from '@TBE/utils/providers/validateProviderType'
 
 /**
  * POST /_/providers - Create a new provider

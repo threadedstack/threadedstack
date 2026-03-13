@@ -33,12 +33,9 @@ export const updateUser: TEndpointConfig = {
     if (isOwnProfile) {
       // Allow self-update (limited fields - role cannot be changed here)
       const allowedFields = [`name`, `avatar`, `email`, `metadata`]
-      const filteredData = Object.keys(userData)
-        .filter((key) => allowedFields.includes(key))
-        .reduce((obj, key) => {
-          obj[key] = userData[key]
-          return obj
-        }, {} as any)
+      const filteredData = Object.fromEntries(
+        Object.entries(userData).filter(([key]) => allowedFields.includes(key))
+      )
 
       const { data, error } = await db.services.user.update({ ...filteredData, id })
 

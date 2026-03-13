@@ -3,9 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { InviteService } from '@TBE/services/invite'
-import { Exception } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { EPermAction, EPermResource, ERoleType } from '@tdsk/domain'
+import { Exception, EPermAction, EPermResource, ERoleType } from '@tdsk/domain'
 
 type TOrgReq = {
   orgId: string

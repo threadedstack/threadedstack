@@ -2,6 +2,7 @@ import type { Secret } from '@tdsk/domain'
 import type { TSecretResolverDb } from '@TBE/types'
 
 import { logger } from '@TBE/utils/logger'
+import { isObj } from '@keg-hub/jsutils/isObj'
 import { deriveKey, decryptValue, SecretRefTest, SecretRefPattern } from '@tdsk/domain'
 
 type TProvider = {
@@ -72,15 +73,9 @@ export class SecretResolver {
     headers: Record<string, string>,
     secrets: Secret[]
   ): Record<string, string> => {
-    if (!headers || typeof headers !== 'object') {
-      return headers
-    }
+    if (!isObj(headers)) return headers
 
-    const result: Record<string, string> = {}
-    Object.entries(headers).forEach(([key, value]) => {
-      result[key] = SecretResolver.replaceRefs(value, secrets)
-    })
-    return result
+    return SecretResolver.replaceInObj(headers, secrets)
   }
 
   /**

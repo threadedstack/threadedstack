@@ -83,6 +83,7 @@ vi.mock(`@TBE/utils/logger`, () => ({
 
 vi.mock(`@TBE/constants/values`, () => ({
   PhTokenPrefix: `tdsk_ph_`,
+  RealIpHeader: `x-tdsk-real-ip`,
 }))
 
 // ── Helpers ──

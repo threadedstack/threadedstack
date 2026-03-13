@@ -19,14 +19,12 @@ export class DynamicModels {
     Object.assign(this, { ...DefProviderModelUrls, ...opts })
   }
 
-  /**
-   * Fetch models from the OpenAI API (requires API key)
-   */
-  openAI = async (apiKey: string) => {
-    const resp = await fetch(this.openAiUrl, {
+  /** Fetch and filter models from an OpenAI-compatible API (chat/completion models only) */
+  private fetchOpenAICompatible = async (url: string, apiKey: string, label: string) => {
+    const resp = await fetch(url, {
       headers: { Authorization: `Bearer ${apiKey}` },
     })
-    if (!resp.ok) throw new Error(`OpenAI API returned ${resp.status}`)
+    if (!resp.ok) throw new Error(`${label} API returned ${resp.status}`)
 
     const json = await resp.json()
     return (json.data || [])
@@ -37,6 +35,12 @@ export class DynamicModels {
       }))
       .sort((a: any, b: any) => a.id.localeCompare(b.id))
   }
+
+  /**
+   * Fetch models from the OpenAI API (requires API key)
+   */
+  openAI = async (apiKey: string) =>
+    this.fetchOpenAICompatible(this.openAiUrl, apiKey, `OpenAI`)
 
   /**
    * Fetch models from an Ollama instance (no auth required)
@@ -95,20 +99,5 @@ export class DynamicModels {
   /**
    * Fetch models from the ZAI API (requires API key)
    */
-  zai = async (apiKey: string) => {
-    const resp = await fetch(this.zaiUrl, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    })
-
-    if (!resp.ok) throw new Error(`ZAI API returned ${resp.status}`)
-
-    const json = await resp.json()
-    return (json.data || [])
-      .filter((m: any) => m.id.startsWith(`gpt-`) || m.id.startsWith(`o`))
-      .map((m: any) => ({
-        id: m.id,
-        name: m.id,
-      }))
-      .sort((a: any, b: any) => a.id.localeCompare(b.id))
-  }
+  zai = async (apiKey: string) => this.fetchOpenAICompatible(this.zaiUrl, apiKey, `ZAI`)
 }

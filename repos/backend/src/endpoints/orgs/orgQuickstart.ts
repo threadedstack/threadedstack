@@ -2,8 +2,6 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { EProvider } from '@tdsk/domain'
-import { Exception } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import {
   agents,
@@ -15,6 +13,8 @@ import {
   agentProviders,
 } from '@tdsk/database/schemas'
 import {
+  EProvider,
+  Exception,
   deriveKey,
   EPermAction,
   encryptValue,
@@ -165,13 +165,13 @@ export const orgQuickstart: TEndpointConfig = {
           priority: 0,
         })
 
-        // 8. Agent-Project junction
+        // 7. Agent-Project junction
         await tx.insert(agentProjects).values({
           agentId: agent.id,
           projectId: project.id,
         })
 
-        // 9. Endpoint (project-scoped, type=agent)
+        // 8. Endpoint (project-scoped, type=agent)
         const [endpoint] = await tx
           .insert(endpoints)
           .values({

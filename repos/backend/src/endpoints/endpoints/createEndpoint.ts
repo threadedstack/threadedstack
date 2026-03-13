@@ -2,9 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { Exception } from '@tdsk/domain'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { HttpMethods } from '@TBE/constants/values'
-import { Exception } from '@tdsk/domain'
 import { getEPService } from '@TBE/services/endpoints'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
@@ -29,10 +29,7 @@ export const createEndpoint: TEndpointConfig = {
     } = req.body
     const projectId = req.params.projectId || req.body.projectId
 
-    // Validate required fields
     if (!type) throw new Exception(400, `Endpoint type is required`)
-
-    // Validate required fields
     if (!name) throw new Exception(400, `Endpoint name is required`)
 
     if (!method) throw new Exception(400, `Endpoint method is required`)

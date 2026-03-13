@@ -96,12 +96,12 @@ export const validateApiKey = (data: Partial<ApiKey>) => {
 
   if (scopes) {
     const result = validateApiScopes(scopes)
-    if (!result.valid || result.error) return result
+    if (!result.valid) return result
   }
 
   if (expiresAt) {
     const result = validateExpiresAt(expiresAt)
-    if (!result.valid || result.error) return result
+    if (!result.valid) return result
   }
 
   return { valid: true }
