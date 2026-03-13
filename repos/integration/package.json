@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf node_modules",
+    "pwi": "playwright install chromium",
     "test": "pnpm test:api",
     "test:all": "pnpm test:api && pnpm test:ui",
     "test:api": "vitest run --config configs/vitest.config.ts",
     "test:ui": "playwright test --config configs/playwright.config.ts",
-    "pwi": "playwright install chromium"
+    "types": "tsc --noEmit --pretty"
   },
   "dependencies": {
     "@keg-hub/parse-config": "2.2.0"

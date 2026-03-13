@@ -40,10 +40,7 @@ export class OverrideErr extends Error {
 
   toString(): string {
     return this.details?.length
-      ? [
-          this.message,
-          `Details: ${this.details.map((d) => (typeof d === `string` ? d : d.msg)).join(`\n`)}`,
-        ].join(`\n`)
+      ? [this.message, `Details: ${this.details.map((d) => d.msg).join(`\n`)}`].join(`\n`)
       : this.message
   }
 }

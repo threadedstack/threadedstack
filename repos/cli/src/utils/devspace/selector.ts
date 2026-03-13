@@ -6,16 +6,10 @@ export type TSelectorCmd = TTaskActionArgs & {}
 export const selector = (props: TSelectorCmd) => {
   const { params } = props
 
-  const { context } = params
-  const mapped = context
-    .map((ctx: keyof typeof ETSApps) => ETSApps[ctx])
-    .filter(Boolean)
-    .reduce((acc, ctx) => {
-      acc.push(`--label-selector`, `app.kubernetes.io/component=tdsk-${ctx}`)
-      return acc
-    }, [] as string[])
+  const mapped = params.context.flatMap((ctx: keyof typeof ETSApps) => {
+    const app = ETSApps[ctx]
+    return app ? [`--label-selector`, `app.kubernetes.io/component=tdsk-${app}`] : []
+  })
 
-  const args = [...mapped, ...(params?.args || [])]
-
-  return args
+  return [...mapped, ...(params?.args || [])]
 }

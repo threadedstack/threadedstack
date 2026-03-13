@@ -53,13 +53,13 @@ export const Card = (props: TCard) => {
         >
           {children}
         </CardContent>
-        {actions?.length && (
+        {actions?.length ? (
           <CardActions
             sx={actionsSx}
             actions={actions}
             actionSx={actionSx}
           />
-        )}
+        ) : null}
       </CardMain>
     </CardContainer>
   )

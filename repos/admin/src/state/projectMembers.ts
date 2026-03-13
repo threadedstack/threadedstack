@@ -10,6 +10,5 @@ export const projectMembersState =
 // Derived: auto-filters to active project
 export const activeProjectMembersState = atom((get) => {
   const projectId = get(activeProjectIdState)
-  const all = get(projectMembersState)
-  return projectId && all?.[projectId] ? all[projectId] : undefined
+  return projectId ? get(projectMembersState)?.[projectId] : undefined
 })

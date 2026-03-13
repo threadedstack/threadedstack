@@ -29,17 +29,16 @@ export const ActionCard = (props: TActionCard) => {
         className='tdsk-ac-card-content'
         sx={{ textAlign: 'center' }}
       >
-        {(Icon && (
+        {Icon && (
           <Icon
             color='primary'
             className='tdsk-ac-card-icon'
             {...iconProps}
             sx={{ fontSize: 40, ...iconProps?.sx }}
           />
-        )) ||
-          null}
+        )}
 
-        {(title && (
+        {title && (
           <Typography
             variant='subtitle1'
             className='tdsk-ac-card-title'
@@ -48,9 +47,8 @@ export const ActionCard = (props: TActionCard) => {
           >
             {title}
           </Typography>
-        )) ||
-          null}
-        {(subtitle && (
+        )}
+        {subtitle && (
           <Typography
             variant='body2'
             color='text.secondary'
@@ -59,8 +57,7 @@ export const ActionCard = (props: TActionCard) => {
           >
             {subtitle}
           </Typography>
-        )) ||
-          null}
+        )}
       </CardContent>
     </Card>
   )

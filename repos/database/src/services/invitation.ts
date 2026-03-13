@@ -113,6 +113,20 @@ export class Invitation extends Base<
     }
   }
 
+  async #requirePending(invitationId: string) {
+    const [existing] = await this.db
+      .select()
+      .from(invitations)
+      .where(eq(invitations.id, invitationId))
+      .limit(1)
+
+    if (!existing) return { error: new DBError(`Invitation not found`) }
+    if (existing.status !== EInviteStatus.pending)
+      return { error: new DBError(`Invitation is not pending`) }
+
+    return { data: existing }
+  }
+
   /**
    * Accept an invitation
    */
@@ -121,15 +135,8 @@ export class Invitation extends Base<
     userId: string
   ): Promise<TDBApiRes<InvitationModel>> {
     try {
-      const existing = await this.db
-        .select()
-        .from(invitations)
-        .where(eq(invitations.id, invitationId))
-        .limit(1)
-
-      if (!existing[0]) return { error: new DBError(`Invitation not found`) }
-      if (existing[0].status !== EInviteStatus.pending)
-        return { error: new DBError(`Invitation is not pending`) }
+      const pending = await this.#requirePending(invitationId)
+      if (pending.error) return pending as TDBApiRes<InvitationModel>
 
       const result = await this.db
         .update(invitations)
@@ -158,15 +165,8 @@ export class Invitation extends Base<
     revokedBy: string
   ): Promise<TDBApiRes<InvitationModel>> {
     try {
-      const existing = await this.db
-        .select()
-        .from(invitations)
-        .where(eq(invitations.id, invitationId))
-        .limit(1)
-
-      if (!existing[0]) return { error: new DBError(`Invitation not found`) }
-      if (existing[0].status !== EInviteStatus.pending)
-        return { error: new DBError(`Invitation is not pending`) }
+      const pending = await this.#requirePending(invitationId)
+      if (pending.error) return pending as TDBApiRes<InvitationModel>
 
       const result = await this.db
         .update(invitations)

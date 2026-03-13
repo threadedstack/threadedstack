@@ -78,11 +78,7 @@ const themeBridgeVars: Record<string, string> = {
  * ```
  */
 export const getThemeBridgeStyles = (): React.CSSProperties => {
-  const styles: Record<string, string> = {}
-  for (const [key, value] of Object.entries(themeBridgeVars)) {
-    styles[key] = value
-  }
-  return styles as React.CSSProperties
+  return { ...themeBridgeVars } as React.CSSProperties
 }
 
 /**

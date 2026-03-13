@@ -23,7 +23,7 @@ export const initAuth = async () => {
 
   await apiService.bearer(data)
 
-  data.user && setUser(data.user)
+  setUser(data.user)
 
   return data
 }

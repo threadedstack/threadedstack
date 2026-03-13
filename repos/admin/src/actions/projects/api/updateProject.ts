@@ -12,7 +12,6 @@ export const updateProject = async (opts: Partial<Project>) => {
   }
 
   if (resp.data) {
-    // Update projects state with the updated project
     const currentProjects = getProjects() || {}
     setProjects({ ...currentProjects, [resp.data.id]: resp.data })
   }

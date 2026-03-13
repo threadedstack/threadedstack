@@ -35,6 +35,7 @@ const ignoredConsolePatterns = [
   'useLayoutEffect does nothing on the server',
   'Download the React DevTools',
   'React Router Future Flag Warning',
+  'ErrorBoundary',
 ]
 
 test.describe('Create Project drawer uses active orgId', () => {

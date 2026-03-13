@@ -25,7 +25,7 @@ const sanitizeDBError = (message: string, status: number) => {
     return { status: 400, message: `Invalid ID format — expected a valid UUID` }
 
   if (SQLPatterns.some((p) => lower.includes(p.toLowerCase())))
-    return { status: status === 500 ? 500 : status, message: `Database operation failed` }
+    return { status, message: `Database operation failed` }
 
   return null
 }

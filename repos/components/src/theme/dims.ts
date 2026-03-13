@@ -4,8 +4,6 @@ const sectionHeaderH = 50
 const sectionFooterH = 50
 const sidebarW = 360
 const sidebarHeaderH = 50
-const sidebarMinW = sidebarW
-const sidebarMaxW = sidebarW
 const inputHeight = 40
 const inlineSelectHeight = 65
 const tabsHeight = 40
@@ -75,8 +73,8 @@ export const dims = {
   },
   sidebar: {
     width: `${sidebarW}px`,
-    minWidth: sidebarMinW,
-    maxWidth: sidebarMaxW,
+    minWidth: sidebarW,
+    maxWidth: sidebarW,
     header: {
       height: sidebarHeaderH,
       hpx: `${sidebarHeaderH}px`,

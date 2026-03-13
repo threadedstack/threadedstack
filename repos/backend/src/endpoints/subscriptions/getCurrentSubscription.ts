@@ -19,14 +19,8 @@ export const getCurrentSubscription: TEndpointConfig = {
     const { data, error } = await db.services.subscription.findByUser(userId)
     if (error) throw new Exception(500, error.message)
 
-    data
-      ? res.status(200).json({ data })
-      : res.status(200).json({
-          data: {
-            userId,
-            tier: `free`,
-            status: `active`,
-          },
-        })
+    res.status(200).json({
+      data: data ?? { userId, tier: `free`, status: `active` },
+    })
   },
 }

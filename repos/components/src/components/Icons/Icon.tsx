@@ -1,9 +1,8 @@
 import type { CSSProperties, ElementType, MouseEvent, ReactNode } from 'react'
 import type { SxProps, Theme } from '@mui/material'
 import { useJoinSx } from '@TSC/hooks/theme/useJoinSx'
-import { exists } from '@keg-hub/jsutils/exists'
 import SvgIcon from '@mui/material/SvgIcon'
-import { forwardRef, useMemo } from 'react'
+import { forwardRef } from 'react'
 
 export type TIconProps = {
   id?: string
@@ -68,9 +67,7 @@ export const Icon = forwardRef((props: TIconProps, ref) => {
     }
   )
 
-  const withViewBox = useMemo(() => {
-    return exists(inheritViewBox) ? inheritViewBox : !viewBox
-  }, [inheritViewBox, viewBox])
+  const withViewBox = inheritViewBox ?? !viewBox
 
   return (
     <RootEl

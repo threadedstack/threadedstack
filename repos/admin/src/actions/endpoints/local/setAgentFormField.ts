@@ -17,10 +17,8 @@ export const setAgentFormField = <K extends keyof TAgentFormState>(
   current && setAgentFormState({ ...current, [field]: value })
 }
 
-export const setAgentEnvVars = (envVars: TKeyValuePair[]) => {
-  const current = getAgentFormState()
-  current && setAgentFormState({ ...current, envVars })
-}
+export const setAgentEnvVars = (envVars: TKeyValuePair[]) =>
+  setAgentFormField(`envVars`, envVars)
 
 export const initializeAgentForm = (endpoint: Endpoint) => {
   const initializedState = initAgentFromEndpoint(endpoint)

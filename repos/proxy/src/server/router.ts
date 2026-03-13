@@ -15,32 +15,15 @@ const Async = (Method: TBoundMethod, endpoint: string, ...args: RequestHandler[]
   return Method(endpoint, ...args.filter(isFunc).map((handler) => asyncHandler(handler)))
 }
 
+const methods = [`all`, `use`, `get`, `put`, `post`, `patch`, `delete`] as const
+
 export const createAsyncRouter = () => {
   const Router = express.Router()
-  const All = Router.all.bind(Router)
-  const Use = Router.use.bind(Router)
-  const Get = Router.get.bind(Router)
-  const Put = Router.put.bind(Router)
-  const Post = Router.post.bind(Router)
-  const Patch = Router.patch.bind(Router)
-  const Delete = Router.delete.bind(Router)
 
-  Object.assign(Router, {
-    all: (endpoint: string, ...args: Array<RequestHandler>) =>
-      Async(All, endpoint, ...args),
-    use: (endpoint: string, ...args: Array<RequestHandler>) =>
-      Async(Use, endpoint, ...args),
-    get: (endpoint: string, ...args: Array<RequestHandler>) =>
-      Async(Get, endpoint, ...args),
-    put: (endpoint: string, ...args: Array<RequestHandler>) =>
-      Async(Put, endpoint, ...args),
-    post: (endpoint: string, ...args: Array<RequestHandler>) =>
-      Async(Post, endpoint, ...args),
-    patch: (endpoint: string, ...args: Array<RequestHandler>) =>
-      Async(Patch, endpoint, ...args),
-    delete: (endpoint: string, ...args: Array<RequestHandler>) =>
-      Async(Delete, endpoint, ...args),
-  })
+  for (const method of methods) {
+    const bound = Router[method].bind(Router) as TBoundMethod
+    Router[method] = (endpoint, ...args) => Async(bound, endpoint, ...args)
+  }
 
   return Router
 }

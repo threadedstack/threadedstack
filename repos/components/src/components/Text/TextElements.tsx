@@ -14,7 +14,7 @@ export const H1 = forwardRef((props: TTextEl, ref: TTextRef) => (
     component='h1'
     {...props}
     ref={ref}
-    sx={useMemo(() => [inherit, props.sx], [inherit, props.sx]) as SxProps<Theme>}
+    sx={useMemo(() => [inherit, props.sx], [props.sx]) as SxProps<Theme>}
   />
 ))
 export const H2 = forwardRef((props: TTextEl, ref: TTextRef) => (
@@ -70,7 +70,7 @@ export const Span = forwardRef((props: TTextEl, ref: TTextRef) => (
     component='span'
     {...props}
     ref={ref}
-    sx={useMemo(() => [inherit, props.sx], [inherit, props.sx]) as SxProps<Theme>}
+    sx={useMemo(() => [inherit, props.sx], [props.sx]) as SxProps<Theme>}
   />
 ))
 export const Label = forwardRef((props: TTextEl, ref: TTextRef) => (

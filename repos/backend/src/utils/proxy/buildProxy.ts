@@ -34,8 +34,7 @@ export const buildProxy = (endpoint: TEndpointConfig) => {
         if (isFunc(on?.proxyReq)) return on.proxyReq(proxyReq, req, res, options)
       },
       proxyRes: (proxyRes, req, res) => {
-        !behindLBProxy() &&
-          originHeader &&
+        if (!behindLBProxy() && originHeader)
           addOriginHeader(proxyRes, req as Request, app.locals.config)
 
         if (isFunc(on?.proxyRes)) return on.proxyRes(proxyRes, req as Request, res)

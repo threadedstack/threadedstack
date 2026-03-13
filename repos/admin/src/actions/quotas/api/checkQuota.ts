@@ -7,7 +7,5 @@ import { quotasApi } from '@TAF/services/quotasApi'
  * @returns Quota check result { allowed, current, limit, remaining }
  */
 export const checkQuota = async (data: TCheckQuotaData) => {
-  const resp = await quotasApi.check(data)
-
-  return resp
+  return quotasApi.check(data)
 }

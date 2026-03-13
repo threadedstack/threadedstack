@@ -1,5 +1,6 @@
 import type { Message } from '@tdsk/domain'
 
+import { msgBgColor, msgTypeColor } from '@TAF/utils/transforms/messages'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ConfirmDelete, RobotOutlineIcon } from '@tdsk/components'
@@ -120,32 +121,15 @@ export const MessagesTab = (props: TMessagesTab) => {
     }
   }, [threadMessages.length, viewMode])
 
-  const getMsgTypeColor = (type: string) => {
-    switch (type) {
-      case 'user':
-        return 'primary'
-      case 'assistant':
-        return 'success'
-      case 'tool':
-        return 'warning'
-      case 'system':
-        return 'default'
-      case 'action':
-        return 'info'
-      default:
-        return 'default'
-    }
-  }
-
   const extractText = useCallback((content: any): string => {
     if (typeof content === 'string') return content
     if (Array.isArray(content)) {
       return content
         .map((block: any) => {
-          if (typeof block === 'string') return block
-          if (block.type === 'text') return block.text || ''
-          if (block.type === 'tool_use') return `[Tool: ${block.name}]`
-          if (block.type === 'tool_result') return block.content || '[Tool Result]'
+          if (typeof block === `string`) return block
+          if (block.type === `text`) return block.text || ``
+          if (block.type === `tool_use`) return `[Tool: ${block.name}]`
+          if (block.type === `tool_result`) return block.content || `[Tool Result]`
           return JSON.stringify(block)
         })
         .join('\n')
@@ -164,31 +148,16 @@ export const MessagesTab = (props: TMessagesTab) => {
 
   const getMsgIcon = (type: string) => {
     switch (type) {
-      case 'user':
+      case `user`:
         return <PersonIcon sx={{ fontSize: 18 }} />
-      case 'assistant':
+      case `assistant`:
         return <RobotOutlineIcon sx={{ fontSize: 18 }} />
-      case 'tool':
+      case `tool`:
         return <ToolIcon sx={{ fontSize: 18 }} />
-      case 'system':
+      case `system`:
         return <SystemIcon sx={{ fontSize: 18 }} />
       default:
         return <PersonIcon sx={{ fontSize: 18 }} />
-    }
-  }
-
-  const getMsgBgColor = (type: string) => {
-    switch (type) {
-      case 'user':
-        return 'primary.main'
-      case 'assistant':
-        return 'grey.700'
-      case 'tool':
-        return 'warning.main'
-      case 'system':
-        return 'grey.500'
-      default:
-        return 'grey.600'
     }
   }
 
@@ -214,9 +183,9 @@ export const MessagesTab = (props: TMessagesTab) => {
     })
 
     if (result.error) {
-      setError(result.error.message || 'Failed to update message')
+      setError(result.error.message || `Failed to update message`)
     } else {
-      setSuccess('Message updated')
+      setSuccess(`Message updated`)
       setTimeout(() => setSuccess(null), 2000)
     }
 
@@ -240,9 +209,9 @@ export const MessagesTab = (props: TMessagesTab) => {
     })
 
     if (result.error) {
-      setError(result.error.message || 'Failed to delete message')
+      setError(result.error.message || `Failed to delete message`)
     } else {
-      setSuccess('Message deleted')
+      setSuccess(`Message deleted`)
       setTimeout(() => setSuccess(null), 2000)
     }
 
@@ -267,9 +236,9 @@ export const MessagesTab = (props: TMessagesTab) => {
     })
 
     if (result.error) {
-      setError(result.error.message || 'Failed to branch thread')
+      setError(result.error.message || `Failed to branch thread`)
     } else {
-      setSuccess('Thread branched successfully')
+      setSuccess(`Thread branched successfully`)
       setTimeout(() => setSuccess(null), 2000)
       if (result.data?.id) {
         setActiveThreadId(result.data.id)
@@ -406,7 +375,7 @@ export const MessagesTab = (props: TMessagesTab) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    bgcolor: getMsgBgColor(message.type),
+                    bgcolor: msgBgColor(message.type),
                     color: 'white',
                     flexShrink: 0,
                     mt: 0.5,
@@ -564,7 +533,7 @@ export const MessagesTab = (props: TMessagesTab) => {
                     <Chip
                       label={message.type}
                       size='small'
-                      color={getMsgTypeColor(message.type) as any}
+                      color={msgTypeColor(message.type) as any}
                     />
                   </TableCell>
                   <TableCell>

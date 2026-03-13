@@ -10,6 +10,7 @@ import {
   collectErrors,
   apiRequest,
   apiDeleteResource,
+  findResourceByNamePaginated,
   searchInPage,
 } from '../utils/crud-helpers'
 
@@ -22,6 +23,40 @@ test.describe.serial('CRUD Secrets', () => {
   const secretDescription = 'Playwright CRUD test secret'
   const updatedDescription = 'Updated by Playwright CRUD test'
   let secretId: string | undefined
+
+  // Clean up stale pw-secret-* entries from previous failed runs
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await context.newPage()
+    try {
+      const { readFileSync } = await import('node:fs')
+      const { join } = await import('node:path')
+      const { tmpdir } = await import('node:os')
+      const ctx = JSON.parse(
+        readFileSync(
+          join(tmpdir(), 'tdsk-integration', 'context.json'),
+          'utf-8'
+        )
+      )
+      let offset = 0
+      const limit = 200
+      while (true) {
+        const res = await apiRequest(page, 'GET', `/orgs/${ctx.orgId}/secrets?limit=${limit}&offset=${offset}`, ctx.apiKey)
+        const body = await res.json()
+        const arr = Array.isArray(body?.data) ? body.data : []
+        const stale = arr.filter((s: any) => typeof s.name === 'string' && s.name.startsWith('pw-secret-'))
+        for (const s of stale) {
+          await apiDeleteResource(page, `/orgs/${ctx.orgId}/secrets/${s.id}`, ctx.apiKey)
+        }
+        if (arr.length < limit) break
+        offset += limit
+      }
+    } catch {
+      // Best-effort cleanup
+    } finally {
+      await context.close()
+    }
+  })
 
   test('CREATE — should create a new secret via the drawer', async ({
     authenticatedPage: page,
@@ -50,28 +85,15 @@ test.describe.serial('CRUD Secrets', () => {
     // Verify the secret appears in the DataTable
     await expect(page.getByText(secretName)).toBeVisible({ timeout: 10_000 })
 
-    // Verify the secret was actually persisted via API (use limit=200 to avoid pagination)
-    const res = await apiRequest(
+    // Verify the secret was actually persisted via API (paginated search)
+    const found = await findResourceByNamePaginated(
       page,
-      'GET',
-      `/orgs/${ctx.orgId}/secrets?limit=200`,
-      ctx.apiKey
+      `/orgs/${ctx.orgId}/secrets`,
+      ctx.apiKey,
+      secretName
     )
-    expect(res.status(), 'API should return 200').toBe(200)
 
-    const body = await res.json()
-    const arr: Record<string, unknown>[] = Array.isArray(body)
-      ? body
-      : Array.isArray(body?.data)
-        ? body.data
-        : []
-
-    const found = arr.find((s) => s.name === secretName)
-
-    expect(
-      found,
-      `Secret "${secretName}" not in ${arr.length} API results`
-    ).toBeTruthy()
+    expect(found, `Secret "${secretName}" not found via paginated API search`).toBeTruthy()
 
     secretId = found!.id as string
 
@@ -86,25 +108,15 @@ test.describe.serial('CRUD Secrets', () => {
 
     const errors = collectErrors(page)
 
-    // Verify the secret exists via direct API call
-    const apiRes = await apiRequest(
+    // Verify the secret exists via paginated API search
+    const apiFound = await findResourceByNamePaginated(
       page,
-      'GET',
-      `/orgs/${ctx.orgId}/secrets?limit=200`,
-      ctx.apiKey
+      `/orgs/${ctx.orgId}/secrets`,
+      ctx.apiKey,
+      secretName
     )
-    const apiBody = await apiRes.json()
-    const apiArr: Record<string, unknown>[] = Array.isArray(apiBody)
-      ? apiBody
-      : Array.isArray(apiBody?.data)
-        ? apiBody.data
-        : []
-    const apiFound = apiArr.find((s) => s.id === secretId)
 
-    expect(
-      apiFound,
-      `Secret ${secretId} should exist in API (total: ${apiArr.length})`
-    ).toBeTruthy()
+    expect(apiFound, `Secret "${secretName}" should exist in API`).toBeTruthy()
 
     // Now check the UI
     await gotoAndWait(page, `/orgs/${ctx.orgId}/secrets`, PAGE_CLASS)

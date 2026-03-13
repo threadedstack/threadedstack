@@ -77,7 +77,7 @@ export const DrawerActions = (props: TDrawerActions) => {
     cancelDisabled,
   } = props
 
-  const { save, create, remove, cancel, ...merged } = useMemo(() => {
+  const { save, create, remove, cancel } = useMemo(() => {
     const isDisabled = disabled || loading
 
     const save = {

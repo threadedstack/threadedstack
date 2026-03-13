@@ -55,12 +55,11 @@ export const MobileSidebar = (props: TMobileSidebar) => {
 
         return (
           <Fragment key={section.id}>
-            {(idx && (
+            {idx > 0 && (
               <Box sx={{ px: 0.5, my: 1 }}>
                 <Divider />
               </Box>
-            )) ||
-              null}
+            )}
             <SBSection
               open={true}
               id={section.id}

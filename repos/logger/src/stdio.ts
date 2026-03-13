@@ -10,7 +10,6 @@ process.stdout.write = function (data: Uint8Array | string, ...args: any[]) {
 
   return orgStdOut.apply(process.stdout, [replaced, ...args])
 }
-process.stdout.write.bind(process.stdout)
 
 process.stderr.write = function (data: Uint8Array | string, ...args: any[]) {
   const str = stripColors(data.toString())
@@ -18,6 +17,5 @@ process.stderr.write = function (data: Uint8Array | string, ...args: any[]) {
 
   return orgStdErr.apply(process.stderr, [replaced, ...args])
 }
-process.stderr.write.bind(process.stderr)
 
 export {}

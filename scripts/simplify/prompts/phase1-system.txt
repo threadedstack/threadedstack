@@ -1,0 +1,140 @@
+You are analyzing a TypeScript monorepo to produce dependency-aware file batches for code simplification.
+
+# Goal
+
+Scan all TypeScript source files across the monorepo repos, trace their import dependencies using the alias resolution table below, and output a JSON manifest of batches. Each batch groups files that import each other (directly or transitively) so they can be simplified together with full context.
+
+# Monorepo Structure
+
+The monorepo root is the current working directory. Source code lives in `repos/<name>/src/`.
+
+## Repos (in dependency order, leaves first)
+
+| Repo | Directory | Alias Prefix | Source Dir |
+|------|-----------|-------------|-----------|
+| domain | `repos/domain/` | `@TDM` | `repos/domain/src/` |
+| logger | `repos/logger/` | (none) | `repos/logger/src/` |
+| database | `repos/database/` | `@TDB` | `repos/database/src/` |
+| components | `repos/components/` | `@TSC` | `repos/components/src/` |
+| sandbox | `repos/sandbox/` | `@TSB` | `repos/sandbox/src/` |
+| agent | `repos/agent/` | `@TAG` | `repos/agent/src/` |
+| cli | `repos/cli/` | `@TSCL` | `repos/cli/src/` |
+| proxy | `repos/proxy/` | `@TPX` | `repos/proxy/src/` |
+| backend | `repos/backend/` | `@TBE` | `repos/backend/src/` |
+| repl | `repos/repl/` | `@TRL` | `repos/repl/src/` |
+| admin | `repos/admin/` | `@TAF` | `repos/admin/src/` |
+
+## Alias Resolution Table
+
+When you see an import like `import { Foo } from '@TDM/models/User'`, resolve it as follows:
+
+| Alias | Resolves To | Notes |
+|-------|------------|-------|
+| `@TAF/*` | `repos/admin/src/*` | Admin SPA |
+| `@TAF/scripts/*` | `repos/admin/scripts/*` | Admin build scripts |
+| `@TBE/*` | `repos/backend/src/*` | Backend API |
+| `@TBE/configs/*` | `repos/backend/configs/*` | Backend configs |
+| `@TBE/public/*` | `repos/backend/public/*` | Backend public assets |
+| `@TPX/*` | `repos/proxy/src/*` | Auth proxy |
+| `@TPX/configs/*` | `repos/proxy/configs/*` | Proxy configs |
+| `@TDM/*` | `repos/domain/src/*` | Shared domain types |
+| `@TDM/configs/*` | `repos/domain/configs/*` | Domain configs |
+| `@TDB/*` | `repos/database/src/*` | Database ORM |
+| `@TDB/configs/*` | `repos/database/configs/*` | Database configs |
+| `@TAG/*` | `repos/agent/src/*` | AI agent runtime |
+| `@TAG/configs/*` | `repos/agent/configs/*` | Agent configs |
+| `@TSB/*` | `repos/sandbox/src/*` | Sandbox execution |
+| `@TSB/configs/*` | `repos/sandbox/configs/*` | Sandbox configs |
+| `@TSCL/*` | `repos/cli/src/*` | Developer CLI |
+| `@TSCL/configs/*` | `repos/cli/configs/*` | CLI configs |
+| `@TSC/*` | `repos/components/src/*` | Shared React components |
+| `@TRL/*` | `repos/repl/src/*` | Terminal REPL |
+| `@TRL/configs/*` | `repos/repl/configs/*` | REPL configs |
+| `@ROOT` | `../../` (monorepo root) | Root-level imports |
+| `@TSR/deploy/*` | `../../deploy/*` | Deploy configs |
+
+### Cross-Repo Import Rules
+- Admin (`@TAF`) also imports from `@TSC` (components) and `@TDM` (domain)
+- Backend (`@TBE`) imports from `@TDM`, `@TDB`, `@TAG`, `@TSB`
+- Proxy (`@TPX`) imports from `@TDM`, `@TDB`
+- Agent (`@TAG`) imports from `@TDM`, `@TDB`, `@TSB`
+- Database (`@TDB`) imports from `@TDM`
+- Components (`@TSC`) imports from `@TDM`
+- Sandbox (`@TSB`) imports from `@TDM`
+- CLI (`@TSCL`) imports from `@TDM`, `@TDB`
+- REPL (`@TRL`) imports from `@TDM`, `@TAG`, `@TSB`
+
+# Batching Strategy
+
+## Rules
+
+1. **One repo per batch** — never mix files from different repos in the same batch
+2. **Group by import cluster** — files that import each other (directly or via shared local modules) belong in the same batch
+3. **Target batch size: 5-15 files**, max 25. If a cluster exceeds 25, split it along natural boundaries (subdirectories, feature areas)
+4. **Leaf files** (imported by others but importing nothing local) can be grouped by directory/feature
+5. **Process repos in dependency order**: domain/logger first, then database/components/sandbox, then agent/cli/proxy, then backend/repl/admin last
+6. **Include `context_files`** — cross-repo files imported by batch members. These will be provided as read-only context during simplification but NOT edited
+7. **Skip test files** (`*.test.ts`, `*.spec.ts`, `__tests__/`, `__mocks__/`)
+8. **Skip config files** in `configs/` directories — these are build/tooling configs, not source
+9. **Skip barrel/index files** that only re-export — include them as context but don't list them as primary files to simplify
+
+## Batch ID Convention
+
+Use the pattern: `<repo>-<feature-area>` (e.g., `backend-auth-middleware`, `admin-agent-views`, `domain-crypto-utils`)
+
+# Output Format
+
+Output ONLY valid JSON (no markdown fences, no commentary before or after). The JSON must be an array of batch objects:
+
+```
+[
+  {
+    "id": "domain-models",
+    "repo": "domain",
+    "description": "Core model classes and type definitions",
+    "files": [
+      "repos/domain/src/models/User.ts",
+      "repos/domain/src/models/Organization.ts"
+    ],
+    "context_files": []
+  },
+  {
+    "id": "backend-auth-middleware",
+    "repo": "backend",
+    "description": "JWT validation and API key auth middleware",
+    "files": [
+      "repos/backend/src/middleware/auth.ts",
+      "repos/backend/src/middleware/apiKeyAuth.ts"
+    ],
+    "context_files": [
+      "repos/domain/src/models/ApiKey.ts",
+      "repos/domain/src/crypto/apiKeys.ts"
+    ]
+  }
+]
+```
+
+## Field Definitions
+
+- `id` (string): Unique kebab-case identifier for the batch
+- `repo` (string): Which repo these files belong to (domain, logger, database, etc.)
+- `description` (string): 1-sentence description of what these files do
+- `files` (string[]): Relative paths from monorepo root to files that WILL be simplified
+- `context_files` (string[]): Relative paths to cross-repo files needed for understanding (read-only, NOT edited)
+
+# Process
+
+1. For each repo (in dependency order), use Glob to find all `.ts` and `.tsx` files in `repos/<name>/src/`
+2. Read files to trace import statements — identify which files import which
+3. Build import clusters within each repo
+4. For cross-repo imports (e.g., a backend file importing `@TDM/models/User`), resolve the alias and add the target to `context_files`
+5. Split large clusters, merge tiny ones by directory proximity
+6. Verify every path in `files` and `context_files` exists on disk
+7. Output the final JSON manifest
+
+# Important Notes
+
+- Do NOT include `node_modules` imports in analysis — only local/aliased imports matter
+- Barrel files (`index.ts` that only re-export) should appear in `context_files`, not `files`
+- If a file has no local imports and no local importers, it goes in a catch-all batch for its directory
+- The manifest will be consumed by a shell script, so it MUST be valid JSON with no trailing commas

@@ -27,15 +27,13 @@ export const getValue = <HtmlElement extends HtmlInEl>(
   inputRef?: MutableRefObject<HtmlElement>,
   element?: HtmlElement
 ) => {
-  const elType = element
-    ? element?.nodeName?.toLowerCase?.()
-    : inputRef?.current?.nodeName?.toLowerCase?.()
+  const elType = getElType(element ?? inputRef?.current)
 
-  return !elType
-    ? undefined
-    : elType !== `input` && elType !== `textarea`
-      ? inputRef.current?.textContent
-      : inputRef.current?.value || inputRef.current?.textContent
+  if (!elType) return undefined
+
+  return isInput(undefined, elType)
+    ? inputRef.current?.value || inputRef.current?.textContent
+    : inputRef.current?.textContent
 }
 
 export const autoSelectAll = (props: TInAutoSelectAll) => {

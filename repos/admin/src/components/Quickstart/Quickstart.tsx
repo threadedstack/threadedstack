@@ -27,7 +27,7 @@ export const Quickstart = (props: TQuickstart) => {
           variant={variant}
         />
       )}
-      {wizardOpen && orgId && (
+      {wizardOpen && (
         <QuickstartWizard
           orgId={orgId}
           open={wizardOpen}

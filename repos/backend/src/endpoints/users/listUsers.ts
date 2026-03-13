@@ -44,10 +44,11 @@ export const listUsers: TEndpointConfig = {
       if (userError) throw new Exception(500, (userError as Error).message)
 
       // Merge role data with user data
-      const users = (userList || []).map((user) => {
-        const role = roleData?.find((r) => r.userId === user.id)
-        return { ...user, role: role?.type }
-      })
+      const roleByUserId = new Map(roleData?.map((r) => [r.userId, r.type]))
+      const users = (userList || []).map((user) => ({
+        ...user,
+        role: roleByUserId.get(user.id),
+      }))
 
       res.status(200).json({ data: users, limit, offset })
       return

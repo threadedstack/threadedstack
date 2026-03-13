@@ -7,13 +7,12 @@ export type TProjectFunctions = {}
 export const ProjectFunctions = (props: TProjectFunctions) => {
   const [projectId] = useActiveProjectId()
 
+  if (!projectId) return null
+
   return (
-    (projectId && (
-      <Page className='tdsk-project-functions-page'>
-        <Functions />
-      </Page>
-    )) ||
-    null
+    <Page className='tdsk-project-functions-page'>
+      <Functions />
+    </Page>
   )
 }
 

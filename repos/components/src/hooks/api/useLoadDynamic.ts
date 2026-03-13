@@ -1,6 +1,6 @@
-import { exists } from '@keg-hub/jsutils/exists'
 import { ife } from '@keg-hub/jsutils/ife'
 import { useEffect, useState } from 'react'
+import { exists } from '@keg-hub/jsutils/exists'
 
 export type THLoadDynamic = {
   name?: string
@@ -12,16 +12,15 @@ export const useLoadDynamic = (props: THLoadDynamic) => {
   const [modules, setModules] = useState<Record<string, any>>({})
 
   useEffect(() => {
-    loader &&
-      name &&
-      !exists(modules[name]) &&
-      ife(async () => {
-        const markdown = await loader()
-        setModules({
-          ...modules,
-          [name]: markdown.default || false,
-        })
+    if (!loader || !name || exists(modules[name])) return
+
+    ife(async () => {
+      const loaded = await loader()
+      setModules({
+        ...modules,
+        [name]: loaded.default || false,
       })
+    })
   }, [loader, name, modules])
 
   return modules[name] || undefined

@@ -194,9 +194,7 @@ export const useFetch = <T extends Record<string, any> = Record<string, any>>(
         console.log(`Call Response`, response)
       }
 
-      const triggerRes = new Promise(async (res) =>
-        res(await response)
-      ) as TTriggerResp<T>
+      const triggerRes = Promise.resolve(response) as TTriggerResp<T>
       triggerRes.response = response
       triggerRes.clear = () => {
         if (!cacheKeyRef.current) return

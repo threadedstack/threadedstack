@@ -98,16 +98,14 @@ export const LoginMainContainer = styled(Box)`
   justify-content: center;
 `
 
-export const LoginStack = styled(Stack)(({ theme }) => {
-  return `
-    display: flex;
-    width: 100%;
-    align-items: stretch;
-    justify-content: center;
-    padding: ${gutter.hpx} 0px;
-    gap: ${gutter.tpx};
-  `
-})
+export const LoginStack = styled(Stack)`
+  display: flex;
+  width: 100%;
+  align-items: stretch;
+  justify-content: center;
+  padding: ${gutter.hpx} 0px;
+  gap: ${gutter.tpx};
+`
 
 export const BtnSection = styled(Box)`
   display: flex;
@@ -116,7 +114,7 @@ export const BtnSection = styled(Box)`
 
 // --- Provider Buttons ---
 
-export const GgLoginButton = styled(LoadingButton)(({ theme }) => {
+const ProviderLoginButton = styled(LoadingButton)(({ theme }) => {
   return `
     width: 100%;
     height: 44px;
@@ -140,77 +138,10 @@ export const GgLoginButton = styled(LoadingButton)(({ theme }) => {
   `
 })
 
-export const GhLoginButton = styled(LoadingButton)(({ theme }) => {
-  return `
-    width: 100%;
-    height: 44px;
-    color: rgba(255, 255, 255, 0.87);
-    font-size: 0.8125rem;
-    font-weight: 500;
-    text-transform: none;
-    border-radius: ${theme.dims.border.smpx};
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.15s ease;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-    }
-  `
-})
-
-export const GlLoginButton = styled(LoadingButton)(({ theme }) => {
-  return `
-    width: 100%;
-    height: 44px;
-    color: rgba(255, 255, 255, 0.87);
-    font-size: 0.8125rem;
-    font-weight: 500;
-    text-transform: none;
-    border-radius: ${theme.dims.border.smpx};
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.15s ease;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-    }
-  `
-})
-
-export const VrLoginButton = styled(LoadingButton)(({ theme }) => {
-  return `
-    width: 100%;
-    height: 44px;
-    color: rgba(255, 255, 255, 0.87);
-    font-size: 0.8125rem;
-    font-weight: 500;
-    text-transform: none;
-    border-radius: ${theme.dims.border.smpx};
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.15s ease;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-    }
-  `
-})
+export const GgLoginButton = ProviderLoginButton
+export const GhLoginButton = ProviderLoginButton
+export const GlLoginButton = ProviderLoginButton
+export const VrLoginButton = ProviderLoginButton
 
 // --- Misc ---
 

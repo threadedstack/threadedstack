@@ -60,17 +60,11 @@ export class EventEmitter {
     const cb = typeof ref === `string` ? this.refKey[ref] : ref
     if (!cb) return warn ? console.warn(`Missing callback from ref ${ref}`) : undefined
 
-    this.listeners[event].delete(cb)
+    this.listeners[event]?.delete(cb)
 
-    this.refKey = Object.entries(this.refKey).reduce(
-      (acc, [key, value]) => {
-        if (ref === value || ref === key) return acc
-
-        acc[key] = value
-        return acc
-      },
-      {} as Record<string, TEventCB>
-    )
+    for (const [key, value] of Object.entries(this.refKey)) {
+      if (ref === value || ref === key) delete this.refKey[key]
+    }
 
     return this
   }

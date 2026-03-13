@@ -40,7 +40,7 @@ export class ThreadsApi extends BaseApi {
 
     return {
       ...resp,
-      data: resp?.data?.map?.((thread) => new Thread(thread)) || [],
+      data: resp.data?.map((thread) => new Thread(thread)) || [],
     }
   }
 

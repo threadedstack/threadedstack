@@ -49,8 +49,6 @@ export const SelectItemText = styled(Box)(({ theme }) => {
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      & > label {
-      }
       & > p {
         margin-left: ${gutter.qpx};
         &:before {

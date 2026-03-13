@@ -2,7 +2,6 @@ import type { ReactNode, ComponentType } from 'react'
 
 import { Fragment } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import {
   MenuBackText,
@@ -38,7 +37,7 @@ export const MenuBack = (props: TMenuBack) => {
         className='tdsk-menu-back-button'
       />
       <MenuBackText className='tdsk-menu-back-crumbs'>
-        {crumbs.map((crumb, idx) => {
+        {crumbs?.map((crumb, idx) => {
           if (idx === crumbs?.length - 1) return crumb
 
           return (

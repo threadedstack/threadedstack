@@ -7,7 +7,7 @@ import type {
 
 import { Base } from '@TDB/services/base'
 import { users } from '@TDB/schemas/users'
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { DBError } from '@TDB/utils/error/error'
 import { User as UserModel } from '@tdsk/domain'
 
@@ -27,7 +27,7 @@ export class User extends Base<typeof users, TDBUserSelect, TDBUserInsert, UserM
       const result = await this.db
         .select()
         .from(users)
-        .where(and(eq(users.email, email)))
+        .where(eq(users.email, email))
         .limit(1)
 
       if (!result[0]) return { error: new DBError(`User not found`) }

@@ -32,8 +32,7 @@ type TAutoInput = {
 } & IInput &
   Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'color'>
 
-const _filterOptions = createFilterOptions<TOption>()
-const filterOption = (props: TOption[], state: any) => _filterOptions(props, state)
+const filterOptions = createFilterOptions<TOption>()
 
 export type TOptionItem = {
   option: TOption
@@ -111,12 +110,12 @@ const AutoInput = (props: TAutoInput) => {
         }}
         disableCloseOnSelect
         filterSelectedOptions
-        filterOptions={filterOption}
+        filterOptions={filterOptions}
         getOptionLabel={(option) => {
           return !isStr(option) ? option.label : itemMap?.[option]?.label || caps(option)
         }}
         isOptionEqualToValue={(option, value) => option.value === value.value}
-        renderOption={(props, option, { selected }) => {
+        renderOption={(props, option) => {
           const value = !isStr(option)
             ? option
             : itemMap?.[option] || { value: option, label: option }

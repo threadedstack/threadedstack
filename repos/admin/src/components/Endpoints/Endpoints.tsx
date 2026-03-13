@@ -89,7 +89,7 @@ export const Endpoints = (props: TEndpoints) => {
         />
       )}
 
-      {(orgId && projectId && (
+      {orgId && projectId && (
         <EndpointDrawer
           orgId={orgId}
           open={dialogOpen}
@@ -97,8 +97,7 @@ export const Endpoints = (props: TEndpoints) => {
           projectId={projectId}
           onClose={onDialogClose}
         />
-      )) ||
-        null}
+      )}
     </PageLayout>
   )
 }

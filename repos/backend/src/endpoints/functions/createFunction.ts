@@ -40,28 +40,21 @@ export const createFunction: TEndpointConfig = {
       projectId,
     })
 
-    try {
-      const func = new FunctionModel({
-        name,
-        content,
-        projectId,
-        endpointId,
-        description,
-        language: language || EFunLanguage.typescript,
-        ...(defaultArgs && { defaultArgs }),
-        ...(inputSchema && { inputSchema }),
-        ...(dependencies && { dependencies }),
-      })
+    const func = new FunctionModel({
+      name,
+      content,
+      projectId,
+      endpointId,
+      description,
+      language: language || EFunLanguage.typescript,
+      ...(defaultArgs && { defaultArgs }),
+      ...(inputSchema && { inputSchema }),
+      ...(dependencies && { dependencies }),
+    })
 
-      const { data, error } = await db.services.function.create(func)
-      if (error) throw new Exception(500, error.message)
+    const { data, error } = await db.services.function.create(func)
+    if (error) throw new Exception(500, error.message)
 
-      res.status(201).json({ data })
-    } catch (err) {
-      if (err instanceof Exception) throw err
-
-      const message = err instanceof Error ? err.message : `Failed to create function`
-      throw new Exception(500, message)
-    }
+    res.status(201).json({ data })
   },
 }

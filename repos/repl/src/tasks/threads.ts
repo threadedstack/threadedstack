@@ -22,6 +22,7 @@ export const threads: TTask = {
     },
   },
   action: requireAuth(async ({ params, auth, options }) => {
+    // Check if agentid and orgid can be loaded from state instead
     const agentId = params.agentId || options?.[0]
     if (!agentId) {
       process.stdout.write(
@@ -35,7 +36,7 @@ export const threads: TTask = {
     try {
       let orgId = params.org as string | undefined
       if (!orgId) {
-        const orgs = (await client.listOrgs()) as { id: string }[]
+        const orgs = await client.listOrgs()
         if (orgs.length === 1) {
           orgId = orgs[0].id
         } else {
@@ -46,11 +47,7 @@ export const threads: TTask = {
         }
       }
 
-      const threads = (await client.listThreads(orgId, agentId)) as {
-        id: string
-        name?: string
-        createdAt?: string
-      }[]
+      const threads = await client.listThreads(orgId, agentId)
 
       if (!threads.length) {
         process.stdout.write(`${themed('muted', `No threads found`)}\n`)

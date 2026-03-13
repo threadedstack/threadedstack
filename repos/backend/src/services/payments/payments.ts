@@ -6,10 +6,6 @@ import { PolarService } from '@TBE/services/payments/strategies/polar'
 import { ConsoleService } from '@TBE/services/payments/strategies/console'
 
 /**
- * Accept backend config, and setup the payment service provider
- * Service provider based on the type (i.e. polar)
- */
-/**
  * Payments Service
  *
  * Provider-agnostic payments service using the Strategy Pattern.

@@ -2,9 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { ERoleType } from '@tdsk/domain'
 import { logger } from '@TDB/utils/logger'
-import { Exception } from '@tdsk/domain'
+import { ERoleType, Exception } from '@tdsk/domain'
 
 /**
  * POST /orgs - Create a new org

@@ -1,7 +1,7 @@
 export const genFormData = (data: Record<string, any>) => {
-  return Object.entries(data).reduce((form, [key, value]) => {
+  const form = new FormData()
+  for (const [key, value] of Object.entries(data)) {
     form.set(key, typeof value === `object` ? JSON.stringify(value) : value)
-
-    return form
-  }, new FormData())
+  }
+  return form
 }

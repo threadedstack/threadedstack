@@ -20,7 +20,7 @@ export class User extends Base {
     const { name } = usr
     let last = usr.last
     let first = usr.first
-    if ((name && !first) || (name && !last)) {
+    if (name && (!first || !last)) {
       const [fn, ...rest] = name.split(` `)
       const ln = rest.join(` `)
       first = first || fn

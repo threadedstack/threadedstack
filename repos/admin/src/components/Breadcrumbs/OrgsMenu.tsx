@@ -102,7 +102,6 @@ type TOrgItem = {
   onSelect: (org: Organization) => void
 }
 
-type TNoOrgItems = {}
 type TCreateOrgItem = {
   onCreateOrg?: () => void
 }
@@ -151,7 +150,7 @@ const OrgItem = (props: TOrgItem) => {
   )
 }
 
-const NoOrgItems = (props: TNoOrgItems) => {
+const NoOrgItems = () => {
   return (
     <MenuItem disabled>
       <Typography
@@ -239,7 +238,7 @@ export const OrgsMenu = (props: TOrgsMenu) => {
     return {
       filtered,
       showSearch,
-      noQueryItems: filtered.length === 0 && query,
+      noQueryItems: filtered.length === 0 && query.length > 0,
     }
   }, [orgsArray, query])
 
@@ -280,8 +279,8 @@ export const OrgsMenu = (props: TOrgsMenu) => {
         ))}
       </Box>
 
-      {(onCreateOrg && <Divider sx={styles.divider} />) || null}
-      {(onCreateOrg && <CreateOrgItem onCreateOrg={onCreateOrg} />) || null}
+      {onCreateOrgCB && <Divider sx={styles.divider} />}
+      {onCreateOrgCB && <CreateOrgItem onCreateOrg={onCreateOrg} />}
     </Menu>
   )
 }

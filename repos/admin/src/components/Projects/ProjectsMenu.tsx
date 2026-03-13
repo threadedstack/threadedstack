@@ -76,7 +76,7 @@ export const ProjectsMenu = (props: TProjectsMenu) => {
     return {
       filtered,
       showSearch,
-      noQueryItems: filtered.length === 0 && query,
+      noQueryItems: filtered.length === 0 && query.length > 0,
     }
   }, [prosArray, query])
 
@@ -127,7 +127,7 @@ export const ProjectsMenu = (props: TProjectsMenu) => {
         </Box>
       )}
 
-      {prosArray.length > 3 && <Divider sx={{ my: 0.5 }} />}
+      {showSearch && <Divider sx={{ my: 0.5 }} />}
 
       <Box sx={{ maxHeight: 250, overflow: 'auto' }}>
         {prosArray.length === 0 && (
@@ -215,16 +215,15 @@ export const ProjectsMenu = (props: TProjectsMenu) => {
         ))}
       </Box>
 
-      {(onCreateProjectCB && <Divider sx={{ my: 0.5 }} />) || null}
-      {(onCreateProjectCB && (
+      {onCreateProjectCB && <Divider sx={{ my: 0.5 }} />}
+      {onCreateProjectCB && (
         <MenuItem onClick={onCreateProject}>
           <ListItemIcon>
             <AddIcon fontSize='small' />
           </ListItemIcon>
           <ListItemText primary='Create Project' />
         </MenuItem>
-      )) ||
-        null}
+      )}
     </Menu>
   )
 }

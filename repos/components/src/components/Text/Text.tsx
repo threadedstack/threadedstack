@@ -22,7 +22,7 @@ export const Text = forwardRef((props: TText, ref: ForwardedRef<any>) => {
 
   const { clr, style } = useMemo(() => {
     if (!resolved) return { style: sx, clr: undefined }
-    if (!CSSColorRefs.find((ref) => resolved.startsWith(ref)))
+    if (!CSSColorRefs.some((ref) => resolved.startsWith(ref)))
       return { style: sx, clr: resolved }
 
     if (!sx) return { style: [{ color: resolved }], clr: undefined }

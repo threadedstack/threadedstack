@@ -77,18 +77,14 @@ export const InfoTip = forwardRef(
               disableFocusListener: true,
               disableHoverListener: true,
               disableTouchListener: true,
-              title: (
-                <>
-                  {Info ? (
-                    isValidFuncComp(Info) ? (
-                      <Info {...infoProps} />
-                    ) : (
-                      Info
-                    )
-                  ) : (
-                    children
-                  )}
-                </>
+              title: Info ? (
+                isValidFuncComp(Info) ? (
+                  <Info {...infoProps} />
+                ) : (
+                  Info
+                )
+              ) : (
+                children
               ),
               ...rest,
               PopperProps: {

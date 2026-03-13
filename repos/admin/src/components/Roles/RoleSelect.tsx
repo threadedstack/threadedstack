@@ -42,12 +42,11 @@ export const RoleSelect = (props: TRoleSelect) => {
         className={cls(className, `tdsk-role-select`)}
         disabled={disabled || roleType === ERoleType.super}
       />
-      {(showAlert && (
+      {showAlert && (
         <Alert severity='info'>
           Note: Super admin roles cannot be modified through this interface.
         </Alert>
-      )) ||
-        null}
+      )}
     </>
   )
 }

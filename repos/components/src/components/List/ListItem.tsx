@@ -70,8 +70,6 @@ export type TListItemPart = TListItem & {
   onOpen?: (...args: any[]) => void
 }
 
-export type TListItemExpand = TListItemPart & {}
-
 const ItemText = (props: TListItemPart) => {
   const { text, open, textSx, selected, textClass } = props
 
@@ -125,7 +123,7 @@ const ItemIcon = (props: TListItemPart) => {
   )
 }
 
-const ItemExpand = (props: TListItemExpand) => {
+const ItemExpand = (props: TListItemPart) => {
   const { id, open, onOpen, selected, expandSx, expandClass } = props
 
   return (
@@ -227,12 +225,6 @@ const ItemWithChildren = TooltipHoc<TListItem, HTMLDivElement>(
       setOpen(!open)
     }
 
-    const childOnClick = (evt: MouseEvent) => {
-      evt?.preventDefault?.()
-      evt?.stopPropagation?.()
-      onOpen?.(evt)
-    }
-
     const onClickCB = (evt: MouseEvent) => {
       expandOnClick && onOpen?.(evt)
       onClick?.(evt, open)
@@ -262,7 +254,7 @@ const ItemWithChildren = TooltipHoc<TListItem, HTMLDivElement>(
           <Icon
             {...props}
             open={open}
-            onOpen={childOnClick}
+            onOpen={onOpen}
           />
           <Text
             {...props}
@@ -271,7 +263,7 @@ const ItemWithChildren = TooltipHoc<TListItem, HTMLDivElement>(
           <Expand
             {...props}
             open={open}
-            onOpen={childOnClick}
+            onOpen={onOpen}
           />
         </Container>
         <Collapse

@@ -42,27 +42,17 @@ export class DomainService extends Base<
   }
 
   async create(data: TDBDomainsInsert) {
-    // Create the domain record first
-    const result = await super.create(data)
-
-    // If SSL certificate was manually uploaded, save it to certificates table
-    if (data.sslCertificate && result.data) {
-      const { error } = await this.#customCert(
-        result.data.domain,
-        data.sslCertificate,
-        data.sslPrivateKey as string
-      )
-      if (error) return { error } as TDBApiRes<DomainModel>
-    }
-
-    return result
+    return this.#withCert(await super.create(data), data)
   }
 
   async update(data: TDBUpdate<TDBDomainsInsert>) {
-    // Update the domain record first
-    const result = await super.update(data)
+    return this.#withCert(await super.update(data), data)
+  }
 
-    // If SSL certificate was manually uploaded, save it to certificates table
+  async #withCert(
+    result: TDBApiRes<DomainModel>,
+    data: { sslCertificate?: string | null; sslPrivateKey?: string | null }
+  ) {
     if (data.sslCertificate && result.data) {
       const { error } = await this.#customCert(
         result.data.domain,
@@ -71,7 +61,6 @@ export class DomainService extends Base<
       )
       if (error) return { error } as TDBApiRes<DomainModel>
     }
-
     return result
   }
 
@@ -99,10 +88,18 @@ export class DomainService extends Base<
    */
   async #customCert(domain: string, certificate: string, privateKey?: string) {
     try {
-      // Use a transaction to ensure atomicity
       await this.db.transaction(async (tx) => {
-        // Step 1: Create directory entry for the domain
-        // This mimics Caddy's behavior of creating directory structures
+        const upsertFile = (name: string, content: string) => {
+          const value = Buffer.from(content, 'utf-8')
+          return tx
+            .insert(certificates)
+            .values({ parent: domain, name, isFile: true, value, modified: new Date() })
+            .onConflictDoUpdate({
+              target: [certificates.parent, certificates.name],
+              set: { value, modified: new Date() },
+            })
+        }
+
         await tx
           .insert(certificates)
           .values({
@@ -114,45 +111,8 @@ export class DomainService extends Base<
           })
           .onConflictDoNothing()
 
-        // Step 2: Create certificate file entry
-        const certBuffer = Buffer.from(certificate, 'utf-8')
-        await tx
-          .insert(certificates)
-          .values({
-            parent: domain,
-            name: `${domain}.crt`,
-            isFile: true,
-            value: certBuffer,
-            modified: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: [certificates.parent, certificates.name],
-            set: {
-              value: certBuffer,
-              modified: new Date(),
-            },
-          })
-
-        // Step 3: Create private key file entry (if provided)
-        if (privateKey) {
-          const keyBuffer = Buffer.from(privateKey, 'utf-8')
-          await tx
-            .insert(certificates)
-            .values({
-              parent: domain,
-              name: `${domain}.key`,
-              isFile: true,
-              value: keyBuffer,
-              modified: new Date(),
-            })
-            .onConflictDoUpdate({
-              target: [certificates.parent, certificates.name],
-              set: {
-                value: keyBuffer,
-                modified: new Date(),
-              },
-            })
-        }
+        await upsertFile(`${domain}.crt`, certificate)
+        if (privateKey) await upsertFile(`${domain}.key`, privateKey)
       })
 
       return { success: true }
@@ -186,7 +146,7 @@ export class DomainService extends Base<
         (cert) => cert.isFile && cert.modified && new Date(cert.modified) > ninetyDaysAgo
       )
 
-      return !!validCert ? { data: new CertModel(validCert) } : { data: undefined }
+      return validCert ? { data: new CertModel(validCert) } : { data: undefined }
     } catch (error: any) {
       return { error }
     }
@@ -227,31 +187,21 @@ export class DomainService extends Base<
    * SSL certificates are stored by Caddy in the caddy_certmagic_objects table
    */
   async enableSSL(domain: string) {
-    try {
-      const [record] = await this.db
-        .update(domains)
-        .set({
-          sslEnabled: true,
-        })
-        .where(eq(domains.domain, domain))
-        .returning()
-
-      return { data: this.model(record) }
-    } catch (error: any) {
-      return { error } as TDBApiRes<DomainModel>
-    }
+    return this.#setSSL(domain, true)
   }
 
   /**
    * Disable SSL for a domain
    */
   async disableSSL(domain: string) {
+    return this.#setSSL(domain, false)
+  }
+
+  async #setSSL(domain: string, sslEnabled: boolean): Promise<TDBApiRes<DomainModel>> {
     try {
       const [record] = await this.db
         .update(domains)
-        .set({
-          sslEnabled: false,
-        })
+        .set({ sslEnabled })
         .where(eq(domains.domain, domain))
         .returning()
 

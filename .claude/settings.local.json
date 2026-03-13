@@ -81,7 +81,9 @@
       "Bash(npm ls:*)",
       "Bash(node:*)",
       "Bash(jobs:*)",
-      "Bash(pnpm cli:*)"
+      "Bash(pnpm cli:*)",
+      "Bash(claude:*)",
+      "Bash(bash:*)"
     ]
   },
   "sandbox": {

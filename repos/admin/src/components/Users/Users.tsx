@@ -196,72 +196,70 @@ export const Users = (props: TUsers) => {
   ]
 
   return (
-    <>
-      <PageLayout
-        error={error}
-        title='Members'
-        query={query}
-        loading={loading}
-        setError={setError}
-        countLabel='member'
-        count={users.length}
-        filterValue={roleFilter}
-        onFilter={setRoleFilter}
-        filterOpts={AllAuthRoles}
-        filterAllLabel='All Roles'
-        setSearchQuery={onChange}
-        searchCount={items.length}
-        actionIcon={<PersonAddIcon />}
-        onAction={hasUser && onOpenInviteDialog}
-        actionLabel={hasUser && 'Invite User'}
-        searchPlaceholder='Search users by name or email...'
-      >
-        {!loading && !error && users.length === 0 && (
-          <NoUsers onInvite={onOpenInviteDialog} />
-        )}
+    <PageLayout
+      error={error}
+      title='Members'
+      query={query}
+      loading={loading}
+      setError={setError}
+      countLabel='member'
+      count={users.length}
+      filterValue={roleFilter}
+      onFilter={setRoleFilter}
+      filterOpts={AllAuthRoles}
+      filterAllLabel='All Roles'
+      setSearchQuery={onChange}
+      searchCount={items.length}
+      actionIcon={<PersonAddIcon />}
+      onAction={hasUser && onOpenInviteDialog}
+      actionLabel={hasUser && 'Invite User'}
+      searchPlaceholder='Search users by name or email...'
+    >
+      {!loading && !error && users.length === 0 && (
+        <NoUsers onInvite={onOpenInviteDialog} />
+      )}
 
-        {!loading && !error && users.length > 0 && items.length === 0 && (
-          <Alert severity='info'>No users match your search or filter criteria.</Alert>
-        )}
+      {!loading && !error && users.length > 0 && items.length === 0 && (
+        <Alert severity='info'>No users match your search or filter criteria.</Alert>
+      )}
 
-        {!loading && !error && items.length > 0 && (
-          <DataTable
-            columns={columns}
-            data={items}
-            onRowClick={onEditUser}
-            getRowKey={(user) => user.id}
-          />
-        )}
+      {!loading && !error && items.length > 0 && (
+        <DataTable
+          columns={columns}
+          data={items}
+          onRowClick={onEditUser}
+          getRowKey={(user) => user.id}
+        />
+      )}
 
-        <InviteUserDrawer
+      <InviteUserDrawer
+        orgId={orgId}
+        open={inviteDialogOpen}
+        onSuccess={onInviteSuccess}
+        onClose={onCloseInviteDialog}
+      />
+
+      {selectedUser && (
+        <EditUserDrawer
           orgId={orgId}
-          open={inviteDialogOpen}
-          onSuccess={onInviteSuccess}
-          onClose={onCloseInviteDialog}
+          user={selectedUser}
+          onRemove={onRemoveUser}
+          onClose={onCloseEditUser}
+          open={Boolean(selectedUser)}
+          onSuccess={onEditUserSuccess}
         />
+      )}
 
-        {selectedUser && (
-          <EditUserDrawer
-            orgId={orgId}
-            user={selectedUser}
-            onRemove={onRemoveUser}
-            onClose={onCloseEditUser}
-            open={Boolean(selectedUser)}
-            onSuccess={onEditUserSuccess}
-          />
-        )}
-
-        <ConfirmDelete
-          deleting={loading}
-          title={`Remove user?`}
-          open={Boolean(removingUser)}
-          itemName={removingUser?.displayName}
-          onConfirm={() => removeUser(removingUser)}
-          onCancel={() => setRemovingUser(undefined)}
-          text={`Are you sure you want to remove "${removingUser?.displayName}" from the organization?`}
-        />
-      </PageLayout>
-    </>
+      <ConfirmDelete
+        deleting={loading}
+        title={`Remove user?`}
+        open={Boolean(removingUser)}
+        itemName={removingUser?.displayName}
+        onCancel={() => setRemovingUser(null)}
+        onConfirm={() => removeUser(removingUser)}
+        text={`Are you sure you want to remove "${removingUser?.displayName}" from the organization?`}
+      />
+    </PageLayout>
   )
 }
 

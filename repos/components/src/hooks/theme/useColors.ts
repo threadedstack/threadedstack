@@ -16,13 +16,8 @@ const lightColors = Object.values(colors.light)
 
 export const useColors = (inverted?: boolean) => {
   const isDarkMode = useIsDarkMode()
-  return isDarkMode
-    ? inverted
-      ? lightColors
-      : darkColors
-    : inverted
-      ? darkColors
-      : lightColors
+  const useDark = inverted ? !isDarkMode : isDarkMode
+  return useDark ? darkColors : lightColors
 }
 
 export const useColorForName = (uiName: string) => {

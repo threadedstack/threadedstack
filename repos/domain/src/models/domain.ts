@@ -1,4 +1,3 @@
-import { exists } from '@keg-hub/jsutils/exists'
 import { Base } from './base'
 import { Certificate } from './certificate'
 
@@ -32,11 +31,7 @@ export class Domain extends Base {
     super()
     Object.assign(this, {
       ...domain,
-      sslEnabled: exists(domain.sslEnabled)
-        ? domain.sslEnabled
-        : exists(domain.sslCertificate)
-          ? true
-          : false,
+      sslEnabled: domain.sslEnabled ?? !!domain.sslCertificate,
       certificates: domain?.certificates?.map((cert) => new Certificate(cert)) || [],
     })
   }

@@ -2,9 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /:agentId/config - Get agent project-level config overrides
@@ -62,19 +61,17 @@ export const upsertAgentProjectConfig: TEndpointConfig = {
       orgId: agent.orgId,
     })
 
-    // Extract override fields from body
     const {
       model,
-      maxTokens,
-      systemPrompt,
       tools,
-      functionIds,
       envVars,
-      environment,
       enabled,
+      maxTokens,
+      functionIds,
+      environment,
+      systemPrompt,
     } = req.body
 
-    // If functionIds provided, validate each function belongs to the project
     if (functionIds?.length) {
       for (const funcId of functionIds) {
         const { data: func, error: funcErr } = await db.services.function.get(funcId)
@@ -87,15 +84,18 @@ export const upsertAgentProjectConfig: TEndpointConfig = {
       }
     }
 
-    const config: Record<string, unknown> = {}
-    if (model !== undefined) config.model = model
-    if (maxTokens !== undefined) config.maxTokens = maxTokens
-    if (systemPrompt !== undefined) config.systemPrompt = systemPrompt
-    if (tools !== undefined) config.tools = tools
-    if (functionIds !== undefined) config.functionIds = functionIds
-    if (envVars !== undefined) config.envVars = envVars
-    if (environment !== undefined) config.environment = environment
-    if (enabled !== undefined) config.enabled = enabled
+    const config = Object.fromEntries(
+      Object.entries({
+        model,
+        tools,
+        envVars,
+        enabled,
+        maxTokens,
+        functionIds,
+        environment,
+        systemPrompt,
+      }).filter(([, v]) => v !== undefined)
+    )
 
     const { error: upsertError } = await db.services.agent.upsertProjectConfig(
       agentId,
@@ -140,13 +140,13 @@ export const deleteAgentProjectConfig: TEndpointConfig = {
     // Reset all override columns to null
     const { error } = await db.services.agent.upsertProjectConfig(agentId, projectId, {
       model: null,
-      maxTokens: null,
-      systemPrompt: null,
       tools: null,
-      functionIds: null,
       envVars: null,
-      environment: null,
       enabled: true,
+      maxTokens: null,
+      functionIds: null,
+      environment: null,
+      systemPrompt: null,
     })
 
     if (error) throw new Exception(500, error.message)

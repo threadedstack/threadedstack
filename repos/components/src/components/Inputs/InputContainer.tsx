@@ -1,6 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
 
-import { cls } from '@keg-hub/jsutils/cls'
 import Box from '@mui/material/Box'
 import styled from '@mui/material/styles/styled'
 

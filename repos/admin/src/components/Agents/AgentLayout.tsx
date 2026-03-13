@@ -1,21 +1,23 @@
+import type { TAgentDetailTab } from '@TAF/types'
+
 import { toast } from 'sonner'
 import { useState, useEffect } from 'react'
-import { Outlet, useParams, useNavigate, useLocation } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
+import { EAgentDetailTab } from '@TAF/types'
 import { Button, ConfirmDelete } from '@tdsk/components'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
-import { AgentBreadcrumbs } from '@TAF/components/Agents/AgentBreadcrumbs'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
-import { EAgentDetailTab } from '@TAF/types'
-import type { TAgentDetailTab } from '@TAF/types'
+import { Outlet, useParams, useNavigate, useLocation } from 'react-router'
+import { AgentBreadcrumbs } from '@TAF/components/Agents/AgentBreadcrumbs'
+import { Box, Tab, Tabs, Card, Chip, Typography, CardContent } from '@mui/material'
 import {
-  useProjectAgents,
   useActiveOrgId,
   useActiveAgent,
   useActiveAgentId,
-  useActiveProjectId,
+  useProjectAgents,
   useActiveThreadId,
+  useActiveProjectId,
 } from '@TAF/state/selectors'
 import {
   Edit as EditIcon,
@@ -24,7 +26,6 @@ import {
   ArrowBack as BackIcon,
   AutoAwesome as AgentIcon,
 } from '@mui/icons-material'
-import { Box, Tab, Tabs, Card, Chip, Typography, CardContent } from '@mui/material'
 
 export const AgentLayout = () => {
   const navigate = useNavigate()
@@ -40,6 +41,8 @@ export const AgentLayout = () => {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
+  // TODO: this should not be needed, should never need to useEffect to set jotai state
+  // Should always come from actions, or initial jotai state load on page refresh
   // Sync URL params to Jotai state (fixes caching bug)
   useEffect(() => {
     if (agentId) setActiveAgentId(agentId)
@@ -58,26 +61,24 @@ export const AgentLayout = () => {
   const agentPath = `${agentsPath}/${agentId}`
 
   // Determine active tab from URL
-  const pathAfterAgent = location.pathname.replace(agentPath, '')
-  const showTabs = !threadId && !pathAfterAgent.includes('/chat')
-  const activeTab: TAgentDetailTab = pathAfterAgent.startsWith('/threads')
+  const pathAfterAgent = location.pathname.replace(agentPath, ``)
+  const showTabs = !threadId && !pathAfterAgent.includes(`/chat`)
+  const activeTab: TAgentDetailTab = pathAfterAgent.startsWith(`/threads`)
     ? EAgentDetailTab.threads
-    : pathAfterAgent.startsWith('/skills')
+    : pathAfterAgent.startsWith(`/skills`)
       ? EAgentDetailTab.skills
-      : pathAfterAgent.startsWith('/schedules')
+      : pathAfterAgent.startsWith(`/schedules`)
         ? EAgentDetailTab.schedules
         : EAgentDetailTab.agent
 
+  const tabRoutes: Record<string, string> = {
+    [EAgentDetailTab.skills]: `${agentPath}/skills`,
+    [EAgentDetailTab.threads]: `${agentPath}/threads`,
+    [EAgentDetailTab.schedules]: `${agentPath}/schedules`,
+  }
+
   const onTabChange = (_: React.SyntheticEvent, val: TAgentDetailTab) => {
-    if (val === EAgentDetailTab.threads) {
-      navigate(`${agentPath}/threads`)
-    } else if (val === EAgentDetailTab.skills) {
-      navigate(`${agentPath}/skills`)
-    } else if (val === EAgentDetailTab.schedules) {
-      navigate(`${agentPath}/schedules`)
-    } else {
-      navigate(agentPath)
-    }
+    navigate(tabRoutes[val] || agentPath)
   }
 
   const onBack = () => navigate(agentsPath)

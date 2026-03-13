@@ -55,7 +55,6 @@ export const deriveKey = (ref_id: string): Promise<Buffer> => {
     // KNOWN DEVIATION FROM RFC 5869: ref_id is used as salt (param 3) rather than
     // info (param 4). Per RFC 5869, salt should be random/fixed and info contextual.
     // Changing this ordering would invalidate all existing encrypted data.
-    // TODO: Plan migration to move ref_id from salt to info position.
     crypto.hkdf(
       `sha256`,
       MasterKey,
@@ -90,11 +89,7 @@ export const encryptValue = async (
   const iv = crypto.randomBytes(IvLength)
   const cipher = crypto.createCipheriv(Algorithm, derivedKey, iv)
 
-  const encryptedChunks: Buffer[] = []
-  encryptedChunks.push(cipher.update(plaintextValue, `utf8`))
-  encryptedChunks.push(cipher.final())
-
-  const encrypted = Buffer.concat(encryptedChunks)
+  const encrypted = Buffer.concat([cipher.update(plaintextValue, `utf8`), cipher.final()])
   const authTag = cipher.getAuthTag()
 
   return { iv, encrypted, authTag }
@@ -136,9 +131,7 @@ export const decryptValue = async (
 
   const decipher = crypto.createDecipheriv(Algorithm, derivedKey, iv)
   decipher.setAuthTag(authTag)
-  let decrypted = decipher.update(ciphertext)
-
-  decrypted = Buffer.concat([decrypted, decipher.final()])
+  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()])
 
   return decrypted.toString(`utf8`)
 }

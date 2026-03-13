@@ -46,7 +46,7 @@ const SettingItem = (props: TSettingItem) => {
       onClick?.(...args)
       onClose?.(...args)
     },
-    [onClose]
+    [onClick, onClose]
   )
 
   return (
@@ -150,7 +150,7 @@ const useAvatar = (user: Partial<User> = {}) => {
           alt: displayName,
           ...getUserInitials(displayName),
         }
-  }, [user?.name, user?.email])
+  }, [user?.name, user?.email, user?.image])
 }
 
 export const Settings = (props: TSettings) => {

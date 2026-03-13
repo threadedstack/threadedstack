@@ -5,21 +5,15 @@ import { clean } from '@TSCL/tasks/devspace/clean'
 import { pickKeys } from '@keg-hub/jsutils/pickKeys'
 import { sharedOpts } from '@TSCL/utils/tasks/options'
 
-const cleanParams = [...Object.keys(clean?.options || {}), `env`]
+const cleanParams = [...Object.keys(clean.options || {}), `env`]
 
-/**
- * Runs a devspace start command and returns the output
- * @function
- * @public
- * @returns {Void}
- */
 const startAct: TTaskAction = async (args) => {
   const { params } = args
 
-  params?.use && (await devspace.use(args))
+  if (params?.use) await devspace.use(args)
 
-  params?.clean &&
-    (await clean?.action?.({ ...args, params: pickKeys(params, cleanParams) }))
+  if (params?.clean)
+    await clean.action?.({ ...args, params: pickKeys(params, cleanParams) })
 
   await devspace.start(args)
 }

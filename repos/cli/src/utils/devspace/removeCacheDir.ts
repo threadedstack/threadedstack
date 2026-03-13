@@ -10,12 +10,9 @@ import { Logger } from '@tdsk/logger'
 export const removeCacheDir = (props: TTaskActionArgs) => {
   const { params, config } = props
 
-  return new Promise((res, rej) => {
-    params.log && Logger.info(`\nRemoving devspace cache folder...`)
-    fs.rmSync(path.join(config.paths.deploy, `.devspace`), {
-      recursive: true,
-      force: true,
-    })
-    res(true)
+  params.log && Logger.info(`\nRemoving devspace cache folder...`)
+  fs.rmSync(path.join(config.paths.deploy, `.devspace`), {
+    recursive: true,
+    force: true,
   })
 }

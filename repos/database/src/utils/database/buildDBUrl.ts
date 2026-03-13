@@ -36,9 +36,9 @@ const getDBUrl = (opts: TBuildDBUrl) => {
 }
 
 const addParams = (url: URL, params: Record<string, string>) => {
-  Object.entries(params).forEach(([key, value]) => {
-    !url.searchParams.has(key) && url.searchParams.append(key, value)
-  })
+  for (const [key, value] of Object.entries(params)) {
+    if (!url.searchParams.has(key)) url.searchParams.append(key, value)
+  }
 
   return url
 }
@@ -48,8 +48,7 @@ const addParams = (url: URL, params: Record<string, string>) => {
  * Trim leading slashes from input schema to avoid double slashes (e.g. //public)
  */
 const addName = (url: URL, name: string) => {
-  const current = url.pathname === `/` ? `` : url.pathname
-  if (!current) url.pathname = `/${name.replace(/^\/+/, ``)}`
+  if (!url.pathname || url.pathname === `/`) url.pathname = `/${name.replace(/^\/+/, ``)}`
 
   return url
 }

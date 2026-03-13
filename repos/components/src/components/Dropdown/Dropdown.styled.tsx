@@ -21,7 +21,7 @@ export const Container = styled(Accordion)(({ theme }) => {
     pointer-events: none;
     
     & h5 {
-      color: ${grey[500]}
+      color: ${theme.palette.colors.grey[500]}
     }
   }
 `
@@ -70,10 +70,10 @@ export const Header = styled(AccordionSummary, {
       }
     }
 
-    & .MuiAccordionSummary-content: {
+    & .MuiAccordionSummary-content {
       margin: 0px;
 
-      & label: {
+      & label {
         cursor: pointer;
       }
     }

@@ -1,3 +1,5 @@
+import type { TSelectItem } from '@TRL/types'
+
 export type TSlashCommandContext = {
   orgId: string
   agentId: string
@@ -32,14 +34,14 @@ export type TSlashCommandContext = {
     messageId: string
   ) => Promise<{ id: string; name?: string }>
   switchProject: () => Promise<void>
-  listProjects: () => Promise<Array<{ id: string; label: string; description?: string }>>
-  listAgents: () => Promise<Array<{ id: string; label: string; description?: string }>>
+  listProjects: () => Promise<TSelectItem[]>
+  listAgents: () => Promise<TSelectItem[]>
   showMenu: (
     prompt: string,
-    items: Array<{ id: string; label: string; description?: string }>,
-    onSelect: (item: { id: string; label: string; description?: string }) => void,
+    items: TSelectItem[],
+    onSelect: (item: TSelectItem) => void,
     options?: {
-      onAction?: (item: { id: string; label: string; description?: string }) => void
+      onAction?: (item: TSelectItem) => void
     }
   ) => void
   closeMenu: () => void

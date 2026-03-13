@@ -1,10 +1,10 @@
-import type { MutableRefObject } from 'react'
+import type { RefObject } from 'react'
 import type { TAccordionAction } from '@TSC/types/accordion.types'
 import type { OnMount, Monaco, EditorProps } from '@monaco-editor/react'
 
 export type TMonEditor = Parameters<OnMount>[0]
-export type TMonEditorRef = MutableRefObject<TMonEditor>
-export type TMonacoRef = MutableRefObject<Monaco>
+export type TMonEditorRef = RefObject<TMonEditor>
+export type TMonacoRef = RefObject<Monaco>
 export type TMonacoCB = (monaco: Monaco) => void
 export type TMonEditorLangCB = (language: string) => void
 export type TMonEditorCB = (editor: TMonEditor, monaco: Monaco) => void
@@ -21,19 +21,19 @@ export type THMonaco = EditorProps & {
   disabled?: boolean
   hideCopy?: boolean
   hideClear?: boolean
-  onMount?: TMonEditorCB
   placeholder?: string
+  onMount?: TMonEditorCB
+  monacoRef?: TMonacoRef
+  actionsBefore?: boolean
+  editorRef?: TMonEditorRef
   onBlurText?: TMonEditorCB
   onFocusText?: TMonEditorCB
   onBeforeMount?: TMonacoCB
-  actionsBefore?: boolean
   actions?: TAccordionAction[]
-  onLangChange?: TMonEditorLangCB
-  monacoRef?: MutableRefObject<Monaco>
-  editorRef?: MutableRefObject<TMonEditor>
-  onCopy?: (value: string, error?: string) => void
   themeLight?: `vs` | `r-light`
   themeDark?: `vs-dark` | `r-dark`
+  onLangChange?: TMonEditorLangCB
+  onCopy?: (value: string, error?: string) => void
 }
 
 export type TScratchPadEditor = {

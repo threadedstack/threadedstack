@@ -108,7 +108,7 @@ const useDragEvents = (props: TDraggableDialog) => {
       entries.forEach((entry) => {
         const element = entry.target as HTMLDivElement
         const rect = element.getBoundingClientRect()
-        if (rect.top < 0) setPosition({ ...position, y: 0 })
+        if (rect.top < 0) setPosition((prev) => ({ ...prev, y: 0 }))
       })
     })
 
@@ -169,14 +169,7 @@ const DialogContainer = (props: DialogContainer) => {
 
       {children ? <DialogContent {...contentProps}>{children}</DialogContent> : null}
 
-      {actions ? (
-        <DialogActions
-          {...actionProps}
-          sx={actionProps?.sx}
-        >
-          {actions}
-        </DialogActions>
-      ) : null}
+      {actions ? <DialogActions {...actionProps}>{actions}</DialogActions> : null}
     </>
   )
 }
@@ -255,7 +248,7 @@ export const DraggableDialog = (props: TDraggableDialog) => {
       className={cls(`tdsk-draggable-dialog`, className)}
       onClose={(evt, reason) => onToggle(true, reason, evt)}
       sx={{
-        ...(sx || {}),
+        ...sx,
         pointerEvents: `none`,
       }}
       PaperComponent={DialogPaper}

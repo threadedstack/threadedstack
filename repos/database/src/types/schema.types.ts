@@ -162,11 +162,9 @@ export type TDBUpdate<T extends TDBEntityInsert = TDBEntityInsert> = Omit<
   id: string
 }
 
-type TTableWithId = {
+export type TTableSchema = PgTableWithColumns<any> & {
   id: any
 }
-
-export type TTableSchema = PgTableWithColumns<any> & TTableWithId
 
 export type TDBOrderDirection = `asc` | `desc`
 
@@ -197,15 +195,12 @@ export type TDBQueryOpts<T extends Record<string, any> = Record<string, any>> = 
   }
 }
 
-export type TDBApiRes<M extends BaseModel | BaseModel[]> = {
-  data?: M
-  error?: Error | DBError
-}
-
 export type TDBApiResType<T> = {
   data?: T
   error?: Error | DBError
 }
+
+export type TDBApiRes<M extends BaseModel | BaseModel[]> = TDBApiResType<M>
 
 export interface IDBApi<M extends BaseModel, I extends TDBEntityInsert> {
   create: (data: I, opts?: TDBQueryOpts) => Promise<TDBApiRes<M>>

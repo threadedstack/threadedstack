@@ -11,6 +11,5 @@ export const activeProjectIdState = atomWithReset<string>(
 
 export const activeProjectState = atom((get) => {
   const projectId = get(activeProjectIdState)
-  const projects = get(projectsState)
-  return projectId && projects?.[projectId] ? projects[projectId] : undefined
+  return projectId ? get(projectsState)?.[projectId] : undefined
 })

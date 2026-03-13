@@ -2,8 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { ERoleType } from '@tdsk/domain'
-import { Exception } from '@tdsk/domain'
+import { ERoleType, Exception } from '@tdsk/domain'
 import { parsePagination } from '@TBE/utils/pagination'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
 
@@ -16,7 +15,7 @@ export const listProjects: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db, auth } = req.app.locals
+    const { db } = req.app.locals
     const orgId = req.params.orgId
     const userId = req.user?.id
 
@@ -32,7 +31,7 @@ export const listProjects: TEndpointConfig = {
     if (userRole === ERoleType.super) {
       const { data, error } = orgId
         ? await db.services.project.list({
-            where: { orgId: orgId as string },
+            where: { orgId },
             limit,
             offset,
           })

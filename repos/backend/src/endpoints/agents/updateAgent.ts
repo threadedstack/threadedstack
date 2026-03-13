@@ -2,8 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
@@ -47,10 +46,8 @@ export const updateAgent: TEndpointConfig = {
         )
       : undefined
 
-    // First get the agent to check permissions
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)
-    if (getError) throw new Exception(404, `Agent not found`)
-    if (!existingAgent) throw new Exception(404, `Agent not found`)
+    if (getError || !existingAgent) throw new Exception(404, `Agent not found`)
 
     // Check permission to update agents in this org
     await checkPermission(req, EPermAction.update, EPermResource.agent, {
@@ -71,7 +68,6 @@ export const updateAgent: TEndpointConfig = {
         enabled,
       } = req.body
 
-      // Validate functionIds belong to the project if provided
       if (functionIds?.length) {
         for (const funcId of functionIds) {
           const { data: func, error: funcErr } = await db.services.function.get(funcId)
@@ -84,15 +80,18 @@ export const updateAgent: TEndpointConfig = {
         }
       }
 
-      const config: Record<string, any> = {}
-      if (model !== undefined) config.model = model
-      if (maxTokens !== undefined) config.maxTokens = maxTokens
-      if (systemPrompt !== undefined) config.systemPrompt = systemPrompt
-      if (tools !== undefined) config.tools = tools
-      if (functionIds !== undefined) config.functionIds = functionIds
-      if (envVars !== undefined) config.envVars = envVars
-      if (environment !== undefined) config.environment = environment
-      if (enabled !== undefined) config.enabled = enabled
+      const config = Object.fromEntries(
+        Object.entries({
+          model,
+          maxTokens,
+          systemPrompt,
+          tools,
+          functionIds,
+          envVars,
+          environment,
+          enabled,
+        }).filter(([, v]) => v !== undefined)
+      )
 
       await db.services.agent.upsertProjectConfig(id, projectId, config)
 

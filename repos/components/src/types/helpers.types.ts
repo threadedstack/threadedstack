@@ -1,3 +1,4 @@
+import type { ButtonProps } from '@mui/material/Button'
 import type {
   JSX,
   ReactNode,
@@ -6,7 +7,6 @@ import type {
   ComponentType,
   FunctionComponent,
 } from 'react'
-import { ButtonProps } from '@mui/material/Button'
 
 type TRElProps = Record<string, any>
 export type TReactEl<P extends TRElProps = TRElProps> =

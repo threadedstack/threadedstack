@@ -4,19 +4,12 @@ import { Page } from '@TAF/pages/Page/Page'
 import { useEffect, useState } from 'react'
 import { useUser } from '@TAF/state/selectors'
 import { LoadingSpinner, ErrorAlert } from '@TAF/components'
+import { getInitials } from '@TAF/utils/user/getInitials'
 import { SettingsFormCard, InfoCard } from '@TAF/components/Settings'
 import { updateProfile } from '@TAF/actions/profile/api/updateProfile'
 import { Box, Alert, Typography, Avatar, Card, CardContent } from '@mui/material'
 
 export type TProfile = {}
-
-const getUserInitials = (displayName?: string) => {
-  if (!displayName) return `U`
-  const parts = displayName.split(' ')
-  const first = parts[0]?.[0] || ''
-  const last = parts[parts.length - 1]?.[0] || ''
-  return `${first}${last}`.toUpperCase()
-}
 
 export const Profile = (props: TProfile) => {
   const [user] = useUser()
@@ -57,11 +50,6 @@ export const Profile = (props: TProfile) => {
     } finally {
       setSaving(false)
     }
-  }
-
-  const onCopySuccess = (message: string) => {
-    setSuccess(message)
-    setTimeout(() => setSuccess(null), 2000)
   }
 
   return (
@@ -115,7 +103,7 @@ export const Profile = (props: TProfile) => {
                     fontSize: '2rem',
                   }}
                 >
-                  {getUserInitials(user.displayName)}
+                  {getInitials(user)}
                 </Avatar>
                 <Box>
                   <Typography
@@ -177,7 +165,6 @@ export const Profile = (props: TProfile) => {
 
           <InfoCard
             title='Account Information'
-            onCopy={onCopySuccess}
             items={[
               { label: `User ID`, value: user.id, copyable: true },
               ...(user.provider

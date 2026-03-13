@@ -3,20 +3,16 @@ import { gutter } from '@TSC/theme'
 import { styled } from '@mui/material/styles'
 import { colors, grey } from '@TSC/theme/colors'
 
-export const DDHeaderContainer = styled(Box)(({ theme }) => {
-  return `
-    width: 100%;
-    padding: ${gutter.hpx};
-  `
-})
+export const DDHeaderContainer = styled(Box)`
+  width: 100%;
+  padding: ${gutter.hpx};
+`
 
-export const DDHeaderContent = styled(Box)(({ theme }) => {
-  return `
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-  `
-})
+export const DDHeaderContent = styled(Box)`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+`
 
 export const DDHeaderIcon = styled(Box)(({ theme }) => {
   const isDark = theme.palette.mode === `dark`

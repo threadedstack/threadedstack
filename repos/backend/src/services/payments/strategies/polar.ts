@@ -74,19 +74,7 @@ export class PolarService extends BaseService {
           continue
         }
 
-        plans.push(
-          new Plan({
-            id: result.data.id,
-            name: result.data.name,
-            metadata: result.data.metadata,
-            description: result.data.description,
-            recurring: {
-              active: result.data?.is_recurring,
-              interval: result.data?.recurring_interval,
-              count: result.data?.recurring_interval_count,
-            },
-          })
-        )
+        plans.push(this.#toPlan(result.data))
       }
 
       return { data: plans }
@@ -128,20 +116,7 @@ export class PolarService extends BaseService {
 
     if (!resp.data) return { error: new Exception(404, `Product not found`) }
 
-    // Convert raw metadata to typed metadata
-    const plan = new Plan({
-      id: resp.data.id,
-      name: resp.data.name,
-      metadata: resp.data.metadata,
-      description: resp.data.description,
-      recurring: {
-        active: resp.data?.is_recurring,
-        interval: resp.data?.recurring_interval,
-        count: resp.data?.recurring_interval_count,
-      },
-    })
-
-    return { data: plan.metadata }
+    return { data: this.#toPlan(resp.data).metadata }
   }
 
   /**
@@ -206,6 +181,20 @@ export class PolarService extends BaseService {
     })
   }
 
+  #toPlan(product: TPayProduct): Plan {
+    return new Plan({
+      id: product.id,
+      name: product.name,
+      metadata: product.metadata,
+      description: product.description,
+      recurring: {
+        active: product.is_recurring,
+        interval: product.recurring_interval,
+        count: product.recurring_interval_count,
+      },
+    })
+  }
+
   /**
    * Validate webhook signature from Polar
    * Uses timing-safe comparison and rejects stale timestamps
@@ -264,13 +253,12 @@ export class PolarService extends BaseService {
     }
 
     try {
+      const sub = payload.data
+      const userId = sub?.metadata?.userId
+
       switch (payload.type) {
         case `subscription.created`:
         case `subscription.updated`: {
-          const sub = payload.data
-          const metadata = sub.metadata || {}
-          const userId = metadata.userId
-
           if (!userId) {
             logger.warn(
               `Received subscription event without userId in metadata: ${sub.id}`
@@ -278,12 +266,11 @@ export class PolarService extends BaseService {
             return { error: new Error(`Missing userId in metadata`) }
           }
 
-          // Determine tier from product ID
           const tier = payments.service.getTierForProductId(sub.product_id) || `free`
 
           const result = await db.services.subscription.upsertByUser({
-            tier: tier,
-            userId: userId,
+            tier,
+            userId,
             polarId: sub.id,
             status: sub.status,
             polarPriceId: sub.price_id,
@@ -303,17 +290,13 @@ export class PolarService extends BaseService {
         }
 
         case `subscription.cancelled`: {
-          const sub = payload.data
-          const metadata = sub.metadata || {}
-          const userId = metadata.userId
-
           if (!userId) {
             logger.warn(`Received subscription cancelled event without userId: ${sub.id}`)
             return { error: new Error(`Missing userId in metadata`) }
           }
 
           const result = await db.services.subscription.upsertByUser({
-            userId: userId,
+            userId,
             polarId: sub.id,
             status: `cancelled`,
             cancelAtPeriodEnd: true,

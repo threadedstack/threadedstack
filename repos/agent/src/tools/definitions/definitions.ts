@@ -1,5 +1,4 @@
-import type { TLLMToolDef } from '@tdsk/domain'
-import type { Function as FunctionModel } from '@tdsk/domain'
+import type { TLLMToolDef, Function as FunctionModel } from '@tdsk/domain'
 
 import { fsTools } from './fs/fs'
 import { webTools } from './web/web'

@@ -13,6 +13,20 @@ export type TToolCallDisplay = {
   toolCall: TChatToolCall
 }
 
+const styles = {
+  pre: {
+    m: 0,
+    p: 1,
+    maxHeight: 200,
+    overflow: `auto`,
+    borderRadius: 0.5,
+    fontSize: `0.75rem`,
+    fontFamily: `monospace`,
+    whiteSpace: `pre-wrap`,
+    wordBreak: `break-word`,
+  } as const,
+}
+
 export const ToolCallDisplay = (props: TToolCallDisplay) => {
   const { toolCall } = props
   const [expanded, setExpanded] = useState(false)
@@ -86,18 +100,7 @@ export const ToolCallDisplay = (props: TToolCallDisplay) => {
               </Typography>
               <Box
                 component='pre'
-                sx={{
-                  m: 0,
-                  p: 1,
-                  fontSize: `0.75rem`,
-                  fontFamily: `monospace`,
-                  bgcolor: `background.default`,
-                  borderRadius: 0.5,
-                  overflow: `auto`,
-                  maxHeight: 200,
-                  whiteSpace: `pre-wrap`,
-                  wordBreak: `break-word`,
-                }}
+                sx={{ ...styles.pre, bgcolor: `background.default` }}
               >
                 {formatArgs(toolCall.args)}
               </Box>
@@ -117,16 +120,8 @@ export const ToolCallDisplay = (props: TToolCallDisplay) => {
               <Box
                 component='pre'
                 sx={{
-                  m: 0,
-                  p: 1,
-                  fontSize: `0.75rem`,
-                  fontFamily: `monospace`,
+                  ...styles.pre,
                   bgcolor: toolCall.isError ? `error.50` : `background.default`,
-                  borderRadius: 0.5,
-                  overflow: `auto`,
-                  maxHeight: 200,
-                  whiteSpace: `pre-wrap`,
-                  wordBreak: `break-word`,
                 }}
               >
                 {toolCall.result}

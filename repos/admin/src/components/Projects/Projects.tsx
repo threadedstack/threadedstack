@@ -28,11 +28,15 @@ export const Projects = (props: TProjects) => {
     await deleteProject({ orgId, id: projectId })
   }
 
-  const filteredProjects = useMemo(() => {
-    const orgProjects = projects
-      ? Object.values(projects).filter((project) => project.orgId === orgId)
-      : []
+  const orgProjects = useMemo(
+    () =>
+      projects
+        ? Object.values(projects).filter((project) => project.orgId === orgId)
+        : [],
+    [projects, orgId]
+  )
 
+  const filteredProjects = useMemo(() => {
     if (!searchQuery.trim()) return orgProjects
 
     const query = searchQuery.toLowerCase()
@@ -43,13 +47,10 @@ export const Projects = (props: TProjects) => {
         project.branch?.toLowerCase().includes(query) ||
         project.id?.toLowerCase().includes(query)
     )
-  }, [projects, orgId, searchQuery])
+  }, [orgProjects, searchQuery])
 
-  const projectsCount = projects
-    ? Object.values(projects).filter((project) => project.orgId === orgId).length
-    : 0
-
-  const hasProjects = Boolean(projectsCount)
+  const projectsCount = orgProjects.length
+  const hasProjects = projectsCount > 0
 
   return (
     <PageLayout

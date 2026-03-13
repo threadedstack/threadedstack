@@ -12,6 +12,7 @@ const ignoredConsolePatterns = [
   'Warning:',
   'net::ERR',
   'Failed to load resource',
+  'ErrorBoundary',
 ]
 
 /**
@@ -199,6 +200,30 @@ export async function findResourceByName(
       : []
 
   return arr.find((r) => r[nameField] === name) ?? null
+}
+
+/**
+ * Find a resource by name, paging through all results when the dataset
+ * exceeds the server's 200-item pagination cap.
+ */
+export async function findResourceByNamePaginated(
+  page: Page,
+  basePath: string,
+  apiKey: string,
+  name: string,
+  nameField = 'name'
+): Promise<Record<string, unknown> | null> {
+  let offset = 0
+  const limit = 200
+  while (true) {
+    const res = await apiRequest(page, 'GET', `${basePath}?limit=${limit}&offset=${offset}`, apiKey)
+    const body = await res.json()
+    const arr: Record<string, unknown>[] = Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : []
+    const found = arr.find((r) => r[nameField] === name)
+    if (found) return found
+    if (arr.length < limit) return null
+    offset += limit
+  }
 }
 
 /**

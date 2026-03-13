@@ -20,8 +20,7 @@ export const cancelSubscription: TEndpointConfig = {
     const subResult = await db.services.subscription.findByUser(userId)
     if (subResult.error) throw new Exception(500, subResult.error.message)
 
-    if (!subResult.data || !subResult.data.polarId)
-      throw new Exception(404, `No active subscription found`)
+    if (!subResult.data?.polarId) throw new Exception(404, `No active subscription found`)
 
     const cancelResult = await payments.service.cancelSubscription(subResult.data.polarId)
 

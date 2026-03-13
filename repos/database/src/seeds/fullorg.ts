@@ -24,7 +24,6 @@ import {
   ProxyEndpoint,
   EInviteStatus,
   Function as FunctionModel,
-  // --- End model imports ---
   ELLMProviderBrand,
 } from '@tdsk/domain'
 

@@ -223,13 +223,14 @@ describe(`User service`, () => {
       expect(eq).toHaveBeenCalledWith(users.email, `check@eq.com`)
     })
 
-    it(`should call and() with the eq result`, async () => {
-      const { and } = await import(`drizzle-orm`)
+    it(`should pass eq result directly to where()`, async () => {
+      const { eq } = await import(`drizzle-orm`)
       mocks.limitFn.mockResolvedValue([{ id: `user-1`, email: `check@and.com` }])
 
       await service.byEmail(`check@and.com`)
 
-      expect(and).toHaveBeenCalledWith(
+      expect(eq).toHaveBeenCalledWith(expect.anything(), `check@and.com`)
+      expect(mocks.selectWhereFn).toHaveBeenCalledWith(
         expect.objectContaining({ _tag: `eq`, val: `check@and.com` })
       )
     })

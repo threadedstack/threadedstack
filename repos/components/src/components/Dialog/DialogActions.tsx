@@ -1,28 +1,29 @@
+import type { ReactNode } from 'react'
+
+import { cls } from '@keg-hub/jsutils'
 import { Button } from '@TSC/components/Buttons/Button'
 import { LoadingButton } from '@TSC/components/Buttons/LoadingButton'
 import { CancelIcon, ConfirmIcon } from '@TSC/components/Dialog/Dialog.styles'
-import { cls } from '@keg-hub/jsutils'
-import { ReactNode } from 'react'
 
 export type TDialogActions = {
-  afterActions?: ReactNode
-  beforeActions?: ReactNode
-  SubmitIcon?: any
   CloseIcon?: any
+  SubmitIcon?: any
   loading?: boolean
   closeText?: string
-  closeColor?: string
   closeType?: string
-  closeTooltip?: string
-  closeVariant?: string
-  closeDisabled?: boolean
-  closeClass?: string | string[]
+  closeColor?: string
   submitText?: string
   submitType?: string
   submitColor?: string
+  closeTooltip?: string
+  closeVariant?: string
   submitVariant?: string
   submitTooltip?: string
+  closeDisabled?: boolean
   submitDisabled?: boolean
+  afterActions?: ReactNode
+  beforeActions?: ReactNode
+  closeClass?: string | string[]
   submitClass?: string | string[]
   onSubmit?: (...args: any[]) => void
   onClose?: (...args: any[]) => void

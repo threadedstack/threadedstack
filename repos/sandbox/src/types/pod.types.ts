@@ -1,5 +1,4 @@
-import type { Sandbox } from '@tdsk/domain'
-import type { TKubeSandboxConfig, TPlaceholderMap } from '@tdsk/domain'
+import type { Sandbox, TKubeSandboxConfig, TPlaceholderMap } from '@tdsk/domain'
 
 export type TPodEgressOpts = {
   servicePort: number

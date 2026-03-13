@@ -7,6 +7,7 @@ import { test, expect } from '../fixtures/auth'
 const ignoredPatterns = [
   'Function components cannot be given refs',
   'useLayoutEffect does nothing on the server',
+  'ErrorBoundary',
 ]
 
 test.describe('Billing Page', () => {

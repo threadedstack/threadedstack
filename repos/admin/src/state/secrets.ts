@@ -15,6 +15,5 @@ export const activeOrgSecretIdState = atomWithReset<string>(undefined)
 // Derived: auto-filters to active project
 export const projectSecretsState = atom((get) => {
   const projectId = get(activeProjectIdState)
-  const all = get(secretsState)
-  return projectId && all?.[projectId] ? all[projectId] : undefined
+  return projectId ? get(secretsState)?.[projectId] : undefined
 })

@@ -3,7 +3,7 @@ import type { TThemeColors } from '@TRL/types'
 import pc from 'picocolors'
 import { EThemeType } from '@TRL/types'
 
-export const colors: Record<keyof Omit<typeof EThemeType, `auto`>, TThemeColors> = {
+export const colors: Record<`dark` | `light`, TThemeColors> = {
   [EThemeType.dark]: {
     error: pc.red,
     muted: pc.gray,

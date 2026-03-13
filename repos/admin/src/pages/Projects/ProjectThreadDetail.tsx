@@ -1,24 +1,22 @@
-import type { Message } from '@tdsk/domain'
-
+import { ERoutePath } from '@TAF/types'
+import { ConfirmDelete } from '@tdsk/components'
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { ERoutePath } from '@TAF/types'
 import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
-import { ConfirmDelete, RobotOutlineIcon } from '@tdsk/components'
+import { msgTypeColor } from '@TAF/utils/transforms/messages'
 import { AgentSection } from '@TAF/components/Agents/AgentSection'
-import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
-import { fetchMessages } from '@TAF/actions/messages/api/fetchMessages'
 import { useMessageActions } from '@TAF/hooks/chat/useMessageActions'
+import { EditThreadDrawer } from '@TAF/components/AI/EditThreadDrawer'
+import { fetchMessages } from '@TAF/actions/messages/api/fetchMessages'
 import {
+  useProviders,
   useActiveOrgId,
   useActiveAgent,
   useActiveThread,
-  useActiveAgentId,
-  useActiveProjectId,
   useActiveThreadId,
+  useActiveProjectId,
   useThreadMessages,
-  useProviders,
 } from '@TAF/state/selectors'
 import {
   Box,
@@ -42,13 +40,10 @@ import {
 import {
   Edit as EditIcon,
   Save as SaveIcon,
-  Build as ToolIcon,
+  Chat as ChatIcon,
   Close as CloseIcon,
   Delete as DeleteIcon,
-  Person as PersonIcon,
-  Settings as SystemIcon,
   CallSplit as BranchIcon,
-  Chat as ChatIcon,
 } from '@mui/icons-material'
 
 export const ProjectThreadDetail = () => {
@@ -64,7 +59,6 @@ export const ProjectThreadDetail = () => {
 
   const [loading, setLoading] = useState(false)
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
 
   const msgActions = useMessageActions({
     orgId: orgId || '',
@@ -93,40 +87,10 @@ export const ProjectThreadDetail = () => {
 
   const threadMessages = useMemo(() => {
     if (!messages) return []
-    let filtered = Object.values(messages)
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter((message) => {
-        const content = JSON.stringify(message.content)
-        return (
-          content?.toLowerCase().includes(query) ||
-          message.id?.toLowerCase().includes(query)
-        )
-      })
-    }
-
-    return filtered.sort(
+    return Object.values(messages).sort(
       (a, b) => ((a.createdAt || 0) as any) - ((b.createdAt || 0) as any)
     )
-  }, [messages, searchQuery])
-
-  const getMsgTypeColor = (type: string) => {
-    switch (type) {
-      case 'user':
-        return 'primary'
-      case 'assistant':
-        return 'success'
-      case 'tool':
-        return 'warning'
-      case 'system':
-        return 'default'
-      case 'action':
-        return 'info'
-      default:
-        return 'default'
-    }
-  }
+  }, [messages])
 
   const formatContent = (content: any) => {
     const text = msgActions.extractText(content)
@@ -289,7 +253,7 @@ export const ProjectThreadDetail = () => {
                       <Chip
                         label={message.type}
                         size='small'
-                        color={getMsgTypeColor(message.type) as any}
+                        color={msgTypeColor(message.type) as any}
                       />
                     </TableCell>
                     <TableCell>

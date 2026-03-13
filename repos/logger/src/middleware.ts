@@ -9,6 +9,13 @@ type TExpressApp = {
   [key: string]: any
 }
 
+const getLoggerConfig = (app: TExpressApp) => {
+  const loggerOpts = app.locals.config.logger || (noOpObj as TLogOpts)
+  const logger = buildLogger(loggerOpts as TLogOpts)
+  const meta = Boolean(npmLevels[loggerOpts.level || 'info'] >= npmLevels.verbose)
+  return { logger, meta }
+}
+
 /**
  * Adds middleware logging for requests
  * @function
@@ -16,21 +23,17 @@ type TExpressApp = {
  * @return {void}
  */
 export const setupLoggerReq = (app: TExpressApp, middlewareOpts?: Record<any, any>) => {
-  const loggerOpts = app.locals.config.logger || (noOpObj as TLogOpts)
-  const logger = buildLogger(loggerOpts as TLogOpts)
-  const logLevel = npmLevels[loggerOpts.level || 'info']
+  const { logger, meta } = getLoggerConfig(app)
 
-  const requestLogger = expressWinston.logger({
-    colorize: false,
-    expressFormat: true,
-    winstonInstance: logger,
-    /** Only log the metadata, if the log level is set to at least verbose */
-    meta: Boolean(logLevel >= npmLevels.verbose),
-    /** override options above with passed in options */
-    ...(middlewareOpts || noOpObj),
-  })
-
-  app.use(requestLogger)
+  app.use(
+    expressWinston.logger({
+      colorize: false,
+      expressFormat: true,
+      winstonInstance: logger,
+      meta,
+      ...(middlewareOpts || noOpObj),
+    })
+  )
 }
 
 /**
@@ -40,17 +43,13 @@ export const setupLoggerReq = (app: TExpressApp, middlewareOpts?: Record<any, an
  * @return {void}
  */
 export const setupLoggerErr = (app: TExpressApp, middlewareOpts?: Record<any, any>) => {
-  const loggerOpts = app.locals.config.logger || (noOpObj as TLogOpts)
-  const logger = buildLogger(loggerOpts)
-  const logLevel = npmLevels[loggerOpts.level || 'info']
+  const { logger, meta } = getLoggerConfig(app)
 
-  const errorLogger = expressWinston.errorLogger({
-    winstonInstance: logger,
-    /** Only log the metadata, if the log level is set to at least verbose */
-    meta: Boolean(logLevel >= npmLevels.verbose),
-    /** override options above with passed in options */
-    ...(middlewareOpts || noOpObj),
-  })
-
-  app.use(errorLogger)
+  app.use(
+    expressWinston.errorLogger({
+      winstonInstance: logger,
+      meta,
+      ...(middlewareOpts || noOpObj),
+    })
+  )
 }

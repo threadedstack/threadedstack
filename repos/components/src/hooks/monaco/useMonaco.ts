@@ -31,7 +31,7 @@ const useMonacoRefs = (props: THMonaco) => {
   }
 }
 
-const setupLangs = async (monaco: Monaco) => {
+const setupLangs = (monaco: Monaco) => {
   return CodeLanguages.map((item) => {
     const lang = item.label
     lang && monaco.languages.register({ id: lang })
@@ -155,18 +155,6 @@ const useMonacoOpts = (props: THMonaco) => {
   }, [props.options, props.disabled])
 }
 
-const useOnEditorChange = (props: THMonaco) => {
-  const { path, value, onChange, defaultPath, defaultValue } = props
-
-  return {
-    path,
-    value,
-    onChange,
-    defaultPath,
-    defaultValue,
-  }
-}
-
 const useOnEditorLanguage = (props: THMonaco) => {
   const { language, onLangChange, defaultLanguage = language } = props
 
@@ -185,7 +173,7 @@ export const useMonaco = (_props: THMonaco) => {
   const options = useMonacoOpts(props)
   const onMount = useOnEditorMount(props)
   const onBeforeMount = useOnEditorBeforeMount(props)
-  const { path, value, onChange, defaultPath, defaultValue } = useOnEditorChange(props)
+  const { path, value, onChange, defaultPath, defaultValue } = props
   const { actions } = useMonacoActions({ ...props, value, onChange })
   const { language, defaultLanguage, onLangChange } = useOnEditorLanguage(props)
 

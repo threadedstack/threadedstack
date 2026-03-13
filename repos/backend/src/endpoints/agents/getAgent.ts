@@ -2,10 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
 import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
 import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
-import { EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
+import { Exception, EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
 
 /**
  * GET /_/agents/:id - Get an agent by ID
@@ -20,13 +19,10 @@ export const getAgent: TEndpointConfig = {
     const { id } = req.params
     const sanitize = req.query.sanitize !== 'false'
 
-    // First get the agent to check permissions (without sanitization for permission check)
     const { data: agent, error: getError } = await db.services.agent.get(id, {
-      sanitize: false, // Get full data to check permissions
+      sanitize: false,
     })
-
-    if (getError) throw new Exception(404, `Agent not found`)
-    if (!agent) throw new Exception(404, `Agent not found`)
+    if (getError || !agent) throw new Exception(404, `Agent not found`)
 
     // Check permission to read agents in this org
     await checkPermission(req, EPermAction.read, EPermResource.agent, {
@@ -40,16 +36,13 @@ export const getAgent: TEndpointConfig = {
     const responseAgent = projectId ? agent.getEffectiveConfig(projectId) : agent
     const projectConfig = projectId ? agent.getProjectConfig(projectId) : null
 
-    // If user wants unsanitized secrets, check they have permission
     if (!sanitize) {
       const userRole = await getUserRole(req, { orgId: agent.orgId })
-
       if (!canAccessSecretValue(userRole))
         throw new Exception(403, `Admin or higher role required to view secret values`)
-
-      res.status(200).json({ data: responseAgent, overrides: projectConfig })
-    } else {
-      res.status(200).json({ data: responseAgent.sanitize(), overrides: projectConfig })
     }
+
+    const data = sanitize ? responseAgent.sanitize() : responseAgent
+    res.status(200).json({ data, overrides: projectConfig })
   },
 }

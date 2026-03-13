@@ -16,10 +16,7 @@ export const useColor = (color: string) => {
 
     if (colorKWs.includes(color)) return color
 
-    const named = get(theme.palette.colors, color, undefined)
-    if (named) return named
-
-    const direct = get(theme.palette.colors, color, undefined)
-    return isStr(direct) ? direct : color
+    const resolved = get(theme.palette.colors, color, undefined)
+    return isStr(resolved) ? resolved : color
   }, [theme, color])
 }

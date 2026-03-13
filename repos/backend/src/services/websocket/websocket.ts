@@ -58,6 +58,11 @@ export class Websocket {
     this.#app = undefined
   }
 
+  #sendError = (message: string): void => {
+    this.send({ type: EWSEventType.Error, message })
+    this.send({ type: EWSEventType.Done, reason: `error` })
+  }
+
   /**
    * Send a typed WS message.
    * If socket is no longer open, logs a warning and aborts the active agent run.
@@ -202,18 +207,13 @@ export class Websocket {
   ): Promise<void> {
     const { prompt, images, files } = msg
     if (!prompt) {
-      this.send({ type: EWSEventType.Error, message: `prompt is required` })
-      this.send({ type: EWSEventType.Done, reason: `error` })
+      this.#sendError(`prompt is required`)
       return
     }
 
     // Prevent concurrent runs on the same connection
     if (this.#abortController) {
-      this.send({
-        type: EWSEventType.Error,
-        message: `Agent is already running. Send cancel first.`,
-      })
-      this.send({ type: EWSEventType.Done, reason: `error` })
+      this.#sendError(`Agent is already running. Send cancel first.`)
       return
     }
 
@@ -232,8 +232,7 @@ export class Websocket {
         })
 
         if (threadErr || !thread) {
-          this.send({ type: EWSEventType.Error, message: `Failed to create thread` })
-          this.send({ type: EWSEventType.Done, reason: `error` })
+          this.#sendError(`Failed to create thread`)
           return
         }
 
@@ -270,9 +269,7 @@ export class Websocket {
       if (ac.signal.aborted) {
         this.send({ type: EWSEventType.Done, reason: `cancelled` })
       } else {
-        const message = err instanceof Error ? err.message : `Agent execution failed`
-        this.send({ type: EWSEventType.Error, message })
-        this.send({ type: EWSEventType.Done, reason: `error` })
+        this.#sendError(err instanceof Error ? err.message : `Agent execution failed`)
       }
     } finally {
       this.#agentHandle = null

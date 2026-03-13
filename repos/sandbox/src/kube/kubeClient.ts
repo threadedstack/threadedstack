@@ -64,11 +64,10 @@ export class KubeClient {
   // --- Pod CRUD ---
 
   async createPod(manifest: k8s.V1Pod): Promise<k8s.V1Pod> {
-    const resp = await this.coreApi.createNamespacedPod({
+    return await this.coreApi.createNamespacedPod({
       body: manifest,
       namespace: this.namespace,
     })
-    return resp
   }
 
   async getPod(name: string): Promise<k8s.V1Pod> {

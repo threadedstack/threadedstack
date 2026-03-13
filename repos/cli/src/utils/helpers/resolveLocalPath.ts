@@ -13,13 +13,15 @@ const appRoot = aliases[`@ROOT`]
  * @returns {string} - Updated volume string
  */
 export const resolveLocalPath = (location: string) => {
-  return location.startsWith(`~`)
-    ? path.resolve(path.join(homeDir, location.replace(`~`, '')))
-    : location === `.`
-      ? appRoot
-      : location.startsWith(`./`)
-        ? path.resolve(path.join(`${appRoot}/`, location.replace(`./`, ``)))
-        : location.startsWith(`/`)
-          ? location
-          : path.resolve(path.join(appRoot, location))
+  if (location.startsWith(`~`))
+    return path.resolve(path.join(homeDir, location.replace(`~`, '')))
+
+  if (location === `.`) return appRoot
+
+  if (location.startsWith(`./`))
+    return path.resolve(path.join(`${appRoot}/`, location.replace(`./`, ``)))
+
+  if (location.startsWith(`/`)) return location
+
+  return path.resolve(path.join(appRoot, location))
 }

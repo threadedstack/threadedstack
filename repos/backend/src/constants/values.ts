@@ -1,5 +1,5 @@
 import type { TRetryConfig } from '@TBE/types'
-import { EHttpMethod, EApiKeyScope } from '@tdsk/domain'
+import { EWSEventType, EHttpMethod, EApiKeyScope } from '@tdsk/domain'
 
 export const sigs = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
 
@@ -12,6 +12,20 @@ export const LoggerIgnore = {
 
 export const HttpMethods = Object.values(EHttpMethod)
 export const AllowedScopes: string[] = Object.values(EApiKeyScope)
+
+/** Ping interval to keep WS alive through proxy/LB layers during LLM silence */
+export const WsPingIntervalMS = 25_000
+
+/** Valid message types the server accepts from WebSocket clients */
+export const ClientMsgTypes: ReadonlySet<string> = new Set<string>([
+  EWSEventType.Steer,
+  EWSEventType.Prompt,
+  EWSEventType.Cancel,
+  EWSEventType.FollowUp,
+  EWSEventType.FileUpload,
+  EWSEventType.UpdateConfig,
+  EWSEventType.WorkspaceManifest,
+])
 
 // Retry on specific HTTP status codes
 // 408: Request Timeout
@@ -79,3 +93,16 @@ export const CAKeyPath = `/etc/tdsk/ca/tls.key`
 
 // Real client IP from custom header injected by the front TCP server
 export const RealIpHeader = `x-tdsk-real-ip`
+
+/** Max character length for text extracted from uploaded documents (PDF, DOCX, text) */
+export const MaxExtractedLength = 50_000
+/** MIME type for Microsoft Word (.docx) documents */
+export const DocXMime = `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+/** Application MIME types treated as extractable text content */
+export const TextMimeTypes: ReadonlySet<string> = new Set([
+  `application/json`,
+  `application/xml`,
+  `application/csv`,
+  `application/javascript`,
+  `application/typescript`,
+])

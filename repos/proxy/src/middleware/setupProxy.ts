@@ -5,10 +5,9 @@ import type { Request, Response, NextFunction } from 'express'
 import type { ClientRequest, IncomingMessage, ServerResponse } from 'http'
 
 import { logger } from '@TPX/utils/logger'
-import { SandboxHostRx } from '@TPX/constants/values'
 import { adminPath, setAuthHeaders } from '@tdsk/domain'
-import { ProxyForwardRoutes } from '@TPX/constants/values'
 import { createProxyMiddleware } from 'http-proxy-middleware'
+import { SandboxHostRx, ProxyForwardRoutes } from '@TPX/constants/values'
 
 const isSandboxHost = (host: string) => SandboxHostRx.test(host.split(`.`)[0])
 

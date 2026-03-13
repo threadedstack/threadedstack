@@ -2,7 +2,6 @@ import type { Component } from '@mariozechner/pi-tui'
 import type { TConnectionStatus } from '@TRL/types'
 
 import chalk from 'chalk'
-import { ConnectionColors } from '@TRL/constants'
 import { themed } from '@TRL/theme'
 
 export type TStatusMetadata = {

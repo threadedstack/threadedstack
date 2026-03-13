@@ -6,7 +6,8 @@ export const switchProviderCommand: TSlashCommand = {
   description: `Switch LLM provider`,
   handler: async (args, ctx) => {
     if (!args) return `Usage: /provider <provider-id>`
-    ctx.setProviderId(args.trim())
-    ctx.output(`Switched to provider ${args.trim()}`)
+    const providerId = args.trim()
+    ctx.setProviderId(providerId)
+    ctx.output(`Switched to provider ${providerId}`)
   },
 }

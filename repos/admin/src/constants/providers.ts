@@ -1,7 +1,9 @@
 import type { ComponentType } from 'react'
 
+import GoogleIcon from '@mui/icons-material/Google'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
 import { EProvider, ELLMProviderBrand } from '@tdsk/domain'
+import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest'
 
 import {
   ZAIIcon,
@@ -10,15 +12,6 @@ import {
   AnthropicIcon,
   OpenRouterIcon,
 } from '@tdsk/components'
-
-import HubIcon from '@mui/icons-material/Hub'
-import BoltIcon from '@mui/icons-material/Bolt'
-import GoogleIcon from '@mui/icons-material/Google'
-import TerminalIcon from '@mui/icons-material/Terminal'
-import PsychologyIcon from '@mui/icons-material/Psychology'
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import TravelExploreIcon from '@mui/icons-material/TravelExplore'
-import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest'
 
 export const ProviderTypes = Object.values(EProvider).map((value) => ({
   value,

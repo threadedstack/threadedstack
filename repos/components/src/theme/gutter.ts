@@ -72,14 +72,7 @@ const sizes = {
 type TGutter = ((...args: Array<number | string>) => string) & typeof sizes
 
 export const gutter = ((...args: Array<number | string>) => {
-  const joined = args.reduce((acc, part, idx) => {
-    // size / 2 => Divide by two to match mui theme.spacing
-    let add = isNum(part) ? `${(size / 2) * part}px` : part
-    acc += idx ? ` ${add}` : add
-    return acc
-  }, ``)
-
-  return joined
+  return args.map((part) => (isNum(part) ? `${(size / 2) * part}px` : part)).join(` `)
 }) as TGutter
 
 Object.assign(gutter, sizes)

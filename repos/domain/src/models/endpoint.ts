@@ -1,7 +1,6 @@
-import type { TEndpointOpts, TEndpointType } from '@TDM/types'
+import type { TEndpointOpts, TEndpointType, EEndpointType } from '@TDM/types'
 
 import { Base } from './base'
-import type { EEndpointType } from '@TDM/types'
 
 type TEPOpts<T extends TEndpointType> = Omit<Partial<Endpoint<T>>, `type`> & {
   type: TEndpointType

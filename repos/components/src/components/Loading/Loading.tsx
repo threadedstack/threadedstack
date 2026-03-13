@@ -12,7 +12,6 @@ export type TLoading = ComponentProps<typeof CircularProgress> & {
   message?: ReactNode
   full?: boolean
   fixed?: boolean
-  centered?: boolean
   hideSpinner?: boolean
   messageSx?: SxProps | SxProps[]
   containerSx?: SxProps | SxProps[]

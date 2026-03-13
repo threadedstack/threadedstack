@@ -36,22 +36,20 @@ export const Orgs = (props: TOrgs) => {
       {noOrgs ? (
         <NoOrgs onCreate={onCreate} />
       ) : (
-        <>
-          <CardGrid
-            items={orgsArray}
-            getKey={(org) => org.id}
-            sx={{ mt: 1 }}
-            renderCard={(org) => (
-              <OrgCard
-                org={org}
-                onDelete={onDelete}
-                onSelect={onSelect}
-                showDelete={isAdmin}
-                active={org.id === activeOrgId}
-              />
-            )}
-          />
-        </>
+        <CardGrid
+          sx={{ mt: 1 }}
+          items={orgsArray}
+          getKey={(org) => org.id}
+          renderCard={(org) => (
+            <OrgCard
+              org={org}
+              onDelete={onDelete}
+              onSelect={onSelect}
+              showDelete={isAdmin}
+              active={org.id === activeOrgId}
+            />
+          )}
+        />
       )}
     </>
   )

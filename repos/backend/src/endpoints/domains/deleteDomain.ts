@@ -42,12 +42,10 @@ export const deleteDomain: TEndpointConfig = {
     const { error: deleteError } = await db.services.domain.delete(domain)
     if (deleteError) throw new Exception(500, deleteError.message)
 
-    const deleted = domain
-
     res.status(200).json({
       data: {
+        domain,
         success: true,
-        domain: deleted,
       },
     })
   },

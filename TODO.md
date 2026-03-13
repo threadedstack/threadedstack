@@ -22,3 +22,13 @@ Items are split into separate groups, with the sub repo name as the header.
 
 * **Project Members**
   * The members list does shows `Unknown` instead of the members name
+
+
+## Backend
+
+* **OpenAI Streaming Support**
+  * Users can create AI Agents and tie them to custom endpoints, which allows them to interact with the AI agent via a REST API. It uses SSE to allow streaming the responses from the endpoint
+  * OpenAI has release an NPM package (`openai`) that has become a standard for interacting with AI endpoints using SSE.
+  * Many other AI products support using the `openai` npm package with their REST api backend.
+  * Threaded Stack should do the same. It should allow users to create custom Agent Endpoints via the admin UI. Then they should be able to use the `openai` npm package to interact with it, much like many other popular AI frameworks. 
+  * This task is to add that functionality to the custom AI Agent endpoints.

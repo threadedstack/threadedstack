@@ -3,7 +3,7 @@ import type { TOnLogin, TLoginData } from '@TAF/types'
 import { GitlabIcon } from '@tdsk/components'
 import { GlLoginButton } from '@TAF/components/Login/Login.styles'
 
-export type TGithubButton = {
+export type TGitlabButton = {
   loading?: boolean
   disabled?: boolean
   onLogin: TOnLogin
@@ -13,7 +13,7 @@ const creds: TLoginData = {
   provider: `gitlab`,
 }
 
-export const GlButton = (props: TGithubButton) => {
+export const GlButton = (props: TGitlabButton) => {
   const { onLogin, loading, disabled } = props
 
   return (

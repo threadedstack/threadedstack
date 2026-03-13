@@ -34,6 +34,8 @@ export const EndpointsTable = (props: TEndpointsTable) => {
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState<Endpoint>()
   const onDelete = () => {
+    if (!deleting) return
+
     try {
       setLoading(true)
       onDeleteCB?.(deleting.id)
@@ -135,16 +137,15 @@ export const EndpointsTable = (props: TEndpointsTable) => {
           </TableBody>
         </Table>
       </TableContainer>
-      {(deleting && (
+      {deleting && (
         <ConfirmDelete
           deleting={loading}
+          onConfirm={onDelete}
           itemName={deleting.name}
-          onConfirm={() => onDelete()}
           onCancel={() => setDeleting(undefined)}
           warnText='This action can not be undone!'
         />
-      )) ||
-        null}
+      )}
     </>
   )
 }

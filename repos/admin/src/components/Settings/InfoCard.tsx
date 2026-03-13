@@ -1,5 +1,5 @@
 import { Box, Card, CardContent, Divider, Typography } from '@mui/material'
-import { ClipboardCopy, useCopyToClipboard } from '@tdsk/components'
+import { ClipboardCopy } from '@tdsk/components'
 
 export type TInfoItem = {
   label: string
@@ -11,7 +11,6 @@ export type TInfoItem = {
 export type TInfoCard = {
   title: string
   items: TInfoItem[]
-  onCopy?: (message: string) => void
 }
 
 const formatDate = (date: string | Date): string => {
@@ -20,16 +19,9 @@ const formatDate = (date: string | Date): string => {
 
 /**
  * InfoCard - Displays a list of label-value pairs with optional copy functionality
- * Uses ClipboardCopy and useCopyToClipboard from @tdsk/components
+ * Uses ClipboardCopy from @tdsk/components
  */
-export const InfoCard = ({ title, items, onCopy }: TInfoCard) => {
-  const { onCopyToClipBoard } = useCopyToClipboard()
-
-  const handleCopy = (text: string) => {
-    onCopyToClipBoard(text)
-    onCopy?.('Copied to clipboard')
-  }
-
+export const InfoCard = ({ title, items }: TInfoCard) => {
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>

@@ -2,10 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
 import { parsePagination } from '@TBE/utils/pagination'
-import { EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /_/invitations/org/:orgId - List all invitations for an org
@@ -27,18 +26,15 @@ export const listInvitations: TEndpointConfig = {
 
     const { limit, offset } = parsePagination(req)
 
-    let invitations
-    // TODO: make status an enum
-    if (status === `pending`) {
-      const { data, error } = await db.services.invitation.getPendingByOrg(orgId)
-      if (error) throw new Exception(500, error.message)
-      invitations = data
-    } else {
-      const { data, error } = await db.services.invitation.getAllByOrg(orgId)
-      if (error) throw new Exception(500, error.message)
+    const isPending = status === `pending`
+    const { data, error } = isPending
+      ? await db.services.invitation.getPendingByOrg(orgId)
+      : await db.services.invitation.getAllByOrg(orgId)
 
-      invitations = status === `all` ? data : data?.filter((inv) => inv.status === status)
-    }
+    if (error) throw new Exception(500, error.message)
+
+    const invitations =
+      isPending || status === `all` ? data : data?.filter((inv) => inv.status === status)
 
     res.status(200).json({
       limit,

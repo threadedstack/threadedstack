@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Box, Typography } from '@mui/material'
 
 let mermaidLoaded = false
@@ -26,7 +26,6 @@ export type TMermaidRendererProps = {
 
 export const MermaidRenderer = (props: TMermaidRendererProps) => {
   const { content } = props
-  const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [svg, setSvg] = useState<string | null>(null)
 
@@ -95,7 +94,6 @@ export const MermaidRenderer = (props: TMermaidRendererProps) => {
 
   return (
     <Box
-      ref={containerRef}
       sx={{ '& svg': { maxWidth: `100%`, height: `auto` } }}
       dangerouslySetInnerHTML={{ __html: svg }}
     />

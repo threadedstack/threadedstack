@@ -23,10 +23,8 @@ export const addToProcess = (
 ) => {
   const { force, ignore = emptyArr } = opts
 
-  Object.entries(addEnvs).map(([key, value]) => {
-    exists(value) &&
-      !ignore.includes(key) &&
-      (!exists(process.env[key]) || force) &&
-      (process.env[key] = value)
-  })
+  for (const [key, value] of Object.entries(addEnvs)) {
+    if (!exists(value) || ignore.includes(key)) continue
+    if (force || !exists(process.env[key])) process.env[key] = value
+  }
 }

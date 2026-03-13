@@ -1,6 +1,6 @@
 export type TGlobalCSS = Record<string, any>
 
-const globalCss = (props: TGlobalCSS) => {
+const globalCss = () => {
   return `
     :root {
       color-scheme: light dark;
@@ -103,5 +103,5 @@ const globalCss = (props: TGlobalCSS) => {
 }
 
 export const GlobalStyles = (props: TGlobalCSS) => {
-  return <style>{globalCss?.(props) || ``}</style>
+  return <style>{globalCss()}</style>
 }

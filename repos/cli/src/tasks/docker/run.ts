@@ -10,7 +10,6 @@ import { taskError } from '@TSCL/utils/tasks/error'
  * @returns {Void}
  */
 const runImg: TTaskAction = async (args) => {
-  const { params } = args
   const ctx = getCtx(args)
   !ctx && taskError(`Build context name is missing or invalid`)
 

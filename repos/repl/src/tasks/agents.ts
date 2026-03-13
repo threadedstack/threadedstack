@@ -23,7 +23,7 @@ export const agents: TTask = {
       let orgId = params.org as string | undefined
 
       if (!orgId) {
-        const orgs = (await client.listOrgs()) as { id: string; name: string }[]
+        const orgs = await client.listOrgs()
 
         if (orgs.length === 1) {
           orgId = orgs[0].id
@@ -39,11 +39,7 @@ export const agents: TTask = {
         }
       }
 
-      const agents = (await client.listAgents(orgId)) as {
-        id: string
-        name: string
-        model?: string
-      }[]
+      const agents = await client.listAgents(orgId)
 
       if (!agents.length) {
         process.stdout.write(`${themed(`muted`, `No agents found`)}\n`)

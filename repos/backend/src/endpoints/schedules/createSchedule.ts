@@ -2,9 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Schedule } from '@tdsk/domain'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { Schedule, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { isValidCron, parseNextRun } from '@TBE/services/scheduler/cronParser'
 
@@ -20,12 +18,12 @@ export const createSchedule: TEndpointConfig = {
     await checkPermission(req, EPermAction.create, EPermResource.schedule, { orgId })
 
     const {
-      cronExpression,
       prompt,
       agentId,
       enabled,
       threadId,
       createThread,
+      cronExpression,
       maxConsecutiveErrors,
     } = req.body
 
@@ -44,14 +42,14 @@ export const createSchedule: TEndpointConfig = {
 
     const schedule = new Schedule({
       orgId,
-      agentId,
-      cronExpression,
       prompt,
-      enabled: enabled !== undefined ? enabled : true,
-      threadId: threadId || undefined,
-      createThread: createThread !== undefined ? createThread : true,
-      maxConsecutiveErrors: maxConsecutiveErrors !== undefined ? maxConsecutiveErrors : 5,
+      agentId,
       nextRunAt,
+      cronExpression,
+      enabled: enabled ?? true,
+      threadId: threadId || undefined,
+      createThread: createThread ?? true,
+      maxConsecutiveErrors: maxConsecutiveErrors ?? 5,
     })
 
     const { data, error } = await db.services.schedule.create(schedule)

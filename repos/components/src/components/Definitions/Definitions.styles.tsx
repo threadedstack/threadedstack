@@ -8,7 +8,6 @@ import { Text } from '@TSC/components/Text/Text'
 import { Image } from '@TSC/components/Image/Image'
 import { Button } from '@TSC/components/Buttons/Button'
 
-// TODO: grid-template-columns should change based on screen-size
 export const DefsContainer = styled(Box)`
   display: grid;
   max-height: 40vh;

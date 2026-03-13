@@ -37,7 +37,6 @@ const unsafeValues = [
   /^pw$/,
   /^pass$/i,
   /secret/i,
-  /token/i,
   /api[-._]?key/i,
   /session[-._]?id/i,
   /\*\*\*\*[^,}\n\t]*/i,
@@ -62,7 +61,7 @@ export const resetInjectedLogs = () => {
 
 export const injectUnsafe = (items: string[]) => {
   try {
-    items.map((item) => {
+    items.forEach((item) => {
       if (Injected.includes(item)) return
       Injected.push(item)
       injectedRegEx.push(new RegExp(escapeStrForRegEx(item), `i`))
@@ -80,10 +79,7 @@ const shouldHideUnsafe = (value: string) => {
 }
 
 const replaceInjected = (value: string) => {
-  return Injected.reduce((acc, item) => {
-    const replaced = acc.replaceAll(item, HIDDEN)
-    return replaced
-  }, value)
+  return Injected.reduce((acc, item) => acc.replaceAll(item, HIDDEN), value)
 }
 
 const replaceSecretMatch = (value: string, text: string, space?: boolean) => {

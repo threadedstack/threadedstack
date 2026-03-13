@@ -17,7 +17,7 @@ export class SecretsApi extends BaseApi {
     all: () => [`secrets`] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
     list: (orgId: string, projectId?: string) => {
-      const ref = projectId ? projectId : orgId
+      const ref = projectId || orgId
       return [...this.cache.all(), ref, `list`] as const
     },
   }

@@ -22,10 +22,9 @@ export class Templates {
   }
 
   constructor(opts?: TTemplates) {
-    Object.assign(this, {
-      ...opts,
-      regex: { ...this.regex, ...opts?.regex },
-    })
+    if (opts?.regex) {
+      this.regex = { ...this.regex, ...opts.regex } as TTemplateRegex
+    }
   }
 
   before = (value: string) => {

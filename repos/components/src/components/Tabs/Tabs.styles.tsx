@@ -29,8 +29,4 @@ export const TabsContainer = styled(Box)`
 
 `
 
-export const TabBadge = styled(Badge)`
-
-
-
-`
+export const TabBadge = styled(Badge)``

@@ -36,11 +36,9 @@ export const OrgAgents = (props: TOrgAgents) => {
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null)
 
   useEffect(() => {
-    orgId && fetchAgents({ orgId })
-  }, [orgId])
-
-  useEffect(() => {
-    orgId && fetchProviders({ orgId })
+    if (!orgId) return
+    fetchAgents({ orgId })
+    fetchProviders({ orgId })
   }, [orgId])
 
   const getProviderName = (providerId: string) => {

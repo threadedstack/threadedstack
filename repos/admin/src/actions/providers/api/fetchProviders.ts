@@ -1,5 +1,3 @@
-import type { Provider } from '@tdsk/domain'
-
 import { providersApi } from '@TAF/services'
 import { setProviders } from '@TAF/actions/providers/local/setProviders'
 

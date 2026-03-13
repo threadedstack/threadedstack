@@ -37,7 +37,7 @@ export const ActionCards = (props: TActionCards) => {
         {children}
       </Box>
 
-      {(actions && (
+      {actions && (
         <>
           <Divider sx={{ mb: 2 }} />
           <Grid
@@ -45,23 +45,19 @@ export const ActionCards = (props: TActionCards) => {
             spacing={2}
             className='tdsk-ac-gird'
           >
-            {actions?.map((action, idx) => {
-              return (
-                <Grid
-                  item
-                  sm={3}
-                  xs={12}
-                  // @ts-ignore
-                  key={action.title || action.subtitle || idx}
-                >
-                  <ActionCard {...action} />
-                </Grid>
-              )
-            })}
+            {actions.map((action, idx) => (
+              <Grid
+                item
+                sm={3}
+                xs={12}
+                key={idx}
+              >
+                <ActionCard {...action} />
+              </Grid>
+            ))}
           </Grid>
         </>
-      )) ||
-        null}
+      )}
     </>
   )
 }

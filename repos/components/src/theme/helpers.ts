@@ -59,10 +59,10 @@ export const autofillSx = (
   return {
     [`${el}:-webkit-autofill,${el}:-webkit-autofill:hover,${el}:-webkit-autofill:focus`]:
       {
-        [`border`]: `none`,
-        [`transition`]: `background-color 9999s ease-in-out 0s`,
-        [`WebkitTextFillColor`]: `${color}`,
-        [`WebkitBoxShadow`]: `0 0 0px 1000px ${background} inset`,
+        border: `none`,
+        transition: `background-color 9999s ease-in-out 0s`,
+        WebkitTextFillColor: color,
+        WebkitBoxShadow: `0 0 0px 1000px ${background} inset`,
       },
   }
 }
@@ -76,7 +76,7 @@ type TRGBAObj = {
 
 export const toRgba = (r: number | TRGBAObj, g?: number, b?: number, a?: number) => {
   const map = isObj(r)
-    ? { ...r, g: g || r?.g, b: b || r?.b, a: a || r?.a || 1 }
+    ? { ...r, g: g ?? r?.g, b: b ?? r?.b, a: a ?? r?.a ?? 1 }
     : { r, g, b, a }
 
   return `rgba(${map.r}, ${map.g}, ${map.b}, ${map.a})`

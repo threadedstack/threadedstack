@@ -156,8 +156,7 @@ const secretAct = async (props: TTaskActionArgs) => {
 
   await kubectl.create(props, [`secret`, type, name, ...secretArgs])
 
-  // Clean up temp files after creating the secrets
-  tempFiles.map((loc) => rmSync(loc))
+  tempFiles.forEach((loc) => rmSync(loc))
 }
 
 export const secret: TTask = {

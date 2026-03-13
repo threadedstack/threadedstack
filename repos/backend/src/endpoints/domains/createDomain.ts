@@ -51,43 +51,30 @@ export const createDomain: TEndpointConfig = {
       })
     }
 
-    // Step 1: Verify DNS configuration
-    // Check if the domain points to our ingress
+    // Step 1: Verify DNS — check if the domain points to our ingress
+    let records: string[]
     try {
-      const records = await new Promise<string[]>((resolve, reject) => {
-        dns.resolveCname(domain, (err, addresses) => {
-          if (err) {
-            // If CNAME fails, try A record
-            dns.resolve4(domain, (err2, addresses2) => {
-              if (err2) reject(err2)
-              else resolve(addresses2)
-            })
-          } else {
-            resolve(addresses)
-          }
-        })
-      })
-
-      // Check if any record points to our ingress
-      const pointsToIngress = records.some(
-        (record) =>
-          record === config.domains.proxyHost ||
-          record.endsWith(`.${config.domains.proxyHost}`)
-      )
-
-      if (!pointsToIngress)
-        throw new Exception(
-          400,
-          `Domain must point to ${config.domains.proxyHost}. Current records: ${records.join(', ')}`
-        )
+      records = await dns.promises
+        .resolveCname(domain)
+        .catch(() => dns.promises.resolve4(domain))
     } catch (error: any) {
-      if (error instanceof Exception) throw error
-
       throw new Exception(
         400,
         `DNS verification failed: ${error.message}. Please ensure your domain is configured correctly.`
       )
     }
+
+    const pointsToIngress = records.some(
+      (record) =>
+        record === config.domains.proxyHost ||
+        record.endsWith(`.${config.domains.proxyHost}`)
+    )
+
+    if (!pointsToIngress)
+      throw new Exception(
+        400,
+        `Domain must point to ${config.domains.proxyHost}. Current records: ${records.join(', ')}`
+      )
 
     // Step 2: Create domain in database
     const createResult = await db.services.domain.create(
@@ -112,32 +99,22 @@ export const createDomain: TEndpointConfig = {
     if (!record) throw new Exception(500, `Failed to create domain`)
 
     /** TODO: Extract this out to a Domain service */
-    // Step 3: Trigger certificate pre-warming
-    // This makes an HTTPS request to the domain to trigger Caddy's on-demand TLS
+    // Step 3: Trigger certificate pre-warming via HTTPS to invoke Caddy's on-demand TLS
     try {
-      const prewarmUrl = `https://${domain}`
-      await fetch(prewarmUrl, {
+      const prewarmRes = await fetch(`https://${domain}`, {
         method: `GET`,
-        headers: {
-          [config.domains.prewarmHeader]: `true`,
-        },
-        // Timeout after 10 seconds (certificate generation can take 5-10s)
+        headers: { [config.domains.prewarmHeader]: `true` },
         signal: AbortSignal.timeout(10000),
       })
-        .then(async (res) => {
-          if (res.status >= 400) {
-            const text = res.text ? await res.text() : res.statusText || `Request failed`
-            return logger.warn(`Pre-warm request failed (this may be normal): ${text}`)
-          }
 
-          // Mark domain as verified after pre-warm
-          await db.services.domain.verified(domain)
-        })
-        .catch((err) =>
-          logger.warn(`Pre-warm request failed (this may be normal): ${err.message}`)
-        )
-    } catch (error) {
-      logger.error(`Error during pre-warm:`, error)
+      if (prewarmRes.status < 400) {
+        await db.services.domain.verified(domain)
+      } else {
+        const text = await prewarmRes.text()
+        logger.warn(`Pre-warm request failed (this may be normal): ${text}`)
+      }
+    } catch (err: any) {
+      logger.warn(`Pre-warm request failed (this may be normal): ${err.message}`)
       // Don't fail the request, the certificate will be generated on first real request
     }
 

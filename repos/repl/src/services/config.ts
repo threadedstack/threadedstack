@@ -6,14 +6,19 @@ import { ConfigPath, ConfigDir, ProjectConfig } from '@TRL/constants/paths'
 import { chmodSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 export class ConfigService {
-  static loadGlobal(): TReplConfig {
-    if (!existsSync(ConfigPath)) return {}
+  static #loadYaml<T>(path: string): T | null {
+    if (!existsSync(path)) return null
     try {
-      const content = readFileSync(ConfigPath, `utf-8`)
-      return (yaml.load(content) as TReplConfig) || {}
-    } catch {
-      return {}
+      const content = readFileSync(path, `utf-8`)
+      return (yaml.load(content) as T) || null
+    } catch (err: any) {
+      console.warn(`Error loading config at "${path}"`, err?.message)
+      return null
     }
+  }
+
+  static loadGlobal(): TReplConfig {
+    return ConfigService.#loadYaml<TReplConfig>(ConfigPath) ?? {}
   }
 
   static saveGlobal(config: TReplConfig): void {
@@ -24,14 +29,11 @@ export class ConfigService {
   }
 
   static loadProject(cwd?: string): TProjectConfig {
-    const configPath = join(cwd || process.cwd(), ProjectConfig)
-    if (!existsSync(configPath)) return {}
-    try {
-      const content = readFileSync(configPath, `utf-8`)
-      return (yaml.load(content) as TProjectConfig) || {}
-    } catch {
-      return {}
-    }
+    return (
+      ConfigService.#loadYaml<TProjectConfig>(
+        join(cwd || process.cwd(), ProjectConfig)
+      ) ?? {}
+    )
   }
 
   static merge(global: TReplConfig, project: TProjectConfig): TReplConfig {

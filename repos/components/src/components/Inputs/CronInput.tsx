@@ -135,15 +135,14 @@ export const CronInput = (props: TCronInput) => {
         />
       </CronInputsRow>
 
-      {(showCron && (
+      {showCron && (
         <TextInput
           disabled
           id='cron-expression'
           label='Cron Expression'
           value={cronToString({ days, time, repeat, interval })}
         />
-      )) ||
-        null}
+      )}
     </CronContainer>
   )
 }

@@ -43,8 +43,7 @@ export const SBSection = (props: TSBSection) => {
   // Initialize expanded state from localStorage or default
   const [expanded, setExpanded] = useState(() => {
     const stored = storage.get(storageKey)
-    if (stored !== null && stored !== undefined)
-      return stored === `true` || stored === true
+    if (stored != null) return stored === `true` || stored === true
     return defaultExpanded
   })
 

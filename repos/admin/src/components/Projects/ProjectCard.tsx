@@ -49,8 +49,8 @@ export type TProjectCard = {
 export const ProjectCard = (props: TProjectCard) => {
   const { project, onDelete, onSelect, showDelete } = props
 
-  const [deleted, setDeleted] = useState<boolean>(false)
-  const [deleting, setDeleting] = useState<boolean>(false)
+  const [deleted, setDeleted] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const onDeleteCancel = () => setDeleting(false)
   const onDeleteConfirm = () => {
     if (!showDelete) return
@@ -83,7 +83,7 @@ export const ProjectCard = (props: TProjectCard) => {
               )}
             </Box>
 
-            {(project.gitUrl && (
+            {project.gitUrl && (
               <TextPair
                 label='Git:'
                 size='12px'
@@ -99,8 +99,7 @@ export const ProjectCard = (props: TProjectCard) => {
                 color='text.secondary'
                 sx={{ mt: 0.5 }}
               />
-            )) ||
-              null}
+            )}
 
             <TextPair
               label='ID:'

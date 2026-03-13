@@ -16,6 +16,7 @@
     "sync": "syncpack fix-mismatches --config configs/syncpack.config.js",
     "tdsk": "cd repos/cli; pnpm cli",
     "ts": "cd repos/cli; pnpm cli",
+    "check": "pnpm test && pnpm types",
     "test": "pnpm -r --filter=!@tdsk/integration test",
     "test:full": "pnpm -r test",
     "test:integration": "cd repos/integration && pnpm test",
@@ -32,7 +33,11 @@
     "biome:lint": "biome lint --config-path $(pwd)/configs/biome.json",
     "biome:format": "biome format --config-path $(pwd)/configs/biome.json",
     "prepare": "husky || true",
-    "types": "tsc --noEmit --pretty && pnpm -r types"
+    "types": "tsc --noEmit --pretty && pnpm -r types",
+    "simplify:analyze": "bash scripts/simplify/phase1-analyze.sh",
+    "simplify": "bash scripts/simplify/phase2-simplify.sh",
+    "simplify:dry": "SIMPLIFY_DRY_RUN=true bash scripts/simplify/phase2-simplify.sh",
+    "simplify:retry": "RETRY_FAILED=true bash scripts/simplify/phase2-simplify.sh"
   },
   "keywords": [],
   "author": "",

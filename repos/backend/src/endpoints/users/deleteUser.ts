@@ -47,7 +47,7 @@ export const deleteUser: TEndpointConfig = {
     await checkPermission(req, EPermAction.delete, EPermResource.user, { orgId })
 
     // Remove user from the org (not full deletion)
-    const { data, error } = await db.services.role.removeFromOrg(id, orgId)
+    const { error } = await db.services.role.removeFromOrg(id, orgId)
     if (error) throw new Exception(500, error.message)
 
     res.status(200).json({ data: { success: true, id, removedFrom: orgId } })

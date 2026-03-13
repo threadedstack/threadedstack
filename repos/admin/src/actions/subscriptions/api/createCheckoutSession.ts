@@ -11,11 +11,5 @@ export const createCheckoutSession = async (
   successUrl?: string,
   cancelUrl?: string
 ) => {
-  const resp = await subscriptionsApi.checkout({
-    planId,
-    successUrl,
-    cancelUrl,
-  })
-
-  return resp
+  return await subscriptionsApi.checkout({ planId, successUrl, cancelUrl })
 }

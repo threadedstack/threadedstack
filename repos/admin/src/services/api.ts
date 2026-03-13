@@ -121,9 +121,7 @@ export class ApiService {
     )
 
     const err = error || res.error
-    const resp = err ? { error: err } : res
-
-    return resp
+    return err ? { error: err } : res
   }
 
   fetch = async <R extends TApiData = TApiData>(opts: TApiReq): Promise<TApiRes<R>> => {
@@ -140,7 +138,6 @@ export class ApiService {
   get = async <D extends TApiData = TApiData>(opts: TApiReq): Promise<TApiRes<D>> => {
     const { queryKey, staleTime, refetchInterval, ...rest } = opts
 
-    //const [error, data] = await limbo<D, ApiError>(this.fetch<D>({ ...rest, method: EAPIMethod.GET }))
     const [error, data] = await limbo<D, ApiError>(
       query.fetch(
         query.options({

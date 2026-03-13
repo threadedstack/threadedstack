@@ -22,7 +22,7 @@ export const SBLogo = (props: TSBLogo) => {
         onClick={() => nav.home()}
       >
         <TSIcon svgStyle={style} />
-        {(full && (
+        {full && (
           <LogoText
             noWrap
             variant='h6'
@@ -30,8 +30,7 @@ export const SBLogo = (props: TSBLogo) => {
           >
             Threaded Stack
           </LogoText>
-        )) ||
-          null}
+        )}
       </LogoBtn>
     </LogoContainer>
   )

@@ -20,23 +20,17 @@ import { Version } from '@TRL/constants/version'
 import { PiTuiChat } from '@TRL/renderers/PiTuiChat'
 import { PiTuiStatus } from '@TRL/renderers/PiTuiStatus'
 
-const editorTheme: EditorTheme = {
-  borderColor: (s) => chalk.cyan(s),
-  selectList: {
-    selectedPrefix: (s) => chalk.cyan(s),
-    selectedText: (s) => chalk.white(s),
-    description: (s) => chalk.dim(s),
-    scrollInfo: (s) => chalk.dim(s),
-    noMatch: (s) => chalk.dim(s),
-  },
-}
-
 const selectListTheme = {
   selectedPrefix: (s: string) => chalk.cyan(s),
   selectedText: (s: string) => chalk.white(s),
   description: (s: string) => chalk.dim(s),
   scrollInfo: (s: string) => chalk.dim(s),
   noMatch: (s: string) => chalk.dim(s),
+}
+
+const editorTheme: EditorTheme = {
+  borderColor: (s) => chalk.cyan(s),
+  selectList: selectListTheme,
 }
 
 /**

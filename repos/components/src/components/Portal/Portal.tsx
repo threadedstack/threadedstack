@@ -1,16 +1,14 @@
-import type { MutableRefObject, ReactNode } from 'react'
+import type { RefObject, ReactNode } from 'react'
 
 import { createPortal } from 'react-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useForceUpdate } from '@TSC/hooks/components/useForceUpdate'
 
 export type TPortal = {
   id?: string
   children: ReactNode
-  elementRef?: MutableRefObject<HTMLElement | null | undefined>
+  elementRef?: RefObject<HTMLElement | null | undefined>
 }
-
-const hasDocument = typeof document !== `undefined`
 
 export const Portal = (props: TPortal) => {
   const { id, children, elementRef } = props

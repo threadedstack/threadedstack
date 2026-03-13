@@ -1,5 +1,3 @@
-import type { TRouteMap } from '@tdsk/domain'
-
 /**
  * Extract SNI (Server Name Indication) hostname from a TLS ClientHello.
  * Returns null if the buffer doesn't contain a valid ClientHello or no SNI extension.

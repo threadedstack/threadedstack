@@ -96,7 +96,6 @@ export class AgentRunner {
     if (sandboxConfig?.provider) {
       const provider = createSandboxProvider(sandboxConfig.provider as any)
 
-      // TODO: Figure out how to get existing app.locals.kube passed in here
       this.#sandbox = await provider.create({
         envVars: sandboxConfig.envVars,
         options: sandboxConfig.options || {},
@@ -113,21 +112,7 @@ export class AgentRunner {
         webProviderType: opts.environment.webProvider.type,
       })
     }
-    const webProvider = createWebProvider(opts.environment?.webProvider)
-    const sandboxTools = this.#sandbox
-      ? createSandboxTools(this.#sandbox, opts.tools)
-      : []
-    const webTools = createWebTools(webProvider, opts.tools)
-    const agentTools = [...sandboxTools, ...webTools]
-
-    // Build and merge custom function tools
-    if (opts.customFunctions?.length && opts.onExecuteFunction) {
-      const customTools = buildCustomFunctionTools(
-        opts.customFunctions,
-        opts.onExecuteFunction
-      )
-      agentTools.push(...customTools)
-    }
+    const agentTools = this.#buildTools(opts.tools)
 
     // 3. Create pi-mono model
     // getModel returns Model<specific Api> but we store as Model<Api> for multi-provider support
@@ -246,28 +231,11 @@ export class AgentRunner {
       const updatedPrompt = this.#baseSystemPrompt + resolved.instructions
       this.#agent!.setSystemPrompt(updatedPrompt)
 
-      // Merge skill-requested tools with the agent's base tool set
       if (resolved.tools.length > 0) {
         const mergedToolNames = [
           ...new Set([...(initOpts.tools || []), ...resolved.tools]),
         ]
-        const skillWebProvider = createWebProvider(initOpts.environment?.webProvider)
-        const mergedSandboxTools = this.#sandbox
-          ? createSandboxTools(this.#sandbox, mergedToolNames)
-          : []
-        const mergedWebTools = createWebTools(skillWebProvider, mergedToolNames)
-        const mergedTools = [...mergedSandboxTools, ...mergedWebTools]
-
-        // Re-add custom function tools if present
-        if (initOpts.customFunctions?.length && initOpts.onExecuteFunction) {
-          const customTools = buildCustomFunctionTools(
-            initOpts.customFunctions,
-            initOpts.onExecuteFunction
-          )
-          mergedTools.push(...customTools)
-        }
-
-        this.#agent!.setTools(mergedTools)
+        this.#agent!.setTools(this.#buildTools(mergedToolNames))
       }
     }
 
@@ -458,13 +426,33 @@ export class AgentRunner {
     }
 
     if (config.tools) {
-      const configWebProvider = createWebProvider(this.#opts?.environment?.webProvider)
-      const newSandboxTools = this.#sandbox
-        ? createSandboxTools(this.#sandbox, config.tools)
-        : []
-      const newWebTools = createWebTools(configWebProvider, config.tools)
-      this.#agent.setTools([...newSandboxTools, ...newWebTools])
+      this.#agent.setTools(this.#buildTools(config.tools, false))
     }
+  }
+
+  /**
+   * Build sandbox + web + optional custom function tools for the current config.
+   */
+  #buildTools(toolNames?: string[], includeCustom = true) {
+    const webProvider = createWebProvider(this.#opts?.environment?.webProvider)
+    const sandboxTools = this.#sandbox ? createSandboxTools(this.#sandbox, toolNames) : []
+    const webTools = createWebTools(webProvider, toolNames)
+    const tools = [...sandboxTools, ...webTools]
+
+    if (
+      includeCustom &&
+      this.#opts?.customFunctions?.length &&
+      this.#opts.onExecuteFunction
+    ) {
+      tools.push(
+        ...buildCustomFunctionTools(
+          this.#opts.customFunctions,
+          this.#opts.onExecuteFunction
+        )
+      )
+    }
+
+    return tools
   }
 
   /**
