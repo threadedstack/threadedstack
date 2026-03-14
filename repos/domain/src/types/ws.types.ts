@@ -21,6 +21,7 @@ export enum EWSEventType {
   WorkspaceManifest = `workspace_manifest`,
 
   // Server → Client
+  Ping = `ping`,
   Done = `done`,
   Error = `error`,
   TurnEnd = `turn_end`,
@@ -170,7 +171,12 @@ export type TWSFileUploadCompleteMsg = {
   fileSize: number
 }
 
+export type TWSPingMsg = {
+  type: EWSEventType.Ping
+}
+
 export type TWSServerMsg =
+  | TWSPingMsg
   | TWSTextDeltaMsg
   | TWSThinkingDeltaMsg
   | TWSToolExecStartMsg

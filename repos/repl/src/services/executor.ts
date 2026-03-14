@@ -181,6 +181,9 @@ export class Executor {
 
           case EWSEventType.FileChanged:
             break
+
+          case EWSEventType.Ping:
+            break
         }
       })
 
