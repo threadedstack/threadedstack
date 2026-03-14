@@ -85,11 +85,12 @@ describe('Tier 3: REPL Executor — LLM E2E (live)', () => {
     expect(runResult).toBeTruthy()
   })
 
+  
   test.skipIf(!hasProviderKey())('run() streams events via onEvent', () => {
     expect(events.length).toBeGreaterThan(0)
 
     const textEvents = events.filter(e => e.type === 'text')
-    const toolEvents = events.filter(e => e.type === 'toolCallStart' || e.type === 'toolResult')
+    const toolEvents = events.filter(e => e.type === 'tool_call_start' || e.type === 'tool_result')
     const doneEvents = events.filter(e => e.type === 'done')
 
     // LLM may respond with text, tool calls, or both
