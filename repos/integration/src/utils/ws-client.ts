@@ -14,6 +14,25 @@ export interface WSResult {
 }
 
 /**
+ * Poll a messages array for a message matching the given type.
+ * Resolves with the matching message, or null if the timeout expires.
+ */
+export const waitForMessage = (
+  messages: WSMessage[],
+  type: string,
+  timeoutMs = 15_000,
+  pollMs = 100,
+): Promise<WSMessage | null> =>
+  new Promise((resolve) => {
+    const start = Date.now()
+    const iv = setInterval(() => {
+      const match = messages.find(m => m.type === type)
+      if (match) { clearInterval(iv); resolve(match) }
+      else if (Date.now() - start >= timeoutMs) { clearInterval(iv); resolve(null) }
+    }, pollMs)
+  })
+
+/**
  * Connect to the WebSocket agent endpoint, send a prompt, and collect
  * all server messages until the connection closes.
  *
@@ -67,6 +86,7 @@ export const consumeWS = (
     ws.on('message', (raw: Buffer | string) => {
       try {
         const msg = JSON.parse(typeof raw === 'string' ? raw : raw.toString('utf8')) as WSMessage
+        if (msg.type === EWSEventType.Ping) return
         messages.push(msg)
 
         // Close after receiving 'done' to mirror real client behavior
@@ -144,6 +164,7 @@ export const createWSConnection = (
     ws.on('message', (raw: Buffer | string) => {
       try {
         const msg = JSON.parse(typeof raw === 'string' ? raw : raw.toString('utf8')) as WSMessage
+        if (msg.type === EWSEventType.Ping) return
         messages.push(msg)
       } catch {
         // Non-JSON message — skip
