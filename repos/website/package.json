@@ -22,6 +22,7 @@
     "preview": "vite preview -c configs/vite.config.ts",
     "start": "vite -c configs/vite.config.ts",
     "sf": "NODE_ENV=local vite -c configs/vite.config.ts",
+    "test": "vitest run --config configs/vite.config.ts",
     "types": "tsc --noEmit --pretty"
   },
   "dependencies": {

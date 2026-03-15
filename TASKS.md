@@ -533,25 +533,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * New: `repos/website/public/docs/images/` — screenshot directory
   * Various MDX files — add image references
 
-### [IN PROGRESS][P1] "Get Started" buttons should link to admin login page
-
-* **Repos**: website
-* **Key files**: Multiple components with `Get Started` buttons
-* All "Get Started" buttons link to `/docs/getting-started` (the docs page) instead of the admin app login page. Users clicking "Get Started" expect to sign up / log in, not read documentation
-* **Locations**:
-  * `repos/website/src/components/Landing/Hero.tsx` line 148: `href='/docs/getting-started'`
-  * `repos/website/src/components/Landing/CTABanner.tsx` line 34: `to='/docs/getting-started'`
-  * `repos/website/src/components/Header/Header.tsx` line 98: `to='/docs/getting-started'`
-  * `repos/website/src/components/Header/MobileMenu.tsx` — same pattern
-* **Fix**:
-  1. Change all "Get Started" button links to point to the admin app login URL (e.g., `https://app.threadedstack.app` or the appropriate admin login route)
-  2. Consider keeping a separate "Read Docs" link for users who want documentation
-* **Files**:
-  * `repos/website/src/components/Landing/Hero.tsx` — update href
-  * `repos/website/src/components/Landing/CTABanner.tsx` — update `to` prop
-  * `repos/website/src/components/Header/Header.tsx` — update `to` prop
-  * `repos/website/src/components/Header/MobileMenu.tsx` — update `to` prop
-
 ### [P3] Add Contact and About pages with footer links
 
 * **Repos**: website

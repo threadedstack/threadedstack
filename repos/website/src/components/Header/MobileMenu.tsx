@@ -5,6 +5,7 @@ import ListItemText from '@mui/material/ListItemText'
 import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
 import { Link as RouterLink } from 'react-router'
+import { TDSK_AD_APP_URL } from '@TAF/constants/envs'
 
 type Props = {
   open: boolean
@@ -33,8 +34,7 @@ const MobileMenu = ({ open, onClose, navItems }: Props) => (
     </List>
     <Box sx={{ p: 2 }}>
       <Button
-        component={RouterLink}
-        to='/docs/getting-started'
+        href={TDSK_AD_APP_URL}
         variant='contained'
         fullWidth
         onClick={onClose}

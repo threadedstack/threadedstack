@@ -12,6 +12,7 @@ import { useTheme } from '@mui/material/styles'
 import { useScrollPosition } from '@TAF/hooks/useScrollPosition'
 import ThemeToggle from './ThemeToggle'
 import MobileMenu from './MobileMenu'
+import { TDSK_AD_APP_URL } from '@TAF/constants/envs'
 
 const navItems = [
   { label: 'Features', path: '/features' },
@@ -94,8 +95,7 @@ const Header = () => {
             </IconButton>
             <ThemeToggle />
             <Button
-              component={RouterLink}
-              to='/docs/getting-started'
+              href={TDSK_AD_APP_URL}
               variant='contained'
               size='small'
               sx={{ ml: 1 }}

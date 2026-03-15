@@ -3,6 +3,7 @@ import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import { Link as RouterLink } from 'react-router'
+import { TDSK_AD_APP_URL } from '@TAF/constants/envs'
 
 const CTABanner = () => (
   <Box
@@ -30,8 +31,7 @@ const CTABanner = () => (
         <Button
           variant='contained'
           size='large'
-          component={RouterLink}
-          to='/docs/getting-started'
+          href={TDSK_AD_APP_URL}
           sx={{
             bgcolor: '#fff',
             color: 'primary.main',

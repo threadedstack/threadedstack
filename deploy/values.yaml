@@ -232,6 +232,7 @@ env:
   TDSK_BE_EGRESS_PORT: 8889
 
   # ---- Admin ENVs --- #
+  TDSK_AD_APP_URL: http://localhost:5887
   TDSK_AD_PORT: 5887
   TDSK_AD_IMAGE_TAG: latest
   TDSK_AD_DEV_IMAGE_TAG: main
