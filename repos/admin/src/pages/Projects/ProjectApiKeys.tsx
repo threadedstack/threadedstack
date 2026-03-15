@@ -2,7 +2,6 @@ import type { ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { Page } from '@TAF/pages/Page/Page'
-import { useApiKeys } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
 import { listProjectMembers } from '@TAF/actions/projectMembers'
@@ -10,10 +9,15 @@ import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
-import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
 import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import {
+  useApiKeys,
+  useProjectMembers,
+  useActiveOrgId,
+  useActiveProjectId,
+} from '@TAF/state/selectors'
 
 import {
   Add as AddIcon,
@@ -28,39 +32,36 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
   const [apiKeys] = useApiKeys()
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
+  const [projectMembersMap] = useProjectMembers()
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<Error | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null)
-  const [projectUsers, setProjectUsers] = useState<
-    Array<{ id: string; name: string; email?: string }>
-  >([])
 
-  // Load project members mapped with org user details for the user selector
+  const projectUsers = useMemo(() => {
+    const members = projectMembersMap?.[projectId]
+    if (!members) return []
+    return Object.values(members).map((role) => ({
+      id: role.userId,
+      name:
+        role.user?.name ||
+        [role.user?.first, role.user?.last].filter(Boolean).join(' ') ||
+        role.user?.email ||
+        `User`,
+      email: role.user?.email,
+    }))
+  }, [projectMembersMap, projectId])
+
+  // Fetch project members into Jotai state for the user selector
   useEffect(() => {
     if (!orgId || !projectId) return
-
-    const loadUsers = async () => {
-      const membersResp = await listProjectMembers({ orgId, projectId })
-
-      if (membersResp.data) {
-        setProjectUsers(
-          membersResp.data.map((role) => ({
-            id: role.userId,
-            name:
-              role.user?.name ||
-              [role.user?.first, role.user?.last].filter(Boolean).join(' ') ||
-              role.user?.email ||
-              `User`,
-            email: role.user?.email,
-          }))
-        )
-      }
+    const loadMembers = async () => {
+      const resp = await listProjectMembers({ orgId, projectId })
+      if (resp.error) setError(resp.error)
     }
-
-    loadUsers()
+    loadMembers()
   }, [orgId, projectId])
 
   // Load project-scoped API keys

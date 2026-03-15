@@ -403,21 +403,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * `repos/admin/src/components/Endpoints/EndpointsTable.tsx` — refactor from raw MUI Table to DataTable component
   * `repos/admin/src/components/DataTable/DataTable.tsx` — reference for column definition format and pagination behavior
 
-### [P1] Project API Keys — user selector not appearing in create drawer
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/pages/Projects/ProjectApiKeys.tsx` (lines 38-72, 304-311), `repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx` (lines 226-234)
-* The `CreateApiKeyDrawer` supports a `users` prop and conditionally renders a `UserSelectorSingle` component when `!userId && users && users.length > 0` (line 226). The Org API Keys page (`OrgApiKeys.tsx`) passes `users={orgUsers}` derived from Jotai state (loaded eagerly via `listOrgUsers`), and the selector works. The Project API Keys page also passes `users={projectUsers}` (line 308), but the `projectUsers` state relies on an async `useEffect` (lines 42-72) that calls both `listProjectMembers` and `listOrgUsers` in parallel. If either call returns no data, or the member-to-user mapping fails, `projectUsers` remains an empty array and the selector never renders. The backend fully supports `userId` on project-scoped API keys (createApiKey.ts lines 54-100) with project member validation
-* **Fix**:
-  1. Debug the `loadUsers` effect in `ProjectApiKeys.tsx` (lines 46-68) — verify `listProjectMembers` returns members with valid `userId` values and `listOrgUsers` returns matching user data
-  2. Add error handling to the `loadUsers` effect — currently failures are silently swallowed (no catch/error state)
-  3. Consider loading project users eagerly via Jotai state (like `OrgApiKeys` does with `useOrgUsers()`) instead of local `useState` to ensure data is available before the drawer opens
-  4. Verify the user selector renders correctly and the selected `userId` is submitted in the API key creation request
-* **Files**:
-  * `repos/admin/src/pages/Projects/ProjectApiKeys.tsx` — fix user loading logic (lines 42-72) and ensure `projectUsers` is populated
-  * `repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx` — verify selector rendering condition (line 226)
-  * `repos/admin/src/actions/projectMembers/` — verify `listProjectMembers` action returns expected data
-
 ---
 
 ## Backend
