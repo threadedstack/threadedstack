@@ -410,20 +410,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 
 ## Website
 
-### [P2] Header: title text styling does not match admin app
-
-* **Repos**: website, admin (reference)
-* **Key files**: `repos/website/src/components/Header/Header.tsx` (lines 47-68), `repos/admin/src/components/Sidebar/SBLogo.tsx`, `repos/admin/src/components/Sidebar/Sidebar.styles.tsx` (lines 51-60)
-* The website header uses Typography variant `subtitle1` (~16px) with a gradient text effect in dark mode (`gradient-text-dark` class from `GlobalStyles.tsx` lines 70-75) and plain text in light mode. The admin header uses Typography variant `h6` (18px) with `letterSpacing: -1px`, plain `text.primary` color, and 28x28px icon with `colors.primary.main` fill. The website should match the admin's sizing, spacing, and color approach
-* **Fix**:
-  1. Change Typography variant from `subtitle1` to `h6` in `Header.tsx` line 59
-  2. Add `letterSpacing: '-1px'` and `fontSize: '18px'` to match admin `Sidebar.styles.tsx` lines 53-54
-  3. Change icon size from 24x24 to 28x28 and apply `colors.primary.main` fill (line 51)
-  4. Remove the `gradient-text-dark` class usage — use `color: text.primary` to match admin
-* **Files**:
-  * `repos/website/src/components/Header/Header.tsx` — update title text variant, size, and styling
-  * `repos/website/src/theme/GlobalStyles.tsx` — optionally remove unused `gradient-text-dark` class if no longer referenced
-
 ### [P3] Documentation: 19 missing content pages referenced in sidebar
 
 * **Repos**: website
@@ -451,29 +437,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * New: `repos/website/src/content/docs/guides/repl-cli.mdx`
   * New: `repos/website/src/content/docs/guides/self-hosting.mdx`
   * New: `repos/website/src/content/docs/changelog.mdx`
-
-### [P2] Documentation: light theme inline `<code>` elements lack contrast
-
-* **Repos**: website
-* **Key files**: `repos/website/src/components/Docs/MDXComponents.tsx` (lines 81-97)
-* Inline `<code>` elements use `bgcolor: 'action.hover'` (line 88) for background. In light theme, `action.hover` resolves to a near-white color that provides insufficient contrast against the white page background. The code elements don't stand out
-* **Fix**:
-  1. Replace `bgcolor: 'action.hover'` with a theme-aware value that provides visible contrast in both themes — e.g., `bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'` or use `grey[100]`/`grey[800]` per theme
-  2. Consider adding a subtle border (`1px solid divider`) for additional visual separation in light mode
-* **Files**:
-  * `repos/website/src/components/Docs/MDXComponents.tsx` — update inline code background styling
-
-### [P2] Documentation: markdown heading colors appear too purple
-
-* **Repos**: website
-* **Key files**: `repos/website/src/components/Docs/MDXComponents.tsx` (lines 14-33)
-* Markdown h1/h2/h3 elements map to MUI Typography variants (h3, h4, h5) and inherit color from `MuiTypography` styleOverrides (`colors.primaryForeground`). If the heading colors appear too purple, the `primaryForeground` value or the Typography variant color needs adjustment toward a bluer tone
-* **Fix**:
-  1. Add explicit `color` prop to the heading Typography components in `MDXComponents.tsx` (lines 14-33) using a bluer shade — e.g., `color: 'text.primary'` or a specific blue value from the theme palette
-  2. Alternatively, adjust the `primaryForeground` color in the theme if it skews purple
-* **Files**:
-  * `repos/website/src/components/Docs/MDXComponents.tsx` — adjust heading color
-  * Possibly: `repos/components/src/theme/colors.ts` — if `primaryForeground` needs adjustment
 
 ### [P3] Documentation: add screenshots and flow images
 

@@ -14,21 +14,21 @@ export const mdxComponents = {
   h1: (props: any) => (
     <Typography
       variant='h3'
-      sx={{ mb: 3, mt: 4 }}
+      sx={{ mb: 3, mt: 4, color: 'text.primary' }}
       {...props}
     />
   ),
   h2: (props: any) => (
     <Typography
       variant='h4'
-      sx={{ mb: 2, mt: 4 }}
+      sx={{ mb: 2, mt: 4, color: 'text.primary' }}
       {...props}
     />
   ),
   h3: (props: any) => (
     <Typography
       variant='h5'
-      sx={{ mb: 1.5, mt: 3 }}
+      sx={{ mb: 1.5, mt: 3, color: 'text.primary' }}
       {...props}
     />
   ),
@@ -85,7 +85,12 @@ export const mdxComponents = {
         <Box
           component='code'
           sx={{
-            bgcolor: 'action.hover',
+            bgcolor: (theme) =>
+              theme.palette.mode === 'dark'
+                ? 'rgba(255,255,255,0.08)'
+                : 'rgba(0,0,0,0.06)',
+            border: 1,
+            borderColor: 'divider',
             px: 0.75,
             py: 0.25,
             borderRadius: 0.5,

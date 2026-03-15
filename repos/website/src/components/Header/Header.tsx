@@ -8,7 +8,6 @@ import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import MenuIcon from '@mui/icons-material/Menu'
 import GitHubIcon from '@mui/icons-material/GitHub'
-import { useTheme } from '@mui/material/styles'
 import { useScrollPosition } from '@TAF/hooks/useScrollPosition'
 import ThemeToggle from './ThemeToggle'
 import MobileMenu from './MobileMenu'
@@ -21,8 +20,6 @@ const navItems = [
 ]
 
 const Header = () => {
-  const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
   const scrolled = useScrollPosition()
   const { pathname } = useLocation()
   const isLanding = pathname === '/'
@@ -54,17 +51,13 @@ const Header = () => {
               component='img'
               src='/logo.svg'
               alt='Threaded Stack'
-              sx={{ width: 24, height: 24 }}
+              sx={{ width: 28, height: 28 }}
             />
             <Typography
-              variant='subtitle1'
-              sx={{ fontWeight: 700, ...(!isDark ? { color: 'text.primary' } : {}) }}
+              variant='h6'
+              sx={{ fontSize: '18px', letterSpacing: '-1px', color: 'text.primary' }}
             >
-              {isDark ? (
-                <span className='gradient-text-dark'>Threaded Stack</span>
-              ) : (
-                'Threaded Stack'
-              )}
+              Threaded Stack
             </Typography>
           </Box>
 
