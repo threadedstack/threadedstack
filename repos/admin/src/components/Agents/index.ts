@@ -4,6 +4,7 @@ export * from './BasicInfoForm'
 export * from './ModelSelect'
 export * from './ModelConfigForm'
 export * from './AgentSettingsForm'
+export * from './WebProviderSettings'
 export * from './ProviderPriorityList'
 
 // Re-export selectors from their new home for backwards compatibility

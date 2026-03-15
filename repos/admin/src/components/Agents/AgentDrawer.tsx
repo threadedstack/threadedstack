@@ -24,7 +24,12 @@ import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { upsertAgentConfig } from '@TAF/actions/agents/api/upsertAgentConfig'
 import { Autocomplete, Box, Stack, Divider, TextField, Typography } from '@mui/material'
-import { BasicInfoForm, ModelConfigForm, AgentSettingsForm } from '@TAF/components/Agents'
+import {
+  WebProviderSettings,
+  BasicInfoForm,
+  ModelConfigForm,
+  AgentSettingsForm,
+} from '@TAF/components/Agents'
 import {
   ToolsSelector,
   SecretsSelector,
@@ -541,57 +546,14 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
           <Divider />
 
-          <Box>
-            <Typography
-              variant='subtitle2'
-              sx={{ fontWeight: 600, mb: 2 }}
-            >
-              Web Provider
-            </Typography>
-            <Stack spacing={2}>
-              <Autocomplete
-                id='web-provider-type'
-                disabled={loading}
-                value={webProviderType || null}
-                options={['jina']}
-                getOptionLabel={(opt) => opt.charAt(0).toUpperCase() + opt.slice(1)}
-                onChange={(_, val) =>
-                  setWebProviderType((val as TWebProviderBrand) || '')
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    size='small'
-                    placeholder='Select provider...'
-                  />
-                )}
-              />
-              {webProviderType && (
-                <Autocomplete
-                  id='web-provider-secret'
-                  disabled={loading}
-                  value={
-                    secretsList.some((s) => s.id === webProviderSecretId)
-                      ? webProviderSecretId
-                      : null
-                  }
-                  options={secretsList.map((s) => s.id)}
-                  getOptionLabel={(id) => {
-                    const secret = secretsList.find((s) => s.id === id)
-                    return secret?.name || id
-                  }}
-                  onChange={(_, val) => setWebProviderSecretId(val || '')}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      size='small'
-                      placeholder='Select API key secret...'
-                    />
-                  )}
-                />
-              )}
-            </Stack>
-          </Box>
+          <WebProviderSettings
+            loading={loading}
+            secretsList={secretsList}
+            webProviderType={webProviderType}
+            webProviderSecretId={webProviderSecretId}
+            onWebProviderTypeChange={setWebProviderType}
+            onWebProviderSecretIdChange={setWebProviderSecretId}
+          />
 
           {!isOverrideMode && (
             <>

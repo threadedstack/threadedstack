@@ -341,21 +341,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 
 ## Admin
 
-### [P2] AgentDrawer: extract Web Provider settings into standalone component
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/components/Agents/AgentDrawer.tsx`
-* The AgentDrawer component contains inline Web Provider settings UI (lines 544-594) with associated state (lines 78-79), data population (lines 214-216), reset logic (lines 237-238), and environment building (lines 279-286). This should be extracted into its own component following the existing pattern of `BasicInfoForm`, `ModelConfigForm`, and `AgentSettingsForm`
-* **Fix**:
-  1. Create `repos/admin/src/components/Agents/WebProviderSettings.tsx` with props: `webProviderType`, `webProviderSecretId`, `secretsList`, `loading`, `onWebProviderTypeChange`, `onWebProviderSecretIdChange`
-  2. Move the JSX from AgentDrawer lines 544-594 (Autocomplete for provider type + conditional Autocomplete for secret) into the new component
-  3. Import `TWebProviderBrand` from `@tdsk/domain` (defined at `repos/domain/src/types/ai.types.ts` lines 146-150)
-  4. Replace the inline JSX in AgentDrawer with `<WebProviderSettings ... />` call
-  5. Export from `repos/admin/src/components/Agents/index.ts`
-* **Files**:
-  * New: `repos/admin/src/components/Agents/WebProviderSettings.tsx` — extracted component
-  * `repos/admin/src/components/Agents/AgentDrawer.tsx` — replace inline code with component usage
-  * `repos/admin/src/components/Agents/index.ts` — add export
 
 ### [P2] Quick Start Drawer: normalize styles to match other admin drawers
 
@@ -388,20 +373,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * `repos/admin/src/components/Quickstart/AgentStep.tsx` — replace custom toggle with MUI Accordion, remove letterSpacing, normalize spacing, fix Text vs Typography, extract shared styles
   * `repos/admin/src/components/Quickstart/QuickstartWizard.tsx` — remove hardcoded minHeight and fontSize
   * New: `repos/admin/src/components/Quickstart/Quickstart.styles.tsx` — shared styled components (SectionHeader, SectionIcon)
-
-### [P2] Project Endpoints Table — missing table footer (pagination)
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/components/Endpoints/EndpointsTable.tsx` (lines 48-139)
-* The `EndpointsTable` component renders all endpoints using raw MUI `Table`, `TableHead`, `TableBody`, `TableRow`, `TableCell` components with no pagination. Every other table in the admin app uses the shared `DataTable` component (`repos/admin/src/components/DataTable/DataTable.tsx`) which includes built-in `TablePagination` (lines 105-113) with rows-per-page selector (5, 10, 25, 50) and page navigation. The EndpointsTable is the only table missing this footer
-* **Fix**:
-  1. Refactor `EndpointsTable` to use the shared `DataTable` component instead of raw MUI Table components — this matches the pattern used by `ProjectApiKeys`, `Domains`, `Secrets`, `Providers`, `Functions`, `Sandboxes`, and all other list views
-  2. Define column definitions as `TDataTableColumn<Endpoint>[]` — map existing inline cell rendering (edit icon, endpoint type chip, visibility icon, delete button) into column `render` functions
-  3. Move delete confirmation logic to an Actions column renderer, keeping the existing `ConfirmDelete` modal
-  4. Remove ~90 lines of custom Table JSX that `DataTable` handles automatically
-* **Files**:
-  * `repos/admin/src/components/Endpoints/EndpointsTable.tsx` — refactor from raw MUI Table to DataTable component
-  * `repos/admin/src/components/DataTable/DataTable.tsx` — reference for column definition format and pagination behavior
 
 ---
 
