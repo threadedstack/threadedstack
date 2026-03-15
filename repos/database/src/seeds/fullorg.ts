@@ -4,6 +4,7 @@ import { encryptSecret } from '@TDB/utils/crypto'
 import {
   User,
   Role,
+  Skill,
   Agent,
   Quota,
   Asset,
@@ -11,9 +12,11 @@ import {
   Thread,
   Domain,
   Secret,
+  Sandbox,
   Message,
   Project,
   Provider,
+  Schedule,
   EProvider,
   Invitation,
   Subscription,
@@ -236,6 +239,7 @@ const providers = {
     brand: ELLMProviderBrand.openai,
     id: Ids.provider.acmeOpenai,
     name: `OpenAI Provider`,
+    secretId: Ids.secret.acmeApiKey,
     options: {
       temperature: 0.7,
       model: `gpt-4-turbo`,
@@ -247,6 +251,7 @@ const providers = {
     brand: ELLMProviderBrand.anthropic,
     id: Ids.provider.acmeAnthropic,
     name: `Anthropic Provider`,
+    secretId: Ids.secret.providerAnthropicKey,
     options: {
       model: `claude-3-opus-20240229`,
     },
@@ -257,6 +262,7 @@ const providers = {
     brand: ELLMProviderBrand.zai,
     id: Ids.provider.zai,
     name: `ZAI Provider`,
+    secretId: Ids.secret.zaiKey,
     options: {
       model: `glm-5`,
       tool_stream: true,
@@ -389,6 +395,13 @@ const agents = {
     systemPrompt: `You are a senior software engineer.`,
     secrets: [secrets.anthropic],
     tools: [`readFile`, `writeFile`, `shellExec`],
+    projectConfigs: [
+      {
+        agentId: Ids.agent.codingAgent,
+        projectId: projects.api.id,
+        functionIds: [Ids.function.agentDataParser, Ids.function.agentCodeReview],
+      },
+    ],
     environment: {
       timeout: 30000,
       memory: 512,
@@ -421,6 +434,13 @@ const agents = {
     providers: [providers.zai, providers.anthropic, providers.openai],
     systemPrompt: `Answer the users questions.`,
     secrets: [secrets.zaiSecret, secrets.agentEnv],
+    projectConfigs: [
+      {
+        agentId: Ids.agent.generalAgent,
+        projectId: projects.web.id,
+        functionIds: [Ids.function.agentDocGen],
+      },
+    ],
     environment: {
       streaming: true,
       temperature: 0.7,
@@ -547,6 +567,84 @@ export async function generateToken(userId: string) {
     dependencies: {
       jsonwebtoken: `^9.0.0`,
     },
+  }),
+}
+
+// --- Agent Functions (not tied to endpoints — used as agent tools via agentProjects.functionIds) ---
+const agentFuncs = {
+  dataParser: new FunctionModel({
+    id: Ids.function.agentDataParser,
+    projectId: projects.api.id,
+    endpointId: undefined,
+    name: `Data Parser`,
+    description: `Parses and validates structured data formats (JSON, CSV, XML)`,
+    language: EFunLanguage.typescript,
+    branch: `main`,
+    content: [
+      `export async function parse(input: string, format: string = 'json') {`,
+      `  switch (format) {`,
+      `    case 'json': return JSON.parse(input);`,
+      `    case 'csv': {`,
+      `      const lines = input.trim().split('\\n');`,
+      `      const headers = lines[0].split(',');`,
+      `      return lines.slice(1).map(line => {`,
+      `        const values = line.split(',');`,
+      `        return Object.fromEntries(headers.map((h, i) => [h.trim(), values[i]?.trim()]));`,
+      `      });`,
+      `    }`,
+      `    default: throw new Error('Unsupported format: ' + format);`,
+      `  }`,
+      `}`,
+    ].join(`\n`),
+    defaultArgs: [`{}`],
+    dependencies: {},
+  }),
+  codeReview: new FunctionModel({
+    id: Ids.function.agentCodeReview,
+    projectId: projects.api.id,
+    endpointId: undefined,
+    name: `Code Reviewer`,
+    description: `Analyzes code for common issues, style violations, and potential bugs`,
+    language: EFunLanguage.typescript,
+    branch: `main`,
+    content: [
+      `export async function review(code: string, language: string = 'typescript') {`,
+      `  const issues: Array<{ line: number; severity: string; message: string }> = [];`,
+      `  const lines = code.split('\\n');`,
+      `  lines.forEach((line, i) => {`,
+      `    if (line.length > 120) issues.push({ line: i + 1, severity: 'warning', message: 'Line exceeds 120 characters' });`,
+      `    if (line.includes('console.log')) issues.push({ line: i + 1, severity: 'warning', message: 'Remove console.log before production' });`,
+      `  });`,
+      `  return { language, issues, summary: 'Found ' + issues.length + ' issue(s)' };`,
+      `}`,
+    ].join(`\n`),
+    defaultArgs: [`""`],
+    dependencies: {},
+  }),
+  docGen: new FunctionModel({
+    id: Ids.function.agentDocGen,
+    projectId: projects.web.id,
+    endpointId: undefined,
+    name: `Documentation Generator`,
+    description: `Generates documentation from code comments and type definitions`,
+    language: EFunLanguage.typescript,
+    branch: `main`,
+    content: [
+      `export async function generateDocs(code: string, format: string = 'markdown') {`,
+      `  const fnRegex = /(?:export\\\\s+)?(?:async\\\\s+)?function\\\\s+(\\\\w+)\\\\s*\\\\(([^)]*)\\\\)/g;`,
+      `  const docs: Array<{ name: string; params: string; signature: string }> = [];`,
+      `  let match: RegExpExecArray | null;`,
+      `  while ((match = fnRegex.exec(code)) !== null) {`,
+      `    docs.push({ name: match[1], params: match[2], signature: match[0] });`,
+      `  }`,
+      `  if (format === 'markdown') {`,
+      `    return docs.map(d => '## ' + d.name + '\\nParameters: ' + (d.params || 'none')).join('\\n');`,
+      `  }`,
+      `  return docs;`,
+      `}`,
+    ].join(`\n`),
+    defaultArgs: [`""`],
+    dependencies: {},
   }),
 }
 
@@ -955,6 +1053,88 @@ const domains = {
   }),
 }
 
+// --- Skills (org-scoped reusable agent capabilities) ---
+const skills = {
+  codeReview: new Skill({
+    id: Ids.skill.codeReview,
+    orgId: org.id,
+    name: `Code Review`,
+    description: `Reviews code changes for quality, security, and best practices`,
+    instructions: `Analyze the provided code changes. Check for:\n1) Security vulnerabilities\n2) Performance issues\n3) Code style consistency\n4) Missing error handling\n5) Test coverage gaps.\nProvide specific, actionable feedback with line references.`,
+    tools: [`readFile`, `shellExec`],
+    triggerKeywords: [`review`, `code review`, `check code`],
+    alwaysActive: false,
+  }),
+  docGen: new Skill({
+    id: Ids.skill.docGen,
+    orgId: org.id,
+    name: `Documentation Generator`,
+    description: `Generates and updates documentation from code`,
+    instructions: `Generate documentation for the specified code. Include:\n1) Function signatures with parameter descriptions\n2) Return type documentation\n3) Usage examples\n4) Error conditions.\nOutput in Markdown format.`,
+    tools: [`readFile`, `writeFile`],
+    triggerKeywords: [`docs`, `document`, `generate docs`],
+    alwaysActive: false,
+  }),
+}
+
+// --- Skill-Agent links (seeded via skill.addAgent in seed runner) ---
+const skillAgentLinks = [
+  { skillId: Ids.skill.codeReview, agentId: Ids.agent.codingAgent },
+  { skillId: Ids.skill.codeReview, agentId: Ids.agent.generalAgent },
+  { skillId: Ids.skill.docGen, agentId: Ids.agent.generalAgent },
+]
+
+// --- Schedules (cron-based agent execution) ---
+const agentSchedules = {
+  dailyStandup: new Schedule({
+    id: Ids.schedule.dailyStandup,
+    agentId: agents.general.id,
+    orgId: org.id,
+    cronExpression: `0 9 * * MON-FRI`,
+    prompt: `Generate a daily standup summary. Review recent commits, open PRs, and active issues. Identify blockers and suggest priorities for today.`,
+    enabled: true,
+    createThread: true,
+    maxConsecutiveErrors: 3,
+    consecutiveErrors: 0,
+  }),
+  weeklyReport: new Schedule({
+    id: Ids.schedule.weeklyReport,
+    agentId: agents.chat.id,
+    orgId: org.id,
+    threadId: threads.planning.id,
+    cronExpression: `0 17 * * FRI`,
+    prompt: `Compile a weekly progress report. Summarize completed work, metrics changes, and upcoming milestones for next week.`,
+    enabled: true,
+    createThread: false,
+    maxConsecutiveErrors: 5,
+    consecutiveErrors: 0,
+  }),
+}
+
+// --- Sandboxes (isolated execution environments) ---
+const sandboxes = {
+  devNode: new Sandbox({
+    id: Ids.sandbox.devNode,
+    name: `Node.js Development Sandbox`,
+    orgId: org.id,
+    userId: users.owner.id,
+    config: {
+      image: `node:20-slim`,
+      workdir: `/workspace`,
+      command: [`/bin/sh`],
+      defaultRuntime: `typescript`,
+      envVars: {
+        NODE_ENV: `development`,
+      },
+      resources: {
+        limits: { cpu: `500m`, memory: `512Mi` },
+        requests: { cpu: `100m`, memory: `128Mi` },
+      },
+      imagePullPolicy: `IfNotPresent`,
+    },
+  }),
+}
+
 /**
  * Full organization seed data
  * Contains everything needed to create a complete org with all entity types
@@ -962,12 +1142,15 @@ const domains = {
  * Entity relationships:
  * - Organization has ownerId -> users.owner
  * - Roles: org-scoped (owner/admin/member/viewer) + project-scoped (admin/member/viewer)
- * - Providers: org-scoped (openai, anthropic)
- * - Agents: linked to providers via junction table, projects via junction table, functions via junction table
+ * - Providers: org-scoped (openai, anthropic, zai) with secretId linking to provider secrets
+ * - Agents: linked to providers via junction table, projects via junction table (with functionIds), skills via junction table
  * - Secrets: covers all 4 exclusive arc scopes (org, project, provider, agent)
  * - Assets: covers all 5 exclusive arc scopes (org, project, user, thread, message) + provider link
  * - Threads: linked to org, project, agent, provider, and user
  * - Messages: linked to thread, org, and project with TMessageContent[] format
+ * - Skills: org-scoped, linked to agents via agentSkills junction table
+ * - Schedules: cron-based agent execution, linked to agents and optionally threads
+ * - Sandboxes: isolated execution environments, linked to orgs and users
  * - Invitations: all 4 statuses (pending, accepted, expired, revoked)
  */
 export const seeds = {
@@ -988,8 +1171,13 @@ export const seeds = {
   // Code
   endpoints,
   functions: funcs,
+  agentFunctions: agentFuncs,
   // AI
   agents,
+  skills,
+  skillAgentLinks,
+  // Scheduling
+  schedules: agentSchedules,
   // Conversations
   threads,
   messages,
@@ -999,4 +1187,6 @@ export const seeds = {
   quotas,
   invitations,
   domains,
+  // Compute
+  sandboxes,
 }

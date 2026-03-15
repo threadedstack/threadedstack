@@ -438,6 +438,83 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * `repos/admin/src/components/Quickstart/QuickstartWizard.tsx` — remove hardcoded minHeight and fontSize
   * New: `repos/admin/src/components/Quickstart/Quickstart.styles.tsx` — shared styled components (SectionHeader, SectionIcon)
 
+### [P2] Project Endpoints Table — missing table footer (pagination)
+
+* **Repos**: admin
+* **Key files**: `repos/admin/src/components/Endpoints/EndpointsTable.tsx` (lines 48-139)
+* The `EndpointsTable` component renders all endpoints using raw MUI `Table`, `TableHead`, `TableBody`, `TableRow`, `TableCell` components with no pagination. Every other table in the admin app uses the shared `DataTable` component (`repos/admin/src/components/DataTable/DataTable.tsx`) which includes built-in `TablePagination` (lines 105-113) with rows-per-page selector (5, 10, 25, 50) and page navigation. The EndpointsTable is the only table missing this footer
+* **Fix**:
+  1. Refactor `EndpointsTable` to use the shared `DataTable` component instead of raw MUI Table components — this matches the pattern used by `ProjectApiKeys`, `Domains`, `Secrets`, `Providers`, `Functions`, `Sandboxes`, and all other list views
+  2. Define column definitions as `TDataTableColumn<Endpoint>[]` — map existing inline cell rendering (edit icon, endpoint type chip, visibility icon, delete button) into column `render` functions
+  3. Move delete confirmation logic to an Actions column renderer, keeping the existing `ConfirmDelete` modal
+  4. Remove ~90 lines of custom Table JSX that `DataTable` handles automatically
+* **Files**:
+  * `repos/admin/src/components/Endpoints/EndpointsTable.tsx` — refactor from raw MUI Table to DataTable component
+  * `repos/admin/src/components/DataTable/DataTable.tsx` — reference for column definition format and pagination behavior
+
+### [P1] Project API Keys — user selector not appearing in create drawer
+
+* **Repos**: admin
+* **Key files**: `repos/admin/src/pages/Projects/ProjectApiKeys.tsx` (lines 38-72, 304-311), `repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx` (lines 226-234)
+* The `CreateApiKeyDrawer` supports a `users` prop and conditionally renders a `UserSelectorSingle` component when `!userId && users && users.length > 0` (line 226). The Org API Keys page (`OrgApiKeys.tsx`) passes `users={orgUsers}` derived from Jotai state (loaded eagerly via `listOrgUsers`), and the selector works. The Project API Keys page also passes `users={projectUsers}` (line 308), but the `projectUsers` state relies on an async `useEffect` (lines 42-72) that calls both `listProjectMembers` and `listOrgUsers` in parallel. If either call returns no data, or the member-to-user mapping fails, `projectUsers` remains an empty array and the selector never renders. The backend fully supports `userId` on project-scoped API keys (createApiKey.ts lines 54-100) with project member validation
+* **Fix**:
+  1. Debug the `loadUsers` effect in `ProjectApiKeys.tsx` (lines 46-68) — verify `listProjectMembers` returns members with valid `userId` values and `listOrgUsers` returns matching user data
+  2. Add error handling to the `loadUsers` effect — currently failures are silently swallowed (no catch/error state)
+  3. Consider loading project users eagerly via Jotai state (like `OrgApiKeys` does with `useOrgUsers()`) instead of local `useState` to ensure data is available before the drawer opens
+  4. Verify the user selector renders correctly and the selected `userId` is submitted in the API key creation request
+* **Files**:
+  * `repos/admin/src/pages/Projects/ProjectApiKeys.tsx` — fix user loading logic (lines 42-72) and ensure `projectUsers` is populated
+  * `repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx` — verify selector rendering condition (line 226)
+  * `repos/admin/src/actions/projectMembers/` — verify `listProjectMembers` action returns expected data
+
+### [P1] Project Members — displays "Unknown" instead of member names
+
+* **Repos**: admin, backend, database
+* **Key files**: `repos/admin/src/pages/Projects/ProjectMembers.tsx` (lines 85-99, 179)
+* The Project Members page renders `{member.displayName || 'Unknown'}` (line 179). The `displayName` is computed in a `useMemo` (lines 85-99) that maps project roles to org user data: it builds a `userMap` from `orgUsers` (Jotai state) and looks up each role's `userId`. When `orgUsers` hasn't been loaded or doesn't contain the project member's user ID, `userMap.get(role.userId)` returns `undefined` and `displayName` falls back to `undefined`, rendering "Unknown". The root cause is a data join issue — `listProjectMembers` (backend: `repos/backend/src/endpoints/projects/listProjectMembers.ts` lines 25-28) returns only Role objects (`userId`, `type`, `projectId`) with no user details, and the frontend depends on separately-fetched org users being present. Compare with the Org Users endpoint (`listUsers.ts` lines 35-54) which explicitly joins roles with user data server-side
+* **Fix**:
+  1. **Option A (backend fix, recommended)**: Enrich the `listProjectMembers` endpoint to join Role data with User data (name, email) — follow the pattern in `listUsers.ts` lines 37-51 where `getOrgMembers` roles are enriched via `db.services.user.getByIds(userIds)`
+  2. **Option B (frontend fix)**: Ensure `orgUsers` is loaded before rendering project members — add a `useEffect` that calls `listOrgUsers(orgId)` when the component mounts, similar to `OrgApiKeys.tsx` line 49-52
+  3. If going with Option A, update `repos/database/src/services/role.ts` `getProjectMembers()` method (lines 107-121) to include a user table join, or add a new enriched method
+  4. Update the frontend to handle the enriched response format
+* **Files**:
+  * `repos/admin/src/pages/Projects/ProjectMembers.tsx` — displays "Unknown" fallback (line 179), data merge logic (lines 85-99)
+  * `repos/backend/src/endpoints/projects/listProjectMembers.ts` — returns Role-only data (lines 25-28)
+  * `repos/database/src/services/role.ts` — `getProjectMembers()` has no user join (lines 107-121)
+  * `repos/backend/src/endpoints/users/listUsers.ts` — reference for enriched pattern (lines 35-54)
+
+---
+
+## Backend
+
+### [P3] OpenAI-compatible streaming for Agent endpoints
+
+* **Repos**: backend, agent, domain, integration
+* **Key files**: `repos/backend/src/services/endpoints/agentEndpoint.ts` (lines 189-253), `repos/agent/src/adapters/eventBridge.ts` (lines 31-130), `repos/domain/src/types/ai.types.ts`
+* Agent endpoints (`POST /agents/:id/run`) stream responses via SSE using a custom ThreadedStack event format: `data: {"type":"text","text":"Hello"}\n\n` with types `text`, `thinking`, `tool_call_start`, `tool_call_args`, `tool_result`, `done`, `turn_end`, `error`. The OpenAI Chat Completions streaming format (`POST /v1/chat/completions` with `stream: true`) is the de facto standard — events use `data: {"id":"chatcmpl-XXX","object":"chat.completion.chunk","created":1234567890,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}\n\n`. Many AI products support the `openai` npm package against their APIs. ThreadedStack should offer the same compatibility so users can interact with their custom Agent endpoints using the standard OpenAI client SDK
+* **Current format** (ThreadedStack native): `{type, text/thinking/id/name/args/...}` — 9 event types in `EStreamEventType` enum
+* **Target format** (OpenAI compatible): `{id, object, created, model, choices: [{index, delta: {content/tool_calls}, finish_reason}]}` with `data: [DONE]` terminator
+* **Fix**:
+  1. Add a format parameter to agent endpoint options (e.g., `format: 'openai' | 'native'`) — could be a query parameter (`?format=openai`), request body field, or endpoint configuration option in admin
+  2. Create an OpenAI response transformer module that maps ThreadedStack `TStreamEvent` objects to OpenAI `chat.completion.chunk` format:
+     - `text` → `choices[0].delta.content`
+     - `tool_call_start` + `tool_call_args` → `choices[0].delta.tool_calls[{index, id, type, function: {name, arguments}}]`
+     - `done` → `choices[0].finish_reason` ("stop" | "tool_calls")
+     - `turn_end` → optional `usage` object in final chunk
+  3. Update the SSE write logic in `agentEndpoint.ts` (line 234: `res.write('data: ' + JSON.stringify(event) + '\n\n')`) to conditionally apply the transformer
+  4. Add the `model` field to agent responses (can use the agent's configured model name)
+  5. Generate unique `chatcmpl-*` IDs for each response stream
+  6. Add integration tests validating the OpenAI format with the `openai` npm package
+* **Files**:
+  * `repos/backend/src/services/endpoints/agentEndpoint.ts` — SSE write logic, format selection (lines 189-253)
+  * New: `repos/backend/src/services/endpoints/openaiTransformer.ts` — event format transformer
+  * `repos/domain/src/types/ai.types.ts` — `EStreamEventType` enum and `TStreamEvent` types (reference)
+  * `repos/domain/src/types/epd.types.ts` — `TAgentEndpointConfig` type — add format option (lines 154-181)
+  * `repos/agent/src/adapters/eventBridge.ts` — `mapAgentEvent()` function (reference for event mapping)
+  * `repos/backend/src/endpoints/agents/runAgent.ts` — agent run route handler (lines 1-40)
+  * `repos/integration/src/utils/sse.ts` — SSE test parser — add OpenAI format support
+  * New: `repos/integration/src/tier3/openai-compat.test.ts` — OpenAI compatibility integration tests
+
 ---
 
 ## Website
@@ -555,34 +632,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * New: `repos/website/src/pages/Contact.tsx` — Contact page
   * `repos/website/src/components/Footer/MarketingFooter.tsx` — update link targets
   * Website router file — add routes
-
----
-
-## Integration
-
-### [P0] Fix skipped org member CRUD integration tests — role unlinking issue
-
-* **Repos**: integration, backend, database
-* **Key files**: `repos/integration/src/tier1/project-members.test.ts`, `repos/integration/src/setup/global-setup.ts`
-* 16 tests in `project-members.test.ts` are skipped via `test.skipIf(!canRun())` (line 279). The `canRun()` function requires both `ctx.adminApiKey` and `ctx.targetMemberUserId` to be defined. These become undefined when:
-  1. Global setup (`global-setup.ts` lines 145-187) can't find an org member with `type === 'admin'` (excluding the test user/owner), causing `adminUserId` to be undefined
-  2. Fewer than 3 org members exist (owner + admin + target required), so `targetMemberUserId` remains undefined (lines 189-204)
-  3. Based on the database seeds (`repos/database/src/seeds/fullorg.ts`) there should be total of 4 members, one for each role type. (super, admin, member, viewer)
-  4. The viewer/member users are getting unlinked from the org — the roles table ties users to orgs, and a test or cascade operation may be removing the `orgId` from roles
-* **Potential root cause**: `removeOrgMember.ts` (line 61) calls `db.services.role.delete(targetRole.id)` but the role service defines `removeFromOrg()` and `removeFromProject()` as the proper deletion methods — method mismatch could cause incorrect role cleanup affecting subsequent tests
-* **Fix**:
-  1. Verify `removeOrgMember.ts` uses the correct role service method (`removeFromOrg` vs `delete`) and that role deletion doesn't cascade to unlink users from the org entirely
-  2. Check test ordering — a test that removes an org member may not be restoring the member for subsequent tests
-  3. Ensure global setup correctly seeds at least 3 org members (owner, admin, target) before role hierarchy tests run
-  4. Remove `test.skipIf(!canRun())` from each of the 16 tests once the underlying issue is fixed
-  5. Add a dedicated unit test for `removeOrgMember.ts` endpoint (currently missing)
-* **Skipped tests** (lines 281-388): admin role assignment restrictions, equal/higher role modification blocks, member add/remove role hierarchy, cleanup
-* **Files**:
-  * `repos/integration/src/tier1/project-members.test.ts` — 16 skipped tests to fix and unskip
-  * `repos/integration/src/setup/global-setup.ts` — admin/target member setup logic (lines 145-204)
-  * `repos/backend/src/endpoints/orgs/removeOrgMember.ts` — verify correct role service method usage
-  * `repos/database/src/services/role.ts` — `delete` vs `removeFromOrg` method behavior
-  * New: `repos/backend/src/endpoints/orgs/removeOrgMember.test.ts` — missing unit test
 
 ---
 

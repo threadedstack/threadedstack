@@ -49,7 +49,7 @@ describe(`Project Members endpoints`, () => {
               isOrgMember: vi.fn().mockResolvedValue({ data: true }),
               isProjectMember: vi.fn().mockResolvedValue({ data: true }),
               create: vi.fn(),
-              delete: vi.fn(),
+              removeFromProject: vi.fn(),
               updateProjectRole: vi.fn(),
             },
           },
@@ -567,9 +567,8 @@ describe(`Project Members endpoints`, () => {
         .getOrgRole as ReturnType<typeof vi.fn>
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
-      const mockDelete = mockReq.app?.locals.db.services.role.delete as ReturnType<
-        typeof vi.fn
-      >
+      const mockRemoveFromProject = mockReq.app?.locals.db.services.role
+        .removeFromProject as ReturnType<typeof vi.fn>
 
       // Call flow for removeProjectMember:
       // 1. checkPermission -> getUserRole -> getOrgRole, getProjectRole (admin)
@@ -581,11 +580,11 @@ describe(`Project Members endpoints`, () => {
         .mockResolvedValueOnce({ data: mockRole }) // target user lookup
         .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
 
-      mockDelete.mockResolvedValue({ data: mockRole })
+      mockRemoveFromProject.mockResolvedValue({ data: true })
 
       await removeProjectMember.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockDelete).toHaveBeenCalledWith(`role-1`)
+      expect(mockRemoveFromProject).toHaveBeenCalledWith(`user-2`, `project-1`)
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: mockRole })
     })
@@ -710,9 +709,8 @@ describe(`Project Members endpoints`, () => {
         .getOrgRole as ReturnType<typeof vi.fn>
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
-      const mockDelete = mockReq.app?.locals.db.services.role.delete as ReturnType<
-        typeof vi.fn
-      >
+      const mockRemoveFromProject = mockReq.app?.locals.db.services.role
+        .removeFromProject as ReturnType<typeof vi.fn>
 
       // Call flow:
       // 1. checkPermission -> getUserRole -> getOrgRole(admin), getProjectRole(admin)
@@ -724,7 +722,7 @@ describe(`Project Members endpoints`, () => {
         .mockResolvedValueOnce({ data: mockRole }) // target user lookup
         .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
 
-      mockDelete.mockResolvedValue({ error: new Error(`Delete failed`) })
+      mockRemoveFromProject.mockResolvedValue({ error: new Error(`Delete failed`) })
 
       await expect(
         removeProjectMember.action(mockReq as TRequest, mockRes as Response)

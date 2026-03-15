@@ -20,14 +20,17 @@ const db = database()
  *
  * Uses the agent service's built-in junction table handling for:
  * - agentProviders (via providerIds)
- * - agentProjects (via projects)
- * - agentFunctions (via functionIds)
+ * - agentProjects (via projects with per-project functionIds)
  *
  * Seed order respects foreign key dependencies:
- * 1. users, 2. org, 3. roles (org + project), 4. projects, 5. subscriptions,
- * 6. invitations, 7. providers, 8. secrets (non-agent), 9. apiKeys, 10. endpoints,
- * 11. functions, 12. agents (+ junction tables), 13. secrets (agent-scoped),
- * 14. threads, 15. messages, 16. assets, 17. quotas, 18. domains
+ * 1. users, 2. org, 3. projects, 4. roles, 5. subscriptions,
+ * 6. invitations, 7. providers (without secretId), 8. secrets (non-agent),
+ * 8b. providers UPDATE (set secretId after secrets exist),
+ * 9. apiKeys, 10. endpoints, 11. functions (endpoint + agent),
+ * 12. agents (+ junction tables), 13. secrets (agent-scoped),
+ * 14. skills, 14b. agentSkills junction, 15. threads,
+ * 16. messages, 17. assets, 18. quotas, 19. sandboxes,
+ * 20. schedules (after threads), 21. domains
  */
 
 type SeedData = {
@@ -38,21 +41,33 @@ type SeedData = {
 
 /**
  * Convert fullorg Agent domain models to TAgentInsertOpts format
- * The agent service expects providerIds/functionIds/projects instead of
- * full Provider[]/Function[]/Project[] arrays
+ * The agent service expects providerIds and projects (with per-project functionIds)
+ * instead of full Provider[]/Project[] arrays
+ *
+ * Merges projectConfigs into the projects array so functionIds and other
+ * per-project overrides are passed to the agent service correctly
  */
 const toAgentInsertOpts = (agent: any) => {
   const providerIds = (agent.providers || []).map((p: any) => p.id)
-  const functionIds = (agent.functions || []).map((f: any) => f.id)
-  const projects = (agent.projects || []).map((p: any) => ({
-    id: p.id,
-    name: p.name,
-  }))
+  const projects = (agent.projects || []).map((p: any) => {
+    const config = (agent.projectConfigs || []).find((c: any) => c.projectId === p.id)
+    return {
+      id: p.id,
+      name: p.name,
+      ...(config?.functionIds && { functionIds: config.functionIds }),
+      ...(config?.model !== undefined && { model: config.model }),
+      ...(config?.tools !== undefined && { tools: config.tools }),
+      ...(config?.envVars !== undefined && { envVars: config.envVars }),
+      ...(config?.environment !== undefined && { environment: config.environment }),
+      ...(config?.systemPrompt !== undefined && { systemPrompt: config.systemPrompt }),
+      ...(config?.maxTokens !== undefined && { maxTokens: config.maxTokens }),
+      ...(config?.enabled !== undefined && { enabled: config.enabled }),
+    }
+  })
 
   return {
     projects,
     providerIds,
-    functionIds,
     id: agent.id,
     name: agent.name,
     orgId: agent.orgId,
@@ -191,6 +206,17 @@ ife(async () => {
   const secretsPreAgent = allSecrets.filter((s: any) => !s.agentId)
   const secretsPostAgent = allSecrets.filter((s: any) => !!s.agentId)
 
+  // Collect providers that have secretId for post-secret update
+  const providersWithSecretId = Object.values(seeds.providers).filter(
+    (p: any) => !!p.secretId
+  )
+
+  // Merge endpoint functions + agent functions into a single list
+  const allFunctions = [
+    ...Object.values(seeds.functions),
+    ...Object.values(seeds.agentFunctions),
+  ]
+
   const seedOrder: SeedData[] = [
     { name: `users`, data: Object.values(seeds.users), service: db.services.user },
     { name: `organizations`, data: [seeds.org], service: db.services.org },
@@ -228,7 +254,7 @@ ife(async () => {
     },
     {
       name: `functions`,
-      data: Object.values(seeds.functions),
+      data: allFunctions,
       service: db.services.function,
     },
     {
@@ -246,6 +272,11 @@ ife(async () => {
           },
         ]
       : []),
+    {
+      name: `skills`,
+      data: Object.values(seeds.skills),
+      service: db.services.skill,
+    },
     { name: `threads`, data: Object.values(seeds.threads), service: db.services.thread },
     {
       name: `messages`,
@@ -254,6 +285,16 @@ ife(async () => {
     },
     { name: `assets`, data: Object.values(seeds.assets), service: db.services.asset },
     { name: `quotas`, data: Object.values(seeds.quotas), service: db.services.quota },
+    {
+      name: `sandboxes`,
+      data: Object.values(seeds.sandboxes),
+      service: db.services.sandbox,
+    },
+    {
+      name: `schedules`,
+      data: Object.values(seeds.schedules),
+      service: db.services.schedule,
+    },
     { name: `domains`, data: Object.values(seeds.domains), service: db.services.domain },
   ]
 
@@ -264,6 +305,56 @@ ife(async () => {
       await seedItem(seed, item)
     }
 
+    console.log(``)
+  }
+
+  // Update providers with secretId now that secrets exist (resolves chicken-and-egg FK)
+  if (providersWithSecretId.length) {
+    console.log(`📦 Updating provider secretId links...`)
+    for (const provider of providersWithSecretId) {
+      try {
+        const result = await db.services.provider.update(provider as any)
+        if (result.error) {
+          console.error(`  ❌ Failed to update provider secretId:${(provider as any).id}`)
+          console.error(`     Error:`, result.error.message)
+          totalErrors++
+        } else {
+          console.log(
+            `  🔗 Linked provider:${(provider as any).id} → secret:${(provider as any).secretId}`
+          )
+          totalUpdated++
+        }
+      } catch (error: any) {
+        console.error(`  ❌ Error updating provider:${(provider as any).id}`)
+        console.error(`     Error:`, error.message)
+        totalErrors++
+      }
+    }
+    console.log(``)
+  }
+
+  // Link skills to agents via agentSkills junction table
+  if (seeds.skillAgentLinks?.length) {
+    console.log(`📦 Linking skills to agents...`)
+    for (const link of seeds.skillAgentLinks) {
+      try {
+        const result = await db.services.skill.addAgent(link.skillId, link.agentId)
+        if (result.error) {
+          console.error(
+            `  ❌ Failed to link skill:${link.skillId} → agent:${link.agentId}`
+          )
+          console.error(`     Error:`, result.error.message)
+          totalErrors++
+        } else {
+          console.log(`  🔗 Linked skill:${link.skillId} → agent:${link.agentId}`)
+          totalCreated++
+        }
+      } catch (error: any) {
+        console.error(`  ❌ Error linking skill:${link.skillId} → agent:${link.agentId}`)
+        console.error(`     Error:`, error.message)
+        totalErrors++
+      }
+    }
     console.log(``)
   }
 

@@ -146,6 +146,20 @@ export default async function setup() {
   const membersRes = await get<{ data: TMember[] }>(`/orgs/${env.testOrgId}/members`)
   const orgMembers = membersRes.data?.data || []
 
+  // Snapshot org members for teardown restoration
+  const orgMemberSnapshot = orgMembers.map((m: TMember) => ({
+    userId: m.userId,
+    type: m.type,
+  }))
+
+  if (orgMembers.length < 3) {
+    console.warn(
+      `[global-setup] WARNING: Only ${orgMembers.length} org members found (expected ≥3). ` +
+        `A prior test run may have removed members without restoring them. ` +
+        `Re-run the database seed to fix: cd repos/database && pnpm seed`
+    )
+  }
+
   // Find an admin member who is NOT the test user (test user is typically the owner)
   const adminMember = orgMembers.find(
     (m: TMember) => m.type === 'admin' && m.userId !== env.testUserId
@@ -215,6 +229,7 @@ export default async function setup() {
     adminUserId,
     adminApiKeyId,
     targetMemberUserId,
+    orgMemberSnapshot,
     orgId: env.testOrgId,
     apiKey: env.testApiKey,
     userId: env.testUserId,
@@ -222,14 +237,41 @@ export default async function setup() {
     projectId: env.testProjectId,
   })
 
-  // Return teardown function to clean up resources
+  // Return teardown function to clean up resources and restore org members
   return async () => {
     try {
       loadEnvs()
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
       const ctx = readContext()
+
       if (ctx.adminApiKeyId) {
         await del(`/orgs/${ctx.orgId}/api-keys/${ctx.adminApiKeyId}`)
+      }
+
+      // Restore any org members that were removed during tests
+      if (ctx.orgMemberSnapshot?.length) {
+        const currentRes = await get<{ data: TMember[] }>(`/orgs/${ctx.orgId}/members`)
+        const currentUserIds = new Set(
+          (currentRes.data?.data || []).map((m: any) => m.userId)
+        )
+
+        for (const member of ctx.orgMemberSnapshot) {
+          if (!currentUserIds.has(member.userId)) {
+            console.warn(
+              `[global-teardown] Restoring org member: ${member.userId} (${member.type})`
+            )
+            try {
+              await post(`/orgs/${ctx.orgId}/members`, {
+                userId: member.userId,
+                roleType: member.type,
+              })
+            } catch {
+              console.warn(
+                `[global-teardown] Failed to restore org member: ${member.userId}`
+              )
+            }
+          }
+        }
       }
     } catch {
       // Best-effort cleanup
