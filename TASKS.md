@@ -418,22 +418,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * `repos/admin/src/components/Orgs/CreateApiKeyDrawer.tsx` — verify selector rendering condition (line 226)
   * `repos/admin/src/actions/projectMembers/` — verify `listProjectMembers` action returns expected data
 
-### [P1] Project Members — displays "Unknown" instead of member names
-
-* **Repos**: admin, backend, database
-* **Key files**: `repos/admin/src/pages/Projects/ProjectMembers.tsx` (lines 85-99, 179)
-* The Project Members page renders `{member.displayName || 'Unknown'}` (line 179). The `displayName` is computed in a `useMemo` (lines 85-99) that maps project roles to org user data: it builds a `userMap` from `orgUsers` (Jotai state) and looks up each role's `userId`. When `orgUsers` hasn't been loaded or doesn't contain the project member's user ID, `userMap.get(role.userId)` returns `undefined` and `displayName` falls back to `undefined`, rendering "Unknown". The root cause is a data join issue — `listProjectMembers` (backend: `repos/backend/src/endpoints/projects/listProjectMembers.ts` lines 25-28) returns only Role objects (`userId`, `type`, `projectId`) with no user details, and the frontend depends on separately-fetched org users being present. Compare with the Org Users endpoint (`listUsers.ts` lines 35-54) which explicitly joins roles with user data server-side
-* **Fix**:
-  1. **Option A (backend fix, recommended)**: Enrich the `listProjectMembers` endpoint to join Role data with User data (name, email) — follow the pattern in `listUsers.ts` lines 37-51 where `getOrgMembers` roles are enriched via `db.services.user.getByIds(userIds)`
-  2. **Option B (frontend fix)**: Ensure `orgUsers` is loaded before rendering project members — add a `useEffect` that calls `listOrgUsers(orgId)` when the component mounts, similar to `OrgApiKeys.tsx` line 49-52
-  3. If going with Option A, update `repos/database/src/services/role.ts` `getProjectMembers()` method (lines 107-121) to include a user table join, or add a new enriched method
-  4. Update the frontend to handle the enriched response format
-* **Files**:
-  * `repos/admin/src/pages/Projects/ProjectMembers.tsx` — displays "Unknown" fallback (line 179), data merge logic (lines 85-99)
-  * `repos/backend/src/endpoints/projects/listProjectMembers.ts` — returns Role-only data (lines 25-28)
-  * `repos/database/src/services/role.ts` — `getProjectMembers()` has no user join (lines 107-121)
-  * `repos/backend/src/endpoints/users/listUsers.ts` — reference for enriched pattern (lines 35-54)
-
 ---
 
 ## Backend
@@ -549,7 +533,7 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * New: `repos/website/public/docs/images/` — screenshot directory
   * Various MDX files — add image references
 
-### [P1] "Get Started" buttons should link to admin login page
+### [IN PROGRESS][P1] "Get Started" buttons should link to admin login page
 
 * **Repos**: website
 * **Key files**: Multiple components with `Get Started` buttons

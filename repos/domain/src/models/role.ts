@@ -1,4 +1,5 @@
 import { Base } from './base'
+import type { TRoleUser } from '@TDM/types'
 import { ERoleType } from '@TDM/types'
 import { hasMinRole } from '@TDM/utils/permissions'
 
@@ -12,6 +13,7 @@ export class Role extends Base {
   userId: string
   orgId?: string
   projectId?: string
+  user?: TRoleUser
 
   constructor(role: TRole) {
     super()

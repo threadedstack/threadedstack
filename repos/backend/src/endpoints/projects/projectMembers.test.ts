@@ -90,12 +90,19 @@ describe(`Project Members endpoints`, () => {
 
     it(`should return 200 with members list`, async () => {
       const mockMembers = [
-        { id: `role-1`, userId: `user-1`, projectId: `project-1`, type: ERoleType.admin },
+        {
+          id: `role-1`,
+          userId: `user-1`,
+          projectId: `project-1`,
+          type: ERoleType.admin,
+          user: { id: `user-1`, email: `admin@test.com`, name: `Admin User` },
+        },
         {
           id: `role-2`,
           userId: `user-2`,
           projectId: `project-1`,
           type: ERoleType.member,
+          user: { id: `user-2`, email: `member@test.com`, name: `Member User` },
         },
       ]
 

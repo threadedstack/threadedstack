@@ -100,3 +100,16 @@ export type TPermCheckResult = {
   reason?: string // Explanation if denied
   requiredRole?: ERoleType // Minimum role required for the action
 }
+
+/**
+ * Safe subset of user fields embedded in role responses.
+ * Excludes sensitive fields (banned, banReason, emailVerified).
+ */
+export type TRoleUser = {
+  id: string
+  email?: string
+  name?: string
+  first?: string
+  last?: string
+  image?: string
+}

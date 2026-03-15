@@ -3,6 +3,15 @@ import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 
+interface RoleMemberUser {
+  id: string
+  email?: string
+  name?: string
+  first?: string
+  last?: string
+  image?: string
+}
+
 interface RoleMember {
   id: string
   userId: string
@@ -12,6 +21,7 @@ interface RoleMember {
   name: string | null
   createdAt: string
   updatedAt: string
+  user?: RoleMemberUser
 }
 
 interface ListResponse {
@@ -75,6 +85,11 @@ describe('Tier 1: Project Members', () => {
       expect(typeof member.userId).toBe('string')
       expect(member.projectId).toBe(ctx.projectId)
       expect(['owner', 'admin', 'member', 'viewer']).toContain(member.type)
+
+      expect(member).toHaveProperty('user')
+      expect(member.user).toBeDefined()
+      expect(typeof member.user!.id).toBe('string')
+      expect(member.user!.id).toBe(member.userId)
     })
   })
 

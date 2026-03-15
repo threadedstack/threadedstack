@@ -2,7 +2,6 @@ import type { ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { Page } from '@TAF/pages/Page/Page'
-import { listOrgUsers } from '@TAF/actions/users'
 import { useApiKeys } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
@@ -44,26 +43,19 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
     if (!orgId || !projectId) return
 
     const loadUsers = async () => {
-      const [membersResp, usersResp] = await Promise.all([
-        listProjectMembers({ orgId, projectId }),
-        listOrgUsers(orgId),
-      ])
+      const membersResp = await listProjectMembers({ orgId, projectId })
 
-      if (membersResp.data && usersResp.data) {
-        const userMap = new Map(usersResp.data.map((u) => [u.id, u]))
+      if (membersResp.data) {
         setProjectUsers(
-          membersResp.data.map((role) => {
-            const user = userMap.get(role.userId)
-            return {
-              id: role.userId,
-              name:
-                user?.displayName ||
-                [user?.first, user?.last].filter(Boolean).join(' ') ||
-                user?.email ||
-                `User`,
-              email: user?.email,
-            }
-          })
+          membersResp.data.map((role) => ({
+            id: role.userId,
+            name:
+              role.user?.name ||
+              [role.user?.first, role.user?.last].filter(Boolean).join(' ') ||
+              role.user?.email ||
+              `User`,
+            email: role.user?.email,
+          }))
         )
       }
     }

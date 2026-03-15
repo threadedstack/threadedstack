@@ -102,19 +102,32 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
   }
 
   /**
-   * Get all members of a project with their roles
+   * Get all members of a project with their roles and user details
    */
   async getProjectMembers(
     projectId: string,
     opts?: { limit?: number; offset?: number }
   ): Promise<TDBApiRes<RoleModel[]>> {
     try {
-      let query = this.db.select().from(roles).where(eq(roles.projectId, projectId))
-      if (opts?.limit) query = query.limit(opts.limit) as typeof query
-      if (opts?.offset) query = query.offset(opts.offset) as typeof query
-      const result = await query
+      const result = await this.db.query[this.name].findMany({
+        where: eq(roles.projectId, projectId),
+        limit: opts?.limit,
+        offset: opts?.offset,
+        with: {
+          user: {
+            columns: {
+              id: true,
+              email: true,
+              name: true,
+              first: true,
+              last: true,
+              image: true,
+            },
+          },
+        },
+      })
 
-      return { data: result.map((item) => this.model(item)) }
+      return { data: result.map((item) => this.model(item as TDBRoleSelect)) }
     } catch (error: any) {
       return { error }
     }
