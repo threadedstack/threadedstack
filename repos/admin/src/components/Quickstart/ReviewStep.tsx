@@ -2,10 +2,10 @@ import type { TReviewStep } from '@TAF/types'
 import type { ReactNode } from 'react'
 
 import { useMemo } from 'react'
-import { Text } from '@tdsk/components'
 import { ProviderTemplates } from '@tdsk/domain'
-import { styled, alpha } from '@mui/material/styles'
+import { useTheme, styled } from '@mui/material/styles'
 import { Box, Card, Chip, CardContent, Typography } from '@mui/material'
+import { SectionHeader, SectionIcon } from './Quickstart.styled'
 import CloudQueueIcon from '@mui/icons-material/CloudQueue'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import AccountTreeIcon from '@mui/icons-material/AccountTree'
@@ -20,13 +20,6 @@ type TReviewItem = {
   color: string
   details: string[]
 }
-
-const ReviewHeader = styled(Box)(({ theme }) => ({
-  display: `flex`,
-  alignItems: `center`,
-  gap: theme.spacing(1),
-  marginBottom: theme.spacing(2),
-}))
 
 const ResourceCard = styled(Card)(({ theme }) => ({
   borderRadius: theme.spacing(1.5),
@@ -44,22 +37,9 @@ const ResourceHeader = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(0.75),
 }))
 
-const ResourceIcon = styled(Box, {
-  shouldForwardProp: (p) => p !== `color`,
-})<{ color: string }>(({ theme, color }) => ({
-  width: 30,
-  height: 30,
-  display: `flex`,
-  alignItems: `center`,
-  justifyContent: `center`,
-  borderRadius: theme.spacing(0.75),
-  backgroundColor: alpha(color, 0.1),
-  color,
-  flexShrink: 0,
-}))
-
 export const ReviewStep = (props: TReviewStep) => {
   const { provider, agent } = props
+  const theme = useTheme()
   const template = ProviderTemplates[provider.providerBrand]
 
   const items = useMemo<TReviewItem[]>(() => {
@@ -87,7 +67,7 @@ export const ReviewStep = (props: TReviewStep) => {
         label: `Provider`,
         type: `AI Provider`,
         icon: <CloudQueueIcon sx={{ fontSize: 16 }} />,
-        color: `#3370DE`,
+        color: theme.palette.primary.main,
         details: [
           providerName,
           ...(provider.providerBrand === `custom` && provider.providerUrl
@@ -99,21 +79,21 @@ export const ReviewStep = (props: TReviewStep) => {
         label: `Secret`,
         type: `Encrypted API Key`,
         icon: <LockOutlinedIcon sx={{ fontSize: 16 }} />,
-        color: `#D97706`,
+        color: theme.palette.warning.main,
         details: [secretName],
       },
       {
         label: `Project`,
         type: `Project`,
         icon: <AccountTreeIcon sx={{ fontSize: 16 }} />,
-        color: `#059669`,
+        color: theme.palette.success.main,
         details: [agent.projectName],
       },
       {
         label: `Agent`,
         type: `AI Agent`,
         icon: <SmartToyOutlinedIcon sx={{ fontSize: 16 }} />,
-        color: `#7C3AED`,
+        color: theme.palette.secondary.main,
         details: [
           agent.agentName,
           `Model: ${modelName}`,
@@ -124,45 +104,41 @@ export const ReviewStep = (props: TReviewStep) => {
         label: `Endpoint`,
         type: `API Endpoint`,
         icon: <ApiIcon sx={{ fontSize: 16 }} />,
-        color: `#E11D48`,
+        color: theme.palette.error.main,
         details: [`POST /ai/${slug}`],
       },
     ]
-  }, [provider, agent, template])
+  }, [provider, agent, template, theme])
 
   return (
     <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1.5, mt: 2, pb: 3 }}>
-      <ReviewHeader>
+      <SectionHeader sx={{ mb: 2 }}>
         <CheckCircleOutlineIcon sx={{ fontSize: 18, color: `success.main` }} />
         <Typography
           variant='subtitle2'
-          sx={{
-            fontWeight: 600,
-            letterSpacing: `0.02em`,
-          }}
+          sx={{ fontWeight: 600 }}
         >
           Ready to create 5 resources
         </Typography>
-      </ReviewHeader>
+      </SectionHeader>
 
       <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1.5, px: 3 }}>
         {items.map((item) => (
           <ResourceCard
             key={item.label}
-            variant='outlined'
             elevation={0}
           >
             <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
               <ResourceHeader>
-                <ResourceIcon color={item.color}>{item.icon}</ResourceIcon>
+                <SectionIcon color={item.color}>{item.icon}</SectionIcon>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ display: `flex`, alignItems: `center`, gap: 1 }}>
-                    <Text
+                    <Typography
                       variant='subtitle2'
                       sx={{ fontWeight: 600 }}
                     >
                       {item.label}
-                    </Text>
+                    </Typography>
                     <Chip
                       size='small'
                       label={item.type}
@@ -173,7 +149,7 @@ export const ReviewStep = (props: TReviewStep) => {
                 </Box>
               </ResourceHeader>
               {item.details.map((detail, i) => (
-                <Text
+                <Typography
                   key={i}
                   variant='body2'
                   color='text.secondary'
@@ -185,7 +161,7 @@ export const ReviewStep = (props: TReviewStep) => {
                   }}
                 >
                   {detail}
-                </Text>
+                </Typography>
               ))}
             </CardContent>
           </ResourceCard>

@@ -4,6 +4,7 @@ import type { TLLMProviderBrand } from '@tdsk/domain'
 import { TextInput } from '@tdsk/components'
 import { styled, alpha } from '@mui/material/styles'
 import { ProviderIcons } from '@TAF/constants/providers'
+import { SectionHeader, SectionIcon, FormSection } from './Quickstart.styled'
 import CloudQueueIcon from '@mui/icons-material/CloudQueue'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { ModelSelect } from '@TAF/components/Agents/ModelSelect'
@@ -17,24 +18,6 @@ import {
   CardContent,
   CardActionArea,
 } from '@mui/material'
-
-const SectionHeader = styled(Box)(({ theme }) => ({
-  display: `flex`,
-  alignItems: `center`,
-  gap: theme.spacing(1),
-  marginBottom: theme.spacing(1.5),
-}))
-
-const SectionIcon = styled(Box)(({ theme }) => ({
-  width: 28,
-  height: 28,
-  display: `flex`,
-  alignItems: `center`,
-  justifyContent: `center`,
-  borderRadius: theme.spacing(0.75),
-  color: theme.palette.primary.main,
-  backgroundColor: alpha(theme.palette.primary.main, 0.1),
-}))
 
 const ProvidersGrid = styled(Box)(({ theme }) => ({
   display: `grid`,
@@ -78,16 +61,6 @@ const SelectedBadge = styled(Box)(({ theme }) => ({
   justifyContent: `center`,
 }))
 
-const ConfigSection = styled(Box)(({ theme }) => ({
-  display: `flex`,
-  flexDirection: `column`,
-  gap: theme.spacing(2.5),
-  padding: theme.spacing(2.5),
-  borderRadius: theme.spacing(1.5),
-  border: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.background.default,
-}))
-
 export type TProviderStep = {
   disabled?: boolean
   data: TProviderStepData
@@ -117,7 +90,7 @@ export const ProviderStep = (props: TProviderStep) => {
           </SectionIcon>
           <Typography
             variant='subtitle2'
-            sx={{ fontWeight: 600, letterSpacing: `0.02em` }}
+            sx={{ fontWeight: 600 }}
           >
             Choose AI Provider
           </Typography>
@@ -181,7 +154,7 @@ export const ProviderStep = (props: TProviderStep) => {
         in={!!data.providerBrand}
         timeout={350}
       >
-        <ConfigSection>
+        <FormSection>
           <TextInput
             required
             fullWidth
@@ -257,7 +230,7 @@ export const ProviderStep = (props: TProviderStep) => {
               />
             </Box>
           )}
-        </ConfigSection>
+        </FormSection>
       </Collapse>
     </Box>
   )

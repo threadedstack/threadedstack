@@ -342,38 +342,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 ## Admin
 
 
-### [P2] Quick Start Drawer: normalize styles to match other admin drawers
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/components/Quickstart/QuickstartWizard.tsx`, `repos/admin/src/components/Quickstart/ReviewStep.tsx`, `repos/admin/src/components/Quickstart/ProviderStep.tsx`, `repos/admin/src/components/Quickstart/AgentStep.tsx`
-* The Quick Start Drawer has multiple style inconsistencies compared to other admin drawers (AgentDrawer, ProjectDrawer, EndpointDrawer, SecretDrawer, ProviderDrawer). These need to be normalized so the application has a consistent look and feel
-* **Inconsistencies found**:
-  * **Hardcoded hex colors in ReviewStep** (lines 90, 102, 109, 116, 127): Uses raw hex (`#3370DE`, `#D97706`, `#059669`, `#7C3AED`, `#E11D48`) for resource icon colors instead of theme palette tokens — breaks theme consistency and dark mode
-  * **Icon container size mismatch**: ProviderStep/AgentStep use 28x28 `SectionIcon`, but ReviewStep uses 30x30 `ResourceIcon` — should be uniform
-  * **Mixed `Text` vs `Typography`**: ReviewStep and AgentStep import `Text` from `@tdsk/components`, but ProviderStep and all other drawers use MUI `Typography` directly — should be consistent
-  * **Section header `letterSpacing`**: ProviderStep (line 120), AgentStep (line 74), and ReviewStep add `letterSpacing: '0.02em'` to `subtitle2` headers, but no other drawer does this (e.g., AgentDrawer line 452 uses just `fontWeight: 600, mb: 2`)
-  * **Form section spacing**: QuickStart steps use `gap: 2.5` and `padding: 2.5` (`ConfigSection` in ProviderStep line 84-85, `FormSection` in AgentStep line 35-36), while other drawers use `gap: 2` (ProjectDrawer, EndpointDrawer, SecretDrawer) or `Stack spacing={3}` (AgentDrawer)
-  * **Custom collapsible toggle**: AgentStep (lines 42-53) builds a custom `AdvancedToggle` with manual rotation animation, while ProviderDrawer uses standard MUI `Accordion`/`AccordionSummary` which handles expansion automatically
-  * **Hardcoded `minHeight: 200`**: QuickstartWizard `StepContent` (line 58) uses a hardcoded pixel value — no other drawer does this
-  * **Stepper font size**: QuickstartWizard `WizardStepper` (line 20) hardcodes `fontSize: 0.75rem` instead of using a Typography variant
-  * **Duplicate styled components**: `SectionHeader` and `SectionIcon` are duplicated identically in ProviderStep (lines 21-37) and AgentStep (lines 14-27) — should be shared
-* **Fix**:
-  1. Replace all hardcoded hex colors in `ReviewStep.tsx` (lines 90, 102, 109, 116, 127) with theme palette tokens (e.g., `theme.palette.primary.main`, `theme.palette.warning.main`, `theme.palette.success.main`, `theme.palette.secondary.main`, `theme.palette.error.main`)
-  2. Normalize icon container size to 28x28 across all steps — update `ResourceIcon` in ReviewStep (line 50) from 30 to 28
-  3. Pick one text component and use it consistently — either `Typography` (matching other drawers) or `Text` from `@tdsk/components`, but not both. Recommended: use `Typography` to match the rest of the admin app
-  4. Remove `letterSpacing: '0.02em'` from section headers in ProviderStep, AgentStep, and ReviewStep to match AgentDrawer's simpler `fontWeight: 600, mb: 2` pattern
-  5. Normalize form section spacing to `gap: 2` (matching ProjectDrawer, EndpointDrawer, SecretDrawer) and remove the extra `padding: 2.5` — use the drawer's default padding instead
-  6. Replace the custom `AdvancedToggle` in AgentStep with standard MUI `Accordion`/`AccordionSummary` to match ProviderDrawer's pattern
-  7. Remove hardcoded `minHeight: 200` from `StepContent` — let content flow naturally
-  8. Replace hardcoded `fontSize: 0.75rem` in `WizardStepper` with a MUI Typography variant (e.g., `caption`)
-  9. Extract shared `SectionHeader` and `SectionIcon` styled components into a shared file (e.g., `repos/admin/src/components/Quickstart/Quickstart.styles.tsx`) and import in both ProviderStep and AgentStep
-* **Files**:
-  * `repos/admin/src/components/Quickstart/ReviewStep.tsx` — replace hex colors with theme tokens, normalize icon size, fix Text vs Typography
-  * `repos/admin/src/components/Quickstart/ProviderStep.tsx` — remove letterSpacing, normalize spacing, extract shared styles
-  * `repos/admin/src/components/Quickstart/AgentStep.tsx` — replace custom toggle with MUI Accordion, remove letterSpacing, normalize spacing, fix Text vs Typography, extract shared styles
-  * `repos/admin/src/components/Quickstart/QuickstartWizard.tsx` — remove hardcoded minHeight and fontSize
-  * New: `repos/admin/src/components/Quickstart/Quickstart.styles.tsx` — shared styled components (SectionHeader, SectionIcon)
-
 ---
 
 ## Backend

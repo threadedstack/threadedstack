@@ -5,7 +5,6 @@ import { ReviewStep } from '@TAF/components/Quickstart/ReviewStep'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useQuickStart } from '@TAF/hooks/components/useQuickStart'
 import { ProviderStep } from '@TAF/components/Quickstart/ProviderStep'
-import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { Box, Step, Stepper, StepLabel, Fade } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
@@ -17,9 +16,8 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined'
 const WizardStepper = styled(Stepper)(({ theme }) => ({
   padding: theme.spacing(2, 0, 1),
   '& .MuiStepLabel-label': {
-    fontSize: `0.75rem`,
+    fontSize: theme.typography.caption.fontSize,
     fontWeight: 500,
-    letterSpacing: `0.02em`,
     marginTop: `${theme.spacing(0.75)} !important`,
   },
   '& .MuiStepLabel-label.Mui-active': {
@@ -54,10 +52,6 @@ const WizardStepper = styled(Stepper)(({ theme }) => ({
   },
 }))
 
-const StepContent = styled(Box)({
-  minHeight: 200,
-})
-
 export type TQuickstartWizard = {
   open: boolean
   orgId: string
@@ -85,18 +79,12 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
   const isLastStep = activeStep === QSSteps.length - 1
   const isFirstStep = activeStep === 0
 
-  const { actions } = useDrawerActions({
-    onSave,
-    onClose,
-  })
-
   const drawerActions = isFirstStep
     ? {
         cancel: {
-          ...actions.cancel,
+          onClick: onClose,
         },
         create: {
-          ...actions.save,
           text: `Next`,
           Icon: ArrowForwardIcon,
           color: `primary` as const,
@@ -114,7 +102,6 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
           onClick: onClose,
         },
         cancel: {
-          ...actions.cancel,
           text: `Back`,
           Icon: ArrowBackIcon,
           color: `secondary` as const,
@@ -122,7 +109,6 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
           onClick: onBack,
         },
         save: {
-          ...actions.save,
           text: isLastStep ? `Create Everything` : `Next`,
           Icon: isLastStep ? AddCircleOutlineIcon : ArrowForwardIcon,
           color: isLastStep ? (`success` as const) : (`primary` as const),
@@ -175,7 +161,7 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
           />
         )}
 
-        <StepContent>
+        <Box>
           <Fade
             in={activeStep === 0}
             mountOnEnter
@@ -219,7 +205,7 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
               />
             </div>
           </Fade>
-        </StepContent>
+        </Box>
       </Box>
     </Drawer>
   )

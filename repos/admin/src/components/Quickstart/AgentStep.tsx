@@ -1,56 +1,16 @@
 import type { TAgentStepData } from '@TAF/types'
 
-import { useState } from 'react'
-import { styled, alpha } from '@mui/material/styles'
-import { TextInput, Text } from '@tdsk/components'
+import { TextInput } from '@tdsk/components'
 import Box from '@mui/material/Box'
-import Collapse from '@mui/material/Collapse'
 import Typography from '@mui/material/Typography'
+import Accordion from '@mui/material/Accordion'
+import AccordionSummary from '@mui/material/AccordionSummary'
+import AccordionDetails from '@mui/material/AccordionDetails'
 import AccountTreeIcon from '@mui/icons-material/AccountTree'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import TuneIcon from '@mui/icons-material/Tune'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
-
-const SectionHeader = styled(Box)(({ theme }) => ({
-  display: `flex`,
-  alignItems: `center`,
-  gap: theme.spacing(1),
-  marginBottom: theme.spacing(1.5),
-}))
-
-const SectionIcon = styled(Box)(({ theme }) => ({
-  width: 28,
-  height: 28,
-  display: `flex`,
-  alignItems: `center`,
-  justifyContent: `center`,
-  borderRadius: theme.spacing(0.75),
-  backgroundColor: alpha(theme.palette.primary.main, 0.1),
-  color: theme.palette.primary.main,
-}))
-
-const FormSection = styled(Box)(({ theme }) => ({
-  display: `flex`,
-  flexDirection: `column`,
-  gap: theme.spacing(2.5),
-  padding: theme.spacing(2.5),
-  borderRadius: theme.spacing(1.5),
-  border: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.background.default,
-}))
-
-const AdvancedToggle = styled(Box)(({ theme }) => ({
-  display: `flex`,
-  alignItems: `center`,
-  gap: theme.spacing(1),
-  cursor: `pointer`,
-  padding: theme.spacing(1, 1.5),
-  borderRadius: theme.spacing(1),
-  transition: `background-color 0.15s ease`,
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.text.primary, 0.04),
-  },
-}))
+import { SectionHeader, SectionIcon, FormSection } from './Quickstart.styled'
 
 export type TAgentStep = {
   disabled?: boolean
@@ -60,7 +20,6 @@ export type TAgentStep = {
 
 export const AgentStep = (props: TAgentStep) => {
   const { data, onChange, disabled } = props
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
   return (
     <Box sx={{ display: `flex`, flexDirection: `column`, gap: 3 }}>
@@ -71,7 +30,7 @@ export const AgentStep = (props: TAgentStep) => {
           </SectionIcon>
           <Typography
             variant='subtitle2'
-            sx={{ fontWeight: 600, letterSpacing: `0.02em` }}
+            sx={{ fontWeight: 600 }}
           >
             Project
           </Typography>
@@ -99,7 +58,7 @@ export const AgentStep = (props: TAgentStep) => {
           </SectionIcon>
           <Typography
             variant='subtitle2'
-            sx={{ fontWeight: 600, letterSpacing: `0.02em` }}
+            sx={{ fontWeight: 600 }}
           >
             Agent
           </Typography>
@@ -130,42 +89,22 @@ export const AgentStep = (props: TAgentStep) => {
         </FormSection>
       </Box>
 
-      <Box>
-        <AdvancedToggle onClick={() => setShowAdvanced(!showAdvanced)}>
-          <TuneIcon
-            sx={{
-              fontSize: 16,
-              color: `text.secondary`,
-              transition: `color 0.2s`,
-              ...(showAdvanced && { color: `primary.main` }),
-            }}
-          />
-          <Text
+      <Accordion
+        disableGutters
+        elevation={0}
+        sx={{ border: 0, '&:before': { display: `none` } }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <TuneIcon sx={{ fontSize: 16, color: `text.secondary`, mr: 1 }} />
+          <Typography
             variant='subtitle2'
-            sx={{
-              fontWeight: 500,
-              color: showAdvanced ? `primary.main` : `text.secondary`,
-              transition: `color 0.2s`,
-            }}
+            sx={{ fontWeight: 500, color: `text.secondary` }}
           >
             Advanced
-          </Text>
-          <ExpandMoreIcon
-            sx={{
-              fontSize: 18,
-              color: `text.secondary`,
-              transition: `transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s`,
-              transform: showAdvanced ? `rotate(180deg)` : `rotate(0deg)`,
-              ml: `auto`,
-              ...(showAdvanced && { color: `primary.main` }),
-            }}
-          />
-        </AdvancedToggle>
-        <Collapse
-          in={showAdvanced}
-          timeout={300}
-        >
-          <FormSection sx={{ mt: 1.5 }}>
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0 }}>
+          <FormSection>
             <TextInput
               textarea
               fullWidth
@@ -180,8 +119,8 @@ export const AgentStep = (props: TAgentStep) => {
               onChange={(e) => onChange({ systemPrompt: e.target.value })}
             />
           </FormSection>
-        </Collapse>
-      </Box>
+        </AccordionDetails>
+      </Accordion>
     </Box>
   )
 }
