@@ -9,7 +9,8 @@ import { EmailLoginForm } from '@TAF/components/Login/EmailLoginForm'
 import {
   ErrorText,
   BtnSection,
-  BrandBlob,
+  BrandBlob1,
+  BrandBlob2,
   BrandGlow,
   BrandLogo,
   LoginStack,
@@ -69,28 +70,8 @@ export const Login = (props: TLogin) => {
   return (
     <LoginContainer className='tdsk-login-container'>
       <BrandGlow />
-      <BrandBlob
-        sx={{
-          width: 400,
-          height: 400,
-          top: '10%',
-          left: '5%',
-          background:
-            'radial-gradient(circle, rgba(51,112,222,0.07) 0%, transparent 65%)',
-        }}
-      />
-      <BrandBlob
-        sx={{
-          width: 300,
-          height: 300,
-          bottom: '15%',
-          right: '10%',
-          animationDuration: '25s',
-          animationDirection: 'reverse',
-          background:
-            'radial-gradient(circle, rgba(51,112,222,0.05) 0%, transparent 70%)',
-        }}
-      />
+      <BrandBlob1 />
+      <BrandBlob2 />
 
       <LoginContent className='tdsk-login-content'>
         <BrandLogo />
@@ -127,8 +108,8 @@ export const Login = (props: TLogin) => {
                   sx={{
                     my: 1,
                     width: `100%`,
-                    color: `rgba(255,255,255,0.4)`,
-                    '&::before, &::after': { borderColor: `rgba(255,255,255,0.12)` },
+                    color: `text.secondary`,
+                    '&::before, &::after': { borderColor: `divider` },
                   }}
                 >
                   or

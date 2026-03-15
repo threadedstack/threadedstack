@@ -341,55 +341,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 
 ## Admin
 
-### [P2] Login page: replace MUI TextField with TextInput from @tdsk/components
-
-* **Repos**: admin, components
-* **Key files**: `repos/admin/src/components/Login/EmailLoginForm.tsx`
-* The email input (lines 53-63) and password input (lines 65-75) use MUI `TextField` directly. The project has a custom `TextInput` component at `repos/components/src/components/Inputs/TextInput.tsx` (wraps MUI `OutlinedInput` with consistent styling and `Textarea` support). All form inputs should use the shared component for UI consistency
-* **Fix**:
-  1. Replace the two MUI `TextField` components in `EmailLoginForm.tsx` with `TextInput` from `@tdsk/components`
-  2. Map existing props (`type`, `label`, `size`, `value`, `onChange`) to the `TextInput` prop interface (`TTextInput` type, lines 14-31 of `TextInput.tsx`)
-  3. Remove MUI `TextField` import if no longer used
-* **Files**:
-  * `repos/admin/src/components/Login/EmailLoginForm.tsx` — replace TextField with TextInput
-  * `repos/components/src/components/Inputs/TextInput.tsx` — reference for prop interface
-
-### [P1] Login page: light theme mode renders as dark — hardcoded colors throughout
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/components/Login/Login.styles.tsx`
-* The Login page has 10+ hardcoded dark-mode colors with no light theme adaptation. In light theme, text is invisible (white on white) and backgrounds are forced dark. The page-level wrapper (`repos/admin/src/pages/Login/Login.styles.tsx:11`) correctly uses `theme.palette.background.default`, but all component-level styles ignore the theme. Should align with the website Hero component's light theme approach
-* **Hardcoded dark-only styles**:
-  * Line 18: `background-color: ${grey[900]}` — container always dark
-  * Line 70: `color: rgba(255, 255, 255, 0.5)` — BrandSubtitle white text
-  * Line 252: `.MuiInputBase-root { color: rgba(255, 255, 255, 0.87) }` — form input white text
-  * Line 255: `.MuiOutlinedInput-notchedOutline { border-color: rgba(255, 255, 255, 0.2) }` — white border
-  * Line 264: `.MuiInputLabel-root { color: rgba(255, 255, 255, 0.5) }` — white label
-  * Line 270: `.MuiTypography-root { color: rgba(255, 255, 255, 0.5) }` — white text
-  * Line 241: ErrorText `color: rgba(255, 255, 255, 0.6)` — white error text
-  * Lines 28-30: BrandGlow gradients dark-only
-  * Lines 38: BrandBlob dark-only gradients
-* **Fix**:
-  1. Replace all hardcoded `rgba(255, 255, 255, *)` values with theme-aware tokens (`theme.palette.text.primary`, `theme.palette.text.secondary`, `theme.palette.divider`, etc.)
-  2. Make `LoginContainer` background use `theme.palette.background.default` instead of `grey[900]`
-  3. Add `isDark` conditional styling for BrandGlow, BrandBlob, and BrandHeadline gradient — reference `repos/website/src/components/Landing/Hero.tsx` lines 44-46, 69-71 for the pattern
-  4. Ensure ErrorText, form labels, inputs, and borders all adapt to light/dark theme
-* **Files**:
-  * `repos/admin/src/components/Login/Login.styles.tsx` — replace all hardcoded colors with theme-aware values
-
-### [P2] Login page: background blobs should animate like website Hero component
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/components/Login/Login.styles.tsx` (lines 33-45, 72-93), `repos/website/src/components/Landing/Hero.tsx` (lines 37-85)
-* The Login page blobs use a simple 3-point keyframe animation (`heroFloat`) with small ±20-30px movements. The website Hero uses richer 6-point keyframe animations (`heroFloat1`, `heroFloat2`) with larger ±100-250px movements and theme-aware gradient colors. The Login blobs should match the Hero's animation style
-* **Differences**: Admin uses 3 keyframe points (0%, 33%, 66%) with 20-30px range; Hero uses 6 keyframe points (0%, 15%, 35%, 55%, 75%, 100%) with 100-250px range. Hero has theme-aware blob colors, Admin does not
-* **Fix**:
-  1. Replace the `heroFloat` keyframe animation in `Login.styles.tsx` (lines 40-44) with the `heroFloat1` and `heroFloat2` animations from `Hero.tsx` (lines 51-83)
-  2. Update the two blob instances (lines 72-93) to use the new animations with matching durations (18s, 22s)
-  3. Add `isDark` conditional gradient colors matching the Hero pattern (lines 44-46, 69-71)
-* **Files**:
-  * `repos/admin/src/components/Login/Login.styles.tsx` — update keyframe animations and blob styles
-
 ### [P2] AgentDrawer: extract Web Provider settings into standalone component
 
 * **Repos**: admin

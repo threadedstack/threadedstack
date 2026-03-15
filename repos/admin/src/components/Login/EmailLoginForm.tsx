@@ -2,9 +2,9 @@ import { useState, useCallback } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 
 import Alert from '@mui/material/Alert'
-import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import Link from '@mui/material/Link'
+import { TextInput } from '@tdsk/components'
 
 import { EmailFormContainer, EmailFormButton } from './Login.styles'
 
@@ -50,10 +50,11 @@ export const EmailLoginForm = (props: TEmailLoginFormProps) => {
       {error && <Alert severity='error'>{error}</Alert>}
       {success && <Alert severity='success'>{success}</Alert>}
 
-      <TextField
+      <TextInput
         required
         fullWidth
         type='email'
+        id='login-email'
         label='Email'
         value={email}
         onChange={onEmailChange}
@@ -62,10 +63,11 @@ export const EmailLoginForm = (props: TEmailLoginFormProps) => {
         size='small'
       />
 
-      <TextField
+      <TextInput
         required
         fullWidth
         type='password'
+        id='login-password'
         label='Password'
         value={password}
         onChange={onPasswordChange}
