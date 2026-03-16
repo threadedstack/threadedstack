@@ -21,5 +21,5 @@ export default defineConfig({
       },
     },
   },
-  plugins: [viteTsconfigPaths()],
+  plugins: [viteTsconfigPaths() as any],
 } as UserConfig)

@@ -1,17 +1,11 @@
 import type { TSession, TApp } from '@TBE/types'
 import type { TStreamEvent, TWSServerMsg, TWSPromptMsg } from '@tdsk/domain'
-import type {
-  TAgentHandle,
-  TAgentConfig,
-  TAgentInitOpts,
-  IAgentRunnerDB,
-} from '@tdsk/agent'
+import type { TAgentHandle, TAgentConfig, TAgentInitOpts } from '@tdsk/agent'
 
 import WebSocket from 'ws'
 import { logger } from '@TBE/utils/logger'
 import { AgentRunner } from '@tdsk/agent'
-import { EWSEventType, ESandboxType, EStreamEventType } from '@tdsk/domain'
-import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
+import { EWSEventType, EStreamEventType } from '@tdsk/domain'
 
 type TWebsocketOpts = {
   app: TApp
@@ -77,86 +71,24 @@ export class Websocket {
   }
 
   /**
-   * Create an IAgentRunnerDB adapter from the app's database services
+   * Build TAgentInitOpts from the pre-resolved session config.
+   * Session includes sandboxConfig, skills, db, and
+   * onExecuteFunction — all resolved by resolveAgentConfig().
    */
-  createDBAdapter = (db: any): IAgentRunnerDB => ({
-    createMessage: (data) => db.services.message.create(data),
-    listMessages: (opts) =>
-      db.services.message.listByThread(opts.where.threadId, {
-        limit: opts.limit,
-        offset: opts.offset,
-      }),
-  })
-
-  /**
-   * Build the TAgentInitOpts from the session and DB.
-   */
-  async #buildInitOpts(
-    session: TSession,
-    db: any,
-    threadId: string
-  ): Promise<TAgentInitOpts> {
-    const customFunctions = session.customFunctions || []
-    const functionMap = new Map(customFunctions.map((fn: any) => [fn.id, fn]))
-
-    const { data: skills } = await db.services.skill.listForAgent(session.agentId)
-
-    const sandboxProvider = session.environment?.sandboxType || ESandboxType.local
-    let podName = session.environment?.podName as string | undefined
-
-    // Auto-start K8s pod if sandboxId is set but no explicit podName
-    if (
-      sandboxProvider === ESandboxType.kubernetes &&
-      !podName &&
-      session.environment?.sandboxId
-    ) {
-      const { config, sandbox } = (this.#app || ({ locals: {} } as TApp))?.locals
-      if (!sandbox) throw new Error(`Sandbox service could not be loaded!`)
-
-      podName = await sandbox.startPod({
-        orgId: session.orgId,
-        userId: session.userId,
-        egressOpts: config.egress,
-        projectId: session.projectId || ``,
-        sandboxId: session.environment.sandboxId as string,
-      })
-    }
-
-    if (sandboxProvider === ESandboxType.kubernetes && !podName) {
-      throw new Error(`K8s sandbox not available — no podName or sandbox found`)
-    }
-
+  async #buildInitOpts(session: TSession, threadId: string): Promise<TAgentInitOpts> {
     return {
-      skills,
       threadId,
-      customFunctions,
+      skills: session.skills,
+      customFunctions: session.customFunctions,
       tools: session.tools,
       orgId: session.orgId,
       userId: session.userId,
       agentId: session.agentId,
-      db: this.createDBAdapter(db),
+      db: session.db,
       llmConfig: session.llmConfig,
       environment: session.environment,
-      sandboxConfig: {
-        provider: sandboxProvider,
-        envVars: session.envVars ?? {},
-        timeout: session.environment?.timeout ?? 300000,
-        options: podName ? { podName } : undefined,
-      },
-      onExecuteFunction: async (functionId, input) => {
-        const func = functionMap.get(functionId)
-        if (!func) {
-          return {
-            duration: 0,
-            output: null,
-            success: false,
-            error: `Function not found`,
-          }
-        }
-        return FunctionExecutor.execute(func, {
-          context: { args: input as Record<string, any> },
-        })
-      },
+      sandboxConfig: session.sandboxConfig,
+      onExecuteFunction: session.onExecuteFunction,
       onEvent: (event: TStreamEvent) => {
         if (this.#abortController?.signal.aborted) return
         this.bridgeEventToWS(event)
@@ -184,7 +116,7 @@ export class Websocket {
 
     // Create and init new runner — hold in local var until init completes
     const runner = new AgentRunner()
-    const initOpts = await this.#buildInitOpts(session, db, threadId)
+    const initOpts = await this.#buildInitOpts(session, threadId)
     await runner.init(initOpts)
 
     // If close() was called during init, destroy the new runner and bail
@@ -321,7 +253,7 @@ export class Websocket {
 
   /**
    * Bridge TStreamEvent to EWSEventType WebSocket messages.
-   * Maps the existing event types to the new WS protocol.
+   * Maps TStreamEvent types to EWSEventType WebSocket messages for client consumption.
    */
   bridgeEventToWS(event: TStreamEvent): void {
     switch (event.type) {

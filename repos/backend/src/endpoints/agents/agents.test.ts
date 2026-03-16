@@ -85,15 +85,17 @@ describe(`Agents endpoints`, () => {
       expect(agents.endpoints?.deleteAgent).toBeDefined()
     })
 
-    it(`should have all 6 endpoint configs defined`, () => {
+    it(`should have all 8 endpoint configs defined`, () => {
       const endpointKeys = Object.keys(agents.endpoints || {})
-      expect(endpointKeys).toHaveLength(6)
+      expect(endpointKeys).toHaveLength(8)
       expect(endpointKeys).toContain(`getAgent`)
       expect(endpointKeys).toContain(`runAgent`)
       expect(endpointKeys).toContain(`listAgents`)
       expect(endpointKeys).toContain(`createAgent`)
       expect(endpointKeys).toContain(`updateAgent`)
       expect(endpointKeys).toContain(`deleteAgent`)
+      expect(endpointKeys).toContain(`oaiChatCompletions`)
+      expect(endpointKeys).toContain(`oaiModels`)
     })
   })
 

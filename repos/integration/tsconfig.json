@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "strict": true,
+    "strictPropertyInitialization": false,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
     "target": "esnext",
     "module": "esnext",
     "outDir": "../dist",

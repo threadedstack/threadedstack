@@ -8,6 +8,18 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
 
 
+### [P3] WebSocket FileUpload & WorkspaceManifest handlers
+
+* **Repos**: backend, possibly agent
+* **Key files**: `repos/backend/src/endpoints/ai/onWSConnect.ts`, `repos/domain/src/types/ws.types.ts`
+* Implement actual handlers for `EWSEventType.FileUpload` and `EWSEventType.WorkspaceManifest` in `onWSConnect.ts`. Currently returns "not supported" error responses. Type contracts are fully defined in `repos/domain/src/types/ws.types.ts` (`TWSFileUploadMsg`, `TWSWorkspaceManifestMsg`, `FileUploadComplete`, `FileRequest`, `FileChanged`). These are the remaining unimplemented WebSocket event types in the AI agent connection handler.
+
+### [P2] Integration test api-client response double-wrapping
+
+* **Repos**: integration
+* **Key files**: `repos/integration/src/utils/api-client.ts`, test files in `repos/integration/src/tier1/`, `repos/integration/src/tier3/`
+* The `get<T>()` / `api<T>()` helpers in `api-client.ts` wrap the JSON response in `{ data }`, but backend endpoints also return `{ data }` — creating `res.data.data` double-nesting. Fix so `res.data` is the actual payload. Remove defensive `res.data.data ?? res.data` patterns from test files (`faas-execution.test.ts`, `proxy-endpoint.test.ts`, and any others using this pattern).
+
 ### [P3] Standalone chat application — web and desktop interface for agent interaction
 
 * **Repos**: NEW `repos/chat/`, components, domain
@@ -345,34 +357,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 ---
 
 ## Backend
-
-### [P3] OpenAI-compatible streaming for Agent endpoints
-
-* **Repos**: backend, agent, domain, integration
-* **Key files**: `repos/backend/src/services/endpoints/agentEndpoint.ts` (lines 189-253), `repos/agent/src/adapters/eventBridge.ts` (lines 31-130), `repos/domain/src/types/ai.types.ts`
-* Agent endpoints (`POST /agents/:id/run`) stream responses via SSE using a custom ThreadedStack event format: `data: {"type":"text","text":"Hello"}\n\n` with types `text`, `thinking`, `tool_call_start`, `tool_call_args`, `tool_result`, `done`, `turn_end`, `error`. The OpenAI Chat Completions streaming format (`POST /v1/chat/completions` with `stream: true`) is the de facto standard — events use `data: {"id":"chatcmpl-XXX","object":"chat.completion.chunk","created":1234567890,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}\n\n`. Many AI products support the `openai` npm package against their APIs. ThreadedStack should offer the same compatibility so users can interact with their custom Agent endpoints using the standard OpenAI client SDK
-* **Current format** (ThreadedStack native): `{type, text/thinking/id/name/args/...}` — 9 event types in `EStreamEventType` enum
-* **Target format** (OpenAI compatible): `{id, object, created, model, choices: [{index, delta: {content/tool_calls}, finish_reason}]}` with `data: [DONE]` terminator
-* **Fix**:
-  1. Add a format parameter to agent endpoint options (e.g., `format: 'openai' | 'native'`) — could be a query parameter (`?format=openai`), request body field, or endpoint configuration option in admin
-  2. Create an OpenAI response transformer module that maps ThreadedStack `TStreamEvent` objects to OpenAI `chat.completion.chunk` format:
-     - `text` → `choices[0].delta.content`
-     - `tool_call_start` + `tool_call_args` → `choices[0].delta.tool_calls[{index, id, type, function: {name, arguments}}]`
-     - `done` → `choices[0].finish_reason` ("stop" | "tool_calls")
-     - `turn_end` → optional `usage` object in final chunk
-  3. Update the SSE write logic in `agentEndpoint.ts` (line 234: `res.write('data: ' + JSON.stringify(event) + '\n\n')`) to conditionally apply the transformer
-  4. Add the `model` field to agent responses (can use the agent's configured model name)
-  5. Generate unique `chatcmpl-*` IDs for each response stream
-  6. Add integration tests validating the OpenAI format with the `openai` npm package
-* **Files**:
-  * `repos/backend/src/services/endpoints/agentEndpoint.ts` — SSE write logic, format selection (lines 189-253)
-  * New: `repos/backend/src/services/endpoints/openaiTransformer.ts` — event format transformer
-  * `repos/domain/src/types/ai.types.ts` — `EStreamEventType` enum and `TStreamEvent` types (reference)
-  * `repos/domain/src/types/epd.types.ts` — `TAgentEndpointConfig` type — add format option (lines 154-181)
-  * `repos/agent/src/adapters/eventBridge.ts` — `mapAgentEvent()` function (reference for event mapping)
-  * `repos/backend/src/endpoints/agents/runAgent.ts` — agent run route handler (lines 1-40)
-  * `repos/integration/src/utils/sse.ts` — SSE test parser — add OpenAI format support
-  * New: `repos/integration/src/tier3/openai-compat.test.ts` — OpenAI compatibility integration tests
 
 ---
 

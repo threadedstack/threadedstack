@@ -93,6 +93,7 @@ vi.mock(`@TAF/components/Agents`, () => ({
   ),
   ModelConfigForm: () => <div data-testid='model-config-form' />,
   AgentSettingsForm: () => <div data-testid='agent-settings-form' />,
+  WebProviderSettings: () => <div data-testid='web-provider-settings' />,
 }))
 
 import { AgentDrawer } from './AgentDrawer'

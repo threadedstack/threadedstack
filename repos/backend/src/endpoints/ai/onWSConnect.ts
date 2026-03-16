@@ -8,10 +8,8 @@ import { logger } from '@TBE/utils/logger'
 import { EWSEventType } from '@tdsk/domain'
 import { Websocket } from '@TBE/services/websocket/websocket'
 import { verifySessionToken } from '@TBE/services/sessionToken'
-import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
-import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { ClientMsgTypes, WsPingIntervalMS } from '@TBE/constants/values'
-import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
+import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 
 /**
  * Parse and validate an incoming WebSocket message.
@@ -22,85 +20,42 @@ const parseClientMsg = (raw: Buffer | string): TWSClientMsg | null => {
     const msg = JSON.parse(typeof raw === `string` ? raw : raw.toString(`utf8`))
     if (!msg || typeof msg.type !== `string` || !ClientMsgTypes.has(msg.type)) return null
     return msg as TWSClientMsg
-  } catch {
-    logger.debug(`WS parse failed for message: ${String(raw).slice(0, 200)}`)
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      logger.debug(`WS parse failed for message: ${String(raw).slice(0, 200)}`)
+    } else {
+      logger.warn(`WS unexpected parse error`, {
+        error: err instanceof Error ? err.message : err,
+      })
+    }
     return null
   }
 }
 
 /**
  * Resolve the full session data from a verified token payload.
- * Loads the agent (unsanitized) and resolves secrets from the DB.
+ * Uses the shared resolveAgentConfig() utility to load agent, secrets, and config.
  */
 const resolveSession = async (
   payload: TSessionPayload,
   app: TApp
-): Promise<TSession | null> => {
+): Promise<{ session: TSession | null; error?: string }> => {
   try {
     const { db } = app.locals
 
-    const { data: agent, error: agentErr } = await db.services.agent.get(
-      payload.agentId,
-      {
-        sanitize: false,
-      }
-    )
-
-    if (agentErr || !agent) {
-      logger.warn(`Session resolve: agent ${payload.agentId} not found`)
-      return null
-    }
-
-    const provider = agent.primaryProvider
-    if (!provider) {
-      logger.warn(`Session resolve: agent ${payload.agentId} has no provider`)
-      return null
-    }
-
-    const secrets = new SecretResolver(db)
-    const apiKey = await secrets.resolveApiKey(agent, provider)
-    if (!apiKey) {
-      logger.warn(
-        `Session resolve: provider "${provider.name || provider.id}" has no API key secret linked`,
-        { agentId: payload.agentId, providerId: provider.id }
-      )
-      return null
-    }
-
-    // Resolve model via 3-tier hierarchy: junction → agent → provider default
-    const model = agent.resolveModel(provider.id, provider.options?.model)
-    if (!model) {
-      logger.warn(`Session resolve: no model configured for agent ${payload.agentId}`)
-      return null
-    }
-
-    const providerType = resolveProviderType(provider)
-    const headers = await secrets.resolveHeaders(provider)
-    const bodyParams = await secrets.resolveBodyParams(provider)
-
-    // Resolve web provider API key + custom functions (shared with SSE path)
-    const deps = await resolveAgentDeps(agent, db, secrets, payload.projectId)
-    agent.environment = deps.environment
-
-    return {
-      agentId: agent.id,
-      orgId: agent.orgId,
+    const config = await resolveAgentConfig(payload.agentId, db, app, {
       userId: payload.userId,
       projectId: payload.projectId,
-      environment: agent.environment,
-      customFunctions: deps.customFunctions,
-      tools: agent.tools as string[] | undefined,
-      envVars: agent.envVars as Record<string, string> | undefined,
-      llmConfig: {
-        model,
-        apiKey,
-        headers,
-        bodyParams,
-        provider: providerType as any,
-        systemPrompt: agent.systemPrompt,
-        maxTokens: agent.maxTokens || 4096,
-        temperature: agent.environment?.temperature,
-        baseUrl: provider.options?.baseUrl as string | undefined,
+    })
+
+    const { agent, effectiveAgent, orgId, ...runtimeConfig } = config
+    return {
+      session: {
+        agentId: agent.id,
+        orgId,
+        userId: payload.userId,
+        projectId: payload.projectId,
+        ...runtimeConfig,
       },
     }
   } catch (err) {
@@ -109,7 +64,10 @@ const resolveSession = async (
       error: err instanceof Error ? err.message : err,
       stack: err instanceof Error ? err.stack : undefined,
     })
-    return null
+    return {
+      session: null,
+      error: err instanceof Error ? err.message : `Agent session could not be resolved`,
+    }
   }
 }
 
@@ -158,16 +116,21 @@ export const onWSConnect = async (
 
   // 4. Handle WebSocket errors (fires before close on abnormal disconnects)
   ws.on(`error`, (err: Error) => {
-    logger.error(`WebSocket error`, { error: err.message })
+    logger.error(`WebSocket error`, {
+      error: err.message,
+      stack: err.stack,
+      agentId: payload.agentId,
+      userId: payload.userId,
+    })
   })
 
   // 5. Handle incoming messages — waits for session before processing
   ws.on(`message`, async (raw: Buffer | string) => {
-    const session = await sessionPromise
+    const { session, error: sessionError } = await sessionPromise
     if (!session) {
       service.send({
         type: EWSEventType.Error,
-        message: `Agent session could not be resolved`,
+        message: sessionError || `Agent session could not be resolved`,
       })
       return
     }
@@ -227,13 +190,19 @@ export const onWSConnect = async (
           break
 
         case EWSEventType.FileUpload:
-          // Phase 8 — workspace file sync (placeholder)
           logger.debug(`WS file_upload received: ${msg.path}`)
+          service.send({
+            type: EWSEventType.Error,
+            message: `File upload is not supported in this version`,
+          })
           break
 
         case EWSEventType.WorkspaceManifest:
-          // Phase 8 — workspace manifest (placeholder)
           logger.debug(`WS workspace_manifest received: ${msg.files?.length} files`)
+          service.send({
+            type: EWSEventType.Error,
+            message: `Workspace sync is not supported in this version`,
+          })
           break
       }
     } catch (err) {
@@ -247,11 +216,17 @@ export const onWSConnect = async (
   // 6. Cleanup on disconnect (destroy persistent runner + close WS)
   ws.on(`close`, () => {
     clearInterval(pingInterval)
-    sessionPromise.then((session) => {
-      if (session) {
-        logger.info(`WS disconnected: agent=${session.agentId}, user=${session.userId}`)
-      }
-    })
+    sessionPromise
+      .then(({ session }) => {
+        if (session) {
+          logger.info(`WS disconnected: agent=${session.agentId}, user=${session.userId}`)
+        }
+      })
+      .catch((err) => {
+        logger.error(`[WS] Session cleanup error`, {
+          error: err instanceof Error ? err.message : err,
+        })
+      })
     if (service.abortController) {
       service.abortController.abort()
       service.abortController = null
@@ -262,9 +237,9 @@ export const onWSConnect = async (
   })
 
   // 7. Await session resolution — close if it fails
-  const session = await sessionPromise
+  const { session, error: sessionError } = await sessionPromise
   if (!session) {
-    ws.close(4001, `Failed to resolve agent session`)
+    ws.close(4001, sessionError || `Failed to resolve agent session`)
     return
   }
 
