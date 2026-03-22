@@ -1,7 +1,7 @@
 import type { TOnLogin, TLoginData } from '@TAF/types'
 
 import GoogleIcon from '@mui/icons-material/Google'
-import { GgLoginButton } from '@TAF/components/Login/Login.styles'
+import { ProviderLoginButton } from '@TAF/components/Login/Login.styles'
 
 export type TGoogleButton = {
   loading?: boolean
@@ -30,7 +30,7 @@ export const GgButton = (props: TGoogleButton) => {
   const { onLogin, loading, disabled } = props
 
   return (
-    <GgLoginButton
+    <ProviderLoginButton
       text={`Google`}
       Icon={GoogleIcon}
       loading={loading}

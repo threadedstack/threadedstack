@@ -63,9 +63,9 @@ export const removeOrgMember: TEndpointConfig = {
         `FORBIDDEN`
       )
 
-    const { data, error } = await db.services.role.delete(targetRole.id)
+    const { error } = await db.services.role.removeFromOrg(userId, orgId)
     if (error) throw new Exception(500, error.message)
 
-    res.status(200).json({ data })
+    res.status(200).json({ data: targetRole })
   },
 }

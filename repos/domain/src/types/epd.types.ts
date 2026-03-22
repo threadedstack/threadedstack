@@ -1,3 +1,4 @@
+import type { TAgentOverrides } from './ai.types'
 import type { THttpMethod } from './http.types'
 
 /**
@@ -159,15 +160,7 @@ export type TAgentEndpointConfig = TSharedEndpointOpts<
     /** Agent ID to use for this endpoint */
     agentId: string
     /** Optional overrides for this specific endpoint */
-    overrides?: {
-      /** Override system prompt */
-      systemPrompt?: string
-      /** Override model */
-      model?: string
-      /** Override max tokens */
-      maxTokens?: number
-      /** Override tools */
-      tools?: string[]
+    overrides?: TAgentOverrides & {
       /** Override function IDs */
       functionIds?: string[]
       /** Override provider IDs */

@@ -1,75 +1,122 @@
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import { styled, alpha } from '@mui/material/styles'
-import { Text, grey, colors, TSIcon, gutter, LoadingButton } from '@tdsk/components'
+import { Text, TSIcon, gutter, LoadingButton } from '@tdsk/components'
 
-// --- Layout ---
+export const LoginContainer = styled(Box)(({ theme }) => {
+  return `
+    flex: 1;
+    width: 100vw;
+    display: flex;
+    overflow: hidden;
+    min-height: 100vh;
+    position: relative;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+    background-color: ${theme.palette.background.default};
+  `
+})
 
-export const LoginContainer = styled(Box)`
-  flex: 1;
-  width: 100vw;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background-color: ${grey[900]};
-`
+export const BrandGlow = styled(Box)(({ theme }) => {
+  const isDark = theme.palette.mode === 'dark'
+  return `
+    inset: 0;
+    z-index: 0;
+    position: absolute;
+    pointer-events: none;
+    background-image: ${
+      isDark
+        ? `radial-gradient(ellipse at 30% 50%, rgba(51,112,222,0.08) 0%, transparent 60%),
+           radial-gradient(ellipse at 80% 70%, rgba(51,112,222,0.05) 0%, transparent 50%)`
+        : `radial-gradient(ellipse at 25% 40%, rgba(51,112,222,0.07) 0%, transparent 55%),
+           radial-gradient(ellipse at 80% 65%, rgba(51,112,222,0.06) 0%, transparent 50%)`
+    };
+  `
+})
 
-// --- Brand Panel ---
+export const BrandBlob1 = styled(Box)(({ theme }) => {
+  const isDark = theme.palette.mode === 'dark'
+  return `
+    position: absolute;
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+    width: 400px;
+    height: 400px;
+    top: 10%;
+    left: 5%;
+    background: radial-gradient(circle, rgba(51,112,222,${isDark ? '0.06' : '0.08'}) 0%, transparent ${isDark ? '70%' : '65%'});
+    animation: heroFloat1 18s ease-in-out infinite;
 
-export const BrandGlow = styled(Box)`
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(ellipse at 30% 50%, rgba(51,112,222,0.08) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 70%, rgba(51,112,222,0.05) 0%, transparent 50%);
-`
+    @keyframes heroFloat1 {
+      0% { transform: translate(0, 0); }
+      15% { transform: translate(120px, 40px); }
+      35% { transform: translate(250px, -30px); }
+      55% { transform: translate(180px, 120px); }
+      75% { transform: translate(50px, 80px); }
+      100% { transform: translate(0, 0); }
+    }
+  `
+})
 
-export const BrandBlob = styled(Box)`
-  position: absolute;
-  border-radius: 50%;
-  z-index: 0;
-  pointer-events: none;
-  animation: heroFloat 20s ease-in-out infinite;
+export const BrandBlob2 = styled(Box)(({ theme }) => {
+  const isDark = theme.palette.mode === 'dark'
+  return `
+    position: absolute;
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+    width: 300px;
+    height: 300px;
+    bottom: 15%;
+    right: 10%;
+    background: radial-gradient(circle, rgba(51,112,222,${isDark ? '0.04' : '0.06'}) 0%, transparent ${isDark ? '70%' : '65%'});
+    animation: heroFloat2 22s ease-in-out infinite;
 
-  @keyframes heroFloat {
-    0%, 100% { transform: translate(0, 0); }
-    33% { transform: translate(30px, -20px); }
-    66% { transform: translate(-20px, 15px); }
-  }
-`
+    @keyframes heroFloat2 {
+      0% { transform: translate(0, 0); }
+      20% { transform: translate(-100px, -60px); }
+      40% { transform: translate(-200px, 30px); }
+      60% { transform: translate(-120px, -100px); }
+      80% { transform: translate(-50px, -40px); }
+      100% { transform: translate(0, 0); }
+    }
+  `
+})
 
-export const BrandLogo = styled(TSIcon)`
-  width: 56px;
-  height: 56px;
-  fill: ${colors.primary.main};
-  margin-bottom: ${gutter.px};
-`
+export const BrandLogo = styled(TSIcon)(({ theme }) => {
+  return `
+    width: 56px;
+    height: 56px;
+    margin-bottom: ${gutter.px};
+    fill: ${theme.palette.primary.main};
+  `
+})
 
-export const BrandHeadline = styled(Text)`
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  margin-bottom: ${gutter.hpx};
-  background: linear-gradient(135deg, #3370DE, #6B9BEA);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-`
+export const BrandHeadline = styled(Text)(({ theme }) => {
+  return `
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: ${gutter.hpx};
+    background: ${theme.palette.colors.gradients.headline};
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  `
+})
 
-export const BrandSubtitle = styled(Text)`
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: ${gutter.mpx};
-`
+export const BrandSubtitle = styled(Text)(({ theme }) => {
+  return `
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.6;
+    color: ${theme.palette.text.secondary};
+    margin-bottom: ${gutter.mpx};
+  `
+})
 
 // --- Form Card ---
 
@@ -112,24 +159,22 @@ export const BtnSection = styled(Box)`
   width: 100%;
 `
 
-// --- Provider Buttons ---
-
-const ProviderLoginButton = styled(LoadingButton)(({ theme }) => {
+export const ProviderLoginButton = styled(LoadingButton)(({ theme }) => {
   return `
     width: 100%;
     height: 44px;
-    color: rgba(255, 255, 255, 0.87);
     font-size: 0.8125rem;
     font-weight: 500;
     text-transform: none;
-    border-radius: ${theme.dims.border.smpx};
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
     transition: all 0.15s ease;
+    color: ${theme.palette.text.primary};
+    border-radius: ${theme.dims.border.smpx};
+    border: 1px solid ${theme.palette.divider};
+    background: ${alpha(theme.palette.text.primary, 0.04)};
 
     &:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
+      background: ${alpha(theme.palette.text.primary, 0.08)};
+      border-color: ${alpha(theme.palette.text.primary, 0.18)};
     }
 
     &:disabled {
@@ -137,13 +182,6 @@ const ProviderLoginButton = styled(LoadingButton)(({ theme }) => {
     }
   `
 })
-
-export const GgLoginButton = ProviderLoginButton
-export const GhLoginButton = ProviderLoginButton
-export const GlLoginButton = ProviderLoginButton
-export const VrLoginButton = ProviderLoginButton
-
-// --- Misc ---
 
 export const ErrorSection = styled(Box)(({ theme }) => {
   return `
@@ -167,55 +205,53 @@ export const ErrorTitle = styled(Text)(({ theme }) => {
   `
 })
 
-export const ErrorText = styled(Text)`
-  font-size: 0.8125rem;
-  color: rgba(255, 255, 255, 0.6);
-  line-height: 1.5;
-`
+export const ErrorText = styled(Text)(({ theme }) => {
+  return `
+    line-height: 1.5;
+    font-size: 0.8125rem;
+    color: ${theme.palette.text.secondary};
+  `
+})
 
-export const EmailFormContainer = styled(`form`)`
-  display: flex;
-  flex-direction: column;
-  gap: ${gutter.px};
-  width: 100%;
+export const EmailFormContainer = styled(`form`)(({ theme }) => {
+  return `
+    display: flex;
+    flex-direction: column;
+    gap: ${gutter.px};
+    width: 100%;
 
-  .MuiInputBase-root {
-    color: rgba(255, 255, 255, 0.87);
-  }
-  .MuiOutlinedInput-notchedOutline {
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-  .MuiInputBase-root:hover .MuiOutlinedInput-notchedOutline {
-    border-color: rgba(255, 255, 255, 0.4);
-  }
-  .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-    border-color: ${colors.primary.main};
-  }
-  .MuiInputLabel-root {
-    color: rgba(255, 255, 255, 0.5);
-  }
-  .MuiInputLabel-root.Mui-focused {
-    color: ${colors.primary.main};
-  }
-  .MuiTypography-root {
-    color: rgba(255, 255, 255, 0.5);
-  }
-  .MuiLink-root {
-    color: #6B9BEA;
-  }
-`
+    .MuiInputBase-root {
+      color: ${theme.palette.text.primary};
+    }
+    .MuiOutlinedInput-notchedOutline {
+      border-color: ${theme.palette.divider};
+    }
+    .MuiInputBase-root:hover .MuiOutlinedInput-notchedOutline {
+      border-color: ${alpha(theme.palette.text.primary, 0.4)};
+    }
+    .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+      border-color: ${theme.palette.primary.main};
+    }
+    .MuiTypography-root {
+      color: ${theme.palette.text.secondary};
+    }
+    .MuiLink-root {
+      color: ${theme.palette.primary.light};
+    }
+  `
+})
 
 export const EmailFormButton = styled(LoadingButton)(({ theme }) => {
   return `
     width: 100%;
     height: 40px;
-    font-size: 0.8125rem;
+    color: #fff;
     font-weight: 600;
     text-transform: none;
-    color: #fff;
-    border-radius: ${theme.dims?.border?.smpx || '6px'};
-    background: linear-gradient(135deg, #3370DE, #4a8cf0);
+    font-size: 0.8125rem;
     transition: all 0.15s ease;
+    border-radius: ${theme.dims?.border?.smpx || `6px`};
+    background: ${theme?.palette?.colors?.gradients?.button};
 
     &:hover {
       filter: brightness(0.92);

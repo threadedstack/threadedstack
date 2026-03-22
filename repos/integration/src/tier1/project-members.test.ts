@@ -3,6 +3,15 @@ import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
 
+interface RoleMemberUser {
+  id: string
+  email?: string
+  name?: string
+  first?: string
+  last?: string
+  image?: string
+}
+
 interface RoleMember {
   id: string
   userId: string
@@ -12,6 +21,7 @@ interface RoleMember {
   name: string | null
   createdAt: string
   updatedAt: string
+  user?: RoleMemberUser
 }
 
 interface ListResponse {
@@ -75,6 +85,11 @@ describe('Tier 1: Project Members', () => {
       expect(typeof member.userId).toBe('string')
       expect(member.projectId).toBe(ctx.projectId)
       expect(['owner', 'admin', 'member', 'viewer']).toContain(member.type)
+
+      expect(member).toHaveProperty('user')
+      expect(member.user).toBeDefined()
+      expect(typeof member.user!.id).toBe('string')
+      expect(member.user!.id).toBe(member.userId)
     })
   })
 
@@ -276,9 +291,13 @@ describe('Tier 1: Project Members', () => {
     // Dynamic target — discovered in global-setup from actual org members
     const memberUserId = ctx.targetMemberUserId || ''
     const adminOpts = () => ({ apiKey: ctx.adminApiKey! })
-    const canRun = () => !!ctx.adminApiKey && !!ctx.targetMemberUserId
 
-    test.skipIf(!canRun())('setup: ensure target is a project member', async () => {
+    test('precondition: admin key and target member are available', () => {
+      expect(ctx.adminApiKey, 'adminApiKey missing — global-setup failed to find admin member').toBeTruthy()
+      expect(ctx.targetMemberUserId, 'targetMemberUserId missing — need ≥3 org members').toBeTruthy()
+    })
+
+    test('setup: ensure target is a project member', async () => {
       // Clean up any prior state, then add as viewer using super key
       await tryDelete(`${basePath}/${memberUserId}`)
       const res = await post<SingleResponse>(basePath, { userId: memberUserId, roleType: 'viewer' })
@@ -288,19 +307,19 @@ describe('Tier 1: Project Members', () => {
 
     // ── Cannot assign equal or higher roles ──
 
-    test.skipIf(!canRun())('admin cannot assign owner role', async () => {
+    test('admin cannot assign owner role', async () => {
       const res = await put(`${basePath}/${memberUserId}`, { roleType: 'owner' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
-    test.skipIf(!canRun())('admin cannot assign admin role (equal)', async () => {
+    test('admin cannot assign admin role (equal)', async () => {
       const res = await put(`${basePath}/${memberUserId}`, { roleType: 'admin' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
     // ── Can assign lower roles ──
 
-    test.skipIf(!canRun())('admin can assign member role', async () => {
+    test('admin can assign member role', async () => {
       const res = await put<SingleResponse>(
         `${basePath}/${memberUserId}`, { roleType: 'member' }, adminOpts()
       )
@@ -308,7 +327,7 @@ describe('Tier 1: Project Members', () => {
       expect(res.data.data.type).toBe('member')
     })
 
-    test.skipIf(!canRun())('admin can update to viewer role', async () => {
+    test('admin can update to viewer role', async () => {
       const res = await put<SingleResponse>(
         `${basePath}/${memberUserId}`, { roleType: 'viewer' }, adminOpts()
       )
@@ -318,45 +337,45 @@ describe('Tier 1: Project Members', () => {
 
     // ── Cannot modify members with equal or higher roles ──
 
-    test.skipIf(!canRun())('setup: super promotes member to admin', async () => {
+    test('setup: super promotes member to admin', async () => {
       // Use super key to promote to admin role
       const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'admin' })
       expect(res.status).toBe(200)
       expect(res.data.data.type).toBe('admin')
     })
 
-    test.skipIf(!canRun())('admin cannot modify equal-role member', async () => {
+    test('admin cannot modify equal-role member', async () => {
       // Target now has admin role — our admin user cannot change it
       const res = await put(`${basePath}/${memberUserId}`, { roleType: 'viewer' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
-    test.skipIf(!canRun())('admin cannot remove equal-role member', async () => {
+    test('admin cannot remove equal-role member', async () => {
       const res = await del(`${basePath}/${memberUserId}`, adminOpts())
       expect(res.status).toBe(403)
     })
 
     // ── Cannot remove owners ──
 
-    test.skipIf(!canRun())('setup: super promotes member to owner', async () => {
+    test('setup: super promotes member to owner', async () => {
       const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'owner' })
       expect(res.status).toBe(200)
       expect(res.data.data.type).toBe('owner')
     })
 
-    test.skipIf(!canRun())('admin cannot remove owner', async () => {
+    test('admin cannot remove owner', async () => {
       const res = await del(`${basePath}/${memberUserId}`, adminOpts())
       expect(res.status).toBe(403)
     })
 
     // ── Can remove lower-role members ──
 
-    test.skipIf(!canRun())('setup: super downgrades member to viewer', async () => {
+    test('setup: super downgrades member to viewer', async () => {
       const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'viewer' })
       expect(res.status).toBe(200)
     })
 
-    test.skipIf(!canRun())('admin can remove lower-role member', async () => {
+    test('admin can remove lower-role member', async () => {
       const res = await del(`${basePath}/${memberUserId}`, adminOpts())
       expect(res.status).toBe(200)
       // Remove from cleanup list
@@ -366,17 +385,17 @@ describe('Tier 1: Project Members', () => {
 
     // ── Cannot add member with equal or higher role ──
 
-    test.skipIf(!canRun())('admin cannot add member with owner role', async () => {
+    test('admin cannot add member with owner role', async () => {
       const res = await post(basePath, { userId: memberUserId, roleType: 'owner' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
-    test.skipIf(!canRun())('admin cannot add member with admin role', async () => {
+    test('admin cannot add member with admin role', async () => {
       const res = await post(basePath, { userId: memberUserId, roleType: 'admin' }, adminOpts())
       expect(res.status).toBe(403)
     })
 
-    test.skipIf(!canRun())('admin can add member with viewer role', async () => {
+    test('admin can add member with viewer role', async () => {
       const res = await post<SingleResponse>(
         basePath, { userId: memberUserId, roleType: 'viewer' }, adminOpts()
       )
@@ -385,7 +404,7 @@ describe('Tier 1: Project Members', () => {
       addedMemberUserIds.push(memberUserId)
     })
 
-    test.skipIf(!canRun())('cleanup: remove hierarchy test member', async () => {
+    test('cleanup: remove hierarchy test member', async () => {
       await tryDelete(`${basePath}/${memberUserId}`)
       const idx = addedMemberUserIds.indexOf(memberUserId)
       if (idx !== -1) addedMemberUserIds.splice(idx, 1)

@@ -6,6 +6,7 @@ import { useTheme } from '@mui/material/styles'
 import Typography from '@mui/material/Typography'
 import ArchitectureDiagram from './ArchitectureDiagram'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import { TDSK_AD_APP_URL } from '@TAF/constants/envs'
 
 const Hero = () => {
   const theme = useTheme()
@@ -145,7 +146,7 @@ const Hero = () => {
                 variant='contained'
                 size='large'
                 endIcon={<ArrowForwardIcon />}
-                href='/docs/getting-started'
+                href={TDSK_AD_APP_URL}
               >
                 Get Started Free
               </Button>

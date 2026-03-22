@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 
-import Alert from '@mui/material/Alert'
-import TextField from '@mui/material/TextField'
-import Typography from '@mui/material/Typography'
 import Link from '@mui/material/Link'
+import Alert from '@mui/material/Alert'
+import { TextInput } from '@tdsk/components'
+import Typography from '@mui/material/Typography'
 
 import { EmailFormContainer, EmailFormButton } from './Login.styles'
 
@@ -18,7 +18,7 @@ export type TEmailLoginFormProps = {
 }
 
 export const EmailLoginForm = (props: TEmailLoginFormProps) => {
-  const { onSignIn, onSignUp, onForgotPassword, error, success, loading } = props
+  const { error, success, loading, onSignIn, onSignUp, onForgotPassword } = props
 
   const [email, setEmail] = useState(``)
   const [password, setPassword] = useState(``)
@@ -33,69 +33,61 @@ export const EmailLoginForm = (props: TEmailLoginFormProps) => {
     [email, password, isSignUp, onSignIn, onSignUp]
   )
 
-  const onToggleMode = useCallback(() => {
-    setIsSignUp((prev) => !prev)
-  }, [])
-
-  const onEmailChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value)
-  }, [])
-
-  const onPasswordChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value)
-  }, [])
+  const onToggleMode = useCallback(() => setIsSignUp((prev) => !prev), [])
 
   return (
     <EmailFormContainer onSubmit={onSubmit}>
       {error && <Alert severity='error'>{error}</Alert>}
       {success && <Alert severity='success'>{success}</Alert>}
 
-      <TextField
+      <TextInput
         required
         fullWidth
         type='email'
+        size='small'
         label='Email'
         value={email}
-        onChange={onEmailChange}
+        id='login-email'
         disabled={loading}
         autoComplete='email'
-        size='small'
+        onChange={(e) => setEmail(e.target.value)}
       />
 
-      <TextField
+      <TextInput
         required
         fullWidth
-        type='password'
-        label='Password'
-        value={password}
-        onChange={onPasswordChange}
-        disabled={loading}
-        autoComplete={isSignUp ? `new-password` : `current-password`}
         size='small'
+        type='password'
+        value={password}
+        label='Password'
+        disabled={loading}
+        id='login-password'
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete={isSignUp ? `new-password` : `current-password`}
       />
 
       <EmailFormButton
-        type='submit'
-        variant='contained'
         fullWidth
+        type='submit'
         loading={loading}
         disabled={loading}
+        variant='contained'
         aria-label={isSignUp ? `Sign Up` : `Sign In`}
       >
         {isSignUp ? `Sign Up` : `Sign In`}
       </EmailFormButton>
 
       <Typography
-        variant='body2'
         align='center'
+        variant='body2'
       >
         {isSignUp ? (
           <>
             Already have an account?{` `}
             <Link
-              component='button'
               type='button'
               variant='body2'
+              component='button'
               onClick={onToggleMode}
             >
               Sign in
@@ -104,9 +96,9 @@ export const EmailLoginForm = (props: TEmailLoginFormProps) => {
         ) : (
           <>
             <Link
-              component='button'
               type='button'
               variant='body2'
+              component='button'
               onClick={onToggleMode}
             >
               Create account
@@ -115,9 +107,9 @@ export const EmailLoginForm = (props: TEmailLoginFormProps) => {
               <>
                 {` · `}
                 <Link
-                  component='button'
                   type='button'
                   variant='body2'
+                  component='button'
                   onClick={() => onForgotPassword(email)}
                 >
                   Forgot password?

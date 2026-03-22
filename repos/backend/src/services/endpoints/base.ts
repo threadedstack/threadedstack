@@ -1,14 +1,13 @@
 import type { Response } from 'express'
 import type { TRequest } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
+import type { EEndpointType } from '@tdsk/domain'
 import type { Endpoint, Secret } from '@tdsk/domain'
 
 import { logger } from '@TBE/utils/logger'
-import { Exception } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
-import type { EEndpointType } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * BaseEndpoint

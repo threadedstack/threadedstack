@@ -20,7 +20,8 @@
     "types": [
       "./src/external",
       "./src/overrides",
-      "vite/client"
+      "vite/client",
+      "@testing-library/jest-dom/vitest"
     ],
     "paths": {
       "@ROOT": ["../../"],

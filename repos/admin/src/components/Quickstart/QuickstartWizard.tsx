@@ -1,25 +1,23 @@
 import { QSSteps } from '@TAF/constants/nav'
+import { styled } from '@mui/material/styles'
+import CloseIcon from '@mui/icons-material/Close'
 import { Drawer, DrawerActions } from '@tdsk/components'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import { AgentStep } from '@TAF/components/Quickstart/AgentStep'
 import { ReviewStep } from '@TAF/components/Quickstart/ReviewStep'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useQuickStart } from '@TAF/hooks/components/useQuickStart'
-import { ProviderStep } from '@TAF/components/Quickstart/ProviderStep'
-import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { Box, Step, Stepper, StepLabel, Fade } from '@mui/material'
-import { styled } from '@mui/material/styles'
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
-import CloseIcon from '@mui/icons-material/Close'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import { ProviderStep } from '@TAF/components/Quickstart/ProviderStep'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined'
 
 const WizardStepper = styled(Stepper)(({ theme }) => ({
   padding: theme.spacing(2, 0, 1),
   '& .MuiStepLabel-label': {
-    fontSize: `0.75rem`,
+    fontSize: theme.typography.caption.fontSize,
     fontWeight: 500,
-    letterSpacing: `0.02em`,
     marginTop: `${theme.spacing(0.75)} !important`,
   },
   '& .MuiStepLabel-label.Mui-active': {
@@ -54,10 +52,6 @@ const WizardStepper = styled(Stepper)(({ theme }) => ({
   },
 }))
 
-const StepContent = styled(Box)({
-  minHeight: 200,
-})
-
 export type TQuickstartWizard = {
   open: boolean
   orgId: string
@@ -85,23 +79,17 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
   const isLastStep = activeStep === QSSteps.length - 1
   const isFirstStep = activeStep === 0
 
-  const { actions } = useDrawerActions({
-    onSave,
-    onClose,
-  })
-
   const drawerActions = isFirstStep
     ? {
         cancel: {
-          ...actions.cancel,
+          onClick: onClose,
         },
         create: {
-          ...actions.save,
           text: `Next`,
+          onClick: onSave,
           Icon: ArrowForwardIcon,
           color: `primary` as const,
           variant: `contained` as const,
-          onClick: onSave,
           disabled: loading || !canNext,
         },
       }
@@ -109,26 +97,24 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
         remove: {
           text: `Cancel`,
           Icon: CloseIcon,
-          color: `inherit` as const,
-          variant: `text` as const,
           onClick: onClose,
+          variant: `text` as const,
+          color: `inherit` as const,
         },
         cancel: {
-          ...actions.cancel,
           text: `Back`,
+          onClick: onBack,
           Icon: ArrowBackIcon,
           color: `secondary` as const,
           variant: `outlined` as const,
-          onClick: onBack,
         },
         save: {
-          ...actions.save,
+          onClick: onSave,
+          variant: `contained` as const,
+          disabled: loading || !canNext,
           text: isLastStep ? `Create Everything` : `Next`,
           Icon: isLastStep ? AddCircleOutlineIcon : ArrowForwardIcon,
           color: isLastStep ? (`success` as const) : (`primary` as const),
-          variant: `contained` as const,
-          onClick: onSave,
-          disabled: loading || !canNext,
         },
       }
 
@@ -147,10 +133,10 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
       }
       actions={
         <DrawerActions
-          actions={drawerActions}
-          editing={!isFirstStep}
           loading={loading}
           disabled={loading}
+          actions={drawerActions}
+          editing={!isFirstStep}
           saveDisabled={loading || !canNext}
           createDisabled={loading || !canNext}
         />
@@ -158,8 +144,8 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
     >
       <Box sx={{ display: `flex`, flexDirection: `column`, gap: 2 }}>
         <WizardStepper
-          activeStep={activeStep}
           alternativeLabel
+          activeStep={activeStep}
         >
           {QSSteps.map((label) => (
             <Step key={label}>
@@ -175,7 +161,7 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
           />
         )}
 
-        <StepContent>
+        <Box>
           <Fade
             in={activeStep === 0}
             mountOnEnter
@@ -184,42 +170,42 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
           >
             <div>
               <ProviderStep
+                disabled={loading}
                 data={providerData}
                 onChange={onProviderChange}
-                disabled={loading}
               />
             </div>
           </Fade>
 
           <Fade
-            in={activeStep === 1}
             mountOnEnter
             unmountOnExit
             timeout={300}
+            in={activeStep === 1}
           >
             <div>
               <AgentStep
                 data={agentData}
-                onChange={onAgentChange}
                 disabled={loading}
+                onChange={onAgentChange}
               />
             </div>
           </Fade>
 
           <Fade
-            in={activeStep === 2}
             mountOnEnter
             unmountOnExit
             timeout={300}
+            in={activeStep === 2}
           >
             <div>
               <ReviewStep
-                provider={providerData}
                 agent={agentData}
+                provider={providerData}
               />
             </div>
           </Fade>
-        </StepContent>
+        </Box>
       </Box>
     </Drawer>
   )

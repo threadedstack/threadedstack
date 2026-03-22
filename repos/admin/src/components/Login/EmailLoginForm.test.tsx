@@ -3,6 +3,37 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom/vitest'
 
+vi.mock(`@tdsk/components`, async () => {
+  const actual = await vi.importActual(`@tdsk/components`)
+  return {
+    ...(actual as any),
+    TextInput: ({
+      label,
+      value,
+      onChange,
+      id,
+      type,
+      disabled,
+      required,
+      autoComplete,
+      ...props
+    }: any) => (
+      <div>
+        <label htmlFor={id}>{label}</label>
+        <input
+          id={id}
+          type={type}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          required={required}
+          autoComplete={autoComplete}
+        />
+      </div>
+    ),
+  }
+})
+
 import { EmailLoginForm } from './EmailLoginForm'
 
 const mockOnSignIn = vi.fn().mockResolvedValue(undefined)

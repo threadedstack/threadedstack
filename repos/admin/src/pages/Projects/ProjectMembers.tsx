@@ -79,24 +79,21 @@ export const ProjectMembers = () => {
 
   useEffect(() => {
     loadMembers()
-    loadOrgUsersData()
   }, [orgId, projectId])
 
   const members = useMemo(() => {
-    const userMap = new Map(orgUsers.map((u) => [u.id, u]))
-    return roles.map((role): TProjectMember => {
-      const user = userMap.get(role.userId)
-      return {
+    return roles.map(
+      (role): TProjectMember => ({
         userId: role.userId,
         role: (role.type || 'member') as TRoleType,
         displayName:
-          user?.displayName ||
-          `${user?.first || ''} ${user?.last || ''}`.trim() ||
+          role.user?.name ||
+          [role.user?.first, role.user?.last].filter(Boolean).join(' ') ||
           undefined,
-        email: user?.email,
-      }
-    })
-  }, [roles, orgUsers])
+        email: role.user?.email,
+      })
+    )
+  }, [roles])
 
   const memberUserIds = useMemo(() => new Set(roles.map((r) => r.userId)), [roles])
 

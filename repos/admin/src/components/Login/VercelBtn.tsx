@@ -1,7 +1,7 @@
 import type { TOnLogin, TLoginData } from '@TAF/types'
 
 import { VercelIcon } from '@tdsk/components'
-import { VrLoginButton } from '@TAF/components/Login/Login.styles'
+import { ProviderLoginButton } from '@TAF/components/Login/Login.styles'
 
 export type TVercelButton = {
   loading?: boolean
@@ -17,7 +17,7 @@ export const VrButton = (props: TVercelButton) => {
   const { onLogin, loading, disabled } = props
 
   return (
-    <VrLoginButton
+    <ProviderLoginButton
       text={`Vercel`}
       Icon={VercelIcon}
       loading={loading}

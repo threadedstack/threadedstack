@@ -33,6 +33,9 @@ export const Ids = {
     acmeAuth: `fn00000002`,
     startupAi: `fn00000003`,
     personal: `fn00000004`,
+    agentDataParser: `fn00000005`,
+    agentCodeReview: `fn00000006`,
+    agentDocGen: `fn00000007`,
   },
   org: {
     tdsk: `og00000001`,
@@ -132,6 +135,17 @@ export const Ids = {
     expired: `iv00000004`,
     revoked: `iv00000005`,
   },
+  skill: {
+    codeReview: `sk00000001`,
+    docGen: `sk00000002`,
+  },
+  schedule: {
+    dailyStandup: `sd00000001`,
+    weeklyReport: `sd00000002`,
+  },
+  sandbox: {
+    devNode: `bx00000001`,
+  },
   domain: {
     orgDomain: `dm00000001`,
     apiDomain: `dm00000002`,
@@ -154,4 +168,7 @@ export const RoleIds = Ids.role
 export const SecretIds = Ids.secret
 export const SubscriptionIds = Ids.subscription
 export const ThreadIds = Ids.thread
+export const SkillIds = Ids.skill
+export const ScheduleIds = Ids.schedule
+export const SandboxIds = Ids.sandbox
 export const UserIds = Ids.user

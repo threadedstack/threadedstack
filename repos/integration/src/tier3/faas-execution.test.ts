@@ -199,7 +199,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
     expect(res.status).toBe(200)
     expect(res.data).toBeDefined()
 
-    const ep = res.data.data ?? res.data
+    const ep = (res.data.data ?? res.data) as Record<string, any>
     expect(ep.type).toBe('faas')
     expect(ep.id).toBe(tsEndpointId)
     expect(ep.options).toBeDefined()

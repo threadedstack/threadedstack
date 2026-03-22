@@ -1,5 +1,5 @@
-import type { grey, editor, border } from '@TSC/theme/colors'
 import type { dims } from '@TSC/theme/dims'
+import type { colors } from '@TSC/theme/colors'
 import type { gutter } from '@TSC/theme/gutter'
 
 export enum EThemeType {
@@ -9,52 +9,7 @@ export enum EThemeType {
 
 export type TThemeType = `${EThemeType}`
 
-export type TThemeColors = {
-  background?: string
-  foreground?: string
-  paper?: string
-  primary?: string
-  primaryForeground?: string
-  contrastText?: string
-  secondary?: string
-  secondaryForeground?: string
-  muted?: string
-  mutedForeground?: string
-  mutedBackground?: string
-  accent?: string
-  accentForeground?: string
-  destructive?: string
-  destructiveForeground?: string
-  inputBackground?: string
-  sectionBackground?: string
-  headerBackground?: string
-  input?: string
-  placeholder?: string
-  ring?: string
-  shadowColor?: string
-  shadowContrast?: string
-  shadow?: string
-  shadowAlt?: string
-  shadowPaper?: string
-  shadows?: {
-    xs: string
-    sm: string
-    md: string
-    lg: string
-    xl: string
-    ring: string
-  }
-  grey?: typeof grey
-  editor?: (typeof editor)[`light`]
-  border?: (typeof border)[`light`]
-  states: {
-    info: string
-    danger: string
-    success: string
-    warning: string
-    disabled: string
-  }
-}
+export type TThemeColors = (typeof colors)[TThemeType]
 
 export type TTSTheme = {
   type?: TThemeType

@@ -8,6 +8,11 @@ import CloudQueueIcon from '@mui/icons-material/CloudQueue'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { ModelSelect } from '@TAF/components/Agents/ModelSelect'
 import { ELLMProviderBrand, ProviderTemplates } from '@tdsk/domain'
+import {
+  SectionHeader,
+  SectionIcon,
+  FormSection,
+} from '@TAF/components/Quickstart/Quickstart.styled'
 
 import {
   Box,
@@ -17,24 +22,6 @@ import {
   CardContent,
   CardActionArea,
 } from '@mui/material'
-
-const SectionHeader = styled(Box)(({ theme }) => ({
-  display: `flex`,
-  alignItems: `center`,
-  gap: theme.spacing(1),
-  marginBottom: theme.spacing(1.5),
-}))
-
-const SectionIcon = styled(Box)(({ theme }) => ({
-  width: 28,
-  height: 28,
-  display: `flex`,
-  alignItems: `center`,
-  justifyContent: `center`,
-  borderRadius: theme.spacing(0.75),
-  color: theme.palette.primary.main,
-  backgroundColor: alpha(theme.palette.primary.main, 0.1),
-}))
 
 const ProvidersGrid = styled(Box)(({ theme }) => ({
   display: `grid`,
@@ -69,23 +56,13 @@ const ProviderCard = styled(Card, {
 }))
 
 const SelectedBadge = styled(Box)(({ theme }) => ({
-  position: `absolute`,
   top: 6,
   right: 6,
-  color: theme.palette.primary.main,
   display: `flex`,
   alignItems: `center`,
+  position: `absolute`,
   justifyContent: `center`,
-}))
-
-const ConfigSection = styled(Box)(({ theme }) => ({
-  display: `flex`,
-  flexDirection: `column`,
-  gap: theme.spacing(2.5),
-  padding: theme.spacing(2.5),
-  borderRadius: theme.spacing(1.5),
-  border: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.background.default,
+  color: theme.palette.primary.main,
 }))
 
 export type TProviderStep = {
@@ -117,7 +94,7 @@ export const ProviderStep = (props: TProviderStep) => {
           </SectionIcon>
           <Typography
             variant='subtitle2'
-            sx={{ fontWeight: 600, letterSpacing: `0.02em` }}
+            sx={{ fontWeight: 600 }}
           >
             Choose AI Provider
           </Typography>
@@ -152,19 +129,19 @@ export const ProviderStep = (props: TProviderStep) => {
                     {Icon && (
                       <Icon
                         sx={{
-                          fontSize: 28,
                           mb: 0.5,
-                          color: isSelected ? `primary.main` : `text.secondary`,
+                          fontSize: 28,
                           transition: `color 0.2s ease`,
+                          color: isSelected ? `primary.main` : `text.secondary`,
                         }}
                       />
                     )}
                     <Typography
                       variant='subtitle2'
                       sx={{
+                        transition: `color 0.2s ease`,
                         fontWeight: isSelected ? 600 : 500,
                         color: isSelected ? `primary.main` : `text.primary`,
-                        transition: `color 0.2s ease`,
                       }}
                     >
                       {tmpl.name}
@@ -181,7 +158,7 @@ export const ProviderStep = (props: TProviderStep) => {
         in={!!data.providerBrand}
         timeout={350}
       >
-        <ConfigSection>
+        <FormSection>
           <TextInput
             required
             fullWidth
@@ -198,9 +175,9 @@ export const ProviderStep = (props: TProviderStep) => {
           {data.providerBrand === ELLMProviderBrand.ollama && (
             <TextInput
               fullWidth
+              disabled={disabled}
               label='Ollama Base URL'
               value={data.providerUrl}
-              disabled={disabled}
               id='quickstart-ollama-url'
               sx={{ bgcolor: `background.paper` }}
               placeholder='http://localhost:11434/v1'
@@ -213,9 +190,9 @@ export const ProviderStep = (props: TProviderStep) => {
               <TextInput
                 required
                 fullWidth
+                disabled={disabled}
                 label='Provider Name'
                 value={data.providerName}
-                disabled={disabled}
                 id='quickstart-custom-name'
                 sx={{ bgcolor: `background.paper` }}
                 placeholder='e.g., My LLM Provider'
@@ -225,8 +202,8 @@ export const ProviderStep = (props: TProviderStep) => {
                 required
                 fullWidth
                 label='Base URL'
-                value={data.providerUrl}
                 disabled={disabled}
+                value={data.providerUrl}
                 id='quickstart-custom-url'
                 sx={{ bgcolor: `background.paper` }}
                 placeholder='e.g., https://api.example.com/v1'
@@ -257,7 +234,7 @@ export const ProviderStep = (props: TProviderStep) => {
               />
             </Box>
           )}
-        </ConfigSection>
+        </FormSection>
       </Collapse>
     </Box>
   )

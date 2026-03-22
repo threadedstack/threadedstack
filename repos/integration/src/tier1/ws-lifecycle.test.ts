@@ -4,7 +4,7 @@ import { env } from '../utils/env'
 import { post, get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
-import { connectWS, consumeWS, createWSConnection } from '../utils/ws-client'
+import { connectWS, consumeWS, createWSConnection, waitForMessage } from '../utils/ws-client'
 import { EWSEventType } from '@tdsk/domain'
 import { uniqueName } from '../utils/unique-name'
 
@@ -107,7 +107,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     const second = await consumeWS(token!, 'Say goodbye', { timeout: 60_000 })
     expect(second.messages.length).toBeGreaterThanOrEqual(1)
     expect(second.closeCode).not.toBe(4001)
-  })
+  }, 180_000)
 
   test.skipIf(!hasLLM())('session token works for a third sequential connection', async () => {
     const token = await createSessionToken()
@@ -118,7 +118,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
       expect(result.closeCode).not.toBe(4001)
       expect(result.messages.length).toBeGreaterThanOrEqual(1)
     }
-  })
+  }, 240_000)
 
   // ─── Concurrent Connections ──────────────────────────────────────
 
@@ -137,7 +137,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     expect(result2.closeCode).not.toBe(4001)
     expect(result1.messages.length).toBeGreaterThanOrEqual(1)
     expect(result2.messages.length).toBeGreaterThanOrEqual(1)
-  })
+  }, 180_000)
 
   // ─── Cancel Flow ─────────────────────────────────────────────────
 
@@ -153,8 +153,8 @@ describe('Tier 1: WebSocket Lifecycle', () => {
       prompt: 'Write a very detailed 2000-word essay about the complete history of computing from the 1940s to today',
     }))
 
-    // Give the LLM time to start streaming, then cancel
-    await new Promise(r => setTimeout(r, 3_000))
+    // Wait for LLM to actually start streaming before cancelling
+    await waitForMessage(messages, EWSEventType.TextDelta, 15_000)
     ws.send(JSON.stringify({ type: EWSEventType.Cancel }))
 
     const closeResult = await Promise.race([
@@ -174,7 +174,7 @@ describe('Tier 1: WebSocket Lifecycle', () => {
     if (closeResult.closeCode !== -1) {
       expect(closeResult.closeCode).not.toBe(4001)
     }
-  })
+  }, 120_000)
 
   // ─── Done Reason Validation ──────────────────────────────────────
 
@@ -319,8 +319,8 @@ describe('Tier 1: WebSocket Lifecycle', () => {
       prompt: 'This should be rejected',
     }))
 
-    // Wait for first prompt to complete and messages to arrive
-    await new Promise(r => setTimeout(r, 15_000))
+    // Wait for agent to finish (Done event) instead of fixed delay
+    await waitForMessage(messages, EWSEventType.Done, 60_000)
 
     const errorMsgs = messages.filter(m => m.type === EWSEventType.Error)
     const hasRunningError = errorMsgs.some(m =>
@@ -330,5 +330,5 @@ describe('Tier 1: WebSocket Lifecycle', () => {
 
     ws.close()
     await waitForClose().catch(() => {})
-  })
+  }, 120_000)
 })

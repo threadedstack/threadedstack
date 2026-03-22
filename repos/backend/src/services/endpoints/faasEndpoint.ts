@@ -3,10 +3,10 @@ import type { TRequest } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
 import type { Endpoint, TFaaSEndpointConfig, TFunctionResponse } from '@tdsk/domain'
 
-import { EEndpointType } from '@tdsk/domain'
-import { logger } from '@TBE/utils/logger'
-import { BaseEndpoint } from './base'
 import { Exception } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
+import { EEndpointType } from '@tdsk/domain'
+import { BaseEndpoint } from '@TBE/services/endpoints/base'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 
 /**

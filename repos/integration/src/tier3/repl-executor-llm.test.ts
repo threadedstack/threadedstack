@@ -56,18 +56,28 @@ describe('Tier 3: REPL Executor — LLM E2E (live)', () => {
     quickstartResult = res.data.data
     agentId = quickstartResult.agent.id
 
-    // Run a single LLM call — all tests assert on this shared result
-    try {
-      runResult = await executor.run({
-        agentId,
-        orgId: ctx.orgId,
-        userId: ctx.userId,
-        prompt: 'Respond with exactly: REPL_TEST_OK',
-        onEvent: (event) => events.push(event),
-      })
-      if (runResult.threadId) threadIds.push(runResult.threadId)
-    } catch (err) {
-      runError = err instanceof Error ? err : new Error(String(err))
+    // Run a single LLM call — all tests assert on this shared result.
+    // Retry once on transient failures (rate limits, network hiccups).
+    const maxAttempts = 2
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        runResult = await executor.run({
+          agentId,
+          orgId: ctx.orgId,
+          userId: ctx.userId,
+          prompt: 'Respond with exactly: REPL_TEST_OK',
+          onEvent: (event) => events.push(event),
+        })
+        if (runResult.threadId) threadIds.push(runResult.threadId)
+        runError = null
+        break
+      } catch (err) {
+        runError = err instanceof Error ? err : new Error(String(err))
+        if (attempt < maxAttempts) {
+          await new Promise(r => setTimeout(r, 3_000))
+          events.length = 0
+        }
+      }
     }
   }, 180_000)
 
@@ -109,14 +119,19 @@ describe('Tier 3: REPL Executor — LLM E2E (live)', () => {
     async () => {
       expect(runResult).toBeTruthy()
 
-      // Check messages were persisted
-      const messages = await executor.client.listMessages(
-        ctx.orgId,
-        agentId,
-        runResult!.threadId
-      )
+      // Retry a few times to handle DB replication lag
+      let userMessages: any[] = []
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const messages = await executor.client.listMessages(
+          ctx.orgId,
+          agentId,
+          runResult!.threadId
+        )
+        userMessages = messages.filter(m => m.type === 'user')
+        if (userMessages.length > 0) break
+        await new Promise(r => setTimeout(r, 1_000))
+      }
 
-      const userMessages = messages.filter(m => m.type === 'user')
       expect(userMessages.length).toBeGreaterThanOrEqual(1)
     }
   )

@@ -8,6 +8,18 @@ Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
 
 
+### [P3] WebSocket FileUpload & WorkspaceManifest handlers
+
+* **Repos**: backend, possibly agent
+* **Key files**: `repos/backend/src/endpoints/ai/onWSConnect.ts`, `repos/domain/src/types/ws.types.ts`
+* Implement actual handlers for `EWSEventType.FileUpload` and `EWSEventType.WorkspaceManifest` in `onWSConnect.ts`. Currently returns "not supported" error responses. Type contracts are fully defined in `repos/domain/src/types/ws.types.ts` (`TWSFileUploadMsg`, `TWSWorkspaceManifestMsg`, `FileUploadComplete`, `FileRequest`, `FileChanged`). These are the remaining unimplemented WebSocket event types in the AI agent connection handler.
+
+### [P2] Integration test api-client response double-wrapping
+
+* **Repos**: integration
+* **Key files**: `repos/integration/src/utils/api-client.ts`, test files in `repos/integration/src/tier1/`, `repos/integration/src/tier3/`
+* The `get<T>()` / `api<T>()` helpers in `api-client.ts` wrap the JSON response in `{ data }`, but backend endpoints also return `{ data }` — creating `res.data.data` double-nesting. Fix so `res.data` is the actual payload. Remove defensive `res.data.data ?? res.data` patterns from test files (`faas-execution.test.ts`, `proxy-endpoint.test.ts`, and any others using this pattern).
+
 ### [P3] Standalone chat application — web and desktop interface for agent interaction
 
 * **Repos**: NEW `repos/chat/`, components, domain
@@ -341,120 +353,14 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 
 ## Admin
 
-### [P2] Login page: replace MUI TextField with TextInput from @tdsk/components
 
-* **Repos**: admin, components
-* **Key files**: `repos/admin/src/components/Login/EmailLoginForm.tsx`
-* The email input (lines 53-63) and password input (lines 65-75) use MUI `TextField` directly. The project has a custom `TextInput` component at `repos/components/src/components/Inputs/TextInput.tsx` (wraps MUI `OutlinedInput` with consistent styling and `Textarea` support). All form inputs should use the shared component for UI consistency
-* **Fix**:
-  1. Replace the two MUI `TextField` components in `EmailLoginForm.tsx` with `TextInput` from `@tdsk/components`
-  2. Map existing props (`type`, `label`, `size`, `value`, `onChange`) to the `TextInput` prop interface (`TTextInput` type, lines 14-31 of `TextInput.tsx`)
-  3. Remove MUI `TextField` import if no longer used
-* **Files**:
-  * `repos/admin/src/components/Login/EmailLoginForm.tsx` — replace TextField with TextInput
-  * `repos/components/src/components/Inputs/TextInput.tsx` — reference for prop interface
+---
 
-### [P1] Login page: light theme mode renders as dark — hardcoded colors throughout
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/components/Login/Login.styles.tsx`
-* The Login page has 10+ hardcoded dark-mode colors with no light theme adaptation. In light theme, text is invisible (white on white) and backgrounds are forced dark. The page-level wrapper (`repos/admin/src/pages/Login/Login.styles.tsx:11`) correctly uses `theme.palette.background.default`, but all component-level styles ignore the theme. Should align with the website Hero component's light theme approach
-* **Hardcoded dark-only styles**:
-  * Line 18: `background-color: ${grey[900]}` — container always dark
-  * Line 70: `color: rgba(255, 255, 255, 0.5)` — BrandSubtitle white text
-  * Line 252: `.MuiInputBase-root { color: rgba(255, 255, 255, 0.87) }` — form input white text
-  * Line 255: `.MuiOutlinedInput-notchedOutline { border-color: rgba(255, 255, 255, 0.2) }` — white border
-  * Line 264: `.MuiInputLabel-root { color: rgba(255, 255, 255, 0.5) }` — white label
-  * Line 270: `.MuiTypography-root { color: rgba(255, 255, 255, 0.5) }` — white text
-  * Line 241: ErrorText `color: rgba(255, 255, 255, 0.6)` — white error text
-  * Lines 28-30: BrandGlow gradients dark-only
-  * Lines 38: BrandBlob dark-only gradients
-* **Fix**:
-  1. Replace all hardcoded `rgba(255, 255, 255, *)` values with theme-aware tokens (`theme.palette.text.primary`, `theme.palette.text.secondary`, `theme.palette.divider`, etc.)
-  2. Make `LoginContainer` background use `theme.palette.background.default` instead of `grey[900]`
-  3. Add `isDark` conditional styling for BrandGlow, BrandBlob, and BrandHeadline gradient — reference `repos/website/src/components/Landing/Hero.tsx` lines 44-46, 69-71 for the pattern
-  4. Ensure ErrorText, form labels, inputs, and borders all adapt to light/dark theme
-* **Files**:
-  * `repos/admin/src/components/Login/Login.styles.tsx` — replace all hardcoded colors with theme-aware values
-
-### [P2] Login page: background blobs should animate like website Hero component
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/components/Login/Login.styles.tsx` (lines 33-45, 72-93), `repos/website/src/components/Landing/Hero.tsx` (lines 37-85)
-* The Login page blobs use a simple 3-point keyframe animation (`heroFloat`) with small ±20-30px movements. The website Hero uses richer 6-point keyframe animations (`heroFloat1`, `heroFloat2`) with larger ±100-250px movements and theme-aware gradient colors. The Login blobs should match the Hero's animation style
-* **Differences**: Admin uses 3 keyframe points (0%, 33%, 66%) with 20-30px range; Hero uses 6 keyframe points (0%, 15%, 35%, 55%, 75%, 100%) with 100-250px range. Hero has theme-aware blob colors, Admin does not
-* **Fix**:
-  1. Replace the `heroFloat` keyframe animation in `Login.styles.tsx` (lines 40-44) with the `heroFloat1` and `heroFloat2` animations from `Hero.tsx` (lines 51-83)
-  2. Update the two blob instances (lines 72-93) to use the new animations with matching durations (18s, 22s)
-  3. Add `isDark` conditional gradient colors matching the Hero pattern (lines 44-46, 69-71)
-* **Files**:
-  * `repos/admin/src/components/Login/Login.styles.tsx` — update keyframe animations and blob styles
-
-### [P2] AgentDrawer: extract Web Provider settings into standalone component
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/components/Agents/AgentDrawer.tsx`
-* The AgentDrawer component contains inline Web Provider settings UI (lines 544-594) with associated state (lines 78-79), data population (lines 214-216), reset logic (lines 237-238), and environment building (lines 279-286). This should be extracted into its own component following the existing pattern of `BasicInfoForm`, `ModelConfigForm`, and `AgentSettingsForm`
-* **Fix**:
-  1. Create `repos/admin/src/components/Agents/WebProviderSettings.tsx` with props: `webProviderType`, `webProviderSecretId`, `secretsList`, `loading`, `onWebProviderTypeChange`, `onWebProviderSecretIdChange`
-  2. Move the JSX from AgentDrawer lines 544-594 (Autocomplete for provider type + conditional Autocomplete for secret) into the new component
-  3. Import `TWebProviderBrand` from `@tdsk/domain` (defined at `repos/domain/src/types/ai.types.ts` lines 146-150)
-  4. Replace the inline JSX in AgentDrawer with `<WebProviderSettings ... />` call
-  5. Export from `repos/admin/src/components/Agents/index.ts`
-* **Files**:
-  * New: `repos/admin/src/components/Agents/WebProviderSettings.tsx` — extracted component
-  * `repos/admin/src/components/Agents/AgentDrawer.tsx` — replace inline code with component usage
-  * `repos/admin/src/components/Agents/index.ts` — add export
-
-### [P2] Quick Start Drawer: normalize styles to match other admin drawers
-
-* **Repos**: admin
-* **Key files**: `repos/admin/src/components/Quickstart/QuickstartWizard.tsx`, `repos/admin/src/components/Quickstart/ReviewStep.tsx`, `repos/admin/src/components/Quickstart/ProviderStep.tsx`, `repos/admin/src/components/Quickstart/AgentStep.tsx`
-* The Quick Start Drawer has multiple style inconsistencies compared to other admin drawers (AgentDrawer, ProjectDrawer, EndpointDrawer, SecretDrawer, ProviderDrawer). These need to be normalized so the application has a consistent look and feel
-* **Inconsistencies found**:
-  * **Hardcoded hex colors in ReviewStep** (lines 90, 102, 109, 116, 127): Uses raw hex (`#3370DE`, `#D97706`, `#059669`, `#7C3AED`, `#E11D48`) for resource icon colors instead of theme palette tokens — breaks theme consistency and dark mode
-  * **Icon container size mismatch**: ProviderStep/AgentStep use 28x28 `SectionIcon`, but ReviewStep uses 30x30 `ResourceIcon` — should be uniform
-  * **Mixed `Text` vs `Typography`**: ReviewStep and AgentStep import `Text` from `@tdsk/components`, but ProviderStep and all other drawers use MUI `Typography` directly — should be consistent
-  * **Section header `letterSpacing`**: ProviderStep (line 120), AgentStep (line 74), and ReviewStep add `letterSpacing: '0.02em'` to `subtitle2` headers, but no other drawer does this (e.g., AgentDrawer line 452 uses just `fontWeight: 600, mb: 2`)
-  * **Form section spacing**: QuickStart steps use `gap: 2.5` and `padding: 2.5` (`ConfigSection` in ProviderStep line 84-85, `FormSection` in AgentStep line 35-36), while other drawers use `gap: 2` (ProjectDrawer, EndpointDrawer, SecretDrawer) or `Stack spacing={3}` (AgentDrawer)
-  * **Custom collapsible toggle**: AgentStep (lines 42-53) builds a custom `AdvancedToggle` with manual rotation animation, while ProviderDrawer uses standard MUI `Accordion`/`AccordionSummary` which handles expansion automatically
-  * **Hardcoded `minHeight: 200`**: QuickstartWizard `StepContent` (line 58) uses a hardcoded pixel value — no other drawer does this
-  * **Stepper font size**: QuickstartWizard `WizardStepper` (line 20) hardcodes `fontSize: 0.75rem` instead of using a Typography variant
-  * **Duplicate styled components**: `SectionHeader` and `SectionIcon` are duplicated identically in ProviderStep (lines 21-37) and AgentStep (lines 14-27) — should be shared
-* **Fix**:
-  1. Replace all hardcoded hex colors in `ReviewStep.tsx` (lines 90, 102, 109, 116, 127) with theme palette tokens (e.g., `theme.palette.primary.main`, `theme.palette.warning.main`, `theme.palette.success.main`, `theme.palette.secondary.main`, `theme.palette.error.main`)
-  2. Normalize icon container size to 28x28 across all steps — update `ResourceIcon` in ReviewStep (line 50) from 30 to 28
-  3. Pick one text component and use it consistently — either `Typography` (matching other drawers) or `Text` from `@tdsk/components`, but not both. Recommended: use `Typography` to match the rest of the admin app
-  4. Remove `letterSpacing: '0.02em'` from section headers in ProviderStep, AgentStep, and ReviewStep to match AgentDrawer's simpler `fontWeight: 600, mb: 2` pattern
-  5. Normalize form section spacing to `gap: 2` (matching ProjectDrawer, EndpointDrawer, SecretDrawer) and remove the extra `padding: 2.5` — use the drawer's default padding instead
-  6. Replace the custom `AdvancedToggle` in AgentStep with standard MUI `Accordion`/`AccordionSummary` to match ProviderDrawer's pattern
-  7. Remove hardcoded `minHeight: 200` from `StepContent` — let content flow naturally
-  8. Replace hardcoded `fontSize: 0.75rem` in `WizardStepper` with a MUI Typography variant (e.g., `caption`)
-  9. Extract shared `SectionHeader` and `SectionIcon` styled components into a shared file (e.g., `repos/admin/src/components/Quickstart/Quickstart.styles.tsx`) and import in both ProviderStep and AgentStep
-* **Files**:
-  * `repos/admin/src/components/Quickstart/ReviewStep.tsx` — replace hex colors with theme tokens, normalize icon size, fix Text vs Typography
-  * `repos/admin/src/components/Quickstart/ProviderStep.tsx` — remove letterSpacing, normalize spacing, extract shared styles
-  * `repos/admin/src/components/Quickstart/AgentStep.tsx` — replace custom toggle with MUI Accordion, remove letterSpacing, normalize spacing, fix Text vs Typography, extract shared styles
-  * `repos/admin/src/components/Quickstart/QuickstartWizard.tsx` — remove hardcoded minHeight and fontSize
-  * New: `repos/admin/src/components/Quickstart/Quickstart.styles.tsx` — shared styled components (SectionHeader, SectionIcon)
+## Backend
 
 ---
 
 ## Website
-
-### [P2] Header: title text styling does not match admin app
-
-* **Repos**: website, admin (reference)
-* **Key files**: `repos/website/src/components/Header/Header.tsx` (lines 47-68), `repos/admin/src/components/Sidebar/SBLogo.tsx`, `repos/admin/src/components/Sidebar/Sidebar.styles.tsx` (lines 51-60)
-* The website header uses Typography variant `subtitle1` (~16px) with a gradient text effect in dark mode (`gradient-text-dark` class from `GlobalStyles.tsx` lines 70-75) and plain text in light mode. The admin header uses Typography variant `h6` (18px) with `letterSpacing: -1px`, plain `text.primary` color, and 28x28px icon with `colors.primary.main` fill. The website should match the admin's sizing, spacing, and color approach
-* **Fix**:
-  1. Change Typography variant from `subtitle1` to `h6` in `Header.tsx` line 59
-  2. Add `letterSpacing: '-1px'` and `fontSize: '18px'` to match admin `Sidebar.styles.tsx` lines 53-54
-  3. Change icon size from 24x24 to 28x28 and apply `colors.primary.main` fill (line 51)
-  4. Remove the `gradient-text-dark` class usage — use `color: text.primary` to match admin
-* **Files**:
-  * `repos/website/src/components/Header/Header.tsx` — update title text variant, size, and styling
-  * `repos/website/src/theme/GlobalStyles.tsx` — optionally remove unused `gradient-text-dark` class if no longer referenced
 
 ### [P3] Documentation: 19 missing content pages referenced in sidebar
 
@@ -484,29 +390,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * New: `repos/website/src/content/docs/guides/self-hosting.mdx`
   * New: `repos/website/src/content/docs/changelog.mdx`
 
-### [P2] Documentation: light theme inline `<code>` elements lack contrast
-
-* **Repos**: website
-* **Key files**: `repos/website/src/components/Docs/MDXComponents.tsx` (lines 81-97)
-* Inline `<code>` elements use `bgcolor: 'action.hover'` (line 88) for background. In light theme, `action.hover` resolves to a near-white color that provides insufficient contrast against the white page background. The code elements don't stand out
-* **Fix**:
-  1. Replace `bgcolor: 'action.hover'` with a theme-aware value that provides visible contrast in both themes — e.g., `bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'` or use `grey[100]`/`grey[800]` per theme
-  2. Consider adding a subtle border (`1px solid divider`) for additional visual separation in light mode
-* **Files**:
-  * `repos/website/src/components/Docs/MDXComponents.tsx` — update inline code background styling
-
-### [P2] Documentation: markdown heading colors appear too purple
-
-* **Repos**: website
-* **Key files**: `repos/website/src/components/Docs/MDXComponents.tsx` (lines 14-33)
-* Markdown h1/h2/h3 elements map to MUI Typography variants (h3, h4, h5) and inherit color from `MuiTypography` styleOverrides (`colors.primaryForeground`). If the heading colors appear too purple, the `primaryForeground` value or the Typography variant color needs adjustment toward a bluer tone
-* **Fix**:
-  1. Add explicit `color` prop to the heading Typography components in `MDXComponents.tsx` (lines 14-33) using a bluer shade — e.g., `color: 'text.primary'` or a specific blue value from the theme palette
-  2. Alternatively, adjust the `primaryForeground` color in the theme if it skews purple
-* **Files**:
-  * `repos/website/src/components/Docs/MDXComponents.tsx` — adjust heading color
-  * Possibly: `repos/components/src/theme/colors.ts` — if `primaryForeground` needs adjustment
-
 ### [P3] Documentation: add screenshots and flow images
 
 * **Repos**: website
@@ -520,25 +403,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 * **Files**:
   * New: `repos/website/public/docs/images/` — screenshot directory
   * Various MDX files — add image references
-
-### [P1] "Get Started" buttons should link to admin login page
-
-* **Repos**: website
-* **Key files**: Multiple components with `Get Started` buttons
-* All "Get Started" buttons link to `/docs/getting-started` (the docs page) instead of the admin app login page. Users clicking "Get Started" expect to sign up / log in, not read documentation
-* **Locations**:
-  * `repos/website/src/components/Landing/Hero.tsx` line 148: `href='/docs/getting-started'`
-  * `repos/website/src/components/Landing/CTABanner.tsx` line 34: `to='/docs/getting-started'`
-  * `repos/website/src/components/Header/Header.tsx` line 98: `to='/docs/getting-started'`
-  * `repos/website/src/components/Header/MobileMenu.tsx` — same pattern
-* **Fix**:
-  1. Change all "Get Started" button links to point to the admin app login URL (e.g., `https://app.threadedstack.app` or the appropriate admin login route)
-  2. Consider keeping a separate "Read Docs" link for users who want documentation
-* **Files**:
-  * `repos/website/src/components/Landing/Hero.tsx` — update href
-  * `repos/website/src/components/Landing/CTABanner.tsx` — update `to` prop
-  * `repos/website/src/components/Header/Header.tsx` — update `to` prop
-  * `repos/website/src/components/Header/MobileMenu.tsx` — update `to` prop
 
 ### [P3] Add Contact and About pages with footer links
 
@@ -555,34 +419,6 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * New: `repos/website/src/pages/Contact.tsx` — Contact page
   * `repos/website/src/components/Footer/MarketingFooter.tsx` — update link targets
   * Website router file — add routes
-
----
-
-## Integration
-
-### [P0] Fix skipped org member CRUD integration tests — role unlinking issue
-
-* **Repos**: integration, backend, database
-* **Key files**: `repos/integration/src/tier1/project-members.test.ts`, `repos/integration/src/setup/global-setup.ts`
-* 16 tests in `project-members.test.ts` are skipped via `test.skipIf(!canRun())` (line 279). The `canRun()` function requires both `ctx.adminApiKey` and `ctx.targetMemberUserId` to be defined. These become undefined when:
-  1. Global setup (`global-setup.ts` lines 145-187) can't find an org member with `type === 'admin'` (excluding the test user/owner), causing `adminUserId` to be undefined
-  2. Fewer than 3 org members exist (owner + admin + target required), so `targetMemberUserId` remains undefined (lines 189-204)
-  3. Based on the database seeds (`repos/database/src/seeds/fullorg.ts`) there should be total of 4 members, one for each role type. (super, admin, member, viewer)
-  4. The viewer/member users are getting unlinked from the org — the roles table ties users to orgs, and a test or cascade operation may be removing the `orgId` from roles
-* **Potential root cause**: `removeOrgMember.ts` (line 61) calls `db.services.role.delete(targetRole.id)` but the role service defines `removeFromOrg()` and `removeFromProject()` as the proper deletion methods — method mismatch could cause incorrect role cleanup affecting subsequent tests
-* **Fix**:
-  1. Verify `removeOrgMember.ts` uses the correct role service method (`removeFromOrg` vs `delete`) and that role deletion doesn't cascade to unlink users from the org entirely
-  2. Check test ordering — a test that removes an org member may not be restoring the member for subsequent tests
-  3. Ensure global setup correctly seeds at least 3 org members (owner, admin, target) before role hierarchy tests run
-  4. Remove `test.skipIf(!canRun())` from each of the 16 tests once the underlying issue is fixed
-  5. Add a dedicated unit test for `removeOrgMember.ts` endpoint (currently missing)
-* **Skipped tests** (lines 281-388): admin role assignment restrictions, equal/higher role modification blocks, member add/remove role hierarchy, cleanup
-* **Files**:
-  * `repos/integration/src/tier1/project-members.test.ts` — 16 skipped tests to fix and unskip
-  * `repos/integration/src/setup/global-setup.ts` — admin/target member setup logic (lines 145-204)
-  * `repos/backend/src/endpoints/orgs/removeOrgMember.ts` — verify correct role service method usage
-  * `repos/database/src/services/role.ts` — `delete` vs `removeFromOrg` method behavior
-  * New: `repos/backend/src/endpoints/orgs/removeOrgMember.test.ts` — missing unit test
 
 ---
 

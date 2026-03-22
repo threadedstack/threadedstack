@@ -56,9 +56,10 @@ test.describe('Email Login Flow', () => {
     await expect(page.locator('.tdsk-login-content', { hasText: 'Threaded Stack' })).toBeVisible()
     await expect(page.locator('.tdsk-login-content', { hasText: 'Secure AI agent orchestration' })).toBeVisible()
 
-    // Verify email form fields are present
-    await expect(page.getByLabel(/email/i)).toBeVisible()
-    await expect(page.getByLabel(/password/i)).toBeVisible()
+    // Verify email form fields are present (use locator to target the input
+    // element specifically — TextInput renders aria-label on its wrapper div too)
+    await expect(page.locator('input#login-email')).toBeVisible()
+    await expect(page.locator('input#login-password')).toBeVisible()
   })
 
   test('should show social provider buttons', async ({ page }) => {

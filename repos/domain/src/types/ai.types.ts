@@ -88,13 +88,17 @@ export type TAgentConfigFields = {
   thinkingLevel?: TThinkingLevel
 }
 
-export type TAgentRunOverrides = {
+/** Base override fields shared by all agent execution contexts. */
+export type TAgentOverrides = {
   model?: string
   tools?: string[]
-  maxSteps?: number
   maxTokens?: number
   temperature?: number
   systemPrompt?: string
+}
+
+export type TAgentRunOverrides = TAgentOverrides & {
+  maxSteps?: number
 }
 
 export type TAgentRunRequest = {

@@ -1,7 +1,7 @@
 import type { TOnLogin, TLoginData } from '@TAF/types'
 
 import { GitlabIcon } from '@tdsk/components'
-import { GlLoginButton } from '@TAF/components/Login/Login.styles'
+import { ProviderLoginButton } from '@TAF/components/Login/Login.styles'
 
 export type TGitlabButton = {
   loading?: boolean
@@ -17,7 +17,7 @@ export const GlButton = (props: TGitlabButton) => {
   const { onLogin, loading, disabled } = props
 
   return (
-    <GlLoginButton
+    <ProviderLoginButton
       text={`Gitlab`}
       Icon={GitlabIcon}
       loading={loading}

@@ -1,5 +1,6 @@
 export * from './api.types'
 export * from './pay.types'
+export * from './oai.types'
 export * from './email.types'
 export * from './token.types'
 export * from './agent.types'

@@ -459,7 +459,7 @@ describe(`Role service`, () => {
           type: `member`,
         }),
       ]
-      setupSelectChainable(mocks, rows)
+      mocks.findMany.mockResolvedValue(rows)
 
       const result = await service.getProjectMembers(`proj-1`)
 
@@ -470,7 +470,7 @@ describe(`Role service`, () => {
     })
 
     it(`should return empty array when project has no members`, async () => {
-      setupSelectChainable(mocks, [])
+      mocks.findMany.mockResolvedValue([])
 
       const result = await service.getProjectMembers(`proj-empty`)
 
@@ -480,28 +480,30 @@ describe(`Role service`, () => {
 
     it(`should apply limit and offset when provided`, async () => {
       const rows = [fakeRoleRow({ id: `role-1`, orgId: null, projectId: `proj-1` })]
-      setupSelectChainable(mocks, rows)
+      mocks.findMany.mockResolvedValue(rows)
 
       const result = await service.getProjectMembers(`proj-1`, { limit: 10, offset: 5 })
 
       expect(result.data).toHaveLength(1)
-      expect(mocks.limitFn).toHaveBeenCalledWith(10)
-      expect(mocks.offsetFn).toHaveBeenCalledWith(5)
+      expect(mocks.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 10, offset: 5 })
+      )
     })
 
     it(`should work without pagination params (backward compat)`, async () => {
       const rows = [fakeRoleRow({ id: `role-1`, orgId: null, projectId: `proj-1` })]
-      setupSelectChainable(mocks, rows)
+      mocks.findMany.mockResolvedValue(rows)
 
       const result = await service.getProjectMembers(`proj-1`)
 
       expect(result.data).toHaveLength(1)
-      expect(mocks.limitFn).not.toHaveBeenCalled()
-      expect(mocks.offsetFn).not.toHaveBeenCalled()
+      expect(mocks.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: undefined, offset: undefined })
+      )
     })
 
     it(`should return error on DB exception`, async () => {
-      mocks.selectWhereFn.mockRejectedValue(new Error(`Relation does not exist`))
+      mocks.findMany.mockRejectedValue(new Error(`Relation does not exist`))
 
       const result = await service.getProjectMembers(`proj-1`)
 

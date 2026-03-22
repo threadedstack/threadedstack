@@ -28,6 +28,7 @@
     "certs": "tsx -r ./configs/aliases.ts scripts/certs.ts",
     "seed": "tsx -r ./configs/aliases.ts scripts/seed.ts",
     "purge": "tsx -r ./configs/aliases.ts scripts/purge.ts",
+    "cleanup": "tsx -r ./configs/aliases.ts scripts/cleanup.ts",
     "biome": "biome",
     "lint": "pnpm biome:lint --write",
     "format": "pnpm biome:format --write",

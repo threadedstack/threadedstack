@@ -2,11 +2,11 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { EEndpointType, Exception } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
 import { getEPService } from '@TBE/services/endpoints'
+import { EEndpointType, Exception } from '@tdsk/domain'
 import { parseJsonBody } from '@TBE/utils/parseJsonBody'
 import { authenticateRequest } from '@TBE/utils/auth/authenticateRequest'
-import { logger } from '@TBE/utils/logger'
 
 /**
  * GET/POST/PUT/PATCH/DELETE /proxy/:projectId/:endpointId/*

@@ -1,50 +1,46 @@
-import type { TSession, TApp } from '@TBE/types'
-import type { TStreamEvent, TWSServerMsg, TWSPromptMsg } from '@tdsk/domain'
-import type {
-  TAgentHandle,
-  TAgentConfig,
-  TAgentInitOpts,
-  IAgentRunnerDB,
-} from '@tdsk/agent'
+import type { TSession, TSessionPayload, TApp } from '@TBE/types'
+import type { TAgentHandle, TAgentConfig, TAgentInitOpts } from '@tdsk/agent'
+import type { TWSClientMsg, TStreamEvent, TWSServerMsg, TWSPromptMsg } from '@tdsk/domain'
 
-import WebSocket from 'ws'
-import { logger } from '@TBE/utils/logger'
+import WS from 'ws'
 import { AgentRunner } from '@tdsk/agent'
-import { EWSEventType, ESandboxType, EStreamEventType } from '@tdsk/domain'
-import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
+import { logger } from '@TBE/utils/logger'
+import { EWSEventType, EStreamEventType } from '@tdsk/domain'
+import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
+import { WsPingIntervalMS, ClientMsgTypes } from '@TBE/constants/values'
 
 type TWebsocketOpts = {
   app: TApp
-  ws: WebSocket
+  ws: WS
 }
 
 export class Websocket {
   #closed = false
+  #ws: WS | undefined
   #app: TApp | undefined
-  #ws: WebSocket | undefined
   #runner: AgentRunner | null = null
   #agentHandle: TAgentHandle | null = null
-  #abortController: AbortController | null = null
+  pingInterval: NodeJS.Timeout | null = null
+  abortController: AbortController | null = null
+  #closedStates: number[] = [WebSocket.CLOSING, WebSocket.CLOSED]
 
   constructor(opts: TWebsocketOpts) {
     this.#ws = opts.ws
     this.#app = opts.app
   }
 
-  get abortController(): AbortController | null {
-    return this.#abortController
-  }
-
-  set abortController(ac: AbortController | null) {
-    this.#abortController = ac
-  }
-
   async close() {
-    this.#closed = true
-    if (this.#abortController) {
-      this.#abortController.abort()
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval)
+      this.pingInterval = null
+    }
+
+    if (this.abortController) {
+      this.abortController.abort()
+      this.abortController = null
       this.send({ type: EWSEventType.Done, reason: `cancelled` })
     }
+
     if (this.#runner) {
       try {
         await this.#runner.destroy()
@@ -53,7 +49,10 @@ export class Websocket {
       }
       this.#runner = null
     }
-    this.#ws?.close()
+
+    if (!this.#closed) this.#ws?.close()
+
+    this.#closed = true
     this.#ws = undefined
     this.#app = undefined
   }
@@ -68,97 +67,35 @@ export class Websocket {
    * If socket is no longer open, logs a warning and aborts the active agent run.
    */
   send = (msg: TWSServerMsg): void => {
-    if (this.#ws?.readyState === WebSocket.OPEN) {
+    if (this.#ws?.readyState === WS.OPEN) {
       this.#ws.send(JSON.stringify(msg))
     } else if (this.#ws) {
       logger.warn(`WS send dropped (readyState=${this.#ws.readyState}), aborting agent`)
-      this.#abortController?.abort()
+      this.abortController?.abort()
     }
   }
 
   /**
-   * Create an IAgentRunnerDB adapter from the app's database services
+   * Build TAgentInitOpts from the pre-resolved session config.
+   * Session includes sandboxConfig, skills, db, and
+   * onExecuteFunction — all resolved by resolveAgentConfig().
    */
-  createDBAdapter = (db: any): IAgentRunnerDB => ({
-    createMessage: (data) => db.services.message.create(data),
-    listMessages: (opts) =>
-      db.services.message.listByThread(opts.where.threadId, {
-        limit: opts.limit,
-        offset: opts.offset,
-      }),
-  })
-
-  /**
-   * Build the TAgentInitOpts from the session and DB.
-   */
-  async #buildInitOpts(
-    session: TSession,
-    db: any,
-    threadId: string
-  ): Promise<TAgentInitOpts> {
-    const customFunctions = session.customFunctions || []
-    const functionMap = new Map(customFunctions.map((fn: any) => [fn.id, fn]))
-
-    const { data: skills } = await db.services.skill.listForAgent(session.agentId)
-
-    const sandboxProvider = session.environment?.sandboxType || ESandboxType.local
-    let podName = session.environment?.podName as string | undefined
-
-    // Auto-start K8s pod if sandboxId is set but no explicit podName
-    if (
-      sandboxProvider === ESandboxType.kubernetes &&
-      !podName &&
-      session.environment?.sandboxId
-    ) {
-      const { config, sandbox } = (this.#app || ({ locals: {} } as TApp))?.locals
-      if (!sandbox) throw new Error(`Sandbox service could not be loaded!`)
-
-      podName = await sandbox.startPod({
-        orgId: session.orgId,
-        userId: session.userId,
-        egressOpts: config.egress,
-        projectId: session.projectId || ``,
-        sandboxId: session.environment.sandboxId as string,
-      })
-    }
-
-    if (sandboxProvider === ESandboxType.kubernetes && !podName) {
-      throw new Error(`K8s sandbox not available — no podName or sandbox found`)
-    }
-
+  async #buildInitOpts(session: TSession, threadId: string): Promise<TAgentInitOpts> {
     return {
-      skills,
       threadId,
-      customFunctions,
+      db: session.db,
       tools: session.tools,
       orgId: session.orgId,
       userId: session.userId,
+      skills: session.skills,
       agentId: session.agentId,
-      db: this.createDBAdapter(db),
       llmConfig: session.llmConfig,
       environment: session.environment,
-      sandboxConfig: {
-        provider: sandboxProvider,
-        envVars: session.envVars ?? {},
-        timeout: session.environment?.timeout ?? 300000,
-        options: podName ? { podName } : undefined,
-      },
-      onExecuteFunction: async (functionId, input) => {
-        const func = functionMap.get(functionId)
-        if (!func) {
-          return {
-            duration: 0,
-            output: null,
-            success: false,
-            error: `Function not found`,
-          }
-        }
-        return FunctionExecutor.execute(func, {
-          context: { args: input as Record<string, any> },
-        })
-      },
+      sandboxConfig: session.sandboxConfig,
+      customFunctions: session.customFunctions,
+      onExecuteFunction: session.onExecuteFunction,
       onEvent: (event: TStreamEvent) => {
-        if (this.#abortController?.signal.aborted) return
+        if (this.abortController?.signal.aborted) return
         this.bridgeEventToWS(event)
       },
     }
@@ -184,7 +121,7 @@ export class Websocket {
 
     // Create and init new runner — hold in local var until init completes
     const runner = new AgentRunner()
-    const initOpts = await this.#buildInitOpts(session, db, threadId)
+    const initOpts = await this.#buildInitOpts(session, threadId)
     await runner.init(initOpts)
 
     // If close() was called during init, destroy the new runner and bail
@@ -212,13 +149,13 @@ export class Websocket {
     }
 
     // Prevent concurrent runs on the same connection
-    if (this.#abortController) {
+    if (this.abortController) {
       this.#sendError(`Agent is already running. Send cancel first.`)
       return
     }
 
     const ac = new AbortController()
-    this.#abortController = ac
+    this.abortController = ac
 
     try {
       // 1. Create or reuse thread
@@ -273,7 +210,7 @@ export class Websocket {
       }
     } finally {
       this.#agentHandle = null
-      this.#abortController = null
+      this.abortController = null
     }
   }
 
@@ -321,7 +258,7 @@ export class Websocket {
 
   /**
    * Bridge TStreamEvent to EWSEventType WebSocket messages.
-   * Maps the existing event types to the new WS protocol.
+   * Maps TStreamEvent types to EWSEventType WebSocket messages for client consumption.
    */
   bridgeEventToWS(event: TStreamEvent): void {
     switch (event.type) {
@@ -330,18 +267,18 @@ export class Websocket {
         break
       case EStreamEventType.toolCallStart:
         this.send({
-          type: EWSEventType.ToolExecutionStart,
+          args: {},
           toolCallId: event.id,
           toolName: event.name,
-          args: {},
+          type: EWSEventType.ToolExecutionStart,
         })
         break
       case EStreamEventType.toolResult:
         this.send({
-          type: EWSEventType.ToolExecutionEnd,
-          toolCallId: event.toolUseId,
           result: event.content,
+          toolCallId: event.toolUseId,
           isError: event.isError ?? false,
+          type: EWSEventType.ToolExecutionEnd,
         })
         // Detect artifact content in tool results (from createArtifact tool)
         if (!event.isError && event.content) {
@@ -354,21 +291,21 @@ export class Websocket {
           }
           if (parsed?.artifactType && parsed?.content) {
             this.send({
+              title: parsed.title,
+              content: parsed.content,
+              language: parsed.language,
               type: EWSEventType.Artifact,
               artifactType: parsed.artifactType,
-              content: parsed.content,
-              title: parsed.title,
-              language: parsed.language,
             })
           }
         }
         break
       case EStreamEventType.toolExecutionUpdate:
         this.send({
-          type: EWSEventType.ToolExecutionUpdate,
-          toolCallId: event.toolUseId,
-          result: event.content,
           isError: false,
+          result: event.content,
+          toolCallId: event.toolUseId,
+          type: EWSEventType.ToolExecutionUpdate,
         })
         break
       case EStreamEventType.toolCallArgs:
@@ -388,5 +325,79 @@ export class Websocket {
       case EStreamEventType.done:
         break
     }
+  }
+
+  /**
+   * Parse and validate an incoming WebSocket message.
+   * Returns null for invalid/unrecognized payloads.
+   */
+  parseMsg = (raw: Buffer | string): TWSClientMsg | null => {
+    try {
+      const msg = JSON.parse(typeof raw === `string` ? raw : raw.toString(`utf8`))
+      if (!msg || typeof msg.type !== `string` || !ClientMsgTypes.has(msg.type))
+        return null
+      return msg as TWSClientMsg
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        logger.debug(`WS parse failed for message: ${String(raw).slice(0, 200)}`)
+      } else {
+        logger.warn(`WS unexpected parse error`, {
+          error: err instanceof Error ? err.message : err,
+        })
+      }
+      return null
+    }
+  }
+
+  /**
+   * Resolve the full session data from a verified token payload.
+   * Uses the shared resolveAgentConfig() utility to load agent, secrets, and config.
+   */
+  resolveSession = async (
+    payload: TSessionPayload
+  ): Promise<{ session: TSession | null; error?: string }> => {
+    try {
+      const { db } = this.#app.locals
+
+      const config = await resolveAgentConfig(payload.agentId, db, this.#app, {
+        userId: payload.userId,
+        projectId: payload.projectId,
+      })
+
+      const { agent, effectiveAgent, orgId, ...runtimeConfig } = config
+      return {
+        session: {
+          orgId,
+          agentId: agent.id,
+          userId: payload.userId,
+          projectId: payload.projectId,
+          ...runtimeConfig,
+        },
+      }
+    } catch (err) {
+      logger.error(`Failed to resolve session`, {
+        agentId: payload.agentId,
+        error: err instanceof Error ? err.message : err,
+        stack: err instanceof Error ? err.stack : undefined,
+      })
+      return {
+        session: null,
+        error: err instanceof Error ? err.message : `Agent session could not be resolved`,
+      }
+    }
+  }
+
+  /** Send periodic heartbeat messages
+   * So proxy/LB layers don't Kill idle connections during long LLM processing. Uses application-level
+   * JSON messages instead of protocol-level pings because Caddy's reverse
+   * proxy corrupts WebSocket control frames (RSV1 bit) in multi-hop chains.
+   */
+  keepalive = () => {
+    this.pingInterval = setInterval(() => {
+      this.#ws.readyState === this.#ws.OPEN &&
+        this.#ws.send(JSON.stringify({ type: EWSEventType.Ping }))
+    }, WsPingIntervalMS)
+
+    return this.pingInterval
   }
 }

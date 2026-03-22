@@ -17,6 +17,18 @@ vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
   checkPermission: vi.fn().mockResolvedValue(undefined),
 }))
 
+const { mockResolveAgentConfig } = vi.hoisted(() => ({
+  mockResolveAgentConfig: vi.fn(),
+}))
+vi.mock(`@TBE/utils/agent/resolveAgentConfig`, async () => {
+  const actual = await vi.importActual(`@TBE/utils/agent/resolveAgentConfig`)
+  mockResolveAgentConfig.mockImplementation(actual.resolveAgentConfig as any)
+  return {
+    ...actual,
+    resolveAgentConfig: (...args: any[]) => mockResolveAgentConfig(...args),
+  }
+})
+
 vi.mock(`@tdsk/agent`, () => ({
   AgentRunner: {
     run: vi.fn().mockResolvedValue({
@@ -93,6 +105,9 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
             function: {
               list: vi.fn().mockResolvedValue({ data: [] }),
               get: vi.fn().mockResolvedValue({ data: null }),
+            },
+            skill: {
+              listForAgent: vi.fn().mockResolvedValue({ data: [] }),
             },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -1000,5 +1015,167 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
     await ep.action(mockReq as TRequest, mockRes as Response)
 
     expect(mockOn).toHaveBeenCalledWith(`close`, expect.any(Function))
+  })
+})
+
+describe(`AgentEndpoint.runHeadless - direct tests`, () => {
+  let AgentEndpoint: typeof import('@TBE/services/endpoints/agentEndpoint').AgentEndpoint
+
+  const mockOnEvent = vi.fn()
+
+  const buildMockDb = () => ({
+    services: {
+      agent: { get: vi.fn() },
+      secret: {
+        get: vi.fn().mockResolvedValue({
+          data: { encryptedValue: fakeEncrypted(), orgId: `org-1` },
+        }),
+        list: vi.fn().mockResolvedValue({ data: [] }),
+      },
+      thread: {
+        create: vi.fn().mockResolvedValue({ data: { id: `thread-new` } }),
+        get: vi.fn(),
+      },
+      message: {
+        create: vi.fn().mockResolvedValue({ data: {} }),
+        listByThread: vi.fn().mockResolvedValue({ data: [] }),
+      },
+      function: {
+        list: vi.fn().mockResolvedValue({ data: [] }),
+        get: vi.fn().mockResolvedValue({ data: null }),
+      },
+      skill: {
+        listForAgent: vi.fn().mockResolvedValue({ data: [] }),
+      },
+    },
+  })
+
+  const buildMockResolvedConfig = () => ({
+    agent: { id: `agent-1` },
+    effectiveAgent: { id: `agent-1` },
+    orgId: `org-1`,
+    llmConfig: {
+      apiKey: `sk-test`,
+      provider: `anthropic`,
+      model: `claude-sonnet-4-20250514`,
+    },
+    sandboxConfig: { provider: `local`, timeout: 300000 },
+    environment: undefined,
+    customFunctions: [],
+    skills: [],
+    tools: undefined,
+    envVars: {},
+    db: { createMessage: vi.fn(), listMessages: vi.fn() },
+    onExecuteFunction: vi.fn(),
+  })
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+
+    const { AgentRunner } = await import(`@tdsk/agent`)
+    ;(AgentRunner.run as ReturnType<typeof vi.fn>).mockResolvedValue({
+      waitForIdle: vi.fn().mockResolvedValue(undefined),
+      abort: vi.fn(),
+    })
+
+    // Override default pass-through with controlled mock for runHeadless tests
+    mockResolveAgentConfig.mockImplementation(() =>
+      Promise.resolve(buildMockResolvedConfig())
+    )
+
+    const mod = await import(`@TBE/services/endpoints/agentEndpoint`)
+    AgentEndpoint = mod.AgentEndpoint
+  })
+
+  it(`should resolve config, create thread, run agent, and return threadId`, async () => {
+    const { AgentRunner } = await import(`@tdsk/agent`)
+    const agent = new AgentEndpoint()
+    const db = buildMockDb()
+    const mockReq = { app: { locals: { config: {} } } } as any
+
+    const result = await agent.runHeadless(mockReq, db as any, {
+      agentId: `agent-1`,
+      prompt: `Hello`,
+      userId: `test-user`,
+      onEvent: mockOnEvent,
+    })
+
+    expect(result.threadId).toBe(`thread-new`)
+    expect(mockResolveAgentConfig).toHaveBeenCalledWith(
+      `agent-1`,
+      db,
+      mockReq.app,
+      expect.objectContaining({ userId: `test-user` })
+    )
+    expect(db.services.thread.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: `test-user`,
+        agentId: `agent-1`,
+        orgId: `org-1`,
+      })
+    )
+    expect(AgentRunner.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: `Hello`,
+        userId: `test-user`,
+        agentId: `agent-1`,
+        threadId: `thread-new`,
+        onEvent: mockOnEvent,
+      })
+    )
+  })
+
+  it(`should skip resolveAgentConfig when resolvedConfig is provided`, async () => {
+    const agent = new AgentEndpoint()
+    const db = buildMockDb()
+    const mockReq = { app: { locals: { config: {} } } } as any
+    const preResolved = buildMockResolvedConfig()
+
+    const result = await agent.runHeadless(mockReq, db as any, {
+      agentId: `agent-1`,
+      prompt: `Hello`,
+      userId: `test-user`,
+      resolvedConfig: preResolved as any,
+      onEvent: mockOnEvent,
+    })
+
+    expect(result.threadId).toBe(`thread-new`)
+    expect(mockResolveAgentConfig).not.toHaveBeenCalled()
+  })
+
+  it(`should reuse existing thread when threadId is provided`, async () => {
+    const agent = new AgentEndpoint()
+    const db = buildMockDb()
+    const mockReq = { app: { locals: { config: {} } } } as any
+
+    const result = await agent.runHeadless(mockReq, db as any, {
+      agentId: `agent-1`,
+      prompt: `Continue`,
+      userId: `test-user`,
+      threadId: `existing-thread`,
+      onEvent: mockOnEvent,
+    })
+
+    expect(result.threadId).toBe(`existing-thread`)
+    expect(db.services.thread.create).not.toHaveBeenCalled()
+  })
+
+  it(`should throw 500 when thread creation fails`, async () => {
+    const agent = new AgentEndpoint()
+    const db = buildMockDb()
+    ;(db.services.thread.create as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: new Error(`DB error`),
+    })
+    const mockReq = { app: { locals: { config: {} } } } as any
+
+    await expect(
+      agent.runHeadless(mockReq, db as any, {
+        agentId: `agent-1`,
+        prompt: `Hello`,
+        userId: `test-user`,
+        onEvent: mockOnEvent,
+      })
+    ).rejects.toThrow(`Failed to create thread`)
   })
 })

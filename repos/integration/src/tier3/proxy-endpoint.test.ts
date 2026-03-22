@@ -249,7 +249,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     expect(res.status).toBe(200)
     expect(res.data).toBeDefined()
 
-    const ep = res.data.data ?? res.data
+    const ep = (res.data.data ?? res.data) as Record<string, any>
     expect(ep.type).toBe('proxy')
     expect(ep.id).toBe(basicEpId)
     expect(ep.options).toBeDefined()
@@ -264,7 +264,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     )
 
     expect(res.status).toBe(200)
-    const ep = res.data.data ?? res.data
+    const ep = (res.data.data ?? res.data) as Record<string, any>
     expect(ep.headers).toBeDefined()
     expect(ep.headers['X-Test-Header']).toBe('static-value')
     expect(ep.headers['X-Secret-Header']).toBe(`{{proxy-test-secret:${secretId}}}`)
@@ -278,7 +278,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
     )
 
     expect(res.status).toBe(200)
-    const ep = res.data.data ?? res.data
+    const ep = (res.data.data ?? res.data) as Record<string, any>
     expect(ep.options.auth).toBeDefined()
     expect(ep.options.auth.type).toBe('bearer')
     expect(ep.options.auth.secretId).toBe(secretId)

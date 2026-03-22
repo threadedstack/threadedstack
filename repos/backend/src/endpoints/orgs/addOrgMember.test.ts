@@ -43,11 +43,9 @@ describe(`POST /:orgId/members - Add org member`, () => {
               get: vi.fn().mockResolvedValue({ data: { id: `org-1`, name: `Test Org` } }),
             },
             user: {
-              get: vi
-                .fn()
-                .mockResolvedValue({
-                  data: { id: `user-2`, email: `user2@example.com` },
-                }),
+              get: vi.fn().mockResolvedValue({
+                data: { id: `user-2`, email: `user2@example.com` },
+              }),
             },
             role: {
               create: vi.fn(),

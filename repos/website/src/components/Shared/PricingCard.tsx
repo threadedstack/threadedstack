@@ -6,6 +6,7 @@ import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import CheckIcon from '@mui/icons-material/Check'
+import { TDSK_AD_APP_URL } from '@TAF/constants/envs'
 
 type Feature = { label: string; included: boolean }
 
@@ -101,6 +102,7 @@ const PricingCard = ({
       <Button
         fullWidth
         variant={highlighted ? 'contained' : 'outlined'}
+        href={TDSK_AD_APP_URL}
         onClick={onCtaClick}
       >
         {cta}

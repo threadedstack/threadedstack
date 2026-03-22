@@ -2,8 +2,6 @@ import type { ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { Page } from '@TAF/pages/Page/Page'
-import { listOrgUsers } from '@TAF/actions/users'
-import { useApiKeys } from '@TAF/state/selectors'
 import { useEffect, useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
 import { listProjectMembers } from '@TAF/actions/projectMembers'
@@ -11,10 +9,16 @@ import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
-import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
+import { scopeChipColor, formatScopeLabel } from '@TAF/utils/transforms/scopes'
 import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import {
+  useApiKeys,
+  useActiveOrgId,
+  useProjectMembers,
+  useActiveProjectId,
+} from '@TAF/state/selectors'
 
 import {
   Add as AddIcon,
@@ -30,45 +34,35 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(true)
+  const [projectMembersMap] = useProjectMembers()
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<Error | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null)
-  const [projectUsers, setProjectUsers] = useState<
-    Array<{ id: string; name: string; email?: string }>
-  >([])
 
-  // Load project members mapped with org user details for the user selector
+  const projectUsers = useMemo(() => {
+    const members = projectMembersMap?.[projectId]
+    if (!members) return []
+    return Object.values(members).map((role) => ({
+      id: role.userId,
+      name:
+        role.user?.name ||
+        [role.user?.first, role.user?.last].filter(Boolean).join(' ') ||
+        role.user?.email ||
+        `User`,
+      email: role.user?.email,
+    }))
+  }, [projectMembersMap, projectId])
+
+  // Fetch project members into Jotai state for the user selector
   useEffect(() => {
     if (!orgId || !projectId) return
-
-    const loadUsers = async () => {
-      const [membersResp, usersResp] = await Promise.all([
-        listProjectMembers({ orgId, projectId }),
-        listOrgUsers(orgId),
-      ])
-
-      if (membersResp.data && usersResp.data) {
-        const userMap = new Map(usersResp.data.map((u) => [u.id, u]))
-        setProjectUsers(
-          membersResp.data.map((role) => {
-            const user = userMap.get(role.userId)
-            return {
-              id: role.userId,
-              name:
-                user?.displayName ||
-                [user?.first, user?.last].filter(Boolean).join(' ') ||
-                user?.email ||
-                `User`,
-              email: user?.email,
-            }
-          })
-        )
-      }
+    const loadMembers = async () => {
+      const resp = await listProjectMembers({ orgId, projectId })
+      if (resp.error) setError(resp.error)
     }
-
-    loadUsers()
+    loadMembers()
   }, [orgId, projectId])
 
   // Load project-scoped API keys
@@ -134,34 +128,6 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
 
   const apiKeysCount = apiKeys ? Object.keys(apiKeys).length : 0
 
-  const getScopeChipColor = (
-    scope: string
-  ): 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' => {
-    switch (scope.toLowerCase()) {
-      case 'admin':
-        return 'error'
-      case 'write':
-        return 'warning'
-      case 'read':
-        return 'info'
-      default:
-        return 'default'
-    }
-  }
-
-  const formatScopeLabel = (scope: string): string => {
-    switch (scope.toLowerCase()) {
-      case 'admin':
-        return 'Admin'
-      case 'write':
-        return 'Write'
-      case 'read':
-        return 'Read Only'
-      default:
-        return scope.charAt(0).toUpperCase() + scope.slice(1)
-    }
-  }
-
   const columns: TDataTableColumn<ApiKey>[] = [
     {
       id: 'name',
@@ -213,7 +179,7 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
               key={scope}
               label={formatScopeLabel(scope.trim())}
               size='small'
-              color={getScopeChipColor(scope.trim())}
+              color={scopeChipColor(scope.trim())}
               variant='outlined'
             />
           ))}
@@ -225,10 +191,10 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
       label: 'Status',
       render: (apiKey) => (
         <Chip
-          label={apiKey.active ? 'Active' : 'Revoked'}
           size='small'
-          color={apiKey.active ? 'success' : 'default'}
-          variant={apiKey.active ? 'filled' : 'outlined'}
+          label={apiKey.active ? `Active` : `Revoked`}
+          color={apiKey.active ? `success` : `default`}
+          variant={apiKey.active ? `filled` : `outlined`}
         />
       ),
     },
@@ -282,10 +248,10 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
       >
         {apiKeysCount === 0 && (
           <EmptyState
-            message='No project API keys yet. Generate your first project-scoped API key.'
-            actionLabel='Generate API Key'
             actionIcon={<AddIcon />}
             onAction={onCreateApiKey}
+            actionLabel='Generate API Key'
+            message='No project API keys yet. Generate your first project-scoped API key.'
           />
         )}
 
@@ -304,8 +270,8 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
         {orgId && projectId && (
           <CreateApiKeyDrawer
             orgId={orgId}
-            projectId={projectId}
             users={projectUsers}
+            projectId={projectId}
             open={createDialogOpen}
             onClose={onDialogClose}
           />

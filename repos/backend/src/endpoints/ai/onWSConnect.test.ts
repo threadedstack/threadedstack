@@ -89,6 +89,7 @@ const buildMockApp = (agentOverrides: Record<string, any> = {}) =>
             create: vi.fn().mockResolvedValue({ data: { id: `m1` } }),
           },
           function: { get: vi.fn() },
+          skill: { listForAgent: vi.fn().mockResolvedValue({ data: [] }) },
           secret: { get: vi.fn(), list: vi.fn().mockResolvedValue({ data: [] }) },
           role: {
             getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -155,7 +156,7 @@ describe(`onWSConnect`, () => {
 
     expect(ws.close).toHaveBeenCalledWith(
       4001,
-      expect.stringContaining(`Failed to resolve`)
+      expect.stringContaining(`Agent not found`)
     )
   })
 
@@ -169,10 +170,7 @@ describe(`onWSConnect`, () => {
 
     await onWSConnect(ws, req, app)
 
-    expect(ws.close).toHaveBeenCalledWith(
-      4001,
-      expect.stringContaining(`Failed to resolve`)
-    )
+    expect(ws.close).toHaveBeenCalledWith(4001, expect.stringContaining(`no provider`))
   })
 
   it(`should close connection when API key resolution fails`, async () => {
@@ -184,10 +182,7 @@ describe(`onWSConnect`, () => {
 
     await onWSConnect(ws, req, buildMockApp())
 
-    expect(ws.close).toHaveBeenCalledWith(
-      4001,
-      expect.stringContaining(`Failed to resolve`)
-    )
+    expect(ws.close).toHaveBeenCalledWith(4001, expect.stringContaining(`No API key`))
   })
 
   it(`should send error for unknown message type`, async () => {
