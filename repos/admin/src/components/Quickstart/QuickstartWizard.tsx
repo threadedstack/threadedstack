@@ -1,16 +1,16 @@
 import { QSSteps } from '@TAF/constants/nav'
+import { styled } from '@mui/material/styles'
+import CloseIcon from '@mui/icons-material/Close'
 import { Drawer, DrawerActions } from '@tdsk/components'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import { AgentStep } from '@TAF/components/Quickstart/AgentStep'
 import { ReviewStep } from '@TAF/components/Quickstart/ReviewStep'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useQuickStart } from '@TAF/hooks/components/useQuickStart'
-import { ProviderStep } from '@TAF/components/Quickstart/ProviderStep'
 import { Box, Step, Stepper, StepLabel, Fade } from '@mui/material'
-import { styled } from '@mui/material/styles'
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
-import CloseIcon from '@mui/icons-material/Close'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import { ProviderStep } from '@TAF/components/Quickstart/ProviderStep'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined'
 
 const WizardStepper = styled(Stepper)(({ theme }) => ({
@@ -86,10 +86,10 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
         },
         create: {
           text: `Next`,
+          onClick: onSave,
           Icon: ArrowForwardIcon,
           color: `primary` as const,
           variant: `contained` as const,
-          onClick: onSave,
           disabled: loading || !canNext,
         },
       }
@@ -97,24 +97,24 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
         remove: {
           text: `Cancel`,
           Icon: CloseIcon,
-          color: `inherit` as const,
-          variant: `text` as const,
           onClick: onClose,
+          variant: `text` as const,
+          color: `inherit` as const,
         },
         cancel: {
           text: `Back`,
+          onClick: onBack,
           Icon: ArrowBackIcon,
           color: `secondary` as const,
           variant: `outlined` as const,
-          onClick: onBack,
         },
         save: {
+          onClick: onSave,
+          variant: `contained` as const,
+          disabled: loading || !canNext,
           text: isLastStep ? `Create Everything` : `Next`,
           Icon: isLastStep ? AddCircleOutlineIcon : ArrowForwardIcon,
           color: isLastStep ? (`success` as const) : (`primary` as const),
-          variant: `contained` as const,
-          onClick: onSave,
-          disabled: loading || !canNext,
         },
       }
 
@@ -133,10 +133,10 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
       }
       actions={
         <DrawerActions
-          actions={drawerActions}
-          editing={!isFirstStep}
           loading={loading}
           disabled={loading}
+          actions={drawerActions}
+          editing={!isFirstStep}
           saveDisabled={loading || !canNext}
           createDisabled={loading || !canNext}
         />
@@ -144,8 +144,8 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
     >
       <Box sx={{ display: `flex`, flexDirection: `column`, gap: 2 }}>
         <WizardStepper
-          activeStep={activeStep}
           alternativeLabel
+          activeStep={activeStep}
         >
           {QSSteps.map((label) => (
             <Step key={label}>
@@ -170,38 +170,38 @@ export const QuickstartWizard = (props: TQuickstartWizard) => {
           >
             <div>
               <ProviderStep
+                disabled={loading}
                 data={providerData}
                 onChange={onProviderChange}
-                disabled={loading}
               />
             </div>
           </Fade>
 
           <Fade
-            in={activeStep === 1}
             mountOnEnter
             unmountOnExit
             timeout={300}
+            in={activeStep === 1}
           >
             <div>
               <AgentStep
                 data={agentData}
-                onChange={onAgentChange}
                 disabled={loading}
+                onChange={onAgentChange}
               />
             </div>
           </Fade>
 
           <Fade
-            in={activeStep === 2}
             mountOnEnter
             unmountOnExit
             timeout={300}
+            in={activeStep === 2}
           >
             <div>
               <ReviewStep
-                provider={providerData}
                 agent={agentData}
+                provider={providerData}
               />
             </div>
           </Fade>

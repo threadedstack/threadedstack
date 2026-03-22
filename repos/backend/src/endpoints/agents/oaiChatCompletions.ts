@@ -3,10 +3,10 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { nanoid } from 'nanoid'
 import { EPMethod } from '@TBE/types'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
-import { AgentEndpoint } from '@TBE/services/endpoints/agentEndpoint'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { AgentEndpoint } from '@TBE/services/endpoints/agentEndpoint'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 import {
   extractPrompt,
@@ -60,8 +60,8 @@ export const oaiChatCompletions: TEndpointConfig = {
     }
 
     const overrides = buildOverrides(body)
-    const completionId = `chatcmpl-${nanoid(24)}`
     const modelName = body.model || `default`
+    const completionId = `chatcmpl-${nanoid(24)}`
 
     const agent = new AgentEndpoint()
 
@@ -69,7 +69,7 @@ export const oaiChatCompletions: TEndpointConfig = {
     // avoids double-resolution when runHeadless is called later.
     let config
     try {
-      config = await resolveAgentConfig(agentId, db, req.app as any, {
+      config = await resolveAgentConfig(agentId, db, req.app, {
         userId,
         overrides,
       })
@@ -124,7 +124,7 @@ export const oaiChatCompletions: TEndpointConfig = {
                 agentId,
                 threadId,
                 messageType: msg.type,
-                error: msgErr instanceof Error ? msgErr.message : msgErr,
+                error: msgErr.message,
               })
               const { status, body: errBody } = formatOAIError(
                 new Exception(500, `Failed to seed conversation message`)
@@ -151,9 +151,9 @@ export const oaiChatCompletions: TEndpointConfig = {
 
     if (body.stream) {
       // Streaming mode — SSE with OpenAI chunk format
-      res.setHeader(`Content-Type`, `text/event-stream`)
-      res.setHeader(`Cache-Control`, `no-cache`)
       res.setHeader(`Connection`, `keep-alive`)
+      res.setHeader(`Cache-Control`, `no-cache`)
+      res.setHeader(`Content-Type`, `text/event-stream`)
       res.flushHeaders()
 
       const adapter = createStreamingAdapter(res, completionId, modelName)
@@ -180,10 +180,10 @@ export const oaiChatCompletions: TEndpointConfig = {
       } catch (err) {
         const message = err instanceof Error ? err.message : `Agent execution failed`
         logger.error(`[OAI Chat] Streaming error`, {
-          error: err instanceof Error ? err : message,
-          stack: err instanceof Error ? err.stack : undefined,
           agentId,
           threadId,
+          error: err instanceof Error ? err : message,
+          stack: err instanceof Error ? err.stack : undefined,
         })
         if (!aborted) {
           res.write(
@@ -194,18 +194,16 @@ export const oaiChatCompletions: TEndpointConfig = {
         }
       }
 
-      if (!aborted) {
-        adapter.finish()
-      }
+      !aborted && adapter.finish()
     } else {
       // Non-streaming mode — collect events, return JSON
       const adapter = createNonStreamingAdapter(completionId, modelName)
 
       try {
         await agent.runHeadless(req, db, {
-          agentId,
           prompt,
           userId,
+          agentId,
           threadId,
           overrides,
           resolvedConfig: config,

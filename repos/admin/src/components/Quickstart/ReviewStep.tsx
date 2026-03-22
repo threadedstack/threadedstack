@@ -2,30 +2,30 @@ import type { TReviewStep } from '@TAF/types'
 import type { ReactNode } from 'react'
 
 import { useMemo } from 'react'
+import ApiIcon from '@mui/icons-material/Api'
 import { ProviderTemplates } from '@tdsk/domain'
 import { useTheme, styled } from '@mui/material/styles'
-import { Box, Card, Chip, CardContent, Typography } from '@mui/material'
-import { SectionHeader, SectionIcon } from './Quickstart.styled'
 import CloudQueueIcon from '@mui/icons-material/CloudQueue'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import AccountTreeIcon from '@mui/icons-material/AccountTree'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
-import ApiIcon from '@mui/icons-material/Api'
+import { Box, Card, Chip, CardContent, Typography } from '@mui/material'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import { SectionHeader, SectionIcon } from '@TAF/components/Quickstart/Quickstart.styled'
 
 type TReviewItem = {
   label: string
   type: string
-  icon: ReactNode
   color: string
+  icon: ReactNode
   details: string[]
 }
 
 const ResourceCard = styled(Card)(({ theme }) => ({
   borderRadius: theme.spacing(1.5),
-  border: `1px solid ${theme.palette.divider}`,
   transition: `border-color 0.2s ease`,
-  '&:hover': {
+  border: `1px solid ${theme.palette.divider}`,
+  [`&:hover`]: {
     borderColor: theme.palette.primary.light,
   },
 }))
@@ -49,7 +49,7 @@ export const ReviewStep = (props: TReviewStep) => {
         : template?.name || provider.providerBrand
 
     // provider.model is a raw ID (e.g., "claude-sonnet-4-20250514");
-    // format it as a friendlier display name by capitalising words
+    // format it as a friendlier display name by capitalizing words
     const modelName = provider.model
       ? provider.model.replace(/[-_]/g, ` `).replace(/\b\w/g, (c) => c.toUpperCase())
       : provider.model
@@ -155,9 +155,9 @@ export const ReviewStep = (props: TReviewStep) => {
                   color='text.secondary'
                   sx={{
                     ml: 5.25,
-                    fontFamily: i === 0 ? undefined : `monospace`,
-                    fontSize: i === 0 ? `0.8125rem` : `0.75rem`,
                     lineHeight: 1.6,
+                    fontSize: i === 0 ? `0.8125rem` : `0.75rem`,
+                    fontFamily: i === 0 ? undefined : `monospace`,
                   }}
                 >
                   {detail}

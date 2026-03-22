@@ -141,16 +141,16 @@ export const resolveAgentConfig = async (
 
   return {
     agent,
-    effectiveAgent,
     llmConfig,
     sandboxConfig,
-    environment: effectiveAgent.environment,
+    effectiveAgent,
     customFunctions,
-    skills: skills || [],
-    tools: (overrides?.tools || effectiveAgent.tools) as string[] | undefined,
-    envVars: (effectiveAgent.envVars as Record<string, string>) ?? {},
-    db: createDBAdapter(db),
-    orgId: agent.orgId,
     onExecuteFunction,
+    orgId: agent.orgId,
+    skills: skills || [],
+    db: createDBAdapter(db),
+    environment: effectiveAgent.environment,
+    envVars: (effectiveAgent.envVars as Record<string, string>) ?? {},
+    tools: (overrides?.tools || effectiveAgent.tools) as string[] | undefined,
   }
 }

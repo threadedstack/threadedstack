@@ -1,75 +1,12 @@
 import type WebSocket from 'ws'
+import type { TApp } from '@TBE/types'
 import type { IncomingMessage } from 'http'
-import type { TWSClientMsg } from '@tdsk/domain'
-import type { TSession, TSessionPayload, TApp } from '@TBE/types'
 
 import { URL } from 'url'
 import { logger } from '@TBE/utils/logger'
 import { EWSEventType } from '@tdsk/domain'
 import { Websocket } from '@TBE/services/websocket/websocket'
 import { verifySessionToken } from '@TBE/services/sessionToken'
-import { ClientMsgTypes, WsPingIntervalMS } from '@TBE/constants/values'
-import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
-
-/**
- * Parse and validate an incoming WebSocket message.
- * Returns null for invalid/unrecognised payloads.
- */
-const parseClientMsg = (raw: Buffer | string): TWSClientMsg | null => {
-  try {
-    const msg = JSON.parse(typeof raw === `string` ? raw : raw.toString(`utf8`))
-    if (!msg || typeof msg.type !== `string` || !ClientMsgTypes.has(msg.type)) return null
-    return msg as TWSClientMsg
-  } catch (err) {
-    if (err instanceof SyntaxError) {
-      logger.debug(`WS parse failed for message: ${String(raw).slice(0, 200)}`)
-    } else {
-      logger.warn(`WS unexpected parse error`, {
-        error: err instanceof Error ? err.message : err,
-      })
-    }
-    return null
-  }
-}
-
-/**
- * Resolve the full session data from a verified token payload.
- * Uses the shared resolveAgentConfig() utility to load agent, secrets, and config.
- */
-const resolveSession = async (
-  payload: TSessionPayload,
-  app: TApp
-): Promise<{ session: TSession | null; error?: string }> => {
-  try {
-    const { db } = app.locals
-
-    const config = await resolveAgentConfig(payload.agentId, db, app, {
-      userId: payload.userId,
-      projectId: payload.projectId,
-    })
-
-    const { agent, effectiveAgent, orgId, ...runtimeConfig } = config
-    return {
-      session: {
-        agentId: agent.id,
-        orgId,
-        userId: payload.userId,
-        projectId: payload.projectId,
-        ...runtimeConfig,
-      },
-    }
-  } catch (err) {
-    logger.error(`Failed to resolve session`, {
-      agentId: payload.agentId,
-      error: err instanceof Error ? err.message : err,
-      stack: err instanceof Error ? err.stack : undefined,
-    })
-    return {
-      session: null,
-      error: err instanceof Error ? err.message : `Agent session could not be resolved`,
-    }
-  }
-}
 
 /**
  * Handle an incoming WebSocket connection for agent execution.
@@ -101,26 +38,21 @@ export const onWSConnect = async (
 
   // 2. Start resolving session (async) but register event handlers FIRST
   //    to avoid losing messages that arrive during DB resolution.
-  const sessionPromise = resolveSession(payload, app)
+  const sessionPromise = service.resolveSession(payload)
 
   let running = false
   const { db } = app.locals
 
-  // 3. Keepalive: send periodic heartbeat messages so proxy/LB layers don't
-  //    kill idle connections during long LLM processing. Uses application-level
-  //    JSON messages instead of protocol-level pings because Caddy's reverse
-  //    proxy corrupts WebSocket control frames (RSV1 bit) in multi-hop chains.
-  const pingInterval = setInterval(() => {
-    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: EWSEventType.Ping }))
-  }, WsPingIntervalMS)
+  // 3. Send periodic heartbeat messages so proxy/LB layers don't kill idle connections
+  service.keepalive()
 
   // 4. Handle WebSocket errors (fires before close on abnormal disconnects)
   ws.on(`error`, (err: Error) => {
     logger.error(`WebSocket error`, {
-      error: err.message,
       stack: err.stack,
-      agentId: payload.agentId,
+      error: err.message,
       userId: payload.userId,
+      agentId: payload.agentId,
     })
   })
 
@@ -136,7 +68,7 @@ export const onWSConnect = async (
     }
 
     try {
-      const msg = parseClientMsg(raw)
+      const msg = service.parseMsg(raw)
       if (!msg) {
         service.send({
           type: EWSEventType.Error,
@@ -215,7 +147,6 @@ export const onWSConnect = async (
 
   // 6. Cleanup on disconnect (destroy persistent runner + close WS)
   ws.on(`close`, () => {
-    clearInterval(pingInterval)
     sessionPromise
       .then(({ session }) => {
         if (session) {
@@ -227,13 +158,12 @@ export const onWSConnect = async (
           error: err instanceof Error ? err.message : err,
         })
       })
-    if (service.abortController) {
-      service.abortController.abort()
-      service.abortController = null
-    }
-    service.close().catch((err) => {
-      logger.error(`WS close error`, { error: err instanceof Error ? err.message : err })
-    })
+
+    service.close().catch((err) =>
+      logger.error(`WS close error`, {
+        error: err instanceof Error ? err.message : err,
+      })
+    )
   })
 
   // 7. Await session resolution — close if it fails

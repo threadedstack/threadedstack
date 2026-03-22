@@ -1,10 +1,10 @@
-import { config } from '@TDB/configs/db.config'
-import { Ids } from '@TDB/seeds/ids.seed'
 import { Pool } from 'pg'
+import { Ids } from '@TDB/seeds/ids.seed'
 import { ife } from '@keg-hub/jsutils/ife'
+import { config } from '@TDB/configs/db.config'
 
 /**
- * Cleans all non-seed data from the database
+ * Cleanup and remove all non-seed data from the database
  * Preserves rows whose IDs match predefined seeds in ids.seed.ts
  * Deletes in reverse FK dependency order (children before parents)
  *
@@ -13,7 +13,6 @@ import { ife } from '@keg-hub/jsutils/ife'
  * - caddy_certmagic_objects (managed by Caddy)
  */
 
-const allUserIds = [Ids.super.user, ...Object.values(Ids.user)]
 const agentIds = Object.values(Ids.agent)
 
 type CleanEntry = {

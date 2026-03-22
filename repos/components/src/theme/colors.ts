@@ -26,6 +26,7 @@ export const primary = {
   100: `#D2E3FC`,
   200: `#A8C8F8`,
   300: `#7DACF3`,
+  350: `#6B9BEA`,
   400: `#5390EC`,
   main: `#3370DE`,
   500: `#2A5DB8`,
@@ -86,13 +87,34 @@ export const border = {
   },
 }
 
-const darkShadows = {
-  xs: `0 1px 2px 0 rgba(0, 0, 0, 0.3)`,
-  sm: `0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4)`,
-  md: `0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4)`,
-  lg: `0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4)`,
-  xl: `0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)`,
-  ring: `0 0 0 2px rgba(51, 112, 222, 0.35)`,
+export const shadows = {
+  light: {
+    xs: `0 1px 2px 0 rgba(0, 0, 0, 0.05)`,
+    sm: `0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08)`,
+    md: `0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06)`,
+    lg: `0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.06)`,
+    xl: `0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08)`,
+    ring: `0 0 0 2px rgba(37, 99, 235, 0.25)`,
+  },
+  dark: {
+    xs: `0 1px 2px 0 rgba(0, 0, 0, 0.3)`,
+    sm: `0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4)`,
+    md: `0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4)`,
+    lg: `0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4)`,
+    xl: `0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)`,
+    ring: `0 0 0 2px rgba(51, 112, 222, 0.35)`,
+  },
+}
+
+export const gradients = {
+  light: {
+    headline: `linear-gradient(135deg, ${primary[500]}, ${primary.main})`,
+    button: `linear-gradient(135deg, ${primary.main}, ${primary[500]})`,
+  },
+  dark: {
+    button: `linear-gradient(135deg, ${primary.main}, ${primary[400]})`,
+    headline: `linear-gradient(135deg, ${primary.main}, ${primary[350]})`,
+  },
 }
 
 const dark = {
@@ -121,21 +143,13 @@ const dark = {
   input: grey[800],
   placeholder: grey[600],
   ring: primary[500],
+  shadows: shadows.dark,
   shadowColor: grey[900],
   shadowContrast: grey[875],
-  shadow: darkShadows.xs,
-  shadowAlt: darkShadows.sm,
-  shadowPaper: darkShadows.md,
-  shadows: darkShadows,
-}
-
-const lightShadows = {
-  xs: `0 1px 2px 0 rgba(0, 0, 0, 0.05)`,
-  sm: `0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08)`,
-  md: `0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06)`,
-  lg: `0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.06)`,
-  xl: `0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.08)`,
-  ring: `0 0 0 2px rgba(37, 99, 235, 0.25)`,
+  shadow: shadows.dark.xs,
+  shadowAlt: shadows.dark.sm,
+  shadowPaper: shadows.dark.md,
+  gradients: gradients.dark,
 }
 
 const light = {
@@ -164,13 +178,15 @@ const light = {
   headerBackground: `#F4F5F6`,
   input: grey[200],
   ring: primary[500],
-  shadowColor: grey[50],
   placeholder: grey[700],
+
+  shadows: shadows.light,
+  shadowColor: grey[50],
   shadowContrast: grey[25],
-  shadow: lightShadows.xs,
-  shadowAlt: lightShadows.sm,
-  shadowPaper: lightShadows.md,
-  shadows: lightShadows,
+  shadow: shadows.light.xs,
+  shadowAlt: shadows.light.sm,
+  shadowPaper: shadows.light.md,
+  gradients: gradients.light,
 }
 
 export const colors = {
@@ -181,4 +197,5 @@ export const colors = {
   states,
   editor,
   primary,
+  gradients,
 }

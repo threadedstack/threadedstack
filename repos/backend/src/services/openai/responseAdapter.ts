@@ -9,8 +9,9 @@ import type {
   TOAIErrorType,
 } from '@TBE/types'
 
-import { EStreamEventType, EStreamStopReason } from '@tdsk/domain'
 import { Exception } from '@tdsk/domain'
+import { isStr } from '@keg-hub/jsutils/isStr'
+import { EStreamEventType, EStreamStopReason } from '@tdsk/domain'
 
 /**
  * Map ThreadedStack stop reason to OpenAI finish_reason.
@@ -60,10 +61,10 @@ export const createStreamingAdapter = (
     finishReason: TOAIFinishReason | null,
     usage?: TOAIUsage
   ): TOAIChunk => ({
+    model,
+    created,
     id: completionId,
     object: `chat.completion.chunk`,
-    created,
-    model,
     choices: [{ index: 0, delta, finish_reason: finishReason }],
     ...(usage && { usage }),
   })
@@ -90,10 +91,10 @@ export const createStreamingAdapter = (
           res.write(
             `data: ${JSON.stringify({
               error: {
+                code: null,
+                param: null,
                 message: event.error,
                 type: `server_error`,
-                param: null,
-                code: null,
               },
             })}\n\n`
           )
@@ -101,9 +102,9 @@ export const createStreamingAdapter = (
         // Events with no OpenAI equivalent — intentionally dropped.
         // This switch should remain exhaustive over EStreamEventType values.
         case EStreamEventType.thinking:
+        case EStreamEventType.toolResult:
         case EStreamEventType.toolCallStart:
         case EStreamEventType.toolCallArgs:
-        case EStreamEventType.toolResult:
         case EStreamEventType.toolExecutionUpdate:
           break
       }
@@ -151,18 +152,18 @@ export const createNonStreamingAdapter = (completionId: string, model: string) =
       }
 
       return {
+        model,
+        usage,
         id: completionId,
         object: `chat.completion`,
         created: Math.floor(Date.now() / 1000),
-        model,
         choices: [
           {
             index: 0,
-            message: { role: `assistant`, content: textParts.join(``) || null },
             finish_reason: finishReason,
+            message: { role: `assistant`, content: textParts.join(``) || null },
           },
         ],
-        usage,
       }
     },
   }
@@ -174,11 +175,7 @@ export const createNonStreamingAdapter = (completionId: string, model: string) =
 export const formatOAIError = (err: unknown): { status: number; body: TOAIErrorBody } => {
   const status = err instanceof Exception ? err.status : 500
   const message =
-    err instanceof Error
-      ? err.message
-      : typeof err === `string`
-        ? err
-        : `Internal server error`
+    err instanceof Error ? err.message : isStr(err) ? err : `Internal server error`
 
   let type: TOAIErrorType
   if (status === 401 || status === 403) type = `authentication_error`

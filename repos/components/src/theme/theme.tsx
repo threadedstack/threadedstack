@@ -2,10 +2,10 @@ import type { Theme } from '@mui/material'
 import type { TTSTheme, TThemeColors, TThemeType } from '@TSC/types'
 
 import { dims } from '@TSC/theme/dims'
-import { gutter } from '@TSC/theme/gutter'
 import { cmx } from '@TSC/theme/helpers'
-import { white, colors as DefColors } from '@TSC/theme/colors'
+import { gutter } from '@TSC/theme/gutter'
 import createTheme from '@mui/material/styles/createTheme'
+import { white, colors as DefColors } from '@TSC/theme/colors'
 
 const typography = {
   fontFamily: [`Ubuntu`, `sans-serif`].join(`,`),

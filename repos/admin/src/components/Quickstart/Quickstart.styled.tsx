@@ -13,15 +13,15 @@ export const SectionIcon = styled(Box, {
 })<{ color?: string }>(({ theme, color }) => {
   const c = color || theme.palette.primary.main
   return {
+    color: c,
     width: 28,
     height: 28,
+    flexShrink: 0,
     display: `flex`,
     alignItems: `center`,
     justifyContent: `center`,
-    borderRadius: theme.spacing(0.75),
     backgroundColor: alpha(c, 0.1),
-    color: c,
-    flexShrink: 0,
+    borderRadius: theme.spacing(0.75),
   }
 })
 

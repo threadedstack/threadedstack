@@ -117,10 +117,10 @@ export class Role extends Base<typeof roles, TDBRoleSelect, TDBRoleInsert, RoleM
           user: {
             columns: {
               id: true,
-              email: true,
               name: true,
-              first: true,
               last: true,
+              email: true,
+              first: true,
               image: true,
             },
           },

@@ -1,7 +1,7 @@
 import type { TOnLogin, TLoginData } from '@TAF/types'
 
 import GitHubIcon from '@mui/icons-material/GitHub'
-import { GhLoginButton } from '@TAF/components/Login/Login.styles'
+import { ProviderLoginButton } from '@TAF/components/Login/Login.styles'
 
 export type TGithubButton = {
   loading?: boolean
@@ -17,7 +17,7 @@ export const GhButton = (props: TGithubButton) => {
   const { onLogin, loading, disabled } = props
 
   return (
-    <GhLoginButton
+    <ProviderLoginButton
       text={`Github`}
       Icon={GitHubIcon}
       loading={loading}

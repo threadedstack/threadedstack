@@ -4,11 +4,15 @@ import type { TLLMProviderBrand } from '@tdsk/domain'
 import { TextInput } from '@tdsk/components'
 import { styled, alpha } from '@mui/material/styles'
 import { ProviderIcons } from '@TAF/constants/providers'
-import { SectionHeader, SectionIcon, FormSection } from './Quickstart.styled'
 import CloudQueueIcon from '@mui/icons-material/CloudQueue'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { ModelSelect } from '@TAF/components/Agents/ModelSelect'
 import { ELLMProviderBrand, ProviderTemplates } from '@tdsk/domain'
+import {
+  SectionHeader,
+  SectionIcon,
+  FormSection,
+} from '@TAF/components/Quickstart/Quickstart.styled'
 
 import {
   Box,
@@ -52,13 +56,13 @@ const ProviderCard = styled(Card, {
 }))
 
 const SelectedBadge = styled(Box)(({ theme }) => ({
-  position: `absolute`,
   top: 6,
   right: 6,
-  color: theme.palette.primary.main,
   display: `flex`,
   alignItems: `center`,
+  position: `absolute`,
   justifyContent: `center`,
+  color: theme.palette.primary.main,
 }))
 
 export type TProviderStep = {
@@ -125,19 +129,19 @@ export const ProviderStep = (props: TProviderStep) => {
                     {Icon && (
                       <Icon
                         sx={{
-                          fontSize: 28,
                           mb: 0.5,
-                          color: isSelected ? `primary.main` : `text.secondary`,
+                          fontSize: 28,
                           transition: `color 0.2s ease`,
+                          color: isSelected ? `primary.main` : `text.secondary`,
                         }}
                       />
                     )}
                     <Typography
                       variant='subtitle2'
                       sx={{
+                        transition: `color 0.2s ease`,
                         fontWeight: isSelected ? 600 : 500,
                         color: isSelected ? `primary.main` : `text.primary`,
-                        transition: `color 0.2s ease`,
                       }}
                     >
                       {tmpl.name}
@@ -171,9 +175,9 @@ export const ProviderStep = (props: TProviderStep) => {
           {data.providerBrand === ELLMProviderBrand.ollama && (
             <TextInput
               fullWidth
+              disabled={disabled}
               label='Ollama Base URL'
               value={data.providerUrl}
-              disabled={disabled}
               id='quickstart-ollama-url'
               sx={{ bgcolor: `background.paper` }}
               placeholder='http://localhost:11434/v1'
@@ -186,9 +190,9 @@ export const ProviderStep = (props: TProviderStep) => {
               <TextInput
                 required
                 fullWidth
+                disabled={disabled}
                 label='Provider Name'
                 value={data.providerName}
-                disabled={disabled}
                 id='quickstart-custom-name'
                 sx={{ bgcolor: `background.paper` }}
                 placeholder='e.g., My LLM Provider'
@@ -198,8 +202,8 @@ export const ProviderStep = (props: TProviderStep) => {
                 required
                 fullWidth
                 label='Base URL'
-                value={data.providerUrl}
                 disabled={disabled}
+                value={data.providerUrl}
                 id='quickstart-custom-url'
                 sx={{ bgcolor: `background.paper` }}
                 placeholder='e.g., https://api.example.com/v1'

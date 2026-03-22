@@ -14,25 +14,25 @@ export type TOAIToolCall = {
 }
 
 export type TOAIMessage = {
-  role: `system` | `user` | `assistant` | `tool` | `developer`
-  content: string | TOAIContentPart[] | null
   name?: string
-  tool_calls?: TOAIToolCall[]
   tool_call_id?: string
+  tool_calls?: TOAIToolCall[]
+  content: string | TOAIContentPart[] | null
+  role: `system` | `user` | `assistant` | `tool` | `developer`
 }
 
 export type TOAIRequest = {
   model?: string
-  messages: TOAIMessage[]
-  stream?: boolean
-  temperature?: number
-  max_tokens?: number
-  max_completion_tokens?: number
-  top_p?: number
-  frequency_penalty?: number
-  presence_penalty?: number
-  stop?: string | string[]
   seed?: number
+  top_p?: number
+  stream?: boolean
+  max_tokens?: number
+  temperature?: number
+  messages: TOAIMessage[]
+  stop?: string | string[]
+  presence_penalty?: number
+  frequency_penalty?: number
+  max_completion_tokens?: number
   response_format?: { type: string }
 }
 
@@ -70,20 +70,20 @@ export type TOAIChunkChoice = {
 
 export type TOAIResponse = {
   id: string
-  object: `chat.completion`
-  created: number
   model: string
-  choices: TOAIChoice[]
+  created: number
   usage: TOAIUsage
+  choices: TOAIChoice[]
+  object: `chat.completion`
 }
 
 export type TOAIChunk = {
   id: string
-  object: `chat.completion.chunk`
-  created: number
   model: string
-  choices: TOAIChunkChoice[]
+  created: number
   usage?: TOAIUsage
+  choices: TOAIChunkChoice[]
+  object: `chat.completion.chunk`
 }
 
 export type TOAIErrorType =
@@ -96,8 +96,8 @@ export type TOAIErrorBody = {
   error: {
     message: string
     type: TOAIErrorType
-    param: string | null
     code: string | null
+    param: string | null
   }
 }
 

@@ -1,11 +1,11 @@
-import Drawer from '@mui/material/Drawer'
-import List from '@mui/material/List'
-import ListItemButton from '@mui/material/ListItemButton'
-import ListItemText from '@mui/material/ListItemText'
-import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
+import List from '@mui/material/List'
+import Drawer from '@mui/material/Drawer'
+import Button from '@mui/material/Button'
 import { Link as RouterLink } from 'react-router'
+import ListItemText from '@mui/material/ListItemText'
 import { TDSK_AD_APP_URL } from '@TAF/constants/envs'
+import ListItemButton from '@mui/material/ListItemButton'
 
 type Props = {
   open: boolean
@@ -15,18 +15,18 @@ type Props = {
 
 const MobileMenu = ({ open, onClose, navItems }: Props) => (
   <Drawer
-    anchor='right'
     open={open}
+    anchor='right'
     onClose={onClose}
     PaperProps={{ sx: { width: 280, pt: 2 } }}
   >
     <List>
       {navItems.map((item) => (
         <ListItemButton
-          key={item.path}
-          component={RouterLink}
           to={item.path}
+          key={item.path}
           onClick={onClose}
+          component={RouterLink}
         >
           <ListItemText primary={item.label} />
         </ListItemButton>
@@ -34,10 +34,10 @@ const MobileMenu = ({ open, onClose, navItems }: Props) => (
     </List>
     <Box sx={{ p: 2 }}>
       <Button
-        href={TDSK_AD_APP_URL}
-        variant='contained'
         fullWidth
         onClick={onClose}
+        variant='contained'
+        href={TDSK_AD_APP_URL}
       >
         Get Started
       </Button>

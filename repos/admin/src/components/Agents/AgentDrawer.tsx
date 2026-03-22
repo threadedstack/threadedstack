@@ -3,8 +3,8 @@ import type { TAiProviderOption } from '@TAF/types/agent.types'
 import type {
   Agent,
   Secret,
-  TAgentProjectConfig,
   TWebProviderBrand,
+  TAgentProjectConfig,
   Function as FunctionModel,
 } from '@tdsk/domain'
 
@@ -25,10 +25,10 @@ import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { upsertAgentConfig } from '@TAF/actions/agents/api/upsertAgentConfig'
 import { Autocomplete, Box, Stack, Divider, TextField, Typography } from '@mui/material'
 import {
-  WebProviderSettings,
   BasicInfoForm,
   ModelConfigForm,
   AgentSettingsForm,
+  WebProviderSettings,
 } from '@TAF/components/Agents'
 import {
   ToolsSelector,
@@ -59,12 +59,12 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [secretsList, setSecretsList] = useState<Secret[]>([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [aiProviders, setAiProviders] = useState<TAiProviderOption[]>([])
-  const [availableFunctions, setAvailableFunctions] = useState<FunctionModel[]>([])
-  const [selectedFunctionIds, setSelectedFunctionIds] = useState<string[]>([])
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
+  const [selectedFunctionIds, setSelectedFunctionIds] = useState<string[]>([])
+  const [availableFunctions, setAvailableFunctions] = useState<FunctionModel[]>([])
   const [orgProjects, setOrgProjects] = useState<Array<{ id: string; name: string }>>([])
 
   // Form state
@@ -77,9 +77,9 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [systemPrompt, setSystemPrompt] = useState('')
   const [envVars, setEnvVars] = useState<TKeyValuePair[]>([])
   const [providerIds, setProviderIds] = useState<string[]>([])
-  const [providerModels, setProviderModels] = useState<Record<string, string>>({})
   const [selectedTools, setSelectedTools] = useState<string[]>([])
   const [selectedSecrets, setSelectedSecrets] = useState<string[]>([])
+  const [providerModels, setProviderModels] = useState<Record<string, string>>({})
   const [webProviderType, setWebProviderType] = useState<TWebProviderBrand | ''>('')
   const [webProviderSecretId, setWebProviderSecretId] = useState<string>('')
 
@@ -95,10 +95,10 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       ])
 
       if (orgSecretsResult.error)
-        console.warn('[AgentDrawer] Failed to load org secrets:', orgSecretsResult.error)
+        console.warn(`[AgentDrawer] Failed to load org secrets:`, orgSecretsResult.error)
       if (projectSecretsResult.error)
         console.warn(
-          '[AgentDrawer] Failed to load project secrets:',
+          `[AgentDrawer] Failed to load project secrets:`,
           projectSecretsResult.error
         )
 
@@ -116,7 +116,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       // Load providers
       const providersResult = await fetchProviders({ orgId })
       if (providersResult.error)
-        console.warn('[AgentDrawer] Failed to load providers:', providersResult.error)
+        console.warn(`[AgentDrawer] Failed to load providers:`, providersResult.error)
       if (providersResult.data) {
         const aiProvidersOnly = providersResult.data
           .filter((p) => p.type === `ai`)
@@ -227,20 +227,20 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       )
     } else {
       // Reset form for new agent
-      setName('')
+      setName(``)
       setEnvVars([])
       setActive(true)
-      setDescription('')
+      setDescription(``)
       setStreaming(true)
       setProviderIds([])
       setProviderModels({})
-      setSystemPrompt('')
+      setSystemPrompt(``)
       setTemperature(0.7)
       setMaxTokens(100000)
       setSelectedTools([])
       setSelectedSecrets([])
-      setWebProviderType('')
-      setWebProviderSecretId('')
+      setWebProviderType(``)
+      setWebProviderSecretId(``)
       setSelectedFunctionIds([])
       setSelectedProjectIds(projectId ? [projectId] : [])
     }
@@ -436,7 +436,6 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
           <BasicInfoForm
             name={name}
-            loading={loading || isOverrideMode}
             onNameChange={setName}
             providerIds={providerIds}
             aiProviders={aiProviders}
@@ -444,6 +443,7 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             providerModels={providerModels}
             onModelChange={setProviderModels}
             onProviderChange={setProviderIds}
+            loading={loading || isOverrideMode}
             onDescriptionChange={setDescription}
           />
 
@@ -525,8 +525,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
               <FunctionsSelector
                 loading={loading}
                 onChange={setSelectedFunctionIds}
-                selectedFunctionIds={selectedFunctionIds}
                 availableFunctions={availableFunctions}
+                selectedFunctionIds={selectedFunctionIds}
               />
             </>
           )}

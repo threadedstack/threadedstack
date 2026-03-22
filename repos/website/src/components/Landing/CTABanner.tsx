@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
 import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
-import Button from '@mui/material/Button'
 import { Link as RouterLink } from 'react-router'
 import { TDSK_AD_APP_URL } from '@TAF/constants/envs'
 
@@ -29,8 +29,8 @@ const CTABanner = () => (
       </Typography>
       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
         <Button
-          variant='contained'
           size='large'
+          variant='contained'
           href={TDSK_AD_APP_URL}
           sx={{
             bgcolor: '#fff',
@@ -41,13 +41,13 @@ const CTABanner = () => (
           Get Started Free
         </Button>
         <Button
-          variant='outlined'
-          size='large'
-          component={RouterLink}
           to='/docs'
+          size='large'
+          variant='outlined'
+          component={RouterLink}
           sx={{
-            borderColor: 'rgba(255,255,255,0.5)',
             color: '#fff',
+            borderColor: 'rgba(255,255,255,0.5)',
             '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
           }}
         >

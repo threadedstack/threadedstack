@@ -1,16 +1,16 @@
 {
   "compilerOptions": {
     "strict": true,
-    "strictPropertyInitialization": false,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
     "target": "esnext",
     "module": "esnext",
     "outDir": "../dist",
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "moduleResolution": "bundler",
     "rootDir": "../../",
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "strictNullChecks": false,
+    "moduleResolution": "bundler",
+    "strictPropertyInitialization": false,
     "paths": {
       "@TIT/*": ["./src/*"],
       "@TIT": ["./src"],

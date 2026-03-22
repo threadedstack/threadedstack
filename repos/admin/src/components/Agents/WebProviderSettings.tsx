@@ -7,10 +7,10 @@ import { Autocomplete, Box, Stack, TextField, Typography } from '@mui/material'
 export type TWebProviderSettings = {
   loading: boolean
   secretsList: Secret[]
-  webProviderType: TWebProviderBrand | ''
   webProviderSecretId: string
-  onWebProviderTypeChange: (value: TWebProviderBrand | '') => void
+  webProviderType: TWebProviderBrand | ``
   onWebProviderSecretIdChange: (value: string) => void
+  onWebProviderTypeChange: (value: TWebProviderBrand | ``) => void
 }
 
 export const WebProviderSettings = (props: TWebProviderSettings) => {
@@ -33,11 +33,11 @@ export const WebProviderSettings = (props: TWebProviderSettings) => {
       </Typography>
       <Stack spacing={2}>
         <Autocomplete
-          id='web-provider-type'
           disabled={loading}
+          id='web-provider-type'
+          getOptionLabel={capitalize}
           value={webProviderType || null}
           options={Object.values(EWebProviderBrand)}
-          getOptionLabel={capitalize}
           onChange={(_, val) => onWebProviderTypeChange((val as TWebProviderBrand) || '')}
           renderInput={(params) => (
             <TextField
@@ -49,19 +49,19 @@ export const WebProviderSettings = (props: TWebProviderSettings) => {
         />
         {webProviderType && (
           <Autocomplete
-            id='web-provider-secret'
             disabled={loading}
+            id='web-provider-secret'
+            options={secretsList.map((s) => s.id)}
+            onChange={(_, val) => onWebProviderSecretIdChange(val || '')}
             value={
               secretsList.some((s) => s.id === webProviderSecretId)
                 ? webProviderSecretId
                 : null
             }
-            options={secretsList.map((s) => s.id)}
             getOptionLabel={(id) => {
               const secret = secretsList.find((s) => s.id === id)
               return secret?.name || id
             }}
-            onChange={(_, val) => onWebProviderSecretIdChange(val || '')}
             renderInput={(params) => (
               <TextField
                 {...params}

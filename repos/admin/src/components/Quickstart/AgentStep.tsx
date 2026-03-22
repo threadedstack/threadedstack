@@ -1,16 +1,20 @@
 import type { TAgentStepData } from '@TAF/types'
 
-import { TextInput } from '@tdsk/components'
 import Box from '@mui/material/Box'
-import Typography from '@mui/material/Typography'
+import { TextInput } from '@tdsk/components'
 import Accordion from '@mui/material/Accordion'
+import TuneIcon from '@mui/icons-material/Tune'
+import Typography from '@mui/material/Typography'
 import AccordionSummary from '@mui/material/AccordionSummary'
 import AccordionDetails from '@mui/material/AccordionDetails'
 import AccountTreeIcon from '@mui/icons-material/AccountTree'
-import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
-import TuneIcon from '@mui/icons-material/Tune'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
-import { SectionHeader, SectionIcon, FormSection } from './Quickstart.styled'
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
+import {
+  SectionHeader,
+  SectionIcon,
+  FormSection,
+} from '@TAF/components/Quickstart/Quickstart.styled'
 
 export type TAgentStep = {
   disabled?: boolean
@@ -71,8 +75,8 @@ export const AgentStep = (props: TAgentStep) => {
             disabled={disabled}
             value={data.agentName}
             id='quickstart-agent-name'
-            sx={{ bgcolor: `background.paper` }}
             placeholder='e.g., claude-agent'
+            sx={{ bgcolor: `background.paper` }}
             onChange={(e) => onChange({ agentName: e.target.value })}
           />
 

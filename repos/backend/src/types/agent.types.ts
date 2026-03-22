@@ -1,23 +1,23 @@
+import type { IAgentRunnerDB } from '@tdsk/agent'
 import type {
   Skill,
-  Function,
   Agent,
-  TLLMAdapterConfig,
-  TAgentEnvironment,
+  Function,
+  TStreamEvent,
   TSandboxConfig,
   TAgentOverrides,
-  TStreamEvent,
+  TLLMAdapterConfig,
+  TAgentEnvironment,
 } from '@tdsk/domain'
-import type { IAgentRunnerDB } from '@tdsk/agent'
 
 export type TFunctionExecutionHandler = (
   functionId: string,
   input: unknown
 ) => Promise<{
-  duration: number
-  output: unknown
-  success: boolean
   error?: string
+  output: unknown
+  duration: number
+  success: boolean
 }>
 
 /** Extended overrides that include envVars (used by exec and resolve paths). */
@@ -27,14 +27,14 @@ export type TAgentExecOverrides = TAgentOverrides & {
 
 /** Shared runtime fields between TSession and TResolvedAgentConfig. */
 export type TAgentRuntimeConfig = {
+  skills: Skill[]
+  tools?: string[]
+  db: IAgentRunnerDB
+  customFunctions: Function[]
   llmConfig: TLLMAdapterConfig
   sandboxConfig: TSandboxConfig
   environment?: TAgentEnvironment
-  customFunctions: Function[]
-  skills: Skill[]
-  tools?: string[]
   envVars: Record<string, string>
-  db: IAgentRunnerDB
   onExecuteFunction: TFunctionExecutionHandler
 }
 
@@ -60,6 +60,16 @@ export type TAgentExecOpts = {
   providerId?: string
   overrides?: TAgentExecOverrides
   resolvedConfig?: TResolvedAgentConfig
+}
+
+export type TAgentEnsureThread = {
+  name?: string
+  orgId: string
+  userId: string
+  prompt?: string
+  agentId: string
+  threadId?: string
+  projectId?: string
 }
 
 /** Options for AgentEndpoint.runHeadless — adds onEvent callback to exec opts. */

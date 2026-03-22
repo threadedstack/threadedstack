@@ -1,50 +1,50 @@
 import { useState } from 'react'
-import { useLocation, Link as RouterLink } from 'react-router'
-import AppBar from '@mui/material/AppBar'
-import Toolbar from '@mui/material/Toolbar'
-import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
+import MobileMenu from './MobileMenu'
+import ThemeToggle from './ThemeToggle'
+import AppBar from '@mui/material/AppBar'
+import Button from '@mui/material/Button'
+import Toolbar from '@mui/material/Toolbar'
+import MenuIcon from '@mui/icons-material/Menu'
 import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
-import MenuIcon from '@mui/icons-material/Menu'
 import GitHubIcon from '@mui/icons-material/GitHub'
-import { useScrollPosition } from '@TAF/hooks/useScrollPosition'
-import ThemeToggle from './ThemeToggle'
-import MobileMenu from './MobileMenu'
 import { TDSK_AD_APP_URL } from '@TAF/constants/envs'
+import { useLocation, Link as RouterLink } from 'react-router'
+import { useScrollPosition } from '@TAF/hooks/useScrollPosition'
 
 const navItems = [
-  { label: 'Features', path: '/features' },
-  { label: 'Pricing', path: '/pricing' },
-  { label: 'Docs', path: '/docs' },
+  { label: `Features`, path: `/features` },
+  { label: `Pricing`, path: `/pricing` },
+  { label: `Docs`, path: `/docs` },
 ]
 
 const Header = () => {
-  const scrolled = useScrollPosition()
   const { pathname } = useLocation()
-  const isLanding = pathname === '/'
+  const isLanding = pathname === `/`
+  const scrolled = useScrollPosition()
   const solid = !isLanding || scrolled
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
     <>
       <AppBar
-        position='sticky'
         elevation={0}
+        position='sticky'
         sx={{
           height: 64,
           zIndex: 1300,
-          bgcolor: solid ? 'background.paper' : 'transparent',
-          borderBottom: solid ? 1 : 0,
           borderColor: 'divider',
+          borderBottom: solid ? 1 : 0,
           backdropFilter: solid ? 'blur(12px)' : 'none',
+          bgcolor: solid ? 'background.paper' : 'transparent',
           transition: 'background-color 0.3s, border-bottom 0.3s, backdrop-filter 0.3s',
         }}
       >
         <Toolbar sx={{ height: 64, justifyContent: 'space-between' }}>
           <Box
-            component={RouterLink}
             to='/'
+            component={RouterLink}
             sx={{ display: 'flex', alignItems: 'center', gap: 1, textDecoration: 'none' }}
           >
             <Box
@@ -64,11 +64,11 @@ const Header = () => {
           <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
             {navItems.map((item) => (
               <Button
-                key={item.path}
-                component={RouterLink}
+                size='small'
                 to={item.path}
                 color='inherit'
-                size='small'
+                key={item.path}
+                component={RouterLink}
                 sx={{
                   color: pathname.startsWith(item.path)
                     ? 'primary.main'
@@ -80,18 +80,18 @@ const Header = () => {
             ))}
             <IconButton
               size='small'
-              href='https://github.com'
               target='_blank'
+              href='https://github.com'
               sx={{ color: 'text.secondary', ml: 0.5 }}
             >
               <GitHubIcon fontSize='small' />
             </IconButton>
             <ThemeToggle />
             <Button
-              href={TDSK_AD_APP_URL}
-              variant='contained'
               size='small'
               sx={{ ml: 1 }}
+              variant='contained'
+              href={TDSK_AD_APP_URL}
             >
               Get Started
             </Button>
@@ -102,8 +102,8 @@ const Header = () => {
           >
             <ThemeToggle />
             <IconButton
-              onClick={() => setMobileOpen(true)}
               sx={{ color: 'text.primary' }}
+              onClick={() => setMobileOpen(true)}
             >
               <MenuIcon />
             </IconButton>
@@ -112,8 +112,8 @@ const Header = () => {
       </AppBar>
       <MobileMenu
         open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
         navItems={navItems}
+        onClose={() => setMobileOpen(false)}
       />
     </>
   )

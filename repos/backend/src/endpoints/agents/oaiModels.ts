@@ -2,12 +2,12 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest, TOAIModel } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
-import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 import { formatOAIError } from '@TBE/services/openai/responseAdapter'
+import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 
 /**
  * GET /_/agents/:id/v1/models
@@ -50,8 +50,8 @@ export const oaiModels: TEndpointConfig = {
           brand = resolveProviderType(provider as any)
         } catch (err) {
           logger.warn(`[OAI Models] Cannot resolve provider type`, {
-            providerId: provider.id,
             agentId,
+            providerId: provider.id,
             error: err instanceof Error ? err.message : err,
           })
           continue
@@ -62,16 +62,16 @@ export const oaiModels: TEndpointConfig = {
           for (const m of providerModels) {
             models.push({
               id: m.id,
-              object: `model`,
               created,
+              object: `model`,
               owned_by: brand,
             })
           }
         } catch (err) {
           logger.error(`[OAI Models] Failed to get models for provider`, {
-            providerId: provider.id,
             brand,
             agentId,
+            providerId: provider.id,
             error: err instanceof Error ? err.message : err,
           })
         }
@@ -84,9 +84,7 @@ export const oaiModels: TEndpointConfig = {
         error: err instanceof Error ? err.message : err,
       })
       const { status, body } = formatOAIError(err)
-      if (!res.headersSent) {
-        res.status(status).json(body)
-      }
+      !res.headersSent && res.status(status).json(body)
     }
   },
 }

@@ -1,33 +1,29 @@
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import { styled, alpha } from '@mui/material/styles'
-import { Text, colors, TSIcon, gutter, LoadingButton } from '@tdsk/components'
-
-// --- Layout ---
+import { Text, TSIcon, gutter, LoadingButton } from '@tdsk/components'
 
 export const LoginContainer = styled(Box)(({ theme }) => {
   return `
     flex: 1;
     width: 100vw;
-    min-height: 100vh;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: relative;
     overflow: hidden;
+    min-height: 100vh;
+    position: relative;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
     background-color: ${theme.palette.background.default};
   `
 })
 
-// --- Brand Panel ---
-
 export const BrandGlow = styled(Box)(({ theme }) => {
   const isDark = theme.palette.mode === 'dark'
   return `
-    position: absolute;
     inset: 0;
     z-index: 0;
+    position: absolute;
     pointer-events: none;
     background-image: ${
       isDark
@@ -89,22 +85,23 @@ export const BrandBlob2 = styled(Box)(({ theme }) => {
   `
 })
 
-export const BrandLogo = styled(TSIcon)`
-  width: 56px;
-  height: 56px;
-  fill: ${colors.primary.main};
-  margin-bottom: ${gutter.px};
-`
+export const BrandLogo = styled(TSIcon)(({ theme }) => {
+  return `
+    width: 56px;
+    height: 56px;
+    margin-bottom: ${gutter.px};
+    fill: ${theme.palette.primary.main};
+  `
+})
 
 export const BrandHeadline = styled(Text)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
   return `
     font-size: 1.5rem;
     font-weight: 700;
     line-height: 1.2;
     letter-spacing: -0.02em;
     margin-bottom: ${gutter.hpx};
-    background: ${isDark ? 'linear-gradient(135deg, #3370DE, #6B9BEA)' : 'linear-gradient(135deg, #2A5DB8, #3370DE)'};
+    background: ${theme.palette.colors.gradients.headline};
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -162,20 +159,18 @@ export const BtnSection = styled(Box)`
   width: 100%;
 `
 
-// --- Provider Buttons ---
-
-const ProviderLoginButton = styled(LoadingButton)(({ theme }) => {
+export const ProviderLoginButton = styled(LoadingButton)(({ theme }) => {
   return `
     width: 100%;
     height: 44px;
-    color: ${theme.palette.text.primary};
     font-size: 0.8125rem;
     font-weight: 500;
     text-transform: none;
-    border-radius: ${theme.dims.border.smpx};
-    background: ${alpha(theme.palette.text.primary, 0.04)};
-    border: 1px solid ${theme.palette.divider};
     transition: all 0.15s ease;
+    color: ${theme.palette.text.primary};
+    border-radius: ${theme.dims.border.smpx};
+    border: 1px solid ${theme.palette.divider};
+    background: ${alpha(theme.palette.text.primary, 0.04)};
 
     &:hover {
       background: ${alpha(theme.palette.text.primary, 0.08)};
@@ -187,13 +182,6 @@ const ProviderLoginButton = styled(LoadingButton)(({ theme }) => {
     }
   `
 })
-
-export const GgLoginButton = ProviderLoginButton
-export const GhLoginButton = ProviderLoginButton
-export const GlLoginButton = ProviderLoginButton
-export const VrLoginButton = ProviderLoginButton
-
-// --- Misc ---
 
 export const ErrorSection = styled(Box)(({ theme }) => {
   return `
@@ -219,9 +207,9 @@ export const ErrorTitle = styled(Text)(({ theme }) => {
 
 export const ErrorText = styled(Text)(({ theme }) => {
   return `
+    line-height: 1.5;
     font-size: 0.8125rem;
     color: ${theme.palette.text.secondary};
-    line-height: 1.5;
   `
 })
 
@@ -257,13 +245,13 @@ export const EmailFormButton = styled(LoadingButton)(({ theme }) => {
   return `
     width: 100%;
     height: 40px;
-    font-size: 0.8125rem;
+    color: #fff;
     font-weight: 600;
     text-transform: none;
-    color: #fff;
-    border-radius: ${theme.dims?.border?.smpx || '6px'};
-    background: linear-gradient(135deg, #3370DE, #4a8cf0);
+    font-size: 0.8125rem;
     transition: all 0.15s ease;
+    border-radius: ${theme.dims?.border?.smpx || `6px`};
+    background: ${theme?.palette?.colors?.gradients?.button};
 
     &:hover {
       filter: brightness(0.92);

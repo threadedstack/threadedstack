@@ -12,8 +12,8 @@ export class Role extends Base {
   type: ERoleType
   userId: string
   orgId?: string
-  projectId?: string
   user?: TRoleUser
+  projectId?: string
 
   constructor(role: TRole) {
     super()

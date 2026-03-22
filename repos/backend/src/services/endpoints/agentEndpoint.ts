@@ -1,12 +1,17 @@
 import type { Response } from 'express'
-import type { TDatabase } from '@tdsk/database'
-import type { TRequest, TAgentExecOpts, THeadlessRunOpts } from '@TBE/types'
 import type { Endpoint } from '@tdsk/domain'
+import type { TDatabase } from '@tdsk/database'
+import type {
+  TRequest,
+  TAgentExecOpts,
+  THeadlessRunOpts,
+  TAgentEnsureThread,
+} from '@TBE/types'
 
-import { BaseEndpoint } from './base'
+import { AgentRunner } from '@tdsk/agent'
 import { logger } from '@TBE/utils/logger'
 import { Exception, EEndpointType } from '@tdsk/domain'
-import { AgentRunner } from '@tdsk/agent'
+import { BaseEndpoint } from '@TBE/services/endpoints/base'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
 
 export class AgentEndpoint extends BaseEndpoint {
@@ -33,12 +38,34 @@ export class AgentEndpoint extends BaseEndpoint {
     if (!agentId) throw new Exception(400, `Agent endpoint has no agentId configured`)
 
     await this.run(req, res, db, {
-      agentId,
       prompt,
       userId,
+      agentId,
       threadId,
       overrides,
     })
+  }
+
+  /**
+   * Ensures a thread with an ID exists, If a threadId is passed, it's used
+   * Otherwise, creates a new thread and returns it's id
+   */
+  async ensureThread(db: TDatabase, opts: TAgentEnsureThread) {
+    if (opts.threadId) return opts.threadId
+
+    const { name, orgId, prompt, userId, agentId, projectId } = opts
+
+    const { data: thread, error: threadErr } = await db.services.thread.create({
+      userId,
+      agentId,
+      projectId,
+      orgId: orgId,
+      name: name || prompt?.substring?.(0, 100) || `New Thread`,
+    })
+
+    if (threadErr || !thread) throw new Exception(500, `Failed to create thread`)
+
+    return thread.id
   }
 
   /**
@@ -55,53 +82,39 @@ export class AgentEndpoint extends BaseEndpoint {
       prompt,
       userId,
       agentId,
+      onEvent,
       overrides,
       projectId,
       providerId,
-      onEvent,
       resolvedConfig,
-      threadId: existingThreadId,
     } = opts
 
     const config =
       resolvedConfig ??
-      (await resolveAgentConfig(agentId, db, req.app as any, {
+      (await resolveAgentConfig(agentId, db, req.app, {
         userId,
         projectId,
         providerId,
         overrides,
       }))
 
-    // Get or create thread
-    let threadId = existingThreadId
-    if (!threadId) {
-      const { data: thread, error: threadErr } = await db.services.thread.create({
-        userId,
-        agentId,
-        orgId: config.orgId,
-        projectId,
-        name: prompt.substring(0, 100),
-      })
-
-      if (threadErr || !thread) throw new Exception(500, `Failed to create thread`)
-      threadId = thread.id
-    }
+    const threadId = await this.ensureThread(db, { ...opts, orgId: config.orgId })
 
     const handle = await AgentRunner.run({
       prompt,
       userId,
       agentId,
+      onEvent,
       threadId,
-      llmConfig: config.llmConfig,
-      sandboxConfig: config.sandboxConfig,
-      orgId: config.orgId,
       db: config.db,
-      environment: config.environment,
+      orgId: config.orgId,
       tools: config.tools,
       skills: config.skills,
-      customFunctions: config.customFunctions || [],
+      llmConfig: config.llmConfig,
+      environment: config.environment,
+      sandboxConfig: config.sandboxConfig,
       onExecuteFunction: config.onExecuteFunction,
-      onEvent,
+      customFunctions: config.customFunctions || [],
     })
     await handle.waitForIdle()
 
@@ -119,31 +132,17 @@ export class AgentEndpoint extends BaseEndpoint {
     db: TDatabase,
     opts: TAgentExecOpts
   ): Promise<void> => {
-    const { prompt, userId, agentId, projectId, providerId, overrides } = opts
-    const existingThreadId = opts.threadId
+    const { userId, agentId, overrides, projectId, providerId } = opts
 
     // Pre-resolve config BEFORE SSE headers so errors return proper JSON responses.
-    const config = await resolveAgentConfig(agentId, db, req.app as any, {
+    const config = await resolveAgentConfig(agentId, db, req.app, {
       userId,
+      overrides,
       projectId,
       providerId,
-      overrides,
     })
 
-    // Pre-create thread for the X-Thread-Id header
-    let threadId = existingThreadId
-    if (!threadId) {
-      const { data: thread, error: threadErr } = await db.services.thread.create({
-        userId,
-        agentId,
-        orgId: config.orgId,
-        projectId,
-        name: prompt.substring(0, 100),
-      })
-
-      if (threadErr || !thread) throw new Exception(500, `Failed to create thread`)
-      threadId = thread.id
-    }
+    const threadId = await this.ensureThread(db, { ...opts, orgId: config.orgId })
 
     // Set up SSE headers — after all setup so errors above return proper JSON
     res.setHeader(`X-Thread-Id`, threadId)

@@ -49,13 +49,13 @@ export const mdxComponents = {
   blockquote: (props: any) => (
     <Box
       sx={{
-        borderLeft: 3,
-        borderColor: 'primary.main',
-        bgcolor: 'action.hover',
         pl: 2,
         py: 1,
         my: 2,
+        borderLeft: 3,
         borderRadius: 1,
+        bgcolor: 'action.hover',
+        borderColor: 'primary.main',
       }}
       {...props}
     />
@@ -85,16 +85,16 @@ export const mdxComponents = {
         <Box
           component='code'
           sx={{
+            px: 0.75,
+            py: 0.25,
+            border: 1,
+            borderRadius: 0.5,
+            fontSize: '0.875em',
+            borderColor: 'divider',
             bgcolor: (theme) =>
               theme.palette.mode === 'dark'
                 ? 'rgba(255,255,255,0.08)'
                 : 'rgba(0,0,0,0.06)',
-            border: 1,
-            borderColor: 'divider',
-            px: 0.75,
-            py: 0.25,
-            borderRadius: 0.5,
-            fontSize: '0.875em',
           }}
         >
           {children}
@@ -102,12 +102,12 @@ export const mdxComponents = {
       )
     return (
       <CodeBlock
-        code={String(children).trim()}
         language={language}
+        code={String(children).trim()}
       />
     )
   },
   Note: ({ children }: any) => <CalloutBox severity='info'>{children}</CalloutBox>,
-  Warning: ({ children }: any) => <CalloutBox severity='warning'>{children}</CalloutBox>,
   Tip: ({ children }: any) => <CalloutBox severity='success'>{children}</CalloutBox>,
+  Warning: ({ children }: any) => <CalloutBox severity='warning'>{children}</CalloutBox>,
 }

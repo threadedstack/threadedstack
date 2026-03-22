@@ -62,9 +62,9 @@ export const FileAllowedMimeTypes = new Set([
   `application/json`,
   `application/xml`,
   `application/csv`,
+  `application/pdf`,
   `application/javascript`,
   `application/typescript`,
-  `application/pdf`,
   `application/vnd.openxmlformats-officedocument.wordprocessingml.document`,
 ])
 

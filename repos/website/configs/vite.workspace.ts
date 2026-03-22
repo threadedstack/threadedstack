@@ -43,8 +43,8 @@ export const config = {
   },
   plugins: [
     mdx({
-      providerImportSource: `@mdx-js/react`,
       remarkPlugins: [remarkGfm],
+      providerImportSource: `@mdx-js/react`,
       rehypePlugins: [rehypeSlug, [rehypeAutolinkHeadings, { behavior: `wrap` }]],
     }),
     react(),

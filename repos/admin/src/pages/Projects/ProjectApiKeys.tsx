@@ -10,12 +10,13 @@ import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
+import { scopeChipColor, formatScopeLabel } from '@TAF/utils/transforms/scopes'
 import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   useApiKeys,
-  useProjectMembers,
   useActiveOrgId,
+  useProjectMembers,
   useActiveProjectId,
 } from '@TAF/state/selectors'
 
@@ -32,8 +33,8 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
   const [apiKeys] = useApiKeys()
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
-  const [projectMembersMap] = useProjectMembers()
   const [loading, setLoading] = useState(true)
+  const [projectMembersMap] = useProjectMembers()
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<Error | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -127,34 +128,6 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
 
   const apiKeysCount = apiKeys ? Object.keys(apiKeys).length : 0
 
-  const getScopeChipColor = (
-    scope: string
-  ): 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' => {
-    switch (scope.toLowerCase()) {
-      case 'admin':
-        return 'error'
-      case 'write':
-        return 'warning'
-      case 'read':
-        return 'info'
-      default:
-        return 'default'
-    }
-  }
-
-  const formatScopeLabel = (scope: string): string => {
-    switch (scope.toLowerCase()) {
-      case 'admin':
-        return 'Admin'
-      case 'write':
-        return 'Write'
-      case 'read':
-        return 'Read Only'
-      default:
-        return scope.charAt(0).toUpperCase() + scope.slice(1)
-    }
-  }
-
   const columns: TDataTableColumn<ApiKey>[] = [
     {
       id: 'name',
@@ -206,7 +179,7 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
               key={scope}
               label={formatScopeLabel(scope.trim())}
               size='small'
-              color={getScopeChipColor(scope.trim())}
+              color={scopeChipColor(scope.trim())}
               variant='outlined'
             />
           ))}
@@ -218,10 +191,10 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
       label: 'Status',
       render: (apiKey) => (
         <Chip
-          label={apiKey.active ? 'Active' : 'Revoked'}
           size='small'
-          color={apiKey.active ? 'success' : 'default'}
-          variant={apiKey.active ? 'filled' : 'outlined'}
+          label={apiKey.active ? `Active` : `Revoked`}
+          color={apiKey.active ? `success` : `default`}
+          variant={apiKey.active ? `filled` : `outlined`}
         />
       ),
     },
@@ -275,10 +248,10 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
       >
         {apiKeysCount === 0 && (
           <EmptyState
-            message='No project API keys yet. Generate your first project-scoped API key.'
-            actionLabel='Generate API Key'
             actionIcon={<AddIcon />}
             onAction={onCreateApiKey}
+            actionLabel='Generate API Key'
+            message='No project API keys yet. Generate your first project-scoped API key.'
           />
         )}
 
@@ -297,8 +270,8 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
         {orgId && projectId && (
           <CreateApiKeyDrawer
             orgId={orgId}
-            projectId={projectId}
             users={projectUsers}
+            projectId={projectId}
             open={createDialogOpen}
             onClose={onDialogClose}
           />
