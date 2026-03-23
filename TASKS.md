@@ -22,12 +22,12 @@ These tasks touch completely different files with zero overlap. All can run in W
 
 ### [P3] Standalone chat application — web and desktop interface for agent interaction
 
-* **Repos**: NEW `repos/chat/`, components, domain
-* **Key files**: Entirely new repo
+* **Repos**: NEW `repos/threads/`, components, domain
+* **Key files**: Expand threads repo
 * The REPL CLI (`repos/repl/`) is currently the primary user-facing interface for agent interaction, but it requires terminal proficiency. The admin dashboard (`repos/admin/`) has a basic embedded chat UI (`ChatView`, `MessageBubble`, `ToolCallDisplay`), but it's a secondary feature inside an org management app — not a dedicated chat experience. A standalone chat-first application is needed for non-terminal users, deployed and operated independently from the admin dashboard
-* This is a **separate application** from the admin UI — its own repo, its own build, its own deployment. While it may share dependencies (`@tdsk/domain`, `@tdsk/components`), it has its own routing, auth flow, and UX optimized entirely for conversation
+* This is a **separate application** from the admin UI — its own repo (`repos/threads`), its own build, its own deployment. While it may share dependencies (`@tdsk/domain`, `@tdsk/components`), it has its own routing, auth flow, and UX optimized entirely for conversation
 * **Feature parity with REPL** (minimum):
-  * Login via API key (same `tdsk_*` bearer token flow as REPL's `login` command)
+  * Login via API key (same `tdsk_*` bearer token flow as REPL's `login` command) or Standard UI auth (matches admin ui login)
   * Agent selection — list and switch between available agents
   * Thread management — create new threads, list existing threads, switch between threads, view thread history
   * Real-time streaming chat — WebSocket connection using the same protocol as REPL/admin (`POST /_/ai/sessions` to WS `/ai/ws?token=`)
@@ -60,17 +60,16 @@ These tasks touch completely different files with zero overlap. All can run in W
   * API key login (primary — same as REPL): user enters `tdsk_*` key, app validates via `GET /_/orgs` through proxy, stores key locally
   * Optional: Neon Auth social login (same as admin) for users who prefer browser-based OAuth. Both auth methods produce a valid bearer token for the proxy
   * Session token for WebSocket: `POST /_/ai/sessions` with agentId to receive session token to connect WS
-* **Fix**:
-  1. Create a new repo `repos/chat/` in the workspace with Vite + React + TypeScript scaffold. Configure aliases (`@TCH/*`), biome linting, and `@tdsk/domain` + `@tdsk/components` as workspace dependencies
-  2. Implement auth layer — API key login screen, credential storage (localStorage or secure cookie), auth state management
-  3. Build core chat UI — message list with streaming, input bar with multiline support, send/cancel buttons, tool call display
-  4. Build thread management — sidebar with thread list, create/switch/delete threads, thread search
-  5. Build agent selection — agent picker (list from `GET /_/agents`), agent switching, display current agent info
-  6. Implement WebSocket service — connect to backend WS, handle all 12 server-to-client event types, send all 7 client-to-server message types. Reuse `TWSClientMsg` / `TWSServerMsg` types from `@tdsk/domain`
-  7. Add file upload — drag-and-drop zone, file preview, upload via thread file endpoint
-  8. Add artifact rendering — inline HTML preview (sandboxed iframe), code blocks with syntax highlighting, SVG rendering
-  9. Add thread branching UI — message context menu with "Fork from here", branch visualization
-  10. Desktop wrapper (Phase 2) — Tauri or Electron shell around the web app, with native features (tray, hotkey, file picker)
+* **TODO**:
+  1. Extend auth login, and implement API Key auth layer — API key login screen, credential storage (localStorage or secure cookie), auth state management.
+  2. Build core chat UI — message list with streaming, input bar with multiline support, send/cancel buttons, tool call display
+  3. Build thread management — sidebar with thread list, create/switch/delete threads, thread search
+  4. Build agent selection — agent picker (list from `GET /_/agents`), agent switching, display current agent info
+  5. Implement WebSocket service — connect to backend WS, handle all 12 server-to-client event types, send all 7 client-to-server message types. Reuse `TWSClientMsg` / `TWSServerMsg` types from `@tdsk/domain`
+  6. Add file upload — drag-and-drop zone, file preview, upload via thread file endpoint
+  7. Add artifact rendering — inline HTML preview (sandboxed iframe), code blocks with syntax highlighting, SVG rendering
+  8. Add thread branching UI — message context menu with "Fork from here", branch visualization
+  9.  Desktop wrapper (Phase 2) — Tauri or Electron shell around the web app, with native features (tray, hotkey, file picker)
 * **Key considerations**:
   * This is a separate deployment from admin — its own CI/CD, its own URL, its own K8s pod or static hosting. Must not couple to admin's build or routing
   * The WebSocket protocol is already stable and used by both REPL and admin — no backend changes needed for the chat app to connect
@@ -79,16 +78,12 @@ These tasks touch completely different files with zero overlap. All can run in W
   * The MUI theme, design tokens, palette, and typography must be defined in `@tdsk/components` — all user-facing apps (admin, chat, website) consume the theme from there
   * Consider PWA capabilities (service worker, installable, offline thread cache) as a lighter alternative to a full desktop app
 * **Files**:
-  * New: `repos/chat/` — entire new repo (Vite + React + TypeScript)
-  * New: `repos/chat/src/services/ws.ts` — WebSocket client using `@tdsk/domain` event types
-  * New: `repos/chat/src/services/api.ts` — REST API client for auth, agents, threads
-  * New: `repos/chat/src/components/Chat/` — message list, input bar, tool display, artifact renderer
-  * New: `repos/chat/src/components/Sidebar/` — thread list, agent picker, search
-  * New: `repos/chat/src/components/Auth/` — login screen, API key input
+  * New: `repos/threads/src/services/ws.ts` — WebSocket client using `@tdsk/domain` event types
+  * New: `repos/threads/src/components/Chat/` — message list, input bar, tool display, artifact renderer
+  * `repos/threads/src/components/Login/` — add Api token auth to login screen
+  * `repos/threads/src/components/Sidebar/` — thread list, agent picker, search
   * `repos/components/` — potentially extract shared chat components from admin for reuse
   * `repos/domain/src/types/ws.types.ts` — already defines all WS event types (no changes needed)
-  * `deploy/` — add Helm templates or static hosting config for the chat app deployment
-
 
 
 ## Agent Autonomous Tools (8 tasks, HIGH overlap on `agent/tools/tools.ts`)
