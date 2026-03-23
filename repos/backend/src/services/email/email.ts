@@ -40,7 +40,7 @@ export class EmailService {
   private setup(config: TEmailConfig): IEmailStrategy {
     switch (config.type) {
       case `resend`:
-        if (!config.apiKey)
+        if (!config.api?.key)
           throw new Error(`Resend API key is required when using resend provider`)
         return new ResendStrategy(config)
 
@@ -73,8 +73,8 @@ export class EmailService {
    */
   async invitation(data: TInvitationEmailData): Promise<boolean> {
     try {
-      const html = await templates.render(EEmailTemplate.invitation, data)
-      const text = this.buildInvitationEmailText(data)
+      const html = await templates.render(`${EEmailTemplate.invitation}.html`, data)
+      const text = await templates.render(`${EEmailTemplate.invitation}.txt`, data)
 
       const result = await this.send({
         to: data.email,
@@ -96,8 +96,8 @@ export class EmailService {
    */
   async sendMemberNotification(data: TMemberNotificationData): Promise<boolean> {
     try {
-      const html = await templates.render(EEmailTemplate.member, data)
-      const text = this.buildMemberNotificationText(data)
+      const html = await templates.render(`${EEmailTemplate.member}.html`, data)
+      const text = await templates.render(`${EEmailTemplate.member}.txt`, data)
 
       const result = await this.send({
         to: data.email,
@@ -111,43 +111,5 @@ export class EmailService {
       logger.error(`[EMAIL SERVICE] Failed to send member notification email:`, error)
       return false
     }
-  }
-
-  /**
-   * Build invitation email plain text fallback
-   */
-  private buildInvitationEmailText(data: TInvitationEmailData): string {
-    return `
-You've been invited to join ${data.orgName}
-
-${data.inviterName} has invited you to join ${data.orgName} on Threaded Stack with the role of ${data.roleType}.
-
-To accept this invitation, visit:
-${data.invitationUrl}
-
-This invitation will expire in ${data.expiresInDays} days.
-
-If you don't have a Threaded Stack account yet, clicking the link above will guide you through creating one and joining the organization.
-
----
-This is an automated email from Threaded Stack. Please do not reply to this message.
-If you didn't expect this invitation, you can safely ignore this email.
-    `.trim()
-  }
-
-  /**
-   * Build member notification email plain text fallback
-   */
-  private buildMemberNotificationText(data: TMemberNotificationData): string {
-    return `
-You've been added to ${data.orgName}
-
-${data.inviterName} has added you to ${data.orgName} on Threaded Stack with the role of ${data.roleType}.
-
-View the organization: ${data.orgUrl}
-
----
-This is an automated email from Threaded Stack. Please do not reply to this message.
-    `.trim()
   }
 }

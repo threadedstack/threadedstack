@@ -1,0 +1,8 @@
+You've been added to {{orgName}}
+
+{{inviterName}} has added you to {{orgName}} on Threaded Stack with the role of {{roleType}}.
+
+View the organization: {{orgUrl}}
+
+---
+This is an automated email from Threaded Stack. Please do not reply to this message.

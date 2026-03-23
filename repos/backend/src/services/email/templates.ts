@@ -30,7 +30,7 @@ export class TemplatesService {
     if (cached) return cached(variables)
 
     try {
-      const location = path.join(this.#directory, `${template}.html`)
+      const location = path.join(this.#directory, template)
       const rawHtml = await fs.readFile(location, `utf-8`)
       const compiled = Handlebars.compile(rawHtml)
       this.#cache.set(template, compiled)

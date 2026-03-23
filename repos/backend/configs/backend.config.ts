@@ -97,9 +97,13 @@ export const config = {
   },
   email: {
     from: TDSK_EMAIL_FROM,
-    apiKey: TDSK_EMAIL_API_KEY,
-    apiHost: TDSK_EMAIL_API_HOST,
     type: TDSK_EMAIL_TYPE as EEmailType,
+    api: TDSK_EMAIL_API_KEY
+      ? {
+          key: TDSK_EMAIL_API_KEY,
+          host: TDSK_EMAIL_API_HOST,
+        }
+      : undefined,
     smtp: TDSK_EMAIL_HOST
       ? {
           host: TDSK_EMAIL_HOST,

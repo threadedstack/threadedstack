@@ -19,10 +19,10 @@ export class ResendStrategy extends BaseEmailStrategy {
     super(config.from)
 
     this.#api = new API({
-      url: config?.apiHost || `https://api.resend.com/emails`,
+      url: config?.api?.host || `https://api.resend.com/emails`,
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
         [`Content-Type`]: `application/json`,
+        Authorization: `Bearer ${config?.api?.key}`,
       },
     })
   }

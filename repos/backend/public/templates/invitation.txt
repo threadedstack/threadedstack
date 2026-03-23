@@ -1,0 +1,14 @@
+You've been invited to join {{orgName}}
+
+{{inviterName}} has invited you to join {{orgName}} on Threaded Stack with the role of {{roleType}}.
+
+To accept this invitation, visit:
+{{invitationUrl}}
+
+This invitation will expire in {{expiresInDays}} days.
+
+If you don't have a Threaded Stack account yet, clicking the link above will guide you through creating one and joining the organization.
+
+---
+This is an automated email from Threaded Stack. Please do not reply to this message.
+If you didn't expect this invitation, you can safely ignore this email.
