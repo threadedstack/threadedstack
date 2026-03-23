@@ -34,8 +34,7 @@ const Header = () => {
         sx={{
           height: 64,
           zIndex: 1300,
-          borderColor: 'divider',
-          borderBottom: solid ? 1 : 0,
+          borderBottom: 0,
           backdropFilter: solid ? 'blur(12px)' : 'none',
           bgcolor: solid ? 'background.paper' : 'transparent',
           transition: 'background-color 0.3s, border-bottom 0.3s, backdrop-filter 0.3s',
