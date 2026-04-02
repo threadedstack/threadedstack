@@ -173,13 +173,27 @@ export class LocalSandboxProvider implements ISandboxProvider {
     let runner: IsolateRunner | null = null
     try {
       const memory = (config.options?.memory as number) || 128
-      runner = new IsolateRunner({ memory, bash, fs })
+      runner = new IsolateRunner({
+        memory,
+        bash,
+        fs,
+        env: config.envVars || {},
+        maxTimerMs: (config.options?.maxTimerMs as number) || undefined,
+      })
       await runner.init()
-    } catch {
+    } catch (err: any) {
       runner = null
-      logger.warn(
-        `isolated-vm not available — sandbox running without code execution isolation`
-      )
+      const msg = String(err?.message || ``)
+      if (msg.includes(`Cannot find module`) || msg.includes(`isolated-vm`)) {
+        logger.warn(
+          `isolated-vm not available — sandbox running without code execution isolation`
+        )
+      } else {
+        logger.error(
+          `IsolateRunner init failed — sandbox running without code execution isolation:`,
+          err
+        )
+      }
     }
 
     return new LocalSandbox(bash, fs, runner)

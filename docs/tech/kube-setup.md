@@ -8,4 +8,5 @@
 * Docker secret - `tdsk kube secret docker` 
 * TDSK secret - `tdsk kube secret tdsk`
 * Payments secret - `tdsk kube secret pay`
-* Eamil secret - `tdsk kube secret email`
+* Email secret - `tdsk kube secret email`
+* CA Certs for caddy - `tdsk kube secret egress`

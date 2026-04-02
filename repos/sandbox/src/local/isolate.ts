@@ -1,5 +1,7 @@
+import type { TShimDeps } from '@TSB/types'
 import type { Bash, IFileSystem } from 'just-bash'
 import type { Isolate, Context, Module } from 'isolated-vm'
+import { shimRegistry, builtinShimNames } from '@TSB/local/shims'
 
 /**
  * Swallow "already released/disposed" errors from isolated-vm teardown.
@@ -28,8 +30,10 @@ const loadIvm = async (): Promise<any> => {
 
 export type IsolateRunnerOptions = {
   bash: Bash
-  fs: IFileSystem
   memory?: number
+  fs: IFileSystem
+  maxTimerMs?: number
+  env?: Record<string, string>
 }
 
 /**
@@ -41,17 +45,146 @@ export class IsolateRunner {
   #bash: Bash
   #memory: number
   #fs: IFileSystem
+  #maxTimerMs: number
   #initialized = false
+  #env: Record<string, string>
   #isolate: Isolate | null = null
   #context: Context | null = null
   #shims = new Map<string, Module>()
+  #pendingTimers = new Map<
+    number,
+    { handle: ReturnType<typeof setTimeout>; type: 'timeout' | 'interval' }
+  >()
 
   #output: string[] = []
+
+  #clearAllTimers(): void {
+    for (const { handle, type } of this.#pendingTimers.values()) {
+      type === `interval` ? clearInterval(handle) : clearTimeout(handle)
+    }
+    this.#pendingTimers.clear()
+  }
+
+  async #setupTimers(jail: any, ivm: any): Promise<void> {
+    await jail.set(
+      `_timerSet`,
+      new ivm.Callback((id: number, ms: number) => {
+        const clamped = Math.min(Math.max(0, ms), this.#maxTimerMs)
+        const handle = setTimeout(() => {
+          this.#pendingTimers.delete(id)
+          const p = this.#context?.eval(
+            `typeof __timerFire === "function" && __timerFire(${id})`
+          )
+          if (p && typeof p.catch === `function`) {
+            p.catch((err: any) => {
+              const msg = String(err?.message || ``)
+              if (!msg.includes(`released`) && !msg.includes(`disposed`))
+                console.warn(`Timer ${id} callback failed:`, err)
+            })
+          }
+        }, clamped)
+        this.#pendingTimers.set(id, { handle, type: `timeout` })
+      })
+    )
+
+    await jail.set(
+      `_timerClear`,
+      new ivm.Callback((id: number) => {
+        const entry = this.#pendingTimers.get(id)
+        if (entry) {
+          entry.type === `interval`
+            ? clearInterval(entry.handle)
+            : clearTimeout(entry.handle)
+          this.#pendingTimers.delete(id)
+        }
+      })
+    )
+
+    await jail.set(
+      `_timerInterval`,
+      new ivm.Callback((id: number, ms: number) => {
+        const clamped = Math.min(Math.max(0, ms), this.#maxTimerMs)
+        const handle = setInterval(() => {
+          const p = this.#context?.eval(
+            `typeof __timerFire === "function" && __timerFire(${id})`
+          )
+          if (p && typeof p.catch === `function`) {
+            p.catch((err: any) => {
+              const msg = String(err?.message || ``)
+              if (msg.includes(`released`) || msg.includes(`disposed`)) return
+              console.warn(`Interval ${id} killed due to error:`, err)
+              const h = this.#pendingTimers.get(id)
+              if (h) {
+                clearInterval(h.handle)
+                this.#pendingTimers.delete(id)
+              }
+            })
+          }
+        }, clamped)
+        this.#pendingTimers.set(id, { handle, type: `interval` })
+      })
+    )
+
+    await this.#context!.eval(`
+      (function() {
+        var _callbacks = new Map()
+        var _nextId = 1
+
+        globalThis.__timerFire = function(id) {
+          var entry = _callbacks.get(id)
+          if (!entry) return
+          if (!entry.interval) _callbacks.delete(id)
+          try { entry.fn.apply(null, entry.args) } catch(e) { console.error(e) }
+        }
+
+        globalThis.setTimeout = function(fn, ms) {
+          if (_callbacks.size >= 100) throw new Error('Too many concurrent timers')
+          var args = Array.prototype.slice.call(arguments, 2)
+          var id = _nextId++
+          _callbacks.set(id, { fn: fn, args: args, interval: false })
+          _timerSet(id, ms || 0)
+          return id
+        }
+
+        globalThis.clearTimeout = function(id) {
+          _callbacks.delete(id)
+          _timerClear(id)
+        }
+
+        globalThis.setInterval = function(fn, ms) {
+          if (_callbacks.size >= 100) throw new Error('Too many concurrent timers')
+          var args = Array.prototype.slice.call(arguments, 2)
+          var id = _nextId++
+          _callbacks.set(id, { fn: fn, args: args, interval: true })
+          _timerInterval(id, ms || 0)
+          return id
+        }
+
+        globalThis.clearInterval = function(id) {
+          _callbacks.delete(id)
+          _timerClear(id)
+        }
+
+        globalThis.setImmediate = function(fn) {
+          var args = Array.prototype.slice.call(arguments, 1)
+          return globalThis.setTimeout.apply(null, [fn, 0].concat(args))
+        }
+
+        if (typeof globalThis.queueMicrotask === 'undefined') {
+          globalThis.queueMicrotask = function(fn) {
+            Promise.resolve().then(fn)
+          }
+        }
+      })()
+    `)
+  }
 
   constructor(opts: IsolateRunnerOptions) {
     this.#fs = opts.fs
     this.#bash = opts.bash
+    this.#env = opts.env || {}
     this.#memory = opts.memory || 128
+    this.#maxTimerMs = opts.maxTimerMs || 30000
   }
 
   async init(): Promise<void> {
@@ -63,242 +196,51 @@ export class IsolateRunner {
     const jail = this.#context.global
     await jail.set(`global`, jail.derefInto())
 
-    // Console bridge — captures output for retrieval after eval
-    await jail.set(
-      `_log`,
-      new ivm.Callback((...args: any[]) => {
+    // Set up host callbacks from shim registry
+    const deps: TShimDeps = {
+      fs: this.#fs,
+      env: this.#env,
+      bash: this.#bash,
+      maxTimerMs: this.#maxTimerMs,
+      onLog: (...args: any[]) => {
         this.#output.push(args.map(String).join(` `))
-      })
-    )
+      },
+    }
+    for (const shim of shimRegistry)
+      if (shim.setupCallbacks) await shim.setupCallbacks(jail, ivm, deps)
 
-    await this.#context.eval(`
-      globalThis.console = {
-        log: (...args) => _log(...args),
-        error: (...args) => _log('ERROR:', ...args),
-        warn: (...args) => _log('WARN:', ...args),
-        info: (...args) => _log('INFO:', ...args),
-      }
-    `)
-
-    // FS callbacks — async bridges to just-bash virtual filesystem
-    await jail.set(
-      `_fsReadFile`,
-      new ivm.Callback(
-        async (path: string) => {
-          return await this.#fs.readFile(path, { encoding: `utf-8` })
-        },
-        { async: true }
-      )
-    )
-
-    await jail.set(
-      `_fsWriteFile`,
-      new ivm.Callback(
-        async (path: string, content: string) => {
-          await this.#fs.writeFile(path, content)
-        },
-        { async: true }
-      )
-    )
-
-    await jail.set(
-      `_fsExists`,
-      new ivm.Callback(
-        async (path: string) => {
-          try {
-            await this.#fs.stat(path)
-            return true
-          } catch {
-            return false
-          }
-        },
-        { async: true }
-      )
-    )
-
-    await jail.set(
-      `_fsMkdir`,
-      new ivm.Callback(
-        async (path: string) => {
-          await this.#fs.mkdir(path, { recursive: true })
-        },
-        { async: true }
-      )
-    )
-
-    await jail.set(
-      `_fsReaddir`,
-      new ivm.Callback(
-        async (path: string) => {
-          return await this.#fs.readdir(path)
-        },
-        { async: true }
-      )
-    )
-
-    await jail.set(
-      `_fsUnlink`,
-      new ivm.Callback(
-        async (path: string) => {
-          await this.#fs.rm(path)
-        },
-        { async: true }
-      )
-    )
-
-    await jail.set(
-      `_fsStat`,
-      new ivm.Callback(
-        async (path: string) => {
-          const stat = await this.#fs.stat(path)
-          return {
-            isDirectory: stat.isDirectory,
-            isFile: stat.isFile,
-            size: stat.size || 0,
-          }
-        },
-        { async: true }
-      )
-    )
-
-    // Shell run callback — routes commands to just-bash virtual shell
-    await jail.set(
-      `_shellRun`,
-      new ivm.Callback(
-        async (cmd: string) => {
-          const result = await this.#bash.exec(cmd)
-          if (result.exitCode !== 0)
-            throw new Error(result.stderr || `Command failed: ${cmd}`)
-          return result.stdout
-        },
-        { async: true }
-      )
-    )
-
-    // Fetch callback — bridges to Node.js native fetch for HTTP requests
-    await jail.set(
-      `_fetch`,
-      new ivm.Callback(
-        async (url: string, optsJson: string) => {
-          const opts = optsJson ? JSON.parse(optsJson) : {}
-          const response = await fetch(url, opts)
-          const body = await response.text()
-          return JSON.stringify({
-            ok: response.ok,
-            status: response.status,
-            statusText: response.statusText,
-            headers: Object.fromEntries(response.headers.entries()),
-            body,
-            url: response.url,
-          })
-        },
-        { async: true }
-      )
-    )
-
-    // Fetch global — provides standard fetch() API inside the isolate
-    await this.#context.eval(`
-      globalThis.fetch = async (url, opts) => {
-        const raw = await _fetch(url, opts ? JSON.stringify(opts) : '')
-        const data = JSON.parse(raw)
-        return {
-          ok: data.ok,
-          status: data.status,
-          statusText: data.statusText,
-          url: data.url,
-          headers: {
-            get: (n) => data.headers[n.toLowerCase()] || null,
-            has: (n) => n.toLowerCase() in data.headers,
-            entries: () => Object.entries(data.headers),
-          },
-          text: async () => data.body,
-          json: async () => JSON.parse(data.body),
-        }
-      }
-    `)
-
-    await this.#compile()
+    await this.#compile(deps)
+    await this.#setupTimers(jail, ivm)
     this.#initialized = true
   }
 
-  async #compile(): Promise<void> {
+  async #compile(deps: TShimDeps): Promise<void> {
     if (!this.#isolate || !this.#context) throw new Error(`Isolate not created`)
 
-    // fs shim — all operations are async (return Promises)
-    const fsSource = `
-      export const readFile = globalThis._fsReadFile
-      export const writeFile = globalThis._fsWriteFile
-      export const exists = globalThis._fsExists
-      export const mkdir = globalThis._fsMkdir
-      export const readdir = globalThis._fsReaddir
-      export const unlink = globalThis._fsUnlink
-      export const stat = globalThis._fsStat
-      export default {
-        readFile, writeFile, exists,
-        mkdir, readdir, unlink, stat,
-      }
-    `
-    const fsMod = await this.#isolate.compileModule(fsSource, { filename: `node:fs` })
-    await fsMod.instantiate(this.#context, () => {
-      throw new Error(`fs shim has no dependencies`)
-    })
-    await fsMod.evaluate()
-    this.#shims.set(`fs`, fsMod)
-    this.#shims.set(`node:fs`, fsMod)
+    // Compile and register all shim modules from the registry
+    for (const shim of shimRegistry) {
+      if (!shim.source) continue
 
-    // path shim — pure JS, no host bridge needed
-    const pathSource = `
-      export const join = (...parts) => parts.join('/').replace(/\\/\\/+/g, '/')
-      export const resolve = (...parts) => {
-        let resolved = ''
-        for (const p of parts) {
-          resolved = p.startsWith('/') ? p : (resolved ? resolved + '/' + p : p)
-        }
-        return resolved.replace(/\\/\\/+/g, '/')
-      }
-      export const dirname = (p) => {
-        const parts = p.split('/')
-        parts.pop()
-        return parts.join('/') || '/'
-      }
-      export const basename = (p, ext) => {
-        const b = p.split('/').pop() || ''
-        return ext && b.endsWith(ext) ? b.slice(0, -ext.length) : b
-      }
-      export const extname = (p) => {
-        const m = p.match(/\\.[^.]+$/)
-        return m ? m[0] : ''
-      }
-      export const normalize = (p) => p.replace(/\\/\\/+/g, '/')
-      export const sep = '/'
-      export const posix = { sep: '/' }
-      export default { join, resolve, dirname, basename, extname, normalize, sep, posix }
-    `
-    const pathMod = await this.#isolate.compileModule(pathSource, {
-      filename: `node:path`,
-    })
-    await pathMod.instantiate(this.#context, () => {
-      throw new Error(`path shim has no dependencies`)
-    })
-    await pathMod.evaluate()
-    this.#shims.set(`path`, pathMod)
-    this.#shims.set(`node:path`, pathMod)
+      const filename = `node:${shim.names[0]}`
+      const mod = await this.#isolate.compileModule(shim.source, { filename })
 
-    // Shell shim — routes commands to just-bash virtual shell
-    const shellSource = `
-      const run = globalThis._shellRun
-      export { run }
-      export default { run }
-    `
-    const shellMod = await this.#isolate.compileModule(shellSource, {
-      filename: `node:child_process`,
-    })
-    await shellMod.instantiate(this.#context, () => {
-      throw new Error(`shell shim has no dependencies`)
-    })
-    await shellMod.evaluate()
-    this.#shims.set(`child_process`, shellMod)
-    this.#shims.set(`node:child_process`, shellMod)
+      await mod.instantiate(this.#context, (specifier: string) => {
+        const dep = this.#shims.get(specifier)
+        if (dep) return dep
+        throw new Error(`Module not found: ${specifier}`)
+      })
+
+      await mod.evaluate()
+
+      for (const name of shim.names) {
+        this.#shims.set(name, mod)
+      }
+    }
+
+    // Run setupGlobals for shims that define them
+    for (const shim of shimRegistry) {
+      if (shim.setupGlobals) await shim.setupGlobals(this.#context, deps)
+    }
   }
 
   /**
@@ -325,23 +267,13 @@ export class IsolateRunner {
     this.#shims.set(name, mod)
   }
 
-  /** Built-in shim names that must survive reset (not user-registered modules) */
-  static readonly #builtinNames = new Set([
-    `fs`,
-    `node:fs`,
-    `path`,
-    `node:path`,
-    `child_process`,
-    `node:child_process`,
-  ])
-
   /**
    * Release all user-registered modules (but keep built-in shims).
    * Called during sandbox pool reset to avoid V8 heap leaks.
    */
   releaseUserModules(): void {
     for (const [name, mod] of this.#shims) {
-      if (IsolateRunner.#builtinNames.has(name)) continue
+      if (builtinShimNames.has(name)) continue
       safeRelease(() => mod.release(), `released`, `releasing module '${name}'`)
       this.#shims.delete(name)
     }
@@ -350,6 +282,7 @@ export class IsolateRunner {
   async eval(code: string, timeout = 5000): Promise<{ output: string; result: any }> {
     if (!this.#initialized) await this.init()
 
+    this.#clearAllTimers()
     this.#output = []
 
     const userModule = await this.#isolate!.compileModule(code, {
@@ -394,6 +327,7 @@ export class IsolateRunner {
     }
 
     userModule.release()
+    this.#clearAllTimers()
 
     return {
       output: this.#output.join(`\n`),
@@ -402,6 +336,7 @@ export class IsolateRunner {
   }
 
   dispose(): void {
+    this.#clearAllTimers()
     for (const mod of this.#shims.values()) {
       safeRelease(() => mod.release(), `released`, `releasing module during dispose`)
     }

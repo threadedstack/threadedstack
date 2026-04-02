@@ -84,7 +84,15 @@
       "Bash(pnpm cli:*)",
       "Bash(claude:*)",
       "Bash(bash:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(~/.devspace/bin/helm version:*)",
+      "Bash(cd:*)",
+      "Bash(~/.devspace/bin/helm upgrade:*)",
+      "Bash(helm list:*)",
+      "Bash(devspace version:*)",
+      "Bash(~/.devspace/bin/helm dependency:*)",
+      "Bash(/Users/lancetipton/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.2/scripts/start-server.sh --project-dir /Users/lancetipton/keg-hub/external/apps/threadedstack)",
+      "Read(//tmp/**)"
     ]
   },
   "sandbox": {

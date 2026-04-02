@@ -3,6 +3,61 @@
 Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new features, P4 = major refactor
 
 
+### [P3] Sandbox: Dynamic npm dependency loading via esm.sh
+
+* **Repos**: sandbox, domain, backend
+* **Key files**: `repos/sandbox/src/local/isolate.ts`, new `repos/sandbox/src/local/packages.ts`, `repos/domain/src/types/sandbox.types.ts`
+* **Spec**: `docs/superpowers/specs/2026-04-01-isolate-node-builtins-design.md` (see "Future: Dynamic NPM Dependency Loading" section)
+* **Depends on**: Isolate Node.js builtins work (shim registry, `registerModule()`, `builtinShimNames`, `releaseUserModules()`)
+
+Add the ability to install npm packages dynamically into the V8 isolate sandbox by fetching ESM bundles from `https://esm.sh/` and registering them via `registerModule()`. This enables FaaS functions to declare npm dependencies that are resolved at execution time.
+
+**CDN choice: esm.sh** (see spec for full comparison vs unpkg.com). esm.sh auto-converts CJS to ESM, supports `?standalone` mode (single self-contained file per package), and allows `?external=node:fs,...` to defer Node.js builtins to the sandbox's own shims.
+
+**Implementation steps** (in order):
+
+1. **Upgrade the module resolver** — The current resolver in `isolate.ts` uses exact string matching (`this.#shims.get(specifier)`). Needs to handle relative imports (`./utils` resolved against the importing module's filename) and subpath imports (`lodash/get`). This is a prerequisite for non-standalone packages and only touches `isolate.ts`. The `Module.instantiate()` resolver can capture the referrer context via closure since each module gets its own `instantiate` call.
+
+2. **Add `installPackages()` method** — New file (`packages.ts` or similar) that:
+   - Accepts an array of package specifiers (e.g., `['lodash@4.17.21', 'dayjs']`)
+   - Fetches each from esm.sh with `?standalone&target=es2022` (single self-contained ESM bundle)
+   - For packages needing sandbox Node shims, uses `?bundle&target=es2022&external=node:fs,node:path,...`
+   - Calls `registerModule(name, code)` for each fetched package
+   - Handles version pinning and peer dependency detection
+   - Caches fetched bundles to avoid redundant network requests across code runs
+
+3. **Wire into sandbox flow** — Update `TSandboxEvalOpts` (in `@tdsk/domain`) to accept a `packages?: string[]` field. `LocalSandbox.evaluate()` calls `installPackages()` before running user code. Backend passes function-configured dependencies through to the sandbox config.
+
+4. **(If needed) CJS `require()` shim** — esm.sh handles CJS-to-ESM conversion automatically, so this is only needed if packages use runtime `require()` that esm.sh can't statically analyze. Add as a new shim in `shims/` directory.
+
+**Key URL patterns for esm.sh**:
+- Pure-JS packages: `https://esm.sh/{pkg}@{ver}?standalone&target=es2022`
+- Packages using Node builtins: `https://esm.sh/{pkg}@{ver}?bundle&target=es2022&external=node:fs,node:path,node:crypto,node:buffer,node:events,node:os,node:process,node:url,node:querystring,node:util,node:assert,node:child_process`
+- Subpath imports: `https://esm.sh/{pkg}@{ver}/{subpath}?standalone&target=es2022`
+
+**Existing infrastructure ready**:
+- `registerModule(name, code)` — registers fetched packages as importable modules
+- `TSandboxEvalOpts.modules` — caller can provide pre-fetched module source
+- `releaseUserModules()` — cleans up npm packages on sandbox pool reset
+- `builtinShimNames` — prevents npm packages from overwriting Node.js builtins
+- `fetch` — available on host side for esm.sh requests
+- 11 Node.js builtin shims — handle `?external` imports from esm.sh bundles
+
+**Testing**: Unit tests with mocked fetch for `installPackages()`. Integration tests fetching real packages from esm.sh (e.g., `zod`, `dayjs`, `uuid`) and running code that imports them.
+
+
+### [P1] Proxy: Public endpoints require authentication when they shouldn't
+
+* **Repos**: proxy, backend
+* **Key files**: `repos/proxy/src/constants/values.ts`, `repos/proxy/src/middleware/setupAuth.ts`, `repos/backend/src/middleware/setupEndpoints.ts`, `repos/backend/src/endpoints/proxy/endpoint.ts`
+* The proxy has a hardcoded `PublicRoutes` list (`/health`, `/domains/validate`, `/echo`) and rejects all `/proxy/*` requests without auth — even when the target endpoint has `public: true` in the database. The backend correctly checks `ep.public` and skips auth for public endpoints (line 46-61 of `endpoint.ts`), but requests never reach the backend because the proxy rejects them first.
+* The backend already collects public endpoint paths at startup (`setupEndpoints.ts:75-76`, pushes to `app.locals.config.proxy.publicRoutes`), but this information is never communicated to the proxy.
+* **Possible approaches**:
+  1. Backend exposes a `/internal/public-routes` endpoint that the proxy queries on startup and periodically refreshes
+  2. Proxy forwards all `/proxy/*` requests to backend and lets backend handle auth (simplest but changes auth boundary)
+  3. Shared config/cache (Redis, env var) that both services read
+* **Testing**: Integration test that creates a public endpoint, then curls it without auth headers and expects a successful response
+
 ## Fully Independent (all run in parallel)
 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.

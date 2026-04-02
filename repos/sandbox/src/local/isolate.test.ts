@@ -157,12 +157,12 @@ describe(`IsolateRunner`, () => {
       expect(setCallArgs).toContain(`global`)
     })
 
-    it(`should compile shim modules for fs, path, and shell`, async () => {
+    it(`should compile shim modules for all builtin shims`, async () => {
       await runner.init()
 
-      // 3 shim modules: fs, path, child_process
-      // compileModule called for each shim + setupContext eval
-      expect(mockCompileModule).toHaveBeenCalledTimes(3)
+      // 11 shim modules: buffer, path, fs, child_process, url, querystring, events, os, assert, util, crypto
+      // process shim has no source (globals-only), so it is not compiled
+      expect(mockCompileModule).toHaveBeenCalledTimes(11)
     })
 
     it(`should be idempotent (second init is no-op)`, async () => {
@@ -203,10 +203,53 @@ describe(`IsolateRunner`, () => {
     it(`should set up globalThis.fetch via context eval`, async () => {
       await runner.init()
 
-      // context.eval called twice: once for console, once for fetch
-      expect(mockContextEval).toHaveBeenCalledTimes(2)
+      // context.eval called 4 times: console, fetch, timers, process
+      expect(mockContextEval).toHaveBeenCalledTimes(4)
       const fetchEvalCall = mockContextEval.mock.calls[1][0]
       expect(fetchEvalCall).toContain(`globalThis.fetch`)
+    })
+
+    it(`should set up timer callbacks`, async () => {
+      await runner.init()
+
+      const setCallArgs = mockSet.mock.calls.map((c: any) => c[0])
+      expect(setCallArgs).toContain(`_timerSet`)
+      expect(setCallArgs).toContain(`_timerClear`)
+      expect(setCallArgs).toContain(`_timerInterval`)
+    })
+
+    it(`should set up timer globals via context eval`, async () => {
+      await runner.init()
+
+      // Timer globals are set up in the 4th context.eval call (after console, fetch, process)
+      const timerEvalCall = mockContextEval.mock.calls[3][0]
+      expect(timerEvalCall).toContain(`globalThis.setTimeout`)
+      expect(timerEvalCall).toContain(`globalThis.setInterval`)
+      expect(timerEvalCall).toContain(`globalThis.clearTimeout`)
+      expect(timerEvalCall).toContain(`globalThis.clearInterval`)
+      expect(timerEvalCall).toContain(`globalThis.setImmediate`)
+      expect(timerEvalCall).toContain(`queueMicrotask`)
+    })
+
+    it(`should set up process global via context eval`, async () => {
+      await runner.init()
+
+      // Process global is set up in the 3rd context.eval call (during #compile setupGlobals)
+      const processEvalCall = mockContextEval.mock.calls[2][0]
+      expect(processEvalCall).toContain(`globalThis.process`)
+      expect(processEvalCall).toContain(`platform`)
+      expect(processEvalCall).toContain(`nextTick`)
+    })
+
+    it(`should set up crypto callbacks`, async () => {
+      await runner.init()
+
+      const setCallArgs = mockSet.mock.calls.map((c: any) => c[0])
+      expect(setCallArgs).toContain(`_cryptoRandomUUID`)
+      expect(setCallArgs).toContain(`_cryptoRandomBytes`)
+      expect(setCallArgs).toContain(`_cryptoHash`)
+      expect(setCallArgs).toContain(`_cryptoHmac`)
+      expect(setCallArgs).toContain(`_cryptoTimingSafeEqual`)
     })
   })
 
@@ -222,7 +265,7 @@ describe(`IsolateRunner`, () => {
     it(`should compile user code as a module`, async () => {
       await runIsolate(runner, `console.log('hello')`)
 
-      // compileModule called for user code + 3 shims
+      // compileModule called for user code + 11 shims
       expect(mockCompileModule).toHaveBeenCalledWith(`console.log('hello')`, {
         filename: `user-code.js`,
       })
@@ -304,7 +347,7 @@ describe(`IsolateRunner`, () => {
     it(`should compile and instantiate a named module`, async () => {
       await runner.registerModule(`mylib`, `export default 42`)
 
-      // compileModule called for shims (3) + user module (1)
+      // compileModule called for shims (11) + user module (1)
       expect(mockCompileModule).toHaveBeenCalledWith(`export default 42`, {
         filename: `mylib`,
       })
@@ -318,7 +361,7 @@ describe(`IsolateRunner`, () => {
 
       // createContext should have been called (auto-init)
       expect(mockCreateContext).toHaveBeenCalledOnce()
-      // compileModule for 3 shims + the registered module
+      // compileModule for 11 shims + the registered module
       expect(mockCompileModule).toHaveBeenCalledWith(`export const x = 1`, {
         filename: `lib`,
       })
@@ -381,6 +424,26 @@ describe(`IsolateRunner`, () => {
     })
   })
 
+  describe(`env option`, () => {
+    it(`should pass env option to process.env in context eval`, async () => {
+      const envRunner = new IsolateRunner({
+        bash: mockBash,
+        fs: mockFs,
+        env: { NODE_ENV: 'production', MY_VAR: 'hello' },
+      })
+      await envRunner.init()
+
+      const evalCalls = mockContextEval.mock.calls.map((c: any) => c[0])
+      const processEval = evalCalls.find((s: string) => s.includes('globalThis.process'))
+      expect(processEval).toBeDefined()
+      expect(processEval).toContain('"NODE_ENV"')
+      expect(processEval).toContain('"production"')
+      expect(processEval).toContain('"MY_VAR"')
+
+      envRunner.dispose()
+    })
+  })
+
   describe(`dispose`, () => {
     it(`should release context and dispose isolate`, async () => {
       await runner.init()
@@ -407,6 +470,72 @@ describe(`IsolateRunner`, () => {
       await runner.init()
       runner.dispose()
       expect(() => runner.dispose()).not.toThrow()
+    })
+  })
+
+  describe(`releaseUserModules`, () => {
+    it(`should release user-registered modules but keep builtin shims`, async () => {
+      await runner.init()
+
+      // Register a user module
+      await runner.registerModule(`mylib`, `export default 1`)
+
+      const releaseCountBefore = mockRelease.mock.calls.length
+
+      // Release user modules
+      runner.releaseUserModules()
+
+      // Should have released the user module
+      expect(mockRelease.mock.calls.length).toBeGreaterThan(releaseCountBefore)
+    })
+
+    it(`should be a no-op when no user modules are registered`, async () => {
+      await runner.init()
+
+      const releaseCountBefore = mockRelease.mock.calls.length
+
+      // Release with no user modules — should not call release
+      runner.releaseUserModules()
+
+      expect(mockRelease.mock.calls.length).toBe(releaseCountBefore)
+    })
+
+    it(`should handle release() throwing gracefully`, async () => {
+      await runner.init()
+      await runner.registerModule(`mylib`, `export default 1`)
+
+      mockRelease.mockImplementationOnce(() => {
+        throw new Error(`Module already released`)
+      })
+
+      expect(() => runner.releaseUserModules()).not.toThrow()
+    })
+  })
+
+  describe(`timer cleanup`, () => {
+    it(`should clear pending timers on eval`, async () => {
+      await runner.init()
+
+      // Eval should not throw — timers are cleared at start and end
+      const result = await runIsolate(runner, `export default 'ok'`)
+      expect(result).toHaveProperty(`output`)
+      expect(result).toHaveProperty(`result`)
+    })
+
+    it(`should clear pending timers on dispose`, async () => {
+      await runner.init()
+
+      // Dispose should not throw — includes timer cleanup
+      expect(() => runner.dispose()).not.toThrow()
+    })
+
+    it(`should accept maxTimerMs option`, () => {
+      const r = new IsolateRunner({
+        bash: mockBash,
+        fs: mockFs,
+        maxTimerMs: 5000,
+      })
+      expect(r).toBeInstanceOf(IsolateRunner)
     })
   })
 })
