@@ -77,8 +77,10 @@ import {
   proxyFormState,
   agentFormState,
   endpointsState,
-  activeEndpointIdState,
+  activeEndpointState,
   projectEndpointsState,
+  activeEndpointIdState,
+  endpointTabsDisabledState,
 } from '@TAF/state/endpoints'
 import {
   projectsState,
@@ -139,6 +141,8 @@ export const useActiveDomainId = () => useRecState(activeDomainIdState)
 
 export const useEndpoints = () => useRecState(endpointsState)
 export const useActiveEndpointId = () => useRecState(activeEndpointIdState)
+export const useEndpointTabsDisabled = () => useRecState(endpointTabsDisabledState)
+export const useActiveEndpoint = () => useDerivedState<Endpoint>(activeEndpointState)
 
 export const useFunctions = () => useRecState(functionsState)
 export const useActiveFunctionId = () => useRecState(activeFunctionIdState)

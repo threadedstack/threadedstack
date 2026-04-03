@@ -109,7 +109,9 @@ test.describe.serial('CRUD Project Members', () => {
     expect(rowCount).toBeGreaterThan(0)
 
     // Verify a "viewer" role chip exists (since we used the default role)
-    await expect(tableBody.getByText('viewer')).toBeVisible({ timeout: 5_000 })
+    await expect(
+      tableBody.locator('.MuiChip-label', { hasText: /^viewer$/i }).first()
+    ).toBeVisible({ timeout: 5_000 })
 
     expect(errors).toEqual([])
   })

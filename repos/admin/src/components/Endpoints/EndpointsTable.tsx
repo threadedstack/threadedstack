@@ -17,7 +17,7 @@ import {
 export type TEndpointsTable = {
   endpoints: Endpoint[]
   onDelete: (id: string) => void
-  onEdit: (endpoint: Endpoint) => void
+  onNavigate: (endpoint: Endpoint) => void
 }
 
 const styles = {
@@ -35,7 +35,7 @@ const styles = {
 }
 
 export const EndpointsTable = (props: TEndpointsTable) => {
-  const { onEdit, endpoints, onDelete: onDeleteCB } = props
+  const { onNavigate, endpoints, onDelete: onDeleteCB } = props
 
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState<Endpoint>()
@@ -53,13 +53,13 @@ export const EndpointsTable = (props: TEndpointsTable) => {
 
   const columns: TDataTableColumn<Endpoint>[] = [
     {
-      id: 'name',
-      label: 'Name',
+      id: `name`,
+      label: `Name`,
       render: (endpoint) => endpoint.name,
     },
     {
-      id: 'method',
-      label: 'Method',
+      id: `method`,
+      label: `Method`,
       render: (endpoint) => (
         <Chip
           label={endpoint.method}
@@ -70,8 +70,8 @@ export const EndpointsTable = (props: TEndpointsTable) => {
       ),
     },
     {
-      id: 'type',
-      label: 'Type',
+      id: `type`,
+      label: `Type`,
       render: (endpoint) => (
         <Chip
           size='small'
@@ -85,15 +85,15 @@ export const EndpointsTable = (props: TEndpointsTable) => {
       ),
     },
     {
-      id: 'path',
-      label: 'Path',
+      id: `path`,
+      label: `Path`,
       render: (endpoint) => (
         <Box
           component='span'
           sx={{
-            fontFamily: 'monospace',
-            fontSize: '0.875rem',
-            wordBreak: 'break-all',
+            fontFamily: `monospace`,
+            fontSize: `0.875rem`,
+            wordBreak: `break-all`,
           }}
         >
           {endpoint.path}
@@ -101,9 +101,9 @@ export const EndpointsTable = (props: TEndpointsTable) => {
       ),
     },
     {
-      id: 'public',
-      label: 'Public',
-      align: 'center',
+      id: `public`,
+      label: `Public`,
+      align: `center`,
       render: (endpoint) =>
         endpoint.public ? (
           <Tooltip title='Public endpoint'>
@@ -116,9 +116,9 @@ export const EndpointsTable = (props: TEndpointsTable) => {
         ),
     },
     {
-      id: 'actions',
-      label: 'Actions',
-      align: 'right',
+      id: `actions`,
+      label: `Actions`,
+      align: `right`,
       render: (endpoint) => (
         <Box sx={styles.table.actions.box}>
           <ActionIconButton
@@ -128,7 +128,7 @@ export const EndpointsTable = (props: TEndpointsTable) => {
             color='primary'
             onClick={(e) => {
               e.stopPropagation()
-              onEdit(endpoint)
+              onNavigate(endpoint)
             }}
           />
           <ActionIconButton
@@ -151,7 +151,7 @@ export const EndpointsTable = (props: TEndpointsTable) => {
       <DataTable
         columns={columns}
         data={endpoints}
-        onRowClick={onEdit}
+        onRowClick={onNavigate}
         getRowKey={(endpoint) => endpoint.id}
       />
       {deleting && (

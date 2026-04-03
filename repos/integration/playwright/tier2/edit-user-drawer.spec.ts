@@ -3,7 +3,7 @@ import { test, expect } from '../fixtures/auth'
 test.describe('Edit User Drawer', () => {
   test('opens unified drawer on row click', async ({ authenticatedPage: page, ctx }) => {
     await page.goto(`/orgs/${ctx.orgId}/members`)
-    await page.waitForLoadState('networkidle')
+    await expect(page.locator('.tdsk-org-members-page')).toBeVisible({ timeout: 15_000 })
 
     const dataRows = page.locator('tbody tr')
     await expect(dataRows.first()).toBeVisible({ timeout: 10000 })
@@ -24,7 +24,7 @@ test.describe('Edit User Drawer', () => {
     ctx,
   }) => {
     await page.goto(`/orgs/${ctx.orgId}/members`)
-    await page.waitForLoadState('networkidle')
+    await expect(page.locator('.tdsk-org-members-page')).toBeVisible({ timeout: 15_000 })
 
     const dataRows = page.locator('tbody tr')
     await expect(dataRows.first()).toBeVisible({ timeout: 10000 })
@@ -43,7 +43,7 @@ test.describe('Edit User Drawer', () => {
     ctx,
   }) => {
     await page.goto(`/orgs/${ctx.orgId}/members`)
-    await page.waitForLoadState('networkidle')
+    await expect(page.locator('.tdsk-org-members-page')).toBeVisible({ timeout: 15_000 })
 
     const dataRows = page.locator('tbody tr')
     await expect(dataRows.first()).toBeVisible({ timeout: 10000 })
@@ -66,7 +66,7 @@ test.describe('Edit User Drawer', () => {
     ctx,
   }) => {
     await page.goto(`/orgs/${ctx.orgId}/members`)
-    await page.waitForLoadState('networkidle')
+    await expect(page.locator('.tdsk-org-members-page')).toBeVisible({ timeout: 15_000 })
 
     const dataRows = page.locator('tbody tr')
     await expect(dataRows.first()).toBeVisible({ timeout: 10000 })
@@ -98,7 +98,7 @@ test.describe('Edit User Drawer', () => {
     ctx,
   }) => {
     await page.goto(`/orgs/${ctx.orgId}/members`)
-    await page.waitForLoadState('networkidle')
+    await expect(page.locator('.tdsk-org-members-page')).toBeVisible({ timeout: 15_000 })
 
     const dataRows = page.locator('tbody tr')
     await expect(dataRows.first()).toBeVisible({ timeout: 10000 })
@@ -117,7 +117,7 @@ test.describe('Edit User Drawer', () => {
 
   test('Edit button in row opens drawer', async ({ authenticatedPage: page, ctx }) => {
     await page.goto(`/orgs/${ctx.orgId}/members`)
-    await page.waitForLoadState('networkidle')
+    await expect(page.locator('.tdsk-org-members-page')).toBeVisible({ timeout: 15_000 })
 
     const dataRows = page.locator('tbody tr')
     await expect(dataRows.first()).toBeVisible({ timeout: 10000 })
@@ -136,7 +136,7 @@ test.describe('Edit User Drawer', () => {
     ctx,
   }) => {
     await page.goto(`/orgs/${ctx.orgId}/members`)
-    await page.waitForLoadState('networkidle')
+    await expect(page.locator('.tdsk-org-members-page')).toBeVisible({ timeout: 15_000 })
 
     const dataRows = page.locator('tbody tr')
     await expect(dataRows.first()).toBeVisible({ timeout: 10000 })

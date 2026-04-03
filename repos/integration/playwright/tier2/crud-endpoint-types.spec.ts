@@ -81,25 +81,18 @@ test.describe.serial('CRUD Endpoint Types (Agent & FaaS)', () => {
     // Wait for drawer to close
     await waitForDrawerClose(page)
 
-    // Search for the endpoint in the table
-    await searchInPage(page, agentEndpointName)
+    // After create, page navigates to the detail page
+    await page.waitForURL(/\/endpoints\/[^/]+$/, { timeout: 10_000 })
 
-    // Verify the endpoint appears
-    await expect(page.getByText(agentEndpointName)).toBeVisible({ timeout: 10_000 })
+    // Extract endpoint ID from URL
+    const agentUrl = page.url()
+    const agentMatch = agentUrl.match(/\/endpoints\/([^/]+)$/)
+    if (agentMatch) agentEndpointId = agentMatch[1]
 
-    // Get endpoint ID via API
-    const res = await apiRequest(
-      page,
-      'GET',
-      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints?limit=200`,
-      ctx.apiKey
-    )
-    const body = await res.json()
-    const arr: Record<string, unknown>[] = Array.isArray(body?.data)
-      ? body.data
-      : []
-    const found = arr.find((e) => e.name === agentEndpointName)
-    if (found?.id) agentEndpointId = found.id as string
+    // Verify the endpoint name is visible on the detail page header
+    await expect(page.locator('h1, h4').getByText(agentEndpointName)).toBeVisible({
+      timeout: 10_000,
+    })
 
     expect(agentEndpointId).toBeTruthy()
     expect(errors).toEqual([])
@@ -158,25 +151,18 @@ test.describe.serial('CRUD Endpoint Types (Agent & FaaS)', () => {
     // Wait for drawer to close
     await waitForDrawerClose(page)
 
-    // Search for the endpoint in the table
-    await searchInPage(page, faasEndpointName)
+    // After create, page navigates to the detail page
+    await page.waitForURL(/\/endpoints\/[^/]+$/, { timeout: 10_000 })
 
-    // Verify the endpoint appears
-    await expect(page.getByText(faasEndpointName)).toBeVisible({ timeout: 10_000 })
+    // Extract endpoint ID from URL
+    const faasUrl = page.url()
+    const faasMatch = faasUrl.match(/\/endpoints\/([^/]+)$/)
+    if (faasMatch) faasEndpointId = faasMatch[1]
 
-    // Get endpoint ID via API
-    const res = await apiRequest(
-      page,
-      'GET',
-      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints?limit=200`,
-      ctx.apiKey
-    )
-    const body = await res.json()
-    const arr: Record<string, unknown>[] = Array.isArray(body?.data)
-      ? body.data
-      : []
-    const found = arr.find((e) => e.name === faasEndpointName)
-    if (found?.id) faasEndpointId = found.id as string
+    // Verify the endpoint name is visible on the detail page header
+    await expect(page.locator('h1, h4').getByText(faasEndpointName)).toBeVisible({
+      timeout: 10_000,
+    })
 
     expect(faasEndpointId).toBeTruthy()
     expect(errors).toEqual([])

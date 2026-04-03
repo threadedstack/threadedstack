@@ -50,6 +50,14 @@ const AgentLayout = lazy(() => import('@TAF/components/Agents/AgentLayout'))
 const AgentDetailTab = lazy(() => import('@TAF/components/Agents/AgentDetailTab'))
 const SkillsTab = lazy(() => import('@TAF/components/Skills/Skills'))
 const SchedulesTab = lazy(() => import('@TAF/components/Schedules/Schedules'))
+const EndpointLayout = lazy(() => import('@TAF/components/Endpoints/EndpointLayout'))
+const EndpointTab = lazy(() => import('@TAF/components/Endpoints/Tabs/EndpointTab'))
+const EndpointTestTab = lazy(
+  () => import('@TAF/components/Endpoints/Tabs/EndpointTestTab')
+)
+const EndpointConfigTab = lazy(
+  () => import('@TAF/components/Endpoints/Tabs/EndpointConfigTab')
+)
 
 // Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
@@ -173,6 +181,24 @@ export const Routes = createBrowserRouter([
                 Component: () => <SuspensePage Component={ProjectEndpoints} />,
               },
               {
+                path: ERoutePath.Endpoint,
+                Component: () => <SuspensePage Component={EndpointLayout} />,
+                children: [
+                  {
+                    index: true,
+                    Component: () => <SuspensePage Component={EndpointTab} />,
+                  },
+                  {
+                    path: `config`,
+                    Component: () => <SuspensePage Component={EndpointConfigTab} />,
+                  },
+                  {
+                    path: `test`,
+                    Component: () => <SuspensePage Component={EndpointTestTab} />,
+                  },
+                ],
+              },
+              {
                 path: ERoutePath.Secrets,
                 Component: () => <SuspensePage Component={ProjectSecrets} />,
               },
@@ -189,7 +215,7 @@ export const Routes = createBrowserRouter([
                 Component: () => <SuspensePage Component={ProjectAgents} />,
               },
               {
-                path: 'agents/:agentId',
+                path: ERoutePath.Agent,
                 Component: () => <SuspensePage Component={AgentLayout} />,
                 children: [
                   {
@@ -197,11 +223,11 @@ export const Routes = createBrowserRouter([
                     Component: () => <SuspensePage Component={AgentDetailTab} />,
                   },
                   {
-                    path: 'threads',
+                    path: `threads`,
                     Component: () => <SuspensePage Component={ProjectThreads} />,
                   },
                   {
-                    path: 'chat',
+                    path: `chat`,
                     Component: () => <SuspensePage Component={AgentChat} />,
                   },
                   {
@@ -213,11 +239,11 @@ export const Routes = createBrowserRouter([
                     Component: () => <SuspensePage Component={ProjectThreadChat} />,
                   },
                   {
-                    path: 'skills',
+                    path: `skills`,
                     Component: () => <SuspensePage Component={SkillsTab} />,
                   },
                   {
-                    path: 'schedules',
+                    path: `schedules`,
                     Component: () => <SuspensePage Component={SchedulesTab} />,
                   },
                 ],

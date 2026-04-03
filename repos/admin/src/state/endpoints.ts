@@ -20,6 +20,23 @@ export const projectEndpointsState = atom((get) => {
   return projectId ? get(endpointsState)?.[projectId] : undefined
 })
 
+// Derived: active endpoint (searches all scopes)
+export const activeEndpointState = atom((get) => {
+  const endpointId = get(activeEndpointIdState)
+  if (!endpointId) return undefined
+
+  const all = get(endpointsState)
+  if (!all) return undefined
+
+  for (const scope of Object.values(all)) {
+    if (scope?.[endpointId]) return scope[endpointId]
+  }
+
+  return undefined
+})
+
+export const endpointTabsDisabledState = atomWithReset(false)
+
 export const faasFormState = atomWithReset<TFaasFormState>(DefFaasState)
 export const proxyFormState = atomWithReset<TProxyFormState>(DefProxyState)
 export const agentFormState = atomWithReset<TAgentFormState>(DefAgentState)

@@ -1,25 +1,29 @@
 import type { Endpoint } from '@tdsk/domain'
 
+import { ERoutePath } from '@TAF/types'
 import { ife } from '@keg-hub/jsutils/ife'
-import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
+import { useCallback, useEffect, useState } from 'react'
+import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
+import { setActiveEndpointId } from '@TAF/state/accessors'
 import { fetchEndpoints } from '@TAF/actions/endpoints/api/fetchEndpoints'
 import { deleteEndpoint } from '@TAF/actions/endpoints/api/deleteEndpoint'
 import { useEndpointFilter } from '@TAF/hooks/endpoints/useEndpointFilter'
 import {
-  useProjectEndpoints,
-  useActiveProjectId,
   useActiveOrgId,
+  useActiveProjectId,
+  useProjectEndpoints,
 } from '@TAF/state/selectors'
 
 export const useEndpoints = () => {
   const [endpoints] = useProjectEndpoints()
   const [orgId] = useActiveOrgId()
+  const navigate = useNavigate()
   const [query, setQuery] = useState(``)
   const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(true)
   const [deleteError, setDeleteError] = useState(``)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [endpoint, setEndpoint] = useState<Endpoint | null>(null)
+  const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
 
   useEffect(() => {
     if (!orgId || !projectId) return
@@ -51,36 +55,42 @@ export const useEndpoints = () => {
   }
 
   const onCreate = () => {
-    setEndpoint(null)
-    setDialogOpen(true)
+    setCreateDrawerOpen(true)
   }
 
-  const onEdit = (endpoint: Endpoint) => {
-    setEndpoint(endpoint)
-    setDialogOpen(true)
-  }
+  const onNavigate = useCallback(
+    (endpoint: Endpoint) => {
+      setActiveEndpointId(endpoint.id)
+      const path = buildNavRoute(
+        { orgId, projectId, endpointId: endpoint.id },
+        ERoutePath.ProjectEndpoint
+      )
+      navigate(path)
+    },
+    [navigate, orgId, projectId]
+  )
 
-  const onDialogClose = () => {
-    setDialogOpen(false)
-    setEndpoint(null)
+  const onCreateDrawerClose = () => {
+    setCreateDrawerOpen(false)
   }
 
   return {
     orgId,
     query,
     count,
-    onEdit,
     loading,
+    navigate,
     setQuery,
     onDelete,
-    endpoint,
     onCreate,
     projectId,
-    dialogOpen,
+    onNavigate,
     deleteError,
     methodFilter,
-    onDialogClose,
+    createDrawerOpen,
     setMethodFilter,
+    onCreateDrawerClose,
+    setCreateDrawerOpen,
     visibilityFilter,
     setVisibilityFilter,
     endpoints: filtered,

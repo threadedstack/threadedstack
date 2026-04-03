@@ -60,25 +60,18 @@ test.describe.serial('CRUD Endpoints', () => {
     // Wait for drawer to close
     await waitForDrawerClose(page)
 
-    // Search for the endpoint in the table
-    await searchInPage(page, endpointName)
+    // After create, page navigates to the detail page
+    await page.waitForURL(/\/endpoints\/[^/]+$/, { timeout: 10_000 })
 
-    // Verify the endpoint appears in the DataTable
-    await expect(page.getByText(endpointName)).toBeVisible({ timeout: 10_000 })
+    // Extract endpoint ID from URL
+    const url = page.url()
+    const match = url.match(/\/endpoints\/([^/]+)$/)
+    if (match) endpointId = match[1]
 
-    // Get endpoint ID via API
-    const res = await apiRequest(
-      page,
-      'GET',
-      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints?limit=200`,
-      ctx.apiKey
-    )
-    const body = await res.json()
-    const arr: Record<string, unknown>[] = Array.isArray(body?.data)
-      ? body.data
-      : []
-    const found = arr.find((e) => e.name === endpointName)
-    if (found?.id) endpointId = found.id as string
+    // Verify the endpoint name is visible on the detail page header
+    await expect(page.locator('h1, h4').getByText(endpointName)).toBeVisible({
+      timeout: 10_000,
+    })
 
     expect(endpointId).toBeTruthy()
     expect(errors).toEqual([])
@@ -125,30 +118,39 @@ test.describe.serial('CRUD Endpoints', () => {
       PAGE_CLASS
     )
 
-    // Search and click the endpoint row to open edit drawer
+    // Search and click the endpoint row to navigate to detail page
     await searchInPage(page, endpointName)
     const nameCell = page
       .locator('.MuiTableBody-root')
       .getByText(endpointName)
     await nameCell.click()
 
-    // Wait for edit drawer to open
-    await expect(page.locator('.tdsk-drawer')).toBeVisible({ timeout: 5_000 })
+    // Wait for detail page to load
+    await page.waitForURL(/\/endpoints\/[^/]+$/, { timeout: 10_000 })
+    await page.locator('.tdsk-endpoint-layout-page').waitFor({ timeout: 10_000 })
 
-    // Update the name
-    await fillField(page, 'endpoint-name', updatedName)
+    // Update the name on the Endpoint tab
+    await expect(page.locator('#endpoint-name')).toBeVisible({ timeout: 5_000 })
+    await page.locator('#endpoint-name').fill('')
+    await page.locator('#endpoint-name').fill(updatedName)
 
-    // Submit
-    await submitForm(page, FORM_ID)
+    // Click Save button
+    await page.getByRole('button', { name: /Save/i }).click()
 
-    // Wait for drawer to close
-    await waitForDrawerClose(page)
+    // Verify the header updates with the new name
+    await expect(page.locator('h1, h4').getByText(updatedName)).toBeVisible({
+      timeout: 10_000,
+    })
 
-    // Search for updated name
-    await searchInPage(page, updatedName)
-
-    // Verify updated name appears
-    await expect(page.getByText(updatedName)).toBeVisible({ timeout: 10_000 })
+    // Verify the update persisted via API
+    const res = await apiRequest(
+      page,
+      'GET',
+      `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints/${endpointId}`,
+      ctx.apiKey
+    )
+    const body = await res.json()
+    expect(body?.data?.name).toBe(updatedName)
 
     expect(errors).toEqual([])
   })

@@ -90,8 +90,10 @@ export enum ERoutePath {
   Function = `functions`,
   ProjectFunction = `/orgs/:orgId/projects/:projectId/functions/:functionId`,
 
-  Endpoint = `endpoints`,
+  Endpoint = `endpoints/:endpointId`,
   ProjectEndpoint = `/orgs/:orgId/projects/:projectId/endpoints/:endpointId`,
+  ProjectEndpointConfig = `/orgs/:orgId/projects/:projectId/endpoints/:endpointId/config`,
+  ProjectEndpointTest = `/orgs/:orgId/projects/:projectId/endpoints/:endpointId/test`,
 
   // Catch-all
   Star = `*`,

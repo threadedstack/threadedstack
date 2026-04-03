@@ -17,10 +17,10 @@ import {
   useProjectSecrets,
   useProjectFunctions,
 } from '@TAF/state/selectors'
-import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { fetchProviders } from '@TAF/actions/providers'
 import { fetchFunctions } from '@TAF/actions/functions'
+import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { createEndpoint } from '@TAF/actions/endpoints/api/createEndpoint'
@@ -37,8 +37,8 @@ export type TEndpointDrawer = {
   orgId: string
   projectId: string
   onClose: () => void
-  onSuccess?: () => void
   endpoint?: Endpoint | null
+  onSuccess?: (endpoint?: Endpoint) => void
 }
 
 export const EndpointDrawer = (props: TEndpointDrawer) => {
@@ -228,8 +228,8 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
         : `Failed to create endpoint. Please try again.`
       setUiState({ ...uiState, error: result.error.message || errorMessage })
     } else {
+      onSuccessCB?.(result.data)
       onClose()
-      onSuccessCB?.()
     }
   }
 

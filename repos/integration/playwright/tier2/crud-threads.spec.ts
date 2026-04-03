@@ -116,7 +116,6 @@ test.describe.serial('CRUD Threads & Chat', () => {
 
     const threadsUrl = `/orgs/${ctx.orgId}/projects/${ctx.projectId}/agents/${ctx.agentId}/threads`
     await page.goto(threadsUrl)
-    await page.waitForLoadState('networkidle')
     await expect(page.getByRole('heading', { name: 'Threads' })).toBeVisible({ timeout: 15_000 })
 
     // Find the thread row and click the delete button (red/error icon)

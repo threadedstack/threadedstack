@@ -1,5 +1,11 @@
+import type { Endpoint } from '@tdsk/domain'
+
+import { useCallback } from 'react'
 import { Box } from '@mui/material'
+import { ERoutePath } from '@TAF/types'
 import { Add as AddIcon } from '@mui/icons-material'
+import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
+import { setActiveEndpointId } from '@TAF/state/accessors'
 import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
 import { useEndpoints } from '@TAF/hooks/endpoints/useEndpoints'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
@@ -16,21 +22,37 @@ export const Endpoints = (props: TEndpoints) => {
     orgId,
     count,
     query,
-    onEdit,
     loading,
     onDelete,
-    endpoint,
     setQuery,
     onCreate,
+    navigate,
     endpoints,
     projectId,
-    dialogOpen,
+    onNavigate,
     methodFilter,
-    onDialogClose,
     setMethodFilter,
     visibilityFilter,
+    createDrawerOpen,
+    setCreateDrawerOpen,
+    onCreateDrawerClose,
     setVisibilityFilter,
   } = useEndpoints()
+
+  const onCreateSuccess = useCallback(
+    (endpoint?: Endpoint) => {
+      setCreateDrawerOpen(false)
+      if (endpoint?.id) {
+        setActiveEndpointId(endpoint.id)
+        const path = buildNavRoute(
+          { orgId, projectId, endpointId: endpoint.id },
+          ERoutePath.ProjectEndpoint
+        )
+        navigate(path)
+      }
+    },
+    [navigate, orgId, projectId]
+  )
 
   return (
     <PageLayout
@@ -83,19 +105,20 @@ export const Endpoints = (props: TEndpoints) => {
 
       {!loading && endpoints.length > 0 && (
         <EndpointsTable
-          onEdit={onEdit}
           onDelete={onDelete}
           endpoints={endpoints}
+          onNavigate={onNavigate}
         />
       )}
 
       {orgId && projectId && (
         <EndpointDrawer
           orgId={orgId}
-          open={dialogOpen}
-          endpoint={endpoint}
+          endpoint={null}
           projectId={projectId}
-          onClose={onDialogClose}
+          open={createDrawerOpen}
+          onSuccess={onCreateSuccess}
+          onClose={onCreateDrawerClose}
         />
       )}
     </PageLayout>

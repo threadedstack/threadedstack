@@ -20,15 +20,7 @@ export const updateEndpoint: TEndpointConfig = {
     const { id } = req.params
     const { db } = req.app.locals
 
-    const {
-      name,
-      path,
-      type,
-      method,
-      headers = {},
-      options = {},
-      public: isPublic,
-    } = req.body
+    const { name, path, type, method, headers, options, public: isPublic } = req.body
 
     const existing = await requireResourceWithPermission(
       req,
@@ -56,12 +48,18 @@ export const updateEndpoint: TEndpointConfig = {
     // Validate options is an object if provided
     if (options && !isObj(options)) throw new Exception(400, `Options must be an object`)
 
-    // Type-specific validation when type or options change
-    if (options !== undefined || type !== undefined) {
+    // Type-specific validation when options change
+    // Skip validation when type changes without new options — the existing options
+    // belong to the old type and are expected to be invalid for the new type.
+    // The old options will be cleared when the user configures the new type.
+    const typeChanged = type !== undefined && type !== existing.type
+    if (options !== undefined) {
       const effectiveType = type || existing.type
-      const effectiveOptions = options !== undefined ? options : existing.options
       const service = getEPService(effectiveType)
-      if (effectiveOptions) service.validateOptions(effectiveOptions)
+      if (options) service.validateOptions(options)
+    } else if (!typeChanged && type !== undefined) {
+      const service = getEPService(type)
+      if (existing.options) service.validateOptions(existing.options)
     }
 
     const updateData = new Endpoint({ id, type: existing.type })
