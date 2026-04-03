@@ -19,7 +19,7 @@ describe(`EmailService`, () => {
       const config: TEmailConfig = {
         type: `resend`,
         from: `noreply@test.com`,
-        apiKey: `test-api-key`,
+        api: { key: `test-api-key`, host: `https://api.resend.com/emails` },
       }
 
       const service = new EmailService(config)
@@ -112,6 +112,7 @@ describe(`EmailService`, () => {
       // Mock template service to avoid file system dependencies in tests
       const mockRender = vi.spyOn(templates, `render`)
       mockRender.mockResolvedValueOnce(`<p>Invitation HTML</p>`)
+      mockRender.mockResolvedValueOnce(`Invitation Text`)
 
       const result = await service.invitation({
         email: `user@example.com`,
@@ -122,15 +123,18 @@ describe(`EmailService`, () => {
         expiresInDays: 7,
       })
 
-      expect(result).toBe(true)
-      expect(mockRender).toHaveBeenCalledWith(`invitation`, {
+      const expectedData = {
         email: `user@example.com`,
         orgName: `Test Org`,
         inviterName: `John Doe`,
         roleType: `Admin`,
         invitationUrl: `https://example.com/invite/123`,
         expiresInDays: 7,
-      })
+      }
+
+      expect(result).toBe(true)
+      expect(mockRender).toHaveBeenCalledWith(`invitation.html`, expectedData)
+      expect(mockRender).toHaveBeenCalledWith(`invitation.txt`, expectedData)
 
       mockRender.mockRestore()
     })
@@ -174,6 +178,7 @@ describe(`EmailService`, () => {
       // Mock template service to avoid file system dependencies in tests
       const mockRender = vi.spyOn(templates, `render`)
       mockRender.mockResolvedValueOnce(`<p>Notification HTML</p>`)
+      mockRender.mockResolvedValueOnce(`Notification Text`)
 
       const result = await service.sendMemberNotification({
         email: `user@example.com`,
@@ -183,14 +188,17 @@ describe(`EmailService`, () => {
         orgUrl: `https://example.com/org/123`,
       })
 
-      expect(result).toBe(true)
-      expect(mockRender).toHaveBeenCalledWith(`member-notification`, {
+      const expectedData = {
         email: `user@example.com`,
         orgName: `Test Org`,
         inviterName: `John Doe`,
         roleType: `Member`,
         orgUrl: `https://example.com/org/123`,
-      })
+      }
+
+      expect(result).toBe(true)
+      expect(mockRender).toHaveBeenCalledWith(`member-notification.html`, expectedData)
+      expect(mockRender).toHaveBeenCalledWith(`member-notification.txt`, expectedData)
 
       mockRender.mockRestore()
     })

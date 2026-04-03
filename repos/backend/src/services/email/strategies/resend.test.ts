@@ -16,9 +16,10 @@ describe(`ResendStrategy`, () => {
 
   beforeEach(() => {
     strategy = new ResendStrategy({
-      apiKey: `test-api-key`,
+      type: `resend`,
       from: `noreply@test.com`,
-      smtp: {
+      api: {
+        key: `test-api-key`,
         host: `https://api.resend.com/emails`,
       },
     } as TEmailConfig)

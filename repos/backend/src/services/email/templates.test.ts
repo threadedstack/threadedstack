@@ -21,7 +21,7 @@ describe(`TemplatesService`, () => {
 
   describe(`render`, () => {
     it(`should render a template with variables`, async () => {
-      const html = await service.render(`invitation`, {
+      const html = await service.render(`invitation.html`, {
         orgName: `Test Org`,
         inviterName: `John Doe`,
         roleType: `Admin`,
@@ -38,7 +38,7 @@ describe(`TemplatesService`, () => {
 
     it(`should cache compiled templates`, async () => {
       // First render
-      await service.render(`invitation`, {
+      await service.render(`invitation.html`, {
         orgName: `Test Org`,
         inviterName: `John Doe`,
         roleType: `Admin`,
@@ -48,10 +48,10 @@ describe(`TemplatesService`, () => {
 
       const stats = service.stats()
       expect(stats.size).toBe(1)
-      expect(stats.templates).toContain(`invitation`)
+      expect(stats.templates).toContain(`invitation.html`)
 
       // Second render should use cache
-      const html = await service.render(`invitation`, {
+      const html = await service.render(`invitation.html`, {
         orgName: `Different Org`,
         inviterName: `Jane Doe`,
         roleType: `Member`,
@@ -77,7 +77,7 @@ describe(`TemplatesService`, () => {
   describe(`reset`, () => {
     it(`should clear all cached templates`, async () => {
       // Render a template to populate cache
-      await service.render(`invitation`, {
+      await service.render(`invitation.html`, {
         orgName: `Test`,
         inviterName: `Test`,
         roleType: `Test`,
@@ -96,7 +96,7 @@ describe(`TemplatesService`, () => {
   describe(`remove`, () => {
     it(`should clear specific template from cache`, async () => {
       // Render two templates
-      await service.render(`invitation`, {
+      await service.render(`invitation.html`, {
         orgName: `Test`,
         inviterName: `Test`,
         roleType: `Test`,
@@ -104,7 +104,7 @@ describe(`TemplatesService`, () => {
         expiresInDays: 7,
       })
 
-      await service.render(`member-notification`, {
+      await service.render(`member-notification.html`, {
         email: `test@example.com`,
         orgName: `Test`,
         inviterName: `Test`,
@@ -114,12 +114,12 @@ describe(`TemplatesService`, () => {
 
       expect(service.stats().size).toBe(2)
 
-      service.remove(`invitation`)
+      service.remove(`invitation.html`)
 
       const stats = service.stats()
       expect(stats.size).toBe(1)
-      expect(stats.templates).not.toContain(`invitation`)
-      expect(stats.templates).toContain(`member-notification`)
+      expect(stats.templates).not.toContain(`invitation.html`)
+      expect(stats.templates).toContain(`member-notification.html`)
     })
   })
 
@@ -129,7 +129,7 @@ describe(`TemplatesService`, () => {
       expect(initialStats.size).toBe(0)
       expect(initialStats.templates).toEqual([])
 
-      await service.render(`invitation`, {
+      await service.render(`invitation.html`, {
         orgName: `Test`,
         inviterName: `Test`,
         roleType: `Test`,
@@ -139,7 +139,7 @@ describe(`TemplatesService`, () => {
 
       const stats = service.stats()
       expect(stats.size).toBe(1)
-      expect(stats.templates).toContain(`invitation`)
+      expect(stats.templates).toContain(`invitation.html`)
     })
   })
 })
