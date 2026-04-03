@@ -2,11 +2,10 @@ import type { ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { Page } from '@TAF/pages/Page/Page'
-import { listOrgUsers } from '@TAF/actions/users'
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
-import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
+import { revokeApiKey } from '@TAF/actions/apiKeys'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
@@ -28,7 +27,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
   const [apiKeys] = useApiKeys()
   const [orgId] = useActiveOrgId()
   const [orgUsersMap] = useOrgUsers()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<Error | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -44,28 +43,6 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
       email: u.email,
     }))
   }, [orgUsersMap, orgId])
-
-  // Load org users for the user selector in CreateApiKeyDrawer
-  useEffect(() => {
-    if (!orgId) return
-    listOrgUsers(orgId)
-  }, [orgId])
-
-  // Load org API keys
-  useEffect(() => {
-    const loadApiKeys = async () => {
-      if (!orgId) return
-
-      setLoading(true)
-      setError(null)
-
-      const result = await fetchApiKeys({ orgId })
-      result.error && setError(result.error)
-      setLoading(false)
-    }
-
-    loadApiKeys()
-  }, [orgId])
 
   const onCreateApiKey = () => {
     setCreateDialogOpen(true)

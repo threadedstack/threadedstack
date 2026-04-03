@@ -123,7 +123,8 @@ export const useOrgs = () => useRecState(orgsState)
 export const useOrgUsers = () => useRecState(orgUsersState)
 
 export const useActiveOrgId = () => useRecState(activeOrgIdState)
-export const useActiveOrgRole = () => useRecState(activeOrgRoleState)
+export const useActiveOrgRole = () =>
+  useDerivedState<string | undefined>(activeOrgRoleState)
 export const useActiveOrg = () => useDerivedState<Organization>(activeOrgState)
 
 export const useProjects = () => useRecState(projectsState)
@@ -133,7 +134,8 @@ export const useActiveProject = () => useDerivedState<Project>(activeProjectStat
 export const useSecrets = () => useRecState(secretsState)
 export const useActiveSecretId = () => useRecState(activeSecretIdState)
 
-export const useOrgSecrets = () => useRecState(orgSecretsState)
+export const useOrgSecrets = () =>
+  useDerivedState<Record<string, Secret>>(orgSecretsState)
 export const useActiveOrgSecretId = () => useRecState(activeOrgSecretIdState)
 
 export const useDomains = () => useRecState(domainsState)

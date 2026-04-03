@@ -1,12 +1,29 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createProvider } from './createProvider'
+import { query } from '@TAF/services/query'
 
 const mockUpsertProvider = vi.fn()
 const mockProvidersCreate = vi.fn()
 
+vi.mock('@TAF/services/query', () => ({
+  query: {
+    upsertListCache: vi.fn(),
+    removeFromListCache: vi.fn(),
+    updateDetailCache: vi.fn(),
+    client: {
+      removeQueries: vi.fn(),
+      invalidateQueries: vi.fn(),
+    },
+  },
+}))
+
 vi.mock('@TAF/services', () => ({
   providersApi: {
     create: (...args: any[]) => mockProvidersCreate(...args),
+    cache: {
+      list: vi.fn((...args: any[]) => ['providers', 'list', ...args]),
+      detail: vi.fn((...args: any[]) => ['providers', 'detail', ...args]),
+    },
   },
 }))
 
@@ -30,6 +47,7 @@ describe('createProvider', () => {
 
     expect(mockProvidersCreate).toHaveBeenCalledWith('org-1', { name: 'New Provider' })
     expect(mockUpsertProvider).toHaveBeenCalledWith(mockProvider)
+    expect(query.upsertListCache).toHaveBeenCalled()
     expect(result.data).toBeDefined()
     expect(result.data?.name).toBe('New Provider')
   })
@@ -46,5 +64,6 @@ describe('createProvider', () => {
 
     expect(result.error).toBeDefined()
     expect(mockUpsertProvider).not.toHaveBeenCalled()
+    expect(query.upsertListCache).not.toHaveBeenCalled()
   })
 })

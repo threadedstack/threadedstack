@@ -58,7 +58,6 @@ import {
 import {
   secretsState,
   activeSecretIdState,
-  orgSecretsState,
   activeOrgSecretIdState,
 } from '@TAF/state/secrets'
 import {
@@ -68,12 +67,7 @@ import {
   endpointsState,
   activeEndpointIdState,
 } from '@TAF/state/endpoints'
-import {
-  orgsState,
-  orgUsersState,
-  activeOrgIdState,
-  activeOrgRoleState,
-} from '@TAF/state/orgs'
+import { orgsState, orgUsersState, activeOrgIdState } from '@TAF/state/orgs'
 
 export const store = createStore()
 
@@ -112,10 +106,6 @@ export const getActiveOrgId = () => store.get(activeOrgIdState)
 export const resetActiveOrgId = () => store.set(activeOrgIdState, undefined)
 export const setActiveOrgId = (id: string) => store.set(activeOrgIdState, id)
 
-export const getActiveOrgRole = () => store.get(activeOrgRoleState)
-export const resetActiveOrgRole = () => store.set(activeOrgRoleState, undefined)
-export const setActiveOrgRole = (role: string) => store.set(activeOrgRoleState, role)
-
 export const getProjects = () => store.get(projectsState)
 export const resetProjects = () => store.set(projectsState, undefined)
 export const setProjects = (projects: Record<string, Project>) =>
@@ -144,10 +134,15 @@ export const getActiveSecretId = () => store.get(activeSecretIdState)
 export const resetActiveSecretId = () => store.set(activeSecretIdState, undefined)
 export const setActiveSecretId = (id: string) => store.set(activeSecretIdState, id)
 
-export const getOrgSecrets = () => store.get(orgSecretsState)
-export const resetOrgSecrets = () => store.set(orgSecretsState, undefined)
+export const getContextSecrets = (key: string) => getSecrets()?.[key]
+export const setContextSecrets = (key: string, secrets: Record<string, Secret>) => {
+  const all = getSecrets() || {}
+  setSecrets({ ...all, [key]: secrets })
+}
+
+export const getOrgSecrets = () => getContextSecrets('org')
 export const setOrgSecrets = (secrets: Record<string, Secret>) =>
-  store.set(orgSecretsState, secrets)
+  setContextSecrets('org', secrets)
 
 export const getActiveOrgSecretId = () => store.get(activeOrgSecretIdState)
 export const resetActiveOrgSecretId = () => store.set(activeOrgSecretIdState, undefined)

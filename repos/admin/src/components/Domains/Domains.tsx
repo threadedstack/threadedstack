@@ -2,8 +2,7 @@ import type { Domain } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { useProjectDomains, useOrgDomains } from '@TAF/state/selectors'
-import { fetchDomains } from '@TAF/actions/domains/api'
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
@@ -24,8 +23,6 @@ export type TDomains = {
 }
 
 export const Domains = ({ orgId, projectId }: TDomains) => {
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -35,19 +32,6 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
   const [projectDomains] = useProjectDomains()
   const [orgDomains] = useOrgDomains()
   const domains = isProjectContext ? projectDomains : orgDomains
-
-  const loadDomains = useCallback(async () => {
-    if (!orgId && !projectId) return
-    setLoading(true)
-    setError(null)
-    const result = await fetchDomains({ orgId, projectId })
-    if (result.error) setError(result.error)
-    setLoading(false)
-  }, [orgId, projectId])
-
-  useEffect(() => {
-    loadDomains()
-  }, [loadDomains])
 
   const onCreateDomain = () => {
     setSelectedDomain(null)
@@ -194,13 +178,10 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
       query={searchQuery}
       countLabel='domain'
       count={domainsCount}
-      error={error?.message}
-      loading={loading}
       setSearchQuery={setSearchQuery}
       onAction={domainsCount > 0 && onCreateDomain}
       actionLabel={domainsCount > 0 && 'Add Domain'}
       searchPlaceholder='Search domains by name or ID...'
-      setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
     >
       {domainsCount === 0 && (
         <EmptyState
@@ -231,7 +212,6 @@ export const Domains = ({ orgId, projectId }: TDomains) => {
           projectId={projectId}
           domain={selectedDomain}
           onClose={onDialogClose}
-          onSuccess={loadDomains}
         />
       )}
     </PageLayout>

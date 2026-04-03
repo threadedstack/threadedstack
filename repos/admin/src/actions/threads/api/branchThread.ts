@@ -1,5 +1,6 @@
 import { Message } from '@tdsk/domain'
 import { threadsApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { upsertThread } from '@TAF/actions/threads/local/upsertThread'
 import { upsertMessages } from '@TAF/actions/messages/local/upsertMessages'
 
@@ -18,6 +19,7 @@ export const branchThread = async (opts: TBranchThreadOpts) => {
 
   if (resp.data) {
     upsertThread(contextKey, resp.data)
+    query.upsertListCache(threadsApi.cache.list(agentId), resp.data)
     const messages = (resp.data as any).messages
     if (messages?.length) {
       upsertMessages(

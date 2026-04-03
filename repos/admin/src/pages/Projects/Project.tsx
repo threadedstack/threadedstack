@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
-import { fetchProject } from '@TAF/actions/projects/api/fetchProject'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
 import { ConfirmDelete, Drawer, TextInput, RobotOutlineIcon } from '@tdsk/components'
@@ -36,10 +35,6 @@ export const Project = (props: TProject) => {
   const [orgId] = useActiveOrgId()
   const [project] = useActiveProject()
   const [projectId] = useActiveProjectId()
-
-  useEffect(() => {
-    if (orgId && projectId) fetchProject({ orgId, id: projectId })
-  }, [orgId, projectId])
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)

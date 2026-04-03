@@ -1,8 +1,9 @@
 import type { User, TRoleType, ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getInitials } from '@TAF/utils/user/getInitials'
+import { useApiKeys } from '@TAF/state/selectors'
 import { RoleSelect } from '@TAF/components/Roles/RoleSelect'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { updateOrgRole } from '@TAF/actions/users/api/updateOrgRole'
@@ -77,8 +78,12 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
   const [roleError, setRoleError] = useState<string | null>(null)
   const [roleType, setRoleType] = useState<TRoleType>(user.role as TRoleType)
 
-  // API Keys tab state
-  const [keys, setKeys] = useState<ApiKey[]>([])
+  // API Keys tab state — derived from Jotai store, filtered by user
+  const [apiKeysMap] = useApiKeys()
+  const keys = useMemo(
+    () => Object.values(apiKeysMap || {}).filter((k) => k.userId === user.id),
+    [apiKeysMap, user.id]
+  )
   const [createOpen, setCreateOpen] = useState(false)
   const [keysLoading, setKeysLoading] = useState(false)
   const [revokeLoading, setRevokeLoading] = useState(false)
@@ -94,17 +99,16 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
     setRoleSuccess(false)
   }, [user])
 
-  // Load API keys
+  // Load API keys into Jotai store
   const loadKeys = useCallback(async () => {
     if (!open || !orgId || !user?.id) return
 
     setKeysLoading(true)
     setKeysError(null)
 
-    const resp = await fetchApiKeys({ orgId, userId: user.id, store: false })
+    const resp = await fetchApiKeys({ orgId, userId: user.id })
 
     if (resp.error) setKeysError(resp.error.message)
-    else setKeys(Object.values(resp.data || {}))
 
     setKeysLoading(false)
   }, [open, orgId, user?.id])

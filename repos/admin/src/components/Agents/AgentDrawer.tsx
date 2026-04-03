@@ -1,29 +1,27 @@
 import type { TKeyValuePair } from '@TAF/types'
 import type { TAiProviderOption } from '@TAF/types/agent.types'
-import type {
-  Agent,
-  Secret,
-  TWebProviderBrand,
-  TAgentProjectConfig,
-  Function as FunctionModel,
-} from '@tdsk/domain'
+import type { Agent, TWebProviderBrand, TAgentProjectConfig } from '@tdsk/domain'
 
-import { useState, useEffect } from 'react'
+import { EProvider } from '@tdsk/domain'
+import { useState, useEffect, useMemo } from 'react'
 import { Code } from '@TAF/components/Code'
 import { MonacoOptions } from '@TAF/constants/monaco'
-import { fetchProviders } from '@TAF/actions/providers'
-import { fetchFunctions } from '@TAF/actions/functions'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { createAgent } from '@TAF/actions/agents/api/createAgent'
 import { updateAgent } from '@TAF/actions/agents/api/updateAgent'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
-import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { upsertAgentConfig } from '@TAF/actions/agents/api/upsertAgentConfig'
 import { Autocomplete, Box, Stack, Divider, TextField, Typography } from '@mui/material'
+import {
+  useProviders,
+  useProjects,
+  useOrgSecrets,
+  useProjectSecrets,
+  useProjectFunctions,
+} from '@TAF/state/selectors'
 import {
   BasicInfoForm,
   ModelConfigForm,
@@ -57,15 +55,44 @@ export const AgentDrawer = (props: TAgentDrawer) => {
 
   const isOverrideMode = !!projectId && !!agent
 
+  // Jotai state selectors — replace local data-fetching useState+useEffect
+  const [providersMap] = useProviders()
+  const [projectsMap] = useProjects()
+  const [orgSecretsMap] = useOrgSecrets()
+  const [projectSecretsMap] = useProjectSecrets()
+  const [functionsMap] = useProjectFunctions()
+
+  const aiProviders = useMemo<TAiProviderOption[]>(() => {
+    if (!providersMap) return []
+    return Object.values(providersMap)
+      .filter((p) => p.type === EProvider.ai)
+      .map((p) => ({ id: p.id, name: p.name || p.id, brand: p.brand || '' }))
+  }, [providersMap])
+
+  const secretsList = useMemo(() => {
+    const orgArr = Object.values(orgSecretsMap || {})
+    const projArr = Object.values(projectSecretsMap || {})
+    const merged = [...orgArr, ...projArr].filter((s) => s.id)
+    const mergedIds = new Set(merged.map((s) => s.id))
+    const agentOnly = (agent?.secrets || []).filter((s) => s.id && !mergedIds.has(s.id))
+    return [...merged, ...agentOnly]
+  }, [orgSecretsMap, projectSecretsMap, agent])
+
+  const availableFunctions = useMemo(
+    () => Object.values(functionsMap || {}),
+    [functionsMap]
+  )
+
+  const orgProjects = useMemo(
+    () => Object.values(projectsMap || {}).map((p) => ({ id: p.id, name: p.name })),
+    [projectsMap]
+  )
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [secretsList, setSecretsList] = useState<Secret[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [aiProviders, setAiProviders] = useState<TAiProviderOption[]>([])
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
   const [selectedFunctionIds, setSelectedFunctionIds] = useState<string[]>([])
-  const [availableFunctions, setAvailableFunctions] = useState<FunctionModel[]>([])
-  const [orgProjects, setOrgProjects] = useState<Array<{ id: string; name: string }>>([])
 
   // Form state
   const [name, setName] = useState('')
@@ -82,85 +109,6 @@ export const AgentDrawer = (props: TAgentDrawer) => {
   const [providerModels, setProviderModels] = useState<Record<string, string>>({})
   const [webProviderType, setWebProviderType] = useState<TWebProviderBrand | ''>('')
   const [webProviderSecretId, setWebProviderSecretId] = useState<string>('')
-
-  // Load secrets and providers for the project
-  useEffect(() => {
-    const loadData = async () => {
-      // TODO: Secrets list should come form the jotai store
-      // Not from the action responses
-      // Load secrets - both org-level and project-level
-      const [orgSecretsResult, projectSecretsResult] = await Promise.all([
-        fetchSecrets({ orgId }),
-        fetchSecrets({ orgId, projectId }),
-      ])
-
-      if (orgSecretsResult.error)
-        console.warn(`[AgentDrawer] Failed to load org secrets:`, orgSecretsResult.error)
-      if (projectSecretsResult.error)
-        console.warn(
-          `[AgentDrawer] Failed to load project secrets:`,
-          projectSecretsResult.error
-        )
-
-      // Merge org + project secrets, then add agent's own secrets (dedup by ID)
-      const fetched = [
-        ...(orgSecretsResult.data || []),
-        ...(projectSecretsResult.data || []),
-      ].filter((s) => s.id)
-      const fetchedIds = new Set(fetched.map((s) => s.id))
-      const agentOnly = (agent?.secrets || []).filter(
-        (s) => s.id && !fetchedIds.has(s.id)
-      )
-      setSecretsList([...fetched, ...agentOnly])
-
-      // Load providers
-      const providersResult = await fetchProviders({ orgId })
-      if (providersResult.error)
-        console.warn(`[AgentDrawer] Failed to load providers:`, providersResult.error)
-      if (providersResult.data) {
-        const aiProvidersOnly = providersResult.data
-          .filter((p) => p.type === `ai`)
-          .map((p) => ({
-            id: p.id,
-            name: p.name || p.id,
-            brand: p.brand || '',
-          }))
-        setAiProviders(aiProvidersOnly)
-      }
-
-      // Load functions for the project or agent's first linked project
-      const effectiveProjectId = projectId || agent?.projects?.[0]?.id
-      if (effectiveProjectId) {
-        const functionsResult = await fetchFunctions({
-          orgId,
-          projectId: effectiveProjectId,
-        })
-        if (functionsResult?.error) {
-          setError(`Failed to load functions`)
-          console.warn(`[AgentDrawer] Failed to load functions:`, functionsResult.error)
-        }
-        functionsResult?.data && setAvailableFunctions(functionsResult.data)
-      }
-
-      // Load org projects for project assignment
-      const projectsResp = await fetchProjects({ orgId })
-      if (projectsResp?.error) {
-        setError(`Failed to load projects`)
-        console.warn(`[AgentDrawer] Failed to load projects:`, projectsResp.error)
-      }
-      projectsResp?.data &&
-        setOrgProjects(
-          Object.values(projectsResp.data).map((p) => ({ id: p.id, name: p.name }))
-        )
-    }
-
-    open &&
-      orgId &&
-      loadData().catch((err) => {
-        console.warn('[AgentDrawer] Unexpected error loading data:', err)
-        setError('Failed to load drawer data. Please close and try again.')
-      })
-  }, [open, orgId, projectId, agent])
 
   // Pre-populate form with agent data when drawer opens
   useEffect(() => {
@@ -184,20 +132,6 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       }
       setProviderModels(models)
 
-      // Seed aiProviders from agent data to avoid empty tag flash before async fetch
-      if (agent.providers?.length) {
-        setAiProviders((prev) =>
-          prev?.length
-            ? prev
-            : agent
-                .providers!.filter((p: any) => p.type === 'ai')
-                .map((p: any) => ({
-                  id: p.id,
-                  name: p.name || p.id,
-                  brand: p.brand || '',
-                }))
-        )
-      }
       setMaxTokens(agent.maxTokens || 100000)
       setSystemPrompt(agent.systemPrompt || '')
       setStreaming(agent.environment?.streaming ?? true)

@@ -1,4 +1,5 @@
 import { projectsApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { setProjects, getProjects } from '@TAF/state/accessors'
 
 export type TDeleteProjectOpts = {
@@ -24,6 +25,9 @@ export const deleteProject = async (
   const currentProjects = getProjects() || {}
   const { [id]: deleted, ...remainingProjects } = currentProjects
   setProjects(remainingProjects)
+
+  query.client.invalidateQueries({ queryKey: projectsApi.cache.list(orgId) })
+  query.client.removeQueries({ queryKey: projectsApi.cache.detail(id) })
 
   return { success: true }
 }

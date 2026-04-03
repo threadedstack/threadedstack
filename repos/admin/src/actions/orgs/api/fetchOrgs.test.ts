@@ -3,14 +3,10 @@ import { Organization } from '@tdsk/domain'
 import { fetchOrgs } from './fetchOrgs'
 
 const mockSetOrgs = vi.fn()
-const mockSetActiveOrgRole = vi.fn()
-const mockGetActiveOrgId = vi.fn()
 const mockOrgsList = vi.fn()
 
 vi.mock('@TAF/state/accessors', () => ({
   setOrgs: (...args: any[]) => mockSetOrgs(...args),
-  setActiveOrgRole: (...args: any[]) => mockSetActiveOrgRole(...args),
-  getActiveOrgId: () => mockGetActiveOrgId(),
 }))
 
 vi.mock('@TAF/services', () => ({
@@ -22,7 +18,6 @@ vi.mock('@TAF/services', () => ({
 describe('fetchOrgs', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetActiveOrgId.mockReturnValue(undefined)
   })
 
   it('should fetch orgs and update state', async () => {

@@ -17,9 +17,6 @@ import {
   useProjectSecrets,
   useProjectFunctions,
 } from '@TAF/state/selectors'
-import { fetchProviders } from '@TAF/actions/providers'
-import { fetchFunctions } from '@TAF/actions/functions'
-import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
@@ -101,14 +98,6 @@ export const EndpointDrawer = (props: TEndpointDrawer) => {
     setUiState({ loading: false, error: null, showDeleteConfirm: false })
     setActiveTab(`configure`)
   }, [endpoint])
-
-  useEffect(() => {
-    if (open && orgId && projectId) {
-      fetchFunctions({ orgId, projectId })
-      fetchAgents({ orgId, projectId })
-      fetchProviders({ orgId })
-    }
-  }, [open, orgId, projectId])
 
   const onSharedStateChange = (updates: Partial<typeof sharedState>) => {
     setSharedState((prev) => ({ ...prev, ...updates }))

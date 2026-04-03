@@ -1,6 +1,5 @@
 import type { TKeyValuePair } from '@TAF/types'
 import type {
-  Secret,
   TProto,
   Sandbox,
   TPortConfig,
@@ -9,12 +8,12 @@ import type {
 } from '@tdsk/domain'
 
 import { ESecretMode } from '@tdsk/domain'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useOrgSecrets } from '@TAF/state/selectors'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { createSecret } from '@TAF/actions/secrets/api/createSecret'
-import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { createSandbox, updateSandbox } from '@TAF/actions/sandboxes'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
@@ -85,8 +84,9 @@ export const SandboxDrawer = ({
   const [envVars, setEnvVars] = useState<TKeyValuePair[]>([])
   const [ports, setPorts] = useState<TKeyValuePair[]>([])
 
-  // Secrets data
-  const [orgSecrets, setOrgSecrets] = useState<Secret[]>([])
+  // Jotai state — replace local orgSecrets fetch
+  const [orgSecretsMap] = useOrgSecrets()
+  const orgSecrets = useMemo(() => Object.values(orgSecretsMap || {}), [orgSecretsMap])
 
   // UI state
   const [loading, setLoading] = useState(false)
@@ -96,22 +96,6 @@ export const SandboxDrawer = ({
     value: s.id,
     label: s.name || s.hashKey || s.id,
   }))
-
-  const loadSecrets = useCallback(async () => {
-    if (!orgId) return
-
-    const resp = await fetchSecrets({ orgId })
-    if (resp.error) {
-      setError('Failed to load org secrets')
-      console.warn('[SandboxDrawer] Failed to load org secrets:', resp.error)
-    }
-    resp.data && setOrgSecrets(resp.data)
-  }, [orgId])
-
-  useEffect(() => {
-    if (!open) return
-    loadSecrets()
-  }, [open, loadSecrets])
 
   // Pre-populate form in edit mode
   useEffect(() => {

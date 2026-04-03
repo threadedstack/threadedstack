@@ -1,7 +1,7 @@
 import type { User } from '@tdsk/domain'
 
 import { Page } from '@TAF/pages/Page/Page'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useUser } from '@TAF/state/selectors'
 import { LoadingSpinner, ErrorAlert } from '@TAF/components'
 import { getInitials } from '@TAF/utils/user/getInitials'
@@ -18,10 +18,6 @@ export const Profile = (props: TProfile) => {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [localUser, setLocalUser] = useState<User>(user)
-
-  useEffect(() => {
-    user && !localUser && setLocalUser(user)
-  }, [user])
 
   const hasChanges =
     user?.first !== localUser?.first ||

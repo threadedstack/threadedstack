@@ -4,8 +4,12 @@ import { render, screen } from '@testing-library/react'
 const mockUpsertConfig = vi.fn().mockResolvedValue({ data: {} })
 
 vi.mock(`@TAF/state/selectors`, () => ({
-  useSecrets: () => [[]],
-  useOrgSecrets: () => [[]],
+  useSecrets: () => [{}],
+  useOrgSecrets: () => [{}],
+  useProviders: () => [{}],
+  useProjects: () => [{}],
+  useProjectSecrets: () => [{}],
+  useProjectFunctions: () => [{}],
 }))
 
 vi.mock(`@TAF/actions/providers`, () => ({

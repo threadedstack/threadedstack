@@ -3,13 +3,13 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import { ConfirmDelete } from '@tdsk/components'
 import { useSandboxes } from '@TAF/state/selectors'
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { SandboxDrawer } from '@TAF/components/Sandboxes/SandboxDrawer'
-import { fetchSandboxes, deleteSandbox } from '@TAF/actions/sandboxes'
+import { deleteSandbox } from '@TAF/actions/sandboxes'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   Add as AddIcon,
@@ -38,28 +38,12 @@ const styles = {
 
 export const Sandboxes = ({ orgId }: TSandboxes) => {
   const [sandboxes] = useSandboxes()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<Sandbox>()
   const [error, setError] = useState<Error | null>(null)
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null)
-
-  useEffect(() => {
-    const loadSandboxes = async () => {
-      if (!orgId) return
-
-      setLoading(true)
-      setError(null)
-
-      const result = await fetchSandboxes({ orgId })
-      result.error && setError(result.error)
-
-      setLoading(false)
-    }
-
-    loadSandboxes()
-  }, [orgId])
 
   const onCreateSandbox = () => {
     setSelectedSandbox(null)

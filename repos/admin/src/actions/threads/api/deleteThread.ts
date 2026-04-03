@@ -1,4 +1,5 @@
 import { threadsApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { removeThread } from '@TAF/actions/threads/local/removeThread'
 
 export const deleteThread = async (
@@ -11,5 +12,8 @@ export const deleteThread = async (
   if (resp.error) return { error: resp.error }
 
   removeThread(contextKey, id)
+  query.removeFromListCache(threadsApi.cache.list(agentId), id)
+  query.client.removeQueries({ queryKey: threadsApi.cache.detail(id) })
+
   return resp
 }

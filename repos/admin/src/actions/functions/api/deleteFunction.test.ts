@@ -1,12 +1,29 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { deleteFunction } from './deleteFunction'
+import { query } from '@TAF/services/query'
 
 const mockRemoveFunction = vi.fn()
 const mockFunctionsDelete = vi.fn()
 
+vi.mock('@TAF/services/query', () => ({
+  query: {
+    upsertListCache: vi.fn(),
+    removeFromListCache: vi.fn(),
+    updateDetailCache: vi.fn(),
+    client: {
+      removeQueries: vi.fn(),
+      invalidateQueries: vi.fn(),
+    },
+  },
+}))
+
 vi.mock('@TAF/services', () => ({
   functionsApi: {
     delete: (...args: any[]) => mockFunctionsDelete(...args),
+    cache: {
+      list: vi.fn((...args: any[]) => ['functions', 'list', ...args]),
+      detail: vi.fn((...args: any[]) => ['functions', 'detail', ...args]),
+    },
   },
 }))
 
@@ -30,6 +47,8 @@ describe('deleteFunction', () => {
 
     expect(mockFunctionsDelete).toHaveBeenCalledWith('org-1', 'proj-1', 'fn-1')
     expect(mockRemoveFunction).toHaveBeenCalledWith('proj-1', 'fn-1')
+    expect(query.removeFromListCache).toHaveBeenCalled()
+    expect(query.client.removeQueries).toHaveBeenCalled()
     expect(result).toEqual({ success: true })
   })
 
@@ -45,5 +64,7 @@ describe('deleteFunction', () => {
 
     expect(result).toEqual({ error })
     expect(mockRemoveFunction).not.toHaveBeenCalled()
+    expect(query.removeFromListCache).not.toHaveBeenCalled()
+    expect(query.client.removeQueries).not.toHaveBeenCalled()
   })
 })

@@ -1,12 +1,29 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { updateFunction } from './updateFunction'
+import { query } from '@TAF/services/query'
 
 const mockUpsertFunction = vi.fn()
 const mockFunctionsUpdate = vi.fn()
 
+vi.mock('@TAF/services/query', () => ({
+  query: {
+    upsertListCache: vi.fn(),
+    removeFromListCache: vi.fn(),
+    updateDetailCache: vi.fn(),
+    client: {
+      removeQueries: vi.fn(),
+      invalidateQueries: vi.fn(),
+    },
+  },
+}))
+
 vi.mock('@TAF/services', () => ({
   functionsApi: {
     update: (...args: any[]) => mockFunctionsUpdate(...args),
+    cache: {
+      list: vi.fn((...args: any[]) => ['functions', 'list', ...args]),
+      detail: vi.fn((...args: any[]) => ['functions', 'detail', ...args]),
+    },
   },
 }))
 
@@ -35,6 +52,8 @@ describe('updateFunction', () => {
       name: 'Updated Function',
     })
     expect(mockUpsertFunction).toHaveBeenCalledWith('proj-1', mockData)
+    expect(query.upsertListCache).toHaveBeenCalled()
+    expect(query.updateDetailCache).toHaveBeenCalled()
     expect(result).toEqual(resp)
   })
 
@@ -51,5 +70,7 @@ describe('updateFunction', () => {
 
     expect(result).toEqual({ error })
     expect(mockUpsertFunction).not.toHaveBeenCalled()
+    expect(query.upsertListCache).not.toHaveBeenCalled()
+    expect(query.updateDetailCache).not.toHaveBeenCalled()
   })
 })

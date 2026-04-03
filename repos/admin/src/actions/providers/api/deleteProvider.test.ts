@@ -1,12 +1,29 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { deleteProvider } from './deleteProvider'
+import { query } from '@TAF/services/query'
 
 const mockRemoveProvider = vi.fn()
 const mockProvidersDelete = vi.fn()
 
+vi.mock('@TAF/services/query', () => ({
+  query: {
+    upsertListCache: vi.fn(),
+    removeFromListCache: vi.fn(),
+    updateDetailCache: vi.fn(),
+    client: {
+      removeQueries: vi.fn(),
+      invalidateQueries: vi.fn(),
+    },
+  },
+}))
+
 vi.mock('@TAF/services', () => ({
   providersApi: {
     delete: (...args: any[]) => mockProvidersDelete(...args),
+    cache: {
+      list: vi.fn((...args: any[]) => ['providers', 'list', ...args]),
+      detail: vi.fn((...args: any[]) => ['providers', 'detail', ...args]),
+    },
   },
 }))
 
@@ -26,6 +43,8 @@ describe('deleteProvider', () => {
 
     expect(mockProvidersDelete).toHaveBeenCalledWith('org-1', 'p1')
     expect(mockRemoveProvider).toHaveBeenCalledWith('p1')
+    expect(query.removeFromListCache).toHaveBeenCalled()
+    expect(query.client.removeQueries).toHaveBeenCalled()
     expect(result).toEqual({ success: true })
   })
 
@@ -38,5 +57,7 @@ describe('deleteProvider', () => {
 
     expect(result.error).toBeDefined()
     expect(mockRemoveProvider).not.toHaveBeenCalled()
+    expect(query.removeFromListCache).not.toHaveBeenCalled()
+    expect(query.client.removeQueries).not.toHaveBeenCalled()
   })
 })

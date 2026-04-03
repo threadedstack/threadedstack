@@ -13,12 +13,10 @@ import { ParamsEditor } from '@TAF/components/ParamsEditor'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { AgentSection } from '@TAF/components/Agents/AgentSection'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { FaasEndpoint } from '@TAF/components/Endpoints/Faas/EndpointFass'
 import { updateEndpoint } from '@TAF/actions/endpoints/api/updateEndpoint'
 import { updateFunction } from '@TAF/actions/functions/api/updateFunction'
-import { fetchFunctions } from '@TAF/actions/functions/api/fetchFunctions'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
 import { useUnsavedChangesGuard } from '@TAF/hooks/endpoints/useUnsavedChangesGuard'
 import {
@@ -190,14 +188,6 @@ export const FaasConfigTab = () => {
   }, [isDirty, selectedFunction, funcName, funcLanguage, funcDescription, funcContent])
 
   const { showDialog, onConfirmLeave, onCancelLeave } = useUnsavedChangesGuard(hasChanges)
-
-  // Fetch secrets and functions on mount
-  useEffect(() => {
-    if (orgId && projectId) {
-      fetchSecrets({ orgId, projectId })
-      fetchFunctions({ orgId, projectId })
-    }
-  }, [orgId, projectId])
 
   // Initialize function editor state when a function is selected
   useEffect(() => {

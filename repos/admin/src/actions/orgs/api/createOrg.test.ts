@@ -1,21 +1,36 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Organization } from '@tdsk/domain'
 import { createOrg } from './createOrg'
+import { query } from '@TAF/services/query'
 
 const mockSetOrgs = vi.fn()
 const mockGetOrgs = vi.fn()
-const mockSetActiveOrgRole = vi.fn()
 const mockOrgsCreate = vi.fn()
+
+vi.mock('@TAF/services/query', () => ({
+  query: {
+    upsertListCache: vi.fn(),
+    removeFromListCache: vi.fn(),
+    updateDetailCache: vi.fn(),
+    client: {
+      removeQueries: vi.fn(),
+      invalidateQueries: vi.fn(),
+    },
+  },
+}))
 
 vi.mock('@TAF/state/accessors', () => ({
   setOrgs: (...args: any[]) => mockSetOrgs(...args),
   getOrgs: () => mockGetOrgs(),
-  setActiveOrgRole: (...args: any[]) => mockSetActiveOrgRole(...args),
 }))
 
 vi.mock('@TAF/services', () => ({
   orgsApi: {
     create: (data: any) => mockOrgsCreate(data),
+    cache: {
+      list: vi.fn((...args: any[]) => ['orgs', 'list', ...args]),
+      detail: vi.fn((...args: any[]) => ['orgs', 'detail', ...args]),
+    },
   },
 }))
 
@@ -44,6 +59,7 @@ describe('createOrg', () => {
       description: 'A new org',
     })
     expect(mockSetOrgs).toHaveBeenCalled()
+    expect(query.client.invalidateQueries).toHaveBeenCalled()
     expect(result.org).toBeDefined()
     expect(result.org?.name).toBe('New Org')
   })
@@ -59,5 +75,6 @@ describe('createOrg', () => {
 
     expect(result.error).toBeDefined()
     expect(mockSetOrgs).not.toHaveBeenCalled()
+    expect(query.client.invalidateQueries).not.toHaveBeenCalled()
   })
 })

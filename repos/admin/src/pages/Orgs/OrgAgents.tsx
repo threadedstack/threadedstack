@@ -4,15 +4,13 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import { Page } from '@TAF/pages/Page/Page'
 import { ConfirmDelete } from '@tdsk/components'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
-import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
-import { fetchProviders } from '@TAF/actions/providers'
 import { useActiveOrgId, useOrgAgents, useProviders } from '@TAF/state/selectors'
 import { Box, Chip, Typography } from '@mui/material'
 import {
@@ -34,12 +32,6 @@ export const OrgAgents = (props: TOrgAgents) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null)
-
-  useEffect(() => {
-    if (!orgId) return
-    fetchAgents({ orgId })
-    fetchProviders({ orgId })
-  }, [orgId])
 
   const getProviderName = (providerId: string) => {
     if (!providers || !providerId) return '-'

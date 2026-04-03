@@ -2,11 +2,10 @@ import type { ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { Page } from '@TAF/pages/Page/Page'
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
-import { listProjectMembers } from '@TAF/actions/projectMembers'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
-import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
+import { revokeApiKey } from '@TAF/actions/apiKeys'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
@@ -33,7 +32,7 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
   const [apiKeys] = useApiKeys()
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [projectMembersMap] = useProjectMembers()
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<Error | null>(null)
@@ -54,32 +53,6 @@ export const ProjectApiKeys = (props: TProjectApiKeys) => {
       email: role.user?.email,
     }))
   }, [projectMembersMap, projectId])
-
-  // Fetch project members into Jotai state for the user selector
-  useEffect(() => {
-    if (!orgId || !projectId) return
-    const loadMembers = async () => {
-      const resp = await listProjectMembers({ orgId, projectId })
-      if (resp.error) setError(resp.error)
-    }
-    loadMembers()
-  }, [orgId, projectId])
-
-  // Load project-scoped API keys
-  useEffect(() => {
-    const loadApiKeys = async () => {
-      if (!orgId || !projectId) return
-
-      setLoading(true)
-      setError(null)
-
-      const result = await fetchApiKeys({ orgId, projectId })
-      result.error && setError(result.error)
-      setLoading(false)
-    }
-
-    loadApiKeys()
-  }, [orgId, projectId])
 
   const onCreateApiKey = () => {
     setCreateDialogOpen(true)

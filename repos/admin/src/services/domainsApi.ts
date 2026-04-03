@@ -15,7 +15,7 @@ import { BaseApi } from '@TAF/services/api'
 export class DomainsApi extends BaseApi {
   cache: TApiCacheKeys = {
     all: () => [`domains`] as const,
-    list: () => [...this.cache.all(), `list`] as const,
+    list: (...scope: string[]) => [...this.cache.all(), `list`, ...scope] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
@@ -42,7 +42,7 @@ export class DomainsApi extends BaseApi {
     const resp = await this.api.get<Domain[]>({
       data: rest,
       path: this.#path(orgId, projectId),
-      queryKey: queryKey || this.cache.list(),
+      queryKey: queryKey || this.cache.list(orgId, projectId || `org`),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load Domains list`))

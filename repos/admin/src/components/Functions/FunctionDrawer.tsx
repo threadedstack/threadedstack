@@ -8,7 +8,6 @@ import { EFunLanguage } from '@tdsk/domain'
 import { Code } from '@TAF/components/Code/Code'
 import { LanguageOpts } from '@TAF/constants/values'
 import { useState, useEffect, useMemo } from 'react'
-import { fetchEndpoints } from '@TAF/actions/endpoints'
 import { ParamsEditor } from '@TAF/components/ParamsEditor'
 import { projectEndpointsState } from '@TAF/state/endpoints'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
@@ -56,11 +55,6 @@ export const FunctionDrawer = ({
   const [content, setContent] = useState(func?.content || `\n\n\n\n\n\n`)
   const [dependencyPairs, setDependencyPairs] = useState<TKeyValuePair[]>([])
   const [language, setLanguage] = useState(func?.language || EFunLanguage.typescript)
-
-  // Fetch endpoints when the drawer opens
-  useEffect(() => {
-    open && orgId && projectId && fetchEndpoints({ orgId, projectId })
-  }, [open, orgId, projectId])
 
   // Create endpoint options for the selector
   const endpointOptions = useMemo(() => {

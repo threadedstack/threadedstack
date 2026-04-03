@@ -3,14 +3,13 @@ import type { TDataTableColumn } from '@TAF/components'
 
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { ConfirmDelete, Text } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { SkillDrawer } from '@TAF/components/Skills/SkillDrawer'
 import { useSkills } from '@TAF/state/selectors'
-import { fetchSkills } from '@TAF/actions/skills/api/fetchSkills'
 import { deleteSkill } from '@TAF/actions/skills/api/deleteSkill'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
@@ -50,18 +49,6 @@ export const Skills = (props: TSkills) => {
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error>()
-
-  useEffect(() => {
-    if (!orgId) return
-
-    setLoading(true)
-    fetchSkills(orgId).then((resp) => {
-      setLoading(false)
-      if (resp.error) {
-        setError(resp.error instanceof Error ? resp.error : new Error(String(resp.error)))
-      }
-    })
-  }, [orgId])
 
   const onCreateSkill = () => {
     setSelectedSkill(null)

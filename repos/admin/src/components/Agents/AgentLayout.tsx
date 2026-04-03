@@ -1,24 +1,16 @@
 import type { TAgentDetailTab } from '@TAF/types'
 
 import { toast } from 'sonner'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { EAgentDetailTab } from '@TAF/types'
 import { Button, ConfirmDelete } from '@tdsk/components'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
-import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { Outlet, useParams, useNavigate, useLocation } from 'react-router'
 import { AgentBreadcrumbs } from '@TAF/components/Agents/AgentBreadcrumbs'
 import { Box, Tab, Tabs, Card, Chip, Typography, CardContent } from '@mui/material'
-import {
-  useActiveOrgId,
-  useActiveAgent,
-  useActiveAgentId,
-  useProjectAgents,
-  useActiveThreadId,
-  useActiveProjectId,
-} from '@TAF/state/selectors'
+import { useActiveOrgId, useActiveAgent, useActiveProjectId } from '@TAF/state/selectors'
 import {
   Edit as EditIcon,
   Chat as ChatIcon,
@@ -32,30 +24,11 @@ export const AgentLayout = () => {
   const location = useLocation()
   const { agentId, threadId } = useParams<{ agentId: string; threadId: string }>()
 
-  const [agents] = useProjectAgents()
   const [orgId] = useActiveOrgId()
   const [agent] = useActiveAgent()
-  const [, setActiveAgentId] = useActiveAgentId()
   const [projectId] = useActiveProjectId()
-  const [, setActiveThreadId] = useActiveThreadId()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
-  // TODO: this should not be needed, should never need to useEffect to set jotai state
-  // Should always come from actions, or initial jotai state load on page refresh
-  // Sync URL params to Jotai state (fixes caching bug)
-  useEffect(() => {
-    if (agentId) setActiveAgentId(agentId)
-  }, [agentId])
-
-  useEffect(() => {
-    if (threadId) setActiveThreadId(threadId)
-  }, [threadId])
-
-  // Fetch agents if not loaded
-  useEffect(() => {
-    if (orgId && projectId && !agents) fetchAgents({ orgId, projectId })
-  }, [orgId, projectId, agents])
 
   const agentsPath = `/orgs/${orgId}/projects/${projectId}/agents`
   const agentPath = `${agentsPath}/${agentId}`

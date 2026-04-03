@@ -13,7 +13,7 @@ import { BaseApi } from '@TAF/services/api'
 export class SchedulesApi extends BaseApi {
   cache: TApiCacheKeys = {
     all: () => [`schedules`] as const,
-    list: () => [...this.cache.all(), `list`] as const,
+    list: (...scope: string[]) => [...this.cache.all(), `list`, ...scope] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
@@ -33,7 +33,7 @@ export class SchedulesApi extends BaseApi {
     const resp = await this.api.get<Schedule[]>({
       data: rest,
       path: this.#path(orgId),
-      queryKey: queryKey || this.cache.list(),
+      queryKey: queryKey || this.cache.list(orgId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load Schedules list`))

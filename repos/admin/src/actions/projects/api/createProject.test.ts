@@ -1,10 +1,23 @@
 import { Project } from '@tdsk/domain'
 import { createProject } from './createProject'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { query } from '@TAF/services/query'
 
 const mockSetProjects = vi.fn()
 const mockGetProjects = vi.fn()
 const mockProjectsCreate = vi.fn()
+
+vi.mock('@TAF/services/query', () => ({
+  query: {
+    upsertListCache: vi.fn(),
+    removeFromListCache: vi.fn(),
+    updateDetailCache: vi.fn(),
+    client: {
+      removeQueries: vi.fn(),
+      invalidateQueries: vi.fn(),
+    },
+  },
+}))
 
 vi.mock(`@TAF/state/accessors`, () => ({
   setProjects: (...args: any[]) => mockSetProjects(...args),
@@ -14,6 +27,10 @@ vi.mock(`@TAF/state/accessors`, () => ({
 vi.mock(`@TAF/services`, () => ({
   projectsApi: {
     create: (orgId: string, data: any) => mockProjectsCreate(orgId, data),
+    cache: {
+      list: vi.fn((...args: any[]) => ['projects', 'list', ...args]),
+      detail: vi.fn((...args: any[]) => ['projects', 'detail', ...args]),
+    },
   },
 }))
 
@@ -47,6 +64,7 @@ describe(`createProject`, () => {
       gitUrl: `https://github.com/test/project.git`,
     })
     expect(mockSetProjects).toHaveBeenCalled()
+    expect(query.client.invalidateQueries).toHaveBeenCalled()
     expect(result.data).toBeDefined()
     expect(result.data?.name).toBe(`Test Project`)
   })
@@ -63,5 +81,6 @@ describe(`createProject`, () => {
 
     expect(result.error).toBeDefined()
     expect(mockSetProjects).not.toHaveBeenCalled()
+    expect(query.client.invalidateQueries).not.toHaveBeenCalled()
   })
 })

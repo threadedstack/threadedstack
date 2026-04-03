@@ -1,8 +1,8 @@
 import type { Organization } from '@tdsk/domain'
 
 import { orgsApi } from '@TAF/services'
-import { ERoleType } from '@tdsk/domain'
-import { setOrgs, getOrgs, setActiveOrgRole } from '@TAF/state/accessors'
+import { query } from '@TAF/services/query'
+import { setOrgs, getOrgs } from '@TAF/state/accessors'
 
 export type TCreateOrgInput = {
   name: string
@@ -20,12 +20,9 @@ export const createOrg = async (input: TCreateOrgInput): Promise<TCreateOrgResul
   if (resp.error) return { error: resp.error }
 
   if (resp.data) {
-    // Update orgs state with the new org
     const currentOrgs = getOrgs() || {}
     setOrgs({ ...currentOrgs, [resp.data.id]: resp.data })
-
-    // Set the active org role to 'owner' since the creator is automatically made owner
-    setActiveOrgRole(ERoleType.owner)
+    query.client.invalidateQueries({ queryKey: orgsApi.cache.list() })
   }
 
   return { org: resp.data }

@@ -1,5 +1,6 @@
 import type { Thread } from '@tdsk/domain'
 import { threadsApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { upsertThread } from '@TAF/actions/threads/local/upsertThread'
 
 export const createThread = async (
@@ -12,6 +13,7 @@ export const createThread = async (
   if (resp.error) return { error: resp.error }
 
   resp.data && upsertThread(contextKey, resp.data)
+  resp.data && query.upsertListCache(threadsApi.cache.list(agentId), resp.data)
 
   return resp
 }

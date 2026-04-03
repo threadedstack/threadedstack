@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Box } from '@mui/material'
 import { Outlet } from 'react-router'
 import { styled } from '@mui/material/styles'
@@ -7,8 +6,7 @@ import { Menu as MenuIcon } from '@mui/icons-material'
 import { HeaderSettingsItems } from '@TAF/constants/nav'
 import { Sidebar } from '@TAF/components/Sidebar/Sidebar'
 import { useTheme, useMediaQuery, IconButton } from '@mui/material'
-import { useActiveOrgId, useSidebarOpen } from '@TAF/state/selectors'
-import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
+import { useSidebarOpen } from '@TAF/state/selectors'
 import { SignedIn, RedirectToSignIn } from '@neondatabase/neon-js/auth/react'
 
 const LayoutContainer = styled(Box)(({ theme }) => {
@@ -49,13 +47,8 @@ const MobileToggle = styled(IconButton)(({ theme }) => {
 
 const Layout = (props: any) => {
   const theme = useTheme()
-  const [orgId] = useActiveOrgId()
   const [, setSidebarOpen] = useSidebarOpen()
   const isMobile = useMediaQuery(theme.breakpoints.down(`md`))
-
-  useEffect(() => {
-    orgId && fetchProjects({ orgId }).catch(() => {})
-  }, [orgId])
 
   return (
     <>

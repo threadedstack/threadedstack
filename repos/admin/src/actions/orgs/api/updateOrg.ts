@@ -1,6 +1,7 @@
 import type { Organization } from '@tdsk/domain'
 
 import { orgsApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { setOrgs, getOrgs } from '@TAF/state/accessors'
 
 export type TUpdateOrgResult = {
@@ -19,6 +20,8 @@ export const updateOrg = async (
   if (resp.data) {
     const currentOrgs = getOrgs() || {}
     setOrgs({ ...currentOrgs, [resp.data.id]: resp.data })
+    query.client.invalidateQueries({ queryKey: orgsApi.cache.list() })
+    query.updateDetailCache(orgsApi.cache.detail(id), resp.data)
   }
 
   return { org: resp.data }

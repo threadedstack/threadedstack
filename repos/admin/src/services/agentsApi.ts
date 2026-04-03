@@ -18,7 +18,7 @@ import { apiUrl } from '@TAF/utils/api/apiUrl'
 export class AgentsApi extends BaseApi {
   cache: TApiCacheKeys = {
     all: () => [`agents`] as const,
-    list: () => [...this.cache.all(), `list`] as const,
+    list: (...scope: string[]) => [...this.cache.all(), `list`, ...scope] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
@@ -49,7 +49,7 @@ export class AgentsApi extends BaseApi {
     const resp = await this.api.get<Agent[]>({
       data: rest,
       path: this.#path(orgId, projectId),
-      queryKey: queryKey || this.cache.list(),
+      queryKey: queryKey || this.cache.list(orgId, projectId || `org`),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load Agents list`))

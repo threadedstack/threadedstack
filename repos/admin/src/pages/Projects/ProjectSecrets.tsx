@@ -9,10 +9,7 @@ export const ProjectSecrets = (props: TProjectSecrets) => {
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
 
-  const { error, loading, secrets, setError, setLoading } = useProjectSecrets({
-    orgId,
-    projectId,
-  })
+  const { error, loading, secrets, setError, setLoading } = useProjectSecrets()
 
   return (
     <Page className='tdsk-project-secrets-page'>

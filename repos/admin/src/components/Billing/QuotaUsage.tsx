@@ -1,6 +1,3 @@
-import { useEffect, useState } from 'react'
-import { LoadingSpinner } from '@TAF/components'
-import { fetchOrgQuota, fetchOrgLimits } from '@TAF/actions'
 import { useOrgQuota, useOrgLimits } from '@TAF/state/selectors'
 import {
   Box,
@@ -42,60 +39,10 @@ const getProgressColor = (percentage: number): 'success' | 'warning' | 'error' =
 }
 
 export const QuotaUsage = (props: TQuotaUsage) => {
-  const { orgId } = props
-
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { orgId: _orgId } = props
 
   const [usage] = useOrgQuota()
   const [limits] = useOrgLimits()
-
-  useEffect(() => {
-    const loadQuotaData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const [usageResp, limitsResp] = await Promise.all([
-          fetchOrgQuota(orgId),
-          fetchOrgLimits(orgId),
-        ])
-
-        if (usageResp.error) {
-          setError(usageResp.error.message)
-          return
-        }
-
-        if (limitsResp.error) {
-          setError(limitsResp.error.message)
-          return
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load quota data')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (orgId) {
-      loadQuotaData()
-    }
-  }, [orgId])
-
-  if (loading) {
-    return <LoadingSpinner />
-  }
-
-  if (error) {
-    return (
-      <Alert
-        severity='error'
-        sx={{ mb: 3 }}
-      >
-        {error}
-      </Alert>
-    )
-  }
 
   if (!usage || !limits) {
     return (

@@ -1,5 +1,6 @@
 import type { Domain } from '@tdsk/domain'
 import { domainsApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { upsertDomain } from '@TAF/actions/domains/local/upsertDomain'
 
 export type TCreateDomainOpts = {
@@ -15,6 +16,7 @@ export const createDomain = async (opts: TCreateDomainOpts) => {
   if (resp.error) return resp
   const contextKey = projectId || 'org'
   resp.data && upsertDomain(contextKey, resp.data)
+  resp.data && query.upsertListCache(domainsApi.cache.list(orgId, contextKey), resp.data)
 
   return resp
 }

@@ -3,13 +3,13 @@ import { atom } from 'jotai'
 import { atomWithReset } from 'jotai/utils'
 import { activeProjectIdState } from '@TAF/state/projects'
 
-// Keyed by projectId
+// Keyed by contextKey ('org' or projectId)
 export const secretsState =
   atomWithReset<Record<string, Record<string, Secret>>>(undefined)
 export const activeSecretIdState = atomWithReset<string>(undefined)
 
-// orgSecretsState stays flat — org-only, no project variant
-export const orgSecretsState = atomWithReset<Record<string, Secret>>(undefined)
+// Derived: org-level secrets (reads from secretsState under 'org' key)
+export const orgSecretsState = atom((get) => get(secretsState)?.['org'])
 export const activeOrgSecretIdState = atomWithReset<string>(undefined)
 
 // Derived: auto-filters to active project

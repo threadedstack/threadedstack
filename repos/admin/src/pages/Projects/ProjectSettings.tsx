@@ -1,10 +1,9 @@
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
 import { ConfirmDelete } from '@tdsk/components'
-import { useEffect, useState } from 'react'
-import { LoadingSpinner, ErrorAlert } from '@TAF/components'
+import { useState } from 'react'
+import { ErrorAlert } from '@TAF/components'
 import { useProjects } from '@TAF/state/selectors'
-import { fetchProject } from '@TAF/actions/projects/api/fetchProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
@@ -13,52 +12,26 @@ import { Box, Alert, Typography } from '@mui/material'
 
 export type TProjectSettings = {}
 
-// TODO: clean this up to work like Org settings
 export const ProjectSettings = (props: TProjectSettings) => {
   const navigate = useNavigate()
   const [projects] = useProjects()
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
+
+  const project = projects && projectId ? projects[projectId] : null
+
   const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  const [name, setName] = useState('')
-  const [gitUrl, setGitUrl] = useState('')
-  const [branch, setBranch] = useState('')
-  const [originalName, setOriginalName] = useState('')
-  const [originalGitUrl, setOriginalGitUrl] = useState('')
-  const [originalBranch, setOriginalBranch] = useState('')
+  const [name, setName] = useState(project?.name || '')
+  const [gitUrl, setGitUrl] = useState(project?.gitUrl || '')
+  const [branch, setBranch] = useState(project?.branch || '')
+  const [originalName, setOriginalName] = useState(project?.name || '')
+  const [originalGitUrl, setOriginalGitUrl] = useState(project?.gitUrl || '')
+  const [originalBranch, setOriginalBranch] = useState(project?.branch || '')
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!projectId) return
-
-      setLoading(true)
-      setError(null)
-
-      const resp = await fetchProject({ orgId, id: projectId })
-
-      if (resp.error) {
-        setError(resp.error.message)
-      } else if (resp.data) {
-        setName(resp.data.name || '')
-        setGitUrl(resp.data.gitUrl || '')
-        setBranch(resp.data.branch || '')
-        setOriginalName(resp.data.name || '')
-        setOriginalGitUrl(resp.data.gitUrl || '')
-        setOriginalBranch(resp.data.branch || '')
-      }
-
-      setLoading(false)
-    }
-    loadData()
-  }, [projectId])
-
-  const project = projects && projectId ? projects[projectId] : null
   const hasChanges =
     name !== originalName || gitUrl !== originalGitUrl || branch !== originalBranch
 
@@ -117,8 +90,6 @@ export const ProjectSettings = (props: TProjectSettings) => {
         </Typography>
       </Box>
 
-      {loading && <LoadingSpinner />}
-
       {error && (
         <ErrorAlert
           message={error}
@@ -136,7 +107,7 @@ export const ProjectSettings = (props: TProjectSettings) => {
         </Alert>
       )}
 
-      {!loading && project && (
+      {project && (
         <>
           <SettingsFormCard
             fields={[

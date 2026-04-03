@@ -9,14 +9,13 @@ import type {
 } from '@tdsk/domain'
 
 import { ESecretMode } from '@tdsk/domain'
-import { useProviders } from '@TAF/state/selectors'
+import { useProviders, useOrgSecrets } from '@TAF/state/selectors'
 import { ProviderTypes } from '@TAF/constants/providers'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { createSecret } from '@TAF/actions/secrets/api/createSecret'
-import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { createProvider, updateProvider } from '@TAF/actions/providers'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
@@ -73,7 +72,13 @@ export const ProviderDrawer = ({
   const [secretMode, setSecretMode] = useState<TSecretMode>(ESecretMode.none)
   const [apiKeyValue, setApiKeyValue] = useState(``)
   const [selectedSecretId, setSelectedSecretId] = useState(``)
-  const [orgSecrets, setOrgSecrets] = useState<Secret[]>([])
+
+  // Jotai state — replace local orgSecrets fetch
+  const [orgSecretsMap] = useOrgSecrets()
+  const orgSecrets = useMemo<Secret[]>(
+    () => Object.values(orgSecretsMap || {}),
+    [orgSecretsMap]
+  )
 
   const isAiType = type === EProvider.ai
   const template = isAiType && brand ? ProviderTemplates[brand] : undefined
@@ -92,18 +97,6 @@ export const ProviderDrawer = ({
     label: s.name || s.hashKey || s.id,
   }))
 
-  // Load org secrets for the select dropdown and headers autocomplete
-  const loadSecrets = useCallback(async () => {
-    if (!orgId) return
-
-    const resp = await fetchSecrets({ orgId })
-    if (resp.error) {
-      setError(`Failed to load org secrets`)
-      console.warn(`[ProviderDrawer] Failed to load org secrets:`, resp.error)
-    }
-    resp.data && setOrgSecrets(resp.data)
-  }, [orgId])
-
   // Load provider-linked secrets in edit mode
   const loadProviderSecrets = useCallback(async () => {
     if (!orgId || !provider?.id) return
@@ -119,9 +112,8 @@ export const ProviderDrawer = ({
   useEffect(() => {
     if (!open) return
 
-    loadSecrets()
     if (isEditMode) loadProviderSecrets()
-  }, [open, loadSecrets, isEditMode, loadProviderSecrets])
+  }, [open, isEditMode, loadProviderSecrets])
 
   // Pre-populate form
   useEffect(() => {

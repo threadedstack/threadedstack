@@ -8,7 +8,7 @@ export type TOrgSecrets = {}
 export const OrgSecrets = (props: TOrgSecrets) => {
   const [orgId] = useActiveOrgId()
 
-  const { error, loading, secrets, setError, setLoading } = useOrgSecrets({ orgId })
+  const { error, loading, secrets, setError, setLoading } = useOrgSecrets()
 
   return (
     <Page className='tdsk-org-secrets-page'>

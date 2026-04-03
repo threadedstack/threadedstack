@@ -14,7 +14,7 @@ import { BaseApi } from '@TAF/services/api'
 export class ProvidersApi extends BaseApi {
   cache: TApiCacheKeys = {
     all: () => [`providers`] as const,
-    list: () => [...this.cache.all(), `list`] as const,
+    list: (...scope: string[]) => [...this.cache.all(), `list`, ...scope] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
@@ -31,7 +31,7 @@ export class ProvidersApi extends BaseApi {
     const resp = await this.api.get<Provider[]>({
       data: rest,
       path: this.#path(orgId),
-      queryKey: queryKey || this.cache.list(),
+      queryKey: queryKey || this.cache.list(orgId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load Providers list`))

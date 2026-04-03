@@ -2,15 +2,13 @@ import type { Organization } from '@tdsk/domain'
 
 import { ERoutePath } from '@TAF/types'
 import { useNavigate } from 'react-router'
-import { ife } from '@keg-hub/jsutils/ife'
 import { Page } from '@TAF/pages/Page/Page'
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ConfirmDelete } from '@tdsk/components'
 import { Box, Alert, Typography } from '@mui/material'
-import { fetchOrg } from '@TAF/actions/orgs/api/fetchOrg'
 import { updateOrg } from '@TAF/actions/orgs/api/updateOrg'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
-import { LoadingSpinner, ErrorAlert } from '@TAF/components'
+import { ErrorAlert } from '@TAF/components'
 import { useActiveOrgId, useActiveOrg } from '@TAF/state/selectors'
 import { InfoCard, DangerZoneCard, SettingsFormCard } from '@TAF/components/Settings'
 
@@ -22,33 +20,14 @@ export const OrgSettings = (props: TOrgSettings) => {
   const [orgId] = useActiveOrgId()
 
   const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [localOrg, setLocalOrg] = useState<Organization>(org)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
-    localOrg !== org && setLocalOrg(org)
+    org && setLocalOrg(org)
   }, [org])
-
-  useEffect(() => {
-    !org &&
-      orgId &&
-      ife(async () => {
-        try {
-          setLoading(true)
-          setError(null)
-
-          const orgResult = await fetchOrg(orgId)
-          orgResult.error && setError(orgResult.error.message)
-        } catch (err) {
-          setError(err.message)
-        } finally {
-          setLoading(false)
-        }
-      })
-  }, [org, orgId])
 
   const hasChanges =
     org?.name !== localOrg?.name || org?.description !== localOrg?.description
@@ -100,8 +79,6 @@ export const OrgSettings = (props: TOrgSettings) => {
         </Typography>
       </Box>
 
-      {loading && <LoadingSpinner />}
-
       {error && (
         <ErrorAlert
           sx={{ mb: 3 }}
@@ -119,7 +96,7 @@ export const OrgSettings = (props: TOrgSettings) => {
         </Alert>
       )}
 
-      {!loading && org && (
+      {org && (
         <>
           <SettingsFormCard
             saving={saving}

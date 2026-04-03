@@ -1,4 +1,5 @@
 import { messagesApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { upsertMessage } from '@TAF/actions/messages/local/upsertMessage'
 
 export type TUpdateMessageOpts = {
@@ -14,6 +15,8 @@ export const updateMessage = async (opts: TUpdateMessageOpts) => {
   const resp = await messagesApi.update(orgId, agentId, threadId, messageId, data)
   if (resp.error) return { error: resp.error }
   resp.data && upsertMessage(threadId, resp.data)
+  resp.data && query.upsertListCache(messagesApi.cache.byThread(threadId), resp.data)
+  resp.data && query.updateDetailCache(messagesApi.cache.detail(messageId), resp.data)
 
   return resp
 }

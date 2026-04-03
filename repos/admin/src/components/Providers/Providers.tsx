@@ -1,11 +1,11 @@
 import type { Provider } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Box, Typography, Chip } from '@mui/material'
 import { useProviders } from '@TAF/state/selectors'
 import { ConfirmDelete } from '@tdsk/components'
-import { fetchProviders, deleteProvider } from '@TAF/actions/providers'
+import { deleteProvider } from '@TAF/actions/providers'
 import { ProviderDrawer } from '@TAF/components/Providers/ProviderDrawer'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
@@ -38,28 +38,12 @@ const styles = {
 
 export const Providers = ({ orgId }: TProviders) => {
   const [providers] = useProviders()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<Provider>()
   const [error, setError] = useState<Error | null>(null)
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
-
-  useEffect(() => {
-    const loadProviders = async () => {
-      if (!orgId) return
-
-      setLoading(true)
-      setError(null)
-
-      const result = await fetchProviders({ orgId })
-      result.error && setError(result.error)
-
-      setLoading(false)
-    }
-
-    loadProviders()
-  }, [orgId])
 
   const onCreateProvider = () => {
     setSelectedProvider(null)

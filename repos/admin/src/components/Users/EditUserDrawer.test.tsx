@@ -20,9 +20,12 @@ vi.mock(`@TAF/components/Orgs/CreateApiKeyDrawer`, () => ({
     open ? <div data-testid='create-drawer'>Create Drawer</div> : null,
 }))
 
+const mockApiKeysMap: Record<string, any> = {}
+
 vi.mock(`@TAF/state/selectors`, () => ({
   useUser: () => [{ id: `auth-user`, role: `admin` }],
   useActiveOrgId: () => [`org-1`],
+  useApiKeys: () => [mockApiKeysMap],
 }))
 
 vi.mock(`@tdsk/components`, () => ({
@@ -94,7 +97,8 @@ const defaultProps = {
 describe(`EditUserDrawer`, () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockFetchApiKeys.mockResolvedValue({ apiKeys: {}, error: undefined })
+    Object.keys(mockApiKeysMap).forEach((k) => delete mockApiKeysMap[k])
+    mockFetchApiKeys.mockResolvedValue({ data: {}, error: undefined })
     mockRevokeApiKey.mockResolvedValue({ success: true, error: undefined })
     mockUpdateOrgRole.mockResolvedValue({ error: null })
   })
@@ -133,10 +137,7 @@ describe(`EditUserDrawer`, () => {
   })
 
   it(`shows API keys table when keys exist`, async () => {
-    mockFetchApiKeys.mockResolvedValue({
-      data: { 'key-1': testKeys[0] },
-      error: undefined,
-    })
+    mockApiKeysMap['key-1'] = testKeys[0]
     render(<EditUserDrawer {...defaultProps} />)
 
     fireEvent.click(screen.getByText(`API Keys`))
@@ -153,7 +154,6 @@ describe(`EditUserDrawer`, () => {
       expect(mockFetchApiKeys).toHaveBeenCalledWith({
         orgId: `org-1`,
         userId: `user-1`,
-        store: false,
       })
     })
   })

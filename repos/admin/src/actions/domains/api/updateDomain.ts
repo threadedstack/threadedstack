@@ -1,5 +1,6 @@
 import type { Domain } from '@tdsk/domain'
 import { domainsApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { upsertDomain } from '@TAF/actions/domains/local/upsertDomain'
 
 export type TUpdateDomainOpts = {
@@ -16,6 +17,8 @@ export const updateDomain = async (opts: TUpdateDomainOpts) => {
   if (resp.error) return resp
   const contextKey = projectId || 'org'
   resp.data && upsertDomain(contextKey, resp.data)
+  resp.data && query.upsertListCache(domainsApi.cache.list(orgId, contextKey), resp.data)
+  resp.data && query.updateDetailCache(domainsApi.cache.detail(id), resp.data)
 
   return resp
 }

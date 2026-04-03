@@ -1,10 +1,9 @@
 import type { TEndpointDetailTab } from '@TAF/types'
 
 import { toast } from 'sonner'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { EEndpointDetailTab, ERoutePath } from '@TAF/types'
-import { EEndpointType } from '@tdsk/domain'
 import { Button, ConfirmDelete } from '@tdsk/components'
 import { capitalize } from '@keg-hub/jsutils/capitalize'
 import { getActiveTab } from '@TAF/utils/endpoints/getActiveTab'
@@ -12,16 +11,13 @@ import { EndpointDrawer } from '@TAF/components/Endpoints/EndpointDrawer'
 import { deleteEndpoint } from '@TAF/actions/endpoints/api/deleteEndpoint'
 import { getConfigTabLabel } from '@TAF/utils/endpoints/getConfigTabLabel'
 import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
-import { fetchEndpoints } from '@TAF/actions/endpoints/api/fetchEndpoints'
 import { Outlet, useParams, useNavigate, useLocation } from 'react-router'
 import { EndpointBreadcrumbs } from '@TAF/components/Endpoints/EndpointBreadcrumbs'
 import { Box, Tab, Tabs, Card, Chip, Typography, CardContent } from '@mui/material'
 import {
   useActiveOrgId,
   useActiveEndpoint,
-  useActiveEndpointId,
   useActiveProjectId,
-  useProjectEndpoints,
   useEndpointTabsDisabled,
 } from '@TAF/state/selectors'
 import {
@@ -39,19 +35,9 @@ export const EndpointLayout = () => {
   const [orgId] = useActiveOrgId()
   const [endpoint] = useActiveEndpoint()
   const [projectId] = useActiveProjectId()
-  const [endpoints] = useProjectEndpoints()
   const [tabsDisabled] = useEndpointTabsDisabled()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [, setActiveEndpointId] = useActiveEndpointId()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
-  useEffect(() => {
-    if (endpointId) setActiveEndpointId(endpointId)
-  }, [endpointId])
-
-  useEffect(() => {
-    if (orgId && projectId && !endpoints) fetchEndpoints({ orgId, projectId })
-  }, [orgId, projectId, endpoints])
 
   const navCtx = { orgId, projectId, endpointId }
   const endpointsPath = buildNavRoute({ orgId, projectId }, ERoutePath.ProjectEndpoints)
@@ -88,17 +74,6 @@ export const EndpointLayout = () => {
     toast.success(`Endpoint deleted successfully`)
     setDeleteDialogOpen(false)
     navigate(endpointsPath)
-  }
-
-  // Show loading state while endpoints are being fetched (e.g. deep link navigation)
-  if (!endpoint && orgId && projectId && !endpoints) {
-    return (
-      <Page className='tdsk-endpoint-layout-page'>
-        <Box sx={{ display: `flex`, justifyContent: `center`, py: 8 }}>
-          <Typography color='text.secondary'>Loading endpoint...</Typography>
-        </Box>
-      </Page>
-    )
   }
 
   if (!endpoint) {

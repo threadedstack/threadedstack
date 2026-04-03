@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import SaveIcon from '@mui/icons-material/Save'
 import { AgentSection } from '@TAF/components/Agents/AgentSection'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { updateEndpoint } from '@TAF/actions/endpoints/api/updateEndpoint'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
@@ -46,12 +45,6 @@ export const ProxyConfigTab = () => {
     () => (secretsMap ? Object.values(secretsMap) : []),
     [secretsMap]
   )
-
-  useEffect(() => {
-    if (orgId && projectId) {
-      fetchSecrets({ orgId, projectId })
-    }
-  }, [orgId, projectId])
 
   // Reset dirty state when endpoint changes
   useEffect(() => {

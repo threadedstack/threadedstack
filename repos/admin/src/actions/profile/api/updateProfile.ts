@@ -1,6 +1,7 @@
 import type { User } from '@tdsk/domain'
 
 import { usersApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { setUser } from '@TAF/state/accessors'
 
 export type TUpdateProfileResult = {
@@ -22,6 +23,7 @@ export const updateProfile = async (
   if (resp.error) return { error: resp.error }
 
   resp.data && setUser(resp.data)
+  resp.data && query.updateDetailCache(usersApi.cache.me(), resp.data)
 
   return resp
 }

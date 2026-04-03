@@ -6,14 +6,10 @@ import { toast } from 'sonner'
 import { Code } from '@TAF/components/Code'
 import SaveIcon from '@mui/icons-material/Save'
 import { MonacoOptions } from '@TAF/constants/monaco'
-import { fetchProviders } from '@TAF/actions/providers'
-import { fetchFunctions } from '@TAF/actions/functions'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { AgentSection } from '@TAF/components/Agents/AgentSection'
 import { updateAgent } from '@TAF/actions/agents/api/updateAgent'
-import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { updateEndpoint } from '@TAF/actions/endpoints/api/updateEndpoint'
 import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
@@ -151,18 +147,6 @@ export const AgentConfigTab = () => {
   ])
 
   const { showDialog, onConfirmLeave, onCancelLeave } = useUnsavedChangesGuard(hasChanges)
-
-  // Fetch required data on mount
-  useEffect(() => {
-    if (orgId && projectId) {
-      fetchSecrets({ orgId, projectId })
-      fetchAgents({ orgId, projectId })
-      fetchFunctions({ orgId, projectId })
-    }
-    if (orgId) {
-      fetchProviders({ orgId })
-    }
-  }, [orgId, projectId])
 
   // Build AI providers list from the store for the agent editor
   useEffect(() => {

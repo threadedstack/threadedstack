@@ -1,6 +1,7 @@
 import type { TAgentPayload } from '@TAF/types/agent.types'
 
 import { agentsApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { upsertAgent } from '@TAF/actions/agents/local/upsertAgent'
 
 export type TUpdateAgentOpts = {
@@ -17,6 +18,8 @@ export const updateAgent = async (opts: TUpdateAgentOpts) => {
 
   const contextKey = projectId || 'org'
   resp.data && upsertAgent(contextKey, resp.data)
+  resp.data && query.upsertListCache(agentsApi.cache.list(orgId, contextKey), resp.data)
+  resp.data && query.updateDetailCache(agentsApi.cache.detail(id), resp.data)
 
   return resp
 }

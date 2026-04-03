@@ -9,7 +9,13 @@ export const activeOrgIdState = atomWithReset<string>(
   getParamValue((part, before) => Boolean(before === `orgs` && part))
 )
 
-export const activeOrgRoleState = atomWithReset<string | undefined>(undefined)
+export const activeOrgRoleState = atom((get) => {
+  const orgId = get(activeOrgIdState)
+  const org = orgId ? get(orgsState)?.[orgId] : undefined
+  return org && `userRole` in org
+    ? (org as Organization & { userRole: string }).userRole
+    : undefined
+})
 
 export const activeOrgState = atom((get) => {
   const orgId = get(activeOrgIdState)

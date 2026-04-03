@@ -6,11 +6,6 @@ vi.mock(`react-router`, () => ({
   useNavigate: () => mockNavigate,
 }))
 
-const mockFetchProject = vi.fn()
-vi.mock(`@TAF/actions/projects/api/fetchProject`, () => ({
-  fetchProject: (...args: any[]) => mockFetchProject(...args),
-}))
-
 vi.mock(`@TAF/actions/projects/api/deleteProject`, () => ({
   deleteProject: vi.fn(),
 }))
@@ -65,31 +60,6 @@ describe(`Project Page`, () => {
     mockUseActiveOrgId.mockReturnValue([`org-1`])
     mockUseActiveProjectId.mockReturnValue([`project-1`])
     mockUseActiveProject.mockReturnValue([undefined])
-  })
-
-  describe(`fetchProject on mount`, () => {
-    it(`should call fetchProject with orgId and projectId on mount`, () => {
-      mockUseActiveProject.mockReturnValue([baseProject])
-      render(<Project />)
-
-      expect(mockFetchProject).toHaveBeenCalledWith({ orgId: `org-1`, id: `project-1` })
-    })
-
-    it(`should not call fetchProject when orgId is missing`, () => {
-      mockUseActiveOrgId.mockReturnValue([undefined])
-      mockUseActiveProject.mockReturnValue([baseProject])
-      render(<Project />)
-
-      expect(mockFetchProject).not.toHaveBeenCalled()
-    })
-
-    it(`should not call fetchProject when projectId is missing`, () => {
-      mockUseActiveProjectId.mockReturnValue([undefined])
-      mockUseActiveProject.mockReturnValue([baseProject])
-      render(<Project />)
-
-      expect(mockFetchProject).not.toHaveBeenCalled()
-    })
   })
 
   describe(`stat cards with counts`, () => {

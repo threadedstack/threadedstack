@@ -2,7 +2,35 @@ import { lazy, Suspense } from 'react'
 import { ERoutePath } from '@TAF/types'
 import { Loading } from '@tdsk/components'
 import Layout from '@TAF/pages/Layout/Layout'
-import { Navigate, createBrowserRouter } from 'react-router'
+import { Navigate, createBrowserRouter, useRouteError } from 'react-router'
+import { AppError } from '@TAF/components/AppError/AppError'
+import {
+  rootLoader,
+  orgScopeLoader,
+  orgDetailLoader,
+  orgSecretsLoader,
+  orgProvidersLoader,
+  orgSandboxesLoader,
+  orgDomainsLoader,
+  orgAgentsLoader,
+  orgSkillsLoader,
+  orgSchedulesLoader,
+  orgMembersLoader,
+  orgApiKeysLoader,
+  orgUsageLoader,
+  projectScopeLoader,
+  projectEndpointsLoader,
+  projectFunctionsLoader,
+  projectSecretsLoader,
+  projectAgentsLoader,
+  projectDomainsLoader,
+  projectMembersLoader,
+  projectApiKeysLoader,
+  endpointDetailLoader,
+  agentDetailLoader,
+  projectThreadsLoader,
+  threadDetailLoader,
+} from '@TAF/routes/loaders'
 
 // Global pages
 const Home = lazy(() => import('@TAF/pages/Home/Home'))
@@ -19,7 +47,6 @@ const OrgUsers = lazy(() => import('@TAF/pages/Orgs/OrgUsers'))
 const OrgUsage = lazy(() => import('@TAF/pages/Orgs/OrgUsage'))
 const OrgAgents = lazy(() => import('@TAF/pages/Orgs/OrgAgents'))
 const OrgApiKeys = lazy(() => import('@TAF/pages/Orgs/OrgApiKeys'))
-const OrgsLoader = lazy(() => import('@TAF/pages/Orgs/OrgsLoader'))
 const OrgSecrets = lazy(() => import('@TAF/pages/Orgs/OrgSecrets'))
 const OrgDomains = lazy(() => import('@TAF/pages/Orgs/OrgDomains'))
 const OrgSettings = lazy(() => import('@TAF/pages/Orgs/OrgSettings'))
@@ -32,7 +59,6 @@ const OrgSandboxes = lazy(() => import('@TAF/pages/Orgs/OrgSandboxes'))
 const Project = lazy(() => import('@TAF/pages/Projects/Project'))
 const Projects = lazy(() => import('@TAF/pages/Projects/Projects'))
 const ProjectAgents = lazy(() => import('@TAF/pages/Projects/ProjectAgents'))
-const ProjectsLoader = lazy(() => import('@TAF/pages/Projects/ProjectsLoader'))
 const ProjectSecrets = lazy(() => import('@TAF/pages/Projects/ProjectSecrets'))
 const ProjectDomains = lazy(() => import('@TAF/pages/Projects/ProjectDomains'))
 const ProjectThreads = lazy(() => import('@TAF/pages/Projects/ProjectThreads'))
@@ -73,227 +99,245 @@ const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
   </Suspense>
 )
 
-export const Routes = createBrowserRouter([
-  {
-    id: ERoutePath.Home,
-    path: ERoutePath.Home,
-    hydrateFallbackElement: (
-      <Loading
-        fixed
-        full
-      />
-    ),
-    Component: () => (
-      <SuspensePage
-        Component={() => (
-          <OrgsLoader>
-            <Layout />
-          </OrgsLoader>
-        )}
-      />
-    ),
-    children: [
-      {
-        index: true,
-        Component: () => <SuspensePage Component={Home} />,
-      },
-      {
-        path: 'orgs',
-        Component: () => <SuspensePage Component={Orgs} />,
-      },
-      {
-        path: 'billing',
-        Component: () => <SuspensePage Component={Billing} />,
-      },
-      {
-        path: 'orgs/:orgId',
-        children: [
-          {
-            index: true,
-            Component: () => <SuspensePage Component={Org} />,
-          },
-          {
-            path: ERoutePath.Members,
-            Component: () => <SuspensePage Component={OrgUsers} />,
-          },
-          {
-            path: ERoutePath.Secrets,
-            Component: () => <SuspensePage Component={OrgSecrets} />,
-          },
-          {
-            path: ERoutePath.Domains,
-            Component: () => <SuspensePage Component={OrgDomains} />,
-          },
-          {
-            path: ERoutePath.Providers,
-            Component: () => <SuspensePage Component={OrgProviders} />,
-          },
-          {
-            path: ERoutePath.Sandboxes,
-            Component: () => <SuspensePage Component={OrgSandboxes} />,
-          },
-          {
-            path: ERoutePath.Settings,
-            Component: () => <SuspensePage Component={OrgSettings} />,
-          },
-          {
-            path: ERoutePath.Usage,
-            Component: () => <SuspensePage Component={OrgUsage} />,
-          },
-          {
-            path: ERoutePath.Skills,
-            Component: () => <SuspensePage Component={OrgSkills} />,
-          },
-          {
-            path: ERoutePath.Schedules,
-            Component: () => <SuspensePage Component={OrgSchedules} />,
-          },
-          {
-            path: ERoutePath.ApiKeys,
-            Component: () => <SuspensePage Component={OrgApiKeys} />,
-          },
-          {
-            path: ERoutePath.Agents,
-            Component: () => <SuspensePage Component={OrgAgents} />,
-          },
-          {
-            path: ERoutePath.Projects,
-            Component: () => (
-              <SuspensePage
-                Component={() => (
-                  <ProjectsLoader>
-                    <Projects />
-                  </ProjectsLoader>
-                )}
-              />
-            ),
-          },
-          {
-            path: ERoutePath.ProjectId,
-            Component: () => <SuspensePage Component={ProjectsLoader} />,
-            children: [
-              {
-                index: true,
-                Component: () => <SuspensePage Component={Project} />,
-              },
-              {
-                path: ERoutePath.Endpoints,
-                Component: () => <SuspensePage Component={ProjectEndpoints} />,
-              },
-              {
-                path: ERoutePath.Endpoint,
-                Component: () => <SuspensePage Component={EndpointLayout} />,
-                children: [
-                  {
-                    index: true,
-                    Component: () => <SuspensePage Component={EndpointTab} />,
-                  },
-                  {
-                    path: `config`,
-                    Component: () => <SuspensePage Component={EndpointConfigTab} />,
-                  },
-                  {
-                    path: `test`,
-                    Component: () => <SuspensePage Component={EndpointTestTab} />,
-                  },
-                ],
-              },
-              {
-                path: ERoutePath.Secrets,
-                Component: () => <SuspensePage Component={ProjectSecrets} />,
-              },
-              {
-                path: ERoutePath.Domains,
-                Component: () => <SuspensePage Component={ProjectDomains} />,
-              },
-              {
-                path: ERoutePath.Functions,
-                Component: () => <SuspensePage Component={ProjectFunctions} />,
-              },
-              {
-                path: ERoutePath.Agents,
-                Component: () => <SuspensePage Component={ProjectAgents} />,
-              },
-              {
-                path: ERoutePath.Agent,
-                Component: () => <SuspensePage Component={AgentLayout} />,
-                children: [
-                  {
-                    index: true,
-                    Component: () => <SuspensePage Component={AgentDetailTab} />,
-                  },
-                  {
-                    path: `threads`,
-                    Component: () => <SuspensePage Component={ProjectThreads} />,
-                  },
-                  {
-                    path: `chat`,
-                    Component: () => <SuspensePage Component={AgentChat} />,
-                  },
-                  {
-                    path: ERoutePath.AgentThreadDetail,
-                    Component: () => <SuspensePage Component={ProjectThreadDetail} />,
-                  },
-                  {
-                    path: ERoutePath.AgentThreadChat,
-                    Component: () => <SuspensePage Component={ProjectThreadChat} />,
-                  },
-                  {
-                    path: `skills`,
-                    Component: () => <SuspensePage Component={SkillsTab} />,
-                  },
-                  {
-                    path: `schedules`,
-                    Component: () => <SuspensePage Component={SchedulesTab} />,
-                  },
-                ],
-              },
-              {
-                path: ERoutePath.ApiKeys,
-                Component: () => <SuspensePage Component={ProjectApiKeys} />,
-              },
-              {
-                path: ERoutePath.Settings,
-                Component: () => <SuspensePage Component={ProjectSettings} />,
-              },
-              {
-                path: ERoutePath.Members,
-                Component: () => <SuspensePage Component={ProjectMembers} />,
-              },
-            ],
-          },
-        ],
-      },
-      // Global settings route
-      {
-        path: ERoutePath.Settings,
-        Component: () => <SuspensePage Component={Settings} />,
-      },
-      // Profile route
-      {
-        path: ERoutePath.Profile,
-        Component: () => <SuspensePage Component={Profile} />,
-      },
-    ],
-  },
-  {
-    id: ERoutePath.AuthPage,
-    path: ERoutePath.AuthPage,
-    Component: () => <SuspensePage Component={Login} />,
-  },
-  {
-    id: ERoutePath.Account,
-    path: ERoutePath.Account,
-    Component: () => <SuspensePage Component={Account} />,
-  },
-  {
-    id: ERoutePath.Star,
-    path: ERoutePath.Star,
-    Component: () => (
-      <Navigate
-        replace
-        to={ERoutePath.Home}
-      />
-    ),
-  },
-])
+// Route error boundary that surfaces loader errors via AppError
+const RouteError = () => {
+  const error = useRouteError()
+  const message = error instanceof Error ? error.message : String(error)
+  return <AppError message={message} />
+}
+
+export const createRoutes = () =>
+  createBrowserRouter([
+    {
+      id: ERoutePath.Home,
+      path: ERoutePath.Home,
+      hydrateFallbackElement: (
+        <Loading
+          fixed
+          full
+        />
+      ),
+      loader: rootLoader,
+      errorElement: <SuspensePage Component={RouteError} />,
+      Component: () => <SuspensePage Component={Layout} />,
+      children: [
+        {
+          index: true,
+          Component: () => <SuspensePage Component={Home} />,
+        },
+        {
+          path: 'orgs',
+          Component: () => <SuspensePage Component={Orgs} />,
+        },
+        {
+          path: 'billing',
+          Component: () => <SuspensePage Component={Billing} />,
+        },
+        {
+          path: 'orgs/:orgId',
+          loader: orgScopeLoader,
+          children: [
+            {
+              index: true,
+              loader: orgDetailLoader,
+              Component: () => <SuspensePage Component={Org} />,
+            },
+            {
+              path: ERoutePath.Members,
+              loader: orgMembersLoader,
+              Component: () => <SuspensePage Component={OrgUsers} />,
+            },
+            {
+              path: ERoutePath.Secrets,
+              loader: orgSecretsLoader,
+              Component: () => <SuspensePage Component={OrgSecrets} />,
+            },
+            {
+              path: ERoutePath.Domains,
+              loader: orgDomainsLoader,
+              Component: () => <SuspensePage Component={OrgDomains} />,
+            },
+            {
+              path: ERoutePath.Providers,
+              loader: orgProvidersLoader,
+              Component: () => <SuspensePage Component={OrgProviders} />,
+            },
+            {
+              path: ERoutePath.Sandboxes,
+              loader: orgSandboxesLoader,
+              Component: () => <SuspensePage Component={OrgSandboxes} />,
+            },
+            {
+              path: ERoutePath.Settings,
+              Component: () => <SuspensePage Component={OrgSettings} />,
+            },
+            {
+              path: ERoutePath.Usage,
+              loader: orgUsageLoader,
+              Component: () => <SuspensePage Component={OrgUsage} />,
+            },
+            {
+              path: ERoutePath.Skills,
+              loader: orgSkillsLoader,
+              Component: () => <SuspensePage Component={OrgSkills} />,
+            },
+            {
+              path: ERoutePath.Schedules,
+              loader: orgSchedulesLoader,
+              Component: () => <SuspensePage Component={OrgSchedules} />,
+            },
+            {
+              path: ERoutePath.ApiKeys,
+              loader: orgApiKeysLoader,
+              Component: () => <SuspensePage Component={OrgApiKeys} />,
+            },
+            {
+              path: ERoutePath.Agents,
+              loader: orgAgentsLoader,
+              Component: () => <SuspensePage Component={OrgAgents} />,
+            },
+            {
+              path: ERoutePath.Projects,
+              Component: () => <SuspensePage Component={Projects} />,
+            },
+            {
+              path: ERoutePath.ProjectId,
+              loader: projectScopeLoader,
+              children: [
+                {
+                  index: true,
+                  Component: () => <SuspensePage Component={Project} />,
+                },
+                {
+                  path: ERoutePath.Endpoints,
+                  loader: projectEndpointsLoader,
+                  Component: () => <SuspensePage Component={ProjectEndpoints} />,
+                },
+                {
+                  path: ERoutePath.Endpoint,
+                  loader: endpointDetailLoader,
+                  Component: () => <SuspensePage Component={EndpointLayout} />,
+                  children: [
+                    {
+                      index: true,
+                      Component: () => <SuspensePage Component={EndpointTab} />,
+                    },
+                    {
+                      path: `config`,
+                      Component: () => <SuspensePage Component={EndpointConfigTab} />,
+                    },
+                    {
+                      path: `test`,
+                      Component: () => <SuspensePage Component={EndpointTestTab} />,
+                    },
+                  ],
+                },
+                {
+                  path: ERoutePath.Secrets,
+                  loader: projectSecretsLoader,
+                  Component: () => <SuspensePage Component={ProjectSecrets} />,
+                },
+                {
+                  path: ERoutePath.Domains,
+                  loader: projectDomainsLoader,
+                  Component: () => <SuspensePage Component={ProjectDomains} />,
+                },
+                {
+                  path: ERoutePath.Functions,
+                  loader: projectFunctionsLoader,
+                  Component: () => <SuspensePage Component={ProjectFunctions} />,
+                },
+                {
+                  path: ERoutePath.Agents,
+                  loader: projectAgentsLoader,
+                  Component: () => <SuspensePage Component={ProjectAgents} />,
+                },
+                {
+                  path: ERoutePath.Agent,
+                  loader: agentDetailLoader,
+                  Component: () => <SuspensePage Component={AgentLayout} />,
+                  children: [
+                    {
+                      index: true,
+                      Component: () => <SuspensePage Component={AgentDetailTab} />,
+                    },
+                    {
+                      path: `threads`,
+                      loader: projectThreadsLoader,
+                      Component: () => <SuspensePage Component={ProjectThreads} />,
+                    },
+                    {
+                      path: `chat`,
+                      Component: () => <SuspensePage Component={AgentChat} />,
+                    },
+                    {
+                      path: ERoutePath.AgentThreadDetail,
+                      loader: threadDetailLoader,
+                      Component: () => <SuspensePage Component={ProjectThreadDetail} />,
+                    },
+                    {
+                      path: ERoutePath.AgentThreadChat,
+                      loader: threadDetailLoader,
+                      Component: () => <SuspensePage Component={ProjectThreadChat} />,
+                    },
+                    {
+                      path: `skills`,
+                      Component: () => <SuspensePage Component={SkillsTab} />,
+                    },
+                    {
+                      path: `schedules`,
+                      Component: () => <SuspensePage Component={SchedulesTab} />,
+                    },
+                  ],
+                },
+                {
+                  path: ERoutePath.ApiKeys,
+                  loader: projectApiKeysLoader,
+                  Component: () => <SuspensePage Component={ProjectApiKeys} />,
+                },
+                {
+                  path: ERoutePath.Settings,
+                  Component: () => <SuspensePage Component={ProjectSettings} />,
+                },
+                {
+                  path: ERoutePath.Members,
+                  loader: projectMembersLoader,
+                  Component: () => <SuspensePage Component={ProjectMembers} />,
+                },
+              ],
+            },
+          ],
+        },
+        // Global settings route
+        {
+          path: ERoutePath.Settings,
+          Component: () => <SuspensePage Component={Settings} />,
+        },
+        // Profile route
+        {
+          path: ERoutePath.Profile,
+          Component: () => <SuspensePage Component={Profile} />,
+        },
+      ],
+    },
+    {
+      id: ERoutePath.AuthPage,
+      path: ERoutePath.AuthPage,
+      Component: () => <SuspensePage Component={Login} />,
+    },
+    {
+      id: ERoutePath.Account,
+      path: ERoutePath.Account,
+      Component: () => <SuspensePage Component={Account} />,
+    },
+    {
+      id: ERoutePath.Star,
+      path: ERoutePath.Star,
+      Component: () => (
+        <Navigate
+          replace
+          to={ERoutePath.Home}
+        />
+      ),
+    },
+  ])

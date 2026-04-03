@@ -22,7 +22,6 @@ export const Endpoints = (props: TEndpoints) => {
     orgId,
     count,
     query,
-    loading,
     onDelete,
     setQuery,
     onCreate,
@@ -58,12 +57,11 @@ export const Endpoints = (props: TEndpoints) => {
     <PageLayout
       title='Endpoints'
       count={count}
-      loading={loading}
       countLabel='endpoint'
       onAction={onCreate}
       actionLabel='Create Endpoint'
     >
-      {!loading && count > 0 && (
+      {count > 0 && (
         <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <SearchBar
             value={query}
@@ -90,7 +88,7 @@ export const Endpoints = (props: TEndpoints) => {
         </Box>
       )}
 
-      {!loading && count === 0 && (
+      {count === 0 && (
         <EmptyState
           onAction={onCreate}
           actionIcon={<AddIcon />}
@@ -99,11 +97,11 @@ export const Endpoints = (props: TEndpoints) => {
         />
       )}
 
-      {!loading && count > 0 && endpoints.length === 0 && (
+      {count > 0 && endpoints.length === 0 && (
         <EmptyState message='No endpoints match your search or filter criteria.' />
       )}
 
-      {!loading && endpoints.length > 0 && (
+      {endpoints.length > 0 && (
         <EndpointsTable
           onDelete={onDelete}
           endpoints={endpoints}

@@ -1,6 +1,6 @@
 import type { User } from '@tdsk/domain'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { listOrgUsers } from '@TAF/actions/users/api/listOrgUsers'
 import { removeFromOrg } from '@TAF/actions/users/api/removeFromOrg'
 import { useOrgUsers, useActiveOrgId } from '@TAF/state/selectors'
@@ -8,7 +8,7 @@ import { useOrgUsers, useActiveOrgId } from '@TAF/state/selectors'
 export const useOrgUsersList = () => {
   const [allUsers] = useOrgUsers()
   const [orgId] = useActiveOrgId()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>(undefined)
   const users = useMemo(() => allUsers?.[orgId] || [], [orgId, allUsers])
 
@@ -31,10 +31,6 @@ export const useOrgUsersList = () => {
     if (resp.error) setError(resp.error.message)
     setLoading(false)
   }
-
-  useEffect(() => {
-    loadUsers()
-  }, [orgId])
 
   return {
     users,

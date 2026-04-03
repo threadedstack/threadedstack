@@ -14,8 +14,7 @@ export class ProjectsApi extends BaseApi {
 
   cache: TApiCacheKeys = {
     all: () => [`/projects`] as const,
-    list: () => [...this.cache.all(), `list`] as const,
-    listOrg: (orgId: string) => [...this.cache.list(), orgId] as const,
+    list: (...scope: string[]) => [...this.cache.all(), `list`, ...scope] as const,
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
@@ -34,7 +33,7 @@ export class ProjectsApi extends BaseApi {
     const resp = await this.api.get<Project[]>({
       data: rest,
       path: this.#path(orgId),
-      queryKey: queryKey || this.cache.list(),
+      queryKey: queryKey || this.cache.list(orgId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load Projects list`))
@@ -135,7 +134,7 @@ export class ProjectsApi extends BaseApi {
    * @returns List of projects for the org
    */
   async listByOrg(orgId: string): Promise<TApiRes<Record<string, Project>>> {
-    return this.list(orgId, { queryKey: this.cache.listOrg(orgId) })
+    return this.list(orgId, { queryKey: this.cache.list(orgId) })
   }
 }
 

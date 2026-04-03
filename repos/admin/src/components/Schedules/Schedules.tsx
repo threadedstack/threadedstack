@@ -4,15 +4,13 @@ import type { TDataTableColumn } from '@TAF/components'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import { toast } from 'sonner'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { ConfirmDelete, Text } from '@tdsk/components'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { ScheduleDrawer } from '@TAF/components/Schedules/ScheduleDrawer'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
-import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
-import { fetchSchedules as fetchSchedulesAction } from '@TAF/actions/schedules/api/fetchSchedules'
 import { deleteSchedule } from '@TAF/actions/schedules/api/deleteSchedule'
 import { triggerSchedule } from '@TAF/actions/schedules/api/triggerSchedule'
 import { useSchedules, useOrgAgents } from '@TAF/state/selectors'
@@ -56,26 +54,6 @@ export const Schedules = (props: TSchedules) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [deleting, setDeleting] = useState<Schedule>()
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null)
-
-  useEffect(() => {
-    if (!orgId) return
-
-    setLoading(true)
-    setError(undefined)
-
-    // Fetch agents into the store if not already loaded
-    if (!orgAgents) fetchAgents({ orgId })
-
-    fetchSchedulesAction(orgId)
-      .then((resp) => {
-        if (resp.error) {
-          setError(
-            resp.error instanceof Error ? resp.error : new Error(String(resp.error))
-          )
-        }
-      })
-      .finally(() => setLoading(false))
-  }, [orgId])
 
   const onCreateSchedule = () => {
     setSelectedSchedule(null)

@@ -2,14 +2,12 @@ import { toast } from 'sonner'
 import { nav } from '@TAF/services/nav'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button, ConfirmDelete } from '@tdsk/components'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
-import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
 import { AgentSection } from '@TAF/components/Agents/AgentSection'
 import {
-  useProjectAgents,
   useActiveOrgId,
   useActiveAgent,
   useActiveAgentId,
@@ -29,17 +27,12 @@ export type TProjectAgent = {}
 
 export const ProjectAgent = (props: TProjectAgent) => {
   const navigate = useNavigate()
-  const [agents] = useProjectAgents()
   const [orgId] = useActiveOrgId()
   const [agent] = useActiveAgent()
   const [agentId] = useActiveAgentId()
   const [projectId] = useActiveProjectId()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
-  useEffect(() => {
-    if (orgId && projectId && !agents) fetchAgents({ orgId, projectId })
-  }, [orgId, projectId, agents])
 
   const agentsPath = `/orgs/${orgId}/projects/${projectId}/agents`
 

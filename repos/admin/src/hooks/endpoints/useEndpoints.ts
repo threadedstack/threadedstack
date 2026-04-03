@@ -1,12 +1,10 @@
 import type { Endpoint } from '@tdsk/domain'
 
 import { ERoutePath } from '@TAF/types'
-import { ife } from '@keg-hub/jsutils/ife'
 import { useNavigate } from 'react-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
 import { setActiveEndpointId } from '@TAF/state/accessors'
-import { fetchEndpoints } from '@TAF/actions/endpoints/api/fetchEndpoints'
 import { deleteEndpoint } from '@TAF/actions/endpoints/api/deleteEndpoint'
 import { useEndpointFilter } from '@TAF/hooks/endpoints/useEndpointFilter'
 import {
@@ -21,21 +19,8 @@ export const useEndpoints = () => {
   const navigate = useNavigate()
   const [query, setQuery] = useState(``)
   const [projectId] = useActiveProjectId()
-  const [loading, setLoading] = useState(true)
   const [deleteError, setDeleteError] = useState(``)
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
-
-  useEffect(() => {
-    if (!orgId || !projectId) return
-    ife(async () => {
-      try {
-        setLoading(true)
-        await fetchEndpoints({ orgId, projectId })
-      } finally {
-        setLoading(false)
-      }
-    })
-  }, [orgId, projectId])
 
   const {
     count,
@@ -78,7 +63,6 @@ export const useEndpoints = () => {
     orgId,
     query,
     count,
-    loading,
     navigate,
     setQuery,
     onDelete,

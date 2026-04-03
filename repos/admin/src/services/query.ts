@@ -64,6 +64,44 @@ export class QueryService {
 
     return queryKey
   }
+
+  upsertListCache = <T extends { id: string }>(
+    queryKey: TReadOnlyQueryKey,
+    entity: T
+  ) => {
+    try {
+      this.client.setQueryData<T[]>(queryKey, (cached) => {
+        if (!cached) return cached
+        const idx = cached.findIndex((e) => e.id === entity.id)
+        return idx >= 0
+          ? cached.map((e) => (e.id === entity.id ? entity : e))
+          : [...cached, entity]
+      })
+    } catch {
+      /* cache update failure should not crash mutation actions */
+    }
+  }
+
+  removeFromListCache = <T extends { id: string }>(
+    queryKey: TReadOnlyQueryKey,
+    entityId: string
+  ) => {
+    try {
+      this.client.setQueryData<T[]>(queryKey, (cached) =>
+        cached?.filter((e) => e.id !== entityId)
+      )
+    } catch {
+      /* cache update failure should not crash mutation actions */
+    }
+  }
+
+  updateDetailCache = <T>(queryKey: TReadOnlyQueryKey, entity: T) => {
+    try {
+      this.client.setQueryData(queryKey, entity)
+    } catch {
+      /* cache update failure should not crash mutation actions */
+    }
+  }
 }
 
 export const query = new QueryService()

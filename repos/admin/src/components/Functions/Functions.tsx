@@ -1,16 +1,15 @@
 import type { Function as FunctionModel } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { ife } from '@keg-hub/jsutils/ife'
 import { ConfirmDelete } from '@tdsk/components'
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Box, Chip, Typography } from '@mui/material'
 import { EmptyState, DataTable } from '@TAF/components'
 import { useActiveProjectId } from '@TAF/state/selectors'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { NoFunctions } from '@TAF/components/Functions/NoFunctions'
 import { useProjectFunctions, useActiveOrgId } from '@TAF/state/selectors'
-import { deleteFunction, fetchFunctions } from '@TAF/actions/functions'
+import { deleteFunction } from '@TAF/actions/functions'
 import { FunctionDrawer } from '@TAF/components/Functions/FunctionDrawer'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 
@@ -22,7 +21,6 @@ export const Functions = (props: TFunctions) => {
   const [functions] = useProjectFunctions()
   const [orgId] = useActiveOrgId()
   const [projectId] = useActiveProjectId()
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -32,19 +30,6 @@ export const Functions = (props: TFunctions) => {
     id: string
     name: string
   } | null>(null)
-
-  useEffect(() => {
-    orgId &&
-      projectId &&
-      ife(async () => {
-        try {
-          setLoading(true)
-          await fetchFunctions({ orgId, projectId })
-        } finally {
-          setLoading(false)
-        }
-      })
-  }, [orgId, projectId])
 
   const filteredFunctions = useMemo(() => {
     if (!functions) return []
@@ -190,7 +175,6 @@ export const Functions = (props: TFunctions) => {
 
   return (
     <PageLayout
-      loading={loading}
       title='Functions'
       count={functionsCount}
       countLabel='function'

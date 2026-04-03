@@ -1,4 +1,5 @@
 import { secretsApi } from '@TAF/services'
+import { query } from '@TAF/services/query'
 import { removeSecret, removeOrgSecret } from '@TAF/actions/secrets/local/removeSecret'
 
 export type TDeleteSecretOpts = {
@@ -13,5 +14,8 @@ export const deleteSecret = async (opts: TDeleteSecretOpts) => {
   if (resp.error) return { error: resp.error }
 
   projectId ? removeSecret(projectId, id) : removeOrgSecret(id)
+  query.removeFromListCache(secretsApi.cache.list(orgId, projectId), id)
+  query.client.removeQueries({ queryKey: secretsApi.cache.detail(id) })
+
   return { success: true }
 }
