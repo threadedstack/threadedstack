@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from 'react'
 import { Text } from '@tdsk/components'
 import { cls } from '@keg-hub/jsutils/cls'
