@@ -14,17 +14,17 @@ export const subscriptions = pgTable('subscriptions', {
   tier: text(`tier`).notNull().default(`free`),
   status: text(`status`).notNull().default(`active`),
 
-  // Polar.sh Integration
-  polarId: text(`polar_id`),
-  polarCustomerId: text(`polar_customer_id`),
-  polarPriceId: text(`polar_price_id`),
+  // Stripe Integration
+  stripeCustomerId: text(`stripe_customer_id`),
+  stripeSubscriptionId: text(`stripe_subscription_id`),
+  stripePriceId: text(`stripe_price_id`),
 
   // Period Tracking
   currentPeriodStart: timestamp(`current_period_start`, { mode: `string` }),
   currentPeriodEnd: timestamp(`current_period_end`, { mode: `string` }),
   cancelAtPeriodEnd: boolean(`cancel_at_period_end`).default(false),
 
-  seats: integer(`seats`).default(0),
+  seats: integer(`seats`).default(1),
 })
 
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({

@@ -1,33 +1,58 @@
 import type { TRoleType } from '@tdsk/domain'
 
 import { useState } from 'react'
-import { Box } from '@mui/material'
 import { ERoleType } from '@tdsk/domain'
+import { PlanLimits, ESubscriptionTier } from '@tdsk/domain'
 import { AuthRoles } from '@TAF/constants/values'
 import { isEmail } from '@keg-hub/jsutils/isEmail'
+import { useSubscription } from '@TAF/state/selectors'
 import { inviteToOrg } from '@TAF/actions/users/api/inviteToOrg'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
+import {
+  Box,
+  Alert,
+  Button,
+  Dialog,
+  Tooltip,
+  Typography,
+  DialogTitle,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+} from '@mui/material'
 
 export type TInviteUserDrawer = {
   open: boolean
   orgId: string
   onClose: () => void
   onSuccess: () => void
+  currentMemberCount?: number
 }
 
-// TODO: Add checks if current user has admin permission to invite other users
 export const InviteUserDrawer = ({
   open,
   orgId,
   onClose: onCloseCB,
   onSuccess: onSuccessCB,
+  currentMemberCount = 0,
 }: TInviteUserDrawer) => {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [roleType, setRoleType] = useState<TRoleType>(ERoleType.viewer)
+  const [seatConfirmOpen, setSeatConfirmOpen] = useState(false)
+
+  const [subscription] = useSubscription()
+
+  const tier = (subscription?.tier || ESubscriptionTier.free) as ESubscriptionTier
+  const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
+  const canInvite = tier === ESubscriptionTier.pro || tier === ESubscriptionTier.team
+  const seatLimit = limits.seats
+  const seatsUsed = subscription?.seats || currentMemberCount || 1
+  const seatsAvailable = seatLimit - seatsUsed
+  const atCapacity = seatsAvailable <= 0 && limits.additionalSeats
 
   const onClose = () => {
     if (loading) return
@@ -35,7 +60,24 @@ export const InviteUserDrawer = ({
     setEmail('')
     setRoleType(ERoleType.viewer)
     setError(null)
+    setSeatConfirmOpen(false)
     onCloseCB?.()
+  }
+
+  const doInvite = async () => {
+    setLoading(true)
+    setError(null)
+    setSeatConfirmOpen(false)
+
+    const resp = await inviteToOrg(orgId, email.trim(), roleType)
+
+    setLoading(false)
+
+    if (resp.error) {
+      setError(resp.error.message || `Failed to invite user. Please try again.`)
+    } else {
+      onSuccessCB?.()
+    }
   }
 
   const onSave = async (e: React.FormEvent) => {
@@ -51,18 +93,12 @@ export const InviteUserDrawer = ({
       return
     }
 
-    setLoading(true)
-    setError(null)
-
-    const resp = await inviteToOrg(orgId, email.trim(), roleType)
-
-    setLoading(false)
-
-    if (resp.error) {
-      setError(resp.error.message || `Failed to invite user. Please try again.`)
-    } else {
-      onSuccessCB?.()
+    if (atCapacity) {
+      setSeatConfirmOpen(true)
+      return
     }
+
+    await doInvite()
   }
 
   const { actions } = useDrawerActions({
@@ -70,52 +106,99 @@ export const InviteUserDrawer = ({
     onClose,
   })
 
+  const inviteDisabled = !canInvite || loading || !email.trim()
+
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      title='Invite User to Organization'
-      actions={
-        <DrawerActions
-          form='invite-user-form'
-          editing={false}
-          actions={actions}
-          loading={loading}
-          disabled={loading || !email.trim()}
-        />
-      }
-    >
-      <form id='invite-user-form'>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {error && (
-            <ErrorAlert
-              message={error}
-              onClose={() => setError(null)}
+    <>
+      <Drawer
+        open={open}
+        onClose={onClose}
+        title='Invite User to Organization'
+        actions={
+          <DrawerActions
+            form='invite-user-form'
+            editing={false}
+            actions={actions}
+            loading={loading}
+            disabled={inviteDisabled}
+          />
+        }
+      >
+        <form id='invite-user-form'>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {error && (
+              <ErrorAlert
+                message={error}
+                onClose={() => setError(null)}
+              />
+            )}
+
+            {!canInvite && (
+              <Alert severity='info'>
+                Upgrade to Pro or Team to invite team members.
+              </Alert>
+            )}
+
+            {canInvite && seatsAvailable > 0 && (
+              <Alert severity='info'>
+                {seatsAvailable} {seatsAvailable === 1 ? 'seat' : 'seats'} available on
+                your plan.
+              </Alert>
+            )}
+
+            <Tooltip
+              title={!canInvite ? 'Upgrade to Pro to invite team members' : ''}
+              placement='top'
+            >
+              <span>
+                <TextInput
+                  required
+                  fullWidth
+                  type='email'
+                  value={email}
+                  id='user-email'
+                  disabled={loading || !canInvite}
+                  label='Email Address'
+                  placeholder='user@example.com'
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </span>
+            </Tooltip>
+
+            <SelectInput
+              id='user-role'
+              label='Role'
+              value={roleType}
+              items={AuthRoles}
+              disabled={loading || !canInvite}
+              onChange={(e) => setRoleType(e.target.value as TRoleType)}
             />
-          )}
+          </Box>
+        </form>
+      </Drawer>
 
-          <TextInput
-            required
-            fullWidth
-            type='email'
-            value={email}
-            id='user-email'
+      <Dialog
+        open={seatConfirmOpen}
+        onClose={() => setSeatConfirmOpen(false)}
+      >
+        <DialogTitle>Additional Seat Required</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            All {seatLimit} seats on your plan are in use. Inviting this member will add a
+            paid seat to your subscription.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSeatConfirmOpen(false)}>Cancel</Button>
+          <Button
+            variant='contained'
+            onClick={doInvite}
             disabled={loading}
-            label='Email Address'
-            placeholder='user@example.com'
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <SelectInput
-            id='user-role'
-            label='Role'
-            value={roleType}
-            items={AuthRoles}
-            disabled={loading}
-            onChange={(e) => setRoleType(e.target.value as TRoleType)}
-          />
-        </Box>
-      </form>
-    </Drawer>
+          >
+            {loading ? 'Inviting...' : 'Confirm & Invite'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   )
 }

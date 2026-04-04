@@ -7,7 +7,7 @@ import type {
 } from '@TAF/types'
 
 import { BaseApi } from '@TAF/services/api'
-import { Plan, Subscription } from '@tdsk/domain'
+import { Plan, Invoice, Subscription } from '@tdsk/domain'
 
 /**
  * Subscriptions API Service
@@ -20,6 +20,7 @@ export class SubscriptionsApi extends BaseApi {
     all: () => [this.path] as const,
     current: () => [...this.cache.all(), `current`] as const,
     plans: () => [...this.cache.all(), `plans`] as const,
+    invoices: () => [...this.cache.all(), `invoices`] as const,
   }
 
   /**
@@ -87,6 +88,25 @@ export class SubscriptionsApi extends BaseApi {
     resp.error && (await this._onError(resp.error, `Failed to create portal session`))
 
     return resp
+  }
+
+  /**
+   * Get invoices for the current user
+   * @returns List of invoices
+   */
+  async invoices(): Promise<TApiRes<Invoice[]>> {
+    const resp = await this.api.get<Invoice[]>({
+      path: `${this.path}/invoices`,
+      queryKey: this.cache.invoices(),
+      staleTime: 60 * 1000,
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to load invoices`))
+
+    return {
+      ...resp,
+      data: resp.data?.map((item) => new Invoice(item)) ?? [],
+    }
   }
 
   /**

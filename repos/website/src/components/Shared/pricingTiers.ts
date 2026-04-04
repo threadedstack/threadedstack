@@ -1,3 +1,5 @@
+import { PlanLimits } from '@tdsk/domain'
+
 export type PricingTier = {
   name: string
   price: string
@@ -5,7 +7,19 @@ export type PricingTier = {
   features: { label: string; included: boolean }[]
   cta: string
   highlighted?: boolean
+  subtitle?: string
 }
+
+const fmt = (value: number, suffix?: string): string => {
+  if (value === -1) return 'Unlimited'
+  const formatted = value.toLocaleString('en-US')
+  return suffix ? `${formatted}${suffix}` : formatted
+}
+
+const free = PlanLimits.free
+const solo = PlanLimits.solo
+const pro = PlanLimits.pro
+const team = PlanLimits.team
 
 export const tiers: PricingTier[] = [
   {
@@ -13,64 +27,66 @@ export const tiers: PricingTier[] = [
     price: '$0/mo',
     description: 'For experimenting and learning.',
     features: [
-      { label: '1 Project', included: true },
-      { label: '1 Team Member', included: true },
-      { label: '5 Endpoints', included: true },
-      { label: '10 Threads', included: true },
-      { label: '100 Messages', included: true },
+      { label: `${fmt(free.projects)} Projects`, included: true },
+      { label: `${fmt(free.seats)} Seat`, included: true },
+      { label: `${fmt(free.endpoints)} Endpoints`, included: true },
+      { label: `${fmt(free.threads)} Threads`, included: true },
+      { label: `${fmt(free.messages)} Messages`, included: true },
+      { label: `${fmt(free.compute)} Compute units`, included: true },
       { label: 'Community Support', included: true },
       { label: 'Custom Domains', included: false },
-      { label: 'Priority Support', included: false },
     ],
     cta: 'Get Started Free',
   },
   {
-    name: 'Basic',
-    price: '$19/mo',
-    description: 'For individuals building their first agents.',
+    name: 'Solo',
+    price: '$15/mo',
+    description: 'For solo developers shipping real projects.',
     features: [
-      { label: '3 Projects', included: true },
-      { label: '5 Team Members', included: true },
-      { label: '25 Endpoints', included: true },
-      { label: '100 Threads', included: true },
-      { label: '1,000 Messages', included: true },
+      { label: `${fmt(solo.projects)} Projects`, included: true },
+      { label: `${fmt(solo.seats)} Seat`, included: true },
+      { label: `${fmt(solo.endpoints)} Endpoints`, included: true },
+      { label: `${fmt(solo.threads)} Threads`, included: true },
+      { label: `${fmt(solo.messages)} Messages`, included: true },
+      { label: `${fmt(solo.compute)} Compute units`, included: true },
       { label: 'Email Support', included: true },
       { label: 'Custom Domains', included: false },
-      { label: 'Priority Support', included: false },
     ],
-    cta: 'Start Basic',
-  },
-  {
-    name: 'Developer',
-    price: '$49/mo',
-    description: 'For teams shipping production agents.',
-    highlighted: true,
-    features: [
-      { label: '10 Projects', included: true },
-      { label: '15 Team Members', included: true },
-      { label: '100 Endpoints', included: true },
-      { label: '1,000 Threads', included: true },
-      { label: '10,000 Messages', included: true },
-      { label: 'Priority Support', included: true },
-      { label: 'Custom Domains', included: true },
-      { label: 'Advanced Analytics', included: false },
-    ],
-    cta: 'Start Developer',
+    cta: 'Start Solo',
   },
   {
     name: 'Pro',
-    price: '$149/mo',
-    description: 'For organizations at scale.',
+    price: '$39/mo',
+    description: 'For small teams building together.',
+    highlighted: true,
+    subtitle: '+$10/seat/mo',
     features: [
-      { label: 'Unlimited Projects', included: true },
-      { label: 'Unlimited Members', included: true },
-      { label: 'Unlimited Endpoints', included: true },
-      { label: 'Unlimited Threads', included: true },
-      { label: 'Unlimited Messages', included: true },
-      { label: 'Dedicated Support', included: true },
+      { label: `${fmt(pro.projects)} Projects`, included: true },
+      { label: `${fmt(pro.seats)} Seats included`, included: true },
+      { label: `${fmt(pro.endpoints)} Endpoints`, included: true },
+      { label: `${fmt(pro.threads)} Threads`, included: true },
+      { label: `${fmt(pro.messages)} Messages`, included: true },
+      { label: `${fmt(pro.compute)} Compute units`, included: true },
+      { label: 'Priority Support', included: true },
       { label: 'Custom Domains', included: true },
-      { label: 'Advanced Analytics', included: true },
     ],
     cta: 'Start Pro',
+  },
+  {
+    name: 'Team',
+    price: '$99/mo',
+    description: 'For organizations at scale.',
+    subtitle: '+$8/seat/mo',
+    features: [
+      { label: `${fmt(team.projects)} Projects`, included: true },
+      { label: `${fmt(team.seats)} Seats included`, included: true },
+      { label: `${fmt(team.endpoints)} Endpoints`, included: true },
+      { label: `${fmt(team.threads)} Threads`, included: true },
+      { label: `${fmt(team.messages)} Messages`, included: true },
+      { label: `${fmt(team.compute)} Compute units`, included: true },
+      { label: 'Dedicated Support', included: true },
+      { label: 'Custom Domains', included: true },
+    ],
+    cta: 'Start Team',
   },
 ]

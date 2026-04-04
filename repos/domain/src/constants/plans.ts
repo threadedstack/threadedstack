@@ -1,0 +1,53 @@
+import type { TPlanLimits } from '@TDM/types'
+import { ESubscriptionTier } from '@TDM/types'
+
+export const PlanLimits: Record<ESubscriptionTier, TPlanLimits> = {
+  [ESubscriptionTier.free]: {
+    organizations: 1,
+    projects: 2,
+    compute: 1_000,
+    threads: 100,
+    messages: 500,
+    endpoints: 3,
+    secrets: 5,
+    retention: 7,
+    seats: 1,
+    additionalSeats: false,
+  },
+  [ESubscriptionTier.solo]: {
+    organizations: 2,
+    projects: 10,
+    compute: 10_000,
+    threads: 1_000,
+    messages: 10_000,
+    endpoints: 20,
+    secrets: 25,
+    retention: 30,
+    seats: 1,
+    additionalSeats: false,
+  },
+  [ESubscriptionTier.pro]: {
+    organizations: 5,
+    projects: 50,
+    compute: 100_000,
+    threads: -1,
+    messages: -1,
+    endpoints: -1,
+    secrets: -1,
+    retention: 90,
+    seats: 3,
+    additionalSeats: true,
+  },
+  [ESubscriptionTier.team]: {
+    organizations: -1,
+    projects: -1,
+    compute: -1,
+    threads: -1,
+    messages: -1,
+    endpoints: -1,
+    secrets: -1,
+    retention: 365,
+    seats: 10,
+    additionalSeats: true,
+  },
+} as const

@@ -1,10 +1,16 @@
-import type { TPayPlanMeta } from '@tdsk/domain'
+import type { TPlanLimits } from '@tdsk/domain'
 
-export type TLimitsData = Partial<TPayPlanMeta>
+export type TLimitsData = TPlanLimits
 
-export type TQuotaData = Partial<TPayPlanMeta> & {
+export type TQuotaData = {
   orgId: string
   period: string
+  projects: number
+  compute: number
+  threads: number
+  messages: number
+  endpoints: number
+  secrets: number
 }
 
 /**

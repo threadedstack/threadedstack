@@ -17,6 +17,7 @@ type Props = {
   features: Feature[]
   cta: string
   highlighted?: boolean
+  subtitle?: string
   onCtaClick?: () => void
 }
 
@@ -27,6 +28,7 @@ const PricingCard = ({
   features,
   cta,
   highlighted,
+  subtitle,
   onCtaClick,
 }: Props) => (
   <Card
@@ -63,10 +65,19 @@ const PricingCard = ({
       </Typography>
       <Typography
         variant='h4'
-        sx={{ mb: 1 }}
+        sx={{ mb: subtitle ? 0.5 : 1 }}
       >
         {price}
       </Typography>
+      {subtitle && (
+        <Typography
+          variant='caption'
+          color='text.secondary'
+          sx={{ display: 'block', mb: 1 }}
+        >
+          {subtitle}
+        </Typography>
+      )}
       <Typography
         variant='body2'
         color='text.secondary'

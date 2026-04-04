@@ -12,19 +12,6 @@ describe('Quota Endpoints', () => {
   let mockJson: ReturnType<typeof vi.fn>
   let mockStatus: ReturnType<typeof vi.fn>
 
-  // Mock payment service methods
-  const mockGetProductIdForTier = vi.fn((tier: string) => {
-    const tiers: Record<string, string> = {
-      free: 'prod_free_123',
-      basic: 'prod_basic_456',
-      developer: 'prod_dev_789',
-      pro: 'prod_pro_000',
-    }
-    return tiers[tier]
-  })
-  const mockGetPlanLimits = vi.fn()
-  const mockFetchProduct = vi.fn()
-
   let mockApp = {
     locals: {
       db: {
@@ -44,13 +31,6 @@ describe('Quota Endpoints', () => {
         },
       },
       config: config,
-      payments: {
-        service: {
-          getProductIdForTier: mockGetProductIdForTier,
-          getPlanLimits: mockGetPlanLimits,
-          fetchProduct: mockFetchProduct,
-        },
-      },
     },
   } as unknown as TApp
 
@@ -78,19 +58,6 @@ describe('Quota Endpoints', () => {
     }
 
     vi.clearAllMocks()
-
-    // Reset payment service mocks to default behavior
-    mockGetProductIdForTier.mockImplementation((tier: string) => {
-      const tiers: Record<string, string> = {
-        free: 'prod_free_123',
-        basic: 'prod_basic_456',
-        developer: 'prod_dev_789',
-        pro: 'prod_pro_000',
-      }
-      return tiers[tier]
-    })
-    mockGetPlanLimits.mockResolvedValue({ data: null })
-    mockFetchProduct.mockResolvedValue({ data: null })
   })
 
   describe('Parent endpoint configuration', () => {
@@ -225,22 +192,7 @@ describe('Quota Endpoints', () => {
   describe('GET /_/quotas/:orgId/limits - Get plan limits', () => {
     const ep = getEndpointCfg(quotas.endpoints?.getOrgLimits)
 
-    it('should return 200 with plan limits for org', async () => {
-      const mockLimits = {
-        price: 0,
-        retention: 1,
-        organizations: 1,
-        projects: 5,
-        members: 3,
-        endpoints: 25,
-        threads: 10,
-        messages: 1000,
-        functionCalls: 10000,
-        runtime: 300,
-        orgSecrets: 50,
-        projectSecrets: 25,
-      }
-
+    it('should return 200 with plan limits for org tier', async () => {
       mockReq.params = { orgId: mockOrgId }
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
@@ -254,40 +206,22 @@ describe('Quota Endpoints', () => {
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
-        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+        data: { tier: 'solo' },
       })
-
-      // Mock payment service methods
-      mockGetPlanLimits.mockResolvedValue({ data: mockLimits })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockIsOrgMember).toHaveBeenCalledWith(mockUserId, mockOrgId)
       expect(mockGetOrg).toHaveBeenCalledWith(mockOrgId)
       expect(mockFindByUser).toHaveBeenCalledWith('owner_123')
-      expect(mockGetProductIdForTier).toHaveBeenCalledWith('basic')
-      expect(mockGetPlanLimits).toHaveBeenCalledWith('prod_basic_456')
-      expect(mockFetchProduct).not.toHaveBeenCalled()
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockLimits })
+      // Should return PlanLimits[solo]
+      const jsonArg = mockJson.mock.calls[0][0]
+      expect(jsonArg.data).toBeDefined()
+      expect(jsonArg.data.projects).toBe(10) // solo = 10 projects
     })
 
     it('should return free tier limits if owner has no subscription', async () => {
-      const mockFreeLimits = {
-        price: 0,
-        retention: 1,
-        organizations: 1,
-        projects: 1,
-        members: 1,
-        endpoints: 5,
-        threads: 1,
-        messages: 100,
-        functionCalls: 1000,
-        runtime: 5,
-        orgSecrets: 10,
-        projectSecrets: 5,
-      }
-
       mockReq.params = { orgId: mockOrgId }
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
@@ -300,16 +234,13 @@ describe('Quota Endpoints', () => {
 
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({ data: null }) // No subscription
-
-      // Mock payment service methods
-      mockGetProductIdForTier.mockReturnValue('prod_free_123')
-      mockGetPlanLimits.mockResolvedValue({ data: mockFreeLimits })
+      mockFindByUser.mockResolvedValue({ data: null })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(200)
-      expect(mockJson).toHaveBeenCalledWith({ data: mockFreeLimits })
+      const jsonArg = mockJson.mock.calls[0][0]
+      expect(jsonArg.data.projects).toBe(2) // free = 2 projects
     })
 
     it('should return 401 if not authenticated', async () => {
@@ -414,15 +345,12 @@ describe('Quota Endpoints', () => {
 
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({
-        data: { projects: 2 },
+        data: { projects: 0 },
       })
       mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
-        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+        data: { tier: 'free' },
       })
-
-      // Mock payment service methods
-      mockGetPlanLimits.mockResolvedValue({ data: { projects: 5 } })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -430,9 +358,9 @@ describe('Quota Endpoints', () => {
       expect(mockJson).toHaveBeenCalledWith({
         data: {
           allowed: true,
-          current: 2,
-          limit: 5,
-          remaining: 3,
+          current: 0,
+          limit: 2,
+          remaining: 2,
         },
       })
     })
@@ -441,7 +369,7 @@ describe('Quota Endpoints', () => {
       mockReq.params = { orgId: mockOrgId }
       mockReq.body = {
         resource: 'projects',
-        amount: 10,
+        amount: 1,
       }
 
       const mockIsOrgMember = mockReq.app?.locals.db.services.role
@@ -456,15 +384,12 @@ describe('Quota Endpoints', () => {
 
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({
-        data: { projects: 4 },
+        data: { projects: 2 },
       })
       mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
-        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+        data: { tier: 'free' },
       })
-
-      // Mock payment service methods
-      mockGetPlanLimits.mockResolvedValue({ data: { projects: 5 } })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -472,11 +397,46 @@ describe('Quota Endpoints', () => {
       expect(mockJson).toHaveBeenCalledWith({
         data: {
           allowed: false,
-          current: 4,
-          limit: 5,
-          remaining: 1,
+          current: 2,
+          limit: 2,
+          remaining: 0,
         },
       })
+    })
+
+    it('should handle unlimited resources (limit = -1)', async () => {
+      mockReq.params = { orgId: mockOrgId }
+      mockReq.body = {
+        resource: 'projects',
+        amount: 1,
+      }
+
+      const mockIsOrgMember = mockReq.app?.locals.db.services.role
+        .isOrgMember as ReturnType<typeof vi.fn>
+      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
+        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
+      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
+        typeof vi.fn
+      >
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+
+      mockIsOrgMember.mockResolvedValue({ data: true })
+      mockFindByOrgAndPeriod.mockResolvedValue({
+        data: { projects: 999 },
+      })
+      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
+      mockFindByUser.mockResolvedValue({
+        data: { tier: 'team' },
+      })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const jsonArg = mockJson.mock.calls[0][0]
+      expect(jsonArg.data.allowed).toBe(true)
+      expect(jsonArg.data.limit).toBe(-1)
+      expect(jsonArg.data.remaining).toBe(-1)
     })
 
     it('should default amount to 1 if not provided', async () => {
@@ -497,15 +457,12 @@ describe('Quota Endpoints', () => {
 
       mockIsOrgMember.mockResolvedValue({ data: true })
       mockFindByOrgAndPeriod.mockResolvedValue({
-        data: { projects: 3 },
+        data: { projects: 1 },
       })
       mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
-        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+        data: { tier: 'free' },
       })
-
-      // Mock payment service methods
-      mockGetPlanLimits.mockResolvedValue({ data: { projects: 5 } })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
@@ -513,9 +470,9 @@ describe('Quota Endpoints', () => {
       expect(mockJson).toHaveBeenCalledWith({
         data: {
           allowed: true,
-          current: 3,
-          limit: 5,
-          remaining: 2,
+          current: 1,
+          limit: 2,
+          remaining: 1,
         },
       })
     })
@@ -574,11 +531,8 @@ describe('Quota Endpoints', () => {
       mockFindByOrgAndPeriod.mockResolvedValue({ data: {} })
       mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
       mockFindByUser.mockResolvedValue({
-        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
+        data: { tier: 'free' },
       })
-
-      // Mock payment service methods - no limit for invalid_resource
-      mockGetPlanLimits.mockResolvedValue({ data: { projects: 5 } })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         'Invalid resource: invalid_resource'
@@ -630,69 +584,6 @@ describe('Quota Endpoints', () => {
       )
     })
 
-    it('should return 500 if product not configured', async () => {
-      mockReq.params = { orgId: mockOrgId }
-      mockReq.body = { resource: 'projects', amount: 1 }
-
-      const mockIsOrgMember = mockReq.app?.locals.db.services.role
-        .isOrgMember as ReturnType<typeof vi.fn>
-      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
-        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockFindByUser = mockReq.app?.locals.db.services.subscription
-        .findByUser as ReturnType<typeof vi.fn>
-
-      mockIsOrgMember.mockResolvedValue({ data: true })
-      mockFindByOrgAndPeriod.mockResolvedValue({ data: { projects: 2 } })
-      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({ data: null }) // No subscription
-
-      // Mock payment service method to return undefined
-      mockGetProductIdForTier.mockReturnValue(undefined as any)
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        'Product not configured for tier: free'
-      )
-    })
-
-    it('should return 500 if failed to fetch limits', async () => {
-      mockReq.params = { orgId: mockOrgId }
-      mockReq.body = { resource: 'projects', amount: 1 }
-
-      const mockIsOrgMember = mockReq.app?.locals.db.services.role
-        .isOrgMember as ReturnType<typeof vi.fn>
-      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
-        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockFindByUser = mockReq.app?.locals.db.services.subscription
-        .findByUser as ReturnType<typeof vi.fn>
-
-      mockIsOrgMember.mockResolvedValue({ data: true })
-      mockFindByOrgAndPeriod.mockResolvedValue({ data: { projects: 2 } })
-      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({
-        data: { tier: 'basic', polarPriceId: 'price_basic_123' },
-      })
-
-      // Mock payment service method to return error
-      mockGetPlanLimits.mockResolvedValue({
-        error: new Error('Failed to fetch plan limits'),
-      })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        'Failed to fetch plan limits'
-      )
-    })
-
-    it('should have correct endpoint configuration', () => {
-      expect(ep.path).toBe('/check')
-      expect(ep.method).toBe('post')
-    })
-
     it('should return 400 when amount is negative (SEC-003 fix)', async () => {
       mockReq.params = { orgId: mockOrgId }
       mockReq.body = {
@@ -717,42 +608,9 @@ describe('Quota Endpoints', () => {
       )
     })
 
-    it('should use tier-based product lookup instead of polarPriceId (BUG-005 fix)', async () => {
-      mockReq.params = { orgId: mockOrgId }
-      mockReq.body = {
-        resource: 'projects',
-        amount: 1,
-      }
-
-      const mockIsOrgMember = mockReq.app?.locals.db.services.role
-        .isOrgMember as ReturnType<typeof vi.fn>
-      const mockFindByOrgAndPeriod = mockReq.app?.locals.db.services.quota
-        .findByOrgAndPeriod as ReturnType<typeof vi.fn>
-      const mockGetOrg = mockReq.app?.locals.db.services.org.get as ReturnType<
-        typeof vi.fn
-      >
-      const mockFindByUser = mockReq.app?.locals.db.services.subscription
-        .findByUser as ReturnType<typeof vi.fn>
-
-      mockIsOrgMember.mockResolvedValue({ data: true })
-      mockFindByOrgAndPeriod.mockResolvedValue({
-        data: { projects: 2 },
-      })
-      mockGetOrg.mockResolvedValue({ data: { id: mockOrgId, ownerId: 'owner_123' } })
-      mockFindByUser.mockResolvedValue({
-        data: { tier: 'pro', polarPriceId: 'polar_price_pro_monthly' },
-      })
-
-      // Mock payment service methods
-      mockGetPlanLimits.mockResolvedValue({ data: { projects: 10 } })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      // Should use tier to look up product ID, not polarPriceId directly
-      expect(mockGetProductIdForTier).toHaveBeenCalledWith('pro')
-      expect(mockGetPlanLimits).toHaveBeenCalledWith('prod_pro_000')
-      expect(mockFetchProduct).not.toHaveBeenCalled()
-      expect(mockStatus).toHaveBeenCalledWith(200)
+    it('should have correct endpoint configuration', () => {
+      expect(ep.path).toBe('/check')
+      expect(ep.method).toBe('post')
     })
   })
 })

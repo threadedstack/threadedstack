@@ -28,10 +28,12 @@ vi.mock(`@TDB/schemas/subscriptions`, () => ({
   subscriptions: {
     id: { name: `id` },
     userId: { name: `user_id` },
-    polarId: { name: `polar_id` },
-    polarCustomerId: { name: `polar_customer_id` },
+    stripeCustomerId: { name: `stripe_customer_id` },
+    stripeSubscriptionId: { name: `stripe_subscription_id` },
+    stripePriceId: { name: `stripe_price_id` },
     tier: { name: `tier` },
     status: { name: `status` },
+    seats: { name: `seats` },
   },
 }))
 
@@ -49,7 +51,7 @@ vi.mock(`@tdsk/domain`, async () => {
 /**
  * Creates a mock Drizzle-compatible DB object.
  * Covers the chain pattern used by the Subscription service:
- *   select → from → where    (findByUser, findByPolarId)
+ *   select -> from -> where    (findByUser, findByStripeSubscriptionId, findByStripeCustomerId)
  */
 const createMockDb = () => {
   const selectWhereFn = vi.fn()
@@ -100,10 +102,12 @@ const createMockDb = () => {
 const fakeSubscriptionRow = (overrides: Record<string, any> = {}) => ({
   id: `sub-1`,
   userId: `user-1`,
-  polarId: `polar-1`,
-  polarCustomerId: `polar-cust-1`,
+  stripeCustomerId: `cus_test1`,
+  stripeSubscriptionId: `sub_test1`,
+  stripePriceId: `price_test1`,
   tier: `free`,
   status: `active`,
+  seats: 1,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -137,8 +141,9 @@ describe(`Subscription service`, () => {
       // @ts-ignore
       expect(result._isModel).toBe(true)
       expect(result.userId).toBe(`user-1`)
-      expect(result.polarId).toBe(`polar-1`)
+      expect(result.stripeCustomerId).toBe(`cus_test1`)
       expect(result.tier).toBe(`free`)
+      expect(result.seats).toBe(1)
     })
   })
 
@@ -205,42 +210,42 @@ describe(`Subscription service`, () => {
     })
   })
 
-  // ---------- findByPolarId ----------
-  describe(`findByPolarId`, () => {
+  // ---------- findByStripeSubscriptionId ----------
+  describe(`findByStripeSubscriptionId`, () => {
     it(`should return a model when the subscription is found`, async () => {
-      const row = fakeSubscriptionRow({ polarId: `polar-99` })
+      const row = fakeSubscriptionRow({ stripeSubscriptionId: `sub_abc123` })
       mocks.selectWhereFn.mockResolvedValue([row])
 
-      const result = await service.findByPolarId(`polar-99`)
+      const result = await service.findByStripeSubscriptionId(`sub_abc123`)
 
       expect(result.data).toBeDefined()
       expect(result.error).toBeUndefined()
       // @ts-ignore
       expect(result.data._isModel).toBe(true)
-      expect(result.data.polarId).toBe(`polar-99`)
+      expect(result.data.stripeSubscriptionId).toBe(`sub_abc123`)
 
       expect(mocks.selectFn).toHaveBeenCalledOnce()
       expect(mocks.selectFromFn).toHaveBeenCalledOnce()
       expect(mocks.selectWhereFn).toHaveBeenCalledOnce()
     })
 
-    it(`should pass the correct eq condition for polarId`, async () => {
+    it(`should pass the correct eq condition for stripeSubscriptionId`, async () => {
       const { eq } = await import(`drizzle-orm`)
       const row = fakeSubscriptionRow()
       mocks.selectWhereFn.mockResolvedValue([row])
 
-      await service.findByPolarId(`polar-abc`)
+      await service.findByStripeSubscriptionId(`sub_xyz789`)
 
       expect(eq).toHaveBeenCalledWith(
-        expect.objectContaining({ name: `polar_id` }),
-        `polar-abc`
+        expect.objectContaining({ name: `stripe_subscription_id` }),
+        `sub_xyz789`
       )
     })
 
     it(`should return error when subscription is not found (empty array)`, async () => {
       mocks.selectWhereFn.mockResolvedValue([])
 
-      const result = await service.findByPolarId(`polar-missing`)
+      const result = await service.findByStripeSubscriptionId(`sub_missing`)
 
       expect(result.error).toBeDefined()
       expect(result.error).toBeInstanceOf(Error)
@@ -251,7 +256,7 @@ describe(`Subscription service`, () => {
     it(`should return error when the result is undefined`, async () => {
       mocks.selectWhereFn.mockResolvedValue([undefined])
 
-      const result = await service.findByPolarId(`polar-1`)
+      const result = await service.findByStripeSubscriptionId(`sub_test1`)
 
       expect(result.error).toBeDefined()
       expect(result.error.message).toBe(`Subscription not found`)
@@ -260,7 +265,70 @@ describe(`Subscription service`, () => {
     it(`should return error on DB exception`, async () => {
       mocks.selectWhereFn.mockRejectedValue(new Error(`Connection lost`))
 
-      const result = await service.findByPolarId(`polar-1`)
+      const result = await service.findByStripeSubscriptionId(`sub_test1`)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`Connection lost`)
+      expect(result.data).toBeUndefined()
+    })
+  })
+
+  // ---------- findByStripeCustomerId ----------
+  describe(`findByStripeCustomerId`, () => {
+    it(`should return a model when the subscription is found`, async () => {
+      const row = fakeSubscriptionRow({ stripeCustomerId: `cus_abc123` })
+      mocks.selectWhereFn.mockResolvedValue([row])
+
+      const result = await service.findByStripeCustomerId(`cus_abc123`)
+
+      expect(result.data).toBeDefined()
+      expect(result.error).toBeUndefined()
+      // @ts-ignore
+      expect(result.data._isModel).toBe(true)
+      expect(result.data.stripeCustomerId).toBe(`cus_abc123`)
+
+      expect(mocks.selectFn).toHaveBeenCalledOnce()
+      expect(mocks.selectFromFn).toHaveBeenCalledOnce()
+      expect(mocks.selectWhereFn).toHaveBeenCalledOnce()
+    })
+
+    it(`should pass the correct eq condition for stripeCustomerId`, async () => {
+      const { eq } = await import(`drizzle-orm`)
+      const row = fakeSubscriptionRow()
+      mocks.selectWhereFn.mockResolvedValue([row])
+
+      await service.findByStripeCustomerId(`cus_xyz789`)
+
+      expect(eq).toHaveBeenCalledWith(
+        expect.objectContaining({ name: `stripe_customer_id` }),
+        `cus_xyz789`
+      )
+    })
+
+    it(`should return error when subscription is not found (empty array)`, async () => {
+      mocks.selectWhereFn.mockResolvedValue([])
+
+      const result = await service.findByStripeCustomerId(`cus_missing`)
+
+      expect(result.error).toBeDefined()
+      expect(result.error).toBeInstanceOf(Error)
+      expect(result.error.message).toBe(`Subscription not found`)
+      expect(result.data).toBeUndefined()
+    })
+
+    it(`should return error when the result is undefined`, async () => {
+      mocks.selectWhereFn.mockResolvedValue([undefined])
+
+      const result = await service.findByStripeCustomerId(`cus_test1`)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`Subscription not found`)
+    })
+
+    it(`should return error on DB exception`, async () => {
+      mocks.selectWhereFn.mockRejectedValue(new Error(`Connection lost`))
+
+      const result = await service.findByStripeCustomerId(`cus_test1`)
 
       expect(result.error).toBeDefined()
       expect(result.error.message).toBe(`Connection lost`)
@@ -271,7 +339,7 @@ describe(`Subscription service`, () => {
   // ---------- upsertByUser ----------
   describe(`upsertByUser`, () => {
     it(`should create a new subscription when none exists for user`, async () => {
-      const newRow = fakeSubscriptionRow({ userId: `user-new`, tier: `basic` })
+      const newRow = fakeSubscriptionRow({ userId: `user-new`, tier: `solo` })
 
       // No existing subscription found
       mocks.selectWhereFn.mockResolvedValue([])
@@ -280,9 +348,9 @@ describe(`Subscription service`, () => {
 
       const result = await service.upsertByUser({
         userId: `user-new`,
-        tier: `basic`,
+        tier: `solo`,
         status: `active`,
-        polarId: `polar-new`,
+        stripeCustomerId: `cus_new`,
       } as any)
 
       expect(result.data).toBeDefined()
@@ -296,7 +364,7 @@ describe(`Subscription service`, () => {
       const existingRow = fakeSubscriptionRow({ userId: `user-existing`, tier: `free` })
       const updatedRow = fakeSubscriptionRow({
         userId: `user-existing`,
-        tier: `developer`,
+        tier: `pro`,
       })
 
       // Existing subscription found
@@ -306,22 +374,22 @@ describe(`Subscription service`, () => {
 
       const result = await service.upsertByUser({
         userId: `user-existing`,
-        tier: `developer`,
+        tier: `pro`,
         status: `active`,
-        polarId: `polar-1`,
+        stripeCustomerId: `cus_existing`,
       } as any)
 
       expect(result.data).toBeDefined()
       expect(result.error).toBeUndefined()
       expect(result.data._isModel).toBe(true)
-      expect(result.data.tier).toBe(`developer`)
+      expect(result.data.tier).toBe(`pro`)
       expect(mocks.updateFn).toHaveBeenCalledOnce()
     })
 
     it(`should return error when userId is empty`, async () => {
       const result = await service.upsertByUser({
         userId: ``,
-        tier: `basic`,
+        tier: `solo`,
       } as any)
 
       expect(result.error).toBeDefined()
@@ -335,7 +403,7 @@ describe(`Subscription service`, () => {
 
       const result = await service.upsertByUser({
         userId: `user-fail`,
-        tier: `basic`,
+        tier: `solo`,
       } as any)
 
       expect(result.error).toBeDefined()
@@ -349,7 +417,7 @@ describe(`Subscription service`, () => {
 
       const result = await service.upsertByUser({
         userId: `user-1`,
-        tier: `developer`,
+        tier: `pro`,
       } as any)
 
       expect(result.error).toBeDefined()
@@ -361,7 +429,7 @@ describe(`Subscription service`, () => {
 
       const result = await service.upsertByUser({
         userId: `user-1`,
-        tier: `basic`,
+        tier: `solo`,
       } as any)
 
       expect(result.error).toBeDefined()

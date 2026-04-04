@@ -1,1 +1,1 @@
-export * from './polar'
+export * from './stripe'

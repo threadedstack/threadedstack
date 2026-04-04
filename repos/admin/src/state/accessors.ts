@@ -18,6 +18,7 @@ import type {
   ApiKey,
   Domain,
   Thread,
+  Invoice,
   Message,
   Project,
   Sandbox,
@@ -47,6 +48,7 @@ import { messagesState, activeMessageIdState } from '@TAF/state/messages'
 import { projectsState, activeProjectIdState } from '@TAF/state/projects'
 import { schedulesState, activeScheduleIdState } from '@TAF/state/schedules'
 import { functionsState, activeFunctionIdState } from '@TAF/state/functions'
+import { invoicesState } from '@TAF/state/invoices'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import { DefFaasState, DefProxyState, DefAgentState } from '@TAF/constants/endpoints'
 import {
@@ -188,6 +190,10 @@ export const setSubscription = (subscription: Subscription | null) =>
 export const getPaymentPlans = () => store.get(paymentPlansState)
 export const resetPaymentPlans = () => store.set(paymentPlansState, [])
 export const setPaymentPlans = (plans: Plan[]) => store.set(paymentPlansState, plans)
+
+export const getInvoices = () => store.get(invoicesState)
+export const resetInvoices = () => store.set(invoicesState, [])
+export const setInvoices = (invoices: Invoice[]) => store.set(invoicesState, invoices)
 
 export const getOrgQuota = () => store.get(orgQuotaState)
 export const resetOrgQuota = () => store.set(orgQuotaState, undefined)

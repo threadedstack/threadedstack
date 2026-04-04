@@ -2,7 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -29,6 +31,18 @@ export const deleteProject: TEndpointConfig = {
     // Delete the project
     const { data, error } = await db.services.project.delete(projectId)
     if (error) throw new Exception(500, error.message)
+
+    // Decrement project quota for the org
+    if (existing.orgId && db.services.quota) {
+      db.services.quota
+        .decrement(existing.orgId, getBillingPeriod(), `projects`)
+        .catch((err: unknown) =>
+          logger.error(
+            `[quota] Failed to decrement projects for org=${existing.orgId}:`,
+            err
+          )
+        )
+    }
 
     res.status(200).json({ data: { success: true, id: projectId } })
   },

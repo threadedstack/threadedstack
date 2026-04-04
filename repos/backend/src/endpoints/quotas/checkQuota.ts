@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
+import { Exception, PlanLimits, ESubscriptionTier } from '@tdsk/domain'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 
@@ -16,7 +16,7 @@ export const checkQuota: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { resource, amount = 1 } = req.body
-    const { db, payments } = req.app.locals
+    const { db } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) throw new Exception(401, `Authentication required`)
@@ -48,28 +48,21 @@ export const checkQuota: TEndpointConfig = {
     if (subResult.error) throw new Exception(500, subResult.error.message)
 
     // Use subscription tier or default to free
-    const tier = subResult.data?.tier || `free`
-    const productId = payments.service.getProductIdForTier(tier)
+    const tier = (subResult.data?.tier || `free`) as ESubscriptionTier
+    const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
+    const limit = (limits as Record<string, any>)[resource]
 
-    if (!productId) throw new Exception(500, `Product not configured for tier: ${tier}`)
-
-    // Fetch limits
-    const limitsResult = await payments.service.getPlanLimits(productId)
-
-    if (limitsResult.error || !limitsResult.data)
-      throw new Exception(500, limitsResult.error?.message || `Failed to fetch limits`)
-
-    const limit = limitsResult.data[resource]
     if (limit === undefined) throw new Exception(400, `Invalid resource: ${resource}`)
 
-    const allowed = currentUsage + amount <= limit
+    // -1 means unlimited
+    const allowed = limit === -1 || currentUsage + amount <= limit
 
     res.status(200).json({
       data: {
         allowed,
         current: currentUsage,
         limit,
-        remaining: Math.max(0, limit - currentUsage),
+        remaining: limit === -1 ? -1 : Math.max(0, limit - currentUsage),
       },
     })
   },

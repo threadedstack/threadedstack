@@ -2,17 +2,22 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
+import { Exception, ESubscriptionTier } from '@tdsk/domain'
+
+const validTiers = new Set(Object.values(ESubscriptionTier))
 
 /**
  * POST /subscriptions/checkout - Create a checkout session
  * Body: { tier: string, successUrl: string, cancelUrl: string }
+ *
+ * If the user already has an active subscription at a different tier,
+ * performs an upgrade/downgrade via updateSubscription instead.
  */
 export const createCheckout: TEndpointConfig = {
   path: `/checkout`,
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { payments } = req.app.locals
+    const { db, payments } = req.app.locals
     const userId = req.user?.id
     const userEmail = req.user?.email
 
@@ -23,31 +28,54 @@ export const createCheckout: TEndpointConfig = {
     if (!tier || !successUrl || !cancelUrl)
       throw new Exception(400, `Missing required fields: tier, successUrl, cancelUrl`)
 
-    // Get product ID for tier
-    const productId = payments.service.getProductIdForTier(tier)
-    if (!productId) throw new Exception(400, `Invalid tier: ${tier}`)
+    if (!validTiers.has(tier as ESubscriptionTier))
+      throw new Exception(400, `Invalid tier: ${tier}`)
 
-    // Get product to find price ID
-    const productResult = await payments.service.fetchProduct(productId)
-    if (productResult.error || !productResult.data)
-      throw new Exception(500, productResult.error?.message || `Failed to fetch product`)
+    if (tier === ESubscriptionTier.free)
+      throw new Exception(400, `Cannot checkout for free tier`)
 
-    // Create or get customer
-    const customerResult = await payments.service.ensureCustomer(userEmail, userId)
-    if (customerResult.error || !customerResult.data)
-      throw new Exception(
-        500,
-        customerResult.error?.message || `Failed to create customer`
+    // Check if user already has an active subscription
+    const subResult = await db.services.subscription.findByUser(userId)
+
+    if (subResult.data?.stripeSubscriptionId && subResult.data.status === `active`) {
+      // Already subscribed — perform tier change instead of new checkout
+      const priceId = payments.service.config.priceIds[tier]
+      if (!priceId) throw new Exception(400, `No price configured for tier: ${tier}`)
+
+      await payments.service.updateSubscription(
+        subResult.data.stripeSubscriptionId,
+        priceId
       )
 
-    // Create checkout session
-    // Extract the actual price ID from the product's prices
-    const prices = (productResult.data as any).prices
-    const priceId = prices?.[0]?.id || productResult.data.id
-    const checkoutResult = await payments.service.createCheckout(
-      priceId,
-      customerResult.data.id,
-      userId,
+      res.status(200).json({
+        data: { updated: true, message: `Subscription updated to ${tier}` },
+      })
+      return
+    }
+
+    // New subscription — create or retrieve customer, then create checkout session
+    let customerId = subResult.data?.stripeCustomerId
+
+    if (!customerId) {
+      const customerResult = await payments.service.createCustomer(userEmail, userId)
+      if (customerResult.error || !customerResult.data)
+        throw new Exception(
+          500,
+          customerResult.error?.message || `Failed to create customer`
+        )
+
+      customerId = customerResult.data.id
+
+      // Persist the customer ID on the subscription record
+      await db.services.subscription.upsertByUser({
+        userId,
+        stripeCustomerId: customerId,
+      })
+    }
+
+    const checkoutResult = await payments.service.createCheckoutSession(
+      tier,
+      customerId,
       successUrl,
       cancelUrl
     )

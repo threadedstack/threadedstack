@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
@@ -30,6 +31,16 @@ export const deleteEndpoint: TEndpointConfig = {
     const { data, error } = await db.services.endpoint.delete(id)
 
     if (error) throw new Exception(500, error.message)
+
+    // Decrement endpoint quota for the org
+    const orgId = req.params.orgId
+    if (orgId && db.services.quota) {
+      db.services.quota
+        .decrement(orgId, getBillingPeriod(), `endpoints`)
+        .catch((err: unknown) =>
+          logger.error(`[quota] Failed to decrement endpoints for org=${orgId}:`, err)
+        )
+    }
 
     res.status(200).json({ data: { success: true, id } })
   },

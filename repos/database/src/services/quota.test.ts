@@ -25,7 +25,7 @@ vi.mock(`@TDB/utils/database/buildQuery`, () => ({
 }))
 
 // Mock the domain Quota model — must preserve EFunLanguage / EInviteStatus
-// because the schema tree (quotas→orgs→functions/invitations) loads them at import time
+// because the schema tree (quotas->orgs->functions/invitations) loads them at import time
 vi.mock(`@tdsk/domain`, async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tdsk/domain')>()
   return {
@@ -44,26 +44,21 @@ const mockTable = {
   id: { name: `id` },
   orgId: { name: `org_id` },
   period: { name: `period` },
-  price: { name: `price` },
-  retention: { name: `retention` },
-  members: { name: `members` },
-  threads: { name: `threads` },
-  runtime: { name: `runtime` },
-  messages: { name: `messages` },
   projects: { name: `projects` },
+  compute: { name: `compute` },
+  threads: { name: `threads` },
+  messages: { name: `messages` },
   endpoints: { name: `endpoints` },
-  orgSecrets: { name: `org_secrets` },
-  organizations: { name: `organizations` },
-  functionCalls: { name: `function_calls` },
-  projectSecrets: { name: `project_secrets` },
+  secrets: { name: `secrets` },
 } as any
 
 /**
  * Creates a mock Drizzle-compatible DB object.
- * Covers the three chain patterns used by the Quota service:
- *   select → from → where                          (getUsage)
- *   insert → values → onConflictDoUpdate → returning (increment)
- *   insert → values → onConflictDoNothing → returning (initializePeriod)
+ * Covers the chain patterns used by the Quota service:
+ *   select -> from -> where                          (getUsage)
+ *   insert -> values -> onConflictDoUpdate -> returning (increment)
+ *   insert -> values -> onConflictDoNothing -> returning (initializePeriod)
+ *   update -> set -> where -> returning               (decrement)
  */
 const createMockDb = () => {
   // select chain: db.select().from(table).where(...)
@@ -84,7 +79,13 @@ const createMockDb = () => {
   }))
   const insertFn = vi.fn(() => ({ values: valuesFn }))
 
-  // query chain (used by inherited Base methods — e.g. get/by/list)
+  // update chain: db.update(table).set(data).where(cond).returning()
+  const updateReturningFn = vi.fn()
+  const updateWhereFn = vi.fn(() => ({ returning: updateReturningFn }))
+  const updateSetFn = vi.fn(() => ({ where: updateWhereFn }))
+  const updateFn = vi.fn(() => ({ set: updateSetFn }))
+
+  // query chain (used by inherited Base methods)
   const findFirst = vi.fn()
   const findMany = vi.fn()
 
@@ -92,6 +93,7 @@ const createMockDb = () => {
     db: {
       select: selectFn,
       insert: insertFn,
+      update: updateFn,
       query: {
         quotas: { findFirst, findMany },
       },
@@ -105,6 +107,10 @@ const createMockDb = () => {
     returningFn,
     onConflictDoUpdateFn,
     onConflictDoNothingFn,
+    updateFn,
+    updateSetFn,
+    updateWhereFn,
+    updateReturningFn,
     findFirst,
     findMany,
   }
@@ -117,18 +123,12 @@ const fakeQuotaRow = (overrides: Record<string, any> = {}) => ({
   id: `quota-1`,
   orgId: `org-1`,
   period: `2025-01`,
-  price: 0,
-  retention: 30,
-  members: 0,
-  threads: 0,
-  runtime: 0,
-  messages: 0,
   projects: 0,
+  compute: 0,
+  threads: 0,
+  messages: 0,
   endpoints: 0,
-  orgSecrets: 0,
-  organizations: 0,
-  functionCalls: 0,
-  projectSecrets: 0,
+  secrets: 0,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -238,16 +238,15 @@ describe(`Quota service`, () => {
     })
   })
 
-  // ---------- increment (CRIT-07 / SEC-01) ----------
+  // ---------- increment ----------
   describe(`increment`, () => {
-    describe(`negative / zero amount guard (CRIT-07)`, () => {
+    describe(`negative / zero amount guard`, () => {
       it(`should reject amount = 0 with positive-amount error`, async () => {
-        const result = await service.increment(`org-1`, `2025-01`, `members`, 0)
+        const result = await service.increment(`org-1`, `2025-01`, `projects`, 0)
 
         expect(result.error).toBeDefined()
         expect(result.error.message).toContain(`must be positive`)
         expect(result.data).toBeUndefined()
-        // DB should never be called
         expect(mocks.insertFn).not.toHaveBeenCalled()
       })
 
@@ -261,7 +260,7 @@ describe(`Quota service`, () => {
       })
 
       it(`should reject amount = -100 with positive-amount error`, async () => {
-        const result = await service.increment(`org-1`, `2025-01`, `runtime`, -100)
+        const result = await service.increment(`org-1`, `2025-01`, `compute`, -100)
 
         expect(result.error).toBeDefined()
         expect(result.error.message).toContain(`must be positive`)
@@ -280,15 +279,15 @@ describe(`Quota service`, () => {
     })
 
     it(`should succeed with amount = 1 (default)`, async () => {
-      const row = fakeQuotaRow({ members: 1 })
+      const row = fakeQuotaRow({ projects: 1 })
       mocks.returningFn.mockResolvedValue([row])
 
-      const result = await service.increment(`org-1`, `2025-01`, `members`, 1)
+      const result = await service.increment(`org-1`, `2025-01`, `projects`, 1)
 
       expect(result.data).toBeDefined()
       expect(result.error).toBeUndefined()
       expect(result.data._isModel).toBe(true)
-      expect(result.data.members).toBe(1)
+      expect(result.data.projects).toBe(1)
 
       expect(mocks.insertFn).toHaveBeenCalledOnce()
       expect(mocks.valuesFn).toHaveBeenCalledOnce()
@@ -297,14 +296,14 @@ describe(`Quota service`, () => {
     })
 
     it(`should succeed with a large positive amount`, async () => {
-      const row = fakeQuotaRow({ functionCalls: 500 })
+      const row = fakeQuotaRow({ compute: 500 })
       mocks.returningFn.mockResolvedValue([row])
 
-      const result = await service.increment(`org-1`, `2025-01`, `functionCalls`, 500)
+      const result = await service.increment(`org-1`, `2025-01`, `compute`, 500)
 
       expect(result.data).toBeDefined()
       expect(result.error).toBeUndefined()
-      expect(result.data.functionCalls).toBe(500)
+      expect(result.data.compute).toBe(500)
     })
 
     it(`should return error for an invalid quota key`, async () => {
@@ -344,19 +343,100 @@ describe(`Quota service`, () => {
     })
   })
 
-  // ---------- initializePeriod ----------
-  describe(`initializePeriod`, () => {
-    it(`should return model when insert succeeds (no conflict)`, async () => {
-      const row = fakeQuotaRow({ price: 999, retention: 90 })
-      mocks.returningFn.mockResolvedValue([row])
+  // ---------- decrement ----------
+  describe(`decrement`, () => {
+    describe(`negative / zero amount guard`, () => {
+      it(`should reject amount = 0 with positive-amount error`, async () => {
+        const result = await service.decrement(`org-1`, `2025-01`, `projects`, 0)
 
-      const result = await service.initializePeriod(`org-1`, `2025-01`, 999, 90)
+        expect(result.error).toBeDefined()
+        expect(result.error.message).toContain(`must be positive`)
+        expect(result.data).toBeUndefined()
+        expect(mocks.updateFn).not.toHaveBeenCalled()
+      })
+
+      it(`should reject amount = -1 with positive-amount error`, async () => {
+        const result = await service.decrement(`org-1`, `2025-01`, `threads`, -1)
+
+        expect(result.error).toBeDefined()
+        expect(result.error.message).toContain(`must be positive`)
+        expect(result.data).toBeUndefined()
+        expect(mocks.updateFn).not.toHaveBeenCalled()
+      })
+    })
+
+    it(`should return error for an invalid quota key`, async () => {
+      const result = await service.decrement(
+        `org-1`,
+        `2025-01`,
+        `nonExistentKey` as any,
+        1
+      )
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toContain(`Invalid quota key`)
+      expect(mocks.updateFn).not.toHaveBeenCalled()
+    })
+
+    it(`should succeed with default amount of 1`, async () => {
+      const row = fakeQuotaRow({ projects: 4 })
+      mocks.updateReturningFn.mockResolvedValue([row])
+
+      const result = await service.decrement(`org-1`, `2025-01`, `projects`)
 
       expect(result.data).toBeDefined()
       expect(result.error).toBeUndefined()
       expect(result.data._isModel).toBe(true)
-      expect(result.data.price).toBe(999)
-      expect(result.data.retention).toBe(90)
+      expect(result.data.projects).toBe(4)
+
+      expect(mocks.updateFn).toHaveBeenCalledOnce()
+      expect(mocks.updateSetFn).toHaveBeenCalledOnce()
+      expect(mocks.updateWhereFn).toHaveBeenCalledOnce()
+      expect(mocks.updateReturningFn).toHaveBeenCalledOnce()
+    })
+
+    it(`should succeed with a specified amount`, async () => {
+      const row = fakeQuotaRow({ secrets: 3 })
+      mocks.updateReturningFn.mockResolvedValue([row])
+
+      const result = await service.decrement(`org-1`, `2025-01`, `secrets`, 5)
+
+      expect(result.data).toBeDefined()
+      expect(result.error).toBeUndefined()
+      expect(result.data.secrets).toBe(3)
+    })
+
+    it(`should return null data when no row matches`, async () => {
+      mocks.updateReturningFn.mockResolvedValue([])
+
+      const result = await service.decrement(`org-missing`, `2025-01`, `projects`, 1)
+
+      expect(result.data).toBeNull()
+      expect(result.error).toBeUndefined()
+    })
+
+    it(`should return error on DB exception`, async () => {
+      mocks.updateReturningFn.mockRejectedValue(new Error(`Update failed`))
+
+      const result = await service.decrement(`org-1`, `2025-01`, `endpoints`, 1)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`Update failed`)
+      expect(result.data).toBeUndefined()
+    })
+  })
+
+  // ---------- initializePeriod ----------
+  describe(`initializePeriod`, () => {
+    it(`should return model when insert succeeds (no conflict)`, async () => {
+      const row = fakeQuotaRow()
+      mocks.returningFn.mockResolvedValue([row])
+
+      const result = await service.initializePeriod(`org-1`, `2025-01`)
+
+      expect(result.data).toBeDefined()
+      expect(result.error).toBeUndefined()
+      expect(result.data._isModel).toBe(true)
 
       expect(mocks.insertFn).toHaveBeenCalledOnce()
       expect(mocks.valuesFn).toHaveBeenCalledOnce()
@@ -368,33 +448,27 @@ describe(`Quota service`, () => {
       const row = fakeQuotaRow()
       mocks.returningFn.mockResolvedValue([row])
 
-      await service.initializePeriod(`org-1`, `2025-01`, 0, 30)
+      await service.initializePeriod(`org-1`, `2025-01`)
 
       const valuesArg = (mocks.valuesFn.mock.calls[0] as any)[0]
       expect(valuesArg.orgId).toBe(`org-1`)
       expect(valuesArg.period).toBe(`2025-01`)
-      expect(valuesArg.price).toBe(0)
-      expect(valuesArg.retention).toBe(30)
-      expect(valuesArg.members).toBe(0)
-      expect(valuesArg.threads).toBe(0)
-      expect(valuesArg.runtime).toBe(0)
-      expect(valuesArg.messages).toBe(0)
       expect(valuesArg.projects).toBe(0)
+      expect(valuesArg.compute).toBe(0)
+      expect(valuesArg.threads).toBe(0)
+      expect(valuesArg.messages).toBe(0)
       expect(valuesArg.endpoints).toBe(0)
-      expect(valuesArg.orgSecrets).toBe(0)
-      expect(valuesArg.organizations).toBe(0)
-      expect(valuesArg.functionCalls).toBe(0)
-      expect(valuesArg.projectSecrets).toBe(0)
+      expect(valuesArg.secrets).toBe(0)
     })
 
     it(`should fall back to getUsage when conflict occurs (data is undefined)`, async () => {
-      // First call (returning from onConflictDoNothing) returns empty → conflict path
+      // First call (returning from onConflictDoNothing) returns empty -> conflict path
       mocks.returningFn.mockResolvedValue([undefined])
       // getUsage will call select chain
       const existingRow = fakeQuotaRow()
       mocks.selectWhereFn.mockResolvedValue([existingRow])
 
-      const result = await service.initializePeriod(`org-1`, `2025-01`, 0, 30)
+      const result = await service.initializePeriod(`org-1`, `2025-01`)
 
       // Should have fallen through to getUsage
       expect(mocks.selectFn).toHaveBeenCalledOnce()
@@ -408,7 +482,7 @@ describe(`Quota service`, () => {
       const existingRow = fakeQuotaRow()
       mocks.selectWhereFn.mockResolvedValue([existingRow])
 
-      const result = await service.initializePeriod(`org-1`, `2025-01`, 0, 30)
+      const result = await service.initializePeriod(`org-1`, `2025-01`)
 
       expect(mocks.selectFn).toHaveBeenCalledOnce()
       expect(result.data).toBeDefined()
@@ -417,7 +491,7 @@ describe(`Quota service`, () => {
     it(`should return error on DB exception`, async () => {
       mocks.returningFn.mockRejectedValue(new Error(`Connection lost`))
 
-      const result = await service.initializePeriod(`org-1`, `2025-01`, 0, 30)
+      const result = await service.initializePeriod(`org-1`, `2025-01`)
 
       expect(result.error).toBeDefined()
       expect(result.error.message).toBe(`Connection lost`)

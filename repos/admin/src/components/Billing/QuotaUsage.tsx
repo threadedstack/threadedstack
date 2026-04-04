@@ -62,14 +62,10 @@ export const QuotaUsage = (props: TQuotaUsage) => {
       limit: limits.projects || 0,
     },
     {
-      label: 'Endpoints',
-      current: usage.endpoints || 0,
-      limit: limits.endpoints || 0,
-    },
-    {
-      label: 'Members',
-      current: usage.members || 0,
-      limit: limits.members || 0,
+      label: 'Compute',
+      current: usage.compute || 0,
+      limit: limits.compute || 0,
+      unit: 'seconds',
     },
     {
       label: 'Threads',
@@ -82,25 +78,14 @@ export const QuotaUsage = (props: TQuotaUsage) => {
       limit: limits.messages || 0,
     },
     {
-      label: 'Function Calls',
-      current: usage.functionCalls || 0,
-      limit: limits.functionCalls || 0,
+      label: 'Endpoints',
+      current: usage.endpoints || 0,
+      limit: limits.endpoints || 0,
     },
     {
-      label: 'Runtime',
-      current: usage.runtime || 0,
-      limit: limits.runtime || 0,
-      unit: 'seconds',
-    },
-    {
-      label: 'Org Secrets',
-      current: usage.orgSecrets || 0,
-      limit: limits.orgSecrets || 0,
-    },
-    {
-      label: 'Project Secrets',
-      current: usage.projectSecrets || 0,
-      limit: limits.projectSecrets || 0,
+      label: 'Secrets',
+      current: usage.secrets || 0,
+      limit: limits.secrets || 0,
     },
   ]
 

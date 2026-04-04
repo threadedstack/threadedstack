@@ -1,4 +1,5 @@
 import type { EEmailType, EPayType, TPayEnv } from '@TBE/types'
+import type { ESubscriptionTier } from '@tdsk/domain'
 import { toNum, toBool } from '@keg-hub/jsutils'
 import { loadEnvs, parsePayPlans } from '@tdsk/domain'
 
@@ -29,9 +30,10 @@ const {
 
   TDSK_PAY_TYPE,
   TDSK_PAY_PLANS,
-  TDSK_PAY_URL = ``,
-  TDSK_PAY_WEBHOOK_SECRET = ``,
-  TDSK_PAY_ACCESS_TOKEN = `invalid`,
+  TDSK_STRIPE_SECRET_KEY = ``,
+  TDSK_STRIPE_WEBHOOK_SECRET = ``,
+  TDSK_STRIPE_SEAT_PRICE_ID_PRO = ``,
+  TDSK_STRIPE_SEAT_PRICE_ID_TEAM = ``,
   // Frontend URL for email links (invitation emails, password reset, etc.)
   // Falls back to localhost:5887 for local development
   TDSK_FRONTEND_URL,
@@ -88,11 +90,14 @@ export const config = {
     silent: toBool(TDSK_BE_LOGGER_SILENT) ?? false,
   },
   payments: {
-    url: TDSK_PAY_URL,
-    token: TDSK_PAY_ACCESS_TOKEN,
     type: TDSK_PAY_TYPE as EPayType,
-    wbhSecret: TDSK_PAY_WEBHOOK_SECRET,
-    plans: parsePayPlans(TDSK_PAY_PLANS),
+    secretKey: TDSK_STRIPE_SECRET_KEY,
+    webhookSecret: TDSK_STRIPE_WEBHOOK_SECRET,
+    priceIds: parsePayPlans(TDSK_PAY_PLANS) as Record<ESubscriptionTier, string>,
+    seatPriceIds: {
+      pro: TDSK_STRIPE_SEAT_PRICE_ID_PRO,
+      team: TDSK_STRIPE_SEAT_PRICE_ID_TEAM,
+    },
     environment: process.env.NODE_ENV as TPayEnv,
   },
   email: {

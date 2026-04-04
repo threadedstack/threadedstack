@@ -3,7 +3,7 @@ import { EWSEventType, EHttpMethod, EApiKeyScope } from '@tdsk/domain'
 
 export const sigs = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
 
-export const AuthIgnore = [`/`, `/health`]
+export const AuthIgnore = [`/`, `/health`, `/payments/webhooks`]
 
 export const LoggerIgnore = {
   methods: [`OPTIONS`],

@@ -2,19 +2,19 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
+import { Exception, PlanLimits, ESubscriptionTier } from '@tdsk/domain'
 import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
 
 /**
  * GET /orgs/:orgId/quotas/limits - Get plan limits for an organization
- * Returns the limits from the org owner's subscription
+ * Returns the limits from the org owner's subscription tier.
  */
 export const getOrgLimits: TEndpointConfig = {
   path: `/limits`,
   method: EPMethod.Get,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
-    const { db, payments } = req.app.locals
+    const { db } = req.app.locals
     const userId = req.user?.id
 
     if (!userId) throw new Exception(401, `Authentication required`)
@@ -35,16 +35,9 @@ export const getOrgLimits: TEndpointConfig = {
     if (subResult.error) throw new Exception(500, subResult.error.message)
 
     // Use subscription tier or default to free
-    const tier = subResult.data?.tier || `free`
-    const productId = payments.service.getProductIdForTier(tier)
+    const tier = (subResult.data?.tier || `free`) as ESubscriptionTier
+    const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
 
-    if (!productId) throw new Exception(500, `Product not configured for tier: ${tier}`)
-
-    const limitsResult = await payments.service.getPlanLimits(productId)
-
-    if (limitsResult.error || !limitsResult.data)
-      throw new Exception(500, limitsResult.error?.message || `Failed to fetch limits`)
-
-    res.status(200).json({ data: limitsResult.data })
+    res.status(200).json({ data: limits })
   },
 }

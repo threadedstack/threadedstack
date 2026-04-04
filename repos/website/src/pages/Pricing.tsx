@@ -21,59 +21,51 @@ import PageMeta from '@TAF/components/Shared/PageMeta'
 type ComparisonRow = {
   resource: string
   free: string
-  basic: string
-  developer: string
+  solo: string
   pro: string
+  team: string
 }
 
 const comparisonRows: ComparisonRow[] = [
-  { resource: 'Projects', free: '1', basic: '3', developer: '10', pro: 'Unlimited' },
-  { resource: 'Members', free: '1', basic: '5', developer: '15', pro: 'Unlimited' },
-  { resource: 'Endpoints', free: '5', basic: '25', developer: '100', pro: 'Unlimited' },
-  { resource: 'Threads', free: '10', basic: '100', developer: '1,000', pro: 'Unlimited' },
+  { resource: 'Organizations', free: '1', solo: '2', pro: '5', team: 'Unlimited' },
+  { resource: 'Projects', free: '2', solo: '10', pro: '50', team: 'Unlimited' },
+  { resource: 'Seats (included)', free: '1', solo: '1', pro: '3', team: '10' },
+  {
+    resource: 'Additional Seats',
+    free: '\u2014',
+    solo: '\u2014',
+    pro: '+$10/seat/mo',
+    team: '+$8/seat/mo',
+  },
+  {
+    resource: 'Compute',
+    free: '1,000/mo',
+    solo: '10,000/mo',
+    pro: '100,000/mo',
+    team: 'Unlimited',
+  },
+  {
+    resource: 'Threads',
+    free: '100',
+    solo: '1,000',
+    pro: 'Unlimited',
+    team: 'Unlimited',
+  },
   {
     resource: 'Messages',
-    free: '100',
-    basic: '1,000',
-    developer: '10,000',
+    free: '500/mo',
+    solo: '10,000/mo',
     pro: 'Unlimited',
+    team: 'Unlimited',
   },
-  {
-    resource: 'Function Calls',
-    free: '50/mo',
-    basic: '500/mo',
-    developer: '5,000/mo',
-    pro: 'Unlimited',
-  },
-  {
-    resource: 'Runtime',
-    free: '1 hr/mo',
-    basic: '10 hrs/mo',
-    developer: '100 hrs/mo',
-    pro: 'Unlimited',
-  },
-  { resource: 'Org Secrets', free: '5', basic: '25', developer: '100', pro: 'Unlimited' },
-  {
-    resource: 'Project Secrets',
-    free: '5',
-    basic: '25',
-    developer: '100',
-    pro: 'Unlimited',
-  },
-  { resource: 'Organizations', free: '1', basic: '1', developer: '3', pro: 'Unlimited' },
-  {
-    resource: 'Price',
-    free: '$0/mo',
-    basic: '$19/mo',
-    developer: '$49/mo',
-    pro: '$149/mo',
-  },
+  { resource: 'Endpoints', free: '3', solo: '20', pro: 'Unlimited', team: 'Unlimited' },
+  { resource: 'Secrets', free: '5', solo: '25', pro: 'Unlimited', team: 'Unlimited' },
   {
     resource: 'Retention',
     free: '7 days',
-    basic: '30 days',
-    developer: '90 days',
-    pro: '365 days',
+    solo: '30 days',
+    pro: '90 days',
+    team: '365 days',
   },
 ]
 
@@ -106,12 +98,17 @@ const faqItems: FAQItem[] = [
   {
     question: 'How does billing work?',
     answer:
-      'All paid plans are billed monthly through Polar.sh. You can pay with any major credit card. Invoices are generated at the start of each billing cycle and are available in your admin dashboard. Annual billing with a discount is coming soon.',
+      'All paid plans are billed monthly through Stripe. You can pay with any major credit card. Invoices are generated at the start of each billing cycle and are available in your admin dashboard. Annual billing with a discount is coming soon.',
   },
   {
     question: 'What payment methods do you accept?',
     answer:
-      'We accept all major credit and debit cards (Visa, Mastercard, American Express) through our payment provider Polar.sh. All transactions are processed securely and we never store your card details on our servers.',
+      'We accept all major credit and debit cards (Visa, Mastercard, American Express) through Stripe. All transactions are processed securely and we never store your card details on our servers.',
+  },
+  {
+    question: 'How does seat-based pricing work?',
+    answer:
+      'The Pro plan includes 3 seats and the Team plan includes 10 seats at the base price. If you need more, additional seats are billed per member per month — $10/seat on Pro, $8/seat on Team. Seats are prorated when added mid-cycle, and you are only charged for active members.',
   },
 ]
 
@@ -119,7 +116,7 @@ const Pricing = () => (
   <>
     <PageMeta
       title='Pricing'
-      description='Simple, transparent pricing for Threaded Stack. Start free, scale as you grow with Basic, Developer, and Pro plans.'
+      description='Simple, transparent pricing for Threaded Stack. Start free, scale as you grow with Solo, Pro, and Team plans.'
     />
     <Box>
       {/* Mini Hero */}
@@ -221,19 +218,19 @@ const Pricing = () => (
                   align='center'
                   sx={{ fontWeight: 700, width: '18%' }}
                 >
-                  Basic
+                  Solo
                 </TableCell>
                 <TableCell
                   align='center'
                   sx={{ fontWeight: 700, width: '18%', color: 'primary.main' }}
                 >
-                  Developer
+                  Pro
                 </TableCell>
                 <TableCell
                   align='center'
                   sx={{ fontWeight: 700, width: '18%' }}
                 >
-                  Pro
+                  Team
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -245,14 +242,14 @@ const Pricing = () => (
                 >
                   <TableCell sx={{ fontWeight: 500 }}>{row.resource}</TableCell>
                   <TableCell align='center'>{row.free}</TableCell>
-                  <TableCell align='center'>{row.basic}</TableCell>
+                  <TableCell align='center'>{row.solo}</TableCell>
                   <TableCell
                     align='center'
                     sx={{ fontWeight: 500 }}
                   >
-                    {row.developer}
+                    {row.pro}
                   </TableCell>
-                  <TableCell align='center'>{row.pro}</TableCell>
+                  <TableCell align='center'>{row.team}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

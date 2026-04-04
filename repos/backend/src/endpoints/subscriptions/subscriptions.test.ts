@@ -1,7 +1,7 @@
 import type { Response } from 'express'
 import type { User } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { TApp, TRequest, TEndpoint, TPayConfig } from '@TBE/types'
+import type { TApp, TRequest, TEndpoint, TStripeConfig } from '@TBE/types'
 
 import { subscriptions } from './subscriptions'
 import { config } from '@TBE/configs/backend.config'
@@ -12,13 +12,20 @@ import { PaymentsService } from '@TBE/services/payments/payments'
 vi.mock('@TBE/services/payments/payments', () => ({
   PaymentsService: vi.fn().mockImplementation(() => ({
     service: {
-      fetchPlans: vi.fn().mockResolvedValue({ data: [] }),
-      fetchProduct: vi.fn().mockResolvedValue({ data: null }),
-      ensureCustomer: vi.fn().mockResolvedValue({ data: null }),
-      createCheckout: vi.fn().mockResolvedValue({ data: null }),
-      createPortal: vi.fn().mockResolvedValue({ data: null }),
-      cancelSubscription: vi.fn().mockResolvedValue({ data: { success: true } }),
-      getProductIdForTier: vi.fn().mockReturnValue(null),
+      fetchPlans: vi.fn().mockReturnValue({ data: [] }),
+      createCustomer: vi.fn().mockResolvedValue({ data: null }),
+      createCheckoutSession: vi.fn().mockResolvedValue({ data: null }),
+      createPortalSession: vi.fn().mockResolvedValue({ data: null }),
+      cancelSubscription: vi.fn().mockResolvedValue(undefined),
+      updateSubscription: vi.fn().mockResolvedValue(undefined),
+      updateSeatQuantity: vi.fn().mockResolvedValue(undefined),
+      getInvoices: vi.fn().mockResolvedValue([]),
+      constructWebhookEvent: vi.fn(),
+      webhook: vi.fn().mockResolvedValue(undefined),
+      config: {
+        priceIds: { solo: `price_solo`, pro: `price_pro`, team: `price_team` },
+        seatPriceIds: { pro: `seat_pro`, team: `seat_team` },
+      },
     },
   })),
 }))
@@ -41,6 +48,10 @@ describe('Subscription endpoints', () => {
           },
           subscription: {
             findByUser: vi.fn(),
+            upsertByUser: vi.fn(),
+          },
+          invoice: {
+            findByUserId: vi.fn(),
           },
         },
       },
@@ -48,7 +59,7 @@ describe('Subscription endpoints', () => {
       payments: new PaymentsService({
         ...config.payments,
         type: `console`,
-      } as TPayConfig),
+      } as TStripeConfig),
     },
   } as unknown as TApp
 
@@ -85,6 +96,8 @@ describe('Subscription endpoints', () => {
       expect(subscriptions.endpoints?.createCheckout).toBeDefined()
       expect(subscriptions.endpoints?.createPortalSession).toBeDefined()
       expect(subscriptions.endpoints?.cancelSubscription).toBeDefined()
+      expect(subscriptions.endpoints?.updateSubscription).toBeDefined()
+      expect(subscriptions.endpoints?.getInvoices).toBeDefined()
     })
   })
 
@@ -95,10 +108,10 @@ describe('Subscription endpoints', () => {
       const mockSubscription = {
         id: 'sub_123',
         userId: 'user_123',
-        tier: 'basic',
+        tier: 'solo',
         status: 'active',
-        polarId: 'polar_sub_123',
-        polarCustomerId: 'polar_cust_123',
+        stripeSubscriptionId: 'sub_stripe_123',
+        stripeCustomerId: 'cus_stripe_123',
         currentPeriodEnd: new Date('2024-12-31'),
       }
 
@@ -161,11 +174,8 @@ describe('Subscription endpoints', () => {
     const ep = getEndpointCfg(subscriptions.endpoints?.getPlans)
 
     it('should return 200 with plans data on success', async () => {
-      // Note: PaymentsService is instantiated in the endpoint,
-      // so we can't directly mock the instance. This test validates structure only.
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      // Verify response structure (actual data depends on PaymentsService mock)
       expect(mockStatus).toHaveBeenCalled()
       expect(mockJson).toHaveBeenCalled()
     })
@@ -192,7 +202,7 @@ describe('Subscription endpoints', () => {
 
     it('should return 400 when successUrl is missing', async () => {
       mockReq.body = {
-        tier: 'basic',
+        tier: 'solo',
         cancelUrl: 'http://localhost:3000/billing?cancelled=true',
       }
 
@@ -203,7 +213,7 @@ describe('Subscription endpoints', () => {
 
     it('should return 400 when cancelUrl is missing', async () => {
       mockReq.body = {
-        tier: 'basic',
+        tier: 'solo',
         successUrl: 'http://localhost:3000/billing?success=true',
       }
 
@@ -215,7 +225,7 @@ describe('Subscription endpoints', () => {
     it('should return 401 when user is not authenticated', async () => {
       mockReq.user = undefined
       mockReq.body = {
-        tier: 'basic',
+        tier: 'solo',
         successUrl: 'http://localhost:3000/billing?success=true',
         cancelUrl: 'http://localhost:3000/billing?cancelled=true',
       }
@@ -225,80 +235,98 @@ describe('Subscription endpoints', () => {
       )
     })
 
-    it('should call checkout flow with valid data', async () => {
+    it('should return 400 for invalid tier', async () => {
       mockReq.body = {
-        tier: 'basic',
+        tier: 'invalid_tier',
         successUrl: 'http://localhost:3000/billing?success=true',
         cancelUrl: 'http://localhost:3000/billing?cancelled=true',
       }
 
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Invalid tier: invalid_tier'
+      )
+    })
+
+    it('should return 400 for free tier checkout', async () => {
+      mockReq.body = {
+        tier: 'free',
+        successUrl: 'http://localhost:3000/billing?success=true',
+        cancelUrl: 'http://localhost:3000/billing?cancelled=true',
+      }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Cannot checkout for free tier'
+      )
+    })
+
+    it('should call checkout flow with valid data for new subscription', async () => {
+      mockReq.body = {
+        tier: 'solo',
+        successUrl: 'http://localhost:3000/billing?success=true',
+        cancelUrl: 'http://localhost:3000/billing?cancelled=true',
+      }
+
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+      mockFindByUser.mockResolvedValue({ data: null })
+
       const paymentsService = mockReq.app?.locals.payments.service as any
-      paymentsService.getProductIdForTier.mockReturnValue('prod_basic_456')
-      paymentsService.fetchProduct.mockResolvedValue({
-        data: { id: 'prod_basic_456', prices: [{ id: 'price_123', amount: 999 }] },
+      paymentsService.createCustomer.mockResolvedValue({
+        data: { id: 'cus_123' },
       })
-      paymentsService.ensureCustomer.mockResolvedValue({
-        data: { id: 'cust_123' },
+      paymentsService.createCheckoutSession.mockResolvedValue({
+        data: {
+          id: 'cs_123',
+          url: 'https://checkout.stripe.com/session_123',
+          customer_id: 'cus_123',
+        },
       })
-      paymentsService.createCheckout.mockResolvedValue({
-        data: { url: 'https://checkout.polar.sh/session_123' },
-      })
+
+      const mockUpsert = mockReq.app?.locals.db.services.subscription
+        .upsertByUser as ReturnType<typeof vi.fn>
+      mockUpsert.mockResolvedValue({ data: {} })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      // Verify endpoint was called (actual behavior depends on PaymentsService mock)
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalled()
+    })
+
+    it('should update subscription when user already has active subscription', async () => {
+      mockReq.body = {
+        tier: 'pro',
+        successUrl: 'http://localhost:3000/billing?success=true',
+        cancelUrl: 'http://localhost:3000/billing?cancelled=true',
+      }
+
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+      mockFindByUser.mockResolvedValue({
+        data: {
+          stripeSubscriptionId: 'sub_existing',
+          stripeCustomerId: 'cus_existing',
+          status: 'active',
+          tier: 'solo',
+        },
+      })
+
+      const paymentsService = mockReq.app?.locals.payments.service as any
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(paymentsService.updateSubscription).toHaveBeenCalledWith(
+        'sub_existing',
+        'price_pro'
+      )
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({
+        data: { updated: true, message: 'Subscription updated to pro' },
+      })
     })
 
     it('should have correct endpoint configuration', () => {
       expect(ep.path).toBe('/checkout')
       expect(ep.method).toBe('post')
-    })
-
-    it('should extract price from product prices array (BUG-005 fix)', async () => {
-      mockReq.body = {
-        tier: 'basic',
-        successUrl: 'http://localhost:3000/billing?success=true',
-        cancelUrl: 'http://localhost:3000/billing?cancelled=true',
-      }
-
-      const paymentsService = mockReq.app?.locals.payments.service as any
-
-      // Mock getProductIdForTier to return a product ID
-      paymentsService.getProductIdForTier.mockReturnValue('prod_basic_456')
-
-      // Mock fetchProduct to return a product with a prices array
-      paymentsService.fetchProduct.mockResolvedValue({
-        data: {
-          id: 'prod_basic_456',
-          name: 'Basic Plan',
-          prices: [{ id: 'price_actual_789', amount: 999 }],
-        },
-      })
-
-      // Mock ensureCustomer
-      paymentsService.ensureCustomer.mockResolvedValue({
-        data: { id: 'cust_123' },
-      })
-
-      // Mock createCheckout
-      paymentsService.createCheckout.mockResolvedValue({
-        data: { url: 'https://checkout.polar.sh/session_123' },
-      })
-
-      await ep.action(mockReq as TRequest, mockRes as Response)
-
-      // Verify createCheckout was called with the price ID from the prices array,
-      // NOT the product ID
-      expect(paymentsService.createCheckout).toHaveBeenCalledWith(
-        'price_actual_789', // price from prices array, not prod_basic_456
-        'cust_123',
-        'user_123',
-        'http://localhost:3000/billing?success=true',
-        'http://localhost:3000/billing?cancelled=true'
-      )
-      expect(mockStatus).toHaveBeenCalledWith(200)
     })
   })
 
@@ -319,8 +347,8 @@ describe('Subscription endpoints', () => {
       const mockSubscription = {
         id: 'sub_123',
         userId: 'user_123',
-        polarId: 'polar_sub_123',
-        polarCustomerId: null,
+        stripeSubscriptionId: 'sub_stripe_123',
+        stripeCustomerId: null,
       }
 
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
@@ -356,8 +384,8 @@ describe('Subscription endpoints', () => {
       const mockSubscription = {
         id: 'sub_123',
         userId: 'user_123',
-        polarId: 'polar_sub_123',
-        polarCustomerId: 'polar_cust_123',
+        stripeSubscriptionId: 'sub_stripe_123',
+        stripeCustomerId: 'cus_stripe_123',
       }
 
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
@@ -365,8 +393,8 @@ describe('Subscription endpoints', () => {
       mockFindByUser.mockResolvedValue({ data: mockSubscription })
 
       const paymentsService = mockReq.app?.locals.payments.service as any
-      paymentsService.createPortal.mockResolvedValue({
-        data: { url: 'https://portal.polar.sh/session_123' },
+      paymentsService.createPortalSession.mockResolvedValue({
+        data: { url: 'https://billing.stripe.com/session_123' },
       })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
@@ -395,12 +423,12 @@ describe('Subscription endpoints', () => {
       )
     })
 
-    it('should return 404 when subscription has no polar ID', async () => {
+    it('should return 404 when subscription has no stripe subscription ID', async () => {
       const mockSubscription = {
         id: 'sub_123',
         userId: 'user_123',
-        polarId: null,
-        polarCustomerId: 'polar_cust_123',
+        stripeSubscriptionId: null,
+        stripeCustomerId: 'cus_stripe_123',
       }
 
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
@@ -436,8 +464,8 @@ describe('Subscription endpoints', () => {
       const mockSubscription = {
         id: 'sub_123',
         userId: 'user_123',
-        polarId: 'polar_sub_123',
-        polarCustomerId: 'polar_cust_123',
+        stripeSubscriptionId: 'sub_stripe_123',
+        stripeCustomerId: 'cus_stripe_123',
       }
 
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
@@ -447,7 +475,6 @@ describe('Subscription endpoints', () => {
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockFindByUser).toHaveBeenCalledWith('user_123')
-      // Verify endpoint was called (actual behavior depends on PaymentsService mock)
       expect(mockStatus).toHaveBeenCalled()
       expect(mockJson).toHaveBeenCalled()
     })
@@ -456,8 +483,8 @@ describe('Subscription endpoints', () => {
       const mockSubscription = {
         id: 'sub_123',
         userId: 'user_123',
-        polarId: 'polar_sub_123',
-        polarCustomerId: 'polar_cust_123',
+        stripeSubscriptionId: 'sub_stripe_123',
+        stripeCustomerId: 'cus_stripe_123',
       }
 
       const mockFindByUser = mockReq.app?.locals.db.services.subscription
@@ -475,31 +502,109 @@ describe('Subscription endpoints', () => {
       })
     })
 
-    it('should return 500 when payments service cancellation fails', async () => {
-      const mockSubscription = {
-        id: 'sub_123',
-        userId: 'user_123',
-        polarId: 'polar_sub_123',
-        polarCustomerId: 'polar_cust_123',
-      }
-
-      const mockFindByUser = mockReq.app?.locals.db.services.subscription
-        .findByUser as ReturnType<typeof vi.fn>
-      mockFindByUser.mockResolvedValue({ data: mockSubscription })
-
-      const paymentsService = mockReq.app?.locals.payments.service as any
-      paymentsService.cancelSubscription.mockResolvedValueOnce({
-        error: new Error(`Payment provider error`),
-      })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Payment provider error`
-      )
-    })
-
     it('should have correct endpoint configuration', () => {
       expect(ep.path).toBe('/current')
       expect(ep.method).toBe('delete')
+    })
+  })
+
+  describe('POST /_/subscriptions/update - Update subscription tier', () => {
+    const ep = getEndpointCfg(subscriptions.endpoints?.updateSubscription)
+
+    it('should return 401 when user is not authenticated', async () => {
+      mockReq.user = undefined
+      mockReq.body = { tier: 'pro' }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Authentication required'
+      )
+    })
+
+    it('should return 400 when tier is missing', async () => {
+      mockReq.body = {}
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Missing required field: tier'
+      )
+    })
+
+    it('should return 400 for invalid tier', async () => {
+      mockReq.body = { tier: 'invalid' }
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Invalid tier: invalid'
+      )
+    })
+
+    it('should return 404 when no active subscription found', async () => {
+      mockReq.body = { tier: 'pro' }
+
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+      mockFindByUser.mockResolvedValue({ data: null })
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'No active subscription found'
+      )
+    })
+
+    it('should update subscription to new tier', async () => {
+      mockReq.body = { tier: 'pro' }
+
+      const mockFindByUser = mockReq.app?.locals.db.services.subscription
+        .findByUser as ReturnType<typeof vi.fn>
+      mockFindByUser.mockResolvedValue({
+        data: { stripeSubscriptionId: 'sub_123', tier: 'solo' },
+      })
+
+      const paymentsService = mockReq.app?.locals.payments.service as any
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(paymentsService.updateSubscription).toHaveBeenCalledWith(
+        'sub_123',
+        'price_pro'
+      )
+      expect(mockStatus).toHaveBeenCalledWith(200)
+    })
+
+    it('should have correct endpoint configuration', () => {
+      expect(ep.path).toBe('/update')
+      expect(ep.method).toBe('post')
+    })
+  })
+
+  describe('GET /_/subscriptions/invoices - Get invoices', () => {
+    const ep = getEndpointCfg(subscriptions.endpoints?.getInvoices)
+
+    it('should return 401 when user is not authenticated', async () => {
+      mockReq.user = undefined
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        'Authentication required'
+      )
+    })
+
+    it('should return invoices for user', async () => {
+      const mockInvoices = [
+        { id: 'inv_1', amount: 1000, status: 'paid' },
+        { id: 'inv_2', amount: 2000, status: 'paid' },
+      ]
+
+      const mockFindByUserId = mockReq.app?.locals.db.services.invoice
+        .findByUserId as ReturnType<typeof vi.fn>
+      mockFindByUserId.mockResolvedValue({ data: mockInvoices })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockFindByUserId).toHaveBeenCalledWith('user_123')
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith({ data: mockInvoices })
+    })
+
+    it('should have correct endpoint configuration', () => {
+      expect(ep.path).toBe('/invoices')
+      expect(ep.method).toBe('get')
     })
   })
 })

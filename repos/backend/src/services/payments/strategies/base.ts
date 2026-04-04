@@ -1,102 +1,80 @@
-import type { TPayPlanMeta } from '@tdsk/domain'
 import type {
   TApp,
   TPlanResp,
-  TPayConfig,
-  TPayProduct,
+  TStripeConfig,
   TPayCustomer,
   TPayPortalSession,
   TPayCheckoutSession,
 } from '@TBE/types'
-
-import type { Exception } from '@tdsk/domain'
 
 /**
  * Abstract base service for payment providers.
  * Subclasses must implement all abstract methods.
  */
 export abstract class BaseService {
-  plans: Record<string, string>
+  config: TStripeConfig
 
-  constructor(config: TPayConfig) {
-    this.plans = config.plans
+  constructor(config: TStripeConfig) {
+    this.config = config
   }
 
   /**
-   * Fetch all configured payment plans from the payment provider
-   * Uses product IDs from config to fetch product details
+   * Fetch all configured payment plans (static from PlanLimits)
    */
-  abstract fetchPlans(): Promise<TPlanResp>
+  abstract fetchPlans(): TPlanResp
 
   /**
-   * Fetch a single product by ID from the payment provider
+   * Create a customer in the payment provider
    */
-  abstract fetchProduct(
-    productId: string
-  ): Promise<{ data?: TPayProduct; error?: Exception }>
-
-  /**
-   * Get plan limits for a given product ID
-   * This fetches the product and returns its metadata as TPayPlanMeta
-   */
-  abstract getPlanLimits(
-    productId: string
-  ): Promise<{ data?: TPayPlanMeta; error?: Exception }>
-
-  /**
-   * Get or create a customer in the payment provider
-   */
-  abstract ensureCustomer(
+  abstract createCustomer(
     email: string,
     userId: string
-  ): Promise<{ data?: TPayCustomer; error?: Exception }>
+  ): Promise<{ data?: TPayCustomer; error?: Error }>
 
   /**
    * Create a checkout session for a subscription
    */
-  abstract createCheckout(
-    priceId: string,
+  abstract createCheckoutSession(
+    tier: string,
     customerId: string,
-    userId: string,
     successUrl: string,
     cancelUrl: string
-  ): Promise<{ data?: TPayCheckoutSession; error?: Exception }>
+  ): Promise<{ data?: TPayCheckoutSession; error?: Error }>
 
   /**
    * Create a customer portal session for managing subscription
    */
-  abstract createPortal(
+  abstract createPortalSession(
     customerId: string
   ): Promise<{ data?: TPayPortalSession; error?: Error }>
 
   /**
-   * Validate webhook signature from the payment provider
+   * Cancel a subscription (cancel at period end)
    */
-  abstract validateWebhook(payload: string, signature: string, timestamp: string): boolean
+  abstract cancelSubscription(subscriptionId: string): Promise<void>
 
   /**
-   * Cancel a subscription
+   * Update a subscription to a new price
    */
-  abstract cancelSubscription(
-    subscriptionId: string
-  ): Promise<{ data?: { success: boolean }; error?: Error }>
+  abstract updateSubscription(subscriptionId: string, newPriceId: string): Promise<void>
 
   /**
-   * Webhook handler for subscription events
+   * Update the seat quantity on a subscription
    */
-  abstract webhook(app: TApp, payload: any): Promise<{ data?: any; error?: Error }>
+  abstract updateSeatQuantity(subscriptionId: string, quantity: number): Promise<void>
 
   /**
-   * Get the product ID for a given tier name
+   * Get invoices for a customer
    */
-  getProductIdForTier(tier: string): string | undefined {
-    return this.plans[tier.toLowerCase()]
-  }
+  abstract getInvoices(customerId: string): Promise<any[]>
 
   /**
-   * Get the tier name for a given product ID
+   * Construct and verify a webhook event from raw payload and signature
    */
-  getTierForProductId(productId: string): string | undefined {
-    return Object.entries(this.plans).find(([_, id]) => id === productId)?.[0]
-  }
+  abstract constructWebhookEvent(payload: Buffer, signature: string): any
+
+  /**
+   * Handle a verified webhook event
+   */
+  abstract webhook(app: TApp, event: any): Promise<void>
 }

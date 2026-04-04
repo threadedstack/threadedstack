@@ -1,7 +1,7 @@
-import type { Exception, Plan, TPayPlanRaw } from '@tdsk/domain'
+import type { Exception, Plan } from '@tdsk/domain'
 
 export enum EPayType {
-  polar = `polar`,
+  stripe = `stripe`,
   console = `console`,
 }
 
@@ -16,32 +16,13 @@ export type TPayEnv =
   | `staging`
   | `production`
 
-export type TPayConfig = {
+export type TStripeConfig = {
   type?: TPayType
-  token: string
-  url: string
-  wbhSecret: string
-  plans: Record<string, string>
+  secretKey: string
+  webhookSecret: string
+  priceIds: Record<string, string>
+  seatPriceIds: Record<string, string>
   environment?: TPayEnv
-}
-
-export type TPayProduct = {
-  id: string
-  name: string
-  medias?: any[]
-  benefits?: any[]
-  modified_at?: string
-  is_archived?: boolean
-  description?: string
-  metadata: TPayPlanRaw
-  is_recurring?: boolean
-  trial_interval?: string
-  organization_id?: string
-  prices?: Record<string, any>
-  recurring_interval?: string
-  trial_interval_count?: number
-  attached_custom_fields?: any[]
-  recurring_interval_count?: number
 }
 
 export type TPayCustomer = {

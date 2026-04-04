@@ -1,10 +1,13 @@
+import type { TSubscriptionTier, Invoice } from '@tdsk/domain'
+
 import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { useSearchParams } from 'react-router'
 import { CurrentPlan, PlanCard } from '@TAF/components/Billing'
-import { usePaymentPlans, useSubscription } from '@TAF/state/selectors'
+import { usePaymentPlans, useSubscription, useInvoices } from '@TAF/state/selectors'
 import {
+  fetchInvoices,
   fetchPaymentPlans,
   createCheckoutSession,
   fetchCurrentSubscription,
@@ -14,13 +17,22 @@ import {
   Tab,
   Tabs,
   Card,
+  Chip,
   Grid,
+  Link,
   Alert,
+  Table,
   Skeleton,
+  TableRow,
   Container,
+  TableBody,
+  TableCell,
+  TableHead,
   Typography,
   CardContent,
+  TableContainer,
 } from '@mui/material'
+import { Download as DownloadIcon } from '@mui/icons-material'
 
 export type TBilling = {}
 
@@ -46,6 +58,96 @@ const TabPanel = (props: TabPanelProps) => {
   )
 }
 
+const formatInvoiceDate = (dateString: string | undefined): string => {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+const formatCents = (amount: number, currency: string = 'usd'): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+  }).format(amount / 100)
+}
+
+const getInvoiceStatusColor = (
+  status: string
+): 'default' | 'success' | 'warning' | 'error' | 'primary' => {
+  switch (status) {
+    case 'paid':
+      return 'success'
+    case 'open':
+      return 'primary'
+    case 'draft':
+      return 'default'
+    case 'void':
+    case 'uncollectible':
+      return 'error'
+    default:
+      return 'warning'
+  }
+}
+
+const InvoiceList = ({ invoices }: { invoices: Invoice[] }) => {
+  if (!invoices?.length) {
+    return <Alert severity='info'>No payment history available.</Alert>
+  }
+
+  return (
+    <TableContainer component={Card}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Date</TableCell>
+            <TableCell>Amount</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell align='right'>Invoice</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {invoices.map((invoice) => (
+            <TableRow key={invoice.id || invoice.stripeInvoiceId}>
+              <TableCell>{formatInvoiceDate(invoice.period)}</TableCell>
+              <TableCell>{formatCents(invoice.amount, invoice.currency)}</TableCell>
+              <TableCell>
+                <Chip
+                  size='small'
+                  label={invoice.status}
+                  color={getInvoiceStatusColor(invoice.status)}
+                />
+              </TableCell>
+              <TableCell align='right'>
+                {invoice.invoiceUrl ? (
+                  <Link
+                    href={invoice.invoiceUrl}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                  >
+                    <DownloadIcon fontSize='small' />
+                    PDF
+                  </Link>
+                ) : (
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                  >
+                    --
+                  </Typography>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  )
+}
+
 export const Billing = (props: TBilling) => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [tabValue, setTabValue] = useState(0)
@@ -55,6 +157,7 @@ export const Billing = (props: TBilling) => {
 
   const [plans] = usePaymentPlans()
   const [subscription] = useSubscription()
+  const [invoices] = useInvoices()
 
   useEffect(() => {
     const success = searchParams.get('success')
@@ -84,6 +187,7 @@ export const Billing = (props: TBilling) => {
       const [subscriptionResp, plansResp] = await Promise.all([
         fetchCurrentSubscription(),
         fetchPaymentPlans(),
+        fetchInvoices(),
       ])
 
       if (subscriptionResp.error) {
@@ -110,14 +214,14 @@ export const Billing = (props: TBilling) => {
     setTabValue(newValue)
   }
 
-  const onUpgrade = async (planId: string) => {
+  const onUpgrade = async (tier: TSubscriptionTier) => {
     try {
       setUpgradeLoading(true)
 
       const successUrl = `${window.location.origin}/billing?success=true`
       const cancelUrl = `${window.location.origin}/billing?cancelled=true`
 
-      const { data, error } = await createCheckoutSession(planId, successUrl, cancelUrl)
+      const { data, error } = await createCheckoutSession(tier, successUrl, cancelUrl)
 
       if (error) {
         toast.error('Checkout Error', {
@@ -260,6 +364,11 @@ export const Billing = (props: TBilling) => {
                   id='billing-tab-1'
                   aria-controls='billing-tabpanel-1'
                 />
+                <Tab
+                  label='Payment History'
+                  id='billing-tab-2'
+                  aria-controls='billing-tabpanel-2'
+                />
               </Tabs>
             </Box>
 
@@ -314,6 +423,27 @@ export const Billing = (props: TBilling) => {
                   ))}
                 </Grid>
               )}
+            </TabPanel>
+
+            <TabPanel
+              value={tabValue}
+              index={2}
+            >
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant='h6'
+                  gutterBottom
+                >
+                  Payment History
+                </Typography>
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                >
+                  View your past invoices and download receipts
+                </Typography>
+              </Box>
+              <InvoiceList invoices={invoices} />
             </TabPanel>
           </>
         )}

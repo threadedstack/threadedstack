@@ -1,8 +1,9 @@
-import type { Plan } from '@tdsk/domain'
+import type { Plan, TSubscriptionTier } from '@tdsk/domain'
 
 import { useMemo } from 'react'
 import { Button } from '@tdsk/components'
 import { styled } from '@mui/material/styles'
+import { ESubscriptionTier } from '@tdsk/domain'
 import { CheckCircle } from '@mui/icons-material'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
 import ArrowCircleUpIcon from '@mui/icons-material/ArrowCircleUp'
@@ -19,12 +20,16 @@ import {
   ListItemText,
 } from '@mui/material'
 
-const StyledCard = styled(Card)(({ theme }) => ({
+const StyledCard = styled(Card, {
+  shouldForwardProp: (prop) => prop !== 'highlighted',
+})<{ highlighted?: boolean }>(({ theme, highlighted }) => ({
   height: `100%`,
   display: `flex`,
   flexDirection: `column`,
   transition: `all 0.2s`,
-  border: `1px solid ${theme.palette.border.default}`,
+  border: highlighted
+    ? `2px solid ${theme.palette.primary.main}`
+    : `1px solid ${theme.palette.border.default}`,
 
   [`&:hover`]: {
     transform: `translateY(-2px)`,
@@ -46,14 +51,15 @@ const StyledDivider = styled(Divider)(({ theme }) => ({
 export type TPlanCardProps = {
   plan: Plan
   currentTier?: string
-  onUpgrade: (planId: string) => void
+  onUpgrade: (tier: TSubscriptionTier) => void
   loading?: boolean
 }
 
 /**
- * Format runtime seconds to human-readable string
+ * Format compute seconds to human-readable string
  */
-const formatRuntime = (seconds: number): string => {
+const formatCompute = (seconds: number): string => {
+  if (seconds === -1) return `Unlimited`
   if (seconds < 60) return `${seconds}s`
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
   return `${Math.floor(seconds / 3600)}h`
@@ -70,37 +76,48 @@ const formatNumber = (num: number): string => {
 
 const usePlanFeatures = (plan: Plan) => {
   return useMemo(() => {
-    if (!plan?.metadata) return []
+    if (!plan?.limits) return []
 
-    const { metadata } = plan
+    const { limits } = plan
     return [
-      { label: `Organizations`, value: formatNumber(metadata.organizations) },
-      { label: `Projects`, value: formatNumber(metadata.projects) },
-      { label: `Team Members`, value: formatNumber(metadata.members) },
-      { label: `Endpoints`, value: formatNumber(metadata.endpoints) },
-      { label: `Function Calls`, value: formatNumber(metadata.functionCalls) },
-      { label: `Runtime`, value: formatRuntime(metadata.runtime) },
-      { label: `Threads`, value: formatNumber(metadata.threads) },
-      { label: `Messages`, value: formatNumber(metadata.messages) },
-      { label: `Org Secrets`, value: formatNumber(metadata.orgSecrets) },
-      { label: `Project Secrets`, value: formatNumber(metadata.projectSecrets) },
+      { label: `Organizations`, value: formatNumber(limits.organizations) },
+      { label: `Projects`, value: formatNumber(limits.projects) },
+      { label: `Endpoints`, value: formatNumber(limits.endpoints) },
+      { label: `Compute`, value: formatCompute(limits.compute) },
+      { label: `Threads`, value: formatNumber(limits.threads) },
+      { label: `Messages`, value: formatNumber(limits.messages) },
+      { label: `Secrets`, value: formatNumber(limits.secrets) },
+      { label: `Seats`, value: formatNumber(limits.seats) },
       {
         label: `Data Retention`,
-        value: `${metadata.retention} ${metadata.retention === 1 ? 'month' : 'months'}`,
+        value: `${limits.retention} ${limits.retention === 1 ? 'day' : 'days'}`,
       },
     ]
-  }, [plan.metadata])
+  }, [plan.limits])
+}
+
+/**
+ * Calculate per-seat price from the total plan price and included seats
+ */
+const getPerSeatPrice = (plan: Plan): number | null => {
+  if (!plan.limits?.additionalSeats) return null
+  if (plan.limits.seats <= 0) return null
+  return Math.round(plan.price / plan.limits.seats)
 }
 
 export const PlanCard = (props: TPlanCardProps) => {
   const { plan, onUpgrade, currentTier, loading = false } = props
 
-  const { metadata } = plan
   const features = usePlanFeatures(plan)
   const isCurrent = currentTier?.toLowerCase() === plan.name.toLowerCase()
+  const isHighlighted = plan.name.toLowerCase() === ESubscriptionTier.pro
+  const perSeatPrice = getPerSeatPrice(plan)
 
   return (
-    <StyledCard className={isCurrent ? 'current' : ''}>
+    <StyledCard
+      highlighted={isHighlighted}
+      className={isCurrent ? 'current' : ''}
+    >
       <CardContent sx={{ flexGrow: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
           <Typography
@@ -110,6 +127,13 @@ export const PlanCard = (props: TPlanCardProps) => {
           >
             {wordCaps(plan.name)}
           </Typography>
+          {isHighlighted && !isCurrent && (
+            <Chip
+              size='small'
+              label='Recommended'
+              color='primary'
+            />
+          )}
           {isCurrent && (
             <Chip
               size='small'
@@ -123,13 +147,13 @@ export const PlanCard = (props: TPlanCardProps) => {
 
         <Typography
           variant='h4'
-          sx={{ mb: 3, fontWeight: 'bold' }}
+          sx={{ mb: 1, fontWeight: 'bold' }}
         >
-          {metadata.price === 0 ? (
+          {plan.price === 0 ? (
             'Free'
           ) : (
             <>
-              ${metadata.price}
+              ${plan.price / 100}
               <Typography
                 component='span'
                 variant='body2'
@@ -140,6 +164,16 @@ export const PlanCard = (props: TPlanCardProps) => {
             </>
           )}
         </Typography>
+
+        {perSeatPrice !== null && (
+          <Typography
+            variant='body2'
+            color='text.secondary'
+            sx={{ mb: 2 }}
+          >
+            +${perSeatPrice / 100}/seat/mo for additional seats
+          </Typography>
+        )}
 
         <List dense>
           {features.map((feature) => (
@@ -174,7 +208,7 @@ export const PlanCard = (props: TPlanCardProps) => {
           color='success'
           Icon={<ArrowCircleUpIcon />}
           disabled={isCurrent || loading}
-          onClick={() => onUpgrade(plan.id)}
+          onClick={() => onUpgrade(plan.name as TSubscriptionTier)}
           variant={isCurrent ? 'outlined' : 'contained'}
         >
           {loading ? 'Processing...' : isCurrent ? 'Current Plan' : 'Upgrade'}

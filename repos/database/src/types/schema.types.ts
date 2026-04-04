@@ -9,6 +9,7 @@ import type { apiKeys } from '@TDB/schemas/apiKeys'
 import type { secrets } from '@TDB/schemas/secrets'
 import type { threads } from '@TDB/schemas/threads'
 import type { domains } from '@TDB/schemas/domains'
+import type { invoices } from '@TDB/schemas/invoices'
 import type { messages } from '@TDB/schemas/messages'
 import type { projects } from '@TDB/schemas/projects'
 import type { DBError } from '@TDB/utils/error/error'
@@ -70,6 +71,8 @@ export type TDBScheduleInsert = TInferDateProps<
 >
 export type TDBSandboxSelect = TInferDates<typeof sandboxes.$inferSelect>
 export type TDBSandboxInsert = TInferDates<typeof sandboxes.$inferInsert>
+export type TDBInvoiceSelect = TInferDates<typeof invoices.$inferSelect>
+export type TDBInvoiceInsert = TInferDates<typeof invoices.$inferInsert>
 export type TDBSubscriptionSelect = TInferDates<typeof subscriptions.$inferSelect>
 export type TDBSubscriptionInsert = TInferDates<typeof subscriptions.$inferInsert>
 
@@ -122,6 +125,7 @@ export type TDBEntitySelect =
   | TDBSecretSelect
   | TDBThreadSelect
   | TDBDomainsSelect
+  | TDBInvoiceSelect
   | TDBProjectSelect
   | TDBMessageSelect
   | TDBEndpointSelect
@@ -144,6 +148,7 @@ export type TDBEntityInsert =
   | TDBSecretInsert
   | TDBThreadInsert
   | TDBDomainsInsert
+  | TDBInvoiceInsert
   | TDBProjectInsert
   | TDBMessageInsert
   | TDBEndpointInsert

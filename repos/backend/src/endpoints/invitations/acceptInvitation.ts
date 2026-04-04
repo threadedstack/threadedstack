@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { Exception } from '@tdsk/domain'
+import { Exception, PlanLimits, ESubscriptionTier } from '@tdsk/domain'
 
 /**
  * POST /_/invitations/accept - Accept an organization invitation
@@ -78,6 +78,33 @@ export const acceptInvitation: TEndpointConfig = {
     // Role was created but invitation wasn't updated - log the error but don't fail
     acceptError &&
       logger.error(`Failed to mark invitation ${invitation.id} as accepted:`, acceptError)
+
+    // Update seat quantity on Stripe if this member pushes past included seats
+    try {
+      const { data: org } = await db.services.org.get(invitation.orgId)
+      if (org?.ownerId) {
+        const { data: ownerSub } = await db.services.subscription.findByUser(org.ownerId)
+        if (ownerSub?.stripeSubscriptionId) {
+          const tier = (ownerSub.tier || `free`) as ESubscriptionTier
+          const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
+          if (limits.additionalSeats) {
+            const { data: members } = await db.services.role.getOrgMembers(
+              invitation.orgId
+            )
+            const totalMembers = members?.length || 1
+            if (totalMembers > limits.seats) {
+              const paidSeats = Math.max(0, totalMembers - limits.seats)
+              await req.app.locals.payments.service.updateSeatQuantity(
+                ownerSub.stripeSubscriptionId,
+                paidSeats
+              )
+            }
+          }
+        }
+      }
+    } catch (seatErr) {
+      logger.error(`Failed to update seat quantity after invitation acceptance:`, seatErr)
+    }
 
     res.status(200).json({
       success: true,

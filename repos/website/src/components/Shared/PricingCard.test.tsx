@@ -14,9 +14,10 @@ const theme = createTheme()
 const defaultProps = {
   name: `Free`,
   price: `$0/mo`,
-  description: `For experimenting.`,
+  description: `For experimenting and learning.`,
   features: [
-    { label: `1 Project`, included: true },
+    { label: `2 Projects`, included: true },
+    { label: `1 Seat`, included: true },
     { label: `Custom Domains`, included: false },
   ],
   cta: `Get Started Free`,
@@ -52,17 +53,28 @@ describe(`PricingCard`, () => {
     renderCard()
     expect(screen.getByText(`Free`)).toBeInTheDocument()
     expect(screen.getByText(`$0/mo`)).toBeInTheDocument()
-    expect(screen.getByText(`For experimenting.`)).toBeInTheDocument()
+    expect(screen.getByText(`For experimenting and learning.`)).toBeInTheDocument()
   })
 
   it(`renders features list`, () => {
     renderCard()
-    expect(screen.getByText(`1 Project`)).toBeInTheDocument()
+    expect(screen.getByText(`2 Projects`)).toBeInTheDocument()
+    expect(screen.getByText(`1 Seat`)).toBeInTheDocument()
     expect(screen.getByText(`Custom Domains`)).toBeInTheDocument()
   })
 
   it(`shows Popular chip when highlighted`, () => {
     renderCard({ highlighted: true })
     expect(screen.getByText(`Popular`)).toBeInTheDocument()
+  })
+
+  it(`renders subtitle when provided`, () => {
+    renderCard({ subtitle: `+$10/seat/mo` })
+    expect(screen.getByText(`+$10/seat/mo`)).toBeInTheDocument()
+  })
+
+  it(`does not render subtitle when not provided`, () => {
+    renderCard()
+    expect(screen.queryByText(/seat\/mo/)).not.toBeInTheDocument()
   })
 })

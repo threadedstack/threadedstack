@@ -21,8 +21,10 @@ export type TCurrentPlan = {}
 const Sections = [
   { key: `projects`, label: `Projects`, suffix: `` },
   { key: `endpoints`, label: `Endpoints`, suffix: `` },
-  { key: `members`, label: `Team Members`, suffix: `` },
-  { key: `runtime`, label: `Runtime`, suffix: `seconds` },
+  { key: `compute`, label: `Compute`, suffix: `seconds` },
+  { key: `threads`, label: `Threads`, suffix: `` },
+  { key: `messages`, label: `Messages`, suffix: `` },
+  { key: `secrets`, label: `Secrets`, suffix: `` },
 ] as const
 
 const formatDate = (dateString: string | undefined): string => {
@@ -115,19 +117,25 @@ export const CurrentPlan = (props: TCurrentPlan) => {
                 size='small'
               />
             </Box>
-            {currentPlan?.metadata?.price !== undefined && (
+            {currentPlan?.price !== undefined && (
               <Typography
                 variant='h4'
                 color='primary'
               >
-                ${currentPlan.metadata.price}
-                <Typography
-                  component='span'
-                  variant='body2'
-                  color='text.secondary'
-                >
-                  /month
-                </Typography>
+                {currentPlan.price === 0 ? (
+                  'Free'
+                ) : (
+                  <>
+                    ${currentPlan.price / 100}
+                    <Typography
+                      component='span'
+                      variant='body2'
+                      color='text.secondary'
+                    >
+                      /month
+                    </Typography>
+                  </>
+                )}
               </Typography>
             )}
           </Stack>
@@ -192,7 +200,7 @@ export const CurrentPlan = (props: TCurrentPlan) => {
             )}
           </Stack>
 
-          {currentPlan?.metadata && (
+          {currentPlan?.limits && (
             <>
               <Divider sx={{ my: 2 }} />
 
@@ -208,30 +216,46 @@ export const CurrentPlan = (props: TCurrentPlan) => {
                 spacing={1}
                 sx={{ mt: 1 }}
               >
-                {Sections.filter(
-                  ({ key }) => currentPlan.metadata[key] !== undefined
-                ).map(({ key, label, suffix }) => {
-                  const value = currentPlan.metadata[key]
-                  const display =
-                    value === -1 ? 'Unlimited' : suffix ? `${value} ${suffix}` : value
+                {Sections.filter(({ key }) => currentPlan.limits[key] !== undefined).map(
+                  ({ key, label, suffix }) => {
+                    const value = currentPlan.limits[key]
+                    const display =
+                      value === -1 ? 'Unlimited' : suffix ? `${value} ${suffix}` : value
 
-                  return (
-                    <Stack
-                      key={key}
-                      direction='row'
-                      spacing={1}
-                      alignItems='center'
-                    >
-                      <CheckIcon
-                        fontSize='small'
-                        color='success'
-                      />
-                      <Typography variant='body2'>
-                        {display} {label}
-                      </Typography>
-                    </Stack>
-                  )
-                })}
+                    return (
+                      <Stack
+                        key={key}
+                        direction='row'
+                        spacing={1}
+                        alignItems='center'
+                      >
+                        <CheckIcon
+                          fontSize='small'
+                          color='success'
+                        />
+                        <Typography variant='body2'>
+                          {display} {label}
+                        </Typography>
+                      </Stack>
+                    )
+                  }
+                )}
+
+                {currentPlan.limits.seats > 1 && (
+                  <Stack
+                    direction='row'
+                    spacing={1}
+                    alignItems='center'
+                  >
+                    <CheckIcon
+                      fontSize='small'
+                      color='success'
+                    />
+                    <Typography variant='body2'>
+                      {subscription?.seats || 1} of {currentPlan.limits.seats} seats used
+                    </Typography>
+                  </Stack>
+                )}
               </Stack>
             </>
           )}

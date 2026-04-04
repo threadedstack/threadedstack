@@ -2,7 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { validateExclusiveArc } from '@TBE/utils/validation/exclusiveArc'
 import {
   Secret,
@@ -108,6 +110,19 @@ export const createSecret: TEndpointConfig = {
 
       const { data, error } = await db.services.secret.create(secret)
       if (error) throw new Exception(500, error.message)
+
+      // Increment secret quota for the org
+      const quotaOrgId = orgId || paramOrgId
+      if (quotaOrgId && db.services.quota) {
+        db.services.quota
+          .increment(quotaOrgId, getBillingPeriod(), `secrets`)
+          .catch((err: unknown) =>
+            logger.error(
+              `[quota] Failed to increment secrets for org=${quotaOrgId}:`,
+              err
+            )
+          )
+      }
 
       res.status(201).json({ data: data.sanitize() })
     } catch (err) {

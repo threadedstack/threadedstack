@@ -42,14 +42,32 @@ export class Subscription extends Base<
   }
 
   /**
-   * Find a subscription by Polar ID
+   * Find a subscription by Stripe subscription ID
    */
-  findByPolarId = async (polarId: string) => {
+  findByStripeSubscriptionId = async (stripeSubscriptionId: string) => {
     try {
       const [data] = await this.db
         .select()
         .from(this.table)
-        .where(eq(this.table.polarId, polarId))
+        .where(eq(this.table.stripeSubscriptionId, stripeSubscriptionId))
+
+      if (!data) return { error: new DBError(`Subscription not found`) }
+
+      return { data: this.model(data) }
+    } catch (err: unknown) {
+      return { error: err as Error }
+    }
+  }
+
+  /**
+   * Find a subscription by Stripe customer ID
+   */
+  findByStripeCustomerId = async (stripeCustomerId: string) => {
+    try {
+      const [data] = await this.db
+        .select()
+        .from(this.table)
+        .where(eq(this.table.stripeCustomerId, stripeCustomerId))
 
       if (!data) return { error: new DBError(`Subscription not found`) }
 

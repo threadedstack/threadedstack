@@ -2,12 +2,15 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import {
   Exception,
   ERoleType,
+  PlanLimits,
   EPermAction,
   EPermResource,
   canManageRole,
+  ESubscriptionTier,
 } from '@tdsk/domain'
 import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 
@@ -65,6 +68,30 @@ export const removeOrgMember: TEndpointConfig = {
 
     const { error } = await db.services.role.removeFromOrg(userId, orgId)
     if (error) throw new Exception(500, error.message)
+
+    // Decrement seat quantity on Stripe if the removed member was a paid seat
+    try {
+      if (existingOrg.ownerId) {
+        const { data: ownerSub } = await db.services.subscription.findByUser(
+          existingOrg.ownerId
+        )
+        if (ownerSub?.stripeSubscriptionId) {
+          const tier = (ownerSub.tier || `free`) as ESubscriptionTier
+          const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
+          if (limits.additionalSeats) {
+            const { data: members } = await db.services.role.getOrgMembers(orgId)
+            const totalMembers = members?.length || 0
+            const paidSeats = Math.max(0, totalMembers - limits.seats)
+            await req.app.locals.payments.service.updateSeatQuantity(
+              ownerSub.stripeSubscriptionId,
+              paidSeats
+            )
+          }
+        }
+      }
+    } catch (seatErr) {
+      logger.error(`Failed to update seat quantity after member removal:`, seatErr)
+    }
 
     res.status(200).json({ data: targetRole })
   },

@@ -1,8 +1,10 @@
+import type { TSubscriptionTier } from '@tdsk/domain'
+
 /**
  * Checkout data structure for creating a checkout session
  */
 export type TCheckoutData = {
-  planId: string
+  tier: TSubscriptionTier
   successUrl?: string
   cancelUrl?: string
 }

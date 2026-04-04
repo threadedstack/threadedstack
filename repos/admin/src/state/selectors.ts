@@ -57,6 +57,7 @@ import {
   activeFunctionIdState,
   projectFunctionsState,
 } from '@TAF/state/functions'
+import { invoicesState } from '@TAF/state/invoices'
 import { paymentPlansState, subscriptionState } from '@TAF/state/subscriptions'
 import {
   agentsState,
@@ -153,6 +154,7 @@ export const useApiKeys = () => useRecState(apiKeysState)
 
 export const usePaymentPlans = () => useRecState(paymentPlansState)
 export const useSubscription = () => useRecState(subscriptionState)
+export const useInvoices = () => useRecState(invoicesState)
 
 export const useOrgQuota = () => useRecState(orgQuotaState)
 export const useOrgLimits = () => useRecState(orgLimitsState)

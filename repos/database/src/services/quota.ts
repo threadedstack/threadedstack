@@ -8,16 +8,7 @@ import { Quota as QuotaModel } from '@tdsk/domain'
 
 type TIncrementKey = keyof Pick<
   TDBQuotaSelect,
-  | 'members'
-  | 'threads'
-  | 'runtime'
-  | 'messages'
-  | 'projects'
-  | 'endpoints'
-  | 'orgSecrets'
-  | 'organizations'
-  | 'functionCalls'
-  | 'projectSecrets'
+  'projects' | 'compute' | 'threads' | 'messages' | 'endpoints' | 'secrets'
 >
 
 export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
@@ -88,33 +79,56 @@ export class Quota extends Base<typeof quotas, TDBQuotaSelect, TDBQuotaInsert> {
   }
 
   /**
-   * Initialize usage tracking for a new period with plan snapshot
-   * Records what the user signed up for (price/retention) and starts usage at 0
+   * Decrement a usage counter safely using SQL atomic update
+   * Uses GREATEST to ensure the value never goes below 0
+   */
+  async decrement(orgId: string, period: string, key: TIncrementKey, amount = 1) {
+    try {
+      if (amount <= 0) throw new DBError(`Quota decrement amount must be positive`)
+
+      const column = this.table[key]
+      if (!column) throw new DBError(`Invalid quota key: ${key}`)
+
+      const [data] = await this.db
+        .update(this.table)
+        .set({
+          updatedAt: new Date(),
+          [key]: sql`GREATEST(${column} - ${amount}, 0)`,
+        })
+        .where(and(eq(this.table.orgId, orgId), eq(this.table.period, period)))
+        .returning()
+
+      if (!data) return { data: null }
+
+      return { data: this.model(data as TDBQuotaSelect) }
+    } catch (err: unknown) {
+      return { error: err as Error }
+    }
+  }
+
+  /**
+   * Initialize usage tracking for a new period.
+   * Stock-based counters (projects, endpoints, secrets) can be carried forward
+   * from the previous period via the optional `stockCounters` parameter.
+   * Consumption-based counters (compute, threads, messages) always start at 0.
    */
   async initializePeriod(
     orgId: string,
     period: string,
-    price: number,
-    retention: number
+    stockCounters?: { projects?: number; endpoints?: number; secrets?: number }
   ) {
     try {
       const [data] = await this.db
         .insert(this.table)
         .values({
           orgId,
-          price,
           period,
-          retention,
-          members: 0,
+          projects: stockCounters?.projects ?? 0,
+          compute: 0,
           threads: 0,
-          runtime: 0,
           messages: 0,
-          projects: 0,
-          endpoints: 0,
-          orgSecrets: 0,
-          organizations: 0,
-          functionCalls: 0,
-          projectSecrets: 0,
+          endpoints: stockCounters?.endpoints ?? 0,
+          secrets: stockCounters?.secrets ?? 0,
         })
         .onConflictDoNothing()
         .returning()

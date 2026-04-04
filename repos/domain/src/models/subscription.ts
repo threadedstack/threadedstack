@@ -5,10 +5,10 @@ export class Subscription extends Base {
   tier: string = ESubscriptionTier.free
   status: string = ESubscriptionStatus.active
   userId: string
-  polarId?: string
-  seats: number = 0
-  polarPriceId?: string
-  polarCustomerId?: string
+  seats: number = 1
+  stripeCustomerId?: string
+  stripeSubscriptionId?: string
+  stripePriceId?: string
   currentPeriodEnd?: string
   currentPeriodStart?: string
   cancelAtPeriodEnd?: boolean

@@ -3,10 +3,11 @@ import type { TRequest } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
 import type { Endpoint, TFaaSEndpointConfig, TFunctionResponse } from '@tdsk/domain'
 
-import { Exception } from '@tdsk/domain'
+import { Exception, computeUnits } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { EEndpointType } from '@tdsk/domain'
 import { BaseEndpoint } from '@TBE/services/endpoints/base'
+import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
 
 /**
@@ -57,11 +58,13 @@ export class FaaSEndpoint extends BaseEndpoint {
       args: opts?.arguments,
     }
 
-    // Execute the function in a sandbox
+    // Execute the function in a sandbox with timing
+    const startMs = Date.now()
     const result = await FunctionExecutor.execute(func as any, {
       request: functionRequest,
       context: functionContext,
     })
+    const runtimeMs = Date.now() - startMs
 
     if (!result.success) {
       logger.error(`FaaS execution failed for function ${functionId}: ${result.error}`)
@@ -69,6 +72,29 @@ export class FaaSEndpoint extends BaseEndpoint {
         500,
         `Function execution failed: ${result.error || 'Unknown error'}`
       )
+    }
+
+    // Track compute units for the org that owns this endpoint's project (fire-and-forget)
+    if (endpoint.projectId && db.services.project && db.services.quota) {
+      db.services.project
+        .get(endpoint.projectId)
+        .then(({ data: project }: any) => {
+          if (project?.orgId) {
+            const units = computeUnits(1, runtimeMs)
+            return db.services.quota.increment(
+              project.orgId,
+              getBillingPeriod(),
+              `compute`,
+              units
+            )
+          }
+        })
+        .catch((err: unknown) =>
+          logger.error(
+            `[quota] Failed to increment compute for endpoint=${endpoint.id}:`,
+            err
+          )
+        )
     }
 
     // Map function output to HTTP response

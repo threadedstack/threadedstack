@@ -20,11 +20,11 @@ export const createPortalSession: TEndpointConfig = {
     const subResult = await db.services.subscription.findByUser(userId)
     if (subResult.error) throw new Exception(500, subResult.error.message)
 
-    if (!subResult.data?.polarCustomerId)
+    if (!subResult.data?.stripeCustomerId)
       throw new Exception(404, `No active subscription found`)
 
-    const portalResult = await payments.service.createPortal(
-      subResult.data.polarCustomerId
+    const portalResult = await payments.service.createPortalSession(
+      subResult.data.stripeCustomerId
     )
 
     if (portalResult.error || !portalResult.data)

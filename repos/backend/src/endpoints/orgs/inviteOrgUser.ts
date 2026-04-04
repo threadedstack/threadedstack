@@ -2,9 +2,17 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import { InviteService } from '@TBE/services/invite'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { Exception, EPermAction, EPermResource, ERoleType } from '@tdsk/domain'
+import {
+  Exception,
+  PlanLimits,
+  EPermAction,
+  EPermResource,
+  ERoleType,
+  ESubscriptionTier,
+} from '@tdsk/domain'
 
 type TOrgReq = {
   orgId: string
@@ -56,6 +64,34 @@ export const inviteOrgUser: TEndpointConfig = {
 
     if (orgError) throw new Exception(500, orgError.message)
     if (!org) throw new Exception(404, `Organization not found`)
+
+    // Check seat capacity based on owner's subscription tier
+    if (org.ownerId) {
+      const { data: ownerSub } = await db.services.subscription.findByUser(org.ownerId)
+      const tier = (ownerSub?.tier || `free`) as ESubscriptionTier
+      const limits = PlanLimits[tier] || PlanLimits[ESubscriptionTier.free]
+
+      // Free and Solo tiers do not allow additional members
+      if (!limits.additionalSeats && limits.seats <= 1)
+        throw new Exception(
+          403,
+          `Your plan does not allow inviting additional members. Upgrade to a Pro or Team plan.`
+        )
+
+      // Check if adding a member would exceed seat capacity
+      if (limits.seats !== -1) {
+        const { data: members, error: membersError } =
+          await db.services.role.getOrgMembers(orgId)
+        if (membersError)
+          logger.error(`Failed to fetch org members for seat check:`, membersError)
+        const currentMembers = Array.isArray(members) ? members.length : 0
+        if (currentMembers >= limits.seats)
+          throw new Exception(
+            403,
+            `Seat limit reached (${currentMembers}/${limits.seats}). Upgrade your plan to add more members.`
+          )
+      }
+    }
 
     const { data: user, error: userError } = await db.services.user.byEmail(email)
 

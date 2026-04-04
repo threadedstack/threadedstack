@@ -2,7 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { logger } from '@TBE/utils/logger'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -40,6 +42,16 @@ export const deleteSecret: TEndpointConfig = {
 
     const { error } = await db.services.secret.delete(id)
     if (error) throw new Exception(500, error.message)
+
+    // Decrement secret quota for the org
+    const quotaOrgId = existing.orgId || req.params.orgId
+    if (quotaOrgId && db.services.quota) {
+      db.services.quota
+        .decrement(quotaOrgId, getBillingPeriod(), `secrets`)
+        .catch((err: unknown) =>
+          logger.error(`[quota] Failed to decrement secrets for org=${quotaOrgId}:`, err)
+        )
+    }
 
     res.status(200).json({ data: { success: true, id } })
   },

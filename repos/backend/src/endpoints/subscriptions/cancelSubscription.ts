@@ -3,9 +3,11 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
 
 /**
  * DELETE /subscriptions/current - Cancel current subscription
+ * Cancels at period end via Stripe, then updates local record.
  */
 export const cancelSubscription: TEndpointConfig = {
   path: `/current`,
@@ -20,15 +22,22 @@ export const cancelSubscription: TEndpointConfig = {
     const subResult = await db.services.subscription.findByUser(userId)
     if (subResult.error) throw new Exception(500, subResult.error.message)
 
-    if (!subResult.data?.polarId) throw new Exception(404, `No active subscription found`)
+    if (!subResult.data?.stripeSubscriptionId)
+      throw new Exception(404, `No active subscription found`)
 
-    const cancelResult = await payments.service.cancelSubscription(subResult.data.polarId)
+    await payments.service.cancelSubscription(subResult.data.stripeSubscriptionId)
 
-    if (cancelResult.error)
-      throw new Exception(
-        500,
-        cancelResult.error.message || `Failed to cancel subscription`
+    // Optimistically update local state to reflect cancellation at period end
+    const { error: updateErr } = await db.services.subscription.upsertByUser({
+      userId,
+      cancelAtPeriodEnd: true,
+    })
+    if (updateErr) {
+      logger.error(
+        `[cancelSubscription] Stripe cancelled but local update failed for user ${userId}:`,
+        updateErr
       )
+    }
 
     res.status(200).json({
       data: { success: true, message: `Subscription cancelled successfully` },
