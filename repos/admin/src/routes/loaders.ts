@@ -2,47 +2,46 @@ import type { LoaderFunctionArgs } from 'react-router'
 
 import {
   getOrgs,
+  getSkills,
+  getApiKeys,
+  getOrgUsers,
+  getOrgQuota,
   getProjects,
   getProviders,
   getSandboxes,
-  getSkills,
   getSchedules,
-  getApiKeys,
-  getOrgUsers,
+  getOrgLimits,
   getOrgSecrets,
+  setActiveOrgId,
+  setActiveAgentId,
   getContextAgents,
+  getContextThreads,
   getContextDomains,
+  getProjectSecrets,
+  setActiveThreadId,
+  setActiveProjectId,
   getProjectEndpoints,
   getProjectFunctions,
-  getProjectSecrets,
-  getProjectMembersForProject,
-  getOrgQuota,
-  getOrgLimits,
-  getContextThreads,
-  getProjectMembers,
-  setActiveOrgId,
-  setActiveProjectId,
   setActiveEndpointId,
-  setActiveAgentId,
-  setActiveThreadId,
+  getProjectMembersForProject,
 } from '@TAF/state/accessors'
 
 import { fetchOrgs } from '@TAF/actions/orgs/api/fetchOrgs'
+import { fetchSkills } from '@TAF/actions/skills/api/fetchSkills'
+import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
+import { listOrgUsers } from '@TAF/actions/users/api/listOrgUsers'
+import { fetchApiKeys } from '@TAF/actions/apiKeys/api/fetchApiKeys'
+import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
+import { fetchDomains } from '@TAF/actions/domains/api/fetchDomains'
+import { fetchThreads } from '@TAF/actions/threads/api/fetchThreads'
+import { fetchOrgQuota } from '@TAF/actions/quotas/api/fetchOrgQuota'
+import { fetchOrgLimits } from '@TAF/actions/quotas/api/fetchOrgLimits'
 import { fetchProjects } from '@TAF/actions/projects/api/fetchProjects'
 import { fetchProviders } from '@TAF/actions/providers/api/fetchProviders'
 import { fetchSandboxes } from '@TAF/actions/sandboxes/api/fetchSandboxes'
-import { fetchSkills } from '@TAF/actions/skills/api/fetchSkills'
 import { fetchSchedules } from '@TAF/actions/schedules/api/fetchSchedules'
-import { fetchApiKeys } from '@TAF/actions/apiKeys/api/fetchApiKeys'
-import { fetchSecrets } from '@TAF/actions/secrets/api/fetchSecrets'
-import { fetchAgents } from '@TAF/actions/agents/api/fetchAgents'
-import { fetchDomains } from '@TAF/actions/domains/api/fetchDomains'
 import { fetchEndpoints } from '@TAF/actions/endpoints/api/fetchEndpoints'
 import { fetchFunctions } from '@TAF/actions/functions/api/fetchFunctions'
-import { fetchOrgQuota } from '@TAF/actions/quotas/api/fetchOrgQuota'
-import { fetchOrgLimits } from '@TAF/actions/quotas/api/fetchOrgLimits'
-import { fetchThreads } from '@TAF/actions/threads/api/fetchThreads'
-import { listOrgUsers } from '@TAF/actions/users/api/listOrgUsers'
 import { listProjectMembers } from '@TAF/actions/projectMembers/api/listProjectMembers'
 
 /**
@@ -71,11 +70,19 @@ export const rootLoader = async () => {
   return null
 }
 
+const missOrgIdResp = (msg = `Organization ID required`, status = 400) => {
+  throw new Response(msg, { status })
+}
+
+const missProjIdResp = (msg = `Project ID required`, status = 400) => {
+  throw new Response(msg, { status })
+}
+
 // --- Org Scope Loader ---
 
 export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   setActiveOrgId(orgId)
   await safeFetch(() => fetchProjects({ orgId }))
@@ -84,7 +91,7 @@ export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgDetailLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   await Promise.all([
     !getOrgUsers()?.[orgId] ? safeFetch(() => listOrgUsers(orgId)) : Promise.resolve(),
@@ -97,7 +104,7 @@ export const orgDetailLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgSecretsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   if (!getOrgSecrets()) await safeFetch(() => fetchSecrets({ orgId }))
   return null
@@ -105,7 +112,7 @@ export const orgSecretsLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgProvidersLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   if (!getProviders()) await safeFetch(() => fetchProviders({ orgId }))
   return null
@@ -113,7 +120,7 @@ export const orgProvidersLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgSandboxesLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   if (!getSandboxes()) await safeFetch(() => fetchSandboxes({ orgId }))
   return null
@@ -121,7 +128,7 @@ export const orgSandboxesLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgDomainsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   if (!getContextDomains('org')) await safeFetch(() => fetchDomains({ orgId }))
   return null
@@ -129,7 +136,7 @@ export const orgDomainsLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgAgentsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   await Promise.all([
     !getContextAgents('org')
@@ -142,7 +149,7 @@ export const orgAgentsLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgSkillsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   if (!getSkills()) await safeFetch(() => fetchSkills(orgId))
   return null
@@ -150,7 +157,7 @@ export const orgSkillsLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgSchedulesLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   await Promise.all([
     !getSchedules() ? safeFetch(() => fetchSchedules(orgId)) : Promise.resolve(),
@@ -163,7 +170,7 @@ export const orgSchedulesLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgMembersLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   if (!getOrgUsers()?.[orgId]) await safeFetch(() => listOrgUsers(orgId))
   return null
@@ -171,7 +178,7 @@ export const orgMembersLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgApiKeysLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   await Promise.all([
     !getApiKeys() ? safeFetch(() => fetchApiKeys({ orgId })) : Promise.resolve(),
@@ -182,7 +189,7 @@ export const orgApiKeysLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const orgUsageLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
 
   if (!getOrgQuota()) await safeFetch(() => fetchOrgQuota(orgId))
   if (!getOrgLimits()) await safeFetch(() => fetchOrgLimits(orgId))
@@ -193,8 +200,8 @@ export const orgUsageLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const projectScopeLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
 
   setActiveOrgId(orgId)
   setActiveProjectId(projectId)
@@ -206,8 +213,8 @@ export const projectScopeLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const projectEndpointsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
 
   await Promise.all([
     !getProjectEndpoints(projectId)
@@ -230,8 +237,8 @@ export const projectEndpointsLoader = async ({ params }: LoaderFunctionArgs) => 
 
 export const projectFunctionsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
 
   if (!getProjectFunctions(projectId))
     await safeFetch(() => fetchFunctions({ orgId, projectId }))
@@ -240,8 +247,8 @@ export const projectFunctionsLoader = async ({ params }: LoaderFunctionArgs) => 
 
 export const projectSecretsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
 
   if (!getProjectSecrets(projectId))
     await safeFetch(() => fetchSecrets({ orgId, projectId }))
@@ -250,8 +257,8 @@ export const projectSecretsLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const projectAgentsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
 
   if (!getContextAgents(projectId))
     await safeFetch(() => fetchAgents({ orgId, projectId }))
@@ -260,8 +267,8 @@ export const projectAgentsLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const projectDomainsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
 
   if (!getContextDomains(projectId))
     await safeFetch(() => fetchDomains({ orgId, projectId }))
@@ -270,18 +277,27 @@ export const projectDomainsLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const projectMembersLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
 
   if (!getProjectMembersForProject(projectId))
     await safeFetch(() => listProjectMembers({ orgId, projectId }))
   return null
 }
 
+export const projectSandboxesLoader = async ({ params }: LoaderFunctionArgs) => {
+  const { orgId, projectId } = params
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
+
+  if (!getSandboxes()) await safeFetch(() => fetchSandboxes({ orgId }))
+  return null
+}
+
 export const projectApiKeysLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
 
   await Promise.all([
     !getApiKeys()
@@ -298,8 +314,8 @@ export const projectApiKeysLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const endpointDetailLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId, endpointId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
   if (!endpointId) throw new Response('Endpoint ID required', { status: 400 })
 
   setActiveEndpointId(endpointId)
@@ -324,8 +340,8 @@ export const endpointDetailLoader = async ({ params }: LoaderFunctionArgs) => {
 
 export const agentDetailLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId, projectId, agentId } = params
-  if (!orgId) throw new Response('Organization ID required', { status: 400 })
-  if (!projectId) throw new Response('Project ID required', { status: 400 })
+  if (!orgId) missOrgIdResp()
+  if (!projectId) missProjIdResp()
   if (!agentId) throw new Response('Agent ID required', { status: 400 })
 
   setActiveAgentId(agentId)

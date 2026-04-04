@@ -2,9 +2,9 @@ import type { TKubeSandboxConfig } from '@tdsk/domain'
 import type { TBuildPodOpts, TBuildPodMeta, TPodEgressOpts } from '@TSB/types'
 import type {
   V1Pod,
+  V1EnvVar,
   V1Container,
   V1ContainerPort,
-  V1EnvVar,
 } from '@kubernetes/client-node'
 
 import { customAlphabet } from 'nanoid'
@@ -38,7 +38,7 @@ export const buildPodName = (sandboxId: string): string => {
  * Build a complete K8s pod manifest for a sandbox
  */
 export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
-  const { orgId, userId, sandbox, projectId, egressOpts, placeholders } = opts
+  const { orgId, userId, sandbox, extraEnv, projectId, egressOpts, placeholders } = opts
 
   const config = sandbox.config
   const podName = buildPodName(sandbox.id)
@@ -60,8 +60,8 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
     spec: {
       restartPolicy: `Never`,
       automountServiceAccountToken: false,
-      containers: [buildSandboxContainer(config)],
       initContainers: [buildInitContainer(egressOpts)],
+      containers: [buildSandboxContainer(config, extraEnv)],
       volumes: [
         {
           name: VolumeMountName,
@@ -72,22 +72,27 @@ export const buildPodManifest = (opts: TBuildPodOpts): V1Pod => {
   }
 }
 
-const buildMeta = (opts: TBuildPodMeta) => ({
-  name: opts.podName,
-  labels: {
+const buildMeta = (opts: TBuildPodMeta) => {
+  const labels: Record<string, string> = {
     [PodLabelKeys.managed]: `true`,
     [PodLabelKeys.orgId]: sanitizeLabel(opts.orgId),
     [PodLabelKeys.userId]: sanitizeLabel(opts.userId),
     [PodLabelKeys.sandboxId]: sanitizeLabel(opts.sandbox.id),
-    [PodLabelKeys.projectId]: sanitizeLabel(opts.projectId),
-  },
-  annotations: {
-    [PodAnnotationKeys.subdomain]: opts.subdomain,
-    [PodAnnotationKeys.ports]: JSON.stringify(opts.config.ports || {}),
-    /** **NOTE** - This is not a security issue, id map is arbitrary with placeholder  */
-    [PodAnnotationKeys.placeholders]: JSON.stringify(opts.placeholders),
-  },
-})
+  }
+
+  if (opts.projectId) labels[PodLabelKeys.projectId] = sanitizeLabel(opts.projectId)
+
+  return {
+    labels,
+    name: opts.podName,
+    annotations: {
+      [PodAnnotationKeys.subdomain]: opts.subdomain,
+      [PodAnnotationKeys.ports]: JSON.stringify(opts.config.ports || {}),
+      /** **NOTE** - This is not a security issue, id map is arbitrary with placeholder  */
+      [PodAnnotationKeys.placeholders]: JSON.stringify(opts.placeholders),
+    },
+  }
+}
 
 const buildInitContainer = (opts: TPodEgressOpts): V1Container => {
   const { serviceName, servicePort, serviceIp } = opts
@@ -114,17 +119,31 @@ const buildInitContainer = (opts: TPodEgressOpts): V1Container => {
   }
 }
 
-const buildSandboxContainer = (config: TKubeSandboxConfig): V1Container => {
+const buildSandboxContainer = (
+  config: TKubeSandboxConfig,
+  extraEnv?: Record<string, string>
+): V1Container => {
+  const env: V1EnvVar[] = [
+    { name: `NODE_EXTRA_CA_CERTS`, value: CACertMountPath },
+    ...buildEnvVars(config.envVars),
+    ...buildEnvVars(extraEnv),
+  ]
+
+  const ports = buildPorts(config.ports)
+  if (config.sshEnabled !== false) {
+    const hasSSHPort = ports.some((p) => p.containerPort === 2222)
+    if (!hasSSHPort) {
+      ports.push({ protocol: `TCP`, containerPort: 2222 })
+    }
+  }
+
   const container: V1Container = {
+    env,
+    ports,
     name: `sandbox`,
     image: config.image,
-    ports: buildPorts(config.ports),
-    env: [
-      { name: `NODE_EXTRA_CA_CERTS`, value: CACertMountPath },
-      ...buildEnvVars(config.envVars),
-    ],
-    workingDir: config.workdir || DefaultWorkdir,
     resources: config.resources || {},
+    workingDir: config.workdir || DefaultWorkdir,
     securityContext: {
       privileged: false,
       allowPrivilegeEscalation: false,

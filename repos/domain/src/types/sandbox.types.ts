@@ -112,18 +112,31 @@ export type TSandboxRuntime = {
   extension: string
 }
 
+export enum EImagePullPolicy {
+  Never = `Never`,
+  Always = `Always`,
+  IfNotPresent = `IfNotPresent`,
+}
+
+export type TImagePullPolicy = `${EImagePullPolicy}`
+
 export type TKubeSandboxConfig = {
   image: string
   args?: string[]
+  gitRepo?: string
   workdir?: string
+  gitBranch?: string
   command?: string[]
   secretIds?: string[]
+  sshEnabled?: boolean
   defaultRuntime?: string
   imagePullSecret?: string
+  gitTokenSecretId?: string
+  idleTimeoutMinutes?: number
   runtimes?: TSandboxRuntime[]
   envVars?: Record<string, string>
   ports?: Record<string, TPortConfig>
-  imagePullPolicy?: `Always` | `IfNotPresent` | `Never`
+  imagePullPolicy?: TImagePullPolicy
   resources?: {
     limits?: { cpu?: string; memory?: string }
     requests?: { cpu?: string; memory?: string }
@@ -160,3 +173,27 @@ export type TRouteMapEntry = {
 }
 
 export type TRouteMap = Record<string, TRouteMapEntry>
+
+export type TSandboxSession = {
+  orgId: string
+  userId: string
+  podName: string
+  sandboxId: string
+  sessionId: string
+  connectedAt: string
+}
+
+export type TSandboxConnectResponse = {
+  port: number
+  command: string
+  podName: string
+  password: string
+  sandboxId: string
+}
+
+export enum ESBState {
+  Error = `Error`,
+  Running = `Running`,
+  Stopped = `Stopped`,
+  Starting = `Starting`,
+}

@@ -49,6 +49,12 @@ const {
   TDSK_EMAIL_API_HOST,
   TDSK_EMAIL_FROM = `noreply@threadedstack.com`,
 
+  // ENVs specific to dynamic sandboxes
+  TDSK_SB_TIMEOUT_MIN = `30`,
+  TDSK_SB_MAX_WAIT_MS = `120000`,
+  TDSK_SB_POLL_INTERVAL_MS = `2000`,
+  TDSK_SB_IDLE_INTERVAL_MS = `60_000`,
+
   // The deployed proxy host url
   // New domains are validated against this URL to ensure the CName is configured properly
   TDSK_CADDY_PX_HOST,
@@ -69,6 +75,12 @@ export const config = {
     servicePort: toNum(TDSK_BE_EGRESS_PORT),
     certSecretName: TDSK_KUBE_SCRT_EGRESS_CA,
     serviceIp: undefined as string | undefined,
+  },
+  sandbox: {
+    maxWait: toNum(TDSK_SB_MAX_WAIT_MS),
+    timeoutMin: toNum(TDSK_SB_TIMEOUT_MIN),
+    pollInterval: toNum(TDSK_SB_POLL_INTERVAL_MS),
+    idleInterval: toNum(TDSK_SB_IDLE_INTERVAL_MS),
   },
   proxy: {
     // Validate if this URL field is needed

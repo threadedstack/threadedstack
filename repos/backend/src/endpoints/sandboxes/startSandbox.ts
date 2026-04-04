@@ -11,10 +11,6 @@ export const startSandbox: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db, config } = req.app.locals
-    const { projectId } = req.body
-
-    if (!projectId) throw new Exception(400, `projectId is required`)
-
     const sandbox = await requireResourceWithPermission(
       req,
       db.services.sandbox,
@@ -24,6 +20,8 @@ export const startSandbox: TEndpointConfig = {
       `Sandbox`,
       (sb) => ({ orgId: sb.orgId })
     )
+
+    const projectId = req.body.projectId || sandbox.projectId
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)

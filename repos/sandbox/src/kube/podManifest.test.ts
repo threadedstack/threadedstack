@@ -231,10 +231,61 @@ describe(`buildPodManifest`, () => {
     expect(ports).toContainEqual({ protocol: `TCP`, containerPort: 8080 })
   })
 
-  it(`should return empty ports array when no ports configured`, () => {
+  it(`should include SSH port 2222 when no ports configured (sshEnabled defaults to true)`, () => {
     const manifest = buildPodManifest(buildOpts())
     const ports = manifest.spec!.containers![0].ports!
+    expect(ports).toContainEqual({ protocol: `TCP`, containerPort: 2222 })
+    expect(ports).toHaveLength(1)
+  })
+
+  it(`should not add SSH port 2222 when sshEnabled is false`, () => {
+    const opts = buildOpts({ config: { image: `node:20`, sshEnabled: false } })
+    const manifest = buildPodManifest(opts)
+    const ports = manifest.spec!.containers![0].ports!
     expect(ports).toEqual([])
+  })
+
+  it(`should not duplicate SSH port 2222 when already in config.ports`, () => {
+    const opts = buildOpts({
+      config: {
+        image: `node:20`,
+        ports: { '2222': { protocol: `http` } },
+      },
+    })
+    const manifest = buildPodManifest(opts)
+    const ports = manifest.spec!.containers![0].ports!
+    const sshPorts = ports.filter((p) => p.containerPort === 2222)
+    expect(sshPorts).toHaveLength(1)
+  })
+
+  it(`should include extraEnv variables in container env`, () => {
+    const opts = {
+      ...buildOpts(),
+      extraEnv: {
+        TDSK_SSH_PASSWORD: `secret`,
+        TDSK_GIT_REPO: `https://example.com/repo.git`,
+      },
+    }
+    const manifest = buildPodManifest(opts)
+    const env = manifest.spec!.containers![0].env!
+    expect(env).toContainEqual({ name: `TDSK_SSH_PASSWORD`, value: `secret` })
+    expect(env).toContainEqual({
+      name: `TDSK_GIT_REPO`,
+      value: `https://example.com/repo.git`,
+    })
+  })
+
+  it(`should omit projectId label when projectId is not provided`, () => {
+    const { projectId: _, ...optsWithoutProjectId } = buildOpts()
+    const manifest = buildPodManifest(optsWithoutProjectId)
+    const labels = manifest.metadata!.labels!
+    expect(labels[PodLabelKeys.projectId]).toBeUndefined()
+  })
+
+  it(`should include projectId label when projectId is provided`, () => {
+    const manifest = buildPodManifest(buildOpts())
+    const labels = manifest.metadata!.labels!
+    expect(labels[PodLabelKeys.projectId]).toBe(`proj-1`)
   })
 
   it(`should set restartPolicy to Never and disable service account token`, () => {

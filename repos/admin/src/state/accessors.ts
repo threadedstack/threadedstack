@@ -283,6 +283,7 @@ export const setProjectMembersState = (members: Record<string, Record<string, Ro
 
 export const getProjectMembersForProject = (projectId: string) =>
   getProjectMembers()?.[projectId]
+
 export const setProjectMembersForProject = (
   projectId: string,
   members: Record<string, Role>

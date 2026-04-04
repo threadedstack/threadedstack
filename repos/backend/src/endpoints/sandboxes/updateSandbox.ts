@@ -22,11 +22,17 @@ export const updateSandbox: TEndpointConfig = {
       (data) => ({ orgId: data.orgId })
     )
 
-    const { name, config } = req.body
+    const { name, config, projectId } = req.body
+    if (config?.idleTimeoutMinutes != null && config.idleTimeoutMinutes < 1)
+      throw new Exception(400, `idleTimeoutMinutes must be at least 1`)
+    if (config?.gitBranch && !config?.gitRepo)
+      throw new Exception(400, `gitBranch requires gitRepo to be set`)
+
     const { data, error } = await db.services.sandbox.update({
       id,
       ...(name !== undefined && { name }),
       ...(config !== undefined && { config }),
+      ...(projectId !== undefined && { projectId }),
     })
     if (error) throw new Exception(500, error.message)
 

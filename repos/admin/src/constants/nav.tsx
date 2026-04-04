@@ -127,6 +127,12 @@ const ProjectSubNav: Record<string, TNavItem> = {
     to: buildRoute(ERoutePath.ProjectAgents),
     visible: hasOrgAndProject,
   },
+  Sandboxes: {
+    text: `Sandboxes`,
+    to: buildRoute(ERoutePath.ProjectSandboxes),
+    Icon: <DrawingBoxIcon />,
+    visible: hasOrgAndProject,
+  },
   Members: {
     text: `Members`,
     Icon: <PersonIcon />,
@@ -217,7 +223,12 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
 export const ProjectSubNavGroups: TSubNavGroup[] = [
   {
     label: `Development`,
-    items: [ProjectSubNav.Endpoints, ProjectSubNav.Functions, ProjectSubNav.Agents],
+    items: [
+      ProjectSubNav.Endpoints,
+      ProjectSubNav.Functions,
+      ProjectSubNav.Agents,
+      ProjectSubNav.Sandboxes,
+    ],
   },
   {
     label: `Security`,

@@ -121,6 +121,7 @@ describe(`getDynamicNav`, () => {
         `Functions`,
         `Secrets`,
         `Agents`,
+        `Sandboxes`,
         `Members`,
         `Domains`,
         `API Keys`,
@@ -413,6 +414,7 @@ describe(`ProjectNavItems`, () => {
         `Functions`,
         `Secrets`,
         `Agents`,
+        `Sandboxes`,
         `Members`,
         `Domains`,
         `API Keys`,
@@ -502,7 +504,7 @@ describe(`ProjectSubNavGroups`, () => {
   it(`Development should have Endpoints, Functions, Agents`, () => {
     const dev = ProjectSubNavGroups.find((g) => g.label === `Development`)
     const texts = dev?.items.map((i) => i.text)
-    expect(texts).toEqual([`Endpoints`, `Functions`, `Agents`])
+    expect(texts).toEqual([`Endpoints`, `Functions`, `Agents`, `Sandboxes`])
   })
 
   it(`Security should have Secrets, API Keys, Domains`, () => {

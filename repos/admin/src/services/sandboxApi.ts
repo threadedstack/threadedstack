@@ -1,4 +1,5 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
+import type { TSandboxConnectResponse, TSandboxSession } from '@tdsk/domain'
 
 import { Sandbox } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
@@ -106,6 +107,60 @@ export class SandboxApi extends BaseApi {
 
     resp.error && (await this._onError(resp.error, `Failed to delete Sandbox config`))
 
+    return resp
+  }
+
+  async start(
+    orgId: string,
+    id: string,
+    data?: { projectId?: string }
+  ): Promise<TApiRes<{ podName: string }>> {
+    const resp = await this.api.post<{ podName: string }>({
+      data,
+      path: `${this.#path(orgId)}/${id}/start`,
+    })
+    resp.error && (await this._onError(resp.error, `Failed to start sandbox`))
+    return resp
+  }
+
+  async stop(
+    orgId: string,
+    id: string,
+    podName: string
+  ): Promise<TApiRes<{ success: boolean }>> {
+    const resp = await this.api.delete<{ success: boolean }>({
+      data: { podName },
+      path: `${this.#path(orgId)}/${id}/stop`,
+    })
+    resp.error && (await this._onError(resp.error, `Failed to stop sandbox`))
+    return resp
+  }
+
+  async connect(orgId: string, id: string): Promise<TApiRes<TSandboxConnectResponse>> {
+    const resp = await this.api.post<TSandboxConnectResponse>({
+      path: `${this.#path(orgId)}/${id}/connect`,
+    })
+    resp.error && (await this._onError(resp.error, `Failed to connect to sandbox`))
+    return resp
+  }
+
+  async status(
+    orgId: string,
+    id: string,
+    podName: string
+  ): Promise<TApiRes<{ podName: string; state: string }>> {
+    const resp = await this.api.get<{ podName: string; state: string }>({
+      path: `${this.#path(orgId)}/${id}/status?podName=${podName}`,
+    })
+    resp.error && (await this._onError(resp.error, `Failed to get sandbox status`))
+    return resp
+  }
+
+  async sessions(orgId: string, id: string): Promise<TApiRes<TSandboxSession[]>> {
+    const resp = await this.api.get<TSandboxSession[]>({
+      path: `${this.#path(orgId)}/${id}/sessions`,
+    })
+    resp.error && (await this._onError(resp.error, `Failed to get sandbox sessions`))
     return resp
   }
 }

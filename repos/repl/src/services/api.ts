@@ -176,6 +176,16 @@ export class ApiClient {
     )
   }
 
+  // --- Sandboxes ---
+
+  async listSandboxes(orgId: string): Promise<any[]> {
+    return this.#requestWithRetry<any[]>(`/orgs/${orgId}/sandboxes`)
+  }
+
+  async connectSandbox(orgId: string, sandboxId: string): Promise<any> {
+    return this.#postRequest<any>(`/orgs/${orgId}/sandboxes/${sandboxId}/connect`, {})
+  }
+
   // --- Messages ---
 
   async listMessages(

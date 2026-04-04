@@ -28,19 +28,19 @@ export type TSecretSelector = {
 
 export const SecretSelector = (props: TSecretSelector) => {
   const {
-    label = 'Secret',
-    editLabel,
+    mode,
     editing,
     disabled,
-    mode,
-    selectedSecretId,
-    newSecretValue,
+    editLabel,
     onModeChange,
-    onSecretSelect,
-    onNewValueChange,
     secretOptions,
     linkedSecrets,
     activeSecretId,
+    newSecretValue,
+    onSecretSelect,
+    label = 'Secret',
+    selectedSecretId,
+    onNewValueChange,
     valuePlaceholder = 'Enter secret value...',
   } = props
 
@@ -48,15 +48,13 @@ export const SecretSelector = (props: TSecretSelector) => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <Typography variant='subtitle2'>{editing ? editLabel || label : label}</Typography>
-
       {editing && linkedSecrets && linkedSecrets.length > 0 && (
         <Box
           sx={{
-            display: 'flex',
             gap: 0.5,
-            alignItems: 'center',
+            display: 'flex',
             flexWrap: 'wrap',
+            alignItems: 'center',
           }}
         >
           <Typography
@@ -92,11 +90,11 @@ export const SecretSelector = (props: TSecretSelector) => {
       {mode === 'existing' && (
         <SelectInput
           disabled={disabled}
-          label='Select Secret'
           items={secretOptions}
+          label='Existing Secret'
           value={selectedSecretId}
           id='secret-existing-select'
-          description='Choose an existing org-scoped secret'
+          description='Choose a previously created secret'
           onChange={(e) => onSecretSelect(e.target.value)}
         />
       )}

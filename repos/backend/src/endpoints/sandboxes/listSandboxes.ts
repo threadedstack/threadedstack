@@ -18,11 +18,15 @@ export const listSandboxes: TEndpointConfig = {
     await checkPermission(req, EPermAction.read, EPermResource.sandbox, { orgId })
 
     const { limit, offset } = parsePagination(req)
+    const projectId = req.query.projectId as string | undefined
+
+    const where: Record<string, any> = { orgId }
+    if (projectId) where.projectId = projectId
 
     const { data, error } = await db.services.sandbox.list({
       limit,
       offset,
-      where: { orgId },
+      where,
     })
     if (error) throw new Exception(500, error.message)
 

@@ -44,6 +44,7 @@ export enum ERoutePath {
 
   Sandboxes = `sandboxes`,
   OrgSandboxes = `/orgs/:orgId/sandboxes`,
+  ProjectSandboxes = `/orgs/:orgId/projects/:projectId/sandboxes`,
 
   ApiKeys = `api-keys`,
   OrgApiKeys = `/orgs/:orgId/api-keys`,

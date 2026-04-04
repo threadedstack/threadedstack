@@ -2,34 +2,35 @@ import { lazy, Suspense } from 'react'
 import { ERoutePath } from '@TAF/types'
 import { Loading } from '@tdsk/components'
 import Layout from '@TAF/pages/Layout/Layout'
-import { Navigate, createBrowserRouter, useRouteError } from 'react-router'
 import { AppError } from '@TAF/components/AppError/AppError'
+import { Navigate, createBrowserRouter, useRouteError } from 'react-router'
 import {
   rootLoader,
   orgScopeLoader,
-  orgDetailLoader,
-  orgSecretsLoader,
-  orgProvidersLoader,
-  orgSandboxesLoader,
-  orgDomainsLoader,
+  orgUsageLoader,
   orgAgentsLoader,
+  orgDetailLoader,
   orgSkillsLoader,
-  orgSchedulesLoader,
+  orgSecretsLoader,
+  orgDomainsLoader,
   orgMembersLoader,
   orgApiKeysLoader,
-  orgUsageLoader,
+  agentDetailLoader,
+  orgProvidersLoader,
+  orgSandboxesLoader,
   projectScopeLoader,
-  projectEndpointsLoader,
-  projectFunctionsLoader,
+  orgSchedulesLoader,
+  threadDetailLoader,
   projectSecretsLoader,
   projectAgentsLoader,
   projectDomainsLoader,
   projectMembersLoader,
   projectApiKeysLoader,
   endpointDetailLoader,
-  agentDetailLoader,
   projectThreadsLoader,
-  threadDetailLoader,
+  projectSandboxesLoader,
+  projectEndpointsLoader,
+  projectFunctionsLoader,
 } from '@TAF/routes/loaders'
 
 // Global pages
@@ -67,6 +68,7 @@ const ProjectApiKeys = lazy(() => import('@TAF/pages/Projects/ProjectApiKeys'))
 const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings'))
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
+const ProjectSandboxes = lazy(() => import('@TAF/pages/Projects/ProjectSandboxes'))
 const ProjectThreadChat = lazy(() => import('@TAF/pages/Projects/ProjectThreadChat'))
 const ProjectThreadDetail = lazy(() => import('@TAF/pages/Projects/ProjectThreadDetail'))
 
@@ -251,6 +253,11 @@ export const createRoutes = () =>
                   path: ERoutePath.Agents,
                   loader: projectAgentsLoader,
                   Component: () => <SuspensePage Component={ProjectAgents} />,
+                },
+                {
+                  path: ERoutePath.Sandboxes,
+                  loader: projectSandboxesLoader,
+                  Component: () => <SuspensePage Component={ProjectSandboxes} />,
                 },
                 {
                   path: ERoutePath.Agent,

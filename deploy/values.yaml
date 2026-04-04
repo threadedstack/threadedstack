@@ -262,6 +262,19 @@ env:
   TDSK_TH_IMAGE_FROM: node:22-alpine3.17
   TDSK_TH_IMAGE: 'ghcr.io/threadedstack/tdsk-threads'
 
+  # ---- SANDBOX ENVs --- #
+  
+  # Number of minutes of inactivity until a sandbox is automatically shutdown
+  TDSK_SB_TIMEOUT_MIN: 30
+  
+  # Interval time to wait between checks for sandbox activity
+  TDSK_SB_IDLE_INTERVAL_MS: 60000
+
+  # Maximum time to wait for a sandbox to be started
+  TDSK_SB_MAX_WAIT_MS: 120000
+
+  # Interval time to wait between polling a sandboxes state
+  TDSK_SB_POLL_INTERVAL_MS: 2000
 
 
   # ---- Payments ENVs --- #

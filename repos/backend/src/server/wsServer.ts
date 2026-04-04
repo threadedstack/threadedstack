@@ -1,39 +1,62 @@
-import type { IncomingMessage } from 'http'
+import type WebSocket from 'ws'
 import type { Socket } from 'net'
 import type { TApp } from '@TBE/types'
+import type { IncomingMessage } from 'http'
 
 import { WebSocketServer } from 'ws'
 import { logger } from '@TBE/utils/logger'
+import { SBTunnelPattern } from '@TBE/constants/sandbox'
 import { onWSConnect } from '@TBE/endpoints/ai/onWSConnect'
+import { onTunnelConnect } from '@TBE/endpoints/sandboxes/onTunnelConnect'
 
-const WS_PATH = `/ai/ws`
+type TWsHandler = (ws: WebSocket, req: IncomingMessage, app: TApp) => Promise<void>
 
 /**
- * Creates a WebSocket server for agent execution.
+ * Creates a WebSocket server with path-based dispatch.
  * Uses `noServer: true` — the HTTP server's `upgrade` event is handled manually
- * so we can filter by path and reject non-matching upgrade requests.
+ * so we can filter by path and route to the correct handler.
  */
 export const createWSServer = (app: TApp) => {
   const wss = new WebSocketServer({ noServer: true })
 
+  const staticRoutes = new Map<string, TWsHandler>()
+  staticRoutes.set(`/ai/ws`, onWSConnect)
+
   const onUpgrade = (req: IncomingMessage, socket: Socket, head: Buffer) => {
     const pathname = new URL(req.url || ``, `http://localhost`).pathname
-    if (pathname !== WS_PATH) {
-      socket.destroy()
+
+    // Static route match
+    const staticHandler = staticRoutes.get(pathname)
+    if (staticHandler) {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        staticHandler(ws, req, app).catch((err) => {
+          logger.error(`WS connect error on ${pathname}`, {
+            error: err instanceof Error ? err.message : err,
+          })
+          ws.close(1011, `Internal error`)
+        })
+      })
       return
     }
 
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      onWSConnect(ws, req, app).catch((err) => {
-        logger.error(`WS connect error`, {
-          error: err instanceof Error ? err.message : err,
+    // Dynamic route: sandbox tunnel
+    const tunnelMatch = pathname.match(SBTunnelPattern)
+    if (tunnelMatch) {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        onTunnelConnect(ws, req, app).catch((err) => {
+          logger.error(`WS tunnel error`, {
+            error: err instanceof Error ? err.message : err,
+          })
+          ws.close(1011, `Internal error`)
         })
-        ws.close(1011, `Internal error`)
       })
-    })
+      return
+    }
+
+    socket.destroy()
   }
 
-  logger.info(`WebSocket server ready on path: ${WS_PATH}`)
+  logger.info(`WebSocket server ready (multi-path dispatch)`)
 
   return { wss, onUpgrade }
 }

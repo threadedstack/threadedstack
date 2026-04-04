@@ -2,11 +2,13 @@ import type { TApp } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
 import type { TPodEgressOpts } from '@tdsk/sandbox'
 import type { RequestHandler } from 'http-proxy-middleware'
-import type { ISandbox, TPlaceholderMap } from '@tdsk/domain'
+import type { ISandbox, TPlaceholderMap, TSandboxSession } from '@tdsk/domain'
 
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
 import { networkInterfaces } from 'node:os'
+
+import { DefSBConfig } from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
 import { Exception, EContainerState } from '@tdsk/domain'
 import { createProxyMiddleware } from 'http-proxy-middleware'
@@ -23,7 +25,7 @@ type TStartPodOpts = {
   orgId: string
   userId: string
   sandboxId: string
-  projectId: string
+  projectId?: string
   egressOpts: TPodEgressOpts
 }
 
@@ -34,12 +36,26 @@ type TPodFilter = {
   state?: EContainerState
 }
 
+export type TSandboxOpts = {
+  maxWait?: number
+  timeoutMin?: number
+  pollInterval?: number
+  idleInterval?: number
+}
+
 /**
  * SandboxService orchestrates between DB config records and K8s pod operations
  */
 export class SandboxService {
   private db: TDatabase
   private kube: KubeClient
+  private readonly config: TSandboxOpts
+
+  private startingPods = new Set<string>()
+  private passwords = new Map<string, string>()
+  private podActivity = new Map<string, number>()
+  private sessions = new Map<string, TSandboxSession[]>()
+  private idleTimer: ReturnType<typeof setInterval> | null = null
 
   // Caches existing pod proxies
   static proxyMap = new Map<string, RequestHandler>()
@@ -97,16 +113,18 @@ export class SandboxService {
 
       await kube.hydrate()
 
+      setupKubeWatcher(kube)
+
+      const sandbox = new SandboxService(kube, app.locals.db, app.locals.config.sandbox)
+
       kube.onRemoveRoute((entry) => {
         for (const portEntry of Object.values(entry.ports))
           SandboxService.removePodProxy(
             `${portEntry.protocol}://${portEntry.host}:${portEntry.port}`
           )
+        entry.meta?.podName && sandbox.cleanupPod(entry.meta.podName)
       })
-
-      setupKubeWatcher(kube)
-
-      const sandbox = new SandboxService(kube, app.locals.db)
+      sandbox.startIdleTimeout()
 
       app.locals.kube = kube
       app.locals.sandbox = sandbox
@@ -124,9 +142,10 @@ export class SandboxService {
     }
   }
 
-  constructor(kube: KubeClient, db: TDatabase) {
+  constructor(kube: KubeClient, db: TDatabase, config?: TSandboxOpts) {
     this.db = db
     this.kube = kube
+    this.config = { ...DefSBConfig, ...config }
   }
 
   async validatePodOwnership(podName: string, orgId: string): Promise<void> {
@@ -135,7 +154,7 @@ export class SandboxService {
       pod = await this.kube.getPod(podName)
     } catch (err: any) {
       const code = err?.code ?? err?.statusCode ?? err?.response?.statusCode
-      if (code === 404) return
+      if (code === 404) throw new Exception(404, `Pod ${podName} no longer exists`)
       throw err
     }
     const podOrgId = pod.metadata?.labels?.[PodLabelKeys.orgId]
@@ -162,10 +181,28 @@ export class SandboxService {
       }
     }
 
+    const sshPassword = nanoid(24)
+    const extraEnv: Record<string, string> = {
+      TDSK_SSH_PASSWORD: sshPassword,
+    }
+
+    // Generate placeholder for git auth token if configured
+    if (sandbox.config.gitTokenSecretId) {
+      const gitToken = `${PhTokenPrefix}${nanoid(16)}`
+      placeholders[gitToken] = sandbox.config.gitTokenSecretId
+      extraEnv.TDSK_GIT_TOKEN = gitToken
+    }
+
+    if (sandbox.config.gitRepo) {
+      extraEnv.TDSK_GIT_REPO = sandbox.config.gitRepo
+      if (sandbox.config.gitBranch) extraEnv.TDSK_GIT_BRANCH = sandbox.config.gitBranch
+    }
+
     const manifest = buildPodManifest({
       orgId,
       userId,
       sandbox,
+      extraEnv,
       projectId,
       egressOpts,
       placeholders,
@@ -176,7 +213,168 @@ export class SandboxService {
     if (!podName)
       throw new Error(`Pod created but metadata.name is missing for sandbox ${sandboxId}`)
 
+    this.passwords.set(podName, sshPassword)
+    this.podActivity.set(podName, Date.now())
+
     return podName
+  }
+
+  getPassword(podName: string): string | undefined {
+    return this.passwords.get(podName)
+  }
+
+  async recoverPassword(podName: string): Promise<string | undefined> {
+    const cached = this.passwords.get(podName)
+    if (cached) return cached
+
+    try {
+      const result = await this.kube.runInPod(podName, [`printenv`, `TDSK_SSH_PASSWORD`])
+      if (result.success && result.output) {
+        const password = result.output.trim()
+        if (!password) {
+          logger.warn(`[Sandbox] TDSK_SSH_PASSWORD is empty for ${podName}`)
+          return undefined
+        }
+        this.passwords.set(podName, password)
+        return password
+      }
+      logger.warn(
+        `[Sandbox] printenv returned non-success for ${podName}:`,
+        result.error || `no output`
+      )
+    } catch (err) {
+      logger.warn(
+        `[Sandbox] Failed to recover password for ${podName}:`,
+        (err as Error).message
+      )
+    }
+    return undefined
+  }
+
+  addSession(podName: string, session: TSandboxSession): void {
+    const list = (this.sessions.get(podName) || []).filter(
+      (s) => s.sessionId !== session.sessionId
+    )
+    list.push(session)
+    this.sessions.set(podName, list)
+    this.podActivity.set(podName, Date.now())
+  }
+
+  removeSession(podName: string, sessionId: string): void {
+    const list = this.sessions.get(podName) || []
+    this.sessions.set(
+      podName,
+      list.filter((s) => s.sessionId !== sessionId)
+    )
+    this.podActivity.set(podName, Date.now())
+  }
+
+  getSessions(podName: string): TSandboxSession[] {
+    return this.sessions.get(podName) || []
+  }
+
+  updateActivity(podName: string): void {
+    this.podActivity.set(podName, Date.now())
+  }
+
+  async findRunningPod(sandboxId: string, orgId: string): Promise<string | undefined> {
+    const pods = await this.listPods({ orgId, state: EContainerState.Running })
+    const match = pods.find(
+      (p) => p.metadata?.labels?.[PodLabelKeys.sandboxId] === sandboxId
+    )
+    return match?.metadata?.name
+  }
+
+  async findActivePod(sandboxId: string, orgId: string): Promise<string | undefined> {
+    const pods = await this.listPods({ orgId })
+    const match = pods.find((p) => {
+      const phase = p.status?.phase
+      const id = p.metadata?.labels?.[PodLabelKeys.sandboxId]
+      return (
+        id === sandboxId &&
+        (phase === EContainerState.Running || phase === EContainerState.Pending)
+      )
+    })
+    return match?.metadata?.name
+  }
+
+  isStarting(sandboxId: string): boolean {
+    return this.startingPods.has(sandboxId)
+  }
+
+  markStarting(sandboxId: string): void {
+    this.startingPods.add(sandboxId)
+  }
+
+  clearStarting(sandboxId: string): void {
+    this.startingPods.delete(sandboxId)
+  }
+
+  cleanupPod(podName: string): void {
+    this.passwords.delete(podName)
+    this.sessions.delete(podName)
+    this.podActivity.delete(podName)
+  }
+
+  stopIdleTimeout(): void {
+    if (this.idleTimer) {
+      clearInterval(this.idleTimer)
+      this.idleTimer = null
+    }
+  }
+
+  startIdleTimeout(): void {
+    if (this.idleTimer) return
+
+    let running = false
+    this.idleTimer = setInterval(async () => {
+      if (running) return
+      running = true
+
+      try {
+        const entries = [...this.podActivity.entries()]
+        for (const [podName, lastActivity] of entries) {
+          const sessions = this.getSessions(podName)
+          if (sessions.length > 0) continue
+
+          let timeoutMinutes = this.config.timeoutMin
+          try {
+            const pod = await this.kube.getPod(podName)
+            const sandboxId = pod.metadata?.labels?.[PodLabelKeys.sandboxId]
+            if (sandboxId) {
+              const { data: sb } = await this.db.services.sandbox.get(sandboxId)
+              if (sb?.config?.idleTimeoutMinutes)
+                timeoutMinutes = sb.config.idleTimeoutMinutes
+            }
+          } catch (err) {
+            logger.warn(
+              `[Sandbox] Failed to resolve idle timeout config for pod ${podName}:`,
+              (err as Error).message
+            )
+          }
+
+          const idleMs = Date.now() - lastActivity
+          const timeoutMs = (timeoutMinutes ?? 30) * 60 * 1000
+
+          if (idleMs > timeoutMs) {
+            logger.info(
+              `[Sandbox] Stopping idle pod: ${podName} (idle ${Math.round(idleMs / 60000)}m)`
+            )
+            try {
+              await this.stopPod(podName)
+            } catch (err) {
+              logger.warn(
+                `[Sandbox] Failed to stop idle pod ${podName}:`,
+                (err as Error).message
+              )
+              this.cleanupPod(podName)
+            }
+          }
+        }
+      } finally {
+        running = false
+      }
+    }, this.config.idleInterval)
   }
 
   /**
@@ -184,6 +382,7 @@ export class SandboxService {
    */
   async stopPod(podName: string): Promise<void> {
     await this.kube.deletePod(podName, 30)
+    this.cleanupPod(podName)
   }
 
   /**

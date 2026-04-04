@@ -7,27 +7,26 @@ export const chat: TTask = {
   name: `chat`,
   alias: [`ch`],
   description: `Start an interactive chat session`,
-  example: `tsa chat [--org <id>] [--agent <id>] [--thread <id>]`,
+  example: `tsa chat [--org <id>] [--project <id>] [--agent <id>] [--thread <id>]`,
   options: {
     org: {
-      description: `Organization ID`,
       example: `--org org_xxx`,
-      type: `str`,
+      description: `Organization ID`,
+      alias: [`organizationId`, `organization`, `orgId`],
     },
     project: {
       description: `Project ID`,
       example: `--project proj_xxx`,
-      type: `str`,
+      alias: [`projectId`, `pro`, `proId`],
     },
     agent: {
-      description: `Agent ID to chat with`,
+      alias: [`agentId`],
       example: `--agent agent_xxx`,
-      type: `str`,
+      description: `Agent ID to chat with`,
     },
     thread: {
-      description: `Thread ID to resume`,
       example: `--thread thread_xxx`,
-      type: `str`,
+      description: `Thread ID to resume`,
     },
   },
   action: async ({ params, auth, config }) => {

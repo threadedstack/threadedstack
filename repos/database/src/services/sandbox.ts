@@ -17,4 +17,12 @@ export class Sandbox extends Base<
   model = (data: TDBSandboxSelect) => {
     return new SandboxModel(data)
   }
+
+  async listByOrg(orgId: string) {
+    return this.list({ where: { orgId } })
+  }
+
+  async listByProject(projectId: string) {
+    return this.list({ where: { projectId } })
+  }
 }

@@ -10,12 +10,16 @@ export const createSandbox: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { name, config } = req.body
+    const { name, config, projectId } = req.body
     const orgId = req.params.orgId || req.body.orgId
 
     if (!name) throw new Exception(400, `Sandbox name is required`)
     if (!config?.image) throw new Exception(400, `Sandbox config.image is required`)
     if (!orgId) throw new Exception(400, `orgId is required`)
+    if (config?.idleTimeoutMinutes != null && config.idleTimeoutMinutes < 1)
+      throw new Exception(400, `idleTimeoutMinutes must be at least 1`)
+    if (config?.gitBranch && !config?.gitRepo)
+      throw new Exception(400, `gitBranch requires gitRepo to be set`)
 
     await checkPermission(req, EPermAction.create, EPermResource.sandbox, { orgId })
 
@@ -23,6 +27,7 @@ export const createSandbox: TEndpointConfig = {
       name,
       orgId,
       config,
+      projectId,
       userId: req.user?.id,
     })
 

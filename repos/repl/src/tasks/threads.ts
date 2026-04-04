@@ -10,23 +10,23 @@ export const threads: TTask = {
   description: `List threads for an agent`,
   example: `tsa threads <agent-id> [--org <id>]`,
   options: {
-    agentId: {
-      description: `Agent ID to list threads for`,
+    agent: {
+      alias: [`agentId`],
       example: `--agentId agent_xxx`,
-      type: `str`,
+      description: `Agent ID to list threads for`,
     },
     org: {
-      description: `Organization ID`,
       example: `--org org_xxx`,
-      type: `str`,
+      description: `Organization ID`,
+      alias: [`organizationId`, `organization`, `orgId`],
     },
   },
   action: requireAuth(async ({ params, auth, options }) => {
-    // Check if agentid and orgid can be loaded from state instead
-    const agentId = params.agentId || options?.[0]
+    // TODO: Check if agent-id and org-id can be loaded from state instead
+    const agentId = params.agent || options?.[0]
     if (!agentId) {
       process.stdout.write(
-        `${themed('warning', `Usage: tsa threads <agent-id> [--org <id>]`)}\n`
+        `${themed(`warning`, `Usage: tsa threads <agent-id> [--org <id>]`)}\n`
       )
       process.exit(1)
     }
@@ -50,19 +50,19 @@ export const threads: TTask = {
       const threads = await client.listThreads(orgId, agentId)
 
       if (!threads.length) {
-        process.stdout.write(`${themed('muted', `No threads found`)}\n`)
+        process.stdout.write(`${themed(`muted`, `No threads found`)}\n`)
         return
       }
 
-      process.stdout.write(`\n${themed('bold', `Threads:`)}\n`)
+      process.stdout.write(`\n${themed(`bold`, `Threads:`)}\n`)
       for (const t of threads) {
-        const name = t.name || themed('muted', `untitled`)
-        process.stdout.write(`  ${themed('muted', t.id)} ${name}\n`)
+        const name = t.name || themed(`muted`, `untitled`)
+        process.stdout.write(`  ${themed(`muted`, t.id)} ${name}\n`)
       }
       process.stdout.write(`\n`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : `Failed to list threads`
-      process.stdout.write(`${themed('error', `Error:`)} ${msg}\n`)
+      process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
       process.exit(1)
     }
   }),

@@ -11,10 +11,11 @@ export type TBuildPodOpts = {
   orgId: string
   userId: string
   sandbox: Sandbox
-  projectId: string
+  projectId?: string
   namespace?: string
   egressOpts: TPodEgressOpts
   placeholders: TPlaceholderMap
+  extraEnv?: Record<string, string>
 }
 
 export type TBuildPodMeta = {
@@ -22,8 +23,8 @@ export type TBuildPodMeta = {
   userId: string
   podName: string
   sandbox: Sandbox
-  projectId: string
   subdomain: string
+  projectId?: string
   config: TKubeSandboxConfig
   placeholders: TPlaceholderMap
 }

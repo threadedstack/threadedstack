@@ -350,26 +350,41 @@ export const ProviderDrawer = ({
 
           {/* API Key Secret section */}
           {isAiType && (
-            <SecretSelector
-              label='API Key'
-              editLabel='Change API Key'
-              editing={isEditMode}
-              disabled={loading}
-              mode={secretMode}
-              selectedSecretId={selectedSecretId}
-              newSecretValue={apiKeyValue}
-              onModeChange={(mode) => {
-                setSecretMode(mode)
-                setApiKeyValue(``)
-                setSelectedSecretId(``)
-              }}
-              onSecretSelect={setSelectedSecretId}
-              onNewValueChange={setApiKeyValue}
-              secretOptions={secretOptions}
-              linkedSecrets={providerSecrets}
-              activeSecretId={provider?.secretId}
-              valuePlaceholder={template?.apiKeyPlaceholder || 'Enter your API key...'}
-            />
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography
+                  fontWeight={500}
+                  variant='subtitle1'
+                >
+                  AI Provider Authentication
+                </Typography>
+              </AccordionSummary>
+
+              <AccordionDetails>
+                <SecretSelector
+                  mode={secretMode}
+                  disabled={loading}
+                  editing={isEditMode}
+                  label='AI Provider Secret'
+                  newSecretValue={apiKeyValue}
+                  secretOptions={secretOptions}
+                  linkedSecrets={providerSecrets}
+                  onNewValueChange={setApiKeyValue}
+                  activeSecretId={provider?.secretId}
+                  selectedSecretId={selectedSecretId}
+                  onSecretSelect={setSelectedSecretId}
+                  editLabel='Change AI Provider Secret'
+                  valuePlaceholder={
+                    template?.apiKeyPlaceholder || 'Enter your AI Provider Secret...'
+                  }
+                  onModeChange={(mode) => {
+                    setSecretMode(mode)
+                    setApiKeyValue(``)
+                    setSelectedSecretId(``)
+                  }}
+                />
+              </AccordionDetails>
+            </Accordion>
           )}
 
           {/* Custom Headers */}

@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
+import { projects } from '@TDB/schemas/projects'
 import { text, jsonb, uuid, varchar, index, pgTable } from 'drizzle-orm/pg-core'
 
 import type { TKubeSandboxConfig } from '@tdsk/domain'
@@ -15,11 +16,15 @@ export const sandboxes = pgTable(
       .references(() => orgs.id, { onDelete: `cascade` })
       .notNull(),
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `set null` }),
+    projectId: varchar(`project_id`, { length: 10 }).references(() => projects.id, {
+      onDelete: `cascade`,
+    }),
     config: jsonb(`config`).notNull().$type<TKubeSandboxConfig>(),
   },
   (table) => [
     index(`sandboxes_org_idx`).on(table.orgId),
     index(`sandboxes_org_user_idx`).on(table.orgId, table.userId),
+    index(`sandboxes_project_idx`).on(table.projectId),
   ]
 )
 
@@ -31,5 +36,9 @@ export const sandboxesRelations = relations(sandboxes, ({ one }) => ({
   user: one(users, {
     references: [users.id],
     fields: [sandboxes.userId],
+  }),
+  project: one(projects, {
+    references: [projects.id],
+    fields: [sandboxes.projectId],
   }),
 }))

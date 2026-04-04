@@ -6,6 +6,7 @@ import type {
   Asset,
   Domain,
   Secret,
+  Sandbox,
   Thread,
   Project,
   Message,
@@ -21,10 +22,10 @@ import { noOp } from '@keg-hub/jsutils/noOp'
 import { themeTypeState } from '@TAF/state/theme'
 import { apiKeysState } from '@TAF/state/apiKeys'
 import { providersState } from '@TAF/state/providers'
-import { sandboxesState } from '@TAF/state/sandboxes'
 import { quickstartState } from '@TAF/state/quickstart'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { sidebarOpenState, activeRailSectionState } from '@TAF/state/app'
+import { sandboxesState, projectSandboxesState } from '@TAF/state/sandboxes'
 import {
   assetsState,
   activeAssetIdState,
@@ -217,3 +218,7 @@ export const useActiveThread = () => useDerivedState<Thread>(activeThreadState)
 
 export const useThreadMessages = () =>
   useDerivedState<Record<string, Message>>(threadMessagesState)
+
+// Project-scoped sandboxes
+export const useProjectSandboxes = () =>
+  useDerivedState<Record<string, Sandbox>>(projectSandboxesState)

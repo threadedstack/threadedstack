@@ -102,6 +102,6 @@ export const EndpointTypeOpts = Object.values(EEndpointType).map((value) => ({
 
 export const SecretModeOptions = [
   { value: ESecretMode.none, label: `None` },
-  { value: ESecretMode.new, label: `Create New` },
-  { value: ESecretMode.existing, label: `Select Existing` },
+  { value: ESecretMode.new, label: `Create new secret` },
+  { value: ESecretMode.existing, label: `Select existing secret` },
 ]

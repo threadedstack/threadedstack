@@ -106,22 +106,22 @@ describe(`SandboxService`, () => {
       )
     })
 
-    it(`should return silently when pod is not found (404 via code)`, async () => {
+    it(`should throw 404 when pod is not found (404 via code)`, async () => {
       const kubeError = Object.assign(new Error(`Not Found`), { code: 404 })
       kube.getPod.mockRejectedValue(kubeError)
 
-      await expect(
-        svc.validatePodOwnership(`missing-pod`, `org-1`)
-      ).resolves.toBeUndefined()
+      await expect(svc.validatePodOwnership(`missing-pod`, `org-1`)).rejects.toThrow(
+        `Pod missing-pod no longer exists`
+      )
     })
 
-    it(`should return silently when pod is not found (404 via statusCode)`, async () => {
+    it(`should throw 404 when pod is not found (404 via statusCode)`, async () => {
       const kubeError = Object.assign(new Error(`Not Found`), { statusCode: 404 })
       kube.getPod.mockRejectedValue(kubeError)
 
-      await expect(
-        svc.validatePodOwnership(`missing-pod`, `org-1`)
-      ).resolves.toBeUndefined()
+      await expect(svc.validatePodOwnership(`missing-pod`, `org-1`)).rejects.toThrow(
+        `Pod missing-pod no longer exists`
+      )
     })
 
     it(`should propagate non-404 KubeClient.getPod errors`, async () => {
