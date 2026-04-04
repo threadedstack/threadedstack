@@ -1,0 +1,9 @@
+{
+  "label": "Business",
+  "order": 4,
+  "pages": [
+    "value-proposition",
+    "pricing",
+    "go-to-market"
+  ]
+}

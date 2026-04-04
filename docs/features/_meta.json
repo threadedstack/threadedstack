@@ -1,0 +1,14 @@
+{
+  "label": "Features",
+  "order": 2,
+  "pages": [
+    "organizations",
+    "agent-endpoints",
+    "proxy-endpoints",
+    "faas-endpoints",
+    "threads",
+    "secrets",
+    "sandbox-connect",
+    "billing"
+  ]
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-export const useActiveHeading = () => {
+export const useActiveHeading = (deps?: unknown) => {
   const [activeId, setActiveId] = useState<string>('')
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export const useActiveHeading = () => {
     for (const heading of headings) observer.observe(heading)
 
     return () => observer.disconnect()
-  }, [])
+  }, [deps])
 
   return activeId
 }

@@ -1,0 +1,11 @@
+{
+  "label": "Architecture",
+  "order": 1,
+  "pages": [
+    "platform-overview",
+    "request-flow",
+    "data-model",
+    "security-model",
+    "sandbox-architecture"
+  ]
+}

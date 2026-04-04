@@ -25,6 +25,8 @@
     ],
     "paths": {
       "@ROOT": ["../../"],
+      "@DOCS": ["../../docs"],
+      "@DOCS/*": ["../../docs/*"],
       "@TAF/*": ["./src/*"],
       "@TAF": ["./src"],
       "@TAF/scripts/*": ["./scripts/*"],

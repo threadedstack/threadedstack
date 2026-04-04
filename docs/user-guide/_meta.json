@@ -1,0 +1,12 @@
+{
+  "label": "User Guide",
+  "order": 3,
+  "pages": [
+    "getting-started",
+    { "slug": "admin-ui", "label": "Admin Dashboard" },
+    "api-reference",
+    { "slug": "repl-cli", "label": "REPL CLI" },
+    { "slug": "threads-app", "label": "Threads App" },
+    "sandbox-usage"
+  ]
+}

@@ -20,9 +20,9 @@ const columns = [
   {
     title: 'Docs',
     links: [
-      { label: 'Getting Started', to: '/docs/getting-started' },
-      { label: 'API Reference', to: '/docs/api-reference' },
-      { label: 'Guides', to: '/docs/guides' },
+      { label: 'Getting Started', to: '/docs/user-guide/getting-started' },
+      { label: 'API Reference', to: '/docs/user-guide/api-reference' },
+      { label: 'Guides', to: '/docs/user-guide/admin-ui' },
     ],
   },
   {

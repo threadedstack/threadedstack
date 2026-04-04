@@ -87,7 +87,7 @@ importers:
         version: 2.1.0
       '@mariozechner/pi-web-ui':
         specifier: 0.55.3
-        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)(zod@4.3.5)
+        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)
       '@mui/icons-material':
         specifier: 6.1.2
         version: 6.1.2(@mui/material@6.1.2(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@emotion/styled@11.13.0(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react@19.2.14)(react@18.3.1)
@@ -1006,7 +1006,7 @@ importers:
         version: 2.1.0
       '@mariozechner/pi-web-ui':
         specifier: 0.55.3
-        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)
+        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)(zod@4.3.5)
       '@mdx-js/react':
         specifier: 3.1.1
         version: 3.1.1(@types/react@19.2.14)(react@18.3.1)
@@ -1094,6 +1094,9 @@ importers:
       tsconfig-paths:
         specifier: 4.2.0
         version: 4.2.0
+      unist-util-visit:
+        specifier: 5.1.0
+        version: 5.1.0
       vite:
         specifier: ^5.0.12
         version: 5.4.14(@types/node@20.17.16)(terser@5.43.1)
@@ -1116,6 +1119,9 @@ importers:
       '@testing-library/user-event':
         specifier: 14.6.1
         version: 14.6.1(@testing-library/dom@9.3.4)
+      '@types/mdast':
+        specifier: 4.0.4
+        version: 4.0.4
       '@types/mdx':
         specifier: 2.0.13
         version: 2.0.13
@@ -1134,6 +1140,9 @@ importers:
       pagefind:
         specifier: 1.4.0
         version: 1.4.0
+      remark:
+        specifier: 15.0.1
+        version: 15.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.7.3
@@ -10340,6 +10349,9 @@ packages:
 
   remark-stringify@11.0.0:
     resolution: {integrity: sha512-1OSmLd3awB/t8qdoEOMazZkNsfVTeY4fTsgzcQFdXNq8ToTN4ZGwrMnlda4K6smTFKD+GRV6O48i6Z4iKgPPpw==}
+
+  remark@15.0.1:
+    resolution: {integrity: sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==}
 
   repeat-element@1.1.4:
     resolution: {integrity: sha512-LFiNfRcSu7KK3evMyYOuCzv3L10TW7yC1G2/+StMjK8Y6Vqd2MG7r/Qjw4ghtuCOjFvlnms/iMmLqpvW/ES/WQ==}
@@ -22902,6 +22914,15 @@ snapshots:
       '@types/mdast': 4.0.4
       mdast-util-to-markdown: 2.1.2
       unified: 11.0.5
+
+  remark@15.0.1:
+    dependencies:
+      '@types/mdast': 4.0.4
+      remark-parse: 11.0.0
+      remark-stringify: 11.0.0
+      unified: 11.0.5
+    transitivePeerDependencies:
+      - supports-color
 
   repeat-element@1.1.4: {}
 

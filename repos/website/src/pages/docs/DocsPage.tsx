@@ -4,31 +4,35 @@ import { MDXProvider } from '@mdx-js/react'
 import ComingSoon from '@TAF/components/Docs/ComingSoon'
 import DocsPrevNext from '@TAF/components/Docs/DocsPrevNext'
 import { mdxComponents } from '@TAF/components/Docs/MDXComponents'
-
-const contentModules = import.meta.glob('../../content/docs/**/*.mdx')
+import { findContentModule } from '@TAF/utils/docsContent'
 
 const DocsPage = () => {
   const { pathname } = useLocation()
-  const slug = pathname.replace('/docs/', '') || 'getting-started'
+  const slug = pathname.replace(/^\/docs\/?/, '') || 'index'
   const [Content, setContent] = useState<React.ComponentType | null>(null)
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     setContent(null)
     setNotFound(false)
 
-    // Try multiple path patterns
-    const paths = [
-      `../../content/docs/${slug}.mdx`,
-      `../../content/docs/${slug}/introduction.mdx`,
-      `../../content/docs/${slug}/index.mdx`,
-    ]
-
-    const match = paths.find((p) => contentModules[p])
-    if (match) {
-      contentModules[match]().then((mod: any) => setContent(() => mod.default))
+    const loader = findContentModule(slug)
+    if (loader) {
+      loader()
+        .then((mod: any) => {
+          if (!cancelled) setContent(() => mod.default)
+        })
+        .catch((err) => {
+          console.error(`Failed to load docs page "${slug}":`, err)
+          if (!cancelled) setNotFound(true)
+        })
     } else {
       setNotFound(true)
+    }
+
+    return () => {
+      cancelled = true
     }
   }, [slug])
 

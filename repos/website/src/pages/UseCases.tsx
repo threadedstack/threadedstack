@@ -57,7 +57,7 @@ const stream = await api.post(
   { threadId: 'thread_123', message: userMessage },
   { responseType: 'stream' },
 )`,
-    docsLink: '/docs/agents',
+    docsLink: '/docs/features/agent-endpoints',
   },
   {
     icon: ApiIcon,
@@ -94,7 +94,7 @@ const charge = await fetch('/proxy/stripe-charges', {
   method: 'POST',
   body: JSON.stringify({ amount: 2000, currency: 'usd' }),
 })`,
-    docsLink: '/docs/proxy',
+    docsLink: '/docs/features/proxy-endpoints',
   },
   {
     icon: CloudQueueIcon,
@@ -140,7 +140,7 @@ await api.post('/_/endpoints', {
     }
   \`,
 })`,
-    docsLink: '/docs/compute',
+    docsLink: '/docs/features/faas-endpoints',
   },
   {
     icon: BusinessIcon,
@@ -183,7 +183,7 @@ await api.post('/_/secrets', {
 
 // Quotas are tracked automatically
 // GET /_/quotas?orgId=org_xxx → usage per resource`,
-    docsLink: '/docs/multi-tenancy',
+    docsLink: '/docs/features/organizations',
   },
 ]
 

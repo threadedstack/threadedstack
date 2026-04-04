@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Link from '@mui/material/Link'
@@ -7,21 +8,26 @@ import { useActiveHeading } from '@TAF/hooks/useActiveHeading'
 type Heading = { id: string; text: string; level: number }
 
 const DocsTableOfContents = () => {
+  const { pathname } = useLocation()
   const [headings, setHeadings] = useState<Heading[]>([])
-  const activeId = useActiveHeading()
+  const activeId = useActiveHeading(pathname)
 
   useEffect(() => {
-    const elements = document.querySelectorAll('main h2[id], main h3[id]')
-    const items: Heading[] = []
-    for (const el of elements) {
-      items.push({
-        id: el.id,
-        text: el.textContent || '',
-        level: el.tagName === 'H2' ? 2 : 3,
-      })
-    }
-    setHeadings(items)
-  }, [])
+    const timer = setTimeout(() => {
+      const elements = document.querySelectorAll('main h2[id], main h3[id]')
+      const items: Heading[] = []
+      for (const el of elements) {
+        items.push({
+          id: el.id,
+          text: el.textContent || '',
+          level: el.tagName === 'H2' ? 2 : 3,
+        })
+      }
+      setHeadings(items)
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [pathname])
 
   if (headings.length === 0) return null
 

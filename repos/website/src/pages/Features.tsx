@@ -42,7 +42,7 @@ curl -s https://api.threadedstack.app/_/agents \\
 # Health check (public, no auth required)
 curl -s https://api.threadedstack.app/health`,
     codeLang: 'bash',
-    docsLink: '/docs/auth-proxy',
+    docsLink: '/docs/architecture/request-flow',
   },
   {
     icon: SmartToyIcon,
@@ -70,7 +70,7 @@ const stream = await fetch(
   '/_/agents/<id>/run',
   { method: 'POST', body: JSON.stringify({ message: 'Help me reset my password' }) }
 )`,
-    docsLink: '/docs/agents',
+    docsLink: '/docs/features/agent-endpoints',
   },
   {
     icon: CloudIcon,
@@ -96,7 +96,7 @@ await fetch('/_/endpoints', {
     \`,
   }),
 })`,
-    docsLink: '/docs/compute',
+    docsLink: '/docs/features/faas-endpoints',
   },
   {
     icon: VpnKeyIcon,
@@ -120,7 +120,7 @@ await fetch('/_/secrets', {
 // Secrets are injected at runtime — never exposed
 // In your function or agent, access via:
 // ctx.secrets.STRIPE_API_KEY → decrypted value`,
-    docsLink: '/docs/secrets',
+    docsLink: '/docs/features/secrets',
   },
   {
     icon: ForumIcon,
@@ -152,7 +152,7 @@ const branch = await fetch(
 const msgs = await fetch(
   '/_/threads/<id>/messages?limit=50&offset=0'
 )`,
-    docsLink: '/docs/threads',
+    docsLink: '/docs/features/threads',
   },
   {
     icon: BusinessIcon,
@@ -183,7 +183,7 @@ await fetch('/_/invitations', {
 
 // Check quota usage
 const quotas = await fetch('/_/quotas?orgId=org_abc123')`,
-    docsLink: '/docs/multi-tenancy',
+    docsLink: '/docs/features/organizations',
   },
 ]
 

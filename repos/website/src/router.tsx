@@ -30,15 +30,7 @@ export const router = createBrowserRouter([
     path: `/docs`,
     Component: () => <S C={DocsLayout} />,
     children: [
-      {
-        index: true,
-        Component: () => (
-          <Navigate
-            replace
-            to='/docs/getting-started'
-          />
-        ),
-      },
+      { index: true, Component: () => <S C={DocsPage} /> },
       { path: `*`, Component: () => <S C={DocsPage} /> },
     ],
   },

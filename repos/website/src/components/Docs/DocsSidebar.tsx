@@ -8,76 +8,22 @@ import Collapse from '@mui/material/Collapse'
 import Typography from '@mui/material/Typography'
 import ExpandLess from '@mui/icons-material/ExpandLess'
 import ExpandMore from '@mui/icons-material/ExpandMore'
-
-type NavItem = { label: string; path: string }
-type NavSection = { title: string; items: NavItem[] }
-
-const sections: NavSection[] = [
-  {
-    title: 'Getting Started',
-    items: [
-      { label: 'Introduction', path: '/docs/getting-started' },
-      { label: 'Quick Start', path: '/docs/getting-started/quick-start' },
-      { label: 'Installation', path: '/docs/getting-started/installation' },
-    ],
-  },
-  {
-    title: 'Concepts',
-    items: [
-      { label: 'Organizations', path: '/docs/concepts/organizations' },
-      { label: 'Projects', path: '/docs/concepts/projects' },
-      { label: 'Agents', path: '/docs/concepts/agents' },
-      { label: 'Threads', path: '/docs/concepts/threads' },
-      { label: 'Providers', path: '/docs/concepts/providers' },
-      { label: 'Endpoints', path: '/docs/concepts/endpoints' },
-      { label: 'Secrets', path: '/docs/concepts/secrets' },
-    ],
-  },
-  {
-    title: 'API Reference',
-    items: [
-      { label: 'Authentication', path: '/docs/api-reference/authentication' },
-      { label: 'Organizations', path: '/docs/api-reference/organizations' },
-      { label: 'Agents', path: '/docs/api-reference/agents' },
-      { label: 'Threads', path: '/docs/api-reference/threads' },
-    ],
-  },
-  {
-    title: 'WebSocket',
-    items: [
-      { label: 'Connection', path: '/docs/websocket/connection' },
-      { label: 'Client Events', path: '/docs/websocket/client-events' },
-      { label: 'Server Events', path: '/docs/websocket/server-events' },
-    ],
-  },
-  {
-    title: 'Guides',
-    items: [
-      { label: 'Admin Dashboard', path: '/docs/guides/admin-dashboard' },
-      { label: 'REPL CLI', path: '/docs/guides/repl-cli' },
-      { label: 'Self-Hosting', path: '/docs/guides/self-hosting' },
-    ],
-  },
-  {
-    title: 'Changelog',
-    items: [{ label: 'Release Notes', path: '/docs/changelog' }],
-  },
-]
+import { sections } from '@TAF/utils/docsContent'
 
 const DocsSidebar = () => {
   const { pathname } = useLocation()
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
     for (const section of sections) {
-      initial[section.title] = section.items.some((item) =>
+      initial[section.label] = section.items.some((item) =>
         pathname.startsWith(item.path)
       )
     }
     return initial
   })
 
-  const toggle = (title: string) => {
-    setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }))
+  const toggle = (label: string) => {
+    setOpenSections((prev) => ({ ...prev, [label]: !prev[label] }))
   }
 
   return (
@@ -97,24 +43,24 @@ const DocsSidebar = () => {
     >
       <List disablePadding>
         {sections.map((section) => (
-          <Box key={section.title}>
+          <Box key={section.label}>
             <ListItemButton
-              onClick={() => toggle(section.title)}
+              onClick={() => toggle(section.label)}
               sx={{ py: 0.5, px: 2 }}
             >
               <Typography
                 variant='overline'
                 sx={{ fontSize: 11, letterSpacing: 1.5, flex: 1 }}
               >
-                {section.title}
+                {section.label}
               </Typography>
-              {openSections[section.title] ? (
+              {openSections[section.label] ? (
                 <ExpandLess sx={{ fontSize: 18 }} />
               ) : (
                 <ExpandMore sx={{ fontSize: 18 }} />
               )}
             </ListItemButton>
-            <Collapse in={openSections[section.title]}>
+            <Collapse in={openSections[section.label]}>
               <List disablePadding>
                 {section.items.map((item) => {
                   const active = pathname === item.path

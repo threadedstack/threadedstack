@@ -9,9 +9,17 @@ import { loadConfig } from './website.config'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 import { svgrComponent } from 'vite-plugin-svgr-component'
 import rehypeAutolinkHeadings from 'rehype-autolink-headings'
+import { remarkDocsLinks } from './remarkDocsLinks'
+import { vitePluginDocsAssets } from './vitePluginDocsAssets'
 
 const rootDir = path.join(__dirname, '..')
 const { aliases, envs, port, environment } = loadConfig()
+const docsRoot = aliases['@DOCS']
+if (!docsRoot || typeof docsRoot !== 'string') {
+  throw new Error(
+    `Missing @DOCS alias. Ensure tsconfig.json has "@DOCS": ["../../docs"] in compilerOptions.paths`
+  )
+}
 
 /**
  * Load from the local process.env
@@ -26,6 +34,9 @@ export const config = {
   base: basePath,
   server: {
     port,
+    fs: {
+      allow: [rootDir, docsRoot],
+    },
   },
   preview: {
     port,
@@ -42,8 +53,27 @@ export const config = {
     alias: aliases,
   },
   plugins: [
+    {
+      name: `resolve-docs-imports`,
+      enforce: `pre` as const,
+      async resolveId(source, importer, options) {
+        if (
+          importer &&
+          importer.replace(/\?.*$/, ``).startsWith(docsRoot) &&
+          !source.startsWith(`.`) &&
+          !source.startsWith(`/`)
+        ) {
+          const resolved = await this.resolve(source, path.join(rootDir, `index.html`), {
+            ...options,
+            skipSelf: true,
+          })
+          return resolved
+        }
+        return null
+      },
+    },
     mdx({
-      remarkPlugins: [remarkGfm],
+      remarkPlugins: [remarkGfm, [remarkDocsLinks, { docsRoot }]],
       providerImportSource: `@mdx-js/react`,
       rehypePlugins: [rehypeSlug, [rehypeAutolinkHeadings, { behavior: `wrap` }]],
     }),
@@ -65,6 +95,7 @@ export const config = {
         dimensions: false,
       },
     }),
+    vitePluginDocsAssets({ docsRoot }),
   ],
   build: {
     outDir: `dist`,
