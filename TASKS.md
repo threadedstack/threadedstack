@@ -46,17 +46,6 @@ Add the ability to install npm packages dynamically into the V8 isolate sandbox 
 **Testing**: Unit tests with mocked fetch for `installPackages()`. Integration tests fetching real packages from esm.sh (e.g., `zod`, `dayjs`, `uuid`) and running code that imports them.
 
 
-### [P1] Proxy: Public endpoints require authentication when they shouldn't
-
-* **Repos**: proxy, backend
-* **Key files**: `repos/proxy/src/constants/values.ts`, `repos/proxy/src/middleware/setupAuth.ts`, `repos/backend/src/middleware/setupEndpoints.ts`, `repos/backend/src/endpoints/proxy/endpoint.ts`
-* The proxy has a hardcoded `PublicRoutes` list (`/health`, `/domains/validate`, `/echo`) and rejects all `/proxy/*` requests without auth — even when the target endpoint has `public: true` in the database. The backend correctly checks `ep.public` and skips auth for public endpoints (line 46-61 of `endpoint.ts`), but requests never reach the backend because the proxy rejects them first.
-* The backend already collects public endpoint paths at startup (`setupEndpoints.ts:75-76`, pushes to `app.locals.config.proxy.publicRoutes`), but this information is never communicated to the proxy.
-* **Possible approaches**:
-  1. Backend exposes a `/internal/public-routes` endpoint that the proxy queries on startup and periodically refreshes
-  2. Proxy forwards all `/proxy/*` requests to backend and lets backend handle auth (simplest but changes auth boundary)
-  3. Shared config/cache (Redis, env var) that both services read
-* **Testing**: Integration test that creates a public endpoint, then curls it without auth headers and expects a successful response
 
 ## Fully Independent (all run in parallel)
 

@@ -9,6 +9,13 @@ export const PublicRoutes = [`/health`, `/domains/validate`, `/echo`]
 export const BearerPrefix = `Bearer `
 export const SessionRoutes = [`/ai/ws`]
 export const QueryTokenRoutes = [`/ai/ws`]
+/**
+ * Routes where the proxy does not enforce authentication.
+ * Auth is deferred to the backend, which decides per-endpoint
+ * whether the request requires credentials (based on the endpoint's
+ * `public` flag in the database).
+ */
+export const DeferredAuthRoutes = [`/proxy`]
 export const ProxyForwardRoutes = [`/ai`, `/proxy`]
 
 export const LoggerIgnore = {

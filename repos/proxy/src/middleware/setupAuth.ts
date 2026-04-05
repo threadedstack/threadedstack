@@ -14,6 +14,12 @@ import { ApiKeyPrefix } from '@tdsk/domain'
  * 2. Neon Auth returns JWT token
  * 3. Admin app sends JWT in Authorization header
  * 4. This middleware validates JWT using JWKS endpoint
+ *
+ * Deferred-auth routes (e.g., /proxy/*):
+ * - JWT validation is attempted but failures are non-blocking
+ * - If JWT is valid, req.user is populated normally
+ * - If JWT is invalid/missing/expired, request passes through without req.user
+ * - Backend is responsible for enforcing auth based on endpoint config
  */
 export const validateAuth = (app: TProxyApp) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -28,8 +34,21 @@ export const validateAuth = (app: TProxyApp) => {
     // Token present but starts with tdsk_ — it's an API key, not a JWT
     if (token.startsWith(ApiKeyPrefix)) return next()
 
+    // Deferred-auth routes attempt JWT validation but never block on failure —
+    // the backend decides auth based on the endpoint's public flag
+    const deferAuth = app.locals.auth.isDeferredAuth(req.path)
+
     if (!app.locals.auth.initialized()) {
-      logger.error(`Auth client not initialized`)
+      if (deferAuth) {
+        logger.error(
+          `Auth client not initialized — forwarding deferred-auth route without identity`,
+          {
+            path: req.path,
+          }
+        )
+        return next()
+      }
+      logger.error(`Proxy Auth client not initialized`)
       res.status(500).json({ error: `Authentication service unavailable` })
       return
     }
@@ -38,6 +57,16 @@ export const validateAuth = (app: TProxyApp) => {
       const result = await app.locals.auth.verify(token)
 
       if (!result.valid || !result.payload) {
+        if (deferAuth) {
+          logger.debug(
+            `JWT validation failed on deferred-auth route, forwarding without identity`,
+            {
+              path: req.path,
+              expired: result.expired ?? false,
+            }
+          )
+          return next()
+        }
         res
           .status(401)
           .json({ error: result.expired ? `Token expired` : `Invalid token` })
@@ -53,6 +82,16 @@ export const validateAuth = (app: TProxyApp) => {
       logger.debug(`JWT validated for user: ${req.user.userId}`)
       next()
     } catch (err) {
+      if (deferAuth) {
+        logger.warn(
+          `JWT verification failed on deferred-auth route, forwarding without identity`,
+          {
+            path: req.path,
+            error: err instanceof Error ? err.message : String(err),
+          }
+        )
+        return next()
+      }
       logger.error(`JWT verification error:`, err)
       res.status(500).json({ error: `Authentication error` })
     }

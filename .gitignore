@@ -183,6 +183,7 @@ vite.config.ts.timestamp*
 repos/**/wit/deps
 .playwright-mcp
 .worktrees/
+**/**/.worktrees/
 repos/integration/test-results/**
 /docs/plans
 

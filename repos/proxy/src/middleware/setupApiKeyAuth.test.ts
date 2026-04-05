@@ -24,6 +24,7 @@ vi.mock(`@tdsk/domain`, async () => {
 
 const createMockAuth = () => ({
   isPublic: vi.fn().mockReturnValue(false),
+  isDeferredAuth: vi.fn().mockReturnValue(false),
   isSession: vi.fn().mockReturnValue(false),
   extract: vi.fn(),
   initialized: vi.fn(),
@@ -330,6 +331,92 @@ describe(`validateApiKeyAuth`, () => {
     mockAuth.extract.mockReturnValue(`tdsk_throw_key`)
     mockDb.services.apiKey.getByHash.mockRejectedValue(new Error(`DB connection lost`))
     const mockReq = { path: `/_/orgs`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockRes.status).toHaveBeenCalledWith(500)
+    expect(mockRes.json).toHaveBeenCalledWith({ error: `Authentication error` })
+    expect(mockNext).not.toHaveBeenCalled()
+  })
+
+  it(`should call next (not 401) for proxy routes with no token`, async () => {
+    mockAuth.isDeferredAuth.mockReturnValue(true)
+    mockAuth.extract.mockReturnValue(null)
+    const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockDb.services.apiKey.getByHash).not.toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  it(`should call next (not 401) for proxy routes with non-API-key token`, async () => {
+    mockAuth.isDeferredAuth.mockReturnValue(true)
+    mockAuth.extract.mockReturnValue(`eyJhbGciOiJSUzI1NiJ9.invalid`)
+    const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockDb.services.apiKey.getByHash).not.toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  it(`should still validate API key on proxy routes when token is an API key`, async () => {
+    mockAuth.isDeferredAuth.mockReturnValue(true)
+    mockAuth.extract.mockReturnValue(`tdsk_invalid_key`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: undefined })
+    const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockDb.services.apiKey.getByHash).toHaveBeenCalledWith(
+      `hashed_tdsk_invalid_key`
+    )
+    expect(mockRes.status).toHaveBeenCalledWith(401)
+    expect(mockRes.json).toHaveBeenCalledWith({ error: `Invalid API key` })
+  })
+
+  it(`should set req.user for valid API key on a proxy route`, async () => {
+    mockAuth.isDeferredAuth.mockReturnValue(true)
+    const validKey = new ApiKey({
+      id: `key-proxy`,
+      name: `Proxy Key`,
+      keyHash: `hash`,
+      keyPrefix: `tdsk_prox`,
+      active: true,
+      scopes: `write`,
+      userId: `user-proxy-1`,
+      orgId: `org-proxy-1`,
+    })
+    mockAuth.extract.mockReturnValue(`tdsk_proxy_valid`)
+    mockDb.services.apiKey.getByHash.mockResolvedValue({ data: validKey })
+    const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
+
+    const middleware = validateApiKeyAuth(mockApp)
+    await middleware(mockReq, mockRes, mockNext)
+
+    expect(mockReq.user).toEqual({
+      userId: `user-proxy-1`,
+      email: ``,
+      role: `member`,
+      orgId: `org-proxy-1`,
+      apiKeyId: `key-proxy`,
+    })
+    expect(mockNext).toHaveBeenCalled()
+    expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  it(`should return 500 when getByHash throws on a proxy route with API key`, async () => {
+    mockAuth.isDeferredAuth.mockReturnValue(true)
+    mockAuth.extract.mockReturnValue(`tdsk_throw_proxy`)
+    mockDb.services.apiKey.getByHash.mockRejectedValue(new Error(`DB connection lost`))
+    const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
 
     const middleware = validateApiKeyAuth(mockApp)
     await middleware(mockReq, mockRes, mockNext)

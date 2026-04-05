@@ -5,10 +5,11 @@ import * as jose from 'jose'
 import { EJWTError } from '@TPX/types'
 import { logger } from '@TPX/utils/logger'
 import {
+  BearerPrefix,
   PublicRoutes,
   SessionRoutes,
-  BearerPrefix,
   QueryTokenRoutes,
+  DeferredAuthRoutes,
 } from '@TPX/constants/values'
 
 export type TAuth = {
@@ -46,6 +47,13 @@ export class Auth {
    */
   isPublic = (path: string): boolean =>
     PublicRoutes.some((route) => path.startsWith(route))
+
+  /**
+   * Check if a route defers authentication to the backend
+   * (proxy passes request through regardless of auth state)
+   */
+  isDeferredAuth = (path: string): boolean =>
+    DeferredAuthRoutes.some((route) => path === route || path.startsWith(`${route}/`))
 
   isSession = (path: string): boolean =>
     SessionRoutes.some((route) => path.startsWith(route))

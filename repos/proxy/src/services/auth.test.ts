@@ -61,6 +61,36 @@ describe(`Auth`, () => {
     })
   })
 
+  describe(`isDeferredAuth`, () => {
+    const auth = new Auth({ url: `https://auth.example.com/.well-known/jwks.json` })
+
+    it(`should return true for /proxy routes`, () => {
+      expect(auth.isDeferredAuth(`/proxy`)).toBe(true)
+    })
+
+    it(`should return true for /proxy subpaths`, () => {
+      expect(auth.isDeferredAuth(`/proxy/proj-1/ep-1`)).toBe(true)
+    })
+
+    it(`should return false for /_/orgs`, () => {
+      expect(auth.isDeferredAuth(`/_/orgs`)).toBe(false)
+    })
+
+    it(`should return false for /health`, () => {
+      expect(auth.isDeferredAuth(`/health`)).toBe(false)
+    })
+
+    it(`should return false for /ai/ws`, () => {
+      expect(auth.isDeferredAuth(`/ai/ws`)).toBe(false)
+    })
+
+    it(`should return false for paths that share the /proxy prefix but are not subroutes`, () => {
+      expect(auth.isDeferredAuth(`/proxy-admin`)).toBe(false)
+      expect(auth.isDeferredAuth(`/proxyconfig`)).toBe(false)
+      expect(auth.isDeferredAuth(`/proxying`)).toBe(false)
+    })
+  })
+
   describe(`extract`, () => {
     const auth = new Auth({ url: `https://auth.example.com/.well-known/jwks.json` })
 

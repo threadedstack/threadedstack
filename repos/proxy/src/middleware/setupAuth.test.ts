@@ -19,11 +19,12 @@ vi.mock(`@TPX/services/auth`, () => ({
 }))
 
 const createMockAuth = () => ({
+  verify: vi.fn(),
+  extract: vi.fn(),
   isPublic: vi.fn(),
   isSession: vi.fn(),
-  extract: vi.fn(),
   initialized: vi.fn(),
-  verify: vi.fn(),
+  isDeferredAuth: vi.fn(),
 })
 
 const createMockApp = (auth = createMockAuth()) =>
@@ -258,6 +259,93 @@ describe(`validateAuth`, () => {
     expect(mockAuth.extract).toHaveBeenCalled()
     expect(mockAuth.verify).not.toHaveBeenCalled()
     expect(mockRes.status).not.toHaveBeenCalled()
+  })
+
+  describe(`deferred auth for proxy routes`, () => {
+    it(`should call next (not 500) when auth is not initialized on a proxy route`, async () => {
+      mockAuth.isPublic.mockReturnValue(false)
+      mockAuth.isDeferredAuth.mockReturnValue(true)
+      mockAuth.extract.mockReturnValue(`some-token`)
+      mockAuth.initialized.mockReturnValue(false)
+      const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
+
+      const middleware = validateAuth(mockApp)
+      await middleware(mockReq, mockRes, mockNext)
+
+      expect(mockAuth.isDeferredAuth).toHaveBeenCalledWith(`/proxy/proj-1/ep-1`)
+      expect(mockNext).toHaveBeenCalled()
+      expect(mockRes.status).not.toHaveBeenCalled()
+    })
+
+    it(`should call next (not 401) for invalid JWT on a proxy route`, async () => {
+      mockAuth.isPublic.mockReturnValue(false)
+      mockAuth.isDeferredAuth.mockReturnValue(true)
+      mockAuth.extract.mockReturnValue(`invalid-token`)
+      mockAuth.initialized.mockReturnValue(true)
+      mockAuth.verify.mockResolvedValue({ valid: false })
+      const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
+
+      const middleware = validateAuth(mockApp)
+      await middleware(mockReq, mockRes, mockNext)
+
+      expect(mockAuth.verify).toHaveBeenCalledWith(`invalid-token`)
+      expect(mockNext).toHaveBeenCalled()
+      expect(mockRes.status).not.toHaveBeenCalled()
+      expect(mockReq.user).toBeUndefined()
+    })
+
+    it(`should call next (not 401) for expired JWT on a proxy route`, async () => {
+      mockAuth.isPublic.mockReturnValue(false)
+      mockAuth.isDeferredAuth.mockReturnValue(true)
+      mockAuth.extract.mockReturnValue(`expired-token`)
+      mockAuth.initialized.mockReturnValue(true)
+      mockAuth.verify.mockResolvedValue({ valid: false, expired: true })
+      const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
+
+      const middleware = validateAuth(mockApp)
+      await middleware(mockReq, mockRes, mockNext)
+
+      expect(mockAuth.verify).toHaveBeenCalledWith(`expired-token`)
+      expect(mockNext).toHaveBeenCalled()
+      expect(mockRes.status).not.toHaveBeenCalled()
+    })
+
+    it(`should call next (not 500) when verify throws on a proxy route`, async () => {
+      mockAuth.isPublic.mockReturnValue(false)
+      mockAuth.isDeferredAuth.mockReturnValue(true)
+      mockAuth.extract.mockReturnValue(`bad-token`)
+      mockAuth.initialized.mockReturnValue(true)
+      mockAuth.verify.mockRejectedValue(new Error(`JWKS fetch failed`))
+      const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
+
+      const middleware = validateAuth(mockApp)
+      await middleware(mockReq, mockRes, mockNext)
+
+      expect(mockNext).toHaveBeenCalled()
+      expect(mockRes.status).not.toHaveBeenCalled()
+    })
+
+    it(`should still set req.user when JWT is valid on a proxy route`, async () => {
+      mockAuth.isPublic.mockReturnValue(false)
+      mockAuth.isDeferredAuth.mockReturnValue(true)
+      mockAuth.extract.mockReturnValue(`valid-token`)
+      mockAuth.initialized.mockReturnValue(true)
+      mockAuth.verify.mockResolvedValue({
+        valid: true,
+        payload: { sub: `user-123`, email: `user@example.com`, role: `admin` },
+      })
+      const mockReq = { path: `/proxy/proj-1/ep-1`, headers: {} } as unknown as Request
+
+      const middleware = validateAuth(mockApp)
+      await middleware(mockReq, mockRes, mockNext)
+
+      expect(mockReq.user).toEqual({
+        userId: `user-123`,
+        email: `user@example.com`,
+        role: `admin`,
+      })
+      expect(mockNext).toHaveBeenCalled()
+    })
   })
 
   describe(`ApiKeyPrefix usage`, () => {
