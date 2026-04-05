@@ -93,8 +93,10 @@ export const consumeWS = (
         if (msg.type === EWSEventType.Done) {
           ws.close()
         }
-      } catch {
-        // Non-JSON message — skip
+      } catch (err) {
+        if (!(err instanceof SyntaxError)) {
+          console.error(`Unexpected WS parse error in test client:`, err)
+        }
       }
     })
 
@@ -166,8 +168,10 @@ export const createWSConnection = (
         const msg = JSON.parse(typeof raw === 'string' ? raw : raw.toString('utf8')) as WSMessage
         if (msg.type === EWSEventType.Ping) return
         messages.push(msg)
-      } catch {
-        // Non-JSON message — skip
+      } catch (err) {
+        if (!(err instanceof SyntaxError)) {
+          console.error(`Unexpected WS parse error in test client:`, err)
+        }
       }
     })
 

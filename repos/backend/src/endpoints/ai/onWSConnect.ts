@@ -122,19 +122,11 @@ export const onWSConnect = async (
           break
 
         case EWSEventType.FileUpload:
-          logger.debug(`WS file_upload received: ${msg.path}`)
-          service.send({
-            type: EWSEventType.Error,
-            message: `File upload is not supported in this version`,
-          })
+          await service.handleFileUpload(msg, session, db)
           break
 
         case EWSEventType.WorkspaceManifest:
-          logger.debug(`WS workspace_manifest received: ${msg.files?.length} files`)
-          service.send({
-            type: EWSEventType.Error,
-            message: `Workspace sync is not supported in this version`,
-          })
+          service.handleWorkspaceManifest(msg)
           break
       }
     } catch (err) {

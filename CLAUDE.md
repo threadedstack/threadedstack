@@ -1,5 +1,14 @@
 # Claude Code Configuration
 
+## 🚨🚨🚨 ABSOLUTE #1 RULE: NEVER COMMIT OR MODIFY GIT HISTORY 🚨🚨🚨
+
+- **ALLOWED**: `git add` (staging), `git status`, `git diff`, `git log`, `git branch`, `git show`
+- **NEVER** run: `git commit`, `git push`, `git reset`, `git revert`, `git rebase`, `git cherry-pick`, `git stash`, `git merge`
+- **"write a commit message"** = OUTPUT the message as text. DO NOT run `git commit`.
+- **"commit this"** = OUTPUT what you would commit. DO NOT run `git commit`.
+- **The user handles all commits manually. No exceptions. Ever.**
+- This rule applies to ALL subagents — include it in EVERY subagent prompt.
+
 ## 🚨 CRITICAL: CONCURRENT EXECUTION & FILE MANAGEMENT
 
 **ABSOLUTE RULES**:

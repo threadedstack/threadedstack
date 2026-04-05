@@ -52,16 +52,11 @@ Add the ability to install npm packages dynamically into the V8 isolate sandbox 
 These tasks touch completely different files with zero overlap. All can run in Wave 1.
 
 
-### [P3] WebSocket FileUpload & WorkspaceManifest handlers
-
-* **Repos**: backend, possibly agent
-* **Key files**: `repos/backend/src/endpoints/ai/onWSConnect.ts`, `repos/domain/src/types/ws.types.ts`
-* Implement actual handlers for `EWSEventType.FileUpload` and `EWSEventType.WorkspaceManifest` in `onWSConnect.ts`. Currently returns "not supported" error responses. Type contracts are fully defined in `repos/domain/src/types/ws.types.ts` (`TWSFileUploadMsg`, `TWSWorkspaceManifestMsg`, `FileUploadComplete`, `FileRequest`, `FileChanged`). These are the remaining unimplemented WebSocket event types in the AI agent connection handler.
 
 
+### [IN PROGRESS][P3] Standalone chat application — web and desktop interface for agent interaction
 
-### [P3] Standalone chat application — web and desktop interface for agent interaction
-
+> See plan at `.claude/plans/2026-04-05-threads-chat-app.md`
 * **Repos**: NEW `repos/threads/`, components, domain
 * **Key files**: Expand threads repo
 * The REPL CLI (`repos/repl/`) is currently the primary user-facing interface for agent interaction, but it requires terminal proficiency. The admin dashboard (`repos/admin/`) has a basic embedded chat UI (`ChatView`, `MessageBubble`, `ToolCallDisplay`), but it's a secondary feature inside an org management app — not a dedicated chat experience. A standalone chat-first application is needed for non-terminal users, deployed and operated independently from the admin dashboard

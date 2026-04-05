@@ -1,13 +1,23 @@
 import type { TSession, TSessionPayload, TApp } from '@TBE/types'
 import type { TAgentHandle, TAgentConfig, TAgentInitOpts } from '@tdsk/agent'
-import type { TWSClientMsg, TStreamEvent, TWSServerMsg, TWSPromptMsg } from '@tdsk/domain'
+import type {
+  TWSClientMsg,
+  TStreamEvent,
+  TWSServerMsg,
+  TWSPromptMsg,
+  TWSFileUploadMsg,
+  TWSWorkspaceManifestMsg,
+} from '@tdsk/domain'
 
 import WS from 'ws'
 import { AgentRunner } from '@tdsk/agent'
 import { logger } from '@TBE/utils/logger'
 import { EWSEventType, EStreamEventType } from '@tdsk/domain'
+import { mimeFromPath } from '@TBE/utils/validation/mimeFromPath'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
-import { WsPingIntervalMS, ClientMsgTypes } from '@TBE/constants/values'
+import { isAllowedMimeType } from '@TBE/utils/validation/isAllowedMimeType'
+import { FileMaxSize, WsPingIntervalMS, ClientMsgTypes } from '@TBE/constants/values'
+import { extractText, isImageMimeType } from '@TBE/services/files/fileExtractor'
 
 type TWebsocketOpts = {
   app: TApp
@@ -20,6 +30,8 @@ export class Websocket {
   #app: TApp | undefined
   #runner: AgentRunner | null = null
   #agentHandle: TAgentHandle | null = null
+  #workspace: Map<string, string> = new Map()
+  #manifest: TWSWorkspaceManifestMsg | null = null
   pingInterval: NodeJS.Timeout | null = null
   abortController: AbortController | null = null
   #closedStates: number[] = [WebSocket.CLOSING, WebSocket.CLOSED]
@@ -49,6 +61,9 @@ export class Websocket {
       }
       this.#runner = null
     }
+
+    this.#workspace.clear()
+    this.#manifest = null
 
     if (!this.#closed) this.#ws?.close()
 
@@ -254,6 +269,159 @@ export class Websocket {
       logger.error(`[WS] Config update error:`, err)
       this.send({ type: EWSEventType.Error, message })
     }
+  }
+
+  /**
+   * Handle a `file_upload` message — store the file in the session workspace
+   * and persist it as an asset if a thread exists.
+   */
+  async handleFileUpload(
+    msg: Omit<TWSFileUploadMsg, 'type'>,
+    session: TSession,
+    db: any
+  ): Promise<void> {
+    const { requestId, path, content } = msg
+    if (!requestId || !path || typeof content !== `string`) {
+      logger.warn(`[WS] file_upload missing required fields`, {
+        requestId,
+        path,
+        hasContent: content != null,
+      })
+      this.send({
+        type: EWSEventType.Error,
+        message: `file_upload requires requestId, path, and content`,
+      })
+      return
+    }
+
+    if (path.includes(`..`) || path.startsWith(`/`)) {
+      logger.warn(`[WS] file_upload rejected path traversal attempt`, { path })
+      this.send({
+        type: EWSEventType.Error,
+        message: `Invalid file path: must be a relative path without ".." segments`,
+      })
+      return
+    }
+
+    const mimeType = mimeFromPath(path)
+    if (!isAllowedMimeType(mimeType)) {
+      logger.warn(`[WS] file_upload rejected disallowed MIME type`, { path, mimeType })
+      this.send({
+        type: EWSEventType.Error,
+        message: `Unsupported file type: ${mimeType} (${path})`,
+      })
+      return
+    }
+
+    const fileSize = Buffer.byteLength(content, `utf8`)
+    if (fileSize > FileMaxSize) {
+      logger.warn(`[WS] file_upload rejected oversized file`, { path, fileSize })
+      this.send({
+        type: EWSEventType.Error,
+        message: `File exceeds maximum size of 25MB`,
+      })
+      return
+    }
+
+    this.#workspace.set(path, content)
+
+    const threadId = this.#runner?.threadId
+    if (!threadId) {
+      this.send({
+        type: EWSEventType.FileUploadComplete,
+        requestId,
+        assetId: ``,
+        fileName: path,
+        fileType: mimeType,
+        fileSize,
+      })
+      return
+    }
+
+    try {
+      const buffer = Buffer.from(content, `utf8`)
+      const extraction = await extractText(buffer, mimeType)
+
+      const { data: asset, error } = await db.services.asset.create({
+        name: path.split(`/`).pop() || path,
+        type: mimeType,
+        threadId,
+        meta: {
+          fileSize,
+          extractedText: extraction.text,
+          extractionError: extraction.error,
+          isImage: isImageMimeType(mimeType),
+        },
+      })
+
+      if (error || !asset) {
+        logger.error(`[WS] Asset creation failed`, { path, threadId, error })
+        this.send({
+          type: EWSEventType.Error,
+          message: `Failed to store file: ${error || `unknown error`}`,
+        })
+        return
+      }
+
+      this.send({
+        type: EWSEventType.FileUploadComplete,
+        requestId,
+        assetId: asset.id,
+        fileName: path,
+        fileType: mimeType,
+        fileSize,
+      })
+    } catch (err) {
+      logger.error(`[WS] File upload processing failed`, {
+        path,
+        mimeType,
+        error: err instanceof Error ? err.message : err,
+      })
+      this.send({
+        type: EWSEventType.Error,
+        message: `File processing failed: ${err instanceof Error ? err.message : `unknown error`}`,
+      })
+    }
+  }
+
+  /**
+   * Handle a `workspace_manifest` message — store the client's file listing
+   * so the server knows what files are available for request.
+   */
+  handleWorkspaceManifest(msg: Omit<TWSWorkspaceManifestMsg, 'type'>): void {
+    if (!msg.rootDir || !Array.isArray(msg.files)) {
+      this.send({
+        type: EWSEventType.Error,
+        message: `workspace_manifest requires rootDir and files array`,
+      })
+      return
+    }
+
+    const validFiles = msg.files.filter(
+      (f): f is typeof f => f != null && typeof f.path === `string` && !!f.path
+    )
+    if (validFiles.length !== msg.files.length) {
+      logger.warn(
+        `[WS] Workspace manifest contained ${msg.files.length - validFiles.length} invalid entries, filtered out`
+      )
+    }
+
+    this.#manifest = {
+      type: EWSEventType.WorkspaceManifest,
+      rootDir: msg.rootDir,
+      files: validFiles,
+    }
+    logger.debug(
+      `Workspace manifest received: ${validFiles.length} files from ${msg.rootDir}`
+    )
+  }
+
+  getWorkspaceFile(path: string): string | undefined {
+    return this.#workspace.get(path)
+  }
+
+  get workspaceManifest(): TWSWorkspaceManifestMsg | null {
+    return this.#manifest
   }
 
   /**

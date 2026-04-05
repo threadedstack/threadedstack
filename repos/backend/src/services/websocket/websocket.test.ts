@@ -38,6 +38,14 @@ vi.mock(`@TBE/services/functions/functionExecutor`, () => ({
   FunctionExecutor: { execute: vi.fn() },
 }))
 
+const mockExtractText = vi.fn().mockResolvedValue({ text: `extracted content` })
+const mockIsImageMimeType = vi.fn().mockReturnValue(false)
+
+vi.mock(`@TBE/services/files/fileExtractor`, () => ({
+  extractText: (...args: any[]) => mockExtractText(...args),
+  isImageMimeType: (...args: any[]) => mockIsImageMimeType(...args),
+}))
+
 // ── Helpers ──
 
 /**
@@ -77,6 +85,9 @@ const createMockApp = () =>
             list: vi.fn().mockResolvedValue({ data: [] }),
             listByThread: vi.fn().mockResolvedValue({ data: [] }),
             create: vi.fn().mockResolvedValue({ data: { id: `msg-1` } }),
+          },
+          asset: {
+            create: vi.fn().mockResolvedValue({ data: { id: `asset-1` }, error: null }),
           },
           skill: {
             listForAgent: vi.fn().mockResolvedValue({ data: [] }),
@@ -795,6 +806,367 @@ describe(`Websocket`, () => {
     })
   })
 
+  // ── handleFileUpload ──
+
+  describe(`handleFileUpload`, () => {
+    const session = createSession()
+    const db = createMockApp().locals.db
+
+    it(`should send error when requestId is missing`, async () => {
+      await socket.handleFileUpload(
+        { requestId: ``, path: `src/index.ts`, content: `hello` } as any,
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.Error)
+      expect(msg.message).toContain(`requires requestId, path, and content`)
+    })
+
+    it(`should send error when path is missing`, async () => {
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: ``, content: `hello` } as any,
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.Error)
+      expect(msg.message).toContain(`requires requestId, path, and content`)
+    })
+
+    it(`should send error when content is not a string`, async () => {
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `src/index.ts`, content: 123 } as any,
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      expect(parseSent(ws).type).toBe(EWSEventType.Error)
+    })
+
+    it(`should send error when content is undefined`, async () => {
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `src/index.ts`, content: undefined } as any,
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      expect(parseSent(ws).type).toBe(EWSEventType.Error)
+    })
+
+    it(`should reject path traversal with ".." segments`, async () => {
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `../../etc/passwd`, content: `data` },
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.Error)
+      expect(msg.message).toContain(`Invalid file path`)
+    })
+
+    it(`should reject absolute paths`, async () => {
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `/etc/passwd`, content: `data` },
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.Error)
+      expect(msg.message).toContain(`Invalid file path`)
+    })
+
+    it(`should send error for disallowed MIME type`, async () => {
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `binary.exe`, content: `data` },
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.Error)
+      expect(msg.message).toContain(`Unsupported file type`)
+    })
+
+    it(`should send error when file exceeds max size`, async () => {
+      const { FileMaxSize } = await import(`@TBE/constants/values`)
+      const oversized = `x`.repeat(FileMaxSize + 1)
+
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `big.ts`, content: oversized },
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.Error)
+      expect(msg.message).toContain(`exceeds maximum size`)
+    })
+
+    it(`should send FileUploadComplete without assetId when no runner exists`, async () => {
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `src/app.ts`, content: `const x = 1` },
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.FileUploadComplete)
+      expect(msg.requestId).toBe(`r1`)
+      expect(msg.assetId).toBe(``)
+      expect(msg.fileName).toBe(`src/app.ts`)
+      expect(msg.fileType).toBe(`application/typescript`)
+      expect(msg.fileSize).toBeGreaterThan(0)
+    })
+
+    it(`should store file in workspace map`, async () => {
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `src/app.ts`, content: `const x = 1` },
+        session as any,
+        db
+      )
+
+      expect(socket.getWorkspaceFile(`src/app.ts`)).toBe(`const x = 1`)
+    })
+
+    it(`should create asset and send FileUploadComplete when runner exists`, async () => {
+      // Initialize runner by running a prompt
+      await socket.handlePrompt(
+        { prompt: `Init`, threadId: `thread-1` },
+        session as any,
+        db
+      )
+
+      ws._sent.length = 0
+
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `src/utils.ts`, content: `export const foo = 42` },
+        session as any,
+        db
+      )
+
+      expect(db.services.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: `utils.ts`,
+          type: `application/typescript`,
+          threadId: `thread-1`,
+          meta: expect.objectContaining({
+            fileSize: expect.any(Number),
+            extractedText: `extracted content`,
+          }),
+        })
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.FileUploadComplete)
+      expect(msg.requestId).toBe(`r1`)
+      expect(msg.assetId).toBe(`asset-1`)
+      expect(msg.fileName).toBe(`src/utils.ts`)
+    })
+
+    it(`should pass extraction error into asset metadata`, async () => {
+      await socket.handlePrompt(
+        { prompt: `Init`, threadId: `thread-1` },
+        session as any,
+        db
+      )
+
+      ws._sent.length = 0
+      mockExtractText.mockResolvedValueOnce({ text: ``, error: `parse failed` })
+
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `src/broken.ts`, content: `bad content` },
+        session as any,
+        db
+      )
+
+      expect(db.services.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meta: expect.objectContaining({
+            extractedText: ``,
+            extractionError: `parse failed`,
+          }),
+        })
+      )
+    })
+
+    it(`should pass isImage=true for image MIME types`, async () => {
+      await socket.handlePrompt(
+        { prompt: `Init`, threadId: `thread-1` },
+        session as any,
+        db
+      )
+
+      ws._sent.length = 0
+      mockIsImageMimeType.mockReturnValueOnce(true)
+
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `photo.png`, content: `base64data` },
+        session as any,
+        db
+      )
+
+      expect(db.services.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meta: expect.objectContaining({
+            isImage: true,
+          }),
+        })
+      )
+    })
+
+    it(`should send error and not kill WS when extractText throws`, async () => {
+      await socket.handlePrompt(
+        { prompt: `Init`, threadId: `thread-1` },
+        session as any,
+        db
+      )
+
+      ws._sent.length = 0
+      mockExtractText.mockRejectedValueOnce(new Error(`extraction crashed`))
+
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `src/crash.ts`, content: `data` },
+        session as any,
+        db
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.Error)
+      expect(msg.message).toContain(`File processing failed`)
+      expect(msg.message).toContain(`extraction crashed`)
+    })
+
+    it(`should send error when asset creation fails`, async () => {
+      await socket.handlePrompt(
+        { prompt: `Init`, threadId: `thread-1` },
+        session as any,
+        db
+      )
+
+      ws._sent.length = 0
+
+      const failDb = {
+        services: {
+          ...db.services,
+          asset: {
+            create: vi.fn().mockResolvedValue({ data: null, error: `db error` }),
+          },
+        },
+      }
+
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `src/bad.ts`, content: `fail` },
+        session as any,
+        failDb
+      )
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.Error)
+      expect(msg.message).toContain(`Failed to store file`)
+    })
+  })
+
+  // ── handleWorkspaceManifest ──
+
+  describe(`handleWorkspaceManifest`, () => {
+    it(`should store manifest on instance`, () => {
+      socket.handleWorkspaceManifest({
+        rootDir: `/project`,
+        files: [
+          { path: `src/index.ts`, hash: `abc123`, size: 100 },
+          { path: `package.json`, hash: `def456`, size: 200 },
+        ],
+      })
+
+      expect(ws._sent).toHaveLength(0)
+      expect(socket.workspaceManifest).toBeDefined()
+      expect(socket.workspaceManifest!.rootDir).toBe(`/project`)
+      expect(socket.workspaceManifest!.files).toHaveLength(2)
+    })
+
+    it(`should handle empty files array`, () => {
+      socket.handleWorkspaceManifest({
+        rootDir: `/empty`,
+        files: [],
+      })
+
+      expect(ws._sent).toHaveLength(0)
+      expect(socket.workspaceManifest!.files).toHaveLength(0)
+    })
+
+    it(`should send error when rootDir is missing`, () => {
+      socket.handleWorkspaceManifest({
+        rootDir: ``,
+        files: [],
+      })
+
+      expect(ws._sent).toHaveLength(1)
+      const msg = parseSent(ws)
+      expect(msg.type).toBe(EWSEventType.Error)
+      expect(msg.message).toContain(`requires rootDir`)
+    })
+
+    it(`should send error when files is not an array`, () => {
+      socket.handleWorkspaceManifest({
+        rootDir: `/project`,
+        files: null as any,
+      })
+
+      expect(ws._sent).toHaveLength(1)
+      expect(parseSent(ws).type).toBe(EWSEventType.Error)
+    })
+
+    it(`should filter out invalid file entries`, () => {
+      socket.handleWorkspaceManifest({
+        rootDir: `/project`,
+        files: [
+          { path: `valid.ts`, hash: `abc`, size: 100 },
+          null as any,
+          { path: ``, hash: `bad`, size: 0 },
+          { path: `also-valid.ts`, hash: `def`, size: 200 },
+        ],
+      })
+
+      expect(ws._sent).toHaveLength(0)
+      expect(socket.workspaceManifest!.files).toHaveLength(2)
+      expect(socket.workspaceManifest!.files[0].path).toBe(`valid.ts`)
+      expect(socket.workspaceManifest!.files[1].path).toBe(`also-valid.ts`)
+    })
+
+    it(`should overwrite previous manifest`, () => {
+      socket.handleWorkspaceManifest({
+        rootDir: `/first`,
+        files: [{ path: `a.ts`, hash: `1`, size: 10 }],
+      })
+
+      socket.handleWorkspaceManifest({
+        rootDir: `/second`,
+        files: [{ path: `b.ts`, hash: `2`, size: 20 }],
+      })
+
+      expect(socket.workspaceManifest!.rootDir).toBe(`/second`)
+      expect(socket.workspaceManifest!.files).toHaveLength(1)
+      expect(socket.workspaceManifest!.files[0].path).toBe(`b.ts`)
+    })
+  })
+
   // ── close ──
 
   describe(`close`, () => {
@@ -818,6 +1190,27 @@ describe(`Websocket`, () => {
       await socket.close()
 
       expect(mockRunnerDestroy).toHaveBeenCalled()
+    })
+
+    it(`should clear workspace and manifest on close`, async () => {
+      socket.handleWorkspaceManifest({
+        rootDir: `/project`,
+        files: [{ path: `a.ts`, hash: `1`, size: 10 }],
+      })
+
+      await socket.handleFileUpload(
+        { requestId: `r1`, path: `src/app.ts`, content: `const x = 1` },
+        createSession() as any,
+        createMockApp().locals.db
+      )
+
+      expect(socket.getWorkspaceFile(`src/app.ts`)).toBe(`const x = 1`)
+      expect(socket.workspaceManifest).toBeDefined()
+
+      await socket.close()
+
+      expect(socket.getWorkspaceFile(`src/app.ts`)).toBeUndefined()
+      expect(socket.workspaceManifest).toBeNull()
     })
 
     it(`should handle runner destroy errors gracefully`, async () => {

@@ -165,6 +165,7 @@ export type TWSArtifactMsg = {
 
 export type TWSFileUploadCompleteMsg = {
   type: EWSEventType.FileUploadComplete
+  requestId: string
   assetId: string
   fileName: string
   fileType: string
