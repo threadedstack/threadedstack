@@ -31,7 +31,7 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
 }`
 
   beforeAll(async () => {
-    const qsRes = await post<{ data: Record<string, any> }>(
+    const qsRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -41,16 +41,16 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
       }
     )
 
-    if (qsRes.status !== 201 || !qsRes.data?.data?.project?.id) {
+    if (qsRes.status !== 201 || !qsRes.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data.data
+    quickstartResult = qsRes.data
     projectId = quickstartResult.project.id
 
     // Create v1 function
-    const fnRes = await post<{ data: Record<string, any> }>(
+    const fnRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
         name: uniqueName('Lifecycle Function'),
@@ -60,15 +60,15 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
       }
     )
 
-    if (fnRes.status !== 201 || !fnRes.data?.data?.id) {
+    if (fnRes.status !== 201 || !fnRes.data?.id) {
       setupFailed = true
       return
     }
 
-    functionId = fnRes.data.data.id
+    functionId = fnRes.data.id
 
     // Create FaaS endpoint linked to the function
-    const epRes = await post<{ data: Record<string, any> }>(
+    const epRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('Lifecycle Endpoint'),
@@ -80,12 +80,12 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
       }
     )
 
-    if (epRes.status !== 201 || !epRes.data?.data?.id) {
+    if (epRes.status !== 201 || !epRes.data?.id) {
       setupFailed = true
       return
     }
 
-    endpointId = epRes.data.data.id
+    endpointId = epRes.data.id
   }, 30_000)
 
   afterAll(async () => {
@@ -123,7 +123,7 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Update function to v2
-    const updateRes = await put<{ data: Record<string, any> }>(
+    const updateRes = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`,
       { content: v2Content }
     )
@@ -146,7 +146,7 @@ describe('Tier 3: FaaS Function Lifecycle', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Delete the function
-    const deleteRes = await del<{ data: { success: boolean } }>(
+    const deleteRes = await del<{ success: boolean }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`
     )
 

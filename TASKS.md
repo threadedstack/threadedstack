@@ -58,11 +58,7 @@ These tasks touch completely different files with zero overlap. All can run in W
 * **Key files**: `repos/backend/src/endpoints/ai/onWSConnect.ts`, `repos/domain/src/types/ws.types.ts`
 * Implement actual handlers for `EWSEventType.FileUpload` and `EWSEventType.WorkspaceManifest` in `onWSConnect.ts`. Currently returns "not supported" error responses. Type contracts are fully defined in `repos/domain/src/types/ws.types.ts` (`TWSFileUploadMsg`, `TWSWorkspaceManifestMsg`, `FileUploadComplete`, `FileRequest`, `FileChanged`). These are the remaining unimplemented WebSocket event types in the AI agent connection handler.
 
-### [P2] Integration test api-client response double-wrapping
 
-* **Repos**: integration
-* **Key files**: `repos/integration/src/utils/api-client.ts`, test files in `repos/integration/src/tier1/`, `repos/integration/src/tier3/`
-* The `get<T>()` / `api<T>()` helpers in `api-client.ts` wrap the JSON response in `{ data }`, but backend endpoints also return `{ data }` — creating `res.data.data` double-nesting. Fix so `res.data` is the actual payload. Remove defensive `res.data.data ?? res.data` patterns from test files (`faas-execution.test.ts`, `proxy-endpoint.test.ts`, and any others using this pattern).
 
 ### [P3] Standalone chat application — web and desktop interface for agent interaction
 

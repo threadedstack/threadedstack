@@ -7,7 +7,6 @@ describe('Tier 1: Subscriptions', () => {
 
   test('GET /subscriptions/current returns 200 with tier and Stripe fields', async () => {
     const res = await get<{
-      data: {
         tier: string
         status: string
         userId: string
@@ -15,30 +14,29 @@ describe('Tier 1: Subscriptions', () => {
         stripeSubscriptionId?: string | null
         stripePriceId?: string | null
         seats?: number
-      }
-    }>('/subscriptions/current')
+      }>('/subscriptions/current')
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(typeof res.data.data.tier).toBe('string')
-    expect(typeof res.data.data.status).toBe('string')
+    expect(res.data).toBeDefined()
+    expect(typeof res.data.tier).toBe('string')
+    expect(typeof res.data.status).toBe('string')
 
     // Stripe fields should be present (may be null for free tier)
-    const sub = res.data.data
+    const sub = res.data
     expect('stripeCustomerId' in sub || sub.tier === 'free').toBe(true)
   })
 
   test('GET /subscriptions/plans returns 200 with plan array', async () => {
-    const res = await get<{ data: Array<{ id: string; name: string; price: number; limits: Record<string, unknown> }> }>(
+    const res = await get<Array<{ id: string; name: string; price: number; limits: Record<string, unknown> }>>(
       '/subscriptions/plans'
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data).toHaveProperty('data')
+    expect(res).toHaveProperty('data')
 
-    const plans = res.data.data
+    const plans = res.data
     expect(Array.isArray(plans)).toBe(true)
 
     // Should have 4 tiers: free, solo, pro, team
@@ -60,11 +58,11 @@ describe('Tier 1: Subscriptions', () => {
   })
 
   test('GET /subscriptions/invoices returns 200 with array', async () => {
-    const res = await get<{ data: unknown[] }>('/subscriptions/invoices')
+    const res = await get<unknown[]>('/subscriptions/invoices')
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
   })
 
   test('POST /subscriptions/checkout with invalid tier returns error', async () => {

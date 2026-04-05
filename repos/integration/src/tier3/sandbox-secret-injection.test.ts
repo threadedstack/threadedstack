@@ -46,21 +46,21 @@ describe('Tier 3: Sandbox Egress Secret Injection', () => {
 
   beforeAll(async () => {
     try {
-      const projRes = await post<{ data: Record<string, any> }>(
+      const projRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/projects`,
         { name: uniqueName('egress-inject-project'), orgId: ctx.orgId }
       )
       if (!projRes.ok) throw new Error(`Failed to create project: HTTP ${projRes.status}`)
-      projectId = projRes.data.data.id
+      projectId = projRes.data.id
 
-      const secretRes = await post<{ data: Record<string, any> }>(
+      const secretRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/secrets`,
         { name: uniqueName('egress-test-secret'), value: secretValue, orgId: ctx.orgId }
       )
       if (!secretRes.ok) throw new Error(`Failed to create secret: HTTP ${secretRes.status}`)
-      secretId = secretRes.data.data.id
+      secretId = secretRes.data.id
 
-      const sbRes = await post<{ data: Record<string, any> }>(
+      const sbRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         {
           name: uniqueName('egress-inject-sandbox'),
@@ -69,14 +69,14 @@ describe('Tier 3: Sandbox Egress Secret Injection', () => {
         }
       )
       if (!sbRes.ok) throw new Error(`Failed to create sandbox: HTTP ${sbRes.status}`)
-      sandboxId = sbRes.data.data.id
+      sandboxId = sbRes.data.id
 
-      const startRes = await post<{ data: { podName: string } }>(
+      const startRes = await post<{ podName: string }>(
         `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
         { projectId }
       )
       if (!startRes.ok) throw new Error(`Failed to start pod: HTTP ${startRes.status}`)
-      podName = startRes.data.data.podName
+      podName = startRes.data.podName
 
       await waitForPodState(ctx.orgId, sandboxId, podName, 'Running', 90_000)
 
@@ -163,9 +163,9 @@ req.end();
       'node /tmp/test-secret-inject.js'
     )
 
-    expect(res.data.data.success).toBe(true)
+    expect(res.data.success).toBe(true)
 
-    const body = JSON.parse(res.data.data.output.trim())
+    const body = JSON.parse(res.data.output.trim())
     expect(body.headers).toBeDefined()
 
     // The Authorization header should contain the REAL secret value,
@@ -213,8 +213,8 @@ req.end();
       'node /tmp/test-passthrough.js'
     )
 
-    expect(res.data.data.success).toBe(true)
-    const body = JSON.parse(res.data.data.output.trim())
+    expect(res.data.success).toBe(true)
+    const body = JSON.parse(res.data.output.trim())
     const customHeader = body.headers['X-Custom'] || body.headers['x-custom']
     expect(customHeader).toBe('plain-value-no-token')
   }, 30_000)

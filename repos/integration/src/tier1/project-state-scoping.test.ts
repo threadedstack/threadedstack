@@ -20,7 +20,7 @@ describe('Tier 1: Project State Scoping', () => {
 
   beforeAll(async () => {
     // Create two test projects via quickstart (provides provider + secret + agent + endpoint)
-    const projA = await post<{ data: Record<string, any> }>(
+    const projA = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -30,14 +30,14 @@ describe('Tier 1: Project State Scoping', () => {
       }
     )
 
-    if (projA.status !== 201 || !projA.data?.data?.project?.id) {
+    if (projA.status !== 201 || !projA.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartA = projA.data.data
+    quickstartA = projA.data
 
-    const projB = await post<{ data: Record<string, any> }>(
+    const projB = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -47,12 +47,12 @@ describe('Tier 1: Project State Scoping', () => {
       }
     )
 
-    if (projB.status !== 201 || !projB.data?.data?.project?.id) {
+    if (projB.status !== 201 || !projB.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartB = projB.data.data
+    quickstartB = projB.data
   })
 
   afterAll(async () => {
@@ -67,15 +67,15 @@ describe('Tier 1: Project State Scoping', () => {
     const endpointAId = quickstartA.endpoint?.id || ''
     const endpointBId = quickstartB.endpoint?.id || ''
 
-    const res = await get<{ data: { id: string; projectId: string }[] }>(
+    const res = await get<{ id: string; projectId: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectAId}/endpoints`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
 
-    const endpoints = res.data.data
+    const endpoints = res.data
     if (endpointAId) {
       expect(endpoints.some(e => e.id === endpointAId)).toBe(true)
     }
@@ -92,15 +92,15 @@ describe('Tier 1: Project State Scoping', () => {
     const endpointAId = quickstartA.endpoint?.id || ''
     const endpointBId = quickstartB.endpoint?.id || ''
 
-    const res = await get<{ data: { id: string; projectId: string }[] }>(
+    const res = await get<{ id: string; projectId: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectBId}/endpoints`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
 
-    const endpoints = res.data.data
+    const endpoints = res.data
     if (endpointBId) {
       expect(endpoints.some(e => e.id === endpointBId)).toBe(true)
     }
@@ -116,18 +116,18 @@ describe('Tier 1: Project State Scoping', () => {
     const projectAId = quickstartA.project.id
     const projectBId = quickstartB.project.id
 
-    const resA = await get<{ data: { id: string }[] }>(
+    const resA = await get<{ id: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectAId}/endpoints`
     )
-    const resB = await get<{ data: { id: string }[] }>(
+    const resB = await get<{ id: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectBId}/endpoints`
     )
 
     expect(resA.ok).toBe(true)
     expect(resB.ok).toBe(true)
 
-    const idsA = new Set(resA.data.data.map(e => e.id))
-    const idsB = new Set(resB.data.data.map(e => e.id))
+    const idsA = new Set(resA.data.map(e => e.id))
+    const idsB = new Set(resB.data.map(e => e.id))
 
     for (const id of idsA) {
       expect(idsB.has(id)).toBe(false)
@@ -139,14 +139,14 @@ describe('Tier 1: Project State Scoping', () => {
 
     const projectAId = quickstartA.project.id
 
-    const res = await get<{ data: { projectId: string }[] }>(
+    const res = await get<{ projectId: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectAId}/functions`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(res.data.data.every(f => f.projectId === projectAId)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(res.data.every(f => f.projectId === projectAId)).toBe(true)
   })
 
   test('GET agents for Project A returns only Project A agents', async () => {
@@ -154,12 +154,12 @@ describe('Tier 1: Project State Scoping', () => {
 
     const projectAId = quickstartA.project.id
 
-    const res = await get<{ data: { orgId: string }[] }>(
+    const res = await get<{ orgId: string }[]>(
       `/orgs/${ctx.orgId}/projects/${projectAId}/agents`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
   })
 })

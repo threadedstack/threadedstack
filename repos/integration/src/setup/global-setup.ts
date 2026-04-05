@@ -50,29 +50,29 @@ const tryDel = async (path: string) => {
 const cleanupStaleTestResources = async (orgId: string) => {
   type TResource = { id: string; name: string }
 
-  const agentsRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/agents?limit=200`)
-  for (const agent of (agentsRes.data?.data || [])) {
+  const agentsRes = await get<TResource[]>(`/orgs/${orgId}/agents?limit=200`)
+  for (const agent of (agentsRes.data || [])) {
     if (isTestResource(agent.name)) await tryDel(`/orgs/${orgId}/agents/${agent.id}`)
   }
 
-  const projectsRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/projects?limit=200`)
-  for (const project of (projectsRes.data?.data || [])) {
+  const projectsRes = await get<TResource[]>(`/orgs/${orgId}/projects?limit=200`)
+  for (const project of (projectsRes.data || [])) {
     if (isTestResource(project.name)) await tryDel(`/orgs/${orgId}/projects/${project.id}`)
   }
 
-  const providersRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/providers?limit=200`)
-  for (const provider of (providersRes.data?.data || [])) {
+  const providersRes = await get<TResource[]>(`/orgs/${orgId}/providers?limit=200`)
+  for (const provider of (providersRes.data || [])) {
     if (isTestResource(provider.name)) await tryDel(`/orgs/${orgId}/providers/${provider.id}`)
   }
 
-  const keysRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/api-keys?limit=200`)
-  for (const key of (keysRes.data?.data || [])) {
+  const keysRes = await get<TResource[]>(`/orgs/${orgId}/api-keys?limit=200`)
+  for (const key of (keysRes.data || [])) {
     if (key.name === 'integration-admin' || isTestResource(key.name))
       await tryDel(`/orgs/${orgId}/api-keys/${key.id}`)
   }
 
-  const sandboxesRes = await get<{ data: TResource[] }>(`/orgs/${orgId}/sandboxes?limit=200`)
-  for (const sandbox of (sandboxesRes.data?.data || [])) {
+  const sandboxesRes = await get<TResource[]>(`/orgs/${orgId}/sandboxes?limit=200`)
+  for (const sandbox of (sandboxesRes.data || [])) {
     if (isTestResource(sandbox.name)) await tryDel(`/orgs/${orgId}/sandboxes/${sandbox.id}`)
   }
 }
@@ -118,7 +118,7 @@ export default async function setup() {
   await checkHealth()
 
   // 5. Validate org is accessible with the API key
-  const orgRes = await get<{ data: { id: string; name: string } }>(
+  const orgRes = await get<{ id: string; name: string }>(
     `/orgs/${env.testOrgId}`
   )
 
@@ -130,7 +130,7 @@ export default async function setup() {
     )
   }
 
-  const orgName = orgRes.data?.data?.name || ''
+  const orgName = orgRes.data?.name || ''
 
   // 5b. Clean up stale test resources from prior interrupted/failed runs
   await cleanupStaleTestResources(env.testOrgId)
@@ -143,8 +143,8 @@ export default async function setup() {
   let adminUserId: string | undefined
 
   type TMember = { userId: string; type: string }
-  const membersRes = await get<{ data: TMember[] }>(`/orgs/${env.testOrgId}/members`)
-  const orgMembers = membersRes.data?.data || []
+  const membersRes = await get<TMember[]>(`/orgs/${env.testOrgId}/members`)
+  const orgMembers = membersRes.data || []
 
   // Snapshot org members for teardown restoration
   const orgMemberSnapshot = orgMembers.map((m: TMember) => ({
@@ -167,14 +167,14 @@ export default async function setup() {
 
   if (adminMember) {
     adminUserId = adminMember.userId
-    const keyRes = await post<{ data: { id: string; key: string } }>(
+    const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${env.testOrgId}/api-keys`,
       { name: 'integration-admin', scopes: 'admin', userId: adminUserId }
     )
 
-    if (keyRes.ok && keyRes.data?.data) {
-      const candidateKey = keyRes.data.data.key
-      const candidateKeyId = keyRes.data.data.id
+    if (keyRes.ok && keyRes.data) {
+      const candidateKey = keyRes.data.key
+      const candidateKeyId = keyRes.data.id
 
       // Verify the key works — user must exist in users table for backend auth
       const verifyRes = await get(`/orgs/${env.testOrgId}`, { apiKey: candidateKey })
@@ -250,9 +250,9 @@ export default async function setup() {
 
       // Restore any org members that were removed during tests
       if (ctx.orgMemberSnapshot?.length) {
-        const currentRes = await get<{ data: TMember[] }>(`/orgs/${ctx.orgId}/members`)
+        const currentRes = await get<TMember[]>(`/orgs/${ctx.orgId}/members`)
         const currentUserIds = new Set(
-          (currentRes.data?.data || []).map((m: any) => m.userId)
+          (currentRes.data || []).map((m: any) => m.userId)
         )
 
         for (const member of ctx.orgMemberSnapshot) {

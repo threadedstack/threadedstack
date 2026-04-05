@@ -36,7 +36,7 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
 
   beforeAll(async () => {
     // Step 1: Quickstart to get a project context
-    const qsRes = await post<{ data: Record<string, any> }>(
+    const qsRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -47,16 +47,16 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       }
     )
 
-    if (qsRes.status !== 201 || !qsRes.data?.data?.project?.id) {
+    if (qsRes.status !== 201 || !qsRes.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data.data
+    quickstartResult = qsRes.data
     projectId = quickstartResult.project.id
 
     // Step 2: Create a project-scoped secret for template injection testing
-    const secretRes = await post<{ data: Record<string, any> }>(
+    const secretRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/secrets`,
       {
         name: `proxy-test-secret`,
@@ -65,15 +65,15 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       }
     )
 
-    if (secretRes.status !== 201 || !secretRes.data?.data?.id) {
+    if (secretRes.status !== 201 || !secretRes.data?.id) {
       setupFailed = true
       return
     }
 
-    secretId = secretRes.data.data.id
+    secretId = secretRes.data.id
 
     // Step 3: Create basic proxy endpoint
-    const basicRes = await post<{ data: Record<string, any> }>(
+    const basicRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('Basic Proxy'),
@@ -85,15 +85,15 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       }
     )
 
-    if (basicRes.status !== 201 || !basicRes.data?.data?.id) {
+    if (basicRes.status !== 201 || !basicRes.data?.id) {
       setupFailed = true
       return
     }
 
-    basicEpId = basicRes.data.data.id
+    basicEpId = basicRes.data.id
 
     // Step 3b: Create POST proxy endpoint for body payload tests
-    const postRes = await post<{ data: Record<string, any> }>(
+    const postRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('Post Proxy'),
@@ -105,15 +105,15 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       }
     )
 
-    if (postRes.status !== 201 || !postRes.data?.data?.id) {
+    if (postRes.status !== 201 || !postRes.data?.id) {
       setupFailed = true
       return
     }
 
-    postEpId = postRes.data.data.id
+    postEpId = postRes.data.id
 
     // Step 4: Create proxy endpoint with custom headers (static + secret template)
-    const headersRes = await post<{ data: Record<string, any> }>(
+    const headersRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('Headers Proxy'),
@@ -129,15 +129,15 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       }
     )
 
-    if (headersRes.status !== 201 || !headersRes.data?.data?.id) {
+    if (headersRes.status !== 201 || !headersRes.data?.id) {
       setupFailed = true
       return
     }
 
-    headersEpId = headersRes.data.data.id
+    headersEpId = headersRes.data.id
 
     // Step 5: Create proxy endpoint with bearer auth config
-    const authRes = await post<{ data: Record<string, any> }>(
+    const authRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('Auth Proxy'),
@@ -155,15 +155,15 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       }
     )
 
-    if (authRes.status !== 201 || !authRes.data?.data?.id) {
+    if (authRes.status !== 201 || !authRes.data?.id) {
       setupFailed = true
       return
     }
 
-    authEpId = authRes.data.data.id
+    authEpId = authRes.data.id
 
     // Step 6: Create public proxy endpoint (no auth required)
-    const publicRes = await post<{ data: Record<string, any> }>(
+    const publicRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('Public Proxy'),
@@ -176,15 +176,15 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       }
     )
 
-    if (publicRes.status !== 201 || !publicRes.data?.data?.id) {
+    if (publicRes.status !== 201 || !publicRes.data?.id) {
       setupFailed = true
       return
     }
 
-    publicEpId = publicRes.data.data.id
+    publicEpId = publicRes.data.id
 
     // Step 7: Create proxy endpoint with invalid auth secretId (tests error path)
-    const badAuthRes = await post<{ data: Record<string, any> }>(
+    const badAuthRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('Bad Auth Proxy'),
@@ -199,8 +199,8 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
       }
     )
 
-    if (badAuthRes.status === 201 && badAuthRes.data?.data?.id) {
-      badAuthEpId = badAuthRes.data.data.id
+    if (badAuthRes.status === 201 && badAuthRes.data?.id) {
+      badAuthEpId = badAuthRes.data.id
     }
   }, 30_000)
 
@@ -242,14 +242,14 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
   test('proxy endpoint exists with correct type and options', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${basicEpId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.data).toBeDefined()
 
-    const ep = (res.data.data ?? res.data) as Record<string, any>
+    const ep = res.data as Record<string, any>
     expect(ep.type).toBe('proxy')
     expect(ep.id).toBe(basicEpId)
     expect(ep.options).toBeDefined()
@@ -259,12 +259,12 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
   test('proxy endpoint stores custom headers', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${headersEpId}`
     )
 
     expect(res.status).toBe(200)
-    const ep = (res.data.data ?? res.data) as Record<string, any>
+    const ep = res.data as Record<string, any>
     expect(ep.headers).toBeDefined()
     expect(ep.headers['X-Test-Header']).toBe('static-value')
     expect(ep.headers['X-Secret-Header']).toBe(`{{proxy-test-secret:${secretId}}}`)
@@ -273,12 +273,12 @@ describe('Tier 3: Proxy Endpoint Execution Flow', () => {
   test('proxy endpoint stores auth configuration', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${authEpId}`
     )
 
     expect(res.status).toBe(200)
-    const ep = (res.data.data ?? res.data) as Record<string, any>
+    const ep = res.data as Record<string, any>
     expect(ep.options.auth).toBeDefined()
     expect(ep.options.auth.type).toBe('bearer')
     expect(ep.options.auth.secretId).toBe(secretId)

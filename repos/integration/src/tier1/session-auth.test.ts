@@ -30,7 +30,7 @@ describe('Tier 1: WebSocket Session Auth', () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -40,8 +40,8 @@ describe('Tier 1: WebSocket Session Auth', () => {
         }
       )
 
-      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
-        qsResult = qsRes.data.data
+      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
+        qsResult = qsRes.data
         agentId = qsResult!.agent.id
       }
     }
@@ -52,7 +52,7 @@ describe('Tier 1: WebSocket Session Auth', () => {
 
     if (!agentId) return
 
-    const agentRes = await get<{ data: Record<string, any> }>(
+    const agentRes = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`
     )
 
@@ -63,16 +63,16 @@ describe('Tier 1: WebSocket Session Auth', () => {
       )
     }
 
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
 
-    if (sessionRes.status !== 200 || !sessionRes.data?.data?.sessionToken) {
+    if (sessionRes.status !== 200 || !sessionRes.data?.sessionToken) {
       throw new Error(`Session creation failed: ${sessionRes.status}`)
     }
 
-    sessionToken = sessionRes.data.data.sessionToken
+    sessionToken = sessionRes.data.sessionToken
   })
 
   afterAll(async () => {

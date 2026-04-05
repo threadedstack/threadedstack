@@ -15,17 +15,17 @@ describe('Tier 1: Agents', () => {
   let setupFailed = false
 
   beforeAll(async () => {
-    const projRes = await post<{ data: { id: string } }>(
+    const projRes = await post<{ id: string }>(
       `/orgs/${ctx.orgId}/projects`,
       { name: uniqueName('Agents Test Project'), orgId: ctx.orgId }
     )
-    if (projRes.status !== 201 || !projRes.data?.data?.id) {
+    if (projRes.status !== 201 || !projRes.data?.id) {
       setupFailed = true
       return
     }
-    localProjectId = projRes.data.data.id
+    localProjectId = projRes.data.id
 
-    const provRes = await post<{ data: { id: string } }>(
+    const provRes = await post<{ id: string }>(
       `/orgs/${ctx.orgId}/providers`,
       {
         name: uniqueName('Agents Test Provider'),
@@ -35,13 +35,13 @@ describe('Tier 1: Agents', () => {
         options: { baseUrl: 'https://api.anthropic.com' },
       }
     )
-    if (provRes.status !== 201 || !provRes.data?.data?.id) {
+    if (provRes.status !== 201 || !provRes.data?.id) {
       setupFailed = true
       return
     }
-    localProviderId = provRes.data.data.id
+    localProviderId = provRes.data.id
 
-    const agentRes = await post<{ data: { id: string } }>(
+    const agentRes = await post<{ id: string }>(
       `/orgs/${ctx.orgId}/agents`,
       {
         name: uniqueName('Agents Test Agent'),
@@ -51,11 +51,11 @@ describe('Tier 1: Agents', () => {
         model: 'claude-sonnet-4-5-20250929',
       }
     )
-    if (agentRes.status !== 201 || !agentRes.data?.data?.id) {
+    if (agentRes.status !== 201 || !agentRes.data?.id) {
       setupFailed = true
       return
     }
-    localAgentId = agentRes.data.data.id
+    localAgentId = agentRes.data.id
   })
 
   afterAll(async () => {
@@ -67,27 +67,27 @@ describe('Tier 1: Agents', () => {
   // ─── Read-only tests (safe with shared ctx.agentId) ──────────────
 
   test('GET /orgs/:orgId/agents returns 200 with data array', async () => {
-    const res = await get<{ data: unknown[]; limit: number; offset: number }>(
+    const res = await get<unknown[]>(
       `/orgs/${ctx.orgId}/agents`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(typeof res.data.limit).toBe('number')
-    expect(typeof res.data.offset).toBe('number')
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(typeof res.limit).toBe('number')
+    expect(typeof res.offset).toBe('number')
   })
 
   test('GET /orgs/:orgId/agents/:id returns agent with secrets array', async () => {
-    const res = await get<{ data: { id: string; secrets: unknown[] } }>(
+    const res = await get<{ id: string; secrets: unknown[] }>(
       `/orgs/${ctx.orgId}/agents/${ctx.agentId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBe(ctx.agentId)
-    expect(Array.isArray(res.data.data.secrets)).toBe(true)
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBe(ctx.agentId)
+    expect(Array.isArray(res.data.secrets)).toBe(true)
   })
 
   // ─── Mutation tests (use local agent to avoid parallel interference) ──
@@ -96,27 +96,27 @@ describe('Tier 1: Agents', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // First, list secrets to find one to attach
-    const secretsRes = await get<{
-      data: Array<{ id: string; name: string }>
-    }>(`/orgs/${ctx.orgId}/secrets`)
-    if (!secretsRes.data?.data?.length) return // skip if no secrets exist
+    const secretsRes = await get<Array<{ id: string; name: string }>>(
+      `/orgs/${ctx.orgId}/secrets`
+    )
+    if (!secretsRes.data?.length) return // skip if no secrets exist
 
-    const secretId = secretsRes.data.data[0].id
+    const secretId = secretsRes.data[0].id
 
     // Update local agent with secretIds
-    const updateRes = await put<{
-      data: { id: string; secrets: Array<{ id: string }> }
-    }>(`/orgs/${ctx.orgId}/agents/${localAgentId}`, { secretIds: [secretId] })
+    const updateRes = await put<{ id: string; secrets: Array<{ id: string }> }>(
+      `/orgs/${ctx.orgId}/agents/${localAgentId}`, { secretIds: [secretId] }
+    )
 
     expect(updateRes.status).toBe(200)
     expect(updateRes.ok).toBe(true)
 
     // Verify the agent now has the secret attached
-    const agentRes = await get<{
-      data: { secrets: Array<{ id: string }> }
-    }>(`/orgs/${ctx.orgId}/agents/${localAgentId}`)
+    const agentRes = await get<{ secrets: Array<{ id: string }> }>(
+      `/orgs/${ctx.orgId}/agents/${localAgentId}`
+    )
     expect(
-      agentRes.data.data.secrets.some((s: { id: string }) => s.id === secretId)
+      agentRes.data.secrets.some((s: { id: string }) => s.id === secretId)
     ).toBe(true)
   })
 
@@ -124,30 +124,30 @@ describe('Tier 1: Agents', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Detach all secrets
-    const updateRes = await put<{
-      data: { id: string; secrets: unknown[] }
-    }>(`/orgs/${ctx.orgId}/agents/${localAgentId}`, { secretIds: [] })
+    const updateRes = await put<{ id: string; secrets: unknown[] }>(
+      `/orgs/${ctx.orgId}/agents/${localAgentId}`, { secretIds: [] }
+    )
 
     expect(updateRes.status).toBe(200)
     expect(updateRes.ok).toBe(true)
 
     // Verify agent has no secrets
-    const agentRes = await get<{ data: { secrets: unknown[] } }>(
+    const agentRes = await get<{ secrets: unknown[] }>(
       `/orgs/${ctx.orgId}/agents/${localAgentId}`
     )
-    expect(agentRes.data.data.secrets).toHaveLength(0)
+    expect(agentRes.data.secrets).toHaveLength(0)
   })
 
   test('attached secret appears in agent response with correct id', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // List secrets, attach one, then verify through agent endpoint
-    const secretsRes = await get<{ data: Array<{ id: string }> }>(
+    const secretsRes = await get<Array<{ id: string }>>(
       `/orgs/${ctx.orgId}/secrets`
     )
-    if (!secretsRes.data?.data?.length) return // skip if no secrets
+    if (!secretsRes.data?.length) return // skip if no secrets
 
-    const secretId = secretsRes.data.data[0].id
+    const secretId = secretsRes.data[0].id
 
     // Attach the secret to the local agent
     const attachRes = await put(
@@ -158,18 +158,16 @@ describe('Tier 1: Agents', () => {
 
     // Verify through agent endpoint — agent-scoped secrets are accessed via agent, not org secrets
     const agentRes = await get<{
-      data: {
+      id: string
+      secrets: Array<{
         id: string
-        secrets: Array<{
-          id: string
-          agentId: string | null
-          orgId: string | null
-        }>
-      }
+        agentId: string | null
+        orgId: string | null
+      }>
     }>(`/orgs/${ctx.orgId}/agents/${localAgentId}`)
 
     expect(agentRes.status).toBe(200)
-    const attachedSecret = agentRes.data.data.secrets.find(
+    const attachedSecret = agentRes.data.secrets.find(
       (s: { id: string }) => s.id === secretId
     )
     expect(attachedSecret).toBeDefined()
@@ -185,12 +183,12 @@ describe('Tier 1: Agents', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // List secrets, attach one, detach it, then verify agentId is null
-    const secretsRes = await get<{ data: Array<{ id: string }> }>(
+    const secretsRes = await get<Array<{ id: string }>>(
       `/orgs/${ctx.orgId}/secrets`
     )
-    if (!secretsRes.data?.data?.length) return // skip if no secrets
+    if (!secretsRes.data?.length) return // skip if no secrets
 
-    const secretId = secretsRes.data.data[0].id
+    const secretId = secretsRes.data[0].id
 
     // Attach then detach
     await put(`/orgs/${ctx.orgId}/agents/${localAgentId}`, {
@@ -199,30 +197,28 @@ describe('Tier 1: Agents', () => {
     await put(`/orgs/${ctx.orgId}/agents/${localAgentId}`, { secretIds: [] })
 
     // Re-fetch the secret — agentId should be null (reverted to org-scoped)
-    const secretRes = await get<{
-      data: { id: string; agentId: string | null }
-    }>(`/orgs/${ctx.orgId}/secrets/${secretId}`)
+    const secretRes = await get<{ id: string; agentId: string | null }>(
+      `/orgs/${ctx.orgId}/secrets/${secretId}`
+    )
 
     expect(secretRes.status).toBe(200)
-    expect(secretRes.data.data.agentId).toBeNull()
+    expect(secretRes.data.agentId).toBeNull()
   })
 
   // ─── Read-only tests (safe with shared ctx.agentId) ──────────────
 
   test('GET agent includes full provider objects with name and type', async () => {
     const res = await get<{
-      data: {
-        id: string
-        providers: Array<{ id: string; name: string; type: string }>
-      }
+      id: string
+      providers: Array<{ id: string; name: string; type: string }>
     }>(`/orgs/${ctx.orgId}/agents/${ctx.agentId}`)
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.data.providers)).toBe(true)
+    expect(Array.isArray(res.data.providers)).toBe(true)
 
     // If agent has providers, verify they have full objects (not just IDs)
-    if (res.data.data.providers.length > 0) {
-      const provider = res.data.data.providers[0]
+    if (res.data.providers.length > 0) {
+      const provider = res.data.providers[0]
       expect(provider).toHaveProperty('id')
       expect(provider).toHaveProperty('name')
       expect(provider).toHaveProperty('type')
@@ -231,11 +227,11 @@ describe('Tier 1: Agents', () => {
   })
 
   test('GET agent includes projectConfigs array', async () => {
-    const res = await get<{ data: { id: string; projectConfigs: unknown[] } }>(
+    const res = await get<{ id: string; projectConfigs: unknown[] }>(
       `/orgs/${ctx.orgId}/agents/${ctx.agentId}`
     )
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.data.projectConfigs)).toBe(true)
+    expect(Array.isArray(res.data.projectConfigs)).toBe(true)
   })
 })

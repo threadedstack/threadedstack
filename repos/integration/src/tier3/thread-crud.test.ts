@@ -13,7 +13,7 @@ describe('Tier 3: Thread CRUD Flow', () => {
   let setupFailed = false
 
   beforeAll(async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -23,12 +23,12 @@ describe('Tier 3: Thread CRUD Flow', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.agent?.id) {
+    if (res.status !== 201 || !res.data?.agent?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     agentId = quickstartResult.agent.id
   })
 

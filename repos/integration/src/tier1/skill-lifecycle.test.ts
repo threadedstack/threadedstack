@@ -28,7 +28,7 @@ describe('Tier 1: Skill Lifecycle', () => {
       return
     }
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -38,12 +38,12 @@ describe('Tier 1: Skill Lifecycle', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.agent?.id) {
+    if (res.status !== 201 || !res.data?.agent?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     agentId = quickstartResult.agent.id
   })
 
@@ -67,7 +67,7 @@ describe('Tier 1: Skill Lifecycle', () => {
   test('POST creates a skill with alwaysActive explicitly false (T3 fix)', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/skills`,
       {
         name: uniqueName('Code Review Skill'),
@@ -80,22 +80,22 @@ describe('Tier 1: Skill Lifecycle', () => {
     )
 
     expect(res.status).toBe(201)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBeTruthy()
-    expect(res.data.data.name).toContain('Code Review Skill')
-    expect(res.data.data.instructions).toBe('Review the code and provide feedback.')
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBeTruthy()
+    expect(res.data.name).toContain('Code Review Skill')
+    expect(res.data.instructions).toBe('Review the code and provide feedback.')
 
     // T3 fix: alwaysActive should be a boolean, not undefined
-    expect(res.data.data.alwaysActive).toBe(false)
-    expect(typeof res.data.data.alwaysActive).toBe('boolean')
+    expect(res.data.alwaysActive).toBe(false)
+    expect(typeof res.data.alwaysActive).toBe('boolean')
 
-    skillId = res.data.data.id
+    skillId = res.data.id
   })
 
   test('POST creates a skill without alwaysActive — defaults to false (T3 fix)', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/skills`,
       {
         name: uniqueName('Search Skill'),
@@ -105,16 +105,16 @@ describe('Tier 1: Skill Lifecycle', () => {
 
     expect(res.status).toBe(201)
     // T3 fix: When omitted, alwaysActive should default to false (not undefined)
-    expect(res.data.data.alwaysActive).toBe(false)
-    expect(typeof res.data.data.alwaysActive).toBe('boolean')
+    expect(res.data.alwaysActive).toBe(false)
+    expect(typeof res.data.alwaysActive).toBe('boolean')
 
-    skill2Id = res.data.data.id
+    skill2Id = res.data.id
   })
 
   test('POST creates a skill with alwaysActive true', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/skills`,
       {
         name: uniqueName('Always Active Skill'),
@@ -124,11 +124,11 @@ describe('Tier 1: Skill Lifecycle', () => {
     )
 
     expect(res.status).toBe(201)
-    expect(res.data.data.alwaysActive).toBe(true)
-    expect(typeof res.data.data.alwaysActive).toBe('boolean')
+    expect(res.data.alwaysActive).toBe(true)
+    expect(typeof res.data.alwaysActive).toBe('boolean')
 
     // Clean up this extra skill
-    await tryDelete(`/orgs/${ctx.orgId}/skills/${res.data.data.id}`)
+    await tryDelete(`/orgs/${ctx.orgId}/skills/${res.data.id}`)
   })
 
   test('POST requires name and instructions', async () => {
@@ -150,28 +150,28 @@ describe('Tier 1: Skill Lifecycle', () => {
   test('GET retrieves the created skill', async () => {
     if (setupFailed || !skillId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/skills/${skillId}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.id).toBe(skillId)
-    expect(res.data.data.instructions).toBe('Review the code and provide feedback.')
-    expect(typeof res.data.data.alwaysActive).toBe('boolean')
+    expect(res.data.id).toBe(skillId)
+    expect(res.data.instructions).toBe('Review the code and provide feedback.')
+    expect(typeof res.data.alwaysActive).toBe('boolean')
   })
 
   test('GET list returns skills for the org', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any>[] }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/skills`
     )
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
 
     if (skillId) {
-      const found = res.data.data.some((s: any) => s.id === skillId)
+      const found = res.data.some((s: any) => s.id === skillId)
       expect(found).toBe(true)
     }
   })
@@ -181,13 +181,13 @@ describe('Tier 1: Skill Lifecycle', () => {
   test('PUT updates the skill', async () => {
     if (setupFailed || !skillId) return expect(setupFailed).toBe(false)
 
-    const res = await put<{ data: Record<string, any> }>(
+    const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/skills/${skillId}`,
       { instructions: 'Updated instructions for review.' }
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.instructions).toBe('Updated instructions for review.')
+    expect(res.data.instructions).toBe('Updated instructions for review.')
   })
 
   // ─── Attach / Detach ───────────────────────────────────────────────
@@ -247,14 +247,14 @@ describe('Tier 1: Skill Lifecycle', () => {
   test('GET skill returns alwaysActive as boolean, never null', async () => {
     if (setupFailed || !skillId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/skills/${skillId}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.alwaysActive).not.toBeNull()
-    expect(res.data.data.alwaysActive).not.toBeUndefined()
-    expect(typeof res.data.data.alwaysActive).toBe('boolean')
+    expect(res.data.alwaysActive).not.toBeNull()
+    expect(res.data.alwaysActive).not.toBeUndefined()
+    expect(typeof res.data.alwaysActive).toBe('boolean')
   })
 
   // ─── Delete ────────────────────────────────────────────────────────

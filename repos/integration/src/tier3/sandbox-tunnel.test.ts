@@ -61,15 +61,15 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
   beforeAll(async () => {
     try {
       // Create project
-      const projRes = await post<{ data: Record<string, any> }>(
+      const projRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/projects`,
         { name: uniqueName('tunnel-project'), orgId: ctx.orgId }
       )
       if (!projRes.ok) { setupFailed = true; return }
-      projectId = projRes.data.data.id
+      projectId = projRes.data.id
 
       // Create sandbox config
-      const sbRes = await post<{ data: Record<string, any> }>(
+      const sbRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         {
           name: uniqueName('tunnel-sandbox'),
@@ -87,12 +87,12 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
         }
       )
       if (!sbRes.ok) { setupFailed = true; return }
-      sandboxId = sbRes.data.data.id
+      sandboxId = sbRes.data.id
 
       // Connect — starts pod and waits for Running
       const connectRes = await connectSandbox(ctx.orgId, sandboxId)
       if (!connectRes.ok) { setupFailed = true; return }
-      podName = connectRes.data.data.podName
+      podName = connectRes.data.podName
     } catch (err) {
       console.error('[sandbox-tunnel] Setup failed:', (err as Error).message)
       setupFailed = true
@@ -169,7 +169,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
     expect(sessRes.status).toBe(200)
     expect(sessRes.ok).toBe(true)
 
-    const sessions = sessRes.data.data
+    const sessions = sessRes.data
     expect(Array.isArray(sessions)).toBe(true)
     expect(sessions.length).toBeGreaterThanOrEqual(1)
 
@@ -190,7 +190,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
 
     // Confirm session exists
     const before = await getSessions(ctx.orgId, sandboxId)
-    const countBefore = before.data.data.length
+    const countBefore = before.data.length
 
     // Close the tunnel
     ws.close()
@@ -198,6 +198,6 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
 
     // Session should be cleaned up
     const after = await getSessions(ctx.orgId, sandboxId)
-    expect(after.data.data.length).toBeLessThan(countBefore)
+    expect(after.data.length).toBeLessThan(countBefore)
   }, 15_000)
 })

@@ -15,18 +15,18 @@ describe('Tier 1: Project-Scoped API Keys', () => {
 
   beforeAll(async () => {
     // Create a dedicated test project so we don't pollute shared state
-    const projRes = await post<{ data: { id: string } }>(
+    const projRes = await post<{ id: string }>(
       `/orgs/${ctx.orgId}/projects`,
       { name: uniqueName('ProjKey Test Project'), orgId: ctx.orgId }
     )
-    if (projRes.status !== 201 || !projRes.data?.data?.id) {
+    if (projRes.status !== 201 || !projRes.data?.id) {
       setupFailed = true
       return
     }
-    localProjectId = projRes.data.data.id
+    localProjectId = projRes.data.id
 
     // Create a project-scoped API key
-    const keyRes = await post<{ data: { id: string; key: string } }>(
+    const keyRes = await post<{ id: string; key: string }>(
       `/orgs/${ctx.orgId}/api-keys`,
       {
         name: uniqueName('ProjKey Test Key'),
@@ -34,12 +34,12 @@ describe('Tier 1: Project-Scoped API Keys', () => {
         projectId: localProjectId,
       }
     )
-    if (keyRes.status !== 201 || !keyRes.data?.data?.key) {
+    if (keyRes.status !== 201 || !keyRes.data?.key) {
       setupFailed = true
       return
     }
-    projectKeyId = keyRes.data.data.id
-    projectKeyRaw = keyRes.data.data.key
+    projectKeyId = keyRes.data.id
+    projectKeyRaw = keyRes.data.key
   })
 
   afterAll(async () => {
@@ -54,45 +54,43 @@ describe('Tier 1: Project-Scoped API Keys', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Create another key to verify the response shape (we'll clean it up)
-    const res = await post<{
-      data: { id: string; key: string; projectId: string; orgId: string | null }
-      warning: string
-    }>(`/orgs/${ctx.orgId}/api-keys`, {
+    const res = await post<{ id: string; key: string; projectId: string; orgId: string | null }>(
+      `/orgs/${ctx.orgId}/api-keys`, {
       name: uniqueName('ProjKey Verify Create'),
       scopes: 'read',
       projectId: localProjectId,
     })
 
     expect(res.status).toBe(201)
-    expect(res.data.data.key).toBeDefined()
-    expect(res.data.data.key).toMatch(/^tdsk_/)
-    expect(res.data.data.projectId).toBe(localProjectId)
+    expect(res.data.key).toBeDefined()
+    expect(res.data.key).toMatch(/^tdsk_/)
+    expect(res.data.projectId).toBe(localProjectId)
     // Project-scoped keys should NOT have orgId set (exclusive arc)
-    expect(res.data.data.orgId).toBeNull()
+    expect(res.data.orgId).toBeNull()
 
     // Clean up this extra key
-    if (res.data?.data?.id) {
-      await tryDelete(`/orgs/${ctx.orgId}/api-keys/${res.data.data.id}`)
+    if (res.data?.id) {
+      await tryDelete(`/orgs/${ctx.orgId}/api-keys/${res.data.id}`)
     }
   })
 
   test('listing API keys with projectId filter returns only project-scoped keys', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Array<{ id: string; projectId: string | null }> }>(
+    const res = await get<Array<{ id: string; projectId: string | null }>>(
       `/orgs/${ctx.orgId}/api-keys?projectId=${localProjectId}`
     )
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
 
     // All returned keys should belong to our test project
-    for (const key of res.data.data) {
+    for (const key of res.data) {
       expect(key.projectId).toBe(localProjectId)
     }
 
     // Our test key should be in the list
-    const found = res.data.data.some((k) => k.id === projectKeyId)
+    const found = res.data.some((k) => k.id === projectKeyId)
     expect(found).toBe(true)
   })
 
@@ -100,14 +98,14 @@ describe('Tier 1: Project-Scoped API Keys', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // List org-scoped keys (no projectId filter)
-    const res = await get<{ data: Array<{ id: string; projectId: string | null }> }>(
+    const res = await get<Array<{ id: string; projectId: string | null }>>(
       `/orgs/${ctx.orgId}/api-keys`
     )
 
     expect(res.status).toBe(200)
 
     // The project-scoped key should NOT appear in org-level listing
-    const found = res.data.data.some((k) => k.id === projectKeyId)
+    const found = res.data.some((k) => k.id === projectKeyId)
     expect(found).toBe(false)
   })
 
@@ -115,7 +113,7 @@ describe('Tier 1: Project-Scoped API Keys', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Create a throwaway key to revoke
-    const createRes = await post<{ data: { id: string; key: string } }>(
+    const createRes = await post<{ id: string; key: string }>(
       `/orgs/${ctx.orgId}/api-keys`,
       {
         name: uniqueName('ProjKey Revoke Test'),
@@ -124,7 +122,7 @@ describe('Tier 1: Project-Scoped API Keys', () => {
       }
     )
     expect(createRes.status).toBe(201)
-    const revokeId = createRes.data.data.id
+    const revokeId = createRes.data.id
 
     const revokeRes = await del(`/orgs/${ctx.orgId}/api-keys/${revokeId}`)
     expect(revokeRes.status).toBe(200)
@@ -159,12 +157,12 @@ describe('Tier 1: Project-Scoped API Keys', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Create a second project
-    const proj2Res = await post<{ data: { id: string } }>(
+    const proj2Res = await post<{ id: string }>(
       `/orgs/${ctx.orgId}/projects`,
       { name: uniqueName('ProjKey Other Project'), orgId: ctx.orgId }
     )
     expect(proj2Res.status).toBe(201)
-    const otherProjectId = proj2Res.data.data.id
+    const otherProjectId = proj2Res.data.id
 
     // Try to list API keys for the other project using the first project's key
     const res = await get(
@@ -195,12 +193,12 @@ describe('Tier 1: Project-Scoped API Keys', () => {
   test('project-scoped key listing does not leak keyHash', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, unknown>[] }>(
+    const res = await get<Record<string, unknown>[]>(
       `/orgs/${ctx.orgId}/api-keys?projectId=${localProjectId}`
     )
 
     expect(res.status).toBe(200)
-    for (const key of res.data.data) {
+    for (const key of res.data) {
       expect(key).not.toHaveProperty('keyHash')
     }
   })

@@ -3,15 +3,13 @@ import { get } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 
 interface ProjectWithCounts {
-  data: {
-    id: string
-    name: string
-    orgId: string
-    counts: {
-      agent: number
-      endpoint: number
-      function: number
-    }
+  id: string
+  name: string
+  orgId: string
+  counts: {
+    agent: number
+    endpoint: number
+    function: number
   }
 }
 
@@ -25,9 +23,9 @@ describe(`Tier 1: Project Counts`, () => {
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const project = res.data.data
+    const project = res.data
     expect(typeof project?.counts?.endpoint).toBe(`number`)
     expect(typeof project?.counts?.function).toBe(`number`)
     expect(typeof project?.counts?.agent).toBe(`number`)
@@ -42,7 +40,7 @@ describe(`Tier 1: Project Counts`, () => {
     )
 
     expect(res.status).toBe(200)
-    const project = res.data.data
+    const project = res.data
     expect(project.id).toBe(ctx.projectId)
     expect(project.orgId).toBe(ctx.orgId)
     expect(typeof project.name).toBe('string')

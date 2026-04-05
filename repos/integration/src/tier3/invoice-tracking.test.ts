@@ -12,7 +12,7 @@ describe('Tier 3: Invoice Tracking', () => {
   const ctx = readContext()
 
   test('GET /subscriptions/invoices — returns array', async () => {
-    const res = await get<{ data: Array<Record<string, unknown>> }>(
+    const res = await get<Array<Record<string, unknown>>>(
       '/subscriptions/invoices'
     )
 
@@ -20,16 +20,16 @@ describe('Tier 3: Invoice Tracking', () => {
     expect(res.ok).toBe(true)
 
     // The data should be an array (may be empty for free tier users)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
   })
 
   test('GET /subscriptions/invoices — items have correct shape when present', async () => {
-    const res = await get<{ data: Array<Record<string, unknown>> }>(
+    const res = await get<Array<Record<string, unknown>>>(
       '/subscriptions/invoices'
     )
 
     expect(res.status).toBe(200)
-    const invoices = res.data.data
+    const invoices = res.data
 
     if (invoices.length === 0) {
       // No invoices — expected for free tier test users

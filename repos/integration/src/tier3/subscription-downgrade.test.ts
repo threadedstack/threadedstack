@@ -30,16 +30,16 @@ describe('Tier 3: Subscription Downgrade', () => {
 
   test('POST /subscriptions/update — accepts valid tier value', async () => {
     // First check current subscription
-    const currentRes = await get<{ data: { tier: string; stripeSubscriptionId?: string } }>(
+    const currentRes = await get<{ tier: string; stripeSubscriptionId?: string }>(
       '/subscriptions/current'
     )
 
     expect(currentRes.status).toBe(200)
 
-    const hasStripeSubscription = !!currentRes.data?.data?.stripeSubscriptionId
+    const hasStripeSubscription = !!currentRes.data?.stripeSubscriptionId
 
     // Attempt to update to a valid tier
-    const res = await post<{ data: Record<string, unknown> }>(
+    const res = await post<Record<string, unknown>>(
       '/subscriptions/update',
       { tier: 'solo' }
     )
@@ -55,13 +55,13 @@ describe('Tier 3: Subscription Downgrade', () => {
   })
 
   test('POST /subscriptions/update — downgrade to free triggers cancellation path', async () => {
-    const currentRes = await get<{ data: { stripeSubscriptionId?: string } }>(
+    const currentRes = await get<{ stripeSubscriptionId?: string }>(
       '/subscriptions/current'
     )
 
-    const hasStripeSubscription = !!currentRes.data?.data?.stripeSubscriptionId
+    const hasStripeSubscription = !!currentRes.data?.stripeSubscriptionId
 
-    const res = await post<{ data: Record<string, unknown> }>(
+    const res = await post<Record<string, unknown>>(
       '/subscriptions/update',
       { tier: 'free' }
     )
@@ -70,7 +70,7 @@ describe('Tier 3: Subscription Downgrade', () => {
       // With active subscription, downgrade to free should cancel
       expect([200, 500]).toContain(res.status)
       if (res.status === 200) {
-        expect(res.data.data.success).toBe(true)
+        expect(res.data.success).toBe(true)
       }
     } else {
       // Without subscription, should get 404

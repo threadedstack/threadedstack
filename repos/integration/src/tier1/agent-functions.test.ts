@@ -55,7 +55,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
 
   beforeAll(async () => {
     try {
-      const res = await post<{ data: QuickstartResult }>(
+      const res = await post<QuickstartResult>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'anthropic',
@@ -65,12 +65,12 @@ describe('Tier 1: Agent-Functions Relationship', () => {
         }
       )
 
-      if (res.status !== 201 || !res.data?.data) {
+      if (res.status !== 201 || !res.data) {
         setupFailed = true
         return
       }
 
-      quickstart = res.data.data
+      quickstart = res.data
     } catch {
       setupFailed = true
     }
@@ -112,17 +112,17 @@ describe('Tier 1: Agent-Functions Relationship', () => {
       return
     }
 
-    const res = await post<{ data: FunctionRecord }>(functionsPath(), {
+    const res = await post<FunctionRecord>(functionsPath(), {
       name: uniqueName('Linked Function 1'),
       content: functionContent,
     })
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBeDefined()
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBeDefined()
 
-    functionId1 = res.data.data.id
+    functionId1 = res.data.id
   })
 
   test('links function to agent via project config functionIds', async (context) => {
@@ -131,7 +131,7 @@ describe('Tier 1: Agent-Functions Relationship', () => {
       return
     }
 
-    const res = await put<{ data: Record<string, any> }>(configPath(), {
+    const res = await put<Record<string, any>>(configPath(), {
       functionIds: [functionId1],
     })
 
@@ -145,11 +145,11 @@ describe('Tier 1: Agent-Functions Relationship', () => {
       return
     }
 
-    const res = await get<{ data: { functionIds: string[] } }>(configPath())
+    const res = await get<{ functionIds: string[] }>(configPath())
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data.functionIds).toContain(functionId1)
+    expect(res.data.functionIds).toContain(functionId1)
   })
 
   test('creates second function and links both to agent', async (context) => {
@@ -158,20 +158,20 @@ describe('Tier 1: Agent-Functions Relationship', () => {
       return
     }
 
-    const res = await post<{ data: FunctionRecord }>(functionsPath(), {
+    const res = await post<FunctionRecord>(functionsPath(), {
       name: uniqueName('Linked Function 2'),
       content: functionContent,
     })
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBeDefined()
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBeDefined()
 
-    functionId2 = res.data.data.id
+    functionId2 = res.data.id
 
     // Link both functions
-    const configRes = await put<{ data: Record<string, any> }>(configPath(), {
+    const configRes = await put<Record<string, any>>(configPath(), {
       functionIds: [functionId1, functionId2],
     })
 
@@ -184,13 +184,13 @@ describe('Tier 1: Agent-Functions Relationship', () => {
       return
     }
 
-    const res = await get<{ data: { functionIds: string[] } }>(configPath())
+    const res = await get<{ functionIds: string[] }>(configPath())
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data.functionIds).toContain(functionId1)
-    expect(res.data.data.functionIds).toContain(functionId2)
-    expect(res.data.data.functionIds).toHaveLength(2)
+    expect(res.data.functionIds).toContain(functionId1)
+    expect(res.data.functionIds).toContain(functionId2)
+    expect(res.data.functionIds).toHaveLength(2)
   })
 
   test('creates unlinked function (not in functionIds)', async (context) => {
@@ -199,17 +199,17 @@ describe('Tier 1: Agent-Functions Relationship', () => {
       return
     }
 
-    const res = await post<{ data: FunctionRecord }>(functionsPath(), {
+    const res = await post<FunctionRecord>(functionsPath(), {
       name: uniqueName('Unlinked Function'),
       content: functionContent,
     })
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBeDefined()
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBeDefined()
 
-    unlinkedFunctionId = res.data.data.id
+    unlinkedFunctionId = res.data.id
   })
 
   test('unlinked function is not in agent project config functionIds', async (context) => {
@@ -218,10 +218,10 @@ describe('Tier 1: Agent-Functions Relationship', () => {
       return
     }
 
-    const res = await get<{ data: { functionIds: string[] } }>(configPath())
+    const res = await get<{ functionIds: string[] }>(configPath())
 
     expect(res.status).toBe(200)
-    const functionIds = res.data.data.functionIds || []
+    const functionIds = res.data.functionIds || []
     expect(functionIds).not.toContain(unlinkedFunctionId)
   })
 
@@ -232,17 +232,17 @@ describe('Tier 1: Agent-Functions Relationship', () => {
     }
 
     // Remove functionId1, keep only functionId2
-    const res = await put<{ data: Record<string, any> }>(configPath(), {
+    const res = await put<Record<string, any>>(configPath(), {
       functionIds: [functionId2],
     })
 
     expect(res.status).toBe(200)
 
-    const configRes = await get<{ data: { functionIds: string[] } }>(configPath())
+    const configRes = await get<{ functionIds: string[] }>(configPath())
     expect(configRes.status).toBe(200)
-    expect(configRes.data.data.functionIds).not.toContain(functionId1)
-    expect(configRes.data.data.functionIds).toContain(functionId2)
-    expect(configRes.data.data.functionIds).toHaveLength(1)
+    expect(configRes.data.functionIds).not.toContain(functionId1)
+    expect(configRes.data.functionIds).toContain(functionId2)
+    expect(configRes.data.functionIds).toHaveLength(1)
 
     // Restore both for remaining tests
     await put(configPath(), { functionIds: [functionId1, functionId2] })
@@ -259,17 +259,17 @@ describe('Tier 1: Agent-Functions Relationship', () => {
     expect(deleteRes.status).toBe(200)
 
     // Functions should still exist (they're project-scoped, not agent-scoped)
-    const res1 = await get<{ data: FunctionRecord }>(
+    const res1 = await get<FunctionRecord>(
       `${functionsPath()}/${functionId1}`
     )
     expect(res1.status).toBe(200)
-    expect(res1.data.data.id).toBe(functionId1)
+    expect(res1.data.id).toBe(functionId1)
 
-    const res2 = await get<{ data: FunctionRecord }>(
+    const res2 = await get<FunctionRecord>(
       `${functionsPath()}/${functionId2}`
     )
     expect(res2.status).toBe(200)
-    expect(res2.data.data.id).toBe(functionId2)
+    expect(res2.data.id).toBe(functionId2)
 
     // Mark agent as deleted so afterAll doesn't try to re-delete it
     quickstart.agent.id = ''
@@ -281,12 +281,12 @@ describe('Tier 1: Agent-Functions Relationship', () => {
       return
     }
 
-    const res = await get<{ data: FunctionRecord }>(
+    const res = await get<FunctionRecord>(
       `${functionsPath()}/${unlinkedFunctionId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data.id).toBe(unlinkedFunctionId)
+    expect(res.data.id).toBe(unlinkedFunctionId)
   })
 })

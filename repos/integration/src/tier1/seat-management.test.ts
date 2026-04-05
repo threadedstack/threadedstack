@@ -12,15 +12,13 @@ describe('Tier 1: Seat Management', () => {
   const ctx = readContext()
 
   test('GET /subscriptions/current includes seats as a number >= 1', async () => {
-    const res = await get<{
-      data: { tier: string; seats?: number }
-    }>('/subscriptions/current')
+    const res = await get<{ tier: string; seats?: number }>('/subscriptions/current')
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const sub = res.data.data
+    const sub = res.data
     // Seats field should be a number (default is 1 for new subscriptions,
     // but pre-migration records may have 0)
     if (sub.seats !== undefined) {
@@ -38,14 +36,14 @@ describe('Tier 1: Seat Management', () => {
   })
 
   test('GET /orgs/:orgId/quotas/limits includes seats limit', async () => {
-    const res = await get<{ data: Record<string, unknown> }>(
+    const res = await get<Record<string, unknown>>(
       `/orgs/${ctx.orgId}/quotas/limits`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const limits = res.data.data
+    const limits = res.data
     expect(limits).toHaveProperty('seats')
     expect(typeof limits.seats).toBe('number')
     expect((limits.seats as number) >= 1).toBe(true)

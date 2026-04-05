@@ -19,7 +19,7 @@ describe('Tier 1: Providers CRUD', () => {
   const updatedName = uniqueName('test-provider-updated')
 
   beforeAll(async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -29,12 +29,12 @@ describe('Tier 1: Providers CRUD', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.project?.id) {
+    if (res.status !== 201 || !res.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     projectId = quickstartResult.project.id
   })
 
@@ -61,7 +61,7 @@ describe('Tier 1: Providers CRUD', () => {
   test('POST creates provider', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/providers`,
       {
         name: providerName,
@@ -72,10 +72,10 @@ describe('Tier 1: Providers CRUD', () => {
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBeDefined()
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBeDefined()
 
-    providerId = res.data.data.id
+    providerId = res.data.id
   })
 
   // --- Read ---
@@ -83,15 +83,15 @@ describe('Tier 1: Providers CRUD', () => {
   test('GET single provider by ID', async () => {
     if (setupFailed || !providerId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/providers/${providerId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const provider = res.data.data
+    const provider = res.data
     expect(provider.id).toBe(providerId)
     expect(provider.name).toBe(providerName)
     expect(provider.type).toBe('ai')
@@ -104,28 +104,28 @@ describe('Tier 1: Providers CRUD', () => {
   test('GET /orgs/:orgId/providers returns 200 with data array', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/providers`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(typeof res.data.limit).toBe('number')
-    expect(typeof res.data.offset).toBe('number')
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(typeof res.limit).toBe('number')
+    expect(typeof res.offset).toBe('number')
   })
 
   test('GET list includes created provider', async () => {
     if (setupFailed || !providerId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/providers?limit=500`
     )
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
 
-    const found = res.data.data.find((p: any) => p.id === providerId)
+    const found = res.data.find((p: any) => p.id === providerId)
     expect(found).toBeDefined()
     expect(found?.name).toBe(providerName)
   })
@@ -135,15 +135,15 @@ describe('Tier 1: Providers CRUD', () => {
   test('PUT updates provider name', async () => {
     if (setupFailed || !providerId) return expect(setupFailed).toBe(false)
 
-    const res = await put<{ data: Record<string, any> }>(
+    const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/providers/${providerId}`,
       { name: updatedName }
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.name).toBe(updatedName)
+    expect(res.data).toBeDefined()
+    expect(res.data.name).toBe(updatedName)
   })
 
   // --- Delete ---
@@ -151,7 +151,7 @@ describe('Tier 1: Providers CRUD', () => {
   test('DELETE removes provider (requires admin scope)', async () => {
     if (setupFailed || !providerId) return expect(setupFailed).toBe(false)
 
-    const res = await del<{ data: { success: boolean } }>(
+    const res = await del<{ success: boolean }>(
       `/orgs/${ctx.orgId}/providers/${providerId}`
     )
 
@@ -164,7 +164,7 @@ describe('Tier 1: Providers CRUD', () => {
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data.success).toBe(true)
+    expect(res.data.success).toBe(true)
 
     // Preserve ID for the 404 test, then clear so afterAll skips it
     deletedProviderId = providerId

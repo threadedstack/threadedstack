@@ -35,8 +35,8 @@ describe('Tier 3: Sandbox Command Execution', () => {
     const res = await execInPod(ctx.orgId, sandboxId, podName, 'echo hello')
 
     expect(res.status).toBe(200)
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toBe('hello')
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toBe('hello')
   })
 
   test('exec command with args', async () => {
@@ -45,8 +45,8 @@ describe('Tier 3: Sandbox Command Execution', () => {
     const res = await execInPod(ctx.orgId, sandboxId, podName, 'echo', ['hello', 'world'])
 
     expect(res.status).toBe(200)
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toBe('hello world')
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toBe('hello world')
   })
 
   test('exec multiline output', async () => {
@@ -58,8 +58,8 @@ describe('Tier 3: Sandbox Command Execution', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.success).toBe(true)
-    const lines = res.data.data.output.trim().split('\n')
+    expect(res.data.success).toBe(true)
+    const lines = res.data.output.trim().split('\n')
     expect(lines).toEqual(['0', '1', '2', '3', '4'])
   })
 
@@ -72,8 +72,8 @@ describe('Tier 3: Sandbox Command Execution', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.success).toBe(true)
-    const parsed = JSON.parse(res.data.data.output.trim())
+    expect(res.data.success).toBe(true)
+    const parsed = JSON.parse(res.data.output.trim())
     expect(parsed).toEqual({ a: 1, b: 2 })
   })
 
@@ -88,9 +88,9 @@ describe('Tier 3: Sandbox Command Execution', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.success).toBe(false)
-    expect(res.data.data.exitCode).toBe(1)
-    expect(res.data.data.error).toContain('oops')
+    expect(res.data.success).toBe(false)
+    expect(res.data.exitCode).toBe(1)
+    expect(res.data.error).toContain('oops')
   })
 
   test('exec nonexistent command returns error', async () => {
@@ -102,7 +102,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.success).toBe(false)
+    expect(res.data.success).toBe(false)
   })
 
   // --- Validation ---
@@ -140,14 +140,14 @@ describe('Tier 3: Sandbox Command Execution', () => {
       ctx.orgId, sandboxId, podName,
       "printf '%s' 'hello from integration test' > /workspace/test-read.txt"
     )
-    expect(writeRes.data.data.success).toBe(true)
+    expect(writeRes.data.success).toBe(true)
 
     const readRes = await execInPod(
       ctx.orgId, sandboxId, podName,
       'cat /workspace/test-read.txt'
     )
-    expect(readRes.data.data.success).toBe(true)
-    expect(readRes.data.data.output).toBe('hello from integration test')
+    expect(readRes.data.success).toBe(true)
+    expect(readRes.data.output).toBe('hello from integration test')
   })
 
   test('create directory and verify', async () => {
@@ -157,14 +157,14 @@ describe('Tier 3: Sandbox Command Execution', () => {
       ctx.orgId, sandboxId, podName,
       'mkdir -p /workspace/test-subdir/nested'
     )
-    expect(mkdirRes.data.data.success).toBe(true)
+    expect(mkdirRes.data.success).toBe(true)
 
     const checkRes = await execInPod(
       ctx.orgId, sandboxId, podName,
       'test -d /workspace/test-subdir/nested && echo exists'
     )
-    expect(checkRes.data.data.success).toBe(true)
-    expect(checkRes.data.data.output.trim()).toBe('exists')
+    expect(checkRes.data.success).toBe(true)
+    expect(checkRes.data.output.trim()).toBe('exists')
   })
 
   test('list directory contents', async () => {
@@ -182,8 +182,8 @@ describe('Tier 3: Sandbox Command Execution', () => {
       ctx.orgId, sandboxId, podName,
       'ls -1 /workspace/list-test'
     )
-    expect(lsRes.data.data.success).toBe(true)
-    const files = lsRes.data.data.output.trim().split('\n')
+    expect(lsRes.data.success).toBe(true)
+    const files = lsRes.data.output.trim().split('\n')
     expect(files).toContain('file-a.txt')
     expect(files).toContain('file-b.txt')
   })
@@ -198,17 +198,17 @@ describe('Tier 3: Sandbox Command Execution', () => {
     const existsRes = await execInPod(ctx.orgId, sandboxId, podName,
       "test -e /workspace/to-delete.txt && echo yes || echo no"
     )
-    expect(existsRes.data.data.output.trim()).toBe('yes')
+    expect(existsRes.data.output.trim()).toBe('yes')
 
     const rmRes = await execInPod(ctx.orgId, sandboxId, podName,
       'rm /workspace/to-delete.txt'
     )
-    expect(rmRes.data.data.success).toBe(true)
+    expect(rmRes.data.success).toBe(true)
 
     const goneRes = await execInPod(ctx.orgId, sandboxId, podName,
       "test -e /workspace/to-delete.txt && echo yes || echo no"
     )
-    expect(goneRes.data.data.output.trim()).toBe('no')
+    expect(goneRes.data.output.trim()).toBe('no')
   })
 
   test('workspace directory exists and is writable', async () => {
@@ -217,8 +217,8 @@ describe('Tier 3: Sandbox Command Execution', () => {
     const res = await execInPod(ctx.orgId, sandboxId, podName,
       'test -d /workspace -a -w /workspace && echo ok'
     )
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toBe('ok')
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toBe('ok')
   })
 
   // --- JavaScript Code Evaluation ---
@@ -236,8 +236,8 @@ describe('Tier 3: Sandbox Command Execution', () => {
       'node /workspace/test-eval.js'
     )
 
-    expect(res.data.data.success).toBe(true)
-    const parsed = JSON.parse(res.data.data.output.trim())
+    expect(res.data.success).toBe(true)
+    const parsed = JSON.parse(res.data.output.trim())
     expect(parsed).toEqual([0, 2, 4])
   })
 
@@ -254,8 +254,8 @@ describe('Tier 3: Sandbox Command Execution', () => {
       "node -e \"const d = require('/workspace/test-data.json'); console.log(d.key, d.count)\""
     )
 
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toBe('value 42')
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toBe('value 42')
   })
 
   test('execute multi-module JavaScript', async () => {
@@ -280,7 +280,7 @@ describe('Tier 3: Sandbox Command Execution', () => {
       'node /workspace/mod-test/main.js'
     )
 
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toBe('7')
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toBe('7')
   })
 })

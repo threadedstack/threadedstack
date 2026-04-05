@@ -28,7 +28,7 @@ describe('Tier 3: Compute Tracking', () => {
 
   beforeAll(async () => {
     // Create project via quickstart
-    const qsRes = await post<{ data: Record<string, any> }>(
+    const qsRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -38,16 +38,16 @@ describe('Tier 3: Compute Tracking', () => {
       }
     )
 
-    if (qsRes.status !== 201 || !qsRes.data?.data?.project?.id) {
+    if (qsRes.status !== 201 || !qsRes.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data.data
+    quickstartResult = qsRes.data
     projectId = quickstartResult.project.id
 
     // Create a function
-    const fnRes = await post<{ data: Record<string, any> }>(
+    const fnRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
         name: uniqueName('Compute Track Fn'),
@@ -57,16 +57,16 @@ describe('Tier 3: Compute Tracking', () => {
       }
     )
 
-    if (fnRes.status !== 201 || !fnRes.data?.data?.id) {
+    if (fnRes.status !== 201 || !fnRes.data?.id) {
       setupFailed = true
       return
     }
 
-    functionId = fnRes.data.data.id
+    functionId = fnRes.data.id
 
     // Create FaaS endpoint linked to the function
     endpointPath = `/faas/compute-track-${timestamp}`
-    const epRes = await post<{ data: Record<string, any> }>(
+    const epRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('Compute Track EP'),
@@ -78,12 +78,12 @@ describe('Tier 3: Compute Tracking', () => {
       }
     )
 
-    if (epRes.status !== 201 || !epRes.data?.data?.id) {
+    if (epRes.status !== 201 || !epRes.data?.id) {
       setupFailed = true
       return
     }
 
-    endpointId = epRes.data.data.id
+    endpointId = epRes.data.id
   })
 
   afterAll(async () => {
@@ -106,14 +106,14 @@ describe('Tier 3: Compute Tracking', () => {
   test('quota before execution is retrievable', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, unknown> }>(
+    const res = await get<Record<string, unknown>>(
       `/orgs/${ctx.orgId}/quotas`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data).toHaveProperty('compute')
-    expect(typeof res.data.data.compute).toBe('number')
+    expect(res.data).toBeDefined()
+    expect(res.data).toHaveProperty('compute')
+    expect(typeof res.data.compute).toBe('number')
   })
 
   test('executes function via FaaS endpoint', async () => {
@@ -135,17 +135,17 @@ describe('Tier 3: Compute Tracking', () => {
     // Small delay to allow async quota increment to process
     await new Promise(resolve => setTimeout(resolve, 1000))
 
-    const res = await get<{ data: Record<string, unknown> }>(
+    const res = await get<Record<string, unknown>>(
       `/orgs/${ctx.orgId}/quotas`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
     // The compute counter should exist and be numeric.
     // We verify the quota endpoint is accessible and returns numeric values.
     // The exact increment depends on backend tracking behavior.
-    const quota = res.data.data
+    const quota = res.data
     expect(typeof quota.compute).toBe('number')
   })
 })

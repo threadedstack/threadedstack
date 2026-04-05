@@ -30,7 +30,7 @@ describe('Tier 1: Web Tools Configuration', () => {
   beforeAll(async () => {
     orgId = ctx.orgId
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -43,12 +43,12 @@ describe('Tier 1: Web Tools Configuration', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.project?.id) {
+    if (res.status !== 201 || !res.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     projectId = quickstartResult.project.id
     agentId = quickstartResult.agent.id
   })
@@ -62,7 +62,7 @@ describe('Tier 1: Web Tools Configuration', () => {
   test('agent creation with webFetch and webSearch tools', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const updateRes = await put<{ data: { id: string; tools: string[] } }>(
+    const updateRes = await put<{ id: string; tools: string[] }>(
       agentPath(),
       { tools: ['webSearch', 'webFetch'] }
     )
@@ -70,15 +70,15 @@ describe('Tier 1: Web Tools Configuration', () => {
     expect(updateRes.status).toBe(200)
     expect(updateRes.ok).toBe(true)
 
-    const getRes = await get<{ data: { id: string; tools: string[] } }>(
+    const getRes = await get<{ id: string; tools: string[] }>(
       agentPath()
     )
 
     expect(getRes.status).toBe(200)
-    expect(getRes.data.data.tools).toEqual(
+    expect(getRes.data.tools).toEqual(
       expect.arrayContaining(['webSearch', 'webFetch'])
     )
-    expect(getRes.data.data.tools).toHaveLength(2)
+    expect(getRes.data.tools).toHaveLength(2)
   })
 
   // ─── webProvider environment config ───────────────────────────────
@@ -86,52 +86,44 @@ describe('Tier 1: Web Tools Configuration', () => {
   test('agent update with environment.webProvider config', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const updateRes = await put<{
-      data: { id: string; environment: Record<string, any> }
-    }>(agentPath(), {
+    const updateRes = await put<{ id: string; environment: Record<string, any> }>(agentPath(), {
       environment: { webProvider: { type: 'jina' } },
     })
 
     expect(updateRes.status).toBe(200)
     expect(updateRes.ok).toBe(true)
 
-    const getRes = await get<{
-      data: { id: string; environment: Record<string, any> }
-    }>(agentPath())
+    const getRes = await get<{ id: string; environment: Record<string, any> }>(agentPath())
 
     expect(getRes.status).toBe(200)
-    expect(getRes.data.data.environment).toBeDefined()
-    expect(getRes.data.data.environment.webProvider).toBeDefined()
-    expect(getRes.data.data.environment.webProvider.type).toBe('jina')
+    expect(getRes.data.environment).toBeDefined()
+    expect(getRes.data.environment.webProvider).toBeDefined()
+    expect(getRes.data.environment.webProvider.type).toBe('jina')
   })
 
   test('agent update with webProvider secretId referencing encrypted secret', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Create a secret to reference
-    const secretRes = await post<{ data: { id: string } }>(
+    const secretRes = await post<{ id: string }>(
       `/orgs/${orgId}/secrets`,
       { name: uniqueName('jina-api-key'), value: 'jina_test_key_123' }
     )
 
     expect(secretRes.status).toBe(201)
-    const secretId = secretRes.data.data.id
+    const secretId = secretRes.data.id
 
-    const updateRes = await put<{
-      data: { id: string; environment: Record<string, any> }
-    }>(agentPath(), {
+    const updateRes = await put<{ id: string; environment: Record<string, any> }>(agentPath(), {
       environment: { webProvider: { type: 'jina', secretId } },
     })
 
     expect(updateRes.status).toBe(200)
     expect(updateRes.ok).toBe(true)
 
-    const getRes = await get<{
-      data: { id: string; environment: Record<string, any> }
-    }>(agentPath())
+    const getRes = await get<{ id: string; environment: Record<string, any> }>(agentPath())
 
     expect(getRes.status).toBe(200)
-    const webProvider = getRes.data.data.environment?.webProvider
+    const webProvider = getRes.data.environment?.webProvider
     expect(webProvider).toBeDefined()
     expect(webProvider.type).toBe('jina')
     expect(webProvider.secretId).toBe(secretId)
@@ -143,7 +135,7 @@ describe('Tier 1: Web Tools Configuration', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Set project override with only webFetch and a webProvider
-    const overrideRes = await put<{ data: Record<string, any> }>(configPath(), {
+    const overrideRes = await put<Record<string, any>>(configPath(), {
       tools: ['webFetch'],
       environment: { webProvider: { type: 'jina' } },
     })
@@ -152,27 +144,23 @@ describe('Tier 1: Web Tools Configuration', () => {
 
     // Verify via project-scoped GET — should reflect override
     const projectRes = await get<{
-      data: {
         tools: string[]
         environment: Record<string, any>
-      }
-    }>(projectAgentPath())
+      }>(projectAgentPath())
 
     expect(projectRes.status).toBe(200)
-    expect(projectRes.data.data.tools).toEqual(['webFetch'])
-    expect(projectRes.data.data.environment?.webProvider?.type).toBe('jina')
+    expect(projectRes.data.tools).toEqual(['webFetch'])
+    expect(projectRes.data.environment?.webProvider?.type).toBe('jina')
 
     // Verify base agent at org level is unchanged
     const orgRes = await get<{
-      data: {
         tools: string[]
         environment: Record<string, any>
-      }
-    }>(agentPath())
+      }>(agentPath())
 
     expect(orgRes.status).toBe(200)
     // Base agent should still have both tools from earlier test
-    expect(orgRes.data.data.tools).toEqual(
+    expect(orgRes.data.tools).toEqual(
       expect.arrayContaining(['webSearch', 'webFetch'])
     )
   })
@@ -183,20 +171,16 @@ describe('Tier 1: Web Tools Configuration', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Update environment to empty object (clears webProvider)
-    const updateRes = await put<{
-      data: { id: string; environment: Record<string, any> }
-    }>(agentPath(), {
+    const updateRes = await put<{ id: string; environment: Record<string, any> }>(agentPath(), {
       environment: {},
     })
 
     expect(updateRes.status).toBe(200)
 
-    const getRes = await get<{
-      data: { id: string; environment: Record<string, any> | null }
-    }>(agentPath())
+    const getRes = await get<{ id: string; environment: Record<string, any> | null }>(agentPath())
 
     expect(getRes.status).toBe(200)
-    const environment = getRes.data.data.environment
+    const environment = getRes.data.environment
     // After setting empty environment, webProvider should be gone
     if (environment) {
       expect(environment.webProvider).toBeUndefined()
@@ -209,12 +193,12 @@ describe('Tier 1: Web Tools Configuration', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Create a secret for the webProvider
-    const secretRes = await post<{ data: { id: string } }>(
+    const secretRes = await post<{ id: string }>(
       `/orgs/${orgId}/secrets`,
       { name: uniqueName('jina-session-key'), value: 'jina_session_test_key' }
     )
     expect(secretRes.status).toBe(201)
-    const wpSecretId = secretRes.data.data.id
+    const wpSecretId = secretRes.data.id
 
     // Re-set tools and webProvider for session test
     await put(agentPath(), {
@@ -223,15 +207,15 @@ describe('Tier 1: Web Tools Configuration', () => {
     })
 
     // Session creation — may fail with fake provider key, which is expected
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
 
     // With a fake provider key, session may fail — that's OK for a config test
     // If it succeeds, verify the tools and webProvider are included
-    if (sessionRes.ok && sessionRes.data?.data) {
-      const session = sessionRes.data.data
+    if (sessionRes.ok && sessionRes.data) {
+      const session = sessionRes.data
       if (session.tools) {
         expect(session.tools).toEqual(
           expect.arrayContaining(['webSearch', 'webFetch'])

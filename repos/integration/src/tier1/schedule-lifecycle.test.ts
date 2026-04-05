@@ -26,7 +26,7 @@ describe('Tier 1: Schedule Lifecycle', () => {
       return
     }
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -36,12 +36,12 @@ describe('Tier 1: Schedule Lifecycle', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.agent?.id) {
+    if (res.status !== 201 || !res.data?.agent?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     agentId = quickstartResult.agent.id
   })
 
@@ -64,7 +64,7 @@ describe('Tier 1: Schedule Lifecycle', () => {
   test('POST creates a schedule with valid cron expression', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/schedules`,
       {
         agentId,
@@ -77,15 +77,15 @@ describe('Tier 1: Schedule Lifecycle', () => {
     )
 
     expect(res.status).toBe(201)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBeTruthy()
-    expect(res.data.data.agentId).toBe(agentId)
-    expect(res.data.data.cronExpression).toBe('0 9 * * MON')
-    expect(res.data.data.prompt).toBe('Weekly status report')
-    expect(res.data.data.enabled).toBe(true)
-    expect(res.data.data.createThread).toBe(true)
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBeTruthy()
+    expect(res.data.agentId).toBe(agentId)
+    expect(res.data.cronExpression).toBe('0 9 * * MON')
+    expect(res.data.prompt).toBe('Weekly status report')
+    expect(res.data.enabled).toBe(true)
+    expect(res.data.createThread).toBe(true)
 
-    scheduleId = res.data.data.id
+    scheduleId = res.data.id
   })
 
   test('POST rejects invalid cron expression', async () => {
@@ -127,27 +127,27 @@ describe('Tier 1: Schedule Lifecycle', () => {
   test('GET retrieves the created schedule', async () => {
     if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/schedules/${scheduleId}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.id).toBe(scheduleId)
-    expect(res.data.data.prompt).toBe('Weekly status report')
+    expect(res.data.id).toBe(scheduleId)
+    expect(res.data.prompt).toBe('Weekly status report')
   })
 
   test('GET list returns schedules for the org', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any>[] }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/schedules`
     )
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
 
     if (scheduleId) {
-      const found = res.data.data.some((s: any) => s.id === scheduleId)
+      const found = res.data.some((s: any) => s.id === scheduleId)
       expect(found).toBe(true)
     }
   })
@@ -157,13 +157,13 @@ describe('Tier 1: Schedule Lifecycle', () => {
   test('PUT updates the schedule prompt', async () => {
     if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
 
-    const res = await put<{ data: Record<string, any> }>(
+    const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/schedules/${scheduleId}`,
       { prompt: 'Updated weekly report' }
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.prompt).toBe('Updated weekly report')
+    expect(res.data.prompt).toBe('Updated weekly report')
   })
 
   // ─── Update ownership verification ─────────────────────────────────
@@ -193,13 +193,13 @@ describe('Tier 1: Schedule Lifecycle', () => {
   test('PUT update with valid agentId from same org succeeds', async () => {
     if (setupFailed || !scheduleId || !agentId) return expect(setupFailed).toBe(false)
 
-    const res = await put<{ data: Record<string, any> }>(
+    const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/schedules/${scheduleId}`,
       { agentId }
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.agentId).toBe(agentId)
+    expect(res.data.agentId).toBe(agentId)
   })
 
   // ─── Boolean defaults (.notNull) ───────────────────────────────────
@@ -207,7 +207,7 @@ describe('Tier 1: Schedule Lifecycle', () => {
   test('POST schedule without enabled/createThread returns boolean defaults', async () => {
     if (setupFailed || !agentId) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/schedules`,
       {
         agentId,
@@ -217,12 +217,12 @@ describe('Tier 1: Schedule Lifecycle', () => {
     )
 
     expect(res.status).toBe(201)
-    expect(typeof res.data.data.enabled).toBe('boolean')
-    expect(res.data.data.enabled).toBe(true)
-    expect(typeof res.data.data.createThread).toBe('boolean')
-    expect(res.data.data.createThread).toBe(true)
+    expect(typeof res.data.enabled).toBe('boolean')
+    expect(res.data.enabled).toBe(true)
+    expect(typeof res.data.createThread).toBe('boolean')
+    expect(res.data.createThread).toBe(true)
 
-    if (res.data.data.id) await tryDelete(`/orgs/${ctx.orgId}/schedules/${res.data.data.id}`)
+    if (res.data.id) await tryDelete(`/orgs/${ctx.orgId}/schedules/${res.data.id}`)
   })
 
   // ─── Impossible cron expression ────────────────────────────────────
@@ -245,19 +245,19 @@ describe('Tier 1: Schedule Lifecycle', () => {
     if (setupFailed || !scheduleId) return expect(setupFailed).toBe(false)
 
     const beforeTrigger = Date.now()
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/schedules/${scheduleId}/trigger`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.triggered).toBe(true)
-    expect(res.data.data.lastRunAt).toBeTruthy()
-    expect(res.data.data.nextRunAt).toBeTruthy()
+    expect(res.data.triggered).toBe(true)
+    expect(res.data.lastRunAt).toBeTruthy()
+    expect(res.data.nextRunAt).toBeTruthy()
 
     // C2 fix: nextRunAt should be in the future (next Monday 9am),
     // NOT equal to "now". A value close to `now` would mean the old
     // bug is still present (new Date() was used instead of parseNextRun).
-    const nextRunAt = new Date(res.data.data.nextRunAt).getTime()
+    const nextRunAt = new Date(res.data.nextRunAt).getTime()
     const oneMinuteFromNow = beforeTrigger + 60_000
 
     expect(nextRunAt).toBeGreaterThan(oneMinuteFromNow)

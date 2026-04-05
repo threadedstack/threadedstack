@@ -12,13 +12,13 @@ describe('Tier 1: Threads', () => {
   let firstAgentId: string | undefined
 
   test('fetch agents to determine if thread tests can run', async () => {
-    const res = await get<{ data: Agent[] }>(`/orgs/${ctx.orgId}/agents`)
+    const res = await get<Agent[]>(`/orgs/${ctx.orgId}/agents`)
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
 
-    if (res.data.data.length > 0) {
-      firstAgentId = res.data.data[0].id
+    if (res.data.length > 0) {
+      firstAgentId = res.data[0].id
     }
   })
 
@@ -28,14 +28,14 @@ describe('Tier 1: Threads', () => {
       return
     }
 
-    const res = await get<{ data: unknown[]; limit: number; offset: number }>(
+    const res = await get<unknown[]>(
       `/orgs/${ctx.orgId}/agents/${firstAgentId}/threads`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(typeof res.data.limit).toBe('number')
-    expect(typeof res.data.offset).toBe('number')
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(typeof res.limit).toBe('number')
+    expect(typeof res.offset).toBe('number')
   })
 })

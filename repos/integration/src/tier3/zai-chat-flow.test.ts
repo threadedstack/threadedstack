@@ -30,7 +30,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
     // Prefer creating a fresh agent via quickstart with the test provider key
     if (env.testProviderKey) {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: `zai`,
@@ -40,9 +40,9 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
         }
       )
 
-      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
-        agentId = qsRes.data.data.agent.id
-        qsResult = qsRes.data.data
+      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
+        agentId = qsRes.data.agent.id
+        qsResult = qsRes.data
         return
       }
     }
@@ -51,7 +51,7 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
     if (env.testZaiAgentId) {
       agentId = env.testZaiAgentId
 
-      const res = await get<{ data: Record<string, any> }>(
+      const res = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`
       )
 
@@ -79,12 +79,12 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
   describe(`session creation`, () => {
     test.skipIf(!hasLLM())(`creates session with Z.AI agent`, async () => {
-      const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const res = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
 
       expect(res.status).toBe(200)
       expect(res.ok).toBe(true)
 
-      const session = res.data.data
+      const session = res.data
       expect(session.sessionToken).toBeTruthy()
       expect(typeof session.sessionToken).toBe(`string`)
       expect(session.sessionToken.length).toBeGreaterThan(10)
@@ -101,10 +101,10 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
     })
 
     test.skipIf(!hasLLM())(`session does NOT leak apiKey`, async () => {
-      const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const res = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
 
       expect(res.status).toBe(200)
-      const session = res.data.data
+      const session = res.data
       expect(session).not.toHaveProperty(`apiKey`)
 
       const raw = JSON.stringify(res.data)
@@ -114,15 +114,15 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
     test.skipIf(!hasLLM())(`multiple sessions get unique tokens`, async () => {
       const [res1, res2] = await Promise.all([
-        post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
-        post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
+        post<Record<string, any>>(`/_/ai/sessions`, { agentId }),
+        post<Record<string, any>>(`/_/ai/sessions`, { agentId }),
       ])
 
       expect(res1.status).toBe(200)
       expect(res2.status).toBe(200)
 
-      const token1 = res1.data.data.sessionToken
-      const token2 = res2.data.data.sessionToken
+      const token1 = res1.data.sessionToken
+      const token2 = res2.data.sessionToken
       expect(token1).not.toBe(token2)
     })
   })
@@ -137,9 +137,9 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
     beforeAll(async () => {
       if (!hasLLM()) return
 
-      const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const res = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
       if (res.status !== 200) throw new Error(`Session creation failed: ${res.status}`)
-      sessionToken = res.data.data.sessionToken
+      sessionToken = res.data.sessionToken
     })
 
     test.skipIf(!hasLLM())(`streams a response for a simple prompt`, async () => {
@@ -205,9 +205,9 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
   describe(`multi-message conversation`, () => {
     test.skipIf(!hasLLM())(`handles multi-turn conversation via thread reuse`, async () => {
       // First turn — create a new thread
-      const res1 = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const res1 = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
       expect(res1.status).toBe(200)
-      const token1 = res1.data.data.sessionToken
+      const token1 = res1.data.sessionToken
 
       const first = await consumeWS(token1, 'Remember the word: PINEAPPLE', { timeout: 30_000 })
 
@@ -223,9 +223,9 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
 
       // If we got a thread, reuse it for the follow-up
       if (threadCreated?.threadId && hasContent) {
-        const res2 = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+        const res2 = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
         expect(res2.status).toBe(200)
-        const token2 = res2.data.data.sessionToken
+        const token2 = res2.data.sessionToken
 
         const second = await consumeWS(token2, 'What word did I ask you to remember?', {
           threadId: threadCreated.threadId as string,
@@ -250,9 +250,9 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
     test.skipIf(!hasLLM())(
       `session token can be reused for multiple WS connections`,
       async () => {
-        const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+        const res = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
         expect(res.status).toBe(200)
-        const token = res.data.data.sessionToken
+        const token = res.data.sessionToken
 
         const result1 = await consumeWS(token, 'Say ONE', { timeout: 30_000 })
 
@@ -280,15 +280,15 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
   describe(`concurrent sessions`, () => {
     test.skipIf(!hasLLM())(`multiple Z.AI sessions stream independently via WS`, async () => {
       const [s1, s2] = await Promise.all([
-        post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
-        post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
+        post<Record<string, any>>(`/_/ai/sessions`, { agentId }),
+        post<Record<string, any>>(`/_/ai/sessions`, { agentId }),
       ])
 
       expect(s1.status).toBe(200)
       expect(s2.status).toBe(200)
 
-      const token1 = s1.data.data.sessionToken
-      const token2 = s2.data.data.sessionToken
+      const token1 = s1.data.sessionToken
+      const token2 = s2.data.sessionToken
 
       const [result1, result2] = await Promise.all([
         consumeWS(token1, 'Say ALPHA', { timeout: 30_000 }),
@@ -316,14 +316,14 @@ describe(`Tier 3: Z.AI Chat Flow (live)`, () => {
       expect(healthRes.status).toBe(200)
 
       // Step 2: API key auth works
-      const orgRes = await get<{ data: { id: string } }>(`/orgs/${ctx.orgId}`)
+      const orgRes = await get<{ id: string }>(`/orgs/${ctx.orgId}`)
       expect(orgRes.status).toBe(200)
-      expect(orgRes.data.data.id).toBe(ctx.orgId)
+      expect(orgRes.data.id).toBe(ctx.orgId)
 
       // Step 3: Create Z.AI session
-      const sessionRes = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const sessionRes = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
       expect(sessionRes.status).toBe(200)
-      const { sessionToken, provider, model } = sessionRes.data.data
+      const { sessionToken, provider, model } = sessionRes.data
       expect(sessionToken).toBeTruthy()
       expect(provider).toBe(`zai`)
       expect(model).toMatch(/^glm-/)

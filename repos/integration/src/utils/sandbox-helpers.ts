@@ -61,14 +61,14 @@ export const waitForPodState = async (
   let lastState: TPodState = 'Unknown'
 
   while (Date.now() - start < maxWaitMs) {
-    const res = await get<{ data: { podName: string; state: TPodState } }>(
+    const res = await get<{ podName: string; state: TPodState }>(
       `/orgs/${orgId}/sandboxes/${sandboxId}/status?podName=${podName}`
     )
 
     if (res.status !== 200)
       throw new Error(`Status check failed: HTTP ${res.status}`)
 
-    lastState = res.data.data.state
+    lastState = res.data.state
     if (lastState === desiredState) return lastState
     if (lastState === 'Failed' && desiredState !== 'Failed')
       throw new Error(`Pod entered Failed state while waiting for ${desiredState}`)
@@ -92,7 +92,7 @@ export const execInPod = async (
   command: string,
   args?: string[]
 ) => {
-  return await post<{ data: TSandboxResult }>(
+  return await post<TSandboxResult>(
     `/orgs/${orgId}/sandboxes/${sandboxId}/exec`,
     { command, podName, args }
   )
@@ -141,7 +141,7 @@ export const getPodSubdomain = (podName: string): string | null => {
  * Call POST /:id/connect — auto-starts pod if needed, returns connection info.
  */
 export const connectSandbox = async (orgId: string, sandboxId: string) => {
-  return await post<{ data: TSandboxConnectResult }>(
+  return await post<TSandboxConnectResult>(
     `/orgs/${orgId}/sandboxes/${sandboxId}/connect`,
     {}
   )
@@ -151,7 +151,7 @@ export const connectSandbox = async (orgId: string, sandboxId: string) => {
  * Call GET /:id/sessions — returns active SSH tunnel sessions.
  */
 export const getSessions = async (orgId: string, sandboxId: string) => {
-  return await get<{ data: TSandboxSessionResult[] }>(
+  return await get<TSandboxSessionResult[]>(
     `/orgs/${orgId}/sandboxes/${sandboxId}/sessions`
   )
 }
@@ -164,15 +164,15 @@ export const setupRunningPod = async (
   orgId: string,
   configOverrides?: Record<string, unknown>
 ): Promise<TSandboxSetup> => {
-  const projRes = await post<{ data: Record<string, any> }>(
+  const projRes = await post<Record<string, any>>(
     `/orgs/${orgId}/projects`,
     { name: uniqueName('sb-test-project'), orgId }
   )
   if (!projRes.ok) throw new Error(`Failed to create project: HTTP ${projRes.status}`)
-  const projectId = projRes.data.data.id
+  const projectId = projRes.data.id
 
   const sandboxName = uniqueName('test-sandbox')
-  const sbRes = await post<{ data: Record<string, any> }>(
+  const sbRes = await post<Record<string, any>>(
     `/orgs/${orgId}/sandboxes`,
     {
       name: sandboxName,
@@ -182,11 +182,11 @@ export const setupRunningPod = async (
     }
   )
   if (!sbRes.ok) throw new Error(`Failed to create sandbox config: HTTP ${sbRes.status}`)
-  const sandboxId = sbRes.data.data.id
+  const sandboxId = sbRes.data.id
 
-  let startRes: Awaited<ReturnType<typeof post<{ data: { podName: string } }>>>
+  let startRes: Awaited<ReturnType<typeof post<{ podName: string }>>>
   for (let attempt = 0; attempt < 3; attempt++) {
-    startRes = await post<{ data: { podName: string } }>(
+    startRes = await post<{ podName: string }>(
       `/orgs/${orgId}/sandboxes/${sandboxId}/start`,
       { projectId }
     )
@@ -194,7 +194,7 @@ export const setupRunningPod = async (
     if (attempt < 2) await new Promise(r => setTimeout(r, 3_000 * (attempt + 1)))
   }
   if (!startRes!.ok) throw new Error(`Failed to start pod: HTTP ${startRes!.status}`)
-  const podName = startRes!.data.data.podName
+  const podName = startRes!.data.podName
 
   await waitForPodState(orgId, sandboxId, podName, 'Running', 90_000)
 

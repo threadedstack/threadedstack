@@ -17,7 +17,7 @@ describe('Tier 1: AI Sessions', () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -27,8 +27,8 @@ describe('Tier 1: AI Sessions', () => {
         }
       )
 
-      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
-        qsResult = qsRes.data.data
+      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
+        qsResult = qsRes.data
         agentId = qsResult!.agent.id
       }
     }
@@ -39,7 +39,7 @@ describe('Tier 1: AI Sessions', () => {
 
     if (!agentId) return
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`
     )
 
@@ -66,87 +66,83 @@ describe('Tier 1: AI Sessions', () => {
   })
 
   test.skipIf(!hasLLM())('POST /_/ai/sessions creates session with valid agent', async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.sessionToken).toBeTruthy()
-    expect(res.data.data.provider).toBeTruthy()
-    expect(res.data.data.model).toBeTruthy()
+    expect(res.data).toBeDefined()
+    expect(res.data.sessionToken).toBeTruthy()
+    expect(res.data.provider).toBeTruthy()
+    expect(res.data.model).toBeTruthy()
   })
 
   test.skipIf(!hasLLM())('session response does not leak apiKey', async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).not.toHaveProperty('apiKey')
+    expect(res.data).not.toHaveProperty('apiKey')
   })
 
   test.skipIf(!hasLLM())('session returns expected metadata', async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
 
     expect(res.status).toBe(200)
-    const { data } = res.data
-    expect(typeof data.sessionToken).toBe('string')
-    expect(data.sessionToken.length).toBeGreaterThan(10)
-    expect(['anthropic', 'openai', 'google', 'zai']).toContain(data.provider)
-    expect(typeof data.model).toBe('string')
-    expect(typeof data.maxTokens).toBe('number')
+    expect(typeof res.data.sessionToken).toBe('string')
+    expect(res.data.sessionToken.length).toBeGreaterThan(10)
+    expect(['anthropic', 'openai', 'google', 'zai']).toContain(res.data.provider)
+    expect(typeof res.data.model).toBe('string')
+    expect(typeof res.data.maxTokens).toBe('number')
   })
 
   test.skipIf(!hasLLM())('session response includes tools array (when agent has tools)', async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
 
     expect(res.status).toBe(200)
-    const { data } = res.data
 
     // tools may be undefined/null if agent has no tools configured
     // but if present, it must be an array
-    if (data.tools !== undefined && data.tools !== null) {
-      expect(Array.isArray(data.tools)).toBe(true)
+    if (res.data.tools !== undefined && res.data.tools !== null) {
+      expect(Array.isArray(res.data.tools)).toBe(true)
     }
   })
 
   test.skipIf(!hasLLM())('session response includes environment (when agent has environment)', async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
 
     expect(res.status).toBe(200)
-    const { data } = res.data
 
     // environment may be undefined/null if agent has no environment configured
     // but if present, it must be an object
-    if (data.environment !== undefined && data.environment !== null) {
-      expect(typeof data.environment).toBe('object')
+    if (res.data.environment !== undefined && res.data.environment !== null) {
+      expect(typeof res.data.environment).toBe('object')
     }
   })
 
   test.skipIf(!hasLLM())('session response does not leak envVars', async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
 
     expect(res.status).toBe(200)
-    const { data } = res.data
 
     // envVars should stay server-side — never in the response
-    expect(data).not.toHaveProperty('envVars')
+    expect(res.data).not.toHaveProperty('envVars')
   })
 
   test.skipIf(!hasLLM())('POST /_/ai/sessions without agentId returns 400', async () => {

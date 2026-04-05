@@ -44,7 +44,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     beforeAll(async () => {
       if (!hasProviderKey()) return
 
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -54,12 +54,12 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         }
       )
 
-      if (res.status !== 201 || !res.data?.data?.agent?.id) {
+      if (res.status !== 201 || !res.data?.agent?.id) {
         setupFailed = true
         return
       }
 
-      qsResult = res.data.data
+      qsResult = res.data
     })
 
     afterAll(async () => {
@@ -77,19 +77,19 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     test.skipIf(!hasProviderKey())('quickstart agent resolves primary provider for session', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId: qsResult.agent.id }
       )
 
       expect(sessionRes.status).toBe(200)
-      expect(sessionRes.data.data.sessionToken).toBeTruthy()
-      expect(sessionRes.data.data.provider).toBe('zai')
-      expect(sessionRes.data.data.model).toBeTruthy()
-      expect(sessionRes.data.data.maxTokens).toBeGreaterThan(0)
+      expect(sessionRes.data.sessionToken).toBeTruthy()
+      expect(sessionRes.data.provider).toBe('zai')
+      expect(sessionRes.data.model).toBeTruthy()
+      expect(sessionRes.data.maxTokens).toBeGreaterThan(0)
 
       // Session should NOT leak the API key
-      expect(sessionRes.data.data).not.toHaveProperty('apiKey')
+      expect(sessionRes.data).not.toHaveProperty('apiKey')
       const raw = JSON.stringify(sessionRes.data)
       expect(raw).not.toMatch(/sk-ant-|sk-/)
     })
@@ -98,13 +98,13 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       // Create session
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId: qsResult.agent.id }
       )
 
       expect(sessionRes.status).toBe(200)
-      const token = sessionRes.data.data.sessionToken
+      const token = sessionRes.data.sessionToken
 
       // Stream response via WebSocket
       const result = await consumeWS(token, 'Respond with exactly: MULTI_PROVIDER_TEST_OK', { timeout: 60_000 })
@@ -154,20 +154,20 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     test.skipIf(!hasProviderKey())('GET agent returns providerModels from quickstart', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
-      const agentRes = await get<{ data: Record<string, any> }>(
+      const agentRes = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`
       )
 
       expect(agentRes.status).toBe(200)
-      expect(agentRes.data.data.providerModels).toBeDefined()
-      expect(Array.isArray(agentRes.data.data.providerModels)).toBe(true)
+      expect(agentRes.data.providerModels).toBeDefined()
+      expect(Array.isArray(agentRes.data.providerModels)).toBe(true)
     })
 
     test.skipIf(!hasProviderKey())('update agent with explicit junction model changes session model', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       // Set explicit junction model
-      const updateRes = await put<{ data: Record<string, any> }>(
+      const updateRes = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
         {
           providers: [
@@ -179,13 +179,13 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(updateRes.status).toBe(200)
 
       // Session should use the junction model
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId: qsResult.agent.id }
       )
 
       expect(sessionRes.status).toBe(200)
-      expect(sessionRes.data.data.model).toBe('custom-junction-model')
+      expect(sessionRes.data.model).toBe('custom-junction-model')
     })
   })
 
@@ -198,7 +198,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     beforeAll(async () => {
       if (!hasProviderKey()) return
 
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -208,12 +208,12 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         }
       )
 
-      if (res.status !== 201 || !res.data?.data?.agent?.id) {
+      if (res.status !== 201 || !res.data?.agent?.id) {
         setupFailed = true
         return
       }
 
-      qsResult = res.data.data
+      qsResult = res.data
     })
 
     afterAll(async () => {
@@ -229,42 +229,42 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       // Verify the quickstart agent has providers
-      const agentRes = await get<{ data: Record<string, any> }>(
+      const agentRes = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`
       )
 
       expect(agentRes.status).toBe(200)
-      expect(Array.isArray(agentRes.data.data.providers)).toBe(true)
-      expect(agentRes.data.data.providers.length).toBeGreaterThanOrEqual(1)
+      expect(Array.isArray(agentRes.data.providers)).toBe(true)
+      expect(agentRes.data.providers.length).toBeGreaterThanOrEqual(1)
 
-      const primaryProvider = agentRes.data.data.providers[0]
+      const primaryProvider = agentRes.data.providers[0]
 
       // Create session — should use the primary provider
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId: qsResult.agent.id }
       )
 
       expect(sessionRes.status).toBe(200)
-      expect(sessionRes.data.data.sessionToken).toBeTruthy()
+      expect(sessionRes.data.sessionToken).toBeTruthy()
 
       // Provider type should match what the primary provider resolves to
       const expectedProvider = primaryProvider.brand
       if (expectedProvider) {
-        expect(sessionRes.data.data.provider).toBe(expectedProvider)
+        expect(sessionRes.data.provider).toBe(expectedProvider)
       }
     })
 
     test.skipIf(!hasProviderKey())('session streams valid LLM response via WS', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId: qsResult.agent.id }
       )
 
       expect(sessionRes.status).toBe(200)
-      const token = sessionRes.data.data.sessionToken
+      const token = sessionRes.data.sessionToken
 
       const result = await consumeWS(token, 'Say OK', { timeout: 60_000 })
 
@@ -295,7 +295,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (!hasProviderKey()) return
 
       // Create a project
-      const projRes = await post<{ data: { id: string } }>(
+      const projRes = await post<{ id: string }>(
         `/orgs/${ctx.orgId}/projects`,
         { name: uniqueName('MP Switch Project'), orgId: ctx.orgId }
       )
@@ -304,10 +304,10 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         setupFailed = true
         return
       }
-      projectId = projRes.data.data.id
+      projectId = projRes.data.id
 
       // Use quickstart to create agent + provider + secret with real key
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -322,13 +322,13 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         return
       }
 
-      const qs = qsRes.data.data
+      const qs = qsRes.data
       agentId = qs.agent.id
       provider1Id = qs.provider.id
       secretId = qs.secret?.id
 
       // Create a second zai provider (same template)
-      const prov2Res = await post<{ data: { id: string } }>(
+      const prov2Res = await post<{ id: string }>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('MP Switch Provider 2'),
@@ -343,10 +343,10 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         setupFailed = true
         return
       }
-      provider2Id = prov2Res.data.data.id
+      provider2Id = prov2Res.data.id
 
       // Create a secret for provider2 so it can resolve API keys for sessions
-      const secret2Res = await post<{ data: { id: string } }>(
+      const secret2Res = await post<{ id: string }>(
         `/orgs/${ctx.orgId}/secrets`,
         {
           name: uniqueName('MP Switch Secret 2'),
@@ -355,8 +355,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         }
       )
 
-      if (secret2Res.status === 201 && secret2Res.data?.data?.id) {
-        secret2Id = secret2Res.data.data.id
+      if (secret2Res.status === 201 && secret2Res.data?.id) {
+        secret2Id = secret2Res.data.id
         // Explicitly link provider2 to its secret (createSecret doesn't auto-set provider.secretId)
         await put(`/orgs/${ctx.orgId}/providers/${provider2Id}`, { secretId: secret2Id })
       }
@@ -380,28 +380,28 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       // Verify agent has provider1 as primary
-      const agentRes = await get<{ data: Record<string, any> }>(
+      const agentRes = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`
       )
 
       expect(agentRes.status).toBe(200)
-      expect(agentRes.data.data.providers[0].id).toBe(provider1Id)
+      expect(agentRes.data.providers[0].id).toBe(provider1Id)
 
       // Session should resolve to zai via provider1
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId }
       )
 
       expect(sessionRes.status).toBe(200)
-      expect(sessionRes.data.data.provider).toBe('zai')
+      expect(sessionRes.data.provider).toBe('zai')
     })
 
     test.skipIf(!hasProviderKey())('update agent to add second provider and switch primary', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       // Add provider2 and make it primary
-      const res = await put<{ data: Record<string, any> }>(
+      const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`,
         { providerIds: [provider2Id, provider1Id] }
       )
@@ -409,39 +409,39 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(res.status).toBe(200)
 
       // Verify ordering changed
-      const getRes = await get<{ data: Record<string, any> }>(
+      const getRes = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`
       )
 
-      expect(getRes.data.data.providers[0].id).toBe(provider2Id)
-      expect(getRes.data.data.providers[1].id).toBe(provider1Id)
+      expect(getRes.data.providers[0].id).toBe(provider2Id)
+      expect(getRes.data.providers[1].id).toBe(provider1Id)
     })
 
     test.skipIf(!hasProviderKey())('session after switch uses new primary provider', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       // Session should now resolve via provider2
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId }
       )
 
       expect(sessionRes.status).toBe(200)
       // Both providers are zai, so provider type stays the same
-      expect(sessionRes.data.data.provider).toBe('zai')
-      expect(sessionRes.data.data.sessionToken).toBeTruthy()
+      expect(sessionRes.data.provider).toBe('zai')
+      expect(sessionRes.data.sessionToken).toBeTruthy()
     })
 
     test.skipIf(!hasProviderKey())('LLM stream works after provider switch via WS', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId }
       )
 
       expect(sessionRes.status).toBe(200)
-      const token = sessionRes.data.data.sessionToken
+      const token = sessionRes.data.sessionToken
 
       const result = await consumeWS(token, 'Respond with: PROVIDER_SWITCH_OK', { timeout: 60_000 })
 
@@ -468,7 +468,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       // Restore provider1 as primary
-      const res = await put<{ data: Record<string, any> }>(
+      const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`,
         { providerIds: [provider1Id, provider2Id] }
       )
@@ -476,19 +476,19 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(res.status).toBe(200)
 
       // Verify provider1 is back as primary
-      const getRes = await get<{ data: Record<string, any> }>(
+      const getRes = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`
       )
-      expect(getRes.data.data.providers[0].id).toBe(provider1Id)
+      expect(getRes.data.providers[0].id).toBe(provider1Id)
 
       // Create session and verify LLM still works
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId }
       )
 
       expect(sessionRes.status).toBe(200)
-      const token = sessionRes.data.data.sessionToken
+      const token = sessionRes.data.sessionToken
 
       const result = await consumeWS(token, 'Say YES', { timeout: 60_000 })
 
@@ -507,7 +507,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       // Update agent with per-provider models
-      const updateRes = await put<{ data: Record<string, any> }>(
+      const updateRes = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`,
         {
           providers: [
@@ -519,26 +519,26 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
       expect(updateRes.status).toBe(200)
 
-      const getRes = await get<{ data: Record<string, any> }>(
+      const getRes = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`
       )
 
-      expect(getRes.data.data.providerModels).toBeDefined()
-      expect(getRes.data.data.providerModels[0]).toBe('model-for-p1')
-      expect(getRes.data.data.providerModels[1]).toBe('model-for-p2')
+      expect(getRes.data.providerModels).toBeDefined()
+      expect(getRes.data.providerModels[0]).toBe('model-for-p1')
+      expect(getRes.data.providerModels[1]).toBe('model-for-p2')
     })
 
     test.skipIf(!hasProviderKey())('switching primary changes session model to new primary junction model', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       // Current state: provider1 is primary with model-for-p1
-      const session1 = await post<{ data: Record<string, any> }>(
+      const session1 = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId }
       )
 
       expect(session1.status).toBe(200)
-      expect(session1.data.data.model).toBe('model-for-p1')
+      expect(session1.data.model).toBe('model-for-p1')
 
       // Swap: provider2 becomes primary
       await put(`/orgs/${ctx.orgId}/agents/${agentId}`, {
@@ -549,13 +549,13 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       })
 
       // Session should now use model-for-p2
-      const session2 = await post<{ data: Record<string, any> }>(
+      const session2 = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId }
       )
 
       expect(session2.status).toBe(200)
-      expect(session2.data.data.model).toBe('model-for-p2')
+      expect(session2.data.model).toBe('model-for-p2')
 
       // Restore original order for cleanup
       await put(`/orgs/${ctx.orgId}/agents/${agentId}`, {
@@ -579,7 +579,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       if (!hasProviderKey()) return
 
       // Create agent via quickstart with real key
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -594,10 +594,10 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         return
       }
 
-      qsResult = qsRes.data.data
+      qsResult = qsRes.data
 
       // Add a second provider
-      const prov2Res = await post<{ data: { id: string } }>(
+      const prov2Res = await post<{ id: string }>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('MP Run Provider 2'),
@@ -612,7 +612,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         setupFailed = true
         return
       }
-      provider2Id = prov2Res.data.data.id
+      provider2Id = prov2Res.data.id
 
       // Update agent to have both providers
       await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
@@ -667,14 +667,14 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
     test.skipIf(!hasProviderKey())('multi-provider agent verifies providers array before run', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
-      const res = await get<{ data: Record<string, any> }>(
+      const res = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`
       )
 
       expect(res.status).toBe(200)
-      expect(res.data.data.providers.length).toBe(2)
-      expect(res.data.data.providers[0].id).toBe(qsResult.provider.id)
-      expect(res.data.data.providers[1].id).toBe(provider2Id)
+      expect(res.data.providers.length).toBe(2)
+      expect(res.data.providers[0].id).toBe(qsResult.provider.id)
+      expect(res.data.providers[1].id).toBe(provider2Id)
     })
   })
 
@@ -682,7 +682,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
   describe('security: no key leakage', () => {
     test.skipIf(!hasProviderKey())('agent response never contains API keys or secret values', async () => {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -693,10 +693,10 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       )
 
       expect(qsRes.status).toBe(201)
-      const qs = qsRes.data.data
+      const qs = qsRes.data
 
       // GET agent should not contain API key
-      const agentRes = await get<{ data: Record<string, any> }>(
+      const agentRes = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${qs.agent.id}`
       )
 
@@ -706,7 +706,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(agentJson).not.toContain('encryptedValue')
 
       // List agents should not contain API key
-      const listRes = await get<{ data: Record<string, any>[] }>(
+      const listRes = await get<Record<string, any>[]>(
         `/orgs/${ctx.orgId}/agents`
       )
 
@@ -715,7 +715,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(listJson).not.toMatch(/sk-ant-/)
 
       // Session creation should not leak API key
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId: qs.agent.id }
       )

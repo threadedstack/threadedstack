@@ -172,7 +172,7 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
     // Create a fresh agent with a real provider key via quickstart.
     // We can't use pre-configured testAgentId/testZaiAgentId because their
     // provider secrets may have been cleaned up by other tests.
-    const qsRes = await post<{ data: Record<string, any> }>(
+    const qsRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -182,16 +182,16 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
       }
     )
     expect(qsRes.status).toBe(201)
-    const agentId = qsRes.data.data.agent.id
+    const agentId = qsRes.data.agent.id
 
     try {
       // Create a session
-      const sessionRes = await post<{ data: { sessionToken: string } }>(
+      const sessionRes = await post<{ sessionToken: string }>(
         `/_/ai/sessions`,
         { agentId }
       )
       expect(sessionRes.status).toBe(200)
-      const token = sessionRes.data.data.sessionToken
+      const token = sessionRes.data.sessionToken
       expect(token).toBeTruthy()
 
       // Send a real prompt through the WS and verify the agent streams back data.
@@ -219,7 +219,7 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
       }
     } finally {
       // Clean up quickstart resources
-      const qs = qsRes.data.data
+      const qs = qsRes.data
       if (qs.endpoint?.id)
         await api(`/orgs/${ctx.orgId}/projects/${qs.project?.id}/endpoints/${qs.endpoint.id}`, { method: 'DELETE' })
       if (qs.agent?.id)
@@ -239,12 +239,12 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Start a new pod for the same sandbox
-    const startRes = await post<{ data: { podName: string } }>(
+    const startRes = await post<{ podName: string }>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
       { projectId }
     )
     expect(startRes.status).toBe(201)
-    const newPodName = startRes.data.data.podName
+    const newPodName = startRes.data.podName
 
     try {
       await waitForPodState(ctx.orgId, sandboxId, newPodName, 'Running', 90_000)

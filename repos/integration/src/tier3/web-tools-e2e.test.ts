@@ -30,7 +30,7 @@ describe('Tier 3: Web Tools E2E (live, SSE)', () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -40,8 +40,8 @@ describe('Tier 3: Web Tools E2E (live, SSE)', () => {
         }
       )
 
-      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
-        qsResult = qsRes.data.data
+      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
+        qsResult = qsRes.data
         agentId = qsResult!.agent.id
       }
     }
@@ -53,7 +53,7 @@ describe('Tier 3: Web Tools E2E (live, SSE)', () => {
     if (!agentId) return
 
     // Verify agent is accessible
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`
     )
 

@@ -50,8 +50,8 @@ describe('Tier 3: Sandbox Sessions', () => {
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(res.data.data).toHaveLength(0)
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(res.data).toHaveLength(0)
   })
 
   test('GET /:id/sessions without auth returns 401', async () => {
@@ -77,18 +77,18 @@ describe('Tier 3: Sandbox Sessions', () => {
 
   test('GET /:id/sessions for sandbox with no running pod returns empty array', async () => {
     // Create a sandbox config but never start a pod for it
-    const sbRes = await post<{ data: Record<string, any> }>(
+    const sbRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/sandboxes`,
       { name: uniqueName('sessions-no-pod'), config: sandboxConfig, orgId: ctx.orgId }
     )
     expect(sbRes.status).toBe(201)
-    extraSandboxId = sbRes.data.data.id
+    extraSandboxId = sbRes.data.id
 
     const res = await getSessions(ctx.orgId, extraSandboxId)
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(res.data.data).toHaveLength(0)
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(res.data).toHaveLength(0)
   })
 })

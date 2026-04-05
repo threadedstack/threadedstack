@@ -40,7 +40,7 @@ describe('Tier 3: Agent with Partial (Deleted) Functions', () => {
 
   beforeAll(async () => {
     // Step 1: Quickstart to create agent + provider + secret + project + endpoint
-    const qsRes = await post<{ data: Record<string, any> }>(
+    const qsRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -50,18 +50,18 @@ describe('Tier 3: Agent with Partial (Deleted) Functions', () => {
       }
     )
 
-    if (qsRes.status !== 201 || !qsRes.data?.data?.agent?.id) {
+    if (qsRes.status !== 201 || !qsRes.data?.agent?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data.data
+    quickstartResult = qsRes.data
     agentId = quickstartResult.agent.id
     projectId = quickstartResult.project.id
 
     // Step 2: Create two functions in the project
     const [fn1Res, fn2Res] = await Promise.all([
-      post<{ data: Record<string, any> }>(
+      post<Record<string, any>>(
         `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
         {
           name: uniqueName('partial-fn-keep'),
@@ -70,7 +70,7 @@ describe('Tier 3: Agent with Partial (Deleted) Functions', () => {
           description: 'Function that will be kept',
         }
       ),
-      post<{ data: Record<string, any> }>(
+      post<Record<string, any>>(
         `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
         {
           name: uniqueName('partial-fn-delete'),
@@ -82,15 +82,15 @@ describe('Tier 3: Agent with Partial (Deleted) Functions', () => {
     ])
 
     if (
-      fn1Res.status !== 201 || !fn1Res.data?.data?.id ||
-      fn2Res.status !== 201 || !fn2Res.data?.data?.id
+      fn1Res.status !== 201 || !fn1Res.data?.id ||
+      fn2Res.status !== 201 || !fn2Res.data?.id
     ) {
       setupFailed = true
       return
     }
 
-    fn1Id = fn1Res.data.data.id
-    fn2Id = fn2Res.data.data.id
+    fn1Id = fn1Res.data.id
+    fn2Id = fn2Res.data.id
 
     // Step 3: Link both functions to the agent via project config functionIds
     const configRes = await put(
@@ -104,14 +104,14 @@ describe('Tier 3: Agent with Partial (Deleted) Functions', () => {
     }
 
     // Step 4: Verify both functions are in the config before deletion
-    const verifyRes = await get<{ data: { functionIds: string[] } }>(
+    const verifyRes = await get<{ functionIds: string[] }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/agents/${agentId}/config`
     )
 
     if (
       verifyRes.status !== 200 ||
-      !verifyRes.data?.data?.functionIds?.includes(fn1Id) ||
-      !verifyRes.data?.data?.functionIds?.includes(fn2Id)
+      !verifyRes.data?.functionIds?.includes(fn1Id) ||
+      !verifyRes.data?.functionIds?.includes(fn2Id)
     ) {
       setupFailed = true
       return
@@ -161,13 +161,13 @@ describe('Tier 3: Agent with Partial (Deleted) Functions', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
     if (deleteForbidden) return // skip gracefully if delete was forbidden
 
-    const configRes = await get<{ data: { functionIds: string[] } }>(
+    const configRes = await get<{ functionIds: string[] }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/agents/${agentId}/config`
     )
 
     expect(configRes.status).toBe(200)
 
-    const { functionIds } = configRes.data.data
+    const { functionIds } = configRes.data
     // Config is NOT auto-cleaned — both IDs remain even though fn2 is deleted
     expect(functionIds).toContain(fn1Id)
     expect(functionIds).toContain(fn2Id)
@@ -187,13 +187,13 @@ describe('Tier 3: Agent with Partial (Deleted) Functions', () => {
   test('remaining function returns 200', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${fn1Id}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBe(fn1Id)
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBe(fn1Id)
   })
 
   test('agent SSE stream starts despite missing function', async () => {
@@ -224,12 +224,12 @@ describe('Tier 3: Agent with Partial (Deleted) Functions', () => {
   test('remaining function is still queryable after agent run', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${fn1Id}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBe(fn1Id)
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBe(fn1Id)
   })
 })

@@ -35,7 +35,7 @@ describe('Tier 1: WebSocket Close Resilience (C1 fix)', () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -45,8 +45,8 @@ describe('Tier 1: WebSocket Close Resilience (C1 fix)', () => {
         }
       )
 
-      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
-        qsResult = qsRes.data.data
+      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
+        qsResult = qsRes.data
         agentId = qsResult!.agent.id
       }
     }
@@ -69,12 +69,12 @@ describe('Tier 1: WebSocket Close Resilience (C1 fix)', () => {
   })
 
   const createSessionToken = async (): Promise<string | null> => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
-    if (res.status !== 200 || !res.data?.data?.sessionToken) return null
-    return res.data.data.sessionToken
+    if (res.status !== 200 || !res.data?.sessionToken) return null
+    return res.data.sessionToken
   }
 
   // ─── Rapid Close During Runner Init (C1 fix) ──────────────────────

@@ -39,7 +39,7 @@ describe('Tier 1: Agent Project Config', () => {
     orgId = ctx.orgId
 
     // Create a quickstart setup: provider + secret + project + agent + endpoint
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -53,18 +53,18 @@ describe('Tier 1: Agent Project Config', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.project?.id) {
+    if (res.status !== 201 || !res.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     projectId = quickstartResult.project.id
     agentId = quickstartResult.agent.id
     providerId = quickstartResult.provider?.id || ''
 
     // Create a function in the project for functionIds tests
-    const funcRes = await post<{ data: { id: string } }>(
+    const funcRes = await post<{ id: string }>(
       `/orgs/${orgId}/projects/${projectId}/functions`,
       {
         name: uniqueName('config-test-func'),
@@ -74,8 +74,8 @@ describe('Tier 1: Agent Project Config', () => {
       }
     )
 
-    if (funcRes.ok && funcRes.data?.data?.id) {
-      functionId = funcRes.data.data.id
+    if (funcRes.ok && funcRes.data?.id) {
+      functionId = funcRes.data.id
     }
   })
 
@@ -95,23 +95,23 @@ describe('Tier 1: Agent Project Config', () => {
   test('GET config returns 200 with null overrides when no override has been set', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, unknown> }>(configPath())
+    const res = await get<Record<string, unknown>>(configPath())
 
     // Quickstart creates the agentProjects row (agent linked to project),
     // so a config record exists but all override fields are null
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
     // Override fields should be null (no overrides set yet)
-    expect(res.data.data.model).toBeNull()
-    expect(res.data.data.maxTokens).toBeNull()
-    expect(res.data.data.systemPrompt).toBeNull()
+    expect(res.data.model).toBeNull()
+    expect(res.data.maxTokens).toBeNull()
+    expect(res.data.systemPrompt).toBeNull()
   })
 
   test('PUT config creates a project override', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await put<{ data: { id: string; model: string } }>(
+    const res = await put<{ id: string; model: string }>(
       configPath(),
       {
         model: 'claude-haiku-3-5-20241022',
@@ -125,29 +125,27 @@ describe('Tier 1: Agent Project Config', () => {
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
     // Response is the effective (merged) agent
-    expect(res.data.data.model).toBe('claude-haiku-3-5-20241022')
+    expect(res.data.model).toBe('claude-haiku-3-5-20241022')
   })
 
   test('GET config returns saved override', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await get<{
-      data: {
         model: string
         maxTokens: number
         systemPrompt: string
         tools: string[]
         envVars: Record<string, string>
         environment: Record<string, unknown>
-      }
-    }>(configPath())
+      }>(configPath())
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
 
-    const config = res.data.data
+    const config = res.data
     expect(config.model).toBe('claude-haiku-3-5-20241022')
     expect(config.maxTokens).toBe(8192)
     expect(config.systemPrompt).toBe('You are a project-specific assistant.')
@@ -165,7 +163,6 @@ describe('Tier 1: Agent Project Config', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await get<{
-      data: {
         id: string
         name: string
         model: string
@@ -173,14 +170,12 @@ describe('Tier 1: Agent Project Config', () => {
         systemPrompt: string
         tools: string[]
         description: string
-      }
-      overrides: Record<string, unknown> | null
-    }>(projectAgentPath())
+      }>(projectAgentPath())
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
 
-    const agent = res.data.data
+    const agent = res.data
     // Overridden fields should reflect project values
     expect(agent.model).toBe('claude-haiku-3-5-20241022')
     expect(agent.maxTokens).toBe(8192)
@@ -192,28 +187,25 @@ describe('Tier 1: Agent Project Config', () => {
     expect(agent.description).toBe('Base agent description')
 
     // Overrides metadata should be present
-    expect(res.data.overrides).toBeDefined()
-    expect(res.data.overrides).not.toBeNull()
+    expect(res.overrides).toBeDefined()
+    expect(res.overrides).not.toBeNull()
   })
 
   test('base agent at org level is unchanged', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await get<{
-      data: {
         id: string
         model: string
         maxTokens: number
         systemPrompt: string
         tools: string[]
-      }
-      overrides: unknown
-    }>(agentPath())
+      }>(agentPath())
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
 
-    const agent = res.data.data
+    const agent = res.data
     // Org-level agent should have the ORIGINAL values, not the overrides
     expect(agent.model).toBe('claude-sonnet-4-20250514')
     expect(agent.maxTokens).toBe(50000)
@@ -221,24 +213,22 @@ describe('Tier 1: Agent Project Config', () => {
     expect(agent.tools).toEqual([])
 
     // Overrides should be null at org level
-    expect(res.data.overrides).toBeNull()
+    expect(res.overrides).toBeNull()
   })
 
   test('list agents in project returns merged effective configs', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{
-      data: Array<{
+    const res = await get<Array<{
         id: string
         model: string
         maxTokens: number
-      }>
-    }>(`/orgs/${orgId}/projects/${projectId}/agents`)
+      }>>(`/orgs/${orgId}/projects/${projectId}/agents`)
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
 
-    const ourAgent = res.data.data.find((a) => a.id === agentId)
+    const ourAgent = res.data.find((a) => a.id === agentId)
     expect(ourAgent).toBeDefined()
     // Should have the project-overridden values
     expect(ourAgent!.model).toBe('claude-haiku-3-5-20241022')
@@ -252,22 +242,20 @@ describe('Tier 1: Agent Project Config', () => {
 
     // Update only maxTokens, leave other overrides in place
     const res = await put<{
-      data: {
         model: string
         maxTokens: number
         systemPrompt: string
-      }
-    }>(configPath(), { maxTokens: 4096 })
+      }>(configPath(), { maxTokens: 4096 })
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
 
     // maxTokens should be updated
-    expect(res.data.data.maxTokens).toBe(4096)
+    expect(res.data.maxTokens).toBe(4096)
     // model should still be the previous override
-    expect(res.data.data.model).toBe('claude-haiku-3-5-20241022')
+    expect(res.data.model).toBe('claude-haiku-3-5-20241022')
     // systemPrompt should still be the previous override
-    expect(res.data.data.systemPrompt).toBe(
+    expect(res.data.systemPrompt).toBe(
       'You are a project-specific assistant.'
     )
   })
@@ -288,12 +276,10 @@ describe('Tier 1: Agent Project Config', () => {
     })
 
     // Fetch via project path — should be deep merged
-    const res = await get<{
-      data: { envVars: Record<string, string> }
-    }>(projectAgentPath())
+    const res = await get<{ envVars: Record<string, string> }>(projectAgentPath())
 
     expect(res.status).toBe(200)
-    const envVars = res.data.data.envVars
+    const envVars = res.data.envVars
 
     // Base key preserved
     expect(envVars.BASE_VAR).toBe('base-value')
@@ -312,19 +298,15 @@ describe('Tier 1: Agent Project Config', () => {
     if (setupFailed || !functionId) return expect(setupFailed).toBe(false)
 
     // Assign function to agent via project config
-    const res = await put<{
-      data: { id: string }
-    }>(configPath(), { functionIds: [functionId] })
+    const res = await put<{ id: string }>(configPath(), { functionIds: [functionId] })
 
     expect(res.status).toBe(200)
 
     // Verify config has the functionIds
-    const configRes = await get<{
-      data: { functionIds: string[] }
-    }>(configPath())
+    const configRes = await get<{ functionIds: string[] }>(configPath())
 
     expect(configRes.status).toBe(200)
-    expect(configRes.data.data.functionIds).toEqual([functionId])
+    expect(configRes.data.functionIds).toEqual([functionId])
   })
 
   test('functionIds — rejects function from wrong project', async () => {
@@ -344,30 +326,28 @@ describe('Tier 1: Agent Project Config', () => {
   test('DELETE config resets overrides (agent stays linked)', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await del<{ data: { id: string; configReset: boolean } }>(
+    const res = await del<{ id: string; configReset: boolean }>(
       configPath()
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data.configReset).toBe(true)
+    expect(res.data.configReset).toBe(true)
   })
 
   test('GET agent after config delete returns base values', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await get<{
-      data: {
         id: string
         model: string
         maxTokens: number
         systemPrompt: string
         tools: string[]
-      }
-    }>(projectAgentPath())
+      }>(projectAgentPath())
 
     expect(res.status).toBe(200)
-    const agent = res.data.data
+    const agent = res.data
 
     // After config reset, all fields should revert to base values
     expect(agent.model).toBe('claude-sonnet-4-20250514')
@@ -379,12 +359,12 @@ describe('Tier 1: Agent Project Config', () => {
   test('agent is still linked to project after config reset', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Array<{ id: string }> }>(
+    const res = await get<Array<{ id: string }>>(
       `/orgs/${orgId}/projects/${projectId}/agents`
     )
 
     expect(res.status).toBe(200)
-    const ourAgent = res.data.data.find((a) => a.id === agentId)
+    const ourAgent = res.data.find((a) => a.id === agentId)
     expect(ourAgent).toBeDefined()
   })
 
@@ -394,29 +374,29 @@ describe('Tier 1: Agent Project Config', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Unlink agent from project
-    const unlinkRes = await del<{ data: { id: string; unlinked: boolean } }>(
+    const unlinkRes = await del<{ id: string; unlinked: boolean }>(
       projectAgentPath()
     )
 
     expect(unlinkRes.status).toBe(200)
     expect(unlinkRes.ok).toBe(true)
-    expect(unlinkRes.data.data.unlinked).toBe(true)
+    expect(unlinkRes.data.unlinked).toBe(true)
 
     // Agent should no longer appear in project's agent list
-    const listRes = await get<{ data: Array<{ id: string }> }>(
+    const listRes = await get<Array<{ id: string }>>(
       `/orgs/${orgId}/projects/${projectId}/agents`
     )
     expect(listRes.status).toBe(200)
-    const found = listRes.data.data.find((a) => a.id === agentId)
+    const found = listRes.data.find((a) => a.id === agentId)
     expect(found).toBeUndefined()
 
     // Base agent should still exist at org level
-    const orgRes = await get<{ data: { id: string; name: string } }>(
+    const orgRes = await get<{ id: string; name: string }>(
       agentPath()
     )
     expect(orgRes.status).toBe(200)
-    expect(orgRes.data.data.id).toBe(agentId)
-    expect(orgRes.data.data.name).toContain('Config Override Agent')
+    expect(orgRes.data.id).toBe(agentId)
+    expect(orgRes.data.name).toContain('Config Override Agent')
 
     // Re-link agent to project for cleanup to work properly
     await put(agentPath(), { projectIds: [projectId] })

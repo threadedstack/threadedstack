@@ -45,7 +45,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
       sandboxProjectId = setup.projectId
 
       // 2. Create agent via quickstart with real LLM provider key
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -55,11 +55,11 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
         }
       )
 
-      if (qsRes.status !== 201 || !qsRes.data?.data?.agent?.id) {
+      if (qsRes.status !== 201 || !qsRes.data?.agent?.id) {
         throw new Error(`Quickstart failed: HTTP ${qsRes.status}`)
       }
 
-      quickstartResult = qsRes.data.data
+      quickstartResult = qsRes.data
       agentId = quickstartResult!.agent.id
       agentProjectId = quickstartResult!.project.id
 
@@ -177,7 +177,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
     )
 
     // File was either written by the agent or wasn't (LLM may not always use tools)
-    const output = checkRes.data.data.output.trim()
+    const output = checkRes.data.output.trim()
     if (output !== '__NOT_FOUND__') {
       expect(output).toContain(markerContent)
     }
@@ -193,7 +193,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
     // Verify pod is still running — agent shouldn't stop it
     const verifyRes = await execInPod(ctx.orgId, sandboxId, podName, 'echo still-alive')
 
-    expect(verifyRes.data.data.success).toBe(true)
-    expect(verifyRes.data.data.output.trim()).toBe('still-alive')
+    expect(verifyRes.data.success).toBe(true)
+    expect(verifyRes.data.output.trim()).toBe('still-alive')
   })
 })

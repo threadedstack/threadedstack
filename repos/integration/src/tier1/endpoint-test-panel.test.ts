@@ -22,7 +22,7 @@ describe('Tier 1: Endpoint Test Panel API', () => {
   let setupFailed = false
 
   beforeAll(async () => {
-    const epRes = await post<{ data: Record<string, any> }>(
+    const epRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints`,
       {
         name: uniqueName('EP Test Panel Proxy'),
@@ -34,15 +34,15 @@ describe('Tier 1: Endpoint Test Panel API', () => {
       }
     )
 
-    if (epRes.status !== 201 || !epRes.data?.data?.id) {
+    if (epRes.status !== 201 || !epRes.data?.id) {
       setupFailed = true
       return
     }
 
-    proxyEpId = epRes.data.data.id
+    proxyEpId = epRes.data.id
 
     // Create POST endpoint for body payload tests
-    const postEpRes = await post<{ data: Record<string, any> }>(
+    const postEpRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${ctx.projectId}/endpoints`,
       {
         name: uniqueName('EP Test Panel POST'),
@@ -54,8 +54,8 @@ describe('Tier 1: Endpoint Test Panel API', () => {
       }
     )
 
-    if (postEpRes.status === 201 && postEpRes.data?.data?.id) {
-      postEpId = postEpRes.data.data.id
+    if (postEpRes.status === 201 && postEpRes.data?.id) {
+      postEpId = postEpRes.data.id
     }
   }, 30_000)
 

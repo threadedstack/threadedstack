@@ -37,7 +37,7 @@ describe('Tier 1: Functions CRUD', () => {
   ]
 
   beforeAll(async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -47,12 +47,12 @@ describe('Tier 1: Functions CRUD', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.project?.id) {
+    if (res.status !== 201 || !res.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     projectId = quickstartResult.project.id
   })
 
@@ -81,7 +81,7 @@ describe('Tier 1: Functions CRUD', () => {
   test('POST creates function with basic fields', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
         name: basicFnName,
@@ -93,23 +93,23 @@ describe('Tier 1: Functions CRUD', () => {
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBeDefined()
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBeDefined()
 
-    functionId = res.data.data.id
+    functionId = res.data.id
   })
 
   test('created function has expected shape', async () => {
     if (setupFailed || !functionId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const fn = res.data.data
+    const fn = res.data
     expect(fn.id).toBe(functionId)
     expect(fn.name).toBe(basicFnName)
     expect(fn.content).toBe(functionContent)
@@ -123,17 +123,17 @@ describe('Tier 1: Functions CRUD', () => {
   test('GET list returns created function', async () => {
     if (setupFailed || !functionId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(typeof res.data.limit).toBe('number')
-    expect(typeof res.data.offset).toBe('number')
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(typeof res.limit).toBe('number')
+    expect(typeof res.offset).toBe('number')
 
-    const found = res.data.data.find((f: any) => f.id === functionId)
+    const found = res.data.find((f: any) => f.id === functionId)
     expect(found).toBeDefined()
     expect(found?.name).toBe(basicFnName)
   })
@@ -143,15 +143,15 @@ describe('Tier 1: Functions CRUD', () => {
   test('GET single function by ID', async () => {
     if (setupFailed || !functionId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBe(functionId)
-    expect(res.data.data.name).toBe(basicFnName)
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBe(functionId)
+    expect(res.data.name).toBe(basicFnName)
   })
 
   // --- Create with inputSchema ---
@@ -159,7 +159,7 @@ describe('Tier 1: Functions CRUD', () => {
   test('POST creates function with inputSchema', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
         name: schemaFnName,
@@ -173,31 +173,31 @@ describe('Tier 1: Functions CRUD', () => {
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBeDefined()
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBeDefined()
 
-    schemaFunctionId = res.data.data.id
+    schemaFunctionId = res.data.id
   })
 
   test('inputSchema persists correctly', async () => {
     if (setupFailed || !schemaFunctionId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${schemaFunctionId}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.description).toBe('A function with input schema')
-    expect(Array.isArray(res.data.data.inputSchema)).toBe(true)
-    expect(res.data.data.inputSchema).toHaveLength(2)
+    expect(res.data).toBeDefined()
+    expect(res.data.description).toBe('A function with input schema')
+    expect(Array.isArray(res.data.inputSchema)).toBe(true)
+    expect(res.data.inputSchema).toHaveLength(2)
 
-    const cityParam = res.data.data.inputSchema.find((p: any) => p.name === 'city')
+    const cityParam = res.data.inputSchema.find((p: any) => p.name === 'city')
     expect(cityParam).toBeDefined()
     expect(cityParam.type).toBe('string')
     expect(cityParam.required).toBe(true)
 
-    const tempParam = res.data.data.inputSchema.find((p: any) => p.name === 'temperature')
+    const tempParam = res.data.inputSchema.find((p: any) => p.name === 'temperature')
     expect(tempParam).toBeDefined()
     expect(tempParam.type).toBe('number')
     expect(tempParam.required).toBe(false)
@@ -209,15 +209,15 @@ describe('Tier 1: Functions CRUD', () => {
   test('PUT updates function name', async () => {
     if (setupFailed || !functionId) return expect(setupFailed).toBe(false)
 
-    const res = await put<{ data: Record<string, any> }>(
+    const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`,
       { name: updatedFnName }
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.name).toBe(updatedFnName)
+    expect(res.data).toBeDefined()
+    expect(res.data.name).toBe(updatedFnName)
   })
 
   test('PUT updates inputSchema', async () => {
@@ -227,31 +227,31 @@ describe('Tier 1: Functions CRUD', () => {
       { name: 'country', type: 'string', description: 'Country name', required: true },
     ]
 
-    const res = await put<{ data: Record<string, any> }>(
+    const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${schemaFunctionId}`,
       { inputSchema: newSchema }
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
-    expect(Array.isArray(res.data.data.inputSchema)).toBe(true)
-    expect(res.data.data.inputSchema).toHaveLength(1)
-    expect(res.data.data.inputSchema[0].name).toBe('country')
+    expect(res.data).toBeDefined()
+    expect(Array.isArray(res.data.inputSchema)).toBe(true)
+    expect(res.data.inputSchema).toHaveLength(1)
+    expect(res.data.inputSchema[0].name).toBe('country')
   })
 
   test('PUT clears inputSchema with null', async () => {
     if (setupFailed || !schemaFunctionId) return expect(setupFailed).toBe(false)
 
-    const res = await put<{ data: Record<string, any> }>(
+    const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${schemaFunctionId}`,
       { inputSchema: null }
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
     // inputSchema should be null or not present after clearing
-    const schema = res.data.data.inputSchema
+    const schema = res.data.inputSchema
     expect(schema === null || schema === undefined).toBe(true)
   })
 
@@ -260,7 +260,7 @@ describe('Tier 1: Functions CRUD', () => {
   test('DELETE removes function (requires admin scope)', async () => {
     if (setupFailed || !functionId) return expect(setupFailed).toBe(false)
 
-    const res = await del<{ data: { success: boolean } }>(
+    const res = await del<{ success: boolean }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`
     )
 
@@ -273,7 +273,7 @@ describe('Tier 1: Functions CRUD', () => {
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data.success).toBe(true)
+    expect(res.data.success).toBe(true)
 
     // Preserve ID for the 404 test, then clear so afterAll skips it
     deletedFunctionId = functionId

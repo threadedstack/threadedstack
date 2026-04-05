@@ -29,7 +29,7 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
     if (!hasProviderKey()) return
 
     // Create agent via quickstart with real provider key
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -39,12 +39,12 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.agent?.id) {
+    if (res.status !== 201 || !res.data?.agent?.id) {
       setupFailed = true
       return
     }
 
-    qsResult = res.data.data
+    qsResult = res.data
   })
 
   afterAll(async () => {
@@ -62,7 +62,7 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Set an explicit junction model
-    const updateRes = await put<{ data: Record<string, any> }>(
+    const updateRes = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
       {
         providers: [
@@ -74,20 +74,20 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
     expect(updateRes.status).toBe(200)
 
     // Create session — should use junction model
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId: qsResult.agent.id }
     )
 
     expect(sessionRes.status).toBe(200)
-    expect(sessionRes.data.data.model).toBe('junction-test-model')
+    expect(sessionRes.data.model).toBe('junction-test-model')
   })
 
   test.skipIf(!hasProviderKey())('session falls through to agent.model when junction model is null', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Set agent-level model and clear junction model
-    const updateRes = await put<{ data: Record<string, any> }>(
+    const updateRes = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
       {
         model: 'agent-level-fallback',
@@ -99,20 +99,20 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
     expect(updateRes.status).toBe(200)
 
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId: qsResult.agent.id }
     )
 
     expect(sessionRes.status).toBe(200)
-    expect(sessionRes.data.data.model).toBe('agent-level-fallback')
+    expect(sessionRes.data.model).toBe('agent-level-fallback')
   })
 
   test.skipIf(!hasProviderKey())('junction model takes precedence over agent.model', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Set both agent-level model AND junction model
-    const updateRes = await put<{ data: Record<string, any> }>(
+    const updateRes = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
       {
         model: 'agent-default-should-be-overridden',
@@ -124,13 +124,13 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
     expect(updateRes.status).toBe(200)
 
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId: qsResult.agent.id }
     )
 
     expect(sessionRes.status).toBe(200)
-    expect(sessionRes.data.data.model).toBe('junction-override')
+    expect(sessionRes.data.model).toBe('junction-override')
   })
 
   // ─── Provider switching changes session model ────────────────────────
@@ -143,7 +143,7 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       if (!hasProviderKey() || setupFailed) return
 
       // Create a second provider with secret
-      const prov2Res = await post<{ data: { id: string } }>(
+      const prov2Res = await post<{ id: string }>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('MR Provider 2'),
@@ -155,10 +155,10 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       )
 
       if (prov2Res.status !== 201) return
-      provider2Id = prov2Res.data.data.id
+      provider2Id = prov2Res.data.id
 
       // Create secret for provider2
-      const secret2Res = await post<{ data: { id: string } }>(
+      const secret2Res = await post<{ id: string }>(
         `/orgs/${ctx.orgId}/secrets`,
         {
           name: uniqueName('MR Secret 2'),
@@ -167,8 +167,8 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
         }
       )
 
-      if (secret2Res.status === 201 && secret2Res.data?.data?.id) {
-        secret2Id = secret2Res.data.data.id
+      if (secret2Res.status === 201 && secret2Res.data?.id) {
+        secret2Id = secret2Res.data.id
         await put(`/orgs/${ctx.orgId}/providers/${provider2Id}`, { secretId: secret2Id })
       }
     })
@@ -190,13 +190,13 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       })
 
       // Session should use model-a (primary = provider1)
-      const session1 = await post<{ data: Record<string, any> }>(
+      const session1 = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId: qsResult.agent.id }
       )
 
       expect(session1.status).toBe(200)
-      expect(session1.data.data.model).toBe('model-a')
+      expect(session1.data.model).toBe('model-a')
 
       // Swap: provider2 becomes primary
       await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
@@ -207,13 +207,13 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       })
 
       // Session should now use model-b (primary = provider2)
-      const session2 = await post<{ data: Record<string, any> }>(
+      const session2 = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId: qsResult.agent.id }
       )
 
       expect(session2.status).toBe(200)
-      expect(session2.data.data.model).toBe('model-b')
+      expect(session2.data.model).toBe('model-b')
     })
   })
 
@@ -229,13 +229,13 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       ],
     })
 
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId: qsResult.agent.id }
     )
 
     expect(sessionRes.status).toBe(200)
-    expect(sessionRes.data.data.provider).toBe('zai')
+    expect(sessionRes.data.provider).toBe('zai')
   })
 
   // ─── 400 when no model at any tier ──────────────────────────────────
@@ -251,7 +251,7 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       ],
     })
 
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId: qsResult.agent.id }
     )
@@ -264,7 +264,7 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
     } else {
       // Provider had a default model — session succeeded with fallback
       expect(sessionRes.status).toBe(200)
-      expect(sessionRes.data.data.model).toBeTruthy()
+      expect(sessionRes.data.model).toBeTruthy()
     }
   })
 })

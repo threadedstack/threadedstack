@@ -30,7 +30,7 @@ describe('Tier 1: Sandbox Config CRUD', () => {
   // --- Create ---
 
   test('POST creates sandbox config', async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/sandboxes`,
       {
         name: sandboxName,
@@ -41,13 +41,13 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBeDefined()
-    expect(res.data.data.name).toBe(sandboxName)
-    expect(res.data.data.config).toBeDefined()
-    expect(res.data.data.config.image).toBe('node:22-slim')
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBeDefined()
+    expect(res.data.name).toBe(sandboxName)
+    expect(res.data.config).toBeDefined()
+    expect(res.data.config.image).toBe('node:22-slim')
 
-    sandboxId = res.data.data.id
+    sandboxId = res.data.id
   })
 
   test('POST without name returns 400', async () => {
@@ -82,15 +82,15 @@ describe('Tier 1: Sandbox Config CRUD', () => {
   test('GET single sandbox by ID', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const sandbox = res.data.data
+    const sandbox = res.data
     expect(sandbox.id).toBe(sandboxId)
     expect(sandbox.name).toBe(sandboxName)
     expect(sandbox.config.image).toBe('node:22-slim')
@@ -101,28 +101,28 @@ describe('Tier 1: Sandbox Config CRUD', () => {
   // --- List ---
 
   test('GET /sandboxes returns 200 with data array', async () => {
-    const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/sandboxes`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(typeof res.data.limit).toBe('number')
-    expect(typeof res.data.offset).toBe('number')
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(typeof res.limit).toBe('number')
+    expect(typeof res.offset).toBe('number')
   })
 
   test('GET list includes created sandbox', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
-    const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/sandboxes?limit=500`
     )
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
 
-    const found = res.data.data.find((s: any) => s.id === sandboxId)
+    const found = res.data.find((s: any) => s.id === sandboxId)
     expect(found).toBeDefined()
     expect(found?.name).toBe(sandboxName)
   })
@@ -132,21 +132,21 @@ describe('Tier 1: Sandbox Config CRUD', () => {
   test('PUT updates sandbox name', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
-    const res = await put<{ data: Record<string, any> }>(
+    const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`,
       { name: updatedName }
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.name).toBe(updatedName)
+    expect(res.data).toBeDefined()
+    expect(res.data.name).toBe(updatedName)
   })
 
   test('PUT updates sandbox config', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
-    const res = await put<{ data: Record<string, any> }>(
+    const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`,
       {
         config: {
@@ -159,8 +159,8 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data.config.image).toBe('python:3.12-slim')
-    expect(res.data.data.config.envVars).toEqual({ NODE_ENV: 'test' })
+    expect(res.data.config.image).toBe('python:3.12-slim')
+    expect(res.data.config.envVars).toEqual({ NODE_ENV: 'test' })
   })
 
   // --- Delete ---
@@ -168,7 +168,7 @@ describe('Tier 1: Sandbox Config CRUD', () => {
   test('DELETE removes sandbox', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
-    const res = await del<{ data: Record<string, any> }>(
+    const res = await del<Record<string, any>>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}`
     )
 
@@ -179,7 +179,7 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
     deletedSandboxId = sandboxId
     sandboxId = ''
@@ -222,11 +222,11 @@ describe('Tier 1: Sandbox Config CRUD', () => {
     }
 
     beforeAll(async () => {
-      const projRes = await post<{ data: Record<string, any> }>(
+      const projRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/projects`,
         { name: uniqueName('sb-proj-test'), orgId: ctx.orgId }
       )
-      if (projRes.ok) testProjectId = projRes.data.data.id
+      if (projRes.ok) testProjectId = projRes.data.id
     }, 30_000)
 
     afterAll(async () => {
@@ -241,7 +241,7 @@ describe('Tier 1: Sandbox Config CRUD', () => {
     test('POST creates sandbox with projectId', async () => {
       if (!testProjectId) return expect(testProjectId).toBeTruthy()
 
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         {
           name: uniqueName('sb-with-proj'),
@@ -253,55 +253,55 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
-      expect(res.data.data.projectId).toBe(testProjectId)
-      createdSandboxIds.push(res.data.data.id)
+      expect(res.data.projectId).toBe(testProjectId)
+      createdSandboxIds.push(res.data.id)
     })
 
     test('GET single sandbox includes projectId', async () => {
       if (!createdSandboxIds[0]) return expect(createdSandboxIds[0]).toBeTruthy()
 
-      const res = await get<{ data: Record<string, any> }>(
+      const res = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[0]}`
       )
 
       expect(res.status).toBe(200)
-      expect(res.data.data.projectId).toBe(testProjectId)
+      expect(res.data.projectId).toBe(testProjectId)
     })
 
     test('GET list with ?projectId filter returns only matching sandboxes', async () => {
       if (!testProjectId) return expect(testProjectId).toBeTruthy()
 
       // Create a sandbox WITHOUT projectId
-      const noProj = await post<{ data: Record<string, any> }>(
+      const noProj = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         { name: uniqueName('sb-no-proj'), config: baseCfg, orgId: ctx.orgId }
       )
       expect(noProj.status).toBe(201)
-      createdSandboxIds.push(noProj.data.data.id)
+      createdSandboxIds.push(noProj.data.id)
 
-      const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+      const res = await get<Record<string, any>[]>(
         `/orgs/${ctx.orgId}/sandboxes?projectId=${testProjectId}&limit=500`
       )
 
       expect(res.status).toBe(200)
-      expect(Array.isArray(res.data.data)).toBe(true)
+      expect(Array.isArray(res.data)).toBe(true)
 
-      const ids = res.data.data.map((s: any) => s.id)
+      const ids = res.data.map((s: any) => s.id)
       // The sandbox with projectId should be present
       expect(ids).toContain(createdSandboxIds[0])
       // The sandbox without projectId should NOT appear in filtered results
-      expect(ids).not.toContain(noProj.data.data.id)
+      expect(ids).not.toContain(noProj.data.id)
     })
 
     test('GET list without ?projectId returns all', async () => {
-      const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+      const res = await get<Record<string, any>[]>(
         `/orgs/${ctx.orgId}/sandboxes?limit=500`
       )
 
       expect(res.status).toBe(200)
-      expect(Array.isArray(res.data.data)).toBe(true)
+      expect(Array.isArray(res.data)).toBe(true)
 
-      const ids = res.data.data.map((s: any) => s.id)
+      const ids = res.data.map((s: any) => s.id)
       // Both sandboxes (with and without projectId) should be present
       for (const sbId of createdSandboxIds) {
         expect(ids).toContain(sbId)
@@ -311,33 +311,33 @@ describe('Tier 1: Sandbox Config CRUD', () => {
     test('PUT updates sandbox projectId', async () => {
       if (!createdSandboxIds[1]) return expect(createdSandboxIds[1]).toBeTruthy()
 
-      const res = await put<{ data: Record<string, any> }>(
+      const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[1]}`,
         { projectId: testProjectId }
       )
 
       expect(res.status).toBe(200)
       expect(res.ok).toBe(true)
-      expect(res.data.data.projectId).toBe(testProjectId)
+      expect(res.data.projectId).toBe(testProjectId)
     })
 
     test('PUT can set sandbox projectId to null', async () => {
       if (!createdSandboxIds[1]) return expect(createdSandboxIds[1]).toBeTruthy()
 
-      const res = await put<{ data: Record<string, any> }>(
+      const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[1]}`,
         { projectId: null }
       )
 
       expect(res.status).toBe(200)
       expect(res.ok).toBe(true)
-      expect(res.data.data.projectId).toBeFalsy()
+      expect(res.data.projectId).toBeFalsy()
     })
 
     // --- sshEnabled ---
 
     test('POST creates sandbox with sshEnabled=false', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         {
           name: uniqueName('sb-no-ssh'),
@@ -348,14 +348,14 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
-      expect(res.data.data.config.sshEnabled).toBe(false)
-      createdSandboxIds.push(res.data.data.id)
+      expect(res.data.config.sshEnabled).toBe(false)
+      createdSandboxIds.push(res.data.id)
     })
 
     // --- gitRepo / gitBranch ---
 
     test('POST creates sandbox with gitRepo and gitBranch', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         {
           name: uniqueName('sb-git'),
@@ -370,15 +370,15 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
-      expect(res.data.data.config.gitRepo).toBe('https://github.com/example/repo.git')
-      expect(res.data.data.config.gitBranch).toBe('main')
-      createdSandboxIds.push(res.data.data.id)
+      expect(res.data.config.gitRepo).toBe('https://github.com/example/repo.git')
+      expect(res.data.config.gitBranch).toBe('main')
+      createdSandboxIds.push(res.data.id)
     })
 
     // --- idleTimeoutMinutes ---
 
     test('POST creates sandbox with idleTimeoutMinutes=60', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         {
           name: uniqueName('sb-idle'),
@@ -389,8 +389,8 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
-      expect(res.data.data.config.idleTimeoutMinutes).toBe(60)
-      createdSandboxIds.push(res.data.data.id)
+      expect(res.data.config.idleTimeoutMinutes).toBe(60)
+      createdSandboxIds.push(res.data.id)
     })
 
     // --- Validation ---

@@ -31,7 +31,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -41,8 +41,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
         }
       )
 
-      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
-        qsResult = qsRes.data.data
+      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
+        qsResult = qsRes.data
         agentId = qsResult!.agent.id
       }
     }
@@ -53,7 +53,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
 
     if (!agentId) return
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`
     )
 
@@ -87,7 +87,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
   describe('GET /agents/:id/v1/models', () => {
     test.skipIf(!hasLLM())('returns model list in OpenAI format', async () => {
       const res = await get<{ object: string; data: any[] }>(
-        `/agents/${agentId}/v1/models`
+        `/agents/${agentId}/v1/models`,
+        { rawResponse: true }
       )
 
       expect(res.status).toBe(200)
@@ -99,7 +100,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
 
     test.skipIf(!hasLLM())('each model has required OpenAI fields', async () => {
       const res = await get<{ object: string; data: any[] }>(
-        `/agents/${agentId}/v1/models`
+        `/agents/${agentId}/v1/models`,
+        { rawResponse: true }
       )
 
       expect(res.status).toBe(200)
@@ -117,7 +119,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
 
     test.skipIf(!hasLLM())('does not leak sensitive data in model response', async () => {
       const res = await get<{ object: string; data: any[] }>(
-        `/agents/${agentId}/v1/models`
+        `/agents/${agentId}/v1/models`,
+        { rawResponse: true }
       )
 
       expect(res.status).toBe(200)
@@ -479,7 +482,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
     test.skipIf(!hasLLM())('complete OAI flow: models -> non-streaming -> streaming', async () => {
       // Step 1: List models
       const modelsRes = await get<{ object: string; data: any[] }>(
-        `/agents/${agentId}/v1/models`
+        `/agents/${agentId}/v1/models`,
+        { rawResponse: true }
       )
       expect(modelsRes.status).toBe(200)
       expect(modelsRes.data.object).toBe('list')

@@ -11,26 +11,24 @@ import { get } from '../utils/api-client'
 describe('Tier 1: Invoice Tracking', () => {
 
   test('GET /subscriptions/invoices returns 200 with array', async () => {
-    const res = await get<{ data: unknown[] }>('/subscriptions/invoices')
+    const res = await get<unknown[]>('/subscriptions/invoices')
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
+    expect(Array.isArray(res.data)).toBe(true)
   })
 
   test('GET /subscriptions/invoices items have expected shape when present', async () => {
-    const res = await get<{
-      data: Array<{
+    const res = await get<Array<{
         amount: number
         status: string
         period: string
         invoiceUrl: string | null
-      }>
-    }>('/subscriptions/invoices')
+      }>>('/subscriptions/invoices')
 
     expect(res.status).toBe(200)
 
-    const invoices = res.data.data
+    const invoices = res.data
 
     // If there are invoices, validate the shape of each one
     for (const invoice of invoices) {

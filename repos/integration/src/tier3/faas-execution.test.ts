@@ -52,7 +52,7 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
 
   beforeAll(async () => {
     // Step 1: Run quickstart to get a project with provider/secret/agent/endpoint
-    const qsRes = await post<{ data: Record<string, any> }>(
+    const qsRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -62,16 +62,16 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       }
     )
 
-    if (qsRes.status !== 201 || !qsRes.data?.data?.project?.id) {
+    if (qsRes.status !== 201 || !qsRes.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data.data
+    quickstartResult = qsRes.data
     projectId = quickstartResult.project.id
 
     // Step 2: Create a TypeScript function
-    const tsFnRes = await post<{ data: Record<string, any> }>(
+    const tsFnRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
         name: uniqueName('FaaS TS Function'),
@@ -81,15 +81,15 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       }
     )
 
-    if (tsFnRes.status !== 201 || !tsFnRes.data?.data?.id) {
+    if (tsFnRes.status !== 201 || !tsFnRes.data?.id) {
       setupFailed = true
       return
     }
 
-    tsFunctionId = tsFnRes.data.data.id
+    tsFunctionId = tsFnRes.data.id
 
     // Step 3: Create a JavaScript function (no esbuild transpile needed)
-    const jsFnRes = await post<{ data: Record<string, any> }>(
+    const jsFnRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
         name: uniqueName('FaaS JS Function'),
@@ -99,15 +99,15 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       }
     )
 
-    if (jsFnRes.status !== 201 || !jsFnRes.data?.data?.id) {
+    if (jsFnRes.status !== 201 || !jsFnRes.data?.id) {
       setupFailed = true
       return
     }
 
-    jsFunctionId = jsFnRes.data.data.id
+    jsFunctionId = jsFnRes.data.id
 
     // Step 4: Create FaaS endpoint linked to TypeScript function
-    const tsEpRes = await post<{ data: Record<string, any> }>(
+    const tsEpRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('FaaS TS Endpoint'),
@@ -119,15 +119,15 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       }
     )
 
-    if (tsEpRes.status !== 201 || !tsEpRes.data?.data?.id) {
+    if (tsEpRes.status !== 201 || !tsEpRes.data?.id) {
       setupFailed = true
       return
     }
 
-    tsEndpointId = tsEpRes.data.data.id
+    tsEndpointId = tsEpRes.data.id
 
     // Step 5: Create FaaS endpoint linked to JavaScript function
-    const jsEpRes = await post<{ data: Record<string, any> }>(
+    const jsEpRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('FaaS JS Endpoint'),
@@ -139,15 +139,15 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       }
     )
 
-    if (jsEpRes.status !== 201 || !jsEpRes.data?.data?.id) {
+    if (jsEpRes.status !== 201 || !jsEpRes.data?.id) {
       setupFailed = true
       return
     }
 
-    jsEndpointId = jsEpRes.data.data.id
+    jsEndpointId = jsEpRes.data.id
 
     // Step 6: Create FaaS endpoint with invalid functionId for error testing
-    const badEpRes = await post<{ data: Record<string, any> }>(
+    const badEpRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name: uniqueName('FaaS Bad Endpoint'),
@@ -159,8 +159,8 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
       }
     )
 
-    if (badEpRes.status === 201 && badEpRes.data?.data?.id) {
-      badEndpointId = badEpRes.data.data.id
+    if (badEpRes.status === 201 && badEpRes.data?.id) {
+      badEndpointId = badEpRes.data.id
     }
   }, 30_000)
 
@@ -192,14 +192,14 @@ describe('Tier 3: FaaS Endpoint Execution Flow', () => {
   test('FaaS endpoint exists with correct configuration', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints/${tsEndpointId}`
     )
 
     expect(res.status).toBe(200)
     expect(res.data).toBeDefined()
 
-    const ep = (res.data.data ?? res.data) as Record<string, any>
+    const ep = res.data as Record<string, any>
     expect(ep.type).toBe('faas')
     expect(ep.id).toBe(tsEndpointId)
     expect(ep.options).toBeDefined()

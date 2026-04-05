@@ -25,15 +25,15 @@ describe('Tier 1: REPL ApiClient Sandboxes (live)', () => {
     client = new ApiClient(auth as any)
 
     // Create a project for the sandbox
-    const projRes = await post<{ data: Record<string, any> }>(
+    const projRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects`,
       { name: uniqueName('repl-sb-project'), orgId: ctx.orgId }
     )
-    if (projRes.ok) projectId = projRes.data.data.id
+    if (projRes.ok) projectId = projRes.data.id
 
     // Create a sandbox config via direct API so listSandboxes has data
     sandboxName = uniqueName('repl-sb-test')
-    const sbRes = await post<{ data: Record<string, any> }>(
+    const sbRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/sandboxes`,
       {
         name: sandboxName,
@@ -49,7 +49,7 @@ describe('Tier 1: REPL ApiClient Sandboxes (live)', () => {
         projectId,
       }
     )
-    if (sbRes.ok) sandboxId = sbRes.data.data.id
+    if (sbRes.ok) sandboxId = sbRes.data.id
   })
 
   afterAll(async () => {

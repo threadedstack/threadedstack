@@ -27,7 +27,7 @@ describe('Tier 3: Agent with Custom Functions', () => {
 
   beforeAll(async () => {
     // Step 1: Quickstart to create agent + provider + secret + project + endpoint
-    const qsRes = await post<{ data: Record<string, any> }>(
+    const qsRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -37,17 +37,17 @@ describe('Tier 3: Agent with Custom Functions', () => {
       }
     )
 
-    if (qsRes.status !== 201 || !qsRes.data?.data?.agent?.id) {
+    if (qsRes.status !== 201 || !qsRes.data?.agent?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data.data
+    quickstartResult = qsRes.data
     agentId = quickstartResult.agent.id
     projectId = quickstartResult.project.id
 
     // Step 2: Create a function in the project
-    const fnRes = await post<{ data: Record<string, any> }>(
+    const fnRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       {
         name: uniqueName('greet-handler'),
@@ -58,12 +58,12 @@ describe('Tier 3: Agent with Custom Functions', () => {
       }
     )
 
-    if (fnRes.status !== 201 || !fnRes.data?.data?.id) {
+    if (fnRes.status !== 201 || !fnRes.data?.id) {
       setupFailed = true
       return
     }
 
-    functionId = fnRes.data.data.id
+    functionId = fnRes.data.id
 
     // Step 3: Link the function to the agent via project config functionIds
     const configRes = await put(
@@ -101,21 +101,21 @@ describe('Tier 3: Agent with Custom Functions', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Verify function exists
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBe(functionId)
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBe(functionId)
 
     // Verify the agent's project config has the function linked via functionIds
-    const configRes = await get<{ data: { functionIds: string[] } }>(
+    const configRes = await get<{ functionIds: string[] }>(
       `/orgs/${ctx.orgId}/projects/${projectId}/agents/${agentId}/config`
     )
 
     expect(configRes.status).toBe(200)
-    expect(configRes.data.data.functionIds).toContain(functionId)
+    expect(configRes.data.functionIds).toContain(functionId)
   })
 
   test('agent run with custom function starts SSE stream', async () => {
@@ -183,13 +183,13 @@ describe('Tier 3: Agent with Custom Functions', () => {
   test('function is queryable after agent run', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions/${functionId}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.id).toBe(functionId)
-    expect(res.data.data.name).toContain('greet-handler')
+    expect(res.data).toBeDefined()
+    expect(res.data.id).toBe(functionId)
+    expect(res.data.name).toContain('greet-handler')
   })
 })

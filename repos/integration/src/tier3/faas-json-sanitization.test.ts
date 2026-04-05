@@ -36,13 +36,13 @@ describe('FaaS JSON Sanitization (structured clone)', () => {
     content: string,
     language = 'javascript'
   ): Promise<string | null> => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/functions`,
       { name, content, language, projectId }
     )
-    if (res.status === 201 && res.data?.data?.id) {
-      functionIds.push(res.data.data.id)
-      return res.data.data.id
+    if (res.status === 201 && res.data?.id) {
+      functionIds.push(res.data.id)
+      return res.data.id
     }
     return null
   }
@@ -52,7 +52,7 @@ describe('FaaS JSON Sanitization (structured clone)', () => {
     path: string,
     functionId: string
   ): Promise<string | null> => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects/${projectId}/endpoints`,
       {
         name,
@@ -63,9 +63,9 @@ describe('FaaS JSON Sanitization (structured clone)', () => {
         options: { functionId },
       }
     )
-    if (res.status === 201 && res.data?.data?.id) {
-      endpointIds.push(res.data.data.id)
-      return res.data.data.id
+    if (res.status === 201 && res.data?.id) {
+      endpointIds.push(res.data.id)
+      return res.data.id
     }
     return null
   }
@@ -78,7 +78,7 @@ describe('FaaS JSON Sanitization (structured clone)', () => {
   }
 
   beforeAll(async () => {
-    const qsRes = await post<{ data: Record<string, any> }>(
+    const qsRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'anthropic',
@@ -88,12 +88,12 @@ describe('FaaS JSON Sanitization (structured clone)', () => {
       }
     )
 
-    if (qsRes.status !== 201 || !qsRes.data?.data?.project?.id) {
+    if (qsRes.status !== 201 || !qsRes.data?.project?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = qsRes.data.data
+    quickstartResult = qsRes.data
     projectId = quickstartResult.project.id
   }, 30_000)
 

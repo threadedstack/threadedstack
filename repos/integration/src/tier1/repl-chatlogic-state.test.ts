@@ -31,7 +31,7 @@ describe('Tier 1: REPL ChatLogic State (live)', () => {
 
   // Create quickstart resources (agent + project + provider)
   beforeAll(async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -42,18 +42,18 @@ describe('Tier 1: REPL ChatLogic State (live)', () => {
     )
 
     expect(res.status).toBe(201)
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     agentId = quickstartResult.agent.id
   })
 
   // Create a bare project (no agents linked)
   beforeAll(async () => {
-    const res = await post<{ data: { id: string } }>(
+    const res = await post<{ id: string }>(
       `/orgs/${ctx.orgId}/projects`,
       { name: uniqueName('REPL Bare Project IT') }
     )
     expect(res.status).toBe(201)
-    bareProjectId = res.data.data.id
+    bareProjectId = res.data.id
   })
 
   afterAll(async () => {

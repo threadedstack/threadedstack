@@ -18,24 +18,24 @@ describe('Tier 1: Messages', () => {
   let firstThreadId: string | undefined
 
   test('fetch agents and threads to determine if message tests can run', async () => {
-    const agentsRes = await get<{ data: Agent[] }>(`/orgs/${ctx.orgId}/agents`)
+    const agentsRes = await get<Agent[]>(`/orgs/${ctx.orgId}/agents`)
 
     expect(agentsRes.status).toBe(200)
-    expect(Array.isArray(agentsRes.data.data)).toBe(true)
+    expect(Array.isArray(agentsRes.data)).toBe(true)
 
-    if (agentsRes.data.data.length === 0) return
+    if (agentsRes.data.length === 0) return
 
-    firstAgentId = agentsRes.data.data[0].id
+    firstAgentId = agentsRes.data[0].id
 
-    const threadsRes = await get<{ data: Thread[] }>(
+    const threadsRes = await get<Thread[]>(
       `/orgs/${ctx.orgId}/agents/${firstAgentId}/threads`
     )
 
     expect(threadsRes.status).toBe(200)
-    expect(Array.isArray(threadsRes.data.data)).toBe(true)
+    expect(Array.isArray(threadsRes.data)).toBe(true)
 
-    if (threadsRes.data.data.length > 0) {
-      firstThreadId = threadsRes.data.data[0].id
+    if (threadsRes.data.length > 0) {
+      firstThreadId = threadsRes.data[0].id
     }
   })
 
@@ -45,14 +45,14 @@ describe('Tier 1: Messages', () => {
       return
     }
 
-    const res = await get<{ data: unknown[]; limit: number; offset: number }>(
+    const res = await get<unknown[]>(
       `/orgs/${ctx.orgId}/agents/${firstAgentId}/threads/${firstThreadId}/messages`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(typeof res.data.limit).toBe('number')
-    expect(typeof res.data.offset).toBe('number')
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(typeof res.limit).toBe('number')
+    expect(typeof res.offset).toBe('number')
   })
 })

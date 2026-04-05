@@ -133,8 +133,8 @@ server.listen(3000, () => {
       const verifyRes = await execInPod(ctx.orgId, sandboxId, podName,
         `node -e "${verifyScript}"`
       )
-      if (!verifyRes.data.data.success || verifyRes.data.data.output.trim() !== '200') {
-        throw new Error(`Pod HTTP server not responding: ${verifyRes.data.data.output || verifyRes.data.data.error}`)
+      if (!verifyRes.data.success || verifyRes.data.output.trim() !== '200') {
+        throw new Error(`Pod HTTP server not responding: ${verifyRes.data.output || verifyRes.data.error}`)
       }
 
       // Wait for the K8s watcher to hydrate the route map in the backend.

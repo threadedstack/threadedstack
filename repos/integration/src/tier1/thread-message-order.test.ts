@@ -28,7 +28,7 @@ describe('Tier 1: Thread Message Ordering (I3 fix)', () => {
       return
     }
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -38,22 +38,22 @@ describe('Tier 1: Thread Message Ordering (I3 fix)', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.agent?.id) {
+    if (res.status !== 201 || !res.data?.agent?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     agentId = quickstartResult.agent.id
 
     // Create a thread
-    const threadRes = await post<{ data: Record<string, any> }>(
+    const threadRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}/threads`,
       { title: uniqueName('MsgOrder Thread') }
     )
 
-    if (threadRes.status === 201 && threadRes.data?.data?.id) {
-      threadId = threadRes.data.data.id
+    if (threadRes.status === 201 && threadRes.data?.id) {
+      threadId = threadRes.data.id
     } else {
       setupFailed = true
     }
@@ -102,24 +102,24 @@ describe('Tier 1: Thread Message Ordering (I3 fix)', () => {
   test('messages returned in order with createdAt timestamps (I3 fix)', async () => {
     if (setupFailed || !threadId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any>[] }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}/messages`
     )
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.data)).toBe(true)
-    expect(res.data.data.length).toBeGreaterThanOrEqual(4)
+    expect(Array.isArray(res.data)).toBe(true)
+    expect(res.data.length).toBeGreaterThanOrEqual(4)
 
     // I3 fix: Each message should have a createdAt timestamp
-    for (const msg of res.data.data) {
+    for (const msg of res.data) {
       expect(msg.createdAt).toBeTruthy()
       expect(new Date(msg.createdAt).getTime()).toBeGreaterThan(0)
     }
 
     // Verify chronological order: each createdAt >= previous
-    for (let i = 1; i < res.data.data.length; i++) {
-      const prev = new Date(res.data.data[i - 1].createdAt).getTime()
-      const curr = new Date(res.data.data[i].createdAt).getTime()
+    for (let i = 1; i < res.data.length; i++) {
+      const prev = new Date(res.data[i - 1].createdAt).getTime()
+      const curr = new Date(res.data[i].createdAt).getTime()
       expect(curr).toBeGreaterThanOrEqual(prev)
     }
   })
@@ -127,26 +127,26 @@ describe('Tier 1: Thread Message Ordering (I3 fix)', () => {
   test('messages have expected types in correct order', async () => {
     if (setupFailed || !threadId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any>[] }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}/messages`
     )
 
     expect(res.status).toBe(200)
 
-    const types = res.data.data.map((m: any) => m.type)
+    const types = res.data.map((m: any) => m.type)
     expect(types).toEqual(['user', 'assistant', 'user', 'assistant'])
   })
 
   test('messages contain expected content structure', async () => {
     if (setupFailed || !threadId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any>[] }>(
+    const res = await get<Record<string, any>[]>(
       `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}/messages`
     )
 
     expect(res.status).toBe(200)
 
-    for (const msg of res.data.data) {
+    for (const msg of res.data) {
       expect(Array.isArray(msg.content)).toBe(true)
       expect(msg.content.length).toBeGreaterThanOrEqual(1)
       expect(msg.content[0].type).toBe('text')

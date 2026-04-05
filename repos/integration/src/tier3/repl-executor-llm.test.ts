@@ -42,7 +42,7 @@ describe('Tier 3: REPL Executor — LLM E2E (live)', () => {
     executor = new Executor(client)
 
     // Create quickstart agent with a REAL provider key
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -53,7 +53,7 @@ describe('Tier 3: REPL Executor — LLM E2E (live)', () => {
     )
 
     expect(res.status).toBe(201)
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     agentId = quickstartResult.agent.id
 
     // Run a single LLM call — all tests assert on this shared result.

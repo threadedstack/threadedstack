@@ -12,15 +12,15 @@ describe('Tier 3: Quota Enforcement', () => {
   const ctx = readContext()
 
   test('GET /orgs/:orgId/quotas — returns current usage for org', async () => {
-    const res = await get<{ data: Record<string, unknown> }>(
+    const res = await get<Record<string, unknown>>(
       `/orgs/${ctx.orgId}/quotas`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const quota = res.data.data
+    const quota = res.data
 
     // Verify the quota has the expected fields
     expect(quota).toHaveProperty('orgId')
@@ -44,15 +44,15 @@ describe('Tier 3: Quota Enforcement', () => {
   })
 
   test('GET /orgs/:orgId/quotas/limits — returns TPlanLimits shape', async () => {
-    const res = await get<{ data: Record<string, unknown> }>(
+    const res = await get<Record<string, unknown>>(
       `/orgs/${ctx.orgId}/quotas/limits`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const limits = res.data.data
+    const limits = res.data
 
     // Verify the limits match TPlanLimits shape
     const expectedKeys = [
@@ -82,16 +82,16 @@ describe('Tier 3: Quota Enforcement', () => {
   })
 
   test('POST /orgs/:orgId/quotas/check — returns quota check result for valid resource', async () => {
-    const res = await post<{ data: { allowed: boolean; current: number; limit: number; remaining: number } }>(
+    const res = await post<{ allowed: boolean; current: number; limit: number; remaining: number }>(
       `/orgs/${ctx.orgId}/quotas/check`,
       { resource: 'projects', amount: 1 }
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const check = res.data.data
+    const check = res.data
     expect(typeof check.allowed).toBe('boolean')
     expect(typeof check.current).toBe('number')
     expect(typeof check.limit).toBe('number')
@@ -132,13 +132,13 @@ describe('Tier 3: Quota Enforcement', () => {
   })
 
   test('POST /orgs/:orgId/quotas/check — remaining is consistent with limit and current', async () => {
-    const res = await post<{ data: { allowed: boolean; current: number; limit: number; remaining: number } }>(
+    const res = await post<{ allowed: boolean; current: number; limit: number; remaining: number }>(
       `/orgs/${ctx.orgId}/quotas/check`,
       { resource: 'endpoints', amount: 1 }
     )
 
     expect(res.status).toBe(200)
-    const { current, limit, remaining } = res.data.data
+    const { current, limit, remaining } = res.data
 
     if (limit === -1) {
       // Unlimited — remaining should also be -1
@@ -150,13 +150,13 @@ describe('Tier 3: Quota Enforcement', () => {
   })
 
   test('GET /orgs/:orgId/quotas — period format is YYYY-MM', async () => {
-    const res = await get<{ data: { period: string } }>(
+    const res = await get<{ period: string }>(
       `/orgs/${ctx.orgId}/quotas`
     )
 
     expect(res.status).toBe(200)
 
-    const period = res.data.data.period
+    const period = res.data.period
     expect(period).toMatch(/^\d{4}-\d{2}$/)
   })
 })

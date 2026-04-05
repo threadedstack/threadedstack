@@ -24,19 +24,19 @@ describe('Tier 3: Sandbox Connect', () => {
 
   beforeAll(async () => {
     try {
-      const projRes = await post<{ data: Record<string, any> }>(
+      const projRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/projects`,
         { name: uniqueName('connect-project'), orgId: ctx.orgId }
       )
       if (!projRes.ok) { setupFailed = true; return }
-      projectId = projRes.data.data.id
+      projectId = projRes.data.id
 
-      const sbRes = await post<{ data: Record<string, any> }>(
+      const sbRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         { name: uniqueName('connect-sandbox'), config: sandboxConfig, orgId: ctx.orgId, projectId }
       )
       if (!sbRes.ok) { setupFailed = true; return }
-      sandboxId = sbRes.data.data.id
+      sandboxId = sbRes.data.id
     } catch (err) {
       console.error('[sandbox-connect] Setup failed:', (err as Error).message)
       setupFailed = true
@@ -56,9 +56,9 @@ describe('Tier 3: Sandbox Connect', () => {
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
-    const conn = res.data.data
+    const conn = res.data
     expect(conn.podName).toBeDefined()
     expect(conn.podName).toMatch(/^tdsk-sb-/)
     expect(typeof conn.password).toBe('string')
@@ -73,12 +73,12 @@ describe('Tier 3: Sandbox Connect', () => {
   test('pod is Running after connect returns', async () => {
     if (!podName) return expect(podName).toBeTruthy()
 
-    const res = await get<{ data: { podName: string; state: string } }>(
+    const res = await get<{ podName: string; state: string }>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/status?podName=${podName}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.state).toBe('Running')
+    expect(res.data.state).toBe('Running')
   })
 
   test('POST /:id/connect on already-running pod returns same podName', async () => {
@@ -87,7 +87,7 @@ describe('Tier 3: Sandbox Connect', () => {
     const res = await connectSandbox(ctx.orgId, sandboxId)
 
     expect(res.status).toBe(200)
-    expect(res.data.data.podName).toBe(podName)
+    expect(res.data.podName).toBe(podName)
   })
 
   test('can exec commands in pod started by connect', async () => {
@@ -96,8 +96,8 @@ describe('Tier 3: Sandbox Connect', () => {
     const res = await execInPod(ctx.orgId, sandboxId, podName, 'echo hello')
 
     expect(res.status).toBe(200)
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toBe('hello')
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toBe('hello')
   })
 
   // --- Auth & Validation ---
@@ -133,14 +133,14 @@ describe('Tier 3: Sandbox Connect', () => {
     let projProjectId = ''
 
     try {
-      const projRes = await post<{ data: Record<string, any> }>(
+      const projRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/projects`,
         { name: uniqueName('connect-proj2'), orgId: ctx.orgId }
       )
       expect(projRes.ok).toBe(true)
-      projProjectId = projRes.data.data.id
+      projProjectId = projRes.data.id
 
-      const sbRes = await post<{ data: Record<string, any> }>(
+      const sbRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         {
           name: uniqueName('connect-sb-proj'),
@@ -150,12 +150,12 @@ describe('Tier 3: Sandbox Connect', () => {
         }
       )
       expect(sbRes.ok).toBe(true)
-      projSandboxId = sbRes.data.data.id
+      projSandboxId = sbRes.data.id
 
       const connRes = await connectSandbox(ctx.orgId, projSandboxId)
       expect(connRes.status).toBe(200)
-      expect(connRes.data.data.podName).toMatch(/^tdsk-sb-/)
-      projPodName = connRes.data.data.podName
+      expect(connRes.data.podName).toMatch(/^tdsk-sb-/)
+      projPodName = connRes.data.podName
     } finally {
       await cleanupSandbox(ctx.orgId, {
         sandboxId: projSandboxId,
@@ -172,7 +172,7 @@ describe('Tier 3: Sandbox Connect', () => {
     let concPodName = ''
 
     try {
-      const sbRes = await post<{ data: Record<string, any> }>(
+      const sbRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         {
           name: uniqueName('connect-conc'),
@@ -182,7 +182,7 @@ describe('Tier 3: Sandbox Connect', () => {
         }
       )
       expect(sbRes.ok).toBe(true)
-      concSandboxId = sbRes.data.data.id
+      concSandboxId = sbRes.data.id
 
       const [r1, r2] = await Promise.all([
         connectSandbox(ctx.orgId, concSandboxId),
@@ -196,7 +196,7 @@ describe('Tier 3: Sandbox Connect', () => {
       expect(successes.length).toBeGreaterThanOrEqual(1)
 
       // All successful responses must return the same podName (no duplicate pods)
-      const podNames = successes.map(r => r.data.data.podName)
+      const podNames = successes.map(r => r.data.podName)
       const uniquePodNames = [...new Set(podNames)]
       expect(uniquePodNames).toHaveLength(1)
       concPodName = uniquePodNames[0]

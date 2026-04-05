@@ -29,7 +29,7 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: `zai`,
@@ -39,8 +39,8 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
         }
       )
 
-      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
-        qsResult = qsRes.data.data
+      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
+        qsResult = qsRes.data
         agentId = qsResult.agent.id
       }
     }
@@ -51,7 +51,7 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
 
     if (!agentId) return
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`
     )
 
@@ -82,12 +82,12 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
 
   describe(`session creation`, () => {
     test.skipIf(!hasLLM())(`creates session with valid agent`, async () => {
-      const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const res = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
 
       expect(res.status).toBe(200)
       expect(res.ok).toBe(true)
 
-      const session = res.data.data
+      const session = res.data
       expect(session.sessionToken).toBeTruthy()
       expect(typeof session.sessionToken).toBe(`string`)
       expect(session.sessionToken.length).toBeGreaterThan(10)
@@ -99,10 +99,10 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
     })
 
     test.skipIf(!hasLLM())(`session does NOT leak apiKey`, async () => {
-      const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const res = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
 
       expect(res.status).toBe(200)
-      const session = res.data.data
+      const session = res.data
       expect(session).not.toHaveProperty(`apiKey`)
 
       const raw = JSON.stringify(res.data)
@@ -111,10 +111,10 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
     })
 
     test.skipIf(!hasLLM())(`session includes systemPrompt when agent has one`, async () => {
-      const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const res = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
 
       expect(res.status).toBe(200)
-      const session = res.data.data
+      const session = res.data
 
       if (session.systemPrompt) {
         expect(typeof session.systemPrompt).toBe(`string`)
@@ -124,15 +124,15 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
 
     test.skipIf(!hasLLM())(`multiple sessions get unique tokens`, async () => {
       const [res1, res2] = await Promise.all([
-        post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
-        post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
+        post<Record<string, any>>(`/_/ai/sessions`, { agentId }),
+        post<Record<string, any>>(`/_/ai/sessions`, { agentId }),
       ])
 
       expect(res1.status).toBe(200)
       expect(res2.status).toBe(200)
 
-      const token1 = res1.data.data.sessionToken
-      const token2 = res2.data.data.sessionToken
+      const token1 = res1.data.sessionToken
+      const token2 = res2.data.sessionToken
       expect(token1).not.toBe(token2)
     })
   })
@@ -145,9 +145,9 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
     beforeAll(async () => {
       if (!hasLLM()) return
 
-      const res = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const res = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
       if (res.status !== 200) throw new Error(`Session creation failed: ${res.status}`)
-      sessionToken = res.data.data.sessionToken
+      sessionToken = res.data.sessionToken
     })
 
     test.skipIf(!hasLLM())(`streams a response for a simple prompt`, async () => {
@@ -196,15 +196,15 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
   describe(`concurrent sessions`, () => {
     test.skipIf(!hasLLM())(`multiple WS sessions can stream independently`, async () => {
       const [s1, s2] = await Promise.all([
-        post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
-        post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId }),
+        post<Record<string, any>>(`/_/ai/sessions`, { agentId }),
+        post<Record<string, any>>(`/_/ai/sessions`, { agentId }),
       ])
 
       expect(s1.status).toBe(200)
       expect(s2.status).toBe(200)
 
-      const token1 = s1.data.data.sessionToken
-      const token2 = s2.data.data.sessionToken
+      const token1 = s1.data.sessionToken
+      const token2 = s2.data.sessionToken
 
       const [result1, result2] = await Promise.all([
         consumeWS(token1, `Say ALPHA`, { timeout: 60_000 }),
@@ -260,14 +260,14 @@ describe(`Tier 3: LLM Chat Flow (live, WebSocket)`, () => {
       expect(healthRes.status).toBe(200)
 
       // Step 2: Verify API key auth
-      const orgRes = await get<{ data: { id: string } }>(`/orgs/${ctx.orgId}`)
+      const orgRes = await get<{ id: string }>(`/orgs/${ctx.orgId}`)
       expect(orgRes.status).toBe(200)
-      expect(orgRes.data.data.id).toBe(ctx.orgId)
+      expect(orgRes.data.id).toBe(ctx.orgId)
 
       // Step 3: Create session
-      const sessionRes = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+      const sessionRes = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
       expect(sessionRes.status).toBe(200)
-      const { sessionToken, provider, model } = sessionRes.data.data
+      const { sessionToken, provider, model } = sessionRes.data
       expect(sessionToken).toBeTruthy()
       expect(provider).toBeTruthy()
       expect(model).toBeTruthy()

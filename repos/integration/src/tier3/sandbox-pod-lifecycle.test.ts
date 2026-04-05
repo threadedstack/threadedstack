@@ -22,19 +22,19 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
   }
 
   beforeAll(async () => {
-    const projRes = await post<{ data: Record<string, any> }>(
+    const projRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/projects`,
       { name: uniqueName('lifecycle-project'), orgId: ctx.orgId }
     )
     if (!projRes.ok) { setupFailed = true; return }
-    projectId = projRes.data.data.id
+    projectId = projRes.data.id
 
-    const sbRes = await post<{ data: Record<string, any> }>(
+    const sbRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/sandboxes`,
       { name: uniqueName('lifecycle-sandbox'), config: sandboxConfig, orgId: ctx.orgId }
     )
     if (!sbRes.ok) { setupFailed = true; return }
-    sandboxId = sbRes.data.data.id
+    sandboxId = sbRes.data.id
   }, 30_000)
 
   afterAll(async () => {
@@ -46,17 +46,17 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
   test('POST /:id/start creates pod and returns podName', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await post<{ data: { podName: string } }>(
+    const res = await post<{ podName: string }>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
       { projectId }
     )
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.data.podName).toBeDefined()
-    expect(res.data.data.podName).toMatch(/^tdsk-sb-/)
+    expect(res.data.podName).toBeDefined()
+    expect(res.data.podName).toMatch(/^tdsk-sb-/)
 
-    podName = res.data.data.podName
+    podName = res.data.podName
   })
 
   // --- Status ---
@@ -64,14 +64,14 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
   test('GET /:id/status returns Pending or Running immediately after start', async () => {
     if (!podName) return expect(podName).toBeTruthy()
 
-    const res = await get<{ data: { podName: string; state: string } }>(
+    const res = await get<{ podName: string; state: string }>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/status?podName=${podName}`
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(['Pending', 'Running']).toContain(res.data.data.state)
-    expect(res.data.data.podName).toBe(podName)
+    expect(['Pending', 'Running']).toContain(res.data.state)
+    expect(res.data.podName).toBe(podName)
   })
 
   test('pod reaches Running state within 90s', async () => {
@@ -84,12 +84,12 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
   test('GET /:id/status confirms Running after wait', async () => {
     if (!podName) return expect(podName).toBeTruthy()
 
-    const res = await get<{ data: { podName: string; state: string } }>(
+    const res = await get<{ podName: string; state: string }>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/status?podName=${podName}`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.state).toBe('Running')
+    expect(res.data.state).toBe('Running')
   })
 
   // --- Stop ---
@@ -97,14 +97,14 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
   test('DELETE /:id/stop stops the pod', async () => {
     if (!podName) return expect(podName).toBeTruthy()
 
-    const res = await api<{ data: { success: boolean } }>(
+    const res = await api<{ success: boolean }>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/stop`,
       { method: 'DELETE', body: { podName } }
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data.success).toBe(true)
+    expect(res.data.success).toBe(true)
   })
 
   test('GET /:id/status returns Failed for stopped pod', async () => {
@@ -121,19 +121,19 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
   test('POST /:id/start without body projectId uses sandbox.projectId fallback', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
-    const res = await post<{ data: { podName: string } }>(
+    const res = await post<{ podName: string }>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
       {}
     )
 
     // projectId is optional — falls back to sandbox.projectId (which may be undefined)
     expect(res.status).toBe(201)
-    expect(res.data.data.podName).toBeDefined()
+    expect(res.data.podName).toBeDefined()
 
     // Stop the pod to clean up
     await api(`/orgs/${ctx.orgId}/sandboxes/${sandboxId}/stop`, {
       method: 'DELETE',
-      body: { podName: res.data.data.podName },
+      body: { podName: res.data.podName },
     })
   })
 

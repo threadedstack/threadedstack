@@ -14,14 +14,14 @@ describe('Tier 3: Seat Management', () => {
 
   test('determines org tier and verifies seat limits', async () => {
     // Get the org's plan limits to determine which tier we're testing against
-    const limitsRes = await get<{ data: { seats: number; additionalSeats: boolean } }>(
+    const limitsRes = await get<{ seats: number; additionalSeats: boolean }>(
       `/orgs/${ctx.orgId}/quotas/limits`
     )
 
     expect(limitsRes.status).toBe(200)
-    expect(limitsRes.data.data).toBeDefined()
+    expect(limitsRes.data).toBeDefined()
 
-    const { seats, additionalSeats } = limitsRes.data.data
+    const { seats, additionalSeats } = limitsRes.data
     expect(typeof seats).toBe('number')
     expect(typeof additionalSeats).toBe('boolean')
 
@@ -38,11 +38,11 @@ describe('Tier 3: Seat Management', () => {
   })
 
   test('invite to free/solo org is rejected with 403', async () => {
-    const limitsRes = await get<{ data: { seats: number; additionalSeats: boolean } }>(
+    const limitsRes = await get<{ seats: number; additionalSeats: boolean }>(
       `/orgs/${ctx.orgId}/quotas/limits`
     )
 
-    if (limitsRes.data?.data?.additionalSeats) {
+    if (limitsRes.data?.additionalSeats) {
       // This org is on a Pro/Team plan — skip this test
       return
     }
@@ -60,22 +60,22 @@ describe('Tier 3: Seat Management', () => {
   })
 
   test('invite with valid email format is accepted on Pro/Team tier', async () => {
-    const limitsRes = await get<{ data: { seats: number; additionalSeats: boolean } }>(
+    const limitsRes = await get<{ seats: number; additionalSeats: boolean }>(
       `/orgs/${ctx.orgId}/quotas/limits`
     )
 
-    if (!limitsRes.data?.data?.additionalSeats) {
+    if (!limitsRes.data?.additionalSeats) {
       // This org is on a Free/Solo plan — skip this test
       return
     }
 
     // Pro/Team tier — check if seats are available
-    const membersRes = await get<{ data: Array<{ userId: string }> }>(
+    const membersRes = await get<Array<{ userId: string }>>(
       `/orgs/${ctx.orgId}/members`
     )
 
-    const currentMembers = membersRes.data?.data?.length || 0
-    const seatLimit = limitsRes.data.data.seats
+    const currentMembers = membersRes.data?.length || 0
+    const seatLimit = limitsRes.data.seats
 
     // Only test invitation if there's room (-1 means unlimited)
     if (seatLimit !== -1 && currentMembers >= seatLimit) {
@@ -84,7 +84,7 @@ describe('Tier 3: Seat Management', () => {
 
     // Attempt invitation — should be accepted (201)
     // Using a non-existent email to avoid side effects
-    const inviteRes = await post<{ data: Record<string, unknown>; message: string }>(
+    const inviteRes = await post<Record<string, unknown>>(
       `/orgs/${ctx.orgId}/users/invite`,
       {
         email: `seat-test-${Date.now()}@integration.test`,
@@ -94,7 +94,7 @@ describe('Tier 3: Seat Management', () => {
 
     // Should succeed — 201 for invitation created
     expect(inviteRes.status).toBe(201)
-    expect(inviteRes.data.message).toBeDefined()
+    expect(inviteRes.message).toBeDefined()
   })
 
   test('invite requires valid roleType', async () => {

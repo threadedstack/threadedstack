@@ -12,29 +12,29 @@ describe('Tier 3: Subscription Lifecycle', () => {
   const ctx = readContext()
 
   test('GET /subscriptions/current — returns subscription with tier', async () => {
-    const res = await get<{ data: { tier: string; userId: string; status: string } }>(
+    const res = await get<{ tier: string; userId: string; status: string }>(
       '/subscriptions/current'
     )
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(typeof res.data.data.tier).toBe('string')
+    expect(res.data).toBeDefined()
+    expect(typeof res.data.tier).toBe('string')
 
     // Free tier users should have an active status
     const validTiers = ['free', 'solo', 'pro', 'team']
-    expect(validTiers).toContain(res.data.data.tier)
+    expect(validTiers).toContain(res.data.tier)
   })
 
   test('GET /subscriptions/plans — returns all 4 tiers with correct limits shape', async () => {
-    const res = await get<{ data: Array<Record<string, unknown>> }>('/subscriptions/plans')
+    const res = await get<Array<Record<string, unknown>>>('/subscriptions/plans')
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
+    expect(res.data).toBeDefined()
 
     // Plans should be returned — verify structure
-    const plans = res.data.data
+    const plans = res.data
     expect(Array.isArray(plans) || typeof plans === 'object').toBe(true)
 
     // If it's an array of plans, verify TPlanLimits shape on each
@@ -100,7 +100,7 @@ describe('Tier 3: Subscription Lifecycle', () => {
   })
 
   test('POST /subscriptions/checkout — accepts valid tier with required fields', async () => {
-    const res = await post<{ data: Record<string, unknown> }>(
+    const res = await post<Record<string, unknown>>(
       '/subscriptions/checkout',
       {
         tier: 'solo',
@@ -116,9 +116,9 @@ describe('Tier 3: Subscription Lifecycle', () => {
     // We accept all of these as valid behavior
     expect([200, 500]).toContain(res.status)
 
-    if (res.status === 200 && res.data?.data) {
+    if (res.status === 200 && res.data) {
       // If successful, should have either a URL or an update confirmation
-      const data = res.data.data
+      const data = res.data
       const hasUrl = typeof data.url === 'string'
       const hasUpdated = data.updated === true
       expect(hasUrl || hasUpdated).toBe(true)
@@ -127,11 +127,11 @@ describe('Tier 3: Subscription Lifecycle', () => {
 
   test('DELETE /subscriptions/current — cancel returns error for free tier user', async () => {
     // A free tier user with no Stripe subscription ID should get 404
-    const currentRes = await get<{ data: { tier: string; stripeSubscriptionId?: string } }>(
+    const currentRes = await get<{ tier: string; stripeSubscriptionId?: string }>(
       '/subscriptions/current'
     )
 
-    if (currentRes.data?.data?.tier === 'free' && !currentRes.data?.data?.stripeSubscriptionId) {
+    if (currentRes.data?.tier === 'free' && !currentRes.data?.stripeSubscriptionId) {
       const res = await del('/subscriptions/current')
       expect(res.status).toBe(404)
     }
@@ -139,11 +139,11 @@ describe('Tier 3: Subscription Lifecycle', () => {
 
   test('POST /subscriptions/portal — returns error without active subscription', async () => {
     // Free tier users without a Stripe customer ID should get 404
-    const currentRes = await get<{ data: { tier: string; stripeCustomerId?: string } }>(
+    const currentRes = await get<{ tier: string; stripeCustomerId?: string }>(
       '/subscriptions/current'
     )
 
-    if (!currentRes.data?.data?.stripeCustomerId) {
+    if (!currentRes.data?.stripeCustomerId) {
       const res = await post('/subscriptions/portal')
       expect(res.status).toBe(404)
     }

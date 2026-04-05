@@ -26,7 +26,7 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
       return
     }
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -36,22 +36,22 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
       }
     )
 
-    if (res.status !== 201 || !res.data?.data?.agent?.id) {
+    if (res.status !== 201 || !res.data?.agent?.id) {
       setupFailed = true
       return
     }
 
-    quickstartResult = res.data.data
+    quickstartResult = res.data
     agentId = quickstartResult.agent.id
 
     // Create a thread for upload tests
-    const threadRes = await post<{ data: Record<string, any> }>(
+    const threadRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}/threads`,
       { title: uniqueName('Upload Thread') }
     )
 
-    if (threadRes.status === 201 && threadRes.data?.data?.id) {
-      threadId = threadRes.data.data.id
+    if (threadRes.status === 201 && threadRes.data?.id) {
+      threadId = threadRes.data.id
     } else {
       setupFailed = true
     }
@@ -79,7 +79,7 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
     const fileContent = 'Hello, this is test file content for integration tests.'
     const base64Data = Buffer.from(fileContent).toString('base64')
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}/files`,
       {
         fileName: 'test-document.txt',
@@ -89,12 +89,12 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
     )
 
     expect(res.status).toBe(201)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.assetId).toBeTruthy()
-    expect(res.data.data.fileName).toBe('test-document.txt')
-    expect(res.data.data.fileType).toBe('text/plain')
-    expect(typeof res.data.data.fileSize).toBe('number')
-    expect(res.data.data.fileSize).toBeGreaterThan(0)
+    expect(res.data).toBeDefined()
+    expect(res.data.assetId).toBeTruthy()
+    expect(res.data.fileName).toBe('test-document.txt')
+    expect(res.data.fileType).toBe('text/plain')
+    expect(typeof res.data.fileSize).toBe('number')
+    expect(res.data.fileSize).toBeGreaterThan(0)
   })
 
   // ─── Body Validation ──────────────────────────────────────────────
@@ -241,7 +241,7 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
     // 1x1 red PNG pixel
     const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=='
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}/files`,
       {
         fileName: 'test-pixel.png',
@@ -251,10 +251,10 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
     )
 
     expect(res.status).toBe(201)
-    expect(res.data.data.assetId).toBeTruthy()
-    expect(res.data.data.fileName).toBe('test-pixel.png')
-    expect(res.data.data.fileType).toBe('image/png')
-    expect(res.data.data.imageData).toBe(pngBase64)
+    expect(res.data.assetId).toBeTruthy()
+    expect(res.data.fileName).toBe('test-pixel.png')
+    expect(res.data.fileType).toBe('image/png')
+    expect(res.data.imageData).toBe(pngBase64)
   })
 
   // ─── Text extraction ───────────────────────────────────────────────
@@ -265,7 +265,7 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
     const textContent = 'Extractable text content for integration tests.'
     const base64Data = Buffer.from(textContent).toString('base64')
 
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}/files`,
       {
         fileName: 'extract-test.txt',
@@ -275,8 +275,8 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
     )
 
     expect(res.status).toBe(201)
-    expect(res.data.data.extractedText).toBe(textContent)
-    expect(res.data.data.imageData).toBeUndefined()
+    expect(res.data.extractedText).toBe(textContent)
+    expect(res.data.imageData).toBeUndefined()
   })
 
   // ─── Thread branches ───────────────────────────────────────────────
@@ -284,12 +284,12 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
   test('GET thread with ?include=branches returns branches array', async () => {
     if (setupFailed || !threadId) return expect(setupFailed).toBe(false)
 
-    const res = await get<{ data: Record<string, any> }>(
+    const res = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}?include=branches`
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.data.id).toBe(threadId)
-    expect(Array.isArray(res.data.data.branches)).toBe(true)
+    expect(res.data.id).toBe(threadId)
+    expect(Array.isArray(res.data.branches)).toBe(true)
   })
 })

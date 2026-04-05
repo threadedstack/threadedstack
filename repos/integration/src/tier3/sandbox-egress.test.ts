@@ -44,8 +44,8 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
       `node -e "${script}"`
     )
 
-    expect(res.data.data.success).toBe(true)
-    const addrs = JSON.parse(res.data.data.output.trim())
+    expect(res.data.success).toBe(true)
+    const addrs = JSON.parse(res.data.output.trim())
     expect(Array.isArray(addrs)).toBe(true)
     expect(addrs.length).toBeGreaterThan(0)
   }, 30_000)
@@ -68,8 +68,8 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
       `node -e "${script}"`
     )
 
-    expect(res.data.data.success).toBe(true)
-    const addrs = JSON.parse(res.data.data.output.trim())
+    expect(res.data.success).toBe(true)
+    const addrs = JSON.parse(res.data.output.trim())
     expect(Array.isArray(addrs)).toBe(true)
     expect(addrs.length).toBeGreaterThan(0)
   }, 30_000)
@@ -98,8 +98,8 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
       `node -e "${script}"`
     )
 
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toBe('connected')
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toBe('connected')
   }, 30_000)
 
   // --- HTTP Egress Through Proxy ---
@@ -126,8 +126,8 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
       'node /tmp/test-http-egress.js'
     )
 
-    expect(res.data.data.success).toBe(true)
-    const statusCode = parseInt(res.data.data.output.trim(), 10)
+    expect(res.data.success).toBe(true)
+    const statusCode = parseInt(res.data.output.trim(), 10)
     expect([200, 301]).toContain(statusCode)
   }, 30_000)
 
@@ -155,8 +155,8 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
       'node /tmp/test-https-egress.js'
     )
 
-    expect(res.data.data.success).toBe(true)
-    const statusCode = parseInt(res.data.data.output.trim(), 10)
+    expect(res.data.success).toBe(true)
+    const statusCode = parseInt(res.data.output.trim(), 10)
     expect(statusCode).toBe(200)
   }, 30_000)
 
@@ -169,8 +169,8 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
       'node --version'
     )
 
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toMatch(/^v22\./)
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toMatch(/^v22\./)
   })
 
   test('pod has security restrictions (no privilege escalation)', async () => {
@@ -180,8 +180,8 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
       'test -e /var/run/secrets/kubernetes.io/serviceaccount/token && echo mounted || echo not-mounted'
     )
 
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toBe('not-mounted')
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toBe('not-mounted')
   })
 
   test('CA certificate is installed in pod', async () => {
@@ -191,7 +191,7 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
       'test -e /usr/local/share/ca-certificates/tdsk-proxy.crt && echo installed || echo missing'
     )
 
-    expect(res.data.data.success).toBe(true)
-    expect(res.data.data.output.trim()).toBe('installed')
+    expect(res.data.success).toBe(true)
+    expect(res.data.output.trim()).toBe('installed')
   })
 })

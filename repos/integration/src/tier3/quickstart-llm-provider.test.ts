@@ -50,7 +50,7 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
 
   describe('built-in templates auto-set brand', () => {
     test('quickstart with anthropic template stores brand=anthropic', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'anthropic',
@@ -61,7 +61,7 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
       )
 
       expect(res.status).toBe(201)
-      const result = res.data.data
+      const result = res.data
       await cleanup(result)
 
       expect(result.provider.brand).toBe('anthropic')
@@ -69,7 +69,7 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
     })
 
     test('quickstart with openai template stores brand=openai', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'openai',
@@ -80,7 +80,7 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
       )
 
       expect(res.status).toBe(201)
-      const result = res.data.data
+      const result = res.data
       await cleanup(result)
 
       expect(result.provider.brand).toBe('openai')
@@ -88,7 +88,7 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
     })
 
     test('quickstart with google template stores brand=google', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'google',
@@ -99,14 +99,14 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
       )
 
       expect(res.status).toBe(201)
-      const result = res.data.data
+      const result = res.data
       await cleanup(result)
 
       expect(result.provider.brand).toBe('google')
     })
 
     test('quickstart with zai template stores brand=zai', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -117,7 +117,7 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
       )
 
       expect(res.status).toBe(201)
-      const result = res.data.data
+      const result = res.data
       await cleanup(result)
 
       expect(result.provider.brand).toBe('zai')
@@ -130,7 +130,7 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
 
   describe('agent provider includes brand', () => {
     test('GET agent from quickstart has provider with brand', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'anthropic',
@@ -141,19 +141,19 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
       )
 
       expect(res.status).toBe(201)
-      const result = res.data.data
+      const result = res.data
       await cleanup(result)
 
       // GET the agent and verify providers array has brand
-      const agentRes = await get<{ data: Record<string, any> }>(
+      const agentRes = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${result.agent.id}`
       )
 
       expect(agentRes.status).toBe(200)
-      expect(Array.isArray(agentRes.data.data.providers)).toBe(true)
-      expect(agentRes.data.data.providers.length).toBe(1)
+      expect(Array.isArray(agentRes.data.providers)).toBe(true)
+      expect(agentRes.data.providers.length).toBe(1)
 
-      const provider = agentRes.data.data.providers[0]
+      const provider = agentRes.data.providers[0]
       expect(provider.brand).toBe('anthropic')
     })
   })
@@ -163,7 +163,7 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
   describe('session creation resolves from brand', () => {
     test.skipIf(!hasProviderKey())('session provider field matches brand', async () => {
       // Create a quickstart agent with a real Z.AI key
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -174,29 +174,29 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
       )
 
       expect(res.status).toBe(201)
-      const result = res.data.data
+      const result = res.data
       await cleanup(result)
 
       // Verify provider has brand=zai
       expect(result.provider.brand).toBe('zai')
 
       // Create a session — should resolve provider type from brand
-      const sessionRes = await post<{ data: Record<string, any> }>(
+      const sessionRes = await post<Record<string, any>>(
         `/_/ai/sessions`,
         { agentId: result.agent.id }
       )
 
       expect(sessionRes.status).toBe(200)
-      expect(sessionRes.data.data.sessionToken).toBeTruthy()
-      expect(sessionRes.data.data.provider).toBe('zai')
-      expect(sessionRes.data.data.model).toBeTruthy()
+      expect(sessionRes.data.sessionToken).toBeTruthy()
+      expect(sessionRes.data.provider).toBe('zai')
+      expect(sessionRes.data.model).toBeTruthy()
     })
 
     test.skipIf(!hasProviderKey())(
       'session streams successfully with brand-resolved provider via WS',
       async () => {
         // Create agent with real key
-        const qsRes = await post<{ data: Record<string, any> }>(
+        const qsRes = await post<Record<string, any>>(
           `/orgs/${ctx.orgId}/quickstart`,
           {
             providerBrand: 'zai',
@@ -207,17 +207,17 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
         )
 
         expect(qsRes.status).toBe(201)
-        const result = qsRes.data.data
+        const result = qsRes.data
         await cleanup(result)
 
         // Create session
-        const sessionRes = await post<{ data: Record<string, any> }>(
+        const sessionRes = await post<Record<string, any>>(
           `/_/ai/sessions`,
           { agentId: result.agent.id }
         )
 
         expect(sessionRes.status).toBe(200)
-        const token = sessionRes.data.data.sessionToken
+        const token = sessionRes.data.sessionToken
 
         // Stream a response via WebSocket — validates the full pipeline with brand resolution
         const wsResult = await consumeWS(token, 'Say OK', { timeout: 60_000 })

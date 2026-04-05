@@ -4,6 +4,11 @@ export interface ApiResponse<T = unknown> {
   status: number
   ok: boolean
   data: T
+  limit?: number
+  offset?: number
+  warning?: string
+  message?: string
+  overrides?: Record<string, unknown> | null
 }
 
 interface RequestOptions {
@@ -21,6 +26,8 @@ interface RequestOptions {
   rawPath?: boolean
   /** Fetch timeout in milliseconds (default: 15_000) */
   timeout?: number
+  /** Return the raw JSON body without unwrapping { data } envelope (for OpenAI-compat endpoints) */
+  rawResponse?: boolean
 }
 
 /**
@@ -35,7 +42,7 @@ export const api = async <T = unknown>(
   path: string,
   opts: RequestOptions = {}
 ): Promise<ApiResponse<T>> => {
-  const { method = 'GET', body, headers = {}, apiKey, noAuth = false, rawPath = false, timeout = 15_000 } = opts
+  const { method = 'GET', body, headers = {}, apiKey, noAuth = false, rawPath = false, timeout = 15_000, rawResponse = false } = opts
 
   const fullPath = rawPath || path.startsWith('/_') || path.startsWith('/health')
     ? path
@@ -62,14 +69,25 @@ export const api = async <T = unknown>(
     signal: AbortSignal.timeout(timeout),
   })
 
-  let data: T
+  let parsed: any
   try {
-    data = await res.json() as T
+    parsed = await res.json()
   } catch {
-    data = null as T
+    parsed = null
   }
 
-  return { status: res.status, ok: res.ok, data }
+  let data: T
+  let meta: Record<string, unknown> = {}
+
+  if (!rawResponse && !rawPath && parsed && typeof parsed === 'object' && 'data' in parsed) {
+    const { data: payload, ...rest } = parsed
+    data = payload as T
+    meta = rest
+  } else {
+    data = parsed as T
+  }
+
+  return { status: res.status, ok: res.ok, data, ...meta } as ApiResponse<T>
 }
 
 /** GET shorthand */

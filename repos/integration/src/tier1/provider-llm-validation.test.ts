@@ -32,7 +32,7 @@ describe('Tier 1: Provider LLM Validation', () => {
 
   describe('create AI provider with valid brand', () => {
     test('POST /providers with brand=anthropic returns 201', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('LLM Validation Anthropic'),
@@ -45,15 +45,15 @@ describe('Tier 1: Provider LLM Validation', () => {
 
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
-      expect(res.data.data.id).toBeTruthy()
-      expect(res.data.data.type).toBe('ai')
-      expect(res.data.data.brand).toBe('anthropic')
+      expect(res.data.id).toBeTruthy()
+      expect(res.data.type).toBe('ai')
+      expect(res.data.brand).toBe('anthropic')
 
-      createdIds.push(res.data.data.id)
+      createdIds.push(res.data.id)
     })
 
     test('POST /providers with brand=openai returns 201', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('LLM Validation OpenAI'),
@@ -65,13 +65,13 @@ describe('Tier 1: Provider LLM Validation', () => {
       )
 
       expect(res.status).toBe(201)
-      expect(res.data.data.brand).toBe('openai')
+      expect(res.data.brand).toBe('openai')
 
-      createdIds.push(res.data.data.id)
+      createdIds.push(res.data.id)
     })
 
     test('POST /providers with brand=google returns 201', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('LLM Validation Google'),
@@ -82,13 +82,13 @@ describe('Tier 1: Provider LLM Validation', () => {
       )
 
       expect(res.status).toBe(201)
-      expect(res.data.data.brand).toBe('google')
+      expect(res.data.brand).toBe('google')
 
-      createdIds.push(res.data.data.id)
+      createdIds.push(res.data.id)
     })
 
     test('POST /providers with brand=zai returns 201', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('LLM Validation ZAI'),
@@ -100,9 +100,9 @@ describe('Tier 1: Provider LLM Validation', () => {
       )
 
       expect(res.status).toBe(201)
-      expect(res.data.data.brand).toBe('zai')
+      expect(res.data.brand).toBe('zai')
 
-      createdIds.push(res.data.data.id)
+      createdIds.push(res.data.id)
     })
   })
 
@@ -172,7 +172,7 @@ describe('Tier 1: Provider LLM Validation', () => {
 
   describe('non-AI providers skip brand validation', () => {
     test('POST /providers type=git without brand returns 201', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('LLM Validation Git'),
@@ -184,13 +184,13 @@ describe('Tier 1: Provider LLM Validation', () => {
 
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
-      expect(res.data.data.type).toBe('git')
+      expect(res.data.type).toBe('git')
 
-      createdIds.push(res.data.data.id)
+      createdIds.push(res.data.id)
     })
 
     test('POST /providers type=storage without brand returns 201', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('LLM Validation Storage'),
@@ -201,9 +201,9 @@ describe('Tier 1: Provider LLM Validation', () => {
 
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
-      expect(res.data.data.type).toBe('storage')
+      expect(res.data.type).toBe('storage')
 
-      createdIds.push(res.data.data.id)
+      createdIds.push(res.data.id)
     })
   })
 
@@ -213,7 +213,7 @@ describe('Tier 1: Provider LLM Validation', () => {
     let aiProviderId = ''
 
     test('setup: create AI provider for update tests', async () => {
-      const res = await post<{ data: Record<string, any> }>(
+      const res = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers`,
         {
           name: uniqueName('LLM Update Test'),
@@ -224,14 +224,14 @@ describe('Tier 1: Provider LLM Validation', () => {
       )
 
       expect(res.status).toBe(201)
-      aiProviderId = res.data.data.id
+      aiProviderId = res.data.id
       createdIds.push(aiProviderId)
     })
 
     test('PUT /providers/:id can update name without affecting brand', async () => {
       if (!aiProviderId) return
 
-      const res = await put<{ data: Record<string, any> }>(
+      const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers/${aiProviderId}`,
         { name: uniqueName('LLM Update Test Renamed') }
       )
@@ -255,7 +255,7 @@ describe('Tier 1: Provider LLM Validation', () => {
     test('PUT /providers/:id with type=ai and valid brand accepts', async () => {
       if (!aiProviderId) return
 
-      const res = await put<{ data: Record<string, any> }>(
+      const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/providers/${aiProviderId}`,
         { type: 'ai', brand: 'openai', options: { baseUrl: 'https://api.openai.com/v1' } }
       )
@@ -269,14 +269,14 @@ describe('Tier 1: Provider LLM Validation', () => {
 
   describe('existing providers have brand set', () => {
     test('GET /providers returns providers with brand set', async () => {
-      const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+      const res = await get<Record<string, any>[]>(
         `/orgs/${ctx.orgId}/providers`
       )
 
       expect(res.status).toBe(200)
-      expect(Array.isArray(res.data.data)).toBe(true)
+      expect(Array.isArray(res.data)).toBe(true)
 
-      const aiProviders = res.data.data.filter((p: any) => p.type === 'ai')
+      const aiProviders = res.data.filter((p: any) => p.type === 'ai')
 
       for (const provider of aiProviders) {
         expect(provider.brand).toBeDefined()

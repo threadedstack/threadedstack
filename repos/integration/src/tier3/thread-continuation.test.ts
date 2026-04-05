@@ -27,7 +27,7 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: `zai`,
@@ -37,9 +37,9 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
         }
       )
 
-      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
-        agentId = qsRes.data.data.agent.id
-        qsResult = qsRes.data.data
+      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
+        agentId = qsRes.data.agent.id
+        qsResult = qsRes.data
         return
       }
     }
@@ -67,9 +67,9 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
       `messages are persisted and retrievable via listMessages`,
       async () => {
         // Create session and send a message to create a thread
-        const sessionRes = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+        const sessionRes = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
         expect(sessionRes.status).toBe(200)
-        const sessionToken = sessionRes.data.data.sessionToken
+        const sessionToken = sessionRes.data.sessionToken
 
         const result = await consumeWS(sessionToken, 'Say exactly: THREAD_PERSIST_OK', { timeout: 30_000 })
 
@@ -87,15 +87,15 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
         const threadId = threadCreated.threadId as string
 
         // Retrieve messages via the API
-        const messagesRes = await get<{ data: any[] }>(
+        const messagesRes = await get<any[]>(
           `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}/messages`
         )
 
         expect(messagesRes.status).toBe(200)
-        expect(messagesRes.data.data).toBeDefined()
-        expect(Array.isArray(messagesRes.data.data)).toBe(true)
+        expect(messagesRes.data).toBeDefined()
+        expect(Array.isArray(messagesRes.data)).toBe(true)
 
-        const messages = messagesRes.data.data
+        const messages = messagesRes.data
 
         // Should have at least user + assistant messages
         if (textEvents.length > 0 && doneEvents.length > 0) {
@@ -118,9 +118,9 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
     test.skipIf(!hasLLM())(
       `listMessages returns messages with correct structure`,
       async () => {
-        const sessionRes = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+        const sessionRes = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
         expect(sessionRes.status).toBe(200)
-        const sessionToken = sessionRes.data.data.sessionToken
+        const sessionToken = sessionRes.data.sessionToken
 
         const result = await consumeWS(sessionToken, 'Hello', { timeout: 30_000 })
         const threadCreated = result.messages.find((m) => m.type === `thread_created`)
@@ -132,13 +132,13 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
 
         const threadId = threadCreated.threadId as string
 
-        const messagesRes = await get<{ data: any[] }>(
+        const messagesRes = await get<any[]>(
           `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}/messages`
         )
 
         expect(messagesRes.status).toBe(200)
 
-        const messages = messagesRes.data.data
+        const messages = messagesRes.data
         if (messages.length > 0) {
           for (const msg of messages) {
             expect(msg.id).toBeDefined()
@@ -164,10 +164,10 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
       `continuing a thread with threadId does not create a new thread`,
       async () => {
         // Turn 1: create thread
-        const s1 = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+        const s1 = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
         expect(s1.status).toBe(200)
 
-        const first = await consumeWS(s1.data.data.sessionToken, 'Remember: BANANA', { timeout: 30_000 })
+        const first = await consumeWS(s1.data.sessionToken, 'Remember: BANANA', { timeout: 30_000 })
         const threadCreated = first.messages.find((m) => m.type === `thread_created`)
 
         if (!threadCreated?.threadId || !first.messages.some(m => m.type === 'done')) {
@@ -178,10 +178,10 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
         const threadId = threadCreated.threadId as string
 
         // Turn 2: continue with existing threadId
-        const s2 = await post<{ data: Record<string, any> }>(`/_/ai/sessions`, { agentId })
+        const s2 = await post<Record<string, any>>(`/_/ai/sessions`, { agentId })
         expect(s2.status).toBe(200)
 
-        const second = await consumeWS(s2.data.data.sessionToken, 'What word did I say?', {
+        const second = await consumeWS(s2.data.sessionToken, 'What word did I say?', {
           threadId,
           timeout: 30_000,
         })
@@ -197,12 +197,12 @@ describe(`Tier 3: Thread Continuation (live)`, () => {
 
         // If successful, verify accumulated messages
         if (secondDone && !secondError) {
-          const messagesRes = await get<{ data: any[] }>(
+          const messagesRes = await get<any[]>(
             `/orgs/${ctx.orgId}/agents/${agentId}/threads/${threadId}/messages`
           )
 
           expect(messagesRes.status).toBe(200)
-          const messages = messagesRes.data.data
+          const messages = messagesRes.data
 
           // Should have 4 messages: 2 user turns + 2 assistant turns
           expect(messages.length).toBeGreaterThanOrEqual(4)

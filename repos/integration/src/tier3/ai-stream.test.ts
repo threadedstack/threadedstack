@@ -32,7 +32,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
     if (!hasLLM()) return
 
     if (env.testProviderKey) {
-      const qsRes = await post<{ data: Record<string, any> }>(
+      const qsRes = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/quickstart`,
         {
           providerBrand: 'zai',
@@ -42,8 +42,8 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
         }
       )
 
-      if (qsRes.status === 201 && qsRes.data?.data?.agent?.id) {
-        qsResult = qsRes.data.data
+      if (qsRes.status === 201 && qsRes.data?.agent?.id) {
+        qsResult = qsRes.data
         agentId = qsResult!.agent.id
       }
     }
@@ -54,7 +54,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
     if (!agentId) return
 
-    const agentRes = await get<{ data: Record<string, any> }>(
+    const agentRes = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`
     )
 
@@ -65,16 +65,16 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
       )
     }
 
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
 
-    if (sessionRes.status !== 200 || !sessionRes.data?.data?.sessionToken) {
+    if (sessionRes.status !== 200 || !sessionRes.data?.sessionToken) {
       throw new Error(`Session creation failed: ${sessionRes.status}`)
     }
 
-    sessionToken = sessionRes.data.data.sessionToken
+    sessionToken = sessionRes.data.sessionToken
   })
 
   afterAll(async () => {
@@ -176,12 +176,12 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
     expect(firstThread!.threadId).toBeTruthy()
 
     // Create a new session for the second connection
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId }
     )
     expect(sessionRes.status).toBe(200)
-    const token2 = sessionRes.data.data.sessionToken
+    const token2 = sessionRes.data.sessionToken
 
     // Second call with existing threadId — should not create a new thread
     const second = await consumeWS(token2, 'Second message', {
@@ -287,7 +287,7 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
 
   test.skipIf(!hasLLM())('WS with session for deleted agent closes with 4001', async () => {
     // Create a temporary agent via quickstart
-    const tempQs = await post<{ data: Record<string, any> }>(
+    const tempQs = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       {
         providerBrand: 'zai',
@@ -298,19 +298,19 @@ describe('Tier 3: WebSocket Agent Execution (/ai/ws)', () => {
     )
 
     expect(tempQs.status).toBe(201)
-    const tempAgent = tempQs.data.data.agent
-    const tempProject = tempQs.data.data.project
-    const tempEndpoint = tempQs.data.data.endpoint
-    const tempSecret = tempQs.data.data.secret
-    const tempProvider = tempQs.data.data.provider
+    const tempAgent = tempQs.data.agent
+    const tempProject = tempQs.data.project
+    const tempEndpoint = tempQs.data.endpoint
+    const tempSecret = tempQs.data.secret
+    const tempProvider = tempQs.data.provider
 
     // Create session for this agent
-    const sessionRes = await post<{ data: Record<string, any> }>(
+    const sessionRes = await post<Record<string, any>>(
       `/_/ai/sessions`,
       { agentId: tempAgent.id }
     )
     expect(sessionRes.status).toBe(200)
-    const tempToken = sessionRes.data.data.sessionToken
+    const tempToken = sessionRes.data.sessionToken
 
     // Delete the agent BEFORE using the session token
     await del(`/orgs/${ctx.orgId}/agents/${tempAgent.id}`)

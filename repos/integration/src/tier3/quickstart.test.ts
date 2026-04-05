@@ -25,22 +25,22 @@ describe('Tier 3: Quickstart E2E Flow', () => {
   })
 
   test('creates 5 resources in single request', async () => {
-    const res = await post<{ data: Record<string, any> }>(
+    const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/quickstart`,
       body
     )
 
     expect(res.status).toBe(201)
     expect(res.ok).toBe(true)
-    expect(res.data.data).toBeDefined()
-    expect(res.data.data.provider).toBeDefined()
-    expect(res.data.data.secret).toBeDefined()
-    expect(res.data.data.project).toBeDefined()
-    expect(res.data.data.agent).toBeDefined()
-    expect(res.data.data.endpoint).toBeDefined()
+    expect(res.data).toBeDefined()
+    expect(res.data.provider).toBeDefined()
+    expect(res.data.secret).toBeDefined()
+    expect(res.data.project).toBeDefined()
+    expect(res.data.agent).toBeDefined()
+    expect(res.data.endpoint).toBeDefined()
 
     // Store for subsequent tests and cleanup
-    result = res.data.data
+    result = res.data
   })
 
   test('provider has correct type', () => {

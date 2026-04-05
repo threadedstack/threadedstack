@@ -24,15 +24,9 @@ interface RoleMember {
   user?: RoleMemberUser
 }
 
-interface ListResponse {
-  data: RoleMember[]
-  limit: number
-  offset: number
-}
+type ListResponse = RoleMember[]
 
-interface SingleResponse {
-  data: RoleMember
-}
+type SingleResponse = RoleMember
 
 describe('Tier 1: Project Members', () => {
   const ctx = readContext()
@@ -57,26 +51,26 @@ describe('Tier 1: Project Members', () => {
 
       expect(res.status).toBe(200)
       expect(res.ok).toBe(true)
-      expect(Array.isArray(res.data.data)).toBe(true)
-      expect(typeof res.data.limit).toBe('number')
-      expect(typeof res.data.offset).toBe('number')
+      expect(Array.isArray(res.data)).toBe(true)
+      expect(typeof res.limit).toBe('number')
+      expect(typeof res.offset).toBe('number')
     })
 
     test('returns limit and offset metadata from query params', async () => {
       const res = await get<ListResponse>(`${basePath}?limit=1&offset=0`)
 
       expect(res.status).toBe(200)
-      expect(res.data.limit).toBe(1)
-      expect(res.data.offset).toBe(0)
+      expect(res.limit).toBe(1)
+      expect(res.offset).toBe(0)
       // Note: backend echoes pagination params but doesn't apply them to data
-      expect(Array.isArray(res.data.data)).toBe(true)
+      expect(Array.isArray(res.data)).toBe(true)
     })
 
     test('each member has expected shape', async () => {
       const res = await get<ListResponse>(basePath)
-      if (!res.data.data.length) return // skip if no members yet
+      if (!res.data.length) return // skip if no members yet
 
-      const member = res.data.data[0]
+      const member = res.data[0]
       expect(member).toHaveProperty('id')
       expect(member).toHaveProperty('userId')
       expect(member).toHaveProperty('projectId')
@@ -152,7 +146,7 @@ describe('Tier 1: Project Members', () => {
       const orgMembersRes = await get<ListResponse>(`/orgs/${ctx.orgId}/members`)
       expect(orgMembersRes.status).toBe(200)
 
-      const orgMembers = orgMembersRes.data.data
+      const orgMembers = orgMembersRes.data
       const otherMember = orgMembers.find((m: RoleMember) => m.userId !== ctx.userId)
       if (!otherMember) {
         console.warn('Only one org member exists — skipping lifecycle tests')
@@ -173,9 +167,9 @@ describe('Tier 1: Project Members', () => {
       })
 
       expect(res.status).toBe(201)
-      expect(res.data.data.userId).toBe(secondUserId)
-      expect(res.data.data.type).toBe('viewer')
-      expect(res.data.data.projectId).toBe(ctx.projectId)
+      expect(res.data.userId).toBe(secondUserId)
+      expect(res.data.type).toBe('viewer')
+      expect(res.data.projectId).toBe(ctx.projectId)
       addedMemberUserIds.push(secondUserId)
     })
 
@@ -184,7 +178,7 @@ describe('Tier 1: Project Members', () => {
 
       const res = await get<ListResponse>(basePath)
       expect(res.status).toBe(200)
-      const found = res.data.data.find((m: RoleMember) => m.userId === secondUserId)
+      const found = res.data.find((m: RoleMember) => m.userId === secondUserId)
       expect(found).toBeDefined()
       expect(found!.type).toBe('viewer')
     })
@@ -197,7 +191,7 @@ describe('Tier 1: Project Members', () => {
       })
 
       expect(res.status).toBe(200)
-      expect(res.data.data.type).toBe('member')
+      expect(res.data.type).toBe('member')
     })
 
     test('GET confirms updated role', async () => {
@@ -205,7 +199,7 @@ describe('Tier 1: Project Members', () => {
 
       const res = await get<ListResponse>(basePath)
       expect(res.status).toBe(200)
-      const found = res.data.data.find((m: RoleMember) => m.userId === secondUserId)
+      const found = res.data.find((m: RoleMember) => m.userId === secondUserId)
       expect(found).toBeDefined()
       expect(found!.type).toBe('member')
     })
@@ -225,7 +219,7 @@ describe('Tier 1: Project Members', () => {
 
       const res = await get<ListResponse>(basePath)
       expect(res.status).toBe(200)
-      const found = res.data.data.find((m: RoleMember) => m.userId === secondUserId)
+      const found = res.data.find((m: RoleMember) => m.userId === secondUserId)
       expect(found).toBeUndefined()
     })
   })
@@ -237,7 +231,7 @@ describe('Tier 1: Project Members', () => {
 
     test('setup: add member for role tests', async () => {
       const orgMembersRes = await get<ListResponse>(`/orgs/${ctx.orgId}/members`)
-      const orgMembers = orgMembersRes.data.data
+      const orgMembers = orgMembersRes.data
       const otherMember = orgMembers.find((m: RoleMember) => m.userId !== ctx.userId)
       if (!otherMember) {
         console.warn('Only one org member — skipping role assignment tests')
@@ -258,7 +252,7 @@ describe('Tier 1: Project Members', () => {
       // Test user has super org role — can assign any role
       const res = await put<SingleResponse>(`${basePath}/${secondUserId}`, { roleType: 'admin' })
       expect(res.status).toBe(200)
-      expect(res.data.data.type).toBe('admin')
+      expect(res.data.type).toBe('admin')
     })
 
     test('super user can assign owner role', async () => {
@@ -266,7 +260,7 @@ describe('Tier 1: Project Members', () => {
 
       const res = await put<SingleResponse>(`${basePath}/${secondUserId}`, { roleType: 'owner' })
       expect(res.status).toBe(200)
-      expect(res.data.data.type).toBe('owner')
+      expect(res.data.type).toBe('owner')
     })
 
     test('cleanup: remove role test member', async () => {
@@ -324,7 +318,7 @@ describe('Tier 1: Project Members', () => {
         `${basePath}/${memberUserId}`, { roleType: 'member' }, adminOpts()
       )
       expect(res.status).toBe(200)
-      expect(res.data.data.type).toBe('member')
+      expect(res.data.type).toBe('member')
     })
 
     test('admin can update to viewer role', async () => {
@@ -332,7 +326,7 @@ describe('Tier 1: Project Members', () => {
         `${basePath}/${memberUserId}`, { roleType: 'viewer' }, adminOpts()
       )
       expect(res.status).toBe(200)
-      expect(res.data.data.type).toBe('viewer')
+      expect(res.data.type).toBe('viewer')
     })
 
     // ── Cannot modify members with equal or higher roles ──
@@ -341,7 +335,7 @@ describe('Tier 1: Project Members', () => {
       // Use super key to promote to admin role
       const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'admin' })
       expect(res.status).toBe(200)
-      expect(res.data.data.type).toBe('admin')
+      expect(res.data.type).toBe('admin')
     })
 
     test('admin cannot modify equal-role member', async () => {
@@ -360,7 +354,7 @@ describe('Tier 1: Project Members', () => {
     test('setup: super promotes member to owner', async () => {
       const res = await put<SingleResponse>(`${basePath}/${memberUserId}`, { roleType: 'owner' })
       expect(res.status).toBe(200)
-      expect(res.data.data.type).toBe('owner')
+      expect(res.data.type).toBe('owner')
     })
 
     test('admin cannot remove owner', async () => {
@@ -400,7 +394,7 @@ describe('Tier 1: Project Members', () => {
         basePath, { userId: memberUserId, roleType: 'viewer' }, adminOpts()
       )
       expect(res.status).toBe(201)
-      expect(res.data.data.type).toBe('viewer')
+      expect(res.data.type).toBe('viewer')
       addedMemberUserIds.push(memberUserId)
     })
 
