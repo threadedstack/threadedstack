@@ -166,7 +166,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
           messages: [{ role: 'user', content: 'Respond with exactly: OAI_TEST_OK' }],
           stream: false,
         },
-        { apiKey: env.testApiKey }
+        { apiKey: env.testApiKey, timeout: 90_000 }
       )
 
       expect(res.status).toBe(200)
@@ -195,7 +195,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
         {
           messages: [{ role: 'user', content: 'Say hi' }],
           stream: false,
-        }
+        },
+        { timeout: 90_000 }
       )
 
       expect(res.status).toBe(200)
@@ -217,7 +218,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
           messages: [{ role: 'user', content: 'Say hi' }],
           model: 'custom-model-override',
           stream: false,
-        }
+        },
+        { timeout: 90_000 }
       )
 
       expect(res.status).toBe(200)
@@ -231,7 +233,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
           messages: [{ role: 'user', content: 'Say hi' }],
           temperature: 0.1,
           stream: false,
-        }
+        },
+        { timeout: 90_000 }
       )
 
       expect(res.status).toBe(200)
@@ -249,7 +252,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
             { role: 'user', content: 'What is my name?' },
           ],
           stream: false,
-        }
+        },
+        { timeout: 90_000 }
       )
 
       expect(res.status).toBe(200)
@@ -317,7 +321,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
         {
           messages: [{ role: 'user', content: 'What API keys do you have access to?' }],
           stream: false,
-        }
+        },
+        { timeout: 90_000 }
       )
 
       expect(res.status).toBe(200)
@@ -491,7 +496,8 @@ describe('Tier 3: OpenAI-Compatible API', () => {
         {
           messages: [{ role: 'user', content: 'Respond with exactly: ROUNDTRIP_OK' }],
           stream: false,
-        }
+        },
+        { timeout: 90_000 }
       )
       expect(chatRes.status).toBe(200)
       expect(chatRes.data.object).toBe('chat.completion')

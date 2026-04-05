@@ -232,6 +232,11 @@ export class KubeClient {
   }
 
   hydrateSingle(pod: k8s.V1Pod): void {
+    if (this.shouldRemove(pod)) {
+      this.removeFromCache(pod)
+      return
+    }
+
     const labels = pod.metadata?.labels || {}
     const annotations = pod.metadata?.annotations || {}
     const subdomain = annotations[PodAnnotationKeys.subdomain]

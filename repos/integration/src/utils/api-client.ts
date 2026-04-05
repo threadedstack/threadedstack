@@ -19,6 +19,8 @@ interface RequestOptions {
   noAuth?: boolean
   /** Use path as-is without auto-prefixing /_  (e.g. for /health, /faas/*, /proxy/*) */
   rawPath?: boolean
+  /** Fetch timeout in milliseconds (default: 15_000) */
+  timeout?: number
 }
 
 /**
@@ -33,7 +35,7 @@ export const api = async <T = unknown>(
   path: string,
   opts: RequestOptions = {}
 ): Promise<ApiResponse<T>> => {
-  const { method = 'GET', body, headers = {}, apiKey, noAuth = false, rawPath = false } = opts
+  const { method = 'GET', body, headers = {}, apiKey, noAuth = false, rawPath = false, timeout = 15_000 } = opts
 
   const fullPath = rawPath || path.startsWith('/_') || path.startsWith('/health')
     ? path
@@ -57,7 +59,7 @@ export const api = async <T = unknown>(
     method,
     headers: reqHeaders,
     body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(timeout),
   })
 
   let data: T

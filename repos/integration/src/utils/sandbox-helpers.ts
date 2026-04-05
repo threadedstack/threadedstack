@@ -12,6 +12,23 @@ type TSandboxResult = {
   exitCode?: number
 }
 
+type TSandboxConnectResult = {
+  podName: string
+  password: string
+  port: number
+  sandboxId: string
+  command: string
+}
+
+type TSandboxSessionResult = {
+  sessionId: string
+  podName: string
+  sandboxId: string
+  orgId: string
+  userId: string
+  connectedAt: string
+}
+
 type TSandboxSetup = {
   podName: string
   projectId: string
@@ -121,6 +138,25 @@ export const getPodSubdomain = (podName: string): string | null => {
 }
 
 /**
+ * Call POST /:id/connect — auto-starts pod if needed, returns connection info.
+ */
+export const connectSandbox = async (orgId: string, sandboxId: string) => {
+  return await post<{ data: TSandboxConnectResult }>(
+    `/orgs/${orgId}/sandboxes/${sandboxId}/connect`,
+    {}
+  )
+}
+
+/**
+ * Call GET /:id/sessions — returns active SSH tunnel sessions.
+ */
+export const getSessions = async (orgId: string, sandboxId: string) => {
+  return await get<{ data: TSandboxSessionResult[] }>(
+    `/orgs/${orgId}/sandboxes/${sandboxId}/sessions`
+  )
+}
+
+/**
  * Full pod lifecycle setup: create project + create sandbox config + start pod + wait for Running.
  * Returns IDs needed for tests and cleanup.
  */
@@ -142,6 +178,7 @@ export const setupRunningPod = async (
       name: sandboxName,
       config: { ...defaultSandboxConfig, ...configOverrides },
       orgId,
+      projectId,
     }
   )
   if (!sbRes.ok) throw new Error(`Failed to create sandbox config: HTTP ${sbRes.status}`)

@@ -79,7 +79,7 @@ export class SandboxService {
 
     proxy = createProxyMiddleware({
       target,
-      ws: true,
+      ws: false,
       changeOrigin: true,
       on: {
         error: (err: Error, _req: any, res: any) => {

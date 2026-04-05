@@ -157,8 +157,14 @@ const buildSandboxContainer = (
     ],
   }
 
-  if (config.args) container.args = config.args
-  container.command = config.command || [`sleep`, `infinity`]
+  if (config.command) {
+    container.command = config.command
+  }
+  if (config.args) {
+    container.args = config.args
+  } else if (!config.command) {
+    container.args = [`sleep`, `infinity`]
+  }
   if (config.imagePullPolicy) container.imagePullPolicy = config.imagePullPolicy
 
   return container

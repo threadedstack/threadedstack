@@ -447,7 +447,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
       error={error?.message}
       title='Sandbox Configs'
       setSearchQuery={setSearchQuery}
-      searchCount={filteredSandboxes.length}
+      searchCount={0}
       searchPlaceholder='Search sandbox configs...'
       onAction={sandboxCount > 0 && onCreateSandbox}
       actionLabel={sandboxCount > 0 && 'Create Sandbox'}

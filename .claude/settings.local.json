@@ -93,7 +93,9 @@
       "Bash(~/.devspace/bin/helm dependency:*)",
       "Bash(/Users/lancetipton/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.2/scripts/start-server.sh --project-dir /Users/lancetipton/keg-hub/external/apps/threadedstack)",
       "Read(//tmp/**)",
-      "Read(//Users/lancetipton/.claude/**)"
+      "Read(//Users/lancetipton/.claude/**)",
+      "Read(//private/tmp/**)",
+      "Read(//private/var/folders/**)"
     ]
   },
   "sandbox": {

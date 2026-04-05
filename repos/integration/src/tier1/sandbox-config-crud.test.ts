@@ -1,4 +1,4 @@
-import { describe, test, expect, afterAll } from 'vitest'
+import { describe, test, expect, afterAll, beforeAll } from 'vitest'
 import { get, post, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
@@ -204,5 +204,221 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
     expect(res.status).toBe(401)
     expect(res.ok).toBe(false)
+  })
+
+  // --- projectId & New Config Fields ---
+
+  describe('projectId + new config fields', () => {
+    let testProjectId = ''
+    const createdSandboxIds: string[] = []
+
+    const baseCfg = {
+      image: 'node:22-slim',
+      ports: { '3000': { protocol: 'http' } },
+      resources: {
+        limits: { cpu: '500m', memory: '256Mi' },
+        requests: { cpu: '100m', memory: '128Mi' },
+      },
+    }
+
+    beforeAll(async () => {
+      const projRes = await post<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/projects`,
+        { name: uniqueName('sb-proj-test'), orgId: ctx.orgId }
+      )
+      if (projRes.ok) testProjectId = projRes.data.data.id
+    }, 30_000)
+
+    afterAll(async () => {
+      for (const sbId of createdSandboxIds) {
+        await tryDelete(`/orgs/${ctx.orgId}/sandboxes/${sbId}`)
+      }
+      if (testProjectId) await tryDelete(`/orgs/${ctx.orgId}/projects/${testProjectId}`)
+    })
+
+    // --- projectId CRUD ---
+
+    test('POST creates sandbox with projectId', async () => {
+      if (!testProjectId) return expect(testProjectId).toBeTruthy()
+
+      const res = await post<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName('sb-with-proj'),
+          config: baseCfg,
+          orgId: ctx.orgId,
+          projectId: testProjectId,
+        }
+      )
+
+      expect(res.status).toBe(201)
+      expect(res.ok).toBe(true)
+      expect(res.data.data.projectId).toBe(testProjectId)
+      createdSandboxIds.push(res.data.data.id)
+    })
+
+    test('GET single sandbox includes projectId', async () => {
+      if (!createdSandboxIds[0]) return expect(createdSandboxIds[0]).toBeTruthy()
+
+      const res = await get<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[0]}`
+      )
+
+      expect(res.status).toBe(200)
+      expect(res.data.data.projectId).toBe(testProjectId)
+    })
+
+    test('GET list with ?projectId filter returns only matching sandboxes', async () => {
+      if (!testProjectId) return expect(testProjectId).toBeTruthy()
+
+      // Create a sandbox WITHOUT projectId
+      const noProj = await post<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        { name: uniqueName('sb-no-proj'), config: baseCfg, orgId: ctx.orgId }
+      )
+      expect(noProj.status).toBe(201)
+      createdSandboxIds.push(noProj.data.data.id)
+
+      const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+        `/orgs/${ctx.orgId}/sandboxes?projectId=${testProjectId}&limit=500`
+      )
+
+      expect(res.status).toBe(200)
+      expect(Array.isArray(res.data.data)).toBe(true)
+
+      const ids = res.data.data.map((s: any) => s.id)
+      // The sandbox with projectId should be present
+      expect(ids).toContain(createdSandboxIds[0])
+      // The sandbox without projectId should NOT appear in filtered results
+      expect(ids).not.toContain(noProj.data.data.id)
+    })
+
+    test('GET list without ?projectId returns all', async () => {
+      const res = await get<{ data: Record<string, any>[]; limit: number; offset: number }>(
+        `/orgs/${ctx.orgId}/sandboxes?limit=500`
+      )
+
+      expect(res.status).toBe(200)
+      expect(Array.isArray(res.data.data)).toBe(true)
+
+      const ids = res.data.data.map((s: any) => s.id)
+      // Both sandboxes (with and without projectId) should be present
+      for (const sbId of createdSandboxIds) {
+        expect(ids).toContain(sbId)
+      }
+    })
+
+    test('PUT updates sandbox projectId', async () => {
+      if (!createdSandboxIds[1]) return expect(createdSandboxIds[1]).toBeTruthy()
+
+      const res = await put<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[1]}`,
+        { projectId: testProjectId }
+      )
+
+      expect(res.status).toBe(200)
+      expect(res.ok).toBe(true)
+      expect(res.data.data.projectId).toBe(testProjectId)
+    })
+
+    test('PUT can set sandbox projectId to null', async () => {
+      if (!createdSandboxIds[1]) return expect(createdSandboxIds[1]).toBeTruthy()
+
+      const res = await put<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[1]}`,
+        { projectId: null }
+      )
+
+      expect(res.status).toBe(200)
+      expect(res.ok).toBe(true)
+      expect(res.data.data.projectId).toBeFalsy()
+    })
+
+    // --- sshEnabled ---
+
+    test('POST creates sandbox with sshEnabled=false', async () => {
+      const res = await post<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName('sb-no-ssh'),
+          config: { ...baseCfg, sshEnabled: false },
+          orgId: ctx.orgId,
+        }
+      )
+
+      expect(res.status).toBe(201)
+      expect(res.ok).toBe(true)
+      expect(res.data.data.config.sshEnabled).toBe(false)
+      createdSandboxIds.push(res.data.data.id)
+    })
+
+    // --- gitRepo / gitBranch ---
+
+    test('POST creates sandbox with gitRepo and gitBranch', async () => {
+      const res = await post<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName('sb-git'),
+          config: {
+            ...baseCfg,
+            gitRepo: 'https://github.com/example/repo.git',
+            gitBranch: 'main',
+          },
+          orgId: ctx.orgId,
+        }
+      )
+
+      expect(res.status).toBe(201)
+      expect(res.ok).toBe(true)
+      expect(res.data.data.config.gitRepo).toBe('https://github.com/example/repo.git')
+      expect(res.data.data.config.gitBranch).toBe('main')
+      createdSandboxIds.push(res.data.data.id)
+    })
+
+    // --- idleTimeoutMinutes ---
+
+    test('POST creates sandbox with idleTimeoutMinutes=60', async () => {
+      const res = await post<{ data: Record<string, any> }>(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName('sb-idle'),
+          config: { ...baseCfg, idleTimeoutMinutes: 60 },
+          orgId: ctx.orgId,
+        }
+      )
+
+      expect(res.status).toBe(201)
+      expect(res.ok).toBe(true)
+      expect(res.data.data.config.idleTimeoutMinutes).toBe(60)
+      createdSandboxIds.push(res.data.data.id)
+    })
+
+    // --- Validation ---
+
+    test('POST with gitBranch but no gitRepo returns 400', async () => {
+      const res = await post(
+        `/orgs/${ctx.orgId}/sandboxes`,
+        {
+          name: uniqueName('sb-bad-git'),
+          config: { ...baseCfg, gitBranch: 'main' },
+          orgId: ctx.orgId,
+        }
+      )
+
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
+    })
+
+    test('PUT with gitBranch but no gitRepo returns 400', async () => {
+      if (!createdSandboxIds[0]) return expect(createdSandboxIds[0]).toBeTruthy()
+
+      const res = await put(
+        `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[0]}`,
+        { config: { ...baseCfg, gitBranch: 'develop' } }
+      )
+
+      expect(res.status).toBe(400)
+      expect(res.ok).toBe(false)
+    })
   })
 })

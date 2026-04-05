@@ -401,7 +401,7 @@ describe(`SandboxService`, () => {
       expect(mockCreateProxyMiddleware).toHaveBeenCalledWith(
         expect.objectContaining({
           target: `http://10.0.0.1:3000`,
-          ws: true,
+          ws: false,
           changeOrigin: true,
         })
       )

@@ -118,16 +118,23 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
 
   // --- Validation Errors ---
 
-  test('POST /:id/start without projectId returns 400', async () => {
+  test('POST /:id/start without body projectId uses sandbox.projectId fallback', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
-    const res = await post(
+    const res = await post<{ data: { podName: string } }>(
       `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
       {}
     )
 
-    expect(res.status).toBe(400)
-    expect(res.ok).toBe(false)
+    // projectId is optional — falls back to sandbox.projectId (which may be undefined)
+    expect(res.status).toBe(201)
+    expect(res.data.data.podName).toBeDefined()
+
+    // Stop the pod to clean up
+    await api(`/orgs/${ctx.orgId}/sandboxes/${sandboxId}/stop`, {
+      method: 'DELETE',
+      body: { podName: res.data.data.podName },
+    })
   })
 
   test('GET /:id/status without podName returns 400', async () => {

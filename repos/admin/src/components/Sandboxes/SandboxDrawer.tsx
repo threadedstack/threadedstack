@@ -305,7 +305,7 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
         ...(workdir.trim() ? { workdir: workdir.trim() } : {}),
         ...(commandArr.length > 0 ? { command: commandArr } : {}),
         ...(Object.keys(resources).length > 0 ? { resources } : {}),
-        ...(gitBranch.trim() ? { gitBranch: gitBranch.trim() } : {}),
+        ...(gitRepo.trim() && gitBranch.trim() ? { gitBranch: gitBranch.trim() } : {}),
         ...(Object.keys(portsObj).length > 0 ? { ports: portsObj } : {}),
         ...(Object.keys(envVarsObj).length > 0 ? { envVars: envVarsObj } : {}),
         ...(resolvedGitTokenSecretId

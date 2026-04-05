@@ -390,6 +390,129 @@ describe(`KubeClient`, () => {
     })
   })
 
+  // --- hydrateSingle — terminal phase cleanup ---
+
+  describe(`hydrateSingle — terminal phase cleanup`, () => {
+    it(`should remove route when pod transitions to Failed`, () => {
+      const pod = makePod()
+
+      // Pod starts Running — route exists
+      client.hydrateSingle(pod as any)
+      expect(client.routes[`sb-test1234-abcd`]).toBeDefined()
+
+      // Pod transitions to Failed — route should be removed
+      const failedPod = makePod({
+        status: { phase: EContainerState.Failed, podIP: `10.0.0.5` },
+      })
+      const callback = vi.fn()
+      client.onRemoveRoute(callback)
+
+      client.hydrateSingle(failedPod as any)
+
+      expect(client.routes[`sb-test1234-abcd`]).toBeUndefined()
+      expect(callback).toHaveBeenCalledTimes(1)
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meta: expect.objectContaining({ sandboxId: `sandbox-1` }),
+        })
+      )
+    })
+
+    it(`should remove route when pod transitions to Succeeded`, () => {
+      const pod = makePod()
+      client.hydrateSingle(pod as any)
+      expect(client.routes[`sb-test1234-abcd`]).toBeDefined()
+
+      const succeededPod = makePod({
+        status: { phase: EContainerState.Succeeded, podIP: `10.0.0.5` },
+      })
+
+      client.hydrateSingle(succeededPod as any)
+
+      expect(client.routes[`sb-test1234-abcd`]).toBeUndefined()
+    })
+
+    it(`should be no-op for Failed pod with no existing route`, () => {
+      const failedPod = makePod({
+        status: { phase: EContainerState.Failed, podIP: `10.0.0.5` },
+      })
+      const callback = vi.fn()
+      client.onRemoveRoute(callback)
+
+      client.hydrateSingle(failedPod as any)
+
+      expect(Object.keys(client.routes)).toHaveLength(0)
+      expect(callback).not.toHaveBeenCalled()
+    })
+
+    it(`should not remove route for Running or Pending pods`, () => {
+      const pod = makePod()
+      client.hydrateSingle(pod as any)
+      expect(client.routes[`sb-test1234-abcd`]).toBeDefined()
+
+      // Modified event with same Running phase — route stays
+      const stillRunning = makePod({
+        status: { phase: EContainerState.Running, podIP: `10.0.0.5` },
+      })
+      client.hydrateSingle(stillRunning as any)
+      expect(client.routes[`sb-test1234-abcd`]).toBeDefined()
+    })
+  })
+
+  // --- Full lifecycle: hydrate → transition → cleanup ---
+
+  describe(`full lifecycle — route cleanup on pod death`, () => {
+    it(`route is added on Running, removed on Failed, callback fires`, () => {
+      const callback = vi.fn()
+      client.onRemoveRoute(callback)
+
+      // 1. Pod starts Running — watch "added" event
+      const pod = makePod()
+      client.hydrateSingle(pod as any)
+      expect(client.routes[`sb-test1234-abcd`]).toBeDefined()
+      expect(callback).not.toHaveBeenCalled()
+
+      // 2. Pod transitions to Failed — watch "modified" event
+      const failedPod = makePod({
+        status: { phase: EContainerState.Failed, podIP: `10.0.0.5` },
+      })
+      client.hydrateSingle(failedPod as any)
+      expect(client.routes[`sb-test1234-abcd`]).toBeUndefined()
+      expect(callback).toHaveBeenCalledTimes(1)
+
+      // 3. Pod deleted — watch "deleted" event (no-op, already cleaned)
+      client.removeFromCache(pod as any)
+      expect(callback).toHaveBeenCalledTimes(1) // not called again
+    })
+
+    it(`multiple pods: only terminal pod route is removed`, () => {
+      const pod1 = makePod()
+      const pod2 = makePod({
+        metadata: { name: `tdsk-sb-other-0000` },
+        annotations: {
+          [PodAnnotationKeys.subdomain]: `sb-other-0000`,
+          [PodAnnotationKeys.ports]: JSON.stringify({ '8080': { protocol: `http` } }),
+          [PodAnnotationKeys.placeholders]: JSON.stringify({}),
+        },
+        labels: { [PodLabelKeys.sandboxId]: `sandbox-2` },
+        status: { phase: EContainerState.Running, podIP: `10.0.0.20` },
+      })
+
+      client.hydrateSingle(pod1 as any)
+      client.hydrateSingle(pod2 as any)
+      expect(Object.keys(client.routes)).toHaveLength(2)
+
+      // pod1 fails — only pod1's route removed
+      const failedPod1 = makePod({
+        status: { phase: EContainerState.Failed, podIP: `10.0.0.5` },
+      })
+      client.hydrateSingle(failedPod1 as any)
+
+      expect(client.routes[`sb-test1234-abcd`]).toBeUndefined()
+      expect(client.routes[`sb-other-0000`]).toBeDefined()
+    })
+  })
+
   // --- removeFromCache ---
 
   describe(`removeFromCache`, () => {

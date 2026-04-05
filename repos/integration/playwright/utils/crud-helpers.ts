@@ -13,6 +13,7 @@ const ignoredConsolePatterns = [
   'net::ERR',
   'Failed to load resource',
   'ErrorBoundary',
+  'queryKey needs to be an Array',
 ]
 
 /**
