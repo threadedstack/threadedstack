@@ -12,13 +12,14 @@ The **Sandbox** repo (`repos/sandbox`, `@tdsk/sandbox`) is a pluggable execution
 - **E2B Provider** - Firecracker microVM sandboxes via the E2B cloud API
 - **Local Provider** - In-memory virtual shell (just-bash) with optional V8 isolate (isolated-vm)
 - **IsolateRunner** - V8 isolate wrapper providing Node.js-like APIs (fs, path, subprocess) in memory-isolated contexts
+- **K8s Provider** - Kubernetes pod-based sandboxes with SSH access, project scoping, and idle timeout management
 
 **Key Characteristics**:
 - **Type**: Sandbox execution library (no server, no CLI, no build step — consumed as TypeScript source)
 - **Pattern**: Factory + Strategy - `createSandboxProvider(type)` returns the right implementation
 - **Extensible**: Add new providers by implementing `ISandboxProvider` and registering in the factory
 - **Graceful Degradation**: Local provider works without `isolated-vm` (just shell/fs, no JS isolation)
-- **Size**: ~570 LOC across 4 source files + barrel export
+- **Size**: ~570 LOC across 4 local source files + K8s support (~400 LOC) + barrel export
 
 ## Directory Structure
 
@@ -26,7 +27,7 @@ The **Sandbox** repo (`repos/sandbox`, `@tdsk/sandbox`) is a pluggable execution
 repos/sandbox/
 ├── configs/                       # aliases, biome, vitest config
 ├── src/
-│   ├── index.ts                   # Barrel export (factory, e2b, local, isolate)
+│   ├── index.ts                   # Barrel export (factory, e2b, local, isolate, kube)
 │   ├── factory.ts                 # createSandboxProvider() factory function
 │   ├── factory.test.ts            # Factory tests (7 tests)
 │   ├── isolate.ts                 # IsolateRunner — V8 isolation wrapper (~325 LOC)
@@ -34,7 +35,14 @@ repos/sandbox/
 │   ├── e2b.ts                     # E2bSandbox + E2bSandboxProvider (~85 LOC)
 │   ├── e2b.test.ts                # E2B tests (11 tests)
 │   ├── local.ts                   # LocalSandbox + LocalSandboxProvider (~133 LOC)
-│   └── local.test.ts              # Local sandbox tests (18 tests)
+│   ├── local.test.ts              # Local sandbox tests (18 tests)
+│   ├── kube/                      # Kubernetes sandbox support
+│   │   ├── kubeClient.ts          # K8s API client — pod CRUD, exec, route hydration
+│   │   ├── kubeClient.test.ts     # KubeClient tests
+│   │   ├── podManifest.ts         # Pod spec builder — labels, SSH port, egress proxy, CA cert volume
+│   │   └── podManifest.test.ts    # Pod manifest tests
+│   └── types/
+│       └── pod.types.ts           # K8s pod types (TKubeClientConfig, TPodManifestOpts, etc.)
 ├── package.json
 └── tsconfig.json
 ```
@@ -46,7 +54,8 @@ repos/sandbox/
 ```
 createSandboxProvider(type: TSandboxProviderType): ISandboxProvider
   ├── 'e2b'   → E2bSandboxProvider (cloud Firecracker microVMs)
-  └── 'local' → LocalSandboxProvider (in-memory virtual shell + optional V8 isolate)
+  ├── 'local' → LocalSandboxProvider (in-memory virtual shell + optional V8 isolate)
+  └── 'kubernetes' → KubeClient (K8s pod-based sandboxes with SSH access)
 ```
 
 ### Provider Hierarchy
@@ -202,6 +211,47 @@ class IsolateRunner {
 - **Memory limit**: Configurable (default 128 MB)
 - **Timeout**: Default 5000ms per eval
 
+### 5. K8s Sandbox Support (`src/kube/`)
+
+Kubernetes-based sandbox pods with SSH access, project scoping, and lifecycle management.
+
+#### KubeClient (`src/kube/kubeClient.ts`)
+
+Manages K8s pod lifecycle and route hydration for sandbox pods.
+
+**Key Operations:**
+- `createPod(opts)` — Create pod from manifest with labels (orgId, userId, sandboxId, projectId)
+- `deletePod(name, namespace)` — Delete pod by name
+- `listPods(labels, stateFilter?)` — List pods filtered by labels and optional state
+- `getPodState(name)` — Get pod phase (Running, Pending, Failed, Succeeded, Unknown)
+- `execInPod(name, command, args)` — Execute command inside running pod
+- `hydrateRoutes(routeMap)` — Update in-memory route map for sandbox subdomain proxying
+
+#### Pod Manifest (`src/kube/podManifest.ts`)
+
+Builds K8s pod specifications for sandbox containers.
+
+**Key Features:**
+- **Labels**: orgId, userId, sandboxId, and optional projectId for multi-tenant filtering
+- **SSH Port 2222**: Automatically added to container ports if `sshEnabled !== false`
+- **Egress Proxy Init Container**: Routes HTTP/HTTPS traffic through proxy IP for secret placeholder replacement
+- **CA Certificate Volume**: Mounts TLS certificate secret for MITM proxy verification
+- **Annotations**: Stores subdomain, ports, and placeholder mappings as pod metadata
+- **RFC 1123 Pod Names**: `buildPodName()` generates compliant names; `sanitizeLabel()` cleans label values
+
+**Pod Name Format:** `tdsk-sb-<first8CharsOfSandboxId>-<randomSuffix>`
+
+#### Pod Types (`src/types/pod.types.ts`)
+
+```typescript
+type TKubeClientConfig = { namespace: string; kubeConfig?: any }
+type TPodManifestOpts = {
+  orgId: string; userId: string; sandboxId: string; projectId?: string
+  config: TKubeSandboxConfig; placeholders?: TPlaceholderMap
+  egressProxyIp?: string; subdomain?: string
+}
+```
+
 ## Key Patterns
 
 ### 1. Graceful Resource Management
@@ -275,6 +325,9 @@ const entries = await sandbox.listDir('/workspace')
 
 ### With Backend (`@tdsk/backend`)
 - Backend resolves agent sandbox config and passes it to execution context
+- Backend's `SandboxService` uses `KubeClient` for pod CRUD and `podManifest` for pod spec generation
+- Pod lifecycle (start/stop) managed by backend, not sandbox repo directly
+- Route hydration keeps the in-memory proxy map up-to-date with running pods
 
 ## Development Notes
 

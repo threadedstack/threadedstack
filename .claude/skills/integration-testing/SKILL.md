@@ -1,5 +1,96 @@
 # Integration Testing Skill
 
+## Directory Structure
+
+```
+repos/integration/
+├── configs/
+│   └── vitest.config.ts          # Vitest config: maxForks 8, 120s timeout
+├── playwright/
+│   ├── utils/crud-helpers.ts     # Shared Playwright helpers (openDrawer, fillField, submitForm, searchInPage)
+│   └── tier2/                    # E2E browser tests
+│       ├── crud-sandboxes.spec.ts         # Sandbox CRUD lifecycle in UI
+│       ├── sandbox-connect-modal.spec.ts  # ConnectModal dialog (SSH command, VS Code config, sessions)
+│       └── sandbox-drawer-fields.spec.ts  # Sandbox drawer form fields (SSH, git, idle timeout, image presets)
+└── src/
+    ├── utils/
+    │   ├── api-client.ts         # Typed fetch wrapper with Bearer auth (get, post, put, del)
+    │   └── sandbox-helpers.ts    # waitForPodState, execInPod, getPodSubdomain, connectSandbox, setupRunningPod, cleanupSandbox
+    ├── tier1/                    # Unit & direct API tests
+    │   ├── repl-sandbox-client.test.ts    # REPL ApiClient sandbox methods
+    │   └── sandbox-config-crud.test.ts    # Sandbox config CRUD with projectId, SSH, git, idle timeout
+    └── tier3/                    # Live infrastructure tests
+        ├── sandbox-connect.test.ts        # POST /connect auto-start, concurrency dedup
+        ├── sandbox-route-cleanup.test.ts  # Stale route cleanup, subdomain proxy, WebSocket after cleanup
+        ├── sandbox-sessions.test.ts       # GET /sessions endpoint
+        └── sandbox-tunnel.test.ts         # WebSocket SSH tunnel, session tracking
+```
+
+## Automated Test Suite
+
+### Running Tests
+
+```bash
+cd repos/integration
+
+# Full API test suite (tier1 + tier3, requires K8s)
+pnpm test
+
+# Single test file
+npx vitest run --config configs/vitest.config.ts src/tier3/sandbox-connect.test.ts
+
+# Playwright E2E tests only (tier2, requires admin UI running)
+pnpm test:ui
+
+# All tests (API + Playwright)
+pnpm test:all
+```
+
+**GOTCHA**: Do NOT put `--` before the file path when running vitest directly — it causes vitest to ignore the file filter and run ALL tests. The `--` is only for `pnpm` script passthrough: `pnpm test:api -- src/tier3/<file>.test.ts`
+
+### Test Utilities
+
+**`src/utils/api-client.ts`** — Typed fetch wrapper:
+- `api<T>(path, opts)` — Core fetch with Bearer auth, auto-prefixes `/_` for admin routes
+- Shortcuts: `get()`, `post()`, `put()`, `del()` with consistent `RequestOptions`
+- Returns `ApiResponse<T>` with `{ status, ok, data }`
+
+**`src/utils/sandbox-helpers.ts`** — Sandbox test infrastructure:
+- `waitForPodState(orgId, sandboxId, podName, state, maxWaitMs, intervalMs)` — Poll until Running/Failed
+- `execInPod(orgId, sandboxId, podName, command, args)` — Execute commands in running pod
+- `getPodSubdomain(podName)` — Read K8s annotation for proxy routing
+- `connectSandbox(orgId, sandboxId)` — POST to `/connect` endpoint
+- `getSessions(orgId, sandboxId)` — GET `/sessions` endpoint
+- `setupRunningPod(orgId, configOverrides)` — Full lifecycle: create project → create sandbox → start pod → wait for Running
+- `cleanupSandbox(orgId, setup)` — Best-effort cleanup: stop → delete sandbox → delete project
+
+### Tier 1 — API Contract Tests
+
+Direct API calls, no UI. Tests API client wrappers, CRUD envelopes, auth validation.
+
+**Key test files:**
+- `sandbox-config-crud.test.ts` — Full CRUD with new fields: projectId, sshEnabled, gitRepo, gitBranch, idleTimeoutMinutes. Validates projectId filtering and git field validation (gitBranch without gitRepo → 400)
+- `repl-sandbox-client.test.ts` — Tests REPL `ApiClient.listSandboxes()` against live backend
+
+### Tier 2 — Playwright E2E Tests
+
+Headless browser tests for UI workflows.
+
+**Key test files:**
+- `crud-sandboxes.spec.ts` — Create/read/update/delete sandbox via DataTable UI with automatic cleanup
+- `sandbox-connect-modal.spec.ts` — ConnectModal dialog: SSH command display, VS Code config, session count
+- `sandbox-drawer-fields.spec.ts` — Form fields: SSH toggle, image presets (Claude/Codex/OpenCode), git accordion, idle timeout, full persistence test
+
+### Tier 3 — Live Infrastructure Tests
+
+Real Kubernetes pods, networking, SSH tunneling. ~2 min per spec.
+
+**Key test files:**
+- `sandbox-connect.test.ts` — POST `/connect` auto-start, concurrent deduplication (no duplicate pods), projectId integration
+- `sandbox-route-cleanup.test.ts` — Stale route cleanup: start pod with HTTP server → stop → verify 404 (not timeout/502) → verify WebSocket still works
+- `sandbox-sessions.test.ts` — GET `/sessions` endpoint validation
+- `sandbox-tunnel.test.ts` — WebSocket tunnel: auth validation (4001), SSH banner receipt, session tracking (appears/disappears in sessions endpoint)
+
 Validate admin UI ↔ backend API integration using API keys and Playwright MCP.
 
 ## Prerequisites

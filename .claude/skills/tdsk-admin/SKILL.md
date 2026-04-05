@@ -27,9 +27,9 @@ repos/admin/
 └── src/
     ├── index.tsx               # React bootstrap: StrictMode → Jotai Provider → AuthProvider → App + Version
     ├── App.tsx                 # Root: ThemeProvider → GlobalStyles → MUI GlobalStyles → RouterProvider
-    ├── actions/                # ~160 files across 18 domains (agents, apiKeys, assets, auth, domains,
+    ├── actions/                # ~170 files across 19 domains (agents, apiKeys, assets, auth, domains,
     │   │                       #   endpoints, functions, messages, orgs, profile, projects, providers,
-    │   │                       #   quickstart, quotas, secrets, subscriptions, threads, users)
+    │   │                       #   quickstart, quotas, sandboxes, secrets, subscriptions, threads, users)
     │   └── <domain>/
     │       ├── api/            # Async: call service → update Jotai state → return response
     │       └── local/          # Sync: direct Jotai state mutations (upsert, remove, set)
@@ -46,6 +46,7 @@ repos/admin/
     │   ├── Projects/           # CreateProjectDrawer, NoProjects, ProjectCard, ProjectIcon, ProjectsGrid, ProjectsMenu
     │   ├── Providers/          # ProviderDrawer, Providers
     │   ├── Quickstart/         # AgentStep, ProviderStep, Quickstart, QuickstartButton, QuickstartWizard, ReviewStep
+    │   ├── Sandboxes/          # Sandboxes (list+actions), SandboxDrawer (create/edit), ConnectModal (SSH connection)
     │   ├── Secrets/            # SecretDrawer, Secrets
     │   ├── Sidebar/            # SBLogo, SBNavList, SBProjectSelector, SBSection, Sidebar (+ styles)
     │   ├── Users/              # InviteUserDrawer, NoUsers, UserCard, UsersGrid
@@ -64,7 +65,7 @@ repos/admin/
     │   ├── permissions/        # useCanPerform, usePermissions
     │   ├── project/            # useProjectSecrets, useProjectsState
     │   └── theme/              # useMakeTheme, useTheme, useThemeToggle
-    ├── pages/                  # Account, Billing, Home, Layout, Login, Orgs/*, Page, Profile, Projects/*, Providers, Settings
+    ├── pages/                  # Account, Billing, Home, Layout, Login, Orgs/*, Page, Profile, Projects/* (incl. ProjectSandboxes), Providers, Settings
     ├── routes/Routes.tsx       # createBrowserRouter with lazy loading + SuspensePage helper
     ├── services/               # 22+ singleton service classes (see API Service Architecture)
     ├── state/                  # 18 Jotai atom files + accessors.ts + selectors.ts
@@ -104,6 +105,7 @@ Uses React Router 7's `createBrowserRouter` with a `SuspensePage` helper compone
 │   ├── /usage → OrgUsage (quota tracking)
 │   ├── /api-keys → OrgApiKeys
 │   ├── /projects → ProjectsLoader → Projects list
+│   ├── /sandboxes → OrgSandboxes
 │   └── /projects/:projectId (Component: ProjectsLoader)
 │       ├── (index) → Project dashboard
 │       ├── /endpoints → ProjectEndpoints
@@ -114,6 +116,7 @@ Uses React Router 7's `createBrowserRouter` with a `SuspensePage` helper compone
 │       ├── /agents/:agentId → ProjectAgent
 │       ├── /agents/:agentId/threads → ProjectThreads
 │       ├── /agents/:agentId/chat → ChatView (AI chat)
+│       ├── /sandboxes → ProjectSandboxes
 │       └── /settings → ProjectSettings
 ├── /settings → Settings
 ├── /profile → Profile
@@ -168,6 +171,7 @@ export const activeEntityIdState = atomWithReset<string | undefined>(undefined)
 
 **All atom files and their exports**:
 - `agents.ts` — `agentsState`, `activeAgentIdState`, `activeAgentState` (derived)
+- `sandboxes.ts` — `sandboxesState`, `projectSandboxesState` (derived from sandboxesState + activeProjectIdState)
 - `apiKeys.ts` — `apiKeysState`, `activeApiKeyIdState`
 - `app.ts` — `sidebarOpenState`
 - `assets.ts` — `assetsState`, `activeAssetIdState`
@@ -225,7 +229,7 @@ ApiService (base fetch with Bearer auth + TanStack Query caching)
         ├── AgentsApi (+ SSE .run())  ├── ApiKeysApi    ├── QuotasApi
         ├── SecretsApi       ├── DomainsApi        ├── SubscriptionsApi
         ├── ProvidersApi     ├── ThreadsApi        ├── QuickstartApi
-        └── MessagesApi
+        ├── MessagesApi      └── SandboxApi (CRUD + lifecycle: start, stop, connect, status, sessions)
 ```
 
 All exported as singletons (e.g., `export const orgsApi = new OrgsApi()`).
@@ -315,8 +319,8 @@ class NavService {
 - Replaces `:orgId`, `:projectId`, `:agentId` etc. with actual values from context
 
 **Sidebar Navigation** (`src/constants/nav.tsx`):
-- `OrgNavItems` — 8 items: Projects, Users, Secrets, Providers, Domains, Api Keys, Usage, Settings
-- `ProjectNavItems` — 7 items: Endpoints, Functions, Secrets, Agents, Threads, Domains, Settings
+- `OrgNavItems` — 9 items: Projects, Users, Secrets, Providers, Domains, Api Keys, Sandboxes, Usage, Settings
+- `ProjectNavItems` — 8 items: Endpoints, Functions, Secrets, Agents, Threads, Domains, Sandboxes, Settings
 - `BottomNavItems` — 1 item: Settings
 - `HeaderSettingsItems` — 3 items: Profile, Billing, Sign Out
 - `QSSteps` — 3 quickstart steps: "AI Provider", "Project & Agent", "Review & Create"

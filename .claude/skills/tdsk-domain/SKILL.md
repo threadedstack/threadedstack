@@ -100,14 +100,23 @@ enum EEndpointType { proxy, faas, agent }
 ### Sandbox Types (`types/sandbox.types.ts`)
 
 ```typescript
-enum ESandboxProvider { e2b, local }
+enum ESandboxType { local, kubernetes }
+enum EContainerState { Failed, Pending, Running, Unknown, Succeeded }
+enum EImagePullPolicy { Never, Always, IfNotPresent }
+enum ESBState { Error, Running, Stopped, Starting }
 ```
 
-| Interface | Methods/Fields |
+| Interface/Type | Methods/Fields |
 |-----------|---------------|
-| `ISandbox` | `exec(command, args?)`, `readFile(path)`, `writeFile(path, content)`, `listDir(path)`, `deleteFile(path)`, `mkdir(path)`, `fileExists(path)`, `close()` |
+| `ISandbox` | `reset()`, `close()`, `mkdir(path)`, `readFile(path)`, `deleteFile(path)`, `listDir(path)`, `fileExists(path)`, `writeFile(path, content)`, `exec(command, args?)`, `evaluate(code, opts?)` |
 | `ISandboxProvider` | `readonly type`, `create(config): Promise<ISandbox>` |
-| `TSandboxConfig` | `provider, apiKey?, template?, timeout?, envVars?, options?` |
+| `TSandboxConfig` | `provider: TSandboxType, timeout?, envVars?, options?` |
+| `TKubeSandboxConfig` | `image, args?, gitRepo?, gitBranch?, workdir?, command?, secretIds?, sshEnabled?, defaultRuntime?, imagePullSecret?, gitTokenSecretId?, idleTimeoutMinutes?, runtimes?, envVars?, ports?, imagePullPolicy?, resources?` |
+| `TSandboxSession` | `orgId, userId, podName, sandboxId, sessionId, connectedAt` |
+| `TSandboxConnectResponse` | `port, command, podName, password, sandboxId` |
+| `TContainerMeta` | `podIp, state: EContainerState, sandboxId, podName` |
+| `TRouteEntry` | `host, port, protocol` |
+| `TRouteMapEntry` | `meta: TContainerMeta, placeholders: TPlaceholderMap, ports: Record<string, TRouteEntry>` |
 
 ### Scopes Types (`types/scopes.types.ts`)
 
@@ -400,10 +409,20 @@ Does NOT extend Base. Fields: `parent, name, isFile, value: Buffer|null, modifie
 | `tier` | `string` | Default: `ESubscriptionTier.free` (`'free' \| 'basic' \| 'developer' \| 'pro'`) |
 | `status` | `string` | Default: `ESubscriptionStatus.active` (`'active' \| 'canceled' \| 'past_due' \| 'incomplete'`) |
 | `userId` | `string` | Required |
-| `polarId`, `polarPriceId`, `polarCustomerId` | `string?` | Polar.sh integration |
-| `seats` | `number` | Default: `0` |
+| `stripeCustomerId`, `stripeSubscriptionId`, `stripePriceId` | `string?` | Stripe integration |
+| `seats` | `number` | Default: `1` |
 | `currentPeriodEnd`, `currentPeriodStart` | `string?` | |
 | `cancelAtPeriodEnd` | `boolean?` | |
+
+### Sandbox
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `name` | `string` | Required |
+| `orgId` | `string` | Required |
+| `userId` | `string?` | |
+| `projectId` | `string?` | Optional project scoping |
+| `config` | `TKubeSandboxConfig` | Container config (image, ports, resources, SSH, git, etc.) |
 
 ### Plan
 
@@ -421,6 +440,12 @@ Does NOT extend Base. Fields: `id, name, description?, recurring?: { count?, act
 - `AuthHeaders` - Auth header name constants (`X-User-Id`, `X-User-Role`, `X-User-Email`)
 - `RoleHierarchy` - Role priority levels: `[viewer, member, admin, owner, super]`
 - `PermissionMatrix` - Role-to-permission mapping for 17 resource types
+
+### Sandbox Constants (`constants/sandbox.ts`)
+
+- `SBImagePullPolicyOptions` — Dropdown options for image pull policy (Never, Always, IfNotPresent)
+- `SBRuntimeOptions` — Dropdown options for sandbox runtime (Node.js, Python)
+- `SBImagePresets` — Image preset buttons: Claude Code (`tdsk-sandbox-claude`), Codex (`tdsk-sandbox-codex`), OpenCode (`tdsk-sandbox-opencode`)
 
 ## Utilities
 
@@ -554,4 +579,4 @@ import { ProviderTemplates } from '@TDM/constants'
 | **Database** | Model classes | All model classes for ORM type definitions |
 | **Agent** | Full `index.ts` | `TLLMAdapterConfig`, `ILLMAdapter`, `TStreamEvent`, `Agent`, `Thread`, `Message` |
 | **REPL** | Full `index.ts` | AI types, `Agent`, `Thread`, `Message`, `User` |
-| **Sandbox** | Sandbox types | `ISandbox`, `ISandboxProvider`, `ESandboxProvider`, `TSandboxConfig` |
+| **Sandbox** | Sandbox types | `ISandbox`, `ISandboxProvider`, `TSandboxConfig`, `TKubeSandboxConfig`, `TSandboxSession`, `TSandboxConnectResponse`, `ESBState` |

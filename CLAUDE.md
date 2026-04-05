@@ -56,7 +56,7 @@ The platform solves three key problems:
 1. **Fragmented stacks** - Replaces stitching together Vercel + Lambda + LangChain + Vault
 2. **Security gaps** - Secrets are injected server-side; AI never sees API keys
 3. **Context management** - Built-in RAG and memory management for LLM applications
-4. **Billing & Quotas** - Tiered subscription plans (free/basic/developer/pro) via Polar.sh with usage quota tracking for 12 resource types
+4. **Billing & Quotas** - Tiered subscription plans (free/basic/developer/pro) via Stripe with usage quota tracking for 12 resource types
 
 ### important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
@@ -88,7 +88,12 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
             ├── /_/subscriptions/* - Subscription management
             ├── /_/quotas/*    - Quota tracking
             └── /_/payments/*  - Payment webhooks
-         Proxy: /proxy/* → Backend Proxy Engine
+         Sandboxes: /_/sandboxes/*
+            ├── /_/sandboxes/*     - Sandbox config CRUD
+            ├── /_/sandboxes/:id/connect  - Start pod + SSH credentials
+            ├── /_/sandboxes/:id/sessions - Active SSH sessions
+            └── /_/sandboxes/:id/tunnel   - WebSocket SSH tunnel
+         Proxy: /proxy/* → Backend Proxy Engine (deferred auth — backend decides per-endpoint)
          FaaS: /faas/* → Backend Compute Engine
          AI: /ai/* → Backend AI Engine
             ├── /_/ai/sessions  - Create LLM session (JWT/API key auth)
@@ -106,7 +111,7 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | Directory | Role | Tech | Skill |
 |-----------|------|------|-------|
 | `proxy/` | Auth Gateway - JWT/JWKS validation, backend proxying | Express 5, jose, http-proxy-middleware | `.claude/skills/tdsk-proxy/SKILL.md` |
-| `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket | `.claude/skills/tdsk-backend/SKILL.md` |
+| `backend/` | Core API - Admin CRUD, Proxy Engine, FaaS, AI orchestration | Express 5, WebSocket, K8s sandbox lifecycle | `.claude/skills/tdsk-backend/SKILL.md` |
 | `admin/` | SPA Dashboard | Vite, React, MUI, Jotai | `.claude/skills/tdsk-admin/SKILL.md` |
 | `agent/` | Headless AI Agent - pi-mono integration, AgentRunner, tool execution | TypeScript, streaming SSE | `.claude/skills/tdsk-agent/SKILL.md` |
 | `database/` | ORM & migrations | Drizzle, PostgreSQL | `.claude/skills/tdsk-database/SKILL.md` |
@@ -115,8 +120,9 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `logger/` | Winston-based logging service | Winston | `.claude/skills/tdsk-logger/SKILL.md` |
 | `cli/` | Developer CLI for project management | Node.js | `.claude/skills/tdsk-cli/SKILL.md` |
 | `repl/` | Terminal REPL for AI agent interaction | Bun, Ink (React TUI), @keg-hub/args-parse | `.claude/skills/tdsk-repl/SKILL.md` |
-| `sandbox/` | Pluggable sandbox execution layer | isolated-vm, E2B, just-bash | `.claude/skills/tdsk-sandbox/SKILL.md` |
+| `sandbox/` | Pluggable sandbox execution layer | K8s pods, isolated-vm, E2B, just-bash | `.claude/skills/tdsk-sandbox/SKILL.md` |
 | `integration/` | API & E2E integration tests | Vitest, Playwright | `.claude/skills/integration-testing/SKILL.md` |
+| `website/` | Marketing site + docs | Vite, React, MDX, Nextra-style docs from root `docs/` | — |
 
 ## Sub-Repo Skills
 
@@ -136,17 +142,17 @@ Load the relevant skill when working on a specific repo:
 |------------|----------|
 | `tdsk-admin/SKILL.md` | React/Vite architecture, Jotai state, MUI theming, Orgs/Projects routing, API services, Billing pages/components, Quota tracking |
 | `tdsk-agent/SKILL.md` | AI Agent runtime, pi-mono integration (@mariozechner/pi-agent-core, pi-ai), AgentRunner, event bridge, tool execution |
-| `tdsk-backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, AI session/stream proxy endpoints, endpoint type system (Agent/Proxy/FaaS), PaymentsService |
+| `tdsk-backend/SKILL.md` | Express 5 API, Orgs/Projects/ApiKeys/Secrets endpoints, auth middleware, AI session/stream proxy endpoints, endpoint type system (Agent/Proxy/FaaS), sandbox lifecycle (connect/tunnel/sessions), PaymentsService (Stripe) |
 | `tdsk-cli/SKILL.md` | CLI command structure, DevOps orchestration, Docker/K8s secrets, task system |
 | `tdsk-components/SKILL.md` | 30+ React components, 8 hook categories, Monaco editor, Drawer, Definitions, theming |
-| `tdsk-database/SKILL.md` | Drizzle ORM, 23 schemas (incl. agentProjects/agentFunctions/agentProviders junction tables), model converters, quotas/subscriptions tables |
-| `tdsk-domain/SKILL.md` | 19 model classes, crypto utilities (AES-256-GCM, HKDF, API key hashing), permissions system, provider templates |
+| `tdsk-database/SKILL.md` | Drizzle ORM, 25 schemas (incl. junction tables), model converters, quotas/subscriptions/sandboxes/invoices tables |
+| `tdsk-domain/SKILL.md` | 20 model classes (incl. Sandbox), crypto utilities (AES-256-GCM, HKDF, API key hashing), permissions system, provider templates, sandbox constants |
 | `tdsk-logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, stdio monkey-patching |
-| `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, session token auth for /ai/ws, http-proxy-middleware backend forwarding |
-| `tdsk-repl/SKILL.md` | Ink (React TUI) terminal CLI, tsa binary, 7 CLI tasks + 16 slash commands, config system, session-based LLM proxy, lifecycle hooks |
-| `tdsk-sandbox/SKILL.md` | Pluggable sandbox factory, E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
+| `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, deferred auth for /proxy, session token auth for /ai/ws, http-proxy-middleware backend forwarding, sandbox host detection |
+| `tdsk-repl/SKILL.md` | Ink (React TUI) terminal CLI, tsa binary, 10 CLI tasks (incl. ssh/proxy/sandboxes) + 16 slash commands, config system, session-based LLM proxy, lifecycle hooks |
+| `tdsk-sandbox/SKILL.md` | Pluggable sandbox factory, K8s pod sandboxes (SSH, project scoping, idle timeout), E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |
-| `integration-testing/SKILL.md` | Three-tier integration testing strategy (API, Playwright UI, E2E flows) |
+| `integration-testing/SKILL.md` | Three-tier integration testing (API, Playwright UI, E2E flows), sandbox lifecycle tests, WebSocket tunnel tests |
 
 ### Workflow Skills
 | Skill File | Purpose |
@@ -178,11 +184,11 @@ Custom subagents live in `.claude/agents/`:
 
 ### Database Schema (Exclusive Arc Pattern)
 
-Key tables: `organizations`, `users`, `projects`, `endpoints`, `functions`, `providers`, `secrets`, `api_keys`, `roles`, `agents`, `threads`, `messages`, `assets`, `quotas`, `subscriptions`, `domains`, `certificates`, `invitations`
+Key tables: `organizations`, `users`, `projects`, `endpoints`, `functions`, `providers`, `secrets`, `api_keys`, `roles`, `agents`, `threads`, `messages`, `assets`, `quotas`, `subscriptions`, `domains`, `certificates`, `invitations`, `sandboxes`, `invoices`
 
 Polymorphic relationships use "Exclusive Arc" - e.g., `secrets` belong to Org OR Agent OR Project OR Provider (exactly one of four, not multiple).
 - `quotas` - Org resource usage tracking (12 resource types: projects, members, endpoints, threads, messages, functionCalls, runtime, orgSecrets, projectSecrets, organizations, price, retention)
-- `subscriptions` - User payment plans and Polar.sh integration (tier, status, polarId, polarCustomerId)
+- `subscriptions` - User payment plans and Stripe integration (tier, status, stripeCustomerId, stripeSubscriptionId)
 
 ## Common Commands
 

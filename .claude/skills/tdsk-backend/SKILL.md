@@ -1,7 +1,7 @@
 ---
 name: "tdsk-backend"
 description: "Knowledge base for the backend Core API repo"
-tags: ["express", "nodejs", "api", "backend", "payments", "polar", "ai", "session", "proxy", "secrets", "pi-ai"]
+tags: ["express", "nodejs", "api", "backend", "payments", "stripe", "ai", "session", "proxy", "secrets", "pi-ai"]
 ---
 # Backend Repo Skill
 
@@ -12,7 +12,7 @@ The **Backend** repo (`repos/backend`) serves as the Core API server for Threade
 - **Admin CRUD operations** - Organization, project, user, API key, secret, endpoint, provider, agent, thread, invitation, and subscription management
 - **Proxy Engine** - Secure API proxying with secret injection, OAuth 2.0, retry logic, and header/body transforms via endpoint type services (ProxyEndpoint, AgentEndpoint, FaaSEndpoint)
 - **AI Engine** - LLM proxy with SSE streaming via `@mariozechner/pi-ai`, session-based API key resolution, and AgentRunner integration
-- **Payment Integration** - Polar.sh subscription management with quota tracking
+- **Payment Integration** - Stripe subscription management with quota tracking
 - **Email Service** - Invitation and notification emails via Resend/Mailgun/Console
 
 The backend receives all admin requests from the Auth-Proxy service at `/_/*` paths and handles internal business logic before interacting with the database or external services.
@@ -26,7 +26,7 @@ repos/backend/
 │   ├── tsup.config.ts       # Build configuration
 │   └── vitest.config.ts     # Test configuration
 ├── src/
-│   ├── constants/           # envs.ts, values.ts (AuthIgnore, AllowedRetryCodes, DBPaging)
+│   ├── constants/           # envs.ts, values.ts, sandbox.ts (AuthIgnore, AllowedRetryCodes, DBPaging, SBTcpTimeout, DefSBConfig)
 │   ├── endpoints/           # API route definitions
 │   │   ├── agents/          # CRUD + runAgent (SSE streaming via AgentEndpoint)
 │   │   ├── ai/              # sessions + streamChat (SSE LLM proxy via pi-ai)
@@ -42,6 +42,7 @@ repos/backend/
 │   │   ├── projects/        # Projects CRUD
 │   │   ├── providers/       # Provider configurations
 │   │   ├── proxy/           # Proxy endpoint routing (dispatches to endpoint type services)
+│   │   ├── sandboxes/       # Sandbox CRUD + lifecycle (connect, tunnel, start, stop, status, sessions)
 │   │   ├── quotas/          # Quota checking and limits
 │   │   ├── secrets/         # Secrets with AES-256-GCM encryption
 │   │   ├── subscriptions/   # Subscription management
@@ -160,15 +161,38 @@ Provider-agnostic email service using the Strategy Pattern. Switches between Res
 - Templates: `invitation.html`, `member-notification.html`
 
 #### PaymentsService (`src/services/payments/payments.ts`)
-Provider-agnostic payments service using the Strategy Pattern. Switches between Polar or Console logging based on configuration.
+Provider-agnostic payments service using the Strategy Pattern. Switches between Stripe or Console logging based on configuration.
 
 ```typescript
 const service = new PaymentsService(config)
-// service.service is one of: PolarService | ConsoleService
+// service.service is one of: StripeService | ConsoleService
 ```
 
 #### SessionStore (`src/services/sessionStore.ts`)
 In-memory LLM session store with 1-hour TTL and periodic cleanup (every 5 minutes). Used by AI proxy endpoints to cache session configurations.
+
+#### SandboxService (`src/services/sandboxes/sandbox.ts`)
+K8s sandbox pod lifecycle manager with session tracking and idle timeout.
+
+**State Management:**
+- `sessions: Map<podName, TSandboxSession[]>` — Active SSH sessions per pod
+- `passwords: Map<podName, password>` — SSH password cache
+- `podActivity: Map<podName, timestamp>` — Last activity for idle detection
+- `startingPods: Set<sandboxId>` — Tracks pods being started to prevent races
+
+**Key Methods:**
+- `startPod(sandbox, orgId, projectId?)` — Generate SSH password, create K8s pod with env vars
+- `stopPod(sandbox, orgId)` — Delete pod, clean up routes and sessions
+- `findRunningPod(sandboxId, orgId)` — Find Running-phase pod
+- `findActivePod(sandboxId, orgId)` — Find Running or Pending pod
+- `validatePodOwnership(podName, orgId)` — Verify pod belongs to org
+- `addSession/removeSession/getSessions(podName)` — Session tracking
+- `getPassword/recoverPassword(podName)` — SSH password management (recovery via `printenv`)
+
+**Idle Timeout System:**
+- Runs check every 60s (configurable)
+- Stops pods with no active sessions after 30min (configurable per sandbox via `idleTimeoutMinutes`)
+- Active sessions prevent idle shutdown
 
 ### Endpoints
 
@@ -229,6 +253,43 @@ The endpoint delegates to `AgentEndpoint.run()` from `services/endpoints/agentEn
 **Auth:** Session token only (no JWT/API key — session token already validated at creation time)
 
 **Response:** WebSocket messages with event types: `start`, `text_start`, `text_delta`, `text_end`, `thinking_start`, `thinking_delta`, `thinking_end`, `toolcall_start`, `toolcall_delta`, `toolcall_end`, `done`, `error`
+
+#### Sandbox Connect (`src/endpoints/sandboxes/connectSandbox.ts`)
+**POST `/_/sandboxes/:id/connect`** - Start sandbox pod and return SSH credentials
+
+**Flow:**
+1. Check for already-running pod to prevent race conditions
+2. Query pending pods and check if startup in progress
+3. If needed, start pod (generates random SSH password, stores in memory)
+4. Poll pod state until Running (max 120s with 2s polling interval)
+5. Handle pod startup failures and cleanup
+6. Return pod name, SSH password, port 2222, and CLI command suggestion
+
+**Error codes:** 409 (already starting), 500 (pod failed), 504 (timeout)
+
+#### Sandbox Tunnel (`src/endpoints/sandboxes/onTunnelConnect.ts`)
+**WS `/_/sandboxes/:id/tunnel`** - WebSocket-to-TCP bridge for SSH access
+
+**Connection Flow:**
+1. Validate API key from Bearer token via hash lookup
+2. Verify pod ownership (pod belongs to requesting org)
+3. Open TCP connection to pod IP:2222 (SSH port)
+4. Bidirectional relay: WebSocket ↔ TCP with backpressure handling (64KB threshold)
+5. Keepalive pings every 30s to prevent Caddy idle timeout
+6. Register session on TCP connect, remove on disconnect
+
+**Close codes:** 4000 (internal), 4001 (auth), 4002 (validation), 4003 (permission), 4004 (not found), 4005 (connection failed)
+
+#### Sandbox Sessions (`src/endpoints/sandboxes/listSessions.ts`)
+**GET `/_/sandboxes/:id/sessions`** - List active SSH sessions for a sandbox
+
+### WebSocket Server (`src/server/wsServer.ts`)
+
+Multi-path dispatch WebSocket server using `noServer: true` mode:
+- **Static routes**: `/ai/ws` → `onWSConnect` (AI agent execution)
+- **Dynamic pattern routes**: `/_/sandboxes/:id/tunnel` → `onTunnelConnect` (sandbox SSH tunnel)
+
+HTTP upgrade listener filters by pathname and routes to the correct handler. Centralized error logging for connection failures.
 
 ### Utilities
 
@@ -371,7 +432,10 @@ All routes are documented in the root CLAUDE.md architecture diagram and are dis
 - **WS `/ai/ws`** - AI agent WebSocket (session token auth: `?token=<token>`)
 - **ALL `/proxy/:projectId/:endpointId`** - Dispatches to endpoint type service via `getEPService()`
 - **POST `/_/threads/:id/branch`** - Branch thread from specific message
-- **POST `/_/payments/webhook`** - Polar.sh webhook handler
+- **POST `/_/payments/webhook`** - Stripe webhook handler
+- **POST `/_/sandboxes/:id/connect`** - Start sandbox pod and return SSH credentials
+- **GET `/_/sandboxes/:id/sessions`** - List active SSH sessions
+- **WS `/_/sandboxes/:id/tunnel`** - WebSocket SSH tunnel to sandbox pod
 
 All admin routes (`/_/*`) are protected by JWT authentication middleware except those in `AuthIgnore` list (`/`, `/health`). All list endpoints support `?limit=N&offset=N` pagination.
 
@@ -491,7 +555,7 @@ EmailService and PaymentsService use the Strategy Pattern to support multiple pr
 const email = new EmailService({ type: 'resend', apiKey: '...' })
 await email.invitation({ email, orgName, inviterName, ... })
 
-const payments = new PaymentsService({ type: 'polar', accessToken: '...' })
+const payments = new PaymentsService({ type: 'stripe', accessToken: '...' })
 await payments.service.createCheckoutSession({ ... })
 ```
 
@@ -534,6 +598,15 @@ DefRetryCfg = {
 ### Pagination
 ```typescript
 DBPaging = { max: 200, default: 50 }
+```
+
+### Sandbox
+```typescript
+SBTcpTimeout = 10_000           // TCP connection timeout
+SBBackpressureThreshold = 64KB  // Pause TCP when WS buffer exceeds this
+SBBackpressureMaxWait = 30_000  // Max backpressure wait before force resume
+SBTunnelPattern = /^\/_\/sandboxes\/([^/]+)\/tunnel$/
+DefSBConfig = { timeoutMin: 30, maxWait: 120_000, pollInterval: 2_000, idleInterval: 60_000 }
 ```
 
 ## Integration Points

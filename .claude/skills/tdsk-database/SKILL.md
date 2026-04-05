@@ -10,8 +10,8 @@ tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas
 The `repos/database` repository provides the **ORM layer and migration system** for the Threaded Stack platform. Built on **Drizzle ORM** and **PostgreSQL (Neon.com)**, it defines all database schemas, relationships, and provides a service-based API for database operations across all other repos.
 
 **Key Responsibilities:**
-- Define database schemas with Drizzle ORM (19 Drizzle-managed tables + 2 external)
-- Provide type-safe database services (17 services with CRUD operations)
+- Define database schemas with Drizzle ORM (21 Drizzle-managed tables + 2 external)
+- Provide type-safe database services (18 services with CRUD operations)
 - Implement polymorphic relationships via "Exclusive Arc" pattern
 - Handle database connection pooling via pg.Pool singleton
 - Convert database records to domain models (Organization, Agent, Domain, etc.)
@@ -60,8 +60,8 @@ repos/database/
 
 ### Tables (23 total)
 
-**19 Drizzle-managed tables** (defined in `schemas.ts`):
-`orgs`, `roles`, `quotas`, `agents`, `agentProjects`, `agentFunctions`, `agentProviders`, `assets`, `threads`, `domains`, `secrets`, `apiKeys`, `messages`, `projects`, `functions`, `providers`, `endpoints`, `invitations`, `subscriptions`
+**21 Drizzle-managed tables** (defined in `schemas.ts`):
+`orgs`, `roles`, `quotas`, `agents`, `agentProjects`, `agentFunctions`, `agentProviders`, `assets`, `threads`, `domains`, `secrets`, `apiKeys`, `messages`, `projects`, `functions`, `providers`, `endpoints`, `invitations`, `subscriptions`, `sandboxes`, `invoices`
 
 **2 External tables** (read-only, not in Drizzle migrations):
 - **`users`** -- Neon Auth managed, `pgSchema('neon_auth')`, table name `user`
@@ -294,12 +294,34 @@ Unique index: `(orgId, period)`. Column names: `function_calls`, `org_secrets`, 
 | userId | uuid FK->users | notNull, unique, onDelete cascade |
 | tier | text | notNull, default 'free' |
 | status | text | notNull, default 'active' |
-| polarId, polarCustomerId, polarPriceId | text | nullable |
+| stripeCustomerId, stripeSubscriptionId, stripePriceId | text | nullable (Stripe integration) |
 | currentPeriodStart, currentPeriodEnd | timestamp | nullable |
 | cancelAtPeriodEnd | boolean | default false |
-| seats | integer | default 0 |
+| seats | integer | default 1 |
 
 One subscription per user (userId is unique).
+
+#### `sandboxes`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id, createdAt, updatedAt | base | standard |
+| name | text | notNull |
+| orgId | varchar(10) FK->orgs | notNull, onDelete cascade |
+| userId | uuid FK->users | onDelete set null |
+| projectId | varchar(10) FK->projects | onDelete cascade, nullable |
+| config | jsonb | notNull, typed `TKubeSandboxConfig` |
+
+Indexes: `orgId`, `(orgId, userId)`, `projectId`. Relations: org, user, project.
+
+#### `invoices`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id, createdAt, updatedAt | base | standard |
+| stripeInvoiceId | text | notNull, unique |
+
+Stripe invoice tracking for payment history.
 
 ## Architecture
 
@@ -366,7 +388,7 @@ const { data, error } = await db.services.org.create({ name: 'My Org' })
 await disconnectDatabase()  // Closes Pool, resets singleton
 ```
 
-## Services (17 total)
+## Services (18 total)
 
 Exported from `services/index.ts`:
 
@@ -388,7 +410,8 @@ Exported from `services/index.ts`:
 | `provider` | `Provider` | `providers` | -- | base CRUD |
 | `domain` | `DomainService` | `domains` | `Domain` | `find` (cert check), `validate`, `verified`, `enableSSL`, `disableSSL`, `owner`, custom cert storage via DB transactions |
 | `invitation` | `Invitation` | `invitations` | `Invitation` | `getByToken`, `getByEmailAndOrg`, `getPendingByOrg`, `getAllByOrg`, `getPendingByEmail`, `accept`, `revoke`, `markExpired`, `isValid` |
-| `subscription` | `Subscription` | `subscriptions` | `Subscription` | `findByUser`, `findByPolarId`, `upsertByUser` |
+| `subscription` | `Subscription` | `subscriptions` | `Subscription` | `findByUser`, `findByStripeId`, `upsertByUser` |
+| `sandbox` | `Sandbox` | `sandboxes` | `Sandbox` | `listByOrg(orgId)`, `listByProject(projectId)` |
 
 ### Base Service Class
 

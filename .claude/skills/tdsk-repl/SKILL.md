@@ -38,7 +38,7 @@ repos/repl/
 │   ├── cli.ts             # main() entry — argsParse + task dispatch
 │   ├── constants/         # Version, paths, defaults, retry config, error patterns, tool names
 │   ├── types/             # TypeScript types for client, commands, config, context, session, tasks
-│   ├── tasks/             # 7 CLI task definitions (login, logout, status, agents, threads, chat, help)
+│   ├── tasks/             # 10 CLI task definitions (login, logout, status, agents, threads, chat, help, ssh, proxy, sandboxes)
 │   ├── commands/          # 16 slash commands for in-REPL use (/help, /login, /agent, etc.)
 │   ├── components/        # Ink React components (App, ChatSession, Prompt, etc.)
 │   ├── hooks/             # React hooks for session, messages, config, context, auth state
@@ -174,6 +174,9 @@ type TTaskAction = (context: {
 | `status` | `st` | Show authentication status |
 | `agents` | `ag` | List agents (auth required) |
 | `threads` | `th` | List threads for agent (auth required) |
+| `sandboxes` | `sb` | List sandbox configs for org (auth required) |
+| `ssh` | — | Interactive SSH connection to sandbox pod (auth required) |
+| `proxy` | — | Internal SSH ProxyCommand transport via WebSocket tunnel |
 | `help` | `--help`, `-h` | Show available commands |
 
 ### 2. Slash Commands (`src/commands/`) — In-REPL Commands
@@ -276,6 +279,10 @@ class ApiClient {
   // Messages
   listMessages(orgId, agentId, threadId): Promise<Message[]>
   createMessage(orgId, agentId, threadId, data): Promise<Message>
+
+  // Sandboxes
+  listSandboxes(orgId): Promise<Sandbox[]>
+  connectSandbox(orgId, sandboxId): Promise<TSandboxConnectResponse>
 }
 ```
 
@@ -466,10 +473,15 @@ tsa status
 # Discovery
 tsa agents [--org <id>]
 tsa threads <agent-id> [--org <id>]
+tsa sandboxes [--org <id>]
 
 # Interactive Chat (Ink TUI)
 tsa chat [--org <id>] [--agent <id>] [--thread <id>]
 tsa                    # Default: launches chat
+
+# Sandbox SSH
+tsa ssh <sandbox-id> [--org <id>]    # Interactive SSH to sandbox pod
+tsa proxy <sandbox-id>                # ProxyCommand transport (used by SSH config)
 
 # Help
 tsa help / --help / -h
@@ -576,6 +588,9 @@ The `start` command requires `bun` (not Node.js). The `compile` command produces
 - **Agents**: `/_/orgs/:orgId/agents` for listing
 - **Threads**: `/_/orgs/:orgId/agents/:agentId/threads` for CRUD
 - **Messages**: `/_/orgs/:orgId/agents/:agentId/threads/:threadId/messages`
+- **Sandboxes**: `GET /_/orgs/:orgId/sandboxes` for listing
+- **Sandbox Connect**: `POST /_/sandboxes/:sandboxId/connect` for SSH credentials
+- **Sandbox Tunnel**: `WS /_/sandboxes/:sandboxId/tunnel` for SSH proxy transport
 
 ### With Proxy
 

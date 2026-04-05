@@ -87,19 +87,21 @@ repos/proxy/
 | `src/middleware/setupApiKeyAuth.ts` | API key validation middleware -- skips public routes and session routes, validates `tdsk_*` tokens |
 | `src/middleware/setupSessionAuth.ts` | Session token validation middleware -- ONLY applies to session routes (`/ai/ws`), requires `Authorization: Session <token>` |
 | `src/middleware/setupProxy.ts` | http-proxy-middleware -- forwards `/_/*`, `/ai/*`, and `/proxy/*` routes to backend with auth headers |
-| `src/constants/values.ts` | ProcessSignals, PublicRoutes, SessionRoutes, ProxyForwardRoutes, BearerPrefix, SessionPrefix, LoggerIgnore |
+| `src/constants/values.ts` | ProcessSignals, PublicRoutes, SessionRoutes, QueryTokenRoutes, DeferredAuthRoutes, ProxyForwardRoutes, BearerPrefix, LoggerIgnore, SandboxHostRx |
 | `configs/proxy.config.ts` | Main config -- Server, Backend, Logger, JWKS, Domains |
 
 ## Constants (`src/constants/values.ts`)
 
 ```typescript
 export const ProcessSignals = [`SIGINT`, `SIGTERM`, `SIGQUIT`]
-export const PublicRoutes = [`/health`, `/domains/validate`]
+export const PublicRoutes = [`/health`, `/domains/validate`, `/echo`]
 export const BearerPrefix = `Bearer `
-export const SessionPrefix = `Session `
 export const SessionRoutes = [`/ai/ws`]
+export const QueryTokenRoutes = [`/ai/ws`]
+export const DeferredAuthRoutes = [`/proxy`]  // Auth deferred to backend (endpoint-level public flag)
 export const ProxyForwardRoutes = [`/ai`, `/proxy`]
 export const LoggerIgnore = { methods: [`OPTIONS`], routes: [] }
+export const SandboxHostRx = /^\d+--sb-/  // Detects sandbox subdomain requests
 ```
 
 ## Endpoints
@@ -112,7 +114,7 @@ export const LoggerIgnore = { methods: [`OPTIONS`], routes: [] }
 | GET | `/domains/validate` | Public | `domains/validate.ts` | Caddy on_demand_tls domain validation via DB |
 | `/_/*` | (proxied) | Protected (JWT/API key) | `setupProxy.ts` | All admin routes forwarded to backend |
 | `/ai/*` | (proxied) | Session token (`/ai/ws`)or JWT/API key (other `/ai/*`) | `setupProxy.ts` | AI routes forwarded to backend |
-| `/proxy/*` | (proxied) | Protected (JWT/API key) | `setupProxy.ts` | Proxy engine routes forwarded to backend |
+| `/proxy/*` | (proxied) | Deferred (JWT/API key optional, backend decides) | `setupProxy.ts` | Proxy engine routes forwarded to backend |
 
 ## Middleware Chain Order
 
@@ -135,14 +137,17 @@ Defined in `src/proxy.ts`:
 
 The triple-auth system works as follows:
 
-1. **Public Routes** (`/health`, `/domains/validate`) -- Skip all auth
-2. **Session Routes** (`/ai/ws`)-- Skip JWT + API key -- Require Session token
-3. **All Other Routes** (`/_/*`, `/auth/me`, `/auth/logout`, `/proxy/*`, other `/ai/*`) -- JWT or API key required
+1. **Public Routes** (`/health`, `/domains/validate`, `/echo`) — Skip all auth
+2. **Session Routes** (`/ai/ws`) — Skip JWT + API key — Require Session token
+3. **Deferred Auth Routes** (`/proxy/*`) — JWT/API key attempted but not enforced; backend decides per-endpoint based on `public` flag
+4. **All Other Routes** (`/_/*`, `/auth/me`, `/auth/logout`, other `/ai/*`) — JWT or API key required
+
+**Deferred Auth**: For proxy routes, the proxy attempts JWT/API key validation but passes the request through even without valid credentials. The backend's proxy engine then checks if the target endpoint has `public: true` — if so, the request proceeds without auth. This allows public API endpoints to be served without requiring authentication at the proxy level.
 
 **Auth Middleware Execution**:
-- `setupAuth` -- Runs for all routes EXCEPT public + session routes
-- `setupApiKeyAuth` -- Runs for all routes EXCEPT public + session routes (fallback if JWT fails)
-- `setupSessionAuth` -- Runs ONLY for session routes (`/ai/ws`)
+- `setupAuth` — Runs for all routes EXCEPT public + session routes. For deferred auth routes, sets `req.user` if valid JWT but does NOT reject on failure
+- `setupApiKeyAuth` — Runs for all routes EXCEPT public + session routes. For deferred auth routes, sets `req.user` if valid API key but does NOT reject on failure
+- `setupSessionAuth` — Runs ONLY for session routes (`/ai/ws`)
 
 **Result**: Each route gets exactly ONE auth mechanism applied, never multiple.
 
@@ -154,7 +159,8 @@ The `Auth` class manages JWKS-based JWT verification and route classification:
 class Auth {
   constructor(opts: { url: string })       // Initializes JWKS client via jose.createRemoteJWKSet()
   initialized(): boolean                   // Returns true if JWKS client is ready
-  isPublic(path: string): boolean          // Checks path against PublicRoutes
+  isPublic(path: string): boolean          // Checks path against PublicRoutes (/health, /domains/validate, /echo)
+  isDeferred(path: string): boolean         // Checks path against DeferredAuthRoutes (/proxy)
   isSession(path: string): boolean         // Checks path against SessionRoutes (/ai/ws)
   extract(req: Request): string|null       // Extracts token from Authorization header (Bearer or Session prefix)
   verify(token: string): Promise<TJWTValidationResult>  // Verifies JWT via JWKS
