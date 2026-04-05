@@ -54,6 +54,11 @@ const {
   TDSK_CADDY_IMAGE_TAG = TDSK_IMAGE_TAG,
   TDSK_CADDY_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
 
+  TDSK_SB_IMAGE,
+  TDSK_SB_IMAGE_TAG = TDSK_IMAGE_TAG,
+  TDSK_SB_IMAGE_FROM = `ubuntu:24.04`,
+  TDSK_SB_DEV_IMAGE_TAG = TDSK_DEV_IMAGE_TAG,
+
   TDSK_CADDY_ADMIN_PORT,
   TDSK_CADDY_LOCAL_PORT,
   TDSK_CADDY_SECURE_LOCAL_PORT,
@@ -101,9 +106,9 @@ export const config = {
       image: TDSK_BE_IMAGE,
       tag: TDSK_BE_IMAGE_TAG,
       from: TDSK_BE_IMAGE_FROM,
-      dockerfile: `Dockerfile.backend`,
       dtag: TDSK_BE_DEV_IMAGE_TAG,
       deployment: TDSK_BE_DEPLOYMENT,
+      dockerfile: `Dockerfile.backend`,
       location: path.join(paths.repos, `backend`),
       mounts: {},
       ports: {
@@ -139,6 +144,18 @@ export const config = {
         [TDSK_CADDY_LOCAL_PORT]: TDSK_CADDY_REMOTE_PORT,
         [TDSK_CADDY_SECURE_LOCAL_PORT]: TDSK_CADDY_SECURE_REMOTE_PORT,
       },
+    },
+    sandbox: {
+      tags: [],
+      deployment: ``,
+      image: TDSK_SB_IMAGE,
+      tag: TDSK_SB_IMAGE_TAG,
+      location: paths.deploy,
+      from: TDSK_SB_IMAGE_FROM,
+      dtag: TDSK_SB_DEV_IMAGE_TAG,
+      dockerfile: `Dockerfile.sandbox-base`,
+      mounts: {},
+      ports: {},
     },
   },
 }

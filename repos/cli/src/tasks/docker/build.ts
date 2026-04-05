@@ -29,7 +29,7 @@ export const build: TTask = {
     context: {
       required: true,
       example: `--context proxy`,
-      alias: [`ctx`, `name`, `type`],
+      alias: [`ctx`, `name`],
       description: `Context or name to use when resolving the Dockerfile to built`,
     },
     push: {
@@ -57,6 +57,10 @@ export const build: TTask = {
       type: `boolean`,
       default: true,
       description: `User docker cache when building the image`,
+    },
+    type: {
+      example: `--type claude`,
+      description: `Sandbox image variant (e.g. claude, codex, opencode). Only applies to --context sandbox. Defaults to base.`,
     },
     arm: {
       type: `boolean`,

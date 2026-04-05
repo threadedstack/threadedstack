@@ -95,7 +95,9 @@
       "Read(//tmp/**)",
       "Read(//Users/lancetipton/.claude/**)",
       "Read(//private/tmp/**)",
-      "Read(//private/var/folders/**)"
+      "Read(//private/var/folders/**)",
+      "Bash(tar tz:*)",
+      "Bash(tar xz:*)"
     ]
   },
   "sandbox": {

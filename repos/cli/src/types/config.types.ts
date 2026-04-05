@@ -14,4 +14,6 @@ export enum ECtxMap {
   ad = `admin`,
   px = `proxy`,
   proxy = `proxy`,
+  sandbox = `sandbox`,
+  sb = `sandbox`,
 }

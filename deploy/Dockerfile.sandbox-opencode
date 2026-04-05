@@ -1,5 +1,0 @@
-FROM tdsk-sandbox-base
-
-RUN curl -fsSL https://github.com/opencode-ai/opencode/releases/latest/download/opencode-linux-amd64 \
-    -o /usr/local/bin/opencode \
-    && chmod +x /usr/local/bin/opencode

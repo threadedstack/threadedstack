@@ -17,10 +17,36 @@ RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/
 # Generate host keys at build time so sshd starts without delay
 RUN ssh-keygen -A
 
+# Pre-bake Mutagen agent for file sync
+ARG MUTAGEN_VERSION=0.18.1
+ARG TARGETOS
+ARG TARGETARCH
+RUN curl -fsSL \
+      https://github.com/mutagen-io/mutagen/releases/download/v${MUTAGEN_VERSION}/mutagen_${TARGETOS}_${TARGETARCH}_v${MUTAGEN_VERSION}.tar.gz \
+    | tar xz -O mutagen-agents.tar.gz \
+    | tar xz -C /tmp ${TARGETOS}_${TARGETARCH} \
+    && mkdir -p /home/sandbox/.mutagen/agents/${MUTAGEN_VERSION} \
+    && mv /tmp/${TARGETOS}_${TARGETARCH} /home/sandbox/.mutagen/agents/${MUTAGEN_VERSION}/mutagen-agent \
+    && chmod 700 /home/sandbox/.mutagen/agents/${MUTAGEN_VERSION}/mutagen-agent \
+    && chown -R sandbox:sandbox /home/sandbox/.mutagen
+
 # CA cert mount point for MITM proxy trust
 ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/tdsk-proxy.crt
 
-COPY sandbox-entrypoint.sh /usr/local/bin/entrypoint.sh
+# Node.js 22 + AI coding tools (Claude Code, Codex)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g @anthropic-ai/claude-code @openai/codex \
+    && rm -rf /var/lib/apt/lists/*
+
+# OpenCode binary (tarball, multi-arch)
+ARG OPENCODE_ARCH=${TARGETARCH}
+RUN if [ "$OPENCODE_ARCH" = "amd64" ]; then OPENCODE_ARCH="x86_64"; fi \
+    && curl -fsSL https://github.com/opencode-ai/opencode/releases/latest/download/opencode-linux-${OPENCODE_ARCH}.tar.gz \
+    | tar xz -C /usr/local/bin opencode \
+    && chmod +x /usr/local/bin/opencode
+
+COPY deploy/sandbox-entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 2222

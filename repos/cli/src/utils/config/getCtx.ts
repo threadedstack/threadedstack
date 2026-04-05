@@ -7,8 +7,9 @@ import { taskError } from '@TSCL/utils/tasks/error'
 export const getCtx = (args: TTaskActionArgs) => {
   const { config, params } = args
 
-  const { tag, image, context } = params
-  const found = config.contexts?.[ECtxMap[context]] || config.contexts?.[context]
+  const { tag, image, context, type } = params
+  const ctxName = ECtxMap[context] || context
+  const found = config.contexts?.[ctxName]
 
   !found &&
     taskError(
@@ -27,8 +28,13 @@ export const getCtx = (args: TTaskActionArgs) => {
       ].join(` `)
     )
 
-  if (image) found.image = image
-  if (tag?.length) found.tags = tag
+  const ctx = { ...found }
 
-  return found
+  if (ctxName === ECtxMap.sandbox && type && type !== `base`)
+    ctx.image = ctx.image.replace(/-base$/, `-${type}`)
+
+  if (image) ctx.image = image
+  if (tag?.length) ctx.tags = tag
+
+  return ctx
 }
