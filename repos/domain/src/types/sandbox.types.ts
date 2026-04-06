@@ -1,3 +1,5 @@
+import type { TSandboxSyncDefaults } from './sync.types'
+
 /**
  * Sandbox provider types for modular sandbox integration
  */
@@ -133,6 +135,7 @@ export type TKubeSandboxConfig = {
   imagePullSecret?: string
   gitTokenSecretId?: string
   idleTimeoutMinutes?: number
+  sync?: TSandboxSyncDefaults
   runtimes?: TSandboxRuntime[]
   envVars?: Record<string, string>
   ports?: Record<string, TPortConfig>

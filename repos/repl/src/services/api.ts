@@ -186,6 +186,52 @@ export class ApiClient {
     return this.#postRequest<any>(`/orgs/${orgId}/sandboxes/${sandboxId}/connect`, {})
   }
 
+  async getSandbox(orgId: string, sandboxId: string): Promise<any> {
+    return this.#requestWithRetry<any>(`/orgs/${orgId}/sandboxes/${sandboxId}`)
+  }
+
+  async execInSandbox(
+    orgId: string,
+    sandboxId: string,
+    podName: string,
+    command: string
+  ): Promise<any> {
+    return this.#postRequest<any>(`/orgs/${orgId}/sandboxes/${sandboxId}/exec`, {
+      command,
+      podName,
+    })
+  }
+
+  async injectSshKey(
+    orgId: string,
+    sandboxId: string,
+    podName: string,
+    publicKey: string
+  ): Promise<void> {
+    if (!/^ssh-\S+ \S+/.test(publicKey)) {
+      throw new Error(`Invalid SSH public key format`)
+    }
+    const escaped = publicKey.replace(/'/g, `'\\''`)
+    const result = await this.execInSandbox(
+      orgId,
+      sandboxId,
+      podName,
+      [
+        `mkdir -p /home/sandbox/.ssh`,
+        `echo '${escaped}' > /home/sandbox/.ssh/authorized_keys`,
+        `chmod 700 /home/sandbox/.ssh`,
+        `chmod 600 /home/sandbox/.ssh/authorized_keys`,
+        `chown -R sandbox:sandbox /home/sandbox/.ssh`,
+      ].join(` && `)
+    )
+
+    if (!result?.success) {
+      throw new Error(
+        `SSH key injection failed in pod ${podName}: ${result?.output || result?.error || 'unknown error'}`
+      )
+    }
+  }
+
   // --- Messages ---
 
   async listMessages(

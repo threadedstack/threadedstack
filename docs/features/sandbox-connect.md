@@ -28,9 +28,7 @@ Org admins configure sandbox environments -- selecting a Docker image, attaching
 The user experience is: pick a sandbox config from the admin dashboard, click "Start", connect via SSH, and start working. The complexity of K8s pod orchestration, TLS interception, and secret management is invisible.
 
 
-## What Exists Today (Current)
-
-The Kubernetes sandbox infrastructure is built and operational. The following components are in production.
+## Technology
 
 ### K8s Sandbox Provider
 
@@ -84,54 +82,48 @@ The `KubeSandboxProvider` (`repos/sandbox/src/kube/kubeSandboxProvider.ts`) conn
 - **CA management** -- Uses a custom CA certificate for TLS interception. The library (`http-mitm-proxy`) generates per-hostname certificates signed by this CA on the fly.
 
 
-## What Needs to Be Built (Planned)
-
 ### SSH / Connection Layer
 
-Users need a way to connect directly to a running sandbox pod. The current infrastructure supports command runs via the K8s API, but there is no user-facing connection mechanism. Planned work includes:
+The `tsa` CLI provides direct SSH access to running sandbox pods. Users connect via `tsa ssh <sandbox-id>`, which handles the full connection lifecycle:
 
-- SSH server or equivalent running inside sandbox containers, exposed via a K8s service or ingress
-- Authentication tied to the user's Threaded Stack identity (JWT or API key mapped to SSH credentials)
-- Session multiplexing so multiple terminals can connect to the same sandbox
-- Connection URL generation and display in the admin UI
+1. **Pod startup** -- If the sandbox pod is not running, the CLI calls `POST /_/sandboxes/:id/connect` to start it.
+2. **SSH key generation** -- An Ed25519 key pair is generated at `~/.config/tdsk/sandbox_key` (idempotent -- reuses existing keys).
+3. **Key injection** -- The public key is injected into the pod's `/home/sandbox/.ssh/authorized_keys` via the K8s exec API.
+4. **WebSocket tunnel** -- The CLI connects via a ProxyCommand (`tsa proxy <sandbox-id>`) that establishes a WebSocket tunnel through Caddy → auth proxy → backend → TCP to pod port 2222.
+5. **SSH session** -- OpenSSH connects through the tunnel using the generated key.
+
+Authentication is tied to the user's Threaded Stack identity -- the `tsa proxy` command authenticates with the user's API key, and the backend validates pod ownership before establishing the TCP tunnel.
+
+Session multiplexing is supported by OpenSSH natively -- multiple terminals can SSH into the same sandbox using the same `tsa ssh` command.
+
+The SSH config at `~/.ssh/config` is automatically managed by the CLI. A `Host sb_*` block is added with the correct ProxyCommand, IdentityFile, and host key checking settings.
+
+### File Sync
+
+The `tsa sync` command provides bidirectional file synchronization between the local machine and a sandbox pod using [Mutagen](https://mutagen.io/).
+
+- **Sync modes**: `one-way-replica` (local → sandbox, sandbox overwritten), `one-way-safe` (local → sandbox, no deletes/overwrites), `two-way-safe` (bidirectional, conflicts flagged), `two-way-resolved` (bidirectional, local wins on conflict).
+- **Rule-based configuration**: Sync rules are defined in `~/.config/tdsk/tsa.yaml` under `sync.rules`, specifying source/target paths, mode, and ignore patterns.
+- **Ignore patterns**: Built-in defaults (`.git/`, `node_modules/`, `.DS_Store`, etc.) are merged with user-defined patterns. `!` prefix negates a pattern.
+- **Auto-sync**: When `sync.autoStart: true` is set in the config, `tsa ssh` automatically starts file sync on connect and stops it on disconnect.
+- **Daemon mode**: `tsa sync <id> --daemon` starts sync in the background. `tsa sync stop <id>` stops it.
+- **Session deduplication**: Won't create duplicate Mutagen sessions for the same sync rule.
+- **Per-sandbox overrides**: Sandbox-specific sync defaults can be stored in the sandbox config's `config.sync` JSONB field, and per-sandbox rule overrides can be set via `sync.sandboxes.<id>.rules` in `tsa.yaml`.
+
+The Mutagen binary is auto-installed from the npm registry on first use and stored at `~/.config/tdsk/bin/mutagen`.
 
 ### Pre-Configured Agent Images
 
-Docker images pre-loaded with popular AI tools, ready to run in sandboxes:
+The base sandbox image (`tdsk-sandbox-base`, built from `deploy/Dockerfile.sandbox-base`) ships with:
 
-- **Claude Code** -- Anthropic's CLI agent
-- **Codex** -- OpenAI's coding agent
-- **OpenCode** -- Open-source alternative
+- **Ubuntu 24.04** base with OpenSSH server on port 2222
+- **Node.js 22** runtime
+- **AI tools**: Claude Code, Codex, OpenCode -- pre-installed and ready to use
+- **Mutagen agent binary** -- pre-baked from `@nuanced-dev/mutagen-linux-*` npm package for file sync support
+- **Auth**: Password auth enabled (fallback), SSH key auth enabled (primary)
+- **Entrypoint**: Sets SSH password from environment, starts sshd, optionally clones a git repo into the workspace
 
-Each image must:
-- Accept placeholder tokens as environment variables for API keys
-- Trust the MITM proxy's CA certificate (already handled via `NODE_EXTRA_CA_CERTS` volume mount)
-- Run a long-lived process suitable for interactive use (SSH server, or the tool's native interactive mode)
-
-### Admin UI: Sandbox Configuration
-
-The admin dashboard needs pages for org admins to:
-
-- Create and manage sandbox configurations (image, resource limits, secrets, ports)
-- Start/stop sandbox pods
-- View running sandboxes and their states
-- Generate connection instructions (SSH command, URL, etc.)
-- Assign sandbox configs to projects
-
-### Session Management
-
-- Track active sandbox sessions (who is connected, for how long)
-- Idle timeout and automatic pod teardown after inactivity
-- Session resume -- reconnecting to a sandbox that is still running
-- Concurrent session limits per user and per org (tied to subscription tier quotas)
-
-### Persistence Options
-
-Sandbox pods currently use `restartPolicy: Never` and ephemeral storage. Planned options:
-
-- Persistent volume claims for workspace data that survives pod restarts
-- Git-based workspace initialization (clone a repo into the workspace on pod start)
-- Snapshot/restore for sandbox state
+The image accepts placeholder tokens as environment variables and trusts the MITM proxy's CA certificate via `NODE_EXTRA_CA_CERTS`.
 
 
 ## Security Model
@@ -176,11 +168,13 @@ Every pod operation (start, stop, connect, list) validates that the requesting u
 A developer needs to use Claude Code to work on a project that requires API keys for OpenAI, a database connection string, and a third-party SaaS token. Instead of configuring these locally:
 
 1. The org admin creates a sandbox config with the `claude-code` image and attaches the three secrets
-2. The developer starts a sandbox from the admin dashboard
-3. The developer connects via SSH
-4. Claude Code runs inside the container with placeholder tokens as environment variables
-5. When Claude Code makes API calls, the egress proxy transparently replaces the placeholders with real credentials
-6. The developer never sees the raw API keys -- neither does Claude Code
+2. The developer logs in: `tsa login <api-key> --url https://your-instance.threadedstack.app`
+3. The developer lists sandboxes: `tsa sandboxes --org <org-id>`
+4. The developer connects: `tsa ssh <sandbox-id>` -- the pod starts automatically, SSH keys are generated, and the connection is established
+5. Optionally, the developer syncs local files: `tsa sync <sandbox-id> --source ./src --target /workspace/src`
+6. Claude Code runs inside the container with placeholder tokens as environment variables
+7. When Claude Code makes API calls, the egress proxy transparently replaces the placeholders with real credentials
+8. The developer never sees the raw API keys -- neither does Claude Code
 
 ### Team Lead Configuring a Standard AI Environment
 
@@ -202,6 +196,26 @@ A new hire joins the team and needs access to AI-assisted development:
 5. No API keys to request, no environment to configure, no secrets shared over Slack
 
 
+## Sandbox Roadmap
+
+### Admin UI: Sandbox Management
+
+The admin dashboard needs pages for org admins to:
+
+- Create and manage sandbox configurations (image, resource limits, secrets, ports)
+- Start/stop sandbox pods
+- View running sandboxes and their states
+- Generate connection instructions (SSH command, URL, etc.)
+- Assign sandbox configs to projects
+
+### Persistence Options
+
+Sandbox pods currently use `restartPolicy: Never` and ephemeral storage. Planned options:
+
+- Persistent volume claims for workspace data that survives pod restarts
+- Snapshot/restore for sandbox state
+
+
 ## Key Source Files
 
 | File | Role |
@@ -215,4 +229,13 @@ A new hire joins the team and needs access to AI-assisted development:
 | `repos/backend/src/services/proxy/egress.ts` | MITM egress proxy -- protocol sniffing, placeholder replacement, CA management |
 | `repos/backend/src/utils/proxy/extractSNI.ts` | TLS ClientHello SNI extraction for HTTPS interception |
 | `repos/backend/src/services/secrets/secretResolver.ts` | Secret decryption and scope-aware loading |
+| `repos/repl/src/tasks/ssh.ts` | `tsa ssh` command -- connect flow, key injection, auto-sync |
+| `repos/repl/src/tasks/sync.ts` | `tsa sync` command -- rules, modes, daemon/foreground, subtasks |
+| `repos/repl/src/tasks/proxy.ts` | `tsa proxy` -- WebSocket tunnel ProxyCommand |
+| `repos/repl/src/services/sync/sshConfig.ts` | SSH key generation, config management, proxy wrapper |
+| `repos/repl/src/services/sync/mutagenClient.ts` | Mutagen binary execution, auto-install from npm |
+| `repos/repl/src/services/sync/syncManager.ts` | Sync session lifecycle (start, stop, flush, status) |
+| `repos/repl/src/services/sync/configLoader.ts` | Config merging (rules + sandbox defaults + overrides) |
+| `repos/repl/src/services/sync/ignoreResolver.ts` | Ignore pattern merging with builtins and negation |
+| `deploy/Dockerfile.sandbox-base` | Sandbox container image with SSH, AI tools, mutagen agent |
 | `docs/architecture/security-model.md` | Full platform security model (encryption, auth, MITM proxy, scoping) |

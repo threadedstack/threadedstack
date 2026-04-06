@@ -471,3 +471,117 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 * No fix needed until the backend implements the workspace file sync feature. The empty stubs are correct placeholders
 * **Fix**: No action required — track as future feature when backend Phase 8 is implemented
 * **Files**: `repos/repl/src/services/executor.ts` (stubs), `repos/backend/src/endpoints/ai/wsHandler.ts` (stubs)
+
+
+## Sandbox File Sync: Deferred Items
+
+### [P3] Sandbox File Sync: `tsa cp` command for one-off file copy
+
+* **Repos**: repl
+* **Key files**: New `repos/repl/src/tasks/cp.ts`
+* **Depends on**: Sandbox file sync v1 (tsa sync)
+* One-off file copy in/out of sandbox via SCP over existing SSH tunnel. Complements `tsa sync` for cases where continuous sync is not needed — e.g., downloading build artifacts or uploading a single config file.
+* **Implementation**:
+  1. Add `tsa cp <local-path> <sandbox-id>:<remote-path>` for upload
+  2. Add `tsa cp <sandbox-id>:<remote-path> <local-path>` for download
+  3. Use SCP over existing `tsa proxy` ProxyCommand tunnel
+  4. Support glob patterns for multi-file operations
+* **Files**:
+  * New: `repos/repl/src/tasks/cp.ts` — copy task implementation
+
+### [P3] Sandbox File Sync: Admin UI sync configuration panel
+
+* **Repos**: admin, components
+* **Key files**: New `repos/admin/src/components/Sandboxes/SyncDrawer.tsx`
+* **Depends on**: Sandbox file sync v1 (tsa sync), syncDefaults API
+* Sync configuration drawer in admin sandbox management — set sync direction, default ignores, target paths per sandbox. Uses existing `syncDefaults` JSONB field on sandbox records.
+* **Implementation**:
+  1. Create `SyncDrawer` component with accordion sections for general settings, ignore patterns (Monaco editor), and path configuration
+  2. Add "Configure Sync" action button to sandbox table
+  3. Add sync status column to sandbox table (reads from syncDefaults, not live status)
+  4. Wire to existing `updateSandbox` API endpoint for saving syncDefaults
+* **Files**:
+  * New: `repos/admin/src/components/Sandboxes/SyncDrawer.tsx`
+  * Modify: `repos/admin/src/components/Sandboxes/Sandboxes.tsx` — add sync column + action
+
+### [P3] Sandbox File Sync: Threads app sync integration
+
+* **Repos**: threads
+* **Depends on**: Threads app baseline, sandbox file sync v1
+* Sync controls in the Threads app for non-developer users. Scope TBD based on Threads app architecture once baseline is complete.
+
+### [P3] Sandbox File Sync: Real-time sync status streaming
+
+* **Repos**: backend, admin, threads
+* **Depends on**: Admin UI sync config, Threads app sync
+* Real-time sync status via WebSocket or SSE for UI consumers. Backend tracks sync session state and pushes updates to connected clients.
+
+### [P3] Sandbox File Sync: MutagenClient GrpcDriver
+
+* **Repos**: repl
+* **Key files**: New `repos/repl/src/services/sync/grpcDriver.ts`
+* **Depends on**: Sandbox file sync v1 stable
+* Replace CliDriver with gRPC integration to Mutagen daemon for structured protobuf data and long-polling status updates. Compile Mutagen proto files to TypeScript, connect to daemon socket via `@grpc/grpc-js`.
+* **Implementation**:
+  1. Compile Mutagen proto files (`pkg/service/synchronization/synchronization.proto` and dependencies) to TypeScript
+  2. Implement `GrpcDriver` class implementing `IMutagenClient` interface
+  3. Connect to `~/.mutagen/daemon/daemon.sock` via `@grpc/grpc-js`
+  4. Use `List` RPC with `previousStateIndex` for long-polling status updates
+  5. Swap CliDriver for GrpcDriver in SyncManager (configuration-based selection)
+* **Files**:
+  * New: `repos/repl/src/services/sync/grpcDriver.ts`
+  * New: `repos/repl/src/services/sync/proto/` — compiled proto definitions
+
+### [P3] Sandbox File Sync: File browser UI
+
+* **Repos**: admin, threads, backend
+* **Depends on**: Admin UI sync config, Threads app sync
+* Browse and download sandbox files from admin and Threads UIs. Uses existing `ISandbox.readFile/listDir` via a new backend endpoint or the existing exec endpoint.
+
+### [P3] Sandbox File Sync: Sync session persistence
+
+* **Repos**: backend, database, domain
+* **Depends on**: GrpcDriver or sync status streaming
+* Track active sync sessions in backend DB for cross-client visibility. Enables admin/Threads UIs to show which sandboxes have active sync sessions without querying the user's local Mutagen daemon.
+
+
+## Database: Entity ID Prefixing
+
+### [P3] Prefix all entity IDs with entity-specific identifiers
+
+* **Repos**: database, domain, backend, admin, integration
+* **Key files**: `repos/database/src/utils/schema/base.ts`, `repos/database/src/schemas/*.ts`, `repos/domain/src/constants/values.ts`, `repos/database/src/seeds/ids.seed.ts`
+* Sandbox IDs now use `sb_` + `nanoid(7)` for SSH Host pattern matching. Extend this pattern to all entities for consistency, debuggability, and collision avoidance across tables. Prefixed IDs make it immediately clear what entity type an ID refers to in logs, URLs, and debugging.
+* **Existing seed ID prefixes** (from `ids.seed.ts`) provide the mapping:
+  | Entity | Prefix | Seed Example |
+  |---|---|---|
+  | Agent | `ag_` | `ag_0000001` |
+  | API Key | `ak_` | `ak_0000001` |
+  | Asset | `as_` | `as_0000001` |
+  | Domain | `dm_` | `dm_0000001` |
+  | Endpoint | `ep_` | `ep_0000001` |
+  | Function | `fn_` | `fn_0000001` |
+  | Invitation | `iv_` | `iv_0000001` |
+  | Message | `ms_` | `ms_0000001` |
+  | Org | `og_` | `og_0000001` |
+  | Project | `pj_` | `pj_0000001` |
+  | Provider | `pv_` | `pv_0000001` |
+  | Quota | `qt_` | `qt_0000001` |
+  | Role | `rl_` | `rl_0000001` |
+  | Sandbox | `sb_` | `sb_0000001` (already done) |
+  | Schedule | `sd_` | `sd_0000001` |
+  | Secret | `sc_` | `sc_0000001` |
+  | Skill | `sk_` | `sk_0000001` |
+  | Subscription | `su_` | (rename from `sb` to avoid collision with sandbox) |
+  | Thread | `th_` | `th_0000001` |
+* **Implementation**:
+  1. Define all entity prefix constants in `@tdsk/domain/constants/values` (e.g., `AgentIdPrefix = 'ag_'`, etc.)
+  2. Refactor `base.ts` to accept an optional prefix parameter, or override `id` per schema (same pattern as sandbox)
+  3. Update seed IDs to include `_` separator (e.g., `ag_0000001` instead of `ag00000001`) for consistency with `sb_`
+  4. Update existing integration tests that hardcode or assert ID formats
+  5. Migration strategy for existing data: new records get prefixed IDs, existing records keep old format (both valid in varchar(10))
+* **Considerations**:
+  - With 3-char prefix (`xx_`) + 7-char nanoid = 10 chars, fits existing `varchar(10)` columns
+  - Subscription prefix must change from `sb` to `su` (or similar) to avoid collision with sandbox `sb_`
+  - Foreign key references are by value, not pattern — no FK changes needed
+  - API consumers may validate ID format — document the change

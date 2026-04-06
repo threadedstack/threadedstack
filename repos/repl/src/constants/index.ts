@@ -1,3 +1,4 @@
+export * from './sync'
 export * from './paths'
 export * from './values'
 export * from './errors'

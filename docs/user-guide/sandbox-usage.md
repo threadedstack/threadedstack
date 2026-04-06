@@ -173,31 +173,143 @@ Pods are labeled with the organization ID, user ID, sandbox ID, and project ID. 
 
 ---
 
-## Sandbox Direct Connect (Planned)
+## Sandbox Direct Connect
 
-Sandbox Direct Connect is a planned feature that will let users and AI coding tools connect directly into running sandbox pods for interactive development sessions.
+Sandbox Direct Connect lets you SSH into running sandbox pods and sync files between your local machine and the container. The `tsa` CLI handles the full workflow -- pod startup, SSH key management, WebSocket tunneling, and Mutagen-based file synchronization.
 
-### What It Will Enable
+### Getting Started
 
-- **Direct container access**: Connect to a running sandbox pod via SSH or a similar protocol, then use the terminal as if it were a local development machine.
-- **Bring your own AI tool**: Use whichever AI coding tool you prefer (Claude Code, Codex, OpenCode, or others) inside a managed container environment. The sandbox image ships with the tool pre-installed and configured.
-- **Zero credential exposure**: The MITM egress proxy continues to operate transparently. When the AI tool makes outbound API calls, placeholder tokens are swapped for real credentials at the network layer. Neither the AI tool nor the connected user ever sees raw API keys.
-- **Team-wide consistency**: Org admins configure a sandbox image once (tool versions, secrets, resource limits), and every team member gets the same environment. No per-engineer setup drift.
+#### 1. Install and Login
 
-### How Credentials Stay Secure with Direct Access
+```bash
+# Login with your API key
+tsa login <api-key> --url https://your-instance.threadedstack.app
 
-The security model remains intact because the iptables DNAT rules are established by the init container before the sandbox container starts. All outbound traffic on ports 80/443 is redirected to the egress proxy regardless of whether the traffic originates from automated agent code or an interactive SSH session. The sandbox container cannot modify these rules because it lacks `NET_ADMIN` capability.
+# For local development (self-signed certs)
+tsa login <api-key> --url https://local.threadedstack.app --insecure
+```
 
-### Planned Capabilities
+#### 2. List Available Sandboxes
 
-- SSH or equivalent connection mechanism exposed via K8s ingress.
-- Authentication tied to your Threaded Stack identity (JWT or API key).
-- Session multiplexing for multiple terminals connected to the same sandbox.
-- Connection URL generation and display in the admin dashboard.
-- Pre-configured Docker images for popular AI tools.
-- Persistent volume options for workspace data that survives pod restarts.
-- Idle timeout with automatic pod teardown after inactivity.
-- Session limits tied to your subscription tier quotas.
+```bash
+tsa sandboxes --org <org-id>
+```
+
+#### 3. Connect via SSH
+
+```bash
+tsa ssh <sandbox-id>
+```
+
+This single command handles:
+- Starting the sandbox pod if it is not already running
+- Generating an Ed25519 SSH key pair (reuses existing keys)
+- Injecting the public key into the pod
+- Establishing a WebSocket tunnel through the proxy chain
+- Opening an interactive SSH session
+
+To specify an organization explicitly:
+
+```bash
+tsa ssh <sandbox-id> --org <org-id>
+```
+
+#### 4. Sync Files
+
+Start file synchronization between your local machine and the sandbox:
+
+```bash
+# Foreground mode (blocks until Ctrl+C)
+tsa sync <sandbox-id> --source ./src --target /workspace/src
+
+# Background mode
+tsa sync <sandbox-id> --daemon
+
+# Check sync status
+tsa sync status
+
+# Stop syncing
+tsa sync stop <sandbox-id>
+
+# Force immediate sync
+tsa sync flush <sandbox-id>
+```
+
+### Sync Configuration
+
+Define sync rules in `~/.config/tdsk/tsa.yaml`:
+
+```yaml
+sync:
+  autoStart: true  # Auto-start sync when connecting via tsa ssh
+  rules:
+    - name: project
+      source: ./src
+      target: /workspace/src
+      mode: one-way-replica
+      ignores:
+        - dist/
+        - "*.log"
+    - name: config
+      source: ./config
+      target: /workspace/config
+      mode: two-way-safe
+```
+
+#### Sync Modes
+
+| Mode | Behavior |
+|------|----------|
+| `one-way-replica` | Local → sandbox only. Sandbox changes are overwritten. |
+| `one-way-safe` | Local → sandbox only. Existing sandbox files are never deleted or overwritten. |
+| `two-way-safe` | Bidirectional. Conflicts are flagged, not overwritten. |
+| `two-way-resolved` | Bidirectional. Local wins on conflict. |
+
+#### Ignore Patterns
+
+Built-in ignores (`.git/`, `node_modules/`, `.DS_Store`, etc.) are always applied. Add your own in the `ignores` list. Prefix with `!` to negate a pattern:
+
+```yaml
+ignores:
+  - "*.log"
+  - temp/
+  - "!important.log"  # Keep this file even though *.log is ignored
+```
+
+#### Per-Sandbox Overrides
+
+Override sync rules for specific sandboxes:
+
+```yaml
+sync:
+  sandboxes:
+    sb_a1b2c3d:
+      rules:
+        - name: project
+          source: ./custom-src
+          target: /workspace/src
+          mode: two-way-resolved
+```
+
+### Auto-Sync
+
+When `sync.autoStart: true` is set in your config, `tsa ssh` automatically starts file sync when you connect and stops it when the SSH session ends. No separate `tsa sync` command is needed.
+
+### How Credentials Stay Secure
+
+The security model remains intact during direct SSH access. The iptables DNAT rules are established by the init container before the sandbox container starts. All outbound traffic on ports 80/443 is redirected to the egress proxy regardless of whether the traffic originates from automated agent code or an interactive SSH session. The sandbox container cannot modify these rules because it lacks `NET_ADMIN` capability.
+
+### CLI Quick Reference
+
+```
+tsa ssh <sandbox-id> [--org <id>]           # SSH into sandbox
+tsa sync <sandbox-id> [options]             # Start file sync
+tsa sync stop <sandbox-id>                  # Stop file sync
+tsa sync status [sandbox-id]                # Show sync status
+tsa sync flush <sandbox-id>                 # Force immediate sync
+tsa sandboxes [--org <id>]                  # List sandboxes
+tsa proxy <sandbox-id>                      # SSH ProxyCommand (internal)
+```
 
 For full design details, see the [Sandbox Connect feature spec](../features/sandbox-connect.md).
 

@@ -31,6 +31,7 @@ const result = await Bun.build({
   outdir: distDir,
   target: `bun`,
   minify: true,
+  // @nuanced-dev/mutagen is not imported — CliDriver spawns the binary directly
   define: {
     __TDSK_REPL_VERSION__: JSON.stringify(pkg.version),
   },
@@ -44,11 +45,13 @@ if (!result.success) {
   process.exit(1)
 }
 
-console.log(`  Output: ${distDir}/index.js`)
+// Bun.build names output after the entrypoint: main.ts -> main.js
+const bundleName = `main.js`
+console.log(`  Output: ${distDir}/${bundleName}`)
 
 // Step 2: If --compile, compile the bundle into a native binary
 if (isCompile) {
-  const bundlePath = join(distDir, `index.js`)
+  const bundlePath = join(distDir, bundleName)
   const outfile = join(distDir, `tsa`)
 
   console.log(`\nCompiling to native binary...`)

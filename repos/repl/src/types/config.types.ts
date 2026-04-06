@@ -1,5 +1,5 @@
 import type { TThemeType } from '@TRL/types/theme.types'
-import type { ESandboxType } from '@tdsk/domain'
+import type { ESandboxType, TSyncConfig } from '@tdsk/domain'
 
 export type TAuthConfig = {
   apiKey: string
@@ -45,6 +45,7 @@ export type TReplConfig = {
   agent?: string
   project?: string
   auth?: TAuthConfig
+  sync?: TSyncConfig
   hooks?: THooksConfig
   tools?: TToolsConfig
   sandbox?: TSandboxConfig

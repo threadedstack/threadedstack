@@ -1,16 +1,30 @@
+import type { TKubeSandboxConfig } from '@tdsk/domain'
+
+import { customAlphabet } from 'nanoid'
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
+import { SandboxIdPrefix } from '@tdsk/domain'
 import { projects } from '@TDB/schemas/projects'
 import { text, jsonb, uuid, varchar, index, pgTable } from 'drizzle-orm/pg-core'
 
-import type { TKubeSandboxConfig } from '@tdsk/domain'
+/**
+ * Required custom alphabet for sandbox ids due to ssh / sync implementation
+ * The sandbox id is used in ssh connections for file syncing
+ * ssh enforces all lowercase values, so we must align with that constraint
+ * The ids must perfectly match, so we need to ensure all sandbox ids are lowercase
+ */
+const sandboxNanoid = customAlphabet(`0123456789abcdefghijklmnopqrstuvwxyz`, 7)
 
 export const sandboxes = pgTable(
   `sandboxes`,
   {
     ...base,
+    id: varchar(`id`, { length: 10 })
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => `${SandboxIdPrefix}${sandboxNanoid()}`),
     name: text(`name`).notNull(),
     orgId: varchar(`org_id`, { length: 10 })
       .references(() => orgs.id, { onDelete: `cascade` })

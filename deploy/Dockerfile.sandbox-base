@@ -17,18 +17,6 @@ RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/
 # Generate host keys at build time so sshd starts without delay
 RUN ssh-keygen -A
 
-# Pre-bake Mutagen agent for file sync
-ARG MUTAGEN_VERSION=0.18.1
-ARG TARGETOS
-ARG TARGETARCH
-RUN curl -fsSL \
-      https://github.com/mutagen-io/mutagen/releases/download/v${MUTAGEN_VERSION}/mutagen_${TARGETOS}_${TARGETARCH}_v${MUTAGEN_VERSION}.tar.gz \
-    | tar xz -O mutagen-agents.tar.gz \
-    | tar xz -C /tmp ${TARGETOS}_${TARGETARCH} \
-    && mkdir -p /home/sandbox/.mutagen/agents/${MUTAGEN_VERSION} \
-    && mv /tmp/${TARGETOS}_${TARGETARCH} /home/sandbox/.mutagen/agents/${MUTAGEN_VERSION}/mutagen-agent \
-    && chmod 700 /home/sandbox/.mutagen/agents/${MUTAGEN_VERSION}/mutagen-agent \
-    && chown -R sandbox:sandbox /home/sandbox/.mutagen
 
 # CA cert mount point for MITM proxy trust
 ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/tdsk-proxy.crt
@@ -38,6 +26,23 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && npm install -g @anthropic-ai/claude-code @openai/codex \
     && rm -rf /var/lib/apt/lists/*
+
+# Pre-bake Mutagen agent for file sync
+# Install the platform-specific npm package, extract the agent binary
+# from its bundled mutagen-agents.tar.gz, place it where the daemon expects it
+ARG TARGETARCH
+RUN MUTAGEN_PKG="@nuanced-dev/mutagen-linux-${TARGETARCH:-arm64}" \
+    && MUTAGEN_VER=$(npm show "$MUTAGEN_PKG" version 2>/dev/null) \
+    && npm pack "$MUTAGEN_PKG" --pack-destination /tmp \
+    && tar xzf /tmp/nuanced-dev-mutagen-linux-*.tgz -C /tmp \
+    && AGENTS_BUNDLE="/tmp/package/bin/mutagen-agents.tar.gz" \
+    && AGENT_DIR="/home/sandbox/.mutagen-dev/agents/${MUTAGEN_VER}" \
+    && mkdir -p "$AGENT_DIR" \
+    && tar xzf "$AGENTS_BUNDLE" -C /tmp "linux_${TARGETARCH:-arm64}" \
+    && mv "/tmp/linux_${TARGETARCH:-arm64}" "$AGENT_DIR/mutagen-agent" \
+    && chmod 700 "$AGENT_DIR/mutagen-agent" \
+    && chown -R sandbox:sandbox /home/sandbox/.mutagen-dev \
+    && rm -rf /tmp/nuanced-dev-* /tmp/package /tmp/linux_*
 
 # OpenCode binary (tarball, multi-arch)
 ARG OPENCODE_ARCH=${TARGETARCH}

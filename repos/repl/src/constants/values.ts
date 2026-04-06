@@ -6,6 +6,7 @@ export const ApiKeyPrefix = `tdsk_`
 // Defaults
 export const DefaultMaxSteps = 10
 export const DefaultMaxHistory = 50
+export const UpstreamTimeoutMS = 30_000
 export const DefaultTheme = `dark` as const
 export const DefaultSandboxTimeout = 300000
 

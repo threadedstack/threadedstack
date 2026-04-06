@@ -144,7 +144,7 @@ export const Ids = {
     weeklyReport: `sd00000002`,
   },
   sandbox: {
-    devNode: `bx00000001`,
+    devNode: `sb_0000001`,
   },
   domain: {
     orgDomain: `dm00000001`,
