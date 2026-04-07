@@ -8,6 +8,7 @@ import type {
 } from '@kubernetes/client-node'
 
 import { customAlphabet } from 'nanoid'
+import { SandboxRuntimeConfigs, ESandboxRuntime } from '@tdsk/domain'
 import { KubeSBPrefix, PodLabelKeys, PodAnnotationKeys } from '@TSB/constants/kube'
 import { DefaultWorkdir, VolumeMountName, CACertMountPath } from '@TSB/constants/values'
 
@@ -129,12 +130,14 @@ const buildSandboxContainer = (
     ...buildEnvVars(extraEnv),
   ]
 
+  if (config.runtime) env.push({ name: `TDSK_RUNTIME`, value: config.runtime })
+  if (config.runtimeCommand)
+    env.push({ name: `TDSK_RUNTIME_CMD`, value: config.runtimeCommand })
+
   const ports = buildPorts(config.ports)
   if (config.sshEnabled !== false) {
     const hasSSHPort = ports.some((p) => p.containerPort === 2222)
-    if (!hasSSHPort) {
-      ports.push({ protocol: `TCP`, containerPort: 2222 })
-    }
+    if (!hasSSHPort) ports.push({ protocol: `TCP`, containerPort: 2222 })
   }
 
   const container: V1Container = {
@@ -157,14 +160,31 @@ const buildSandboxContainer = (
     ],
   }
 
-  if (config.command) {
-    container.command = config.command
+  // Resolve container start command based on runtime
+  const runtime = config.runtime
+  if (runtime && !(runtime in SandboxRuntimeConfigs)) {
+    throw new Error(
+      `Unknown sandbox runtime: "${runtime}". Valid: ${Object.keys(SandboxRuntimeConfigs).join(`, `)}`
+    )
   }
-  if (config.args) {
-    container.args = config.args
-  } else if (!config.command) {
+  const runtimeConfig =
+    runtime && runtime !== ESandboxRuntime.custom
+      ? SandboxRuntimeConfigs[runtime]
+      : undefined
+
+  if (runtimeConfig?.command) {
+    // Built-in runtime: use the runtime's container start command
+    container.command = runtimeConfig.command
+    if (runtimeConfig.args) container.args = runtimeConfig.args
+  } else if (config.command) {
+    // Custom runtime with explicit start command
+    container.command = config.command
+    if (config.args) container.args = config.args
+  } else {
+    // No command specified: idle with sleep infinity
     container.args = [`sleep`, `infinity`]
   }
+
   if (config.imagePullPolicy) container.imagePullPolicy = config.imagePullPolicy
 
   return container

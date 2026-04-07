@@ -11,6 +11,15 @@ export enum ESandboxType {
 
 export type TSandboxType = `${ESandboxType}`
 
+export enum ESandboxRuntime {
+  codex = `codex`,
+  custom = `custom`,
+  openCode = `opencode`,
+  claudeCode = `claude-code`,
+}
+
+export type TSandboxRuntimeId = `${ESandboxRuntime}`
+
 export enum EProto {
   http = `http`,
   https = `https`,
@@ -129,12 +138,18 @@ export type TKubeSandboxConfig = {
   workdir?: string
   gitBranch?: string
   command?: string[]
+  /** Shell script that runs after container start + built-in setup, before sandbox is "ready" */
+  initScript?: string
   secretIds?: string[]
   sshEnabled?: boolean
+  /** Shell command executed by `tsa run` after SSH connect to launch the AI tool */
+  runtimeCommand?: string
   defaultRuntime?: string
   imagePullSecret?: string
   gitTokenSecretId?: string
   idleTimeoutMinutes?: number
+  /** Which AI tool runtime to activate (claude-code, codex, opencode, or custom) */
+  runtime?: TSandboxRuntimeId
   sync?: TSandboxSyncDefaults
   runtimes?: TSandboxRuntime[]
   envVars?: Record<string, string>

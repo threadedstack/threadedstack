@@ -15,6 +15,7 @@ import { SandboxDrawer } from '@TAF/components/Sandboxes/SandboxDrawer'
 import { Box, Typography, Chip, CircularProgress } from '@mui/material'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
+  copySandbox,
   stopSandbox,
   startSandbox,
   deleteSandbox,
@@ -28,6 +29,7 @@ import {
   Delete as DeleteIcon,
   PlayArrow as StartIcon,
   Terminal as ConnectIcon,
+  ContentCopy as CopyIcon,
 } from '@mui/icons-material'
 
 export type TSandboxes = {
@@ -210,6 +212,20 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
     })
     toast.success(`Sandbox "${connectModalSandbox.name}" stopped`)
     onConnectModalClose()
+  }
+
+  const onCopySandbox = async (sandbox: Sandbox) => {
+    setBusy(sandbox.id, true)
+    const name = `${sandbox.name}-copy`
+    const result = await copySandbox({ orgId, id: sandbox.id, name })
+    setBusy(sandbox.id, false)
+
+    if (result.error) {
+      toast.error(`Failed to copy sandbox: ${result.error.message}`)
+      return
+    }
+
+    toast.success(`Sandbox "${sandbox.name}" copied as "${name}"`)
   }
 
   const onRemove = async () => {
@@ -410,6 +426,17 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
               onClick={(e) => {
                 e.stopPropagation()
                 onConnectSandbox(sandbox)
+              }}
+            />
+            <ActionIconButton
+              size='small'
+              color='secondary'
+              disabled={isBusy}
+              tooltip='Copy Sandbox'
+              icon={<CopyIcon sx={styles.table.actions.icon} />}
+              onClick={(e) => {
+                e.stopPropagation()
+                onCopySandbox(sandbox)
               }}
             />
             <ActionIconButton

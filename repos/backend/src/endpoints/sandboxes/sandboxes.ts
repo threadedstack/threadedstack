@@ -3,6 +3,7 @@ import type { TEndpointConfig } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { getSandbox } from '@TBE/endpoints/sandboxes/getSandbox'
 import { stopSandbox } from '@TBE/endpoints/sandboxes/stopSandbox'
+import { copySandbox } from '@TBE/endpoints/sandboxes/copySandbox'
 import { listSessions } from '@TBE/endpoints/sandboxes/listSessions'
 import { startSandbox } from '@TBE/endpoints/sandboxes/startSandbox'
 import { listSandboxes } from '@TBE/endpoints/sandboxes/listSandboxes'
@@ -18,6 +19,7 @@ export const sandboxes: TEndpointConfig = {
   method: EPMethod.Use,
   endpoints: {
     getSandbox,
+    copySandbox,
     stopSandbox,
     startSandbox,
     listSessions,

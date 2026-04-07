@@ -1,9 +1,10 @@
 import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
+import type { TKubeSandboxConfig } from '@tdsk/domain'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TDB/utils/logger'
-import { ERoleType, Exception } from '@tdsk/domain'
+import { ERoleType, Exception, Sandbox, SandboxPresets } from '@tdsk/domain'
 
 /**
  * POST /orgs - Create a new org
@@ -42,6 +43,34 @@ export const createOrg: TEndpointConfig = {
         await db.services.org.delete(data.id)
         throw new Exception(500, `Failed to assign owner role to organization`)
       }
+    }
+
+    // Seed default sandbox configs for the new org
+    const seedFailures: string[] = []
+    const presetEntries = Object.values(SandboxPresets)
+    for (const preset of presetEntries) {
+      const sandbox = new Sandbox({
+        builtIn: true,
+        orgId: data.id,
+        name: preset.name,
+        config: { ...preset.config } as TKubeSandboxConfig,
+      })
+      const { error: seedError } = await db.services.sandbox.create(sandbox)
+      if (seedError) {
+        logger.warn(
+          `Failed to seed sandbox "${preset.name}" for org ${data.id}:`,
+          seedError
+        )
+        seedFailures.push(preset.name)
+      }
+    }
+
+    if (seedFailures.length) {
+      res.status(201).json({
+        data,
+        warnings: [`Failed to seed default sandboxes: ${seedFailures.join(`, `)}`],
+      })
+      return
     }
 
     res.status(201).json({ data })

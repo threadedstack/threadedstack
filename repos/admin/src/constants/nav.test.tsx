@@ -464,10 +464,10 @@ describe(`OrgSubNavGroups`, () => {
     ])
   })
 
-  it(`Resources should have Projects, Providers, Agents, Sandboxes, Skills`, () => {
+  it(`Resources should have Projects, Sandboxes, Providers, Skills`, () => {
     const resources = OrgSubNavGroups.find((g) => g.label === `Resources`)
     const texts = resources?.items.map((i) => i.text)
-    expect(texts).toEqual([`Projects`, `Providers`, `Agents`, `Sandboxes`, `Skills`])
+    expect(texts).toEqual([`Projects`, `Sandboxes`, `Providers`, `Skills`, `Agents`])
   })
 
   it(`Security should have Secrets, Providers, API Keys, Domains`, () => {
@@ -501,10 +501,10 @@ describe(`ProjectSubNavGroups`, () => {
     ])
   })
 
-  it(`Development should have Endpoints, Functions, Agents`, () => {
+  it(`Development should have Sandboxes, Endpoints, Functions, Agents`, () => {
     const dev = ProjectSubNavGroups.find((g) => g.label === `Development`)
     const texts = dev?.items.map((i) => i.text)
-    expect(texts).toEqual([`Endpoints`, `Functions`, `Agents`, `Sandboxes`])
+    expect(texts).toEqual([`Sandboxes`, `Endpoints`, `Functions`, `Agents`])
   })
 
   it(`Security should have Secrets, API Keys, Domains`, () => {

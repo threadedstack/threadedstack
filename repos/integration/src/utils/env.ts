@@ -76,4 +76,19 @@ export const env = {
 
   /** Neon Auth URL pattern for Playwright interception */
   neonAuthPattern: '**/neondb/auth/get-session**',
+
+  /** Neon Auth base URL for JWT token acquisition */
+  get authUrl() {
+    return process.env.TDSK_IT_AUTH_URL || process.env.TDSK_AUTH_URL || ''
+  },
+
+  /** Test user email for JWT auth (user must exist in Neon Auth with emailVerified=true) */
+  get testUserEmail() {
+    return process.env.TDSK_IT_USER_EMAIL || ''
+  },
+
+  /** Test user password for JWT auth */
+  get testUserPassword() {
+    return process.env.TDSK_IT_USER_PASSWORD || ''
+  },
 } as const

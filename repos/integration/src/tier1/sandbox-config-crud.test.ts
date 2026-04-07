@@ -46,6 +46,7 @@ describe('Tier 1: Sandbox Config CRUD', () => {
     expect(res.data.name).toBe(sandboxName)
     expect(res.data.config).toBeDefined()
     expect(res.data.config.image).toBe('node:22-slim')
+    expect(res.data.builtIn).toBe(false)
 
     sandboxId = res.data.id
   })
@@ -96,6 +97,7 @@ describe('Tier 1: Sandbox Config CRUD', () => {
     expect(sandbox.config.image).toBe('node:22-slim')
     expect(sandbox.orgId).toBe(ctx.orgId)
     expect(sandbox.createdAt).toBeDefined()
+    expect(typeof sandbox.builtIn).toBe('boolean')
   })
 
   // --- List ---
@@ -125,6 +127,7 @@ describe('Tier 1: Sandbox Config CRUD', () => {
     const found = res.data.find((s: any) => s.id === sandboxId)
     expect(found).toBeDefined()
     expect(found?.name).toBe(sandboxName)
+    expect(found?.builtIn).toBe(false)
   })
 
   // --- Update ---
@@ -254,6 +257,7 @@ describe('Tier 1: Sandbox Config CRUD', () => {
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
       expect(res.data.projectId).toBe(testProjectId)
+      expect(res.data.builtIn).toBe(false)
       createdSandboxIds.push(res.data.id)
     })
 

@@ -163,6 +163,18 @@ export class SandboxApi extends BaseApi {
     resp.error && (await this._onError(resp.error, `Failed to get sandbox sessions`))
     return resp
   }
+
+  async copy(orgId: string, id: string, name: string): Promise<TApiRes<Sandbox>> {
+    const resp = await this.api.post<Sandbox>({
+      data: { orgId, name },
+      path: `${this.#path(orgId)}/${id}/copy`,
+    })
+    resp.error && (await this._onError(resp.error, `Failed to copy sandbox`))
+    return {
+      ...resp,
+      data: resp.data ? new Sandbox(resp.data) : undefined,
+    }
+  }
 }
 
 // Export singleton instance

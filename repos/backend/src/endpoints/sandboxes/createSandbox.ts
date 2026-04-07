@@ -28,6 +28,7 @@ export const createSandbox: TEndpointConfig = {
       orgId,
       config,
       projectId,
+      builtIn: false,
       userId: req.user?.id,
     })
 

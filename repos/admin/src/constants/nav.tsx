@@ -204,10 +204,10 @@ export const OrgSubNavGroups: TSubNavGroup[] = [
     label: `Resources`,
     items: [
       OrgSubNav.Projects,
-      OrgSubNav.Providers,
-      OrgSubNav.Agents,
       OrgSubNav.Sandboxes,
+      OrgSubNav.Providers,
       OrgSubNav.Skills,
+      OrgSubNav.Agents,
     ],
   },
   {
@@ -224,10 +224,10 @@ export const ProjectSubNavGroups: TSubNavGroup[] = [
   {
     label: `Development`,
     items: [
+      ProjectSubNav.Sandboxes,
       ProjectSubNav.Endpoints,
       ProjectSubNav.Functions,
       ProjectSubNav.Agents,
-      ProjectSubNav.Sandboxes,
     ],
   },
   {

@@ -1,4 +1,5 @@
 export * from './stopSandbox'
+export * from './copySandbox'
 export * from './startSandbox'
 export * from './createSandbox'
 export * from './updateSandbox'

@@ -1,5 +1,6 @@
 import type { TTasks } from '@TRL/types'
 
+import { run } from './run'
 import { ssh } from './ssh'
 import { sync } from './sync'
 import { chat } from './chat'
@@ -13,6 +14,7 @@ import { threads } from './threads'
 import { sandboxes } from './sandboxes'
 
 export const tasks: TTasks = {
+  run,
   ssh,
   sync,
   chat,

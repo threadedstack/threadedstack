@@ -7,7 +7,7 @@ import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
 import { SandboxIdPrefix } from '@tdsk/domain'
 import { projects } from '@TDB/schemas/projects'
-import { text, jsonb, uuid, varchar, index, pgTable } from 'drizzle-orm/pg-core'
+import { text, jsonb, uuid, varchar, boolean, index, pgTable } from 'drizzle-orm/pg-core'
 
 /**
  * Required custom alphabet for sandbox ids due to ssh / sync implementation
@@ -34,6 +34,7 @@ export const sandboxes = pgTable(
       onDelete: `cascade`,
     }),
     config: jsonb(`config`).notNull().$type<TKubeSandboxConfig>(),
+    builtIn: boolean(`built_in`).notNull().default(false),
   },
   (table) => [
     index(`sandboxes_org_idx`).on(table.orgId),

@@ -6,10 +6,13 @@ import type {
   TSecretMode,
   TImagePullPolicy,
   TKubeSandboxConfig,
+  TSandboxRuntimeId,
 } from '@tdsk/domain'
 
 import { useState, useEffect, useMemo } from 'react'
 import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
+import { Code } from '@TAF/components/Code/Code'
+import { MonacoOptions } from '@TAF/constants/monaco'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
@@ -22,8 +25,11 @@ import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
 import {
   ESecretMode,
   SBImagePresets,
+  ESandboxRuntime,
   SBRuntimeOptions,
   EImagePullPolicy,
+  SandboxRuntimeOptions,
+  SandboxRuntimeConfigs,
   SBImagePullPolicyOptions,
 } from '@tdsk/domain'
 import {
@@ -73,6 +79,11 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
   const [workdir, setWorkdir] = useState(``)
   const [command, setCommand] = useState(``)
   const [defaultRuntime, setDefaultRuntime] = useState(`node`)
+
+  // Runtime (AI tool runtime)
+  const [runtime, setRuntime] = useState<TSandboxRuntimeId>(ESandboxRuntime.claudeCode)
+  const [runtimeCommand, setRuntimeCommand] = useState(``)
+  const [initScript, setInitScript] = useState(``)
 
   // Resources
   const [cpuLimit, setCpuLimit] = useState(``)
@@ -124,6 +135,14 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     label: s.name || s.hashKey || s.id,
   }))
 
+  const isCustomRuntime = runtime === ESandboxRuntime.custom
+  const resolvedRuntimeCmd = !isCustomRuntime
+    ? SandboxRuntimeConfigs[runtime]?.runtimeCommand || ``
+    : ``
+  const resolvedInitScript = !isCustomRuntime
+    ? SandboxRuntimeConfigs[runtime]?.initScript || ``
+    : ``
+
   const reset = () => {
     setName(``)
     setArgs(``)
@@ -149,6 +168,9 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     setSecretMode(ESecretMode.none)
     setGitTokenMode(ESecretMode.none)
     setImagePullPolicy(EImagePullPolicy.IfNotPresent)
+    setRuntime(ESandboxRuntime.claudeCode)
+    setRuntimeCommand(``)
+    setInitScript(``)
   }
 
   // Pre-populate form in edit mode
@@ -173,6 +195,9 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
       setMemoryLimit(config.resources?.limits?.memory || ``)
       setMemoryRequest(config.resources?.requests?.memory || ``)
       setImagePullPolicy(config.imagePullPolicy || EImagePullPolicy.IfNotPresent)
+      setRuntime((config.runtime as TSandboxRuntimeId) || ESandboxRuntime.claudeCode)
+      setRuntimeCommand(config.runtimeCommand || ``)
+      setInitScript(config.initScript || ``)
 
       if (config.gitTokenSecretId) {
         setGitTokenSecretId(config.gitTokenSecretId)
@@ -291,13 +316,21 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     const argsArr = splitCSV(args)
     const envVarsObj = kvToObj(envVars, false)
 
+    const effectiveRuntimeCmd = isCustomRuntime ? runtimeCommand : resolvedRuntimeCmd
+    const effectiveInitScript = isCustomRuntime
+      ? initScript
+      : initScript || resolvedInitScript
+
     const sandboxData: Partial<Sandbox> = {
       name: name.trim(),
       config: {
+        runtime,
         sshEnabled,
         idleTimeoutMinutes,
         image: image.trim(),
         imagePullPolicy: imagePullPolicy as TImagePullPolicy,
+        ...(effectiveRuntimeCmd ? { runtimeCommand: effectiveRuntimeCmd } : {}),
+        ...(effectiveInitScript ? { initScript: effectiveInitScript } : {}),
         ...(defaultRuntime ? { defaultRuntime } : {}),
         ...(imagePullSecret ? { imagePullSecret } : {}),
         ...(argsArr.length > 0 ? { args: argsArr } : {}),
@@ -416,6 +449,96 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
             disabled={loading}
             onChange={(e) => setImagePullPolicy(e.target.value as TImagePullPolicy)}
           />
+
+          {/* Runtime */}
+          <SelectInput
+            id='sandbox-runtime-type'
+            label='Runtime'
+            value={runtime}
+            items={SandboxRuntimeOptions}
+            disabled={loading}
+            onChange={(e) => setRuntime(e.target.value as TSandboxRuntimeId)}
+          />
+
+          <TextInput
+            fullWidth
+            disabled={!isCustomRuntime || loading}
+            id='sandbox-runtime-command'
+            label='Runtime Command'
+            placeholder={isCustomRuntime ? `e.g. my-ai-tool` : ``}
+            value={isCustomRuntime ? runtimeCommand : resolvedRuntimeCmd}
+            onChange={(e) => setRuntimeCommand(e.target.value)}
+            helperText={
+              !isCustomRuntime
+                ? `Pre-configured for ${SandboxRuntimeOptions.find((o) => o.value === runtime)?.label || runtime}`
+                : undefined
+            }
+          />
+
+          {/* Init Script */}
+          <Box>
+            <Typography
+              variant='caption'
+              color='text.secondary'
+              sx={{ mb: 0.5, display: 'block' }}
+            >
+              Init Script
+              {!isCustomRuntime && (
+                <Typography
+                  component='span'
+                  variant='caption'
+                  color='text.secondary'
+                  sx={{ ml: 1 }}
+                >
+                  (pre-filled from{' '}
+                  {SandboxRuntimeOptions.find((o) => o.value === runtime)?.label ||
+                    runtime}{' '}
+                  preset)
+                </Typography>
+              )}
+            </Typography>
+            <Code
+              id='sandbox-init-script'
+              language='shell'
+              disabled={loading}
+              options={MonacoOptions}
+              defaultValue={initScript || (!isCustomRuntime ? resolvedInitScript : ``)}
+              label=''
+              onChange={(value) => setInitScript(value || ``)}
+              sx={{ minHeight: 120 }}
+            />
+          </Box>
+
+          {/* Custom Start Command (only for custom runtime) */}
+          {isCustomRuntime && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography
+                variant='caption'
+                color='text.secondary'
+                sx={{ display: 'block' }}
+              >
+                Custom Container Start
+              </Typography>
+              <TextInput
+                fullWidth
+                value={command}
+                disabled={loading}
+                id='sandbox-custom-command'
+                label='Start Command'
+                placeholder='Comma-separated, e.g. /bin/sh, -c'
+                onChange={(e) => setCommand(e.target.value)}
+              />
+              <TextInput
+                fullWidth
+                value={args}
+                disabled={loading}
+                id='sandbox-custom-args'
+                label='Start Args'
+                placeholder='Comma-separated'
+                onChange={(e) => setArgs(e.target.value)}
+              />
+            </Box>
+          )}
 
           {/* Timeout */}
           <TextInput

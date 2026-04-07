@@ -69,6 +69,7 @@ const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings')
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
 const ProjectSandboxes = lazy(() => import('@TAF/pages/Projects/ProjectSandboxes'))
+const ProjectWorkspace = lazy(() => import('@TAF/pages/Projects/ProjectWorkspace'))
 const ProjectThreadChat = lazy(() => import('@TAF/pages/Projects/ProjectThreadChat'))
 const ProjectThreadDetail = lazy(() => import('@TAF/pages/Projects/ProjectThreadDetail'))
 
@@ -208,7 +209,8 @@ export const createRoutes = () =>
               children: [
                 {
                   index: true,
-                  Component: () => <SuspensePage Component={Project} />,
+                  loader: projectSandboxesLoader,
+                  Component: () => <SuspensePage Component={ProjectWorkspace} />,
                 },
                 {
                   path: ERoutePath.Endpoints,

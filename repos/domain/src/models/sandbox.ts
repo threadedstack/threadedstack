@@ -9,6 +9,7 @@ export class Sandbox extends Base {
   orgId: string
   userId?: string
   projectId?: string
+  builtIn: boolean = false
   config: TKubeSandboxConfig
 
   constructor(data: TSandboxData) {

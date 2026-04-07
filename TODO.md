@@ -36,3 +36,11 @@ Items are split into separate groups, with the sub repo name as the header.
       * Only the new message would need to be sent
   * Would also need to update the repos/integration tests to validate the functionality, and ensure no regressions.
 
+
+
+## Admin UI
+
+### Create Sandbox
+
+* No way to deselect Image Preset when creating a sandbox
+* Claude auto-selected as runtime, when not preset is selected (No way to know if claude is available)
