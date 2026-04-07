@@ -1,3 +1,5 @@
+import type { TObjToQueryOpts } from '@TDM/types'
+
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { isNum } from '@keg-hub/jsutils/isNum'
 import { isArr } from '@keg-hub/jsutils/isArr'
@@ -5,10 +7,6 @@ import { isBool } from '@keg-hub/jsutils/isBool'
 import { isColl } from '@keg-hub/jsutils/isColl'
 import { exists } from '@keg-hub/jsutils/exists'
 import { reduceObj } from '@keg-hub/jsutils/reduceObj'
-
-export type TObjToQueryOpts = {
-  array?: `string` | `repeated`
-}
 
 const valueToStr = (encodedKey: string, value: any) => {
   const stringVal =
@@ -35,12 +33,6 @@ const arrToStr = (encodedKey: string, value: Array<string | number | boolean>) =
   )
 }
 
-/**
- * Converts the input object to url querystring
- * @param {Object} obj - object with kvp to convert into a querystring
- * @function
- * @returns {String} querystring
- */
 export const objToQuery = <T extends string>(
   obj: Record<string, any>,
   opts: TObjToQueryOpts = {}

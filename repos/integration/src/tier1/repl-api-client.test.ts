@@ -61,27 +61,26 @@ describe('Tier 1: REPL ApiClient (live)', () => {
 
   describe('organizations', () => {
     test('listOrgs returns non-empty array', async () => {
-      const orgs = await client.listOrgs()
+      const { data: orgs } = await client.listOrgs()
       expect(Array.isArray(orgs)).toBe(true)
-      expect(orgs.length).toBeGreaterThan(0)
+      expect(orgs!.length).toBeGreaterThan(0)
     })
 
     test('listOrgs returns Organization instances', async () => {
-      const orgs = await client.listOrgs()
-      expect(orgs[0]).toBeInstanceOf(Organization)
-      expect(orgs[0].id).toBeTruthy()
+      const { data: orgs } = await client.listOrgs()
+      expect(orgs![0]).toBeInstanceOf(Organization)
+      expect(orgs![0].id).toBeTruthy()
     })
 
     test('getOrg returns matching org', async () => {
-      const org = await client.getOrg(ctx.orgId)
+      const { data: org } = await client.getOrg(ctx.orgId)
       expect(org).toBeInstanceOf(Organization)
-      expect(org.id).toBe(ctx.orgId)
+      expect(org!.id).toBe(ctx.orgId)
     })
 
-    test('getOrg with bad ID throws', async () => {
-      await expect(
-        client.getOrg('zz00000000')
-      ).rejects.toThrow('API error')
+    test('getOrg with bad ID returns error', async () => {
+      const { error } = await client.getOrg('zz00000000')
+      expect(error).toBeTruthy()
     })
   })
 
@@ -89,17 +88,17 @@ describe('Tier 1: REPL ApiClient (live)', () => {
 
   describe('agents', () => {
     test('listAgents returns Agent array', async () => {
-      const agents = await client.listAgents(ctx.orgId)
+      const { data: agents } = await client.listAgents(ctx.orgId)
       expect(Array.isArray(agents)).toBe(true)
       // Quickstart created at least one
-      expect(agents.length).toBeGreaterThan(0)
-      expect(agents[0]).toBeInstanceOf(Agent)
+      expect(agents!.length).toBeGreaterThan(0)
+      expect(agents![0]).toBeInstanceOf(Agent)
     })
 
     test('getAgent returns matching agent', async () => {
-      const agent = await client.getAgent(ctx.orgId, agentId)
+      const { data: agent } = await client.getAgent(ctx.orgId, agentId)
       expect(agent).toBeInstanceOf(Agent)
-      expect(agent.id).toBe(agentId)
+      expect(agent!.id).toBe(agentId)
     })
   })
 
@@ -107,21 +106,21 @@ describe('Tier 1: REPL ApiClient (live)', () => {
 
   describe('sessions', () => {
     test('createSession returns sessionToken', async () => {
-      const session = await client.createSession(agentId)
-      expect(session.sessionToken).toBeTruthy()
-      expect(typeof session.sessionToken).toBe('string')
-      expect(session.sessionToken.length).toBeGreaterThan(10)
+      const { data: session } = await client.createSession(agentId)
+      expect(session!.sessionToken).toBeTruthy()
+      expect(typeof session!.sessionToken).toBe('string')
+      expect(session!.sessionToken.length).toBeGreaterThan(10)
     })
 
     test('createSession has provider and model', async () => {
-      const session = await client.createSession(agentId)
-      expect(session.provider).toBeTruthy()
-      expect(session.model).toBeTruthy()
-      expect(['anthropic', 'openai', 'google', 'zai']).toContain(session.provider)
+      const { data: session } = await client.createSession(agentId)
+      expect(session!.provider).toBeTruthy()
+      expect(session!.model).toBeTruthy()
+      expect(['anthropic', 'openai', 'google', 'zai']).toContain(session!.provider)
     })
 
     test('createSession does not leak apiKey', async () => {
-      const session = await client.createSession(agentId)
+      const { data: session } = await client.createSession(agentId)
       const raw = JSON.stringify(session)
       expect(raw).not.toContain('sk-')
       expect(raw).not.toContain('AIza')
@@ -133,9 +132,9 @@ describe('Tier 1: REPL ApiClient (live)', () => {
 
   describe('providers', () => {
     test('listProviders returns array of providers', async () => {
-      const providers = await client.listProviders(ctx.orgId)
+      const { data: providers } = await client.listProviders(ctx.orgId)
       expect(Array.isArray(providers)).toBe(true)
-      expect(providers.length).toBeGreaterThan(0)
+      expect(providers!.length).toBeGreaterThan(0)
     })
   })
 
@@ -143,29 +142,29 @@ describe('Tier 1: REPL ApiClient (live)', () => {
 
   describe('threads', () => {
     test('createThread returns Thread', async () => {
-      const thread = await client.createThread(ctx.orgId, agentId)
+      const { data: thread } = await client.createThread(ctx.orgId, agentId)
       expect(thread).toBeInstanceOf(Thread)
-      expect(thread.id).toBeTruthy()
-      threadIds.push(thread.id)
+      expect(thread!.id).toBeTruthy()
+      threadIds.push(thread!.id)
     })
 
     test('listThreads includes created thread', async () => {
-      const thread = await client.createThread(ctx.orgId, agentId, 'IT list test')
-      threadIds.push(thread.id)
+      const { data: thread } = await client.createThread(ctx.orgId, agentId, 'IT list test')
+      threadIds.push(thread!.id)
 
-      const threads = await client.listThreads(ctx.orgId, agentId)
+      const { data: threads } = await client.listThreads(ctx.orgId, agentId)
       expect(Array.isArray(threads)).toBe(true)
-      const found = threads.find(t => t.id === thread.id)
+      const found = threads!.find(t => t.id === thread!.id)
       expect(found).toBeDefined()
     })
 
     test('getThread returns matching thread', async () => {
-      const created = await client.createThread(ctx.orgId, agentId, 'IT get test')
-      threadIds.push(created.id)
+      const { data: created } = await client.createThread(ctx.orgId, agentId, 'IT get test')
+      threadIds.push(created!.id)
 
-      const fetched = await client.getThread(ctx.orgId, agentId, created.id)
+      const { data: fetched } = await client.getThread(ctx.orgId, agentId, created!.id)
       expect(fetched).toBeInstanceOf(Thread)
-      expect(fetched.id).toBe(created.id)
+      expect(fetched!.id).toBe(created!.id)
     })
   })
 
@@ -175,25 +174,24 @@ describe('Tier 1: REPL ApiClient (live)', () => {
     let threadId = ''
 
     beforeAll(async () => {
-      const thread = await client.createThread(ctx.orgId, agentId, 'IT messages test')
-      threadId = thread.id
+      const { data: thread } = await client.createThread(ctx.orgId, agentId, 'IT messages test')
+      threadId = thread!.id
       threadIds.push(threadId)
     })
 
     test('createMessage persists without error', async () => {
-      await expect(
-        client.createMessage(ctx.orgId, agentId, threadId, {
-          type: 'user',
-          content: [{ type: 'text', text: 'Hello from integration test' }],
-          orgId: ctx.orgId,
-        })
-      ).resolves.not.toThrow()
+      const { error } = await client.createMessage(ctx.orgId, agentId, threadId, {
+        type: 'user',
+        content: [{ type: 'text', text: 'Hello from integration test' }],
+        orgId: ctx.orgId,
+      })
+      expect(error).toBeUndefined()
     })
 
     test('listMessages includes created message', async () => {
-      const messages = await client.listMessages(ctx.orgId, agentId, threadId)
+      const { data: messages } = await client.listMessages(ctx.orgId, agentId, threadId)
       expect(Array.isArray(messages)).toBe(true)
-      expect(messages.length).toBeGreaterThan(0)
+      expect(messages!.length).toBeGreaterThan(0)
     })
   })
 
@@ -201,14 +199,14 @@ describe('Tier 1: REPL ApiClient (live)', () => {
 
   describe('projects', () => {
     test('listProjects returns array', async () => {
-      const projects = await client.listProjects(ctx.orgId)
+      const { data: projects } = await client.listProjects(ctx.orgId)
       expect(Array.isArray(projects)).toBe(true)
-      expect(projects.length).toBeGreaterThan(0)
+      expect(projects!.length).toBeGreaterThan(0)
     })
 
     test('listProjects includes quickstart project', async () => {
-      const projects = await client.listProjects(ctx.orgId)
-      const found = projects.find((p: any) => p.id === projectId)
+      const { data: projects } = await client.listProjects(ctx.orgId)
+      const found = projects!.find((p: any) => p.id === projectId)
       expect(found).toBeDefined()
     })
   })
@@ -217,20 +215,18 @@ describe('Tier 1: REPL ApiClient (live)', () => {
 
   describe('deleteThread', () => {
     test('deleteThread removes a thread', async () => {
-      const thread = await client.createThread(ctx.orgId, agentId, 'IT delete test')
+      const { data: thread } = await client.createThread(ctx.orgId, agentId, 'IT delete test')
 
-      await client.deleteThread(ctx.orgId, agentId, thread.id)
+      await client.deleteThread(ctx.orgId, agentId, thread!.id)
 
-      // Verify deleted: getThread should throw 404
-      await expect(
-        client.getThread(ctx.orgId, agentId, thread.id)
-      ).rejects.toThrow('API error')
+      // Verify deleted: getThread should return an error
+      const { error } = await client.getThread(ctx.orgId, agentId, thread!.id)
+      expect(error).toBeTruthy()
     })
 
-    test('deleteThread on non-existent thread throws', async () => {
-      await expect(
-        client.deleteThread(ctx.orgId, agentId, 'zz00000000')
-      ).rejects.toThrow('API error')
+    test('deleteThread on non-existent thread returns error', async () => {
+      const { error } = await client.deleteThread(ctx.orgId, agentId, 'zz00000000')
+      expect(error).toBeTruthy()
     })
   })
 
@@ -241,7 +237,9 @@ describe('Tier 1: REPL ApiClient (live)', () => {
       const badAuth = createTestAuth({ apiKey: 'tdsk_invalid_key_12345' })
       const badClient = new ApiClient(badAuth as any)
 
-      await expect(badClient.listOrgs()).rejects.toThrow('API error (401)')
+      const { ok, status } = await badClient.listOrgs()
+      expect(ok).toBe(false)
+      expect(status).toBe(401)
     })
   })
 })

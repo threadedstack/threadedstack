@@ -122,12 +122,12 @@ describe('Tier 3: REPL Executor — LLM E2E (live)', () => {
       // Retry a few times to handle DB replication lag
       let userMessages: any[] = []
       for (let attempt = 0; attempt < 5; attempt++) {
-        const messages = await executor.client.listMessages(
+        const { data: messages } = await executor.client.listMessages(
           ctx.orgId,
           agentId,
           runResult!.threadId
         )
-        userMessages = messages.filter(m => m.type === 'user')
+        userMessages = (messages ?? []).filter(m => m.type === 'user')
         if (userMessages.length > 0) break
         await new Promise(r => setTimeout(r, 1_000))
       }

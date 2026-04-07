@@ -41,6 +41,7 @@ describe(`ApiClient`, () => {
     it(`should include Authorization header`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: [] }),
       })
 
@@ -58,7 +59,7 @@ describe(`ApiClient`, () => {
   })
 
   describe(`error handling`, () => {
-    it(`should throw on non-2xx response`, async () => {
+    it(`should return ok:false on non-2xx response`, async () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 403,
@@ -66,10 +67,14 @@ describe(`ApiClient`, () => {
         text: async () => `Access denied`,
       })
 
-      await expect(client.listOrgs()).rejects.toThrow(`API error (403)`)
+      const result = await client.listOrgs()
+
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe(403)
+      expect(result.error).toBeDefined()
     })
 
-    it(`should handle empty error body`, async () => {
+    it(`should return ok:false with error on 500`, async () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
@@ -77,9 +82,17 @@ describe(`ApiClient`, () => {
         text: async () => ``,
       })
 
-      await expect(client.listOrgs()).rejects.toThrow(
-        `API error (500): Internal Server Error`
-      )
+      // 500 is retryable — mock all retries to fail
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: `Internal Server Error`,
+        text: async () => `Server Error`,
+      })
+
+      const result = await client.listOrgs()
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe(500)
     })
   })
 
@@ -87,16 +100,30 @@ describe(`ApiClient`, () => {
     it(`should call GET /_/orgs`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: [{ id: `org1` }] }),
       })
 
-      const result = await client.listOrgs()
+      const { data, ok } = await client.listOrgs()
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs`,
         expect.any(Object)
       )
-      expect(result).toEqual([{ id: `org1` }])
+      expect(data?.[0]).toMatchObject({ id: `org1` })
+    })
+
+    it(`should return Organization instances`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [{ id: `org1`, name: `Test Org` }] }),
+      })
+
+      const { data } = await client.listOrgs()
+      expect(data).toHaveLength(1)
+      expect(data?.[0].id).toBe(`org1`)
     })
   })
 
@@ -104,16 +131,19 @@ describe(`ApiClient`, () => {
     it(`should call GET /_/orgs/:orgId`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: { id: `org1`, name: `Test` } }),
       })
 
-      const result = await client.getOrg(`org1`)
+      const { data, ok } = await client.getOrg(`org1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1`,
         expect.any(Object)
       )
-      expect(result).toEqual({ id: `org1`, name: `Test` })
+      expect(data?.id).toBe(`org1`)
+      expect(data?.name).toBe(`Test`)
     })
   })
 
@@ -121,16 +151,19 @@ describe(`ApiClient`, () => {
     it(`should call GET /_/orgs/:orgId/agents`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: [{ id: `agent1` }] }),
       })
 
-      const result = await client.listAgents(`org1`)
+      const { data, ok } = await client.listAgents(`org1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/agents`,
         expect.any(Object)
       )
-      expect(result[0].id).toEqual(`agent1`)
+      expect(data?.[0]).toBeInstanceOf(Agent)
+      expect(data?.[0].id).toEqual(`agent1`)
     })
   })
 
@@ -138,17 +171,19 @@ describe(`ApiClient`, () => {
     it(`should call GET /_/orgs/:orgId/agents/:id`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: async () => ({ data: new Agent({ id: `agent1`, name: `Bot` }) }),
+        status: 200,
+        json: async () => ({ data: { id: `agent1`, name: `Bot` } }),
       })
 
-      const result = await client.getAgent(`org1`, `agent1`)
+      const { data, ok } = await client.getAgent(`org1`, `agent1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/agents/agent1`,
         expect.any(Object)
       )
-      expect(result.id).toEqual(`agent1`)
-      expect(result.name).toEqual(`Bot`)
+      expect(data?.id).toEqual(`agent1`)
+      expect(data?.name).toEqual(`Bot`)
     })
   })
 
@@ -156,6 +191,7 @@ describe(`ApiClient`, () => {
     it(`should POST to /_/ai/sessions`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({
           data: {
             sessionToken: `sess-abc`,
@@ -166,8 +202,9 @@ describe(`ApiClient`, () => {
         }),
       })
 
-      const result = await client.createSession(`agent1`)
+      const { data, ok } = await client.createSession(`agent1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/ai/sessions`,
         expect.objectContaining({
@@ -178,7 +215,7 @@ describe(`ApiClient`, () => {
           body: JSON.stringify({ agentId: `agent1` }),
         })
       )
-      expect(result).toEqual({
+      expect(data).toEqual({
         sessionToken: `sess-abc`,
         provider: `anthropic`,
         model: `claude-sonnet-4-20250514`,
@@ -202,16 +239,18 @@ describe(`ApiClient`, () => {
     it(`should call GET /_/orgs/:orgId/agents/:agentId/threads`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: [{ id: `t1` }] }),
       })
 
-      const result = await client.listThreads(`org1`, `agent1`)
+      const { data, ok } = await client.listThreads(`org1`, `agent1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/agents/agent1/threads`,
         expect.any(Object)
       )
-      expect(result[0].id).toEqual(`t1`)
+      expect(data?.[0].id).toEqual(`t1`)
     })
   })
 
@@ -219,17 +258,19 @@ describe(`ApiClient`, () => {
     it(`should call GET /_/orgs/:orgId/agents/:agentId/threads/:id`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: { id: `t1`, name: `Chat` } }),
       })
 
-      const result = await client.getThread(`org1`, `agent1`, `t1`)
+      const { data, ok } = await client.getThread(`org1`, `agent1`, `t1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/agents/agent1/threads/t1`,
         expect.any(Object)
       )
-      expect(result.id).toEqual(`t1`)
-      expect(result.name).toEqual(`Chat`)
+      expect(data?.id).toEqual(`t1`)
+      expect(data?.name).toEqual(`Chat`)
     })
   })
 
@@ -237,11 +278,13 @@ describe(`ApiClient`, () => {
     it(`should POST to /_/orgs/:orgId/agents/:agentId/threads`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: { id: `t-new`, name: `REPL session` } }),
       })
 
-      const result = await client.createThread(`org1`, `agent1`)
+      const { data, ok } = await client.createThread(`org1`, `agent1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/agents/agent1/threads`,
         expect.objectContaining({
@@ -249,13 +292,14 @@ describe(`ApiClient`, () => {
           body: JSON.stringify({ name: `REPL session` }),
         })
       )
-      expect(result.id).toEqual(`t-new`)
-      expect(result.name).toEqual(`REPL session`)
+      expect(data?.id).toEqual(`t-new`)
+      expect(data?.name).toEqual(`REPL session`)
     })
 
     it(`should use custom name when provided`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: { id: `t-new`, name: `My Chat` } }),
       })
 
@@ -274,16 +318,18 @@ describe(`ApiClient`, () => {
     it(`should call GET with full thread path`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: [{ id: `m1`, content: `Hi` }] }),
       })
 
-      const result = await client.listMessages(`org1`, `agent1`, `t1`)
+      const { data, ok } = await client.listMessages(`org1`, `agent1`, `t1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/agents/agent1/threads/t1/messages`,
         expect.any(Object)
       )
-      expect(result).toEqual([{ id: `m1`, content: `Hi` }])
+      expect(data?.[0]).toMatchObject({ id: `m1` })
     })
   })
 
@@ -291,15 +337,17 @@ describe(`ApiClient`, () => {
     it(`should POST to messages endpoint`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: { id: `m-new` } }),
       })
 
-      const result = await client.createMessage(`org1`, `agent1`, `t1`, {
+      const { data, ok } = await client.createMessage(`org1`, `agent1`, `t1`, {
         type: `user`,
         content: [{ type: `text`, text: `Hello` }],
         orgId: `org1`,
       })
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/agents/agent1/threads/t1/messages`,
         expect.objectContaining({
@@ -311,7 +359,7 @@ describe(`ApiClient`, () => {
           }),
         })
       )
-      expect(result).toEqual({ id: `m-new` })
+      expect(data?.id).toEqual(`m-new`)
     })
 
     it(`should throw when not logged in`, async () => {
@@ -327,25 +375,25 @@ describe(`ApiClient`, () => {
   })
 
   describe(`retry logic`, () => {
-    it(`retries on network error up to 3 times`, async () => {
-      const networkError = Object.assign(new Error(`connect failed`), {
-        code: `ECONNREFUSED`,
-      })
+    it(`retries on network error up to 3 times then returns ok:true on success`, async () => {
+      const networkError = new TypeError(`fetch failed`)
       mockFetch
         .mockRejectedValueOnce(networkError)
         .mockRejectedValueOnce(networkError)
         .mockResolvedValue({
           ok: true,
+          status: 200,
           json: async () => ({ data: [] }),
         })
 
       const result = await client.listOrgs()
 
       expect(mockFetch).toHaveBeenCalledTimes(3)
-      expect(result).toEqual([])
+      expect(result.ok).toBe(true)
+      expect(result.data).toEqual([])
     })
 
-    it(`retries on 429 with backoff`, async () => {
+    it(`retries on 429 with backoff and returns ok:true on success`, async () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: false,
@@ -355,16 +403,18 @@ describe(`ApiClient`, () => {
         })
         .mockResolvedValue({
           ok: true,
+          status: 200,
           json: async () => ({ data: [] }),
         })
 
       const result = await client.listOrgs()
 
       expect(mockFetch).toHaveBeenCalledTimes(2)
-      expect(result).toEqual([])
+      expect(result.ok).toBe(true)
+      expect(result.data).toEqual([])
     })
 
-    it(`does not retry on 4xx errors (except 429)`, async () => {
+    it(`does not retry on 4xx errors (except 429) — returns ok:false immediately`, async () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 400,
@@ -372,11 +422,13 @@ describe(`ApiClient`, () => {
         text: async () => `Invalid`,
       })
 
-      await expect(client.listOrgs()).rejects.toThrow(`API error (400)`)
+      const result = await client.listOrgs()
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe(400)
       expect(mockFetch).toHaveBeenCalledTimes(1)
     })
 
-    it(`retries on 500 errors`, async () => {
+    it(`retries on 500 errors and returns ok:true on success`, async () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: false,
@@ -386,23 +438,52 @@ describe(`ApiClient`, () => {
         })
         .mockResolvedValue({
           ok: true,
+          status: 200,
           json: async () => ({ data: [] }),
         })
 
       const result = await client.listOrgs()
 
       expect(mockFetch).toHaveBeenCalledTimes(2)
-      expect(result).toEqual([])
+      expect(result.ok).toBe(true)
     })
 
-    it(`throws after max retries exhausted`, async () => {
-      const networkError = Object.assign(new Error(`connect failed`), {
-        code: `ECONNREFUSED`,
-      })
+    it(`returns ok:false after max retries exhausted`, async () => {
+      const networkError = new TypeError(`fetch failed`)
       mockFetch.mockRejectedValue(networkError)
 
-      await expect(client.listOrgs()).rejects.toThrow(`connect failed`)
+      const result = await client.listOrgs()
+
       expect(mockFetch).toHaveBeenCalledTimes(4) // 1 initial + 3 retries
+      expect(result.ok).toBe(false)
+    })
+
+    it(`does not retry on 401 — returns ok:false immediately`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: `Unauthorized`,
+        text: async () => `Unauthorized`,
+      })
+
+      const result = await client.listOrgs()
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe(401)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it(`does not retry on 403 — returns ok:false immediately`, async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: `Forbidden`,
+        text: async () => `Forbidden`,
+      })
+
+      const result = await client.listOrgs()
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe(403)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -410,6 +491,7 @@ describe(`ApiClient`, () => {
     it(`lists available providers for an agent`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({
           data: [
             {
@@ -423,14 +505,15 @@ describe(`ApiClient`, () => {
         }),
       })
 
-      const result = await client.listProviders(`org1`)
+      const { data, ok } = await client.listProviders(`org1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/providers`,
         expect.any(Object)
       )
-      expect(result).toHaveLength(2)
-      expect(result[0].name).toBe(`Anthropic`)
+      expect(data).toHaveLength(2)
+      expect(data?.[0].name).toBe(`Anthropic`)
     })
   })
 
@@ -438,16 +521,18 @@ describe(`ApiClient`, () => {
     it(`should call GET /_/orgs/:orgId/projects`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: [{ id: `p1`, name: `My Project` }] }),
       })
 
-      const result = await client.listProjects(`org1`)
+      const { data, ok } = await client.listProjects(`org1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/projects`,
         expect.any(Object)
       )
-      expect(result).toEqual([{ id: `p1`, name: `My Project` }])
+      expect(data).toEqual([{ id: `p1`, name: `My Project` }])
     })
   })
 
@@ -455,11 +540,13 @@ describe(`ApiClient`, () => {
     it(`should call DELETE on the thread endpoint`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({ data: undefined }),
       })
 
-      await client.deleteThread(`org1`, `agent1`, `t1`)
+      const { ok } = await client.deleteThread(`org1`, `agent1`, `t1`)
 
+      expect(ok).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
         `https://proxy.test/_/orgs/org1/agents/agent1/threads/t1`,
         expect.objectContaining({
@@ -473,6 +560,7 @@ describe(`ApiClient`, () => {
     it(`should POST with providerId when specified`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({
           data: {
             sessionToken: `sess-abc`,
@@ -497,6 +585,7 @@ describe(`ApiClient`, () => {
     it(`should POST without providerId when not specified`, async () => {
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
         json: async () => ({
           data: {
             sessionToken: `sess-abc`,
@@ -515,6 +604,39 @@ describe(`ApiClient`, () => {
           method: `POST`,
           body: JSON.stringify({ agentId: `agent1` }),
         })
+      )
+    })
+  })
+
+  describe(`#ensureAuth syncs URL and bearer before each request`, () => {
+    it(`updates URL if proxyUrl changes between calls`, async () => {
+      const creds = makeCreds()
+      const auth = { creds: vi.fn().mockReturnValue(creds) } as unknown as AuthManager
+      const c = new ApiClient(auth)
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [] }),
+      })
+
+      await c.listOrgs()
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://proxy.test/_/orgs`,
+        expect.any(Object)
+      )
+
+      // Simulate URL change
+      ;(auth as any).creds.mockReturnValue({
+        ...creds,
+        proxyUrl: `https://new.proxy.test`,
+      })
+
+      mockFetch.mockClear()
+      await c.listOrgs()
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://new.proxy.test/_/orgs`,
+        expect.any(Object)
       )
     })
   })

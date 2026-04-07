@@ -67,12 +67,12 @@ describe('Tier 1: REPL ChatLogic State (live)', () => {
 
   describe('agent data shapes (Bug 1: /agent showed raw ID instead of name)', () => {
     test('listAgents returns agents with id and name fields', async () => {
-      const agents = await client.listAgents(ctx.orgId)
+      const { data: agents } = await client.listAgents(ctx.orgId)
       expect(Array.isArray(agents)).toBe(true)
-      expect(agents.length).toBeGreaterThan(0)
+      expect(agents!.length).toBeGreaterThan(0)
 
       // Find our quickstart agent
-      const agent = agents.find(a => a.id === agentId)
+      const agent = agents!.find(a => a.id === agentId)
       expect(agent).toBeDefined()
 
       // Verify the shape ChatLogic needs for cache lookup
@@ -83,13 +83,13 @@ describe('Tier 1: REPL ChatLogic State (live)', () => {
 
     test('getAgent returns same name as listAgents cache', async () => {
       // listAgents returns the cache — getAgent returns single agent
-      const agents = await client.listAgents(ctx.orgId)
-      const cached = agents.find(a => a.id === agentId)
+      const { data: agents } = await client.listAgents(ctx.orgId)
+      const cached = agents!.find(a => a.id === agentId)
       expect(cached).toBeDefined()
 
-      const direct = await client.getAgent(ctx.orgId, agentId)
-      expect(direct.id).toBe(cached!.id)
-      expect(direct.name).toBe(cached!.name)
+      const { data: direct } = await client.getAgent(ctx.orgId, agentId)
+      expect(direct!.id).toBe(cached!.id)
+      expect(direct!.name).toBe(cached!.name)
     })
   })
 
@@ -97,21 +97,21 @@ describe('Tier 1: REPL ChatLogic State (live)', () => {
 
   describe('project listing (Bug 3: selecting project with no agents had no recovery path)', () => {
     test('listProjects returns projects with id and name', async () => {
-      const projects = await client.listProjects(ctx.orgId)
+      const { data: projects } = await client.listProjects(ctx.orgId)
       expect(Array.isArray(projects)).toBe(true)
-      expect(projects.length).toBeGreaterThan(0)
+      expect(projects!.length).toBeGreaterThan(0)
 
-      const project = projects[0]
+      const project = projects![0]
       expect(typeof project.id).toBe('string')
       expect(typeof project.name).toBe('string')
     })
 
     test('listProjects includes both quickstart and bare projects', async () => {
-      const projects = await client.listProjects(ctx.orgId)
-      const quickstartProject = projects.find(
+      const { data: projects } = await client.listProjects(ctx.orgId)
+      const quickstartProject = projects!.find(
         (p: any) => p.id === quickstartResult.project?.id
       )
-      const bareProject = projects.find((p: any) => p.id === bareProjectId)
+      const bareProject = projects!.find((p: any) => p.id === bareProjectId)
 
       expect(quickstartProject).toBeDefined()
       expect(bareProject).toBeDefined()
@@ -119,14 +119,14 @@ describe('Tier 1: REPL ChatLogic State (live)', () => {
 
     test('project and agent data are consistent for ChatLogic consumption', async () => {
       // ChatLogic flow: listProjects → selectProject → listAgents → selectAgent
-      const projects = await client.listProjects(ctx.orgId)
-      expect(projects.length).toBeGreaterThan(0)
+      const { data: projects } = await client.listProjects(ctx.orgId)
+      expect(projects!.length).toBeGreaterThan(0)
 
-      const agents = await client.listAgents(ctx.orgId)
-      expect(agents.length).toBeGreaterThan(0)
+      const { data: agents } = await client.listAgents(ctx.orgId)
+      expect(agents!.length).toBeGreaterThan(0)
 
       // Agent from listAgents should have the fields ChatLogic needs
-      const agent = agents.find(a => a.id === agentId)
+      const agent = agents!.find(a => a.id === agentId)
       expect(agent).toBeDefined()
       expect(agent).toHaveProperty('id')
       expect(agent).toHaveProperty('name')

@@ -230,7 +230,7 @@ describe('Tier 1: Thread File Upload (I5 fix)', () => {
     )
 
     expect(res.status).toBe(400)
-    expect(JSON.stringify(res.data)).toContain('Unsupported file type')
+    expect(res.error?.message).toContain('Unsupported file type')
   })
 
   // ─── Image upload ──────────────────────────────────────────────────

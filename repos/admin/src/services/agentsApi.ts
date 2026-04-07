@@ -1,10 +1,9 @@
-import type { TAgentProjectConfig } from '@tdsk/domain'
 import type { TAgentPayload } from '@TAF/types/agent.types'
+import type { TAgentProjectConfig, TApiResponseObj } from '@tdsk/domain'
 import type { TApiRes, TApiCacheKeys, TAgentSessionData } from '@TAF/types'
 
 import { Agent } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
-import { apiUrl } from '@TAF/utils/api/apiUrl'
 
 /**
  * Agents API Service
@@ -234,27 +233,11 @@ export class AgentsApi extends BaseApi {
     agentId: string,
     prompt: string,
     threadId?: string
-  ): Promise<{ response?: Response; error?: Error }> {
-    try {
-      const base = apiUrl({})
-      const url = `${base.replace(/\/$/, ``)}/_/orgs/${orgId}/agents/${agentId}/run`
-      const headers = { ...this.api.options.headers }
-
-      const res = await fetch(url, {
-        method: `POST`,
-        headers,
-        body: JSON.stringify({ prompt, threadId }),
-      })
-
-      if (!res.ok) {
-        const text = await res.text()
-        return { error: new Error(text || `Agent run failed: ${res.status}`) }
-      }
-
-      return { response: res }
-    } catch (err) {
-      return { error: err instanceof Error ? err : new Error(String(err)) }
-    }
+  ): Promise<TApiResponseObj> {
+    return await this.api.stream({
+      path: `/orgs/${orgId}/agents/${agentId}/run`,
+      data: { prompt, threadId },
+    })
   }
 }
 

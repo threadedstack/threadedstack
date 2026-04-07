@@ -120,6 +120,7 @@ export class ChatLogic {
     this.#initialThreadId = opts.initialThreadId
     this.#initialProjectId = opts.initialProjectId
     this.verbose = opts.config?.display?.verbose ?? false
+
     this.loggedIn = opts.auth.loggedIn()
 
     // Apply theme from config
@@ -229,26 +230,26 @@ export class ChatLogic {
     try {
       this.#setPhase(`loading`)
 
-      const newClient = new ApiClient(this.#auth)
-      const newExecutor = new Executor(newClient)
-      this.#client = newClient
+      const client = new ApiClient(this.#auth)
+      const newExecutor = new Executor(client)
+      this.#client = client
       this.#executor = newExecutor
 
-      const orgId = this.#initialOrgId || (await resolveOrg(newClient))
+      const orgId = this.#initialOrgId || (await resolveOrg(this.#client))
       this.orgId = orgId
 
       // Resolve org name
-      try {
-        const org = await newClient.getOrg(orgId)
-        this.orgName = org.name || orgId
-      } catch (err) {
+      const { data: orgData, error: orgError } = await this.#client.getOrg(orgId)
+      if (orgError) {
         this.orgName = orgId
-        const kind = classifyApiError(err)
+        const kind = classifyApiError(orgError)
         if (kind !== `notFound`) {
           this.#outputMessage(
-            `Warning: Could not resolve org name (${err instanceof Error ? err.message : `unknown error`})`
+            `Warning: Could not resolve org name (${orgError.message || `unknown error`})`
           )
         }
+      } else {
+        this.orgName = orgData?.name || orgId
       }
 
       // Auto-detect context files
@@ -259,7 +260,11 @@ export class ChatLogic {
         this.agentId = this.#initialAgentId
         this.threadId = this.#initialThreadId || null
         if (this.#initialProjectId) this.projectId = this.#initialProjectId
-        const agent = await newClient.getAgent(orgId, this.#initialAgentId)
+        const { data: agent, error: agentError } = await this.#client.getAgent(
+          orgId,
+          this.#initialAgentId
+        )
+        if (agentError || !agent) throw agentError || new Error(`Failed to load agent`)
         this.agentInfo = agent
         this.connection = `connected`
         this.#emitStatusChange()
@@ -272,7 +277,10 @@ export class ChatLogic {
       if (this.#initialProjectId) {
         this.projectId = this.#initialProjectId
         this.projectName = this.#initialProjectId
-        const agentList = await newClient.listAgents(orgId)
+        const { data: agentList, error: agentListError } =
+          await this.#client.listAgents(orgId)
+        if (agentListError || !agentList)
+          throw agentListError || new Error(`Failed to load agents`)
         this.agents = agentList as any[]
         this.connection = `connected`
         this.#emitStatusChange()
@@ -282,7 +290,10 @@ export class ChatLogic {
       }
 
       // Fetch projects to see if we need project selection
-      const projectList = await newClient.listProjects(orgId)
+      const { data: projectList, error: projectListError } =
+        await this.#client.listProjects(orgId)
+      if (projectListError || !projectList)
+        throw projectListError || new Error(`Failed to load projects`)
       this.connection = `connected`
       this.#emitStatusChange()
 
@@ -296,7 +307,10 @@ export class ChatLogic {
           this.projectId = projectList[0].id
           this.projectName = projectList[0].name || projectList[0].id
         }
-        const agentList = await newClient.listAgents(orgId)
+        const { data: agentList, error: agentListError } =
+          await this.#client.listAgents(orgId)
+        if (agentListError || !agentList)
+          throw agentListError || new Error(`Failed to load agents`)
         this.agents = agentList as any[]
         this.onAgentsLoaded?.(this.agents)
         this.#setPhase(`pickAgent`)
@@ -322,26 +336,27 @@ export class ChatLogic {
     this.#setPhase(`login`)
 
     // Full state reset
+    this.agents = []
     this.orgId = null
+    this.orgName = ``
+    this.projects = []
+    this.messages = []
+    this.toolCalls = []
     this.agentId = null
     this.threadId = null
-    this.projectId = null
-    this.connection = `disconnected`
-    this.messages = []
     this.streamText = ``
-    this.isStreaming = false
-    this.toolCalls = []
-    this.#streamBuffer = ``
-    this.agents = []
-    this.projects = []
-    this.agentInfo = null
-    this.orgName = ``
-    this.projectName = ``
-    this.contextFiles = []
-    this.providerId = null
     this.#client = null
+    this.agentInfo = null
+    this.projectId = null
+    this.projectName = ``
+    this.providerId = null
+    this.contextFiles = []
+    this.#streamBuffer = ``
+    this.isStreaming = false
+
     this.#executor?.destroy()
     this.#executor = null
+    this.connection = `disconnected`
 
     this.onMessagesChange?.(this.messages)
     this.onStreamingChange?.(this.streamText, this.isStreaming, this.toolCalls)
@@ -356,7 +371,11 @@ export class ChatLogic {
     this.projectId = project.id
     this.projectName = project.name || project.id
     try {
-      const agentList = await this.#client!.listAgents(this.orgId!)
+      const { data: agentList, error: agentListError } = await this.#client!.listAgents(
+        this.orgId!
+      )
+      if (agentListError || !agentList)
+        throw agentListError || new Error(`Failed to load agents`)
       this.agents = agentList as any[]
       if (this.agents.length === 0) {
         this.#outputMessage(`No agents found in org. Create an agent first.`)
@@ -394,7 +413,10 @@ export class ChatLogic {
 
     this.error = null
     try {
-      const projectList = await this.#client.listProjects(this.orgId)
+      const { data: projectList, error: projectListError } =
+        await this.#client.listProjects(this.orgId)
+      if (projectListError || !projectList)
+        throw projectListError || new Error(`Failed to load projects`)
 
       if (projectList.length === 0) {
         this.#outputMessage(`No projects found.`)
@@ -402,7 +424,11 @@ export class ChatLogic {
       }
 
       if (projectList.length === 1) {
-        const agentList = await this.#client.listAgents(this.orgId)
+        const { data: agentList, error: agentListError } = await this.#client.listAgents(
+          this.orgId
+        )
+        if (agentListError || !agentList)
+          throw agentListError || new Error(`Failed to load agents`)
         if (agentList.length === 0) {
           this.#outputMessage(`No agents found in org. Create an agent first.`)
           return
@@ -658,8 +684,15 @@ export class ChatLogic {
       },
       listThreads: async () => {
         if (!this.#client || !this.orgId || !this.agentId) return []
-        const threads = await this.#client.listThreads(this.orgId, this.agentId)
-        return threads.map((t: any) => ({
+        const { data: threads, error } = await this.#client.listThreads(
+          this.orgId,
+          this.agentId
+        )
+        if (error) {
+          this.#outputMessage(`Failed to load threads: ${error.message}`)
+          return []
+        }
+        return (threads || []).map((t: any) => ({
           id: t.id,
           name: t.name,
           createdAt: t.createdAt,
@@ -668,8 +701,12 @@ export class ChatLogic {
       switchProject: () => this.switchProject(),
       listProjects: async () => {
         if (!this.#client || !this.orgId) return []
-        const projects = await this.#client.listProjects(this.orgId)
-        return projects.map((p: any) => ({
+        const { data: projects, error } = await this.#client.listProjects(this.orgId)
+        if (error) {
+          this.#outputMessage(`Failed to load projects: ${error.message}`)
+          return []
+        }
+        return (projects || []).map((p: any) => ({
           id: p.id,
           label: p.name || p.id,
           description: p.description,
@@ -677,8 +714,12 @@ export class ChatLogic {
       },
       listAgents: async () => {
         if (!this.#client || !this.orgId) return []
-        const agents = await this.#client.listAgents(this.orgId)
-        return agents.map((a: any) => ({
+        const { data: agents, error } = await this.#client.listAgents(this.orgId)
+        if (error) {
+          this.#outputMessage(`Failed to load agents: ${error.message}`)
+          return []
+        }
+        return (agents || []).map((a: any) => ({
           id: a.id,
           label: a.name || a.id,
           description: a.description,
@@ -686,14 +727,26 @@ export class ChatLogic {
       },
       deleteThread: async (threadId: string) => {
         if (!this.#client || !this.orgId || !this.agentId) return
-        await this.#client.deleteThread(this.orgId, this.agentId, threadId)
+        const { error } = await this.#client.deleteThread(
+          this.orgId,
+          this.agentId,
+          threadId
+        )
+        if (error) this.#outputMessage(`Failed to delete thread: ${error.message}`)
       },
       getThreadWithBranches: async (threadId: string) => {
         if (!this.#client || !this.orgId || !this.agentId)
           throw new Error(`Not connected`)
-        const thread = await this.#client.getThread(this.orgId, this.agentId, threadId, {
-          include: [`branches`, `parent`],
-        })
+        const { data: thread, error: threadError } = await this.#client.getThread(
+          this.orgId,
+          this.agentId,
+          threadId,
+          {
+            include: [`branches`, `parent`],
+          }
+        )
+        if (threadError || !thread)
+          throw threadError || new Error(`Failed to load thread`)
         const raw = thread as unknown as Record<string, unknown>
         return {
           id: thread.id,
@@ -708,28 +761,38 @@ export class ChatLogic {
       branchThread: async (threadId: string, messageId: string) => {
         if (!this.#client || !this.orgId || !this.agentId)
           throw new Error(`Not connected`)
-        const thread = await this.#client.branchThread(
+        const { data: thread, error } = await this.#client.branchThread(
           this.orgId,
           this.agentId,
           threadId,
           messageId
         )
+        if (error || !thread) throw error || new Error(`Failed to branch thread`)
         return { id: thread.id, name: thread.name }
       },
       createThread: async (name?: string) => {
         if (!this.#client || !this.orgId || !this.agentId)
           throw new Error(`Not connected`)
-        const thread = await this.#client.createThread(this.orgId, this.agentId, name)
+        const { data: thread, error } = await this.#client.createThread(
+          this.orgId,
+          this.agentId,
+          name
+        )
+        if (error || !thread) throw error || new Error(`Failed to create thread`)
         return { id: thread.id, name: thread.name }
       },
       loadThreadMessages: async (threadId: string) => {
         if (!this.#client || !this.orgId || !this.agentId) return
-        const messages = await this.#client.listMessages(
+        const { data: messages, error } = await this.#client.listMessages(
           this.orgId,
           this.agentId,
           threadId
         )
-        const displayMsgs = messages.map((m: any) => {
+        if (error) {
+          this.#outputMessage(`Failed to load messages: ${error.message}`)
+          return
+        }
+        const displayMsgs = (messages || []).map((m: any) => {
           const textContent = Array.isArray(m.content)
             ? m.content
                 .filter((c: any) => c.type === `text`)

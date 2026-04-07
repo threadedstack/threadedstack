@@ -1,6 +1,4 @@
-import type { TFormData } from '@TBE/types'
-
-export const toFormData = <T extends TFormData = TFormData>(data: T): FormData => {
+export const toFormData = (data: Record<string, any>): FormData | undefined => {
   if (!data) return undefined
 
   return Object.entries(data).reduce((form, [key, value]) => {

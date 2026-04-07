@@ -1,5 +1,5 @@
+// Import after unmock — vitest hoists vi.unmock so the real module loads
 import { ApiService } from './api'
-import { ApiError } from '@TAF/utils/errors/ApiError'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockRefreshAndRetry = vi.fn()
@@ -29,11 +29,7 @@ vi.mock(`@TAF/services/query`, () => ({
   },
 }))
 
-// Unmock api.ts so we test the real class
-vi.mock(`@TAF/services/api`, async () => {
-  const actual = await vi.importActual<typeof import('./api')>(`@TAF/services/api`)
-  return actual
-})
+vi.unmock(`@TAF/services/api`)
 
 describe(`ApiService`, () => {
   let service: ApiService
@@ -53,12 +49,13 @@ describe(`ApiService`, () => {
       headers: { [`Content-Type`]: `application/json` },
     })
 
-  describe(`fetch() - 401 retry`, () => {
+  describe(`invoke() - 401 retry`, () => {
     it(`should return result directly for successful responses`, async () => {
-      mockFetch.mockResolvedValueOnce(makeResponse(200, { id: `1` }))
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: { id: `1` } }))
 
       const result = await service.fetch({ path: `test` })
-      expect(result).toEqual({ id: `1` })
+      expect(result.ok).toBe(true)
+      expect(result.data).toEqual({ id: `1` })
       expect(mockRefreshAndRetry).not.toHaveBeenCalled()
     })
 
@@ -66,8 +63,8 @@ describe(`ApiService`, () => {
       mockFetch.mockResolvedValueOnce(makeResponse(403, { error: `Forbidden` }))
 
       const result = await service.fetch({ path: `test` })
-      expect(result.error).toBeInstanceOf(ApiError)
-      expect(result.error.status).toBe(403)
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe(403)
       expect(mockRefreshAndRetry).not.toHaveBeenCalled()
     })
 
@@ -82,11 +79,12 @@ describe(`ApiService`, () => {
     it(`should retry the request once after successful refresh`, async () => {
       mockFetch
         .mockResolvedValueOnce(makeResponse(401, { error: `Unauthorized` }))
-        .mockResolvedValueOnce(makeResponse(200, { id: `retried` }))
+        .mockResolvedValueOnce(makeResponse(200, { data: { id: `retried` } }))
       mockRefreshAndRetry.mockResolvedValueOnce(true)
 
       const result = await service.fetch({ path: `test` })
-      expect(result).toEqual({ id: `retried` })
+      expect(result.ok).toBe(true)
+      expect(result.data).toEqual({ id: `retried` })
       expect(mockFetch).toHaveBeenCalledTimes(2)
     })
 
@@ -95,8 +93,8 @@ describe(`ApiService`, () => {
       mockRefreshAndRetry.mockResolvedValueOnce(false)
 
       const result = await service.fetch({ path: `test` })
-      expect(result.error).toBeInstanceOf(ApiError)
-      expect(result.error.status).toBe(401)
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe(401)
       expect(mockFetch).toHaveBeenCalledTimes(1)
     })
 
@@ -108,8 +106,8 @@ describe(`ApiService`, () => {
 
       const result = await service.fetch({ path: `test` })
       // Second 401 is NOT retried — only one retry per fetch call
-      expect(result.error).toBeInstanceOf(ApiError)
-      expect(result.error.status).toBe(401)
+      expect(result.ok).toBe(false)
+      expect(result.status).toBe(401)
       expect(mockFetch).toHaveBeenCalledTimes(2)
       expect(mockRefreshAndRetry).toHaveBeenCalledOnce()
     })
@@ -117,20 +115,48 @@ describe(`ApiService`, () => {
 
   describe(`clearBearer()`, () => {
     it(`should remove Authorization header`, () => {
-      service.options.headers = {
-        Accept: `application/json`,
-        Authorization: `Bearer test`,
-      }
+      service.setHeaders({ Authorization: `Bearer test` })
 
       service.clearBearer()
-      expect(service.options.headers).toEqual({ Accept: `application/json` })
+      expect(service.headers.Authorization).toBeUndefined()
+      expect(service.headers.Accept).toBe(`application/json`)
     })
 
     it(`should be safe to call when no Authorization header exists`, () => {
-      service.options.headers = { Accept: `application/json` }
-
       service.clearBearer()
-      expect(service.options.headers).toEqual({ Accept: `application/json` })
+      expect(service.headers.Authorization).toBeUndefined()
+    })
+  })
+
+  describe(`fetch() convenience method`, () => {
+    it(`should invoke with the provided method`, async () => {
+      mockFetch.mockResolvedValueOnce(makeResponse(200, { data: { ok: true } }))
+
+      const result = await service.fetch({ path: `test`, method: `POST` })
+      expect(result.ok).toBe(true)
+      expect(mockFetch).toHaveBeenCalledOnce()
+    })
+  })
+
+  describe(`bearer()`, () => {
+    it(`should set Authorization header from session`, async () => {
+      await service.bearer()
+      expect(service.headers.Authorization).toBe(`Bearer test`)
+    })
+
+    it(`should accept explicit auth data`, async () => {
+      const auth = {
+        session: {
+          id: `s1`,
+          token: `explicit-token`,
+          userId: `u1`,
+          expiresAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }
+      await service.bearer(auth)
+      expect(service.headers.Authorization).toBe(`Bearer explicit-token`)
     })
   })
 })

@@ -68,13 +68,15 @@ const makeChatLogic = (overrides: Partial<TChatLogicOpts> = {}) =>
 
 // ── Tests ────────────────────────────────────────────────────────────
 
+const ok = <T>(data: T) => ({ ok: true, status: 200, data })
+
 describe(`ChatLogic`, () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockListOrgs.mockResolvedValue([{ id: `org-1`, name: `Test Org` }])
-    mockGetOrg.mockResolvedValue({ id: `org-1`, name: `Test Org` })
-    mockListProjects.mockResolvedValue([])
-    mockListAgents.mockResolvedValue([{ id: `a1`, name: `Alpha` }])
+    mockListOrgs.mockResolvedValue(ok([{ id: `org-1`, name: `Test Org` }]))
+    mockGetOrg.mockResolvedValue(ok({ id: `org-1`, name: `Test Org` }))
+    mockListProjects.mockResolvedValue(ok([]))
+    mockListAgents.mockResolvedValue(ok([{ id: `a1`, name: `Alpha` }]))
   })
 
   // ─── Bug 1: setAgentId updates agentInfo from cache ──────────────
@@ -324,9 +326,11 @@ describe(`ChatLogic`, () => {
         if (last?.type === `system`) outputMessages.push(last.content)
       }
 
-      mockGetOrg.mockRejectedValueOnce(
-        new Error(`API error (500): Internal Server Error`)
-      )
+      mockGetOrg.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        error: new Error(`API error (500): Internal Server Error`),
+      })
 
       await logic.init()
 
@@ -346,7 +350,11 @@ describe(`ChatLogic`, () => {
         if (last?.type === `system`) outputMessages.push(last.content)
       }
 
-      mockGetOrg.mockRejectedValueOnce(new Error(`API error (404): Not Found`))
+      mockGetOrg.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        error: new Error(`API error (404): Not Found`),
+      })
 
       await logic.init()
 
@@ -390,10 +398,12 @@ describe(`ChatLogic`, () => {
       logic.threadId = `t1`
       logic.agentInfo = { id: `a1`, name: `Alpha` }
 
-      mockListProjects.mockResolvedValueOnce([
-        { id: `p1`, name: `Project 1` },
-        { id: `p2`, name: `Project 2` },
-      ])
+      mockListProjects.mockResolvedValueOnce(
+        ok([
+          { id: `p1`, name: `Project 1` },
+          { id: `p2`, name: `Project 2` },
+        ])
+      )
 
       await logic.switchProject()
 
@@ -441,7 +451,7 @@ describe(`ChatLogic`, () => {
       }
 
       await logic.init()
-      mockListProjects.mockResolvedValueOnce([])
+      mockListProjects.mockResolvedValueOnce(ok([]))
 
       await logic.switchProject()
 
@@ -458,8 +468,8 @@ describe(`ChatLogic`, () => {
       logic.threadId = `t1`
       phases.length = 0
 
-      mockListProjects.mockResolvedValueOnce([{ id: `p1`, name: `Solo Project` }])
-      mockListAgents.mockResolvedValueOnce([{ id: `a2`, name: `Beta` }])
+      mockListProjects.mockResolvedValueOnce(ok([{ id: `p1`, name: `Solo Project` }]))
+      mockListAgents.mockResolvedValueOnce(ok([{ id: `a2`, name: `Beta` }]))
 
       await logic.switchProject()
 
@@ -537,7 +547,7 @@ describe(`ChatLogic`, () => {
       await logic.init()
 
       // Mock listAgents to return empty array for selectProject
-      mockListAgents.mockResolvedValueOnce([])
+      mockListAgents.mockResolvedValueOnce(ok([]))
 
       logic.projects = [{ id: `p1`, name: `Project` }]
       await logic.selectProject({ id: `p1`, name: `Project` })
@@ -564,7 +574,7 @@ describe(`ChatLogic`, () => {
 
       await logic.init()
 
-      mockListAgents.mockResolvedValueOnce([{ id: `a1`, name: `Agent 1` }])
+      mockListAgents.mockResolvedValueOnce(ok([{ id: `a1`, name: `Agent 1` }]))
 
       await logic.selectProject({ id: `p1`, name: `Project` })
 

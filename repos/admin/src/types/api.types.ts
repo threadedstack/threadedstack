@@ -1,18 +1,20 @@
 import type { ApiError } from '@TAF/utils/errors/ApiError'
+import type { TApiRequest, Exception } from '@tdsk/domain'
 import type { TCacheQueryOpts } from '@TAF/types/query.types'
-
-export enum EAPIMethod {
-  GET = `GET`,
-  PUT = `PUT`,
-  POST = `POST`,
-  DELETE = `DELETE`,
-}
 
 export type Payload = FormData | any
 export type TApiData = Record<string, any>
+
+/**
+ * Admin-specific response type. Compatible with both the domain TApiResponse
+ * and the legacy admin shape { data?, error? }.
+ * Components and actions use this — it keeps both fields optional for ergonomics.
+ */
 export type TApiRes<D extends TApiData = TApiData> = {
   data?: D
-  error?: ApiError
+  ok?: boolean
+  status?: number
+  error?: ApiError | Exception | Error
 }
 
 export type TApiItems<T extends TApiData = TApiData> = {
@@ -33,26 +35,16 @@ export type TReferrerPolicy =
   | `strict-origin-when-cross-origin`
   | `unsafe-url`
 
-type TApiReqOpts<D extends TApiData = TApiData> = {
-  data?: D
-  url?: string
-  path?: string
-  form?: boolean
-  mode?: TCorsOpt
-  cache?: TCacheOpt
-  id?: string | number
-  method?: EAPIMethod
-  credentials?: TCredsOpt
-  responseType?: `text` | `json`
-  headers?: Record<string, string>
-}
-
-export type TApiReq<D extends TApiData = TApiData> = Omit<
-  Partial<Request>,
-  `headers` | `body` | `url` | `path`
-> &
-  TApiReqOpts<D> &
-  TCacheQueryOpts
+export type TApiReq<D extends TApiData = TApiData> = TApiRequest &
+  TCacheQueryOpts & {
+    data?: D
+    url?: string
+    path?: string
+    form?: boolean
+    id?: string | number
+    responseType?: `text` | `json`
+    headers?: Record<string, string>
+  }
 
 export type TApiReqEx = Omit<TApiReq, `body` | `data`> & {
   body?: string | FormData

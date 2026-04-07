@@ -32,17 +32,25 @@ const makeClient = () =>
   ({
     proxyUrl: `https://proxy.test`,
     createSession: vi.fn().mockResolvedValue({
-      maxTokens: 4096,
-      provider: `anthropic`,
-      sessionToken: `sess-abc`,
-      systemPrompt: `You are helpful`,
-      model: `claude-sonnet-4-20250514`,
-      tools: [`shellExec`, `readFile`],
-      environment: { timeout: 60000 },
+      ok: true,
+      status: 200,
+      data: {
+        maxTokens: 4096,
+        provider: `anthropic`,
+        sessionToken: `sess-abc`,
+        systemPrompt: `You are helpful`,
+        model: `claude-sonnet-4-20250514`,
+        tools: [`shellExec`, `readFile`],
+        environment: { timeout: 60000 },
+      },
     }),
-    createThread: vi.fn().mockResolvedValue({ id: `thread-new` }),
-    listMessages: vi.fn().mockResolvedValue([]),
-    createMessage: vi.fn().mockResolvedValue({ id: `m1` }),
+    createThread: vi
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200, data: { id: `thread-new` } }),
+    listMessages: vi.fn().mockResolvedValue({ ok: true, status: 200, data: [] }),
+    createMessage: vi
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200, data: { id: `m1` } }),
     listOrgs: vi.fn(),
     getOrg: vi.fn(),
     listAgents: vi.fn(),
@@ -315,9 +323,11 @@ describe(`Executor (WebSocket)`, () => {
     })
 
     it(`should propagate errors from createSession`, async () => {
-      ;(client.createSession as any).mockRejectedValue(
-        new Error(`Session creation failed`)
-      )
+      ;(client.createSession as any).mockResolvedValue({
+        ok: false,
+        status: 500,
+        error: { message: `Session creation failed` },
+      })
 
       await expect(
         executor.run({
@@ -327,7 +337,7 @@ describe(`Executor (WebSocket)`, () => {
           onEvent: vi.fn(),
           agentId: `bad-agent`,
         })
-      ).rejects.toThrow(`Session creation failed`)
+      ).rejects.toThrow(`Failed to create session: Session creation failed`)
     })
 
     it(`should forward error events`, async () => {

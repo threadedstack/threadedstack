@@ -1,9 +1,8 @@
+import { ApiService } from '@tdsk/domain'
+import type { TApiRequest, TApiResponse } from '@tdsk/domain'
 import { env } from './env'
 
-export interface ApiResponse<T = unknown> {
-  status: number
-  ok: boolean
-  data: T
+export type ApiResponse<T = unknown> = TApiResponse<T> & {
   limit?: number
   offset?: number
   warning?: string
@@ -30,6 +29,61 @@ interface RequestOptions {
   rawResponse?: boolean
 }
 
+// Lazily-initialized ApiService instances.
+// Four variants cover the noAuth × rawPath matrix.
+let _client: ApiService | undefined
+let _noAuthClient: ApiService | undefined
+let _rawClient: ApiService | undefined
+let _rawNoAuthClient: ApiService | undefined
+
+function getAuthHeaders(): Record<string, string> {
+  const key = env.testApiKey
+  return key ? { Authorization: `Bearer ${key}` } : {}
+}
+
+function getClient(noAuth: boolean, rawPath: boolean): ApiService {
+  if (!noAuth && !rawPath) {
+    if (!_client) {
+      _client = new ApiService({
+        url: env.proxyUrl,
+        basePath: '_',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      })
+    }
+    return _client
+  }
+
+  if (noAuth && !rawPath) {
+    if (!_noAuthClient) {
+      _noAuthClient = new ApiService({
+        url: env.proxyUrl,
+        basePath: '_',
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return _noAuthClient
+  }
+
+  if (!noAuth && rawPath) {
+    if (!_rawClient) {
+      _rawClient = new ApiService({
+        url: env.proxyUrl,
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      })
+    }
+    return _rawClient
+  }
+
+  // noAuth && rawPath
+  if (!_rawNoAuthClient) {
+    _rawNoAuthClient = new ApiService({
+      url: env.proxyUrl,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+  return _rawNoAuthClient
+}
+
 /**
  * Typed fetch wrapper for integration tests.
  *
@@ -42,52 +96,62 @@ export const api = async <T = unknown>(
   path: string,
   opts: RequestOptions = {}
 ): Promise<ApiResponse<T>> => {
-  const { method = 'GET', body, headers = {}, apiKey, noAuth = false, rawPath = false, timeout = 15_000, rawResponse = false } = opts
+  const {
+    method = 'GET',
+    body,
+    headers = {},
+    apiKey,
+    noAuth = false,
+    rawPath = false,
+    timeout = 15_000,
+    rawResponse = false,
+  } = opts
 
-  const fullPath = rawPath || path.startsWith('/_') || path.startsWith('/health')
-    ? path
-    : `/_${path.startsWith('/') ? '' : '/'}${path}`
+  const client = getClient(noAuth, rawPath)
 
-  const url = `${env.proxyUrl}${fullPath}`
-
-  const reqHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...headers,
-  }
-
-  if (!noAuth) {
-    const key = apiKey ?? env.testApiKey
-    if (key) {
-      reqHeaders['Authorization'] = `Bearer ${key}`
-    }
-  }
-
-  const res = await fetch(url, {
-    method,
-    headers: reqHeaders,
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(timeout),
-  })
-
-  let parsed: any
-  try {
-    parsed = await res.json()
-  } catch {
-    parsed = null
-  }
-
-  let data: T
-  let meta: Record<string, unknown> = {}
-
-  if (!rawResponse && !rawPath && parsed && typeof parsed === 'object' && 'data' in parsed) {
-    const { data: payload, ...rest } = parsed
-    data = payload as T
-    meta = rest
+  // Build the path: for non-rawPath, strip any leading /_/ or /_ prefix since
+  // ApiService will prepend the basePath ('_') itself. For rawPath, keep as-is.
+  let resolvedPath: string
+  if (rawPath) {
+    resolvedPath = path
+  } else if (path.startsWith('/_')) {
+    // Strip leading /_ so ApiService doesn't double-prefix
+    resolvedPath = path.slice(2)
   } else {
-    data = parsed as T
+    resolvedPath = path.startsWith('/') ? path : `/${path}`
   }
 
-  return { status: res.status, ok: res.ok, data, ...meta } as ApiResponse<T>
+  const reqHeaders: Record<string, string> = { ...headers }
+
+  // Per-request apiKey override: inject Authorization header which will merge
+  // over the instance header in ApiService.buildHeaders
+  if (apiKey) {
+    reqHeaders['Authorization'] = `Bearer ${apiKey}`
+  }
+
+  const request: TApiRequest = {
+    path: resolvedPath,
+    data: body as Record<string, any> | string | undefined,
+    headers: Object.keys(reqHeaders).length > 0 ? reqHeaders : undefined,
+    timeout,
+    rawResponse: rawResponse || rawPath,
+  }
+
+  let result: TApiResponse<T>
+  const lowerMethod = method.toUpperCase()
+  if (lowerMethod === `POST`) {
+    result = await client.post<T>(request)
+  } else if (lowerMethod === `PUT`) {
+    result = await client.put<T>(request)
+  } else if (lowerMethod === `DELETE`) {
+    result = await client.delete<T>(request)
+  } else if (lowerMethod === `PATCH`) {
+    result = await client.patch<T>(request)
+  } else {
+    result = await client.get<T>(request)
+  }
+
+  return result as ApiResponse<T>
 }
 
 /** GET shorthand */

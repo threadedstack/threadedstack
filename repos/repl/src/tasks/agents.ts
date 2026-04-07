@@ -19,43 +19,47 @@ export const agents: TTask = {
   action: requireAuth(async ({ params, auth }) => {
     const client = new ApiClient(auth)
 
-    try {
-      let orgId = params.org as string | undefined
+    let orgId = params.org as string | undefined
 
-      if (!orgId) {
-        const orgs = await client.listOrgs()
-
-        if (orgs.length === 1) {
-          orgId = orgs[0].id
-        } else {
-          process.stdout.write(`\n${themed(`bold`, `Organizations:`)}\n`)
-          for (const org of orgs) {
-            process.stdout.write(`  ${themed(`muted`, org.id)} ${org.name}\n`)
-          }
-          process.stdout.write(
-            `\n${themed(`muted`, `Use --org <id> to list agents for a specific org`)}\n\n`
-          )
-          return
-        }
+    if (!orgId) {
+      const { data: orgs, error } = await client.listOrgs()
+      if (error || !orgs) {
+        const msg = error?.message || `Failed to list organizations`
+        process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
+        process.exit(1)
       }
 
-      const agents = await client.listAgents(orgId)
-
-      if (!agents.length) {
-        process.stdout.write(`${themed(`muted`, `No agents found`)}\n`)
+      if (orgs.length === 1) {
+        orgId = orgs[0].id
+      } else {
+        process.stdout.write(`\n${themed(`bold`, `Organizations:`)}\n`)
+        for (const org of orgs) {
+          process.stdout.write(`  ${themed(`muted`, org.id)} ${org.name}\n`)
+        }
+        process.stdout.write(
+          `\n${themed(`muted`, `Use --org <id> to list agents for a specific org`)}\n\n`
+        )
         return
       }
+    }
 
-      process.stdout.write(`\n${themed(`bold`, `Agents:`)}\n`)
-      for (const agent of agents) {
-        const model = agent.model ? themed(`muted`, ` (${agent.model})`) : ``
-        process.stdout.write(`  ${themed(`muted`, agent.id)} ${agent.name}${model}\n`)
-      }
-      process.stdout.write(`\n`)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : `Failed to list agents`
+    const { data: agentList, error } = await client.listAgents(orgId)
+    if (error || !agentList) {
+      const msg = error?.message || `Failed to list agents`
       process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
       process.exit(1)
     }
+
+    if (!agentList.length) {
+      process.stdout.write(`${themed(`muted`, `No agents found`)}\n`)
+      return
+    }
+
+    process.stdout.write(`\n${themed(`bold`, `Agents:`)}\n`)
+    for (const agent of agentList) {
+      const model = agent.model ? themed(`muted`, ` (${agent.model})`) : ``
+      process.stdout.write(`  ${themed(`muted`, agent.id)} ${agent.name}${model}\n`)
+    }
+    process.stdout.write(`\n`)
   }),
 }

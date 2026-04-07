@@ -138,8 +138,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
       )
 
       expect(res.status).toBe(404)
-      expect(res.data.error).toBeDefined()
-      expect(res.data.error.type).toBe('invalid_request_error')
+      expect(res.error?.details).toMatchObject({ error: { type: 'invalid_request_error' } })
     })
 
     test('returns 401 without auth', async () => {
@@ -275,8 +274,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
       )
 
       expect(res.status).toBe(400)
-      expect(res.data.error).toBeDefined()
-      expect(res.data.error.type).toBe('invalid_request_error')
+      expect(res.error?.details).toMatchObject({ error: { type: 'invalid_request_error' } })
     })
 
     test('returns 400 when messages is missing', async () => {
@@ -288,8 +286,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
       )
 
       expect(res.status).toBe(400)
-      expect(res.data.error).toBeDefined()
-      expect(res.data.error.type).toBe('invalid_request_error')
+      expect(res.error?.details).toMatchObject({ error: { type: 'invalid_request_error' } })
     })
 
     test('returns 401 without auth', async () => {
@@ -315,7 +312,7 @@ describe('Tier 3: OpenAI-Compatible API', () => {
       )
 
       expect([404, 500]).toContain(res.status)
-      expect(res.data.error).toBeDefined()
+      expect(res.error?.details).toMatchObject({ error: expect.anything() })
     })
 
     test.skipIf(!hasLLM())('response does not leak secrets', async () => {

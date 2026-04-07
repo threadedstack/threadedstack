@@ -1,15 +1,5 @@
 import type { Exception } from '@tdsk/domain'
 
-export enum EAPIMethod {
-  GET = `GET`,
-  PUT = `PUT`,
-  POST = `POST`,
-  HEAD = `HEAD`,
-  PATCH = `PATCH`,
-  DELETE = `DELETE`,
-  OPTIONS = `OPTIONS`,
-}
-
 export type TFormData = Record<string, any>
 
 export type TFetchMethod = Omit<Partial<RequestInit>, `body` | `headers`> & {
@@ -23,7 +13,7 @@ export type TFetchMethod = Omit<Partial<RequestInit>, `body` | `headers`> & {
 
 export type TFetchOpts = TFetchMethod & {
   url?: string
-  method: EAPIMethod
+  method: string
 }
 
 export type TFetchData = Record<string, any>

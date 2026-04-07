@@ -33,37 +33,44 @@ export const threads: TTask = {
 
     const client = new ApiClient(auth)
 
-    try {
-      let orgId = params.org as string | undefined
-      if (!orgId) {
-        const orgs = await client.listOrgs()
-        if (orgs.length === 1) {
-          orgId = orgs[0].id
-        } else {
-          process.stdout.write(
-            `${themed('warning', `Multiple orgs found. Use --org <id> to specify.`)}\n`
-          )
-          process.exit(1)
-        }
+    let orgId = params.org as string | undefined
+    if (!orgId) {
+      const { data: orgs, error: orgsError } = await client.listOrgs()
+      if (orgsError || !orgs) {
+        const msg = orgsError?.message || `Failed to list organizations`
+        process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
+        process.exit(1)
       }
-
-      const threads = await client.listThreads(orgId, agentId)
-
-      if (!threads.length) {
-        process.stdout.write(`${themed(`muted`, `No threads found`)}\n`)
-        return
+      if (orgs.length === 1) {
+        orgId = orgs[0].id
+      } else {
+        process.stdout.write(
+          `${themed(`warning`, `Multiple orgs found. Use --org <id> to specify.`)}\n`
+        )
+        process.exit(1)
       }
+    }
 
-      process.stdout.write(`\n${themed(`bold`, `Threads:`)}\n`)
-      for (const t of threads) {
-        const name = t.name || themed(`muted`, `untitled`)
-        process.stdout.write(`  ${themed(`muted`, t.id)} ${name}\n`)
-      }
-      process.stdout.write(`\n`)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : `Failed to list threads`
+    const { data: threadList, error: threadsError } = await client.listThreads(
+      orgId,
+      agentId
+    )
+    if (threadsError || !threadList) {
+      const msg = threadsError?.message || `Failed to list threads`
       process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
       process.exit(1)
     }
+
+    if (!threadList.length) {
+      process.stdout.write(`${themed(`muted`, `No threads found`)}\n`)
+      return
+    }
+
+    process.stdout.write(`\n${themed(`bold`, `Threads:`)}\n`)
+    for (const t of threadList) {
+      const name = t.name || themed(`muted`, `untitled`)
+      process.stdout.write(`  ${themed(`muted`, t.id)} ${name}\n`)
+    }
+    process.stdout.write(`\n`)
   }),
 }

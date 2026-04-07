@@ -107,8 +107,8 @@ describe('Tier 3: REPL Executor — session orchestration (live)', () => {
     // If run() returned before error, we have the threadId.
     // If it threw, we check threads list for a recently created one.
     if (!threadId) {
-      const threads = await executor.client.listThreads(ctx.orgId, agentId)
-      const recent = threads.find(t => t.name === 'REPL session')
+      const { data: threads } = await executor.client.listThreads(ctx.orgId, agentId)
+      const recent = threads!.find(t => t.name === 'REPL session')
       expect(recent).toBeDefined()
       threadId = recent!.id
     }
@@ -119,11 +119,11 @@ describe('Tier 3: REPL Executor — session orchestration (live)', () => {
 
   test('created thread is retrievable via getThread', async () => {
     // Create a thread via the client directly to verify the path works
-    const thread = await executor.client.createThread(ctx.orgId, agentId, 'IT executor verify')
-    threadIds.push(thread.id)
+    const { data: thread } = await executor.client.createThread(ctx.orgId, agentId, 'IT executor verify')
+    threadIds.push(thread!.id)
 
-    const fetched = await executor.client.getThread(ctx.orgId, agentId, thread.id)
-    expect(fetched.id).toBe(thread.id)
-    expect(fetched.name).toBe('IT executor verify')
+    const { data: fetched } = await executor.client.getThread(ctx.orgId, agentId, thread!.id)
+    expect(fetched!.id).toBe(thread!.id)
+    expect(fetched!.name).toBe('IT executor verify')
   })
 })

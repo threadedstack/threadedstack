@@ -38,7 +38,7 @@ export class EndpointTestApi extends BaseApi {
 
     // Read auth headers from the shared apiService instance
     const authHeaders: Record<string, string> = {}
-    const authHeader = this.api.options.headers?.Authorization
+    const authHeader = this.api.headers?.Authorization
     if (authHeader) authHeaders.Authorization = authHeader
 
     const start = performance.now()

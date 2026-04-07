@@ -97,7 +97,8 @@
       "Read(//private/tmp/**)",
       "Read(//private/var/folders/**)",
       "Bash(tar tz:*)",
-      "Bash(tar xz:*)"
+      "Bash(tar xz:*)",
+      "Bash(2>&1)"
     ]
   },
   "sandbox": {

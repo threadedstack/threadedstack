@@ -97,4 +97,39 @@ describe('classifyApiError', () => {
     expect(classifyApiError(null)).toBe('unknown')
     expect(classifyApiError(42)).toBe('unknown')
   })
+
+  it('classifies Exception with status 401 as auth', () => {
+    const err = Object.assign(new Error('Unauthorized'), { status: 401 })
+    expect(classifyApiError(err)).toBe('auth')
+  })
+
+  it('classifies Exception with status 403 as forbidden', () => {
+    const err = Object.assign(new Error('Forbidden'), { status: 403 })
+    expect(classifyApiError(err)).toBe('forbidden')
+  })
+
+  it('classifies Exception with status 404 as notFound', () => {
+    const err = Object.assign(new Error('Not Found'), { status: 404 })
+    expect(classifyApiError(err)).toBe('notFound')
+  })
+
+  it('classifies Exception with status 400 as data', () => {
+    const err = Object.assign(new Error('Bad Request'), { status: 400 })
+    expect(classifyApiError(err)).toBe('data')
+  })
+
+  it('classifies Exception with status 422 as data', () => {
+    const err = Object.assign(new Error('Unprocessable'), { status: 422 })
+    expect(classifyApiError(err)).toBe('data')
+  })
+
+  it('classifies Exception with status 500 as server', () => {
+    const err = Object.assign(new Error('Internal Server Error'), { status: 500 })
+    expect(classifyApiError(err)).toBe('server')
+  })
+
+  it('classifies Exception with status 429 as server', () => {
+    const err = Object.assign(new Error('Too Many Requests'), { status: 429 })
+    expect(classifyApiError(err)).toBe('server')
+  })
 })

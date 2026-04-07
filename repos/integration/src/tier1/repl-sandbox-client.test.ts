@@ -60,22 +60,23 @@ describe('Tier 1: REPL ApiClient Sandboxes (live)', () => {
   // ─── listSandboxes ─────────────────────────────────────────────────
 
   test('listSandboxes returns array', async () => {
-    const sandboxes = await client.listSandboxes(ctx.orgId)
+    const { data: sandboxes } = await client.listSandboxes(ctx.orgId)
     expect(Array.isArray(sandboxes)).toBe(true)
   })
 
   test('listSandboxes includes created sandbox', async () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
-    const sandboxes = await client.listSandboxes(ctx.orgId)
-    const found = sandboxes.find((sb: any) => sb.id === sandboxId || sb.name === sandboxName)
+    const { data: sandboxes } = await client.listSandboxes(ctx.orgId)
+    const found = sandboxes!.find((sb: any) => sb.id === sandboxId || sb.name === sandboxName)
     expect(found).toBeDefined()
   })
 
-  test('listSandboxes with bad auth throws', async () => {
+  test('listSandboxes with bad auth returns error', async () => {
     const badAuth = createTestAuth({ apiKey: 'tdsk_invalid_key_12345' })
     const badClient = new ApiClient(badAuth as any)
 
-    await expect(badClient.listSandboxes(ctx.orgId)).rejects.toThrow()
+    const { ok } = await badClient.listSandboxes(ctx.orgId)
+    expect(ok).toBe(false)
   })
 })

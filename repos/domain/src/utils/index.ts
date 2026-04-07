@@ -1,3 +1,4 @@
+export * from './api'
 export * from './isDomain'
 export * from './payments'
 export * from './cleanSplit'

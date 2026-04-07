@@ -181,8 +181,8 @@ describe('Tier 1: Endpoint Test Panel API', () => {
 
     expect(res.ok).toBe(false)
     expect(res.status).toBe(404)
-    // The response should contain error information, not an empty body
-    expect(res.data).toBeDefined()
+    // The error should contain response details
+    expect(res.error).toBeDefined()
   })
 
   test('non-existent project returns error status', async () => {

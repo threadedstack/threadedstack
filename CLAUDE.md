@@ -74,6 +74,21 @@ ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
 Never save working files, text/mds and tests to the root folder.
 
+### 🚨 Shared Types Belong in the Repo's Types Directory
+- **Exported (shared) types** MUST go in the sub-repo's `types/` directory (e.g., `repos/backend/src/types/`)
+- NEVER place shared types next to the files they relate to — even if they're closely related
+- **Non-exported (private) types** used only within a single file CAN live in that file
+- Rule of thumb: if a type is `export`ed, it goes in `types/`; if it's not exported, it stays local
+
+### 🚨 NEVER Re-export — Always Update Callsites
+When refactoring code to a shared location (e.g., moving a function from a repo to `@tdsk/domain`):
+- **NEVER** leave a re-export in the original file (e.g., `export { foo } from '@tdsk/domain'`)
+- **ALWAYS** update ALL callsites to import directly from the new location
+- **DELETE** the original file entirely — no shims, no re-export wrappers
+- Update barrel/index files to remove references to deleted files
+- If a rename is involved, update all callsites to use the new name
+- This applies to types, enums, classes, and functions — no exceptions
+
 ## Architecture
 
 ### Request Flow

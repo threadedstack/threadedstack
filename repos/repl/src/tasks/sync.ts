@@ -185,7 +185,12 @@ export const sync: TTask = {
     // Resolve org
     let orgId = params.org as string | undefined
     if (!orgId) {
-      const orgs = await client.listOrgs()
+      const { data: orgs, error } = await client.listOrgs()
+      if (error || !orgs) {
+        const msg = error?.message || `Failed to list organizations`
+        process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
+        process.exit(1)
+      }
       if (orgs.length === 1) orgId = orgs[0].id
       else {
         process.stdout.write(
@@ -197,11 +202,12 @@ export const sync: TTask = {
 
     // Auto-start pod via connect
     process.stdout.write(`${themed(`muted`, `Connecting to sandbox...`)}\n`)
-    let connectResp: any
-    try {
-      connectResp = await client.connectSandbox(orgId, sandboxId)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : `Failed to connect`
+    const { data: connectResp, error: connectError } = await client.connectSandbox(
+      orgId as string,
+      sandboxId
+    )
+    if (connectError || !connectResp) {
+      const msg = connectError?.message || `Failed to connect`
       process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
       process.exit(1)
     }
@@ -214,18 +220,30 @@ export const sync: TTask = {
     }
 
     // Inject SSH public key into pod for key-based auth
-    try {
-      ensureSshConfig()
-      const publicKey = getPublicKey()
-      await client.injectSshKey(orgId, sandboxId, podName, publicKey)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : `SSH key setup failed`
-      process.stdout.write(`${themed(`error`, `Error:`)} ${msg}\n`)
+    ensureSshConfig()
+    const publicKey = getPublicKey()
+    const { error: sshError } = await client.injectSshKey(
+      orgId,
+      sandboxId,
+      podName,
+      publicKey
+    )
+    if (sshError) {
+      process.stdout.write(`${themed(`error`, `Error:`)} ${sshError.message}\n`)
       process.exit(1)
     }
 
     // Fetch sandbox for sync config defaults
-    const sandbox = await client.getSandbox(orgId, sandboxId)
+    const { data: sandbox, error: sandboxError } = await client.getSandbox(
+      orgId as string,
+      sandboxId
+    )
+    if (sandboxError) {
+      process.stdout.write(
+        `${themed('error', 'Error:')} Failed to fetch sandbox config: ${sandboxError.message}\n`
+      )
+      process.exit(1)
+    }
     const sandboxSync = sandbox?.config?.sync
 
     // Resolve rules: CLI shorthand or config file
@@ -330,8 +348,8 @@ export const sync: TTask = {
       process.exit(0)
     }
 
-    process.on('SIGINT', cleanup)
-    process.on('SIGTERM', cleanup)
+    process.on(`SIGINT`, cleanup)
+    process.on(`SIGTERM`, cleanup)
 
     // Keep process alive
     await new Promise(() => {})

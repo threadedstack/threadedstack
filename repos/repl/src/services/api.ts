@@ -1,73 +1,34 @@
 import type { AuthManager } from '@TRL/services/auth'
 import type { TSessionInfo, TProviderInfo } from '@TRL/types'
+import type { TApiRequest, TApiResponse } from '@tdsk/domain'
 
+import { ApiService, Exception } from '@tdsk/domain'
 import { MaxRetries, RetryDelays } from '@TRL/constants'
 import { Agent, Thread, Message, Organization } from '@tdsk/domain'
+import { RetryStatusCodes, RetryNetworkCodes } from '@TRL/constants/api'
 
-export class ApiClient {
+export class ApiClient extends ApiService {
   #auth: AuthManager
 
   constructor(auth: AuthManager) {
+    const creds = auth.creds()
+    super({
+      url: creds?.proxyUrl ?? ``,
+      basePath: `_`,
+      headers: {
+        Accept: `application/json`,
+        [`Content-Type`]: `application/json`,
+        ...(creds?.apiKey ? { Authorization: `Bearer ${creds.apiKey}` } : {}),
+      },
+    })
     this.#auth = auth
   }
 
-  async #request<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
+  #ensureAuth(): void {
     const creds = this.#auth.creds()
     if (!creds) throw new Error(`Not logged in. Run "tsa login" first.`)
-
-    const url = `${creds.proxyUrl}/_${path}`
-    const res = await fetch(url, {
-      ...opts,
-      headers: {
-        Authorization: `Bearer ${creds.apiKey}`,
-        Accept: `application/json`,
-        ...opts?.headers,
-      },
-    })
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => ``)
-      throw new Error(`API error (${res.status}): ${body || res.statusText}`)
-    }
-
-    const json = (await res.json()) as { data: T }
-    return json.data
-  }
-
-  async #requestWithRetry<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
-    let lastError: Error | undefined
-    for (let attempt = 0; attempt <= MaxRetries; attempt++) {
-      try {
-        return await this.#request<T>(path, opts)
-      } catch (error) {
-        lastError = error as Error
-        const isRetryable = this.#isRetryableError(lastError)
-        if (!isRetryable || attempt === MaxRetries) throw lastError
-        await this.#delay(RetryDelays[attempt])
-      }
-    }
-    throw lastError!
-  }
-
-  #isRetryableError(error: Error): boolean {
-    if ('code' in error) {
-      const code = (error as any).code
-      if (code === `ECONNREFUSED` || code === `ETIMEDOUT` || code === `ENOTFOUND`)
-        return true
-    }
-    return [429, 500, 502, 503].some((s) => error.message.includes(`(${s})`))
-  }
-
-  #delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms))
-  }
-
-  async #postRequest<T = unknown>(path: string, body: unknown): Promise<T> {
-    return this.#requestWithRetry<T>(path, {
-      method: `POST`,
-      headers: { [`Content-Type`]: `application/json` },
-      body: JSON.stringify(body),
-    })
+    this.url = creds.proxyUrl
+    this.setBearer(creds.apiKey)
   }
 
   get proxyUrl(): string {
@@ -76,52 +37,106 @@ export class ApiClient {
     return creds.proxyUrl
   }
 
-  // --- Organizations ---
+  protected override async invoke<T>(
+    opts: TApiRequest & { method: import('@tdsk/domain').EApiMethod }
+  ): Promise<TApiResponse<T>> {
+    this.#ensureAuth()
 
-  async listOrgs(): Promise<Organization[]> {
-    const resp = await this.#requestWithRetry<Organization[]>(`/orgs`)
-    return resp.map((item) => new Organization(item))
+    let lastResult: TApiResponse<T> | undefined
+    for (let attempt = 0; attempt <= MaxRetries; attempt++) {
+      const result = await super.invoke<T>(opts)
+
+      if (result.ok) return result
+
+      // Check if retryable
+      const isRetryable = this.#isRetryableResult(result)
+      if (!isRetryable || attempt === MaxRetries) return result
+
+      await this.#delay(RetryDelays[attempt] ?? RetryDelays[RetryDelays.length - 1])
+      lastResult = result
+    }
+
+    return lastResult!
   }
 
-  async getOrg(orgId: string): Promise<Organization> {
-    const resp = await this.#requestWithRetry<Organization>(`/orgs/${orgId}`)
-    return new Organization(resp)
+  #isRetryableResult(result: TApiResponse<unknown>): boolean {
+    // Network errors come back with status 0
+    if (result.status === 0) {
+      const msg = result.error?.message ?? ``
+      for (const code of RetryNetworkCodes) {
+        if (msg.includes(code)) return true
+      }
+      return true // any network-level error is retryable
+    }
+    return RetryStatusCodes.has(result.status)
+  }
+
+  #delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  // --- Organizations ---
+
+  async listOrgs(): Promise<TApiResponse<Organization[]>> {
+    const result = await this.get<Organization[]>({ path: `orgs` })
+    if (result.ok && result.data)
+      result.data = result.data.map((item) => new Organization(item))
+    return result
+  }
+
+  async getOrg(orgId: string): Promise<TApiResponse<Organization>> {
+    const result = await this.get<Organization>({ path: `orgs/${orgId}` })
+    if (result.ok && result.data) result.data = new Organization(result.data)
+    return result
   }
 
   // --- Agents ---
 
-  async listAgents(orgId: string): Promise<Agent[]> {
-    const resp = await this.#requestWithRetry<unknown[]>(`/orgs/${orgId}/agents`)
-    return resp.map((item) => new Agent(item))
+  async listAgents(orgId: string): Promise<TApiResponse<Agent[]>> {
+    const result = await this.get<unknown[]>({ path: `orgs/${orgId}/agents` })
+    if (result.ok && result.data)
+      (result as TApiResponse<Agent[]>).data = result.data.map((item) => new Agent(item))
+    return result as TApiResponse<Agent[]>
   }
 
-  async getAgent(orgId: string, agentId: string): Promise<Agent> {
-    const resp = await this.#requestWithRetry<Agent>(`/orgs/${orgId}/agents/${agentId}`)
-    return new Agent(resp)
+  async getAgent(orgId: string, agentId: string): Promise<TApiResponse<Agent>> {
+    const result = await this.get<Agent>({ path: `orgs/${orgId}/agents/${agentId}` })
+    if (result.ok && result.data) result.data = new Agent(result.data)
+    return result
   }
 
   // --- Sessions ---
 
-  async createSession(agentId: string, providerId?: string): Promise<TSessionInfo> {
-    return this.#postRequest<TSessionInfo>(`/ai/sessions`, {
-      agentId,
-      ...(providerId && { providerId }),
+  async createSession(
+    agentId: string,
+    providerId?: string
+  ): Promise<TApiResponse<TSessionInfo>> {
+    return this.post<TSessionInfo>({
+      path: `ai/sessions`,
+      data: {
+        agentId,
+        ...(providerId && { providerId }),
+      },
     })
   }
 
   // --- Providers ---
 
-  async listProviders(orgId: string): Promise<TProviderInfo[]> {
-    return this.#requestWithRetry<TProviderInfo[]>(`/orgs/${orgId}/providers`)
+  async listProviders(orgId: string): Promise<TApiResponse<TProviderInfo[]>> {
+    return this.get<TProviderInfo[]>({ path: `orgs/${orgId}/providers` })
   }
 
   // --- Threads ---
 
-  async listThreads(orgId: string, agentId: string): Promise<Thread[]> {
-    const resp = await this.#requestWithRetry<unknown[]>(
-      `/orgs/${orgId}/agents/${agentId}/threads`
-    )
-    return resp.map((item) => new Thread(item))
+  async listThreads(orgId: string, agentId: string): Promise<TApiResponse<Thread[]>> {
+    const result = await this.get<unknown[]>({
+      path: `orgs/${orgId}/agents/${agentId}/threads`,
+    })
+    if (result.ok && result.data)
+      (result as TApiResponse<Thread[]>).data = result.data.map(
+        (item) => new Thread(item)
+      )
+    return result as TApiResponse<Thread[]>
   }
 
   async getThread(
@@ -129,13 +144,15 @@ export class ApiClient {
     agentId: string,
     threadId: string,
     opts?: { include?: string[] }
-  ): Promise<Thread> {
-    const params = new URLSearchParams()
-    if (opts?.include?.length) params.set(`include`, opts.include.join(`,`))
-    const qs = params.toString()
-    const path = `/orgs/${orgId}/agents/${agentId}/threads/${threadId}${qs ? `?${qs}` : ``}`
-    const resp = await this.#requestWithRetry(path)
-    return new Thread(resp)
+  ): Promise<TApiResponse<Thread>> {
+    const params: Record<string, any> = {}
+    if (opts?.include?.length) params.include = opts.include.join(`,`)
+    const result = await this.get<Thread>({
+      path: `orgs/${orgId}/agents/${agentId}/threads/${threadId}`,
+      ...(Object.keys(params).length ? { data: params } : {}),
+    })
+    if (result.ok && result.data) result.data = new Thread(result.data)
+    return result
   }
 
   async branchThread(
@@ -143,51 +160,61 @@ export class ApiClient {
     agentId: string,
     threadId: string,
     messageId: string
-  ): Promise<Thread> {
-    const resp = await this.#postRequest<Thread>(
-      `/orgs/${orgId}/agents/${agentId}/threads/${threadId}/branch`,
-      { messageId }
-    )
-    return new Thread(resp)
+  ): Promise<TApiResponse<Thread>> {
+    const result = await this.post<Thread>({
+      data: { messageId },
+      path: `orgs/${orgId}/agents/${agentId}/threads/${threadId}/branch`,
+    })
+    if (result.ok && result.data) result.data = new Thread(result.data)
+    return result
   }
 
-  async createThread(orgId: string, agentId: string, name?: string): Promise<Thread> {
-    const resp = await this.#postRequest<Thread>(
-      `/orgs/${orgId}/agents/${agentId}/threads`,
-      {
-        name: name || `REPL session`,
-      }
-    )
-    return new Thread(resp)
+  async createThread(
+    orgId: string,
+    agentId: string,
+    name?: string
+  ): Promise<TApiResponse<Thread>> {
+    const result = await this.post<Thread>({
+      data: { name: name || `REPL session` },
+      path: `orgs/${orgId}/agents/${agentId}/threads`,
+    })
+    if (result.ok && result.data) result.data = new Thread(result.data)
+    return result
   }
 
   // --- Projects ---
 
-  async listProjects(orgId: string): Promise<any[]> {
-    return this.#requestWithRetry<any[]>(`/orgs/${orgId}/projects`)
+  async listProjects(orgId: string): Promise<TApiResponse<any[]>> {
+    return this.get<any[]>({ path: `orgs/${orgId}/projects` })
   }
 
   // --- Thread Deletion ---
 
-  async deleteThread(orgId: string, agentId: string, threadId: string): Promise<void> {
-    await this.#requestWithRetry<void>(
-      `/orgs/${orgId}/agents/${agentId}/threads/${threadId}`,
-      { method: `DELETE` }
-    )
+  async deleteThread(
+    orgId: string,
+    agentId: string,
+    threadId: string
+  ): Promise<TApiResponse<void>> {
+    return this.delete<void>({
+      path: `orgs/${orgId}/agents/${agentId}/threads/${threadId}`,
+    })
   }
 
   // --- Sandboxes ---
 
-  async listSandboxes(orgId: string): Promise<any[]> {
-    return this.#requestWithRetry<any[]>(`/orgs/${orgId}/sandboxes`)
+  async listSandboxes(orgId: string): Promise<TApiResponse<any[]>> {
+    return this.get<any[]>({ path: `orgs/${orgId}/sandboxes` })
   }
 
-  async connectSandbox(orgId: string, sandboxId: string): Promise<any> {
-    return this.#postRequest<any>(`/orgs/${orgId}/sandboxes/${sandboxId}/connect`, {})
+  async connectSandbox(orgId: string, sandboxId: string): Promise<TApiResponse<any>> {
+    return this.post<any>({
+      path: `orgs/${orgId}/sandboxes/${sandboxId}/connect`,
+      data: {},
+    })
   }
 
-  async getSandbox(orgId: string, sandboxId: string): Promise<any> {
-    return this.#requestWithRetry<any>(`/orgs/${orgId}/sandboxes/${sandboxId}`)
+  async getSandbox(orgId: string, sandboxId: string): Promise<TApiResponse<any>> {
+    return this.get<any>({ path: `orgs/${orgId}/sandboxes/${sandboxId}` })
   }
 
   async execInSandbox(
@@ -195,10 +222,10 @@ export class ApiClient {
     sandboxId: string,
     podName: string,
     command: string
-  ): Promise<any> {
-    return this.#postRequest<any>(`/orgs/${orgId}/sandboxes/${sandboxId}/exec`, {
-      command,
-      podName,
+  ): Promise<TApiResponse<any>> {
+    return this.post<any>({
+      path: `orgs/${orgId}/sandboxes/${sandboxId}/exec`,
+      data: { command, podName },
     })
   }
 
@@ -207,9 +234,13 @@ export class ApiClient {
     sandboxId: string,
     podName: string,
     publicKey: string
-  ): Promise<void> {
+  ): Promise<TApiResponse> {
     if (!/^ssh-\S+ \S+/.test(publicKey)) {
-      throw new Error(`Invalid SSH public key format`)
+      return {
+        ok: false,
+        status: 0,
+        error: new Exception(400, `Invalid SSH public key format`),
+      }
     }
     const escaped = publicKey.replace(/'/g, `'\\''`)
     const result = await this.execInSandbox(
@@ -225,11 +256,16 @@ export class ApiClient {
       ].join(` && `)
     )
 
-    if (!result?.success) {
-      throw new Error(
-        `SSH key injection failed in pod ${podName}: ${result?.output || result?.error || 'unknown error'}`
-      )
+    if (!result.ok || !result.data?.success) {
+      const msg = `SSH key injection failed in pod ${podName}: ${result.data?.output || result.data?.error || result.error?.message || `unknown error`}`
+      return {
+        ok: false,
+        status: result.status,
+        error: new Exception(result.status, msg),
+      }
     }
+
+    return { ok: true, status: result.status }
   }
 
   // --- Messages ---
@@ -239,14 +275,19 @@ export class ApiClient {
     agentId: string,
     threadId: string,
     opts?: { limit?: number; offset?: number }
-  ): Promise<Message[]> {
-    const params = new URLSearchParams()
-    if (opts?.limit != null) params.set('limit', String(opts.limit))
-    if (opts?.offset != null) params.set('offset', String(opts.offset))
-    const qs = params.toString()
-    const path = `/orgs/${orgId}/agents/${agentId}/threads/${threadId}/messages${qs ? `?${qs}` : ''}`
-    const resp = await this.#requestWithRetry<Message[]>(path)
-    return resp.map((item) => new Message(item))
+  ): Promise<TApiResponse<Message[]>> {
+    const params: Record<string, any> = {}
+    if (opts?.limit != null) params.limit = String(opts.limit)
+    if (opts?.offset != null) params.offset = String(opts.offset)
+
+    const result = await this.get<Message[]>({
+      path: `orgs/${orgId}/agents/${agentId}/threads/${threadId}/messages`,
+      ...(Object.keys(params).length ? { data: params } : {}),
+    })
+
+    if (result.ok && result.data)
+      result.data = result.data.map((item) => new Message(item))
+    return result
   }
 
   async createMessage(
@@ -254,11 +295,12 @@ export class ApiClient {
     agentId: string,
     threadId: string,
     data: { type: string; content: unknown[]; orgId: string }
-  ): Promise<Message> {
-    const resp = await this.#postRequest<Message>(
-      `/orgs/${orgId}/agents/${agentId}/threads/${threadId}/messages`,
-      data
-    )
-    return new Message(resp)
+  ): Promise<TApiResponse<Message>> {
+    const result = await this.post<Message>({
+      data,
+      path: `orgs/${orgId}/agents/${agentId}/threads/${threadId}/messages`,
+    })
+    if (result.ok && result.data) result.data = new Message(result.data)
+    return result
   }
 }

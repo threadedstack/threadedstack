@@ -1,6 +1,6 @@
 import type { TEmailConfig, TEmailResult, TSendEmailOptions } from '@TBE/types'
 
-import { API } from '@TBE/services/api'
+import { ApiService } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { BaseEmailStrategy } from '@TBE/services/email/strategies/base'
 
@@ -13,12 +13,12 @@ import { BaseEmailStrategy } from '@TBE/services/email/strategies/base'
  * @see https://resend.com/docs/api-reference/emails/send-email
  */
 export class ResendStrategy extends BaseEmailStrategy {
-  #api: API
+  #api: ApiService
 
   constructor(config: TEmailConfig) {
     super(config.from)
 
-    this.#api = new API({
+    this.#api = new ApiService({
       url: config?.api?.host || `https://api.resend.com/emails`,
       headers: {
         [`Content-Type`]: `application/json`,
@@ -52,13 +52,13 @@ export class ResendStrategy extends BaseEmailStrategy {
       logger.info(`[RESEND STRATEGY] Email sent successfully:`, {
         from,
         to: options.to,
-        messageId: data.id,
+        messageId: data?.id,
         subject: options.subject,
       })
 
       return {
         success: true,
-        messageId: data.id,
+        messageId: data?.id,
       }
     } catch (err: unknown) {
       return {

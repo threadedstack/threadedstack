@@ -25,11 +25,7 @@ vi.mock(`@TAF/services/tokenRefresh`, () => ({
   },
 }))
 
-// Unmock api.ts so we get the real BaseApi / apiService
-vi.mock(`@TAF/services/api`, async () => {
-  const actual = await vi.importActual<typeof import('./api')>(`@TAF/services/api`)
-  return actual
-})
+vi.unmock(`@TAF/services/api`)
 
 describe(`EndpointTestApi`, () => {
   let mockFetch: ReturnType<typeof vi.fn>
@@ -46,7 +42,7 @@ describe(`EndpointTestApi`, () => {
 
     // Reset shared singleton header state to prevent bleed between tests
     const { endpointTestApi } = await import(`./endpointTestApi`)
-    endpointTestApi.api.options.headers = { ...defaultHeaders }
+    endpointTestApi.api.setHeaders(defaultHeaders, false)
   })
 
   afterEach(() => {
@@ -114,10 +110,7 @@ describe(`EndpointTestApi`, () => {
       const { endpointTestApi } = await loadModule()
 
       // Set auth header on the shared apiService
-      endpointTestApi.api.options.headers = {
-        ...endpointTestApi.api.options.headers,
-        Authorization: `Bearer my-token`,
-      }
+      endpointTestApi.api.setHeaders({ Authorization: `Bearer my-token` })
 
       await endpointTestApi.execute(`p`, `e`, { method: `GET` })
 
@@ -129,10 +122,7 @@ describe(`EndpointTestApi`, () => {
       mockFetch.mockResolvedValueOnce(makeResponse(200, `{}`))
       const { endpointTestApi } = await loadModule()
 
-      endpointTestApi.api.options.headers = {
-        ...endpointTestApi.api.options.headers,
-        Authorization: `Bearer my-token`,
-      }
+      endpointTestApi.api.setHeaders({ Authorization: `Bearer my-token` })
 
       await endpointTestApi.execute(`p`, `e`, {
         method: `POST`,
@@ -148,10 +138,7 @@ describe(`EndpointTestApi`, () => {
       mockFetch.mockResolvedValueOnce(makeResponse(200, `{}`))
       const { endpointTestApi } = await loadModule()
 
-      endpointTestApi.api.options.headers = {
-        ...endpointTestApi.api.options.headers,
-        Authorization: `Bearer original`,
-      }
+      endpointTestApi.api.setHeaders({ Authorization: `Bearer original` })
 
       await endpointTestApi.execute(`p`, `e`, {
         method: `GET`,
@@ -167,8 +154,7 @@ describe(`EndpointTestApi`, () => {
       const { endpointTestApi } = await loadModule()
 
       // Clear any Authorization header
-      const { Authorization, ...rest } = endpointTestApi.api.options.headers || {}
-      endpointTestApi.api.options.headers = rest
+      endpointTestApi.api.clearBearer()
 
       await endpointTestApi.execute(`p`, `e`, { method: `GET` })
 

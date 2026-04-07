@@ -51,14 +51,14 @@ describe('Tier 1: REPL Project Flow (live)', () => {
 
   describe('project listing', () => {
     test('listProjects returns array with at least one project', async () => {
-      const projects = await client.listProjects(ctx.orgId)
+      const { data: projects } = await client.listProjects(ctx.orgId)
       expect(Array.isArray(projects)).toBe(true)
-      expect(projects.length).toBeGreaterThan(0)
+      expect(projects!.length).toBeGreaterThan(0)
     })
 
     test('projects have expected shape (id, name)', async () => {
-      const projects = await client.listProjects(ctx.orgId)
-      const project = projects[0]
+      const { data: projects } = await client.listProjects(ctx.orgId)
+      const project = projects![0]
       expect(project).toHaveProperty('id')
       expect(project).toHaveProperty('name')
       expect(typeof project.id).toBe('string')
@@ -66,8 +66,8 @@ describe('Tier 1: REPL Project Flow (live)', () => {
     })
 
     test('listProjects includes the quickstart project', async () => {
-      const projects = await client.listProjects(ctx.orgId)
-      const found = projects.find((p: any) => p.id === projectId)
+      const { data: projects } = await client.listProjects(ctx.orgId)
+      const found = projects!.find((p: any) => p.id === projectId)
       expect(found).toBeDefined()
       expect(found.name).toContain('REPL Project Flow IT')
     })
@@ -77,14 +77,14 @@ describe('Tier 1: REPL Project Flow (live)', () => {
 
   describe('project-agent association', () => {
     test('listAgents returns the quickstart agent', async () => {
-      const agents = await client.listAgents(ctx.orgId)
-      const found = agents.find(a => a.id === agentId)
+      const { data: agents } = await client.listAgents(ctx.orgId)
+      const found = agents!.find(a => a.id === agentId)
       expect(found).toBeDefined()
     })
 
     test('quickstart agent has expected name', async () => {
-      const agent = await client.getAgent(ctx.orgId, agentId)
-      expect(agent.name).toContain('REPL Project Flow Agent')
+      const { data: agent } = await client.getAgent(ctx.orgId, agentId)
+      expect(agent!.name).toContain('REPL Project Flow Agent')
     })
   })
 })

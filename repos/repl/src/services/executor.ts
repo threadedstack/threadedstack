@@ -1,9 +1,8 @@
+import type { TWSServerMsg } from '@tdsk/domain'
 import type { ApiClient } from '@TRL/services/api'
 import type { TExecRunOpts, TSessionInfo, TRunResult } from '@TRL/types'
 
 import WebSocket from 'ws'
-import type { TWSServerMsg } from '@tdsk/domain'
-
 import { EWSEventType, EStreamEventType, EStreamStopReason } from '@tdsk/domain'
 
 /**
@@ -35,7 +34,10 @@ export class Executor {
   }
 
   async createSession(agentId: string, providerId?: string): Promise<TSessionInfo> {
-    return this.#client.createSession(agentId, providerId)
+    const { data: session, error } = await this.#client.createSession(agentId, providerId)
+    if (error || !session)
+      throw new Error(`Failed to create session: ${error?.message || `unknown error`}`)
+    return session
   }
 
   async #ensureSession(agentId: string, providerId?: string): Promise<TSessionInfo> {

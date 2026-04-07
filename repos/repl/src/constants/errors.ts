@@ -83,6 +83,10 @@ export type TApiErrorKind =
 
 export function classifyApiError(err: unknown): TApiErrorKind {
   if (!(err instanceof Error)) return `unknown`
+
+  // Check Exception.status directly (new return-style errors)
+  const status = `status` in err ? ((err as any).status as number) : undefined
+
   if (isTlsCertError(err)) return `tls`
   if (
     hasCode(err, `ECONNREFUSED`) ||
@@ -90,6 +94,16 @@ export function classifyApiError(err: unknown): TApiErrorKind {
     hasCode(err, `ENOTFOUND`)
   )
     return `network`
+
+  // Check status field first, fall back to message parsing
+  if (status === 401 || err.message.includes(`Not logged in`)) return `auth`
+  if (status === 403) return `forbidden`
+  if (status === 404) return `notFound`
+  if (status === 400 || status === 422) return `data`
+  if (status === 429 || status === 500 || status === 502 || status === 503)
+    return `server`
+
+  // Legacy fallback for old-style "(status)" messages
   if (hasStatus(err, 401) || err.message.includes(`Not logged in`)) return `auth`
   if (hasStatus(err, 403)) return `forbidden`
   if (hasStatus(err, 404)) return `notFound`
@@ -101,6 +115,7 @@ export function classifyApiError(err: unknown): TApiErrorKind {
     hasStatus(err, 503)
   )
     return `server`
+
   return `unknown`
 }
 

@@ -15,7 +15,7 @@ describe('Tier 1: Webhook Security', () => {
 
     expect(res.ok).toBe(false)
     expect(res.status).toBe(400)
-    expect(res.data).toHaveProperty('error')
+    expect(res.error?.details).toHaveProperty('error')
   })
 
   test('POST /payments/webhooks with invalid stripe-signature returns 400', async () => {
@@ -31,7 +31,7 @@ describe('Tier 1: Webhook Security', () => {
 
     expect(res.ok).toBe(false)
     expect(res.status).toBe(400)
-    expect(res.data).toHaveProperty('error')
+    expect(res.error?.details).toHaveProperty('error')
   })
 
   test('POST /payments/webhooks with empty body and no signature returns 400', async () => {
