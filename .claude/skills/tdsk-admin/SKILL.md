@@ -46,7 +46,7 @@ repos/admin/
     │   ├── Projects/           # CreateProjectDrawer, NoProjects, ProjectCard, ProjectIcon, ProjectsGrid, ProjectsMenu
     │   ├── Providers/          # ProviderDrawer, Providers
     │   ├── Quickstart/         # AgentStep, ProviderStep, Quickstart, QuickstartButton, QuickstartWizard, ReviewStep
-    │   ├── Sandboxes/          # Sandboxes (list+actions), SandboxDrawer (create/edit), ConnectModal (SSH connection)
+    │   ├── Sandboxes/          # Sandboxes (list+actions+copy), SandboxDrawer (create/edit with runtime fields), ConnectModal (SSH connection)
     │   ├── Secrets/            # SecretDrawer, Secrets
     │   ├── Sidebar/            # SBLogo, SBNavList, SBProjectSelector, SBSection, Sidebar (+ styles)
     │   ├── Users/              # InviteUserDrawer, NoUsers, UserCard, UsersGrid
@@ -65,7 +65,7 @@ repos/admin/
     │   ├── permissions/        # useCanPerform, usePermissions
     │   ├── project/            # useProjectSecrets, useProjectsState
     │   └── theme/              # useMakeTheme, useTheme, useThemeToggle
-    ├── pages/                  # Account, Billing, Home, Layout, Login, Orgs/*, Page, Profile, Projects/* (incl. ProjectSandboxes), Providers, Settings
+    ├── pages/                  # Account, Billing, Home, Layout, Login, Orgs/*, Page, Profile, Projects/* (incl. ProjectWorkspace, ProjectSandboxes), Providers, Settings
     ├── routes/Routes.tsx       # createBrowserRouter with lazy loading + SuspensePage helper
     ├── services/               # 22+ singleton service classes (see API Service Architecture)
     ├── state/                  # 18 Jotai atom files + accessors.ts + selectors.ts
@@ -107,7 +107,7 @@ Uses React Router 7's `createBrowserRouter` with a `SuspensePage` helper compone
 │   ├── /projects → ProjectsLoader → Projects list
 │   ├── /sandboxes → OrgSandboxes
 │   └── /projects/:projectId (Component: ProjectsLoader)
-│       ├── (index) → Project dashboard
+│       ├── (index) → ProjectWorkspace (sandbox list + quick actions + recent threads)
 │       ├── /endpoints → ProjectEndpoints
 │       ├── /secrets → ProjectSecrets
 │       ├── /domains → ProjectDomains
@@ -319,11 +319,38 @@ class NavService {
 - Replaces `:orgId`, `:projectId`, `:agentId` etc. with actual values from context
 
 **Sidebar Navigation** (`src/constants/nav.tsx`):
-- `OrgNavItems` — 9 items: Projects, Users, Secrets, Providers, Domains, Api Keys, Sandboxes, Usage, Settings
-- `ProjectNavItems` — 8 items: Endpoints, Functions, Secrets, Agents, Threads, Domains, Sandboxes, Settings
+- `OrgNavItems` — 9 items in 4 groups:
+  - **Resources**: Sandboxes (first), Projects
+  - **Security**: Secrets, Providers, Domains, Api Keys
+  - **Management**: Users, Usage, Settings
+  - **AI**: Agents (deprioritized from top-level)
+- `ProjectNavItems` — 8 items in 4 groups:
+  - **Development**: Sandboxes (first), Endpoints, Functions
+  - **Security**: Secrets, Domains
+  - **Management**: Settings
+  - **AI**: Agents, Threads (deprioritized)
 - `BottomNavItems` — 1 item: Settings
 - `HeaderSettingsItems` — 3 items: Profile, Billing, Sign Out
 - `QSSteps` — 3 quickstart steps: "AI Provider", "Project & Agent", "Review & Create"
+
+### Sandbox UI
+
+**SandboxDrawer** (`src/components/Sandboxes/SandboxDrawer.tsx`):
+- **Runtime dropdown**: Select from Claude Code, Codex, OpenCode, or Custom
+- **runtimeCommand field**: Read-only for built-in runtimes (auto-populated from `SandboxRuntimeConfigs`), editable for Custom
+- **initScript editor**: Monaco editor with shell language, pre-filled with runtime defaults for built-in runtimes
+- **Custom command/args fields**: Only visible when runtime is `custom`
+- Built-in sandboxes show a badge and have restricted editing (runtime, command fields are read-only)
+
+**Copy Action** (`src/components/Sandboxes/Sandboxes.tsx`):
+- Copy button on sandbox list rows triggers `POST /_/sandboxes/:id/copy`
+- Copies always have `builtIn: false` — user can customize the copy freely
+
+**ProjectWorkspace** (`src/pages/Projects/ProjectWorkspace.tsx`):
+- New project landing page (replaces previous project index route)
+- **Quick Actions bar**: Links to Sandboxes, Endpoints, Functions, Agents
+- **Sandboxes panel**: Lists project sandboxes with runtime type badges and builtIn indicators
+- **Recent Threads panel**: Placeholder for thread activity feed
 
 ### Agent Chat (SSE Streaming)
 

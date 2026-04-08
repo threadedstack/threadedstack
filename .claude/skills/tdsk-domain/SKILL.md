@@ -104,6 +104,9 @@ enum ESandboxType { local, kubernetes }
 enum EContainerState { Failed, Pending, Running, Unknown, Succeeded }
 enum EImagePullPolicy { Never, Always, IfNotPresent }
 enum ESBState { Error, Running, Stopped, Starting }
+
+enum ESandboxRuntime { 'claude-code', 'codex', 'opencode', 'gemini-cli', 'custom' }
+type TSandboxRuntimeId = `${ESandboxRuntime}`  // String literal union of runtime values
 ```
 
 | Interface/Type | Methods/Fields |
@@ -111,7 +114,7 @@ enum ESBState { Error, Running, Stopped, Starting }
 | `ISandbox` | `reset()`, `close()`, `mkdir(path)`, `readFile(path)`, `deleteFile(path)`, `listDir(path)`, `fileExists(path)`, `writeFile(path, content)`, `exec(command, args?)`, `evaluate(code, opts?)` |
 | `ISandboxProvider` | `readonly type`, `create(config): Promise<ISandbox>` |
 | `TSandboxConfig` | `provider: TSandboxType, timeout?, envVars?, options?` |
-| `TKubeSandboxConfig` | `image, args?, gitRepo?, gitBranch?, workdir?, command?, secretIds?, sshEnabled?, defaultRuntime?, imagePullSecret?, gitTokenSecretId?, idleTimeoutMinutes?, runtimes?, envVars?, ports?, imagePullPolicy?, resources?` |
+| `TKubeSandboxConfig` | `image, args?, gitRepo?, gitBranch?, workdir?, command?, secretIds?, sshEnabled?, defaultRuntime?, imagePullSecret?, gitTokenSecretId?, idleTimeoutMinutes?, runtimes?, envVars?, ports?, imagePullPolicy?, resources?, runtime?: TSandboxRuntimeId, runtimeCommand?: string, initScript?: string` |
 | `TSandboxSession` | `orgId, userId, podName, sandboxId, sessionId, connectedAt` |
 | `TSandboxConnectResponse` | `port, command, podName, password, sandboxId` |
 | `TContainerMeta` | `podIp, state: EContainerState, sandboxId, podName` |
@@ -423,6 +426,7 @@ Does NOT extend Base. Fields: `parent, name, isFile, value: Buffer|null, modifie
 | `userId` | `string?` | |
 | `projectId` | `string?` | Optional project scoping |
 | `config` | `TKubeSandboxConfig` | Container config (image, ports, resources, SSH, git, etc.) |
+| `builtIn` | `boolean?` | Whether sandbox was auto-seeded during org creation (default `false`) |
 
 ### Plan
 
@@ -446,6 +450,8 @@ Does NOT extend Base. Fields: `id, name, description?, recurring?: { count?, act
 - `SBImagePullPolicyOptions` — Dropdown options for image pull policy (Never, Always, IfNotPresent)
 - `SBRuntimeOptions` — Dropdown options for sandbox runtime (Node.js, Python)
 - `SBImagePresets` — Image preset buttons: Claude Code (`tdsk-sandbox-claude`), Codex (`tdsk-sandbox-codex`), OpenCode (`tdsk-sandbox-opencode`)
+- `SandboxRuntimeConfigs: Record<TSandboxRuntimeId, { command, args, runtimeCommand }>` — Maps each runtime to its container start command and `tsa run` command
+- `SandboxPresets: Record<TSandboxRuntimeId, Partial<TKubeSandboxConfig & { name, description }>>` — Full seed configs for org creation (one per runtime). Used by backend to seed 4 default sandboxes when an org is created
 
 ## Utilities
 
@@ -579,4 +585,4 @@ import { ProviderTemplates } from '@TDM/constants'
 | **Database** | Model classes | All model classes for ORM type definitions |
 | **Agent** | Full `index.ts` | `TLLMAdapterConfig`, `ILLMAdapter`, `TStreamEvent`, `Agent`, `Thread`, `Message` |
 | **REPL** | Full `index.ts` | AI types, `Agent`, `Thread`, `Message`, `User` |
-| **Sandbox** | Sandbox types | `ISandbox`, `ISandboxProvider`, `TSandboxConfig`, `TKubeSandboxConfig`, `TSandboxSession`, `TSandboxConnectResponse`, `ESBState` |
+| **Sandbox** | Sandbox types | `ISandbox`, `ISandboxProvider`, `TSandboxConfig`, `TKubeSandboxConfig`, `TSandboxSession`, `TSandboxConnectResponse`, `ESBState`, `ESandboxRuntime`, `TSandboxRuntimeId`, `SandboxRuntimeConfigs`, `SandboxPresets` |

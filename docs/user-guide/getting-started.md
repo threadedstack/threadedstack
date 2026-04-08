@@ -1,6 +1,11 @@
 # Getting Started with Threaded Stack
 
-This guide walks you through your first session on Threaded Stack -- from signing up to making your first secure API call through a proxy endpoint. By the end, you will have an organization, a project, a stored secret, and a working proxy endpoint that injects credentials automatically.
+This guide walks you through your first session on Threaded Stack. There are two paths depending on what you want to do:
+
+- **Sandbox path** (recommended) -- Run an AI tool (Claude Code, Codex, OpenCode) in a managed sandbox with secure credential injection. You will be up and running in under 5 minutes.
+- **Proxy endpoint path** -- Set up a secure API proxy that injects credentials into outbound requests.
+
+Both paths start the same way: sign up, create an organization, and add a secret.
 
 ---
 
@@ -9,8 +14,9 @@ This guide walks you through your first session on Threaded Stack -- from signin
 - A modern web browser (Chrome, Firefox, Safari, or Edge)
 - An internet connection
 - An account with one of the supported login providers: GitHub, Google, or Vercel
+- For the sandbox path: the `tsa` CLI installed (see [REPL CLI](repl-cli.md) for installation)
 
-No software installation is required. Threaded Stack runs entirely in the browser.
+For the proxy endpoint path only, no CLI installation is required -- everything can be done through the browser.
 
 ---
 
@@ -191,10 +197,53 @@ For the full reference on proxy endpoint configuration -- authentication types, 
 
 ---
 
+## Run an AI Tool in a Sandbox (Recommended Path)
+
+If your goal is to run Claude Code, Codex, or another AI tool with managed secrets, you can skip the proxy endpoint setup above and use sandboxes instead.
+
+### Why Sandboxes?
+
+When you created your organization, Threaded Stack automatically seeded four built-in sandbox configs: **Claude Code**, **Codex**, **OpenCode**, **Gemini** and **Base**. These are ready to start immediately — no additional configuration required. Attach your secrets to a sandbox, and the AI tool running inside it can make API calls with real credentials without ever seeing them.
+
+### Step 1: Create an API Key
+
+1. In your organization's sidebar, click **API Keys**.
+2. Click **Create API Key** and copy the key (starts with `tdsk_`).
+
+### Step 2: Attach Secrets to a Sandbox
+
+1. In the sidebar, click **Sandboxes**.
+2. Click on a built-in sandbox (e.g., "Claude Code") to open its configuration.
+3. In the **Secrets** section, attach the secret you created earlier.
+4. Click **Save**.
+
+### Step 3: Install and Login with `tsa`
+
+```bash
+tsa login tdsk_YOUR_API_KEY --url https://your-instance.threadedstack.app
+```
+
+### Step 4: Run the Sandbox
+
+```bash
+# List available sandboxes
+tsa run --list
+
+# Start the Claude Code sandbox
+tsa run <sandbox-id>
+```
+
+This starts the sandbox pod, syncs your local files, SSHs in, and launches Claude Code. The AI tool can now make outbound API calls, and the MITM proxy transparently injects your real credentials.
+
+For the full sandbox reference, see [Sandbox Usage](sandbox-usage.md).
+
+---
+
 ## Next Steps
 
-You now have the foundation: an organization, a secret, a project, and a working proxy endpoint. Here is where to go from here:
+You now have the foundation: an organization, secrets, and either a working sandbox or a proxy endpoint. Here is where to go from here:
 
+- **Sandbox Usage** -- Full guide to sandboxes, runtimes, file sync, and SSH access. See [Sandbox Usage](sandbox-usage.md).
 - **FaaS Endpoints** -- Run sandboxed JavaScript/TypeScript functions as API endpoints. See [FaaS Endpoints](../features/faas-endpoints.md).
 - **Agent Endpoints** -- Execute AI agents with LLM streaming. See [Agent Endpoints](../features/agent-endpoints.md).
 - **Team Management** -- Invite team members to your organization, assign roles, and control access. See [Organizations](../features/organizations.md).

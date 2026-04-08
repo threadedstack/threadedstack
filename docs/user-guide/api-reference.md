@@ -315,6 +315,8 @@ Project-scoped domain endpoints follow the same pattern under `/_/orgs/:orgId/pr
 
 #### Sandboxes (Org-Scoped)
 
+Every new organization is automatically seeded with four built-in sandbox configs (Claude Code, Codex, OpenCode, Base) with `builtIn: true`. These appear immediately in sandbox list responses.
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/_/orgs/:orgId/sandboxes` | List sandboxes for an organization |
@@ -322,10 +324,33 @@ Project-scoped domain endpoints follow the same pattern under `/_/orgs/:orgId/pr
 | GET | `/_/orgs/:orgId/sandboxes/:id` | Get a sandbox by ID |
 | PUT | `/_/orgs/:orgId/sandboxes/:id` | Update a sandbox |
 | DELETE | `/_/orgs/:orgId/sandboxes/:id` | Delete a sandbox |
+| POST | `/_/orgs/:orgId/sandboxes/:id/copy` | Deep-copy a sandbox config (copy has `builtIn: false`) |
 | GET | `/_/orgs/:orgId/sandboxes/:id/status` | Get sandbox status |
 | POST | `/_/orgs/:orgId/sandboxes/:id/start` | Start a sandbox |
 | DELETE | `/_/orgs/:orgId/sandboxes/:id/stop` | Stop a sandbox |
+| POST | `/_/orgs/:orgId/sandboxes/:id/connect` | Start sandbox pod and get SSH credentials |
+| GET | `/_/orgs/:orgId/sandboxes/:id/sessions` | List active SSH sessions |
 | POST | `/_/orgs/:orgId/sandboxes/:id/exec` | Execute a command in a sandbox |
+
+**Copy response:** Returns the newly created sandbox config with a new ID and `builtIn: false`. All fields from the source sandbox (image, runtime, secrets, resource limits, init script) are preserved.
+
+**Sandbox config fields** (in the `config` JSONB object):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `runtime` | string | AI tool runtime: `claude-code`, `codex`, `opencode`, `gemini-cli`, or `custom` |
+| `runtimeCommand` | string | Shell command launched by `tsa run` |
+| `initScript` | string | Shell script run after container start |
+| `image` | string | Docker image |
+| `command` | string[] | Container start command |
+| `args` | string[] | Container start args |
+| `workdir` | string | Working directory (default: `/workspace`) |
+| `envVars` | object | Environment variables |
+| `secretIds` | string[] | Secret IDs for placeholder injection |
+| `resources` | object | CPU/memory limits and requests |
+| `ports` | object | Exposed ports with protocol |
+
+See [Sandbox Architecture](../architecture/sandbox-architecture.md) for the complete config schema including `sshEnabled`, `idleTimeoutMinutes`, `gitRepo`, `sync`, and other fields.
 
 #### Schedules (Org-Scoped)
 

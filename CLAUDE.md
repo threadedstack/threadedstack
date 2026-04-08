@@ -67,6 +67,8 @@ The platform solves three key problems:
 3. **Context management** - Built-in RAG and memory management for LLM applications
 4. **Billing & Quotas** - Tiered subscription plans (free/basic/developer/pro) via Stripe with usage quota tracking for 12 resource types
 
+**Sandbox-First Architecture**: The platform is sandbox-first — managed sandboxes running third-party AI tools (Claude Code, Codex, OpenCode) are the primary feature. Orgs get 4 built-in sandbox presets on creation. Agents remain functional but are deprioritized in UI/UX. The `tsa run` CLI command is the hero entry point for launching AI tool runtimes in sandboxes.
+
 ### important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
@@ -113,8 +115,9 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
             ├── /_/quotas/*    - Quota tracking
             └── /_/payments/*  - Payment webhooks
          Sandboxes: /_/sandboxes/*
-            ├── /_/sandboxes/*     - Sandbox config CRUD
+            ├── /_/sandboxes/*     - Sandbox config CRUD (runtime, initScript, builtIn fields)
             ├── /_/sandboxes/:id/connect  - Start pod + SSH credentials
+            ├── /_/sandboxes/:id/copy     - Deep-copy sandbox config (builtIn=false)
             ├── /_/sandboxes/:id/sessions - Active SSH sessions
             └── /_/sandboxes/:id/tunnel   - WebSocket SSH tunnel
          Proxy: /proxy/* → Backend Proxy Engine (deferred auth — backend decides per-endpoint)
@@ -144,9 +147,10 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `logger/` | Winston-based logging service | Winston | `.claude/skills/tdsk-logger/SKILL.md` |
 | `cli/` | Developer CLI for project management | Node.js | `.claude/skills/tdsk-cli/SKILL.md` |
 | `repl/` | Terminal REPL for AI agent interaction | Bun, Ink (React TUI), @keg-hub/args-parse | `.claude/skills/tdsk-repl/SKILL.md` |
-| `sandbox/` | Pluggable sandbox execution layer | K8s pods, isolated-vm, E2B, just-bash | `.claude/skills/tdsk-sandbox/SKILL.md` |
+| `sandbox/` | Pluggable sandbox execution layer + runtime-aware pod manifest | K8s pods, isolated-vm, E2B, just-bash, runtime presets | `.claude/skills/tdsk-sandbox/SKILL.md` |
 | `integration/` | API & E2E integration tests | Vitest, Playwright | `.claude/skills/integration-testing/SKILL.md` |
-| `website/` | Marketing site + docs | Vite, React, MDX, Nextra-style docs from root `docs/` | — |
+| `website/` | Marketing site + docs portal | Vite, React, MUI, MDX, Shiki, docs from root `docs/` | `.claude/skills/tdsk-website/SKILL.md` |
+| `threads/` | User-facing threads SPA (WIP) | Vite, React, MUI, Jotai, Neon Auth | `.claude/skills/tdsk-threads/SKILL.md` |
 
 ## Sub-Repo Skills
 
@@ -160,6 +164,8 @@ Load the relevant skill when working on a specific repo:
 - Modifying database schema? → Read `.claude/skills/tdsk-database/SKILL.md` first
 - Working on the REPL CLI? → Read `.claude/skills/tdsk-repl/SKILL.md` first
 - Working on sandbox execution? → Read `.claude/skills/tdsk-sandbox/SKILL.md` first
+- Working on the marketing site or docs? → Read `.claude/skills/tdsk-website/SKILL.md` first
+- Working on the threads SPA? → Read `.claude/skills/tdsk-threads/SKILL.md` first
 
 ### Available Skills
 | Skill File | Contents |
@@ -175,6 +181,8 @@ Load the relevant skill when working on a specific repo:
 | `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, deferred auth for /proxy, session token auth for /ai/ws, http-proxy-middleware backend forwarding, sandbox host detection |
 | `tdsk-repl/SKILL.md` | Ink (React TUI) terminal CLI, tsa binary, 10 CLI tasks (incl. ssh/proxy/sandboxes) + 16 slash commands, config system, session-based LLM proxy, lifecycle hooks |
 | `tdsk-sandbox/SKILL.md` | Pluggable sandbox factory, K8s pod sandboxes (SSH, project scoping, idle timeout), E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
+| `tdsk-website/SKILL.md` | Vite + React + MUI marketing site, MDX docs portal from root `/docs`, Shiki code highlighting, DocsSidebar, remarkDocsLinks plugin, vitePluginDocsAssets |
+| `tdsk-threads/SKILL.md` | User-facing threads SPA (WIP), Neon Auth (OAuth + email), TokenRefreshManager, Jotai state, same architecture as admin repo |
 | `gen-test/SKILL.md` | Vitest test generation following project conventions, co-located test files, mock patterns per repo type |
 | `integration-testing/SKILL.md` | Three-tier integration testing (API, Playwright UI, E2E flows), sandbox lifecycle tests, WebSocket tunnel tests |
 

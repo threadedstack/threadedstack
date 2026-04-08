@@ -238,8 +238,19 @@ Builds K8s pod specifications for sandbox containers.
 - **CA Certificate Volume**: Mounts TLS certificate secret for MITM proxy verification
 - **Annotations**: Stores subdomain, ports, and placeholder mappings as pod metadata
 - **RFC 1123 Pod Names**: `buildPodName()` generates compliant names; `sanitizeLabel()` cleans label values
+- **Runtime-Aware Container**: `buildSandboxContainer()` resolves container start command based on `config.runtime`
 
 **Pod Name Format:** `tdsk-sb-<first8CharsOfSandboxId>-<randomSuffix>`
+
+**Runtime Resolution** (`buildSandboxContainer()`):
+- Validates `config.runtime` against `SandboxRuntimeConfigs` keys (from `@tdsk/domain`)
+- Sets `TDSK_RUNTIME` env var on the pod (runtime ID, e.g., `claude-code`)
+- Sets `TDSK_RUNTIME_CMD` env var (the command `tsa run` will execute after SSH connect)
+- Container start command resolution order:
+  1. Built-in runtime config (`SandboxRuntimeConfigs[runtime].command` + `args`)
+  2. Custom `command`/`args` from sandbox config
+  3. Fallback: `sleep infinity` (keeps pod alive for SSH)
+- Two-command model: `command`/`args` = container start (keeps pod alive + SSH), `runtimeCommand` = what `tsa run` launches after connecting
 
 #### Pod Types (`src/types/pod.types.ts`)
 

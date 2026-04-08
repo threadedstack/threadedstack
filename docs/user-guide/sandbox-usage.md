@@ -2,13 +2,122 @@
 
 ## What Are Sandboxes
 
-Sandboxes are secure, isolated execution environments where your code runs without access to your raw credentials. Every sandbox -- whether running a simple function or hosting an AI agent -- operates under the same security model:
+Sandboxes are secure, managed execution environments where AI tools run without access to your raw credentials. They are the **primary way to use Threaded Stack** — pick your AI tool of choice (Claude Code, Codex, OpenCode, or any custom tool), and the platform handles the rest: pod orchestration, secret injection, file sync, and SSH connectivity.
+
+Every sandbox -- whether running an AI coding tool interactively or hosting an automated agent -- operates under the same security model:
 
 - **Isolation**: Code executes in its own environment, separated from other workloads and the host system.
 - **Secret injection at the network layer**: Your code never sees real API keys or credentials. Instead, it receives opaque placeholder tokens (`tdsk_ph_*`). When the code makes outbound HTTP/HTTPS requests, a transparent man-in-the-middle (MITM) egress proxy intercepts the traffic and swaps the placeholders for the actual secret values before forwarding to the external service.
 - **No escape hatch**: All outbound traffic on ports 80 and 443 is redirected through the egress proxy via iptables rules set up before the sandbox container starts. The sandbox container cannot bypass this redirection because it lacks the `NET_ADMIN` capability needed to modify network rules.
 
 This design means that even if code running inside a sandbox is compromised or behaves unexpectedly, it cannot exfiltrate raw credentials.
+
+---
+
+## Quick Start with `tsa run`
+
+The fastest way to start using Threaded Stack is the `tsa run` command. It starts a sandbox pod, syncs your files, and launches your AI tool — all in one step.
+
+### 1. Install and Login
+
+```bash
+tsa login <api-key> --url https://your-instance.threadedstack.app
+
+# For local development (self-signed certs)
+tsa login <api-key> --url https://local.threadedstack.app --insecure
+```
+
+### 2. List Available Sandboxes
+
+```bash
+tsa run --list
+```
+
+This shows all sandbox configs in your organization with their name, runtime, and ID. Every new organization comes with four built-in presets: Claude Code, Codex, OpenCode, and Base.
+
+### 3. Run a Sandbox
+
+```bash
+tsa run <sandbox-id>
+```
+
+This single command:
+- Starts the sandbox pod if it is not already running
+- Syncs your local files to the sandbox (configurable)
+- SSHs into the sandbox
+- Launches the AI tool configured for that sandbox's runtime
+
+To skip file sync:
+
+```bash
+tsa run <sandbox-id> --no-sync
+```
+
+To specify an organization explicitly:
+
+```bash
+tsa run <sandbox-id> --org <org-id>
+```
+
+### `tsa run` vs `tsa ssh`
+
+| | `tsa run` | `tsa ssh` |
+|---|---|---|
+| Starts pod | Yes | Yes |
+| Syncs files | Yes (unless `--no-sync`) | Only if `sync.autoStart: true` |
+| Launches AI tool | Yes (executes `runtimeCommand`) | No (opens plain shell) |
+| Recommended for | Daily AI-assisted development | Debugging, manual setup |
+
+---
+
+## Built-In Sandbox Presets
+
+Every new organization is seeded with four ready-to-use sandbox configs:
+
+| Preset | Runtime | What It Runs |
+|--------|---------|-------------|
+| Claude Code | `claude-code` | Anthropic's Claude Code CLI |
+| Codex | `codex` | OpenAI's Codex CLI |
+| OpenCode | `opencode` | Open-source AI coding tool |
+| Base | `custom` | Plain sandbox with SSH — bring your own runtime |
+
+These presets:
+- Are marked `builtIn: true` in the system
+- Can be started immediately with `tsa run <id>` — no configuration needed
+- Can be edited (change secrets, resource limits, init script)
+- Can be copied to create customized variants
+- Can be deleted if not needed
+
+---
+
+## Runtime System
+
+Each sandbox has a **runtime** that determines which AI tool is launched by `tsa run`.
+
+### Available Runtimes
+
+| Runtime | Value | Description |
+|---------|-------|-------------|
+| Claude Code | `claude-code` | Anthropic's Claude Code CLI |
+| Codex | `codex` | OpenAI's Codex CLI |
+| OpenCode | `opencode` | Open-source AI coding tool |
+| Custom | `custom` | You specify the command |
+
+### Two-Command Model
+
+Sandboxes use two separate commands:
+
+1. **Container start command** — Runs when the pod starts. Keeps it alive and starts SSH. For built-in runtimes, this is set automatically.
+2. **Runtime command** — Runs when you execute `tsa run`. This is the AI tool itself.
+
+An optional **init script** runs between container start and "ready" state. Use it for setup tasks like installing extra dependencies, configuring git, or cloning a project.
+
+### Custom Runtimes
+
+For tools not covered by the built-in runtimes, set the runtime to `custom` and provide:
+- **Runtime Command** — the shell command to launch your tool (e.g., `aider`, `continue`)
+- **Start Command/Args** — optional custom container start command
+- **Init Script** — optional setup script
 
 ---
 
@@ -179,23 +288,9 @@ Sandbox Direct Connect lets you SSH into running sandbox pods and sync files bet
 
 ### Getting Started
 
-#### 1. Install and Login
+If you have not already, see the [Quick Start with `tsa run`](#quick-start-with-tsa-run) section above for the recommended workflow. The sections below cover SSH access and file sync in more detail.
 
-```bash
-# Login with your API key
-tsa login <api-key> --url https://your-instance.threadedstack.app
-
-# For local development (self-signed certs)
-tsa login <api-key> --url https://local.threadedstack.app --insecure
-```
-
-#### 2. List Available Sandboxes
-
-```bash
-tsa sandboxes --org <org-id>
-```
-
-#### 3. Connect via SSH
+#### Connect via SSH
 
 ```bash
 tsa ssh <sandbox-id>
@@ -299,16 +394,27 @@ When `sync.autoStart: true` is set in your config, `tsa ssh` automatically start
 
 The security model remains intact during direct SSH access. The iptables DNAT rules are established by the init container before the sandbox container starts. All outbound traffic on ports 80/443 is redirected to the egress proxy regardless of whether the traffic originates from automated agent code or an interactive SSH session. The sandbox container cannot modify these rules because it lacks `NET_ADMIN` capability.
 
+### Copying Sandboxes
+
+You can duplicate any sandbox config — including built-in presets — to create a customized version:
+
+- **Admin UI**: Click the copy button on any sandbox row
+- **API**: `POST /_/orgs/:orgId/sandboxes/:id/copy`
+
+Copies always have `builtIn: false` and get a new ID. All configuration (image, secrets, runtime, resource limits, init script) is preserved.
+
 ### CLI Quick Reference
 
 ```
-tsa ssh <sandbox-id> [--org <id>]           # SSH into sandbox
-tsa sync <sandbox-id> [options]             # Start file sync
-tsa sync stop <sandbox-id>                  # Stop file sync
-tsa sync status [sandbox-id]                # Show sync status
-tsa sync flush <sandbox-id>                 # Force immediate sync
-tsa sandboxes [--org <id>]                  # List sandboxes
-tsa proxy <sandbox-id>                      # SSH ProxyCommand (internal)
+tsa run <sandbox-id> [--org <id>]            # Start sandbox + sync + launch AI tool (recommended)
+tsa run --list [--org <id>]                  # List available sandboxes
+tsa ssh <sandbox-id> [--org <id>]            # SSH into sandbox (plain shell)
+tsa sync <sandbox-id> [options]              # Start file sync
+tsa sync stop <sandbox-id>                   # Stop file sync
+tsa sync status [sandbox-id]                 # Show sync status
+tsa sync flush <sandbox-id>                  # Force immediate sync
+tsa sandboxes [--org <id>]                   # List sandboxes
+tsa proxy <sandbox-id>                       # SSH ProxyCommand (internal)
 ```
 
 For full design details, see the [Sandbox Connect feature spec](../features/sandbox-connect.md).

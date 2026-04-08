@@ -2,13 +2,16 @@
 
 ## What is tsa
 
-`tsa` is the Threaded Stack terminal REPL for interacting with AI agents from the command line. It provides an interactive chat interface with streaming responses, tool call visualization, and context injection -- all without needing a browser.
+`tsa` is the Threaded Stack CLI for running AI tools in managed sandboxes and interacting with AI agents from the command line. The recommended entry point is `tsa run`, which starts a sandbox, syncs files, and launches your AI tool in one command.
 
-Built with Bun and Ink (React for terminals), `tsa` runs agent ReAct loops locally while proxying LLM calls through the backend. API keys never leave the server; the REPL authenticates with a session token and the backend injects provider credentials server-side.
+Built with Bun and Ink (React for terminals), `tsa` handles sandbox lifecycle, SSH tunneling, file sync, and agent chat sessions. API keys never leave the server.
 
 Key capabilities:
 
-- Interactive chat sessions with AI agents
+- **`tsa run`** — start a sandbox, sync files, and launch an AI tool (Claude Code, Codex, OpenCode, or custom)
+- **`tsa ssh`** — SSH into a running sandbox for manual access
+- **`tsa sync`** — bidirectional file synchronization via Mutagen
+- Interactive chat sessions with AI agents (`tsa chat`)
 - Real-time streaming responses with markdown rendering
 - Tool call visualization (file reads, shell commands, web fetches)
 - Context file injection from `AGENTS.md` and `.tdsk/context/`
@@ -116,42 +119,66 @@ auth:
 
 These are invoked from your shell as `tsa <command>`.
 
+**Sandbox commands** (recommended):
+
 | Command | Alias | Description | Auth Required |
 |---------|-------|-------------|:---:|
-| `tsa chat` | `ch` | Start interactive chat session (default command) | Yes |
+| `tsa run <sandbox-id>` | — | Start sandbox + sync files + launch AI tool | Yes |
+| `tsa sandboxes` | `sb` | List available sandbox configs | Yes |
+| `tsa ssh <sandbox-id>` | — | SSH into a running sandbox (plain shell) | Yes |
+| `tsa sync <sandbox-id>` | `sy` | Start file sync with a sandbox | Yes |
+
+**`tsa run` flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--list` | List available sandboxes with name, runtime, and ID |
+| `--no-sync` | Skip automatic file synchronization |
+| `--org <id>` | Specify organization (auto-detects if only one) |
+
+**Agent commands:**
+
+| Command | Alias | Description | Auth Required |
+|---------|-------|-------------|:---:|
+| `tsa chat` | `ch` | Start interactive chat session | Yes |
+| `tsa agents` | `ag` | List available agents | Yes |
+| `tsa threads <agent-id>` | `th` | List threads for an agent | Yes |
+
+**General commands:**
+
+| Command | Alias | Description | Auth Required |
+|---------|-------|-------------|:---:|
 | `tsa login <key>` | `li` | Authenticate with API key | No |
 | `tsa logout` | `lo` | Remove stored credentials | No |
 | `tsa status` | `st` | Show authentication status | No |
-| `tsa agents` | `ag` | List available agents | Yes |
-| `tsa threads <agent-id>` | `th` | List threads for an agent | Yes |
 | `tsa help` | `-h`, `--help` | Show available commands | No |
 | `tsa --version` | `-v` | Show version | No |
 
-Running `tsa` with no arguments launches the `chat` command (the default).
+Running `tsa` with no arguments launches the `chat` command.
 
 ### Common usage patterns
 
 ```bash
-# List agents in your org (auto-selects org if you only belong to one)
+# List available sandboxes (name, runtime, ID)
+tsa run --list
+
+# Start a sandbox, sync files, and launch the AI tool
+tsa run <sandbox-id>
+
+# Start without file sync
+tsa run <sandbox-id> --no-sync
+
+# SSH into a sandbox without launching the AI tool
+tsa ssh <sandbox-id>
+
+# List agents in your org
 tsa agents
 
-# List agents for a specific org
-tsa agents --org org_abc123
-
-# List threads for an agent
-tsa threads agent_xyz789
-
-# Start a chat session
-tsa chat
-
-# Start a chat session with a specific agent
+# Start a chat session with an agent
 tsa chat --agent agent_xyz789
 
 # Resume a specific thread
 tsa chat --thread thread_abc123
-
-# Full options
-tsa chat --org org_abc123 --agent agent_xyz789 --thread thread_abc123
 ```
 
 ## Interactive Chat

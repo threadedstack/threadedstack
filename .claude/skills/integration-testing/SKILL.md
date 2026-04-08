@@ -15,13 +15,18 @@ repos/integration/
 └── src/
     ├── utils/
     │   ├── api-client.ts         # Typed fetch wrapper with Bearer auth (get, post, put, del)
+    │   ├── env.ts                # Environment variables: TDSK_IT_API_KEY, TDSK_IT_ORG_ID, TDSK_IT_AUTH_URL, TDSK_IT_USER_EMAIL, TDSK_IT_USER_PASSWORD, etc.
+    │   ├── jwt-auth.ts           # Acquires user-level JWT from Neon Auth via email sign-in + /token endpoint
     │   └── sandbox-helpers.ts    # waitForPodState, execInPod, getPodSubdomain, connectSandbox, setupRunningPod, cleanupSandbox
     ├── tier1/                    # Unit & direct API tests
     │   ├── repl-sandbox-client.test.ts    # REPL ApiClient sandbox methods
-    │   └── sandbox-config-crud.test.ts    # Sandbox config CRUD with projectId, SSH, git, idle timeout
+    │   ├── sandbox-config-crud.test.ts    # Sandbox config CRUD with projectId, SSH, git, idle timeout, builtIn
+    │   ├── sandbox-runtime-crud.test.ts   # Runtime field CRUD (17 tests): runtime enum, runtimeCommand, initScript, builtIn, copy endpoint
+    │   └── sandbox-org-seeding.test.ts    # Org creation seeds preset sandboxes (6 tests): JWT auth, built-in presets
     └── tier3/                    # Live infrastructure tests
         ├── sandbox-connect.test.ts        # POST /connect auto-start, concurrency dedup
         ├── sandbox-route-cleanup.test.ts  # Stale route cleanup, subdomain proxy, WebSocket after cleanup
+        ├── sandbox-runtime-pod.test.ts    # TDSK_RUNTIME env vars on live pods (5 tests): runtime/command env injection
         ├── sandbox-sessions.test.ts       # GET /sessions endpoint
         └── sandbox-tunnel.test.ts         # WebSocket SSH tunnel, session tracking
 ```
@@ -55,6 +60,20 @@ pnpm test:all
 - Shortcuts: `get()`, `post()`, `put()`, `del()` with consistent `RequestOptions`
 - Returns `ApiResponse<T>` with `{ status, ok, data }`
 
+**`src/utils/jwt-auth.ts`** — User-level JWT acquisition:
+- Acquires a real JWT token from Neon Auth via email/password sign-in
+- Uses `TDSK_IT_AUTH_URL`, `TDSK_IT_USER_EMAIL`, `TDSK_IT_USER_PASSWORD` env vars
+- Required for testing org creation (which needs user-level JWT, not API key)
+- Flow: POST to Neon Auth sign-in endpoint, extract session token
+
+**`src/utils/env.ts`** — Environment variables:
+- `TDSK_IT_API_KEY` — Test API key (tdsk_* format)
+- `TDSK_IT_ORG_ID` — Test organization ID
+- `TDSK_IT_AUTH_URL` — Neon Auth URL for JWT acquisition
+- `TDSK_IT_USER_EMAIL` — Test user email for sign-in
+- `TDSK_IT_USER_PASSWORD` — Test user password for sign-in
+- `TDSK_IT_PROVIDER_KEY`, `TDSK_IT_AGENT_ID`, `TDSK_IT_ZAI_AGENT_ID`, `TDSK_IT_PROJECT_ID`, `TDSK_IT_USER_ID`
+
 **`src/utils/sandbox-helpers.ts`** — Sandbox test infrastructure:
 - `waitForPodState(orgId, sandboxId, podName, state, maxWaitMs, intervalMs)` — Poll until Running/Failed
 - `execInPod(orgId, sandboxId, podName, command, args)` — Execute commands in running pod
@@ -69,7 +88,9 @@ pnpm test:all
 Direct API calls, no UI. Tests API client wrappers, CRUD envelopes, auth validation.
 
 **Key test files:**
-- `sandbox-config-crud.test.ts` — Full CRUD with new fields: projectId, sshEnabled, gitRepo, gitBranch, idleTimeoutMinutes. Validates projectId filtering and git field validation (gitBranch without gitRepo → 400)
+- `sandbox-config-crud.test.ts` — Full CRUD with new fields: projectId, sshEnabled, gitRepo, gitBranch, idleTimeoutMinutes, builtIn. Validates projectId filtering and git field validation (gitBranch without gitRepo → 400). 4 builtIn assertions added
+- `sandbox-runtime-crud.test.ts` — Runtime field CRUD (17 tests): runtime enum values, runtimeCommand persistence, initScript round-trip, builtIn enforcement (server strips on create), copy endpoint (`POST /:id/copy` deep-copies with `builtIn: false`)
+- `sandbox-org-seeding.test.ts` — Org creation seeding (6 tests): JWT auth to create org, verifies 4 built-in presets are seeded (Claude Code, Codex, OpenCode, Base), validates builtIn=true on seeded sandboxes
 - `repl-sandbox-client.test.ts` — Tests REPL `ApiClient.listSandboxes()` against live backend
 
 ### Tier 2 — Playwright E2E Tests
@@ -88,6 +109,7 @@ Real Kubernetes pods, networking, SSH tunneling. ~2 min per spec.
 **Key test files:**
 - `sandbox-connect.test.ts` — POST `/connect` auto-start, concurrent deduplication (no duplicate pods), projectId integration
 - `sandbox-route-cleanup.test.ts` — Stale route cleanup: start pod with HTTP server → stop → verify 404 (not timeout/502) → verify WebSocket still works
+- `sandbox-runtime-pod.test.ts` — Runtime env vars on live pods (5 tests): creates sandbox with runtime, starts pod, verifies `TDSK_RUNTIME` and `TDSK_RUNTIME_CMD` env vars are set correctly via `printenv` in running pod
 - `sandbox-sessions.test.ts` — GET `/sessions` endpoint validation
 - `sandbox-tunnel.test.ts` — WebSocket tunnel: auth validation (4001), SSH banner receipt, session tracking (appears/disappears in sessions endpoint)
 

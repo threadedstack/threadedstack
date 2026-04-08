@@ -168,6 +168,7 @@ type TTaskAction = (context: {
 
 | Task | Alias | Description |
 |------|-------|-------------|
+| `run` | `r` | **Hero command** — Launch AI tool runtime in sandbox (first in help output) |
 | `chat` | `ch` | Start interactive chat (default, renders Ink App) |
 | `login` | `li` | Authenticate with API key |
 | `logout` | `lo` | Remove stored credentials |
@@ -465,6 +466,10 @@ function themed(color: keyof TThemeColors, text: string): string  // NO_COLOR aw
 ## CLI Commands
 
 ```bash
+# Sandbox Runtime (hero command — first in help output)
+tsa run <sandbox-id> [--org <id>] [--no-sync] [--list]
+tsa run --list                     # List available sandboxes
+
 # Authentication
 tsa login <api-key> [--url <proxy-url>] [--insecure]
 tsa logout
@@ -517,6 +522,27 @@ tsa --version / -v
 | `DefaultProxyUrl` | `https://px.local.threadedstack.app` | Default proxy URL |
 | `MaxRetries` | `3` | HTTP retry attempts |
 | `RetryDelays` | `[1000, 3000, 9000]` | Retry delay progression (ms) |
+
+## Shared Task Utilities (`src/utils/tasks/`)
+
+Extracted from `ssh.ts` to enable reuse by `run.ts`:
+
+| File | Purpose |
+|------|---------|
+| `resolveOrgId.ts` | Org resolution from params/config/single-org. Throws on failure (no `process.exit`) |
+| `sandboxConnect.ts` | Connect to sandbox pod + inject SSH keys. Throws on failure, returns `TSandboxConnectResponse` |
+| `sandboxSync.ts` | Auto-start/stop Mutagen file sync lifecycle. Auth errors re-throw (non-swallowed) |
+| `spawnSsh.ts` | SSH process spawning with optional remote command + PTY support |
+
+**`tsa run` Flow** (`src/tasks/run.ts`):
+1. Resolve org ID via `resolveOrgId()`
+2. Fetch sandbox config via `GET /_/orgs/:orgId/sandboxes/:id` (hard error if fails, unlike `tsa ssh`)
+3. Connect to sandbox via `sandboxConnect()` (auto-starts pod if needed)
+4. Start file sync via `sandboxSync()` (unless `--no-sync`)
+5. SSH with runtime command via `spawnSsh()` with `config.runtimeCommand` as remote command
+6. Exit non-zero on SSH failure
+
+`ssh.ts` refactored to compose from the same utilities. Same behavior, cleaner structure.
 
 ## Key Patterns
 

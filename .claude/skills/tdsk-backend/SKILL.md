@@ -226,6 +226,13 @@ The endpoint delegates to `AgentEndpoint.run()` from `services/endpoints/agentEn
 
 **Response:** `{ data: { provider, secret, project, agent, endpoint } }`
 
+#### Org Creation Seeding (`src/endpoints/orgs/createOrg.ts`)
+**POST `/_/orgs`** - When creating an organization, 4 default sandbox presets are automatically seeded from `SandboxPresets` (domain constants):
+- Claude Code, Codex, OpenCode, and Base (custom) sandboxes
+- All seeded sandboxes have `builtIn: true`
+- Seeding failures are non-fatal: the org is still created, with `warnings` array in the 201 response
+- User-created sandboxes via `POST /_/sandboxes` always get `builtIn: false` (server-side enforcement)
+
 #### AI Session Creation (`src/endpoints/ai/createSession.ts`)
 **POST `/_/ai/sessions`** - Creates LLM session, resolves API key server-side, returns session token
 
@@ -282,6 +289,18 @@ The endpoint delegates to `AgentEndpoint.run()` from `services/endpoints/agentEn
 
 #### Sandbox Sessions (`src/endpoints/sandboxes/listSessions.ts`)
 **GET `/_/sandboxes/:id/sessions`** - List active SSH sessions for a sandbox
+
+#### Copy Sandbox (`src/endpoints/sandboxes/copySandbox.ts`)
+**POST `/_/sandboxes/:id/copy`** - Deep-copy a sandbox config with a new ID
+
+**Flow:**
+1. Load original sandbox by ID
+2. Validate org ownership (`original.orgId !== orgId` → 404, prevents IDOR)
+3. Create new sandbox with all config fields from original
+4. Force `builtIn: false` on the copy (user copies are never built-in)
+5. Return new sandbox
+
+Registered in both `sandboxes.ts` and `orgSandboxes.ts` routers.
 
 ### WebSocket Server (`src/server/wsServer.ts`)
 
@@ -434,6 +453,7 @@ All routes are documented in the root CLAUDE.md architecture diagram and are dis
 - **POST `/_/threads/:id/branch`** - Branch thread from specific message
 - **POST `/_/payments/webhook`** - Stripe webhook handler
 - **POST `/_/sandboxes/:id/connect`** - Start sandbox pod and return SSH credentials
+- **POST `/_/sandboxes/:id/copy`** - Deep-copy sandbox config (forces `builtIn: false`)
 - **GET `/_/sandboxes/:id/sessions`** - List active SSH sessions
 - **WS `/_/sandboxes/:id/tunnel`** - WebSocket SSH tunnel to sandbox pod
 

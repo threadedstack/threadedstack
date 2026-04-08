@@ -27,16 +27,18 @@ The dashboard uses a sidebar rail with context-sensitive navigation. The sidebar
 When you select an organization, the sidebar updates to show organization-level navigation grouped into three sections:
 
 **Resources**
+- Sandboxes -- Managed execution environments with runtime presets (listed first)
 - Projects -- workspaces that contain endpoints, functions, and agents
 - Providers -- AI model providers (OpenAI, Anthropic, etc.) and their API key configuration
-- Agents -- AI agents scoped to this organization
-- Sandboxes -- Sandbox execution environments
 - Skills -- Reusable agent skill definitions
 
 **Security**
 - Secrets -- Encrypted key-value pairs (API keys, tokens, credentials)
 - API Keys -- API keys (`tdsk_*` tokens) for programmatic access
 - Domains -- Custom domain verification and management
+
+**AI**
+- Agents -- AI agents scoped to this organization
 
 **Management**
 - Members -- Organization member list, invitations, and role assignment
@@ -48,15 +50,18 @@ When you select an organization, the sidebar updates to show organization-level 
 
 When you navigate into a project, the sidebar updates again:
 
-**Development**
+**Resources**
+- Sandboxes -- Sandbox configs scoped to this project (listed first)
 - Endpoints -- HTTP endpoints (Proxy, FaaS, or Agent type)
 - Functions -- Serverless function code that endpoints can execute
-- Agents -- Agents assigned to this project (with per-project config overrides)
 
 **Security**
 - Secrets -- Project-scoped secrets
 - API Keys -- Project-scoped API keys
 - Domains -- Project-level domain bindings
+
+**AI**
+- Agents -- Agents assigned to this project (with per-project config overrides)
 
 **Management**
 - Members -- Project member management
@@ -192,9 +197,15 @@ Projects are workspaces within an organization that group related endpoints, fun
 3. Enter a **Project Name** and optional **Description**.
 4. Click **Save**.
 
-### Project Dashboard
+### Project Dashboard (Workspace)
 
-Click a project card to enter its dashboard at `/orgs/:orgId/projects/:projectId`. The sidebar updates to show project-level navigation.
+Click a project card to enter its dashboard at `/orgs/:orgId/projects/:projectId`. The project landing page is the **ProjectWorkspace** dashboard, which provides:
+
+- **Quick Actions bar** — buttons for creating a new sandbox and connecting to an existing one
+- **Sandboxes panel** — lists sandbox configs assigned to the project, showing each sandbox's name, runtime badge (Claude Code, Codex, OpenCode, Custom), and a `builtIn` badge for presets
+- **Recent Threads panel** — shows recent conversation threads (placeholder for future expansion)
+
+The sidebar updates to show project-level navigation.
 
 ### Endpoints
 
@@ -254,6 +265,67 @@ This page lists agents assigned to this project. Agents are defined at the organ
 ### Project Members and API Keys
 
 These pages work the same as their organization-level counterparts but are scoped to the individual project.
+
+---
+
+## Sandbox Management
+
+Sandboxes are managed execution environments where AI tools run. Navigate to **Sandboxes** in the organization or project sidebar.
+
+### Sandbox List
+
+The sandbox list page shows all sandbox configs with:
+- **Name** — human-readable sandbox name
+- **Runtime badge** — which AI tool the sandbox runs (Claude Code, Codex, OpenCode, Custom, or none)
+- **Built-in badge** — indicates whether this is a pre-seeded preset
+- **Copy button** — duplicates the sandbox config (copy always has `builtIn: false`)
+- Standard edit and delete actions
+
+### Creating a Sandbox
+
+1. Click **Create Sandbox**.
+2. Fill in the sandbox configuration form (described below).
+3. Click **Save**.
+
+### Sandbox Configuration Form (SandboxDrawer)
+
+The sandbox drawer contains the following fields:
+
+**Basic Info**
+- **Name** — a human-readable name for the sandbox
+- **Description** — optional description
+
+**Runtime**
+- **Runtime** — dropdown to select the AI tool: Claude Code, Codex, OpenCode, or Custom
+- **Runtime Command** — the shell command executed by `tsa run` to launch the AI tool. Read-only for built-in runtimes (auto-resolved). Editable for custom runtimes.
+- **Init Script** — a shell script editor (Monaco editor, shell language highlighting) for commands to run after container start. Use this for setup tasks like installing dependencies or cloning repos.
+
+**Container** (visible only for custom runtimes)
+- **Start Command** — custom container command (default: `sleep infinity`)
+- **Start Args** — custom container arguments
+
+**Image**
+- **Docker Image** — the container image to use
+- **Image Pull Secret** — optional K8s secret for private registries
+- **Image Pull Policy** — Always, IfNotPresent, or Never
+
+**Resources**
+- **CPU Limit/Request** — CPU resource constraints
+- **Memory Limit/Request** — Memory resource constraints
+
+**Environment**
+- **Environment Variables** — key-value pairs injected into the container
+- **Working Directory** — container working directory (default: `/workspace`)
+
+**Secrets**
+- Attach organization or project secrets. These are injected as placeholder tokens at pod creation time.
+
+**Ports**
+- Configure exposed ports with protocol (TCP/UDP)
+
+### Copying a Sandbox
+
+Click the **copy** button on any sandbox row to create a duplicate. The copy gets a new ID and `builtIn: false`. All configuration is preserved. This is the recommended way to customize built-in presets.
 
 ---
 

@@ -676,18 +676,32 @@ Organization resource usage tracking per billing period. Each row records cumula
 
 #### `sandboxes`
 
-Persistent sandbox environment configurations for code execution.
+Persistent sandbox environment configurations for code execution. Each organization is seeded with four built-in sandbox configs (Claude Code, Codex, OpenCode, Base) on creation.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | uuid | PK |
+| id | varchar(10) | PK, `sb_` prefix + nanoid |
 | name | text | NOT NULL |
 | orgId | varchar(10) | FK -> orgs, NOT NULL, cascade |
 | userId | uuid | FK -> users, on delete set null |
+| projectId | varchar(10) | FK -> projects, on delete cascade |
+| builtIn | boolean | NOT NULL, default false |
 | config | jsonb | NOT NULL, typed TKubeSandboxConfig |
 | createdAt, updatedAt | timestamp | NOT NULL |
 
-**Indexes:** `orgId`, `(orgId, userId)`
+The `builtIn` column marks sandbox configs that were automatically seeded when the organization was created. Built-in sandboxes are editable, copyable, and deletable. Copies always have `builtIn: false`.
+
+The `config` JSONB column includes runtime fields for AI tool integration:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `runtime` | `ESandboxRuntime` | AI tool runtime: `claude-code`, `codex`, `opencode`, or `custom` |
+| `runtimeCommand` | `string` | Shell command executed by `tsa run` to launch the AI tool |
+| `initScript` | `string` | Shell script run after container start for setup tasks |
+
+These fields are in addition to the existing config fields (`image`, `command`, `args`, `workdir`, `envVars`, `ports`, `resources`, `runtimes`, `secretIds`, etc.).
+
+**Indexes:** `orgId`, `(orgId, userId)`, `projectId`
 
 **Source:** `repos/database/src/schemas/sandboxes.ts`
 

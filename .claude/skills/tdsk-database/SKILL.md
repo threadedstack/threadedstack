@@ -310,7 +310,8 @@ One subscription per user (userId is unique).
 | orgId | varchar(10) FK->orgs | notNull, onDelete cascade |
 | userId | uuid FK->users | onDelete set null |
 | projectId | varchar(10) FK->projects | onDelete cascade, nullable |
-| config | jsonb | notNull, typed `TKubeSandboxConfig` |
+| builtIn | boolean | notNull, default false. True for presets seeded during org creation |
+| config | jsonb | notNull, typed `TKubeSandboxConfig` (includes `runtime`, `runtimeCommand`, `initScript` fields) |
 
 Indexes: `orgId`, `(orgId, userId)`, `projectId`. Relations: org, user, project.
 

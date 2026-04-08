@@ -239,10 +239,12 @@ V1Pod
     containers:
       - name: sandbox                    <-- User workload container
         image: <config.image>
-        command: <config.command || [sleep, infinity]>
+        command: <config.command || resolved from SandboxRuntimeConfigs || [sleep, infinity]>
         workingDir: <config.workdir || /workspace>
         env:
           - NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/tdsk-proxy.crt
+          - TDSK_RUNTIME: <config.runtime>
+          - TDSK_RUNTIME_CMD: <resolved runtime command>
           - <config.envVars>
         ports: <config.ports>
         resources: <config.resources>
@@ -394,17 +396,51 @@ For full cryptographic details on secret storage and decryption, see `docs/archi
 
 ---
 
-## Sandbox Direct Connect (Planned)
+## Sandbox Runtime System
 
-Direct Connect is a planned feature that will allow users and AI tools to connect directly into running sandbox pods for interactive development. This section describes the intended design; no implementation exists yet.
+The runtime system determines which AI tool a sandbox launches. Each sandbox config has a `runtime` field (enum: `claude-code`, `codex`, `opencode`, `gemini-cli`, `custom`) that controls both the container start command and the runtime command executed by `tsa run`.
 
-### Vision
+### Two-Command Model
 
-- **Interactive access:** Users or AI coding tools (Claude Code, Codex, OpenCode) connect directly to a sandbox pod via SSH or a similar protocol.
-- **Pre-configured environments:** Sandbox images ship with development toolchains and AI tool configurations, allowing AI agents to operate as if on a local development machine.
-- **Zero credential exposure:** The MITM egress proxy continues to operate transparently even with direct access. AI tools making outbound API calls use placeholder tokens, and the egress proxy injects real secrets at the network layer. The AI tool never sees actual API keys or credentials.
+Each sandbox uses two distinct commands:
 
-### How MITM Proxy Ensures Security with Direct Access
+1. **Container start command** -- The pod's `command`/`args` fields. Keeps the pod alive and starts the SSH server. For built-in runtimes, resolved from `SandboxRuntimeConfigs` in `@tdsk/domain`. Default for custom: `[sleep, infinity]`.
+2. **Runtime command** -- The `runtimeCommand` field. Executed by `tsa run` after SSH connect to launch the AI tool. For built-in runtimes, resolved automatically (e.g., `claude` for the Claude Code runtime). For custom runtimes, user-specified.
+
+An optional **init script** (`initScript`) runs between container start and the "ready" state. This is a shell script for setup tasks like installing dependencies, cloning repos, or configuring tools.
+
+### Runtime Resolution in Pod Manifest
+
+`buildPodManifest()` resolves runtime configuration:
+
+1. Reads the `runtime` field from the sandbox config
+2. For built-in runtimes, looks up `SandboxRuntimeConfigs[runtime]` to get the container command and runtime command (the image comes from the sandbox config, set at creation via `SandboxPresets`)
+3. Validates the runtime value against the `ESandboxRuntime` enum (rejects invalid values)
+4. Sets two environment variables on the pod:
+   - `TDSK_RUNTIME` -- the runtime enum value (e.g., `claude-code`)
+   - `TDSK_RUNTIME_CMD` -- the resolved runtime command (e.g., `claude`)
+
+### Built-In Presets and Org Seeding
+
+When an organization is created, four sandbox configs are automatically seeded: Claude Code, Codex, OpenCode, and Base. These have `builtIn: true` in the database. Users can start them immediately, edit their configuration, copy them to create customized variants, or delete them.
+
+### Sandbox Copy
+
+`POST /_/orgs/:orgId/sandboxes/:id/copy` deep-copies a sandbox config with a new ID. Copies always have `builtIn: false`. This lets users duplicate built-in presets and customize them without modifying the originals.
+
+---
+
+## Sandbox Direct Connect
+
+Users and AI tools connect directly into running sandbox pods via SSH for interactive development.
+
+### How It Works
+
+- **Interactive access:** Users connect via `tsa ssh <sandbox-id>` or `tsa run <sandbox-id>` (which also launches the runtime). The SSH connection is tunneled through a WebSocket proxy chain (Caddy -> auth proxy -> backend -> pod port 2222).
+- **Pre-configured environments:** The base sandbox image ships with Ubuntu 24.04, Node.js 22, OpenSSH server, and pre-installed AI tools (Claude Code, Codex, OpenCode).
+- **Zero credential exposure:** The MITM egress proxy continues to operate transparently. AI tools making outbound API calls use placeholder tokens, and the egress proxy injects real secrets at the network layer.
+
+### Security with Direct Access
 
 The security model remains intact because:
 
@@ -452,11 +488,14 @@ TKubeSandboxConfig
   args?: string[]                        Container args
   command?: string[]                     Container command (default: [sleep, infinity])
   workdir?: string                       Working directory (default: /workspace)
+  runtime?: ESandboxRuntime              AI tool runtime (claude-code, codex, opencode, gemini-cli, custom)
+  runtimeCommand?: string                Shell command launched by tsa run
+  initScript?: string                    Shell script run after container start for setup tasks
   envVars?: Record<string, string>       Environment variables
   ports?: Record<string, TPortConfig>    Exposed ports with protocol
   resources?: { limits?, requests? }     CPU/memory resource constraints
-  runtimes?: TSandboxRuntime[]           Available code execution runtimes
-  defaultRuntime?: string                Default runtime name
+  runtimes?: TSandboxRuntime[]           Code execution runtimes (legacy, for evaluate() -- distinct from runtime above)
+  defaultRuntime?: string                Default code execution runtime name
   secretIds?: string[]                   Secret IDs to expose via placeholder tokens
   imagePullSecret?: string               K8s image pull secret name
   imagePullPolicy?: 'Always' | 'IfNotPresent' | 'Never'

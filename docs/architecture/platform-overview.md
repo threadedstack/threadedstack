@@ -74,15 +74,21 @@ Source: `repos/proxy/src/middleware/setupAuth.ts`, `repos/proxy/src/middleware/s
 
 ---
 
-## Four Agent Interaction Surfaces
+## Interaction Surfaces
 
-### 1. REPL CLI (`tsa`)
+### 1. Sandbox Connect (Primary)
+
+The recommended way to use Threaded Stack. Developers run `tsa run <sandbox-id>` to start a managed sandbox, sync files, and launch their AI tool of choice (Claude Code, Codex, OpenCode, or custom). Every new organization is seeded with four built-in sandbox presets that are immediately startable. `tsa ssh <sandbox-id>` provides plain SSH access without launching a runtime. All sandbox traffic routes through the MITM proxy for transparent secret injection.
+
+Source: `repos/repl/src/tasks/run.ts`, `repos/sandbox/`, `repos/backend/src/services/sandboxes/`
+
+### 2. REPL CLI (`tsa chat`)
 
 A terminal-native TUI built with Ink (React for CLIs) and compiled to a standalone binary via Bun. Developers authenticate with an API key (`tsa login <key>`), browse agents and threads, then enter an interactive chat session. The REPL runs the agent ReAct loop locally but proxies all LLM calls through the backend WebSocket (`/ai/ws`) so API keys never leave the server. Supports context injection from `AGENTS.md` and `.tdsk/context/` files, 16 slash commands, lifecycle hooks, and YAML-based two-layer configuration (global + project).
 
 Source: `repos/repl/` -- binary name `tsa`, package `@tdsk/repl`
 
-### 2. Threads Web App (`repos/threads`)
+### 3. Threads Web App (`repos/threads`)
 
 A browser-based interface for non-developer users to interact with AI agents through a conversation-oriented UI. Built as a separate Vite SPA (package `@tdsk/threads`). Shares authentication infrastructure with the admin dashboard via Neon Auth.
 
@@ -90,7 +96,7 @@ A browser-based interface for non-developer users to interact with AI agents thr
 
 Source: `repos/threads/` -- package `@tdsk/threads`
 
-### 3. API (SSE / WebSocket)
+### 4. API (SSE / WebSocket)
 
 Programmatic integration for embedding agent execution into existing codebases. Two paths:
 
@@ -99,13 +105,6 @@ Programmatic integration for embedding agent execution into existing codebases. 
 
 Source: `repos/backend/src/endpoints/agents/runAgent.ts`, `repos/backend/src/endpoints/ai/`
 
-### 4. Sandbox Direct Connect (Planned)
-
-SSH or similar direct connection into a container running any pre-configured AI tool (Claude Code, Codex, OpenCode). All traffic routes through the MITM proxy for secret injection. When the sandbox tears down, nothing leaks.
-
-**Status:** Not yet implemented. Core to the beta launch roadmap. The sandbox infrastructure (E2B Firecracker microVMs, local V8 isolates) is in place; the SSH connectivity layer and pre-configured agent environments are planned.
-
-Source: `repos/sandbox/` provides the execution layer; SSH/direct-connect is new work.
 
 ---
 

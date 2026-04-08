@@ -4,9 +4,9 @@
 
 Threaded Stack is an **AI operations layer** for companies integrating AI agents into their workflows. It does not replace existing infrastructure -- it sits alongside the tools and cloud services an organization already uses and solves the governance, security, and collaboration problems that emerge when AI agents move from prototype to production.
 
-The platform provides three capabilities in a single managed service: a **secure proxy** that injects credentials at runtime so AI agents never see raw secrets, **sandboxed execution environments** where agents run in isolated containers with full audit trails, and a **shared resource model** that lets teams configure agents, tools, and secrets once and reuse them across projects and teams.
+The platform provides three capabilities in a single managed service: **managed sandboxes** where AI tools run in isolated containers with transparent credential injection, a **secure proxy** that intercepts outbound requests and injects real secrets at the network layer, and a **shared resource model** that lets teams configure tools and secrets once and reuse them across projects and teams.
 
-Threaded Stack is tool-agnostic. It works with Claude Code, Codex, OpenCode, custom agents, or any AI tool that runs in a container. Organizations keep their preferred AI tools and workflows -- Threaded Stack makes them secure, observable, and manageable.
+Threaded Stack is tool-agnostic. It works with Claude Code, Codex, OpenCode, custom agents, or any AI tool that runs in a container. Organizations keep their preferred AI tools and workflows -- Threaded Stack makes them secure, observable, and manageable. Every new organization gets four ready-to-use sandbox presets (Claude Code, Codex, OpenCode, Base) and can start working in minutes with the `tsa run` command.
 
 ---
 
@@ -51,7 +51,7 @@ Threaded Stack addresses each problem with a specific architectural decision, no
 | **Siloed setups** | Shared entity model (Org > Project > Resources) | Secrets, endpoints, tools, and agent configurations are defined once at the organization or project level and inherited by every team member. Changes propagate instantly. There is one source of truth. |
 | **Access control gaps** | Scoped roles and project-level permissions | Users belong to organizations. Resources belong to projects. Agents only see the secrets and tools assigned to their project. Role-based permissions govern who can create, modify, or execute agents. |
 | **Maintenance burden** | Centralized configuration | Rotate an API key in one place and every agent, endpoint, and function that references it picks up the change on its next request. Add a tool once and assign it to any project that needs it. |
-| **Onboarding friction** | Tool-agnostic sandboxes with pre-configured environments | New team members connect to a sandbox that already has the right tools, secrets, and configurations. They use their preferred AI tool (Claude Code, Codex, or anything else) inside a managed environment. No local setup required. |
+| **Onboarding friction** | Built-in sandbox presets with zero-config start | Every organization is seeded with ready-to-use sandbox presets (Claude Code, Codex, OpenCode). New team members run `tsa run <sandbox-id>` and get a fully configured environment with the right tools, secrets, and dependencies. No local setup required. |
 
 ---
 
@@ -63,7 +63,7 @@ Most platforms in the AI agent space ask developers to adopt a new framework, le
 
 This is possible because of two architectural decisions:
 
-**Sandboxed execution.** Threaded Stack spins up isolated containers where any tool that runs in Docker can operate -- Claude Code, Codex, OpenCode, custom scripts, or proprietary internal tools. Developers connect directly to the sandbox via SSH or a web terminal. The experience is identical to working locally, but the environment is managed, consistent, and auditable.
+**Sandboxed execution with runtime presets.** Threaded Stack spins up isolated containers where any tool that runs in Docker can operate -- Claude Code, Codex, OpenCode, custom scripts, or proprietary internal tools. Every organization starts with four built-in sandbox presets that are immediately startable. Developers connect via `tsa run <sandbox-id>`, which starts the sandbox, syncs files, and launches the AI tool in one command. The experience is identical to working locally, but the environment is managed, consistent, and auditable.
 
 **Transparent proxy with secret injection.** All network traffic from the sandbox routes through a man-in-the-middle proxy controlled by Threaded Stack. The proxy inspects outbound requests, replaces secret placeholders with real credentials, and forwards the request to the destination. From the AI tool's perspective, nothing changes -- it makes HTTP requests as it normally would. From the organization's perspective, secrets never enter the agent's context, every request is logged, and credential rotation happens in one place.
 
