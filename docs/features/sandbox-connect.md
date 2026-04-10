@@ -9,7 +9,7 @@ Sandbox Connect is the **primary interaction surface** for Threaded Stack. The r
 | Surface | Interface | Audience |
 |---------|-----------|----------|
 | **Sandbox Connect** | **Direct container access via `tsa run`** | **Developers using off-the-shelf AI tools** |
-| REPL CLI (`tsa chat`) | Terminal TUI | Developers using the built-in agent chat |
+| TSA CLI (`tsa chat`) | Terminal TUI | Developers using the built-in agent chat |
 | Threads web app | Browser | Non-developers |
 | API (SSE/WebSocket) | Programmatic | Integrations |
 
@@ -267,14 +267,14 @@ A new hire joins the team and needs access to AI-assisted development:
 | `repos/backend/src/services/proxy/egress.ts` | MITM egress proxy -- protocol sniffing, placeholder replacement, CA management |
 | `repos/backend/src/utils/proxy/extractSNI.ts` | TLS ClientHello SNI extraction for HTTPS interception |
 | `repos/backend/src/services/secrets/secretResolver.ts` | Secret decryption and scope-aware loading |
-| `repos/repl/src/tasks/run.ts` | `tsa run` command -- start sandbox, sync files, launch AI tool |
-| `repos/repl/src/tasks/ssh.ts` | `tsa ssh` command -- connect flow, key injection, auto-sync |
-| `repos/repl/src/tasks/sync.ts` | `tsa sync` command -- rules, modes, daemon/foreground, subtasks |
-| `repos/repl/src/tasks/proxy.ts` | `tsa proxy` -- WebSocket tunnel ProxyCommand |
-| `repos/repl/src/services/sync/sshConfig.ts` | SSH key generation, config management, proxy wrapper |
-| `repos/repl/src/services/sync/mutagenClient.ts` | Mutagen binary execution, auto-install from npm |
-| `repos/repl/src/services/sync/syncManager.ts` | Sync session lifecycle (start, stop, flush, status) |
-| `repos/repl/src/services/sync/configLoader.ts` | Config merging (rules + sandbox defaults + overrides) |
-| `repos/repl/src/services/sync/ignoreResolver.ts` | Ignore pattern merging with builtins and negation |
+| `repos/tsa/src/tasks/run.ts` | `tsa run` command -- start sandbox, sync files, launch AI tool |
+| `repos/tsa/src/tasks/ssh.ts` | `tsa ssh` command -- connect flow, key injection, auto-sync |
+| `repos/tsa/src/tasks/sync.ts` | `tsa sync` command -- rules, modes, daemon/foreground, subtasks |
+| `repos/tsa/src/tasks/proxy.ts` | `tsa proxy` -- WebSocket tunnel ProxyCommand |
+| `repos/tsa/src/services/sync/sshConfig.ts` | SSH key generation, config management, proxy wrapper |
+| `repos/tsa/src/services/sync/mutagenClient.ts` | Mutagen binary execution, auto-install from npm |
+| `repos/tsa/src/services/sync/syncManager.ts` | Sync session lifecycle (start, stop, flush, status) |
+| `repos/tsa/src/services/sync/configLoader.ts` | Config merging (rules + sandbox defaults + overrides) |
+| `repos/tsa/src/services/sync/ignoreResolver.ts` | Ignore pattern merging with builtins and negation |
 | `deploy/Dockerfile.sandbox` | Sandbox container image with SSH, AI tools, mutagen agent |
 | `docs/architecture/security-model.md` | Full platform security model (encryption, auth, MITM proxy, scoping) |

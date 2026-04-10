@@ -1,0 +1,64 @@
+{
+  "compilerOptions": {
+    "rootDir": "../../",
+    "outDir": "./dist",
+    "target": "esnext",
+    "module": "esnext",
+    "noEmit": true,
+    "allowJs": true,
+    "sourceMap": true,
+    "declaration": false,
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "jsx": "react-jsx",
+    "noImplicitAny": false,
+    "declarationMap": false,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "strictNullChecks": false,
+    "jsxImportSource": "react",
+    "moduleResolution": "bundler",
+    "noFallthroughCasesInSwitch": true,
+    "allowImportingTsExtensions": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@ROOT": ["../../"],
+
+      "@TSA": ["./src"],
+      "@TSA/*": ["./src/*"],
+      "@TSA/configs": ["./configs"],
+      "@TSA/configs/*": ["./configs/*"],
+
+      "@TDM": ["../domain/src"],
+      "@TDM/*": ["../domain/src/*"],
+      "@tdsk/domain": ["../domain/src"],
+      "@tdsk/domain/*": ["../domain/src/*"],
+
+      "@TAG": ["../agent/src"],
+      "@TAG/*": ["../agent/src/*"],
+      "@TAG/configs": ["../agent/configs"],
+      "@TAG/configs/*": ["../agent/configs/*"],
+      "@tdsk/agent": ["../agent/src"],
+      "@tdsk/agent/*": ["../agent/src/*"],
+
+      "@TSB": ["../sandbox/src"],
+      "@TSB/*": ["../sandbox/src/*"],
+      "@tdsk/sandbox": ["../sandbox/src"],
+      "@tdsk/sandbox/*": ["../sandbox/src/*"],
+
+      "@tdsk/logger": ["../logger/src"],
+      "@tdsk/logger/*": ["../logger/src/*"]
+    }
+  },
+  "include": [
+    "src",
+    "configs",
+    "scripts",
+    "../domain/src",
+    "../agent/src",
+    "../sandbox/src",
+    "../logger/src"
+  ]
+}

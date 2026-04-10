@@ -93,7 +93,7 @@ Free and Solo tiers are single-seat and cannot add members.
 
 The user creates agents, attaches tools and providers, and runs them through one of four interaction surfaces:
 
-1. **REPL CLI** (`tsa`) — Terminal-native TUI for developers who live in the terminal.
+1. **TSA CLI** (`tsa`) — Terminal-native TUI for developers who live in the terminal.
 2. **Threads web app** — Browser-based chat interface for non-developer users and stakeholders.
 3. **API** (SSE/WebSocket) — Programmatic integration for embedding AI capabilities into existing applications.
 4. **Sandbox direct connect** — SSH into a container running any pre-configured AI tool (Claude Code, Codex, OpenCode). All traffic routes through the MITM proxy, so the tool works normally but never sees real credentials.
@@ -139,7 +139,7 @@ Invite-only access. Real billing. Small cohort of developers and small teams who
 Open sign-up with self-serve onboarding. The Free tier serves as the primary acquisition channel — developers can evaluate the full platform (with resource limits) without talking to anyone.
 
 **Focus:**
-- **Self-serve onboarding documentation.** Getting-started guides, admin UI walkthrough, REPL CLI quickstart, and API reference — all tested against real user journeys during beta.
+- **Self-serve onboarding documentation.** Getting-started guides, admin UI walkthrough, TSA CLI quickstart, and API reference — all tested against real user journeys during beta.
 - **Pricing page and public marketing site.** Clear tier comparison, use-case positioning, and transparent pricing with no "contact sales" friction for tiers under Team.
 - **Stripe Customer Portal integration.** Users manage payment methods, view invoices, and handle subscription changes without contacting support.
 

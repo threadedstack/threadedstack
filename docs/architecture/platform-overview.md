@@ -80,13 +80,13 @@ Source: `repos/proxy/src/middleware/setupAuth.ts`, `repos/proxy/src/middleware/s
 
 The recommended way to use Threaded Stack. Developers run `tsa run <sandbox-id>` to start a managed sandbox, sync files, and launch their AI tool of choice (Claude Code, Codex, OpenCode, or custom). Every new organization is seeded with four built-in sandbox presets that are immediately startable. `tsa ssh <sandbox-id>` provides plain SSH access without launching a runtime. All sandbox traffic routes through the MITM proxy for transparent secret injection.
 
-Source: `repos/repl/src/tasks/run.ts`, `repos/sandbox/`, `repos/backend/src/services/sandboxes/`
+Source: `repos/tsa/src/tasks/run.ts`, `repos/sandbox/`, `repos/backend/src/services/sandboxes/`
 
-### 2. REPL CLI (`tsa chat`)
+### 2. TSA CLI (`tsa chat`)
 
-A terminal-native TUI built with Ink (React for CLIs) and compiled to a standalone binary via Bun. Developers authenticate with an API key (`tsa login <key>`), browse agents and threads, then enter an interactive chat session. The REPL runs the agent ReAct loop locally but proxies all LLM calls through the backend WebSocket (`/ai/ws`) so API keys never leave the server. Supports context injection from `AGENTS.md` and `.tdsk/context/` files, 16 slash commands, lifecycle hooks, and YAML-based two-layer configuration (global + project).
+A terminal-native TUI built with Ink (React for CLIs) and compiled to a standalone binary via Bun. Developers authenticate with an API key (`tsa login <key>`), browse agents and threads, then enter an interactive chat session. The TSA runs the agent ReAct loop locally but proxies all LLM calls through the backend WebSocket (`/ai/ws`) so API keys never leave the server. Supports context injection from `AGENTS.md` and `.tdsk/context/` files, 16 slash commands, lifecycle hooks, and YAML-based two-layer configuration (global + project).
 
-Source: `repos/repl/` -- binary name `tsa`, package `@tdsk/repl`
+Source: `repos/tsa/` -- binary name `tsa`, package `@tdsk/tsa`
 
 ### 3. Threads Web App (`repos/threads`)
 
@@ -124,7 +124,7 @@ The monorepo contains 14 sub-repositories under `repos/`, managed with PNPM work
 | `integration/` | `@tdsk/integration` | API and E2E integration tests -- three-tier strategy | Vitest, Playwright |
 | `logger/` | `@tdsk/logger` | Winston-based logging service -- `buildApiLogger` factory, secret redaction | Winston |
 | `proxy/` | `@tdsk/proxy` | Auth gateway -- JWT/JWKS validation, API key auth, session auth, request forwarding | Express 5, jose, http-proxy-middleware |
-| `repl/` | `@tdsk/repl` | Terminal REPL for AI agent interaction -- `tsa` binary | Bun, Ink (React TUI), `@keg-hub/args-parse` |
+| `tsa/` | `@tdsk/tsa` | Terminal TUI for AI agent interaction -- `tsa` binary | Bun, pi-mono, `@keg-hub/args-parse` |
 | `sandbox/` | `@tdsk/sandbox` | Pluggable sandbox execution layer -- isolated environments for agent code | isolated-vm, E2B SDK, just-bash (consumed as source, no build step) |
 | `threads/` | `@tdsk/threads` | Threads web app -- browser-based AI chat for non-developers | Vite, React |
 | `website/` | `@tdsk/website` | Marketing website and pricing page | Vite, React |
@@ -293,8 +293,8 @@ tdsk kube secret tdsk        # Master encryption key
 | **Payments** | Stripe | Subscription billing, checkout sessions, customer portal, webhooks |
 | **Email** | Resend, Mailgun (strategy pattern) | Invitation and notification emails |
 | **Logging** | Winston | Structured logging with secret redaction |
-| **CLI Runtime** | Bun | REPL binary compilation and execution |
-| **Terminal UI** | Ink (React for CLIs) | REPL interactive chat interface |
+| **CLI Runtime** | Bun | TSA binary compilation and execution |
+| **Terminal UI** | Ink (React for CLIs) | TSA interactive chat interface |
 | **Build Tools** | tsup, Vite, Bun | Backend/library bundling, frontend dev/build, binary compilation |
 | **Infrastructure** | Kubernetes, DevSpace, Caddy, Helm | Container orchestration, dev environment, TLS/load balancing |
 | **Monorepo** | PNPM workspaces | Package management, workspace linking |

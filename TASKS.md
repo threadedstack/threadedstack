@@ -59,19 +59,19 @@ These tasks touch completely different files with zero overlap. All can run in W
 > See plan at `.claude/plans/2026-04-05-threads-chat-app.md`
 * **Repos**: NEW `repos/threads/`, components, domain
 * **Key files**: Expand threads repo
-* The REPL CLI (`repos/repl/`) is currently the primary user-facing interface for agent interaction, but it requires terminal proficiency. The admin dashboard (`repos/admin/`) has a basic embedded chat UI (`ChatView`, `MessageBubble`, `ToolCallDisplay`), but it's a secondary feature inside an org management app — not a dedicated chat experience. A standalone chat-first application is needed for non-terminal users, deployed and operated independently from the admin dashboard
+* The TSA CLI (`repos/tsa/`) is currently the primary user-facing interface for agent interaction, but it requires terminal proficiency. The admin dashboard (`repos/admin/`) has a basic embedded chat UI (`ChatView`, `MessageBubble`, `ToolCallDisplay`), but it's a secondary feature inside an org management app — not a dedicated chat experience. A standalone chat-first application is needed for non-terminal users, deployed and operated independently from the admin dashboard
 * This is a **separate application** from the admin UI — its own repo (`repos/threads`), its own build, its own deployment. While it may share dependencies (`@tdsk/domain`, `@tdsk/components`), it has its own routing, auth flow, and UX optimized entirely for conversation
-* **Feature parity with REPL** (minimum):
-  * Login via API key (same `tdsk_*` bearer token flow as REPL's `login` command) or Standard UI auth (matches admin ui login)
+* **Feature parity with TSA** (minimum):
+  * Login via API key (same `tdsk_*` bearer token flow as TSA's `login` command) or Standard UI auth (matches admin ui login)
   * Agent selection — list and switch between available agents
   * Thread management — create new threads, list existing threads, switch between threads, view thread history
-  * Real-time streaming chat — WebSocket connection using the same protocol as REPL/admin (`POST /_/ai/sessions` to WS `/ai/ws?token=`)
-  * Tool call visibility — show tool calls, progress, and results inline (equivalent to REPL's verbose mode)
-  * Thread branching/forking — fork a conversation at any message point (equivalent to REPL's `/fork` command)
-  * Context file attachment — upload files to threads, view attached context (equivalent to REPL's `/add` command)
-  * Provider/model switching — change LLM provider or model mid-session (equivalent to REPL's `/switch-provider` command)
-  * Session info — display current org, agent, thread, model (equivalent to REPL's `/info` command)
-* **Beyond REPL — web-native features**:
+  * Real-time streaming chat — WebSocket connection using the same protocol as TSA/admin (`POST /_/ai/sessions` to WS `/ai/ws?token=`)
+  * Tool call visibility — show tool calls, progress, and results inline (equivalent to TSA's verbose mode)
+  * Thread branching/forking — fork a conversation at any message point (equivalent to TSA's `/fork` command)
+  * Context file attachment — upload files to threads, view attached context (equivalent to TSA's `/add` command)
+  * Provider/model switching — change LLM provider or model mid-session (equivalent to TSA's `/switch-provider` command)
+  * Session info — display current org, agent, thread, model (equivalent to TSA's `/info` command)
+* **Beyond TSA — web-native features**:
   * Rich message rendering — markdown with syntax highlighting, rendered HTML/SVG artifacts inline, image display, collapsible tool call details
   * Multi-thread sidebar — persistent thread list with search, grouped by agent, showing last message preview and timestamp
   * Artifact gallery — view and interact with agent-generated artifacts (HTML previews, code blocks with copy, SVG rendering)
@@ -92,7 +92,7 @@ These tasks touch completely different files with zero overlap. All can run in W
   * Shared `@tdsk/domain` for types — the chat app must not depend on `@tdsk/admin`
   * WebSocket client — reuse the same WS event types from `repos/domain/src/types/ws.types.ts`
 * **Auth flow**:
-  * API key login (primary — same as REPL): user enters `tdsk_*` key, app validates via `GET /_/orgs` through proxy, stores key locally
+  * API key login (primary — same as TSA): user enters `tdsk_*` key, app validates via `GET /_/orgs` through proxy, stores key locally
   * Optional: Neon Auth social login (same as admin) for users who prefer browser-based OAuth. Both auth methods produce a valid bearer token for the proxy
   * Session token for WebSocket: `POST /_/ai/sessions` with agentId to receive session token to connect WS
 * **TODO**:
@@ -107,7 +107,7 @@ These tasks touch completely different files with zero overlap. All can run in W
   9.  Desktop wrapper (Phase 2) — Tauri or Electron shell around the web app, with native features (tray, hotkey, file picker)
 * **Key considerations**:
   * This is a separate deployment from admin — its own CI/CD, its own URL, its own K8s pod or static hosting. Must not couple to admin's build or routing
-  * The WebSocket protocol is already stable and used by both REPL and admin — no backend changes needed for the chat app to connect
+  * The WebSocket protocol is already stable and used by both TSA and admin — no backend changes needed for the chat app to connect
   * Start with web-only, add desktop wrapper as a follow-up once the web UI is stable
   * The admin app's existing chat and artifact components (i.e. `ChatView`, `MessageBubble`, `ToolCallDisplay`, `ArtifactRenderer`, `FilePreview`, etc.) should be extracted into `@tdsk/components` for reuse — no app should depend on `@tdsk/admin`
   * The MUI theme, design tokens, palette, and typography must be defined in `@tdsk/components` — all user-facing apps (admin, chat, website) consume the theme from there
@@ -396,13 +396,13 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 
 * **Repos**: website
 * **Key files**: `repos/website/src/components/Docs/DocsSidebar.tsx`, `repos/website/src/content/docs/`
-* The docs sidebar references 25+ pages but only 6 MDX files exist. Missing pages: `getting-started/installation`, `concepts/projects`, `concepts/providers`, `concepts/endpoints`, `concepts/secrets`, `api-reference/organizations`, `api-reference/agents`, `api-reference/threads`, `websocket/connection`, `websocket/client-events`, `websocket/server-events`, `guides/admin-dashboard`, `guides/repl-cli`, `guides/self-hosting`, `changelog`
+* The docs sidebar references 25+ pages but only 6 MDX files exist. Missing pages: `getting-started/installation`, `concepts/projects`, `concepts/providers`, `concepts/endpoints`, `concepts/secrets`, `api-reference/organizations`, `api-reference/agents`, `api-reference/threads`, `websocket/connection`, `websocket/client-events`, `websocket/server-events`, `guides/admin-dashboard`, `guides/tsa-cli`, `guides/self-hosting`, `changelog`
 * Existing pages: `getting-started/introduction.mdx`, `getting-started/quick-start.mdx`, `concepts/agents.mdx`, `concepts/organizations.mdx`, `concepts/threads.mdx`, `api-reference/authentication.mdx`
 * **Fix**:
   1. Create each missing MDX file under `repos/website/src/content/docs/` with proper frontmatter and content
   2. API reference pages should document endpoints, request/response schemas, and auth requirements
   3. WebSocket pages should document the connection protocol, client event types (`TWSClientMsg`), and server event types (`TWSServerMsg`) from `repos/domain/src/types/ws.types.ts`
-  4. Guide pages should cover admin dashboard usage, REPL CLI commands, and self-hosting setup
+  4. Guide pages should cover admin dashboard usage, TSA CLI commands, and self-hosting setup
 * **Files**:
   * New: `repos/website/src/content/docs/getting-started/installation.mdx`
   * New: `repos/website/src/content/docs/concepts/projects.mdx`
@@ -416,17 +416,17 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   * New: `repos/website/src/content/docs/websocket/client-events.mdx`
   * New: `repos/website/src/content/docs/websocket/server-events.mdx`
   * New: `repos/website/src/content/docs/guides/admin-dashboard.mdx`
-  * New: `repos/website/src/content/docs/guides/repl-cli.mdx`
+  * New: `repos/website/src/content/docs/guides/tsa-cli.mdx`
   * New: `repos/website/src/content/docs/guides/self-hosting.mdx`
   * New: `repos/website/src/content/docs/changelog.mdx`
 
 ### [P3] Documentation: add screenshots and flow images
 
 * **Repos**: website
-* The docs lack visual aids — no screenshots of the Admin web app or REPL CLI. Images would significantly improve documentation quality, especially for guides
+* The docs lack visual aids — no screenshots of the Admin web app or TSA CLI. Images would significantly improve documentation quality, especially for guides
 * **Fix**:
   1. Capture screenshots of key Admin UI views using Playwright (login, org dashboard, agent config, chat view, project settings)
-  2. Capture REPL CLI screenshots showing login, agent listing, chat interaction, slash commands
+  2. Capture TSA CLI screenshots showing login, agent listing, chat interaction, slash commands
   3. Create flow diagrams showing common workflows (agent setup, chat interaction, API key creation)
   4. Add images to relevant MDX pages using standard markdown image syntax
   5. Store images in `repos/website/src/content/docs/images/` or `repos/website/public/docs/`
@@ -463,22 +463,22 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 * **Files**: `repos/sandbox/src/local.ts`
 
 
-### [P3] REPL: `FileRequest` and `FileChanged` events — unimplemented stubs (Phase 8 placeholder)
+### [P3] TSA: `FileRequest` and `FileChanged` events — unimplemented stubs (Phase 8 placeholder)
 
-* `repos/repl/src/services/executor.ts` lines 143-147: both are empty `break` stubs
+* `repos/tsa/src/services/executor.ts` lines 143-147: both are empty `break` stubs
 * The backend also has them as stubs — `wsHandler.ts` "Phase 8 — workspace file sync (placeholder)"
 * These events are defined in `repos/domain/src/types/ws.types.ts` (lines 17-18) as `TWSFileRequestMsg` and `TWSFileChangedMsg` under the `// Server to Client` section
 * No fix needed until the backend implements the workspace file sync feature. The empty stubs are correct placeholders
 * **Fix**: No action required — track as future feature when backend Phase 8 is implemented
-* **Files**: `repos/repl/src/services/executor.ts` (stubs), `repos/backend/src/endpoints/ai/wsHandler.ts` (stubs)
+* **Files**: `repos/tsa/src/services/executor.ts` (stubs), `repos/backend/src/endpoints/ai/wsHandler.ts` (stubs)
 
 
 ## Sandbox File Sync: Deferred Items
 
 ### [P3] Sandbox File Sync: `tsa cp` command for one-off file copy
 
-* **Repos**: repl
-* **Key files**: New `repos/repl/src/tasks/cp.ts`
+* **Repos**: tsa
+* **Key files**: New `repos/tsa/src/tasks/cp.ts`
 * **Depends on**: Sandbox file sync v1 (tsa sync)
 * One-off file copy in/out of sandbox via SCP over existing SSH tunnel. Complements `tsa sync` for cases where continuous sync is not needed — e.g., downloading build artifacts or uploading a single config file.
 * **Implementation**:
@@ -487,7 +487,7 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   3. Use SCP over existing `tsa proxy` ProxyCommand tunnel
   4. Support glob patterns for multi-file operations
 * **Files**:
-  * New: `repos/repl/src/tasks/cp.ts` — copy task implementation
+  * New: `repos/tsa/src/tasks/cp.ts` — copy task implementation
 
 ### [P3] Sandbox File Sync: Admin UI sync configuration panel
 
@@ -518,8 +518,8 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
 
 ### [P3] Sandbox File Sync: MutagenClient GrpcDriver
 
-* **Repos**: repl
-* **Key files**: New `repos/repl/src/services/sync/grpcDriver.ts`
+* **Repos**: tsa
+* **Key files**: New `repos/tsa/src/services/sync/grpcDriver.ts`
 * **Depends on**: Sandbox file sync v1 stable
 * Replace CliDriver with gRPC integration to Mutagen daemon for structured protobuf data and long-polling status updates. Compile Mutagen proto files to TypeScript, connect to daemon socket via `@grpc/grpc-js`.
 * **Implementation**:
@@ -529,8 +529,8 @@ Hard dependency chain — each builds on the previous. Can run in parallel with 
   4. Use `List` RPC with `previousStateIndex` for long-polling status updates
   5. Swap CliDriver for GrpcDriver in SyncManager (configuration-based selection)
 * **Files**:
-  * New: `repos/repl/src/services/sync/grpcDriver.ts`
-  * New: `repos/repl/src/services/sync/proto/` — compiled proto definitions
+  * New: `repos/tsa/src/services/sync/grpcDriver.ts`
+  * New: `repos/tsa/src/services/sync/proto/` — compiled proto definitions
 
 ### [P3] Sandbox File Sync: File browser UI
 

@@ -2,7 +2,7 @@
 
 ## Purpose of This Document
 
-This document provides a comprehensive analysis of every data model in the Threaded Stack platform — **why** each exists, how they relate to each other, where the current implementation diverges from intent, and specific recommendations for improvement. It is the result of a full-stack audit across all 11 repos: database, domain, backend, proxy, admin, agent, sandbox, repl, cli, components, and logger.
+This document provides a comprehensive analysis of every data model in the Threaded Stack platform — **why** each exists, how they relate to each other, where the current implementation diverges from intent, and specific recommendations for improvement. It is the result of a full-stack audit across all 11 repos: database, domain, backend, proxy, admin, agent, sandbox, tsa, cli, components, and logger.
 
 ---
 
@@ -115,7 +115,7 @@ Threaded Stack is a multi-tenant developer platform that unifies authentication,
 | **Why It Exists** | The core product. An agent wraps an LLM provider with a system prompt, tool whitelist, and execution environment. Users configure agents, then interact with them via threads. |
 | **Fields** | `id`, `name`, `description`, `orgId`, `providerId`, `systemPrompt`, `model`, `maxTokens`, `tools` (JSONB), `envVars` (JSONB), `environment` (JSONB), `active`, `createdAt`, `updatedAt` |
 | **Key Relationships** | Belongs to: Org, Provider. Has: Secrets, Threads. Many-to-many: Projects, Functions. |
-| **Used By** | Backend (CRUD + run endpoint), Admin (agent configuration UI), Agent runtime (AgentRunner consumes agent config), REPL (chat command targets an agent) |
+| **Used By** | Backend (CRUD + run endpoint), Admin (agent configuration UI), Agent runtime (AgentRunner consumes agent config), TSA (chat command targets an agent) |
 
 **Assessment**: The agent model is the most complex entity and the lynchpin of the platform. It's reasonably well-designed but has several relationship concerns.
 
@@ -232,10 +232,10 @@ Threaded Stack is a multi-tenant developer platform that unifies authentication,
 | Aspect | Detail |
 |--------|--------|
 | **Business Purpose** | Machine-to-machine authentication. Enables CLI tools, scripts, and external systems to authenticate without user sessions. |
-| **Why It Exists** | Not all API consumers are humans in browsers. The REPL CLI, CI/CD systems, and third-party integrations need programmatic access. API keys provide this with scope-based access control and rate limiting. |
+| **Why It Exists** | Not all API consumers are humans in browsers. The TSA CLI, CI/CD systems, and third-party integrations need programmatic access. API keys provide this with scope-based access control and rate limiting. |
 | **Fields** | `id`, `name`, `keyPrefix`, `keyHash`, `scopes`, `active`, `rateLimit`, `expiresAt`, `lastUsedAt`, `orgId`, `projectId`, `userId`, `createdAt`, `updatedAt` |
 | **Key Relationships** | Belongs to: Org, Project (optional), User |
-| **Used By** | Proxy (API key auth middleware), Backend (key generation/management), Admin (key management UI), REPL (login command) |
+| **Used By** | Proxy (API key auth middleware), Backend (key generation/management), Admin (key management UI), TSA (login command) |
 
 **Assessment**: Well-implemented. The hash-based lookup is fast (indexed), the scope-to-role mapping is clean, and the `lastUsedAt` tracking enables audit.
 
@@ -257,7 +257,7 @@ Threaded Stack is a multi-tenant developer platform that unifies authentication,
 | **Why It Exists** | Stateful conversations need persistence. Threads group messages in sequence, support branching (forking at a specific message), and maintain context across sessions. |
 | **Fields** | `id`, `name`, `meta` (JSONB), `public`, `userId`, `agentId`, `providerId`, `orgId`, `projectId`, `parentThreadId`, `branchMessageId`, `createdAt`, `updatedAt` |
 | **Key Relationships** | Belongs to: User (NOT NULL), Org, Agent, Provider, Project (all optional). Has: Messages. Self-reference: parentThreadId for branching. |
-| **Used By** | Backend (thread CRUD, agent run creates threads), Admin (thread list, chat UI), Agent runtime (message history), REPL (chat command) |
+| **Used By** | Backend (thread CRUD, agent run creates threads), Admin (thread list, chat UI), Agent runtime (message history), TSA (chat command) |
 
 **Assessment**: The branching model (parentThreadId + branchMessageId) is well-designed for conversation exploration.
 
@@ -280,7 +280,7 @@ Threaded Stack is a multi-tenant developer platform that unifies authentication,
 | **Why It Exists** | Threads need ordered content. Messages store the full conversation history in a normalized format that works across all LLM providers (Anthropic, OpenAI, Google, Z.AI). |
 | **Fields** | `id`, `type` (user/assistant/system/tool/action), `content` (JSONB), `meta` (JSONB), `threadId`, `orgId`, `projectId`, `createdAt`, `updatedAt` |
 | **Key Relationships** | Belongs to: Thread (NOT NULL), Org, Project. Has: Assets. |
-| **Used By** | Backend (message CRUD, agent run persists messages), Agent runtime (message history loaded, new messages created), REPL (message display) |
+| **Used By** | Backend (message CRUD, agent run persists messages), Agent runtime (message history loaded, new messages created), TSA (message display) |
 
 **Assessment**: The polymorphic `content: TMessageContent[]` design is excellent — it unifies text, tool calls, and tool results in a single array, making provider-agnostic persistence possible.
 

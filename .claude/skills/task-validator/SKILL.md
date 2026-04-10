@@ -48,7 +48,7 @@ Before dispatching sub-agents, load the skill file for every sub-repo the task t
 - Changes in `repos/database/`? → Load `.claude/skills/tdsk-database/SKILL.md`
 - Changes in `repos/agent/`? → Load `.claude/skills/tdsk-agent/SKILL.md`
 - Changes in `repos/proxy/`? → Load `.claude/skills/tdsk-proxy/SKILL.md`
-- Changes in `repos/repl/`? → Load `.claude/skills/tdsk-repl/SKILL.md`
+- Changes in `repos/tsa/`? → Load `.claude/skills/tdsk-tsa/SKILL.md`
 - Changes in `repos/sandbox/`? → Load `.claude/skills/tdsk-sandbox/SKILL.md`
 - Changes in `repos/components/`? → Load `.claude/skills/tdsk-components/SKILL.md`
 
@@ -140,7 +140,7 @@ If invoked by the runner skill (Step 8), return the verdict so the runner can de
 - **Read-only** — this skill NEVER modifies source code, tests, or configuration files. It only reads and reports.
 - **NEVER commit** — user handles all git operations (see MEMORY.md git rules). This applies to all sub-agents.
 - **Full task context** — always pass the COMPLETE task definition to sub-agents, never summarize or truncate
-- **Mono-repo awareness** — changes to `domain/` types affect `backend/`, `proxy/`, `admin/`, `agent/`, `repl/`. Changes to `database/` schemas affect `backend/`. Sub-agents must check downstream consumers.
+- **Mono-repo awareness** — changes to `domain/` types affect `backend/`, `proxy/`, `admin/`, `agent/`, `tsa/`. Changes to `database/` schemas affect `backend/`. Sub-agents must check downstream consumers.
 - **Evidence-based** — every finding must reference a specific file and line. No speculative findings.
 - **No auto-fixes** — report issues with file:line references so the implementer can address them
 - **Integration tests are mandatory** — a task without integration tests is a FAIL in the Test Coverage category, unless the task explicitly states otherwise

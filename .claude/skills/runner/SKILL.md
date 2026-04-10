@@ -56,7 +56,7 @@ Use `EnterPlanMode` to create an implementation plan covering:
 1. **Affected files** — Every file to create, modify, or delete, across all sub-repos
 2. **Cross-repo impact analysis** — This is a mono-repo. Changes to `domain/` types affect every consumer. Changes to `database/` schemas affect backend + proxy. Trace all dependency chains.
 3. **Implementation steps** — Ordered sequence respecting build dependencies:
-   - `domain` → `database` → `logger` → `backend`/`proxy`/`admin`/`agent`/`repl`
+   - `domain` → `database` → `logger` → `backend`/`proxy`/`admin`/`agent`/`tsa`
 4. **Unit tests** — Co-located test files (`foo.test.ts`) for every changed module. Follow `gen-test` skill conventions.
 5. **Integration tests** — Tests in `repos/integration/` that validate the changes against live K8s services. These prevent regressions and MUST be included.
 6. **Type safety** — Plan to run `pnpm types` to catch cross-repo type errors
@@ -102,6 +102,6 @@ Before presenting results to the user, invoke the `task-validator` skill:
 - **NEVER** skip integration tests — unit tests alone are NOT sufficient
 - **NEVER** commit code — user handles all git operations (see MEMORY.md git rules)
 - **NEVER** implement fixes based on assumptions — read the actual code first
-- **Account for mono-repo impact** — a type change in `domain/` can break `backend/`, `proxy/`, `admin/`, `agent/`, and `repl/`
+- **Account for mono-repo impact** — a type change in `domain/` can break `backend/`, `proxy/`, `admin/`, `agent/`, and `tsa/`
 - **Follow existing patterns** — read neighboring code before writing new code
 - **Use sub-agents** for cross-repo work to maintain focus and prevent context drift

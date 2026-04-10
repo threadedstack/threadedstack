@@ -210,7 +210,7 @@ interface IAgentRunnerDB {
 }
 ```
 
-Backend implements this via direct DB calls; REPL implements it via HTTP calls to the backend API.
+Backend implements this via direct DB calls; TSA implements it via HTTP calls to the backend API.
 
 **TProxyConfig**:
 ```typescript
@@ -336,7 +336,7 @@ await agent.waitForIdle()
 
 AgentRunner accepts a narrow DB interface rather than depending on the full database package. This allows:
 - Backend: passes direct DB service calls
-- REPL: passes HTTP client that calls backend API
+- TSA: passes HTTP client that calls backend API
 
 ### 3. Proxy Mode via StreamFn
 
@@ -435,10 +435,10 @@ export const config = {
 - `EStreamEventType` -- Event type enum (text, tool_call_start, tool_call_args, done, error, tool_result, tool_execution_update)
 - `EStreamStopReason` -- Stop reason enum (endTurn, toolUse, maxTokens, error)
 
-### With REPL (`@tdsk/repl`)
+### With TSA (`@tdsk/tsa`)
 
-- REPL's `LocalAgentExecutor` calls `AgentRunner.run()` with HTTP-based `IAgentRunnerDB`
-- REPL provides `proxyConfig` to route LLM calls through the backend proxy (API key stays server-side)
+- TSA's `LocalAgentExecutor` calls `AgentRunner.run()` with HTTP-based `IAgentRunnerDB`
+- TSA provides `proxyConfig` to route LLM calls through the backend proxy (API key stays server-side)
 
 ## Development Guidelines
 

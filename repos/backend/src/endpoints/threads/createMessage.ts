@@ -10,7 +10,7 @@ import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 /**
  * POST /:orgId/agents/:agentId/threads/:threadId/messages - Create a message
  *
- * Used by the REPL to persist messages during local agent execution.
+ * Used by TSA to persist messages during local agent execution.
  * Body: { type: "user"|"assistant", content: TMessageContent[] }
  */
 export const createMessage: TEndpointConfig = {

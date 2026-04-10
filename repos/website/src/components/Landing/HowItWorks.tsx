@@ -26,7 +26,7 @@ const steps = [
     number: 4,
     title: 'Start Building',
     description:
-      'Deploy and interact via the REST API, WebSocket, admin dashboard, or REPL CLI.',
+      'Deploy and interact via the REST API, WebSocket, admin dashboard, or TSA CLI.',
   },
 ]
 

@@ -14,7 +14,7 @@ Both paths start the same way: sign up, create an organization, and add a secret
 - A modern web browser (Chrome, Firefox, Safari, or Edge)
 - An internet connection
 - An account with one of the supported login providers: GitHub, Google, or Vercel
-- For the sandbox path: the `tsa` CLI installed (see [REPL CLI](repl-cli.md) for installation)
+- For the sandbox path: the `tsa` CLI installed (see [TSA CLI](tsa-cli.md) for installation)
 
 For the proxy endpoint path only, no CLI installation is required -- everything can be done through the browser.
 

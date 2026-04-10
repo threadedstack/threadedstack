@@ -16,7 +16,7 @@ The `@tdsk/domain` repo is the **shared foundation** for the Threaded Stack mono
 - **Custom error handling** with the `Exception` class
 - **Constants** including provider templates for quickstart flows
 
-This repo is consumed by `backend`, `proxy`, `admin`, `agent`, `repl`, and `sandbox` repos as the single source of truth for shared logic.
+This repo is consumed by `backend`, `proxy`, `admin`, `agent`, `tsa`, and `sandbox` repos as the single source of truth for shared logic.
 
 ## Directory Structure
 
@@ -584,5 +584,5 @@ import { ProviderTemplates } from '@TDM/constants'
 | **Admin** | `web.ts` only | `Exception`, model classes, `ProviderTemplates`, constants |
 | **Database** | Model classes | All model classes for ORM type definitions |
 | **Agent** | Full `index.ts` | `TLLMAdapterConfig`, `ILLMAdapter`, `TStreamEvent`, `Agent`, `Thread`, `Message` |
-| **REPL** | Full `index.ts` | AI types, `Agent`, `Thread`, `Message`, `User` |
+| **Tsa** | Full `index.ts` | AI types, `Agent`, `Thread`, `Message`, `User` |
 | **Sandbox** | Sandbox types | `ISandbox`, `ISandboxProvider`, `TSandboxConfig`, `TKubeSandboxConfig`, `TSandboxSession`, `TSandboxConnectResponse`, `ESBState`, `ESandboxRuntime`, `TSandboxRuntimeId`, `SandboxRuntimeConfigs`, `SandboxPresets` |

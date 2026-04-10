@@ -19,7 +19,7 @@ repos/integration/
     │   ├── jwt-auth.ts           # Acquires user-level JWT from Neon Auth via email sign-in + /token endpoint
     │   └── sandbox-helpers.ts    # waitForPodState, execInPod, getPodSubdomain, connectSandbox, setupRunningPod, cleanupSandbox
     ├── tier1/                    # Unit & direct API tests
-    │   ├── repl-sandbox-client.test.ts    # REPL ApiClient sandbox methods
+    │   ├── tsa-sandbox-client.test.ts    # TSA ApiClient sandbox methods
     │   ├── sandbox-config-crud.test.ts    # Sandbox config CRUD with projectId, SSH, git, idle timeout, builtIn
     │   ├── sandbox-runtime-crud.test.ts   # Runtime field CRUD (17 tests): runtime enum, runtimeCommand, initScript, builtIn, copy endpoint
     │   └── sandbox-org-seeding.test.ts    # Org creation seeds preset sandboxes (6 tests): JWT auth, built-in presets
@@ -91,7 +91,7 @@ Direct API calls, no UI. Tests API client wrappers, CRUD envelopes, auth validat
 - `sandbox-config-crud.test.ts` — Full CRUD with new fields: projectId, sshEnabled, gitRepo, gitBranch, idleTimeoutMinutes, builtIn. Validates projectId filtering and git field validation (gitBranch without gitRepo → 400). 4 builtIn assertions added
 - `sandbox-runtime-crud.test.ts` — Runtime field CRUD (17 tests): runtime enum values, runtimeCommand persistence, initScript round-trip, builtIn enforcement (server strips on create), copy endpoint (`POST /:id/copy` deep-copies with `builtIn: false`)
 - `sandbox-org-seeding.test.ts` — Org creation seeding (6 tests): JWT auth to create org, verifies 4 built-in presets are seeded (Claude Code, Codex, OpenCode, Base), validates builtIn=true on seeded sandboxes
-- `repl-sandbox-client.test.ts` — Tests REPL `ApiClient.listSandboxes()` against live backend
+- `tsa-sandbox-client.test.ts` — Tests TSA `ApiClient.listSandboxes()` against live backend
 
 ### Tier 2 — Playwright E2E Tests
 

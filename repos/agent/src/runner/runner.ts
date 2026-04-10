@@ -496,7 +496,7 @@ export class AgentRunner {
   }
 
   /**
-   * Static convenience for one-shot runs (SSE endpoint, REPL).
+   * Static convenience for one-shot runs (SSE endpoint, TSA).
    * Creates a runner, init+runTurn, auto-destroys on completion.
    */
   static run = async (opts: TAgentRunOpts): Promise<TAgentHandle> => {

@@ -63,7 +63,7 @@
       "Bash(./dist/tda:*)",
       "Bash(tsa:*)",
       "Bash(npm view:*)",
-      "Bash(/Users/lancetipton/keg-hub/external/apps/threadedstack/repos/repl/dist/tsa:*)",
+      "Bash(/Users/lancetipton/keg-hub/external/apps/threadedstack/repos/tsa/dist/tsa:*)",
       "Bash(./dist/tsa:*)",
       "Bash(psql:*)",
       "Bash(npm run test:*)",

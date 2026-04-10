@@ -331,8 +331,8 @@ const entries = await sandbox.listDir('/workspace')
 ### With Domain (`@tdsk/domain`)
 - `ISandbox`, `ISandboxProvider`, `TSandboxConfig`, `TSandboxResult`, `TSandboxProviderType` types
 
-### With REPL (`@tdsk/repl`)
-- REPL's `LocalAgentExecutor` passes sandbox config to AgentRunner
+### With TSA (`@tdsk/tsa`)
+- TSA's `LocalAgentExecutor` passes sandbox config to AgentRunner
 
 ### With Backend (`@tdsk/backend`)
 - Backend resolves agent sandbox config and passes it to execution context

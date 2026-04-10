@@ -146,7 +146,7 @@ Client → Auth-Proxy (repos/proxy) → Backend (repos/backend) → External API
 | `components/` | Shared React components/hooks | React, MUI | `.claude/skills/tdsk-components/SKILL.md` |
 | `logger/` | Winston-based logging service | Winston | `.claude/skills/tdsk-logger/SKILL.md` |
 | `cli/` | Developer CLI for project management | Node.js | `.claude/skills/tdsk-cli/SKILL.md` |
-| `repl/` | Terminal REPL for AI agent interaction | Bun, Ink (React TUI), @keg-hub/args-parse | `.claude/skills/tdsk-repl/SKILL.md` |
+| `tsa/` | Terminal TSA for AI agent interaction | Bun, Ink (React TUI), @keg-hub/args-parse | `.claude/skills/tdsk-tsa/SKILL.md` |
 | `sandbox/` | Pluggable sandbox execution layer + runtime-aware pod manifest | K8s pods, isolated-vm, E2B, just-bash, runtime presets | `.claude/skills/tdsk-sandbox/SKILL.md` |
 | `integration/` | API & E2E integration tests | Vitest, Playwright | `.claude/skills/integration-testing/SKILL.md` |
 | `website/` | Marketing site + docs portal | Vite, React, MUI, MDX, Shiki, docs from root `docs/` | `.claude/skills/tdsk-website/SKILL.md` |
@@ -162,7 +162,7 @@ Load the relevant skill when working on a specific repo:
 - Adding API endpoints? → Read `.claude/skills/tdsk-backend/SKILL.md` first
 - Building AI agents? → Read `.claude/skills/tdsk-agent/SKILL.md` first
 - Modifying database schema? → Read `.claude/skills/tdsk-database/SKILL.md` first
-- Working on the REPL CLI? → Read `.claude/skills/tdsk-repl/SKILL.md` first
+- Working on the tsa cli? → Read `.claude/skills/tdsk-tsa/SKILL.md` first
 - Working on sandbox execution? → Read `.claude/skills/tdsk-sandbox/SKILL.md` first
 - Working on the marketing site or docs? → Read `.claude/skills/tdsk-website/SKILL.md` first
 - Working on the threads SPA? → Read `.claude/skills/tdsk-threads/SKILL.md` first
@@ -179,7 +179,7 @@ Load the relevant skill when working on a specific repo:
 | `tdsk-domain/SKILL.md` | 20 model classes (incl. Sandbox), crypto utilities (AES-256-GCM, HKDF, API key hashing), permissions system, provider templates, sandbox constants |
 | `tdsk-logger/SKILL.md` | Winston configuration, buildApiLogger factory, secret redaction, stdio monkey-patching |
 | `tdsk-proxy/SKILL.md` | JWKS auth validation, API key auth, deferred auth for /proxy, session token auth for /ai/ws, http-proxy-middleware backend forwarding, sandbox host detection |
-| `tdsk-repl/SKILL.md` | Ink (React TUI) terminal CLI, tsa binary, 10 CLI tasks (incl. ssh/proxy/sandboxes) + 16 slash commands, config system, session-based LLM proxy, lifecycle hooks |
+| `tdsk-tsa/SKILL.md` | Ink (React TUI) terminal CLI, tsa binary, 10 CLI tasks (incl. ssh/proxy/sandboxes) + 16 slash commands, config system, session-based LLM proxy, lifecycle hooks |
 | `tdsk-sandbox/SKILL.md` | Pluggable sandbox factory, K8s pod sandboxes (SSH, project scoping, idle timeout), E2bSandboxProvider (Firecracker microVMs), LocalSandboxProvider (just-bash + V8 isolate), IsolateRunner (fs/path/subprocess shims), ISandbox interface |
 | `tdsk-website/SKILL.md` | Vite + React + MUI marketing site, MDX docs portal from root `/docs`, Shiki code highlighting, DocsSidebar, remarkDocsLinks plugin, vitePluginDocsAssets |
 | `tdsk-threads/SKILL.md` | User-facing threads SPA (WIP), Neon Auth (OAuth + email), TokenRefreshManager, Jotai state, same architecture as admin repo |

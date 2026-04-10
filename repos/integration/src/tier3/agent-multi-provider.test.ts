@@ -4,7 +4,7 @@ import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
 import { consumeWS } from '../utils/ws-client'
 import { tryDelete } from '../utils/cleanup'
-import { cleanupThread } from '../utils/repl-cleanup'
+import { cleanupThread } from '../utils/tsa-cleanup'
 import { env } from '../utils/env'
 import { uniqueName } from '../utils/unique-name'
 

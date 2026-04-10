@@ -17,12 +17,12 @@
       "@ROOT": ["../../"],
       "@ROOT/*": ["../../*"],
 
-      "@TRL": ["../repl/src"],
-      "@TRL/*": ["../repl/src/*"],
-      "@TRL/configs": ["../repl/configs"],
-      "@TRL/configs/*": ["../repl/configs/*"],
-      "@tdsk/repl": ["../repl/src"],
-      "@tdsk/repl/*": ["../repl/src/*"],
+      "@TSA": ["../tsa/src"],
+      "@TSA/*": ["../tsa/src/*"],
+      "@TSA/configs": ["../tsa/configs"],
+      "@TSA/configs/*": ["../tsa/configs/*"],
+      "@tdsk/tsa": ["../tsa/src"],
+      "@tdsk/tsa/*": ["../tsa/src/*"],
 
       "@TAG": ["../agent/src"],
       "@TAG/*": ["../agent/src/*"],

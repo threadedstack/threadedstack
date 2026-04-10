@@ -13,8 +13,7 @@
     "types": "tsc --noEmit --pretty"
   },
   "dependencies": {
-    "@keg-hub/parse-config": "2.2.0",
-    "@tdsk/repl": "workspace:*"
+    "@keg-hub/parse-config": "2.2.0"
   },
   "devDependencies": {
     "@playwright/test": "1.42.0",

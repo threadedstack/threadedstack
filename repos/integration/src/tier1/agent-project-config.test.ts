@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'vitest'
 import { get, put, post, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { tryDelete } from '../utils/cleanup'
-import { cleanupQuickstart } from '../utils/repl-cleanup'
+import { cleanupQuickstart } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
 
 /**

@@ -14,7 +14,7 @@ import type {
 /**
  * Narrow interface for message persistence.
  * Backend implements this via direct DB calls.
- * REPL delegates all persistence to the backend (no local implementation).
+ * TSA delegates all persistence to the backend (no local implementation).
  */
 export interface IAgentRunnerDB {
   listMessages(opts: {

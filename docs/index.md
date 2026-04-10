@@ -31,7 +31,7 @@ Threaded Stack is an **AI operations layer** for companies integrating AI agents
 
 - [Getting Started](user-guide/getting-started.md) — Zero to working API call
 - [Admin Dashboard](user-guide/admin-ui.md) — Dashboard walkthrough
-- [REPL CLI](user-guide/repl-cli.md) — `tsa` CLI usage
+- [TSA CLI](user-guide/tsa-cli.md) — `tsa` CLI usage
 - [Threads App](user-guide/threads-app.md) — Web interface for non-developers
 - [Sandbox Usage](user-guide/sandbox-usage.md) — Sandbox setup, runtime selection, `tsa run`, SSH, file sync
 - [API Reference](user-guide/api-reference.md) — REST endpoints, auth, request/response examples

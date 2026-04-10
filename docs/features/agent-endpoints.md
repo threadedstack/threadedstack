@@ -210,7 +210,7 @@ The `AgentRunner` class (`repos/agent/src/runner/runner.ts`) wraps pi-mono's `Ag
 
 **`destroy()`** -- Unsubscribes from agent events, drains all pending message persistence promises, closes the sandbox, and nulls all internal references. After destroy, `init()` can be called again.
 
-**`static run(opts: TAgentRunOpts)`** -- One-shot convenience method that creates a runner, calls `init()` + `runTurn()`, and auto-destroys on completion. Used by the SSE endpoint and REPL for fire-and-forget execution.
+**`static run(opts: TAgentRunOpts)`** -- One-shot convenience method that creates a runner, calls `init()` + `runTurn()`, and auto-destroys on completion. Used by the SSE endpoint and TSA for fire-and-forget execution.
 
 ### Pluggable Persistence
 
@@ -233,7 +233,7 @@ interface IAgentRunnerDB {
 }
 ```
 
-The backend implements this via direct DB service calls (`repos/backend/src/utils/agent/resolveAgentConfig.ts` -- `createDBAdapter()`). The REPL implements it via HTTP calls to the backend API. This decoupling means the agent runtime has no dependency on the database package.
+The backend implements this via direct DB service calls (`repos/backend/src/utils/agent/resolveAgentConfig.ts` -- `createDBAdapter()`). The TSA implements it via HTTP calls to the backend API. This decoupling means the agent runtime has no dependency on the database package.
 
 ## Tools
 

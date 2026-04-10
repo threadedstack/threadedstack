@@ -3,7 +3,7 @@ import { post, get, put, del } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { consumeSSE } from '../utils/sse'
 import { tryDelete } from '../utils/cleanup'
-import { cleanupThread } from '../utils/repl-cleanup'
+import { cleanupThread } from '../utils/tsa-cleanup'
 import { uniqueName } from '../utils/unique-name'
 
 /**

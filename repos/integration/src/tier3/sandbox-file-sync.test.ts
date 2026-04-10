@@ -4,18 +4,18 @@ import { tmpdir, homedir } from 'os'
 import { post, get } from '../utils/api-client'
 import { uniqueName } from '../utils/unique-name'
 import { readContext } from '../utils/test-context'
-import { CliDriver } from '@tdsk/repl/services/sync/mutagenClient'
-import { SyncManager } from '@tdsk/repl/services/sync/syncManager'
-import { mergeRules } from '@tdsk/repl/services/sync/configLoader'
+import { CliDriver } from '@tdsk/tsa/services/sync/mutagenClient'
+import { SyncManager } from '@tdsk/tsa/services/sync/syncManager'
+import { mergeRules } from '@tdsk/tsa/services/sync/configLoader'
 import type { TSyncRule, TSandboxSyncDefaults } from '@tdsk/domain'
 import { describe, test, expect, afterAll, beforeAll } from 'vitest'
-import { resolveIgnores } from '@tdsk/repl/services/sync/ignoreResolver'
-import { ensureSshConfig, getPublicKey } from '@tdsk/repl/services/sync/sshConfig'
+import { resolveIgnores } from '@tdsk/tsa/services/sync/ignoreResolver'
+import { ensureSshConfig, getPublicKey } from '@tdsk/tsa/services/sync/sshConfig'
 import { connectSandbox, execInPod, cleanupSandbox, waitForPodState } from '../utils/sandbox-helpers'
 import { mkdirSync, writeFileSync, readFileSync, rmSync, mkdtempSync, existsSync, chmodSync } from 'fs'
 
 /**
- * Ensure the REPL's tsa.yaml config has auth credentials so the
+ * Ensure the TSA's tsa.yaml config has auth credentials so the
  * `tsa proxy` ProxyCommand can authenticate through the tunnel.
  * Returns previous content for cleanup.
  */
@@ -95,7 +95,7 @@ describe('Tier 3: Sandbox File Sync', () => {
       // Ensure SSH config, key pair, and proxy wrapper exist
       ensureSshConfig()
 
-      // Ensure REPL auth config for the tsa proxy ProxyCommand
+      // Ensure TSA auth config for the tsa proxy ProxyCommand
       previousTsaConfig = ensureTsaAuth()
 
       // Create project
@@ -129,7 +129,7 @@ describe('Tier 3: Sandbox File Sync', () => {
 
       // Integration tests use execInPod (test utility) rather than ApiClient.injectSshKey
       // because the test framework authenticates differently. The shell command mirrors
-      // ApiClient.injectSshKey in repos/repl/src/services/api.ts — keep them in sync.
+      // ApiClient.injectSshKey in repos/tsa/src/services/api.ts — keep them in sync.
       const publicKey = getPublicKey()
       const escaped = publicKey.replace(/'/g, `'\\''`)
       await execInPod(

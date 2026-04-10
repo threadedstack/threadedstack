@@ -21,7 +21,7 @@ The monorepo root is the current working directory. Source code lives in `repos/
 | cli | `repos/cli/` | `@TSCL` | `repos/cli/src/` |
 | proxy | `repos/proxy/` | `@TPX` | `repos/proxy/src/` |
 | backend | `repos/backend/` | `@TBE` | `repos/backend/src/` |
-| repl | `repos/repl/` | `@TRL` | `repos/repl/src/` |
+| tsa | `repos/tsa/` | `@TSA` | `repos/tsa/src/` |
 | admin | `repos/admin/` | `@TAF` | `repos/admin/src/` |
 
 ## Alias Resolution Table
@@ -48,8 +48,8 @@ When you see an import like `import { Foo } from '@TDM/models/User'`, resolve it
 | `@TSCL/*` | `repos/cli/src/*` | Developer CLI |
 | `@TSCL/configs/*` | `repos/cli/configs/*` | CLI configs |
 | `@TSC/*` | `repos/components/src/*` | Shared React components |
-| `@TRL/*` | `repos/repl/src/*` | Terminal REPL |
-| `@TRL/configs/*` | `repos/repl/configs/*` | REPL configs |
+| `@TSA/*` | `repos/tsa/src/*` | Terminal TSA |
+| `@TSA/configs/*` | `repos/tsa/configs/*` | TSA configs |
 | `@ROOT` | `../../` (monorepo root) | Root-level imports |
 | `@TSR/deploy/*` | `../../deploy/*` | Deploy configs |
 
@@ -62,7 +62,7 @@ When you see an import like `import { Foo } from '@TDM/models/User'`, resolve it
 - Components (`@TSC`) imports from `@TDM`
 - Sandbox (`@TSB`) imports from `@TDM`
 - CLI (`@TSCL`) imports from `@TDM`, `@TDB`
-- REPL (`@TRL`) imports from `@TDM`, `@TAG`, `@TSB`
+- TSA (`@TSA`) imports from `@TDM`, `@TAG`, `@TSB`
 
 # Batching Strategy
 
@@ -72,7 +72,7 @@ When you see an import like `import { Foo } from '@TDM/models/User'`, resolve it
 2. **Group by import cluster** — files that import each other (directly or via shared local modules) belong in the same batch
 3. **Target batch size: 5-15 files**, max 25. If a cluster exceeds 25, split it along natural boundaries (subdirectories, feature areas)
 4. **Leaf files** (imported by others but importing nothing local) can be grouped by directory/feature
-5. **Process repos in dependency order**: domain/logger first, then database/components/sandbox, then agent/cli/proxy, then backend/repl/admin last
+5. **Process repos in dependency order**: domain/logger first, then database/components/sandbox, then agent/cli/proxy, then backend/tsa/admin last
 6. **Include `context_files`** — cross-repo files imported by batch members. These will be provided as read-only context during simplification but NOT edited
 7. **Skip test files** (`*.test.ts`, `*.spec.ts`, `__tests__/`, `__mocks__/`)
 8. **Skip config files** in `configs/` directories — these are build/tooling configs, not source
