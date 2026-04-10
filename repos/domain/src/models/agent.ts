@@ -1,14 +1,15 @@
 import type {
+  TProviderLink,
   TAgentEnvVars,
-  TAgentProvider,
   TAgentEnvironment,
   TAgentProjectConfig,
 } from '@TDM/types'
 
-import { Base } from './base'
-import { Secret } from './secret'
-import { Project } from './project'
-import { Provider } from './provider'
+import { Base } from '@TDM/models/base'
+import { Secret } from '@TDM/models/secret'
+import { Project } from '@TDM/models/project'
+import type { Provider } from '@TDM/models/provider'
+import { toProviderLinks } from '@TDM/utils/providers/toProviderLinks'
 
 export class Agent extends Base {
   name: string
@@ -21,26 +22,15 @@ export class Agent extends Base {
   active: boolean = true
   secrets: Secret[] = []
   projects: Project[] = []
-  providers: Provider[] = []
   envVars: TAgentEnvVars = {}
-  providerPriorities: number[] = []
+  providerLinks: TProviderLink[] = []
   environment: TAgentEnvironment = {}
-  providerModels: (string | null)[] = []
   projectConfigs: TAgentProjectConfig[] = []
 
   constructor(agent: Partial<Agent>) {
     super()
 
-    // biome-ignore format: None
-    const {
-      secrets,
-      projects,
-      providers,
-      projectConfigs,
-      providerModels,
-      providerPriorities,
-      ...rest
-    } = agent
+    const { secrets, projects, providerLinks, projectConfigs, ...rest } = agent
 
     Object.assign(this, {
       ...rest,
@@ -52,58 +42,28 @@ export class Agent extends Base {
         projects?.map((project) =>
           project instanceof Project ? project : new Project(project)
         ) || [],
-      providers:
-        providers?.map((prov) =>
-          prov instanceof Provider ? prov : new Provider(prov)
-        ) || [],
-      providerPriorities: providerPriorities || [],
-      providerModels: providerModels || [],
+      providerLinks: toProviderLinks(providerLinks),
       projectConfigs: projectConfigs || [],
     })
   }
 
+  get providers(): Provider[] {
+    return this.providerLinks.map((l) => l.provider)
+  }
+
   get primaryProvider(): Provider | undefined {
-    return this.providers?.[0]
+    return this.providerLinks[0]?.provider
   }
 
-  /**
-   * Returns providers with their priority metadata.
-   * If providerPriorities is empty, defaults priority to the array index.
-   */
-  get agentProviders(): TAgentProvider[] {
-    return this.providers.map((provider, index) => ({
-      provider,
-      model: this.providerModels[index] ?? null,
-      priority: this.providerPriorities[index] ?? index,
-    }))
-  }
-
-  /**
-   * Get the project config for a specific project
-   */
   getProjectConfig(projectId: string): TAgentProjectConfig | undefined {
     return this.projectConfigs?.find((c) => c.projectId === projectId)
   }
 
-  /**
-   * Resolve the model for a given provider ID using the 3-tier hierarchy:
-   *   1. Per-provider junction model (from agentProviders.model)
-   *   2. Agent-level model (agent.model)
-   *   3. Provider default model (provider.options.model)
-   * Returns undefined if no model is configured at any tier.
-   */
   resolveModel(providerId: string, providerDefaultModel?: string): string | undefined {
-    const junction = this.agentProviders?.find((ap) => ap.provider.id === providerId)
-    return junction?.model || this.model || providerDefaultModel || undefined
+    const link = this.providerLinks?.find((l) => l.provider.id === providerId)
+    return link?.model ?? this.model ?? providerDefaultModel ?? undefined
   }
 
-  /**
-   * Get the effective agent config for a specific project context.
-   * Merges base agent config with project-level overrides.
-   * NULL override fields = inherit from base agent.
-   * envVars and environment are deep merged (project keys win).
-   * Returns a new Agent instance with merged config.
-   */
   getEffectiveConfig(projectId?: string): Agent {
     if (!projectId) return this
     const config = this.getProjectConfig(projectId)
@@ -114,6 +74,7 @@ export class Agent extends Base {
       model: config.model ?? this.model,
       tools: config.tools ?? this.tools,
       projectConfigs: this.projectConfigs,
+      providerLinks: this.providerLinks,
       maxTokens: config.maxTokens ?? this.maxTokens,
       systemPrompt: config.systemPrompt ?? this.systemPrompt,
       envVars: { ...this.envVars, ...(config.envVars || {}) },
@@ -124,6 +85,7 @@ export class Agent extends Base {
   sanitize() {
     return new Agent({
       ...this,
+      providerLinks: this.providerLinks,
       secrets: this.secrets.map((secret) => secret.sanitize()),
     })
   }

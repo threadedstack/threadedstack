@@ -1,4 +1,4 @@
-import { Base } from './base'
+import { Base } from '@TDM/models/base'
 
 export class Thread extends Base {
   name?: string

@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { runAgent } from './runAgent'
 import { EPMethod } from '@TBE/types'
-import { ESandboxType } from '@tdsk/domain'
+import { ESandboxType, ELLMProviderBrand, Exception } from '@tdsk/domain'
 import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
 import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
@@ -112,6 +112,19 @@ describe(`POST /agents/:id/run - Run agent (SSE)`, () => {
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
+            },
+            provider: {
+              resolveLLMBrand: vi
+                .fn()
+                .mockImplementation((prov: { name?: string | null; brand?: string }) => {
+                  const validBrands = Object.values(ELLMProviderBrand) as string[]
+                  if (typeof prov.brand === `string` && validBrands.includes(prov.brand))
+                    return prov.brand
+                  throw new Exception(
+                    400,
+                    `Cannot determine LLM provider for "${prov.name || `unnamed`}"`
+                  )
+                }),
             },
           },
         },

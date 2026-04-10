@@ -28,3 +28,7 @@ export { agentProjects, agentProjectsRelations } from '@TDB/schemas/agentProject
 export { invoices, invoicesRelations } from '@TDB/schemas/invoices'
 export { subscriptions, subscriptionsRelations } from '@TDB/schemas/subscriptions'
 export { agentProviders, agentProvidersRelations } from '@TDB/schemas/agentProviders'
+export {
+  sandboxProviders,
+  sandboxProvidersRelations,
+} from '@TDB/schemas/sandboxProviders'

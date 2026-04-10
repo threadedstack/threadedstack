@@ -2,8 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * PUT /_/agents/:id - Update an agent
@@ -15,36 +15,7 @@ export const updateAgent: TEndpointConfig = {
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
-    const {
-      projectIds = [],
-      secretIds,
-      providerIds: rawProviderIds = [],
-      providers: providersWithPriority,
-      ...agent
-    } = req.body
-
-    // Support both formats: providerIds[] (ordered array) or providers[{id, priority, model?}]
-    const sortedProviders = providersWithPriority?.length
-      ? [...providersWithPriority].sort(
-          (a: { priority?: number }, b: { priority?: number }) =>
-            (a.priority ?? 0) - (b.priority ?? 0)
-        )
-      : null
-
-    const providerIds = sortedProviders
-      ? sortedProviders.map((p: { id: string }) => p.id)
-      : rawProviderIds
-
-    // Build providerModels map from providers array items that have a model
-    const providerModels = sortedProviders
-      ? sortedProviders.reduce(
-          (acc: Record<string, string>, p: { id: string; model?: string }) => {
-            if (p.model) acc[p.id] = p.model
-            return acc
-          },
-          {} as Record<string, string>
-        )
-      : undefined
+    const { secretIds, projectIds = [], providerInputs, ...agent } = req.body
 
     const { data: existingAgent, error: getError } = await db.services.agent.get(id)
     if (getError || !existingAgent) throw new Exception(404, `Agent not found`)
@@ -59,13 +30,13 @@ export const updateAgent: TEndpointConfig = {
     if (projectId) {
       const {
         model,
-        maxTokens,
-        systemPrompt,
         tools,
-        functionIds,
         envVars,
-        environment,
         enabled,
+        maxTokens,
+        functionIds,
+        environment,
+        systemPrompt,
       } = req.body
 
       if (functionIds?.length) {
@@ -83,13 +54,13 @@ export const updateAgent: TEndpointConfig = {
       const config = Object.fromEntries(
         Object.entries({
           model,
-          maxTokens,
-          systemPrompt,
           tools,
-          functionIds,
           envVars,
-          environment,
           enabled,
+          maxTokens,
+          functionIds,
+          environment,
+          systemPrompt,
         }).filter(([, v]) => v !== undefined)
       )
 
@@ -110,30 +81,15 @@ export const updateAgent: TEndpointConfig = {
 
     if (projErr) throw new Exception(500, projErr.message)
 
-    // If providerIds are being changed, validate all are AI type and same org
-    if (providerIds?.length) {
-      for (const providerId of providerIds) {
-        const { data: provider, error: provErr } =
-          await db.services.provider.get(providerId)
-        if (provErr || !provider)
-          throw new Exception(404, `Provider ${providerId} not found`)
-        if (provider.type !== `ai`)
-          throw new Exception(
-            400,
-            `Agent must be linked to AI providers (provider ${providerId} has type: "${provider.type}")`
-          )
-        if (provider.orgId !== existingAgent.orgId)
-          throw new Exception(
-            403,
-            `Provider ${providerId} does not belong to organization ${existingAgent.orgId}`
-          )
-      }
-    }
+    const pins = await db.services.provider.validate({
+      type: EProvider.ai,
+      inputs: providerInputs,
+      orgId: existingAgent.orgId,
+    })
 
     agent.id = id
     if (projects?.length) agent.projects = projects
-    if (providerIds?.length) agent.providerIds = providerIds
-    if (providerModels) agent.providerModels = providerModels
+    if (pins !== undefined) agent.providerInputs = pins
     if (secretIds !== undefined) agent.secretIds = secretIds
     const { data, error } = await db.services.agent.update(agent)
 

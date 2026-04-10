@@ -1,7 +1,7 @@
 import WebSocket from 'ws'
 import { describe, test, expect, afterAll, beforeAll, afterEach } from 'vitest'
-import { post } from '../utils/api-client'
 import { env } from '../utils/env'
+import { post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { uniqueName } from '../utils/unique-name'
 import { connectSandbox, getSessions, cleanupSandbox } from '../utils/sandbox-helpers'
@@ -74,8 +74,8 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
         {
           name: uniqueName('tunnel-sandbox'),
           config: {
-            image: 'tdsk-sandbox-base:dev',
-            imagePullPolicy: 'Never',
+            image: env.sandboxImage,
+            imagePullPolicy: 'IfNotPresent',
             ports: { '3000': { protocol: 'http' } },
             resources: {
               limits: { cpu: '500m', memory: '512Mi' },

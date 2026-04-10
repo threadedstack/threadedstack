@@ -146,6 +146,7 @@ import {
   projectAgentsLoader,
   projectDomainsLoader,
   projectMembersLoader,
+  projectSandboxesLoader,
   projectApiKeysLoader,
   endpointDetailLoader,
   agentDetailLoader,
@@ -699,6 +700,7 @@ describe('loaders', () => {
   describe('orgSandboxesLoader', () => {
     it('should skip fetch when sandboxes already loaded', async () => {
       mockGetSandboxes.mockReturnValue({ sb1: {} })
+      mockGetProviders.mockReturnValue({ p1: {} })
 
       await orgSandboxesLoader(makeArgs({ orgId: 'org-1' }))
 
@@ -707,11 +709,77 @@ describe('loaders', () => {
 
     it('should call fetchSandboxes when not loaded', async () => {
       mockGetSandboxes.mockReturnValue(undefined)
+      mockGetProviders.mockReturnValue({ p1: {} })
       mockFetchSandboxes.mockResolvedValue({ data: {} })
 
       await orgSandboxesLoader(makeArgs({ orgId: 'org-1' }))
 
       expect(mockFetchSandboxes).toHaveBeenCalledWith({ orgId: 'org-1' })
+    })
+
+    it('should fetch providers when not loaded', async () => {
+      mockGetSandboxes.mockReturnValue({ sb1: {} })
+      mockGetProviders.mockReturnValue(undefined)
+      mockFetchProviders.mockResolvedValue({ data: {} })
+
+      await orgSandboxesLoader(makeArgs({ orgId: 'org-1' }))
+
+      expect(mockFetchProviders).toHaveBeenCalledWith({ orgId: 'org-1' })
+    })
+
+    it('should skip providers fetch when already loaded', async () => {
+      mockGetSandboxes.mockReturnValue({ sb1: {} })
+      mockGetProviders.mockReturnValue({ p1: {} })
+
+      await orgSandboxesLoader(makeArgs({ orgId: 'org-1' }))
+
+      expect(mockFetchProviders).not.toHaveBeenCalled()
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // projectSandboxesLoader
+  // ---------------------------------------------------------------------------
+  describe('projectSandboxesLoader', () => {
+    it('should skip sandboxes fetch when already loaded', async () => {
+      mockGetSandboxes.mockReturnValue({ sb1: {} })
+      mockGetProviders.mockReturnValue({ p1: {} })
+
+      await projectSandboxesLoader(makeArgs({ orgId: 'org-1', projectId: 'proj-1' }))
+
+      expect(mockFetchSandboxes).not.toHaveBeenCalled()
+    })
+
+    it('should fetch sandboxes and providers when not loaded', async () => {
+      mockGetSandboxes.mockReturnValue(undefined)
+      mockGetProviders.mockReturnValue(undefined)
+      mockFetchSandboxes.mockResolvedValue({ data: {} })
+      mockFetchProviders.mockResolvedValue({ data: {} })
+
+      await projectSandboxesLoader(makeArgs({ orgId: 'org-1', projectId: 'proj-1' }))
+
+      expect(mockFetchSandboxes).toHaveBeenCalledWith({ orgId: 'org-1' })
+      expect(mockFetchProviders).toHaveBeenCalledWith({ orgId: 'org-1' })
+    })
+
+    it('should throw Response(400) when orgId is missing', async () => {
+      try {
+        await projectSandboxesLoader(makeArgs({ projectId: 'proj-1' }))
+        expect.fail('Should have thrown')
+      } catch (thrown) {
+        expect(thrown).toBeInstanceOf(Response)
+        expect((thrown as Response).status).toBe(400)
+      }
+    })
+
+    it('should throw Response(400) when projectId is missing', async () => {
+      try {
+        await projectSandboxesLoader(makeArgs({ orgId: 'org-1' }))
+        expect.fail('Should have thrown')
+      } catch (thrown) {
+        expect(thrown).toBeInstanceOf(Response)
+        expect((thrown as Response).status).toBe(400)
+      }
     })
   })
 

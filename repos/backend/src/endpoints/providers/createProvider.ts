@@ -4,8 +4,6 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { validateLLMProvider } from '@TBE/utils/providers/validateLLMProvider'
-import { validateProviderType } from '@TBE/utils/providers/validateProviderType'
 
 /**
  * POST /_/providers - Create a new provider
@@ -23,8 +21,8 @@ export const createProvider: TEndpointConfig = {
 
     if (!orgId) throw new Exception(400, `orgId is required`)
 
-    validateProviderType(providerData.type)
-    validateLLMProvider(providerData.type, providerData.brand)
+    db.services.provider.validateType(providerData.type)
+    db.services.provider.validateLLM(providerData.type, providerData.brand)
 
     await checkPermission(req, EPermAction.create, EPermResource.provider, {
       orgId,

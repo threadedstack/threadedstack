@@ -121,6 +121,7 @@ export type TDBEntitySelect =
   | TDBAssetSelect
   | TDBAgentSelect
   | TDBQuotaSelect
+  | TDBSkillSelect
   | TDBApiKeySelect
   | TDBSecretSelect
   | TDBThreadSelect
@@ -128,12 +129,11 @@ export type TDBEntitySelect =
   | TDBInvoiceSelect
   | TDBProjectSelect
   | TDBMessageSelect
+  | TDBSandboxSelect
   | TDBEndpointSelect
   | TDBProviderSelect
-  | TDBSkillSelect
   | TDBScheduleSelect
   | TDBFunctionSelect
-  | TDBSandboxSelect
   | TDBInvitationSelect
   | TDBSubscriptionSelect
 
@@ -144,6 +144,7 @@ export type TDBEntityInsert =
   | TDBAssetInsert
   | TDBQuotaInsert
   | TDBAgentInsert
+  | TDBSkillInsert
   | TDBApiKeyInsert
   | TDBSecretInsert
   | TDBThreadInsert
@@ -151,12 +152,11 @@ export type TDBEntityInsert =
   | TDBInvoiceInsert
   | TDBProjectInsert
   | TDBMessageInsert
+  | TDBSandboxInsert
   | TDBEndpointInsert
   | TDBProviderInsert
-  | TDBSkillInsert
   | TDBScheduleInsert
   | TDBFunctionInsert
-  | TDBSandboxInsert
   | TDBInvitationInsert
   | TDBSubscriptionInsert
 

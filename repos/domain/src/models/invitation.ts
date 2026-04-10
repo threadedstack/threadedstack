@@ -1,6 +1,6 @@
 import type { TInviteStatus } from '@TDM/types'
 
-import { Base } from './base'
+import { Base } from '@TDM/models/base'
 import { EInviteStatus } from '@TDM/types'
 import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 

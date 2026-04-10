@@ -2,6 +2,7 @@ import type { TKeyValuePair } from '@TAF/types'
 import type {
   TProto,
   Sandbox,
+  Provider,
   TPortConfig,
   TSecretMode,
   TImagePullPolicy,
@@ -9,32 +10,35 @@ import type {
   TSandboxRuntimeId,
 } from '@tdsk/domain'
 
-import { useState, useEffect, useMemo } from 'react'
-import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { Code } from '@TAF/components/Code/Code'
+import { useState, useEffect, useMemo } from 'react'
 import { MonacoOptions } from '@TAF/constants/monaco'
+import { SBImagePresets } from '@TAF/constants/providers'
+import { kvToObj, objToKV } from '@TAF/utils/transforms/kvs'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { createSecret } from '@TAF/actions/secrets/api/createSecret'
 import { createSandbox, updateSandbox } from '@TAF/actions/sandboxes'
-import { useOrgSecrets, useProjectSecrets } from '@TAF/state/selectors'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
+import { ProviderLinkList } from '@TAF/components/Providers/ProviderLinkList'
 import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
+import { useProviders, useOrgSecrets, useProjectSecrets } from '@TAF/state/selectors'
 import {
   ESecretMode,
-  SBImagePresets,
   ESandboxRuntime,
   SBRuntimeOptions,
   EImagePullPolicy,
   SandboxRuntimeOptions,
   SandboxRuntimeConfigs,
+  RuntimeProviderEnvMap,
   SBImagePullPolicyOptions,
 } from '@tdsk/domain'
 import {
   Box,
   Chip,
+  Alert,
   Button,
   Switch,
   Accordion,
@@ -126,6 +130,22 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     })
   }, [orgSecretsMap, projectSecretsMap, projectId])
 
+  // Provider linking
+  const [providersMap] = useProviders()
+  const [providerIds, setProviderIds] = useState<string[]>([])
+  const [providerModels, setProviderModels] = useState<Record<string, string>>({})
+
+  const orgProviders = useMemo(() => {
+    if (!providersMap) return []
+    return Object.values(providersMap).filter((p) => p.type === `ai`)
+  }, [providersMap])
+
+  const linkedProviders = useMemo(() => {
+    return providerIds
+      .map((id) => orgProviders.find((p) => p.id === id))
+      .filter(Boolean) as Provider[]
+  }, [providerIds, orgProviders])
+
   // UI state
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -143,6 +163,33 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     ? SandboxRuntimeConfigs[runtime]?.initScript || ``
     : ``
 
+  const compatibleBrands = useMemo(() => {
+    if (isCustomRuntime) return null
+    const runtimeMap =
+      RuntimeProviderEnvMap[runtime as keyof typeof RuntimeProviderEnvMap]
+    if (!runtimeMap) return null
+    const brands = Object.keys(runtimeMap)
+    return brands.length > 0 ? brands : null
+  }, [runtime, isCustomRuntime])
+
+  const availableProviders = useMemo(() => {
+    if (!orgProviders.length) return []
+    const linkedSet = new Set(providerIds)
+    return orgProviders.filter((p) => {
+      if (linkedSet.has(p.id)) return false
+      if (!compatibleBrands) return true
+      return compatibleBrands.some((b) => b === p.brand || b.startsWith(`${p.brand}:`))
+    })
+  }, [orgProviders, providerIds, compatibleBrands])
+
+  const onAddProvider = (provider: Provider) => {
+    setProviderIds((prev) => [...prev, provider.id])
+  }
+
+  const onRemoveProvider = (providerId: string) => {
+    setProviderIds((prev) => prev.filter((id) => id !== providerId))
+  }
+
   const reset = () => {
     setName(``)
     setArgs(``)
@@ -153,6 +200,8 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     setWorkdir(``)
     setCommand(``)
     setError(null)
+    setProviderIds([])
+    setProviderModels({})
     setCpuLimit(``)
     setCpuRequest(``)
     setMemoryLimit(``)
@@ -198,6 +247,12 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
       setRuntime((config.runtime as TSandboxRuntimeId) || ESandboxRuntime.claudeCode)
       setRuntimeCommand(config.runtimeCommand || ``)
       setInitScript(config.initScript || ``)
+      setProviderIds(sandbox.providerLinks?.map((l) => l.provider.id) || [])
+      const models: Record<string, string> = {}
+      for (const link of sandbox.providerLinks || []) {
+        if (link.model) models[link.provider.id] = link.model
+      }
+      setProviderModels(models)
 
       if (config.gitTokenSecretId) {
         setGitTokenSecretId(config.gitTokenSecretId)
@@ -321,8 +376,12 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
       ? initScript
       : initScript || resolvedInitScript
 
-    const sandboxData: Partial<Sandbox> = {
+    const sandboxData = {
       name: name.trim(),
+      providerInputs: providerIds.map((id) => ({
+        id,
+        model: providerModels[id] || null,
+      })),
       config: {
         runtime,
         sshEnabled,
@@ -355,7 +414,7 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     if (result.error) {
       setLoading(false)
       return setError(
-        `Failed to ${isEditMode ? `update` : `create`} sandbox config. Please try again.`
+        `Failed to ${isEditMode ? `update` : `create`} sandbox config: ${result.error?.message || `Please try again.`}`
       )
     }
 
@@ -420,7 +479,7 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
                 <Button
                   size='small'
                   disabled={loading}
-                  key={preset.value}
+                  key={preset.label}
                   onClick={() => setImage(preset.value)}
                   variant={image === preset.value ? 'contained' : 'outlined'}
                 >
@@ -508,37 +567,6 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
               sx={{ minHeight: 120 }}
             />
           </Box>
-
-          {/* Custom Start Command (only for custom runtime) */}
-          {isCustomRuntime && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography
-                variant='caption'
-                color='text.secondary'
-                sx={{ display: 'block' }}
-              >
-                Custom Container Start
-              </Typography>
-              <TextInput
-                fullWidth
-                value={command}
-                disabled={loading}
-                id='sandbox-custom-command'
-                label='Start Command'
-                placeholder='Comma-separated, e.g. /bin/sh, -c'
-                onChange={(e) => setCommand(e.target.value)}
-              />
-              <TextInput
-                fullWidth
-                value={args}
-                disabled={loading}
-                id='sandbox-custom-args'
-                label='Start Args'
-                placeholder='Comma-separated'
-                onChange={(e) => setArgs(e.target.value)}
-              />
-            </Box>
-          )}
 
           {/* Timeout */}
           <TextInput
@@ -755,6 +783,98 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
                   setSelectedSecretId('')
                 }}
               />
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Providers */}
+          <Accordion defaultExpanded={false}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                fontWeight={500}
+                variant='subtitle1'
+              >
+                Providers
+              </Typography>
+              {linkedProviders.length > 0 && (
+                <Chip
+                  size='small'
+                  sx={{ ml: 1 }}
+                  label={linkedProviders.length}
+                />
+              )}
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {!isCustomRuntime && linkedProviders.length === 0 && !!providersMap && (
+                  <Alert
+                    severity='info'
+                    sx={{ mb: 1 }}
+                  >
+                    No provider linked. The AI tool will need credentials to authenticate.
+                    Link a compatible provider below.
+                  </Alert>
+                )}
+
+                <ProviderLinkList
+                  reorderable
+                  loading={!providersMap}
+                  disabled={loading}
+                  providers={linkedProviders.map((p) => ({
+                    id: p.id,
+                    name: p.name || p.id,
+                    brand: p.brand,
+                    model: providerModels[p.id] ?? null,
+                  }))}
+                  availableProviders={availableProviders.map((p) => ({
+                    id: p.id,
+                    name: p.name || p.id,
+                    brand: p.brand,
+                  }))}
+                  onAdd={(p) =>
+                    onAddProvider({
+                      id: p.id,
+                      brand: p.brand,
+                      name: p.name,
+                      type: 'ai',
+                    } as Provider)
+                  }
+                  onReorder={(items) => setProviderIds(items.map((p) => p.id))}
+                  onModelChange={(id, model) =>
+                    setProviderModels((prev) => ({ ...prev, [id]: model }))
+                  }
+                  onRemove={(id) => {
+                    onRemoveProvider(id)
+                    setProviderModels((prev) => {
+                      const updated = { ...prev }
+                      delete updated[id]
+                      return updated
+                    })
+                  }}
+                />
+
+                {!!providersMap &&
+                  availableProviders.length === 0 &&
+                  linkedProviders.length > 0 && (
+                    <Typography
+                      variant='caption'
+                      color='text.secondary'
+                    >
+                      All compatible providers have been linked.
+                    </Typography>
+                  )}
+
+                {compatibleBrands && (
+                  <Typography
+                    variant='caption'
+                    color='text.secondary'
+                  >
+                    Compatible brands for{' '}
+                    {SandboxRuntimeOptions.find((o) => o.value === runtime)?.label ||
+                      runtime}
+                    : {compatibleBrands.filter((b) => !b.includes(':')).join(', ')}
+                  </Typography>
+                )}
+              </Box>
             </AccordionDetails>
           </Accordion>
 

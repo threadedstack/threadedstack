@@ -21,10 +21,6 @@ vi.mock(`@TBE/services/providers/modelRegistry`, () => ({
   },
 }))
 
-vi.mock(`@TBE/utils/providers/resolveProviderType`, () => ({
-  resolveProviderType: vi.fn().mockReturnValue(`anthropic`),
-}))
-
 vi.mock(`@TBE/services/openai/responseAdapter`, () => ({
   formatOAIError: vi.fn().mockReturnValue({
     status: 500,
@@ -65,6 +61,26 @@ describe(`GET /agents/:id/v1/models - OpenAI models list`, () => {
                     },
                   ],
                 },
+              }),
+            },
+            provider: {
+              resolveLLMBrand: vi.fn((p: any) => {
+                const validBrands = [
+                  `anthropic`,
+                  `openai`,
+                  `google`,
+                  `custom`,
+                  `ollama`,
+                  `zai`,
+                  `xai`,
+                  `groq`,
+                  `deepseek`,
+                  `cerebras`,
+                ]
+                if (p?.brand && validBrands.includes(p.brand)) return p.brand
+                throw new Error(
+                  `Cannot determine LLM provider for "${p?.name || `unnamed`}"`
+                )
               }),
             },
           },
@@ -244,14 +260,7 @@ describe(`GET /agents/:id/v1/models - OpenAI models list`, () => {
 
   it(`should return models from multiple providers`, async () => {
     const { ModelRegistry } = await import(`@TBE/services/providers/modelRegistry`)
-    const { resolveProviderType } = await import(
-      `@TBE/utils/providers/resolveProviderType`
-    )
-
-    const mockResolve = resolveProviderType as ReturnType<typeof vi.fn>
     const mockGetModels = ModelRegistry.getModels as ReturnType<typeof vi.fn>
-
-    mockResolve.mockReturnValueOnce(`anthropic`).mockReturnValueOnce(`openai`)
 
     mockGetModels
       .mockReturnValueOnce([{ id: `claude-sonnet-4-20250514`, name: `Claude` }])
@@ -301,21 +310,10 @@ describe(`GET /agents/:id/v1/models - OpenAI models list`, () => {
   })
 
   it(`should skip providers with unresolvable type and log warning`, async () => {
-    const { resolveProviderType } = await import(
-      `@TBE/utils/providers/resolveProviderType`
-    )
     const { logger } = await import(`@TBE/utils/logger`)
     const { ModelRegistry } = await import(`@TBE/services/providers/modelRegistry`)
 
-    const mockResolve = resolveProviderType as ReturnType<typeof vi.fn>
     const mockGetModels = ModelRegistry.getModels as ReturnType<typeof vi.fn>
-
-    mockResolve
-      .mockImplementationOnce(() => {
-        throw new Error(`Unknown provider brand`)
-      })
-      .mockReturnValueOnce(`openai`)
-
     mockGetModels.mockReturnValue([{ id: `gpt-4o`, name: `GPT-4o` }])
 
     const app = buildApp({
@@ -408,16 +406,10 @@ describe(`GET /agents/:id/v1/models - OpenAI models list`, () => {
   })
 
   it(`should log error and skip provider when ModelRegistry.getModels throws`, async () => {
-    const { resolveProviderType } = await import(
-      `@TBE/utils/providers/resolveProviderType`
-    )
     const { logger } = await import(`@TBE/utils/logger`)
     const { ModelRegistry } = await import(`@TBE/services/providers/modelRegistry`)
 
-    const mockResolve = resolveProviderType as ReturnType<typeof vi.fn>
     const mockGetModels = ModelRegistry.getModels as ReturnType<typeof vi.fn>
-
-    mockResolve.mockReturnValueOnce(`anthropic`).mockReturnValueOnce(`openai`)
 
     mockGetModels
       .mockImplementationOnce(() => {

@@ -21,11 +21,12 @@ describe(`Agent model`, () => {
       expect(agent.tools).toEqual([`tool1`])
     })
 
-    it(`should default to empty providers array`, () => {
+    it(`should default to empty providerLinks array`, () => {
       const agent = new Agent({
         name: `Test Agent`,
         orgId: `org-1`,
       })
+      expect(agent.providerLinks).toEqual([])
       expect(agent.providers).toEqual([])
       expect(agent.primaryProvider).toBeUndefined()
     })
@@ -34,16 +35,20 @@ describe(`Agent model`, () => {
       const agent = new Agent({
         name: `Test Agent`,
         orgId: `org-1`,
-        providers: [
-          { id: `prov-1`, type: `openai` } as any,
-          { id: `prov-2`, type: `anthropic` } as any,
+        providerLinks: [
+          { provider: { id: `prov-1`, type: `openai` } as any, priority: 0, model: null },
+          {
+            provider: { id: `prov-2`, type: `anthropic` } as any,
+            priority: 1,
+            model: null,
+          },
         ],
       })
-      expect(agent.providers).toHaveLength(2)
-      expect(agent.providers[0]).toBeInstanceOf(Provider)
-      expect(agent.providers[0]?.id).toBe(`prov-1`)
-      expect(agent.providers[1]).toBeInstanceOf(Provider)
-      expect(agent.providers[1]?.id).toBe(`prov-2`)
+      expect(agent.providerLinks).toHaveLength(2)
+      expect(agent.providerLinks[0]?.provider).toBeInstanceOf(Provider)
+      expect(agent.providerLinks[0]?.provider.id).toBe(`prov-1`)
+      expect(agent.providerLinks[1]?.provider).toBeInstanceOf(Provider)
+      expect(agent.providerLinks[1]?.provider.id).toBe(`prov-2`)
     })
 
     it(`should preserve Provider instances as-is`, () => {
@@ -51,21 +56,10 @@ describe(`Agent model`, () => {
       const agent = new Agent({
         name: `Test Agent`,
         orgId: `org-1`,
-        providers: [prov],
+        providerLinks: [{ provider: prov, priority: 0, model: null }],
       })
-      expect(agent.providers[0]).toBe(prov)
-      expect(agent.providers[0]).toBeInstanceOf(Provider)
-    })
-
-    it(`should return primary provider (first in array)`, () => {
-      const prov1 = new Provider({ id: `prov-1`, type: `openai` } as any)
-      const prov2 = new Provider({ id: `prov-2`, type: `anthropic` } as any)
-      const agent = new Agent({
-        name: `Test Agent`,
-        orgId: `org-1`,
-        providers: [prov1, prov2],
-      })
-      expect(agent.primaryProvider).toBe(prov1)
+      expect(agent.providerLinks[0]?.provider).toBe(prov)
+      expect(agent.providerLinks[0]?.provider).toBeInstanceOf(Provider)
     })
 
     it(`should have correct defaults`, () => {
@@ -77,69 +71,63 @@ describe(`Agent model`, () => {
       expect(agent.tools).toEqual([])
       expect(agent.secrets).toEqual([])
       expect(agent.projects).toEqual([])
-      expect(agent.providers).toEqual([])
-      expect(agent.providerPriorities).toEqual([])
+      expect(agent.providerLinks).toEqual([])
       expect(agent.envVars).toEqual({})
       expect(agent.environment).toEqual({})
     })
   })
 
-  describe(`providerPriorities`, () => {
-    it(`should store providerPriorities alongside providers`, () => {
+  describe(`providers getter`, () => {
+    it(`should derive providers from providerLinks`, () => {
+      const prov1 = new Provider({ id: `prov-1`, type: `openai` } as any)
+      const prov2 = new Provider({ id: `prov-2`, type: `anthropic` } as any)
       const agent = new Agent({
         name: `Test Agent`,
         orgId: `org-1`,
-        providers: [
-          { id: `prov-1`, type: `openai` } as any,
-          { id: `prov-2`, type: `anthropic` } as any,
+        providerLinks: [
+          { provider: prov1, priority: 0, model: null },
+          { provider: prov2, priority: 1, model: `gpt-4o` },
         ],
-        providerPriorities: [0, 1],
       })
-      expect(agent.providerPriorities).toEqual([0, 1])
       expect(agent.providers).toHaveLength(2)
+      expect(agent.providers[0]).toBe(prov1)
+      expect(agent.providers[1]).toBe(prov2)
     })
 
-    it(`should default providerPriorities to empty array`, () => {
+    it(`should return primary provider (first in array)`, () => {
+      const prov1 = new Provider({ id: `prov-1`, type: `openai` } as any)
+      const prov2 = new Provider({ id: `prov-2`, type: `anthropic` } as any)
       const agent = new Agent({
         name: `Test Agent`,
         orgId: `org-1`,
+        providerLinks: [
+          { provider: prov1, priority: 0, model: null },
+          { provider: prov2, priority: 1, model: null },
+        ],
       })
-      expect(agent.providerPriorities).toEqual([])
+      expect(agent.primaryProvider).toBe(prov1)
     })
   })
 
-  describe(`agentProviders getter`, () => {
-    it(`should return agentProviders with priority metadata`, () => {
+  describe(`providerLinks`, () => {
+    it(`should store priority and model metadata`, () => {
       const prov1 = new Provider({ id: `prov-1`, type: `openai` } as any)
       const prov2 = new Provider({ id: `prov-2`, type: `anthropic` } as any)
       const agent = new Agent({
         name: `Test Agent`,
         orgId: `org-1`,
-        providers: [prov1, prov2],
-        providerPriorities: [0, 1],
+        providerLinks: [
+          { provider: prov1, priority: 0, model: null },
+          { provider: prov2, priority: 5, model: `claude-sonnet` },
+        ],
       })
-      const result = agent.agentProviders
-      expect(result).toHaveLength(2)
-      expect(result[0]?.provider).toBe(prov1)
-      expect(result[0]?.priority).toBe(0)
-      expect(result[1]?.provider).toBe(prov2)
-      expect(result[1]?.priority).toBe(1)
-    })
-
-    it(`should default priorities to index when providerPriorities not provided`, () => {
-      const prov1 = new Provider({ id: `prov-1`, type: `openai` } as any)
-      const prov2 = new Provider({ id: `prov-2`, type: `anthropic` } as any)
-      const prov3 = new Provider({ id: `prov-3`, type: `google` } as any)
-      const agent = new Agent({
-        name: `Test Agent`,
-        orgId: `org-1`,
-        providers: [prov1, prov2, prov3],
-      })
-      const result = agent.agentProviders
-      expect(result).toHaveLength(3)
-      expect(result[0]?.priority).toBe(0)
-      expect(result[1]?.priority).toBe(1)
-      expect(result[2]?.priority).toBe(2)
+      expect(agent.providerLinks).toHaveLength(2)
+      expect(agent.providerLinks[0]?.provider).toBe(prov1)
+      expect(agent.providerLinks[0]?.priority).toBe(0)
+      expect(agent.providerLinks[0]?.model).toBeNull()
+      expect(agent.providerLinks[1]?.provider).toBe(prov2)
+      expect(agent.providerLinks[1]?.priority).toBe(5)
+      expect(agent.providerLinks[1]?.model).toBe(`claude-sonnet`)
     })
 
     it(`should return empty array when no providers`, () => {
@@ -147,21 +135,46 @@ describe(`Agent model`, () => {
         name: `Test Agent`,
         orgId: `org-1`,
       })
-      expect(agent.agentProviders).toEqual([])
+      expect(agent.providerLinks).toEqual([])
+    })
+  })
+
+  describe(`resolveModel`, () => {
+    it(`should return per-provider model when set`, () => {
+      const prov = new Provider({ id: `prov-1`, type: `openai` } as any)
+      const agent = new Agent({
+        name: `Test`,
+        orgId: `org-1`,
+        model: `agent-default`,
+        providerLinks: [{ provider: prov, priority: 0, model: `per-provider-model` }],
+      })
+      expect(agent.resolveModel(`prov-1`, `provider-default`)).toBe(`per-provider-model`)
     })
 
-    it(`should handle non-sequential priorities`, () => {
-      const prov1 = new Provider({ id: `prov-1`, type: `openai` } as any)
-      const prov2 = new Provider({ id: `prov-2`, type: `anthropic` } as any)
+    it(`should fall back to agent model when no per-provider model`, () => {
+      const prov = new Provider({ id: `prov-1`, type: `openai` } as any)
       const agent = new Agent({
-        name: `Test Agent`,
+        name: `Test`,
         orgId: `org-1`,
-        providers: [prov1, prov2],
-        providerPriorities: [0, 5],
+        model: `agent-default`,
+        providerLinks: [{ provider: prov, priority: 0, model: null }],
       })
-      const result = agent.agentProviders
-      expect(result[0]?.priority).toBe(0)
-      expect(result[1]?.priority).toBe(5)
+      expect(agent.resolveModel(`prov-1`, `provider-default`)).toBe(`agent-default`)
+    })
+
+    it(`should fall back to provider default when no agent model`, () => {
+      const prov = new Provider({ id: `prov-1`, type: `openai` } as any)
+      const agent = new Agent({
+        name: `Test`,
+        orgId: `org-1`,
+        providerLinks: [{ provider: prov, priority: 0, model: null }],
+      })
+      expect(agent.resolveModel(`prov-1`, `provider-default`)).toBe(`provider-default`)
+    })
+
+    it(`should return undefined when no model at any tier`, () => {
+      const agent = new Agent({ name: `Test`, orgId: `org-1` })
+      expect(agent.resolveModel(`prov-1`)).toBeUndefined()
     })
   })
 
@@ -250,6 +263,9 @@ describe(`Agent model`, () => {
         tools: [`tool-a`, `tool-b`],
         envVars: { API_URL: `https://base.example.com`, SHARED_KEY: `base-value` },
         environment: { temperature: 0.5, streaming: true },
+        providerLinks: [
+          { provider: { id: `prov-1`, type: `openai` } as any, priority: 0, model: null },
+        ],
         projectConfigs: [
           {
             agentId: `agent-1`,
@@ -330,6 +346,13 @@ describe(`Agent model`, () => {
       const result = agent.getEffectiveConfig(`proj-1`)
       expect(result.projectConfigs).toEqual(agent.projectConfigs)
       expect(result.projectConfigs).toHaveLength(2)
+    })
+
+    it(`should preserve providerLinks on effective config`, () => {
+      const agent = baseAgent()
+      const result = agent.getEffectiveConfig(`proj-1`)
+      expect(result.providerLinks).toHaveLength(1)
+      expect(result.providerLinks[0]?.provider.id).toBe(`prov-1`)
     })
 
     it(`should return a new Agent instance (not mutate original)`, () => {

@@ -230,39 +230,33 @@ test.describe('Text Rendering - Literal Quotes Detection', () => {
    * BUG #28 - Project branch in selector should not have quotes
    *
    * In the project sidebar menu, the secondary text shows `Branch: main`.
-   * On the project detail page, the branch is shown as a Chip.
-   * Neither should render with surrounding `"` characters.
+   * On the project workspace page, section headings and button labels
+   * should not render with surrounding `"` characters.
    */
-  test('project branch in selector should not have quotes', async ({
+  test('project workspace text should not have quotes', async ({
     authenticatedPage: page,
     ctx,
   }) => {
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-workspace-page')
 
-    // Check the Branch chip on the project detail page
-    // The Project page renders: <Chip label={project.branch || 'main'} />
-    const branchSection = page.locator('text=/Branch/i').first()
-    await expect(branchSection).toBeVisible({ timeout: 10000 })
+    // Check section headings for literal quotes
+    const sandboxesHeading = page.getByText('Sandboxes').first()
+    await expect(sandboxesHeading).toBeVisible({ timeout: 10000 })
+    const headingText = await sandboxesHeading.textContent()
+    expect(headingText?.trim()).not.toMatch(/^"/)
+    expect(headingText?.trim()).not.toMatch(/"$/)
 
-    // Find the Chip that shows the branch name
-    const branchChip = page.locator('[class*="MuiChip"]', { hasText: /main/ }).first()
-    if ((await branchChip.count()) > 0) {
-      const chipText = await branchChip.textContent()
+    const threadsHeading = page.getByText('Recent Threads').first()
+    await expect(threadsHeading).toBeVisible()
+    const threadsText = await threadsHeading.textContent()
+    expect(threadsText?.trim()).not.toMatch(/^"/)
+    expect(threadsText?.trim()).not.toMatch(/"$/)
 
-      // Branch chip should show `main`, not `"main"`
-      expect(chipText?.trim()).not.toMatch(/^"main"$/)
-      expect(chipText?.trim()).toBe('main')
-    }
-
-    // Also check the sidebar project menu for `Branch: main` text
-    const branchText = page.getByText(/Branch:/).first()
-    if ((await branchText.count()) > 0) {
-      const sidebarBranchText = await branchText.textContent()
-
-      // Should be `Branch: main`, not `"Branch: main"` or `Branch: "main"`
-      expect(sidebarBranchText).not.toMatch(/^"Branch:/)
-      expect(sidebarBranchText).not.toMatch(/"main"/)
-      expect(sidebarBranchText).not.toMatch(/Branch:"/)
-    }
+    // Check button labels for literal quotes
+    const newSandboxBtn = page.getByRole('button', { name: /New Sandbox/i })
+    await expect(newSandboxBtn).toBeVisible()
+    const btnText = await newSandboxBtn.textContent()
+    expect(btnText?.trim()).not.toMatch(/^"/)
+    expect(btnText?.trim()).not.toMatch(/"$/)
   })
 })

@@ -172,57 +172,18 @@ test.describe('Cancel button disabled on drawer open', () => {
   })
 })
 
-test.describe('Project dashboard stats show 0', () => {
-  test('should display stats cards on project detail page', async ({
+test.describe('Project workspace dashboard', () => {
+  test('should display sandbox and thread panels on project workspace page', async ({
     authenticatedPage: page, ctx,
   }) => {
-    // Known bug - see QA-BUG-REPORT.md #2-3
-    // Project dashboard stat cards (Endpoints, Functions, Agents) always show "0"
-    // because the counts are computed from Jotai atoms that may not be populated
-    // until the user navigates to those specific sub-pages.
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-workspace-page')
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-page')
+    // ProjectWorkspace renders quick action buttons
+    await expect(page.getByRole('button', { name: /New Sandbox/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Connect/i })).toBeVisible()
 
-    // The Project page renders 3 stat cards in a Grid with xs={4} each:
-    // - Endpoints (with ApiIcon)
-    // - Functions (with FunctionsIcon)
-    // - Agents (with AgentIcon)
-    const statCards = page.locator('.MuiCard-root .MuiCardContent-root')
-
-    // There should be at least the 3 stat cards plus the project info card
-    const cardCount = await statCards.count()
-    expect(cardCount).toBeGreaterThanOrEqual(3)
-
-    // Check for the stat labels — scope to main content area to avoid sidebar matches
-    const mainContent = page.getByRole('main')
-    const endpointsLabel = mainContent.getByText('Endpoints', { exact: true })
-    const functionsLabel = mainContent.getByText('Functions', { exact: true })
-    const agentsLabel = mainContent.getByText('Agents', { exact: true })
-
-    await expect(endpointsLabel.first()).toBeVisible()
-    await expect(functionsLabel.first()).toBeVisible()
-    await expect(agentsLabel.first()).toBeVisible()
-
-    // Known bug #2-3: The counts show "0" because endpoint/function/agent data
-    // is not fetched when loading the project detail page.
-    // The counts are computed from atoms that only populate after visiting sub-pages.
-    // Check if any stat card shows a non-zero value (would indicate bug is fixed)
-    const h4Elements = page.locator('.MuiTypography-h4')
-    const h4Texts: string[] = []
-    const h4Count = await h4Elements.count()
-    for (let i = 0; i < h4Count; i++) {
-      const text = await h4Elements.nth(i).textContent()
-      if (text !== null && /^\d+$/.test(text.trim())) {
-        h4Texts.push(text.trim())
-      }
-    }
-
-    // Document: If all numeric h4s are "0", the bug persists
-    const allZero = h4Texts.length > 0 && h4Texts.every((t) => t === '0')
-    if (allZero) {
-      // Bug confirmed: all stat counts are 0
-      expect(allZero).toBe(true) // Known bug - stats show 0
-    }
+    // Recent Threads panel should be visible
+    await expect(page.getByText('Recent Threads')).toBeVisible()
   })
 })
 

@@ -1,8 +1,9 @@
 import type { Sandbox, TSandboxConnectResponse, TSandboxSession } from '@tdsk/domain'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { clipboard } from '@tdsk/components'
-import { getSandboxSessions } from '@TAF/actions/sandboxes/api/getSandboxSessions'
+import { ESandboxRuntime } from '@tdsk/domain'
+import { VSCodeSSHConfig } from '@TAF/constants/monaco'
 import {
   Check as CheckIcon,
   People as SessionsIcon,
@@ -11,6 +12,7 @@ import {
 import {
   Box,
   Chip,
+  Alert,
   Button,
   Dialog,
   Divider,
@@ -29,43 +31,19 @@ export type TConnectModal = {
   onStop: () => void
   onClose: () => void
   sandbox: Sandbox | null
+  sessions: TSandboxSession[]
   connectData: TSandboxConnectResponse | null
 }
 
-export const ConnectModal = ({
-  orgId,
-  open,
-  stopping,
-  sandbox,
-  connectData,
-  onClose,
-  onStop,
-}: TConnectModal) => {
+export const ConnectModal = (props: TConnectModal) => {
+  const { open, orgId, onStop, onClose, sandbox, stopping, sessions, connectData } = props
+
   const [copied, setCopied] = useState<string | null>(null)
-  const [sessions, setSessions] = useState<TSandboxSession[]>([])
-  const [loadingSessions, setLoadingSessions] = useState(false)
 
-  useEffect(() => {
-    if (!open || !sandbox?.id || !orgId) {
-      setSessions([])
-      return
-    }
-
-    let cancelled = false
-    const fetchSessions = async () => {
-      setLoadingSessions(true)
-      const result = await getSandboxSessions({ orgId, sandboxId: sandbox.id })
-      if (!cancelled) {
-        setSessions(result.data || [])
-        setLoadingSessions(false)
-      }
-    }
-
-    fetchSessions()
-    return () => {
-      cancelled = true
-    }
-  }, [open, sandbox?.id, orgId])
+  const linkedProviders = sandbox?.providers || []
+  const sandboxRuntime = sandbox?.config?.runtime
+  const isCustomRuntime = sandboxRuntime === ESandboxRuntime.custom
+  const hasNoProvider = linkedProviders.length === 0 && !isCustomRuntime
 
   const copyToClipboard = async (text: string, key: string) => {
     try {
@@ -82,7 +60,6 @@ export const ConnectModal = ({
   }
 
   const sshCommand = connectData?.command || `tsa ssh ${sandbox?.id || ''}`
-  const vscodeConfig = `Host sandbox-*\n  ProxyCommand tsa proxy %h\n  User sandbox\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null`
 
   return (
     <Dialog
@@ -93,6 +70,17 @@ export const ConnectModal = ({
     >
       <DialogTitle>Connect to &quot;{sandbox?.name || 'Sandbox'}&quot;</DialogTitle>
       <DialogContent>
+        {/* Provider Warning */}
+        {hasNoProvider && (
+          <Alert
+            severity='warning'
+            sx={{ mb: 2 }}
+          >
+            No provider linked. The AI tool may fail to authenticate. Link a provider in
+            sandbox settings.
+          </Alert>
+        )}
+
         {/* Pod Info */}
         {connectData?.podName && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
@@ -108,20 +96,13 @@ export const ConnectModal = ({
             >
               Pod: {connectData.podName}
             </Typography>
-            {loadingSessions ? (
-              <CircularProgress
-                size={12}
-                sx={{ ml: 'auto' }}
-              />
-            ) : (
-              <Chip
-                size='small'
-                variant='outlined'
-                sx={{ ml: 'auto' }}
-                icon={<SessionsIcon sx={{ fontSize: 14 }} />}
-                label={`${sessions.length} session${sessions.length !== 1 ? 's' : ''}`}
-              />
-            )}
+            <Chip
+              size='small'
+              variant='outlined'
+              sx={{ ml: 'auto' }}
+              icon={<SessionsIcon sx={{ fontSize: 14 }} />}
+              label={`${sessions.length} session${sessions.length !== 1 ? 's' : ''}`}
+            />
           </Box>
         )}
 
@@ -185,12 +166,12 @@ export const ConnectModal = ({
             component='pre'
             sx={{ fontFamily: 'monospace', whiteSpace: 'pre', m: 0, fontSize: '0.8rem' }}
           >
-            {vscodeConfig}
+            {VSCodeSSHConfig}
           </Typography>
           <IconButton
             size='small'
             sx={{ position: 'absolute', top: 4, right: 4 }}
-            onClick={() => copyToClipboard(vscodeConfig, 'vscode')}
+            onClick={() => copyToClipboard(VSCodeSSHConfig, 'vscode')}
           >
             {copied === 'vscode' ? (
               <CheckIcon

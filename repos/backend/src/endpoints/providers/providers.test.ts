@@ -44,6 +44,42 @@ describe(`Providers endpoints`, () => {
               create: vi.fn(),
               update: vi.fn(),
               delete: vi.fn(),
+              validateType: vi.fn((type?: string) => {
+                const validTypes = [`ai`, `git`, `auth`, `storage`]
+                if (!type)
+                  throw new Error(
+                    `Provider type is required, must be one of: ${validTypes.join(`, `)}`
+                  )
+                if (validTypes.includes(type)) return true
+                throw new Error(
+                  `Invalid provider type "${type}", must be one of: ${validTypes.join(`, `)}`
+                )
+              }),
+              validateLLM: vi.fn((type?: string, brand?: string | null) => {
+                if (type !== `ai`) return
+                const validBrands = [
+                  `anthropic`,
+                  `openai`,
+                  `google`,
+                  `custom`,
+                  `ollama`,
+                  `zai`,
+                  `xai`,
+                  `groq`,
+                  `deepseek`,
+                  `cerebras`,
+                  `azure-openai`,
+                  `amazon-bedrock`,
+                  `vercel-ai-gateway`,
+                  `google-antigravity`,
+                  `azure-openai-responses`,
+                ]
+                if (!brand || typeof brand !== `string` || !validBrands.includes(brand))
+                  throw new Error(
+                    `AI providers require brand to be one of: ${validBrands.join(`, `)}` +
+                      (brand ? `. Got: "${brand}"` : ``)
+                  )
+              }),
             },
             role: {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
@@ -337,6 +373,7 @@ describe(`Providers endpoints`, () => {
         id: `prov-1`,
         name: `Old Name`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
       })
       const updateData = { name: `New Name` }
@@ -400,6 +437,7 @@ describe(`Providers endpoints`, () => {
         id: `prov-1`,
         name: `Provider`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
       })
       const updateData = { headers: { 'X-Api-Key': `{{MY_SECRET}}` } }
@@ -432,6 +470,7 @@ describe(`Providers endpoints`, () => {
         id: `prov-1`,
         name: `Provider`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
         secretId: `secret-1`,
       })
@@ -459,6 +498,7 @@ describe(`Providers endpoints`, () => {
         id: `prov-1`,
         name: `Old Name`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
       })
       mockReq.params = { id: `prov-1` }
@@ -489,7 +529,7 @@ describe(`Providers endpoints`, () => {
       mockReq.body = { name: `Provider`, orgId: `org-1` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Invalid provider type`
+        `Provider type is required`
       )
     })
 
@@ -497,7 +537,7 @@ describe(`Providers endpoints`, () => {
       mockReq.body = { name: `Provider`, type: `invalid`, orgId: `org-1` }
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Invalid provider type`
+        `Invalid provider type "invalid"`
       )
     })
 
@@ -549,6 +589,7 @@ describe(`Providers endpoints`, () => {
         id: `prov-1`,
         name: `Provider`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
       })
       mockReq.params = { id: `prov-1` }
@@ -560,7 +601,7 @@ describe(`Providers endpoints`, () => {
       mockGet.mockResolvedValue({ data: existingProvider })
 
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Invalid provider type`
+        `Invalid provider type "invalid"`
       )
     })
 
@@ -569,12 +610,14 @@ describe(`Providers endpoints`, () => {
         id: `prov-1`,
         name: `Old Name`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
       })
       const updatedProvider = new Provider({
         id: `prov-1`,
         name: `New Name`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
       })
       mockReq.params = { id: `prov-1` }
@@ -598,6 +641,7 @@ describe(`Providers endpoints`, () => {
         id: `prov-1`,
         name: `Provider`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
       })
       const updatedProvider = new Provider({
@@ -631,6 +675,7 @@ describe(`Providers endpoints`, () => {
         id: `prov-1`,
         name: `Provider`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
       })
       mockReq.params = { id: `prov-1` }
@@ -686,6 +731,7 @@ describe(`Providers endpoints`, () => {
         id: `prov-1`,
         name: `Provider`,
         type: `ai`,
+        brand: `anthropic`,
         orgId: `org-1`,
       })
       mockReq.params = { id: `prov-1` }

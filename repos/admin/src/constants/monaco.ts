@@ -11,3 +11,5 @@ export const MonacoOptions = {
   scrollBeyondLastLine: false,
   renderLineHighlight: `all` as const,
 }
+
+export const VSCodeSSHConfig = `Host sandbox-*\n  ProxyCommand tsa proxy %h\n  User sandbox\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null`

@@ -1,6 +1,6 @@
 import type { TProviderType, TProviderBrand } from '@TDM/types'
 
-import { Base } from './base'
+import { Base } from '@TDM/models/base'
 
 export class Provider extends Base {
   name?: string

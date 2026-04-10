@@ -153,7 +153,7 @@ export const config = {
       location: paths.deploy,
       from: TDSK_SB_IMAGE_FROM,
       dtag: TDSK_SB_DEV_IMAGE_TAG,
-      dockerfile: `Dockerfile.sandbox-base`,
+      dockerfile: `Dockerfile.sandbox`,
       mounts: {},
       ports: {},
     },

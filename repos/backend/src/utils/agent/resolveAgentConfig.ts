@@ -1,14 +1,13 @@
 import type { TDatabase } from '@tdsk/database'
 import type { IAgentRunnerDB } from '@tdsk/agent'
+import type { TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domain'
 import type { TApp, TResolvedAgentConfig, TResolveAgentOpts } from '@TBE/types'
-import type { TLLMProviderBrand, TLLMAdapterConfig, TSandboxConfig } from '@tdsk/domain'
 
 import { logger } from '@TBE/utils/logger'
 import { Exception, ESandboxType } from '@tdsk/domain'
 import { resolveAgentDeps } from '@TBE/utils/agent/resolveAgentDeps'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { FunctionExecutor } from '@TBE/services/functions/functionExecutor'
-import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 
 /**
  * Create an IAgentRunnerDB adapter wrapping backend database services.
@@ -90,13 +89,13 @@ export const resolveAgentConfig = async (
     headers,
     bodyParams,
     baseUrl: provider.options?.baseUrl as string | undefined,
-    temperature: overrides?.temperature ?? effectiveAgent.environment?.temperature,
+    provider: db.services.provider.resolveLLMBrand(provider),
     maxTokens: overrides?.maxTokens || effectiveAgent.maxTokens,
     systemPrompt: overrides?.systemPrompt || effectiveAgent.systemPrompt,
+    temperature: overrides?.temperature ?? effectiveAgent.environment?.temperature,
     model:
       overrides?.model ||
       effectiveAgent.resolveModel(provider!.id, provider!.options?.model),
-    provider: resolveProviderType<TLLMProviderBrand>(provider as any),
   }
 
   // 9. Build sandbox config

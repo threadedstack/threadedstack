@@ -51,9 +51,11 @@ const {
 
   // ENVs specific to dynamic sandboxes
   TDSK_SB_TIMEOUT_MIN = `30`,
+  TDSK_SB_IMAGE_TAG = `latest`,
   TDSK_SB_MAX_WAIT_MS = `120000`,
   TDSK_SB_POLL_INTERVAL_MS = `2000`,
   TDSK_SB_IDLE_INTERVAL_MS = `60_000`,
+  TDSK_SB_IMAGE = `ghcr.io/threadedstack/tdsk-sandbox`,
 
   // The deployed proxy host url
   // New domains are validated against this URL to ensure the CName is configured properly
@@ -81,6 +83,7 @@ export const config = {
     timeoutMin: toNum(TDSK_SB_TIMEOUT_MIN),
     pollInterval: toNum(TDSK_SB_POLL_INTERVAL_MS),
     idleInterval: toNum(TDSK_SB_IDLE_INTERVAL_MS),
+    image: `${TDSK_SB_IMAGE}:${TDSK_SB_IMAGE_TAG}`,
   },
   proxy: {
     // Validate if this URL field is needed

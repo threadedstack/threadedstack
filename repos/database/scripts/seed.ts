@@ -41,14 +41,17 @@ type SeedData = {
 
 /**
  * Convert fullorg Agent domain models to TAgentInsertOpts format
- * The agent service expects providerIds and projects (with per-project functionIds)
+ * The agent service expects providerInputs and projects (with per-project functionIds)
  * instead of full Provider[]/Project[] arrays
  *
  * Merges projectConfigs into the projects array so functionIds and other
  * per-project overrides are passed to the agent service correctly
  */
 const toAgentInsertOpts = (agent: any) => {
-  const providerIds = (agent.providers || []).map((p: any) => p.id)
+  const providerInputs = (agent.providers || []).map((p: any) => ({
+    id: p.id,
+    model: null,
+  }))
   const projects = (agent.projects || []).map((p: any) => {
     const config = (agent.projectConfigs || []).find((c: any) => c.projectId === p.id)
     return {
@@ -67,8 +70,8 @@ const toAgentInsertOpts = (agent: any) => {
 
   return {
     projects,
-    providerIds,
     id: agent.id,
+    providerInputs,
     name: agent.name,
     orgId: agent.orgId,
     model: agent.model,

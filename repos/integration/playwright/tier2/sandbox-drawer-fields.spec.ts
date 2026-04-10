@@ -66,17 +66,20 @@ test.describe.serial('Sandbox Drawer Fields', () => {
     await expect(claudePreset).toBeVisible({ timeout: 5_000 })
     await claudePreset.click()
 
-    // Verify the image field is populated with the preset value
+    // Verify the image field is populated with the consolidated sandbox image
+    // All presets use the same TDSK_SB_IMAGE_FULL value after Dockerfile consolidation
     const imageInput = page.locator('#sandbox-image')
-    await expect(imageInput).toHaveValue('tdsk-sandbox-claude')
+    const presetImage = await imageInput.inputValue()
+    expect(presetImage).toBeTruthy()
+    expect(presetImage).toContain('tdsk-sandbox')
 
     // Verify other preset buttons exist
     await expect(page.getByRole('button', { name: 'Codex' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'OpenCode' })).toBeVisible()
 
-    // Click another preset to verify it updates the field
+    // Click another preset to verify it also populates the field
     await page.getByRole('button', { name: 'Codex' }).click()
-    await expect(imageInput).toHaveValue('tdsk-sandbox-codex')
+    await expect(imageInput).toHaveValue(presetImage)
 
     expect(errors).toEqual([])
   })

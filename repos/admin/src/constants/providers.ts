@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 
 import GoogleIcon from '@mui/icons-material/Google'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
+import { TDSK_SB_IMAGE_FULL } from '@TAF/constants/envs'
 import { EProvider, ELLMProviderBrand } from '@tdsk/domain'
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest'
 
@@ -35,3 +36,10 @@ export const ProviderIcons: Record<string, ComponentType<any>> = {
   [ELLMProviderBrand.openrouter]: OpenRouterIcon,
   [ELLMProviderBrand.custom]: SettingsSuggestIcon,
 }
+
+export const SBImagePresets = [
+  { label: `Codex`, value: TDSK_SB_IMAGE_FULL },
+  { label: `OpenCode`, value: TDSK_SB_IMAGE_FULL },
+  { label: `Gemini CLI`, value: TDSK_SB_IMAGE_FULL },
+  { label: `Claude Code`, value: TDSK_SB_IMAGE_FULL },
+]

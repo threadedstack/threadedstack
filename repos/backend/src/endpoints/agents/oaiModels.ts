@@ -7,7 +7,6 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 import { formatOAIError } from '@TBE/services/openai/responseAdapter'
-import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 
 /**
  * GET /_/agents/:id/v1/models
@@ -47,7 +46,7 @@ export const oaiModels: TEndpointConfig = {
       for (const provider of agent.providers || []) {
         let brand: string
         try {
-          brand = resolveProviderType(provider as any)
+          brand = db.services.provider.resolveLLMBrand(provider)
         } catch (err) {
           logger.warn(`[OAI Models] Cannot resolve provider type`, {
             agentId,

@@ -91,4 +91,11 @@ export const env = {
   get testUserPassword() {
     return process.env.TDSK_IT_USER_PASSWORD || ''
   },
+
+  /** Sandbox Docker image for tests that need SSH / custom entrypoint */
+  get sandboxImage() {
+    const image = process.env.TDSK_SB_IMAGE || 'ghcr.io/threadedstack/tdsk-sandbox'
+    const tag = process.env.TDSK_SB_IMAGE_TAG || 'latest'
+    return `${image}:${tag}`
+  },
 } as const

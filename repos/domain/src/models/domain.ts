@@ -1,5 +1,5 @@
-import { Base } from './base'
-import { Certificate } from './certificate'
+import { Base } from '@TDM/models/base'
+import { Certificate } from '@TDM/models/certificate'
 
 type TDomainOpts = Omit<Partial<Domain>, `domain`> & { domain: string }
 

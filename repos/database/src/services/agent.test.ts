@@ -53,6 +53,16 @@ vi.mock(`@TDB/schemas/secrets`, () => ({
   },
 }))
 
+// Mock the agentProviders schema
+vi.mock(`@TDB/schemas/agentProviders`, () => ({
+  agentProviders: {
+    agentId: { name: `agent_id` },
+    providerId: { name: `provider_id` },
+    priority: { name: `priority` },
+    model: { name: `model` },
+  },
+}))
+
 // Mock the Agent domain model
 vi.mock(`@tdsk/domain`, async () => {
   const orig = await vi.importActual(`@tdsk/domain`)
@@ -98,11 +108,21 @@ const createMockDb = () => {
 
   const apFindFirst = vi.fn()
 
+  const txDeleteWhereFn = vi.fn()
+  const txDeleteFn = vi.fn(() => ({ where: txDeleteWhereFn }))
+  const txOnConflictFn = vi.fn()
+  const txInsertValuesFn = vi.fn(() => ({ onConflictDoUpdate: txOnConflictFn }))
+  const txInsertFn = vi.fn(() => ({ values: txInsertValuesFn }))
+  const transactionFn = vi.fn(async (cb: any) => {
+    await cb({ delete: txDeleteFn, insert: txInsertFn })
+  })
+
   return {
     db: {
       insert: insertFn,
       update: updateFn,
       delete: deleteFn,
+      transaction: transactionFn,
       query: {
         agents: { findFirst, findMany },
         agentProjects: { findFirst: apFindFirst },
@@ -121,6 +141,12 @@ const createMockDb = () => {
     onConflictDoUpdateFn,
     deleteFn,
     apFindFirst,
+    transactionFn,
+    txDeleteFn,
+    txDeleteWhereFn,
+    txInsertFn,
+    txInsertValuesFn,
+    txOnConflictFn,
   }
 }
 
@@ -262,6 +288,84 @@ describe(`Agent service`, () => {
       const result = service.model(data, { sanitize: true })
 
       expect(result.secrets).toEqual([])
+    })
+
+    it(`should handle providers being undefined`, () => {
+      const data = { id: `agent-1`, name: `TestAgent`, projects: [] } as any
+      const result = service.model(data)
+
+      expect(result).toBeDefined()
+      expect(result.providerLinks).toEqual([])
+    })
+
+    it(`should map provider junction records to providerLinks`, () => {
+      const data = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        providers: [
+          {
+            agentId: `agent-1`,
+            providerId: `prov-1`,
+            priority: 0,
+            model: `claude-3`,
+            provider: { id: `prov-1`, name: `Anthropic` },
+          },
+          {
+            agentId: `agent-1`,
+            providerId: `prov-2`,
+            priority: 1,
+            model: null,
+            provider: { id: `prov-2`, name: `OpenAI` },
+          },
+        ],
+      } as any
+
+      const result = service.model(data)
+
+      expect(result.providerLinks).toHaveLength(2)
+      expect(result.providerLinks[0]).toEqual({
+        provider: { id: `prov-1`, name: `Anthropic` },
+        model: `claude-3`,
+        priority: 0,
+      })
+      expect(result.providerLinks[1]).toEqual({
+        provider: { id: `prov-2`, name: `OpenAI` },
+        model: null,
+        priority: 1,
+      })
+    })
+
+    it(`should sort providers by priority`, () => {
+      const data = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        providers: [
+          {
+            agentId: `agent-1`,
+            providerId: `prov-2`,
+            priority: 2,
+            model: null,
+            provider: { id: `prov-2`, name: `OpenAI` },
+          },
+          {
+            agentId: `agent-1`,
+            providerId: `prov-1`,
+            priority: 0,
+            model: `claude-3`,
+            provider: { id: `prov-1`, name: `Anthropic` },
+          },
+        ],
+      } as any
+
+      const result = service.model(data)
+
+      expect(result.providerLinks).toHaveLength(2)
+      expect(result.providerLinks[0].priority).toBe(0)
+      expect(result.providerLinks[0].provider.id).toBe(`prov-1`)
+      expect(result.providerLinks[1].priority).toBe(2)
+      expect(result.providerLinks[1].provider.id).toBe(`prov-2`)
     })
   })
 
@@ -549,6 +653,61 @@ describe(`Agent service`, () => {
       expect(result.error.message).toBe(`DB failure`)
     })
 
+    it(`should call #relations with providerInputs when provided`, async () => {
+      const record = { id: `agent-1`, name: `TestAgent` }
+      const fullRecord = {
+        id: `agent-1`,
+        name: `TestAgent`,
+        projects: [],
+        providers: [
+          {
+            agentId: `agent-1`,
+            providerId: `prov-1`,
+            priority: 0,
+            model: null,
+            provider: { id: `prov-1`, name: `Anthropic` },
+          },
+        ],
+        secrets: [],
+      }
+
+      // super.create returning
+      mocks.returningFn.mockResolvedValueOnce([record])
+      // this.get() -> findFirst for re-fetching
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      const result = await service.create({
+        name: `TestAgent`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+        providerInputs: [{ id: `prov-1` }],
+      } as any)
+
+      expect(result.data).toBeDefined()
+      expect(result.data._isModel).toBe(true)
+      // transaction should be called for providerInputs (delete + insert within tx)
+      expect(mocks.transactionFn).toHaveBeenCalledOnce()
+      expect(mocks.txDeleteFn).toHaveBeenCalledOnce()
+      expect(mocks.txInsertFn).toHaveBeenCalledOnce()
+      expect(mocks.txInsertValuesFn).toHaveBeenCalledWith([
+        { priority: 0, agentId: `agent-1`, providerId: `prov-1`, model: null },
+      ])
+    })
+
+    it(`should skip provider relations when providerInputs not provided`, async () => {
+      const record = { id: `agent-1`, name: `TestAgent` }
+      mocks.returningFn.mockResolvedValue([record])
+
+      await service.create({
+        name: `TestAgent`,
+        orgId: `org-1`,
+        providerId: `prov-1`,
+      } as any)
+
+      // transaction should NOT be called when no providerInputs
+      expect(mocks.transactionFn).not.toHaveBeenCalled()
+    })
+
     it(`should create agent with secretIds (reassigns secrets to agent)`, async () => {
       const record = { id: `agent-1`, name: `TestAgent` }
       const fullRecord = {
@@ -687,6 +846,76 @@ describe(`Agent service`, () => {
 
       // Only one set call for the agent update itself
       expect(mocks.setFn).toHaveBeenCalledOnce()
+    })
+
+    it(`should replace providers when providerInputs is provided`, async () => {
+      const record = { id: `agent-1`, name: `Updated` }
+      const fullRecord = {
+        id: `agent-1`,
+        name: `Updated`,
+        projects: [],
+        providers: [
+          {
+            agentId: `agent-1`,
+            providerId: `prov-new`,
+            priority: 0,
+            model: null,
+            provider: { id: `prov-new`, name: `NewProv` },
+          },
+        ],
+        secrets: [],
+      }
+
+      // super.update returning
+      mocks.whereReturningFn.mockResolvedValue([record])
+      // this.get() -> findFirst
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      const result = await service.update({
+        id: `agent-1`,
+        name: `Updated`,
+        providerInputs: [{ id: `prov-new` }],
+      } as any)
+
+      expect(result.data).toBeDefined()
+      expect(result.data._isModel).toBe(true)
+      // Transaction handles diff-based upsert (delete NOT IN list + insert onConflictDoUpdate)
+      expect(mocks.transactionFn).toHaveBeenCalledOnce()
+      expect(mocks.txDeleteFn).toHaveBeenCalledOnce()
+      expect(mocks.txInsertFn).toHaveBeenCalledOnce()
+      expect(mocks.txInsertValuesFn).toHaveBeenCalledWith([
+        { priority: 0, agentId: `agent-1`, providerId: `prov-new`, model: null },
+      ])
+    })
+
+    it(`should clear all providers when providerInputs is empty array`, async () => {
+      const record = { id: `agent-1`, name: `Updated` }
+      const fullRecord = {
+        id: `agent-1`,
+        name: `Updated`,
+        projects: [],
+        providers: [],
+        secrets: [],
+      }
+
+      // super.update returning
+      mocks.whereReturningFn.mockResolvedValue([record])
+      // this.get() -> findFirst
+      mocks.findFirst.mockResolvedValue(fullRecord)
+
+      const result = await service.update({
+        id: `agent-1`,
+        name: `Updated`,
+        providerInputs: [],
+      } as any)
+
+      expect(result.data).toBeDefined()
+      // Transaction is called — #upsertProviders runs even for empty arrays
+      expect(mocks.transactionFn).toHaveBeenCalledOnce()
+      // tx.delete called to clear all providers
+      expect(mocks.txDeleteFn).toHaveBeenCalledOnce()
+      // tx.insert NOT called because empty inputs -> no rows to insert
+      expect(mocks.txInsertFn).not.toHaveBeenCalled()
     })
   })
 

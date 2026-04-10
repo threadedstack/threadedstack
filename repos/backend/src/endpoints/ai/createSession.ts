@@ -5,7 +5,6 @@ import { EPMethod } from '@TBE/types'
 import { signSessionToken } from '@TBE/services/sessionToken'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { resolveProviderType } from '@TBE/utils/providers/resolveProviderType'
 
 /**
  * POST /ai/sessions - Create a session for proxied LLM calls
@@ -40,13 +39,8 @@ export const createSession: TEndpointConfig = {
     const provider = agent.primaryProvider
     if (!provider) throw new Exception(404, `Agent has no provider configured`)
 
-    // Determine and validate provider type
-    const providerType = resolveProviderType(provider)
-    if (!providerType)
-      throw new Exception(
-        400,
-        `Could not resolve provider type for this agent's provider`
-      )
+    // Determine and validate provider type (throws 400 if brand is invalid)
+    const providerType = db.services.provider.resolveLLMBrand(provider)
 
     if (!provider.secretId)
       throw new Exception(

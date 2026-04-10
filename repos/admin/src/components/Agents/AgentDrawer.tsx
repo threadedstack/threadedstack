@@ -119,16 +119,12 @@ export const AgentDrawer = (props: TAgentDrawer) => {
       setDescription(agent.description || '')
       setProviderIds(agent.providers?.map((p) => p.id) || [])
 
-      // Build providerModels from agent.agentProviders junction data
+      // Build providerModels from agent.providerLinks junction data
       const models: Record<string, string> = {}
-      if (agent.agentProviders?.length) {
-        for (const ap of agent.agentProviders) {
-          if (ap.model) models[ap.provider.id] = ap.model
+      if (agent.providerLinks?.length) {
+        for (const link of agent.providerLinks) {
+          if (link.model) models[link.provider.id] = link.model
         }
-      }
-      // Backward compat: if no per-provider models but agent.model exists, assign to primary
-      if (!Object.keys(models).length && agent.model && agent.providers?.[0]) {
-        models[agent.providers[0].id] = agent.model
       }
       setProviderModels(models)
 
@@ -205,10 +201,8 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         {} as Record<string, string>
       )
 
-      // Build providers array with per-provider models
-      const providers = providerIds.map((id, i) => ({
+      const providerInputs = providerIds.map((id) => ({
         id,
-        priority: i,
         model: providerModels[id] || null,
       }))
 
@@ -229,17 +223,15 @@ export const AgentDrawer = (props: TAgentDrawer) => {
         name,
         active,
         maxTokens,
-        providers,
         description,
         systemPrompt,
+        providerInputs,
         envVars: envVarsObj,
         tools: selectedTools,
+        secretIds: selectedSecrets,
         projectIds: selectedProjectIds,
         functionIds: selectedFunctionIds,
         environment: buildEnvironment(),
-        secretIds: selectedSecrets,
-        // Backward compat: keep model on agent for fallback
-        model: providerModels[providerIds[0]] || '',
       }
 
       if (isOverrideMode) {

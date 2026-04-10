@@ -122,7 +122,10 @@ export const orgSandboxesLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getSandboxes()) await safeFetch(() => fetchSandboxes({ orgId }))
+  if (!getProviders()) safeFetch(() => fetchProviders({ orgId }))
+
+  if (!getSandboxes()) safeFetch(() => fetchSandboxes({ orgId }))
+
   return null
 }
 
@@ -290,7 +293,10 @@ export const projectSandboxesLoader = async ({ params }: LoaderFunctionArgs) => 
   if (!orgId) missOrgIdResp()
   if (!projectId) missProjIdResp()
 
-  if (!getSandboxes()) await safeFetch(() => fetchSandboxes({ orgId }))
+  if (!getProviders()) safeFetch(() => fetchProviders({ orgId }))
+
+  if (!getSandboxes()) safeFetch(() => fetchSandboxes({ orgId }))
+
   return null
 }
 

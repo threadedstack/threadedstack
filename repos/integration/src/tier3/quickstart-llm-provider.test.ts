@@ -150,10 +150,10 @@ describe('Tier 3: Quickstart brand Enforcement', () => {
       )
 
       expect(agentRes.status).toBe(200)
-      expect(Array.isArray(agentRes.data.providers)).toBe(true)
-      expect(agentRes.data.providers.length).toBe(1)
+      expect(Array.isArray(agentRes.data.providerLinks)).toBe(true)
+      expect(agentRes.data.providerLinks.length).toBe(1)
 
-      const provider = agentRes.data.providers[0]
+      const provider = agentRes.data.providerLinks[0].provider
       expect(provider.brand).toBe('anthropic')
     })
   })

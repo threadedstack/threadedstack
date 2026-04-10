@@ -1,8 +1,8 @@
-import type { Sandbox, TSandboxConnectResponse } from '@tdsk/domain'
+import type { Sandbox, TSandboxConnectResponse, TSandboxSession } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
 import { toast } from 'sonner'
-import { ESBState } from '@tdsk/domain'
+import { ESBState, ESandboxRuntime } from '@tdsk/domain'
 import { ConfirmDelete } from '@tdsk/components'
 import { useSandboxes } from '@TAF/state/selectors'
 import { useState, useMemo, useCallback } from 'react'
@@ -12,8 +12,9 @@ import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ConnectModal } from '@TAF/components/Sandboxes/ConnectModal'
 import { SandboxDrawer } from '@TAF/components/Sandboxes/SandboxDrawer'
-import { Box, Typography, Chip, CircularProgress } from '@mui/material'
+import { Box, Typography, Chip, CircularProgress, Tooltip } from '@mui/material'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import { getSandboxSessions } from '@TAF/actions/sandboxes/api/getSandboxSessions'
 import {
   copySandbox,
   stopSandbox,
@@ -30,6 +31,8 @@ import {
   PlayArrow as StartIcon,
   Terminal as ConnectIcon,
   ContentCopy as CopyIcon,
+  Warning as WarningIcon,
+  Key as KeyIcon,
 } from '@mui/icons-material'
 
 export type TSandboxes = {
@@ -63,6 +66,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
   const [podStates, setPodStates] = useState<Record<string, TPodState>>({})
   const [busySandboxes, setBusySandboxes] = useState<Set<string>>(new Set())
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null)
+  const [connectSessions, setConnectSessions] = useState<TSandboxSession[]>([])
   const [connectModalSandbox, setConnectModalSandbox] = useState<Sandbox | null>(null)
   const [connectData, setConnectData] = useState<TSandboxConnectResponse | null>(null)
 
@@ -182,11 +186,15 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
 
     setConnectData(data)
     setConnectModalSandbox(sandbox)
+
+    const sessionsResult = await getSandboxSessions({ orgId, sandboxId: sandbox.id })
+    setConnectSessions(sessionsResult.data || [])
   }
 
   const onConnectModalClose = () => {
     setConnectModalSandbox(null)
     setConnectData(null)
+    setConnectSessions([])
   }
 
   const onConnectModalStop = async () => {
@@ -290,6 +298,49 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
           </Typography>
         </Box>
       ),
+    },
+    {
+      id: `auth`,
+      label: `Auth`,
+      render: (sandbox: Sandbox) => {
+        const providers = sandbox.providers || []
+        const isCustom = sandbox.config?.runtime === ESandboxRuntime.custom
+
+        if (isCustom) {
+          return (
+            <Typography
+              variant='body2'
+              color='text.secondary'
+            >
+              --
+            </Typography>
+          )
+        }
+
+        if (providers.length === 0) {
+          return (
+            <Tooltip title='No provider linked'>
+              <WarningIcon
+                fontSize='small'
+                color='warning'
+              />
+            </Tooltip>
+          )
+        }
+
+        const primary = providers[0]
+        return (
+          <Tooltip title={primary.name || primary.id}>
+            <Chip
+              size='small'
+              variant='outlined'
+              color='success'
+              icon={<KeyIcon sx={{ fontSize: 14 }} />}
+              label={primary.brand || 'linked'}
+            />
+          </Tooltip>
+        )
+      },
     },
     {
       id: `image`,
@@ -516,6 +567,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
       <ConnectModal
         orgId={orgId}
         connectData={connectData}
+        sessions={connectSessions}
         onStop={onConnectModalStop}
         open={!!connectModalSandbox}
         sandbox={connectModalSandbox}

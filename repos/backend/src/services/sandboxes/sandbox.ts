@@ -12,6 +12,8 @@ import { DefSBConfig } from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
 import { Exception, EContainerState } from '@tdsk/domain'
 import { createProxyMiddleware } from 'http-proxy-middleware'
+import { SecretResolver } from '@TBE/services/secrets/secretResolver'
+import { resolveProviderEnv } from '@TBE/utils/sandbox/resolveProviderEnv'
 import {
   KubeClient,
   KubeSandbox,
@@ -103,6 +105,7 @@ export class SandboxService {
    * - Hydrates the in-memory route map from existing pods
    * - Starts watching for pod lifecycle events
    * - Creates a SandboxService for pod orchestration
+   * - Seeds pod activity timestamps from hydrated pods for idle timeout tracking
    *
    * Skips initialization with a warning if K8s API is not available
    * (e.g., local development without K8s).
@@ -124,6 +127,12 @@ export class SandboxService {
           )
         entry.meta?.podName && sandbox.cleanupPod(entry.meta.podName)
       })
+
+      // Seed podActivity from hydrated pods so the idle timeout loop can
+      // clean up pods that survived a backend restart with no active sessions.
+      for (const entry of Object.values(kube.routes))
+        if (entry.meta?.podName) sandbox.updateActivity(entry.meta.podName)
+
       sandbox.startIdleTimeout()
 
       app.locals.kube = kube
@@ -196,6 +205,32 @@ export class SandboxService {
     if (sandbox.config.gitRepo) {
       extraEnv.TDSK_GIT_REPO = sandbox.config.gitRepo
       if (sandbox.config.gitBranch) extraEnv.TDSK_GIT_BRANCH = sandbox.config.gitBranch
+    }
+
+    // Resolve provider env vars for linked providers (auto-loaded via Drizzle relations)
+    if (sandbox.providerLinks?.length) {
+      const providerLinks = sandbox.providerLinks.map((link) => ({
+        provider: link.provider,
+        priority: link.priority ?? 0,
+        model: link.model ?? undefined,
+      }))
+
+      const secrets = new SecretResolver(this.db)
+      const providerEnv = await resolveProviderEnv(
+        sandbox.config.runtime,
+        providerLinks,
+        secrets,
+        orgId
+      )
+
+      if (providerEnv.errors.length)
+        throw new Exception(
+          400,
+          `Provider auth configuration error: ${providerEnv.errors.join(', ')}`
+        )
+
+      Object.assign(extraEnv, providerEnv.extraEnv)
+      Object.assign(placeholders, providerEnv.placeholders)
     }
 
     const manifest = buildPodManifest({

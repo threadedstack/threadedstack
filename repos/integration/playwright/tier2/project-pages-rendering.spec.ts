@@ -46,11 +46,12 @@ test.describe('Project Pages', () => {
       if (msg.type() === 'error' && !isIgnored(msg.text())) errors.push(msg.text())
     })
 
-    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-page')
+    await gotoAndWait(page, `/orgs/${ctx.orgId}/projects/${ctx.projectId}`, 'tdsk-project-workspace-page')
 
-    // Project detail renders the project name as h1
-    const heading = page.locator('h1').first()
-    await expect(heading).toBeVisible()
+    // ProjectWorkspace renders quick actions and sandbox/thread panels
+    await expect(page.getByRole('button', { name: /New Sandbox/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Connect/i })).toBeVisible()
+    await expect(page.getByText('Recent Threads')).toBeVisible()
 
     // Verify the page contains project-related content
     expect(page.url()).toContain(`/orgs/${ctx.orgId}/projects/${ctx.projectId}`)

@@ -94,6 +94,9 @@ const buildMockApp = (agentOverrides: Record<string, any> = {}) =>
           role: {
             getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
           },
+          provider: {
+            resolveLLMBrand: vi.fn().mockReturnValue(`anthropic`),
+          },
         },
       },
     },

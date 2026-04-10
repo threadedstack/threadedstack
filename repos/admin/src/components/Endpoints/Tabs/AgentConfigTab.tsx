@@ -204,11 +204,11 @@ export const AgentConfigTab = () => {
     setAgentSelectedTools(selectedAgent.tools || [])
     setAgentProviderIds(selectedAgent.providers?.map((p) => p.id) || [])
 
-    // Build providerModels from agent.agentProviders junction data
+    // Build providerModels from agent.providerLinks junction data
     const models: Record<string, string> = {}
-    if (selectedAgent.agentProviders?.length) {
-      for (const ap of selectedAgent.agentProviders) {
-        if (ap.model) models[ap.provider.id] = ap.model
+    if (selectedAgent.providerLinks?.length) {
+      for (const link of selectedAgent.providerLinks) {
+        if (link.model) models[link.provider.id] = link.model
       }
     }
     // Backward compat: if no per-provider models but agent.model exists, assign to primary

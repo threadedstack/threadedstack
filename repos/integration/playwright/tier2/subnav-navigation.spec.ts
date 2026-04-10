@@ -125,7 +125,7 @@ test.describe('Sub-Navigation', () => {
     await projectItem.click()
 
     // Should navigate to the project root route
-    await expect(page.locator('.tdsk-project-page')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('.tdsk-project-workspace-page')).toBeVisible({ timeout: 10000 })
     expect(page.url()).toContain(`/orgs/${ctx.orgId}/projects/${ctx.projectId}`)
     // Should be at the project root, not a sub-page
     expect(page.url()).not.toContain('/endpoints')

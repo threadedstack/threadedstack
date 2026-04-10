@@ -24,7 +24,13 @@ describe(`AgentProjectConfig endpoints`, () => {
     id: `agent-1`,
     name: `Test Agent`,
     orgId: `org-1`,
-    providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
+    providerLinks: [
+      {
+        provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+        priority: 0,
+        model: null,
+      },
+    ],
     projects: [{ id: `proj-1`, name: `Project One`, orgId: `org-1` }] as any,
     projectConfigs: [
       {
@@ -145,7 +151,13 @@ describe(`AgentProjectConfig endpoints`, () => {
         id: `agent-1`,
         name: `Test Agent`,
         orgId: `org-1`,
-        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
         projects: [{ id: `proj-1`, name: `Project One`, orgId: `org-1` }] as any,
         projectConfigs: [
           {
@@ -197,7 +209,13 @@ describe(`AgentProjectConfig endpoints`, () => {
         id: `agent-1`,
         name: `Test Agent`,
         orgId: `org-1`,
-        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
       })
       const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
         typeof vi.fn
@@ -274,7 +292,13 @@ describe(`AgentProjectConfig endpoints`, () => {
         id: `agent-1`,
         name: `Test Agent`,
         orgId: `org-1`,
-        providers: [{ id: `provider-1`, type: `ai`, orgId: `org-1` }] as any,
+        providerLinks: [
+          {
+            provider: { id: `provider-1`, type: `ai`, orgId: `org-1` } as any,
+            priority: 0,
+            model: null,
+          },
+        ],
       })
       const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
         typeof vi.fn

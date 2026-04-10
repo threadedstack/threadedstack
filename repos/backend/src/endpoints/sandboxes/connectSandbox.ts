@@ -92,8 +92,10 @@ export const connectSandbox: TEndpointConfig = {
         // Clean up failed/timed-out pod
         try {
           await sb.stopPod(podName)
-        } catch {
-          /* pod may already be gone */
+        } catch (cleanupErr) {
+          logger.warn(`[Sandbox] Failed to cleanup pod ${podName} after start failure`, {
+            error: (cleanupErr as Error).message,
+          })
         }
         throw err
       } finally {

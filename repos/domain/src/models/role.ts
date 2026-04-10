@@ -1,5 +1,6 @@
-import { Base } from './base'
 import type { TRoleUser } from '@TDM/types'
+
+import { Base } from '@TDM/models/base'
 import { ERoleType } from '@TDM/types'
 import { hasMinRole } from '@TDM/utils/permissions'
 

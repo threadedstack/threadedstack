@@ -1,6 +1,8 @@
-import type { TKubeSandboxConfig } from '@TDM/types'
+import type { TProviderLink, TKubeSandboxConfig } from '@TDM/types'
 
-import { Base } from './base'
+import { Base } from '@TDM/models/base'
+import type { Provider } from '@TDM/models/provider'
+import { toProviderLinks } from '@TDM/utils/providers/toProviderLinks'
 
 type TSandboxData = Partial<Sandbox>
 
@@ -11,9 +13,24 @@ export class Sandbox extends Base {
   projectId?: string
   builtIn: boolean = false
   config: TKubeSandboxConfig
+  providerLinks: TProviderLink[] = []
 
   constructor(data: TSandboxData) {
     super()
-    Object.assign(this, data)
+
+    const { providerLinks, ...rest } = data
+
+    Object.assign(this, {
+      ...rest,
+      providerLinks: toProviderLinks(providerLinks),
+    })
+  }
+
+  get providers(): Provider[] {
+    return this.providerLinks.map((l) => l.provider)
+  }
+
+  get primaryProvider(): Provider | undefined {
+    return this.providerLinks[0]?.provider
   }
 }

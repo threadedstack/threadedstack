@@ -14,10 +14,6 @@ vi.mock(`@tdsk/domain`, async () => {
   }
 })
 
-vi.mock(`@TBE/utils/providers/resolveProviderType`, () => ({
-  resolveProviderType: vi.fn().mockReturnValue(`anthropic`),
-}))
-
 const mockResolveAgentDeps = vi.fn().mockResolvedValue({
   environment: undefined,
   customFunctions: [],
@@ -114,6 +110,11 @@ const buildMockDb = (agentOverride?: any) => ({
     function: {
       list: vi.fn().mockResolvedValue({ data: [] }),
       get: vi.fn().mockResolvedValue({ data: null }),
+    },
+    provider: {
+      resolveLLMBrand: vi
+        .fn()
+        .mockImplementation((prov: { brand?: string }) => prov.brand || `anthropic`),
     },
   },
 })
@@ -279,11 +280,6 @@ describe(`resolveAgentConfig`, () => {
       ],
     })
     const db = buildMockDb(agent)
-
-    const { resolveProviderType } = await import(
-      `@TBE/utils/providers/resolveProviderType`
-    )
-    ;(resolveProviderType as ReturnType<typeof vi.fn>).mockReturnValue(`openai`)
 
     const result = await resolveAgentConfig(`agent-1`, db as any, buildMockApp(), {
       providerId: `prov-2`,

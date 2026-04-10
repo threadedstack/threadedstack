@@ -1,4 +1,4 @@
-import { Base } from './base'
+import { Base } from '@TDM/models/base'
 
 export class Invoice extends Base {
   userId: string

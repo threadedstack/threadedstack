@@ -1,6 +1,6 @@
 import type { TMsgType, TMessageContent } from '@TDM/types'
 
-import { Base } from './base'
+import { Base } from '@TDM/models/base'
 
 export class Message extends Base {
   orgId?: string

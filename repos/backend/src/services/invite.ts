@@ -130,7 +130,7 @@ export class InviteService {
 
     if (exRole)
       throw new Exception(
-        500,
+        409,
         `User ${user.email} is already a member of this organization`
       )
   }

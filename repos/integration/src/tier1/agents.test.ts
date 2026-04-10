@@ -46,7 +46,7 @@ describe('Tier 1: Agents', () => {
       {
         name: uniqueName('Agents Test Agent'),
         orgId: ctx.orgId,
-        providerIds: [localProviderId],
+        providerInputs: [{ id: localProviderId }],
         projectIds: [localProjectId],
         model: 'claude-sonnet-4-5-20250929',
       }
@@ -210,15 +210,15 @@ describe('Tier 1: Agents', () => {
   test('GET agent includes full provider objects with name and type', async () => {
     const res = await get<{
       id: string
-      providers: Array<{ id: string; name: string; type: string }>
+      providerLinks: Array<{ provider: { id: string; name: string; type: string }; priority: number; model: string | null }>
     }>(`/orgs/${ctx.orgId}/agents/${ctx.agentId}`)
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.data.providers)).toBe(true)
+    expect(Array.isArray(res.data.providerLinks)).toBe(true)
 
-    // If agent has providers, verify they have full objects (not just IDs)
-    if (res.data.providers.length > 0) {
-      const provider = res.data.providers[0]
+    // If agent has providerLinks, verify they have full provider objects (not just IDs)
+    if (res.data.providerLinks.length > 0) {
+      const provider = res.data.providerLinks[0].provider
       expect(provider).toHaveProperty('id')
       expect(provider).toHaveProperty('name')
       expect(provider).toHaveProperty('type')

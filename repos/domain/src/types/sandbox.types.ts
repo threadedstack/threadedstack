@@ -1,5 +1,51 @@
 import type { TSandboxSyncDefaults } from './sync.types'
 
+import { ELLMProviderBrand } from './ai.types'
+
+/**
+ * Subset of LLM provider brands that have sandbox env var mappings, plus composite
+ * auth-method variants (e.g. amazon-bedrock:bearer). This enum is intentionally a
+ * SUBSET of ELLMProviderBrand — only brands with entries in RuntimeProviderEnvMap need
+ * to appear here. When adding a new LLM provider to ELLMProviderBrand, also add it here
+ * if the sandbox should support injecting its credentials.
+ */
+export enum ERuntimeBrand {
+  zai = ELLMProviderBrand.zai,
+  custom = ELLMProviderBrand.custom,
+  ollama = ELLMProviderBrand.ollama,
+  openai = ELLMProviderBrand.openai,
+  google = ELLMProviderBrand.google,
+  anthropic = ELLMProviderBrand.anthropic,
+  openrouter = ELLMProviderBrand.openrouter,
+  googleVertex = ELLMProviderBrand.googleVertex,
+  amazonBedrock = ELLMProviderBrand.amazonBedrock,
+  amazonBedrockBearer = `${ELLMProviderBrand.amazonBedrock}:bearer`,
+}
+
+export type TEnvVarInjection = `mitm` | `direct` | `file`
+
+type TRuntimeEnvVarBase = {
+  envVar: string
+  filePath?: string
+  required?: boolean
+  defaultValue?: string
+  injection?: TEnvVarInjection
+}
+
+export type TSecretEnvVar = TRuntimeEnvVarBase & { source: `secret` }
+export type TOptionEnvVar = TRuntimeEnvVarBase & { source: `option`; optionKey: string }
+export type TStaticEnvVar = TRuntimeEnvVarBase & { source: `static`; staticValue: string }
+export type TRuntimeEnvVar = TSecretEnvVar | TOptionEnvVar | TStaticEnvVar
+
+/**
+ * Brand key can be a plain TLLMProviderBrand or a composite key like 'amazon-bedrock:bearer'
+ * for auth method variants. resolveProviderEnv builds the composite key at runtime.
+ */
+export type TRuntimeProviderEnvMap = Record<
+  TSandboxRuntimeId,
+  Partial<Record<ERuntimeBrand, TRuntimeEnvVar[]>>
+>
+
 /**
  * Sandbox provider types for modular sandbox integration
  */
@@ -15,6 +61,7 @@ export enum ESandboxRuntime {
   codex = `codex`,
   custom = `custom`,
   openCode = `opencode`,
+  geminiCli = `gemini-cli`,
   claudeCode = `claude-code`,
 }
 

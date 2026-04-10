@@ -267,7 +267,7 @@ env:
   TDSK_SB_IMAGE_TAG: latest
   TDSK_SB_DEV_IMAGE_TAG: main
   TDSK_SB_IMAGE_FROM: ubuntu:24.04
-  TDSK_SB_IMAGE: tdsk-sandbox-base
+  TDSK_SB_IMAGE: ghcr.io/threadedstack/tdsk-sandbox
 
   # Number of minutes of inactivity until a sandbox is automatically shutdown
   TDSK_SB_TIMEOUT_MIN: 30

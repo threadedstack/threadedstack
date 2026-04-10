@@ -1,4 +1,4 @@
-import { Base } from './base'
+import { Base } from '@TDM/models/base'
 
 export class Schedule extends Base {
   agentId!: string

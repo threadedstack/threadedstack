@@ -65,8 +65,8 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
     const updateRes = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
       {
-        providers: [
-          { id: qsResult.provider.id, priority: 0, model: 'junction-test-model' },
+        providerInputs: [
+          { id: qsResult.provider.id, model: 'junction-test-model' },
         ],
       }
     )
@@ -91,8 +91,8 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
       {
         model: 'agent-level-fallback',
-        providers: [
-          { id: qsResult.provider.id, priority: 0 },
+        providerInputs: [
+          { id: qsResult.provider.id },
         ],
       }
     )
@@ -116,8 +116,8 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
       `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
       {
         model: 'agent-default-should-be-overridden',
-        providers: [
-          { id: qsResult.provider.id, priority: 0, model: 'junction-override' },
+        providerInputs: [
+          { id: qsResult.provider.id, model: 'junction-override' },
         ],
       }
     )
@@ -183,9 +183,9 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
       // Set provider1 as primary with model-a, provider2 with model-b
       await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
-        providers: [
-          { id: qsResult.provider.id, priority: 0, model: 'model-a' },
-          { id: provider2Id, priority: 1, model: 'model-b' },
+        providerInputs: [
+          { id: qsResult.provider.id, model: 'model-a' },
+          { id: provider2Id, model: 'model-b' },
         ],
       })
 
@@ -200,9 +200,9 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
       // Swap: provider2 becomes primary
       await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
-        providers: [
-          { id: provider2Id, priority: 0, model: 'model-b' },
-          { id: qsResult.provider.id, priority: 1, model: 'model-a' },
+        providerInputs: [
+          { id: provider2Id, model: 'model-b' },
+          { id: qsResult.provider.id, model: 'model-a' },
         ],
       })
 
@@ -224,8 +224,8 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
 
     // Restore single provider with explicit model
     await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
-      providers: [
-        { id: qsResult.provider.id, priority: 0, model: 'zai-model' },
+      providerInputs: [
+        { id: qsResult.provider.id, model: 'zai-model' },
       ],
     })
 
@@ -246,8 +246,8 @@ describe('Tier 1: Agent-Provider Model Resolution', () => {
     // Clear all models: no junction model, no agent model
     await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
       model: '',
-      providers: [
-        { id: qsResult.provider.id, priority: 0 },
+      providerInputs: [
+        { id: qsResult.provider.id },
       ],
     })
 

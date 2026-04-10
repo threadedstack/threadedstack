@@ -98,7 +98,9 @@
       "Read(//private/var/folders/**)",
       "Bash(tar tz:*)",
       "Bash(tar xz:*)",
-      "Bash(2>&1)"
+      "Bash(2>&1)",
+      "Bash(xargs basename:*)",
+      "Bash(npm test:*)"
     ]
   },
   "sandbox": {

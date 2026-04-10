@@ -3,9 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { validateLLMProvider } from '@TBE/utils/providers/validateLLMProvider'
 import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
-import { validateProviderType } from '@TBE/utils/providers/validateProviderType'
 
 /**
  * PUT /providers/:id - Update an existing provider
@@ -19,7 +17,7 @@ export const updateProvider: TEndpointConfig = {
     const { db } = req.app.locals
     const providerData = req.body
 
-    await requireResourceWithPermission(
+    const existing = await requireResourceWithPermission(
       req,
       db.services.provider,
       id,
@@ -33,8 +31,12 @@ export const updateProvider: TEndpointConfig = {
     // Allow secretId to be changed to a different secret, but not nulled out
     if (providerData.secretId === null) delete providerData.secretId
 
-    providerData.type && validateProviderType(providerData.type)
-    validateLLMProvider(providerData.type, providerData.brand)
+    // Merge with existing record so partial updates still validate correctly
+    const effectiveType = providerData.type ?? existing.type
+    const effectiveBrand = providerData.brand ?? existing.brand
+
+    if (providerData.type) db.services.provider.validateType(providerData.type)
+    db.services.provider.validateLLM(effectiveType, effectiveBrand)
 
     const { data, error } = await db.services.provider.update({ ...providerData, id })
 

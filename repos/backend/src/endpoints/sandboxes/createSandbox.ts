@@ -2,15 +2,15 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Sandbox, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { EProvider, Sandbox, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 export const createSandbox: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const { name, config, projectId } = req.body
+    const { name, config, projectId, providerInputs } = req.body
     const orgId = req.params.orgId || req.body.orgId
 
     if (!name) throw new Exception(400, `Sandbox name is required`)
@@ -23,7 +23,13 @@ export const createSandbox: TEndpointConfig = {
 
     await checkPermission(req, EPermAction.create, EPermResource.sandbox, { orgId })
 
-    const sandboxData = new Sandbox({
+    const pins = await db.services.provider.validate({
+      orgId,
+      type: EProvider.ai,
+      inputs: providerInputs,
+    })
+
+    const sb = new Sandbox({
       name,
       orgId,
       config,
@@ -32,7 +38,10 @@ export const createSandbox: TEndpointConfig = {
       userId: req.user?.id,
     })
 
-    const { data, error } = await db.services.sandbox.create(sandboxData)
+    const { data, error } = await db.services.sandbox.create({
+      ...sb,
+      ...(pins?.length ? { providerInputs: pins } : {}),
+    })
     if (error) throw new Exception(500, error.message)
 
     res.status(201).json({ data })

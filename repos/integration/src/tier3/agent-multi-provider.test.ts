@@ -151,7 +151,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       expect(threadEvent?.threadId || threadId).toBeTruthy()
     })
 
-    test.skipIf(!hasProviderKey())('GET agent returns providerModels from quickstart', async () => {
+    test.skipIf(!hasProviderKey())('GET agent returns providerLinks from quickstart', async () => {
       if (setupFailed) return expect(setupFailed).toBe(false)
 
       const agentRes = await get<Record<string, any>>(
@@ -159,8 +159,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       )
 
       expect(agentRes.status).toBe(200)
-      expect(agentRes.data.providerModels).toBeDefined()
-      expect(Array.isArray(agentRes.data.providerModels)).toBe(true)
+      expect(agentRes.data.providerLinks).toBeDefined()
+      expect(Array.isArray(agentRes.data.providerLinks)).toBe(true)
     })
 
     test.skipIf(!hasProviderKey())('update agent with explicit junction model changes session model', async () => {
@@ -170,8 +170,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const updateRes = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
         {
-          providers: [
-            { id: qsResult.provider.id, priority: 0, model: 'custom-junction-model' },
+          providerInputs: [
+            { id: qsResult.provider.id, model: 'custom-junction-model' },
           ],
         }
       )
@@ -234,10 +234,10 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       )
 
       expect(agentRes.status).toBe(200)
-      expect(Array.isArray(agentRes.data.providers)).toBe(true)
-      expect(agentRes.data.providers.length).toBeGreaterThanOrEqual(1)
+      expect(Array.isArray(agentRes.data.providerLinks)).toBe(true)
+      expect(agentRes.data.providerLinks.length).toBeGreaterThanOrEqual(1)
 
-      const primaryProvider = agentRes.data.providers[0]
+      const primaryProvider = agentRes.data.providerLinks[0].provider
 
       // Create session — should use the primary provider
       const sessionRes = await post<Record<string, any>>(
@@ -385,7 +385,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       )
 
       expect(agentRes.status).toBe(200)
-      expect(agentRes.data.providers[0].id).toBe(provider1Id)
+      expect(agentRes.data.providerLinks[0].provider.id).toBe(provider1Id)
 
       // Session should resolve to zai via provider1
       const sessionRes = await post<Record<string, any>>(
@@ -403,7 +403,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       // Add provider2 and make it primary
       const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`,
-        { providerIds: [provider2Id, provider1Id] }
+        { providerInputs: [{ id: provider2Id }, { id: provider1Id }] }
       )
 
       expect(res.status).toBe(200)
@@ -413,8 +413,8 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         `/orgs/${ctx.orgId}/agents/${agentId}`
       )
 
-      expect(getRes.data.providers[0].id).toBe(provider2Id)
-      expect(getRes.data.providers[1].id).toBe(provider1Id)
+      expect(getRes.data.providerLinks[0].provider.id).toBe(provider2Id)
+      expect(getRes.data.providerLinks[1].provider.id).toBe(provider1Id)
     })
 
     test.skipIf(!hasProviderKey())('session after switch uses new primary provider', async () => {
@@ -470,7 +470,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       // Restore provider1 as primary
       const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`,
-        { providerIds: [provider1Id, provider2Id] }
+        { providerInputs: [{ id: provider1Id }, { id: provider2Id }] }
       )
 
       expect(res.status).toBe(200)
@@ -479,7 +479,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const getRes = await get<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`
       )
-      expect(getRes.data.providers[0].id).toBe(provider1Id)
+      expect(getRes.data.providerLinks[0].provider.id).toBe(provider1Id)
 
       // Create session and verify LLM still works
       const sessionRes = await post<Record<string, any>>(
@@ -510,9 +510,9 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       const updateRes = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${agentId}`,
         {
-          providers: [
-            { id: provider1Id, priority: 0, model: 'model-for-p1' },
-            { id: provider2Id, priority: 1, model: 'model-for-p2' },
+          providerInputs: [
+            { id: provider1Id, model: 'model-for-p1' },
+            { id: provider2Id, model: 'model-for-p2' },
           ],
         }
       )
@@ -523,9 +523,9 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
         `/orgs/${ctx.orgId}/agents/${agentId}`
       )
 
-      expect(getRes.data.providerModels).toBeDefined()
-      expect(getRes.data.providerModels[0]).toBe('model-for-p1')
-      expect(getRes.data.providerModels[1]).toBe('model-for-p2')
+      expect(Array.isArray(getRes.data.providerLinks)).toBe(true)
+      expect(getRes.data.providerLinks[0].model).toBe('model-for-p1')
+      expect(getRes.data.providerLinks[1].model).toBe('model-for-p2')
     })
 
     test.skipIf(!hasProviderKey())('switching primary changes session model to new primary junction model', async () => {
@@ -542,9 +542,9 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
       // Swap: provider2 becomes primary
       await put(`/orgs/${ctx.orgId}/agents/${agentId}`, {
-        providers: [
-          { id: provider2Id, priority: 0, model: 'model-for-p2' },
-          { id: provider1Id, priority: 1, model: 'model-for-p1' },
+        providerInputs: [
+          { id: provider2Id, model: 'model-for-p2' },
+          { id: provider1Id, model: 'model-for-p1' },
         ],
       })
 
@@ -559,9 +559,9 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
       // Restore original order for cleanup
       await put(`/orgs/${ctx.orgId}/agents/${agentId}`, {
-        providers: [
-          { id: provider1Id, priority: 0, model: 'model-for-p1' },
-          { id: provider2Id, priority: 1, model: 'model-for-p2' },
+        providerInputs: [
+          { id: provider1Id, model: 'model-for-p1' },
+          { id: provider2Id, model: 'model-for-p2' },
         ],
       })
     })
@@ -616,7 +616,7 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
 
       // Update agent to have both providers
       await put(`/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`, {
-        providerIds: [qsResult.provider.id, provider2Id],
+        providerInputs: [{ id: qsResult.provider.id }, { id: provider2Id }],
       })
     })
 
@@ -672,9 +672,9 @@ describe('Tier 3: Multi-Provider Agent E2E', () => {
       )
 
       expect(res.status).toBe(200)
-      expect(res.data.providers.length).toBe(2)
-      expect(res.data.providers[0].id).toBe(qsResult.provider.id)
-      expect(res.data.providers[1].id).toBe(provider2Id)
+      expect(res.data.providerLinks.length).toBe(2)
+      expect(res.data.providerLinks[0].provider.id).toBe(qsResult.provider.id)
+      expect(res.data.providerLinks[1].provider.id).toBe(provider2Id)
     })
   })
 

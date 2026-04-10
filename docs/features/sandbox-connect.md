@@ -173,7 +173,7 @@ The Mutagen binary is auto-installed from the npm registry on first use and stor
 
 ### Pre-Configured Agent Images
 
-The base sandbox image (`tdsk-sandbox-base`, built from `deploy/Dockerfile.sandbox-base`) ships with:
+The base sandbox image (`ghcr.io/threadedstack/tdsk-sandbox`, built from `deploy/Dockerfile.sandbox`) ships with:
 
 - **Ubuntu 24.04** base with OpenSSH server on port 2222
 - **Node.js 22** runtime
@@ -276,5 +276,5 @@ A new hire joins the team and needs access to AI-assisted development:
 | `repos/repl/src/services/sync/syncManager.ts` | Sync session lifecycle (start, stop, flush, status) |
 | `repos/repl/src/services/sync/configLoader.ts` | Config merging (rules + sandbox defaults + overrides) |
 | `repos/repl/src/services/sync/ignoreResolver.ts` | Ignore pattern merging with builtins and negation |
-| `deploy/Dockerfile.sandbox-base` | Sandbox container image with SSH, AI tools, mutagen agent |
+| `deploy/Dockerfile.sandbox` | Sandbox container image with SSH, AI tools, mutagen agent |
 | `docs/architecture/security-model.md` | Full platform security model (encryption, auth, MITM proxy, scoping) |

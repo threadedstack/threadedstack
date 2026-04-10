@@ -15,7 +15,7 @@ export const createOrg: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
-    const { db } = req.app.locals
+    const { db, config } = req.app.locals
     const orgData = req.body
     const userId = req.user?.id
 
@@ -53,7 +53,7 @@ export const createOrg: TEndpointConfig = {
         builtIn: true,
         orgId: data.id,
         name: preset.name,
-        config: { ...preset.config } as TKubeSandboxConfig,
+        config: { image: config.sandbox.image, ...preset.config } as TKubeSandboxConfig,
       })
       const { error: seedError } = await db.services.sandbox.create(sandbox)
       if (seedError) {

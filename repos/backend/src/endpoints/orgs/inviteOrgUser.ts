@@ -7,10 +7,10 @@ import { InviteService } from '@TBE/services/invite'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import {
   Exception,
+  ERoleType,
   PlanLimits,
   EPermAction,
   EPermResource,
-  ERoleType,
   ESubscriptionTier,
 } from '@tdsk/domain'
 
@@ -83,7 +83,10 @@ export const inviteOrgUser: TEndpointConfig = {
         const { data: members, error: membersError } =
           await db.services.role.getOrgMembers(orgId)
         if (membersError)
-          logger.error(`Failed to fetch org members for seat check:`, membersError)
+          throw new Exception(
+            500,
+            `Failed to verify seat capacity: ${membersError.message}`
+          )
         const currentMembers = Array.isArray(members) ? members.length : 0
         if (currentMembers >= limits.seats)
           throw new Exception(
@@ -95,7 +98,10 @@ export const inviteOrgUser: TEndpointConfig = {
 
     const { data: user, error: userError } = await db.services.user.byEmail(email)
 
-    if (userError) throw new Exception(500, userError.message)
+    // TODO: This is brittle and should not use the error message for matching
+    // Need a better pattern for checking the error type
+    if (userError && userError.message !== `User not found`)
+      throw new Exception(500, userError.message)
 
     const ins = new InviteService({
       db,

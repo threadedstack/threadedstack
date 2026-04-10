@@ -186,7 +186,7 @@ const projectRoles = {
 // --- Subscriptions ---
 const subscriptions = {
   sub: new Subscription({
-    tier: `free`,
+    tier: `team`,
     status: `active`,
     userId: Ids.super.user,
     stripePriceId: undefined,

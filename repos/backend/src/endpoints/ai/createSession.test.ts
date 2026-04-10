@@ -42,31 +42,60 @@ describe(`POST /ai/sessions - Create LLM session`, () => {
               getOrgRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
               getProjectRole: vi.fn().mockResolvedValue({ data: { type: `admin` } }),
             },
+            provider: {
+              resolveLLMBrand: vi.fn((p: any) => {
+                const validBrands = [
+                  `anthropic`,
+                  `openai`,
+                  `google`,
+                  `custom`,
+                  `ollama`,
+                  `zai`,
+                  `xai`,
+                  `groq`,
+                  `deepseek`,
+                  `cerebras`,
+                ]
+                if (p?.brand && validBrands.includes(p.brand)) return p.brand
+                throw new Error(
+                  `Cannot determine LLM provider for "${p?.name || `unnamed`}"`
+                )
+              }),
+            },
           },
         },
       },
     } as unknown as TApp
   }
 
-  const buildAgent = (overrides: Record<string, any> = {}) =>
-    new Agent({
+  const buildAgent = (overrides: Record<string, any> = {}) => {
+    const { providers, ...rest } = overrides
+    const providerLinks = providers
+      ? providers.map((p: any, i: number) => ({ provider: p, priority: i, model: null }))
+      : [
+          {
+            provider: {
+              id: `prov-1`,
+              secretId: `secret-1`,
+              type: `ai`,
+              orgId: `org-1`,
+              name: `anthropic`,
+              brand: `anthropic`,
+              options: {},
+            },
+            priority: 0,
+            model: null,
+          },
+        ]
+    return new Agent({
       id: `agent-1`,
       orgId: `org-1`,
       name: `Test Agent`,
       model: `test-model`,
-      providers: [
-        {
-          id: `prov-1`,
-          secretId: `secret-1`,
-          type: `ai`,
-          orgId: `org-1`,
-          name: `anthropic`,
-          brand: `anthropic`,
-          options: {},
-        },
-      ],
-      ...overrides,
+      providerLinks,
+      ...rest,
     } as any)
+  }
 
   const getEndpointCfg = (ep?: TEndpoint) => getEpCfg(buildApp(), ep)
 

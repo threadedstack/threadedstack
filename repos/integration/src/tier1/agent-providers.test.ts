@@ -9,7 +9,7 @@ import { uniqueName } from '../utils/unique-name'
  * Tier 1: Agent-Provider Relationship Contract Tests
  *
  * Validates the many-to-many agent-provider API contract:
- * - Agents are created with `providerIds: string[]`
+ * - Agents are created with `providerInputs: Array<{id: string, model?: string | null}>`
  * - GET agent returns `providers: Provider[]` with full provider objects
  * - primaryProvider is the first provider in the array (priority 0)
  * - Agents can be updated to change/reorder providers
@@ -94,7 +94,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
 
   // ─── Create ────────────────────────────────────────────────────────
 
-  test('POST /agents creates agent with providerIds array', async () => {
+  test('POST /agents creates agent with providerInputs array', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<Record<string, any>>(
@@ -102,7 +102,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('AP Test Agent'),
         orgId: ctx.orgId,
-        providerIds: [provider1Id],
+        providerInputs: [{ id: provider1Id }],
         projectIds: [projectId],
         model: 'claude-sonnet-4-5-20250929',
       }
@@ -116,7 +116,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     agentId = res.data.id
   })
 
-  test('POST /agents with multiple providerIds creates multi-provider agent', async () => {
+  test('POST /agents with multiple providerInputs creates multi-provider agent', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<Record<string, any>>(
@@ -124,7 +124,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('AP Multi Provider Agent'),
         orgId: ctx.orgId,
-        providerIds: [provider1Id, provider2Id, provider3Id],
+        providerInputs: [{ id: provider1Id }, { id: provider2Id }, { id: provider3Id }],
         projectIds: [projectId],
         model: 'claude-sonnet-4-5-20250929',
       }
@@ -138,12 +138,12 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     )
 
     expect(getRes.status).toBe(200)
-    expect(getRes.data.providers.length).toBe(3)
+    expect(getRes.data.providerLinks.length).toBe(3)
 
     // Providers should be in the order submitted
-    expect(getRes.data.providers[0].id).toBe(provider1Id)
-    expect(getRes.data.providers[1].id).toBe(provider2Id)
-    expect(getRes.data.providers[2].id).toBe(provider3Id)
+    expect(getRes.data.providerLinks[0].provider.id).toBe(provider1Id)
+    expect(getRes.data.providerLinks[1].provider.id).toBe(provider2Id)
+    expect(getRes.data.providerLinks[2].provider.id).toBe(provider3Id)
 
     // Cleanup
     await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.id}`)
@@ -162,11 +162,11 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     expect(res.data).toBeDefined()
     expect(res.data.id).toBe(agentId)
 
-    // providers should be an array with the single provider
-    expect(Array.isArray(res.data.providers)).toBe(true)
-    expect(res.data.providers.length).toBe(1)
-    expect(res.data.providers[0].id).toBe(provider1Id)
-    expect(res.data.providers[0].type).toBe('ai')
+    // providerLinks should be an array with the single provider
+    expect(Array.isArray(res.data.providerLinks)).toBe(true)
+    expect(res.data.providerLinks.length).toBe(1)
+    expect(res.data.providerLinks[0].provider.id).toBe(provider1Id)
+    expect(res.data.providerLinks[0].provider.type).toBe('ai')
 
     // Should NOT have old providerId field
     expect(res.data).not.toHaveProperty('providerId')
@@ -181,8 +181,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
 
     expect(res.status).toBe(200)
 
-    const provider = res.data.providers[0]
-    expect(provider).toBeDefined()
+    const link = res.data.providerLinks[0]
+    expect(link).toBeDefined()
+    const provider = link.provider
     expect(typeof provider.id).toBe('string')
     expect(typeof provider.name).toBe('string')
     expect(provider.type).toBe('ai')
@@ -204,8 +205,8 @@ describe('Tier 1: Agent-Provider Relationship', () => {
 
     const agent = res.data.find((a: any) => a.id === agentId)
     expect(agent).toBeDefined()
-    expect(Array.isArray(agent?.providers)).toBe(true)
-    expect(agent?.providers.length).toBeGreaterThanOrEqual(1)
+    expect(Array.isArray(agent?.providerLinks)).toBe(true)
+    expect(agent?.providerLinks.length).toBeGreaterThanOrEqual(1)
   })
 
   // ─── Update: Add Providers ─────────────────────────────────────────
@@ -215,7 +216,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
 
     const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`,
-      { providerIds: [provider1Id, provider2Id] }
+      { providerInputs: [{ id: provider1Id }, { id: provider2Id }] }
     )
 
     expect(res.status).toBe(200)
@@ -230,9 +231,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.providers.length).toBe(2)
+    expect(res.data.providerLinks.length).toBe(2)
 
-    const ids = res.data.providers.map((p: any) => p.id)
+    const ids = res.data.providerLinks.map((l: any) => l.provider.id)
     expect(ids).toContain(provider1Id)
     expect(ids).toContain(provider2Id)
   })
@@ -242,7 +243,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
 
     const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`,
-      { providerIds: [provider1Id, provider2Id, provider3Id] }
+      { providerInputs: [{ id: provider1Id }, { id: provider2Id }, { id: provider3Id }] }
     )
 
     expect(res.status).toBe(200)
@@ -250,7 +251,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const getRes = await get<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`
     )
-    expect(getRes.data.providers.length).toBe(3)
+    expect(getRes.data.providerLinks.length).toBe(3)
   })
 
   // ─── Update: Reorder (Primary Provider) ────────────────────────────
@@ -263,7 +264,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.providers[0].id).toBe(provider1Id)
+    expect(res.data.providerLinks[0].provider.id).toBe(provider1Id)
   })
 
   test('PUT /agents/:id can reorder providers to change primary', async () => {
@@ -272,7 +273,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     // Move provider3 to primary position
     const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`,
-      { providerIds: [provider3Id, provider1Id, provider2Id] }
+      { providerInputs: [{ id: provider3Id }, { id: provider1Id }, { id: provider2Id }] }
     )
 
     expect(res.status).toBe(200)
@@ -287,9 +288,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(res.data.providers[0].id).toBe(provider3Id)
-    expect(res.data.providers[1].id).toBe(provider1Id)
-    expect(res.data.providers[2].id).toBe(provider2Id)
+    expect(res.data.providerLinks[0].provider.id).toBe(provider3Id)
+    expect(res.data.providerLinks[1].provider.id).toBe(provider1Id)
+    expect(res.data.providerLinks[2].provider.id).toBe(provider2Id)
   })
 
   // ─── Update: Remove Providers ──────────────────────────────────────
@@ -299,7 +300,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
 
     const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`,
-      { providerIds: [provider2Id] }
+      { providerInputs: [{ id: provider2Id }] }
     )
 
     expect(res.status).toBe(200)
@@ -308,8 +309,8 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       `/orgs/${ctx.orgId}/agents/${agentId}`
     )
 
-    expect(getRes.data.providers.length).toBe(1)
-    expect(getRes.data.providers[0].id).toBe(provider2Id)
+    expect(getRes.data.providerLinks.length).toBe(1)
+    expect(getRes.data.providerLinks[0].provider.id).toBe(provider2Id)
   })
 
   test('PUT /agents/:id can replace all providers at once', async () => {
@@ -318,7 +319,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     // Replace provider2 with provider3
     const res = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${agentId}`,
-      { providerIds: [provider3Id] }
+      { providerInputs: [{ id: provider3Id }] }
     )
 
     expect(res.status).toBe(200)
@@ -327,18 +328,18 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       `/orgs/${ctx.orgId}/agents/${agentId}`
     )
 
-    expect(getRes.data.providers.length).toBe(1)
-    expect(getRes.data.providers[0].id).toBe(provider3Id)
+    expect(getRes.data.providerLinks.length).toBe(1)
+    expect(getRes.data.providerLinks[0].provider.id).toBe(provider3Id)
 
     // Restore to provider1 for subsequent tests
     await put(`/orgs/${ctx.orgId}/agents/${agentId}`, {
-      providerIds: [provider1Id],
+      providerInputs: [{ id: provider1Id }],
     })
   })
 
   // ─── Validation: Create ────────────────────────────────────────────
 
-  test('POST /agents without providerIds returns 400', async () => {
+  test('POST /agents without providerInputs returns 400', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<{ error?: string }>(
@@ -354,7 +355,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     expect(res.ok).toBe(false)
   })
 
-  test('POST /agents with empty providerIds array returns 400', async () => {
+  test('POST /agents with empty providerInputs array returns 400', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<{ error?: string }>(
@@ -362,7 +363,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('Should Fail Agent 2'),
         orgId: ctx.orgId,
-        providerIds: [],
+        providerInputs: [],
         model: 'claude-sonnet-4-5-20250929',
       }
     )
@@ -379,7 +380,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('Should Fail Agent 3'),
         orgId: ctx.orgId,
-        providerIds: ['zz00000000'],
+        providerInputs: [{ id: 'zz00000000' }],
         model: 'claude-sonnet-4-5-20250929',
       }
     )
@@ -388,7 +389,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     expect(res.ok).toBe(false)
   })
 
-  test('POST /agents with duplicate providerIds deduplicates', async () => {
+  test('POST /agents with duplicate providerInputs deduplicates', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<Record<string, any>>(
@@ -396,7 +397,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('AP Dedup Agent'),
         orgId: ctx.orgId,
-        providerIds: [provider1Id, provider1Id],
+        providerInputs: [{ id: provider1Id }, { id: provider1Id }],
         projectIds: [projectId],
         model: 'claude-sonnet-4-5-20250929',
       }
@@ -408,7 +409,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
         `/orgs/${ctx.orgId}/agents/${res.data.id}`
       )
       // If created, providers should be deduplicated to 1
-      expect(getRes.data.providers.length).toBe(1)
+      expect(getRes.data.providerLinks.length).toBe(1)
       await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.id}`)
     } else {
       // If rejected, that's also valid behavior (409 or 400)
@@ -457,11 +458,11 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       )
 
       expect(agentRes.status).toBe(200)
-      expect(Array.isArray(agentRes.data.providers)).toBe(true)
-      expect(agentRes.data.providers.length).toBe(1)
-      expect(agentRes.data.providers[0].id).toBe(qsProvider.id)
-      expect(agentRes.data.providers[0].type).toBe('ai')
-      expect(agentRes.data.providers[0].brand).toBe('anthropic')
+      expect(Array.isArray(agentRes.data.providerLinks)).toBe(true)
+      expect(agentRes.data.providerLinks.length).toBe(1)
+      expect(agentRes.data.providerLinks[0].provider.id).toBe(qsProvider.id)
+      expect(agentRes.data.providerLinks[0].provider.type).toBe('ai')
+      expect(agentRes.data.providerLinks[0].provider.brand).toBe('anthropic')
     })
 
     test('quickstart agent can have additional providers added', async () => {
@@ -470,7 +471,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       // Add a second provider to the quickstart agent
       const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`,
-        { providerIds: [qsResult.provider.id, provider2Id] }
+        { providerInputs: [{ id: qsResult.provider.id }, { id: provider2Id }] }
       )
 
       expect(res.status).toBe(200)
@@ -479,9 +480,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
         `/orgs/${ctx.orgId}/agents/${qsResult.agent.id}`
       )
 
-      expect(getRes.data.providers.length).toBe(2)
-      expect(getRes.data.providers[0].id).toBe(qsResult.provider.id)
-      expect(getRes.data.providers[1].id).toBe(provider2Id)
+      expect(getRes.data.providerLinks.length).toBe(2)
+      expect(getRes.data.providerLinks[0].provider.id).toBe(qsResult.provider.id)
+      expect(getRes.data.providerLinks[1].provider.id).toBe(provider2Id)
     })
   })
 
@@ -495,9 +496,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('AP Providers Array Agent'),
         orgId: ctx.orgId,
-        providers: [
-          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
-          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        providerInputs: [
+          { id: provider1Id, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider2Id, model: 'gpt-4o' },
         ],
         projectIds: [projectId],
       }
@@ -512,14 +513,14 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     )
 
     expect(getRes.status).toBe(200)
-    expect(getRes.data.providers.length).toBe(2)
-    expect(getRes.data.providers[0].id).toBe(provider1Id)
-    expect(getRes.data.providers[1].id).toBe(provider2Id)
+    expect(Array.isArray(getRes.data.providerLinks)).toBe(true)
+    expect(getRes.data.providerLinks.length).toBe(2)
+    expect(getRes.data.providerLinks[0].provider.id).toBe(provider1Id)
+    expect(getRes.data.providerLinks[1].provider.id).toBe(provider2Id)
 
-    // Verify providerModels parallel array
-    expect(getRes.data.providerModels).toBeDefined()
-    expect(getRes.data.providerModels[0]).toBe('claude-sonnet-4-5-20250929')
-    expect(getRes.data.providerModels[1]).toBe('gpt-4o')
+    // Verify per-provider models via providerLinks
+    expect(getRes.data.providerLinks[0].model).toBe('claude-sonnet-4-5-20250929')
+    expect(getRes.data.providerLinks[1].model).toBe('gpt-4o')
 
     await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.id}`)
   })
@@ -532,9 +533,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('AP Null Model Agent'),
         orgId: ctx.orgId,
-        providers: [
-          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
-          { id: provider3Id, priority: 1 },
+        providerInputs: [
+          { id: provider1Id, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider3Id },
         ],
         projectIds: [projectId],
       }
@@ -547,8 +548,8 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     )
 
     expect(getRes.status).toBe(200)
-    expect(getRes.data.providerModels[0]).toBe('claude-sonnet-4-5-20250929')
-    expect(getRes.data.providerModels[1]).toBeNull()
+    expect(getRes.data.providerLinks[0].model).toBe('claude-sonnet-4-5-20250929')
+    expect(getRes.data.providerLinks[1].model).toBeNull()
 
     await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.id}`)
   })
@@ -564,9 +565,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('AP Update Models Agent'),
         orgId: ctx.orgId,
-        providers: [
-          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
-          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        providerInputs: [
+          { id: provider1Id, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider2Id, model: 'gpt-4o' },
         ],
         projectIds: [projectId],
       }
@@ -579,9 +580,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const updateRes = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${testAgentId}`,
       {
-        providers: [
-          { id: provider1Id, priority: 0, model: 'claude-3-opus' },
-          { id: provider2Id, priority: 1, model: 'gpt-4-turbo' },
+        providerInputs: [
+          { id: provider1Id, model: 'claude-3-opus' },
+          { id: provider2Id, model: 'gpt-4-turbo' },
         ],
       }
     )
@@ -593,8 +594,8 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       `/orgs/${ctx.orgId}/agents/${testAgentId}`
     )
 
-    expect(getRes.data.providerModels[0]).toBe('claude-3-opus')
-    expect(getRes.data.providerModels[1]).toBe('gpt-4-turbo')
+    expect(getRes.data.providerLinks[0].model).toBe('claude-3-opus')
+    expect(getRes.data.providerLinks[1].model).toBe('gpt-4-turbo')
 
     await tryDelete(`/orgs/${ctx.orgId}/agents/${testAgentId}`)
   })
@@ -607,9 +608,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('AP Clear Model Agent'),
         orgId: ctx.orgId,
-        providers: [
-          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
-          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        providerInputs: [
+          { id: provider1Id, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider2Id, model: 'gpt-4o' },
         ],
         projectIds: [projectId],
       }
@@ -622,9 +623,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const updateRes = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${testAgentId}`,
       {
-        providers: [
-          { id: provider1Id, priority: 0 },
-          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        providerInputs: [
+          { id: provider1Id },
+          { id: provider2Id, model: 'gpt-4o' },
         ],
       }
     )
@@ -635,8 +636,8 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       `/orgs/${ctx.orgId}/agents/${testAgentId}`
     )
 
-    expect(getRes.data.providerModels[0]).toBeNull()
-    expect(getRes.data.providerModels[1]).toBe('gpt-4o')
+    expect(getRes.data.providerLinks[0].model).toBeNull()
+    expect(getRes.data.providerLinks[1].model).toBe('gpt-4o')
 
     await tryDelete(`/orgs/${ctx.orgId}/agents/${testAgentId}`)
   })
@@ -649,9 +650,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('AP Reorder Models Agent'),
         orgId: ctx.orgId,
-        providers: [
-          { id: provider1Id, priority: 0, model: 'claude-sonnet-4-5-20250929' },
-          { id: provider2Id, priority: 1, model: 'gpt-4o' },
+        providerInputs: [
+          { id: provider1Id, model: 'claude-sonnet-4-5-20250929' },
+          { id: provider2Id, model: 'gpt-4o' },
         ],
         projectIds: [projectId],
       }
@@ -664,9 +665,9 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     const updateRes = await put<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents/${testAgentId}`,
       {
-        providers: [
-          { id: provider2Id, priority: 0, model: 'gpt-4o' },
-          { id: provider1Id, priority: 1, model: 'claude-sonnet-4-5-20250929' },
+        providerInputs: [
+          { id: provider2Id, model: 'gpt-4o' },
+          { id: provider1Id, model: 'claude-sonnet-4-5-20250929' },
         ],
       }
     )
@@ -678,27 +679,27 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     )
 
     // Provider2 is now first
-    expect(getRes.data.providers[0].id).toBe(provider2Id)
-    expect(getRes.data.providers[1].id).toBe(provider1Id)
+    expect(getRes.data.providerLinks[0].provider.id).toBe(provider2Id)
+    expect(getRes.data.providerLinks[1].provider.id).toBe(provider1Id)
 
     // Models follow their provider, not the array position
-    expect(getRes.data.providerModels[0]).toBe('gpt-4o')
-    expect(getRes.data.providerModels[1]).toBe('claude-sonnet-4-5-20250929')
+    expect(getRes.data.providerLinks[0].model).toBe('gpt-4o')
+    expect(getRes.data.providerLinks[1].model).toBe('claude-sonnet-4-5-20250929')
 
     await tryDelete(`/orgs/${ctx.orgId}/agents/${testAgentId}`)
   })
 
   // ─── Backward compatibility ─────────────────────────────────────────
 
-  test('providerIds format still works without models', async () => {
+  test('providerInputs without model creates junction with null model', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents`,
       {
-        name: uniqueName('AP Legacy Format Agent'),
+        name: uniqueName('AP No Model Agent'),
         orgId: ctx.orgId,
-        providerIds: [provider1Id, provider2Id],
+        providerInputs: [{ id: provider1Id }, { id: provider2Id }],
         projectIds: [projectId],
         model: 'some-model',
       }
@@ -711,30 +712,29 @@ describe('Tier 1: Agent-Provider Relationship', () => {
     )
 
     expect(getRes.status).toBe(200)
-    expect(getRes.data.providers.length).toBe(2)
+    expect(Array.isArray(getRes.data.providerLinks)).toBe(true)
+    expect(getRes.data.providerLinks.length).toBe(2)
     expect(getRes.data.model).toBe('some-model')
 
-    // providerModels should be null for all when using providerIds format
-    expect(getRes.data.providerModels).toBeDefined()
-    for (const m of getRes.data.providerModels) {
-      expect(m).toBeNull()
+    // model should be null for all when no model is specified in providerInputs
+    for (const link of getRes.data.providerLinks) {
+      expect(link.model).toBeNull()
     }
 
     await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.id}`)
   })
 
-  test('providers array takes precedence over providerIds when both sent', async () => {
+  test('providerInputs with model sets per-provider model override', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/agents`,
       {
-        name: uniqueName('AP Both Formats Agent'),
+        name: uniqueName('AP Model Override Agent'),
         orgId: ctx.orgId,
-        providerIds: [provider3Id],
-        providers: [
-          { id: provider1Id, priority: 0, model: 'override-model' },
-          { id: provider2Id, priority: 1 },
+        providerInputs: [
+          { id: provider1Id, model: 'override-model' },
+          { id: provider2Id },
         ],
         projectIds: [projectId],
       }
@@ -746,11 +746,13 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       `/orgs/${ctx.orgId}/agents/${res.data.id}`
     )
 
-    // providers array should win — provider1 and provider2, not provider3
-    expect(getRes.data.providers.length).toBe(2)
-    expect(getRes.data.providers[0].id).toBe(provider1Id)
-    expect(getRes.data.providers[1].id).toBe(provider2Id)
-    expect(getRes.data.providerModels[0]).toBe('override-model')
+    // providerLinks should have provider1 and provider2 with correct models
+    expect(Array.isArray(getRes.data.providerLinks)).toBe(true)
+    expect(getRes.data.providerLinks.length).toBe(2)
+    expect(getRes.data.providerLinks[0].provider.id).toBe(provider1Id)
+    expect(getRes.data.providerLinks[1].provider.id).toBe(provider2Id)
+    expect(getRes.data.providerLinks[0].model).toBe('override-model')
+    expect(getRes.data.providerLinks[1].model).toBeNull()
 
     await tryDelete(`/orgs/${ctx.orgId}/agents/${res.data.id}`)
   })
@@ -766,7 +768,7 @@ describe('Tier 1: Agent-Provider Relationship', () => {
       {
         name: uniqueName('AP Cleanup Agent'),
         orgId: ctx.orgId,
-        providerIds: [provider1Id, provider2Id],
+        providerInputs: [{ id: provider1Id }, { id: provider2Id }],
         projectIds: [projectId],
         model: 'claude-sonnet-4-5-20250929',
       }

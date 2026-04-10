@@ -1,5 +1,6 @@
-import { Base } from './base'
 import type { TRoleType } from '@TDM/types'
+
+import { Base } from '@TDM/models/base'
 
 export class User extends Base {
   first?: string

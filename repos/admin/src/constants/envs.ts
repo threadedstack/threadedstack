@@ -32,3 +32,7 @@ export const TDSK_POSTHOG_KEY = process.env.TDSK_POSTHOG_KEY
 export const TDSK_POSTHOG_HOST = process.env.TDSK_POSTHOG_HOST
 
 export const VITEST = Boolean(import.meta.env.VITEST || process.env.VITEST)
+
+export const TDSK_SB_IMAGE = process.env.TDSK_SB_IMAGE
+export const TDSK_SB_IMAGE_TAG = process.env.TDSK_SB_IMAGE_TAG || `latest`
+export const TDSK_SB_IMAGE_FULL = `${TDSK_SB_IMAGE}:${TDSK_SB_IMAGE_TAG}`

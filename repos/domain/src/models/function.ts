@@ -1,5 +1,6 @@
 import type { TFunctionParam } from '@TDM/types'
-import { Base } from './base'
+
+import { Base } from '@TDM/models/base'
 import { EFunLanguage } from '@TDM/types'
 
 export class Function extends Base {

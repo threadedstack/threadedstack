@@ -7,6 +7,7 @@ import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
 import { SandboxIdPrefix } from '@tdsk/domain'
 import { projects } from '@TDB/schemas/projects'
+import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
 import { text, jsonb, uuid, varchar, boolean, index, pgTable } from 'drizzle-orm/pg-core'
 
 /**
@@ -43,7 +44,7 @@ export const sandboxes = pgTable(
   ]
 )
 
-export const sandboxesRelations = relations(sandboxes, ({ one }) => ({
+export const sandboxesRelations = relations(sandboxes, ({ one, many }) => ({
   org: one(orgs, {
     references: [orgs.id],
     fields: [sandboxes.orgId],
@@ -56,4 +57,5 @@ export const sandboxesRelations = relations(sandboxes, ({ one }) => ({
     references: [projects.id],
     fields: [sandboxes.projectId],
   }),
+  providers: many(sandboxProviders),
 }))

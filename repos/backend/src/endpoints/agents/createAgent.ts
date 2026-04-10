@@ -3,12 +3,14 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * POST /_/agents - Create a new agent
  * Requires orgId in body
+ * Requires providerInputs array (at least one AI provider)
  * Optionally accepts projectIds array to associate with projects
+ * Optionally accepts secretIds array
  * Requires admin+ role in the organization
  */
 export const createAgent: TEndpointConfig = {
@@ -16,65 +18,24 @@ export const createAgent: TEndpointConfig = {
   method: EPMethod.Post,
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
-    const {
-      projectIds = [],
-      secretIds,
-      providerIds: rawProviderIds = [],
-      providers: providersWithPriority,
-      ...agent
-    } = req.body
+    const { secretIds, projectIds = [], providerInputs, ...agent } = req.body
     const orgId = req.params.orgId || agent.orgId
-
-    // Support both formats: providerIds[] (ordered array) or providers[{id, priority, model?}]
-    const sortedProviders = providersWithPriority?.length
-      ? [...providersWithPriority].sort(
-          (a: { priority?: number }, b: { priority?: number }) =>
-            (a.priority ?? 0) - (b.priority ?? 0)
-        )
-      : null
-
-    const providerIds = sortedProviders
-      ? sortedProviders.map((p: { id: string }) => p.id)
-      : rawProviderIds
-
-    // Build providerModels map from providers array items that have a model
-    const providerModels = sortedProviders
-      ? sortedProviders.reduce(
-          (acc: Record<string, string>, p: { id: string; model?: string }) => {
-            if (p.model) acc[p.id] = p.model
-            return acc
-          },
-          {} as Record<string, string>
-        )
-      : undefined
 
     // Validate required fields
     if (!orgId)
       throw new Exception(400, `Agent must belong to an organization (orgId required)`)
 
-    if (!providerIds.length)
+    const pins = await db.services.provider.validate({
+      orgId,
+      type: EProvider.ai,
+      inputs: providerInputs,
+    })
+
+    if (!pins?.length)
       throw new Exception(
         400,
-        `Agent must have at least one provider (providerIds or providers required)`
+        `Agent must have at least one provider (providerInputs required)`
       )
-
-    // Validate all providers exist, are AI type, and belong to the same org
-    for (const providerId of providerIds) {
-      const { data: provider, error: provErr } =
-        await db.services.provider.get(providerId)
-      if (provErr || !provider)
-        throw new Exception(404, `Provider ${providerId} not found`)
-      if (provider.type !== `ai`)
-        throw new Exception(
-          400,
-          `Agent must be linked to AI providers (provider ${providerId} has type: "${provider.type}")`
-        )
-      if (provider.orgId !== orgId)
-        throw new Exception(
-          403,
-          `Provider ${providerId} does not belong to organization ${orgId}`
-        )
-    }
 
     // Ensure orgId is set on the agent data
     agent.orgId = orgId
@@ -89,10 +50,9 @@ export const createAgent: TEndpointConfig = {
       : { data: [] }
 
     if (projErr) throw new Exception(500, projErr.message)
+    if (pins?.length) agent.providerInputs = pins
     if (projects?.length) agent.projects = projects
     if (secretIds?.length) agent.secretIds = secretIds
-    if (providerIds?.length) agent.providerIds = providerIds
-    if (providerModels) agent.providerModels = providerModels
 
     const { data, error } = await db.services.agent.create(agent)
 

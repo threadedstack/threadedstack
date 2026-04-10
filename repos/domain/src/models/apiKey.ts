@@ -1,6 +1,6 @@
 import type { TApiKeyScope } from '@TDM/types'
 
-import { Base } from './base'
+import { Base } from '@TDM/models/base'
 import { omitKeys } from '@keg-hub/jsutils/omitKeys'
 
 export class ApiKey extends Base {

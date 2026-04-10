@@ -65,8 +65,8 @@ describe('Tier 3: Sandbox File Sync', () => {
   const manager = new SyncManager(driver)
 
   const sandboxConfig = {
-    image: 'tdsk-sandbox-base',
-    imagePullPolicy: 'Never',
+    image: env.sandboxImage,
+    imagePullPolicy: 'IfNotPresent',
     ports: { '3000': { protocol: 'http' } },
     sync: {
       targetBase: '/workspace/synced',

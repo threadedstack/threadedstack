@@ -1,4 +1,4 @@
-import { Base } from './base'
+import { Base } from '@TDM/models/base'
 
 export class Organization extends Base {
   name: string

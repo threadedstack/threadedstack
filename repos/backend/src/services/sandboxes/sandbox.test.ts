@@ -8,6 +8,15 @@ vi.mock(`http-proxy-middleware`, () => ({
   createProxyMiddleware: (...args: any[]) => mockCreateProxyMiddleware(...args),
 }))
 
+const mockResolveProviderEnv = vi.fn()
+vi.mock(`@TBE/utils/sandbox/resolveProviderEnv`, () => ({
+  resolveProviderEnv: (...args: any[]) => mockResolveProviderEnv(...args),
+}))
+
+vi.mock(`@TBE/services/secrets/secretResolver`, () => ({
+  SecretResolver: vi.fn(),
+}))
+
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
@@ -48,6 +57,9 @@ const makeDb = () => ({
   services: {
     sandbox: {
       get: vi.fn(),
+    },
+    provider: {
+      get: vi.fn().mockResolvedValue({ data: null, error: null }),
     },
   },
 })
@@ -147,7 +159,7 @@ describe(`SandboxService`, () => {
 
     it(`should create pod manifest and call kube.createPod, return podName`, async () => {
       db.services.sandbox.get.mockResolvedValue({
-        data: { id: `sb-1`, config: { image: `node:20` } },
+        data: { id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] },
         error: null,
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -170,7 +182,11 @@ describe(`SandboxService`, () => {
 
     it(`should generate placeholder tokens for each secretId in config`, async () => {
       db.services.sandbox.get.mockResolvedValue({
-        data: { id: `sb-1`, config: { image: `node:20`, secretIds: [`sec-a`, `sec-b`] } },
+        data: {
+          id: `sb-1`,
+          config: { image: `node:20`, secretIds: [`sec-a`, `sec-b`] },
+          sandboxProviders: [],
+        },
         error: null,
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -227,7 +243,7 @@ describe(`SandboxService`, () => {
 
     it(`should throw when createPod returns pod without metadata.name`, async () => {
       db.services.sandbox.get.mockResolvedValue({
-        data: { id: `sb-1`, config: { image: `node:20` } },
+        data: { id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] },
         error: null,
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -245,7 +261,7 @@ describe(`SandboxService`, () => {
         certSecretName: `custom-cert`,
       }
       db.services.sandbox.get.mockResolvedValue({
-        data: { id: `sb-1`, config: { image: `node:20` } },
+        data: { id: `sb-1`, config: { image: `node:20` }, sandboxProviders: [] },
         error: null,
       })
       mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
@@ -256,6 +272,127 @@ describe(`SandboxService`, () => {
       expect(mockBuildPodManifest).toHaveBeenCalledWith(
         expect.objectContaining({ egressOpts: customEgress })
       )
+    })
+
+    it(`should pass provider extraEnv and placeholders to buildPodManifest when providers are linked`, async () => {
+      const mockProvider = { id: `prov-1`, brand: `anthropic`, secretId: `sec-1` }
+      db.services.sandbox.get.mockResolvedValue({
+        data: {
+          id: `sb-1`,
+          config: { image: `node:20`, runtime: `claude-code` },
+          providerLinks: [{ provider: mockProvider, priority: 0, model: undefined }],
+        },
+        error: null,
+      })
+      mockResolveProviderEnv.mockResolvedValue({
+        extraEnv: { ANTHROPIC_API_KEY: `tdsk_ph_mock` },
+        placeholders: { tdsk_ph_mock: `sec-1` },
+        errors: [],
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      await svc.startPod(baseOpts as any)
+
+      const manifestCall = mockBuildPodManifest.mock.calls[0][0]
+      expect(manifestCall.extraEnv.ANTHROPIC_API_KEY).toBe(`tdsk_ph_mock`)
+      expect(manifestCall.placeholders.tdsk_ph_mock).toBe(`sec-1`)
+    })
+
+    it(`should throw Exception(400) when provider resolution has errors`, async () => {
+      const mockProvider = { id: `prov-1`, brand: `anthropic`, secretId: `sec-1` }
+      db.services.sandbox.get.mockResolvedValue({
+        data: {
+          id: `sb-1`,
+          config: { image: `node:20`, runtime: `claude-code` },
+          providerLinks: [{ provider: mockProvider, priority: 0, model: undefined }],
+        },
+        error: null,
+      })
+      mockResolveProviderEnv.mockResolvedValue({
+        extraEnv: {},
+        placeholders: {},
+        errors: [`Missing provider secret`],
+      })
+
+      try {
+        await svc.startPod(baseOpts as any)
+        expect.fail(`Expected startPod to throw`)
+      } catch (err) {
+        expect(err).toBeInstanceOf(Exception)
+        expect((err as any).status).toBe(400)
+        expect((err as Error).message).toContain(`Provider auth configuration error`)
+      }
+    })
+
+    it(`should create pod without provider env when sandbox has no linked providers`, async () => {
+      db.services.sandbox.get.mockResolvedValue({
+        data: { id: `sb-1`, config: { image: `node:20` }, providerLinks: [] },
+        error: null,
+      })
+      mockBuildPodManifest.mockReturnValue({ metadata: { name: `tdsk-sb-test` } })
+      kube.createPod.mockResolvedValue({ metadata: { name: `tdsk-sb-test` } })
+
+      const result = await svc.startPod(baseOpts as any)
+
+      expect(result).toBe(`tdsk-sb-test`)
+      expect(mockResolveProviderEnv).not.toHaveBeenCalled()
+    })
+  })
+
+  describe(`idle timeout`, () => {
+    it(`should stop pods seeded via updateActivity after timeout expires`, async () => {
+      kube.deletePod.mockResolvedValue(undefined)
+      kube.getPod.mockResolvedValue({
+        metadata: { labels: { [`tdsk.app/sandbox-id`]: `sb-1` } },
+      })
+      db.services.sandbox.get.mockResolvedValue({
+        data: { config: { idleTimeoutMinutes: 0.001 } },
+        error: null,
+      })
+
+      // Seed activity as initKube would after hydrating an existing pod
+      svc.updateActivity(`orphan-pod`)
+
+      // Start the idle timeout loop with a very short interval
+      const original = svc[`config`] as Record<string, any>
+      Object.defineProperty(svc, `config`, {
+        value: { ...original, idleInterval: 50 },
+        writable: true,
+      })
+      svc.startIdleTimeout()
+
+      // Wait for the interval to fire and process the idle pod
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      svc.stopIdleTimeout()
+
+      expect(kube.deletePod).toHaveBeenCalledWith(`orphan-pod`, 30)
+    })
+
+    it(`should not stop pods that have active sessions`, async () => {
+      kube.deletePod.mockResolvedValue(undefined)
+
+      svc.updateActivity(`active-pod`)
+      svc.addSession(`active-pod`, {
+        orgId: `org-1`,
+        userId: `user-1`,
+        podName: `active-pod`,
+        sandboxId: `sb-1`,
+        sessionId: `sess-1`,
+        connectedAt: new Date().toISOString(),
+      })
+
+      const original2 = svc[`config`] as Record<string, any>
+      Object.defineProperty(svc, `config`, {
+        value: { ...original2, idleInterval: 50, timeoutMin: 0 },
+        writable: true,
+      })
+      svc.startIdleTimeout()
+
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      svc.stopIdleTimeout()
+
+      expect(kube.deletePod).not.toHaveBeenCalled()
     })
   })
 
