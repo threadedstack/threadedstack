@@ -51,6 +51,7 @@ const defaultSandboxConfig = {
  */
 export const waitForPodState = async (
   orgId: string,
+  projectId: string,
   sandboxId: string,
   podName: string,
   desiredState: TPodState = 'Running',
@@ -59,15 +60,25 @@ export const waitForPodState = async (
 ): Promise<TPodState> => {
   const start = Date.now()
   let lastState: TPodState = 'Unknown'
+  let retries = 0
 
   while (Date.now() - start < maxWaitMs) {
     const res = await get<{ podName: string; state: TPodState }>(
-      `/orgs/${orgId}/sandboxes/${sandboxId}/status?podName=${podName}`
+      `/orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?podName=${podName}`
     )
 
-    if (res.status !== 200)
-      throw new Error(`Status check failed: HTTP ${res.status}`)
+    if (res.status !== 200) {
+      if ((res.status === 403 || res.status >= 500) && retries < 3) {
+        retries++
+        await new Promise(r => setTimeout(r, intervalMs))
+        continue
+      }
+      throw new Error(
+        `Status check failed: HTTP ${res.status} (${JSON.stringify((res as any).error?.message ?? res.data)})`
+      )
+    }
 
+    retries = 0
     lastState = res.data.state
     if (lastState === desiredState) return lastState
     if (lastState === 'Failed' && desiredState !== 'Failed')
@@ -87,13 +98,14 @@ export const waitForPodState = async (
  */
 export const execInPod = async (
   orgId: string,
+  projectId: string,
   sandboxId: string,
   podName: string,
   command: string,
   args?: string[]
 ) => {
   return await post<TSandboxResult>(
-    `/orgs/${orgId}/sandboxes/${sandboxId}/exec`,
+    `/orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/exec`,
     { command, podName, args }
   )
 }
@@ -139,10 +151,16 @@ export const getPodSubdomain = (podName: string): string | null => {
 
 /**
  * Call POST /:id/connect — auto-starts pod if needed, returns connection info.
+ *
+ * Uses project-scoped path: /orgs/:orgId/projects/:projectId/sandboxes/:id/connect
  */
-export const connectSandbox = async (orgId: string, sandboxId: string) => {
+export const connectSandbox = async (
+  orgId: string,
+  projectId: string,
+  sandboxId: string
+) => {
   return await post<TSandboxConnectResult>(
-    `/orgs/${orgId}/sandboxes/${sandboxId}/connect`,
+    `/orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
     {}
   )
 }
@@ -150,9 +168,9 @@ export const connectSandbox = async (orgId: string, sandboxId: string) => {
 /**
  * Call GET /:id/sessions — returns active SSH tunnel sessions.
  */
-export const getSessions = async (orgId: string, sandboxId: string) => {
+export const getSessions = async (orgId: string, projectId: string, sandboxId: string) => {
   return await get<TSandboxSessionResult[]>(
-    `/orgs/${orgId}/sandboxes/${sandboxId}/sessions`
+    `/orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/sessions`
   )
 }
 
@@ -187,8 +205,8 @@ export const setupRunningPod = async (
   let startRes: Awaited<ReturnType<typeof post<{ podName: string }>>>
   for (let attempt = 0; attempt < 3; attempt++) {
     startRes = await post<{ podName: string }>(
-      `/orgs/${orgId}/sandboxes/${sandboxId}/start`,
-      { projectId }
+      `/orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
+      {}
     )
     if (startRes.ok) break
     if (attempt < 2) await new Promise(r => setTimeout(r, 3_000 * (attempt + 1)))
@@ -196,7 +214,7 @@ export const setupRunningPod = async (
   if (!startRes!.ok) throw new Error(`Failed to start pod: HTTP ${startRes!.status}`)
   const podName = startRes!.data.podName
 
-  await waitForPodState(orgId, sandboxId, podName, 'Running', 90_000)
+  await waitForPodState(orgId, projectId, sandboxId, podName, 'Running', 90_000)
 
   return { podName, projectId, sandboxId, sandboxName }
 }
@@ -209,9 +227,9 @@ export const cleanupSandbox = async (
   orgId: string,
   setup: Partial<TSandboxSetup>
 ) => {
-  if (setup.podName && setup.sandboxId) {
+  if (setup.podName && setup.sandboxId && setup.projectId) {
     try {
-      await api(`/orgs/${orgId}/sandboxes/${setup.sandboxId}/stop`, {
+      await api(`/orgs/${orgId}/projects/${setup.projectId}/sandboxes/${setup.sandboxId}/stop`, {
         method: 'DELETE',
         body: { podName: setup.podName },
       })

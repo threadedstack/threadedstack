@@ -5,8 +5,9 @@ import type { IncomingMessage } from 'http'
 
 import { WebSocketServer } from 'ws'
 import { logger } from '@TBE/utils/logger'
-import { SBTunnelPattern } from '@TBE/constants/sandbox'
 import { onWSConnect } from '@TBE/endpoints/ai/onWSConnect'
+import { SBTunnelPattern, SBShellPattern } from '@TBE/constants/sandbox'
+import { onShellConnect } from '@TBE/endpoints/sandboxes/onShellConnect'
 import { onTunnelConnect } from '@TBE/endpoints/sandboxes/onTunnelConnect'
 
 type TWsHandler = (ws: WebSocket, req: IncomingMessage, app: TApp) => Promise<void>
@@ -45,6 +46,20 @@ export const createWSServer = (app: TApp) => {
       wss.handleUpgrade(req, socket, head, (ws) => {
         onTunnelConnect(ws, req, app).catch((err) => {
           logger.error(`WS tunnel error`, {
+            error: err instanceof Error ? err.message : err,
+          })
+          ws.close(1011, `Internal error`)
+        })
+      })
+      return
+    }
+
+    // Dynamic route: sandbox shell
+    const shellMatch = pathname.match(SBShellPattern)
+    if (shellMatch) {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        onShellConnect(ws, req, app).catch((err) => {
+          logger.error(`WS shell error`, {
             error: err instanceof Error ? err.message : err,
           })
           ws.close(1011, `Internal error`)

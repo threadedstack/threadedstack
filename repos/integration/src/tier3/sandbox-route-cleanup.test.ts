@@ -99,8 +99,8 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
 
       // Write and start HTTP server in the pod
       const escaped = serverScript.replace(/'/g, "'\\''").trim()
-      await execInPod(ctx.orgId, sandboxId, podName, `printf '%s' '${escaped}' > /workspace/server.js`)
-      await execInPod(ctx.orgId, sandboxId, podName, "sh -c 'nohup node /workspace/server.js > /dev/null 2>&1 &'")
+      await execInPod(ctx.orgId, projectId, sandboxId, podName, `printf '%s' '${escaped}' > /workspace/server.js`)
+      await execInPod(ctx.orgId, projectId, sandboxId, podName, "sh -c 'nohup node /workspace/server.js > /dev/null 2>&1 &'")
 
       // Wait for the K8s watcher to hydrate the route and the pod server to start
       const routeHostname = `3000--${subdomain}.local.threadedstack.app`
@@ -141,14 +141,14 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Stop the pod
-    const stopRes = await api(`/orgs/${ctx.orgId}/sandboxes/${sandboxId}/stop`, {
+    const stopRes = await api(`/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`, {
       method: 'DELETE',
       body: { podName },
     })
     expect(stopRes.status).toBe(200)
 
     // Wait for pod to reach terminal state so the watch event fires
-    await waitForPodState(ctx.orgId, sandboxId, podName, 'Failed', 60_000)
+    await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Failed', 60_000)
 
     // Give the K8s watcher time to process the MODIFIED/DELETED events
     await new Promise(r => setTimeout(r, 3_000))
@@ -240,14 +240,14 @@ describe('Tier 3: Sandbox Route Map Cleanup', () => {
 
     // Start a new pod for the same sandbox
     const startRes = await post<{ podName: string }>(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
-      { projectId }
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
+      {}
     )
     expect(startRes.status).toBe(201)
     const newPodName = startRes.data.podName
 
     try {
-      await waitForPodState(ctx.orgId, sandboxId, newPodName, 'Running', 90_000)
+      await waitForPodState(ctx.orgId, projectId, sandboxId, newPodName, 'Running', 90_000)
 
       const newSubdomain = getPodSubdomain(newPodName) || ''
       expect(newSubdomain).toBeTruthy()

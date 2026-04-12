@@ -10,7 +10,7 @@ describe(`Sandbox model`, () => {
         name: `Test Sandbox`,
         orgId: `org-1`,
         userId: `user-1`,
-        projectId: `proj-1`,
+        projects: [{ id: `proj-1`, name: `Project 1`, orgId: `org-1` } as any],
         builtIn: true,
         config: { image: `tdsk-sandbox-claude`, runtime: `claude-code` } as any,
       })
@@ -18,7 +18,8 @@ describe(`Sandbox model`, () => {
       expect(sandbox.name).toBe(`Test Sandbox`)
       expect(sandbox.orgId).toBe(`org-1`)
       expect(sandbox.userId).toBe(`user-1`)
-      expect(sandbox.projectId).toBe(`proj-1`)
+      expect(sandbox.projects).toHaveLength(1)
+      expect(sandbox.projects[0]?.id).toBe(`proj-1`)
       expect(sandbox.builtIn).toBe(true)
       expect(sandbox.config).toEqual({
         image: `tdsk-sandbox-claude`,
@@ -80,7 +81,8 @@ describe(`Sandbox model`, () => {
       expect(sandbox.builtIn).toBe(false)
       expect(sandbox.providerLinks).toEqual([])
       expect(sandbox.userId).toBeUndefined()
-      expect(sandbox.projectId).toBeUndefined()
+      expect(sandbox.projects).toEqual([])
+      expect(sandbox.projectConfigs).toEqual([])
     })
   })
 
@@ -149,6 +151,185 @@ describe(`Sandbox model`, () => {
         orgId: `org-1`,
       })
       expect(sandbox.providerLinks).toEqual([])
+    })
+  })
+
+  describe(`getEffectiveConfig`, () => {
+    const baseSandbox = () =>
+      new Sandbox({
+        id: `sandbox-1`,
+        name: `Base Sandbox`,
+        orgId: `org-1`,
+        userId: `user-1`,
+        config: {
+          image: `tdsk-sandbox-claude`,
+          runtime: `claude-code`,
+          envVars: { NODE_ENV: `production`, LOG_LEVEL: `info` },
+          resources: {
+            limits: { cpu: `1000m`, memory: `2Gi` },
+            requests: { cpu: `500m`, memory: `1Gi` },
+          },
+          ports: { ssh: 22, http: 8080 },
+          sync: { enabled: true, ignore: [`node_modules`] },
+        } as any,
+        projects: [{ id: `proj-1`, name: `Project 1`, orgId: `org-1` } as any],
+        projectConfigs: [],
+        providerLinks: [
+          { provider: { id: `prov-1`, brand: `anthropic` } as any, priority: 0 },
+        ],
+      })
+
+    it(`should return self when no projectId is provided`, () => {
+      const sandbox = baseSandbox()
+      const result = sandbox.getEffectiveConfig()
+      expect(result).toBe(sandbox)
+    })
+
+    it(`should return self when projectId has no matching config`, () => {
+      const sandbox = baseSandbox()
+      const result = sandbox.getEffectiveConfig(`unknown-project`)
+      expect(result).toBe(sandbox)
+    })
+
+    it(`should merge envVars from project config with override winning on conflict`, () => {
+      const sandbox = baseSandbox()
+      sandbox.projectConfigs = [
+        {
+          sandboxId: `sandbox-1`,
+          projectId: `proj-1`,
+          config: {
+            envVars: { LOG_LEVEL: `debug`, NEW_VAR: `added` },
+          } as any,
+        },
+      ]
+      const result = sandbox.getEffectiveConfig(`proj-1`)
+      expect(result.config.envVars).toEqual({
+        NODE_ENV: `production`,
+        LOG_LEVEL: `debug`,
+        NEW_VAR: `added`,
+      })
+    })
+
+    it(`should merge resources limits and requests from project config`, () => {
+      const sandbox = baseSandbox()
+      sandbox.projectConfigs = [
+        {
+          sandboxId: `sandbox-1`,
+          projectId: `proj-1`,
+          config: {
+            resources: {
+              limits: { memory: `4Gi` },
+              requests: { cpu: `250m`, gpu: `1` },
+            },
+          } as any,
+        },
+      ]
+      const result = sandbox.getEffectiveConfig(`proj-1`)
+      expect(result.config.resources).toEqual({
+        limits: { cpu: `1000m`, memory: `4Gi` },
+        requests: { cpu: `250m`, memory: `1Gi`, gpu: `1` },
+      })
+    })
+
+    it(`should merge ports from project config`, () => {
+      const sandbox = baseSandbox()
+      sandbox.projectConfigs = [
+        {
+          sandboxId: `sandbox-1`,
+          projectId: `proj-1`,
+          config: {
+            ports: { debug: 9229 },
+          } as any,
+        },
+      ]
+      const result = sandbox.getEffectiveConfig(`proj-1`)
+      expect(result.config.ports).toEqual({ ssh: 22, http: 8080, debug: 9229 })
+    })
+
+    it(`should merge sync config from project config`, () => {
+      const sandbox = baseSandbox()
+      sandbox.projectConfigs = [
+        {
+          sandboxId: `sandbox-1`,
+          projectId: `proj-1`,
+          config: {
+            sync: { bidirectional: true },
+          } as any,
+        },
+      ]
+      const result = sandbox.getEffectiveConfig(`proj-1`)
+      expect(result.config.sync).toEqual({
+        enabled: true,
+        ignore: [`node_modules`],
+        bidirectional: true,
+      })
+    })
+
+    it(`should apply alias override as name`, () => {
+      const sandbox = baseSandbox()
+      sandbox.projectConfigs = [
+        {
+          sandboxId: `sandbox-1`,
+          projectId: `proj-1`,
+          alias: `Custom Name`,
+          config: null,
+        },
+      ]
+      const result = sandbox.getEffectiveConfig(`proj-1`)
+      expect(result.name).toBe(`Custom Name`)
+    })
+
+    it(`should not mutate the original sandbox`, () => {
+      const sandbox = baseSandbox()
+      sandbox.projectConfigs = [
+        {
+          sandboxId: `sandbox-1`,
+          projectId: `proj-1`,
+          alias: `Override Name`,
+          config: {
+            envVars: { EXTRA: `val` },
+            resources: { limits: { memory: `8Gi` } },
+          } as any,
+        },
+      ]
+      const originalName = sandbox.name
+      const originalEnvVars = { ...sandbox.config.envVars }
+      const originalLimits = { ...sandbox.config.resources?.limits }
+
+      sandbox.getEffectiveConfig(`proj-1`)
+
+      expect(sandbox.name).toBe(originalName)
+      expect(sandbox.config.envVars).toEqual(originalEnvVars)
+      expect(sandbox.config.resources?.limits).toEqual(originalLimits)
+    })
+
+    it(`should return a new Sandbox instance`, () => {
+      const sandbox = baseSandbox()
+      sandbox.projectConfigs = [
+        {
+          sandboxId: `sandbox-1`,
+          projectId: `proj-1`,
+          config: { envVars: { X: `1` } } as any,
+        },
+      ]
+      const result = sandbox.getEffectiveConfig(`proj-1`)
+      expect(result).not.toBe(sandbox)
+      expect(result).toBeInstanceOf(Sandbox)
+    })
+
+    it(`should preserve original config when project config has null config`, () => {
+      const sandbox = baseSandbox()
+      sandbox.projectConfigs = [
+        {
+          sandboxId: `sandbox-1`,
+          projectId: `proj-1`,
+          alias: `Aliased`,
+          config: null,
+        },
+      ]
+      const result = sandbox.getEffectiveConfig(`proj-1`)
+      expect(result.name).toBe(`Aliased`)
+      expect(result.config).toEqual(sandbox.config)
     })
   })
 })

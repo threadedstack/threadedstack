@@ -37,10 +37,40 @@ Items are split into separate groups, with the sub repo name as the header.
   * Would also need to update the repos/integration tests to validate the functionality, and ensure no regressions.
 
 
+## Domain
+
+### Parser
+
+* The parser events should types should use an enum following existing repository patterns for enums
+  * Then all places where a string is used to reference a parser event type should be updated to use the `EParserEvtType` enum instead of a string
+* The `TToolState` should also be an enum and not strings, and all locations that reference it should be updated to use the enum instead of a string
+* 
 
 ## Admin UI
 
-### Create Sandbox
+### Create/Edit Sandbox Drawer
 
-* No way to deselect Image Preset when creating a sandbox
-* Claude auto-selected as runtime, when not preset is selected (No way to know if claude is available)
+* Needs to be cleaned up and simplified. Options are not well organized or separated properly. Some options are in an Accordion, while others are just displayed directly. No consistency and no organization makes for a bad user experience.
+
+
+## Threads
+
+* The Admin app has a main header across the top of the app that is always displayed
+  * It contains a number of items that should always be visually present
+  * On the left side it has:
+    * Threaded Stack text and logo
+    * Breadcrumb like interface for selecting orgs, and projects
+  * On the right side it has:
+    * Theme toggle action (completly missing in Threads app)
+    * Clickable User Avatar, with dropdown menu containing user specific menu items
+  * This component should be copied into the Threads app, and work the same way, with the same functionality.
+* The top header bottom border in the main view, does not align with the header bottom border of the sidebar
+* No separation between where the sidebar ends and the main window begins visually. Need to update to a clean and visually appealing separation between sidebar and main window.
+
+
+## Multi-Repo
+
+### Sandboxes
+
+* Users should be able to create multiple connections to the same sandbox. Currently it's only one connection per-sandbox, which means I can only run one claude-code session in that sandbox. But as a user, I should be able to run multiple seperate session.
+

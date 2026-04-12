@@ -34,7 +34,7 @@ export const execInSandbox: TEndpointConfig = {
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
-    await sb.validatePodOwnership(podName, sandbox.orgId)
+    await sb.validatePodOwnership(podName, sandbox.orgId, req.params.projectId)
     const sbInstance = await sb.getSandbox(podName)
     const result = await sbInstance.exec(command, args)
 

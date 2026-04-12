@@ -254,6 +254,7 @@ export type TSandboxConnectResponse = {
   podName: string
   password: string
   sandboxId: string
+  shellToken?: string
 }
 
 export enum ESBState {
@@ -261,4 +262,17 @@ export enum ESBState {
   Running = `Running`,
   Stopped = `Stopped`,
   Starting = `Starting`,
+}
+
+/**
+ * Per-project sandbox configuration overrides.
+ * Stored on the sandboxProjects junction table.
+ * NULL config = inherit from base sandbox config.
+ */
+export type TSandboxProjectConfig = {
+  sandboxId: string
+  projectId: string
+  enabled?: boolean
+  alias?: string | null
+  config?: Partial<TKubeSandboxConfig> | null
 }

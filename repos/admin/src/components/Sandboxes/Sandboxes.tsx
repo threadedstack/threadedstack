@@ -2,19 +2,19 @@ import type { Sandbox, TSandboxConnectResponse, TSandboxSession } from '@tdsk/do
 import type { TDataTableColumn } from '@TAF/components'
 
 import { toast } from 'sonner'
-import { ESBState, ESandboxRuntime } from '@tdsk/domain'
 import { ConfirmDelete } from '@tdsk/components'
-import { useSandboxes } from '@TAF/state/selectors'
 import { useState, useMemo, useCallback } from 'react'
 import { statusColor } from '@TAF/utils/sandbox/status'
+import { ESBState, ESandboxRuntime } from '@tdsk/domain'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ConnectModal } from '@TAF/components/Sandboxes/ConnectModal'
 import { SandboxDrawer } from '@TAF/components/Sandboxes/SandboxDrawer'
+import { useOrgSandboxes, useProjectSandboxes } from '@TAF/state/selectors'
 import { Box, Typography, Chip, CircularProgress, Tooltip } from '@mui/material'
-import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import { getSandboxSessions } from '@TAF/actions/sandboxes/api/getSandboxSessions'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
 import {
   copySandbox,
   stopSandbox,
@@ -23,16 +23,16 @@ import {
   connectSandbox,
 } from '@TAF/actions/sandboxes'
 import {
+  Key as KeyIcon,
   Add as AddIcon,
   Edit as EditIcon,
   Stop as StopIcon,
   Dns as SandboxIcon,
   Delete as DeleteIcon,
   PlayArrow as StartIcon,
+  Warning as WarningIcon,
   Terminal as ConnectIcon,
   ContentCopy as CopyIcon,
-  Warning as WarningIcon,
-  Key as KeyIcon,
 } from '@mui/icons-material'
 
 export type TSandboxes = {
@@ -57,8 +57,9 @@ const styles = {
 type TPodState = { podName: string; state: ESBState }
 
 export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
-  const [sandboxes] = useSandboxes()
+  const [orgSandboxes] = useOrgSandboxes()
   const [loading, setLoading] = useState(false)
+  const [projectSandboxes] = useProjectSandboxes()
   const [searchQuery, setSearchQuery] = useState(``)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<Sandbox>()
@@ -70,8 +71,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
   const [connectModalSandbox, setConnectModalSandbox] = useState<Sandbox | null>(null)
   const [connectData, setConnectData] = useState<TSandboxConnectResponse | null>(null)
 
-  const isProjectContext = !!projectId
-  const isOrgContext = !!orgId && !projectId
+  const sandboxes = projectId ? projectSandboxes : orgSandboxes
 
   const setBusy = useCallback((id: string, busy: boolean) => {
     setBusySandboxes((prev) => {
@@ -97,6 +97,11 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
   }
 
   const onStartSandbox = async (sandbox: Sandbox) => {
+    if (!projectId) {
+      toast.error(`Sandbox can only be started from a project context`)
+      return
+    }
+
     setBusy(sandbox.id, true)
     setPodStates((prev) => ({
       ...prev,
@@ -106,7 +111,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
     const result = await startSandbox({
       orgId,
       sandboxId: sandbox.id,
-      projectId: sandbox.projectId,
+      projectId,
     })
     setBusy(sandbox.id, false)
 
@@ -129,12 +134,18 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
   }
 
   const onStopSandbox = async (sandbox: Sandbox) => {
+    if (!projectId) {
+      toast.error(`Sandbox can only be stopped from a project context`)
+      return
+    }
+
     const pod = podStates[sandbox.id]
     if (!pod?.podName) return
 
     setBusy(sandbox.id, true)
     const result = await stopSandbox({
       orgId,
+      projectId,
       sandboxId: sandbox.id,
       podName: pod.podName,
     })
@@ -154,6 +165,11 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
   }
 
   const onConnectSandbox = async (sandbox: Sandbox) => {
+    if (!projectId) {
+      toast.error(`Sandbox can only be connected from a project context`)
+      return
+    }
+
     setBusy(sandbox.id, true)
     setPodStates((prev) => ({
       ...prev,
@@ -163,7 +179,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
       },
     }))
 
-    const result = await connectSandbox({ orgId, sandboxId: sandbox.id })
+    const result = await connectSandbox({ orgId, sandboxId: sandbox.id, projectId })
     setBusy(sandbox.id, false)
 
     if (result.error) {
@@ -187,7 +203,11 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
     setConnectData(data)
     setConnectModalSandbox(sandbox)
 
-    const sessionsResult = await getSandboxSessions({ orgId, sandboxId: sandbox.id })
+    const sessionsResult = await getSandboxSessions({
+      orgId,
+      projectId,
+      sandboxId: sandbox.id,
+    })
     setConnectSessions(sessionsResult.data || [])
   }
 
@@ -198,11 +218,12 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
   }
 
   const onConnectModalStop = async () => {
-    if (!connectModalSandbox || !connectData?.podName) return
+    if (!connectModalSandbox || !connectData?.podName || !projectId) return
 
     setBusy(connectModalSandbox.id, true)
     const result = await stopSandbox({
       orgId,
+      projectId,
       sandboxId: connectModalSandbox.id,
       podName: connectData.podName,
     })
@@ -225,7 +246,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
   const onCopySandbox = async (sandbox: Sandbox) => {
     setBusy(sandbox.id, true)
     const name = `${sandbox.name}-copy`
-    const result = await copySandbox({ orgId, id: sandbox.id, name })
+    const result = await copySandbox({ orgId, id: sandbox.id, name, projectId })
     setBusy(sandbox.id, false)
 
     if (result.error) {
@@ -258,30 +279,19 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
 
   const filteredSandboxes = useMemo(() => {
     const sandboxArray = sandboxes ? Object.values(sandboxes) : []
-
-    const contextFiltered = sandboxArray.filter((sb) => {
-      if (isProjectContext) return sb.projectId === projectId
-      if (isOrgContext) return sb.orgId === orgId
-      return false
-    })
-
-    if (!searchQuery.trim()) return contextFiltered
-
+    if (!searchQuery.trim()) return sandboxArray
     const query = searchQuery.toLowerCase()
-    return contextFiltered.filter(
+    return sandboxArray.filter(
       (sandbox) =>
         sandbox.name?.toLowerCase().includes(query) ||
         sandbox.config?.image?.toLowerCase().includes(query)
     )
-  }, [sandboxes, searchQuery, orgId, projectId, isOrgContext, isProjectContext])
+  }, [sandboxes, searchQuery])
 
-  const sandboxCount = useMemo(() => {
-    const sandboxArray = sandboxes ? Object.values(sandboxes) : []
-    if (isProjectContext)
-      return sandboxArray.filter((sb) => sb.projectId === projectId).length
-    if (isOrgContext) return sandboxArray.filter((sb) => sb.orgId === orgId).length
-    return 0
-  }, [sandboxes, orgId, projectId, isOrgContext, isProjectContext])
+  const sandboxCount = useMemo(
+    () => (sandboxes ? Object.values(sandboxes).length : 0),
+    [sandboxes]
+  )
 
   const columns: TDataTableColumn<Sandbox>[] = [
     {
@@ -355,17 +365,19 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
         </Typography>
       ),
     },
-    ...(isOrgContext
+    ...(!projectId
       ? [
           {
             id: `project`,
-            label: `Project`,
+            label: `Projects`,
             render: (sandbox: Sandbox) => (
               <Typography
                 variant='body2'
                 color='text.secondary'
               >
-                {sandbox.projectId || `—`}
+                {sandbox.projects?.length
+                  ? sandbox.projects.map((p) => p.name).join(', ')
+                  : `—`}
               </Typography>
             ),
           } as TDataTableColumn<Sandbox>,
@@ -443,42 +455,45 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
 
         return (
           <Box sx={styles.table.actions.box}>
-            {isRunning ? (
+            {projectId &&
+              (isRunning ? (
+                <ActionIconButton
+                  size='small'
+                  color='warning'
+                  disabled={isBusy}
+                  tooltip='Stop Sandbox'
+                  icon={<StopIcon sx={styles.table.actions.icon} />}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onStopSandbox(sandbox)
+                  }}
+                />
+              ) : (
+                <ActionIconButton
+                  size='small'
+                  color='info'
+                  disabled={isBusy}
+                  tooltip='Start Sandbox'
+                  icon={<StartIcon sx={styles.table.actions.icon} />}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onStartSandbox(sandbox)
+                  }}
+                />
+              ))}
+            {projectId && (
               <ActionIconButton
                 size='small'
-                color='warning'
+                color='success'
                 disabled={isBusy}
-                tooltip='Stop Sandbox'
-                icon={<StopIcon sx={styles.table.actions.icon} />}
+                tooltip='Connect to Sandbox'
+                icon={<ConnectIcon sx={styles.table.actions.icon} />}
                 onClick={(e) => {
                   e.stopPropagation()
-                  onStopSandbox(sandbox)
-                }}
-              />
-            ) : (
-              <ActionIconButton
-                size='small'
-                color='info'
-                disabled={isBusy}
-                tooltip='Start Sandbox'
-                icon={<StartIcon sx={styles.table.actions.icon} />}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onStartSandbox(sandbox)
+                  onConnectSandbox(sandbox)
                 }}
               />
             )}
-            <ActionIconButton
-              size='small'
-              color='success'
-              disabled={isBusy}
-              tooltip='Connect to Sandbox'
-              icon={<ConnectIcon sx={styles.table.actions.icon} />}
-              onClick={(e) => {
-                e.stopPropagation()
-                onConnectSandbox(sandbox)
-              }}
-            />
             <ActionIconButton
               size='small'
               color='secondary'

@@ -24,7 +24,13 @@ import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { ProviderLinkList } from '@TAF/components/Providers/ProviderLinkList'
 import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
 import { Drawer, TextInput, SelectInput, DrawerActions } from '@tdsk/components'
-import { useProviders, useOrgSecrets, useProjectSecrets } from '@TAF/state/selectors'
+import {
+  useProjects,
+  useProviders,
+  useOrgSecrets,
+  useProjectSecrets,
+  useProjectSandboxes,
+} from '@TAF/state/selectors'
 import {
   ESecretMode,
   ESandboxRuntime,
@@ -42,7 +48,9 @@ import {
   Button,
   Switch,
   Accordion,
+  TextField,
   Typography,
+  Autocomplete,
   FormControlLabel,
   AccordionSummary,
   AccordionDetails,
@@ -130,6 +138,25 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     })
   }, [orgSecretsMap, projectSecretsMap, projectId])
 
+  // Project linking (org context only)
+  const [projectsMap] = useProjects()
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
+  const isProjectContext = !!projectId
+
+  const orgProjects = useMemo(
+    () => Object.values(projectsMap || {}).map((p) => ({ id: p.id, name: p.name })),
+    [projectsMap]
+  )
+
+  // Base sandbox selector (project context, create mode only)
+  const [projectSandboxesMap] = useProjectSandboxes()
+  const [baseSandboxId, setBaseSandboxId] = useState<string | null>(null)
+
+  const projectSandboxList = useMemo(
+    () => Object.values(projectSandboxesMap || {}),
+    [projectSandboxesMap]
+  )
+
   // Provider linking
   const [providersMap] = useProviders()
   const [providerIds, setProviderIds] = useState<string[]>([])
@@ -209,9 +236,11 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     setMemoryRequest(``)
     setGitBranch(`main`)
     setNewSecretValue(``)
+    setBaseSandboxId(null)
     setNewGitTokenValue(``)
     setGitTokenSecretId(``)
     setSelectedSecretId(``)
+    setSelectedProjectIds([])
     setDefaultRuntime(`node`)
     setIdleTimeoutMinutes(30)
     setSecretMode(ESecretMode.none)
@@ -222,62 +251,79 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     setInitScript(``)
   }
 
+  const populateFromSandbox = (source: Sandbox) => {
+    const config = source.config ?? ({} as TKubeSandboxConfig)
+    setNewSecretValue(``)
+    setNewGitTokenValue(``)
+    setName(source.name || ``)
+    setImage(config.image || ``)
+    setWorkdir(config.workdir || ``)
+    setGitRepo(config.gitRepo || ``)
+    setArgs(config.args?.join(`, `) || ``)
+    setGitBranch(config.gitBranch || `main`)
+    setSshEnabled(config.sshEnabled ?? true)
+    setEnvVars(objToKV(config.envVars, `env`))
+    setCommand(config.command?.join(`, `) || ``)
+    setCpuLimit(config.resources?.limits?.cpu || ``)
+    setDefaultRuntime(config.defaultRuntime || `node`)
+    setCpuRequest(config.resources?.requests?.cpu || ``)
+    setIdleTimeoutMinutes(config.idleTimeoutMinutes ?? 30)
+    setMemoryLimit(config.resources?.limits?.memory || ``)
+    setMemoryRequest(config.resources?.requests?.memory || ``)
+    setImagePullPolicy(config.imagePullPolicy || EImagePullPolicy.IfNotPresent)
+    setRuntime((config.runtime as TSandboxRuntimeId) || ESandboxRuntime.claudeCode)
+    setRuntimeCommand(config.runtimeCommand || ``)
+    setInitScript(config.initScript || ``)
+    setProviderIds(source.providerLinks?.map((l) => l.provider.id) || [])
+    const models: Record<string, string> = {}
+    for (const link of source.providerLinks || []) {
+      if (link.model) models[link.provider.id] = link.model
+    }
+    setProviderModels(models)
+
+    if (config.gitTokenSecretId) {
+      setGitTokenSecretId(config.gitTokenSecretId)
+      setGitTokenMode(ESecretMode.existing)
+    } else {
+      setGitTokenSecretId(``)
+      setGitTokenMode(ESecretMode.none)
+    }
+    setPorts(
+      Object.entries(config.ports || {}).map(([key, val], i) => ({
+        id: `port-${i}-${Date.now()}`,
+        key,
+        value: val.protocol || `http`,
+      }))
+    )
+
+    if (config.imagePullSecret) {
+      setSelectedSecretId(config.imagePullSecret)
+      setSecretMode(ESecretMode.existing)
+    } else {
+      setSelectedSecretId(``)
+      setSecretMode(ESecretMode.none)
+    }
+
+    setError(null)
+  }
+
+  const onSelectBaseSandbox = (id: string | null) => {
+    setBaseSandboxId(id)
+    if (!id) {
+      reset()
+      return
+    }
+    const base = projectSandboxList.find((s) => s.id === id)
+    if (base) populateFromSandbox(base)
+  }
+
   // Pre-populate form in edit mode
   useEffect(() => {
     if (sandbox) {
-      const config = sandbox.config ?? ({} as TKubeSandboxConfig)
-      setNewSecretValue(``)
-      setNewGitTokenValue(``)
-      setName(sandbox.name || '')
-      setImage(config.image || '')
-      setWorkdir(config.workdir || ``)
-      setGitRepo(config.gitRepo || ``)
-      setArgs(config.args?.join(`, `) || ``)
-      setGitBranch(config.gitBranch || `main`)
-      setSshEnabled(config.sshEnabled ?? true)
-      setEnvVars(objToKV(config.envVars, `env`))
-      setCommand(config.command?.join(`, `) || ``)
-      setCpuLimit(config.resources?.limits?.cpu || ``)
-      setDefaultRuntime(config.defaultRuntime || `node`)
-      setCpuRequest(config.resources?.requests?.cpu || ``)
-      setIdleTimeoutMinutes(config.idleTimeoutMinutes ?? 30)
-      setMemoryLimit(config.resources?.limits?.memory || ``)
-      setMemoryRequest(config.resources?.requests?.memory || ``)
-      setImagePullPolicy(config.imagePullPolicy || EImagePullPolicy.IfNotPresent)
-      setRuntime((config.runtime as TSandboxRuntimeId) || ESandboxRuntime.claudeCode)
-      setRuntimeCommand(config.runtimeCommand || ``)
-      setInitScript(config.initScript || ``)
-      setProviderIds(sandbox.providerLinks?.map((l) => l.provider.id) || [])
-      const models: Record<string, string> = {}
-      for (const link of sandbox.providerLinks || []) {
-        if (link.model) models[link.provider.id] = link.model
-      }
-      setProviderModels(models)
-
-      if (config.gitTokenSecretId) {
-        setGitTokenSecretId(config.gitTokenSecretId)
-        setGitTokenMode(ESecretMode.existing)
-      } else {
-        setGitTokenSecretId(``)
-        setGitTokenMode(ESecretMode.none)
-      }
-      setPorts(
-        Object.entries(config.ports || {}).map(([key, val], i) => ({
-          id: `port-${i}-${Date.now()}`,
-          key,
-          value: val.protocol || `http`,
-        }))
+      populateFromSandbox(sandbox)
+      setSelectedProjectIds(
+        sandbox.projects?.map((p) => p.id) || (projectId ? [projectId] : [])
       )
-
-      setError(null)
-
-      if (config.imagePullSecret) {
-        setSelectedSecretId(config.imagePullSecret)
-        setSecretMode(ESecretMode.existing)
-      } else {
-        setSelectedSecretId(``)
-        setSecretMode(ESecretMode.none)
-      }
     } else reset()
   }, [sandbox])
 
@@ -378,6 +424,7 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
 
     const sandboxData = {
       name: name.trim(),
+      ...(!isProjectContext && { projectIds: selectedProjectIds }),
       providerInputs: providerIds.map((id) => ({
         id,
         model: providerModels[id] || null,
@@ -464,6 +511,49 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
             placeholder='Enter sandbox name'
             onChange={(e) => setName(e.target.value)}
           />
+
+          {/* Project linking — org context only */}
+          {!isProjectContext && (
+            <Autocomplete
+              multiple
+              id='sandbox-projects'
+              value={selectedProjectIds}
+              options={orgProjects.map((p) => p.id)}
+              getOptionLabel={(id) => orgProjects.find((p) => p.id === id)?.name || id}
+              onChange={(_, updates) => setSelectedProjectIds(updates)}
+              disabled={loading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label='Projects'
+                  placeholder='Select projects...'
+                  size='small'
+                />
+              )}
+            />
+          )}
+
+          {/* Base sandbox selector — project context, create mode only */}
+          {isProjectContext && !isEditMode && projectSandboxList.length > 0 && (
+            <Autocomplete
+              id='sandbox-base'
+              value={baseSandboxId}
+              options={projectSandboxList.map((s) => s.id)}
+              getOptionLabel={(id) =>
+                projectSandboxList.find((s) => s.id === id)?.name || id
+              }
+              onChange={(_, id) => onSelectBaseSandbox(id)}
+              disabled={loading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label='Base Sandbox'
+                  placeholder='Start from an existing sandbox...'
+                  size='small'
+                />
+              )}
+            />
+          )}
 
           {/* Image Presets */}
           <Box>

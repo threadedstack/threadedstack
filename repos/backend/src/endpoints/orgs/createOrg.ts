@@ -55,6 +55,7 @@ export const createOrg: TEndpointConfig = {
         name: preset.name,
         config: { image: config.sandbox.image, ...preset.config } as TKubeSandboxConfig,
       })
+
       const { error: seedError } = await db.services.sandbox.create(sandbox)
       if (seedError) {
         logger.warn(

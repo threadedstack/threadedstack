@@ -42,6 +42,17 @@ vi.mock(`@TDB/schemas/sandboxProviders`, () => ({
   },
 }))
 
+// Mock the sandboxProjects schema
+vi.mock(`@TDB/schemas/sandboxProjects`, () => ({
+  sandboxProjects: {
+    sandboxId: { name: `sandbox_id` },
+    projectId: { name: `project_id` },
+    alias: { name: `alias` },
+    enabled: { name: `enabled` },
+    config: { name: `config` },
+  },
+}))
+
 // Mock the Sandbox domain model
 vi.mock(`@tdsk/domain`, async () => {
   const orig = await vi.importActual(`@tdsk/domain`)
@@ -89,6 +100,8 @@ const createMockDb = () => {
     await cb(txMock)
   })
 
+  const spFindFirst = vi.fn()
+
   return {
     db: {
       insert: insertFn,
@@ -97,8 +110,10 @@ const createMockDb = () => {
       transaction: transactionFn,
       query: {
         sandboxes: { findFirst, findMany },
+        sandboxProjects: { findFirst: spFindFirst },
       },
     } as any,
+    spFindFirst,
     returningFn,
     valuesFn,
     setFn,
@@ -140,6 +155,12 @@ describe(`Sandbox service`, () => {
       const result = service.with({})
 
       expect(result.providers).toEqual({ with: { provider: true } })
+    })
+
+    it(`should always include projects with nested project relation`, () => {
+      const result = service.with({})
+
+      expect(result.projects).toEqual({ with: { project: true } })
     })
 
     it(`should preserve existing opts`, () => {
@@ -693,14 +714,151 @@ describe(`Sandbox service`, () => {
     })
   })
 
-  // ---------- listByProject() ----------
-  describe(`listByProject`, () => {
-    it(`should call list with projectId where clause`, async () => {
-      mocks.findMany.mockResolvedValue([])
+  // ---------- addProject() ----------
+  describe(`addProject`, () => {
+    it(`should insert into sandboxProjects and return data`, async () => {
+      const junction = { sandboxId: `sbx-1`, projectId: `proj-1`, alias: undefined }
+      mocks.returningFn.mockResolvedValue([junction])
 
-      await service.listByProject(`proj-1`)
+      const result = await service.addProject(`sbx-1`, `proj-1`)
 
-      expect(mocks.findMany).toHaveBeenCalledOnce()
+      expect(result.data).toEqual(junction)
+      expect(result.error).toBeNull()
+      expect(mocks.insertFn).toHaveBeenCalledOnce()
+      expect(mocks.valuesFn).toHaveBeenCalledWith({
+        sandboxId: `sbx-1`,
+        projectId: `proj-1`,
+        alias: undefined,
+      })
+    })
+
+    it(`should insert with an alias when provided`, async () => {
+      const junction = { sandboxId: `sbx-1`, projectId: `proj-1`, alias: `my-alias` }
+      mocks.returningFn.mockResolvedValue([junction])
+
+      const result = await service.addProject(`sbx-1`, `proj-1`, `my-alias`)
+
+      expect(result.data).toEqual(junction)
+      expect(mocks.valuesFn).toHaveBeenCalledWith({
+        sandboxId: `sbx-1`,
+        projectId: `proj-1`,
+        alias: `my-alias`,
+      })
+    })
+  })
+
+  // ---------- removeProject() ----------
+  describe(`removeProject`, () => {
+    it(`should delete from sandboxProjects matching sandbox and project`, async () => {
+      mocks.deleteWhereFn.mockResolvedValue(undefined)
+
+      const result = await service.removeProject(`sbx-1`, `proj-1`)
+
+      expect(result.data).toBeNull()
+      expect(result.error).toBeNull()
+      expect(mocks.deleteFn).toHaveBeenCalledOnce()
+      expect(mocks.deleteWhereFn).toHaveBeenCalledOnce()
+    })
+  })
+
+  // ---------- upsertProjectConfig() ----------
+  describe(`upsertProjectConfig`, () => {
+    it(`should update sandboxProjects row and return result`, async () => {
+      const junction = {
+        sandboxId: `sbx-1`,
+        projectId: `proj-1`,
+        alias: `alias`,
+        enabled: true,
+        config: null,
+      }
+      mocks.whereReturningFn.mockResolvedValue([junction])
+
+      const result = await service.upsertProjectConfig(`sbx-1`, `proj-1`, {
+        alias: `alias`,
+        enabled: true,
+      })
+
+      expect(result.data).toEqual(junction)
+      expect(result.error).toBeUndefined()
+      expect(mocks.setFn).toHaveBeenCalledOnce()
+    })
+
+    it(`should return error when junction row not found`, async () => {
+      mocks.whereReturningFn.mockResolvedValue([])
+
+      const result = await service.upsertProjectConfig(`sbx-1`, `proj-missing`, {})
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toContain(`not linked to this project`)
+    })
+
+    it(`should return error on db exception`, async () => {
+      mocks.whereFn.mockImplementationOnce(() => {
+        throw new Error(`DB failure`)
+      })
+
+      const result = await service.upsertProjectConfig(`sbx-1`, `proj-1`, {})
+
+      expect(result.error).toBeDefined()
+    })
+  })
+
+  // ---------- getProjectConfig() ----------
+  describe(`getProjectConfig`, () => {
+    it(`should return TSandboxProjectConfig on success`, async () => {
+      const junction = {
+        sandboxId: `sbx-1`,
+        projectId: `proj-1`,
+        alias: `my-alias`,
+        enabled: true,
+        config: null,
+      }
+      mocks.spFindFirst.mockResolvedValue(junction)
+
+      const result = await service.getProjectConfig(`sbx-1`, `proj-1`)
+
+      expect(result.data).toEqual({
+        sandboxId: `sbx-1`,
+        projectId: `proj-1`,
+        alias: `my-alias`,
+        enabled: true,
+        config: null,
+      })
+      expect(result.error).toBeUndefined()
+    })
+
+    it(`should default alias to null and enabled to true when null/undefined`, async () => {
+      mocks.spFindFirst.mockResolvedValue({
+        sandboxId: `sbx-1`,
+        projectId: `proj-1`,
+        alias: null,
+        enabled: null,
+        config: undefined,
+      })
+
+      const result = await service.getProjectConfig(`sbx-1`, `proj-1`)
+
+      expect(result.data?.alias).toBeNull()
+      expect(result.data?.enabled).toBe(true)
+      expect(result.data?.config).toBeNull()
+    })
+
+    it(`should return error when junction row not found`, async () => {
+      mocks.spFindFirst.mockResolvedValue(undefined)
+
+      const result = await service.getProjectConfig(`sbx-1`, `proj-missing`)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toContain(`not linked to this project`)
+    })
+
+    it(`should return error on db exception`, async () => {
+      mocks.spFindFirst.mockRejectedValue(new Error(`DB failure`))
+
+      const result = await service.getProjectConfig(`sbx-1`, `proj-1`)
+
+      expect(result.error).toBeDefined()
+      expect(result.error.message).toBe(`DB failure`)
     })
   })
 

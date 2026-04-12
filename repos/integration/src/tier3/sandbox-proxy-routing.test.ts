@@ -108,12 +108,12 @@ server.listen(3000, () => {
 
       // Write HTTP server script to pod and start it in background
       const escaped = serverScript.replace(/'/g, "'\\''").trim()
-      await execInPod(ctx.orgId, sandboxId, podName,
+      await execInPod(ctx.orgId, projectId, sandboxId, podName,
         `printf '%s' '${escaped}' > /workspace/server.js`
       )
 
       // Start server in background (nohup + &)
-      await execInPod(ctx.orgId, sandboxId, podName,
+      await execInPod(ctx.orgId, projectId, sandboxId, podName,
         "sh -c 'nohup node /workspace/server.js > /dev/null 2>&1 &'"
       )
 
@@ -130,7 +130,7 @@ server.listen(3000, () => {
         "}).on('error', (e) => { console.error(e.message); process.exit(1); });",
       ].join(' ')
 
-      const verifyRes = await execInPod(ctx.orgId, sandboxId, podName,
+      const verifyRes = await execInPod(ctx.orgId, projectId, sandboxId, podName,
         `node -e "${verifyScript}"`
       )
       if (!verifyRes.data.success || verifyRes.data.output.trim() !== '200') {

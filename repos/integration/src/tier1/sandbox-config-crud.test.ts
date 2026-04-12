@@ -250,13 +250,15 @@ describe('Tier 1: Sandbox Config CRUD', () => {
           name: uniqueName('sb-with-proj'),
           config: baseCfg,
           orgId: ctx.orgId,
-          projectId: testProjectId,
+          projectIds: [testProjectId],
         }
       )
 
       expect(res.status).toBe(201)
       expect(res.ok).toBe(true)
-      expect(res.data.projectId).toBe(testProjectId)
+      expect(res.data.projects).toBeDefined()
+      expect(res.data.projects.length).toBe(1)
+      expect(res.data.projects[0].id).toBe(testProjectId)
       expect(res.data.builtIn).toBe(false)
       createdSandboxIds.push(res.data.id)
     })
@@ -269,13 +271,15 @@ describe('Tier 1: Sandbox Config CRUD', () => {
       )
 
       expect(res.status).toBe(200)
-      expect(res.data.projectId).toBe(testProjectId)
+      expect(res.data.projects).toBeDefined()
+      expect(res.data.projects.length).toBe(1)
+      expect(res.data.projects[0].id).toBe(testProjectId)
     })
 
     test('GET list with ?projectId filter returns only matching sandboxes', async () => {
       if (!testProjectId) return expect(testProjectId).toBeTruthy()
 
-      // Create a sandbox WITHOUT projectId
+      // Create a sandbox WITHOUT any project association
       const noProj = await post<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes`,
         { name: uniqueName('sb-no-proj'), config: baseCfg, orgId: ctx.orgId }
@@ -291,9 +295,9 @@ describe('Tier 1: Sandbox Config CRUD', () => {
       expect(Array.isArray(res.data)).toBe(true)
 
       const ids = res.data.map((s: any) => s.id)
-      // The sandbox with projectId should be present
+      // The sandbox linked to the project should be present
       expect(ids).toContain(createdSandboxIds[0])
-      // The sandbox without projectId should NOT appear in filtered results
+      // The sandbox without project association should NOT appear in filtered results
       expect(ids).not.toContain(noProj.data.id)
     })
 
@@ -317,12 +321,14 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
       const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[1]}`,
-        { projectId: testProjectId }
+        { projectIds: [testProjectId] }
       )
 
       expect(res.status).toBe(200)
       expect(res.ok).toBe(true)
-      expect(res.data.projectId).toBe(testProjectId)
+      expect(res.data.projects).toBeDefined()
+      expect(res.data.projects.length).toBe(1)
+      expect(res.data.projects[0].id).toBe(testProjectId)
     })
 
     test('PUT can set sandbox projectId to null', async () => {
@@ -330,12 +336,13 @@ describe('Tier 1: Sandbox Config CRUD', () => {
 
       const res = await put<Record<string, any>>(
         `/orgs/${ctx.orgId}/sandboxes/${createdSandboxIds[1]}`,
-        { projectId: null }
+        { projectIds: [] }
       )
 
       expect(res.status).toBe(200)
       expect(res.ok).toBe(true)
-      expect(res.data.projectId).toBeFalsy()
+      expect(res.data.projects).toBeDefined()
+      expect(res.data.projects.length).toBe(0)
     })
 
     // --- sshEnabled ---

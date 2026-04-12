@@ -52,7 +52,7 @@ describe('Tier 3: Sandbox Connect', () => {
   test('POST /:id/connect auto-starts pod and returns connection info', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await connectSandbox(ctx.orgId, sandboxId)
+    const res = await connectSandbox(ctx.orgId, projectId, sandboxId)
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
@@ -74,7 +74,7 @@ describe('Tier 3: Sandbox Connect', () => {
     if (!podName) return expect(podName).toBeTruthy()
 
     const res = await get<{ podName: string; state: string }>(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/status?podName=${podName}`
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?podName=${podName}`
     )
 
     expect(res.status).toBe(200)
@@ -84,7 +84,7 @@ describe('Tier 3: Sandbox Connect', () => {
   test('POST /:id/connect on already-running pod returns same podName', async () => {
     if (!podName) return expect(podName).toBeTruthy()
 
-    const res = await connectSandbox(ctx.orgId, sandboxId)
+    const res = await connectSandbox(ctx.orgId, projectId, sandboxId)
 
     expect(res.status).toBe(200)
     expect(res.data.podName).toBe(podName)
@@ -93,7 +93,7 @@ describe('Tier 3: Sandbox Connect', () => {
   test('can exec commands in pod started by connect', async () => {
     if (!podName) return expect(podName).toBeTruthy()
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName, 'echo hello')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'echo hello')
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -106,7 +106,7 @@ describe('Tier 3: Sandbox Connect', () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
     const res = await post(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/connect`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
       {},
       { noAuth: true }
     )
@@ -117,7 +117,7 @@ describe('Tier 3: Sandbox Connect', () => {
 
   test('POST /:id/connect for nonexistent sandbox returns error', async () => {
     const res = await post(
-      `/orgs/${ctx.orgId}/sandboxes/nonexistent-sandbox-id/connect`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/nonexistent-sandbox-id/connect`,
       {}
     )
 
@@ -152,7 +152,7 @@ describe('Tier 3: Sandbox Connect', () => {
       expect(sbRes.ok).toBe(true)
       projSandboxId = sbRes.data.id
 
-      const connRes = await connectSandbox(ctx.orgId, projSandboxId)
+      const connRes = await connectSandbox(ctx.orgId, projProjectId, projSandboxId)
       expect(connRes.status).toBe(200)
       expect(connRes.data.podName).toMatch(/^tdsk-sb-/)
       projPodName = connRes.data.podName
@@ -185,8 +185,8 @@ describe('Tier 3: Sandbox Connect', () => {
       concSandboxId = sbRes.data.id
 
       const [r1, r2] = await Promise.all([
-        connectSandbox(ctx.orgId, concSandboxId),
-        connectSandbox(ctx.orgId, concSandboxId),
+        connectSandbox(ctx.orgId, projectId, concSandboxId),
+        connectSandbox(ctx.orgId, projectId, concSandboxId),
       ])
 
       // At least one should succeed; the other may succeed (same pod) or 409 (already starting)

@@ -49,6 +49,25 @@ import {
   deleteAgentProjectConfig,
 } from '@TBE/endpoints/agents/agentProjectConfig'
 
+import { getSandbox } from '@TBE/endpoints/sandboxes/getSandbox'
+import { stopSandbox } from '@TBE/endpoints/sandboxes/stopSandbox'
+import { copySandbox } from '@TBE/endpoints/sandboxes/copySandbox'
+import { listSessions } from '@TBE/endpoints/sandboxes/listSessions'
+import { startSandbox } from '@TBE/endpoints/sandboxes/startSandbox'
+import { listSandboxes } from '@TBE/endpoints/sandboxes/listSandboxes'
+import { execInSandbox } from '@TBE/endpoints/sandboxes/execInSandbox'
+import { createSandbox } from '@TBE/endpoints/sandboxes/createSandbox'
+import { updateSandbox } from '@TBE/endpoints/sandboxes/updateSandbox'
+import { deleteSandbox } from '@TBE/endpoints/sandboxes/deleteSandbox'
+import { connectSandbox } from '@TBE/endpoints/sandboxes/connectSandbox'
+import { getSandboxStatus } from '@TBE/endpoints/sandboxes/getSandboxStatus'
+import { listSandboxThreads } from '@TBE/endpoints/sandboxes/listSandboxThreads'
+import {
+  getSandboxProjectConfig,
+  upsertSandboxProjectConfig,
+  deleteSandboxProjectConfig,
+} from '@TBE/endpoints/sandboxes/sandboxProjectConfig'
+
 const projectEndpoints: TEndpointConfig = {
   path: `/:projectId/endpoints`,
   method: EPMethod.Use,
@@ -137,6 +156,38 @@ const projectMembers: TEndpointConfig = {
   },
 }
 
+const projectSandboxConfig: TEndpointConfig = {
+  path: `/:sandboxId/config`,
+  method: EPMethod.Use,
+  endpoints: {
+    getSandboxProjectConfig,
+    upsertSandboxProjectConfig,
+    deleteSandboxProjectConfig,
+  },
+}
+
+const projectSandboxes: TEndpointConfig = {
+  path: `/:projectId/sandboxes`,
+  method: EPMethod.Use,
+  middleware: [projectAccessGuard()],
+  endpoints: {
+    getSandbox,
+    listSandboxes,
+    createSandbox,
+    updateSandbox,
+    deleteSandbox,
+    copySandbox,
+    stopSandbox,
+    startSandbox,
+    execInSandbox,
+    connectSandbox,
+    listSessions,
+    getSandboxStatus,
+    listSandboxThreads,
+    projectSandboxConfig,
+  },
+}
+
 export const orgProjects: TEndpointConfig = {
   path: `/:orgId/projects`,
   method: EPMethod.Use,
@@ -152,5 +203,6 @@ export const orgProjects: TEndpointConfig = {
     projectMembers,
     projectEndpoints,
     projectFunctions,
+    projectSandboxes,
   },
 }

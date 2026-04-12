@@ -6,6 +6,7 @@ import { agents } from '@TDB/schemas/agents'
 import { messages } from '@TDB/schemas/messages'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
+import { sandboxes } from '@TDB/schemas/sandboxes'
 import { uuid, text, jsonb, boolean, index, pgTable, varchar } from 'drizzle-orm/pg-core'
 
 export const threads = pgTable(
@@ -32,6 +33,9 @@ export const threads = pgTable(
     userId: uuid(`user_id`)
       .references(() => users.id, { onDelete: `cascade` })
       .notNull(),
+    sandboxId: varchar(`sandbox_id`, { length: 10 }).references(() => sandboxes.id, {
+      onDelete: `set null`,
+    }),
   },
   (table) => [
     index(`threads_user_id_idx`).on(table.userId),
@@ -39,16 +43,17 @@ export const threads = pgTable(
     index(`threads_parent_thread_id_idx`).on(table.parentThreadId),
     index(`threads_org_id_idx`).on(table.orgId),
     index(`threads_project_id_idx`).on(table.projectId),
+    index(`threads_sandbox_id_idx`).on(table.sandboxId),
   ]
 )
 
 export const threadsRelations = relations(threads, ({ one, many }) => ({
   messages: many(messages),
-  user: one(users, { fields: [threads.userId], references: [users.id] }),
-  provider: one(providers, { fields: [threads.providerId], references: [providers.id] }),
-  agent: one(agents, { fields: [threads.agentId], references: [agents.id] }),
   org: one(orgs, { fields: [threads.orgId], references: [orgs.id] }),
+  user: one(users, { fields: [threads.userId], references: [users.id] }),
+  agent: one(agents, { fields: [threads.agentId], references: [agents.id] }),
   project: one(projects, { fields: [threads.projectId], references: [projects.id] }),
+  provider: one(providers, { fields: [threads.providerId], references: [providers.id] }),
   parentThread: one(threads, {
     fields: [threads.parentThreadId],
     references: [threads.id],
@@ -59,4 +64,5 @@ export const threadsRelations = relations(threads, ({ one, many }) => ({
     fields: [threads.branchMessageId],
     references: [messages.id],
   }),
+  sandbox: one(sandboxes, { fields: [threads.sandboxId], references: [sandboxes.id] }),
 }))

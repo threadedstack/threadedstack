@@ -1,4 +1,10 @@
-import type { TProviderInput, TProviderLink } from '@tdsk/domain'
+import type {
+  Project as ProjectModel,
+  TSandboxProjectConfig,
+  TKubeSandboxConfig,
+  TProviderInput,
+  TProviderLink,
+} from '@tdsk/domain'
 import type {
   TDBUpdate,
   TServiceOpts,
@@ -6,19 +12,29 @@ import type {
   TDBWithRecord,
   TDBSandboxSelect,
   TDBSandboxInsert,
+  TDBProjectSelect,
   TDBProviderSelect,
 } from '@TDB/types'
 
-import { eq, and, sql, notInArray } from 'drizzle-orm'
 import { Base } from '@TDB/services/base'
 import { logger } from '@TDB/utils/logger'
 import { DBError } from '@TDB/utils/error/error'
 import { sandboxes } from '@TDB/schemas/sandboxes'
 import { Sandbox as SandboxModel } from '@tdsk/domain'
+import { eq, and, sql, notInArray } from 'drizzle-orm'
+import { sandboxProjects } from '@TDB/schemas/sandboxProjects'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
 
 export type TSandboxSelectOpts = TDBSandboxSelect & {
+  projects?: {
+    sandboxId: string
+    projectId: string
+    alias?: string | null
+    enabled?: boolean
+    config?: Partial<TKubeSandboxConfig> | null
+    project: ProjectModel | TDBProjectSelect
+  }[]
   providers?: {
     priority: number
     sandboxId: string
@@ -33,7 +49,28 @@ type TSandboxProviderMeta = {
   providerInputs?: TProviderInput[]
 }
 
-export type TSandboxInsertOpts = TDBSandboxInsert & TSandboxProviderMeta
+export type TSandboxInsertOpts = TDBSandboxInsert &
+  TSandboxProviderMeta & {
+    projects?: Array<
+      Partial<ProjectModel> & {
+        alias?: string | null
+        enabled?: boolean
+        config?: Partial<TKubeSandboxConfig> | null
+      }
+    >
+  }
+
+type TSandboxRelations = {
+  id: string
+  providerInputs?: TProviderInput[]
+  projects?: Array<
+    Partial<ProjectModel> & {
+      alias?: string | null
+      enabled?: boolean
+      config?: Partial<TKubeSandboxConfig> | null
+    }
+  >
+}
 
 export class Sandbox extends Base<
   typeof sandboxes,
@@ -48,6 +85,11 @@ export class Sandbox extends Base<
   with = (opts: TDBWithRecord) => {
     return {
       ...opts,
+      projects: {
+        with: {
+          project: true,
+        },
+      },
       providers: {
         with: {
           provider: true,
@@ -57,9 +99,20 @@ export class Sandbox extends Base<
   }
 
   model = (data: TSandboxSelectOpts) => {
-    const { providers, ...rest } = data
+    const { providers, projects: projectLinksRaw, ...rest } = data
+
+    const projectLinks = projectLinksRaw || []
+
     return new SandboxModel({
       ...rest,
+      projects: projectLinks.map((link) => link.project),
+      projectConfigs: projectLinks.map((link) => ({
+        sandboxId: link.sandboxId,
+        projectId: link.projectId,
+        alias: link.alias ?? null,
+        config: link.config ?? null,
+        enabled: link.enabled ?? true,
+      })) as TSandboxProjectConfig[],
       providerLinks: (providers || [])
         .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
         .map((link) => ({
@@ -68,6 +121,30 @@ export class Sandbox extends Base<
           priority: link.priority ?? 0,
         })),
     })
+  }
+
+  #relations = async (opts: TSandboxRelations) => {
+    const { id, projects, providerInputs } = opts
+
+    if (projects?.length) {
+      const valid = projects.filter((p) => p?.id)
+      if (valid.length < projects.length)
+        logger.warn(
+          `[Sandbox] #relations: ${projects.length - valid.length} projects dropped (missing id) for sandbox ${id}`
+        )
+
+      const rows = valid.map((proj) => ({
+        sandboxId: id,
+        projectId: proj.id!,
+        ...(proj.alias !== undefined && { alias: proj.alias }),
+        ...(proj.config !== undefined && { config: proj.config }),
+        ...(proj.enabled !== undefined && { enabled: proj.enabled }),
+      }))
+      if (rows.length)
+        await this.db.insert(sandboxProjects).values(rows).onConflictDoNothing()
+    }
+
+    if (providerInputs !== undefined) await this.#upsertProviders(id, providerInputs)
   }
 
   async get(id: string, opts?: TDBQueryOpts) {
@@ -108,12 +185,13 @@ export class Sandbox extends Base<
   }
 
   async create(data: TSandboxInsertOpts | (TDBSandboxInsert & Record<string, any>)) {
-    const { providerLinks, providerInputs, ...sandboxData } = data as TSandboxInsertOpts
+    const { projects, providerLinks, providerInputs, ...sandboxData } =
+      data as TSandboxInsertOpts
     const result = await super.create(sandboxData as TDBSandboxInsert)
 
-    if (result.data && providerInputs?.length) {
+    if (result.data && (projects?.length || providerInputs?.length)) {
       try {
-        await this.#upsertProviders(result.data.id, providerInputs)
+        await this.#relations({ id: result.data.id, projects, providerInputs })
         const updated = await this.get(result.data.id)
         result.data = updated.data
       } catch (err) {
@@ -122,7 +200,7 @@ export class Sandbox extends Base<
           .where(eq(sandboxes.id, result.data.id))
           .catch((cleanupErr) => {
             logger.error(
-              `Failed to cleanup sandbox ${result.data!.id} after provider link error`,
+              `Failed to cleanup sandbox ${result.data!.id} after relation error`,
               {
                 error: cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
               }
@@ -136,20 +214,26 @@ export class Sandbox extends Base<
   }
 
   async update(data: TDBUpdate<TSandboxInsertOpts>) {
-    const { providerInputs, providerLinks, ...sandboxData } = data
+    const { projects, providerInputs, providerLinks, ...sandboxData } = data
 
     if (!sandboxData.id)
       return { data: null, error: new DBError(`Sandbox ID is required for update`) }
 
     const result = await super.update(sandboxData)
 
-    if (result.data && providerInputs !== undefined) {
+    if (result.data && (projects !== undefined || providerInputs !== undefined)) {
       try {
-        await this.#upsertProviders(sandboxData.id, providerInputs)
+        // Projects use delete+re-insert
+        if (projects !== undefined)
+          await this.db
+            .delete(sandboxProjects)
+            .where(eq(sandboxProjects.sandboxId, sandboxData.id))
+
+        await this.#relations({ id: sandboxData.id, projects, providerInputs })
         const updated = await this.get(sandboxData.id)
         result.data = updated.data
       } catch (error: any) {
-        return { data: undefined, error }
+        return { data: null, error }
       }
     }
 
@@ -160,8 +244,105 @@ export class Sandbox extends Base<
     return this.list({ where: { orgId } })
   }
 
-  async listByProject(projectId: string) {
-    return this.list({ where: { projectId } })
+  /**
+   * Add a sandbox to a project
+   */
+  async addProject(sandboxId: string, projectId: string, alias?: string) {
+    try {
+      const [result] = await this.db
+        .insert(sandboxProjects)
+        .values({
+          alias,
+          sandboxId,
+          projectId,
+        })
+        .returning()
+
+      return { data: result, error: null }
+    } catch (error: any) {
+      return { data: null, error }
+    }
+  }
+
+  /**
+   * Remove a sandbox from a project
+   */
+  async removeProject(sandboxId: string, projectId: string) {
+    try {
+      await this.db
+        .delete(sandboxProjects)
+        .where(
+          and(
+            eq(sandboxProjects.sandboxId, sandboxId),
+            eq(sandboxProjects.projectId, projectId)
+          )
+        )
+
+      return { data: null, error: null }
+    } catch (error: any) {
+      return { data: null, error }
+    }
+  }
+
+  /**
+   * Upsert per-project config overrides for a sandbox
+   * Updates the sandboxProjects row with override fields
+   */
+  async upsertProjectConfig(
+    sandboxId: string,
+    projectId: string,
+    config: Partial<Omit<TSandboxProjectConfig, 'sandboxId' | 'projectId'>>
+  ) {
+    try {
+      const [result] = await this.db
+        .update(sandboxProjects)
+        .set({
+          ...config,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(sandboxProjects.sandboxId, sandboxId),
+            eq(sandboxProjects.projectId, projectId)
+          )
+        )
+        .returning()
+
+      if (!result) return { error: new DBError(`Sandbox is not linked to this project`) }
+
+      return { data: result }
+    } catch (error: any) {
+      return { error }
+    }
+  }
+
+  /**
+   * Get per-project config overrides for a sandbox
+   * Returns the sandboxProjects row for the given sandbox+project pair
+   */
+  async getProjectConfig(sandboxId: string, projectId: string) {
+    try {
+      const result = await this.db.query.sandboxProjects.findFirst({
+        where: and(
+          eq(sandboxProjects.sandboxId, sandboxId),
+          eq(sandboxProjects.projectId, projectId)
+        ),
+      })
+
+      if (!result) return { error: new DBError(`Sandbox is not linked to this project`) }
+
+      return {
+        data: {
+          sandboxId: result.sandboxId,
+          projectId: result.projectId,
+          alias: result.alias ?? null,
+          enabled: result.enabled ?? true,
+          config: result.config ?? null,
+        } as TSandboxProjectConfig,
+      }
+    } catch (error: any) {
+      return { error }
+    }
   }
 
   async addProvider(
@@ -237,8 +418,8 @@ export class Sandbox extends Base<
           .onConflictDoUpdate({
             target: [sandboxProviders.sandboxId, sandboxProviders.providerId],
             set: {
-              priority: sql`excluded.priority`,
               model: sql`excluded.model`,
+              priority: sql`excluded.priority`,
             },
           })
       }

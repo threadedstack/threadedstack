@@ -4,8 +4,10 @@ import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
 import { spawnSsh } from '@TSA/utils/tasks/spawnSsh'
 import { requireAuth } from '@TSA/utils/tasks/requireAuth'
+import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { sandboxConnect } from '@TSA/utils/tasks/sandboxConnect'
+import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
 import { autoStartSync, createSyncContext, stopSync } from '@TSA/utils/tasks/sandboxSync'
 
 export const ssh: TTask = {
@@ -23,6 +25,11 @@ export const ssh: TTask = {
       example: `--org org_xxx`,
       description: `Organization ID`,
       alias: [`organizationId`, `organization`, `orgId`],
+    },
+    project: {
+      example: `--project proj_xxx`,
+      description: `Project ID`,
+      alias: [`projectId`, `p`],
     },
   },
   action: requireAuth(async ({ params, auth, config, options }) => {
@@ -44,8 +51,21 @@ export const ssh: TTask = {
       process.exit(1)
     }
 
+    const explicitProject =
+      orgId !== config?.org ? undefined : (params.project as string | undefined)
+
+    let projectId: string
     try {
-      await sandboxConnect(client, orgId, sandboxId)
+      projectId = await resolveProjectId(client, orgId, explicitProject)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
+    if (config) saveContext(config, orgId, projectId)
+
+    try {
+      await sandboxConnect(client, orgId, projectId, sandboxId)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)

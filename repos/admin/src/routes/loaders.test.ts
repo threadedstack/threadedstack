@@ -5,7 +5,7 @@ import type { LoaderFunctionArgs } from 'react-router'
 const mockGetOrgs = vi.fn()
 const mockGetProjects = vi.fn()
 const mockGetProviders = vi.fn()
-const mockGetSandboxes = vi.fn()
+const mockGetContextSandboxes = vi.fn()
 const mockGetSkills = vi.fn()
 const mockGetSchedules = vi.fn()
 const mockGetApiKeys = vi.fn()
@@ -31,7 +31,7 @@ vi.mock('@TAF/state/accessors', () => ({
   getOrgs: () => mockGetOrgs(),
   getProjects: () => mockGetProjects(),
   getProviders: () => mockGetProviders(),
-  getSandboxes: () => mockGetSandboxes(),
+  getContextSandboxes: (...args: any[]) => mockGetContextSandboxes(...args),
   getSkills: () => mockGetSkills(),
   getSchedules: () => mockGetSchedules(),
   getApiKeys: () => mockGetApiKeys(),
@@ -699,26 +699,28 @@ describe('loaders', () => {
   // ---------------------------------------------------------------------------
   describe('orgSandboxesLoader', () => {
     it('should skip fetch when sandboxes already loaded', async () => {
-      mockGetSandboxes.mockReturnValue({ sb1: {} })
+      mockGetContextSandboxes.mockReturnValue({ sb1: {} })
       mockGetProviders.mockReturnValue({ p1: {} })
 
       await orgSandboxesLoader(makeArgs({ orgId: 'org-1' }))
 
       expect(mockFetchSandboxes).not.toHaveBeenCalled()
+      expect(mockGetContextSandboxes).toHaveBeenCalledWith('org')
     })
 
     it('should call fetchSandboxes when not loaded', async () => {
-      mockGetSandboxes.mockReturnValue(undefined)
+      mockGetContextSandboxes.mockReturnValue(undefined)
       mockGetProviders.mockReturnValue({ p1: {} })
       mockFetchSandboxes.mockResolvedValue({ data: {} })
 
       await orgSandboxesLoader(makeArgs({ orgId: 'org-1' }))
 
       expect(mockFetchSandboxes).toHaveBeenCalledWith({ orgId: 'org-1' })
+      expect(mockGetContextSandboxes).toHaveBeenCalledWith('org')
     })
 
     it('should fetch providers when not loaded', async () => {
-      mockGetSandboxes.mockReturnValue({ sb1: {} })
+      mockGetContextSandboxes.mockReturnValue({ sb1: {} })
       mockGetProviders.mockReturnValue(undefined)
       mockFetchProviders.mockResolvedValue({ data: {} })
 
@@ -728,7 +730,7 @@ describe('loaders', () => {
     })
 
     it('should skip providers fetch when already loaded', async () => {
-      mockGetSandboxes.mockReturnValue({ sb1: {} })
+      mockGetContextSandboxes.mockReturnValue({ sb1: {} })
       mockGetProviders.mockReturnValue({ p1: {} })
 
       await orgSandboxesLoader(makeArgs({ orgId: 'org-1' }))
@@ -742,24 +744,29 @@ describe('loaders', () => {
   // ---------------------------------------------------------------------------
   describe('projectSandboxesLoader', () => {
     it('should skip sandboxes fetch when already loaded', async () => {
-      mockGetSandboxes.mockReturnValue({ sb1: {} })
+      mockGetContextSandboxes.mockReturnValue({ sb1: {} })
       mockGetProviders.mockReturnValue({ p1: {} })
 
       await projectSandboxesLoader(makeArgs({ orgId: 'org-1', projectId: 'proj-1' }))
 
       expect(mockFetchSandboxes).not.toHaveBeenCalled()
+      expect(mockGetContextSandboxes).toHaveBeenCalledWith('proj-1')
     })
 
     it('should fetch sandboxes and providers when not loaded', async () => {
-      mockGetSandboxes.mockReturnValue(undefined)
+      mockGetContextSandboxes.mockReturnValue(undefined)
       mockGetProviders.mockReturnValue(undefined)
       mockFetchSandboxes.mockResolvedValue({ data: {} })
       mockFetchProviders.mockResolvedValue({ data: {} })
 
       await projectSandboxesLoader(makeArgs({ orgId: 'org-1', projectId: 'proj-1' }))
 
-      expect(mockFetchSandboxes).toHaveBeenCalledWith({ orgId: 'org-1' })
+      expect(mockFetchSandboxes).toHaveBeenCalledWith({
+        orgId: 'org-1',
+        projectId: 'proj-1',
+      })
       expect(mockFetchProviders).toHaveBeenCalledWith({ orgId: 'org-1' })
+      expect(mockGetContextSandboxes).toHaveBeenCalledWith('proj-1')
     })
 
     it('should throw Response(400) when orgId is missing', async () => {

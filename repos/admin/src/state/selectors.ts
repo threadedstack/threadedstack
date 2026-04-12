@@ -25,7 +25,11 @@ import { providersState } from '@TAF/state/providers'
 import { quickstartState } from '@TAF/state/quickstart'
 import { orgQuotaState, orgLimitsState } from '@TAF/state/quotas'
 import { sidebarOpenState, activeRailSectionState } from '@TAF/state/app'
-import { sandboxesState, projectSandboxesState } from '@TAF/state/sandboxes'
+import {
+  sandboxesState,
+  orgSandboxesState,
+  projectSandboxesState,
+} from '@TAF/state/sandboxes'
 import {
   assetsState,
   activeAssetIdState,
@@ -219,6 +223,8 @@ export const useActiveThread = () => useDerivedState<Thread>(activeThreadState)
 export const useThreadMessages = () =>
   useDerivedState<Record<string, Message>>(threadMessagesState)
 
-// Project-scoped sandboxes
+// Org-scoped and project-scoped sandboxes
+export const useOrgSandboxes = () =>
+  useDerivedState<Record<string, Sandbox>>(orgSandboxesState)
 export const useProjectSandboxes = () =>
   useDerivedState<Record<string, Sandbox>>(projectSandboxesState)

@@ -11,11 +11,16 @@ import { ensureSshConfig, getPublicKey } from '@TSA/services/sync/sshConfig'
 export const sandboxConnect = async (
   client: ApiClient,
   orgId: string,
+  projectId: string,
   sandboxId: string
 ): Promise<TSandboxConnectResponse> => {
   process.stdout.write(`${themed(`muted`, `Connecting to sandbox "${sandboxId}"...`)}\n`)
 
-  const { data: connectResp, error } = await client.connectSandbox(orgId, sandboxId)
+  const { data: connectResp, error } = await client.connectSandbox(
+    orgId,
+    projectId,
+    sandboxId
+  )
   if (error || !connectResp)
     throw new Error(error?.message || `Failed to connect to sandbox`)
 
@@ -31,6 +36,7 @@ export const sandboxConnect = async (
   }
   const { error: sshError } = await client.injectSshKey(
     orgId,
+    projectId,
     sandboxId,
     podName,
     publicKey

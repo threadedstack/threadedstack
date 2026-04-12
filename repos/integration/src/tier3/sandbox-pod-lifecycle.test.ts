@@ -47,8 +47,8 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     const res = await post<{ podName: string }>(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
-      { projectId }
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
+      {}
     )
 
     expect(res.status).toBe(201)
@@ -65,7 +65,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (!podName) return expect(podName).toBeTruthy()
 
     const res = await get<{ podName: string; state: string }>(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/status?podName=${podName}`
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?podName=${podName}`
     )
 
     expect(res.status).toBe(200)
@@ -77,7 +77,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
   test('pod reaches Running state within 90s', async () => {
     if (!podName) return expect(podName).toBeTruthy()
 
-    const state = await waitForPodState(ctx.orgId, sandboxId, podName, 'Running', 90_000)
+    const state = await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Running', 90_000)
     expect(state).toBe('Running')
   }, 100_000)
 
@@ -85,7 +85,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (!podName) return expect(podName).toBeTruthy()
 
     const res = await get<{ podName: string; state: string }>(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/status?podName=${podName}`
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status?podName=${podName}`
     )
 
     expect(res.status).toBe(200)
@@ -98,7 +98,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (!podName) return expect(podName).toBeTruthy()
 
     const res = await api<{ success: boolean }>(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/stop`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`,
       { method: 'DELETE', body: { podName } }
     )
 
@@ -110,7 +110,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
   test('GET /:id/status returns Failed for stopped pod', async () => {
     if (!podName) return expect(podName).toBeTruthy()
 
-    const state = await waitForPodState(ctx.orgId, sandboxId, podName, 'Failed', 60_000)
+    const state = await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Failed', 60_000)
     expect(state).toBe('Failed')
 
     podName = ''
@@ -122,7 +122,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
     const res = await post<{ podName: string }>(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
       {}
     )
 
@@ -131,7 +131,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     expect(res.data.podName).toBeDefined()
 
     // Stop the pod to clean up
-    await api(`/orgs/${ctx.orgId}/sandboxes/${sandboxId}/stop`, {
+    await api(`/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`, {
       method: 'DELETE',
       body: { podName: res.data.podName },
     })
@@ -141,7 +141,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
     const res = await get(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/status`
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/status`
     )
 
     expect(res.status).toBe(400)
@@ -152,7 +152,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
     const res = await api(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/stop`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`,
       { method: 'DELETE', body: {} }
     )
 
@@ -166,8 +166,8 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
     const res = await post(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
-      { projectId },
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
+      {},
       { noAuth: true }
     )
 
@@ -179,7 +179,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
     const res = await post(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/exec`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/exec`,
       { command: 'echo test', podName: 'any' },
       { noAuth: true }
     )
@@ -192,8 +192,8 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
 
   test('POST start for nonexistent sandbox ID returns error', async () => {
     const res = await post(
-      `/orgs/${ctx.orgId}/sandboxes/nonexistent-sandbox-id/start`,
-      { projectId }
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/nonexistent-sandbox-id/start`,
+      {}
     )
 
     // Backend may return 400 (invalid ID format) or 404 (not found)
@@ -205,7 +205,7 @@ describe('Tier 3: Sandbox Pod Lifecycle', () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
     const res = await post(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/exec`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/exec`,
       { command: 'echo test', podName: 'nonexistent-pod-xyz-1234' }
     )
 

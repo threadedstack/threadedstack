@@ -90,7 +90,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
       sandboxId = sbRes.data.id
 
       // Connect — starts pod and waits for Running
-      const connectRes = await connectSandbox(ctx.orgId, sandboxId)
+      const connectRes = await connectSandbox(ctx.orgId, projectId, sandboxId)
       if (!connectRes.ok) { setupFailed = true; return }
       podName = connectRes.data.podName
     } catch (err) {
@@ -165,7 +165,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
     // Wait for session registration (happens on TCP connect, slight delay)
     await new Promise(r => setTimeout(r, 1_000))
 
-    const sessRes = await getSessions(ctx.orgId, sandboxId)
+    const sessRes = await getSessions(ctx.orgId, projectId, sandboxId)
     expect(sessRes.status).toBe(200)
     expect(sessRes.ok).toBe(true)
 
@@ -189,7 +189,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
     await new Promise(r => setTimeout(r, 1_000))
 
     // Confirm session exists
-    const before = await getSessions(ctx.orgId, sandboxId)
+    const before = await getSessions(ctx.orgId, projectId, sandboxId)
     const countBefore = before.data.length
 
     // Close the tunnel
@@ -197,7 +197,7 @@ describe('Tier 3: Sandbox WebSocket Tunnel', () => {
     await new Promise(r => setTimeout(r, 1_000))
 
     // Session should be cleaned up
-    const after = await getSessions(ctx.orgId, sandboxId)
+    const after = await getSessions(ctx.orgId, projectId, sandboxId)
     expect(after.data.length).toBeLessThan(countBefore)
   }, 15_000)
 })

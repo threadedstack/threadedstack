@@ -60,11 +60,11 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
       if (!sbRes.ok) { setupFailed = true; return }
       sandboxId = sbRes.data.id
 
-      const connRes = await connectSandbox(ctx.orgId, sandboxId)
+      const connRes = await connectSandbox(ctx.orgId, projectId, sandboxId)
       if (!connRes.ok) { setupFailed = true; return }
       podName = connRes.data.podName
 
-      await waitForPodState(ctx.orgId, sandboxId, podName, 'Running', 90_000)
+      await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Running', 90_000)
     } catch (err) {
       console.error('[sandbox-runtime-pod] Setup failed:', (err as Error).message)
       setupFailed = true
@@ -82,7 +82,7 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
   test('pod has TDSK_RUNTIME env var set', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName, 'sh -c "echo $TDSK_RUNTIME"')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'sh -c "echo $TDSK_RUNTIME"')
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -92,7 +92,7 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
   test('pod has TDSK_RUNTIME_CMD env var set', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName, 'sh -c "echo $TDSK_RUNTIME_CMD"')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'sh -c "echo $TDSK_RUNTIME_CMD"')
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -102,7 +102,7 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
   test('pod environment includes both runtime vars', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName, 'env')
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName, 'env')
 
     expect(res.status).toBe(200)
     expect(res.data.success).toBe(true)
@@ -142,17 +142,17 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
     expect(sbRes.ok).toBe(true)
     customSandboxId = sbRes.data.id
 
-    const connRes = await connectSandbox(ctx.orgId, customSandboxId)
+    const connRes = await connectSandbox(ctx.orgId, projectId, customSandboxId)
     expect(connRes.ok).toBe(true)
     customPodName = connRes.data.podName
 
-    await waitForPodState(ctx.orgId, customSandboxId, customPodName, 'Running', 90_000)
+    await waitForPodState(ctx.orgId, projectId, customSandboxId, customPodName, 'Running', 90_000)
 
-    const runtimeRes = await execInPod(ctx.orgId, customSandboxId, customPodName, 'sh -c "echo $TDSK_RUNTIME"')
+    const runtimeRes = await execInPod(ctx.orgId, projectId, customSandboxId, customPodName, 'sh -c "echo $TDSK_RUNTIME"')
     expect(runtimeRes.data.success).toBe(true)
     expect(runtimeRes.data.output.trim()).toBe('custom')
 
-    const cmdRes = await execInPod(ctx.orgId, customSandboxId, customPodName, 'sh -c "echo $TDSK_RUNTIME_CMD"')
+    const cmdRes = await execInPod(ctx.orgId, projectId, customSandboxId, customPodName, 'sh -c "echo $TDSK_RUNTIME_CMD"')
     expect(cmdRes.data.success).toBe(true)
     expect(cmdRes.data.output.trim()).toBe('my-tool')
   }, 150_000)
@@ -181,13 +181,13 @@ describe('Tier 3: Sandbox Runtime Pod', () => {
     expect(sbRes.ok).toBe(true)
     noRuntimeSandboxId = sbRes.data.id
 
-    const connRes = await connectSandbox(ctx.orgId, noRuntimeSandboxId)
+    const connRes = await connectSandbox(ctx.orgId, projectId, noRuntimeSandboxId)
     expect(connRes.ok).toBe(true)
     noRuntimePodName = connRes.data.podName
 
-    await waitForPodState(ctx.orgId, noRuntimeSandboxId, noRuntimePodName, 'Running', 90_000)
+    await waitForPodState(ctx.orgId, projectId, noRuntimeSandboxId, noRuntimePodName, 'Running', 90_000)
 
-    const res = await execInPod(ctx.orgId, noRuntimeSandboxId, noRuntimePodName, 'sh -c "echo $TDSK_RUNTIME"')
+    const res = await execInPod(ctx.orgId, projectId, noRuntimeSandboxId, noRuntimePodName, 'sh -c "echo $TDSK_RUNTIME"')
     expect(res.data.success).toBe(true)
     // When TDSK_RUNTIME is not set, `echo $TDSK_RUNTIME` outputs an empty string
     expect(res.data.output.trim()).toBe('')

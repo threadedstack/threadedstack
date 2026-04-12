@@ -4,8 +4,10 @@ import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
 import { spawnSsh } from '@TSA/utils/tasks/spawnSsh'
 import { requireAuth } from '@TSA/utils/tasks/requireAuth'
+import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { resolveOrgId } from '@TSA/utils/tasks/resolveOrgId'
 import { sandboxConnect } from '@TSA/utils/tasks/sandboxConnect'
+import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
 import { autoStartSync, createSyncContext, stopSync } from '@TSA/utils/tasks/sandboxSync'
 
 export const run: TTask = {
@@ -23,6 +25,11 @@ export const run: TTask = {
       example: `--org org_xxx`,
       description: `Organization ID`,
       alias: [`organizationId`, `organization`, `orgId`],
+    },
+    project: {
+      example: `--project proj_xxx`,
+      description: `Project ID`,
+      alias: [`projectId`, `p`],
     },
     noSync: {
       example: `--no-sync`,
@@ -49,9 +56,23 @@ export const run: TTask = {
       process.exit(1)
     }
 
+    // If the org changed from the saved config, clear the cached project to force re-selection
+    const explicitProject =
+      orgId !== config?.org ? undefined : (params.project as string | undefined)
+
+    let projectId: string
+    try {
+      projectId = await resolveProjectId(client, orgId, explicitProject)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
+    if (config) saveContext(config, orgId, projectId)
+
     // List sandboxes when --list flag is set or no sandbox ID provided
     if (params.list || !sandboxId) {
-      const { data: list, error } = await client.listSandboxes(orgId)
+      const { data: list, error } = await client.listSandboxes(orgId, projectId)
       if (error || !list) {
         const msg = error?.message || `Failed to list sandboxes`
         process.stderr.write(`${themed(`error`, `Error:`)} ${msg}\n`)
@@ -107,7 +128,7 @@ export const run: TTask = {
     const runtimeCommand = sandbox.config?.runtimeCommand as string | undefined
 
     try {
-      await sandboxConnect(client, orgId, sandboxId)
+      await sandboxConnect(client, orgId, projectId, sandboxId)
     } catch (err) {
       process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
       process.exit(1)

@@ -4,18 +4,15 @@ import { atom } from 'jotai'
 import { atomWithReset } from 'jotai/utils'
 import { activeProjectIdState } from '@TAF/state/projects'
 
-type TSandboxes = Record<string, Sandbox>
+// Keyed by contextKey (projectId or 'org')
+export const sandboxesState =
+  atomWithReset<Record<string, Record<string, Sandbox>>>(undefined)
 
-export const sandboxesState = atomWithReset<TSandboxes>(undefined)
+// Derived: org-level sandboxes
+export const orgSandboxesState = atom((get) => get(sandboxesState)?.[`org`])
 
-// Derived: project-level agents
-export const projectSandboxesState = atom((get): TSandboxes => {
-  const sandboxes = get(sandboxesState)
+// Derived: project-level sandboxes
+export const projectSandboxesState = atom((get) => {
   const projectId = get(activeProjectIdState)
-
-  if (!sandboxes || !projectId) return {}
-
-  return Object.fromEntries(
-    Object.entries(sandboxes).filter(([, sb]) => sb.projectId === projectId)
-  )
+  return projectId ? get(sandboxesState)?.[projectId] : undefined
 })

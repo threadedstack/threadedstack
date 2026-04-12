@@ -151,8 +151,9 @@ test.describe.serial('Sandbox Provider Auth', () => {
     await expect(addProviderButton).toBeVisible({ timeout: 5_000 })
     await addProviderButton.click()
 
-    // The Autocomplete dropdown should now be visible
-    const autocomplete = page.locator('.MuiAutocomplete-root')
+    // The Autocomplete dropdown should now be visible (scoped to Providers accordion)
+    const provAccordionDetails = provAccordion.locator('xpath=ancestor::div[contains(@class,"MuiAccordion-root")]')
+    const autocomplete = provAccordionDetails.locator('.MuiAutocomplete-root')
     await expect(autocomplete).toBeVisible({ timeout: 5_000 })
 
     // The provider we created should appear as an option
@@ -196,8 +197,9 @@ test.describe.serial('Sandbox Provider Auth', () => {
     await expect(addProviderButton).toBeVisible({ timeout: 5_000 })
     await addProviderButton.click()
 
-    // Select the provider from the dropdown
-    const autocomplete = page.locator('.MuiAutocomplete-root')
+    // Select the provider from the dropdown (scoped to Providers accordion)
+    const provAccordionDetails = provAccordion.locator('xpath=ancestor::div[contains(@class,"MuiAccordion-root")]')
+    const autocomplete = provAccordionDetails.locator('.MuiAutocomplete-root')
     await expect(autocomplete).toBeVisible({ timeout: 5_000 })
 
     const option = page.locator('.MuiAutocomplete-popper .MuiAutocomplete-option', {

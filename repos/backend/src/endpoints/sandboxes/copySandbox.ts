@@ -2,8 +2,15 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Sandbox, Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import {
+  Sandbox,
+  Exception,
+  ERoleType,
+  hasMinRole,
+  EPermAction,
+  EPermResource,
+} from '@tdsk/domain'
+import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * POST /sandboxes/:id/copy - Deep-copy a sandbox config
@@ -35,10 +42,30 @@ export const copySandbox: TEndpointConfig = {
       orgId: original.orgId,
       userId: req.user?.id,
       config: { ...original.config },
-      projectId: req.body.projectId ?? original.projectId,
     })
 
-    const { data, error } = await db.services.sandbox.create(copy)
+    // Admins copy all project associations; non-admins only get projects they belong to
+    let projectsToLink = original.projects || []
+    if (projectsToLink.length) {
+      const userRole = await getUserRole(req, { orgId })
+      if (!hasMinRole(userRole, ERoleType.admin)) {
+        const userId = req.user?.id
+        if (userId) {
+          const { data: userProjectIds } = await db.services.role.getUserProjects(userId)
+          if (userProjectIds?.length) {
+            const userProjSet = new Set(userProjectIds)
+            projectsToLink = projectsToLink.filter((p) => userProjSet.has(p.id))
+          } else {
+            projectsToLink = []
+          }
+        }
+      }
+    }
+
+    const { data, error } = await db.services.sandbox.create({
+      ...copy,
+      ...(projectsToLink.length ? { projects: projectsToLink } : {}),
+    })
     if (error) throw new Exception(500, error.message)
 
     res.status(201).json({ data })

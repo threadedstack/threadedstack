@@ -12,6 +12,7 @@ import {
   apiDeleteResource,
   findResourceByNamePaginated,
   searchInPage,
+  ensureItemInList,
 } from '../utils/crud-helpers'
 
 const PAGE_CLASS = 'tdsk-org-secrets-page'
@@ -118,6 +119,10 @@ test.describe.serial('CRUD Secrets', () => {
 
     expect(apiFound, `Secret "${secretName}" should exist in API`).toBeTruthy()
 
+    // Ensure the test secret is in the list response even if it falls
+    // outside the backend's 200-item page cap
+    await ensureItemInList(page, `/orgs/${ctx.orgId}/secrets`, apiFound!)
+
     // Now check the UI
     await gotoAndWait(page, `/orgs/${ctx.orgId}/secrets`, PAGE_CLASS)
 
@@ -144,6 +149,13 @@ test.describe.serial('CRUD Secrets', () => {
     test.skip(!secretId, 'No secret ID — CREATE must have failed')
 
     const errors = collectErrors(page)
+
+    // Fetch the secret via API to ensure it's in the list response
+    const found = await findResourceByNamePaginated(
+      page, `/orgs/${ctx.orgId}/secrets`, ctx.apiKey, secretName
+    )
+    if (found) await ensureItemInList(page, `/orgs/${ctx.orgId}/secrets`, found)
+
     await gotoAndWait(page, `/orgs/${ctx.orgId}/secrets`, PAGE_CLASS)
 
     // Search for our test secret
@@ -183,6 +195,13 @@ test.describe.serial('CRUD Secrets', () => {
     test.skip(!secretId, 'No secret ID — CREATE must have failed')
 
     const errors = collectErrors(page)
+
+    // Fetch the secret via API to ensure it's in the list response
+    const found = await findResourceByNamePaginated(
+      page, `/orgs/${ctx.orgId}/secrets`, ctx.apiKey, secretName
+    )
+    if (found) await ensureItemInList(page, `/orgs/${ctx.orgId}/secrets`, found)
+
     await gotoAndWait(page, `/orgs/${ctx.orgId}/secrets`, PAGE_CLASS)
 
     // Search for our test secret

@@ -208,11 +208,14 @@ describe(`buildPodManifest`, () => {
     expect(env).toContainEqual({ name: `NODE_EXTRA_CA_CERTS`, value: CACertMountPath })
   })
 
-  it(`should only have CA cert env var when no envVars configured`, () => {
+  it(`should only have default env vars when no envVars configured`, () => {
     const manifest = buildPodManifest(buildOpts())
     const env = manifest.spec!.containers![0].env!
-    expect(env).toHaveLength(1)
-    expect(env[0].name).toBe(`NODE_EXTRA_CA_CERTS`)
+    expect(env).toHaveLength(2)
+    expect(env[0].name).toBe(`DISABLE_AUTOUPDATER`)
+    expect(env[0].value).toBe(`1`)
+    expect(env[1].name).toBe(`NODE_EXTRA_CA_CERTS`)
+    expect(env[1].value).toBe(CACertMountPath)
   })
 
   it(`should include port mappings when specified`, () => {

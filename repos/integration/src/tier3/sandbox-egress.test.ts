@@ -40,7 +40,7 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
     ].join(' ')
 
     const res = await execInPod(
-      ctx.orgId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, podName,
       `node -e "${script}"`
     )
 
@@ -64,7 +64,7 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
     ].join(' ')
 
     const res = await execInPod(
-      ctx.orgId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, podName,
       `node -e "${script}"`
     )
 
@@ -94,7 +94,7 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
     ].join(' ')
 
     const res = await execInPod(
-      ctx.orgId, sandboxId, podName,
+      ctx.orgId, projectId, sandboxId, podName,
       `node -e "${script}"`
     )
 
@@ -118,11 +118,11 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
     ].join(' ')
 
     const escaped = script.replace(/'/g, "'\\''")
-    await execInPod(ctx.orgId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, podName,
       `printf '%s' '${escaped}' > /tmp/test-http-egress.js`
     )
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
       'node /tmp/test-http-egress.js'
     )
 
@@ -147,11 +147,11 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
     ].join(' ')
 
     const escaped = script.replace(/'/g, "'\\''")
-    await execInPod(ctx.orgId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, podName,
       `printf '%s' '${escaped}' > /tmp/test-https-egress.js`
     )
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
       'node /tmp/test-https-egress.js'
     )
 
@@ -165,7 +165,7 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
   test('pod runs as expected image (node:22-slim)', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
       'node --version'
     )
 
@@ -176,7 +176,7 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
   test('pod has security restrictions (no privilege escalation)', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
       'test -e /var/run/secrets/kubernetes.io/serviceaccount/token && echo mounted || echo not-mounted'
     )
 
@@ -187,7 +187,7 @@ describe('Tier 3: Sandbox Egress Connectivity', () => {
   test('CA certificate is installed in pod', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
       'test -e /usr/local/share/ca-certificates/tdsk-proxy.crt && echo installed || echo missing'
     )
 

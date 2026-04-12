@@ -29,7 +29,7 @@ export const getSandboxStatus: TEndpointConfig = {
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
     try {
-      await sb.validatePodOwnership(podName, sandbox.orgId)
+      await sb.validatePodOwnership(podName, sandbox.orgId, req.params.projectId)
     } catch (err) {
       if (err instanceof Exception && err.status === 404) {
         res.status(200).json({ data: { podName, state: EContainerState.Failed } })

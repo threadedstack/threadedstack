@@ -12,6 +12,12 @@ export type TSessionTokenPayload = {
   projectId?: string
 }
 
+export type TShellTokenPayload = {
+  orgId: string
+  userId: string
+  sandboxId: string
+}
+
 let signingKey: Buffer | undefined
 
 /**
@@ -66,6 +72,49 @@ export const verifySessionToken = (token: string): TSessionTokenPayload | null =
     message.includes(`expired`)
       ? logger.debug(`Session token expired`)
       : logger.warn(`Session token verification failed: ${message}`)
+
+    return null
+  }
+}
+
+/**
+ * Sign a short-lived JWT for shell WebSocket auth (browser flow).
+ * Used by POST /_/sandboxes/:id/connect to issue tokens.
+ */
+export const signShellToken = (payload: TShellTokenPayload): string => {
+  return jwt.sign(
+    { ...payload, kind: `shell`, jti: crypto.randomUUID() },
+    getSigningKey(),
+    {
+      algorithm: `HS256`,
+      expiresIn: SessionTtlSec,
+    }
+  )
+}
+
+/**
+ * Verify and decode a shell session JWT.
+ * Returns the payload or null if invalid/expired.
+ */
+export const verifyShellToken = (token: string): TShellTokenPayload | null => {
+  try {
+    const decoded = jwt.verify(token, getSigningKey(), {
+      algorithms: [`HS256`],
+    }) as JwtPayload & TShellTokenPayload & { kind?: string }
+
+    if (decoded.kind !== `shell`) return null
+    if (!decoded.userId || !decoded.orgId || !decoded.sandboxId) return null
+
+    return {
+      orgId: decoded.orgId,
+      userId: decoded.userId,
+      sandboxId: decoded.sandboxId,
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    message.includes(`expired`)
+      ? logger.debug(`Shell token expired`)
+      : logger.warn(`Shell token verification failed: ${message}`)
 
     return null
   }

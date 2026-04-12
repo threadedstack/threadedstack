@@ -124,8 +124,14 @@ export const setProviders = (providers: Record<string, Provider>) =>
 
 export const getSandboxes = () => store.get(sandboxesState)
 export const resetSandboxes = () => store.set(sandboxesState, undefined)
-export const setSandboxes = (sandboxes: Record<string, Sandbox>) =>
+export const setSandboxes = (sandboxes: Record<string, Record<string, Sandbox>>) =>
   store.set(sandboxesState, sandboxes)
+
+export const getContextSandboxes = (key: string) => getSandboxes()?.[key]
+export const setContextSandboxes = (key: string, sandboxes: Record<string, Sandbox>) => {
+  const all = getSandboxes() || {}
+  setSandboxes({ ...all, [key]: sandboxes })
+}
 
 export const getSecrets = () => store.get(secretsState)
 export const resetSecrets = () => store.set(secretsState, undefined)

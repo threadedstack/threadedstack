@@ -15,6 +15,7 @@ export { threads, threadsRelations } from '@TDB/schemas/threads'
 export { domains, domainsRelations } from '@TDB/schemas/domains'
 export { secrets, secretsRelations } from '@TDB/schemas/secrets'
 export { apiKeys, apiKeysRelations } from '@TDB/schemas/apiKeys'
+export { invoices, invoicesRelations } from '@TDB/schemas/invoices'
 export { messages, messagesRelations } from '@TDB/schemas/messages'
 export { projects, projectsRelations } from '@TDB/schemas/projects'
 export { schedules, schedulesRelations } from '@TDB/schemas/schedules'
@@ -25,9 +26,9 @@ export { endpoints, endpointsRelations } from '@TDB/schemas/endpoints'
 export { invitations, invitationsRelations } from '@TDB/schemas/invitations'
 export { agentSkills, agentSkillsRelations } from '@TDB/schemas/agentSkills'
 export { agentProjects, agentProjectsRelations } from '@TDB/schemas/agentProjects'
-export { invoices, invoicesRelations } from '@TDB/schemas/invoices'
 export { subscriptions, subscriptionsRelations } from '@TDB/schemas/subscriptions'
 export { agentProviders, agentProvidersRelations } from '@TDB/schemas/agentProviders'
+export { sandboxProjects, sandboxProjectsRelations } from '@TDB/schemas/sandboxProjects'
 export {
   sandboxProviders,
   sandboxProvidersRelations,

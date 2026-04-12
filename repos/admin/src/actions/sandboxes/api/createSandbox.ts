@@ -11,14 +11,12 @@ export type TCreateSandboxOpts = {
 
 export const createSandbox = async (opts: TCreateSandboxOpts) => {
   const { orgId, projectId, data } = opts
-  const resp = await sandboxApi.create(orgId, {
-    ...data,
-    ...(projectId && { projectId }),
-  })
+  const resp = await sandboxApi.create(orgId, data, projectId)
 
   if (resp.error) return { error: resp.error }
 
-  resp.data && upsertSandbox(resp.data)
+  const contextKey = projectId || `org`
+  resp.data && upsertSandbox(contextKey, resp.data)
 
   return resp
 }

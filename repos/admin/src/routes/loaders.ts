@@ -8,7 +8,6 @@ import {
   getOrgQuota,
   getProjects,
   getProviders,
-  getSandboxes,
   getSchedules,
   getOrgLimits,
   getOrgSecrets,
@@ -23,6 +22,7 @@ import {
   getProjectEndpoints,
   getProjectFunctions,
   setActiveEndpointId,
+  getContextSandboxes,
   getProjectMembersForProject,
 } from '@TAF/state/accessors'
 
@@ -60,7 +60,12 @@ const criticalFetch = async (fn: () => Promise<{ error?: Error } | any>) => {
  * Components read from Jotai and re-render when data arrives.
  */
 const safeFetch = (fn: () => Promise<any>) => {
-  fn()?.catch(() => {})
+  fn()?.catch((err: unknown) => {
+    console.warn(
+      `[Loader] Background fetch failed:`,
+      err instanceof Error ? err.message : err
+    )
+  })
 }
 
 // --- Root Loader ---
@@ -124,7 +129,7 @@ export const orgSandboxesLoader = async ({ params }: LoaderFunctionArgs) => {
 
   if (!getProviders()) safeFetch(() => fetchProviders({ orgId }))
 
-  if (!getSandboxes()) safeFetch(() => fetchSandboxes({ orgId }))
+  if (!getContextSandboxes(`org`)) safeFetch(() => fetchSandboxes({ orgId }))
 
   return null
 }
@@ -133,7 +138,7 @@ export const orgDomainsLoader = async ({ params }: LoaderFunctionArgs) => {
   const { orgId } = params
   if (!orgId) missOrgIdResp()
 
-  if (!getContextDomains('org')) await safeFetch(() => fetchDomains({ orgId }))
+  if (!getContextDomains(`org`)) await safeFetch(() => fetchDomains({ orgId }))
   return null
 }
 
@@ -295,7 +300,8 @@ export const projectSandboxesLoader = async ({ params }: LoaderFunctionArgs) => 
 
   if (!getProviders()) safeFetch(() => fetchProviders({ orgId }))
 
-  if (!getSandboxes()) safeFetch(() => fetchSandboxes({ orgId }))
+  if (!getContextSandboxes(projectId))
+    safeFetch(() => fetchSandboxes({ orgId, projectId }))
 
   return null
 }

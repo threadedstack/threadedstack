@@ -28,7 +28,7 @@ export const stopSandbox: TEndpointConfig = {
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
 
-    await sb.validatePodOwnership(podName, sandbox.orgId)
+    await sb.validatePodOwnership(podName, sandbox.orgId, req.params.projectId)
     await sb.stopPod(podName)
 
     res.status(200).json({ data: { success: true } })

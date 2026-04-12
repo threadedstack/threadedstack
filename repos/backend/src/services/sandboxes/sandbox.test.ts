@@ -36,6 +36,11 @@ vi.mock(`@tdsk/sandbox`, () => {
       sandboxId: `tdsk.app/sandbox-id`,
       projectId: `tdsk.app/project-id`,
     },
+    sanitizeLabel: (value: string) =>
+      value
+        .replace(/[^a-zA-Z0-9._-]/g, ``)
+        .replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, ``)
+        .slice(0, 63),
     buildPodManifest: (...args: any[]) => mockBuildPodManifest(...args),
     toContainerState: (...args: any[]) => mockToContainerState(...args),
   }
@@ -145,6 +150,78 @@ describe(`SandboxService`, () => {
       await expect(svc.validatePodOwnership(`missing-pod`, `org-1`)).rejects.toThrow(
         `Internal Server Error`
       )
+    })
+
+    it(`should pass when projectId matches pod label`, async () => {
+      kube.getPod.mockResolvedValue({
+        metadata: {
+          labels: {
+            [`tdsk.app/org-id`]: `org-1`,
+            [`tdsk.app/project-id`]: `proj-1`,
+          },
+        },
+      })
+
+      await expect(
+        svc.validatePodOwnership(`pod-a`, `org-1`, `proj-1`)
+      ).resolves.toBeUndefined()
+    })
+
+    it(`should throw 403 when projectId does not match pod label`, async () => {
+      kube.getPod.mockResolvedValue({
+        metadata: {
+          labels: {
+            [`tdsk.app/org-id`]: `org-1`,
+            [`tdsk.app/project-id`]: `proj-other`,
+          },
+        },
+      })
+
+      await expect(svc.validatePodOwnership(`pod-a`, `org-1`, `proj-1`)).rejects.toThrow(
+        `Pod does not belong to this project`
+      )
+    })
+
+    it(`should skip project check when projectId is undefined`, async () => {
+      kube.getPod.mockResolvedValue({
+        metadata: {
+          labels: {
+            [`tdsk.app/org-id`]: `org-1`,
+            [`tdsk.app/project-id`]: `proj-1`,
+          },
+        },
+      })
+
+      await expect(
+        svc.validatePodOwnership(`pod-a`, `org-1`, undefined)
+      ).resolves.toBeUndefined()
+    })
+
+    it(`should skip project check when pod has no project label`, async () => {
+      kube.getPod.mockResolvedValue({
+        metadata: {
+          labels: { [`tdsk.app/org-id`]: `org-1` },
+        },
+      })
+
+      await expect(
+        svc.validatePodOwnership(`pod-a`, `org-1`, `proj-1`)
+      ).resolves.toBeUndefined()
+    })
+
+    it(`should pass when projectId has leading chars stripped by sanitizeLabel`, async () => {
+      kube.getPod.mockResolvedValue({
+        metadata: {
+          labels: {
+            [`tdsk.app/org-id`]: `org-1`,
+            [`tdsk.app/project-id`]: `TvYOseQjO`,
+          },
+        },
+      })
+
+      await expect(
+        svc.validatePodOwnership(`pod-a`, `org-1`, `_TvYOseQjO`)
+      ).resolves.toBeUndefined()
     })
   })
 

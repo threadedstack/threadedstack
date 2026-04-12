@@ -1,7 +1,7 @@
 import type { Sandbox } from '@tdsk/domain'
-import { getSandboxes, setSandboxes } from '@TAF/state/accessors'
+import { getContextSandboxes, setContextSandboxes } from '@TAF/state/accessors'
 
-export const upsertSandbox = (sandbox: Sandbox) => {
-  const current = getSandboxes() || {}
-  setSandboxes({ ...current, [sandbox.id]: sandbox })
+export const upsertSandbox = (contextKey: string, sandbox: Sandbox) => {
+  const current = getContextSandboxes(contextKey) || {}
+  setContextSandboxes(contextKey, { ...current, [sandbox.id]: sandbox })
 }

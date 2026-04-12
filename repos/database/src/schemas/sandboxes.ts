@@ -6,7 +6,8 @@ import { orgs } from '@TDB/schemas/orgs'
 import { users } from '@TDB/schemas/users'
 import { base } from '@TDB/utils/schema/base'
 import { SandboxIdPrefix } from '@tdsk/domain'
-import { projects } from '@TDB/schemas/projects'
+import { threads } from '@TDB/schemas/threads'
+import { sandboxProjects } from '@TDB/schemas/sandboxProjects'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
 import { text, jsonb, uuid, varchar, boolean, index, pgTable } from 'drizzle-orm/pg-core'
 
@@ -31,20 +32,17 @@ export const sandboxes = pgTable(
       .references(() => orgs.id, { onDelete: `cascade` })
       .notNull(),
     userId: uuid(`user_id`).references(() => users.id, { onDelete: `set null` }),
-    projectId: varchar(`project_id`, { length: 10 }).references(() => projects.id, {
-      onDelete: `cascade`,
-    }),
     config: jsonb(`config`).notNull().$type<TKubeSandboxConfig>(),
     builtIn: boolean(`built_in`).notNull().default(false),
   },
   (table) => [
     index(`sandboxes_org_idx`).on(table.orgId),
     index(`sandboxes_org_user_idx`).on(table.orgId, table.userId),
-    index(`sandboxes_project_idx`).on(table.projectId),
   ]
 )
 
 export const sandboxesRelations = relations(sandboxes, ({ one, many }) => ({
+  threads: many(threads),
   org: one(orgs, {
     references: [orgs.id],
     fields: [sandboxes.orgId],
@@ -53,9 +51,6 @@ export const sandboxesRelations = relations(sandboxes, ({ one, many }) => ({
     references: [users.id],
     fields: [sandboxes.userId],
   }),
-  project: one(projects, {
-    references: [projects.id],
-    fields: [sandboxes.projectId],
-  }),
+  projects: many(sandboxProjects),
   providers: many(sandboxProviders),
 }))

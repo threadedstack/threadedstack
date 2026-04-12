@@ -254,15 +254,91 @@ export async function clearSearch(page: Page) {
  * Must be called BEFORE navigating to the page.
  */
 export async function ensureFullListLoad(page: Page, pathPattern: string) {
-  await page.route(`**/_${pathPattern}`, async (route) => {
+  // Use a RegExp to match the path with or without query strings,
+  // since glob `?` is a single-char wildcard and can't match literal `?`
+  const escaped = pathPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = new RegExp(`/_${escaped}(\\?|$)`)
+
+  await page.route(pattern, async (route) => {
     const req = route.request()
     if (req.method() !== 'GET') {
-      await route.continue()
+      await route.fallback()
       return
     }
-    const url = req.url()
-    const separator = url.includes('?') ? '&' : '?'
-    await route.continue({ url: `${url}${separator}limit=500` })
+    // Re-issue the request with limit=500 and ignoreHTTPSErrors.
+    // We use route.fulfill() (not fallback/continue) because the auth
+    // fixture's TLS bypass handler also fulfills proxy requests — using
+    // fallback would let that handler re-issue with the original URL.
+    const parsed = new URL(req.url())
+    parsed.searchParams.set('limit', '500')
+    const headers = { ...req.headers() }
+    delete headers['host']
+    delete headers['content-length']
+    const resp = await page.request.get(parsed.toString(), {
+      ignoreHTTPSErrors: true,
+      headers,
+    })
+    await route.fulfill({
+      status: resp.status(),
+      headers: resp.headers(),
+      body: await resp.body(),
+    })
+  })
+}
+
+/**
+ * Intercept an API list response and guarantee a specific item is included.
+ * When the backend paginates (e.g. max 200 items) and the target item falls
+ * outside the first page, this injects it into the response so client-side
+ * search can find it. Must be called BEFORE navigating to the page.
+ */
+export async function ensureItemInList(
+  page: Page,
+  pathPattern: string,
+  targetItem: Record<string, unknown>,
+  nameField = 'name'
+) {
+  const escaped = pathPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = new RegExp(`/_${escaped}(\\?|$)`)
+
+  await page.route(pattern, async (route) => {
+    const req = route.request()
+    if (req.method() !== 'GET') {
+      await route.fallback()
+      return
+    }
+    const headers = { ...req.headers() }
+    delete headers['host']
+    delete headers['content-length']
+    const resp = await page.request.get(req.url(), {
+      ignoreHTTPSErrors: true,
+      headers,
+    })
+    const body = await resp.body()
+    try {
+      const json = JSON.parse(body.toString())
+      const arr: Record<string, unknown>[] = Array.isArray(json?.data)
+        ? json.data
+        : Array.isArray(json) ? json : []
+      const found = arr.some((item) => item[nameField] === targetItem[nameField])
+      if (!found) {
+        arr.push(targetItem)
+        const modified = json?.data ? { ...json, data: arr } : arr
+        await route.fulfill({
+          status: resp.status(),
+          headers: resp.headers(),
+          body: JSON.stringify(modified),
+        })
+        return
+      }
+    } catch {
+      // Non-JSON response, pass through
+    }
+    await route.fulfill({
+      status: resp.status(),
+      headers: resp.headers(),
+      body,
+    })
   })
 }
 

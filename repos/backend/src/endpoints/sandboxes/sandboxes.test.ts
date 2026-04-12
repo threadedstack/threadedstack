@@ -83,21 +83,15 @@ describe(`Sandboxes endpoints`, () => {
       expect(sandboxes.endpoints?.listSandboxes).toBeDefined()
     })
 
-    it(`should have all 12 endpoint configs defined`, () => {
+    it(`should have all 6 config CRUD endpoint configs defined`, () => {
       const endpointKeys = Object.keys(sandboxes.endpoints || {})
-      expect(endpointKeys).toHaveLength(12)
+      expect(endpointKeys).toHaveLength(6)
       expect(endpointKeys).toContain(`createSandbox`)
       expect(endpointKeys).toContain(`updateSandbox`)
       expect(endpointKeys).toContain(`deleteSandbox`)
       expect(endpointKeys).toContain(`getSandbox`)
       expect(endpointKeys).toContain(`listSandboxes`)
-      expect(endpointKeys).toContain(`connectSandbox`)
-      expect(endpointKeys).toContain(`stopSandbox`)
-      expect(endpointKeys).toContain(`startSandbox`)
       expect(endpointKeys).toContain(`copySandbox`)
-      expect(endpointKeys).toContain(`listSessions`)
-      expect(endpointKeys).toContain(`execInSandbox`)
-      expect(endpointKeys).toContain(`getSandboxStatus`)
     })
   })
 
@@ -538,6 +532,176 @@ describe(`Sandboxes endpoints`, () => {
       await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
         `Update failed`
       )
+    })
+  })
+
+  describe(`GET /_/sandboxes - List sandboxes`, () => {
+    const ep = getEndpointCfg(sandboxes.endpoints?.listSandboxes)
+
+    it(`should return all sandboxes when user is admin`, async () => {
+      const sbLinked = new Sandbox({
+        id: `sb-1`,
+        name: `Linked`,
+        orgId: `org-1`,
+        config: { image: `test` } as any,
+        projects: [{ id: `proj-1`, name: `Project 1`, orgId: `org-1` } as any],
+      })
+      const sbUnlinked = new Sandbox({
+        id: `sb-2`,
+        name: `Built-in`,
+        orgId: `org-1`,
+        config: { image: `test` } as any,
+        projects: [],
+      })
+
+      const mockList = mockReq.app?.locals.db.services.sandbox.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [sbLinked, sbUnlinked] })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      expect(mockJson).toHaveBeenCalledWith(
+        expect.objectContaining({ data: [sbLinked, sbUnlinked] })
+      )
+    })
+
+    it(`should return unlinked sandboxes for non-admin (built-ins)`, async () => {
+      const sbUnlinked = new Sandbox({
+        id: `sb-1`,
+        name: `Built-in`,
+        orgId: `org-1`,
+        config: { image: `test` } as any,
+        projects: [],
+      })
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
+
+      const mockGetUserProjects = mockReq.app?.locals.db.services.role
+        .getUserProjects as ReturnType<typeof vi.fn>
+      mockGetUserProjects.mockResolvedValue({ data: [] })
+
+      const mockList = mockReq.app?.locals.db.services.sandbox.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [sbUnlinked] })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).toHaveLength(1)
+      expect(responseData[0].id).toBe(`sb-1`)
+    })
+
+    it(`should return sandboxes linked to user projects for non-admin`, async () => {
+      const sbInProject = new Sandbox({
+        id: `sb-1`,
+        name: `In Project`,
+        orgId: `org-1`,
+        config: { image: `test` } as any,
+        projects: [{ id: `proj-1`, name: `Project 1`, orgId: `org-1` } as any],
+      })
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
+
+      const mockGetUserProjects = mockReq.app?.locals.db.services.role
+        .getUserProjects as ReturnType<typeof vi.fn>
+      mockGetUserProjects.mockResolvedValue({ data: [`proj-1`] })
+
+      const mockList = mockReq.app?.locals.db.services.sandbox.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [sbInProject] })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).toHaveLength(1)
+      expect(responseData[0].id).toBe(`sb-1`)
+    })
+
+    it(`should filter out sandboxes in other projects for non-admin`, async () => {
+      const sbOtherProject = new Sandbox({
+        id: `sb-1`,
+        name: `Other Project`,
+        orgId: `org-1`,
+        config: { image: `test` } as any,
+        projects: [{ id: `proj-2`, name: `Project 2`, orgId: `org-1` } as any],
+      })
+      const sbMyProject = new Sandbox({
+        id: `sb-2`,
+        name: `My Project`,
+        orgId: `org-1`,
+        config: { image: `test` } as any,
+        projects: [{ id: `proj-1`, name: `Project 1`, orgId: `org-1` } as any],
+      })
+
+      const mockGetOrgRole = mockReq.app?.locals.db.services.role
+        .getOrgRole as ReturnType<typeof vi.fn>
+      mockGetOrgRole.mockResolvedValue({ data: { type: `member` } })
+
+      const mockGetUserProjects = mockReq.app?.locals.db.services.role
+        .getUserProjects as ReturnType<typeof vi.fn>
+      mockGetUserProjects.mockResolvedValue({ data: [`proj-1`] })
+
+      const mockList = mockReq.app?.locals.db.services.sandbox.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [sbOtherProject, sbMyProject] })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).toHaveLength(1)
+      expect(responseData[0].id).toBe(`sb-2`)
+    })
+
+    it(`should return 400 when orgId is missing`, async () => {
+      mockReq.params = {}
+      mockReq.query = {}
+
+      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
+        `orgId parameter required`
+      )
+    })
+
+    it(`should filter by projectId when provided`, async () => {
+      const sbInTarget = new Sandbox({
+        id: `sb-1`,
+        name: `In Target`,
+        orgId: `org-1`,
+        config: { image: `test` } as any,
+        projects: [{ id: `proj-1`, name: `Project 1`, orgId: `org-1` } as any],
+      })
+      const sbNotInTarget = new Sandbox({
+        id: `sb-2`,
+        name: `Not In Target`,
+        orgId: `org-1`,
+        config: { image: `test` } as any,
+        projects: [{ id: `proj-2`, name: `Project 2`, orgId: `org-1` } as any],
+      })
+
+      mockReq.params = { orgId: `org-1`, projectId: `proj-1` }
+
+      const mockList = mockReq.app?.locals.db.services.sandbox.list as ReturnType<
+        typeof vi.fn
+      >
+      mockList.mockResolvedValue({ data: [sbInTarget, sbNotInTarget] })
+
+      await ep.action(mockReq as TRequest, mockRes as Response)
+
+      expect(mockStatus).toHaveBeenCalledWith(200)
+      const responseData = mockJson.mock.calls[0][0].data
+      expect(responseData).toHaveLength(1)
+      expect(responseData[0].id).toBe(`sb-1`)
     })
   })
 })

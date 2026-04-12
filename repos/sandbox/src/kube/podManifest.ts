@@ -10,7 +10,12 @@ import type {
 import { customAlphabet } from 'nanoid'
 import { SandboxRuntimeConfigs, ESandboxRuntime } from '@tdsk/domain'
 import { KubeSBPrefix, PodLabelKeys, PodAnnotationKeys } from '@TSB/constants/kube'
-import { DefaultWorkdir, VolumeMountName, CACertMountPath } from '@TSB/constants/values'
+import {
+  DefaultWorkdir,
+  EnvProfilePath,
+  VolumeMountName,
+  CACertMountPath,
+} from '@TSB/constants/values'
 
 const podSuffix = customAlphabet(`0123456789abcdefghijklmnopqrstuvwxyz`, 4)
 
@@ -125,6 +130,7 @@ const buildSandboxContainer = (
   extraEnv?: Record<string, string>
 ): V1Container => {
   const env: V1EnvVar[] = [
+    { name: `DISABLE_AUTOUPDATER`, value: `1` },
     { name: `NODE_EXTRA_CA_CERTS`, value: CACertMountPath },
     ...buildEnvVars(config.envVars),
     ...buildEnvVars(extraEnv),
@@ -150,6 +156,13 @@ const buildSandboxContainer = (
     securityContext: {
       privileged: false,
       allowPrivilegeEscalation: false,
+    },
+    lifecycle: {
+      postStart: {
+        exec: {
+          command: [`sh`, `-c`, buildEnvProfileScript(env)],
+        },
+      },
     },
     volumeMounts: [
       {
@@ -188,6 +201,20 @@ const buildSandboxContainer = (
   if (config.imagePullPolicy) container.imagePullPolicy = config.imagePullPolicy
 
   return container
+}
+
+const buildEnvProfileScript = (env: V1EnvVar[]): string => {
+  const lines = env
+    .filter((e) => e.value != null)
+    .map((e) => `export ${e.name}='${(e.value ?? ``).replace(/'/g, `'\\''`)}'`)
+    .join(`\n`)
+
+  return [
+    `mkdir -p /etc/profile.d`,
+    `cat > ${EnvProfilePath} << 'TDSK_ENV_EOF'`,
+    lines,
+    `TDSK_ENV_EOF`,
+  ].join(`\n`)
 }
 
 const buildEnvVars = (envVars?: Record<string, string>): V1EnvVar[] => {

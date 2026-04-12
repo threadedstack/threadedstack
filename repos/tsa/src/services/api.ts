@@ -202,13 +202,20 @@ export class ApiClient extends ApiService {
 
   // --- Sandboxes ---
 
-  async listSandboxes(orgId: string): Promise<TApiResponse<any[]>> {
-    return this.get<any[]>({ path: `orgs/${orgId}/sandboxes` })
+  async listSandboxes(orgId: string, projectId?: string): Promise<TApiResponse<any[]>> {
+    const path = projectId
+      ? `orgs/${orgId}/projects/${projectId}/sandboxes`
+      : `orgs/${orgId}/sandboxes`
+    return this.get<any[]>({ path })
   }
 
-  async connectSandbox(orgId: string, sandboxId: string): Promise<TApiResponse<any>> {
+  async connectSandbox(
+    orgId: string,
+    projectId: string,
+    sandboxId: string
+  ): Promise<TApiResponse<any>> {
     return this.post<any>({
-      path: `orgs/${orgId}/sandboxes/${sandboxId}/connect`,
+      path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/connect`,
       data: {},
     })
   }
@@ -219,18 +226,20 @@ export class ApiClient extends ApiService {
 
   async execInSandbox(
     orgId: string,
+    projectId: string,
     sandboxId: string,
     podName: string,
     command: string
   ): Promise<TApiResponse<any>> {
     return this.post<any>({
-      path: `orgs/${orgId}/sandboxes/${sandboxId}/exec`,
+      path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/exec`,
       data: { command, podName },
     })
   }
 
   async injectSshKey(
     orgId: string,
+    projectId: string,
     sandboxId: string,
     podName: string,
     publicKey: string
@@ -245,6 +254,7 @@ export class ApiClient extends ApiService {
     const escaped = publicKey.replace(/'/g, `'\\''`)
     const result = await this.execInSandbox(
       orgId,
+      projectId,
       sandboxId,
       podName,
       [

@@ -5,6 +5,10 @@ import { EPMethod } from '@TBE/types'
 import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
+/**
+ * PUT /_/sandboxes/:id - Update a sandbox
+ * Can optionally update project associations by passing projectIds array
+ */
 export const updateSandbox: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
@@ -22,7 +26,7 @@ export const updateSandbox: TEndpointConfig = {
       (data) => ({ orgId: data.orgId })
     )
 
-    const { name, config, projectId, providerInputs } = req.body
+    const { name, config, projectIds, providerInputs } = req.body
 
     if (config?.idleTimeoutMinutes != null && config.idleTimeoutMinutes < 1)
       throw new Exception(400, `idleTimeoutMinutes must be at least 1`)
@@ -35,12 +39,30 @@ export const updateSandbox: TEndpointConfig = {
       inputs: providerInputs,
     })
 
+    const { data: projects, error: projErr } = projectIds?.length
+      ? await db.services.project.list({
+          where: { id: projectIds, orgId: existing.orgId },
+        })
+      : { data: [] }
+
+    if (projErr)
+      throw new Exception(
+        500,
+        projErr instanceof Error ? projErr.message : String(projErr)
+      )
+
+    if (projectIds?.length && projects && projects.length !== projectIds.length) {
+      const foundIds = new Set(projects.map((p: any) => p.id))
+      const missing = projectIds.filter((pid: string) => !foundIds.has(pid))
+      throw new Exception(400, `Projects not found: ${missing.join(', ')}`)
+    }
+
     const { data, error } = await db.services.sandbox.update({
       id,
       ...(name !== undefined && { name }),
       ...(config !== undefined && { config }),
-      ...(projectId !== undefined && { projectId }),
       ...(pins !== undefined && { providerInputs: pins }),
+      ...(projectIds !== undefined ? { projects: projects || [] } : {}),
     })
     if (error) throw new Exception(500, error.message)
 

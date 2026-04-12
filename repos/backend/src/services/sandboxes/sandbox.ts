@@ -1,5 +1,7 @@
 import type { TApp } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
+import type { TShellSession } from '@TBE/types'
+import type { TParsedEvent } from '@tdsk/domain'
 import type { TPodEgressOpts } from '@tdsk/sandbox'
 import type { RequestHandler } from 'http-proxy-middleware'
 import type { ISandbox, TPlaceholderMap, TSandboxSession } from '@tdsk/domain'
@@ -18,6 +20,7 @@ import {
   KubeClient,
   KubeSandbox,
   PodLabelKeys,
+  sanitizeLabel,
   buildPodManifest,
   setupKubeWatcher,
   toContainerState,
@@ -54,10 +57,15 @@ export class SandboxService {
   private readonly config: TSandboxOpts
 
   private startingPods = new Set<string>()
+  private readonly ShellTtlMS = 5 * 60 * 1000
+  private readonly RingBufferSize = 1024 * 1024
   private passwords = new Map<string, string>()
   private podActivity = new Map<string, number>()
   private sessions = new Map<string, TSandboxSession[]>()
   private idleTimer: ReturnType<typeof setInterval> | null = null
+  private shellSessions = new Map<string, TShellSession>()
+  private eventBatchTimers = new Map<string, NodeJS.Timeout>()
+  private eventBatches = new Map<string, TParsedEvent[]>()
 
   // Caches existing pod proxies
   static proxyMap = new Map<string, RequestHandler>()
@@ -157,7 +165,11 @@ export class SandboxService {
     this.config = { ...DefSBConfig, ...config }
   }
 
-  async validatePodOwnership(podName: string, orgId: string): Promise<void> {
+  async validatePodOwnership(
+    podName: string,
+    orgId: string,
+    projectId?: string
+  ): Promise<void> {
     let pod
     try {
       pod = await this.kube.getPod(podName)
@@ -169,6 +181,12 @@ export class SandboxService {
     const podOrgId = pod.metadata?.labels?.[PodLabelKeys.orgId]
     if (podOrgId !== orgId)
       throw new Exception(403, `Pod does not belong to this organization`)
+
+    if (projectId) {
+      const podProjectId = pod.metadata?.labels?.[PodLabelKeys.projectId]
+      if (podProjectId && podProjectId !== sanitizeLabel(projectId))
+        throw new Exception(403, `Pod does not belong to this project`)
+    }
   }
 
   /**
@@ -461,5 +479,142 @@ export class SandboxService {
 
     const pods = await this.kube.listPods(labels.join(`,`))
     return filter.state ? pods.filter((p) => p.status?.phase === filter.state) : pods
+  }
+
+  getShellSession(sessionId: string): TShellSession | undefined {
+    return this.shellSessions.get(sessionId)
+  }
+
+  addShellSession(session: TShellSession) {
+    this.shellSessions.set(session.sessionId, session)
+  }
+
+  removeShellSession(sessionId: string) {
+    const session = this.shellSessions.get(sessionId)
+    if (!session) return
+
+    if (session.ttlTimer) clearTimeout(session.ttlTimer)
+    this.clearEventBatch(sessionId)
+
+    try {
+      session.sshStream.close()
+    } catch (err) {
+      logger.warn(`[ShellSession] Failed to close SSH stream:`, (err as Error).message)
+    }
+    try {
+      session.sshClient.end()
+    } catch (err) {
+      logger.warn(`[ShellSession] Failed to end SSH client:`, (err as Error).message)
+    }
+
+    session.buffer.clear()
+    session.attachments.clear()
+    this.shellSessions.delete(sessionId)
+  }
+
+  attachToShellSession(
+    sessionId: string,
+    ws: import('ws').WebSocket
+  ): TShellSession | undefined {
+    const session = this.shellSessions.get(sessionId)
+    if (!session) return undefined
+
+    if (session.ttlTimer) {
+      clearTimeout(session.ttlTimer)
+      session.ttlTimer = null
+    }
+
+    session.attachments.add(ws)
+    return session
+  }
+
+  detachFromShellSession(sessionId: string, ws: import('ws').WebSocket) {
+    const session = this.shellSessions.get(sessionId)
+    if (!session) return
+
+    session.attachments.delete(ws)
+
+    if (session.attachments.size === 0) {
+      session.ttlTimer = setTimeout(async () => {
+        try {
+          await this.flushEventBatch(sessionId)
+        } catch (err) {
+          logger.error(
+            `[ShellSession] Flush failed during TTL cleanup for ${sessionId}:`,
+            (err as Error).message
+          )
+        }
+        this.removeShellSession(sessionId)
+      }, this.ShellTtlMS)
+    }
+  }
+
+  findShellSessionForSandbox(
+    sandboxId: string,
+    userId: string
+  ): TShellSession | undefined {
+    for (const session of this.shellSessions.values()) {
+      if (session.sandboxId === sandboxId && session.userId === userId) return session
+    }
+    return undefined
+  }
+
+  queueEventForPersistence(sessionId: string, event: TParsedEvent) {
+    let batch = this.eventBatches.get(sessionId)
+    if (!batch) {
+      batch = []
+      this.eventBatches.set(sessionId, batch)
+    }
+    batch.push(event)
+
+    if (batch.length >= 20) {
+      this.flushEventBatch(sessionId)
+      return
+    }
+
+    if (!this.eventBatchTimers.has(sessionId)) {
+      const timer = setTimeout(() => this.flushEventBatch(sessionId), 2000)
+      this.eventBatchTimers.set(sessionId, timer)
+    }
+  }
+
+  async flushEventBatch(sessionId: string) {
+    const timer = this.eventBatchTimers.get(sessionId)
+    if (timer) {
+      clearTimeout(timer)
+      this.eventBatchTimers.delete(sessionId)
+    }
+
+    const batch = this.eventBatches.get(sessionId)
+    if (!batch || batch.length === 0) return
+
+    const session = this.shellSessions.get(sessionId)
+    if (!session) {
+      this.eventBatches.delete(sessionId)
+      return
+    }
+
+    try {
+      const messages = batch.map((event) => ({
+        threadId: session.threadId,
+        orgId: session.orgId,
+        type: event.type,
+        content: event,
+      }))
+      await this.db.services.message.createBatch(messages)
+      this.eventBatches.delete(sessionId)
+    } catch (err) {
+      logger.error(
+        `[ShellSession] Failed to persist ${batch.length} events for session ${sessionId}:`,
+        (err as Error).message
+      )
+    }
+  }
+
+  private clearEventBatch(sessionId: string) {
+    const timer = this.eventBatchTimers.get(sessionId)
+    if (timer) clearTimeout(timer)
+    this.eventBatchTimers.delete(sessionId)
+    this.eventBatches.delete(sessionId)
   }
 }

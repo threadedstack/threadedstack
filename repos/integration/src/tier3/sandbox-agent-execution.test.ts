@@ -172,7 +172,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
     expect(events).toBeDefined()
 
     // Verify the file exists in the pod regardless of whether agent reported success
-    const checkRes = await execInPod(ctx.orgId, sandboxId, podName,
+    const checkRes = await execInPod(ctx.orgId, sandboxProjectId, sandboxId, podName,
       'cat /workspace/agent-test-file.txt 2>/dev/null || echo __NOT_FOUND__'
     )
 
@@ -191,7 +191,7 @@ describe('Tier 3: Agent-Driven Sandbox Execution', () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // Verify pod is still running — agent shouldn't stop it
-    const verifyRes = await execInPod(ctx.orgId, sandboxId, podName, 'echo still-alive')
+    const verifyRes = await execInPod(ctx.orgId, sandboxProjectId, sandboxId, podName, 'echo still-alive')
 
     expect(verifyRes.data.success).toBe(true)
     expect(verifyRes.data.output.trim()).toBe('still-alive')

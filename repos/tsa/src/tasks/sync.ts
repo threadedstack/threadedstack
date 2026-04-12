@@ -5,8 +5,10 @@ import { existsSync } from 'fs'
 import { themed } from '@TSA/theme'
 import { ApiClient } from '@TSA/services/api'
 import { requireAuth } from '@TSA/utils/tasks/requireAuth'
+import { saveContext } from '@TSA/utils/tasks/saveContext'
 import { CliDriver } from '@TSA/services/sync/mutagenClient'
 import { SyncManager } from '@TSA/services/sync/syncManager'
+import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
 import { ensureSshConfig, getPublicKey } from '@TSA/services/sync/sshConfig'
 import { mergeRules, resolveSourcePath } from '@TSA/services/sync/configLoader'
 
@@ -200,10 +202,25 @@ export const sync: TTask = {
       }
     }
 
+    // Resolve project — clear cached project when org changes
+    const explicitProject =
+      orgId !== config?.org ? undefined : (params.project as string | undefined)
+
+    let projectId: string
+    try {
+      projectId = await resolveProjectId(client, orgId, explicitProject)
+    } catch (err) {
+      process.stderr.write(`${themed(`error`, `Error:`)} ${(err as Error).message}\n`)
+      process.exit(1)
+    }
+
+    if (config) saveContext(config, orgId, projectId)
+
     // Auto-start pod via connect
     process.stdout.write(`${themed(`muted`, `Connecting to sandbox...`)}\n`)
     const { data: connectResp, error: connectError } = await client.connectSandbox(
       orgId as string,
+      projectId,
       sandboxId
     )
     if (connectError || !connectResp) {
@@ -224,6 +241,7 @@ export const sync: TTask = {
     const publicKey = getPublicKey()
     const { error: sshError } = await client.injectSshKey(
       orgId,
+      projectId,
       sandboxId,
       podName,
       publicKey
@@ -254,10 +272,10 @@ export const sync: TTask = {
       // Single-rule shorthand from CLI flags
       rules = [
         {
-          name: (params.name as string) || 'cli-sync',
+          name: (params.name as string) || `cli-sync`,
           source: params.source as string,
-          target: (params.target as string) || '/workspace',
-          mode: (params.mode as TSyncMode) || 'one-way-replica',
+          target: (params.target as string) || `/workspace`,
+          mode: (params.mode as TSyncMode) || `one-way-replica`,
           ignores: (params.ignore as string[]) || [],
         },
       ]

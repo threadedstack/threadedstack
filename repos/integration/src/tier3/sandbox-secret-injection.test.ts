@@ -72,13 +72,13 @@ describe('Tier 3: Sandbox Egress Secret Injection', () => {
       sandboxId = sbRes.data.id
 
       const startRes = await post<{ podName: string }>(
-        `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/start`,
-        { projectId }
+        `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/start`,
+        {}
       )
       if (!startRes.ok) throw new Error(`Failed to start pod: HTTP ${startRes.status}`)
       podName = startRes.data.podName
 
-      await waitForPodState(ctx.orgId, sandboxId, podName, 'Running', 90_000)
+      await waitForPodState(ctx.orgId, projectId, sandboxId, podName, 'Running', 90_000)
 
       placeholders = getPodPlaceholders(podName)
     } catch (err) {
@@ -90,7 +90,7 @@ describe('Tier 3: Sandbox Egress Secret Injection', () => {
   afterAll(async () => {
     if (podName && sandboxId) {
       try {
-        await api(`/orgs/${ctx.orgId}/sandboxes/${sandboxId}/stop`, {
+        await api(`/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/stop`, {
           method: 'DELETE',
           body: { podName },
         })
@@ -155,11 +155,11 @@ req.on('error', (e) => { console.error(e.message); process.exit(1); });
 req.end();
 `
     const escaped = script.replace(/'/g, "'\\''").trim()
-    await execInPod(ctx.orgId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, podName,
       `printf '%s' '${escaped}' > /tmp/test-secret-inject.js`
     )
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
       'node /tmp/test-secret-inject.js'
     )
 
@@ -205,11 +205,11 @@ req.on('error', (e) => { console.error(e.message); process.exit(1); });
 req.end();
 `
     const escaped = script.replace(/'/g, "'\\''").trim()
-    await execInPod(ctx.orgId, sandboxId, podName,
+    await execInPod(ctx.orgId, projectId, sandboxId, podName,
       `printf '%s' '${escaped}' > /tmp/test-passthrough.js`
     )
 
-    const res = await execInPod(ctx.orgId, sandboxId, podName,
+    const res = await execInPod(ctx.orgId, projectId, sandboxId, podName,
       'node /tmp/test-passthrough.js'
     )
 

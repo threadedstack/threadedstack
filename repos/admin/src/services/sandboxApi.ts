@@ -1,5 +1,9 @@
 import type { TApiRes, TApiCacheKeys } from '@TAF/types'
-import type { TSandboxConnectResponse, TSandboxSession } from '@tdsk/domain'
+import type {
+  TSandboxConnectResponse,
+  TSandboxSession,
+  TSandboxProjectConfig,
+} from '@tdsk/domain'
 
 import { Sandbox } from '@tdsk/domain'
 import { BaseApi } from '@TAF/services/api'
@@ -8,8 +12,10 @@ import { BaseApi } from '@TAF/services/api'
  * Sandbox API Service
  * Handles all Sandbox-related API operations
  *
- * Sandboxes are org-scoped resources.
- * Backend mount point: /orgs/:orgId/sandboxes
+ * Sandboxes are org-scoped resources but can also be linked to projects.
+ * The backend has two mount points:
+ *   Org-scoped:     /orgs/:orgId/sandboxes           (CRUD, copy, delete)
+ *   Project-scoped: /orgs/:orgId/projects/:projectId/sandboxes  (operational: start, stop, connect, status, sessions)
  */
 export class SandboxApi extends BaseApi {
   cache: TApiCacheKeys = {
@@ -18,20 +24,30 @@ export class SandboxApi extends BaseApi {
     detail: (id: string) => [...this.cache.all(), `detail`, id] as const,
   }
 
-  #path(orgId: string) {
-    return `/orgs/${orgId}/sandboxes`
+  #path(orgId: string, projectId?: string) {
+    return projectId
+      ? `/orgs/${orgId}/projects/${projectId}/sandboxes`
+      : `/orgs/${orgId}/sandboxes`
+  }
+
+  #configPath(orgId: string, projectId: string, sandboxId: string) {
+    return `/orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/config`
   }
 
   /**
-   * Get all sandboxes for an org
+   * Get all sandboxes for an org (or project)
    */
-  async list(orgId: string, data?: Record<string, any>): Promise<TApiRes<Sandbox[]>> {
+  async list(
+    orgId: string,
+    projectId?: string,
+    data?: Record<string, any>
+  ): Promise<TApiRes<Sandbox[]>> {
     const { queryKey, ...rest } = data || {}
 
     const resp = await this.api.get<Sandbox[]>({
       data: rest,
-      path: this.#path(orgId),
-      queryKey: queryKey || this.cache.list(orgId),
+      path: this.#path(orgId, projectId),
+      queryKey: queryKey || this.cache.list(orgId, projectId || `org`),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to load Sandbox configs list`))
@@ -45,9 +61,9 @@ export class SandboxApi extends BaseApi {
   /**
    * Get sandbox by ID
    */
-  async get(orgId: string, id: string): Promise<TApiRes<Sandbox>> {
+  async get(orgId: string, id: string, projectId?: string): Promise<TApiRes<Sandbox>> {
     const resp = await this.api.get<Sandbox>({
-      path: `${this.#path(orgId)}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
       queryKey: this.cache.detail(id),
     })
 
@@ -62,10 +78,14 @@ export class SandboxApi extends BaseApi {
   /**
    * Create new sandbox
    */
-  async create(orgId: string, data: Partial<Sandbox>): Promise<TApiRes<Sandbox>> {
+  async create(
+    orgId: string,
+    data: Partial<Sandbox>,
+    projectId?: string
+  ): Promise<TApiRes<Sandbox>> {
     const resp = await this.api.post<Sandbox>({
       data,
-      path: this.#path(orgId),
+      path: this.#path(orgId, projectId),
     })
 
     resp.error && (await this._onError(resp.error, `Failed to create Sandbox config`))
@@ -82,11 +102,12 @@ export class SandboxApi extends BaseApi {
   async update(
     orgId: string,
     id: string,
-    data: Partial<Sandbox>
+    data: Partial<Sandbox>,
+    projectId?: string
   ): Promise<TApiRes<Sandbox>> {
     const resp = await this.api.put<Sandbox>({
       data,
-      path: `${this.#path(orgId)}/${id}`,
+      path: `${this.#path(orgId, projectId)}/${id}`,
     })
 
     resp.error && (await this._onError(resp.error, `Failed to update Sandbox config`))
@@ -110,14 +131,67 @@ export class SandboxApi extends BaseApi {
     return resp
   }
 
+  /**
+   * Get project-level config overrides for a sandbox
+   */
+  async getConfig(
+    orgId: string,
+    projectId: string,
+    sandboxId: string
+  ): Promise<TApiRes<TSandboxProjectConfig>> {
+    const resp = await this.api.get<TSandboxProjectConfig>({
+      path: this.#configPath(orgId, projectId, sandboxId),
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to load sandbox config`))
+
+    return resp
+  }
+
+  /**
+   * Create or update project-level config overrides for a sandbox
+   */
+  async upsertConfig(
+    orgId: string,
+    projectId: string,
+    sandboxId: string,
+    data: Partial<TSandboxProjectConfig>
+  ): Promise<TApiRes<TSandboxProjectConfig>> {
+    const resp = await this.api.put<TSandboxProjectConfig>({
+      data,
+      path: this.#configPath(orgId, projectId, sandboxId),
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to save sandbox config`))
+
+    return resp
+  }
+
+  /**
+   * Reset all project-level config overrides for a sandbox
+   */
+  async deleteConfig(
+    orgId: string,
+    projectId: string,
+    sandboxId: string
+  ): Promise<TApiRes<TSandboxProjectConfig>> {
+    const resp = await this.api.delete<TSandboxProjectConfig>({
+      path: this.#configPath(orgId, projectId, sandboxId),
+    })
+
+    resp.error && (await this._onError(resp.error, `Failed to reset sandbox config`))
+
+    return resp
+  }
+
   async start(
     orgId: string,
-    id: string,
-    data?: { projectId?: string }
+    projectId: string,
+    id: string
   ): Promise<TApiRes<{ podName: string }>> {
     const resp = await this.api.post<{ podName: string }>({
-      data,
-      path: `${this.#path(orgId)}/${id}/start`,
+      data: {},
+      path: `${this.#path(orgId, projectId)}/${id}/start`,
     })
     resp.error && (await this._onError(resp.error, `Failed to start sandbox`))
     return resp
@@ -125,20 +199,26 @@ export class SandboxApi extends BaseApi {
 
   async stop(
     orgId: string,
+    projectId: string,
     id: string,
     podName: string
   ): Promise<TApiRes<{ success: boolean }>> {
     const resp = await this.api.delete<{ success: boolean }>({
       data: { podName },
-      path: `${this.#path(orgId)}/${id}/stop`,
+      path: `${this.#path(orgId, projectId)}/${id}/stop`,
     })
     resp.error && (await this._onError(resp.error, `Failed to stop sandbox`))
     return resp
   }
 
-  async connect(orgId: string, id: string): Promise<TApiRes<TSandboxConnectResponse>> {
+  async connect(
+    orgId: string,
+    projectId: string,
+    id: string
+  ): Promise<TApiRes<TSandboxConnectResponse>> {
     const resp = await this.api.post<TSandboxConnectResponse>({
-      path: `${this.#path(orgId)}/${id}/connect`,
+      data: {},
+      path: `${this.#path(orgId, projectId)}/${id}/connect`,
     })
     resp.error && (await this._onError(resp.error, `Failed to connect to sandbox`))
     return resp
@@ -146,19 +226,24 @@ export class SandboxApi extends BaseApi {
 
   async status(
     orgId: string,
+    projectId: string,
     id: string,
     podName: string
   ): Promise<TApiRes<{ podName: string; state: string }>> {
     const resp = await this.api.get<{ podName: string; state: string }>({
-      path: `${this.#path(orgId)}/${id}/status?podName=${podName}`,
+      path: `${this.#path(orgId, projectId)}/${id}/status?podName=${podName}`,
     })
     resp.error && (await this._onError(resp.error, `Failed to get sandbox status`))
     return resp
   }
 
-  async sessions(orgId: string, id: string): Promise<TApiRes<TSandboxSession[]>> {
+  async sessions(
+    orgId: string,
+    projectId: string,
+    id: string
+  ): Promise<TApiRes<TSandboxSession[]>> {
     const resp = await this.api.get<TSandboxSession[]>({
-      path: `${this.#path(orgId)}/${id}/sessions`,
+      path: `${this.#path(orgId, projectId)}/${id}/sessions`,
     })
     resp.error && (await this._onError(resp.error, `Failed to get sandbox sessions`))
     return resp

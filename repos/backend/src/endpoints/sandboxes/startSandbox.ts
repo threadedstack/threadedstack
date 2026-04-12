@@ -21,7 +21,8 @@ export const startSandbox: TEndpointConfig = {
       (sb) => ({ orgId: sb.orgId })
     )
 
-    const projectId = req.body.projectId || sandbox.projectId
+    const { projectId } = req.params
+    if (!projectId) throw new Exception(400, `projectId is required to start a sandbox`)
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)

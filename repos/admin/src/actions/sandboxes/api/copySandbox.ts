@@ -5,15 +5,17 @@ type TCopySandboxOpts = {
   orgId: string
   id: string
   name: string
+  projectId?: string
 }
 
 export const copySandbox = async (opts: TCopySandboxOpts) => {
-  const { orgId, id, name } = opts
+  const { orgId, id, name, projectId } = opts
   const resp = await sandboxApi.copy(orgId, id, name)
 
   if (resp.error) return { error: resp.error }
 
-  resp.data && upsertSandbox(resp.data)
+  const contextKey = projectId || `org`
+  resp.data && upsertSandbox(contextKey, resp.data)
 
   return resp
 }

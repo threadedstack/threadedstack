@@ -46,7 +46,7 @@ describe('Tier 3: Sandbox Sessions', () => {
   test('GET /:id/sessions returns empty array when no SSH connections', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
-    const res = await getSessions(ctx.orgId, sandboxId)
+    const res = await getSessions(ctx.orgId, projectId, sandboxId)
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)
@@ -58,7 +58,7 @@ describe('Tier 3: Sandbox Sessions', () => {
     if (!sandboxId) return expect(sandboxId).toBeTruthy()
 
     const res = await get(
-      `/orgs/${ctx.orgId}/sandboxes/${sandboxId}/sessions`,
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/${sandboxId}/sessions`,
       { noAuth: true }
     )
 
@@ -68,7 +68,7 @@ describe('Tier 3: Sandbox Sessions', () => {
 
   test('GET /:id/sessions for nonexistent sandbox returns error', async () => {
     const res = await get(
-      `/orgs/${ctx.orgId}/sandboxes/nonexistent-sandbox-id/sessions`
+      `/orgs/${ctx.orgId}/projects/${projectId}/sandboxes/nonexistent-sandbox-id/sessions`
     )
 
     expect([400, 404]).toContain(res.status)
@@ -79,12 +79,12 @@ describe('Tier 3: Sandbox Sessions', () => {
     // Create a sandbox config but never start a pod for it
     const sbRes = await post<Record<string, any>>(
       `/orgs/${ctx.orgId}/sandboxes`,
-      { name: uniqueName('sessions-no-pod'), config: sandboxConfig, orgId: ctx.orgId }
+      { name: uniqueName('sessions-no-pod'), config: sandboxConfig, orgId: ctx.orgId, projectIds: [projectId] }
     )
     expect(sbRes.status).toBe(201)
     extraSandboxId = sbRes.data.id
 
-    const res = await getSessions(ctx.orgId, extraSandboxId)
+    const res = await getSessions(ctx.orgId, projectId, extraSandboxId)
 
     expect(res.status).toBe(200)
     expect(res.ok).toBe(true)

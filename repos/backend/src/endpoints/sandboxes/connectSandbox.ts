@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
+import { signShellToken } from '@TBE/services/sessionToken'
 import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 import { EContainerState, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -22,6 +23,10 @@ export const connectSandbox: TEndpointConfig = {
       `Sandbox`,
       (sb) => ({ orgId: sb.orgId })
     )
+
+    const { projectId } = req.params
+    if (!projectId)
+      throw new Exception(400, `projectId is required to connect to a sandbox`)
 
     const sb = req.app.locals.sandbox
     if (!sb) throw new Exception(503, `Sandbox service not available`)
@@ -43,11 +48,11 @@ export const connectSandbox: TEndpointConfig = {
       sb.markStarting(id)
       try {
         podName = await sb.startPod({
+          projectId,
           sandboxId: id,
           orgId: sandbox.orgId,
           userId: req.user!.id,
           egressOpts: config.egress,
-          projectId: sandbox.projectId,
         })
       } catch (err) {
         sb.clearStarting(id)
@@ -107,11 +112,18 @@ export const connectSandbox: TEndpointConfig = {
     if (!password) password = await sb.recoverPassword(podName)
     if (!password) throw new Exception(500, `Could not retrieve SSH password for pod`)
 
+    const shellToken = signShellToken({
+      sandboxId: id,
+      userId: req.user!.id,
+      orgId: sandbox.orgId,
+    })
+
     res.status(200).json({
       data: {
         podName,
         password,
         port: 2222,
+        shellToken,
         sandboxId: id,
         command: `tsa ssh ${id}`,
       },

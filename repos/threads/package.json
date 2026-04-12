@@ -42,6 +42,7 @@
     "@vitejs/plugin-react-swc": "^3.3.2",
     "alias-hq": "6.2.4",
     "esbuild-register": "3.5.0",
+    "ghostty-web": "0.4.0",
     "jotai": "2.16.1",
     "mermaid": "11.12.3",
     "posthog-js": "1.242.2",
