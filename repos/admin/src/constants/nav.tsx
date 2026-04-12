@@ -2,11 +2,10 @@ import type { TNavCtx, TNavItem, TRailSection, TSubNavGroup } from '@TAF/types'
 
 import { ERoutePath } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
+import { OrgIcon } from '@tdsk/components'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
-import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { signout } from '@TAF/actions/auth/local/signout'
-import { RobotIcon, DrawingBoxIcon } from '@tdsk/components'
-import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
+import { RobotIcon, DrawingBoxIcon, ProjectIcon } from '@tdsk/components'
 import {
   Dns as DnsIcon,
   Api as ApiIcon,

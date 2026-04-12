@@ -2,11 +2,10 @@ import type { Organization } from '@tdsk/domain'
 
 import { Box } from '@mui/material'
 import { useState, useEffect } from 'react'
-import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { updateOrg } from '@TAF/actions/orgs/api/updateOrg'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useAsyncAction } from '@TAF/hooks/components/useAsyncAction'
-import { Drawer, DrawerActions, TextInput } from '@tdsk/components'
+import { Drawer, DrawerActions, OrgIcon, TextInput } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 
 export type TEditOrgDrawer = {

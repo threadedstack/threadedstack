@@ -3,8 +3,7 @@ import type { Project } from '@tdsk/domain'
 import { useState } from 'react'
 import { styled } from '@mui/material/styles'
 import DeleteIcon from '@mui/icons-material/DeleteOutline'
-import { ConfirmDelete, TextPair } from '@tdsk/components'
-import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
+import { ConfirmDelete, ProjectIcon, TextPair } from '@tdsk/components'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
 import {
   Box,

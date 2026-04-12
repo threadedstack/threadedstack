@@ -3,7 +3,7 @@ import MuiMenu from '@mui/material/Menu'
 import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import { styled } from '@mui/material/styles'
-import { IconButton } from '@tdsk/components'
+import { IconButton } from '@TSC/components/Buttons'
 import MuiIconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 
@@ -17,7 +17,7 @@ export const AppHeader = styled(AppBar)(({ theme }) => {
     height: ${theme.dims.header.hpx};
     border-bottom: 1px solid ${theme.palette.divider};
     background-color: ${theme.palette.background.header};
-    
+
     & .MuiToolbar-root {
       min-height: ${theme.dims.header.hpx};
     }
@@ -32,7 +32,7 @@ export const HeaderToolbar = styled(Toolbar)(({ theme }) => {
   `
 })
 
-export const Menu = styled(MuiMenu)(({ theme }) => {
+export const HeaderMenu = styled(MuiMenu)(({ theme }) => {
   return `
     & .MuiPaper-root {
       min-width: 200px;
@@ -66,14 +66,15 @@ export const LogoText = styled(Typography)(
 `
 ) as typeof Typography
 
-export const ToggleBinBAction = styled(IconButton)(({ theme }) => {
-  return `
-    margin-right: ${theme.gutter.qpx};
-  `
-})
-
 export const ToggleThemeAction = styled(IconButton)(({ theme }) => {
   return `
     margin-right: ${theme.gutter.hpx};
   `
 })
+
+export const SettingsContainer = styled(Box)(
+  ({ theme }) => `
+  flex-grow: 0;
+  padding-left: ${theme.gutter.px};
+`
+)

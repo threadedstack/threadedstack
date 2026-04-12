@@ -1,35 +1,9 @@
 import type { MouseEvent } from 'react'
 
 import { useState } from 'react'
-import { cls } from '@keg-hub/jsutils/cls'
-import { Button, Text } from '@tdsk/components'
-import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import { OrgsMenu } from '@TAF/components/Breadcrumbs/OrgsMenu'
-import { useActiveOrgId, useActiveOrg } from '@TAF/state/selectors'
-
-const styles = {
-  icon: {
-    fontSize: 18,
-  },
-  text: {
-    fontWeight: 500,
-    maxWidth: 150,
-    overflow: `hidden`,
-    whiteSpace: `nowrap`,
-    textOverflow: `ellipsis`,
-  },
-  button: {
-    color: `text.primary`,
-    [`&.open .MuiButton-endIcon`]: {
-      transform: `rotate(180deg)`,
-    },
-    [`& .MuiButton-endIcon`]: {
-      transform: `rotate(0deg)`,
-      transition: `transform 0.2s ease`,
-    },
-  },
-}
+import { setOrgActive } from '@TAF/actions/orgs/local/setOrgActive'
+import { OrgIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
+import { useOrgs, useActiveOrgId, useActiveOrg } from '@TAF/state/selectors'
 
 export type TOrgSelector = {
   className?: string
@@ -39,9 +13,10 @@ export type TOrgSelector = {
 export const OrgSelector = (props: TOrgSelector) => {
   const { className, onCreateOrg } = props
 
+  const [orgs] = useOrgs()
   const [activeOrg] = useActiveOrg()
-  const [activeOrgId] = useActiveOrgId()
   const [query, setQuery] = useState('')
+  const [activeOrgId] = useActiveOrgId()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   const open = Boolean(anchorEl)
@@ -55,34 +30,42 @@ export const OrgSelector = (props: TOrgSelector) => {
     setQuery('')
   }
 
+  const items = orgs
+    ? Object.values(orgs).map((o) => ({
+        id: o.id,
+        name: o.name || o.id,
+        description: o.description,
+      }))
+    : []
+
   return (
     <>
-      <Button
-        onClick={onClick}
-        sx={styles.button}
-        EndIcon={<ExpandMoreIcon />}
-        className={cls(`tdsk-org-selector`, open && `open`, className)}
-      >
-        <OrgIcon
-          text
-          sx={styles.icon}
-        />
-        <Text
-          variant='body2'
-          sx={styles.text}
-        >
-          {activeOrg?.name}
-        </Text>
-      </Button>
-
-      <OrgsMenu
+      <SelectorButton
         open={open}
+        onClick={onClick}
+        className={className}
+        text={activeOrg?.name}
+        placeholder='Select Org'
+        icon={
+          <OrgIcon
+            text
+            sx={{ fontSize: 18 }}
+          />
+        }
+      />
+      <SelectorMenu
+        open={open}
+        items={items}
         query={query}
         onClose={onClose}
-        setQuery={setQuery}
         anchorEl={anchorEl}
-        onCreateOrg={onCreateOrg}
-        activeOrgId={activeOrgId}
+        setQuery={setQuery}
+        activeId={activeOrgId}
+        onCreate={onCreateOrg}
+        createLabel='Create Organization'
+        emptyMessage='No organizations found'
+        searchPlaceholder='Search organizations...'
+        onSelect={(item) => setOrgActive(item.id)}
       />
     </>
   )

@@ -1,6 +1,6 @@
-import { nav } from '@TAF/services/nav'
-import { TSIcon, colors } from '@tdsk/components'
-import { LogoContainer, LogoBtn, LogoText } from '@TAF/components/Sidebar/Sidebar.styles'
+import { colors } from '@TSC/theme/colors'
+import { TSIcon } from '@TSC/components/Icons'
+import { LogoContainer, LogoBtn, LogoText } from '@TSC/components/Header/Header.styled'
 
 const style = {
   width: `28px`,
@@ -8,18 +8,19 @@ const style = {
   fill: colors.primary.main,
 }
 
-export type TSBLogo = {
+export type TAppLogo = {
   full?: boolean
+  onNavigate?: () => void
 }
 
-export const SBLogo = (props: TSBLogo) => {
-  const { full } = props
+export const AppLogo = (props: TAppLogo) => {
+  const { full, onNavigate } = props
 
   return (
     <LogoContainer className='tdsk-logo-icon-container'>
       <LogoBtn
         className='tdsk-logo-icon-button'
-        onClick={() => nav.home()}
+        onClick={onNavigate}
       >
         <TSIcon svgStyle={style} />
         {full && (

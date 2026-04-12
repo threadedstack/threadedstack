@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
-import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
 import { deleteProject } from '@TAF/actions/projects/api/deleteProject'
 import { updateProject } from '@TAF/actions/projects/api/updateProject'
-import { ConfirmDelete, Drawer, TextInput, RobotOutlineIcon } from '@tdsk/components'
+import {
+  ConfirmDelete,
+  Drawer,
+  ProjectIcon,
+  TextInput,
+  RobotOutlineIcon,
+} from '@tdsk/components'
 import {
   useActiveOrgId,
   useActiveProject,
@@ -48,9 +53,9 @@ export const Project = (props: TProject) => {
   useEffect(() => {
     if (editOpen && project) {
       setEditName(project.name || '')
-      setEditDescription(project.description || '')
       setEditGitUrl(project.gitUrl || '')
       setEditBranch(project.branch || 'main')
+      setEditDescription(project.description || '')
       setEditError(null)
     }
   }, [editOpen, project])

@@ -1,6 +1,4 @@
 export * from './Projects'
 export * from './NoProjects'
 export * from './ProjectCard'
-export * from './ProjectIcon'
-export * from './ProjectsMenu'
 export * from './CreateProjectDrawer'

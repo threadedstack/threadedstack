@@ -3,8 +3,7 @@ import type { Organization } from '@tdsk/domain'
 import { useState } from 'react'
 import { cls } from '@keg-hub/jsutils/cls'
 import { styled } from '@mui/material/styles'
-import { ConfirmDelete, Text } from '@tdsk/components'
-import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
+import { ConfirmDelete, OrgIcon, Text } from '@tdsk/components'
 import { Box, Card, Chip, Typography, CardContent } from '@mui/material'
 
 const CardOrg = styled(Card)(({ theme }) => {

@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
-import { dims } from '@tdsk/components'
+import { nav } from '@TAF/services/nav'
+import { dims, AppLogo } from '@tdsk/components'
 import { useSidebarOpen } from '@TAF/state/selectors'
-import { SBLogo } from '@TAF/components/Sidebar/SBLogo'
 import { SidebarWidthOpen } from '@TAF/constants/values'
 import { useDynamicNav } from '@TAF/hooks/nav/useDynamicNav'
 import { SBNavList } from '@TAF/components/Sidebar/SBNavList'
@@ -47,7 +47,10 @@ export const MobileSidebar = (props: TMobileSidebar) => {
           minHeight: `${dims.header.hpx} !important`,
         }}
       >
-        <SBLogo full={true} />
+        <AppLogo
+          full
+          onNavigate={() => nav.home()}
+        />
       </Toolbar>
 
       {config.sections.map((section, idx) => {

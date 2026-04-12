@@ -3,9 +3,8 @@ import { ERoutePath } from '@TAF/types'
 import { ERoleType } from '@tdsk/domain'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
-import { ConfirmDelete } from '@tdsk/components'
 import { useActiveOrg } from '@TAF/state/selectors'
-import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
+import { ConfirmDelete, OrgIcon } from '@tdsk/components'
 import { getInitials } from '@TAF/utils/user/getInitials'
 import { getRoleColor } from '@TAF/utils/user/getRoleColor'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
@@ -25,7 +24,6 @@ import {
 import {
   Box,
   Card,
-  Grid,
   Chip,
   List,
   Avatar,

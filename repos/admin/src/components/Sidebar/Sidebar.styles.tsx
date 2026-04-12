@@ -1,9 +1,7 @@
 import { styled } from '@mui/material'
 import Box from '@mui/material/Box'
 import Drawer from '@mui/material/Drawer'
-import type Typography from '@mui/material/Typography'
-import MuiIconButton from '@mui/material/IconButton'
-import { cmx, Text, List, colors, gutter, ListItem, IconButton } from '@tdsk/components'
+import { cmx, List, colors, gutter, ListItem, IconButton } from '@tdsk/components'
 import {
   SubNavPanelWidth,
   SidebarWidthOpen,
@@ -34,30 +32,6 @@ export const SideDrawer = styled(Drawer, {
     }),
   },
 }))
-
-export const LogoContainer = styled(Box)`
-  display: flex;
-  align-items: center;
-`
-export const LogoBtn = styled(MuiIconButton)`
-  padding: 2px;
-  display: flex;
-  margin: 0px 6px;
-  position: relative;
-  border-radius: 6px;
-  align-items: center;
-`
-
-export const LogoText = styled(Text)(
-  ({ theme }) => `
-  left: 100%;
-  font-size: 18px;
-  margin-left: 6px;
-  margin-right: 6px;
-  letter-spacing: -1px;
-  color: ${theme.palette.text.primary};
-`
-) as typeof Typography
 
 export const SBToggleBox = styled(Box)``
 export const SBToggleBtn = styled(IconButton)``

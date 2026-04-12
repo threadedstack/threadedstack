@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { Text } from '@tdsk/components'
 import { cls } from '@keg-hub/jsutils/cls'
 import { Box, IconButton } from '@mui/material'
-import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
-import { ProjectsMenu } from '@TAF/components/Projects/ProjectsMenu'
-import { useActiveOrgId, useActiveProjectId } from '@TAF/state/selectors'
+import { Text, ProjectIcon, SelectorMenu } from '@tdsk/components'
+import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
+import { useActiveOrgId, useActiveProjectId, useProjects } from '@TAF/state/selectors'
 
 const styles = {
   container: {
@@ -50,6 +49,7 @@ export const SBProjectSelector = (props: TSBProjectSelector) => {
 
   const [activeOrgId] = useActiveOrgId()
   const [activeProjectId] = useActiveProjectId()
+  const [projects] = useProjects()
   const [query, setQuery] = useState('')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
@@ -64,8 +64,15 @@ export const SBProjectSelector = (props: TSBProjectSelector) => {
     setQuery('')
   }
 
-  // Only show if there's an active org but no active project
   if (!activeOrgId || activeProjectId) return null
+
+  const items = projects
+    ? Object.values(projects).map((p) => ({
+        id: p.id,
+        name: p.name || p.id,
+        description: p.branch ? `Branch: ${p.branch}` : undefined,
+      }))
+    : []
 
   return (
     <>
@@ -103,14 +110,19 @@ export const SBProjectSelector = (props: TSBProjectSelector) => {
         )}
       </Box>
 
-      <ProjectsMenu
+      <SelectorMenu
         open={open}
+        items={items}
         query={query}
         onClose={onClose}
-        anchorEl={anchorEl}
         setQuery={setQuery}
-        activeProjectId={activeProjectId}
-        onCreateProject={onCreateProject}
+        anchorEl={anchorEl}
+        onCreate={onCreateProject}
+        activeId={activeProjectId}
+        createLabel='Create Project'
+        emptyMessage='No projects found'
+        searchPlaceholder='Search projects...'
+        onSelect={(item) => setProjectActive(item.id)}
       />
     </>
   )

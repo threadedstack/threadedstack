@@ -4,12 +4,11 @@ import { useState } from 'react'
 import { Box } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import { Add as AddIcon } from '@mui/icons-material'
-import { OrgIcon } from '@TAF/components/Orgs/OrgIcon'
 import { createOrg } from '@TAF/actions/orgs/api/createOrg'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { useAsyncAction } from '@TAF/hooks/components/useAsyncAction'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { Button, Drawer, DrawerActions, TextInput } from '@tdsk/components'
+import { Button, Drawer, DrawerActions, OrgIcon, TextInput } from '@tdsk/components'
 
 const CreateBox = styled(Box)`
   display: flex;

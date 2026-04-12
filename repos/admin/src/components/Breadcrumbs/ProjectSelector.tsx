@@ -1,39 +1,14 @@
-import { useState } from 'react'
-import { cls } from '@keg-hub/jsutils/cls'
-import { Button, Text } from '@tdsk/components'
-import { ProjectIcon } from '@TAF/components/Projects/ProjectIcon'
-import { ProjectsMenu } from '@TAF/components/Projects/ProjectsMenu'
+import type { MouseEvent } from 'react'
 
+import { useState } from 'react'
+import { ProjectIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
+import { setProjectActive } from '@TAF/actions/projects/local/setProjectActive'
 import {
+  useProjects,
   useActiveOrgId,
   useActiveProject,
   useActiveProjectId,
 } from '@TAF/state/selectors'
-import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
-
-const styles = {
-  icon: {
-    fontSize: 18,
-  },
-  text: {
-    fontWeight: 500,
-    maxWidth: 150,
-    overflow: `hidden`,
-    whiteSpace: `nowrap`,
-    textOverflow: `ellipsis`,
-  },
-  button: {
-    color: `text.primary`,
-    textTransform: `none`,
-    [`&.open .MuiButton-endIcon`]: {
-      transform: `rotate(180deg)`,
-    },
-    [`& .MuiButton-endIcon`]: {
-      transform: `rotate(0deg)`,
-      transition: `transform 0.2s ease`,
-    },
-  },
-}
 
 export type TProjectSelector = {
   className?: string
@@ -44,14 +19,15 @@ export const ProjectSelector = (props: TProjectSelector) => {
   const { className, onCreateProject } = props
 
   const [activeOrgId] = useActiveOrgId()
-  const [query, setQuery] = useState('')
   const [activeProject] = useActiveProject()
   const [activeProjectId] = useActiveProjectId()
+  const [projects] = useProjects()
+  const [query, setQuery] = useState('')
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   const open = Boolean(anchorEl)
 
-  const onClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const onClick = (event: MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget)
   }
 
@@ -60,38 +36,47 @@ export const ProjectSelector = (props: TProjectSelector) => {
     setQuery('')
   }
 
+  const items = projects
+    ? Object.values(projects).map((p) => ({
+        id: p.id,
+        name: p.name || p.id,
+        description: p.branch ? `Branch: ${p.branch}` : undefined,
+      }))
+    : []
+
+  if (!activeOrgId) return null
+
   return (
-    (activeOrgId && (
-      <>
-        <Button
-          onClick={onClick}
-          sx={styles.button}
-          EndIcon={<ExpandMoreIcon />}
-          className={cls(`tdsk-project-selector`, open && `open`, className)}
-        >
+    <>
+      <SelectorButton
+        open={open}
+        onClick={onClick}
+        className={className}
+        text={activeProject?.name}
+        placeholder='Select Project'
+        icon={
           <ProjectIcon
             text
-            sx={styles.icon}
+            sx={{ fontSize: 18 }}
           />
-          <Text
-            variant='body2'
-            sx={styles.text}
-          >
-            {activeProject?.name || `Select Project`}
-          </Text>
-        </Button>
-
-        <ProjectsMenu
-          open={open}
-          query={query}
-          onClose={onClose}
-          anchorEl={anchorEl}
-          setQuery={setQuery}
-          activeProjectId={activeProjectId}
-          onCreateProject={onCreateProject}
-        />
-      </>
-    )) ||
-    null
+        }
+      />
+      <SelectorMenu
+        open={open}
+        items={items}
+        query={query}
+        setQuery={setQuery}
+        anchorEl={anchorEl}
+        activeId={activeProjectId}
+        onSelect={(item) => {
+          setProjectActive(item.id)
+        }}
+        onClose={onClose}
+        onCreate={onCreateProject}
+        createLabel='Create Project'
+        emptyMessage='No projects found'
+        searchPlaceholder='Search projects...'
+      />
+    </>
   )
 }
