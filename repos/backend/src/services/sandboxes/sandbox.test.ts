@@ -489,6 +489,133 @@ describe(`SandboxService`, () => {
     })
   })
 
+  describe(`findRunningPod`, () => {
+    it(`should return podName for Running pod without deletionTimestamp`, async () => {
+      kube.listPods.mockResolvedValue([
+        {
+          metadata: {
+            name: `tdsk-sb-test-aaaa`,
+            labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
+          },
+          status: { phase: `Running` },
+        },
+      ])
+
+      const result = await svc.findRunningPod(`sb-1`, `org-1`)
+
+      expect(result).toBe(`tdsk-sb-test-aaaa`)
+    })
+
+    it(`should skip Running pod with deletionTimestamp set`, async () => {
+      kube.listPods.mockResolvedValue([
+        {
+          metadata: {
+            name: `tdsk-sb-test-aaaa`,
+            labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
+            deletionTimestamp: new Date().toISOString(),
+          },
+          status: { phase: `Running` },
+        },
+      ])
+
+      const result = await svc.findRunningPod(`sb-1`, `org-1`)
+
+      expect(result).toBeUndefined()
+    })
+
+    it(`should return non-terminating pod when both exist for same sandboxId`, async () => {
+      kube.listPods.mockResolvedValue([
+        {
+          metadata: {
+            name: `tdsk-sb-test-old1`,
+            labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
+            deletionTimestamp: new Date().toISOString(),
+          },
+          status: { phase: `Running` },
+        },
+        {
+          metadata: {
+            name: `tdsk-sb-test-new1`,
+            labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
+          },
+          status: { phase: `Running` },
+        },
+      ])
+
+      const result = await svc.findRunningPod(`sb-1`, `org-1`)
+
+      expect(result).toBe(`tdsk-sb-test-new1`)
+    })
+  })
+
+  describe(`findActivePod`, () => {
+    it(`should return podName for Running pod without deletionTimestamp`, async () => {
+      kube.listPods.mockResolvedValue([
+        {
+          metadata: {
+            name: `tdsk-sb-test-aaaa`,
+            labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
+          },
+          status: { phase: `Running` },
+        },
+      ])
+
+      const result = await svc.findActivePod(`sb-1`, `org-1`)
+
+      expect(result).toBe(`tdsk-sb-test-aaaa`)
+    })
+
+    it(`should return podName for Pending pod without deletionTimestamp`, async () => {
+      kube.listPods.mockResolvedValue([
+        {
+          metadata: {
+            name: `tdsk-sb-test-aaaa`,
+            labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
+          },
+          status: { phase: `Pending` },
+        },
+      ])
+
+      const result = await svc.findActivePod(`sb-1`, `org-1`)
+
+      expect(result).toBe(`tdsk-sb-test-aaaa`)
+    })
+
+    it(`should skip Running pod with deletionTimestamp set`, async () => {
+      kube.listPods.mockResolvedValue([
+        {
+          metadata: {
+            name: `tdsk-sb-test-aaaa`,
+            labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
+            deletionTimestamp: new Date().toISOString(),
+          },
+          status: { phase: `Running` },
+        },
+      ])
+
+      const result = await svc.findActivePod(`sb-1`, `org-1`)
+
+      expect(result).toBeUndefined()
+    })
+
+    it(`should skip Pending pod with deletionTimestamp set`, async () => {
+      kube.listPods.mockResolvedValue([
+        {
+          metadata: {
+            name: `tdsk-sb-test-aaaa`,
+            labels: { [`tdsk.app/sandbox-id`]: `sb-1` },
+            deletionTimestamp: new Date().toISOString(),
+          },
+          status: { phase: `Pending` },
+        },
+      ])
+
+      const result = await svc.findActivePod(`sb-1`, `org-1`)
+
+      expect(result).toBeUndefined()
+    })
+  })
+
   describe(`getPodState`, () => {
     it(`should return Running for a running pod`, async () => {
       kube.getPod.mockResolvedValue({ status: { phase: `Running` } })
@@ -544,6 +671,18 @@ describe(`SandboxService`, () => {
 
       await expect(svc.getPodState(`pod-a`)).rejects.toThrow(`Forbidden`)
     })
+
+    it(`should return Terminating when pod has deletionTimestamp set`, async () => {
+      kube.getPod.mockResolvedValue({
+        metadata: { deletionTimestamp: new Date().toISOString() },
+        status: { phase: `Running` },
+      })
+
+      const result = await svc.getPodState(`pod-a`)
+
+      expect(result).toBe(EContainerState.Terminating)
+      expect(mockToContainerState).not.toHaveBeenCalled()
+    })
   })
 
   describe(`getSandbox`, () => {
@@ -562,6 +701,17 @@ describe(`SandboxService`, () => {
 
       await expect(svc.getSandbox(`pod-a`)).rejects.toThrow(
         `Pod pod-a is not running (state: Pending)`
+      )
+    })
+
+    it(`should throw when pod is Terminating`, async () => {
+      kube.getPod.mockResolvedValue({
+        metadata: { deletionTimestamp: new Date().toISOString() },
+        status: { phase: `Running` },
+      })
+
+      await expect(svc.getSandbox(`pod-a`)).rejects.toThrow(
+        `Pod pod-a is not running (state: Terminating)`
       )
     })
   })

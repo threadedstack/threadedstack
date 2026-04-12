@@ -293,6 +293,24 @@ describe(`KubeClient`, () => {
       expect(routes[`sb-good-bbbb`]).toBeDefined()
     })
 
+    it(`should delete pods with deletionTimestamp set (terminating)`, async () => {
+      const pod = makePod({
+        metadata: { deletionTimestamp: new Date().toISOString() },
+        status: { phase: EContainerState.Running, podIP: `10.0.0.5` },
+      })
+      mockCoreApi.listNamespacedPod.mockResolvedValue({ items: [pod] })
+      mockCoreApi.deleteNamespacedPod.mockResolvedValue({})
+
+      await client.hydrate()
+
+      expect(mockCoreApi.deleteNamespacedPod).toHaveBeenCalledWith({
+        name: `tdsk-sb-test1234-abcd`,
+        namespace: `test-ns`,
+        gracePeriodSeconds: undefined,
+      })
+      expect(Object.keys(client.routes)).toHaveLength(0)
+    })
+
     it(`should NOT delete Running or Pending pods`, async () => {
       const runningPod = makePod({
         status: { phase: EContainerState.Running, podIP: `10.0.0.10` },
@@ -387,6 +405,40 @@ describe(`KubeClient`, () => {
       expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining(`missing name or sandboxId`)
       )
+    })
+
+    it(`should remove route when Running pod has deletionTimestamp set`, () => {
+      const pod = makePod()
+
+      // Pod starts Running — route exists
+      client.hydrateSingle(pod as any)
+      expect(client.routes[`sb-test1234-abcd`]).toBeDefined()
+
+      // Pod gets deletionTimestamp (K8s delete with grace period) — phase still Running
+      const terminatingPod = makePod({
+        metadata: { deletionTimestamp: new Date().toISOString() },
+      })
+      const callback = vi.fn()
+      client.onRemoveRoute(callback)
+
+      client.hydrateSingle(terminatingPod as any)
+
+      expect(client.routes[`sb-test1234-abcd`]).toBeUndefined()
+      expect(callback).toHaveBeenCalledTimes(1)
+    })
+
+    it(`should not hydrate Pending pod with deletionTimestamp set`, () => {
+      const pod = makePod({
+        metadata: { deletionTimestamp: new Date().toISOString() },
+        status: { phase: EContainerState.Pending, podIP: `10.0.0.5` },
+      })
+      const callback = vi.fn()
+      client.onRemoveRoute(callback)
+
+      client.hydrateSingle(pod as any)
+
+      expect(Object.keys(client.routes)).toHaveLength(0)
+      expect(callback).not.toHaveBeenCalled()
     })
   })
 

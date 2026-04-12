@@ -216,6 +216,7 @@ export enum EContainerState {
   Running = `Running`,
   Unknown = `Unknown`,
   Succeeded = `Succeeded`,
+  Terminating = `Terminating`,
 }
 
 export type TContainerMeta = {

@@ -333,7 +333,9 @@ export class SandboxService {
   async findRunningPod(sandboxId: string, orgId: string): Promise<string | undefined> {
     const pods = await this.listPods({ orgId, state: EContainerState.Running })
     const match = pods.find(
-      (p) => p.metadata?.labels?.[PodLabelKeys.sandboxId] === sandboxId
+      (p) =>
+        p.metadata?.labels?.[PodLabelKeys.sandboxId] === sandboxId &&
+        !p.metadata?.deletionTimestamp
     )
     return match?.metadata?.name
   }
@@ -345,6 +347,7 @@ export class SandboxService {
       const id = p.metadata?.labels?.[PodLabelKeys.sandboxId]
       return (
         id === sandboxId &&
+        !p.metadata?.deletionTimestamp &&
         (phase === EContainerState.Running || phase === EContainerState.Pending)
       )
     })
@@ -445,6 +448,7 @@ export class SandboxService {
   async getPodState(podName: string): Promise<EContainerState> {
     try {
       const pod = await this.kube.getPod(podName)
+      if (pod.metadata?.deletionTimestamp) return EContainerState.Terminating
       return toContainerState(pod.status?.phase)
     } catch (err: any) {
       const code = err?.code ?? err?.statusCode ?? err?.response?.statusCode

@@ -3,7 +3,7 @@ import { api, get, post } from './api-client'
 import { uniqueName } from './unique-name'
 import { tryDelete } from './cleanup'
 
-type TPodState = 'Running' | 'Pending' | 'Failed' | 'Unknown' | 'Succeeded'
+type TPodState = 'Running' | 'Pending' | 'Failed' | 'Unknown' | 'Succeeded' | 'Terminating'
 
 type TSandboxResult = {
   output: string
@@ -83,6 +83,8 @@ export const waitForPodState = async (
     if (lastState === desiredState) return lastState
     if (lastState === 'Failed' && desiredState !== 'Failed')
       throw new Error(`Pod entered Failed state while waiting for ${desiredState}`)
+    if (lastState === 'Terminating' && desiredState !== 'Terminating')
+      throw new Error(`Pod entered Terminating state while waiting for ${desiredState}`)
 
     await new Promise(r => setTimeout(r, intervalMs))
   }

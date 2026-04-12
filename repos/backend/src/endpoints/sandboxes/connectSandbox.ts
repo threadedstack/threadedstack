@@ -82,7 +82,7 @@ export const connectSandbox: TEndpointConfig = {
             logger.info(`[Sandbox] Pod ${podName} state: ${prevState} → ${state}`)
             prevState = state
           }
-          if (state === EContainerState.Failed) {
+          if (state === EContainerState.Failed || state === EContainerState.Terminating) {
             throw new Exception(500, `Pod failed to start`)
           }
         }

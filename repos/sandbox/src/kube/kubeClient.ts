@@ -312,11 +312,13 @@ export class KubeClient {
   }
 
   private shouldHydrate(pod: k8s.V1Pod): boolean {
+    if (pod.metadata?.deletionTimestamp) return false
     const phase = pod.status?.phase
     return phase === EContainerState.Running || phase === EContainerState.Pending
   }
 
   private shouldRemove(pod: k8s.V1Pod): boolean {
+    if (pod.metadata?.deletionTimestamp) return true
     const phase = pod.status?.phase
     return phase === EContainerState.Failed || phase === EContainerState.Succeeded
   }
