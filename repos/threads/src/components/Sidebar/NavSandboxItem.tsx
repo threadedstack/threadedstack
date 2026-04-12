@@ -7,7 +7,11 @@ import { Box, Typography, Collapse, Chip } from '@mui/material'
 import { Terminal, ChevronRight } from '@mui/icons-material'
 import { colors, cmx, dims } from '@tdsk/components'
 import { StorageKeyPrefix } from '@TTH/constants/storage'
-import { useOpenSessions, useToolState } from '@TTH/state/selectors'
+import {
+  useSandboxHasSession,
+  useSandboxToolState,
+  useSessionsForSandbox,
+} from '@TTH/state/selectors'
 import { loadThreadHistory } from '@TTH/actions/threads'
 import { NavThreadItem } from '@TTH/components/Sidebar/NavThreadItem'
 
@@ -48,19 +52,19 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
 
   const navigate = useNavigate()
   const location = useLocation()
-  const openSessions = useOpenSessions()
-  const toolState = useToolState(sandbox.id)
+  const hasSession = useSandboxHasSession(sandbox.id)
+  const toolState = useSandboxToolState(sandbox.id)
+  const sessions = useSessionsForSandbox(sandbox.id)
 
   const [expanded, setExpanded] = useState(() => getInitialExpanded(sandbox.id))
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(false)
   const loadedRef = useRef(false)
 
-  const hasSession = openSessions.has(sandbox.id)
   const runtime = sandbox.config?.runtime || `custom`
   const isActive =
     location.pathname === `/sandbox/${sandbox.id}` ||
-    location.pathname === `/session/${sandbox.id}`
+    sessions.some((s) => location.pathname === `/session/${s.sessionId}`)
 
   const handleToggle = useCallback(
     (evt: React.MouseEvent) => {
@@ -79,12 +83,14 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
   )
 
   const handleNavigate = useCallback(() => {
-    const navProjectId = projectId || sandbox.projects?.[0]?.id
-    navigate(
-      `/session/${sandbox.id}`,
-      navProjectId ? { state: { projectId: navProjectId } } : undefined
-    )
-  }, [navigate, sandbox.id, projectId, sandbox.projects])
+    if (sessions.length === 1) {
+      navigate(`/session/${sessions[0].sessionId}`, {
+        state: { sandboxId: sandbox.id, projectId },
+      })
+    } else {
+      navigate(`/sandbox/${sandbox.id}`)
+    }
+  }, [navigate, sandbox.id, projectId, sessions])
 
   // Lazy-load threads when first expanded
   useEffect(() => {

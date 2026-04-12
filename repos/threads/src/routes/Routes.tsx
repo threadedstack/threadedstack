@@ -8,6 +8,7 @@ import { Navigate, createBrowserRouter } from 'react-router'
 const Home = lazy(() => import('@TTH/pages/Home/Home'))
 const Login = lazy(() => import('@TTH/pages/Login/Login'))
 const Settings = lazy(() => import('@TTH/pages/Settings/Settings'))
+const Sandbox = lazy(() => import(`@TTH/pages/Sandbox/Sandbox`))
 
 // Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
@@ -51,6 +52,10 @@ export const Routes = createBrowserRouter([
       {
         path: ERoutePath.Session,
         lazy: () => import('@TTH/pages/Session/Session'),
+      },
+      {
+        path: ERoutePath.Sandbox,
+        Component: () => <SuspensePage Component={Sandbox} />,
       },
     ],
   },

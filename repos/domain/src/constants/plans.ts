@@ -13,6 +13,7 @@ export const PlanLimits: Record<ESubscriptionTier, TPlanLimits> = {
     retention: 7,
     seats: 1,
     additionalSeats: false,
+    sandboxSessions: 1,
   },
   [ESubscriptionTier.solo]: {
     organizations: 2,
@@ -25,6 +26,7 @@ export const PlanLimits: Record<ESubscriptionTier, TPlanLimits> = {
     retention: 30,
     seats: 1,
     additionalSeats: false,
+    sandboxSessions: 3,
   },
   [ESubscriptionTier.pro]: {
     organizations: 5,
@@ -37,6 +39,7 @@ export const PlanLimits: Record<ESubscriptionTier, TPlanLimits> = {
     retention: 90,
     seats: 3,
     additionalSeats: true,
+    sandboxSessions: 10,
   },
   [ESubscriptionTier.team]: {
     organizations: -1,
@@ -49,5 +52,6 @@ export const PlanLimits: Record<ESubscriptionTier, TPlanLimits> = {
     retention: 365,
     seats: 10,
     additionalSeats: true,
+    sandboxSessions: -1,
   },
 } as const

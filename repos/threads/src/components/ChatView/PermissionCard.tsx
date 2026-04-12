@@ -7,20 +7,20 @@ import { Warning } from '@mui/icons-material'
 
 export type TPermissionCard = {
   event: Extract<TParsedEvent, { type: 'permission' }>
-  sandboxId: string
+  sessionId: string
   readOnly?: boolean
 }
 
 export const PermissionCard = (props: TPermissionCard) => {
-  const { event, sandboxId, readOnly } = props
+  const { event, sessionId, readOnly } = props
 
   const handleApprove = useCallback(() => {
-    approvePermission(sandboxId)
-  }, [sandboxId])
+    approvePermission(sessionId)
+  }, [sessionId])
 
   const handleDeny = useCallback(() => {
-    denyPermission(sandboxId)
-  }, [sandboxId])
+    denyPermission(sessionId)
+  }, [sessionId])
 
   return (
     <Card

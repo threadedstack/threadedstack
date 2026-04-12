@@ -1,15 +1,21 @@
 import type WebSocket from 'ws'
 import type { TApp } from '@TBE/types'
 import type { IncomingMessage } from 'http'
-import type { TShellSession, TShellControlMsg } from '@TBE/types/shellSession.types'
+import type {
+  TShellSession,
+  TShellControlMsg,
+  TShellWebSocket,
+} from '@TBE/types/shellSession.types'
 import type { SandboxService } from '@TBE/services/sandboxes/sandbox'
 
 import { Client } from 'ssh2'
 import { nanoid } from 'nanoid'
-import { hashKey } from '@tdsk/domain'
+import { hashKey, ESandboxSessionVisibility, PlanLimits } from '@tdsk/domain'
+import type { ESubscriptionTier } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { TerminalParser } from '@tdsk/domain'
 import { RingBuffer } from '@TBE/utils/ringBuffer'
+import { PodLabelKeys } from '@tdsk/sandbox'
 import { SBBackpressureThreshold } from '@TBE/constants/sandbox'
 import { verifyShellToken } from '@TBE/services/sessionToken'
 
@@ -20,13 +26,13 @@ const SSH_READY_TIMEOUT = 10_000
 /**
  * Handle WebSocket shell connections for interactive terminal access to sandbox pods.
  *
- * Auth: API key in Authorization header (validated here, not by Express middleware).
+ * Auth: API key in Authorization header, or shell token in ?token query param (validated here, not by Express middleware).
  * Path: /_/sandboxes/:id/shell
  * Protocol:
  *   - Binary frames (browser → server): raw stdin bytes → SSH stream
- *   - Text frames (browser → server): JSON control messages (resize, signal)
+ *   - Text frames (browser → server): JSON control messages (resize, signal, visibility) — see TShellControlMsg
  *   - Binary frames (server → browser): raw stdout bytes from SSH stream
- *   - Text frames (server → browser): JSON status messages (connected, reconnected, error)
+ *   - Text frames (server → browser): JSON status messages (connected, reconnected, joined, visibility, user-joined, user-left, disconnected, error) — see TShellServerMsg
  *
  * Unlike the tunnel endpoint (raw TCP bridge), this handler:
  *   - Establishes an SSH connection via ssh2.Client and allocates a PTY shell
@@ -49,22 +55,17 @@ export const onShellConnect = async (
     closed = true
     if (pingInterval) clearInterval(pingInterval)
 
-    const sessionId = (ws as any).__shellSessionId as string | undefined
-    if (sessionId) {
-      sbService.detachFromShellSession(sessionId, ws)
-    }
+    const sessionId = (ws as TShellWebSocket).__shellSessionId
+    if (sessionId) sbService.detachFromShellSession(sessionId, ws)
 
     try {
-      if (ws.readyState === ws.OPEN) {
+      if (ws.readyState === ws.OPEN)
         ws.send(JSON.stringify({ type: `disconnected`, reason }))
-      }
     } catch (err) {
       logger.debug(`[Shell] Failed to send disconnect message:`, (err as Error).message)
     }
     try {
-      if (ws.readyState === ws.OPEN || ws.readyState === ws.CONNECTING) {
-        ws.close()
-      }
+      if (ws.readyState === ws.OPEN || ws.readyState === ws.CONNECTING) ws.close()
     } catch (err) {
       logger.debug(`[Shell] Failed to close WebSocket:`, (err as Error).message)
     }
@@ -139,57 +140,132 @@ export const onShellConnect = async (
     return
   }
 
-  // 5. Handle reconnection to existing session
+  // 5. Handle reconnect/join via sessionId param
   if (reconnectSessionId) {
     const existing = sbService.getShellSession(reconnectSessionId)
-    if (existing && existing.userId === userId && existing.sandboxId === sandboxId) {
-      const session = sbService.attachToShellSession(reconnectSessionId, ws)
-      if (!session) {
-        ws.close(4005, `Session expired during reconnection`)
+    if (existing && existing.sandboxId === sandboxId) {
+      if (existing.userId === userId) {
+        // Own session reconnection
+        const session = sbService.attachToShellSession(reconnectSessionId, ws)
+        if (!session) {
+          ws.close(4005, `Session expired during reconnection`)
+          return
+        }
+        ;(ws as TShellWebSocket).__shellSessionId = reconnectSessionId
+
+        const buffered = session.buffer.drain()
+        if (buffered.length > 0) ws.send(buffered)
+
+        const podName = await sbService.findRunningPod(sandboxId, orgId)
+        let podOwnerUserId = userId
+        if (podName) {
+          try {
+            const pod = await kube.getPod(podName)
+            podOwnerUserId = pod.metadata?.labels?.[PodLabelKeys.userId] ?? userId
+          } catch (err) {
+            logger.warn(
+              `[Shell] Failed to get pod labels for ${podName} during reconnect:`,
+              (err as Error).message
+            )
+          }
+        }
+
+        const { data: sbConfig } = await db.services.sandbox.get(sandboxId)
+
+        ws.send(
+          JSON.stringify({
+            sandboxId,
+            podOwnerUserId,
+            type: `reconnected`,
+            threadId: session.threadId,
+            sessionId: reconnectSessionId,
+            visibility: session.visibility,
+            bufferedBytes: buffered.length,
+            runtime: sbConfig?.config?.runtime ?? `custom`,
+          })
+        )
+
+        wireWebSocket(ws, session, sbService, cleanup, podName)
+        startPingInterval()
         return
       }
-      ;(ws as any).__shellSessionId = reconnectSessionId
+
+      // Cross-user join — verify public + project access
+      if (existing.visibility !== ESandboxSessionVisibility.public) {
+        ws.close(4003, `Session is not shared`)
+        return
+      }
+
+      // Verify joining user has org membership
+      const { data: userRole, error: roleErr } = await db.services.role.getOrgRole(
+        userId,
+        orgId
+      )
+      if (roleErr) {
+        logger.warn(
+          `[Shell] Role lookup failed for user ${userId} in org ${orgId}:`,
+          roleErr.message
+        )
+      }
+      if (!userRole) {
+        ws.close(4003, `Not authorized to join this session`)
+        return
+      }
+
+      const { data: sbConfig } = await db.services.sandbox.get(sandboxId)
+
+      const session = sbService.attachToShellSession(reconnectSessionId, ws)
+      if (!session) {
+        ws.close(4005, `Session expired`)
+        return
+      }
+      ;(ws as TShellWebSocket).__shellSessionId = reconnectSessionId
+      ;(ws as TShellWebSocket).__joinedUserId = userId
 
       const buffered = session.buffer.drain()
       if (buffered.length > 0) ws.send(buffered)
 
+      const podName = await sbService.findRunningPod(sandboxId, orgId)
+      let podOwnerUserId = existing.userId
+      if (podName) {
+        try {
+          const pod = await kube.getPod(podName)
+          podOwnerUserId = pod.metadata?.labels?.[PodLabelKeys.userId] ?? existing.userId
+        } catch (err) {
+          logger.warn(
+            `[Shell] Failed to get pod labels for ${podName} during join:`,
+            (err as Error).message
+          )
+        }
+      }
+
       ws.send(
         JSON.stringify({
-          type: `reconnected`,
+          sandboxId,
+          type: `joined`,
+          podOwnerUserId,
+          threadId: session.threadId,
           sessionId: reconnectSessionId,
-          bufferedBytes: buffered.length,
+          runtime: sbConfig?.config?.runtime ?? `custom`,
         })
       )
 
-      wireWebSocket(ws, session, sbService, cleanup)
+      // Notify other attachments
+      for (const client of session.attachments) {
+        if (client !== ws && client.readyState === 1) {
+          client.send(
+            JSON.stringify({ type: `user-joined`, sessionId: reconnectSessionId, userId })
+          )
+        }
+      }
+
+      wireWebSocket(ws, session, sbService, cleanup, podName)
       startPingInterval()
       return
     }
   }
 
-  // 6. Check for existing session for this sandbox+user
-  const existingSession = sbService.findShellSessionForSandbox(sandboxId, userId)
-  if (existingSession) {
-    sbService.attachToShellSession(existingSession.sessionId, ws)
-    ;(ws as any).__shellSessionId = existingSession.sessionId
-
-    const buffered = existingSession.buffer.drain()
-    if (buffered.length > 0) ws.send(buffered)
-
-    ws.send(
-      JSON.stringify({
-        type: `reconnected`,
-        sessionId: existingSession.sessionId,
-        bufferedBytes: buffered.length,
-      })
-    )
-
-    wireWebSocket(ws, existingSession, sbService, cleanup)
-    startPingInterval()
-    return
-  }
-
-  // 7. Find running pod
+  // 6. Find running pod
   const podName = await sbService.findRunningPod(sandboxId, orgId)
   if (!podName) {
     ws.close(4004, `No running pod for sandbox ${sandboxId}`)
@@ -205,16 +281,49 @@ export const onShellConnect = async (
     return
   }
 
-  // 8. Get pod IP and SSH password
+  // 7. Get pod info and verify requesting user is the pod creator
+  let podOwnerUserId: string
   let podIp: string | undefined
   try {
     const pod = await kube.getPod(podName)
+    podOwnerUserId = pod.metadata?.labels?.[PodLabelKeys.userId] ?? ``
     podIp = pod.status?.podIP
   } catch (err) {
     logger.warn(`[Shell] Failed to get pod ${podName}:`, (err as Error).message)
     ws.close(4004, `Pod not reachable`)
     return
   }
+
+  if (podOwnerUserId !== userId) {
+    ws.close(4003, `Cannot create sessions on a pod you did not start`)
+    return
+  }
+
+  // 8. Check PlanLimits concurrent session cap
+  try {
+    const { data: org } = await db.services.org.get(orgId)
+    if (org?.ownerId) {
+      const { data: sub } = await db.services.subscription.findByUser(org.ownerId)
+      const tier = (sub?.tier ?? `free`) as ESubscriptionTier
+      const limit = PlanLimits[tier].sandboxSessions
+      if (limit !== -1) {
+        const count = sbService.getOrgShellSessionCount(orgId)
+        if (count >= limit) {
+          ws.close(4029, `Session limit reached for your plan`)
+          return
+        }
+      }
+    }
+  } catch (err) {
+    logger.error(
+      `[Shell] PlanLimits check failed, denying session:`,
+      (err as Error).message
+    )
+    ws.close(4029, `Unable to verify session limits. Please try again.`)
+    return
+  }
+
+  // 9. Validate pod IP and get SSH password
   if (!podIp) {
     ws.close(4004, `Pod has no IP address`)
     return
@@ -229,7 +338,7 @@ export const onShellConnect = async (
     return
   }
 
-  // 9. Get sandbox config for runtime info
+  // 10. Get sandbox config for runtime info
   const { data: sandbox, error: sbErr } = await db.services.sandbox.get(sandboxId)
   if (sbErr) {
     logger.warn(`[Shell] Failed to load sandbox config for ${sandboxId}:`, sbErr.message)
@@ -237,22 +346,23 @@ export const onShellConnect = async (
   const runtime = sandbox?.config?.runtime ?? `custom`
   const runtimeCommand = sandbox?.config?.runtimeCommand
 
-  // 10. Create thread for session history
+  // 11. Create thread for session history
   const { data: thread, error: threadErr } = await db.services.thread.create({
-    name: `${sandbox?.name ?? `Sandbox`} \u2014 ${new Date().toISOString()}`,
-    sandboxId,
     orgId,
     userId,
-    projectId: sandbox?.projects?.[0]?.id ?? undefined,
+    sandboxId,
     meta: { runtime, shellSessionId: `` },
+    projectId: sandbox?.projects?.[0]?.id ?? undefined,
+    name: `${sandbox?.name ?? `Sandbox`} \u2014 ${new Date().toISOString()}`,
   })
+
   if (threadErr || !thread) {
     ws.close(4005, `Failed to create session thread`)
     return
   }
   const threadId = thread.id
 
-  // 11. Establish SSH connection
+  // 12. Establish SSH connection
   const sessionId = nanoid(16)
   const sshClient = new Client()
 
@@ -273,21 +383,23 @@ export const onShellConnect = async (
       })
 
       const session: TShellSession = {
-        sessionId,
-        sshClient,
-        sshStream: stream,
-        buffer: new RingBuffer(1024 * 1024),
-        attachments: new Set([ws]),
+        orgId,
+        userId,
         parser,
         threadId,
-        userId,
-        orgId,
         sandboxId,
+        sessionId,
+        sshClient,
         ttlTimer: null,
+        sshStream: stream,
+        attachments: new Set([ws]),
+        buffer: new RingBuffer(1024 * 1024),
+        projectId: sandbox?.projects?.[0]?.id ?? undefined,
+        visibility: ESandboxSessionVisibility.private,
       }
 
       sbService.addShellSession(session)
-      ;(ws as any).__shellSessionId = sessionId
+      ;(ws as TShellWebSocket).__shellSessionId = sessionId
 
       // Update thread meta with session ID
       db.services.thread
@@ -310,22 +422,23 @@ export const onShellConnect = async (
         sessionId,
         sandboxId,
         connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
+        projectId: sandbox?.projects?.[0]?.id ?? undefined,
       })
 
       ws.send(
         JSON.stringify({
           type: `connected`,
-          sessionId,
-          sandboxId,
           runtime,
           threadId,
+          sessionId,
+          sandboxId,
+          podOwnerUserId,
         })
       )
 
       // Execute runtime command if requested
-      if (shouldRun && runtimeCommand) {
-        stream.write(`${runtimeCommand}\n`)
-      }
+      if (shouldRun && runtimeCommand) stream.write(`${runtimeCommand}\n`)
 
       // SSH stream -> WebSocket fan-out
       stream.on(`data`, (data: Buffer) => {
@@ -377,12 +490,12 @@ export const onShellConnect = async (
   })
 
   sshClient.connect({
-    host: podIp,
-    port: 2222,
-    username: `sandbox`,
     password,
-    keepaliveInterval: SSH_KEEPALIVE_INTERVAL,
+    port: 2222,
+    host: podIp,
+    username: `sandbox`,
     readyTimeout: SSH_READY_TIMEOUT,
+    keepaliveInterval: SSH_KEEPALIVE_INTERVAL,
   })
 }
 
@@ -401,12 +514,36 @@ function wireWebSocket(
       } catch {
         return // Non-JSON text, skip
       }
+
       try {
         if (msg.type === `resize`) {
           session.sshStream.setWindow(msg.rows, msg.cols, msg.rows * 16, msg.cols * 8)
         } else if (msg.type === `signal`) {
           if (msg.signal === `SIGINT`) session.sshStream.write(`\x03`)
           else if (msg.signal === `SIGTSTP`) session.sshStream.write(`\x1a`)
+        } else if (msg.type === `visibility`) {
+          // Only the session creator can toggle visibility.
+          // For the owner's WS, __joinedUserId is unset so it falls back to session.userId (matching).
+          // For joiners, __joinedUserId is set to their userId (non-matching).
+          const authUserId = (ws as TShellWebSocket).__joinedUserId ?? session.userId
+          if (authUserId !== session.userId) return
+
+          if (!Object.values(ESandboxSessionVisibility).includes(msg.visibility)) return
+
+          const newVis = msg.visibility
+          sbService.updateSessionVisibility(session.sessionId, newVis)
+
+          for (const client of session.attachments) {
+            if (client.readyState === 1) {
+              client.send(
+                JSON.stringify({
+                  type: `visibility`,
+                  visibility: newVis,
+                  sessionId: session.sessionId,
+                })
+              )
+            }
+          }
         }
       } catch (err) {
         logger.warn(`[Shell] Failed to process control message:`, (err as Error).message)

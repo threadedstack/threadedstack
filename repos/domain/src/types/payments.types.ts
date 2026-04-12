@@ -28,4 +28,5 @@ export type TPlanLimits = {
   retention: number
   seats: number
   additionalSeats: boolean
+  sandboxSessions: number
 }

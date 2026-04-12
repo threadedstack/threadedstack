@@ -1,8 +1,9 @@
 import type { MouseEvent } from 'react'
 
-import { useState } from 'react'
-import { ProjectIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
+import { useNavigate } from 'react-router'
+import { useState, useCallback } from 'react'
 import { setActiveProjectId } from '@TTH/state/accessors'
+import { ProjectIcon, SelectorButton, SelectorMenu } from '@tdsk/components'
 import {
   useOrgId,
   useProjects,
@@ -12,10 +13,11 @@ import {
 
 export const ProjectSelector = () => {
   const orgId = useOrgId()
+  const navigate = useNavigate()
   const projects = useProjects()
+  const [query, setQuery] = useState(``)
   const activeProject = useActiveProject()
   const [activeProjectId] = useActiveProjectId()
-  const [query, setQuery] = useState('')
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
   const open = Boolean(anchorEl)
@@ -29,6 +31,15 @@ export const ProjectSelector = () => {
     setQuery('')
   }
 
+  const onSelect = useCallback(
+    (item: { id: string }) => {
+      setActiveProjectId(item.id)
+      onClose()
+      navigate(`/project/${item.id}`)
+    },
+    [navigate]
+  )
+
   const items = projects.map((p) => ({
     id: p.id,
     name: p.name || p.id,
@@ -40,29 +51,29 @@ export const ProjectSelector = () => {
   return (
     <>
       <SelectorButton
+        open={open}
+        onClick={onClick}
+        text={activeProject?.name}
+        placeholder='Select Project'
+        className='tdsk-project-selector'
         icon={
           <ProjectIcon
             text
             sx={{ fontSize: 18 }}
           />
         }
-        text={activeProject?.name}
-        open={open}
-        onClick={onClick}
-        className='tdsk-project-selector'
-        placeholder='Select Project'
       />
       <SelectorMenu
+        open={open}
         items={items}
         query={query}
+        onClose={onClose}
+        onSelect={onSelect}
+        anchorEl={anchorEl}
         setQuery={setQuery}
         activeId={activeProjectId}
-        open={open}
-        anchorEl={anchorEl}
-        onSelect={(item) => setActiveProjectId(item.id)}
-        onClose={onClose}
-        searchPlaceholder='Search projects...'
         emptyMessage='No projects found'
+        searchPlaceholder='Search projects...'
       />
     </>
   )

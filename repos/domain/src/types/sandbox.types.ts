@@ -246,8 +246,17 @@ export type TSandboxSession = {
   podName: string
   sandboxId: string
   sessionId: string
+  projectId?: string
   connectedAt: string
+  visibility: ESandboxSessionVisibility
 }
+
+export enum ESandboxSessionVisibility {
+  private = `private`,
+  public = `public`,
+}
+
+export type TSandboxSessionVisibility = `${ESandboxSessionVisibility}`
 
 export type TSandboxConnectResponse = {
   port: number

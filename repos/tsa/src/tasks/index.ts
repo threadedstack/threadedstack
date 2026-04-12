@@ -11,6 +11,7 @@ import { logout } from './logout'
 import { status } from './status'
 import { agents } from './agents'
 import { threads } from './threads'
+import { sessions } from './sessions'
 import { sandboxes } from './sandboxes'
 
 export const tasks: TTasks = {
@@ -25,5 +26,6 @@ export const tasks: TTasks = {
   status,
   agents,
   threads,
+  sessions,
   sandboxes,
 }

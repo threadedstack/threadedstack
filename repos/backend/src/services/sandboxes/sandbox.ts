@@ -1,6 +1,6 @@
 import type { TApp } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
-import type { TShellSession } from '@TBE/types'
+import type { TShellSession, TShellWebSocket } from '@TBE/types'
 import type { TParsedEvent } from '@tdsk/domain'
 import type { TPodEgressOpts } from '@tdsk/sandbox'
 import type { RequestHandler } from 'http-proxy-middleware'
@@ -12,7 +12,7 @@ import { networkInterfaces } from 'node:os'
 
 import { DefSBConfig } from '@TBE/constants/sandbox'
 import { PhTokenPrefix } from '@TBE/constants/values'
-import { Exception, EContainerState } from '@tdsk/domain'
+import { Exception, EContainerState, ESandboxSessionVisibility } from '@tdsk/domain'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import { SecretResolver } from '@TBE/services/secrets/secretResolver'
 import { resolveProviderEnv } from '@TBE/utils/sandbox/resolveProviderEnv'
@@ -489,6 +489,42 @@ export class SandboxService {
     return this.shellSessions.get(sessionId)
   }
 
+  getShellSessionsForSandbox(sandboxId: string): TShellSession[] {
+    const result: TShellSession[] = []
+    for (const session of this.shellSessions.values()) {
+      if (session.sandboxId === sandboxId) result.push(session)
+    }
+    return result
+  }
+
+  getOrgShellSessionCount(orgId: string): number {
+    let count = 0
+    for (const session of this.shellSessions.values()) {
+      if (session.orgId === orgId) count++
+    }
+    return count
+  }
+
+  updateSessionVisibility(
+    sessionId: string,
+    visibility: ESandboxSessionVisibility
+  ): boolean {
+    const shell = this.shellSessions.get(sessionId)
+    if (!shell) return false
+
+    shell.visibility = visibility
+
+    for (const [podName, sessions] of this.sessions.entries()) {
+      const match = sessions.find((s) => s.sessionId === sessionId)
+      if (match) {
+        match.visibility = visibility
+        break
+      }
+    }
+
+    return true
+  }
+
   addShellSession(session: TShellSession) {
     this.shellSessions.set(session.sessionId, session)
   }
@@ -538,6 +574,22 @@ export class SandboxService {
 
     session.attachments.delete(ws)
 
+    // Broadcast user-left if this is a public session
+    if (session.visibility === ESandboxSessionVisibility.public) {
+      const departingUserId = (ws as TShellWebSocket).__joinedUserId ?? session.userId
+      for (const client of session.attachments) {
+        if (client.readyState === 1) {
+          client.send(
+            JSON.stringify({
+              type: `user-left`,
+              sessionId,
+              userId: departingUserId,
+            })
+          )
+        }
+      }
+    }
+
     if (session.attachments.size === 0) {
       session.ttlTimer = setTimeout(async () => {
         try {
@@ -551,16 +603,6 @@ export class SandboxService {
         this.removeShellSession(sessionId)
       }, this.ShellTtlMS)
     }
-  }
-
-  findShellSessionForSandbox(
-    sandboxId: string,
-    userId: string
-  ): TShellSession | undefined {
-    for (const session of this.shellSessions.values()) {
-      if (session.sandboxId === sandboxId && session.userId === userId) return session
-    }
-    return undefined
   }
 
   queueEventForPersistence(sessionId: string, event: TParsedEvent) {

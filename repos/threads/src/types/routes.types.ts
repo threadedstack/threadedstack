@@ -11,7 +11,7 @@ export enum ERoutePath {
   Settings = `settings`,
   Project = `project/:projectId`,
   Sandbox = `sandbox/:sandboxId`,
-  Session = `session/:sandboxId`,
+  Session = `session/:sessionId`,
   // Catch-all
   Star = `*`,
 }

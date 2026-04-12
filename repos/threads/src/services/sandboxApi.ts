@@ -1,5 +1,5 @@
 import type { TApiRes, TApiCacheKeys } from '@TTH/types'
-import type { TSandboxConnectResponse } from '@tdsk/domain'
+import type { TSandboxConnectResponse, TSandboxSession } from '@tdsk/domain'
 
 import { Sandbox } from '@tdsk/domain'
 import { BaseApi } from '@TTH/services/api'
@@ -61,6 +61,19 @@ export class SandboxApi extends BaseApi {
       data: {},
     })
     resp.error && (await this._onError(resp.error, `Failed to connect to sandbox`))
+    return resp
+  }
+
+  async sessions(
+    orgId: string,
+    projectId: string,
+    id: string
+  ): Promise<TApiRes<TSandboxSession[]>> {
+    const resp = await this.api.get<TSandboxSession[]>({
+      path: `${this.#path(orgId, projectId)}/${id}/sessions`,
+      queryKey: [...this.cache.detail(id), `sessions`],
+    })
+    resp.error && (await this._onError(resp.error, `Failed to load sessions`))
     return resp
   }
 

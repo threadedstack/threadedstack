@@ -2,13 +2,43 @@ import { useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { closeSession } from '@TTH/actions/sessions'
 import { setActiveSession } from '@TTH/state/accessors'
-import { useOpenSessions, useActiveSession, useToolState } from '@TTH/state/selectors'
+import {
+  useOpenSessions,
+  useActiveSession,
+  useToolState,
+  useSandboxes,
+  useSessionsForSandbox,
+} from '@TTH/state/selectors'
 import { Box, Chip } from '@mui/material'
 
-const SessionChip = (props: { sandboxId: string; runtime: string; active: boolean }) => {
-  const { sandboxId, runtime, active } = props
+const useChipLabel = (session: {
+  sandboxId: string
+  sessionId: string
+  runtime: string
+}) => {
+  const sandboxes = useSandboxes()
+  const sbSessions = useSessionsForSandbox(session.sandboxId)
+
+  return useMemo(() => {
+    const sandbox = sandboxes.find((s) => s.id === session.sandboxId)
+    const baseName = sandbox?.name || session.runtime || session.sandboxId
+    if (sbSessions.length > 1) {
+      const idx = sbSessions.findIndex((s) => s.sessionId === session.sessionId)
+      return `${baseName} (${idx + 1})`
+    }
+    return baseName
+  }, [sandboxes, session.sandboxId, session.sessionId, session.runtime, sbSessions])
+}
+
+const SessionChip = (props: {
+  sessionId: string
+  session: { sandboxId: string; sessionId: string; runtime: string }
+  active: boolean
+}) => {
+  const { sessionId, session, active } = props
   const navigate = useNavigate()
-  const toolState = useToolState(sandboxId)
+  const toolState = useToolState(sessionId)
+  const label = useChipLabel(session)
 
   const dotColor = useMemo(() => {
     switch (toolState) {
@@ -22,13 +52,15 @@ const SessionChip = (props: { sandboxId: string; runtime: string; active: boolea
   }, [toolState])
 
   const handleClick = useCallback(() => {
-    setActiveSession(sandboxId)
-    navigate(`/session/${sandboxId}`)
-  }, [sandboxId, navigate])
+    setActiveSession(sessionId)
+    navigate(`/session/${sessionId}`, {
+      state: { sandboxId: session.sandboxId },
+    })
+  }, [sessionId, session, navigate])
 
   const handleDelete = useCallback(() => {
-    closeSession(sandboxId)
-  }, [sandboxId])
+    closeSession(sessionId)
+  }, [sessionId])
 
   return (
     <Chip
@@ -47,7 +79,7 @@ const SessionChip = (props: { sandboxId: string; runtime: string; active: boolea
               flexShrink: 0,
             }}
           />
-          {runtime || sandboxId}
+          {label}
         </Box>
       }
       size='small'
@@ -85,12 +117,12 @@ export const OpenSessionStrip = (_props: TOpenSessionStrip) => {
         scrollbarWidth: `none`,
       }}
     >
-      {sessions.map(([sandboxId, session]) => (
+      {sessions.map(([sessionId, session]) => (
         <SessionChip
-          key={sandboxId}
-          sandboxId={sandboxId}
-          runtime={session.runtime}
-          active={activeSession === sandboxId}
+          key={sessionId}
+          sessionId={sessionId}
+          session={session}
+          active={activeSession === sessionId}
         />
       ))}
     </Box>

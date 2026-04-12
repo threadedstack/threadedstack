@@ -4,7 +4,7 @@ import { env } from '../utils/env'
 import { post } from '../utils/api-client'
 import { readContext } from '../utils/test-context'
 import { uniqueName } from '../utils/unique-name'
-import { cleanupSandbox } from '../utils/sandbox-helpers'
+import { cleanupSandbox, getSessions } from '../utils/sandbox-helpers'
 
 // ─── Inline Helpers ─────────────────────────────────────────────────
 
@@ -279,9 +279,9 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
     ws.close()
   }, 30_000)
 
-  // ─── Session Reuse ──────────────────────────────────────────────────
+  // ─── Multi-Session ──────────────────────────────────────────────────
 
-  test('second shell connection for same sandbox reuses session', async () => {
+  test('second shell connection creates a new independent session', async () => {
     if (setupFailed) return expect(setupFailed).toBe(false)
 
     // First connection
@@ -291,17 +291,119 @@ describe('Tier 3: Sandbox Shell WebSocket', () => {
     const sessionId1 = msg1.sessionId as string
     expect(sessionId1).toBeTruthy()
 
-    // Second connection to same sandbox (same user) should reuse the session
+    // Second connection to same sandbox (no sessionId) creates a new session
     const ws2 = trackWs(openShell(sandboxId))
     await waitForOpen(ws2)
     const msg2 = await waitForTextMessage(ws2, ['connected', 'reconnected'])
+    const sessionId2 = msg2.sessionId as string
+    expect(sessionId2).toBeTruthy()
 
-    expect(['connected', 'reconnected']).toContain(msg2.type)
-    // Both connections should share the same sessionId
-    expect(msg2.sessionId).toBe(sessionId1)
+    // Each connection should have a unique sessionId
+    expect(sessionId2).not.toBe(sessionId1)
 
     ws1.close()
     ws2.close()
+  }, 30_000)
+
+  // ─── Session Reconnect ─────────────────────────────────────────────
+
+  test('reconnecting with sessionId param returns reconnected message', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    // Create a session
+    const ws1 = trackWs(openShell(sandboxId))
+    await waitForOpen(ws1)
+    const msg1 = await waitForTextMessage(ws1, ['connected', 'reconnected'])
+    const sessionId = msg1.sessionId as string
+    expect(sessionId).toBeTruthy()
+
+    // Disconnect first connection
+    ws1.close()
+    await new Promise(r => setTimeout(r, 500))
+
+    // Reconnect with the sessionId
+    const ws2 = trackWs(openShell(sandboxId, { sessionId }))
+    await waitForOpen(ws2)
+    const msg2 = await waitForTextMessage(ws2, ['reconnected'])
+
+    expect(msg2.type).toBe('reconnected')
+    expect(msg2.sessionId).toBe(sessionId)
+    expect(msg2.podOwnerUserId).toBeTruthy()
+
+    ws2.close()
+  }, 30_000)
+
+  // ─── Connected Message Fields ──────────────────────────────────────
+
+  test('connected message includes podOwnerUserId field', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const ws = trackWs(openShell(sandboxId))
+    await waitForOpen(ws)
+    const msg = await waitForTextMessage(ws, ['connected', 'reconnected'])
+
+    if (msg.type === 'connected') {
+      expect(msg.podOwnerUserId).toBeTruthy()
+      expect(typeof msg.podOwnerUserId).toBe('string')
+    }
+
+    ws.close()
+  }, 30_000)
+
+  // ─── Visibility Toggle ─────────────────────────────────────────────
+
+  test('visibility control message toggles session visibility', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    const ws = trackWs(openShell(sandboxId))
+    await waitForOpen(ws)
+    const msg = await waitForTextMessage(ws, ['connected', 'reconnected'])
+    const sessionId = msg.sessionId as string
+
+    // Toggle to public
+    ws.send(JSON.stringify({ type: 'visibility', visibility: 'public' }))
+    const visPub = await waitForTextMessage(ws, ['visibility'])
+    expect(visPub.type).toBe('visibility')
+    expect(visPub.sessionId).toBe(sessionId)
+    expect(visPub.visibility).toBe('public')
+
+    // Toggle back to private
+    ws.send(JSON.stringify({ type: 'visibility', visibility: 'private' }))
+    const visPriv = await waitForTextMessage(ws, ['visibility'])
+    expect(visPriv.type).toBe('visibility')
+    expect(visPriv.sessionId).toBe(sessionId)
+    expect(visPriv.visibility).toBe('private')
+
+    ws.close()
+  }, 30_000)
+
+  // ─── Sessions Listing ──────────────────────────────────────────────
+
+  test('sessions endpoint lists active shell sessions with visibility', async () => {
+    if (setupFailed) return expect(setupFailed).toBe(false)
+
+    // Create a shell session
+    const ws = trackWs(openShell(sandboxId))
+    await waitForOpen(ws)
+    const msg = await waitForTextMessage(ws, ['connected', 'reconnected'])
+    const sessionId = msg.sessionId as string
+
+    // Allow session registration to propagate
+    await new Promise(r => setTimeout(r, 500))
+
+    // List sessions via REST API
+    const res = await getSessions(ctx.orgId, projectId, sandboxId)
+    expect(res.status).toBe(200)
+    expect(Array.isArray(res.data)).toBe(true)
+
+    // At least one session should exist (may have others from prior tests still cleaning up)
+    const ourSession = res.data.find((s: any) => s.sessionId === sessionId)
+    expect(ourSession).toBeDefined()
+    expect(ourSession!.sandboxId).toBe(sandboxId)
+    expect(ourSession!.visibility).toBe('private')
+    expect(ourSession!.connectedAt).toBeTruthy()
+
+    ws.close()
   }, 30_000)
 
   // ─── connectSandbox returns shellToken ──────────────────────────────

@@ -66,6 +66,8 @@ describe('Tier 3: Sandbox Connect', () => {
     expect(conn.port).toBe(2222)
     expect(conn.sandboxId).toBe(sandboxId)
     expect(conn.command).toContain('tsa ssh')
+    expect(conn.shellToken).toBeTruthy()
+    expect(typeof conn.shellToken).toBe('string')
 
     podName = conn.podName
   }, 150_000)

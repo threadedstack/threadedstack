@@ -42,49 +42,58 @@ export const getUser = () => store.get(userState)
 export const resetUser = () => store.set(userState, undefined)
 export const setUser = (user: User) => store.set(userState, user)
 
-export const getSessionEvents = (sandboxId: string) =>
-  store.get(sessionEventsAtom).get(sandboxId) ?? []
-export const setSessionEvents = (sandboxId: string, events: TParsedEvent[]) => {
+export const getSessionEvents = (sessionId: string) =>
+  store.get(sessionEventsAtom).get(sessionId) ?? []
+export const setSessionEvents = (sessionId: string, events: TParsedEvent[]) => {
   const map = new Map(store.get(sessionEventsAtom))
-  map.set(sandboxId, events)
+  map.set(sessionId, events)
   store.set(sessionEventsAtom, map)
 }
-export const appendSessionEvent = (sandboxId: string, event: TParsedEvent) => {
+export const appendSessionEvent = (sessionId: string, event: TParsedEvent) => {
   const map = new Map(store.get(sessionEventsAtom))
-  const events = [...(map.get(sandboxId) ?? []), event]
-  map.set(sandboxId, events)
-  store.set(sessionEventsAtom, map)
-}
-
-export const clearSessionEvents = (sandboxId: string) => {
-  const map = new Map(store.get(sessionEventsAtom))
-  map.delete(sandboxId)
+  const events = [...(map.get(sessionId) ?? []), event]
+  map.set(sessionId, events)
   store.set(sessionEventsAtom, map)
 }
 
-export const getToolState = (sandboxId: string) =>
-  store.get(sessionToolStateAtom).get(sandboxId) ?? 'idle'
-export const setToolState = (sandboxId: string, state: TToolState) => {
+export const clearSessionEvents = (sessionId: string) => {
+  const map = new Map(store.get(sessionEventsAtom))
+  map.delete(sessionId)
+  store.set(sessionEventsAtom, map)
+}
+
+export const getToolState = (sessionId: string) =>
+  store.get(sessionToolStateAtom).get(sessionId) ?? 'idle'
+export const setToolState = (sessionId: string, state: TToolState) => {
   const map = new Map(store.get(sessionToolStateAtom))
-  map.set(sandboxId, state)
+  map.set(sessionId, state)
   store.set(sessionToolStateAtom, map)
 }
 
 export const getOpenSessions = () => store.get(openSessionsAtom)
-export const setOpenSession = (sandboxId: string, session: TOpenSession) => {
+export const setOpenSession = (sessionId: string, session: TOpenSession) => {
   const map = new Map(store.get(openSessionsAtom))
-  map.set(sandboxId, session)
+  map.set(sessionId, session)
   store.set(openSessionsAtom, map)
 }
-export const removeOpenSession = (sandboxId: string) => {
+export const removeOpenSession = (sessionId: string) => {
   const map = new Map(store.get(openSessionsAtom))
-  map.delete(sandboxId)
+  map.delete(sessionId)
   store.set(openSessionsAtom, map)
 }
 
 export const getActiveSession = () => store.get(activeSessionAtom)
-export const setActiveSession = (sandboxId: string | null) =>
-  store.set(activeSessionAtom, sandboxId)
+export const setActiveSession = (sessionId: string | null) =>
+  store.set(activeSessionAtom, sessionId)
+
+export const getSessionsForSandbox = (sandboxId: string): TOpenSession[] => {
+  const all = store.get(openSessionsAtom)
+  const result: TOpenSession[] = []
+  for (const session of all.values()) {
+    if (session.sandboxId === sandboxId) result.push(session)
+  }
+  return result
+}
 
 export const getSandboxes = () => store.get(sandboxesAtom)
 export const setSandboxes = (sandboxes: Sandbox[]) => store.set(sandboxesAtom, sandboxes)

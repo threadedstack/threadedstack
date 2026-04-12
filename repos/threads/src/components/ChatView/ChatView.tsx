@@ -14,16 +14,16 @@ import { ThinkingIndicator } from './ThinkingIndicator'
 import { UnknownBlock } from './UnknownBlock'
 
 export type TChatView = {
-  sandboxId: string
+  sessionId: string
   readOnly?: boolean
 }
 
 const EventRenderer = (props: {
   event: TParsedEvent
-  sandboxId: string
+  sessionId: string
   readOnly?: boolean
 }) => {
-  const { event, sandboxId, readOnly } = props
+  const { event, sessionId, readOnly } = props
 
   switch (event.type) {
     case `input`:
@@ -36,7 +36,7 @@ const EventRenderer = (props: {
       return (
         <PermissionCard
           event={event}
-          sandboxId={sandboxId}
+          sessionId={sessionId}
           readOnly={readOnly}
         />
       )
@@ -56,8 +56,8 @@ const EventRenderer = (props: {
 }
 
 export const ChatView = (props: TChatView) => {
-  const { sandboxId, readOnly } = props
-  const events = useSessionEvents(sandboxId)
+  const { sessionId, readOnly } = props
+  const events = useSessionEvents(sessionId)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
@@ -79,7 +79,7 @@ export const ChatView = (props: TChatView) => {
         <EventRenderer
           key={`${event.type}-${event.timestamp}-${idx}`}
           event={event}
-          sandboxId={sandboxId}
+          sessionId={sessionId}
           readOnly={readOnly}
         />
       ))}

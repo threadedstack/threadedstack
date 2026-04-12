@@ -1,25 +1,27 @@
-import { useState, useCallback, useMemo } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router'
-import {
-  Box,
-  IconButton,
-  Typography,
-  ToggleButtonGroup,
-  ToggleButton,
-  Button,
-  Chip,
-  Card,
-} from '@mui/material'
-import { ArrowBack, Chat, Terminal } from '@mui/icons-material'
-import { styled } from '@mui/material/styles'
+import { toast } from 'sonner'
 import { Loading } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
-import { ChatView } from '@TTH/components/ChatView/ChatView'
-import { TerminalView } from '@TTH/components/TerminalView/TerminalView'
-import { SmartInput } from '@TTH/components/SmartInput/SmartInput'
-import { SessionCommands } from '@TTH/components/Session/SessionCommands'
-import { useOpenSessions, useSandboxes, useOrgId } from '@TTH/state/selectors'
+import { styled } from '@mui/material/styles'
 import { openSession } from '@TTH/actions/sessions'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { ChatView } from '@TTH/components/ChatView/ChatView'
+import { ArrowBack, Chat, Terminal } from '@mui/icons-material'
+import { useParams, useNavigate, useLocation } from 'react-router'
+import { SmartInput } from '@TTH/components/SmartInput/SmartInput'
+import { TerminalView } from '@TTH/components/TerminalView/TerminalView'
+import { SessionCommands } from '@TTH/components/Session/SessionCommands'
+import { findSandboxForSession } from '@TTH/utils/sessionStorage'
+import { useOpenSessions, useSandboxes, useOrgId, useUser } from '@TTH/state/selectors'
+import {
+  Box,
+  Chip,
+  Card,
+  Button,
+  IconButton,
+  Typography,
+  ToggleButton,
+  ToggleButtonGroup,
+} from '@mui/material'
 
 type TViewMode = 'chat' | 'terminal'
 
@@ -77,18 +79,33 @@ const ConfigRow = ({ label, value }: { label: string; value: React.ReactNode }) 
 )
 
 const Session = () => {
-  const { sandboxId } = useParams<{ sandboxId: string }>()
+  const { sessionId } = useParams<{ sessionId: string }>()
+  const orgId = useOrgId()
+  const [user] = useUser()
   const navigate = useNavigate()
   const location = useLocation()
-  const openSessions = useOpenSessions()
   const sandboxes = useSandboxes()
-  const orgId = useOrgId()
-  const [viewMode, setViewMode] = useState<TViewMode>(`chat`)
+  const openSessions = useOpenSessions()
   const [connecting, setConnecting] = useState(false)
-  const [pendingOp, setPendingOp] = useState<'restart' | 'recreate' | null>(null)
+  const [viewMode, setViewMode] = useState<TViewMode>(`chat`)
+  const [pendingOp, setPendingOp] = useState<`restart` | `recreate` | null>(null)
 
-  const hasSession = sandboxId ? openSessions.has(sandboxId) : false
-  const session = sandboxId ? openSessions.get(sandboxId) : undefined
+  const session = sessionId ? openSessions.get(sessionId) : undefined
+  const hasSession = !!session
+
+  // Resolve sandboxId: active session > route state > sessionStorage reverse lookup
+  const sandboxId = useMemo(() => {
+    if (session?.sandboxId) return session.sandboxId
+    const fromState = (location.state as { sandboxId?: string })?.sandboxId
+    if (fromState) return fromState
+    if (sessionId) return findSandboxForSession(sessionId)
+    return undefined
+  }, [session?.sandboxId, location.state, sessionId])
+
+  const isOwner = useMemo(
+    () => !!session && !!user && session.podOwnerUserId === user.id,
+    [session, user]
+  )
 
   const sandbox = useMemo(
     () => (sandboxId ? sandboxes.find((s) => s.id === sandboxId) : undefined),
@@ -96,14 +113,35 @@ const Session = () => {
   )
 
   const projectId = useMemo(() => {
+    if (session?.projectId) return session.projectId
     const fromState = (location.state as { projectId?: string })?.projectId
     if (fromState) return fromState
     return sandbox?.projects?.[0]?.id ?? ``
-  }, [location.state, sandbox?.projects])
+  }, [session?.projectId, location.state, sandbox?.projects])
+
+  // Auto-reconnect when we have sandboxId but no active WebSocket session
+  const reconnectAttempted = useRef(false)
+  useEffect(() => {
+    if (hasSession || connecting || pendingOp || reconnectAttempted.current) return
+    if (!sessionId || !sandboxId || !orgId || !projectId) return
+
+    reconnectAttempted.current = true
+    setConnecting(true)
+    openSession({ sandboxId, orgId, projectId, sessionId })
+      .catch((err) => {
+        console.error(`[Session] auto-reconnect failed:`, err)
+        toast.error(`Failed to reconnect`, {
+          description:
+            err instanceof Error ? err.message : `An unexpected error occurred`,
+        })
+      })
+      .finally(() => setConnecting(false))
+  }, [hasSession, connecting, pendingOp, sessionId, sandboxId, orgId, projectId])
 
   const handleBack = useCallback(() => {
-    navigate(`/`)
-  }, [navigate])
+    if (sandboxId) navigate(`/sandbox/${sandboxId}`)
+    else navigate(`/`)
+  }, [navigate, sandboxId])
 
   const handleViewChange = useCallback(
     (_evt: React.MouseEvent<HTMLElement>, value: TViewMode | null) => {
@@ -116,22 +154,25 @@ const Session = () => {
     if (!sandboxId || !orgId || !projectId) return
     setConnecting(true)
     try {
-      await openSession({ sandboxId, orgId, projectId })
+      await openSession({ sandboxId, orgId, projectId, sessionId: null })
     } catch (err) {
       console.error(`[Session] connect failed:`, err)
+      toast.error(`Failed to connect`, {
+        description: err instanceof Error ? err.message : `An unexpected error occurred`,
+      })
     } finally {
       setConnecting(false)
     }
   }, [sandboxId, orgId, projectId])
 
-  if (!sandboxId) {
+  if (!sessionId) {
     return (
       <Page className='tdsk-session-page'>
         <Typography
           variant='h6'
           color='text.secondary'
         >
-          No sandbox selected
+          No session selected
         </Typography>
       </Page>
     )
@@ -152,13 +193,15 @@ const Session = () => {
             noWrap
             sx={{ flex: 1 }}
           >
-            {session?.runtime || sandboxId}
+            {session?.runtime || sandbox?.name || sessionId}
           </Typography>
-          {hasSession && (
+          {hasSession && sandboxId && (
             <>
               <SessionCommands
                 sandboxId={sandboxId}
+                sessionId={sessionId}
                 projectId={projectId}
+                isOwner={isOwner}
                 onPendingOp={setPendingOp}
               />
               <ToggleButtonGroup
@@ -218,7 +261,7 @@ const Session = () => {
                       flexWrap: `wrap`,
                     }}
                   >
-                    <Typography variant='h5'>{sandbox?.name || sandboxId}</Typography>
+                    <Typography variant='h5'>{sandbox?.name || sessionId}</Typography>
                     {sandbox?.config?.runtime && (
                       <Chip
                         label={sandbox.config.runtime}
@@ -341,7 +384,7 @@ const Session = () => {
                       variant='contained'
                       size='large'
                       onClick={handleConnect}
-                      disabled={!orgId || !projectId}
+                      disabled={!orgId || !projectId || !sandboxId}
                     >
                       Start Session
                     </Button>
@@ -350,15 +393,15 @@ const Session = () => {
               )}
             </Box>
           ) : viewMode === `chat` ? (
-            <ChatView sandboxId={sandboxId} />
+            <ChatView sessionId={sessionId} />
           ) : (
             <TerminalView
-              sandboxId={sandboxId}
+              sessionId={sessionId}
               active={viewMode === `terminal`}
             />
           )}
         </ContentArea>
-        {hasSession && viewMode === `chat` && <SmartInput sandboxId={sandboxId} />}
+        {hasSession && viewMode === `chat` && <SmartInput sessionId={sessionId} />}
       </SessionContainer>
     </Page>
   )

@@ -1,5 +1,5 @@
 import { logger } from '@TBE/utils/logger'
-import { Exception, EContainerState } from '@tdsk/domain'
+import { Exception, EContainerState, ESandboxSessionVisibility } from '@tdsk/domain'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SandboxService } from '@TBE/services/sandboxes/sandbox'
 
@@ -457,6 +457,7 @@ describe(`SandboxService`, () => {
         sandboxId: `sb-1`,
         sessionId: `sess-1`,
         connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
       })
 
       const original2 = svc[`config`] as Record<string, any>
@@ -820,6 +821,119 @@ describe(`SandboxService`, () => {
       expect(mockRes.end).toHaveBeenCalledWith(
         JSON.stringify({ error: `Sandbox proxy error` })
       )
+    })
+  })
+
+  describe(`shell session queries`, () => {
+    it(`getShellSessionsForSandbox returns sessions matching sandboxId`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const session1 = {
+        sessionId: `s1`,
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        threadId: `t1`,
+        sshClient: {} as any,
+        sshStream: {} as any,
+        buffer: { clear: vi.fn() } as any,
+        parser: {} as any,
+        attachments: new Set() as any,
+        ttlTimer: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+      const session2 = {
+        ...session1,
+        sessionId: `s2`,
+        sandboxId: `sb_bbb`,
+      }
+      const session3 = {
+        ...session1,
+        sessionId: `s3`,
+        sandboxId: `sb_aaa`,
+      }
+
+      svc.addShellSession(session1)
+      svc.addShellSession(session2)
+      svc.addShellSession(session3)
+
+      const result = svc.getShellSessionsForSandbox(`sb_aaa`)
+      expect(result).toHaveLength(2)
+      expect(result.map((s) => s.sessionId).sort()).toEqual([`s1`, `s3`])
+    })
+
+    it(`getOrgShellSessionCount counts sessions for org`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const base = {
+        sandboxId: `sb_aaa`,
+        userId: `u1`,
+        threadId: `t1`,
+        sshClient: {} as any,
+        sshStream: {} as any,
+        buffer: { clear: vi.fn() } as any,
+        parser: {} as any,
+        attachments: new Set() as any,
+        ttlTimer: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+
+      svc.addShellSession({ ...base, sessionId: `s1`, orgId: `org1` })
+      svc.addShellSession({ ...base, sessionId: `s2`, orgId: `org1` })
+      svc.addShellSession({ ...base, sessionId: `s3`, orgId: `org2` })
+
+      expect(svc.getOrgShellSessionCount(`org1`)).toBe(2)
+      expect(svc.getOrgShellSessionCount(`org2`)).toBe(1)
+      expect(svc.getOrgShellSessionCount(`org3`)).toBe(0)
+    })
+
+    it(`updateSessionVisibility updates both shell and pod session maps`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+
+      const shell = {
+        sessionId: `s1`,
+        sandboxId: `sb_aaa`,
+        orgId: `org1`,
+        userId: `u1`,
+        threadId: `t1`,
+        sshClient: {} as any,
+        sshStream: {} as any,
+        buffer: { clear: vi.fn() } as any,
+        parser: {} as any,
+        attachments: new Set() as any,
+        ttlTimer: null,
+        visibility: ESandboxSessionVisibility.private,
+      }
+      svc.addShellSession(shell)
+      svc.addSession(`pod1`, {
+        orgId: `org1`,
+        userId: `u1`,
+        podName: `pod1`,
+        sandboxId: `sb_aaa`,
+        sessionId: `s1`,
+        connectedAt: new Date().toISOString(),
+        visibility: ESandboxSessionVisibility.private,
+      })
+
+      const updated = svc.updateSessionVisibility(`s1`, ESandboxSessionVisibility.public)
+      expect(updated).toBe(true)
+
+      const shellSession = svc.getShellSession(`s1`)
+      expect(shellSession?.visibility).toBe(`public`)
+
+      const podSessions = svc.getSessions(`pod1`)
+      expect(podSessions[0].visibility).toBe(`public`)
+    })
+
+    it(`updateSessionVisibility returns false for unknown session`, () => {
+      const kube = makeKube()
+      const svc = new SandboxService(kube as any, makeDb() as any)
+      expect(
+        svc.updateSessionVisibility(`nonexistent`, ESandboxSessionVisibility.public)
+      ).toBe(false)
     })
   })
 })

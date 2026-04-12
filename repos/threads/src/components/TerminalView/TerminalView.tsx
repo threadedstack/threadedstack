@@ -9,25 +9,25 @@ import {
 } from '@TTH/actions/sessions'
 
 export type TTerminalView = {
-  sandboxId: string
+  sessionId: string
   active: boolean
 }
 
 export const TerminalView = (props: TTerminalView) => {
-  const { sandboxId, active } = props
+  const { sessionId, active } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
 
   const handleData = useCallback(
-    (data: string) => sendInput(sandboxId, data),
-    [sandboxId]
+    (data: string) => sendInput(sessionId, data),
+    [sessionId]
   )
 
   const handleResize = useCallback(
     (dims: { cols: number; rows: number }) =>
-      sendControl(sandboxId, { type: `resize`, cols: dims.cols, rows: dims.rows }),
-    [sandboxId]
+      sendControl(sessionId, { type: `resize`, cols: dims.cols, rows: dims.rows }),
+    [sessionId]
   )
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export const TerminalView = (props: TTerminalView) => {
     fitAddonRef.current = fitAddon
 
     // Replay raw buffer from prior session data
-    const buffer = getRawBuffer(sandboxId)
+    const buffer = getRawBuffer(sessionId)
     for (const chunk of buffer) {
       term.write(chunk)
     }
@@ -84,7 +84,7 @@ export const TerminalView = (props: TTerminalView) => {
     const resizeDisposable = term.onResize(handleResize)
 
     // Subscribe to decoded terminal data from the session action
-    const unsubscribe = subscribeTerminalData(sandboxId, (data: string) => {
+    const unsubscribe = subscribeTerminalData(sessionId, (data: string) => {
       term.write(data)
     })
 
@@ -97,7 +97,7 @@ export const TerminalView = (props: TTerminalView) => {
       termRef.current = null
       fitAddonRef.current = null
     }
-  }, [sandboxId, handleData, handleResize])
+  }, [sessionId, handleData, handleResize])
 
   // Re-fit when visibility changes
   useEffect(() => {

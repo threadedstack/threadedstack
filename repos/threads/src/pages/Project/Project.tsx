@@ -9,7 +9,7 @@ import { Page } from '@TTH/pages/Page/Page'
 import {
   useProjects,
   useSandboxes,
-  useOpenSessions,
+  useSandboxHasSession,
   useOrgId,
 } from '@TTH/state/selectors'
 import { FolderOpen, LinkOff as GitIcon, GitHub as GitHubIcon } from '@mui/icons-material'
@@ -50,16 +50,16 @@ const StatusChip = (props: { running: boolean }) => (
 
 type TProjectSandboxCard = {
   sandbox: Sandbox
-  running: boolean
 }
 
 const ProjectSandboxCard = (props: TProjectSandboxCard) => {
-  const { sandbox, running } = props
+  const { sandbox } = props
   const navigate = useNavigate()
+  const running = useSandboxHasSession(sandbox.id)
   const runtime = sandbox.config?.runtime || `custom`
 
   const handleClick = useCallback(() => {
-    navigate(`/session/${sandbox.id}`)
+    navigate(`/sandbox/${sandbox.id}`)
   }, [navigate, sandbox.id])
 
   return (
@@ -212,7 +212,6 @@ const Project = () => {
   const { projectId } = useParams<{ projectId: string }>()
   const projects = useProjects()
   const sandboxes = useSandboxes()
-  const openSessions = useOpenSessions()
 
   const project = useMemo<TProject | undefined>(
     () => projects.find((p) => p.id === projectId),
@@ -272,7 +271,6 @@ const Project = () => {
                 <ProjectSandboxCard
                   key={sandbox.id}
                   sandbox={sandbox}
-                  running={openSessions.has(sandbox.id)}
                 />
               ))}
             </Box>

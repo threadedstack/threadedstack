@@ -5,7 +5,7 @@ import type { IncomingMessage } from 'http'
 import net from 'net'
 import { URL } from 'url'
 import { nanoid } from 'nanoid'
-import { Exception, hashKey } from '@tdsk/domain'
+import { Exception, hashKey, ESandboxSessionVisibility } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import {
   SBBackpressureThreshold,
@@ -132,6 +132,7 @@ export const onTunnelConnect = async (
       sessionId,
       sandboxId,
       connectedAt: new Date().toISOString(),
+      visibility: ESandboxSessionVisibility.private,
     })
 
     // Start keepalive pings (every 30s) to prevent Caddy idle timeout

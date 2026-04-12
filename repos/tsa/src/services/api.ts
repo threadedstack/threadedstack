@@ -1,6 +1,6 @@
 import type { AuthManager } from '@TSA/services/auth'
 import type { TSessionInfo, TProviderInfo } from '@TSA/types'
-import type { TApiRequest, TApiResponse } from '@tdsk/domain'
+import type { TApiRequest, TApiResponse, TSandboxSession } from '@tdsk/domain'
 
 import { ApiService, Exception } from '@tdsk/domain'
 import { MaxRetries, RetryDelays } from '@TSA/constants'
@@ -222,6 +222,16 @@ export class ApiClient extends ApiService {
 
   async getSandbox(orgId: string, sandboxId: string): Promise<TApiResponse<any>> {
     return this.get<any>({ path: `orgs/${orgId}/sandboxes/${sandboxId}` })
+  }
+
+  async getSandboxSessions(
+    orgId: string,
+    projectId: string,
+    sandboxId: string
+  ): Promise<TApiResponse<TSandboxSession[]>> {
+    return this.get<TSandboxSession[]>({
+      path: `orgs/${orgId}/projects/${projectId}/sandboxes/${sandboxId}/sessions`,
+    })
   }
 
   async execInSandbox(

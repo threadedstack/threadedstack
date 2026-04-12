@@ -14,20 +14,20 @@ import {
 } from '@TTH/actions/sessions'
 
 export type TSmartInput = {
-  sandboxId: string
+  sessionId: string
 }
 
-const IdleInput = (props: { sandboxId: string }) => {
-  const { sandboxId } = props
+const IdleInput = (props: { sessionId: string }) => {
+  const { sessionId } = props
   const [text, setText] = useState(``)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim()
     if (!trimmed) return
-    sendInput(sandboxId, trimmed + `\n`)
+    sendInput(sessionId, trimmed + `\n`)
     setText(``)
-  }, [sandboxId, text])
+  }, [sessionId, text])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -69,8 +69,8 @@ const IdleInput = (props: { sandboxId: string }) => {
   )
 }
 
-const PromptInput = (props: { sandboxId: string }) => {
-  const { sandboxId } = props
+const PromptInput = (props: { sessionId: string }) => {
+  const { sessionId } = props
   const [text, setText] = useState(``)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -81,9 +81,9 @@ const PromptInput = (props: { sandboxId: string }) => {
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim()
     if (!trimmed) return
-    sendInput(sandboxId, trimmed + `\n`)
+    sendInput(sessionId, trimmed + `\n`)
     setText(``)
-  }, [sandboxId, text])
+  }, [sessionId, text])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -123,12 +123,12 @@ const PromptInput = (props: { sandboxId: string }) => {
   )
 }
 
-const WorkingIndicator = (props: { sandboxId: string }) => {
-  const { sandboxId } = props
+const WorkingIndicator = (props: { sessionId: string }) => {
+  const { sessionId } = props
 
   const handleStop = useCallback(() => {
-    sendControl(sandboxId, { type: `signal`, signal: `SIGINT` })
-  }, [sandboxId])
+    sendControl(sessionId, { type: `signal`, signal: `SIGINT` })
+  }, [sessionId])
 
   return (
     <Box sx={{ display: `flex`, gap: 1, alignItems: `center` }}>
@@ -155,11 +155,11 @@ const WorkingIndicator = (props: { sandboxId: string }) => {
   )
 }
 
-const PermissionButtons = (props: { sandboxId: string }) => {
-  const { sandboxId } = props
+const PermissionButtons = (props: { sessionId: string }) => {
+  const { sessionId } = props
 
-  const handleApprove = useCallback(() => approvePermission(sandboxId), [sandboxId])
-  const handleDeny = useCallback(() => denyPermission(sandboxId), [sandboxId])
+  const handleApprove = useCallback(() => approvePermission(sessionId), [sessionId])
+  const handleDeny = useCallback(() => denyPermission(sessionId), [sessionId])
 
   return (
     <Box sx={{ display: `flex`, gap: 1, justifyContent: `center` }}>
@@ -185,34 +185,34 @@ const PermissionButtons = (props: { sandboxId: string }) => {
   )
 }
 
-const InteractiveInput = (props: { sandboxId: string }) => {
-  const { sandboxId } = props
+const InteractiveInput = (props: { sessionId: string }) => {
+  const { sessionId } = props
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       e.preventDefault()
       const key = e.key
       if (key.length === 1) {
-        sendInput(sandboxId, key)
+        sendInput(sessionId, key)
       } else if (key === `Enter`) {
-        sendInput(sandboxId, `\n`)
+        sendInput(sessionId, `\n`)
       } else if (key === `Backspace`) {
-        sendInput(sandboxId, `\x7f`)
+        sendInput(sessionId, `\x7f`)
       } else if (key === `Tab`) {
-        sendInput(sandboxId, `\t`)
+        sendInput(sessionId, `\t`)
       } else if (key === `Escape`) {
-        sendInput(sandboxId, `\x1b`)
+        sendInput(sessionId, `\x1b`)
       } else if (key === `ArrowUp`) {
-        sendInput(sandboxId, `\x1b[A`)
+        sendInput(sessionId, `\x1b[A`)
       } else if (key === `ArrowDown`) {
-        sendInput(sandboxId, `\x1b[B`)
+        sendInput(sessionId, `\x1b[B`)
       } else if (key === `ArrowRight`) {
-        sendInput(sandboxId, `\x1b[C`)
+        sendInput(sessionId, `\x1b[C`)
       } else if (key === `ArrowLeft`) {
-        sendInput(sandboxId, `\x1b[D`)
+        sendInput(sessionId, `\x1b[D`)
       }
     },
-    [sandboxId]
+    [sessionId]
   )
 
   return (
@@ -234,16 +234,16 @@ const InteractiveInput = (props: { sandboxId: string }) => {
 }
 
 export const SmartInput = (props: TSmartInput) => {
-  const { sandboxId } = props
-  const toolState = useToolState(sandboxId)
+  const { sessionId } = props
+  const toolState = useToolState(sessionId)
 
   return (
     <Box sx={{ p: 1.5, borderTop: 1, borderColor: `divider` }}>
-      {toolState === `idle` && <IdleInput sandboxId={sandboxId} />}
-      {toolState === `prompt` && <PromptInput sandboxId={sandboxId} />}
-      {toolState === `working` && <WorkingIndicator sandboxId={sandboxId} />}
-      {toolState === `permission` && <PermissionButtons sandboxId={sandboxId} />}
-      {toolState === `interactive` && <InteractiveInput sandboxId={sandboxId} />}
+      {toolState === `idle` && <IdleInput sessionId={sessionId} />}
+      {toolState === `prompt` && <PromptInput sessionId={sessionId} />}
+      {toolState === `working` && <WorkingIndicator sessionId={sessionId} />}
+      {toolState === `permission` && <PermissionButtons sessionId={sessionId} />}
+      {toolState === `interactive` && <InteractiveInput sessionId={sessionId} />}
     </Box>
   )
 }

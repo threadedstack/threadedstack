@@ -18,6 +18,7 @@ type TSandboxConnectResult = {
   port: number
   sandboxId: string
   command: string
+  shellToken: string
 }
 
 type TSandboxSessionResult = {
@@ -27,6 +28,8 @@ type TSandboxSessionResult = {
   orgId: string
   userId: string
   connectedAt: string
+  visibility: string
+  projectId?: string
 }
 
 type TSandboxSetup = {
@@ -83,7 +86,9 @@ export const waitForPodState = async (
     if (lastState === desiredState) return lastState
     if (lastState === 'Failed' && desiredState !== 'Failed')
       throw new Error(`Pod entered Failed state while waiting for ${desiredState}`)
-    if (lastState === 'Terminating' && desiredState !== 'Terminating')
+    // Terminating is a valid intermediate state when waiting for Failed
+    // (K8s delete: Running → Terminating → 404/Failed)
+    if (lastState === 'Terminating' && desiredState !== 'Terminating' && desiredState !== 'Failed')
       throw new Error(`Pod entered Terminating state while waiting for ${desiredState}`)
 
     await new Promise(r => setTimeout(r, intervalMs))

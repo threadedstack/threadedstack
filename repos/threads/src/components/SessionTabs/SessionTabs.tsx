@@ -2,12 +2,33 @@ import { useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { closeSession } from '@TTH/actions/sessions'
 import { setActiveSession } from '@TTH/state/accessors'
-import { useOpenSessions, useActiveSession, useToolState } from '@TTH/state/selectors'
+import {
+  useOpenSessions,
+  useActiveSession,
+  useToolState,
+  useSandboxes,
+  useSessionsForSandbox,
+} from '@TTH/state/selectors'
 import { Close } from '@mui/icons-material'
 import { Box, Tabs, Tab, Badge, IconButton } from '@mui/material'
 
-const StatusDot = (props: { sandboxId: string }) => {
-  const toolState = useToolState(props.sandboxId)
+type TSessionTab = {
+  sessionId: string
+  onClose: (id: string) => void
+  onSelect: (sessionId: string) => void
+  session: { sandboxId: string; sessionId: string; runtime: string }
+}
+
+type TStatusDot = { sessionId: string }
+
+type TTabLabel = {
+  name: string
+  sessionId: string
+  onClose: (id: string) => void
+}
+
+const StatusDot = (props: TStatusDot) => {
+  const toolState = useToolState(props.sessionId)
 
   const color = useMemo(() => {
     switch (toolState) {
@@ -23,49 +44,45 @@ const StatusDot = (props: { sandboxId: string }) => {
   return (
     <Box
       sx={{
+        mr: 1,
         width: 8,
         height: 8,
+        flexShrink: 0,
         borderRadius: `50%`,
         backgroundColor: color,
-        mr: 1,
-        flexShrink: 0,
       }}
     />
   )
 }
 
-const TabLabel = (props: {
-  sandboxId: string
-  name: string
-  onClose: (id: string) => void
-}) => {
-  const { sandboxId, name, onClose } = props
-  const toolState = useToolState(sandboxId)
+const TabLabel = (props: TTabLabel) => {
+  const { sessionId, name, onClose } = props
+  const toolState = useToolState(sessionId)
   const showBadge = toolState === `permission`
 
   const handleClose = useCallback(
     (evt: React.MouseEvent) => {
       evt.stopPropagation()
-      onClose(sandboxId)
+      onClose(sessionId)
     },
-    [sandboxId, onClose]
+    [sessionId, onClose]
   )
 
   return (
     <Box
+      gap={0.5}
       display='flex'
       alignItems='center'
-      gap={0.5}
     >
-      <StatusDot sandboxId={sandboxId} />
+      <StatusDot sessionId={sessionId} />
       <Badge
         badgeContent={showBadge ? `!` : undefined}
         color='warning'
         sx={{
           '& .MuiBadge-badge': {
+            height: 16,
             fontSize: 10,
             minWidth: 16,
-            height: 16,
           },
         }}
       >
@@ -74,8 +91,8 @@ const TabLabel = (props: {
           sx={{
             maxWidth: 120,
             overflow: `hidden`,
-            textOverflow: `ellipsis`,
             whiteSpace: `nowrap`,
+            textOverflow: `ellipsis`,
           }}
         >
           {name}
@@ -92,25 +109,74 @@ const TabLabel = (props: {
   )
 }
 
+type THTabLabelSession = {
+  runtime: string
+  sandboxId: string
+  sessionId: string
+}
+
+const useTabLabel = (session: THTabLabelSession) => {
+  const sandboxes = useSandboxes()
+  const sbSessions = useSessionsForSandbox(session.sandboxId)
+
+  return useMemo(() => {
+    const sandbox = sandboxes.find((s) => s.id === session.sandboxId)
+    const baseName = sandbox?.name || session.runtime || session.sandboxId
+    if (sbSessions.length > 1) {
+      const idx = sbSessions.findIndex((s) => s.sessionId === session.sessionId)
+      return `${baseName} (${idx + 1})`
+    }
+    return baseName
+  }, [sandboxes, session.sandboxId, session.sessionId, session.runtime, sbSessions])
+}
+
+const SessionTab = (props: TSessionTab) => {
+  const { session, onClose, onSelect, sessionId } = props
+
+  const label = useTabLabel(session)
+  const onClick = useCallback(() => {
+    onSelect(sessionId)
+  }, [sessionId, onSelect])
+
+  return (
+    <Tab
+      onClick={onClick}
+      value={sessionId}
+      label={
+        <TabLabel
+          name={label}
+          onClose={onClose}
+          sessionId={sessionId}
+        />
+      }
+    />
+  )
+}
+
 export type TSessionTabs = {}
 
-export const SessionTabs = (_props: TSessionTabs) => {
+export const SessionTabs = (props: TSessionTabs) => {
   const navigate = useNavigate()
   const openSessions = useOpenSessions()
   const activeSession = useActiveSession()
 
   const sessions = useMemo(() => Array.from(openSessions.entries()), [openSessions])
 
-  const handleChange = useCallback(
-    (_evt: React.SyntheticEvent, value: string) => {
-      setActiveSession(value)
-      navigate(`/session/${value}`)
+  const onSelect = useCallback(
+    (sessionId: string) => {
+      setActiveSession(sessionId)
+      const session = openSessions.get(sessionId)
+      navigate(`/session/${sessionId}`, {
+        state: session
+          ? { sandboxId: session.sandboxId, projectId: session.projectId }
+          : undefined,
+      })
     },
-    [navigate]
+    [navigate, openSessions]
   )
 
-  const handleClose = useCallback((sandboxId: string) => {
-    closeSession(sandboxId)
+  const onClose = useCallback((sessionId: string) => {
+    closeSession(sessionId)
   }, [])
 
   if (!sessions.length) return null
@@ -123,31 +189,27 @@ export const SessionTabs = (_props: TSessionTabs) => {
       }}
     >
       <Tabs
-        value={activeSession || false}
-        onChange={handleChange}
         variant='scrollable'
         scrollButtons='auto'
+        value={activeSession || false}
+        onChange={(_evt, value: string) => onSelect(value)}
         sx={{
           minHeight: 40,
           '& .MuiTab-root': {
-            minHeight: 40,
-            textTransform: `none`,
             py: 0.5,
             px: 1.5,
+            minHeight: 40,
+            textTransform: `none`,
           },
         }}
       >
-        {sessions.map(([sandboxId, session]) => (
-          <Tab
-            key={sandboxId}
-            value={sandboxId}
-            label={
-              <TabLabel
-                sandboxId={sandboxId}
-                name={session.runtime || sandboxId}
-                onClose={handleClose}
-              />
-            }
+        {sessions.map(([sessionId, session]) => (
+          <SessionTab
+            key={sessionId}
+            session={session}
+            onClose={onClose}
+            onSelect={onSelect}
+            sessionId={sessionId}
           />
         ))}
       </Tabs>

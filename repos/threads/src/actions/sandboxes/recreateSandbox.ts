@@ -1,6 +1,7 @@
-import { clearSessionEvents } from '@TTH/state/accessors'
+import { getSessionsForSandbox, clearSessionEvents } from '@TTH/state/accessors'
 import { openSession } from '@TTH/actions/sessions'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
+import { clearStoredSessionsForSandbox } from '@TTH/utils/sessionStorage'
 
 export type TRecreateSandboxOpts = {
   sandboxId: string
@@ -11,8 +12,11 @@ export type TRecreateSandboxOpts = {
 export const recreateSandbox = async (opts: TRecreateSandboxOpts): Promise<void> => {
   const { sandboxId, orgId, projectId } = opts
 
+  const sessions = getSessionsForSandbox(sandboxId)
   await stopSandbox({ sandboxId, orgId })
-  sessionStorage.removeItem(`shell_${sandboxId}`)
-  clearSessionEvents(sandboxId)
-  await openSession({ sandboxId, orgId, projectId, reconnectSessionId: null })
+  clearStoredSessionsForSandbox(sandboxId)
+  for (const session of sessions) {
+    clearSessionEvents(session.sessionId)
+  }
+  await openSession({ sandboxId, orgId, projectId, sessionId: null })
 }

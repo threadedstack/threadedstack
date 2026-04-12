@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   Box,
   Button,
@@ -12,17 +12,23 @@ import {
 import StopIcon from '@mui/icons-material/Stop'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import AddIcon from '@mui/icons-material/Add'
+import ShareIcon from '@mui/icons-material/Share'
+import LogoutIcon from '@mui/icons-material/Logout'
 import { toast } from 'sonner'
 import { useOpenSessions, useOrgId } from '@TTH/state/selectors'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
 import { restartSandbox } from '@TTH/actions/sandboxes/restartSandbox'
 import { recreateSandbox } from '@TTH/actions/sandboxes/recreateSandbox'
+import { openSession, closeSession, sendControl } from '@TTH/actions/sessions'
 
 type TCommand = 'stop' | 'restart' | 'recreate'
 
 type TSessionCommandsProps = {
   sandboxId: string
+  sessionId: string
   projectId: string
+  isOwner: boolean
   onPendingOp: (op: 'restart' | 'recreate' | null) => void
 }
 
@@ -60,11 +66,14 @@ const commandConfig: Record<
 }
 
 export const SessionCommands = (props: TSessionCommandsProps) => {
-  const { sandboxId, projectId, onPendingOp } = props
+  const { sandboxId, sessionId, projectId, isOwner, onPendingOp } = props
   const openSessions = useOpenSessions()
   const orgId = useOrgId()
   const [executing, setExecuting] = useState<TCommand | null>(null)
   const [confirmAction, setConfirmAction] = useState<TCommand | null>(null)
+
+  const session = openSessions.get(sessionId)
+  const isPublic = session?.visibility === `public`
 
   const handleConfirm = useCallback(async () => {
     const action = confirmAction
@@ -94,7 +103,26 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
     }
   }, [confirmAction, sandboxId, orgId, projectId, onPendingOp])
 
-  const session = openSessions.get(sandboxId)
+  const handleNewSession = useCallback(async () => {
+    if (!orgId) return
+    try {
+      await openSession({ sandboxId, orgId, projectId, sessionId: null })
+    } catch (err) {
+      toast.error(`Failed to create session`, {
+        description: err instanceof Error ? err.message : `An unexpected error occurred`,
+      })
+    }
+  }, [sandboxId, orgId, projectId])
+
+  const handleToggleShare = useCallback(() => {
+    const newVisibility = isPublic ? `private` : `public`
+    sendControl(sessionId, { type: `visibility`, visibility: newVisibility })
+  }, [sessionId, isPublic])
+
+  const handleLeave = useCallback(() => {
+    closeSession(sessionId)
+  }, [sessionId])
+
   if (!session || !orgId) return null
 
   const config = confirmAction ? commandConfig[confirmAction] : null
@@ -102,23 +130,60 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
   return (
     <>
       <Box sx={{ display: `flex`, gap: 0.5 }}>
-        {(Object.keys(commandConfig) as TCommand[]).map((cmd) => {
-          const cfg = commandConfig[cmd]
-          return (
+        {isOwner ? (
+          <>
+            {(Object.keys(commandConfig) as TCommand[]).map((cmd) => {
+              const cfg = commandConfig[cmd]
+              return (
+                <Button
+                  key={cmd}
+                  size='small'
+                  color={cfg.color}
+                  variant='outlined'
+                  startIcon={
+                    executing === cmd ? <CircularProgress size={14} /> : cfg.icon
+                  }
+                  onClick={() => setConfirmAction(cmd)}
+                  disabled={executing !== null}
+                  sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
+                >
+                  {cfg.label}
+                </Button>
+              )
+            })}
             <Button
-              key={cmd}
               size='small'
-              color={cfg.color}
               variant='outlined'
-              startIcon={executing === cmd ? <CircularProgress size={14} /> : cfg.icon}
-              onClick={() => setConfirmAction(cmd)}
+              startIcon={<AddIcon sx={{ fontSize: 18 }} />}
+              onClick={handleNewSession}
               disabled={executing !== null}
               sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
             >
-              {cfg.label}
+              New
             </Button>
-          )
-        })}
+            <Button
+              size='small'
+              variant={isPublic ? `contained` : `outlined`}
+              color={isPublic ? `primary` : (`default` as any)}
+              startIcon={<ShareIcon sx={{ fontSize: 18 }} />}
+              onClick={handleToggleShare}
+              disabled={executing !== null}
+              sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
+            >
+              {isPublic ? `Shared` : `Share`}
+            </Button>
+          </>
+        ) : (
+          <Button
+            size='small'
+            variant='outlined'
+            startIcon={<LogoutIcon sx={{ fontSize: 18 }} />}
+            onClick={handleLeave}
+            sx={{ textTransform: `none`, minWidth: 0, px: 1.5 }}
+          >
+            Leave
+          </Button>
+        )}
       </Box>
 
       <Dialog

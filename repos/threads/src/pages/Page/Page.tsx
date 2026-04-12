@@ -16,17 +16,19 @@ export type TPage = {
 }
 
 const Container = styled(Box)`
-  flex-grow: 1;
+  flex: 1;
   width: 100%;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 `
 
 const Main = styled(Box)(({ theme }) => {
   return `
-    flex-grow: 1;
+    flex: 1;
+    min-height: 0;
     overflow: auto;
     padding: ${theme.gutter.dpx};
-    height: calc( 100vh - ${theme.dims.header.hpx});
     background-color: ${theme.palette.background.default};
   `
 })

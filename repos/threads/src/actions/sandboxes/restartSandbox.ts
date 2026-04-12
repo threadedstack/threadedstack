@@ -1,4 +1,4 @@
-import { getOpenSessions } from '@TTH/state/accessors'
+import { getSessionsForSandbox } from '@TTH/state/accessors'
 import { openSession } from '@TTH/actions/sessions'
 import { stopSandbox } from '@TTH/actions/sandboxes/stopSandbox'
 
@@ -10,9 +10,16 @@ export type TRestartSandboxOpts = {
 
 export const restartSandbox = async (opts: TRestartSandboxOpts): Promise<void> => {
   const { sandboxId, orgId, projectId } = opts
-  const session = getOpenSessions().get(sandboxId)
-  const reconnectSessionId = session?.sessionId
+  const sessions = getSessionsForSandbox(sandboxId)
+  const sessionIds = sessions.map((s) => s.sessionId)
 
   await stopSandbox({ sandboxId, orgId })
-  await openSession({ sandboxId, orgId, projectId, reconnectSessionId })
+
+  for (const _sid of sessionIds) {
+    try {
+      await openSession({ sandboxId, orgId, projectId, sessionId: null })
+    } catch (err) {
+      console.error(`[restartSandbox] Failed to reopen session:`, err)
+    }
+  }
 }
