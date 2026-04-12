@@ -1,31 +1,95 @@
-import Card from '@mui/material/Card'
-import { Text } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
-import Container from '@mui/material/Container'
-import CardContent from '@mui/material/CardContent'
+import { OpenSessionStrip } from '@TTH/components/SessionTabs/OpenSessionStrip'
+import { useProjects, useSandboxes, useOrgId } from '@TTH/state/selectors'
+import { useTheme, useMediaQuery, Box, Container, Typography } from '@mui/material'
+import { Terminal, FolderOutlined } from '@mui/icons-material'
+import { colors } from '@tdsk/components'
 
 export type THome = {}
 
 export const Home = (props: THome) => {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down(`md`))
+  const projects = useProjects()
+  const sandboxes = useSandboxes()
+  const orgId = useOrgId()
+
   return (
     <Page className='tdsk-home-page'>
+      {isMobile && <OpenSessionStrip />}
       <Container
-        maxWidth='lg'
+        maxWidth='sm'
         disableGutters
       >
-        <Card
-          variant='outlined'
-          sx={{ mb: 3, backgroundColor: `action.hover` }}
+        <Box
+          sx={{
+            display: `flex`,
+            flexDirection: `column`,
+            alignItems: `center`,
+            justifyContent: `center`,
+            minHeight: 300,
+            gap: 2,
+            textAlign: `center`,
+            px: 2,
+          }}
         >
-          <CardContent sx={{ textAlign: `center`, py: 4 }}>
-            <Text
-              variant='h5'
-              gutterBottom
+          <Terminal sx={{ fontSize: 48, color: colors.primary.main, opacity: 0.5 }} />
+          <Typography
+            variant='h6'
+            sx={{ fontWeight: 500 }}
+          >
+            {orgId ? `Select a project or sandbox` : `Select an organization`}
+          </Typography>
+          <Typography
+            variant='body2'
+            color='text.secondary'
+            sx={{ maxWidth: 400 }}
+          >
+            {orgId
+              ? `Choose a project or sandbox from the sidebar to view details, manage configurations, or start a session.`
+              : `Pick an organization from the sidebar to view your projects and sandboxes.`}
+          </Typography>
+          {orgId && (
+            <Box
+              sx={{
+                display: `flex`,
+                gap: 3,
+                mt: 1,
+              }}
             >
-              Welcome to Threaded Stack
-            </Text>
-          </CardContent>
-        </Card>
+              <Box
+                sx={{
+                  display: `flex`,
+                  alignItems: `center`,
+                  gap: 0.75,
+                }}
+              >
+                <FolderOutlined sx={{ fontSize: 18, color: `text.secondary` }} />
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                >
+                  {projects.length} {projects.length === 1 ? `project` : `projects`}
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: `flex`,
+                  alignItems: `center`,
+                  gap: 0.75,
+                }}
+              >
+                <Terminal sx={{ fontSize: 18, color: `text.secondary` }} />
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                >
+                  {sandboxes.length} {sandboxes.length === 1 ? `sandbox` : `sandboxes`}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </Box>
       </Container>
     </Page>
   )

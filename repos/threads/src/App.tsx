@@ -1,3 +1,4 @@
+import { Toaster } from 'sonner'
 import { Routes } from '@TTH/routes/Routes'
 import { RouterProvider } from 'react-router/dom'
 import { useWindowResize } from '@tdsk/components'
@@ -20,6 +21,10 @@ const App = () => {
             backgroundColor: theme.palette.background.default,
           },
         }}
+      />
+      <Toaster
+        position='top-right'
+        theme={theme.palette.mode === `dark` ? `dark` : `light`}
       />
       <RouterProvider router={Routes} />
     </ThemeProvider>

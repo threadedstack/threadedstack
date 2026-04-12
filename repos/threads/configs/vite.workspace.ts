@@ -35,7 +35,9 @@ export const config = {
     entries: [`hoist-non-react-statics`],
   },
   resolve: {
-    alias: aliases,
+    alias: Object.entries(aliases)
+      .sort(([a], [b]) => b.length - a.length)
+      .map(([find, replacement]) => ({ find, replacement: replacement as string })),
   },
   plugins: [
     react(),

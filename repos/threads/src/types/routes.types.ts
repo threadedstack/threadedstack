@@ -9,6 +9,9 @@ export enum ERoutePath {
   AuthPage = `/auth/:pathname`,
   Profile = `profile`,
   Settings = `settings`,
+  Project = `project/:projectId`,
+  Sandbox = `sandbox/:sandboxId`,
+  Session = `session/:sandboxId`,
   // Catch-all
   Star = `*`,
 }

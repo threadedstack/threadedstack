@@ -163,9 +163,12 @@ export const SBSectionHeader = styled(Box)(({ theme }) => {
 
 // --- Rail Navigation Styled Components (desktop sub-nav) ---
 
-export const SidebarContainer = styled(Box)`
+export const SidebarContainer = styled(Box)(
+  ({ theme }) => `
   height: 100%;
   display: flex;
   position: relative;
   flex-direction: row;
+  border-right: 1px solid ${theme.palette.divider};
 `
+)

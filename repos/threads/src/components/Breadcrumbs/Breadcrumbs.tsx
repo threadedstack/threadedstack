@@ -1,0 +1,33 @@
+import Box from '@mui/material/Box'
+import { styled } from '@mui/material/styles'
+import { ChevronRight } from '@mui/icons-material'
+import { useOrgId } from '@TTH/state/selectors'
+import { OrgSelector } from './OrgSelector'
+import { ProjectSelector } from './ProjectSelector'
+
+const Container = styled(Box)`
+  gap: 0.5;
+  display: flex;
+  align-items: center;
+`
+
+const SeparatorIcon = styled(ChevronRight)(({ theme }) => {
+  return `
+    font-size: 18px;
+    margin-left: ${theme.gutter.qpx};
+    margin-right: ${theme.gutter.qpx};
+    color: ${theme.palette.text.disabled};
+  `
+})
+
+export const Breadcrumbs = () => {
+  const orgId = useOrgId()
+
+  return orgId ? (
+    <Container>
+      <OrgSelector />
+      <SeparatorIcon />
+      <ProjectSelector />
+    </Container>
+  ) : null
+}

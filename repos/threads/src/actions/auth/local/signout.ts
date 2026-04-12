@@ -9,7 +9,9 @@ export const signout = async () => {
 
   try {
     await auth.signout()
-  } catch {}
+  } catch (err) {
+    console.warn(`[signout] Server signout failed:`, err)
+  }
 
   apiService.clearBearer()
   reset()

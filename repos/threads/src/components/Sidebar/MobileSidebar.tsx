@@ -1,8 +1,8 @@
-import { dims } from '@tdsk/components'
-import { useSidebarOpen } from '@TTH/state/selectors'
-import { SBLogo } from '@TTH/components/Sidebar/SBLogo'
+import { useSidebarOpen, useOrgId, useOrgs } from '@TTH/state/selectors'
+import { NavTree } from '@TTH/components/Sidebar/NavTree'
+import { OrgSelector } from '@TTH/components/OrgSelector'
 import { SidebarWidthOpen } from '@TTH/constants/values'
-import { Toolbar, Divider, Box, SwipeableDrawer } from '@mui/material'
+import { Divider, Box, SwipeableDrawer } from '@mui/material'
 
 export type TMobileSidebar = {
   drawerOpen: boolean
@@ -13,6 +13,9 @@ export const MobileSidebar = (props: TMobileSidebar) => {
   const { drawerOpen, toggleDrawer } = props
 
   const [open, setOpen] = useSidebarOpen()
+  const orgs = useOrgs()
+  const orgId = useOrgId()
+  const showOrgSelector = orgs.length > 1 || !orgId
 
   return (
     <SwipeableDrawer
@@ -29,22 +32,18 @@ export const MobileSidebar = (props: TMobileSidebar) => {
         },
       }}
     >
-      <Toolbar
-        className='tdsk-admin-toolbar'
+      {showOrgSelector && <OrgSelector />}
+      {showOrgSelector && orgId && <Divider />}
+      <Box
         sx={{
-          px: [0, 1],
-          display: `flex`,
-          alignItems: `center`,
-          height: dims.header.hpx,
-          justifyContent: `space-between`,
-          minHeight: `${dims.header.hpx} !important`,
+          flex: 1,
+          overflow: `auto`,
+          px: 0.5,
+          py: 0.5,
         }}
       >
-        <SBLogo full={true} />
-      </Toolbar>
-
-      <Box flex={1} />
-      <Divider />
+        {orgId && <NavTree />}
+      </Box>
     </SwipeableDrawer>
   )
 }

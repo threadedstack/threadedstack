@@ -44,6 +44,14 @@ export const Routes = createBrowserRouter([
         path: ERoutePath.Settings,
         Component: () => <SuspensePage Component={Settings} />,
       },
+      {
+        path: ERoutePath.Project,
+        lazy: () => import('@TTH/pages/Project/Project'),
+      },
+      {
+        path: ERoutePath.Session,
+        lazy: () => import('@TTH/pages/Session/Session'),
+      },
     ],
   },
   {
