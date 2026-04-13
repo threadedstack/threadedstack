@@ -1,4 +1,4 @@
-import type { ESandboxSessionVisibility } from '@tdsk/domain'
+import type { ESandboxSessionVisibility, TSandboxSession } from '@tdsk/domain'
 
 export type TSandboxStatus = 'stopped' | 'starting' | 'running' | 'error'
 
@@ -25,4 +25,10 @@ export type TOpenSessionOpts = {
    * - `null` — force creation of a new session (ignore stored sessions)
    */
   sessionId?: string | null
+}
+
+export type TSessionCategory = `connected` | `disconnected` | `shared`
+
+export type TClassifiedSession = Omit<TSandboxSession, `orgId` | `podName`> & {
+  category: TSessionCategory
 }

@@ -1,16 +1,16 @@
-import { useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router'
+import { Close } from '@mui/icons-material'
+import { useCallback, useMemo } from 'react'
 import { closeSession } from '@TTH/actions/sessions'
+import { Box, Tabs, Tab, Badge } from '@mui/material'
 import { setActiveSession } from '@TTH/state/accessors'
 import {
-  useOpenSessions,
-  useActiveSession,
   useToolState,
   useSandboxes,
+  useOpenSessions,
+  useActiveSession,
   useSessionsForSandbox,
 } from '@TTH/state/selectors'
-import { Close } from '@mui/icons-material'
-import { Box, Tabs, Tab, Badge, IconButton } from '@mui/material'
 
 type TSessionTab = {
   sessionId: string
@@ -98,13 +98,17 @@ const TabLabel = (props: TTabLabel) => {
           {name}
         </Box>
       </Badge>
-      <IconButton
-        size='small'
+      <Close
         onClick={handleClose}
-        sx={{ ml: 0.5, p: 0.25 }}
-      >
-        <Close sx={{ fontSize: 14 }} />
-      </IconButton>
+        sx={{
+          ml: 0.5,
+          p: 0.25,
+          fontSize: 14,
+          cursor: `pointer`,
+          borderRadius: `50%`,
+          '&:hover': { backgroundColor: `action.hover` },
+        }}
+      />
     </Box>
   )
 }
@@ -130,25 +134,15 @@ const useTabLabel = (session: THTabLabelSession) => {
   }, [sandboxes, session.sandboxId, session.sessionId, session.runtime, sbSessions])
 }
 
-const SessionTab = (props: TSessionTab) => {
-  const { session, onClose, onSelect, sessionId } = props
-
+const SessionTabLabel = (props: Omit<TSessionTab, 'onSelect'>) => {
+  const { session, onClose, sessionId } = props
   const label = useTabLabel(session)
-  const onClick = useCallback(() => {
-    onSelect(sessionId)
-  }, [sessionId, onSelect])
 
   return (
-    <Tab
-      onClick={onClick}
-      value={sessionId}
-      label={
-        <TabLabel
-          name={label}
-          onClose={onClose}
-          sessionId={sessionId}
-        />
-      }
+    <TabLabel
+      name={label}
+      onClose={onClose}
+      sessionId={sessionId}
     />
   )
 }
@@ -161,6 +155,11 @@ export const SessionTabs = (props: TSessionTabs) => {
   const activeSession = useActiveSession()
 
   const sessions = useMemo(() => Array.from(openSessions.entries()), [openSessions])
+
+  // Only pass activeSession to Tabs if it matches an actual Tab child,
+  // otherwise MUI warns about an invalid value
+  const tabValue =
+    activeSession && openSessions.has(activeSession) ? activeSession : false
 
   const onSelect = useCallback(
     (sessionId: string) => {
@@ -191,7 +190,7 @@ export const SessionTabs = (props: TSessionTabs) => {
       <Tabs
         variant='scrollable'
         scrollButtons='auto'
-        value={activeSession || false}
+        value={tabValue}
         onChange={(_evt, value: string) => onSelect(value)}
         sx={{
           minHeight: 40,
@@ -204,12 +203,17 @@ export const SessionTabs = (props: TSessionTabs) => {
         }}
       >
         {sessions.map(([sessionId, session]) => (
-          <SessionTab
+          <Tab
             key={sessionId}
-            session={session}
-            onClose={onClose}
-            onSelect={onSelect}
-            sessionId={sessionId}
+            value={sessionId}
+            onClick={() => onSelect(sessionId)}
+            label={
+              <SessionTabLabel
+                session={session}
+                onClose={onClose}
+                sessionId={sessionId}
+              />
+            }
           />
         ))}
       </Tabs>

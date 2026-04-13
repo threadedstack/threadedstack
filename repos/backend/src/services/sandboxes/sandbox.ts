@@ -1,6 +1,6 @@
 import type { TApp } from '@TBE/types'
 import type { TDatabase } from '@tdsk/database'
-import type { TShellSession, TShellWebSocket } from '@TBE/types'
+import type { TShellSession } from '@TBE/types'
 import type { TParsedEvent } from '@tdsk/domain'
 import type { TPodEgressOpts } from '@tdsk/sandbox'
 import type { RequestHandler } from 'http-proxy-middleware'
@@ -568,7 +568,11 @@ export class SandboxService {
     return session
   }
 
-  detachFromShellSession(sessionId: string, ws: import('ws').WebSocket) {
+  detachFromShellSession(
+    sessionId: string,
+    ws: import('ws').WebSocket,
+    joinedUserId?: string
+  ) {
     const session = this.shellSessions.get(sessionId)
     if (!session) return
 
@@ -576,7 +580,7 @@ export class SandboxService {
 
     // Broadcast user-left if this is a public session
     if (session.visibility === ESandboxSessionVisibility.public) {
-      const departingUserId = (ws as TShellWebSocket).__joinedUserId ?? session.userId
+      const departingUserId = joinedUserId ?? session.userId
       for (const client of session.attachments) {
         if (client.readyState === 1) {
           client.send(
@@ -591,6 +595,26 @@ export class SandboxService {
     }
 
     if (session.attachments.size === 0) {
+      // Persist ptyBuffer immediately so reconnecting clients get terminal history
+      try {
+        const rawBuffer = session.parser.getRawBuffer()
+        if (rawBuffer.length > 0) {
+          this.db.services.thread
+            .update({ id: session.threadId, ptyBuffer: Buffer.from(rawBuffer) })
+            .catch((err) => {
+              logger.error(
+                `[ShellSession] PTY buffer save on detach failed for thread ${session.threadId}:`,
+                (err as Error).message
+              )
+            })
+        }
+      } catch (err) {
+        logger.warn(
+          `[ShellSession] Failed to read raw buffer on detach:`,
+          (err as Error).message
+        )
+      }
+
       session.ttlTimer = setTimeout(async () => {
         try {
           await this.flushEventBatch(sessionId)
@@ -614,12 +638,18 @@ export class SandboxService {
     batch.push(event)
 
     if (batch.length >= 20) {
-      this.flushEventBatch(sessionId)
+      this.flushEventBatch(sessionId).catch((err) => {
+        logger.error('[Shell] Event batch flush failed:', (err as Error).message)
+      })
       return
     }
 
     if (!this.eventBatchTimers.has(sessionId)) {
-      const timer = setTimeout(() => this.flushEventBatch(sessionId), 2000)
+      const timer = setTimeout(() => {
+        this.flushEventBatch(sessionId).catch((err) => {
+          logger.error('[Shell] Event batch flush failed:', (err as Error).message)
+        })
+      }, 2000)
       this.eventBatchTimers.set(sessionId, timer)
     }
   }
@@ -654,6 +684,7 @@ export class SandboxService {
         `[ShellSession] Failed to persist ${batch.length} events for session ${sessionId}:`,
         (err as Error).message
       )
+      this.eventBatches.delete(sessionId)
     }
   }
 

@@ -74,7 +74,11 @@ const ConfigRow = ({ label, value }: { label: string; value: React.ReactNode }) 
     }}
   >
     <ConfigLabel>{label}</ConfigLabel>
-    <ConfigValue>{value}</ConfigValue>
+    {typeof value === `string` || typeof value === `number` ? (
+      <ConfigValue>{value}</ConfigValue>
+    ) : (
+      value
+    )}
   </Box>
 )
 
@@ -121,13 +125,27 @@ const Session = () => {
 
   // Auto-reconnect when we have sandboxId but no active WebSocket session
   const reconnectAttempted = useRef(false)
+  const hadSession = useRef(false)
+  useEffect(() => {
+    if (hasSession) hadSession.current = true
+  }, [hasSession])
   useEffect(() => {
     if (hasSession || connecting || pendingOp || reconnectAttempted.current) return
+    // Don't auto-reconnect if session was deliberately closed/stopped
+    if (hadSession.current) return
     if (!sessionId || !sandboxId || !orgId || !projectId) return
 
     reconnectAttempted.current = true
     setConnecting(true)
     openSession({ sandboxId, orgId, projectId, sessionId })
+      .then((newSessionId) => {
+        if (newSessionId !== sessionId) {
+          navigate(`/session/${newSessionId}`, {
+            replace: true,
+            state: { sandboxId, projectId },
+          })
+        }
+      })
       .catch((err) => {
         console.error(`[Session] auto-reconnect failed:`, err)
         toast.error(`Failed to reconnect`, {
@@ -154,7 +172,16 @@ const Session = () => {
     if (!sandboxId || !orgId || !projectId) return
     setConnecting(true)
     try {
-      await openSession({ sandboxId, orgId, projectId, sessionId: null })
+      const newSessionId = await openSession({
+        sandboxId,
+        orgId,
+        projectId,
+        sessionId: null,
+      })
+      navigate(`/session/${newSessionId}`, {
+        replace: true,
+        state: { sandboxId, projectId },
+      })
     } catch (err) {
       console.error(`[Session] connect failed:`, err)
       toast.error(`Failed to connect`, {
@@ -163,7 +190,7 @@ const Session = () => {
     } finally {
       setConnecting(false)
     }
-  }, [sandboxId, orgId, projectId])
+  }, [sandboxId, orgId, projectId, navigate])
 
   if (!sessionId) {
     return (

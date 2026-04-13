@@ -1,8 +1,9 @@
+export { closeSession } from './closeSession'
+export { fetchSandboxSessions, classifySessions } from './loadSandboxSessions'
+export { sendInput, sendControl, approvePermission, denyPermission } from './sendInput'
 export {
   openSession,
-  getConnection,
   getRawBuffer,
+  getConnection,
   subscribeTerminalData,
 } from './openSession'
-export { closeSession } from './closeSession'
-export { sendInput, sendControl, approvePermission, denyPermission } from './sendInput'

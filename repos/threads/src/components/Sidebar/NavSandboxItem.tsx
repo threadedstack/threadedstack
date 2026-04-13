@@ -1,19 +1,19 @@
-import type { Sandbox, Thread } from '@tdsk/domain'
-import type { TToolState } from '@tdsk/domain'
+import type { Sandbox, TToolState, TSandboxSession } from '@tdsk/domain'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router'
-import { Box, Typography, Collapse, Chip } from '@mui/material'
+import { Box, Typography, Collapse, Chip, useTheme } from '@mui/material'
 import { Terminal, ChevronRight } from '@mui/icons-material'
 import { colors, cmx, dims } from '@tdsk/components'
 import { StorageKeyPrefix } from '@TTH/constants/storage'
+import { fetchSandboxSessions, classifySessions } from '@TTH/actions/sessions'
+import { NavSessionItem } from '@TTH/components/Sidebar/NavSessionItem'
 import {
+  useUser,
   useSandboxHasSession,
   useSandboxToolState,
   useSessionsForSandbox,
 } from '@TTH/state/selectors'
-import { loadThreadHistory } from '@TTH/actions/threads'
-import { NavThreadItem } from '@TTH/components/Sidebar/NavThreadItem'
 
 export type TNavSandboxItem = {
   sandbox: Sandbox
@@ -33,13 +33,19 @@ const getInitialExpanded = (sandboxId: string): boolean => {
   }
 }
 
-const statusDotColor = (hasSession: boolean, toolState: TToolState) => {
+type PaletteColor = { main: string }
+
+const statusDotColor = (
+  hasSession: boolean,
+  toolState: TToolState,
+  palette: { success: PaletteColor; warning: PaletteColor }
+) => {
   if (!hasSession) return colors.grey[500]
   switch (toolState) {
     case `working`:
-      return `#4caf50`
+      return palette.success.main
     case `permission`:
-      return `#ff9800`
+      return palette.warning.main
     case `prompt`:
     case `idle`:
     default:
@@ -52,69 +58,87 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
 
   const navigate = useNavigate()
   const location = useLocation()
+  const theme = useTheme()
+  const [user] = useUser()
   const hasSession = useSandboxHasSession(sandbox.id)
   const toolState = useSandboxToolState(sandbox.id)
   const sessions = useSessionsForSandbox(sandbox.id)
 
   const [expanded, setExpanded] = useState(() => getInitialExpanded(sandbox.id))
-  const [threads, setThreads] = useState<Thread[]>([])
+  const [backendSessions, setBackendSessions] = useState<TSandboxSession[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const loadedRef = useRef(false)
+  const cancelRef = useRef<(() => void) | undefined>(undefined)
 
   const runtime = sandbox.config?.runtime || `custom`
+  const resolvedProjectId = projectId || sandbox.projects?.[0]?.id || ``
   const isActive =
     location.pathname === `/sandbox/${sandbox.id}` ||
     sessions.some((s) => location.pathname === `/session/${s.sessionId}`)
 
-  const handleToggle = useCallback(
-    (evt: React.MouseEvent) => {
-      evt.stopPropagation()
-      setExpanded((prev) => {
-        const next = !prev
-        try {
-          localStorage.setItem(storageKey(sandbox.id), String(next))
-        } catch {
-          /* storage full */
-        }
-        return next
-      })
-    },
-    [sandbox.id]
+  const classifiedSessions = useMemo(
+    () => classifySessions(backendSessions, sessions, user?.id),
+    [backendSessions, sessions, user?.id]
   )
 
-  const handleNavigate = useCallback(() => {
-    if (sessions.length === 1) {
-      navigate(`/session/${sessions[0].sessionId}`, {
-        state: { sandboxId: sandbox.id, projectId },
-      })
-    } else {
-      navigate(`/sandbox/${sandbox.id}`)
-    }
-  }, [navigate, sandbox.id, projectId, sessions])
-
-  // Lazy-load threads when first expanded
-  useEffect(() => {
-    if (!expanded || loadedRef.current || !orgId) return
-
-    loadedRef.current = true
-    setLoading(true)
-
+  const loadSessions = useCallback(() => {
+    if (!orgId || !resolvedProjectId) return
+    cancelRef.current?.()
     let cancelled = false
-    loadThreadHistory({ orgId, sandboxId: sandbox.id }).then((res) => {
-      if (cancelled) return
-      if (res.data) setThreads(res.data)
-      setLoading(false)
-    })
-
-    return () => {
+    cancelRef.current = () => {
       cancelled = true
     }
-  }, [expanded, orgId, sandbox.id])
+    loadedRef.current = true
+    setLoading(true)
+    setLoadError(false)
+    fetchSandboxSessions({ orgId, sandboxId: sandbox.id, projectId: resolvedProjectId })
+      .then((res) => {
+        if (cancelled) return
+        if (res.data) setBackendSessions(res.data)
+        else if (res.error) setLoadError(true)
+        setLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setLoadError(true)
+        setLoading(false)
+      })
+  }, [orgId, sandbox.id, resolvedProjectId])
+
+  const onToggle = useCallback(
+    (evt: React.MouseEvent) => {
+      evt.stopPropagation()
+      const next = !expanded
+      setExpanded(next)
+      if (next && !loadedRef.current) loadSessions()
+      if (!next) {
+        cancelRef.current?.()
+        loadedRef.current = false
+      }
+      try {
+        localStorage.setItem(storageKey(sandbox.id), String(next))
+      } catch {
+        /* storage full */
+      }
+    },
+    [sandbox.id, loadSessions, expanded]
+  )
+
+  useEffect(() => {
+    if (expanded && !loadedRef.current && orgId && resolvedProjectId) {
+      loadSessions()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onNavigate = useCallback(() => {
+    navigate(`/sandbox/${sandbox.id}`)
+  }, [navigate, sandbox.id])
 
   return (
     <Box>
       <Box
-        onClick={handleNavigate}
+        onClick={onNavigate}
         sx={{
           display: `flex`,
           alignItems: `center`,
@@ -135,14 +159,13 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
           userSelect: `none`,
         }}
       >
-        {/* Status dot */}
         <Box
           sx={{
             width: 8,
             height: 8,
             borderRadius: `50%`,
             flexShrink: 0,
-            backgroundColor: statusDotColor(hasSession, toolState),
+            backgroundColor: statusDotColor(hasSession, toolState, theme.palette),
             transition: `background-color 0.3s ease`,
           }}
         />
@@ -181,7 +204,7 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
         />
 
         <Box
-          onClick={handleToggle}
+          onClick={onToggle}
           sx={{
             display: `flex`,
             alignItems: `center`,
@@ -217,35 +240,37 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
           <Typography
             variant='caption'
             sx={{
-              display: `block`,
-              pl: `${indent + 48 + 12}px`,
               py: `4px`,
+              display: `block`,
               color: colors.grey[500],
+              pl: `${indent + 48 + 12}px`,
             }}
           >
             Loading...
           </Typography>
-        ) : threads.length > 0 ? (
-          threads.map((thread) => (
-            <NavThreadItem
-              key={thread.id}
-              thread={thread}
-              sandboxId={sandbox.id}
+        ) : classifiedSessions.length > 0 ? (
+          classifiedSessions.map((cs) => (
+            <NavSessionItem
+              session={cs}
+              orgId={orgId}
+              key={cs.sessionId}
               indent={indent + 24}
+              sandboxId={sandbox.id}
+              projectId={resolvedProjectId}
             />
           ))
         ) : (
           <Typography
             variant='caption'
             sx={{
-              display: `block`,
-              pl: `${indent + 48 + 12}px`,
               py: `4px`,
-              color: colors.grey[500],
+              display: `block`,
               fontStyle: `italic`,
+              color: loadError ? theme.palette.error.main : colors.grey[500],
+              pl: `${indent + 48 + 12}px`,
             }}
           >
-            No sessions
+            {loadError ? `Failed to load` : `No sessions`}
           </Typography>
         )}
       </Collapse>

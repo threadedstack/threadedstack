@@ -7,7 +7,26 @@ import { messages } from '@TDB/schemas/messages'
 import { projects } from '@TDB/schemas/projects'
 import { providers } from '@TDB/schemas/providers'
 import { sandboxes } from '@TDB/schemas/sandboxes'
-import { uuid, text, jsonb, boolean, index, pgTable, varchar } from 'drizzle-orm/pg-core'
+import {
+  uuid,
+  text,
+  jsonb,
+  boolean,
+  index,
+  pgTable,
+  varchar,
+  customType,
+} from 'drizzle-orm/pg-core'
+
+const byteaType = customType<{
+  data: Buffer
+  notNull: false
+  default: false
+}>({
+  dataType() {
+    return `bytea`
+  },
+})
 
 export const threads = pgTable(
   `threads`,
@@ -36,6 +55,7 @@ export const threads = pgTable(
     sandboxId: varchar(`sandbox_id`, { length: 10 }).references(() => sandboxes.id, {
       onDelete: `set null`,
     }),
+    ptyBuffer: byteaType(`pty_buffer`),
   },
   (table) => [
     index(`threads_user_id_idx`).on(table.userId),

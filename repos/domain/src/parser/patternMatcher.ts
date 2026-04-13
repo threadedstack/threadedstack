@@ -1,4 +1,4 @@
-import type { TBlock, TPatternMatcher, TParsedEvent } from '@TDM/types'
+import type { TPatternMatcher, TParsedEvent } from '@TDM/types'
 
 export class PatternMatcherPipeline {
   private matchers: TPatternMatcher[]
@@ -9,14 +9,9 @@ export class PatternMatcherPipeline {
     this.onEvent = onEvent
   }
 
-  process(block: TBlock) {
-    if (block.type === `input`) {
-      this.onEvent({ type: `input`, content: block.content, timestamp: block.timestamp })
-      return
-    }
-
+  process(text: string) {
     for (const matcher of this.matchers) {
-      const event = matcher.match(block.content)
+      const event = matcher.match(text)
       if (event) {
         this.onEvent(event)
         return
@@ -24,9 +19,17 @@ export class PatternMatcherPipeline {
     }
 
     if (this.matchers.length === 0) {
-      this.onEvent({ type: `unknown`, raw: block.content, timestamp: block.timestamp })
+      this.onEvent({ type: `unknown`, raw: text, timestamp: Date.now() })
     } else {
-      this.onEvent({ type: `text`, content: block.content, timestamp: block.timestamp })
+      this.onEvent({ type: `text`, content: text, timestamp: Date.now() })
     }
+  }
+
+  tryMatch(text: string): TParsedEvent | null {
+    for (const matcher of this.matchers) {
+      const event = matcher.match(text)
+      if (event) return event
+    }
+    return null
   }
 }

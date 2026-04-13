@@ -4,11 +4,11 @@ import { toast } from 'sonner'
 import { Loading } from '@tdsk/components'
 import { Page } from '@TTH/pages/Page/Page'
 import { openSession } from '@TTH/actions/sessions'
-import { useParams, useNavigate } from 'react-router'
+import { useParams, useNavigate, useLocation } from 'react-router'
 import { sandboxApi } from '@TTH/services/sandboxApi'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ArrowBack, PlayArrow, Login, Add } from '@mui/icons-material'
-import { useOrgId, useSandboxes, useUser } from '@TTH/state/selectors'
+import { useOrgId, useSandboxes, useUser, useOpenSessions } from '@TTH/state/selectors'
 import {
   Box,
   Chip,
@@ -26,6 +26,7 @@ const Sandbox = () => {
   const sandboxes = useSandboxes()
   const [user] = useUser()
 
+  const openSessions = useOpenSessions()
   const [sessions, setSessions] = useState<TSandboxSession[]>([])
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
@@ -37,11 +38,18 @@ const Sandbox = () => {
 
   const projectId = sandbox?.projects?.[0]?.id ?? ``
 
+  // Re-fetch sessions whenever this page is navigated to.
+  // location.key changes on every navigation (even to the same path),
+  // ensuring the fetch re-runs when returning from a session page.
+  const location = useLocation()
   useEffect(() => {
     if (!sandboxId || !orgId || !projectId) {
       setLoading(false)
       return
     }
+
+    setSessions([])
+    setLoading(true)
 
     let cancelled = false
     sandboxApi.sessions(orgId, projectId, sandboxId).then((resp) => {
@@ -58,7 +66,7 @@ const Sandbox = () => {
     return () => {
       cancelled = true
     }
-  }, [sandboxId, orgId, projectId])
+  }, [sandboxId, orgId, projectId, location.key])
 
   const mySessions = useMemo(
     () => sessions.filter((s) => s.userId === user?.id),
@@ -69,16 +77,6 @@ const Sandbox = () => {
     () => sessions.filter((s) => s.userId !== user?.id && s.visibility === `public`),
     [sessions, user?.id]
   )
-
-  // Auto-navigate if exactly one own session
-  useEffect(() => {
-    if (!loading && mySessions.length === 1 && sharedSessions.length === 0) {
-      navigate(`/session/${mySessions[0].sessionId}`, {
-        replace: true,
-        state: { sandboxId, projectId },
-      })
-    }
-  }, [loading, mySessions, sharedSessions, navigate, sandboxId, projectId])
 
   const handleStart = useCallback(
     async (sessionId?: string | null) => {
@@ -202,36 +200,47 @@ const Sandbox = () => {
               My Sessions
             </Typography>
             <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1 }}>
-              {mySessions.map((s) => (
-                <Card
-                  key={s.sessionId}
-                  variant='outlined'
-                >
-                  <CardActionArea
-                    onClick={() => handleReconnect(s.sessionId)}
-                    sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
+              {mySessions.map((s) => {
+                const isOpen = openSessions.has(s.sessionId)
+                return (
+                  <Card
+                    key={s.sessionId}
+                    variant='outlined'
                   >
-                    <Box>
-                      <Typography variant='body2'>
-                        Session {s.sessionId.slice(0, 8)}
-                      </Typography>
-                      <Typography
-                        variant='caption'
-                        color='text.secondary'
-                      >
-                        Connected {new Date(s.connectedAt).toLocaleTimeString()}
-                      </Typography>
-                    </Box>
-                    <Button
-                      size='small'
-                      variant='outlined'
-                      startIcon={<PlayArrow />}
+                    <CardActionArea
+                      onClick={() =>
+                        isOpen
+                          ? navigate(`/session/${s.sessionId}`, {
+                              state: { sandboxId, projectId },
+                            })
+                          : handleReconnect(s.sessionId)
+                      }
+                      sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
                     >
-                      Reconnect
-                    </Button>
-                  </CardActionArea>
-                </Card>
-              ))}
+                      <Box>
+                        <Typography variant='body2'>
+                          Session {s.sessionId.slice(0, 8)}
+                        </Typography>
+                        <Typography
+                          variant='caption'
+                          color='text.secondary'
+                        >
+                          Connected {new Date(s.connectedAt).toLocaleTimeString()}
+                        </Typography>
+                      </Box>
+                      <Button
+                        component='span'
+                        size='small'
+                        variant='outlined'
+                        color={isOpen ? `primary` : `inherit`}
+                        startIcon={isOpen ? <Login /> : <PlayArrow />}
+                      >
+                        {isOpen ? `Open` : `Reconnect`}
+                      </Button>
+                    </CardActionArea>
+                  </Card>
+                )
+              })}
             </Box>
           </Box>
         )}
@@ -272,6 +281,7 @@ const Sandbox = () => {
                       </Typography>
                     </Box>
                     <Button
+                      component='span'
                       size='small'
                       variant='outlined'
                       startIcon={<Login />}

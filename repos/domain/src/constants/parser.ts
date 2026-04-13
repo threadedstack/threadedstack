@@ -1,22 +1,19 @@
-// Matches ANSI escape sequences:
-// - CSI sequences: ESC [ ... (params) ... (final byte)
-// - OSC sequences: ESC ] ... (ST or BEL)
-// - Simple escapes: ESC + single char
-// - C1 control codes (0x80-0x9F range via \u009B)
-export const AnsiRegEx =
-  /[\u001B\u009B][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nq-uy=><~]|\x1b\][^\x07]*\x07|\x1b[^[\]()#;?0-9A-ORZcf-nq-uy=><~]/g
+// GhosttyVT constants
+export const GhosttyVTCellSize = 16
+export const GhosttyVTConfigSize = 80 // scrollback(4) + fg(4) + bg(4) + cursor(4) + palette(16×4)
 
-export const PromptRegEx = /^[>$#] $/
+// Claude Code matcher patterns — used by matchers/claudeCode.ts
 
-// Diff patterns (only match if line starts with +/- and has content after)
+// Diff patterns (line starts with +/- and has content after)
 export const CCDiffAddRegEx = /^\+\s+(.+)/
 export const CCDiffRemoveRegEx = /^-\s+(.+)/
 
 // Error patterns
 export const CCErrorCrossRegEx = /^✗\s+(.+)/
 export const CCErrorPrefixRegEx = /^Error:\s+(.+)/
+
 // Prompt patterns
-export const CCPromptPatternRegEx = /^[>$]\s*$/
+export const CCPromptPatternRegEx = /^[>$❯]\s*$/
 
 // Permission prompts
 export const CCPermissionProceedRegEx = /Do you want to proceed\?\s*\(y\/n\)/i

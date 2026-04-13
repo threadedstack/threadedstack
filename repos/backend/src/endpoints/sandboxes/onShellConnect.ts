@@ -4,24 +4,51 @@ import type { IncomingMessage } from 'http'
 import type {
   TShellSession,
   TShellControlMsg,
-  TShellWebSocket,
+  TWebSocketMeta,
 } from '@TBE/types/shellSession.types'
 import type { SandboxService } from '@TBE/services/sandboxes/sandbox'
 
 import { Client } from 'ssh2'
 import { nanoid } from 'nanoid'
-import { hashKey, ESandboxSessionVisibility, PlanLimits } from '@tdsk/domain'
-import type { ESubscriptionTier } from '@tdsk/domain'
+import {
+  hashKey,
+  ESandboxSessionVisibility,
+  PlanLimits,
+  TerminalParser,
+  GhosttyVT,
+  deriveToolState,
+} from '@tdsk/domain'
+import type { ESubscriptionTier, TParsedEvent } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
-import { TerminalParser } from '@tdsk/domain'
 import { RingBuffer } from '@TBE/utils/ringBuffer'
 import { PodLabelKeys } from '@tdsk/sandbox'
 import { SBBackpressureThreshold } from '@TBE/constants/sandbox'
 import { verifyShellToken } from '@TBE/services/sessionToken'
 
+const inputBuffers = new WeakMap<WebSocket, string>()
+const wsMeta = new Map<WebSocket, TWebSocketMeta>()
+const MaxInputBufferSize = 4096
+
 const WS_PING_INTERVAL = 30_000
 const SSH_KEEPALIVE_INTERVAL = 15_000
 const SSH_READY_TIMEOUT = 10_000
+
+let wasmReady = false
+
+async function ensureWasmReady() {
+  if (wasmReady) return
+  await GhosttyVT.init()
+  wasmReady = true
+}
+
+function broadcastEvent(session: TShellSession, sessionId: string, event: TParsedEvent) {
+  const msg = JSON.stringify({ sessionId, event })
+  for (const client of session.attachments) {
+    if (client.readyState === 1) {
+      client.send(msg)
+    }
+  }
+}
 
 /**
  * Handle WebSocket shell connections for interactive terminal access to sandbox pods.
@@ -47,6 +74,14 @@ export const onShellConnect = async (
 ): Promise<void> => {
   const { db, sandbox: sbService, kube } = app.locals
 
+  try {
+    await ensureWasmReady()
+  } catch (err) {
+    logger.error('[Shell] WASM initialization failed:', (err as Error).message)
+    ws.close(4005, 'Terminal engine initialization failed')
+    return
+  }
+
   let closed = false
   let pingInterval: ReturnType<typeof setInterval> | null = null
 
@@ -55,8 +90,10 @@ export const onShellConnect = async (
     closed = true
     if (pingInterval) clearInterval(pingInterval)
 
-    const sessionId = (ws as TShellWebSocket).__shellSessionId
-    if (sessionId) sbService.detachFromShellSession(sessionId, ws)
+    const meta = wsMeta.get(ws)
+    if (meta?.sessionId)
+      sbService.detachFromShellSession(meta.sessionId, ws, meta.joinedUserId)
+    wsMeta.delete(ws)
 
     try {
       if (ws.readyState === ws.OPEN)
@@ -151,10 +188,69 @@ export const onShellConnect = async (
           ws.close(4005, `Session expired during reconnection`)
           return
         }
-        ;(ws as TShellWebSocket).__shellSessionId = reconnectSessionId
+        wsMeta.set(ws, { sessionId: reconnectSessionId })
 
-        const buffered = session.buffer.drain()
-        if (buffered.length > 0) ws.send(buffered)
+        let buffered = session.buffer.drain()
+
+        if (buffered.length > 0) {
+          ws.send(buffered)
+        } else {
+          // Ring buffer empty (no output during disconnect gap).
+          // Use the parser's raw buffer — the full session PTY history.
+          try {
+            const rawData = session.parser.getRawBuffer()
+            if (rawData.length > 0) {
+              const buf = Buffer.from(rawData)
+              ws.send(buf)
+              buffered = buf
+            }
+          } catch (err) {
+            logger.warn(
+              `[Shell] Failed to get parser raw buffer:`,
+              (err as Error).message
+            )
+          }
+
+          // Fall back to ptyBuffer from DB (only populated after stream close)
+          if (buffered.length === 0) {
+            try {
+              const { data: thread } = await db.services.thread.get(session.threadId)
+              if (thread?.ptyBuffer) {
+                const buf = Buffer.isBuffer(thread.ptyBuffer)
+                  ? thread.ptyBuffer
+                  : Buffer.from(thread.ptyBuffer)
+                ws.send(buf)
+                buffered = buf
+              }
+            } catch (err) {
+              logger.warn(
+                `[Shell] Failed to load PTY buffer for thread ${session.threadId}:`,
+                (err as Error).message
+              )
+            }
+          }
+        }
+
+        // Replay persisted events so ChatView has history after page reload
+        try {
+          await sbService.flushEventBatch(reconnectSessionId)
+          const { data: messages } = await db.services.message.listByThread(
+            session.threadId
+          )
+          if (messages && messages.length > 0) {
+            for (const msg of messages) {
+              const event = msg.content as unknown as TParsedEvent
+              if (event?.type) {
+                ws.send(JSON.stringify({ sessionId: reconnectSessionId, event }))
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn(
+            `[Shell] Failed to replay events on reconnect:`,
+            (err as Error).message
+          )
+        }
 
         const podName = await sbService.findRunningPod(sandboxId, orgId)
         let podOwnerUserId = userId
@@ -170,7 +266,14 @@ export const onShellConnect = async (
           }
         }
 
-        const { data: sbConfig } = await db.services.sandbox.get(sandboxId)
+        const { data: sbConfig, error: sbConfigErr } =
+          await db.services.sandbox.get(sandboxId)
+        if (sbConfigErr) {
+          logger.warn(
+            '[Shell] Failed to load sandbox config for reconnect:',
+            sbConfigErr.message
+          )
+        }
 
         ws.send(
           JSON.stringify({
@@ -212,18 +315,73 @@ export const onShellConnect = async (
         return
       }
 
-      const { data: sbConfig } = await db.services.sandbox.get(sandboxId)
+      const { data: sbConfig, error: sbConfigErr } =
+        await db.services.sandbox.get(sandboxId)
+      if (sbConfigErr) {
+        logger.warn(
+          '[Shell] Failed to load sandbox config for reconnect:',
+          sbConfigErr.message
+        )
+      }
 
       const session = sbService.attachToShellSession(reconnectSessionId, ws)
       if (!session) {
         ws.close(4005, `Session expired`)
         return
       }
-      ;(ws as TShellWebSocket).__shellSessionId = reconnectSessionId
-      ;(ws as TShellWebSocket).__joinedUserId = userId
+      wsMeta.set(ws, { sessionId: reconnectSessionId, joinedUserId: userId })
 
       const buffered = session.buffer.drain()
-      if (buffered.length > 0) ws.send(buffered)
+      if (buffered.length > 0) {
+        ws.send(buffered)
+      } else {
+        // Ring buffer empty — use parser's raw buffer (full PTY history)
+        let sent = false
+        try {
+          const rawData = session.parser.getRawBuffer()
+          if (rawData.length > 0) {
+            ws.send(Buffer.from(rawData))
+            sent = true
+          }
+        } catch (err) {
+          logger.warn(`[Shell] Failed to get parser raw buffer:`, (err as Error).message)
+        }
+
+        if (!sent) {
+          try {
+            const { data: thread } = await db.services.thread.get(session.threadId)
+            if (thread?.ptyBuffer) {
+              const buf = Buffer.isBuffer(thread.ptyBuffer)
+                ? thread.ptyBuffer
+                : Buffer.from(thread.ptyBuffer)
+              ws.send(buf)
+            }
+          } catch (err) {
+            logger.warn(
+              `[Shell] Failed to load PTY buffer for thread ${session.threadId}:`,
+              (err as Error).message
+            )
+          }
+        }
+      }
+
+      // Replay persisted events so ChatView has history on join
+      try {
+        await sbService.flushEventBatch(reconnectSessionId)
+        const { data: messages } = await db.services.message.listByThread(
+          session.threadId
+        )
+        if (messages && messages.length > 0) {
+          for (const msg of messages) {
+            const event = msg.content as unknown as TParsedEvent
+            if (event?.type) {
+              ws.send(JSON.stringify({ sessionId: reconnectSessionId, event }))
+            }
+          }
+        }
+      } catch (err) {
+        logger.warn(`[Shell] Failed to replay events on join:`, (err as Error).message)
+      }
 
       const podName = await sbService.findRunningPod(sandboxId, orgId)
       let podOwnerUserId = existing.userId
@@ -374,12 +532,52 @@ export const onShellConnect = async (
         return
       }
 
+      // Create a ref that the closure can capture
+      let sessionRef: TShellSession | null = null
+
       const parser = new TerminalParser({
         runtime,
         onEvent: (event) => {
+          const session = sessionRef
+          if (!session) return
+
+          // Tool-call completion tracking
+          if (session.lastRunningToolCall) {
+            const completionTriggers = [
+              `tool-call`,
+              `prompt-ready`,
+              `permission`,
+              `error`,
+            ]
+            if (completionTriggers.includes(event.type)) {
+              const done: TParsedEvent = {
+                ...session.lastRunningToolCall,
+                status: `done`,
+                timestamp: Date.now(),
+              }
+              sbService.queueEventForPersistence(sessionId, done)
+              broadcastEvent(session, sessionId, done)
+              session.lastRunningToolCall = null
+            }
+          }
+
+          if (event.type === `tool-call` && event.status === `running`) {
+            session.lastRunningToolCall = event as TParsedEvent & { type: `tool-call` }
+          }
+
+          // Update tool state
+          const newState = deriveToolState(event, {
+            lastRunningTool: session.lastRunningToolCall?.tool,
+          })
+          if (newState && newState !== session.toolState) {
+            session.toolState = newState
+          }
+
           sbService.queueEventForPersistence(sessionId, event)
+          broadcastEvent(session, sessionId, event)
         },
-        onToolState: () => {},
+        cols,
+        rows,
       })
 
       const session: TShellSession = {
@@ -394,12 +592,16 @@ export const onShellConnect = async (
         sshStream: stream,
         attachments: new Set([ws]),
         buffer: new RingBuffer(1024 * 1024),
+        toolState: `idle`,
+        lastRunningToolCall: null,
         projectId: sandbox?.projects?.[0]?.id ?? undefined,
         visibility: ESandboxSessionVisibility.private,
       }
 
+      sessionRef = session
+
       sbService.addShellSession(session)
-      ;(ws as TShellWebSocket).__shellSessionId = sessionId
+      wsMeta.set(ws, { sessionId })
 
       // Update thread meta with session ID
       db.services.thread
@@ -442,7 +644,11 @@ export const onShellConnect = async (
 
       // SSH stream -> WebSocket fan-out
       stream.on(`data`, (data: Buffer) => {
-        parser.write(data.toString())
+        try {
+          parser.write(data)
+        } catch (err) {
+          logger.error('[Shell] Parser write failed:', (err as Error).message)
+        }
 
         if (session.attachments.size === 0) {
           session.buffer.write(data)
@@ -468,8 +674,41 @@ export const onShellConnect = async (
       })
 
       stream.on(`close`, () => {
-        parser.flush()
-        sbService.flushEventBatch(sessionId)
+        if (session.lastRunningToolCall) {
+          const done: TParsedEvent = {
+            ...session.lastRunningToolCall,
+            status: `done`,
+            timestamp: Date.now(),
+          }
+          sbService.queueEventForPersistence(sessionId, done)
+          broadcastEvent(session, sessionId, done)
+          session.lastRunningToolCall = null
+        }
+
+        try {
+          parser.flush()
+          const rawBuffer = parser.getRawBuffer()
+          if (rawBuffer.length > 0) {
+            db.services.thread
+              .update({ id: threadId, ptyBuffer: Buffer.from(rawBuffer) })
+              .catch((err) => {
+                logger.error(
+                  `[Shell] Failed to persist PTY buffer for thread ${threadId}:`,
+                  (err as Error).message
+                )
+              })
+          }
+        } catch (err) {
+          logger.error(
+            '[Shell] Parser flush/buffer extraction failed:',
+            (err as Error).message
+          )
+        }
+
+        parser.destroy()
+        sbService.flushEventBatch(sessionId).catch((err) => {
+          logger.error('[Shell] Final event batch flush failed:', (err as Error).message)
+        })
         sbService.removeSession(podName, sessionId)
         cleanup(`SSH stream closed`)
         sbService.removeShellSession(sessionId)
@@ -506,6 +745,8 @@ function wireWebSocket(
   cleanup: (reason: string) => void,
   podName?: string
 ) {
+  inputBuffers.set(ws, ``)
+
   ws.on(`message`, (data, isBinary) => {
     if (typeof data === `string` || !isBinary) {
       let msg: TShellControlMsg
@@ -518,14 +759,17 @@ function wireWebSocket(
       try {
         if (msg.type === `resize`) {
           session.sshStream.setWindow(msg.rows, msg.cols, msg.rows * 16, msg.cols * 8)
+          session.parser.resize(msg.cols, msg.rows)
         } else if (msg.type === `signal`) {
           if (msg.signal === `SIGINT`) session.sshStream.write(`\x03`)
           else if (msg.signal === `SIGTSTP`) session.sshStream.write(`\x1a`)
+        } else if (msg.type === `permission-response`) {
+          session.sshStream.write(`${msg.response}\n`)
         } else if (msg.type === `visibility`) {
           // Only the session creator can toggle visibility.
-          // For the owner's WS, __joinedUserId is unset so it falls back to session.userId (matching).
-          // For joiners, __joinedUserId is set to their userId (non-matching).
-          const authUserId = (ws as TShellWebSocket).__joinedUserId ?? session.userId
+          // For the owner's WS, joinedUserId is unset so it falls back to session.userId (matching).
+          // For joiners, joinedUserId is set to their userId (non-matching).
+          const authUserId = wsMeta.get(ws)?.joinedUserId ?? session.userId
           if (authUserId !== session.userId) return
 
           if (!Object.values(ESandboxSessionVisibility).includes(msg.visibility)) return
@@ -551,12 +795,51 @@ function wireWebSocket(
       return
     }
 
-    const inputStr = data.toString()
-    session.parser.trackInput(inputStr)
+    // Buffer input and emit input events on submitted commands (newline)
+    const raw = data.toString()
+
+    // Control characters (Ctrl+C, Ctrl+Z) reset the input buffer —
+    // the user abandoned the current line
+    if (/[\x03\x1a]/.test(raw)) {
+      inputBuffers.set(ws, ``)
+    } else {
+      const text = raw.replace(/\r\n/g, `\n`).replace(/\r/g, `\n`)
+      let buffered = (inputBuffers.get(ws) ?? ``) + text
+
+      if (buffered.length > MaxInputBufferSize) {
+        buffered = buffered.slice(-MaxInputBufferSize)
+      }
+
+      if (buffered.includes(`\n`)) {
+        const lines = buffered.split(`\n`)
+        inputBuffers.set(ws, lines.pop()!)
+        const userId = wsMeta.get(ws)?.joinedUserId ?? session.userId
+        for (const line of lines) {
+          const content = line.trim()
+          if (content.length > 0) {
+            const event: TParsedEvent = {
+              type: `input`,
+              content,
+              userId,
+              timestamp: Date.now(),
+            }
+            sbService.queueEventForPersistence(session.sessionId, event)
+            broadcastEvent(session, session.sessionId, event)
+          }
+        }
+      } else {
+        inputBuffers.set(ws, buffered)
+      }
+    }
+
     session.sshStream.write(data)
     if (podName) sbService.updateActivity(podName)
   })
 
-  ws.on(`close`, () => cleanup(`WebSocket closed`))
+  ws.on(`close`, () => {
+    inputBuffers.delete(ws)
+    wsMeta.delete(ws)
+    cleanup(`WebSocket closed`)
+  })
   ws.on(`error`, (err) => cleanup(`WebSocket error: ${err.message}`))
 }

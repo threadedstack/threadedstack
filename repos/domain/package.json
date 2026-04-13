@@ -25,7 +25,8 @@
     "@keg-hub/jsutils": "10.0.0",
     "@keg-hub/parse-config": "2.2.0",
     "@tdsk/logger": "workspace:*",
-    "alias-hq": "6.2.4"
+    "alias-hq": "6.2.4",
+    "ghostty-web": "0.4.0"
   },
   "devDependencies": {
     "@types/express": "5.0.0",

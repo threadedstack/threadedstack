@@ -1,9 +1,22 @@
+export type TToolName =
+  | 'Read'
+  | 'Edit'
+  | 'Write'
+  | 'Bash'
+  | 'Glob'
+  | 'Grep'
+  | 'Agent'
+  | 'TodoWrite'
+  | 'WebFetch'
+  | 'WebSearch'
+  | (string & {})
+
 export type TParsedEvent =
+  | { type: `input`; content: string; userId: string; timestamp: number }
   | { type: `text`; content: string; timestamp: number }
-  | { type: `input`; content: string; timestamp: number }
   | {
       type: `tool-call`
-      tool: string
+      tool: TToolName
       target: string
       status: `running` | `done`
       detail?: string
@@ -18,19 +31,11 @@ export type TParsedEvent =
       timestamp: number
     }
   | { type: `error`; message: string; timestamp: number }
-  | { type: `thinking`; timestamp: number }
+  | { type: `activity`; timestamp: number }
   | { type: `prompt-ready`; timestamp: number }
   | { type: `unknown`; raw: string; timestamp: number }
 
 export type TToolState = `idle` | `prompt` | `working` | `permission` | `interactive`
-
-export type TSegmenterState = `outputting` | `waiting` | `interactive`
-
-export type TBlock = {
-  type: `input` | `output`
-  content: string
-  timestamp: number
-}
 
 export type TPatternMatcher = {
   name: string
@@ -40,7 +45,6 @@ export type TPatternMatcher = {
 export type TTerminalParserOpts = {
   runtime: string
   onEvent: (event: TParsedEvent) => void
-  onToolState: (state: TToolState) => void
-  debounceMs?: number
-  thinkingDelayMs?: number
+  cols?: number
+  rows?: number
 }

@@ -1,182 +1,85 @@
-import type {
-  TToolState,
-  TParsedEvent,
-  TPatternMatcher,
-  TTerminalParserOpts,
-} from '@TDM/types'
+import type { TParsedEvent, TTerminalParserOpts } from '@TDM/types'
 
-import { stripAnsi } from '@TDM/parser/ansiProcessor'
-import { BlockSegmenter } from '@TDM/parser/blockSegmenter'
+import { GhosttyVT } from '@TDM/parser/ghosttyVT'
+import type { VTerminal } from '@TDM/parser/ghosttyVT'
+import { ChangeDetector } from '@TDM/parser/changeDetector'
 import { PatternMatcherPipeline } from '@TDM/parser/patternMatcher'
-import { claudeCodeMatchers } from '@TDM/parser/matchers/claudeCode'
+import { getMatchers } from '@TDM/parser/matchers'
 
-const matchersByRuntime: Record<string, TPatternMatcher[]> = {
-  'claude-code': claudeCodeMatchers,
-}
+const maxRawBufferSize = 10 * 1024 * 1024
 
 export class TerminalParser {
-  private pendingData = ``
-  private debounceMs: number
-  private rawBuffer: string[] = []
-  private segmenter: BlockSegmenter
-  private toolState: TToolState = `idle`
-  private pipeline: PatternMatcherPipeline
+  private terminal: VTerminal
+  private detector: ChangeDetector
+  private rawBuffer: Uint8Array[] = []
+  private rawBufferSize = 0
   private onEvent: (event: TParsedEvent) => void
-  private onToolState: (state: TToolState) => void
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null
-
-  private thinkingTimer: ReturnType<typeof setTimeout> | null = null
-  private thinkingDelayMs: number
-  private lastRunningToolCall: (TParsedEvent & { type: 'tool-call' }) | null = null
+  private encoder = new TextEncoder()
 
   constructor(opts: TTerminalParserOpts) {
     this.onEvent = opts.onEvent
-    this.onToolState = opts.onToolState
-    this.debounceMs = opts.debounceMs ?? 100
-    this.thinkingDelayMs = opts.thinkingDelayMs ?? 2000
 
-    const matchers = matchersByRuntime[opts.runtime] ?? []
-
-    this.pipeline = new PatternMatcherPipeline(matchers, (event) => {
-      this.cancelThinkingTimer()
-      this.maybeCompleteToolCall(event)
+    const matchers = getMatchers(opts.runtime)
+    const pipeline = new PatternMatcherPipeline(matchers, (event) => {
       this.onEvent(event)
-      this.updateToolState(event)
-
-      if (event.type === `tool-call` && event.status === `running`) {
-        this.lastRunningToolCall = event as TParsedEvent & { type: `tool-call` }
-      }
     })
 
-    this.segmenter = new BlockSegmenter((block) => {
-      this.pipeline.process(block)
-    })
+    this.terminal = GhosttyVT.createTerminal(opts.cols ?? 80, opts.rows ?? 24)
+
+    this.detector = new ChangeDetector(
+      this.terminal,
+      (sealedLine) => pipeline.process(sealedLine),
+      (activeText) => {
+        // Check if the active row matches a significant pattern (e.g. prompt-ready)
+        // If it does, emit that event. Otherwise emit activity.
+        const event = pipeline.tryMatch(activeText)
+        if (event && event.type !== `text`) {
+          this.onEvent(event)
+        } else {
+          this.onEvent({ type: `activity`, timestamp: Date.now() })
+        }
+      },
+      () => this.onEvent({ type: `activity`, timestamp: Date.now() })
+    )
   }
 
-  write(data: string) {
-    this.rawBuffer.push(data)
-
-    if (this.debounceMs === 0) {
-      this.processData(data)
-      return
+  write(data: string | Uint8Array) {
+    const bytes = typeof data === `string` ? this.encoder.encode(data) : data
+    this.rawBufferSize += bytes.length
+    this.rawBuffer.push(bytes)
+    while (this.rawBufferSize > maxRawBufferSize && this.rawBuffer.length > 1) {
+      this.rawBufferSize -= this.rawBuffer.shift()!.length
     }
-
-    this.pendingData += data
-    if (this.debounceTimer) clearTimeout(this.debounceTimer)
-    this.debounceTimer = setTimeout(() => {
-      this.processData(this.pendingData)
-      this.pendingData = ``
-    }, this.debounceMs)
-  }
-
-  private processData(data: string) {
-    const clean = stripAnsi(data)
-    this.segmenter.feed(clean)
-  }
-
-  trackInput(text: string) {
-    this.segmenter.markSent(text)
-    this.startThinkingTimer()
+    this.terminal.write(bytes)
+    this.detector.process()
   }
 
   flush() {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer)
-      this.debounceTimer = null
-    }
-    if (this.pendingData) {
-      this.processData(this.pendingData)
-      this.pendingData = ''
-    }
-    this.segmenter.flush()
-    this.completeAnyRunningToolCall()
+    this.detector.flush()
   }
 
-  getRawBuffer(): string {
-    return this.rawBuffer.join('')
-  }
-
-  getToolState(): TToolState {
-    return this.toolState
-  }
-
-  private startThinkingTimer() {
-    this.cancelThinkingTimer()
-    if (this.thinkingDelayMs <= 0) return
-
-    this.thinkingTimer = setTimeout(() => {
-      this.thinkingTimer = null
-      const event: TParsedEvent = { type: `thinking`, timestamp: Date.now() }
-      this.onEvent(event)
-      this.updateToolState(event)
-    }, this.thinkingDelayMs)
-  }
-
-  private cancelThinkingTimer() {
-    if (this.thinkingTimer) {
-      clearTimeout(this.thinkingTimer)
-      this.thinkingTimer = null
+  getRawBuffer(): Uint8Array {
+    const totalLength = this.rawBuffer.reduce((sum, chunk) => sum + chunk.length, 0)
+    const result = new Uint8Array(totalLength)
+    let offset = 0
+    for (const chunk of this.rawBuffer) {
+      result.set(chunk, offset)
+      offset += chunk.length
     }
+    return result
   }
 
-  private maybeCompleteToolCall(incomingEvent: TParsedEvent) {
-    if (!this.lastRunningToolCall) return
-
-    const completionTriggers = [`tool-call`, `prompt-ready`, `permission`, `error`]
-    if (completionTriggers.includes(incomingEvent.type)) {
-      const done: TParsedEvent = {
-        ...this.lastRunningToolCall,
-        status: `done`,
-        timestamp: Date.now(),
-      }
-      this.onEvent(done)
-      this.lastRunningToolCall = null
-    }
+  resize(cols: number, rows: number) {
+    this.terminal.resize(cols, rows)
   }
 
-  private completeAnyRunningToolCall() {
-    if (!this.lastRunningToolCall) return
-    const done: TParsedEvent = {
-      ...this.lastRunningToolCall,
-      status: `done`,
-      timestamp: Date.now(),
-    }
-    this.onEvent(done)
-    this.lastRunningToolCall = null
+  isAlternateScreen(): boolean {
+    return this.terminal.isAlternateScreen()
   }
 
-  private updateToolState(event: TParsedEvent) {
-    let newState: TToolState | null = null
-
-    switch (event.type) {
-      case `tool-call`:
-        newState = `working`
-        break
-      case `text`:
-      case `diff`:
-        if (this.lastRunningToolCall?.tool === `Bash`) {
-          newState = `interactive`
-        } else {
-          newState = `working`
-        }
-        break
-      case `thinking`:
-        newState = `working`
-        break
-      case `permission`:
-        newState = `permission`
-        break
-      case `prompt-ready`:
-        newState = `prompt`
-        break
-      case `error`:
-        newState = `prompt`
-        break
-    }
-
-    if (newState && newState !== this.toolState) {
-      this.toolState = newState
-      this.onToolState(newState)
-    }
+  destroy() {
+    this.terminal.free()
+    this.rawBuffer.length = 0
+    this.rawBufferSize = 0
   }
 }

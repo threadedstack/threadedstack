@@ -87,7 +87,7 @@ importers:
         version: 2.1.0
       '@mariozechner/pi-web-ui':
         specifier: 0.55.3
-        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)
+        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)(zod@4.3.5)
       '@mui/icons-material':
         specifier: 6.1.2
         version: 6.1.2(@mui/material@6.1.2(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@emotion/styled@11.13.0(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react@19.2.14)(react@18.3.1)
@@ -619,6 +619,9 @@ importers:
       alias-hq:
         specifier: 6.2.4
         version: 6.2.4(@babel/preset-env@7.26.7(@babel/core@7.28.5))
+      ghostty-web:
+        specifier: 0.4.0
+        version: 0.4.0
     devDependencies:
       '@types/express':
         specifier: 5.0.0
@@ -830,7 +833,7 @@ importers:
         version: 2.1.0
       '@mariozechner/pi-web-ui':
         specifier: 0.55.3
-        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)(zod@4.3.5)
+        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)
       '@mui/icons-material':
         specifier: 6.1.2
         version: 6.1.2(@mui/material@6.1.2(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@emotion/styled@11.13.0(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react@19.2.14)(react@18.3.1)

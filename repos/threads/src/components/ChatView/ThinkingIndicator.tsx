@@ -8,7 +8,7 @@ const bounce = keyframes`
 `
 
 export type TThinkingIndicator = {
-  event: Extract<TParsedEvent, { type: 'thinking' }>
+  event: Extract<TParsedEvent, { type: 'activity' }>
 }
 
 export const ThinkingIndicator = (_props: TThinkingIndicator) => {

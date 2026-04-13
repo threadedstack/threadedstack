@@ -841,6 +841,8 @@ describe(`SandboxService`, () => {
         parser: {} as any,
         attachments: new Set() as any,
         ttlTimer: null,
+        toolState: `idle` as const,
+        lastRunningToolCall: null,
         visibility: ESandboxSessionVisibility.private,
       }
       const session2 = {
@@ -877,6 +879,8 @@ describe(`SandboxService`, () => {
         parser: {} as any,
         attachments: new Set() as any,
         ttlTimer: null,
+        toolState: `idle` as const,
+        lastRunningToolCall: null,
         visibility: ESandboxSessionVisibility.private,
       }
 
@@ -905,6 +909,8 @@ describe(`SandboxService`, () => {
         parser: {} as any,
         attachments: new Set() as any,
         ttlTimer: null,
+        toolState: `idle` as const,
+        lastRunningToolCall: null,
         visibility: ESandboxSessionVisibility.private,
       }
       svc.addShellSession(shell)

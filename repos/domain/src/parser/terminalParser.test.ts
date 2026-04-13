@@ -1,195 +1,178 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { TerminalParser } from './terminalParser'
-import type { TParsedEvent, TToolState } from '@TDM/types'
+import type { TParsedEvent } from '@TDM/types'
 
 describe('TerminalParser', () => {
-  let events: TParsedEvent[]
-  let toolStates: TToolState[]
+  beforeAll(async () => {
+    // Ensure WASM is loaded before tests run
+    const { GhosttyVT } = await import('./ghosttyVT')
+    await GhosttyVT.init()
+  })
+
   let parser: TerminalParser
 
-  beforeEach(() => {
-    events = []
-    toolStates = []
-    parser = new TerminalParser({
-      runtime: 'claude-code',
-      onEvent: (e) => events.push(e),
-      onToolState: (s) => toolStates.push(s),
-      debounceMs: 0, // no debounce for tests
-    })
+  afterEach(() => {
+    parser?.destroy()
   })
 
   it('parses plain text output into text events', () => {
-    parser.write('Hello world\n')
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
+    })
+
+    parser.write('Hello world\r\n')
     parser.flush()
-    expect(events.length).toBeGreaterThanOrEqual(1)
-    const textEvents = events.filter((e) => e.type === 'text')
+
+    const textEvents = events.filter((e) => e.type === `text`)
     expect(textEvents.length).toBeGreaterThanOrEqual(1)
+    if (textEvents[0]?.type === `text`) {
+      expect(textEvents[0].content).toContain(`Hello world`)
+    }
   })
 
-  it('strips ANSI before parsing', () => {
-    parser.write('\x1b[32mGreen text\x1b[0m\n')
+  it('strips ANSI before pattern matching', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
+    })
+
+    parser.write('\x1b[32mGreen text\x1b[0m\r\n')
     parser.flush()
-    const textEvent = events.find((e) => e.type === 'text')
+
+    const textEvent = events.find((e) => e.type === `text`)
     expect(textEvent).toBeDefined()
-    if (textEvent?.type === 'text') {
-      expect(textEvent.content).not.toContain('\x1b')
-      expect(textEvent.content).toContain('Green text')
+    if (textEvent?.type === `text`) {
+      expect(textEvent.content).not.toContain(`\x1b`)
+      expect(textEvent.content).toContain(`Green text`)
     }
   })
 
   it('detects Claude Code tool calls', () => {
-    parser.write('⏺ Read src/index.ts\n')
-    parser.flush()
-    const toolCall = events.find((e) => e.type === 'tool-call')
-    expect(toolCall).toBeDefined()
-  })
-
-  it('detects permission prompts and updates tool state', () => {
-    parser.write('Allow Edit to src/App.tsx? (y/n)\n')
-    parser.flush()
-    const permission = events.find((e) => e.type === 'permission')
-    expect(permission).toBeDefined()
-    expect(toolStates).toContain('permission')
-  })
-
-  it('marks input blocks when stdin is tracked', () => {
-    parser.trackInput('hello world')
-    parser.write('hello world\n')
-    parser.flush()
-    const inputEvent = events.find((e) => e.type === 'input')
-    expect(inputEvent).toBeDefined()
-  })
-
-  it('transitions to working state on output', () => {
-    parser.write('⏺ Read src/index.ts\n')
-    parser.flush()
-    expect(toolStates).toContain('working')
-  })
-
-  it('transitions to prompt state on prompt-ready', () => {
-    parser.write('> \n')
-    parser.flush()
-    expect(toolStates).toContain('prompt')
-  })
-
-  it('falls back to unknown for non-claude-code runtimes', () => {
-    const customParser = new TerminalParser({
-      runtime: 'custom',
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
       onEvent: (e) => events.push(e),
-      onToolState: (s) => toolStates.push(s),
-      debounceMs: 0,
     })
-    customParser.write('⏺ Read src/index.ts\n')
-    customParser.flush()
-    const unknownEvent = events.find((e) => e.type === 'unknown')
-    expect(unknownEvent).toBeDefined()
-    if (unknownEvent?.type === 'unknown') {
-      expect(unknownEvent.raw).toContain('Read')
+
+    parser.write('⏺ Read src/index.ts\r\n')
+    parser.flush()
+
+    const toolCall = events.find((e) => e.type === `tool-call`)
+    expect(toolCall).toBeDefined()
+    if (toolCall?.type === `tool-call`) {
+      expect(toolCall.tool).toBe(`Read`)
+      expect(toolCall.target).toBe(`src/index.ts`)
     }
   })
 
-  it('provides raw bytes buffer for terminal replay', () => {
-    const data = '⏺ Read src/index.ts\nsome output\n'
+  it('detects permission prompts', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
+    })
+
+    parser.write('Allow Edit to src/App.tsx? (y/n)\r\n')
+    parser.flush()
+
+    const permission = events.find((e) => e.type === `permission`)
+    expect(permission).toBeDefined()
+  })
+
+  it('handles split escape sequences across writes', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
+    })
+
+    parser.write('\x1b[36m⏺\x1b[0m \x1b[1mBa')
+    parser.write('sh\x1b[0m echo hello\r\n')
+    parser.flush()
+
+    const toolCall = events.find((e) => e.type === `tool-call`)
+    expect(toolCall).toBeDefined()
+    if (toolCall?.type === `tool-call`) {
+      expect(toolCall.tool).toBe(`Bash`)
+    }
+  })
+
+  it('filters CR overwrites — emits only final line', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
+    })
+
+    parser.write('⠋ Working...\r⠙ Working...\r✓ Done!\r\n')
+    parser.flush()
+
+    // Should get one text event with the final content, not intermediate spinner frames
+    const textEvents = events.filter((e) => e.type === `text`)
+    expect(textEvents.length).toBe(1)
+    if (textEvents[0]?.type === `text`) {
+      expect(textEvents[0].content).toMatch(/Done!/)
+    }
+  })
+
+  it('emits activity when terminal is active but no lines sealed', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
+    })
+
+    parser.write('Spinner frame')
+    // No \r\n — cursor stays on the active row
+
+    const activity = events.find((e) => e.type === `activity`)
+    expect(activity).toBeDefined()
+  })
+
+  it('falls back to unknown for non-registered runtimes', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `custom`,
+      onEvent: (e) => events.push(e),
+    })
+
+    parser.write('⏺ Read src/index.ts\r\n')
+    parser.flush()
+
+    const unknownEvent = events.find((e) => e.type === `unknown`)
+    expect(unknownEvent).toBeDefined()
+  })
+
+  it('provides raw bytes buffer for persistence', () => {
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: () => {},
+    })
+
+    const data = '⏺ Read src/index.ts\r\nsome output\r\n'
     parser.write(data)
     const raw = parser.getRawBuffer()
-    expect(raw).toContain(data)
+    const decoded = new TextDecoder().decode(raw)
+    expect(decoded).toContain(data)
   })
 
-  describe('tool-call completion', () => {
-    it('emits tool-call done when a new tool-call arrives', () => {
-      parser.write('⏺ Read src/index.ts\n')
-      parser.write('file contents here\n')
-      parser.write('⏺ Edit src/index.ts\n')
-      parser.flush()
-
-      const toolCalls = events.filter((e) => e.type === 'tool-call')
-      const doneEvents = toolCalls.filter(
-        (e) => e.type === 'tool-call' && e.status === 'done'
-      )
-      expect(doneEvents.length).toBeGreaterThanOrEqual(1)
-      if (doneEvents[0]?.type === 'tool-call') {
-        expect(doneEvents[0].tool).toBe('Read')
-      }
+  it('preserves indentation in text events', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
     })
 
-    it('emits tool-call done when prompt-ready arrives', () => {
-      parser.write('⏺ Read src/index.ts\n')
-      parser.write('file contents\n')
-      parser.write('> \n')
-      parser.flush()
+    parser.write('    indented code\r\n')
+    parser.flush()
 
-      const doneEvents = events.filter(
-        (e) => e.type === 'tool-call' && e.status === 'done'
-      )
-      expect(doneEvents.length).toBeGreaterThanOrEqual(1)
-    })
-
-    it('emits tool-call done on flush if still running', () => {
-      parser.write('⏺ Read src/index.ts\n')
-      parser.flush()
-
-      const doneEvents = events.filter(
-        (e) => e.type === 'tool-call' && e.status === 'done'
-      )
-      expect(doneEvents.length).toBeGreaterThanOrEqual(1)
-    })
-  })
-
-  describe('thinking detection', () => {
-    it('emits thinking event after silence following input', async () => {
-      const timedParser = new TerminalParser({
-        runtime: 'claude-code',
-        onEvent: (e) => events.push(e),
-        onToolState: (s) => toolStates.push(s),
-        debounceMs: 0,
-        thinkingDelayMs: 50, // short delay for test
-      })
-
-      timedParser.trackInput('hello')
-      await new Promise((resolve) => setTimeout(resolve, 80))
-
-      const thinkingEvent = events.find((e) => e.type === 'thinking')
-      expect(thinkingEvent).toBeDefined()
-      expect(toolStates).toContain('working')
-    })
-
-    it('cancels thinking timer when output arrives', async () => {
-      const timedParser = new TerminalParser({
-        runtime: 'claude-code',
-        onEvent: (e) => events.push(e),
-        onToolState: (s) => toolStates.push(s),
-        debounceMs: 0,
-        thinkingDelayMs: 100,
-      })
-
-      timedParser.trackInput('hello')
-      // Output arrives before thinking delay
-      timedParser.write('response\n')
-      timedParser.flush()
-
-      await new Promise((resolve) => setTimeout(resolve, 150))
-
-      const thinkingEvent = events.find((e) => e.type === 'thinking')
-      expect(thinkingEvent).toBeUndefined()
-    })
-  })
-
-  describe('interactive state', () => {
-    it('transitions to interactive when Bash tool produces text output', () => {
-      parser.write('⏺ Bash npm start\n')
-      parser.write('Server listening on port 3000\n')
-      parser.flush()
-
-      expect(toolStates).toContain('interactive')
-    })
-
-    it('does not transition to interactive for non-Bash tools', () => {
-      parser.write('⏺ Read src/index.ts\n')
-      parser.write('file contents here\n')
-      parser.flush()
-
-      expect(toolStates).not.toContain('interactive')
-      expect(toolStates).toContain('working')
-    })
+    const textEvent = events.find((e) => e.type === `text`)
+    expect(textEvent).toBeDefined()
+    if (textEvent?.type === `text`) {
+      expect(textEvent.content).toBe(`    indented code`)
+    }
   })
 })

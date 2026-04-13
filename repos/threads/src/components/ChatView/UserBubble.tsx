@@ -4,15 +4,16 @@ import { Box, Typography } from '@mui/material'
 
 export type TUserBubble = {
   event: Extract<TParsedEvent, { type: 'input' }>
+  isOwnInput: boolean
 }
 
 export const UserBubble = (props: TUserBubble) => {
-  const { event } = props
+  const { event, isOwnInput } = props
 
   return (
     <Box
       display='flex'
-      justifyContent='flex-end'
+      justifyContent={isOwnInput ? `flex-end` : `flex-start`}
     >
       <Box
         sx={{
@@ -20,8 +21,8 @@ export const UserBubble = (props: TUserBubble) => {
           px: 2,
           py: 1,
           borderRadius: 2,
-          backgroundColor: `primary.light`,
-          color: `primary.contrastText`,
+          backgroundColor: isOwnInput ? `primary.light` : `grey.700`,
+          color: isOwnInput ? `primary.contrastText` : `grey.100`,
         }}
       >
         <Typography

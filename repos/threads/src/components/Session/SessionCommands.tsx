@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router'
 import {
   Box,
   Button,
@@ -67,6 +68,7 @@ const commandConfig: Record<
 
 export const SessionCommands = (props: TSessionCommandsProps) => {
   const { sandboxId, sessionId, projectId, isOwner, onPendingOp } = props
+  const navigate = useNavigate()
   const openSessions = useOpenSessions()
   const orgId = useOrgId()
   const [executing, setExecuting] = useState<TCommand | null>(null)
@@ -87,7 +89,10 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
     try {
       if (action === `stop`) {
         await stopSandbox({ sandboxId, orgId })
-      } else if (action === `restart`) {
+        navigate(`/sandbox/${sandboxId}`, { replace: true })
+        return
+      }
+      if (action === `restart`) {
         await restartSandbox({ sandboxId, orgId, projectId })
       } else if (action === `recreate`) {
         await recreateSandbox({ sandboxId, orgId, projectId })
@@ -106,13 +111,22 @@ export const SessionCommands = (props: TSessionCommandsProps) => {
   const handleNewSession = useCallback(async () => {
     if (!orgId) return
     try {
-      await openSession({ sandboxId, orgId, projectId, sessionId: null })
+      const newSessionId = await openSession({
+        sandboxId,
+        orgId,
+        projectId,
+        sessionId: null,
+      })
+      navigate(`/session/${newSessionId}`, {
+        replace: true,
+        state: { sandboxId, projectId },
+      })
     } catch (err) {
       toast.error(`Failed to create session`, {
         description: err instanceof Error ? err.message : `An unexpected error occurred`,
       })
     }
-  }, [sandboxId, orgId, projectId])
+  }, [sandboxId, orgId, projectId, navigate])
 
   const handleToggleShare = useCallback(() => {
     const newVisibility = isPublic ? `private` : `public`

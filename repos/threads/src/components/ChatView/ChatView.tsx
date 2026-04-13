@@ -1,7 +1,7 @@
 import type { TParsedEvent } from '@tdsk/domain'
 
 import { useRef, useLayoutEffect } from 'react'
-import { useSessionEvents } from '@TTH/state/selectors'
+import { useSessionEvents, useUser } from '@TTH/state/selectors'
 import { Box } from '@mui/material'
 
 import { UserBubble } from './UserBubble'
@@ -21,13 +21,19 @@ export type TChatView = {
 const EventRenderer = (props: {
   event: TParsedEvent
   sessionId: string
+  currentUserId: string
   readOnly?: boolean
 }) => {
-  const { event, sessionId, readOnly } = props
+  const { event, sessionId, currentUserId, readOnly } = props
 
   switch (event.type) {
     case `input`:
-      return <UserBubble event={event} />
+      return (
+        <UserBubble
+          event={event}
+          isOwnInput={event.userId === currentUserId}
+        />
+      )
     case `text`:
       return <AiBubble event={event} />
     case `tool-call`:
@@ -44,7 +50,7 @@ const EventRenderer = (props: {
       return <DiffCard event={event} />
     case `error`:
       return <ErrorCard event={event} />
-    case `thinking`:
+    case `activity`:
       return <ThinkingIndicator event={event} />
     case `unknown`:
       return <UnknownBlock event={event} />
@@ -58,6 +64,8 @@ const EventRenderer = (props: {
 export const ChatView = (props: TChatView) => {
   const { sessionId, readOnly } = props
   const events = useSessionEvents(sessionId)
+  const [user] = useUser()
+  const currentUserId = user?.id ?? ``
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
@@ -80,6 +88,7 @@ export const ChatView = (props: TChatView) => {
           key={`${event.type}-${event.timestamp}-${idx}`}
           event={event}
           sessionId={sessionId}
+          currentUserId={currentUserId}
           readOnly={readOnly}
         />
       ))}
