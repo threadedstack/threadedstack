@@ -24,9 +24,13 @@ export class ChangeDetector {
 
     const cursor = this.terminal.getCursor()
     let sealedAny = false
+    let cursorRowDirty = false
 
     for (const row of dirtyRows) {
-      if (row === cursor.y) continue
+      if (row === cursor.y) {
+        cursorRowDirty = true
+        continue
+      }
 
       const text = this.terminal.getLineText(row)
       if (text.length > 0) {
@@ -35,13 +39,15 @@ export class ChangeDetector {
       }
     }
 
-    if (!sealedAny && dirtyRows.length > 0) {
+    if (cursorRowDirty) {
       const activeText = this.terminal.getLineText(cursor.y)
       if (activeText.length > 0) {
         this.onActiveRow(activeText)
-      } else {
+      } else if (!sealedAny) {
         this.onActivity()
       }
+    } else if (!sealedAny && dirtyRows.length > 0) {
+      this.onActivity()
     }
 
     this.terminal.markClean()

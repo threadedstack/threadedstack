@@ -60,7 +60,7 @@ export const NavTree = () => {
   const sandboxes = useSandboxes()
   const orgId = useOrgId()
 
-  const { groups, ungrouped } = useMemo(
+  const { groups } = useMemo(
     () => groupSandboxesByProject(projects, sandboxes),
     [projects, sandboxes]
   )
@@ -74,44 +74,12 @@ export const NavTree = () => {
     >
       {groups.map(({ project, sandboxes: projectSandboxes }) => (
         <NavProjectItem
+          orgId={orgId}
           key={project.id}
           project={project}
           sandboxes={projectSandboxes}
-          orgId={orgId}
         />
       ))}
-
-      {ungrouped.length > 0 && (
-        <>
-          {groups.length > 0 && (
-            <Typography
-              variant='caption'
-              sx={{
-                display: `block`,
-                px: `16px`,
-                pt: `12px`,
-                pb: `4px`,
-                fontSize: `11px`,
-                fontWeight: 600,
-                letterSpacing: `0.5px`,
-                textTransform: `uppercase`,
-                color: colors.grey[500],
-                userSelect: `none`,
-              }}
-            >
-              Ungrouped
-            </Typography>
-          )}
-          {ungrouped.map((sandbox) => (
-            <NavSandboxItem
-              key={sandbox.id}
-              sandbox={sandbox}
-              orgId={orgId}
-              indent={groups.length > 0 ? 24 : 0}
-            />
-          ))}
-        </>
-      )}
     </Box>
   )
 }

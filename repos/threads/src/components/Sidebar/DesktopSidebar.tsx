@@ -12,21 +12,18 @@ export type TDesktopSidebar = {
 export const DesktopSidebar = (props: TDesktopSidebar) => {
   const orgs = useOrgs()
   const orgId = useOrgId()
-  const showOrgSelector = orgs.length > 1 || !orgId
 
   return (
     <SidebarContainer className='tdsk-admin-sidebar'>
       <Box
         sx={{
           width: 240,
-          display: `flex`,
-          flexDirection: `column`,
           height: `100%`,
+          display: `flex`,
           overflow: `hidden`,
+          flexDirection: `column`,
         }}
       >
-        {showOrgSelector && <OrgSelector />}
-        {showOrgSelector && orgId && <Divider />}
         <Box
           sx={{
             flex: 1,

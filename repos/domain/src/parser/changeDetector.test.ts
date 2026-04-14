@@ -145,6 +145,46 @@ describe('ChangeDetector', () => {
     expect(activityCount).toBe(0)
   })
 
+  it('calls onActiveRow even when sealed lines are present in the same batch', () => {
+    term = GhosttyVT.createTerminal()
+    const sealed: string[] = []
+    const activeRows: string[] = []
+    const detector = new ChangeDetector(
+      term,
+      (line) => sealed.push(line),
+      (text) => activeRows.push(text)
+    )
+
+    // Simulate output + prompt arriving in a single write
+    // "Output line" is sealed (cursor moves past), "❯" stays on cursor row
+    term.write('Output line\r\n❯ ')
+    detector.process()
+
+    expect(sealed).toContain('Output line')
+    expect(activeRows.length).toBe(1)
+    expect(activeRows[0]).toBe('❯')
+  })
+
+  it('calls onActiveRow for cursor row when multiple sealed lines are present', () => {
+    term = GhosttyVT.createTerminal()
+    const sealed: string[] = []
+    const activeRows: string[] = []
+    const detector = new ChangeDetector(
+      term,
+      (line) => sealed.push(line),
+      (text) => activeRows.push(text)
+    )
+
+    term.write('Line A\r\nLine B\r\nLine C\r\nPrompt>')
+    detector.process()
+
+    expect(sealed).toContain('Line A')
+    expect(sealed).toContain('Line B')
+    expect(sealed).toContain('Line C')
+    expect(activeRows.length).toBe(1)
+    expect(activeRows[0]).toContain('Prompt>')
+  })
+
   it('flush followed by process without new writes does not re-emit flushed line', () => {
     term = GhosttyVT.createTerminal(80, 24)
     const sealed: string[] = []

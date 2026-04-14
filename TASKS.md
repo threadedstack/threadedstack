@@ -3,6 +3,22 @@
 Priority: P0 = broken functionality, P1 = UX blockers, P2 = UI polish, P3 = new features, P4 = major refactor
 
 
+### [P2] Threads: Add thread history to sidebar nav + clean up dead code
+
+* **Repos**: threads
+* **Key files**: `repos/threads/src/components/Sidebar/NavSandboxItem.tsx`, `repos/threads/src/components/Sidebar/NavThreadItem.tsx`, `repos/threads/src/actions/threads/loadThreadHistory.ts`
+* **Context**: The sidebar was refactored to show sandbox sessions (connected/disconnected/shared) instead of thread history. Thread history was removed from the expanded sandbox section but still needs to be accessible somewhere in the sidebar nav. The thread-loading code (`loadThreadHistory`, `NavThreadItem`) is now orphaned dead code.
+
+**Implementation steps**:
+
+1. **Design where threads appear** — Threads are no longer children of a sandbox's expandable section (sessions took that spot). Options: a separate "Threads" section below sessions in the expanded sandbox, a top-level "Recent Threads" nav section, or a dedicated threads page linked from the sidebar.
+2. **Wire up thread display** — Reuse or refactor `NavThreadItem` and `loadThreadHistory` for the chosen location. The backend endpoint already exists (`GET /orgs/:orgId/threads` with sandbox filter).
+3. **Remove dead code** — If `NavThreadItem` and `loadThreadHistory` are reused in the new location, update imports. If a new component is created instead, delete:
+   - `repos/threads/src/components/Sidebar/NavThreadItem.tsx`
+   - `repos/threads/src/actions/threads/loadThreadHistory.ts`
+   - Update `repos/threads/src/actions/threads/index.ts` barrel to remove the export
+
+
 ### [P3] Sandbox: Dynamic npm dependency loading via esm.sh
 
 * **Repos**: sandbox, domain, backend

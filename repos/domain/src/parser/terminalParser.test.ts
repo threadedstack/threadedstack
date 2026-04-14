@@ -159,6 +159,50 @@ describe('TerminalParser', () => {
     expect(decoded).toContain(data)
   })
 
+  it('emits prompt-ready when prompt arrives in same batch as output', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
+    })
+
+    // Simulate Claude Code finishing output and showing prompt in one chunk
+    parser.write('Some output text\r\n❯ ')
+
+    const promptReady = events.find((e) => e.type === `prompt-ready`)
+    expect(promptReady).toBeDefined()
+  })
+
+  it('emits prompt-ready when prompt follows multiple output lines', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
+    })
+
+    parser.write('Line one\r\nLine two\r\nLine three\r\n❯ ')
+
+    const promptReady = events.find((e) => e.type === `prompt-ready`)
+    expect(promptReady).toBeDefined()
+
+    // Should also have text events for the output lines
+    const textEvents = events.filter((e) => e.type === `text`)
+    expect(textEvents.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('emits prompt-ready for $ prompt', () => {
+    const events: TParsedEvent[] = []
+    parser = new TerminalParser({
+      runtime: `claude-code`,
+      onEvent: (e) => events.push(e),
+    })
+
+    parser.write('command output\r\n$ ')
+
+    const promptReady = events.find((e) => e.type === `prompt-ready`)
+    expect(promptReady).toBeDefined()
+  })
+
   it('preserves indentation in text events', () => {
     const events: TParsedEvent[] = []
     parser = new TerminalParser({

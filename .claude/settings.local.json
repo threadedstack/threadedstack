@@ -100,7 +100,8 @@
       "Bash(tar xz:*)",
       "Bash(2>&1)",
       "Bash(xargs basename:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(xxd)"
     ]
   },
   "sandbox": {

@@ -55,6 +55,10 @@ Items are split into separate groups, with the sub repo name as the header.
 
 ## Threads
 
+* Using the sidebar to navigate to a sandbox page, in the main content area, a list of running sandboxes should be displayed, but currently it does not display. If I refresh the browser, then it displays as expected
+
 
 
 ## Multi-Repo
+
+
