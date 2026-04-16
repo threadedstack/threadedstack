@@ -19,6 +19,7 @@ import {
   setActiveSession,
   removeOpenSession,
   appendSessionEvent,
+  setSessionUpgrade,
 } from '@TTH/state/accessors'
 
 const connections = new Map<string, WebSocket>()
@@ -145,8 +146,18 @@ export const openSession = async (opts: TOpenSessionOpts) => {
             toast.info(`User joined your session`, { duration: 3000 })
           } else if (msg.type === `user-left`) {
             toast.info(`User left your session`, { duration: 3000 })
+          } else if (msg.type === 'generative-ui' && msg.chunkId && msg.tree) {
+            if (
+              typeof msg.tree === 'object' &&
+              msg.tree !== null &&
+              typeof msg.tree.type === 'string'
+            ) {
+              setSessionUpgrade(msg.sessionId, msg.chunkId, msg.tree)
+            }
           } else if (msg.sessionId && msg.event) {
             const parsedEvent = msg.event as TParsedEvent
+            if (msg.chunkId) (parsedEvent as any).chunkId = msg.chunkId
+            if (msg.timestamp) (parsedEvent as any).wsTimestamp = msg.timestamp
             appendSessionEvent(msg.sessionId, parsedEvent)
 
             if (

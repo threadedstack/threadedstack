@@ -28,6 +28,18 @@ type WasmExports = {
   ghostty_wasm_free_u8_array: (ptr: number, len: number) => void
 }
 
+export type TCellData = {
+  codepoint: number
+  /** Raw uint32 values for the 3 non-codepoint fields (bytes 4-15) */
+  raw: [number, number, number]
+}
+
+export type TTextSegment = {
+  text: string
+  bold: boolean
+  italic: boolean
+}
+
 export type VTerminal = {
   readonly cols: number
   readonly rows: number
@@ -36,6 +48,8 @@ export type VTerminal = {
   update: () => void
   getDirtyRows: () => number[]
   getLineText: (row: number) => string
+  getLineSegments: (row: number) => TTextSegment[]
+  getCellData: (row: number, col: number) => TCellData
   getCursor: () => { x: number; y: number; visible: boolean }
   isAlternateScreen: () => boolean
   markClean: () => void
@@ -199,6 +213,87 @@ export class GhosttyVT {
           text += cp === 0 ? ` ` : String.fromCodePoint(cp)
         }
         return text.trimEnd()
+      },
+
+      getLineSegments(row: number): TTextSegment[] {
+        if (_freed) return []
+        exports.ghostty_render_state_update(handle)
+
+        if (!_viewportFilled) fillViewport()
+        const bufPtr = _viewportBufPtr
+        const view = new DataView(memory.buffer)
+        const start = row * _cols
+
+        // Build segments by walking cells and splitting on attribute changes
+        const segments: TTextSegment[] = []
+        let curText = ''
+        let curBold = false
+        let curItalic = false
+
+        for (let i = 0; i < _cols; i++) {
+          const cellOffset = bufPtr + (start + i) * GhosttyVTCellSize
+          const cp = view.getUint32(cellOffset, true)
+          const flags = view.getUint32(cellOffset + 8, true)
+          const bold = (flags & 0x10000) !== 0
+          const italic = (flags & 0x20000) !== 0
+          const ch = cp === 0 ? ' ' : String.fromCodePoint(cp)
+
+          if (i === 0) {
+            curBold = bold
+            curItalic = italic
+          }
+
+          if (bold !== curBold || italic !== curItalic) {
+            if (curText.length > 0) {
+              segments.push({ text: curText, bold: curBold, italic: curItalic })
+            }
+            curText = ch
+            curBold = bold
+            curItalic = italic
+          } else {
+            curText += ch
+          }
+        }
+
+        if (curText.length > 0) {
+          segments.push({ text: curText, bold: curBold, italic: curItalic })
+        }
+
+        // Trim trailing whitespace from the last segment
+        if (segments.length > 0) {
+          const last = segments[segments.length - 1]
+          last.text = last.text.trimEnd()
+          if (last.text.length === 0) segments.pop()
+        }
+
+        // Also trim trailing space-only segments
+        while (
+          segments.length > 0 &&
+          segments[segments.length - 1].text.trim().length === 0
+        ) {
+          segments.pop()
+        }
+
+        return segments
+      },
+
+      getCellData(row: number, col: number): TCellData {
+        if (_freed) return { codepoint: 0, raw: [0, 0, 0] }
+        exports.ghostty_render_state_update(handle)
+
+        if (!_viewportFilled) fillViewport()
+        const bufPtr = _viewportBufPtr
+
+        const view = new DataView(memory.buffer)
+        const cellOffset = bufPtr + (row * _cols + col) * GhosttyVTCellSize
+        return {
+          codepoint: view.getUint32(cellOffset, true),
+          raw: [
+            view.getUint32(cellOffset + 4, true),
+            view.getUint32(cellOffset + 8, true),
+            view.getUint32(cellOffset + 12, true),
+          ],
+        }
       },
 
       getCursor() {

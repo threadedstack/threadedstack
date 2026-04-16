@@ -31,7 +31,8 @@ repos/website/
 │   ├── vite.workspace.ts         # Full Vite config: MDX, SWC, tsconfig-paths, SVGR, docs plugins
 │   ├── website.config.ts         # Env loader (TDSK_* vars), port, aliases
 │   ├── biome.json                # Biome linter/formatter
-│   ├── remarkDocsLinks.ts        # Remark plugin: rewrites .md links to /docs/slug routes
+│   ├── remarkDocsLinks.ts        # Remark plugin: rewrites .md links to /docs/slug routes, rewrites relative images to /docs-assets/* paths
+│   ├── remarkDocsLinks.test.ts   # Tests for remarkDocsLinks plugin
 │   └── vitePluginDocsAssets.ts   # Vite plugin: serves/copies doc images (dev middleware + build copy)
 ├── scripts/
 │   ├── loadEnvs.ts               # Environment variable loader
@@ -47,8 +48,8 @@ repos/website/
 │   │   ├── Docs/                 # DocsSidebar, DocsTableOfContents, DocsPrevNext, MDXComponents, ComingSoon, CodeBlock
 │   │   ├── Header/               # Header (AppBar + nav), MobileMenu, ThemeToggle
 │   │   ├── Footer/               # MarketingFooter, DocsFooter
-│   │   ├── Landing/              # Hero, ArchitectureDiagram, Features, HowItWorks, CodePreview, Pricing, UseCases, CTABanner
-│   │   └── Shared/               # PricingCard, PricingTierGrid, CalloutBox, SectionContainer, SectionHeader, FeatureCard, StepItem, PageMeta
+│   │   ├── Landing/              # Hero, ArchitectureDiagram, Features, HowItWorks, CodePreview, Pricing, UseCases, CTABanner, Testimonials (commented out)
+│   │   └── Shared/               # PricingCard, PricingTierGrid, CalloutBox, SectionContainer, SectionHeader, FeatureCard, StepItem, PageMeta, CodeBlock, pricingTiers.ts
 │   ├── pages/
 │   │   ├── Landing.tsx           # Composes all landing sections
 │   │   ├── Features.tsx          # Feature showcase
@@ -59,7 +60,7 @@ repos/website/
 │   ├── layouts/
 │   │   ├── MarketingLayout.tsx   # Header + Outlet + MarketingFooter
 │   │   └── DocsLayout.tsx        # Header + DocsSidebar + Outlet + DocsFooter
-│   ├── hooks/                    # useMakeTheme (shared theme factory)
+│   ├── hooks/                    # useMakeTheme, useActiveHeading, useScrollPosition
 │   ├── state/                    # Jotai: themeTypeAtom (localStorage-persisted)
 │   ├── theme/                    # GlobalStyles (Ubuntu + JetBrains Mono, scrollbar, gradients)
 │   ├── constants/                # envs.ts (TDSK_AD_APP_URL, TDSK_WEB_APP_VERSION)
@@ -84,7 +85,7 @@ repos/website/
 
 - **`configs/vite.workspace.ts`** — Full Vite config with MDX rollup plugin, React SWC, tsconfig-paths, SVGR, and custom docs plugins
 - **`configs/website.config.ts`** — Loads `TDSK_*` env vars from deploy/values files, exports port (5884), aliases, and filtered env vars for Vite `define`
-- **`configs/remarkDocsLinks.ts`** — Remark AST plugin: rewrites relative `.md` links in docs to `/docs/<slug>` routes
+- **`configs/remarkDocsLinks.ts`** — Remark AST plugin: rewrites relative `.md` links in docs to `/docs/<slug>` routes, and rewrites relative image paths to `/docs-assets/*` paths
 - **`configs/vitePluginDocsAssets.ts`** — Dev: middleware serves `/docs-assets/*` from docs root. Build: copies images (png, jpg, gif, svg, webp) to `dist/docs-assets/`
 
 ## Routing
@@ -142,11 +143,12 @@ Docs are loaded from the root `/docs` directory (monorepo level, NOT inside `rep
 
 All markdown elements are wrapped with MUI components:
 - **Headings** (h1-h6): MUI Typography with auto-generated anchor IDs via `github-slugger`
-- **Code blocks**: `CodeBlock` component with Shiki syntax highlighting + copy button
+- **Code blocks**: `CodeBlock` component with Shiki syntax highlighting (github-dark theme) + copy-to-clipboard button
 - **Tables**: MUI Table components with dark/light theme support
 - **Links**: MUI Link with external link detection
 - **Blockquotes**: Styled callout boxes
-- **Images**: `<img>` with max-width and border-radius
+- **Images**: `<img>` with max-width and border-radius; relative paths rewritten to `/docs-assets/*` by remarkDocsLinks
+- **Custom MDX components**: `<Note>` (info), `<Tip>` (success), `<Warning>` (warning) — all map to `CalloutBox` with severity variants
 
 ### Docs Navigation Components
 
@@ -156,7 +158,7 @@ All markdown elements are wrapped with MUI components:
 | `DocsTableOfContents` | Auto-generated heading anchors from page content |
 | `DocsPrevNext` | Previous/next page navigation links |
 | `ComingSoon` | 404/placeholder for missing docs pages |
-| `CodeBlock` | Shiki-based syntax highlighting with theme-aware colors and copy-to-clipboard |
+| `CodeBlock` | Shiki syntax highlighting (github-dark theme) with copy-to-clipboard button (shared component in `Shared/`) |
 
 ### Remark/Rehype Plugins
 
@@ -175,10 +177,11 @@ All markdown elements are wrapped with MUI components:
 | `Hero` | Hero section with animated gradient blobs, headline, CTA buttons |
 | `ArchitectureDiagram` | Platform architecture visualization (Mermaid or SVG) |
 | `Features` | Feature cards grid |
-| `HowItWorks` | Step-by-step numbered process |
+| `HowItWorks` | Step-based layout using `StepItem` components |
 | `CodePreview` | Code snippet showcase |
-| `Pricing` | Pricing tiers (uses `PlanLimits` from `@tdsk/domain`) |
+| `Pricing` | Pricing tiers (uses `PlanLimits` from `@tdsk/domain`, defined in `pricingTiers.ts`) |
 | `UseCases` | Use case example cards |
+| `Testimonials` | User testimonials (exists but commented out in `Landing.tsx`) |
 | `CTABanner` | Bottom call-to-action with gradient background |
 
 ### Shared Components
@@ -187,11 +190,13 @@ All markdown elements are wrapped with MUI components:
 |-----------|---------|
 | `PricingCard` | Reusable pricing tier card with feature list |
 | `PricingTierGrid` | Responsive grid wrapper for pricing cards |
+| `pricingTiers.ts` | Pricing tier definitions (Free, Solo, Pro, Team) using `PlanLimits` from `@tdsk/domain` |
+| `CodeBlock` | Shiki syntax highlighting (github-dark theme) with copy-to-clipboard button |
 | `SectionContainer` | Max-width centered container |
 | `SectionHeader` | Section title + subtitle |
 | `FeatureCard` | Feature showcase card with icon |
-| `CalloutBox` | Alert/note/warning box |
-| `StepItem` | Numbered step indicator |
+| `CalloutBox` | Alert/note/warning box (used by MDX `<Note>`, `<Tip>`, `<Warning>` components) |
+| `StepItem` | Numbered step indicator (used by `HowItWorks`) |
 | `PageMeta` | SEO meta tags via react-helmet-async |
 
 ### Header & Footer
@@ -212,6 +217,14 @@ export const themeTypeAtom = atomWithStorage('tdsk-web-theme', 'dark')
 ```
 
 Used by `useMakeTheme()` hook to create a MUI theme via `makeTheme()` from `@tdsk/components`.
+
+### Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `useMakeTheme()` | Shared theme factory — reads `themeTypeAtom`, creates MUI theme via `makeTheme()` |
+| `useActiveHeading()` | IntersectionObserver-based hook for TOC heading highlight tracking |
+| `useScrollPosition()` | Scroll threshold detection (returns boolean when scroll passes a threshold) |
 
 ## Styling
 
@@ -247,13 +260,14 @@ pnpm types          # TypeScript type checking
 
 ## Tests
 
-6 co-located test files:
+7 test files:
 - `src/components/Landing/Hero.test.tsx`
 - `src/components/Landing/CTABanner.test.tsx`
 - `src/components/Shared/PricingCard.test.tsx`
 - `src/components/Header/Header.test.tsx`
 - `src/components/Header/MobileMenu.test.tsx`
 - `src/utils/docsLoader.test.ts`
+- `configs/remarkDocsLinks.test.ts`
 
 Test setup: `scripts/setupTests.ts` mocks MUI, Neon Auth, and API service. Environment: jsdom.
 
@@ -262,7 +276,7 @@ Test setup: `scripts/setupTests.ts` mocks MUI, Neon Auth, and API service. Envir
 | Consumer | Import | Key Usage |
 |----------|--------|-----------|
 | **@tdsk/components** | `makeTheme`, `overlayScrollBody`, `useWindowResize` | Theme factory, scroll styling, responsive hook |
-| **@tdsk/domain** | `web.ts` exports | `PlanLimits` object for pricing page tier limits |
+| **@tdsk/domain** | `web.ts` exports | `PlanLimits` object for pricing tier definitions (Free, Solo, Pro, Team) |
 | **Root `/docs`** | MDX content | All documentation pages loaded via `import.meta.glob()` |
 
 ### Path Aliases

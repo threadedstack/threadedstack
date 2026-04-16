@@ -1,4 +1,5 @@
 import type { TSandboxSyncDefaults } from './sync.types'
+import type { TGuiConfig } from './gui.types'
 
 import { ELLMProviderBrand } from './ai.types'
 
@@ -206,6 +207,8 @@ export type TKubeSandboxConfig = {
     limits?: { cpu?: string; memory?: string }
     requests?: { cpu?: string; memory?: string }
   }
+  /** Sandbox-level generative UI config override (overrides org-level guiConfig when set) */
+  guiConfig?: TGuiConfig
 }
 
 export type TPlaceholderMap = Record<string, string>

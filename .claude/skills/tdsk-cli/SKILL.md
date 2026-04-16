@@ -20,7 +20,7 @@ The CLI uses a hierarchical task system built on `@keg-hub/args-parse` with supp
 ```
 repos/cli/
 ├── configs/               # Build and tool configurations
-│   ├── cli.config.ts     # Main CLI configuration with paths and contexts
+│   ├── cli.config.ts     # Main CLI configuration with paths and six contexts
 │   ├── aliases.ts        # Path aliases (@TSCL/*)
 │   ├── tsup.config.ts    # Build configuration
 │   └── vitest.config.ts  # Test configuration
@@ -36,7 +36,7 @@ repos/cli/
 │   │   ├── index.ts      # Task registry
 │   │   ├── docker/       # Docker commands
 │   │   ├── kube/         # Kubernetes commands
-│   │   │   └── secret/   # Preset secret commands
+│   │   │   └── secret/   # Preset secret commands (tdsk, docker, database, payments, email, egress)
 │   │   ├── devspace/     # DevSpace commands
 │   │   └── web/          # Web UI commands
 │   └── utils/            # Utility functions
@@ -57,13 +57,14 @@ repos/cli/
 |------|---------|
 | `src/cli.ts` | Main CLI entry point - parses args, loads config, executes tasks |
 | `src/tasks/index.ts` | Task registry that exports all command groups |
-| `configs/cli.config.ts` | Configuration with paths, five contexts (app, proxy, backend, admin, caddy), and environment variables |
+| `configs/cli.config.ts` | Configuration with paths, six contexts (app, proxy, backend, admin, caddy, sandbox), and environment variables |
 | `src/types/tasks.types.ts` | Core type definitions for task system (TTask, TTasks, TTaskAction) |
 | `src/types/config.types.ts` | Configuration types and ECtxMap enum (context name aliases) |
 | `src/utils/tasks/find.ts` | Task resolution algorithm for nested commands and aliases |
 | `src/utils/proc/spawn.ts` | Child process spawning utility with enhanced error handling |
-| `src/utils/config/getCtx.ts` | Context resolver using ECtxMap for context name aliasing |
+| `src/utils/config/getCtx.ts` | Context resolver using ECtxMap for context name aliasing; supports sandbox image type variants |
 | `src/utils/kube/kubectl.ts` | Kubectl wrapper with methods: create, delete, apply, describe, getPod, getPods, ensureContext, etc. |
+| `src/tasks/kube/secret/egress.ts` | Egress CA secret preset - self-signed cert generation and K8s secret creation |
 
 ## Architecture
 
@@ -109,7 +110,7 @@ docker (group)                  aliases: doc, dc
 
 kube (group)                    aliases: kubectl, kb, kcl
   ├── secret (group)
-  │   ├── tdsk, docker, database, payments, email
+  │   ├── tdsk, docker, database, payments, email, egress
   ├── pod, namespace, ingress, set, remove
 
 devspace (group)                aliases: dev, ds
@@ -136,8 +137,13 @@ pnpm tdsk ui start                     # Via 'ui' alias
 **`docker build`** - Build Docker image
 ```bash
 pnpm tdsk docker build --context proxy --tag v1.2.3
+pnpm tdsk docker build --context sandbox --type claude   # Sandbox variant
+pnpm tdsk docker build --context sandbox --type codex    # Sandbox variant
+pnpm tdsk docker build --context sandbox --type opencode # Sandbox variant
+pnpm tdsk docker build --context sandbox                 # Base sandbox image (default)
 ```
-- Options: `--context`, `--tag`, `--image`, `--from`, `--push`
+- Options: `--context`, `--tag`, `--image`, `--from`, `--push`, `--type`, `--cache`, `--arm`, `--platforms`, `--login`
+- The `--type` option selects sandbox image variants (only applies to `--context sandbox`). Replaces `-base` suffix in the image name with the specified type (e.g., `image-base` becomes `image-claude`).
 
 **`docker run`** - Run Docker container
 - Options: `--context`, `--port`, `--detach`, `--env-file`
@@ -174,9 +180,23 @@ pnpm tdsk kube secret database
 pnpm tdsk kube secret tdsk
 pnpm tdsk kube secret payments
 pnpm tdsk kube secret email
+pnpm tdsk kube secret egress              # Generate self-signed CA + create K8s secret
+pnpm tdsk kube secret egress-ca           # Via alias
+pnpm tdsk kube secret eca                 # Via alias
+pnpm tdsk kube secret egress --cert ./ca.crt --key ./ca.key  # Use existing cert
 ```
 - Options: `--name`, `--key`, `--value`, `--file`, `--files`, `--secrets`, `--keyvalue`, `--namespace`, `--literal`, `--type`, `--context`, `--log`
 - Creates temporary files for secret values, then cleans up
+
+**`kube secret egress`** - Egress proxy CA certificate secret
+- Aliases: `egress-ca`, `eca`
+- Generates a self-signed CA certificate (~10 years valid) using OpenSSL if no existing cert is found
+- Cert/key resolution fallback chain:
+  1. CLI args (`--cert` / `--key`)
+  2. Environment variables (`TDSK_EGRESS_CA_CERT` / `TDSK_EGRESS_CA_KEY`)
+  3. `~/.config/tdsk/domain/egress.cert` and `egress.key` (loads existing or generates new)
+- Creates a K8s secret named per `TDSK_KUBE_SCRT_EGRESS_CA` env var (default: `tdsk-egress-ca`) with `tls.crt` and `tls.key` keys
+- Options: `--cert` (path to CA cert), `--key` (path to CA key), `--log`
 
 **`kube pod`** - Describe a Kubernetes pod by context or name
 ```bash
@@ -232,7 +252,8 @@ pnpm tdsk devspace render          # Dry-run Helm templates
 |---|---|---|---|
 | **web** | start | ui | --context (default: admin) |
 | **kube** | set, pod, secret, remove, ingress, namespace | kubectl, kb, kcl | --context, --output, --name, --namespace |
-| **docker** | build, run, exec, pull, push, login | doc, dc | --context, --tag, --image, --port |
+| **kube secret** | tdsk, docker, database, payments, email, egress | (see individual) | --cert, --key, --log (egress-specific) |
+| **docker** | build, run, exec, pull, push, login | doc, dc | --context, --tag, --image, --port, --type |
 | **devspace** | start, clean, log, enter, render, attach, use | dev, ds | --build, --debug, --follow, --selector |
 
 ## Context Resolution
@@ -257,12 +278,17 @@ getCtx({ params: { context: 'proxy' }, config })
     }
 
 // Context aliases via ECtxMap:
-//   be → backend, px → proxy, ad → admin, cd → caddy
+//   be → backend, px → proxy, ad → admin, cd → caddy, sb → sandbox
+
+// Sandbox image type variants:
+// When context is 'sandbox' and --type is specified (not 'base'),
+// getCtx() replaces the '-base' suffix in the image name with '-<type>'
+// e.g. --context sandbox --type claude → image: 'image-claude'
 ```
 
 ### Configuration Contexts
 
-Five contexts for repos/services (app, proxy, backend, admin, caddy):
+Six contexts for repos/services (app, proxy, backend, admin, caddy, sandbox):
 ```typescript
 config.contexts = {
   app: {
@@ -280,7 +306,36 @@ config.contexts = {
   proxy: { ... },
   backend: { ... },
   admin: { ... },
-  caddy: { ... }
+  caddy: { ... },
+  sandbox: {
+    image: TDSK_SB_IMAGE,
+    tag: TDSK_SB_IMAGE_TAG,
+    from: TDSK_SB_IMAGE_FROM,       // defaults to 'ubuntu:24.04'
+    dtag: TDSK_SB_DEV_IMAGE_TAG,
+    deployment: '',                  // no K8s deployment (pods are dynamic)
+    dockerfile: 'Dockerfile.sandbox',
+    location: deploy,
+    tags: [],
+    mounts: {},
+    ports: {}
+  }
+}
+```
+
+### ECtxMap Enum
+
+```typescript
+enum ECtxMap {
+  backend = 'backend',
+  be = 'backend',
+  cd = 'caddy',
+  caddy = 'caddy',
+  admin = 'admin',
+  ad = 'admin',
+  px = 'proxy',
+  proxy = 'proxy',
+  sandbox = 'sandbox',
+  sb = 'sandbox',
 }
 ```
 
@@ -341,10 +396,11 @@ const saveTempSecret = (value: string) => {
 - **Kubernetes**: Wraps `kubectl` CLI for cluster operations
 - **DevSpace**: Wraps `devspace` CLI for development workflows
 - **PNPM**: Executes workspace commands via `pnpm.run()`
+- **OpenSSL**: Used by the egress secret preset to generate self-signed CA certificates
 
 ### Environment Management
 - **NODE_ENV**: Set via `--env` option (default: `local`)
-- **Image Tags**: Environment-specific tags (TDSK_PX_IMAGE_TAG, TDSK_BE_IMAGE_TAG, TDSK_AD_IMAGE_TAG, TDSK_CADDY_IMAGE_TAG)
+- **Image Tags**: Environment-specific tags (TDSK_PX_IMAGE_TAG, TDSK_BE_IMAGE_TAG, TDSK_AD_IMAGE_TAG, TDSK_CADDY_IMAGE_TAG, TDSK_SB_IMAGE_TAG)
 
 ## Type System
 

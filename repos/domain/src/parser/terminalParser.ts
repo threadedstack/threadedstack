@@ -5,6 +5,8 @@ import type { VTerminal } from '@TDM/parser/ghosttyVT'
 import { ChangeDetector } from '@TDM/parser/changeDetector'
 import { PatternMatcherPipeline } from '@TDM/parser/patternMatcher'
 import { getMatchers } from '@TDM/parser/matchers'
+import { classifyContent } from '@TDM/parser/contentFilter'
+import { segmentsToMarkdown, hasFormatting } from '@TDM/parser/markdownFormatter'
 
 const maxRawBufferSize = 10 * 1024 * 1024
 
@@ -21,14 +23,54 @@ export class TerminalParser {
 
     const matchers = getMatchers(opts.runtime)
     const pipeline = new PatternMatcherPipeline(matchers, (event) => {
+      // Reset dedup cache on prompt-ready — new content cycle
+      if (event.type === 'prompt-ready') {
+        this.detector.resetDedup()
+      }
       this.onEvent(event)
     })
 
     this.terminal = GhosttyVT.createTerminal(opts.cols ?? 80, opts.rows ?? 24)
 
+    // Drain initial dirty state from terminal creation (clear-screen
+    // escape) so the first write() starts with a clean slate.
+    this.terminal.getDirtyRows()
+    this.terminal.markClean()
+
     this.detector = new ChangeDetector(
       this.terminal,
-      (sealedLine) => pipeline.process(sealedLine),
+      (sealedLine, row) => {
+        // Classify content before passing to pattern matchers
+        const classification = classifyContent(sealedLine, opts.runtime)
+        if (classification === 'chrome') return
+        if (classification === 'loading') {
+          this.onEvent({ type: `activity`, timestamp: Date.now() })
+          return
+        }
+
+        // Try pattern matchers on the raw text first. Tool calls, errors,
+        // permissions, and prompts don't need markdown formatting — they
+        // have their own dedicated event types and UI components.
+        const specialEvent = pipeline.tryMatch(sealedLine)
+        if (specialEvent && specialEvent.type !== 'text') {
+          pipeline.process(sealedLine)
+          return
+        }
+
+        // For text events, check if the line has ANSI bold/italic
+        // formatting and convert to markdown inline syntax.
+        const segments = this.terminal.getLineSegments(row)
+        if (segments.length > 0 && hasFormatting(segments)) {
+          const md = segmentsToMarkdown(segments)
+          if (md.length > 0) {
+            pipeline.process(md)
+            return
+          }
+        }
+
+        // No formatting — pass plain text as-is
+        pipeline.process(sealedLine)
+      },
       (activeText) => {
         // Check if the active row matches a significant pattern (e.g. prompt-ready)
         // If it does, emit that event. Otherwise emit activity.

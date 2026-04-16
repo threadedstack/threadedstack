@@ -1,15 +1,18 @@
-import type { Organization } from '@tdsk/domain'
+import type { Organization, TGuiConfig } from '@tdsk/domain'
 
 import { ERoutePath } from '@TAF/types'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ConfirmDelete } from '@tdsk/components'
-import { Box, Alert, Typography } from '@mui/material'
+import { Box, Alert, Typography, Card, CardContent, Divider } from '@mui/material'
+import SaveIcon from '@mui/icons-material/Save'
 import { updateOrg } from '@TAF/actions/orgs/api/updateOrg'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
 import { ErrorAlert } from '@TAF/components'
-import { useActiveOrgId, useActiveOrg } from '@TAF/state/selectors'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { GuiConfigForm } from '@TAF/components/GuiConfig/GuiConfigForm'
+import { useActiveOrgId, useActiveOrg, useProviders } from '@TAF/state/selectors'
 import { InfoCard, DangerZoneCard, SettingsFormCard } from '@TAF/components/Settings'
 
 export type TOrgSettings = {}
@@ -18,19 +21,36 @@ export const OrgSettings = (props: TOrgSettings) => {
   const [org] = useActiveOrg()
   const navigate = useNavigate()
   const [orgId] = useActiveOrgId()
+  const [providersMap] = useProviders()
 
   const [saving, setSaving] = useState(false)
+  const [guiSaving, setGuiSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [localOrg, setLocalOrg] = useState<Organization>(org)
+  const [localGuiConfig, setLocalGuiConfig] = useState<TGuiConfig | undefined>(
+    org?.config?.guiConfig
+  )
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
-    org && setLocalOrg(org)
+    if (!org) return
+    setLocalOrg(org)
+    setLocalGuiConfig(org.config?.guiConfig)
   }, [org])
+
+  const orgProviders = useMemo(() => {
+    if (!providersMap) return []
+    return Object.values(providersMap)
+      .filter((p) => p.type === 'ai')
+      .map((p) => ({ id: p.id, name: p.name || p.id, brand: p.brand }))
+  }, [providersMap])
 
   const hasChanges =
     org?.name !== localOrg?.name || org?.description !== localOrg?.description
+
+  const guiHasChanges =
+    JSON.stringify(localGuiConfig) !== JSON.stringify(org?.config?.guiConfig)
 
   const onSave = async () => {
     if (!orgId || !hasChanges) return
@@ -48,6 +68,27 @@ export const OrgSettings = (props: TOrgSettings) => {
       setError(err.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const onSaveGuiConfig = async () => {
+    if (!orgId || !guiHasChanges) return
+
+    try {
+      setGuiSaving(true)
+      setError(null)
+      setSuccess(null)
+
+      const result = await updateOrg(orgId, {
+        config: { ...org?.config, guiConfig: localGuiConfig },
+      })
+      result.error
+        ? setError(result.error.message)
+        : setSuccess(`Generative UI config saved successfully`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setGuiSaving(false)
     }
   }
 
@@ -134,6 +175,31 @@ export const OrgSettings = (props: TOrgSettings) => {
                 : []),
             ]}
           />
+
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant='h6'>Generative UI</Typography>
+              <Divider sx={{ my: 2 }} />
+              <GuiConfigForm
+                config={localGuiConfig}
+                orgProviders={orgProviders}
+                onChange={setLocalGuiConfig}
+              />
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                <LoadingButton
+                  color='success'
+                  onClick={onSaveGuiConfig}
+                  loading={guiSaving}
+                  Icon={<SaveIcon />}
+                  variant='contained'
+                  disabled={!guiHasChanges}
+                  loadingText='Saving...'
+                >
+                  Save
+                </LoadingButton>
+              </Box>
+            </CardContent>
+          </Card>
 
           <DangerZoneCard
             buttonLabel='Delete'

@@ -7,12 +7,14 @@ tags: ["react", "mui", "components", "hooks", "frontend", "shared-library"]
 
 ## Overview
 
-The **@tdsk/components** repository is a shared React component library that provides reusable UI components, custom hooks, utilities, and theming for the Threaded Stack platform. It serves as the foundational UI layer consumed by the Admin SPA and other frontend applications.
+The **@tdsk/components** repository is a shared React component library that provides reusable UI components, custom hooks, utilities, and theming for the Threaded Stack platform. It serves as the foundational UI layer consumed by the Admin SPA, Threads SPA, and other frontend applications.
 
 **Key Features:**
 - Material-UI (MUI) based component library
 - Custom hooks for common functionality
 - Monaco Editor integration for code editing
+- Artifact rendering (Markdown, Mermaid diagrams) for AI chat UIs
+- Chat UI primitives (message bubbles, file preview, tool call display)
 - Theming system with dark/light mode support
 - TypeScript-first with comprehensive type definitions
 - Built with tsup for bundling, vitest for testing
@@ -22,10 +24,12 @@ The **@tdsk/components** repository is a shared React component library that pro
 ```
 repos/components/
 ├── src/
-│   ├── components/          # React UI components
+│   ├── components/          # 34 React UI component directories
 │   │   ├── Accordion/       # Accordion, AccordionAction, AccordionActions, AccordionInfoAction
+│   │   ├── ArtifactRenderer/ # ArtifactRenderer, MarkdownRenderer, MermaidRenderer
 │   │   ├── Buttons/         # Button, IconButton, LoadingButton, DialButton, ButtonGroup
 │   │   ├── Card/            # Card, CardActions
+│   │   ├── ChatComponents/  # MessageBubble, FilePreview, ToolCallDisplay
 │   │   ├── ClipboardCopy/   # Clipboard copy functionality
 │   │   ├── Collapse/        # Collapsible sections
 │   │   ├── Confirm/         # Confirm, ConfirmDelete
@@ -34,7 +38,8 @@ repos/components/
 │   │   ├── Drawer/          # Drawer, DrawerActions
 │   │   ├── Dropdown/        # Dropdown, DDHeader
 │   │   ├── Empty/           # Empty state components
-│   │   ├── Icons/           # 20+ custom SVG icons
+│   │   ├── Header/          # Header, AppLogo, UserMenu (+ Header.styled)
+│   │   ├── Icons/           # 28 exported SVG icons + NamedIcon (not in barrel)
 │   │   ├── Image/           # Image components (mui-image-alter)
 │   │   ├── InfoTip/         # Info tooltips (NOT exported from barrel)
 │   │   ├── InlineDom/       # Inline DOM rendering (react-from-dom)
@@ -49,12 +54,14 @@ repos/components/
 │   │   ├── RenderType/      # RenderType, RenderIcon
 │   │   ├── Resize/          # Resizable panels (react-resizable-panels)
 │   │   ├── Section/         # Section, SectionActions
+│   │   ├── SelectorButton/  # SelectorButton
+│   │   ├── SelectorMenu/    # SelectorMenu
 │   │   ├── Tabs/            # Tab components
 │   │   ├── Text/            # Text, TextElements, TextPair
 │   │   └── Tooltip/         # Tooltip components
-│   ├── hooks/               # Custom React hooks
+│   ├── hooks/               # 35+ custom React hooks across 7 categories
 │   │   ├── api/             # useFetch, useLoadDynamic
-│   │   ├── components/      # 9 exported, 2 non-exported
+│   │   ├── components/      # 10 exported, 2 non-exported
 │   │   ├── data/            # useRecall, useTimeout, useInterval, useArrToggle
 │   │   ├── definitions/     # useDefsFilters (NOT exported from hooks barrel)
 │   │   ├── dom/             # 9 hooks
@@ -65,6 +72,19 @@ repos/components/
 │   ├── services/            # storage, clipboard, cacheService, eventEmitter, overlayScrollBody
 │   ├── theme/               # colors, theme factory, helpers, dims, gutter
 │   ├── types/               # TypeScript type definitions
+│   │   ├── accordion.types.ts
+│   │   ├── cache.types.ts
+│   │   ├── chat.types.ts
+│   │   ├── cron.types.ts
+│   │   ├── header.types.ts
+│   │   ├── helpers.types.ts
+│   │   ├── input.types.ts
+│   │   ├── list.types.ts
+│   │   ├── monaco.types.ts
+│   │   ├── notification.types.tsx
+│   │   ├── tabs.types.ts
+│   │   ├── theme.types.ts
+│   │   └── index.ts
 │   ├── utils/               # omit, date, inputs, helpers, customEvt, isValidFuncComp, overlayScrollOpts
 │   ├── constants/           # values, monaco, events, elements
 │   └── index.ts             # Main export barrel
@@ -74,7 +94,7 @@ repos/components/
 └── tsconfig.json
 ```
 
-**Note on barrel exports:** Several components, hooks, and utils are NOT re-exported from their parent `index.ts` barrels. `InfoTip/` and `NotificationCount/` components are not exported from `src/components/index.ts`. The `definitions/` hooks category is not exported from `src/hooks/index.ts`. These must be imported directly from their file paths.
+**Note on barrel exports:** Several components, hooks, and utils are NOT re-exported from their parent `index.ts` barrels. `InfoTip/` and `NotificationCount/` components are not exported from `src/components/index.ts`. The `definitions/` hooks category is not exported from `src/hooks/index.ts`. `NamedIcon` is not exported from the Icons barrel (it imports from `./index` internally). These must be imported directly from their file paths.
 
 ## Build
 
@@ -85,6 +105,28 @@ repos/components/
 - **Types**: `dist/index.d.ts`
 
 ## Component Library
+
+### Artifact Renderer (`src/components/ArtifactRenderer/`)
+Components for rendering AI-generated artifacts in chat UIs:
+- **ArtifactRenderer** - Main artifact rendering component, dispatches to sub-renderers
+- **MarkdownRenderer** - Renders Markdown content (uses `react-markdown` + `remark-gfm`)
+- **MermaidRenderer** - Renders Mermaid diagrams (uses `mermaid`)
+
+### Chat Components (`src/components/ChatComponents/`)
+UI primitives for chat/messaging interfaces:
+- **MessageBubble** - Chat message bubble with sender styling
+- **FilePreview** - File attachment preview
+- **ToolCallDisplay** - Displays AI tool call invocations and results
+
+### Header (`src/components/Header/`)
+Application header components:
+- **Header** - Main app header bar (+ Header.styled for styled components)
+- **AppLogo** - Application logo component
+- **UserMenu** - User avatar/menu dropdown
+
+### Selector Components
+- **SelectorButton** (`src/components/SelectorButton/`) - Button for triggering selection UIs
+- **SelectorMenu** (`src/components/SelectorMenu/`) - Menu for selection options
 
 ### Input Components (`src/components/Inputs/`)
 Exported from the Inputs barrel:
@@ -131,13 +173,17 @@ Additional files not exported from barrel: `AutoInput.tsx`, `SelectInputValue.ts
 - Supports TypeScript, JavaScript, JSON, Python, and more via `@monaco-editor/react`
 
 ### Icons (`src/components/Icons/`)
-Custom SVG icons (20 exported from barrel):
+28 custom SVG icons exported from barrel:
 - **Icon** - Base icon component
-- **CreationIcon**, **ExpandIcon**, **ExportIcon**, **GitlabIcon**, **GridPlusIcon**, **ImportIcon**
-- **ItemListIcon**, **JsonCodeIcon**, **MCPIcon**, **NamedIcon** (generic icon by name, uses MUI icon library)
-- **PencilCircleIcon**, **PlayCircleIcon**, **RobotIcon**, **RobotOutlineIcon**
+- **AnthropicIcon**, **CreationIcon**, **DrawingBoxIcon**, **ExpandIcon**, **ExportIcon**
+- **GitlabIcon**, **GridPlusIcon**, **ImportIcon**, **ItemListIcon**, **JsonCodeIcon**
+- **MCPIcon**, **OllamaIcon**, **OpenAIIcon**, **OpenRouterIcon**, **OrgIcon**
+- **PencilCircleIcon**, **PlayCircleIcon**, **ProjectIcon**, **RobotIcon**, **RobotOutlineIcon**
 - **StarCircleIcon**, **StarPointsIcon**, **StarPointsCircleIcon**, **StopCircleIcon**
-- **TSIcon**, **VercelIcon**
+- **TSIcon**, **VercelIcon**, **ZAIIcon**
+
+Not exported from barrel (file exists, imports from `./index` internally):
+- **NamedIcon** - Generic icon by name, uses MUI icon library
 
 ### Layout Components
 - **Accordion** - Collapsible panels (includes AccordionAction, AccordionActions, AccordionInfoAction)
@@ -178,7 +224,7 @@ Custom SVG icons (20 exported from barrel):
 - **useCopyToClipboard** - Clipboard copy functionality
 
 ### Component-Specific Hooks (`src/hooks/components/`)
-Exported (9):
+Exported (10):
 - **useProp** - Prop management
 - **useCron** - Cron expression handling
 - **useInline** - Inline rendering
@@ -186,6 +232,7 @@ Exported (9):
 - **useToggle** - Toggle state
 - **useEnsureRef** - Ref validation
 - **useEffectOnce** - Run effect once
+- **useStateReset** - State reset utility
 - **useForceRender** - Force re-render
 - **useLayoutMaxWidth** - Layout width calculation
 
@@ -265,6 +312,12 @@ const Enhanced = TooltipHoc(MyComponent)
 
 ### Consumed By
 - **Admin repo** (`repos/admin/`) - Primary consumer for dashboard UI
+- **Threads repo** (`repos/threads/`) - Chat UI, artifact rendering, header components
+
+### Dependencies for Artifact Rendering
+- `react-markdown` - Markdown rendering
+- `remark-gfm` - GitHub Flavored Markdown support
+- `mermaid` - Mermaid diagram rendering
 
 ### Import Pattern
 ```typescript
@@ -273,7 +326,10 @@ import {
   Dialog,
   Drawer,
   Monaco,
+  Header,
   TextInput,
+  MessageBubble,
+  ArtifactRenderer,
   useFetch,
   makeTheme
 } from '@tdsk/components'

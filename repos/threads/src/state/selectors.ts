@@ -1,5 +1,5 @@
 import type { atomWithReset } from 'jotai/utils'
-import type { TToolState } from '@tdsk/domain'
+import type { TToolState, TJsonComponentTree } from '@tdsk/domain'
 import type { TOpenSession } from '@TTH/types'
 
 import { useMemo } from 'react'
@@ -22,6 +22,7 @@ import {
   sandboxesAtom,
   orgsAtom,
   projectsAtom,
+  sessionUpgradesAtom,
 } from '@TTH/state/sessions'
 
 const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
@@ -85,4 +86,11 @@ export const useSandboxToolState = (sandboxId: string): TToolState => {
     if (state && state !== `idle`) return state
   }
   return `idle` as TToolState
+}
+
+const EmptyUpgradesMap = new Map<string, TJsonComponentTree>()
+
+export const useSessionUpgrades = (sessionId: string) => {
+  const [all] = useRecState(sessionUpgradesAtom)
+  return all.get(sessionId) ?? EmptyUpgradesMap
 }

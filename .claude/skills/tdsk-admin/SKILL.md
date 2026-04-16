@@ -1,18 +1,18 @@
 ---
 name: "tdsk-admin"
 description: "Knowledge base for the admin SPA dashboard repo"
-tags: ["react", "vite", "mui", "jotai", "tanstack-query", "frontend", "admin-dashboard", "billing", "quotas", "agents", "ai-chat"]
+tags: ["react", "vite", "mui", "jotai", "tanstack-query", "frontend", "admin-dashboard", "billing", "quotas", "agents", "ai-chat", "skills", "schedules"]
 ---
 # Admin Repo Skill
 
 ## Overview
 
-The **Admin** repo (`repos/admin`) is the Single Page Application (SPA) dashboard for Threaded Stack. It provides the primary user interface for managing **organizations**, **projects**, API keys, providers, secrets, endpoints, functions, agents, threads, and other platform resources. Built with modern React tooling, it uses Vite for fast HMR, MUI for UI components, Jotai for lightweight state management, and TanStack React Query for API caching.
+The **Admin** repo (`repos/admin`) is the Single Page Application (SPA) dashboard for Threaded Stack. It provides the primary user interface for managing **organizations**, **projects**, API keys, providers, secrets, endpoints, functions, agents, threads, sandboxes, skills, schedules, and other platform resources. Built with modern React tooling, it uses Vite for fast HMR, MUI for UI components, Jotai for lightweight state management, and TanStack React Query for API caching.
 
 **Key Characteristics:**
 - **Type**: Frontend SPA Dashboard
 - **Package**: `@tdsk/admin` v0.1.0 (private)
-- **Authentication**: Neon Auth (via `@neondatabase/neon-js`) with social OAuth providers
+- **Authentication**: Neon Auth (via `@neondatabase/neon-js`) with social OAuth providers + email login
 - **Path Aliases**: Uses `@TAF/*` prefix via `alias-hq` for internal imports
 - **Styling**: Emotion (CSS-in-JS) + Material-UI theming system
 - **Toasts**: Sonner
@@ -25,53 +25,74 @@ repos/admin/
 ├── configs/                    # Vite, biome, nginx, env loading (frontend.config.ts)
 ├── scripts/                    # addToProcess, loadEnvs, registerPaths, setupTests, testUtils
 └── src/
-    ├── index.tsx               # React bootstrap: StrictMode → Jotai Provider → AuthProvider → App + Version
-    ├── App.tsx                 # Root: ThemeProvider → GlobalStyles → MUI GlobalStyles → RouterProvider
-    ├── actions/                # ~170 files across 19 domains (agents, apiKeys, assets, auth, domains,
-    │   │                       #   endpoints, functions, messages, orgs, profile, projects, providers,
-    │   │                       #   quickstart, quotas, sandboxes, secrets, subscriptions, threads, users)
+    ├── index.tsx               # React bootstrap: StrictMode > Jotai Provider > AuthProvider > App + Version
+    ├── App.tsx                 # Root: ThemeProvider > GlobalStyles > MUI GlobalStyles > RouterProvider
+    ├── actions/                # ~256 files across 22 domains (agents, apiKeys, assets, auth, domains,
+    │   │                       #   endpoints, functions, messages, orgs, profile, projectMembers, projects,
+    │   │                       #   providers, quickstart, quotas, sandboxes, schedules, secrets, skills,
+    │   │                       #   subscriptions, threads, users)
     │   └── <domain>/
-    │       ├── api/            # Async: call service → update Jotai state → return response
+    │       ├── api/            # Async: call service > update Jotai state > return response
     │       └── local/          # Sync: direct Jotai state mutations (upsert, remove, set)
-    ├── components/             # 39 directories, 140+ files
-    │   ├── Agents/             # AgentDrawer, AgentSection, AgentSettingsForm, BasicInfoForm, FunctionsSelector, ModelConfigForm, SecretsSelector, ToolsSelector
-    │   ├── AI/                 # AssetsTab, ChatView, CreateThreadDrawer, EditThreadDrawer, MessageBubble, MessagesTab, ThreadsTab, ToolCallDisplay
+    ├── components/             # 49 directories, 210+ files
+    │   ├── ActionCards/        # ActionCards
+    │   ├── ActionIconButton/   # ActionIconButton
+    │   ├── Agents/             # AgentBreadcrumbs, AgentDetailTab, AgentDrawer, AgentLayout, AgentSection,
+    │   │                       #   AgentSettingsForm, BasicInfoForm, ModelConfigForm, ModelSelect, WebProviderSettings
+    │   ├── AI/                 # AssetsTab, ChatView, CreateThreadDrawer, EditThreadDrawer, MessagesTab, ThreadsTab
     │   ├── Billing/            # CurrentPlan, PlanCard, QuotaUsage
     │   ├── Breadcrumbs/        # Breadcrumbs, OrgSelector, OrgsMenu, ProjectSelector
-    │   ├── Endpoints/          # EndpointDrawer, EndpointFormBase, Endpoints, EndpointsTable + Agent/, Faas/, Proxy/ subdirs
+    │   ├── Endpoints/          # EndpointBreadcrumbs, EndpointDrawer, EndpointFormBase, EndpointLayout, Endpoints,
+    │   │                       #   EndpointsTable, EndpointTestPanel, Envs, NoEndpoints
+    │   │                       #   + Agent/ (AgentInputs, EndpointAgent), Faas/ (EndpointFass, FaasInputs,
+    │   │                       #   ResourcesLimits), Proxy/ (EndpointAuth, EndpointBasicOptions, EndpointHeaders,
+    │   │                       #   EndpointOAuth, EndpointProxy, EndpointTransform, EndpointWhitelist, ProxyInputs),
+    │   │                       #   Tabs/ (AgentConfigTab, EndpointConfigTab, EndpointTab, EndpointTestTab,
+    │   │                       #   FaasConfigTab, ProxyConfigTab)
     │   ├── Functions/          # FunctionDrawer, Functions, NoFunctions
+    │   ├── GuiConfig/          # GuiConfigForm (generative UI configuration)
     │   ├── Header/             # Header, Settings, Tabs (+ styled)
-    │   ├── Login/              # GithubBtn, GitlabBtn, GoogleBtn, VercelBtn, Login, LoginError
+    │   ├── Login/              # EmailLoginForm, GithubBtn, GitlabBtn, GoogleBtn, VercelBtn, Login, LoginError (+ styles)
     │   ├── Orgs/               # CreateApiKeyDrawer, CreateOrgDrawer, EditOrgDrawer, NoOrgs, OrgCard, OrgIcon, OrgsGrid
+    │   ├── PI/                 # PiChatPanel, PiModelSelector
     │   ├── Projects/           # CreateProjectDrawer, NoProjects, ProjectCard, ProjectIcon, ProjectsGrid, ProjectsMenu
     │   ├── Providers/          # ProviderDrawer, Providers
     │   ├── Quickstart/         # AgentStep, ProviderStep, Quickstart, QuickstartButton, QuickstartWizard, ReviewStep
     │   ├── Sandboxes/          # Sandboxes (list+actions+copy), SandboxDrawer (create/edit with runtime fields), ConnectModal (SSH connection)
+    │   ├── Schedules/          # Schedules (list), ScheduleDrawer (create/edit)
     │   ├── Secrets/            # SecretDrawer, Secrets
+    │   ├── SecretSelector/     # SecretSelector
+    │   ├── Selectors/          # AgentSelector, EndpointSelector, EntitySelector, FunctionsSelector,
+    │   │                       #   ProviderSelector, SecretsSelector, ToolsSelector, UserSelector
     │   ├── Sidebar/            # SBLogo, SBNavList, SBProjectSelector, SBSection, Sidebar (+ styles)
-    │   ├── Users/              # InviteUserDrawer, NoUsers, UserCard, UsersGrid
-    │   └── ...                 # ActionIconButton, AppError, ArrayEditor, CardGrid, Code, DataTable, Domains,
-    │                           #   EmptyState, ErrorAlert, FilterSelect, InfoField, ItemCard, KeyValueEditor,
-    │                           #   Link, LoadingButton, LoadingSpinner, PageHeader, PageLayout, ParamsEditor,
-    │                           #   Permissions, Roles, SearchBar, Settings, Version
+    │   ├── Skills/             # Skills (list), SkillDrawer (create/edit)
+    │   ├── Users/              # EditUserDrawer, InviteUserDrawer, NoUsers, UserCard, UsersGrid
+    │   └── ...                 # AppError, ArrayEditor, CardGrid, Code, DataTable, Domains, EditorList,
+    │                           #   EmptyState, ErrorAlert, FilterSelect, FormSection, InfoField, ItemCard,
+    │                           #   KeyValueEditor, Link, LoadingButton, LoadingSpinner, PageHeader, PageLayout,
+    │                           #   ParamsEditor, Permissions, Roles, SearchBar, Settings, Version
     ├── constants/              # endpoints.ts, envs.ts, monaco.ts, nav.tsx, providers.ts, query.ts, storage.ts, tools.ts, values.ts
-    ├── contexts/               # AuthContext/Provider, OrgsContext/Provider, ProjectsContext/Provider
-    ├── hooks/
-    │   ├── chat/               # useAgentChat (SSE streaming)
-    │   ├── components/         # useDrawerActions, useLocalSearch, useQuickStart, useReset, useSteps
-    │   ├── endpoints/          # useAgentFormState, useEndpointFilter, useEndpointForm, useEndpoints, useFaasFormState, useProxyFormState
-    │   ├── nav/                # useActiveNavData, useAgentsSidebarSync, useDynamicNav
-    │   ├── org/                # useOrgSecrets, useOrgsState, useOrgUsersList
+    ├── contexts/               # AuthContext/Provider (Neon Auth — OrgsContext/ProjectsContext removed in favor of React Router loaders)
+    ├── hooks/                  # 40 files across 7 categories
+    │   ├── chat/               # useAgentChat (SSE streaming), useMessageActions
+    │   ├── components/         # useAsyncAction, useDrawerActions, useLocalSearch, useQuickStart, useReset, useSteps
+    │   ├── endpoints/          # createEndpointFormHook, useAgentFormState, useEndpointFilter, useEndpointForm,
+    │   │                       #   useEndpoints, useEndpointTest, useFaasFormState, useProxyFormState, useUnsavedChangesGuard
+    │   ├── nav/                # useActiveNavData, useAutoRailSection, useDynamicNav, useRailNav
+    │   ├── org/                # useOrgSecrets, useOrgUsersList
     │   ├── permissions/        # useCanPerform, usePermissions
-    │   ├── project/            # useProjectSecrets, useProjectsState
+    │   ├── project/            # useProjectSecrets
     │   └── theme/              # useMakeTheme, useTheme, useThemeToggle
-    ├── pages/                  # Account, Billing, Home, Layout, Login, Orgs/*, Page, Profile, Projects/* (incl. ProjectWorkspace, ProjectSandboxes), Providers, Settings
-    ├── routes/Routes.tsx       # createBrowserRouter with lazy loading + SuspensePage helper
-    ├── services/               # 22+ singleton service classes (see API Service Architecture)
-    ├── state/                  # 18 Jotai atom files + accessors.ts + selectors.ts
+    ├── pages/                  # Account, Billing, Home, Layout, Login, Orgs/*, Page, Profile, Projects/* (incl. ProjectWorkspace,
+    │                           #   ProjectSandboxes, ProjectMembers, ProjectAI, ProjectThreadDetail, ProjectThreadChat), Providers, Settings
+    ├── routes/
+    │   ├── Routes.tsx          # createBrowserRouter with lazy loading + SuspensePage helper + RouteError boundary
+    │   └── loaders.ts          # 26 React Router v7 loaders (389 lines) — criticalFetch/safeFetch pattern
+    ├── services/               # 36 files — singleton service classes (see API Service Architecture)
+    ├── state/                  # 22 Jotai atom files + accessors.ts + selectors.ts + index.ts (26 total)
     ├── theme/GlobalStyles.tsx  # Global CSS styles component
-    ├── types/                  # 16 type definition files
-    └── utils/                  # api/, endpoints/, errors/, nav/, text/, transforms/, user/
+    ├── types/                  # 19 type definition files
+    └── utils/                  # api/, endpoints/, errors/, nav/, sandbox/, text/, transforms/, user/
 ```
 
 ## Key Files
@@ -86,44 +107,72 @@ repos/admin/
 
 **File**: `src/routes/Routes.tsx`
 
-Uses React Router 7's `createBrowserRouter` with a `SuspensePage` helper component for consistent lazy loading with `Loading` fallback.
+Uses React Router 7's `createBrowserRouter` with a `SuspensePage` helper component for consistent lazy loading with `Loading` fallback, and a `RouteError` boundary that surfaces loader errors via `AppError`.
 
 **Route Tree**:
 ```
 / (root)
-├── Component: OrgsLoader → Layout (SignedIn guard + Sidebar + Outlet)
-├── / (index) → Home
-├── /orgs → Orgs list
-├── /billing → Billing/subscriptions
-├── /orgs/:orgId
-│   ├── (index) → Org dashboard
-│   ├── /users → OrgUsers
-│   ├── /secrets → OrgSecrets
-│   ├── /domains → OrgDomains
-│   ├── /providers → OrgProviders
-│   ├── /settings → OrgSettings
-│   ├── /usage → OrgUsage (quota tracking)
-│   ├── /api-keys → OrgApiKeys
-│   ├── /projects → ProjectsLoader → Projects list
-│   ├── /sandboxes → OrgSandboxes
-│   └── /projects/:projectId (Component: ProjectsLoader)
-│       ├── (index) → ProjectWorkspace (sandbox list + quick actions + recent threads)
-│       ├── /endpoints → ProjectEndpoints
-│       ├── /secrets → ProjectSecrets
-│       ├── /domains → ProjectDomains
-│       ├── /functions → ProjectFunctions
-│       ├── /agents → ProjectAgents
-│       ├── /agents/:agentId → ProjectAgent
-│       ├── /agents/:agentId/threads → ProjectThreads
-│       ├── /agents/:agentId/chat → ChatView (AI chat)
-│       ├── /sandboxes → ProjectSandboxes
-│       └── /settings → ProjectSettings
-├── /settings → Settings
-├── /profile → Profile
-├── /auth/:pathname → Login
-├── /account/:pathname → Account
-└── * → Redirect to /
+├── Component: rootLoader > Layout (SignedIn guard + Sidebar + Outlet)
+├── / (index) > Home
+├── /orgs > Orgs list
+├── /billing > Billing/subscriptions
+├── /orgs/:orgId (loader: orgScopeLoader)
+│   ├── (index) loader: orgDetailLoader > Org dashboard
+│   ├── /members loader: orgMembersLoader > OrgUsers
+│   ├── /secrets loader: orgSecretsLoader > OrgSecrets
+│   ├── /domains loader: orgDomainsLoader > OrgDomains
+│   ├── /providers loader: orgProvidersLoader > OrgProviders
+│   ├── /sandboxes loader: orgSandboxesLoader > OrgSandboxes
+│   ├── /settings > OrgSettings
+│   ├── /usage loader: orgUsageLoader > OrgUsage (quota tracking)
+│   ├── /skills loader: orgSkillsLoader > OrgSkills
+│   ├── /schedules loader: orgSchedulesLoader > OrgSchedules
+│   ├── /api-keys loader: orgApiKeysLoader > OrgApiKeys
+│   ├── /agents loader: orgAgentsLoader > OrgAgents
+│   ├── /projects > Projects list
+│   └── /projects/:projectId (loader: projectScopeLoader)
+│       ├── (index) loader: projectSandboxesLoader > ProjectWorkspace
+│       ├── /endpoints loader: projectEndpointsLoader > ProjectEndpoints
+│       ├── /endpoints/:endpointId loader: endpointDetailLoader > EndpointLayout
+│       │   ├── (index) > EndpointTab
+│       │   ├── /config > EndpointConfigTab
+│       │   └── /test > EndpointTestTab
+│       ├── /secrets loader: projectSecretsLoader > ProjectSecrets
+│       ├── /domains loader: projectDomainsLoader > ProjectDomains
+│       ├── /functions loader: projectFunctionsLoader > ProjectFunctions
+│       ├── /agents loader: projectAgentsLoader > ProjectAgents
+│       ├── /sandboxes loader: projectSandboxesLoader > ProjectSandboxes
+│       ├── /agents/:agentId loader: agentDetailLoader > AgentLayout
+│       │   ├── (index) > AgentDetailTab
+│       │   ├── /threads loader: projectThreadsLoader > ProjectThreads
+│       │   ├── /chat > AgentChat (ChatView)
+│       │   ├── /threads/:threadId loader: threadDetailLoader > ProjectThreadDetail
+│       │   ├── /threads/:threadId/chat loader: threadDetailLoader > ProjectThreadChat
+│       │   ├── /skills > SkillsTab
+│       │   └── /schedules > SchedulesTab
+│       ├── /api-keys loader: projectApiKeysLoader > ProjectApiKeys
+│       ├── /settings > ProjectSettings
+│       └── /members loader: projectMembersLoader > ProjectMembers
+├── /settings > Settings
+├── /profile > Profile
+├── /auth/:pathname > Login
+├── /account/:pathname > Account
+└── * > Redirect to /
 ```
+
+**React Router v7 Loaders** (`src/routes/loaders.ts` — 389 lines):
+
+26 loaders total using a `criticalFetch`/`safeFetch` pattern:
+- `criticalFetch` — Throws on error so the route's `errorElement` renders. Used for top-level data the app cannot function without (e.g., orgs).
+- `safeFetch` — Silently returns `undefined` on error. Used for data that can load lazily or fail gracefully.
+
+Loader hierarchy:
+- `rootLoader` — Fetches orgs (critical)
+- `orgScopeLoader` — Sets active org ID, fetches projects + providers (safe)
+- `orgDetailLoader`, `orgMembersLoader`, `orgSecretsLoader`, `orgDomainsLoader`, `orgProvidersLoader`, `orgSandboxesLoader`, `orgUsageLoader`, `orgApiKeysLoader`, `orgAgentsLoader`, `orgSkillsLoader`, `orgSchedulesLoader` — Org-level data
+- `projectScopeLoader` — Sets active project ID
+- `projectEndpointsLoader`, `projectFunctionsLoader`, `projectSecretsLoader`, `projectDomainsLoader`, `projectAgentsLoader`, `projectSandboxesLoader`, `projectThreadsLoader`, `projectMembersLoader`, `projectApiKeysLoader` — Project-level data
+- `agentDetailLoader`, `endpointDetailLoader`, `threadDetailLoader` — Entity-level detail
 
 **Route Path Enum** (`src/types/routes.types.ts`):
 ```typescript
@@ -135,33 +184,46 @@ enum ERoutePath {
 
   // Org (relative paths for nested routing)
   Orgs = `/orgs`, Org = `/orgs/:orgId`,
-  Users = `users`, Secrets = `secrets`, Domains = `domains`, Providers = `providers`,
+  Members = `members`, Secrets = `secrets`, Domains = `domains`, Providers = `providers`,
   ApiKeys = `api-keys`, Usage = `usage`, Projects = `projects`,
+  Skills = `skills`, Schedules = `schedules`, Sandboxes = `sandboxes`,
 
   // Org (absolute paths for nav/links)
-  OrgUsers = `/orgs/:orgId/users`, OrgSecrets = `/orgs/:orgId/secrets`,
+  OrgMembers = `/orgs/:orgId/members`, OrgSecrets = `/orgs/:orgId/secrets`,
   OrgDomains = `/orgs/:orgId/domains`, OrgProviders = `/orgs/:orgId/providers`,
   OrgSettings = `/orgs/:orgId/settings`, OrgUsage = `/orgs/:orgId/usage`,
   OrgApiKeys = `/orgs/:orgId/api-keys`, OrgProjects = `/orgs/:orgId/projects`,
+  OrgSandboxes = `/orgs/:orgId/sandboxes`, OrgAgents = `/orgs/:orgId/agents`,
+  OrgSkills = `/orgs/:orgId/skills`, OrgSchedules = `/orgs/:orgId/schedules`,
 
   // Project (relative and absolute)
-  ProjectId = `projects/:projectId`, Endpoints = `endpoints`, Functions = `functions`,
-  Agents = `agents`, AgentChat = `agents/:agentId/chat`, AgentThreads = `agents/:agentId/threads`,
-  ProjectAgents = `/orgs/:orgId/projects/:projectId/agents`,
-  ProjectEndpoints = `/orgs/:orgId/projects/:projectId/endpoints`,
-  // ... etc
+  ProjectId = `projects/:projectId`, OrgProject = `/orgs/:orgId/projects/:projectId`,
+  Endpoints = `endpoints`, Functions = `functions`, Agents = `agents`,
+  Agent = `agents/:agentId`, Endpoint = `endpoints/:endpointId`,
+  Threads = `threads`,
+
+  // Agent nested
+  AgentChat = `agents/:agentId/chat`, AgentThreads = `agents/:agentId/threads`,
+  AgentThreadDetail = `threads/:threadId`, AgentThreadChat = `threads/:threadId/chat`,
+
+  // Project absolute paths
+  ProjectAgents, ProjectEndpoints, ProjectSecrets, ProjectDomains, ProjectApiKeys,
+  ProjectSettings, ProjectSandboxes, ProjectFunctions, ProjectMembers,
+  ProjectAgent, ProjectAgentChat, ProjectAgentThreads,
+  ProjectAgentThreadDetail, ProjectAgentThreadChat,
+  ProjectEndpoint, ProjectEndpointConfig, ProjectEndpointTest,
 
   Star = `*`
 }
 ```
 
-**Key design**: Route paths exist in both relative form (for nested React Router children, e.g., `users`) and absolute form (for navigation links, e.g., `/orgs/:orgId/users`). The `buildRoute()` utility replaces `:orgId`, `:projectId`, etc. with actual IDs from context.
+**Key design**: Route paths exist in both relative form (for nested React Router children, e.g., `members`) and absolute form (for navigation links, e.g., `/orgs/:orgId/members`). The `buildRoute()` utility replaces `:orgId`, `:projectId`, etc. with actual IDs from context.
 
 ### State Management (Jotai)
 
 **Global Store** (`src/state/accessors.ts`): `export const store = createStore()`
 
-**18 State Atom Files** with the following pattern:
+**22 State Atom Files** with the following pattern:
 ```typescript
 // state/<entity>.ts
 import { atomWithReset } from 'jotai/utils'
@@ -170,27 +232,31 @@ export const activeEntityIdState = atomWithReset<string | undefined>(undefined)
 ```
 
 **All atom files and their exports**:
-- `agents.ts` — `agentsState`, `activeAgentIdState`, `activeAgentState` (derived)
-- `sandboxes.ts` — `sandboxesState`, `projectSandboxesState` (derived from sandboxesState + activeProjectIdState)
+- `agents.ts` — `agentsState`, `activeAgentIdState`, `activeAgentState` (derived), `orgAgentsState` (derived), `projectAgentsState` (derived)
 - `apiKeys.ts` — `apiKeysState`, `activeApiKeyIdState`
-- `app.ts` — `sidebarOpenState`
-- `assets.ts` — `assetsState`, `activeAssetIdState`
-- `domains.ts` — `domainsState`, `activeDomainIdState`
-- `endpoints.ts` — `endpointsState`, `activeEndpointIdState`, `proxyFormState`, `faasFormState`, `agentFormState`
-- `functions.ts` — `functionsState`, `activeFunctionIdState`
-- `messages.ts` — `messagesState`, `activeMessageIdState`
-- `orgs.ts` — `orgsState`, `orgUsersState`, `activeOrgIdState`, `activeOrgRoleState`, `activeOrgState` (derived)
+- `app.ts` — `sidebarOpenState`, `activeRailSectionState`
+- `assets.ts` — `assetsState`, `activeAssetIdState`, `orgAssetsState` (derived), `projectAssetsState` (derived)
+- `domains.ts` — `domainsState`, `activeDomainIdState`, `orgDomainsState` (derived), `projectDomainsState` (derived)
+- `endpoints.ts` — `endpointsState`, `activeEndpointIdState`, `activeEndpointState` (derived), `projectEndpointsState` (derived), `proxyFormState`, `faasFormState`, `agentFormState`, `endpointTabsDisabledState`
+- `functions.ts` — `functionsState`, `activeFunctionIdState`, `projectFunctionsState` (derived)
+- `invoices.ts` — `invoicesState` (flat `Invoice[]`)
+- `messages.ts` — `messagesState`, `activeMessageIdState`, `threadMessagesState` (derived)
+- `orgs.ts` — `orgsState`, `orgUsersState`, `activeOrgIdState`, `activeOrgRoleState` (derived), `activeOrgState` (derived)
+- `projectMembers.ts` — `projectMembersState` (keyed by projectId), `activeProjectMembersState` (derived from activeProjectId)
 - `projects.ts` — `projectsState`, `activeProjectIdState`, `activeProjectState` (derived)
 - `providers.ts` — `providersState`
 - `quickstart.ts` — `quickstartState` (boolean)
 - `quotas.ts` — `orgQuotaState`, `orgLimitsState`
-- `secrets.ts` — `secretsState`, `activeSecretIdState`
+- `sandboxes.ts` — `sandboxesState`, `orgSandboxesState` (derived), `projectSandboxesState` (derived)
+- `schedules.ts` — `schedulesState`, `activeScheduleIdState` (org-scoped, flat `Record<string, Schedule>`)
+- `secrets.ts` — `secretsState`, `activeSecretIdState`, `activeOrgSecretIdState`, `orgSecretsState` (derived), `projectSecretsState` (derived)
+- `skills.ts` — `skillsState`, `activeSkillIdState` (org-scoped, flat `Record<string, Skill>`)
 - `subscriptions.ts` — `subscriptionState`, `paymentPlansState`
 - `theme.ts` — `themeTypeState`
-- `threads.ts` — `threadsState`, `activeThreadIdState`
+- `threads.ts` — `threadsState`, `activeThreadIdState`, `activeThreadState` (derived), `orgThreadsState` (derived), `projectThreadsState` (derived)
 - `user.ts` — `userState`
 
-**Accessors** (`src/state/accessors.ts`) — Imperative `get*/set*/reset*` for each atom (for use outside React in actions/services).
+**Accessors** (`src/state/accessors.ts`) — Imperative `get*/set*/reset*` for each atom (for use outside React in actions/services). Includes scope-keyed accessors: `getContext*/setContext*` for agents, domains, threads, assets, sandboxes; `getProject*/setProject*` for endpoints, functions, secrets, members; `getThread*/setThread*` for messages.
 
 **Selectors** (`src/state/selectors.ts`) — Hook-based access:
 ```typescript
@@ -200,6 +266,38 @@ export const useOrgs = () => useRecState(orgsState)
 export const useActiveOrg = () => useDerivedState<Organization>(activeOrgState)
 export const useActiveProject = () => useDerivedState<Project>(activeProjectState)
 export const useActiveAgent = () => useDerivedState<Agent>(activeAgentState)
+
+// Project-scoped derived selectors
+export const useProjectEndpoints = () => useDerivedState(projectEndpointsState)
+export const useProjectFunctions = () => useDerivedState(projectFunctionsState)
+export const useProjectSecrets = () => useDerivedState(projectSecretsState)
+export const useProjectAgents = () => useDerivedState(projectAgentsState)
+export const useProjectDomains = () => useDerivedState(projectDomainsState)
+export const useProjectThreads = () => useDerivedState(projectThreadsState)
+export const useProjectAssets = () => useDerivedState(projectAssetsState)
+export const useProjectSandboxes = () => useDerivedState(projectSandboxesState)
+export const useProjectMembers = () => useRecState(projectMembersState)
+export const useActiveProjectMembers = () => useDerivedState(activeProjectMembersState)
+
+// Org-scoped derived selectors
+export const useOrgAgents = () => useDerivedState(orgAgentsState)
+export const useOrgDomains = () => useDerivedState(orgDomainsState)
+export const useOrgThreads = () => useDerivedState(orgThreadsState)
+export const useOrgAssets = () => useDerivedState(orgAssetsState)
+export const useOrgSandboxes = () => useDerivedState(orgSandboxesState)
+
+// Org-scoped flat atoms (skills, schedules)
+export const useSkills = () => useRecState(skillsState)
+export const useActiveSkillId = () => useRecState(activeSkillIdState)
+export const useSchedules = () => useRecState(schedulesState)
+export const useActiveScheduleId = () => useRecState(activeScheduleIdState)
+
+// Thread-scoped
+export const useActiveThread = () => useDerivedState(activeThreadState)
+export const useThreadMessages = () => useDerivedState(threadMessagesState)
+
+// Billing
+export const useInvoices = () => useRecState(invoicesState)
 // ... etc for all entities
 ```
 
@@ -224,15 +322,29 @@ export const useActiveAgent = () => useDerivedState<Agent>(activeAgentState)
 ```
 ApiService (base fetch with Bearer auth + TanStack Query caching)
     └── BaseApi (adds _onError toast notifications)
-        ├── OrgsApi          ├── EndpointsApi      ├── AssetsApi
-        ├── ProjectsApi      ├── FunctionsApi      ├── UsersApi
-        ├── AgentsApi (+ SSE .run())  ├── ApiKeysApi    ├── QuotasApi
-        ├── SecretsApi       ├── DomainsApi        ├── SubscriptionsApi
-        ├── ProvidersApi     ├── ThreadsApi        ├── QuickstartApi
-        ├── MessagesApi      └── SandboxApi (CRUD + lifecycle: start, stop, connect, status, sessions)
+        ├── OrgsApi              ├── EndpointsApi          ├── AssetsApi
+        ├── ProjectsApi          ├── FunctionsApi          ├── UsersApi
+        ├── AgentsApi (+ SSE .run())  ├── ApiKeysApi       ├── QuotasApi
+        ├── SecretsApi           ├── DomainsApi            ├── SubscriptionsApi
+        ├── ProvidersApi         ├── ThreadsApi            ├── QuickstartApi
+        ├── MessagesApi          ├── FilesApi              ├── SkillsApi
+        ├── ProjectMembersApi    ├── SchedulesApi          ├── AgentWSService (WebSocket agent sessions)
+        ├── SandboxApi (CRUD + lifecycle: start, stop, connect, status, sessions)
+        └── EndpointTestApi
 ```
 
-All exported as singletons (e.g., `export const orgsApi = new OrgsApi()`).
+36 service files total. All exported as singletons (e.g., `export const orgsApi = new OrgsApi()`).
+
+Additional services:
+- `agentWSService.ts` — WebSocket agent sessions (separate from SSE-based `agentsApi.run()`)
+- `projectMembersApi.ts` — Project member management (add, remove, list)
+- `schedulesApi.ts` — Schedule CRUD + trigger
+- `skillsApi.ts` — Skill CRUD
+- `filesApi.ts` — File operations
+- `endpointTestApi.ts` — Endpoint testing
+- `tokenRefresh.ts` — Token refresh management
+- `storage.ts` — Local storage wrapper
+- `templates.ts` — Mustache template syntax for secret/endpoint value interpolation
 
 **Cache Key Pattern**:
 ```typescript
@@ -263,22 +375,29 @@ export class Auth {
 
 **AuthProvider** (`src/contexts/AuthProvider.tsx`):
 - Wraps app with `NeonAuthUIProvider` from `@neondatabase/neon-js/auth/react`
-- On mount: calls `initAuth()` → `auth.session()`, sets session state
+- On mount: calls `initAuth()` > `auth.session()`, sets session state
 - Shows `Loading` during auth check, `LoginError` on failure
+
+**Login Components** (`src/components/Login/`):
+- Social login buttons: `GithubBtn`, `GitlabBtn`, `GoogleBtn`, `VercelBtn`
+- `EmailLoginForm` — Email-based login form
+- `Login` — Main login component composing social + email login
+- `LoginError` — Error display for auth failures
 
 **Protected Routes** (`src/pages/Layout/Layout.tsx`):
 - Layout uses Neon Auth's `SignedIn` and `RedirectToSignIn` — all routes under Layout require authentication
 
 **Data Loading Flow**:
-- `OrgsLoader` wraps Layout children in `OrgsProvider` which calls `useOrgsState()` on mount
-- `ProjectsLoader` wraps project children in `ProjectsProvider` which calls `useProjectsState()` on mount
-- Both providers show Loading/AppError states while fetching
+- React Router v7 loaders handle all data fetching — no more `OrgsProvider`/`ProjectsProvider` context-based loading
+- `rootLoader` fetches orgs on app boot (critical)
+- `orgScopeLoader` sets active org ID and fetches projects + providers
+- Entity-specific loaders fetch data for each route on navigation
 
 ### Action Pattern
 
 **API Actions** (`actions/<domain>/api/<action>.ts`):
 ```typescript
-// Async functions that call service → update Jotai state
+// Async functions that call service > update Jotai state
 export const fetchOrgs = async () => {
   const resp = await orgsApi.list()
   if (resp.data) setOrgs(resp.data)
@@ -296,6 +415,32 @@ export const upsertAgent = (agent: Agent) => {
 ```
 
 Components call API actions which internally delegate to local actions after successful API responses.
+
+**Action Domains (22 total)**:
+| Domain | API Actions | Local Actions |
+|--------|-------------|---------------|
+| agents | fetchAgents, createAgent, updateAgent, deleteAgent, runAgent | upsertAgent, removeAgent, setAgents |
+| apiKeys | fetchApiKeys, createApiKey, deleteApiKey | setApiKeys, upsertApiKey, removeApiKey |
+| assets | fetchAssets | setAssets |
+| auth | — | signout |
+| domains | fetchDomains, createDomain, deleteDomain | setDomains, upsertDomain, removeDomain |
+| endpoints | fetchEndpoints, createEndpoint, updateEndpoint, deleteEndpoint, testEndpoint | setEndpoints, upsertEndpoint, removeEndpoint |
+| functions | fetchFunctions, createFunction, updateFunction, deleteFunction, fetchFunction | setFunctions, upsertFunction, removeFunction |
+| messages | fetchMessages, createMessage | setMessages |
+| orgs | fetchOrgs, createOrg, updateOrg, deleteOrg | setOrgs, upsertOrg, removeOrg |
+| profile | updateProfile | setProfile |
+| projectMembers | listProjectMembers, addProjectMember, removeProjectMember | setProjectMembers, upsertProjectMember, removeProjectMember |
+| projects | fetchProjects, createProject, updateProject, deleteProject | setProjects, upsertProject, removeProject |
+| providers | fetchProviders, createProvider, updateProvider, deleteProvider, fetchProvider | setProviders, upsertProvider, removeProvider |
+| quickstart | runQuickstart | setQuickstart |
+| quotas | fetchOrgQuota, fetchOrgLimits | setOrgQuota, setOrgLimits |
+| sandboxes | fetchSandboxes, createSandbox, updateSandbox, deleteSandbox, copySandbox, connectSandbox | setSandboxes, upsertSandbox, removeSandbox |
+| schedules | fetchSchedules, createSchedule, updateSchedule, deleteSchedule, triggerSchedule | setSchedules, upsertSchedule, removeSchedule |
+| secrets | fetchSecrets, createSecret, updateSecret, deleteSecret | setSecrets, upsertSecret, removeSecret |
+| skills | fetchSkills, createSkill, updateSkill, deleteSkill | setSkills, upsertSkill, removeSkill |
+| subscriptions | fetchSubscription, createSubscription, updateSubscription | setSubscription |
+| threads | fetchThreads, createThread, updateThread, deleteThread | setThreads, upsertThread, removeThread |
+| users | listOrgUsers, inviteToOrg, removeFromOrg, updateOrgRole | setOrgUsers |
 
 ### Navigation
 
@@ -319,18 +464,19 @@ class NavService {
 - Replaces `:orgId`, `:projectId`, `:agentId` etc. with actual values from context
 
 **Sidebar Navigation** (`src/constants/nav.tsx`):
-- `OrgNavItems` — 9 items in 4 groups:
-  - **Resources**: Sandboxes (first), Projects
-  - **Security**: Secrets, Providers, Domains, Api Keys
-  - **Management**: Users, Usage, Settings
-  - **AI**: Agents (deprioritized from top-level)
-- `ProjectNavItems` — 8 items in 4 groups:
-  - **Development**: Sandboxes (first), Endpoints, Functions
-  - **Security**: Secrets, Domains
-  - **Management**: Settings
-  - **AI**: Agents, Threads (deprioritized)
-- `BottomNavItems` — 1 item: Settings
+
+Uses a rail navigation pattern with `RailNavSections` (Home, Org, Project) and `TSubNavGroup` groupings.
+
+- `OrgSubNavGroups` — 3 groups:
+  - **Resources**: Projects, Sandboxes, Providers, Skills, Agents
+  - **Security**: Secrets, API Keys, Domains
+  - **Management**: Members, Schedules, Usage, Settings
+- `ProjectSubNavGroups` — 3 groups:
+  - **Development**: Sandboxes, Endpoints, Functions, Agents
+  - **Security**: Secrets, API Keys, Domains
+  - **Management**: Members, Settings
 - `HeaderSettingsItems` — 3 items: Profile, Billing, Sign Out
+- `BottomNavItems` — 1 item: Settings
 - `QSSteps` — 3 quickstart steps: "AI Provider", "Project & Agent", "Review & Create"
 
 ### Sandbox UI
@@ -360,13 +506,33 @@ class NavService {
 - Processes event types: `text`, `toolCallStart`, `toolCallArgs`, `toolResult`, `error`, `thread`
 - Returns `{ messages, sendMessage, isStreaming, threadId, error, reset }`
 
+**AgentWSService** (`src/services/agentWSService.ts`):
+- WebSocket-based agent session management (alternative to SSE streaming)
+
+### Skills & Schedules UI
+
+**Skills** (`src/components/Skills/`):
+- `Skills.tsx` — List view with create/edit/delete actions
+- `SkillDrawer.tsx` — Create/edit drawer form
+- Org-scoped resource, accessible at `/orgs/:orgId/skills` and as a tab under agent detail
+
+**Schedules** (`src/components/Schedules/`):
+- `Schedules.tsx` — List view with create/edit/delete/trigger actions
+- `ScheduleDrawer.tsx` — Create/edit drawer form
+- Org-scoped resource, accessible at `/orgs/:orgId/schedules` and as a tab under agent detail
+
+### GuiConfig
+
+**GuiConfigForm** (`src/components/GuiConfig/GuiConfigForm.tsx`):
+- Generative UI configuration form component
+
 ## Architecture
 
 ### Application Bootstrap Sequence
 
 ```
-1. index.html loads → /src/index.tsx
-2. overlayScrollBody() → custom scrollbar
+1. index.html loads > /src/index.tsx
+2. overlayScrollBody() > custom scrollbar
 3. Render tree:
    <StrictMode>
      <Provider store={store}>              # Jotai global store
@@ -375,12 +541,10 @@ class NavService {
            <ThemeProvider theme={theme}>   # MUI theme from useMakeTheme()
              <GlobalStyles />              # Admin global CSS
              <MUI GlobalStyles />          # Body text/bg colors
-             <RouterProvider>              # React Router 7
-               <OrgsLoader>               # Fetch orgs → OrgsContext
-                 <Layout>                  # SignedIn guard + Sidebar
-                   <Outlet />             # Page content
-                 </Layout>
-               </OrgsLoader>
+             <RouterProvider>              # React Router 7 + loaders
+               <Layout>                   # SignedIn guard + Sidebar
+                 <Outlet />               # Page content
+               </Layout>
              </RouterProvider>
            </ThemeProvider>
          </App>
@@ -393,17 +557,17 @@ class NavService {
 ### Request/Data Flow
 
 ```
-User Action → Component → Action (api/) → Service (api.ts) → TanStack QueryClient cache
-                                               ↓
-                                         fetch() → Caddy proxy → Auth proxy → Backend
-                                               ↓
-                                         Response (JSON)
-                                               ↓
-                                      Domain model instantiation (e.g., new Organization(data))
-                                               ↓
-                                      Action (local/) → Jotai store update
-                                               ↓
-                                      Selectors recompute → Components re-render
+Route Navigation > React Router Loader > Action (api/) > Service (api.ts) > TanStack QueryClient cache
+                                                              |
+                                                         fetch() > Caddy proxy > Auth proxy > Backend
+                                                              |
+                                                         Response (JSON)
+                                                              |
+                                                      Domain model instantiation (e.g., new Organization(data))
+                                                              |
+                                                      Action (local/) > Jotai store update
+                                                              |
+                                                      Selectors recompute > Components re-render
 ```
 
 ## Key Patterns
@@ -423,13 +587,20 @@ Three-layer state design:
 2. **Accessors** (accessors.ts) — Imperative `get*/set*/reset*` functions for use outside React (actions, services)
 3. **Selectors** (selectors.ts) — `useRecState`/`useDerivedState` hooks for use inside React components
 
-### 3. Context Providers for Data Loading
+### 3. React Router v7 Loaders for Data Loading
 
+Data loading is handled by React Router v7 loaders in `src/routes/loaders.ts`:
 ```typescript
-// OrgsLoader → OrgsProvider → useOrgsState() → fetchOrgs() on mount
-// ProjectsLoader → ProjectsProvider → useProjectsState() → fetchProjects() on mount
-// Pattern: show Loading while fetching, AppError on failure, MemoChildren on success
+// criticalFetch — throws on error, renders errorElement
+// safeFetch — silently returns undefined on error
+export const orgScopeLoader = async ({ params }: LoaderFunctionArgs) => {
+  setActiveOrgId(params.orgId!)
+  await Promise.all([safeFetch(fetchProjects, getProjects), ...])
+  return null
+}
 ```
+
+Loaders run before the route component renders, ensuring data is available on mount.
 
 ### 4. Lazy Loading & Code Splitting
 
@@ -450,13 +621,21 @@ Each component has its own directory with sub-components and an `index.ts` barre
 
 Event handler callbacks always use the `on` prefix: `onBlur`, `onDeleteClick`, `onSuccess`, etc.
 
+### 8. useAsyncAction Hook
+
+Common hook for wrapping async operations with loading/error state:
+```typescript
+const { loading, error, setError, clearError, run } = useAsyncAction()
+await run(() => createAgent(data))
+```
+
 ## Development Guidelines
 
 ### Adding a New Page
-Add route enum to `src/types/routes.types.ts` (both relative and absolute forms), create page component with default export in `src/pages/`, add lazy route in `src/routes/Routes.tsx` using `SuspensePage`, and optionally add nav item in `src/constants/nav.tsx`. See existing pages like `src/pages/Orgs/Org.tsx` for the pattern.
+Add route enum to `src/types/routes.types.ts` (both relative and absolute forms), create page component with default export in `src/pages/`, add lazy route in `src/routes/Routes.tsx` using `SuspensePage`, add loader in `src/routes/loaders.ts` if data fetching is needed, and optionally add nav item in `src/constants/nav.tsx`. See existing pages like `src/pages/Orgs/OrgSkills.tsx` for the pattern.
 
 ### Adding a New Entity
-Follow the existing entity pattern: create state atom (`src/state/`), add accessors (`src/state/accessors.ts`), add selectors (`src/state/selectors.ts`), create service class extending `BaseApi` (`src/services/`), create API and local actions (`src/actions/<domain>/`). See `src/state/agents.ts`, `src/services/agentsApi.ts`, and `src/actions/agents/` as reference.
+Follow the existing entity pattern: create state atom (`src/state/`), add accessors (`src/state/accessors.ts`), add selectors (`src/state/selectors.ts`), create service class extending `BaseApi` (`src/services/`), create API and local actions (`src/actions/<domain>/`), add loader to `src/routes/loaders.ts`. See `src/state/skills.ts`, `src/services/skillsApi.ts`, and `src/actions/skills/` as reference.
 
 ### Adding Global State
 Create atom with `atomWithReset` in `src/state/`, add imperative `get*/set*/reset*` in `src/state/accessors.ts`, add hook-based selector in `src/state/selectors.ts`. See any existing state file for the pattern.
@@ -479,13 +658,35 @@ Use `styled()` from `@mui/material/styles` with theme access. Co-locate in `.sty
 
 ## Tests
 
-6 co-located test files:
-- `src/actions/orgs/api/createOrg.test.ts`
-- `src/actions/orgs/api/fetchOrgs.test.ts`
-- `src/actions/projects/api/createProject.test.ts`
-- `src/actions/projects/api/fetchProjects.test.ts`
-- `src/constants/nav.test.tsx`
-- `src/utils/api/genFormData.test.ts`
+53 co-located test files across actions, components, hooks, pages, routes, services, and utils:
+
+**Actions** (24 test files):
+- `actions/auth/local/signout.test.ts`
+- `actions/endpoints/api/fetchEndpoints.test.ts`, `testEndpoint.test.ts`
+- `actions/functions/api/` — createFunction, deleteFunction, fetchFunction, fetchFunctions, updateFunction (5 files)
+- `actions/orgs/api/` — createOrg, fetchOrgs (2 files)
+- `actions/projectMembers/api/` — addProjectMember, listProjectMembers, removeProjectMember (3 files)
+- `actions/projects/api/` — createProject, fetchProjects (2 files)
+- `actions/providers/api/` — createProvider, deleteProvider, fetchProvider, fetchProviders, updateProvider (5 files)
+- `actions/users/api/` — inviteToOrg, listOrgUsers, removeFromOrg, updateOrgRole (4 files)
+
+**Components** (12 test files):
+- `Agents/AgentDrawer.test.tsx`
+- `AI/EditThreadDrawer.test.tsx`, `ThreadsTab.test.tsx`
+- `Login/EmailLoginForm.test.tsx`, `Login.test.tsx`
+- `Orgs/CreateApiKeyDrawer.test.tsx`
+- `Quickstart/ProviderStep.test.tsx`, `QuickstartWizard.test.tsx`, `ReviewStep.test.tsx`
+- `SearchBar/SearchBar.test.tsx`
+- `Selectors/AgentSelector.test.tsx`, `EntitySelector.test.tsx`
+- `Users/EditUserDrawer.test.tsx`, `Users.test.tsx`
+
+**Other** (17 test files):
+- `hooks/chat/useAgentChat.test.ts`, `hooks/endpoints/useEndpointTest.test.ts`
+- `pages/Login/Login.test.tsx`, `pages/Orgs/Org.test.tsx`, `pages/Projects/Project.test.tsx`, `pages/Projects/ProjectThreads.test.tsx`
+- `routes/loaders.test.ts`
+- `services/api.test.ts`, `auth.test.ts`, `endpointTestApi.test.ts`, `query.test.ts`, `tokenRefresh.test.ts`
+- `constants/nav.test.tsx`
+- `utils/endpoints/snippets.test.ts`, `utils/nav/getRailNavConfig.test.tsx`
 
 Test setup: `scripts/setupTests.ts` with `scripts/testUtils.tsx` helpers. Test environment: jsdom.
 
@@ -496,5 +697,7 @@ Test setup: `scripts/setupTests.ts` with `scripts/testUtils.tsx` helpers. Test e
 2. **API Calls Returning 401** — Verify Neon Auth session is valid (`auth.session()`). Check `apiUrl()` resolution (`TDSK_CADDY_PX_HOST` should point to Caddy proxy). Verify `bearer()` has been called on `apiService`.
 
 3. **TanStack Query Cache Issues** — Check `queryKey` uniqueness. Use `query.reset()` to clear all cached data. Defaults: staleTime 5 min, gcTime 30 min.
+
+4. **Loader Not Firing** — Ensure the route has a `loader` property in `Routes.tsx`. Check that loaders are imported from `@TAF/routes/loaders`. Verify the route path matches the expected pattern.
 
 ---

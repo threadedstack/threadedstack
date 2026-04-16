@@ -5,6 +5,7 @@ import type {
   Provider,
   TPortConfig,
   TSecretMode,
+  TGuiConfig,
   TImagePullPolicy,
   TKubeSandboxConfig,
   TSandboxRuntimeId,
@@ -20,6 +21,7 @@ import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
 import { createSecret } from '@TAF/actions/secrets/api/createSecret'
 import { createSandbox, updateSandbox } from '@TAF/actions/sandboxes'
+import { GuiConfigForm } from '@TAF/components/GuiConfig/GuiConfigForm'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { ProviderLinkList } from '@TAF/components/Providers/ProviderLinkList'
 import { SecretSelector } from '@TAF/components/SecretSelector/SecretSelector'
@@ -173,6 +175,12 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
       .filter(Boolean) as Provider[]
   }, [providerIds, orgProviders])
 
+  // Generative UI config override
+  const [guiOverride, setGuiOverride] = useState(false)
+  const [sandboxGuiConfig, setSandboxGuiConfig] = useState<TGuiConfig | undefined>(
+    undefined
+  )
+
   // UI state
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -249,6 +257,8 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     setRuntime(ESandboxRuntime.claudeCode)
     setRuntimeCommand(``)
     setInitScript(``)
+    setGuiOverride(false)
+    setSandboxGuiConfig(undefined)
   }
 
   const populateFromSandbox = (source: Sandbox) => {
@@ -302,6 +312,14 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
     } else {
       setSelectedSecretId(``)
       setSecretMode(ESecretMode.none)
+    }
+
+    if (config.guiConfig) {
+      setGuiOverride(true)
+      setSandboxGuiConfig(config.guiConfig)
+    } else {
+      setGuiOverride(false)
+      setSandboxGuiConfig(undefined)
     }
 
     setError(null)
@@ -450,6 +468,7 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
         ...(resolvedGitTokenSecretId
           ? { gitTokenSecretId: resolvedGitTokenSecretId }
           : {}),
+        ...(guiOverride && sandboxGuiConfig ? { guiConfig: sandboxGuiConfig } : {}),
       },
     }
 
@@ -964,6 +983,45 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
                     : {compatibleBrands.filter((b) => !b.includes(':')).join(', ')}
                   </Typography>
                 )}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Generative UI */}
+          <Accordion defaultExpanded={false}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                fontWeight={500}
+                variant='subtitle1'
+              >
+                Generative UI
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      disabled={loading}
+                      checked={guiOverride}
+                      onChange={(e) => {
+                        setGuiOverride(e.target.checked)
+                        if (!e.target.checked) setSandboxGuiConfig(undefined)
+                      }}
+                    />
+                  }
+                  label='Use custom config (override org default)'
+                />
+                <GuiConfigForm
+                  config={sandboxGuiConfig}
+                  orgProviders={orgProviders.map((p) => ({
+                    id: p.id,
+                    name: p.name || p.id,
+                    brand: p.brand,
+                  }))}
+                  disabled={loading || !guiOverride}
+                  onChange={setSandboxGuiConfig}
+                />
               </Box>
             </AccordionDetails>
           </Accordion>

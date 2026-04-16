@@ -1,7 +1,7 @@
 ---
 name: "tdsk-database"
 description: "Knowledge base for the database ORM & migrations repo"
-tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas", "subscriptions", "agents", "domains", "invitations"]
+tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas", "subscriptions", "agents", "domains", "invitations", "sandboxes", "skills", "schedules"]
 ---
 # Database Repo Skill
 
@@ -10,14 +10,16 @@ tags: ["drizzle", "postgresql", "orm", "migrations", "database", "neon", "quotas
 The `repos/database` repository provides the **ORM layer and migration system** for the Threaded Stack platform. Built on **Drizzle ORM** and **PostgreSQL (Neon.com)**, it defines all database schemas, relationships, and provides a service-based API for database operations across all other repos.
 
 **Key Responsibilities:**
-- Define database schemas with Drizzle ORM (21 Drizzle-managed tables + 2 external)
-- Provide type-safe database services (18 services with CRUD operations)
+- Define database schemas with Drizzle ORM (25 Drizzle-managed tables + 2 external)
+- Provide type-safe database services (20 services with CRUD operations)
 - Implement polymorphic relationships via "Exclusive Arc" pattern
 - Handle database connection pooling via pg.Pool singleton
 - Convert database records to domain models (Organization, Agent, Domain, etc.)
-- Manage AI agent configurations with many-to-many project, function, and provider associations
+- Manage AI agent configurations with many-to-many project, function, provider, and skill associations
 - Handle custom domain management with SSL certificate storage
 - Track organization invitations with status workflows
+- Manage sandbox lifecycle with project and provider junction tables
+- Support cron-based agent execution via schedules
 
 **Path Alias:** `@TDB/*`
 
@@ -32,9 +34,9 @@ repos/database/
 │   ├── index.ts           # Main export (types + database)
 │   ├── database.ts        # Database singleton factory + disconnectDatabase
 │   ├── constants/         # DefDBProto constant
-│   ├── schemas/           # 23 Drizzle table schemas (see Schema Overview)
+│   ├── schemas/           # 27 Drizzle table schemas (see Schema Overview)
 │   ├── seeds/             # ids.seed.ts, fullorg.ts
-│   ├── services/          # 17 service classes + base + tests
+│   ├── services/          # 20 service classes + base + tests
 │   ├── types/             # db.types.ts, schema.types.ts, helper.types.ts, service.types.ts
 │   └── utils/             # crypto.ts, logger.ts, database/, error/, schema/
 ├── index.ts               # Root re-export
@@ -47,10 +49,10 @@ repos/database/
 | File | Purpose |
 |------|---------|
 | `src/database.ts` | Singleton database factory with Pool management + `disconnectDatabase()` |
-| `src/schemas/schemas.ts` | Barrel for 19 Drizzle-managed tables (excludes users, certificates) |
+| `src/schemas/schemas.ts` | Barrel for 25 Drizzle-managed tables (excludes users, certificates) |
 | `src/schemas/index.ts` | Full barrel: schemas.ts + users + certificates |
 | `src/services/base.ts` | `Base<TTable, S, I, M>` class with CRUD, `model()`, `with()` |
-| `src/services/index.ts` | 17 named service exports |
+| `src/services/index.ts` | 20 named service exports |
 | `src/types/schema.types.ts` | TDB*Select/Insert types via `$inferSelect`/`$inferInsert` |
 | `src/types/db.types.ts` | TDatabase (NodePgDatabase + services), TDBConfig, TDBServices |
 | `src/utils/crypto.ts` | `encryptSecret()` using domain's HKDF + AES-256-GCM |
@@ -58,19 +60,22 @@ repos/database/
 
 ## Schema Overview
 
-### Tables (23 total)
+### Tables (27 total)
 
-**21 Drizzle-managed tables** (defined in `schemas.ts`):
-`orgs`, `roles`, `quotas`, `agents`, `agentProjects`, `agentFunctions`, `agentProviders`, `assets`, `threads`, `domains`, `secrets`, `apiKeys`, `messages`, `projects`, `functions`, `providers`, `endpoints`, `invitations`, `subscriptions`, `sandboxes`, `invoices`
+**25 Drizzle-managed tables** (defined in `schemas.ts`):
+`orgs`, `roles`, `quotas`, `agents`, `agentProjects`, `agentFunctions`, `agentProviders`, `agentSkills`, `assets`, `threads`, `domains`, `secrets`, `apiKeys`, `messages`, `projects`, `functions`, `providers`, `endpoints`, `invitations`, `subscriptions`, `sandboxes`, `sandboxProjects`, `sandboxProviders`, `invoices`, `skills`, `schedules`
 
 **2 External tables** (read-only, not in Drizzle migrations):
 - **`users`** -- Neon Auth managed, `pgSchema('neon_auth')`, table name `user`
 - **`certificates`** (`caddy_certmagic_objects`) -- Caddy certmagic storage plugin
 
-**3 Junction tables** (Drizzle-managed):
-- **`agentProjects`** (`agent_projects`) -- Many-to-many agents-projects
+**8 Junction tables** (Drizzle-managed):
+- **`agentProjects`** (`agent_projects`) -- Many-to-many agents-projects with per-project overrides
 - **`agentFunctions`** (`agent_functions`) -- Many-to-many agents-functions
 - **`agentProviders`** (`agent_providers`) -- Many-to-many agents-providers (with priority ordering)
+- **`agentSkills`** (`agent_skills`) -- Many-to-many agents-skills
+- **`sandboxProjects`** (`sandbox_projects`) -- Many-to-many sandboxes-projects with per-project config
+- **`sandboxProviders`** (`sandbox_providers`) -- Many-to-many sandboxes-providers with priority and model
 
 ---
 
@@ -83,6 +88,7 @@ repos/database/
 | id, createdAt, updatedAt | base | standard |
 | name | text | notNull |
 | description | text | nullable |
+| config | jsonb | nullable, typed `TOrgConfig` (guiConfig and other org-level settings) |
 | ownerId | uuid FK->users | notNull, indexed |
 
 Relations: owner(user), users(via roles), quotas, assets, agents, secrets, projects, providers, invitations
@@ -138,23 +144,58 @@ Indexes: `orgId`, `email`, `status`. Relations: org, user(invitee), inviter, rev
 | id, createdAt, updatedAt | base | standard |
 | name | text | notNull |
 | description | text | nullable |
-| orgId | uuid FK->orgs | notNull |
+| orgId | varchar(10) FK->orgs | notNull, onDelete cascade |
 | systemPrompt | text | nullable |
 | model | text | nullable |
 | maxTokens | integer | default 100000 |
 | tools | jsonb | default [], typed string[] |
 | envVars | jsonb | default {}, typed Record<string, string> |
-| environment | jsonb | default {}, typed { timeout?, memory?, streaming?, ... } |
+| environment | jsonb | default {}, typed TAgentEnvironment |
 | active | boolean | default true |
 
-Relations: org, secrets(many), threads(many), projects(many via agentProjects), functions(many via agentFunctions), providers(many via agentProviders). **No direct provider FK** -- uses junction table.
+Relations: org, secrets(many), threads(many), projects(many via agentProjects), providers(many via agentProviders), skills(many via agentSkills), schedules(many). **No direct provider FK** -- uses junction table.
 
-#### Junction Tables: `agentProjects`, `agentFunctions`, `agentProviders`
+#### Junction Tables: `agentProjects`, `agentFunctions`, `agentProviders`, `agentSkills`
 
 All have base fields + unique constraint on `(agentId, <entityId>)`:
-- **`agentProjects`**: `agentId`, `projectId`, `alias`(nullable)
+- **`agentProjects`**: `agentId`(cascade), `projectId`(cascade), `alias`(nullable), `model`(nullable), `maxTokens`(nullable integer), `systemPrompt`(nullable), `tools`(jsonb nullable), `functionIds`(jsonb nullable), `envVars`(jsonb nullable), `environment`(jsonb nullable), `enabled`(boolean default true). Per-project overrides: NULL fields inherit from base agent config, non-null fields override.
 - **`agentFunctions`**: `agentId`(cascade), `functionId`(cascade)
 - **`agentProviders`**: `agentId`(cascade), `providerId`(cascade), `priority`(integer default 0). Index: `(agentId, priority)`.
+- **`agentSkills`**: `agentId`(cascade), `skillId`(cascade). Unique: `(agentId, skillId)`.
+
+#### `skills`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id, createdAt, updatedAt | base | standard |
+| name | text | notNull |
+| description | text | notNull |
+| instructions | text | notNull |
+| triggerKeywords | jsonb | default [], typed string[] |
+| tools | jsonb | default [], typed string[] |
+| alwaysActive | boolean | notNull, default false |
+| orgId | varchar(10) FK->orgs | notNull, onDelete cascade, indexed |
+
+Relations: org, agents(many via agentSkills). Org-scoped AI skill definitions that can be linked to agents.
+
+#### `schedules`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id, createdAt, updatedAt | base | standard |
+| agentId | varchar(10) FK->agents | notNull, onDelete cascade |
+| orgId | varchar(10) FK->orgs | notNull, onDelete cascade |
+| cronExpression | varchar(255) | notNull |
+| prompt | text | notNull |
+| enabled | boolean | notNull, default true |
+| lastRunAt | timestamp | nullable |
+| nextRunAt | timestamp | nullable |
+| threadId | varchar(10) FK->threads | onDelete set null |
+| createThread | boolean | notNull, default true |
+| maxConsecutiveErrors | integer | notNull, default 5 |
+| consecutiveErrors | integer | notNull, default 0 |
+
+Indexes: `orgId`, `agentId`, `(enabled, nextRunAt)`. Relations: agent, org, thread. Cron-based agent execution with error tracking and auto-disable.
 
 #### `threads`
 
@@ -164,15 +205,17 @@ All have base fields + unique constraint on `(agentId, <entityId>)`:
 | name | text | nullable |
 | meta | jsonb | nullable |
 | public | boolean | default false |
-| parentThreadId | uuid self-ref | nullable (branching) |
-| branchMessageId | uuid FK->messages | nullable (branching) |
-| providerId | uuid FK->providers | onDelete set null |
-| agentId | uuid FK->agents | onDelete set null |
-| orgId | uuid FK->orgs | onDelete cascade |
-| projectId | uuid FK->projects | onDelete cascade |
+| parentThreadId | varchar(10) self-ref | nullable (branching) |
+| branchMessageId | varchar(10) FK->messages | nullable (branching) |
+| providerId | varchar(10) FK->providers | onDelete set null |
+| agentId | varchar(10) FK->agents | onDelete set null |
+| orgId | varchar(10) FK->orgs | onDelete cascade |
+| projectId | varchar(10) FK->projects | onDelete cascade |
 | userId | uuid FK->users | notNull, onDelete cascade |
+| sandboxId | varchar(10) FK->sandboxes | onDelete set null |
+| ptyBuffer | bytea (custom type) | nullable, stores terminal PTY ring buffer data |
 
-Indexes: `userId`, `agentId`, `parentThreadId`. Supports thread branching via `parentThreadId` + `branchMessageId`.
+Indexes: `userId`, `agentId`, `parentThreadId`, `orgId`, `projectId`, `sandboxId`. Supports thread branching via `parentThreadId` + `branchMessageId`.
 
 #### `messages`
 
@@ -232,11 +275,11 @@ Base fields + `name`(notNull), `description`, `content`(text notNull), `branch`(
 | rateLimit | integer | default 100 |
 | keyHash | text | notNull, unique |
 | keyPrefix | varchar(12) | notNull |
-| orgId | uuid FK->orgs | nullable |
-| projectId | uuid FK->projects | nullable |
-| userId | uuid FK->users | nullable |
+| orgId | varchar(10) FK->orgs | nullable, onDelete cascade |
+| projectId | varchar(10) FK->projects | nullable, onDelete cascade |
+| userId | uuid FK->users | nullable, onDelete cascade |
 
-Both `orgId` and `projectId` are optional (no exclusive arc constraint). Indexes: `orgId`, `keyHash`, `projectId`, `userId`.
+CHECK constraint (`api_key_scope_check`): allows both NULL, orgId XOR projectId -- `(orgId IS NOT NULL AND projectId IS NULL) OR (orgId IS NULL AND projectId IS NOT NULL) OR (orgId IS NULL AND projectId IS NULL)`. Indexes: `orgId`, `keyHash`, `projectId`, `userId`.
 
 #### `assets` -- 5-WAY EXCLUSIVE ARC
 
@@ -280,11 +323,16 @@ Composite PK `(parent, name)`. Fields: `isFile`(boolean notNull), `value`(bytea)
 | Field | Type | Notes |
 |-------|------|-------|
 | id, createdAt, updatedAt | base | standard |
-| orgId | uuid FK->orgs | notNull |
+| orgId | varchar(10) FK->orgs | notNull, onDelete cascade |
 | period | text | notNull |
-| price, retention, organizations, projects, members, endpoints, threads, messages, functionCalls, runtime, orgSecrets, projectSecrets | integer | all default(0) notNull |
+| projects | integer | default 0, notNull |
+| compute | integer | default 0, notNull |
+| threads | integer | default 0, notNull |
+| messages | integer | default 0, notNull |
+| endpoints | integer | default 0, notNull |
+| secrets | integer | default 0, notNull |
 
-Unique index: `(orgId, period)`. Column names: `function_calls`, `org_secrets`, `project_secrets`.
+Unique index: `(orgId, period)`. Six resource counters: projects, compute, threads, messages, endpoints, secrets.
 
 #### `subscriptions`
 
@@ -305,24 +353,37 @@ One subscription per user (userId is unique).
 
 | Field | Type | Notes |
 |-------|------|-------|
-| id, createdAt, updatedAt | base | standard |
+| id | varchar(10) PK | Custom nanoid with lowercase alphabet (`0-9a-z`), prefixed with `SandboxIdPrefix` |
+| createdAt, updatedAt | timestamps | standard |
 | name | text | notNull |
 | orgId | varchar(10) FK->orgs | notNull, onDelete cascade |
 | userId | uuid FK->users | onDelete set null |
-| projectId | varchar(10) FK->projects | onDelete cascade, nullable |
-| builtIn | boolean | notNull, default false. True for presets seeded during org creation |
 | config | jsonb | notNull, typed `TKubeSandboxConfig` (includes `runtime`, `runtimeCommand`, `initScript` fields) |
+| builtIn | boolean | notNull, default false. True for presets seeded during org creation |
 
-Indexes: `orgId`, `(orgId, userId)`, `projectId`. Relations: org, user, project.
+Custom ID generation: uses `customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 7)` from nanoid because sandbox IDs are used in SSH connections which enforce lowercase.
+
+Indexes: `orgId`, `(orgId, userId)`. Relations: org, user, threads(many), projects(many via sandboxProjects), providers(many via sandboxProviders).
+
+#### Junction Tables: `sandboxProjects`, `sandboxProviders`
+
+- **`sandboxProjects`** (`sandbox_projects`): `sandboxId`(cascade), `projectId`(cascade), `alias`(nullable text), `enabled`(boolean default true), `config`(jsonb nullable, typed `Partial<TKubeSandboxConfig>`). Unique: `(sandboxId, projectId)`. Per-project config overrides -- NULL config inherits base sandbox config, non-null is deep-merged (project wins).
+- **`sandboxProviders`** (`sandbox_providers`): `sandboxId`(cascade), `providerId`(restrict), `model`(nullable text), `priority`(integer default 0). Unique: `(sandboxId, providerId)`. Indexes: `sandboxId`, `(sandboxId, priority)`. Priority 0 = primary provider.
 
 #### `invoices`
 
 | Field | Type | Notes |
 |-------|------|-------|
 | id, createdAt, updatedAt | base | standard |
+| userId | uuid FK->users | notNull, onDelete cascade |
 | stripeInvoiceId | text | notNull, unique |
+| amount | integer | notNull, default 0 |
+| currency | text | notNull, default 'usd' |
+| status | text | notNull |
+| invoiceUrl | text | nullable |
+| period | text | notNull |
 
-Stripe invoice tracking for payment history.
+Relations: user. Stripe invoice tracking for payment history with amount/currency/status details.
 
 ## Architecture
 
@@ -335,12 +396,12 @@ Stripe invoice tracking for payment history.
 └─────────────┬────────────────────────┘
               │
 ┌─────────────▼────────────────────────┐
-│  Service Layer (src/services/)       │  17 services extending Base
+│  Service Layer (src/services/)       │  20 services extending Base
 │  - Base<TTable, S, I, M> class      │  CRUD + model conversion
 └─────────────┬────────────────────────┘
               │
 ┌─────────────▼────────────────────────┐
-│  Schema Layer (src/schemas/)         │  23 table definitions + relations
+│  Schema Layer (src/schemas/)         │  27 table definitions + relations
 └─────────────┬────────────────────────┘
               │
 ┌─────────────▼────────────────────────┐
@@ -365,7 +426,7 @@ export const database = (cfg: TDBConfig = config) => {
       schema: { ...rest, user: users, organizations: orgs },
     }) as unknown as TDatabase
 
-    // Auto-initialize all 17 services
+    // Auto-initialize all 20 services
     _database.services = Object.entries(DBservices).reduce((acc, [name, Service]) => {
       acc[name] = new Service({ db: _database, config: cfg })
       return acc
@@ -389,7 +450,7 @@ const { data, error } = await db.services.org.create({ name: 'My Org' })
 await disconnectDatabase()  // Closes Pool, resets singleton
 ```
 
-## Services (18 total)
+## Services (20 total)
 
 Exported from `services/index.ts`:
 
@@ -399,7 +460,7 @@ Exported from `services/index.ts`:
 | `role` | `Role` | `roles` | `Role` | `getOrgRole`, `getProjectRole`, `getUserRoles`, `getOrgMembers`, `getOrgOwner`, `getProjectMembers`, `isOrgMember`, `isProjectMember`, `updateOrgRole`, `updateProjectRole`, `removeFromOrg`, `removeFromProject`, `getUserOrgs`, `getUserProjects` |
 | `user` | `User` | `users` | `User` | `byEmail()`, `getByIds()` |
 | `asset` | `Asset` | `assets` | `Asset` | `listByThread()`, `listByMessage()` |
-| `quota` | `Quota` | `quotas` | `Quota` | `getUsage`, `findByOrgAndPeriod`, `increment` (atomic SQL), `initializePeriod` |
+| `quota` | `Quota` | `quotas` | `Quota` | `getUsage`, `findByOrgAndPeriod`, `increment` (atomic SQL), `decrement` (atomic, floor 0), `initializePeriod` |
 | `agent` | `Agent` | `agents` | `Agent` | Auto-loads relations, junction management (add/remove project/function/provider), `setProviders`, sanitization |
 | `apiKey` | `ApiKey` | `apiKeys` | -- | base CRUD |
 | `secret` | `Secret` | `secrets` | -- | base CRUD |
@@ -412,7 +473,10 @@ Exported from `services/index.ts`:
 | `domain` | `DomainService` | `domains` | `Domain` | `find` (cert check), `validate`, `verified`, `enableSSL`, `disableSSL`, `owner`, custom cert storage via DB transactions |
 | `invitation` | `Invitation` | `invitations` | `Invitation` | `getByToken`, `getByEmailAndOrg`, `getPendingByOrg`, `getAllByOrg`, `getPendingByEmail`, `accept`, `revoke`, `markExpired`, `isValid` |
 | `subscription` | `Subscription` | `subscriptions` | `Subscription` | `findByUser`, `findByStripeId`, `upsertByUser` |
-| `sandbox` | `Sandbox` | `sandboxes` | `Sandbox` | `listByOrg(orgId)`, `listByProject(projectId)` |
+| `sandbox` | `Sandbox` | `sandboxes` | `Sandbox` | `listByOrg(orgId)`, `addProject`, `removeProject`, `upsertProjectConfig`, `getProjectConfig`, `addProvider`, `removeProvider`, `setProviders` |
+| `skill` | `Skill` | `skills` | `Skill` | `addAgent(skillId, agentId)`, `listForAgent(agentId)`, `removeAgent(skillId, agentId)` |
+| `schedule` | `Schedule` | `schedules` | `Schedule` | `listDue()`, `markRun(id, nextRunAt)`, `incrementErrors(id)` |
+| `invoice` | `Invoice` | `invoices` | `Invoice` | `findByUserId(userId)`, `upsertByStripeId(stripeInvoiceId, data)` |
 
 ### Base Service Class
 
@@ -451,7 +515,7 @@ class Base<
 
 ### Agent Service Details
 
-The most complex service (425 lines). Auto-loads secrets, projects, functions, and providers via `with()` override. Sorts providers by priority. Sanitizes secrets by default (strips `encryptedValue`).
+The most complex service (425 lines). Auto-loads secrets, projects, functions, providers, and skills via `with()` override. Sorts providers by priority. Sanitizes secrets by default (strips `encryptedValue`).
 
 ```typescript
 // Extended insert type
@@ -464,13 +528,46 @@ type TAgentInsertOpts = TDBAgentInsert & {
 
 `create`/`update`/`upsert` handle agentProjects, agentFunctions, agentProviders junction tables automatically. Pass `opts.sanitize = false` to skip secret sanitization on reads.
 
-### Quota Service: Atomic Increment
+### Sandbox Service Details
+
+Auto-loads projects (via sandboxProjects with nested project) and providers (via sandboxProviders with nested provider) via `with()` override. Sorts providers by priority. The `model()` method maps junction data to `SandboxModel` with `projects`, `projectConfigs`, and `providerLinks` arrays.
+
+Key methods:
+- `addProject(sandboxId, projectId, alias?)` -- links sandbox to project
+- `removeProject(sandboxId, projectId)` -- unlinks sandbox from project
+- `upsertProjectConfig(sandboxId, projectId, config)` -- updates per-project overrides (alias, enabled, config)
+- `getProjectConfig(sandboxId, projectId)` -- returns per-project config as `TSandboxProjectConfig`
+- `addProvider(sandboxId, providerId, priority?, model?)` -- links provider with priority/model
+- `removeProvider(sandboxId, providerId)` -- unlinks provider
+- `setProviders(sandboxId, inputs)` -- atomic replace: deletes removed, upserts remaining (transactional)
+
+### Skill Service Details
+
+Manages org-scoped AI skill definitions and agent-skill associations via the `agentSkills` junction table.
+
+Key methods:
+- `addAgent(skillId, agentId)` -- links skill to agent (onConflictDoNothing)
+- `listForAgent(agentId)` -- returns all skills for an agent (queries agentSkills with skill relation)
+- `removeAgent(skillId, agentId)` -- unlinks skill from agent
+
+### Schedule Service Details
+
+Manages cron-based agent execution schedules with error tracking and auto-disable.
+
+Key methods:
+- `listDue()` -- finds all enabled schedules where `nextRunAt <= now`
+- `markRun(id, nextRunAt)` -- updates `lastRunAt` to now, sets `nextRunAt`, resets `consecutiveErrors` to 0
+- `incrementErrors(id)` -- atomically increments `consecutiveErrors`; auto-disables schedule when `consecutiveErrors >= maxConsecutiveErrors`
+
+### Quota Service: Atomic Increment/Decrement
 
 ```typescript
 increment(orgId, period, key: TIncrementKey, amount = 1)
 // Uses INSERT ... ON CONFLICT DO UPDATE with SQL: column + amount
-// TIncrementKey: 'members' | 'threads' | 'runtime' | 'messages' | 'projects' |
-//   'endpoints' | 'orgSecrets' | 'organizations' | 'functionCalls' | 'projectSecrets'
+// TIncrementKey: 'projects' | 'compute' | 'threads' | 'messages' | 'endpoints' | 'secrets'
+
+decrement(orgId, period, key: TIncrementKey, amount = 1)
+// Uses GREATEST(column - amount, 0) to prevent negative values
 ```
 
 ### Thread Service: Branching
@@ -527,7 +624,7 @@ Status flow: `pending` -> `accepted` | `expired` | `revoked`. Methods `accept` a
 ### Tables NOT Using Exclusive Arc
 
 - **`providers`**: org-scoped only (`orgId` notNull, no other scope columns)
-- **`apiKeys`**: both `orgId` and `projectId` are optional, no constraint enforcing exclusivity
+- **`apiKeys`**: CHECK allows both NULL, orgId XOR projectId -- not a strict arc
 - **`agents`**: org-scoped only (`orgId` notNull), providers associated via junction table
 
 ## Key Patterns
@@ -585,9 +682,9 @@ export type TDBApiKeySelect = TInferDateProps<
 Two-level barrel separates Drizzle-managed from external:
 
 ```typescript
-// schemas/schemas.ts -- 19 Drizzle-managed tables only (used for migrations)
+// schemas/schemas.ts -- 25 Drizzle-managed tables only (used for migrations)
 export { orgs, orgsRelations } from '@TDB/schemas/orgs'
-// ... 18 more
+// ... 24 more
 
 // schemas/index.ts -- full export including external read-only tables
 export * from '@TDB/schemas/schemas'
@@ -603,6 +700,9 @@ orgId: uuid('org_id').references(() => orgs.id, { onDelete: 'cascade' })
 
 // Soft unlink: FK set to null when parent is deleted
 providerId: uuid('provider_id').references(() => providers.id, { onDelete: 'set null' })
+
+// Restrict: prevent parent deletion while children exist
+providerId: varchar('provider_id').references(() => providers.id, { onDelete: 'restrict' })
 ```
 
 ## Commands

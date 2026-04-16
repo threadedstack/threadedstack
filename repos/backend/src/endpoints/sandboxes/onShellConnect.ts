@@ -17,6 +17,7 @@ import {
   TerminalParser,
   GhosttyVT,
   deriveToolState,
+  translateInteraction,
 } from '@tdsk/domain'
 import type { ESubscriptionTier, TParsedEvent } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
@@ -24,6 +25,13 @@ import { RingBuffer } from '@TBE/utils/ringBuffer'
 import { PodLabelKeys } from '@tdsk/sandbox'
 import { SBBackpressureThreshold } from '@TBE/constants/sandbox'
 import { verifyShellToken } from '@TBE/services/sessionToken'
+import {
+  ChunkBuffer,
+  InterpreterService,
+  shouldInterpret,
+} from '@TBE/services/interpreter/index'
+import { SecretResolver } from '@TBE/services/secrets/secretResolver'
+import type { TGuiConfig, TJsonComponentTree } from '@tdsk/domain'
 
 const inputBuffers = new WeakMap<WebSocket, string>()
 const wsMeta = new Map<WebSocket, TWebSocketMeta>()
@@ -41,8 +49,40 @@ async function ensureWasmReady() {
   wasmReady = true
 }
 
-function broadcastEvent(session: TShellSession, sessionId: string, event: TParsedEvent) {
-  const msg = JSON.stringify({ sessionId, event })
+function broadcastEvent(
+  session: TShellSession,
+  sessionId: string,
+  event: TParsedEvent,
+  chunkId?: string,
+  timestamp?: number
+) {
+  const msg = JSON.stringify({
+    sessionId,
+    event,
+    chunkId,
+    timestamp: timestamp ?? Date.now(),
+  })
+  for (const client of session.attachments) {
+    if (client.readyState === 1) {
+      client.send(msg)
+    }
+  }
+}
+
+function broadcastUpgrade(
+  session: TShellSession,
+  sessionId: string,
+  chunkId: string,
+  tree: TJsonComponentTree,
+  timestamp: number
+) {
+  const msg = JSON.stringify({
+    sessionId,
+    chunkId,
+    type: 'generative-ui' as const,
+    tree,
+    timestamp,
+  })
   for (const client of session.attachments) {
     if (client.readyState === 1) {
       client.send(msg)
@@ -504,6 +544,24 @@ export const onShellConnect = async (
   const runtime = sandbox?.config?.runtime ?? `custom`
   const runtimeCommand = sandbox?.config?.runtimeCommand
 
+  // Resolve generative UI config (sandbox-level override -> org-level fallback)
+  let guiConfig: TGuiConfig | null = null
+  {
+    const sbGui = sandbox?.config?.guiConfig
+    if (sbGui?.enabled) {
+      guiConfig = sbGui
+    } else {
+      try {
+        const { data: orgData } = await db.services.org.get(orgId)
+        if (orgData?.config?.guiConfig?.enabled) {
+          guiConfig = orgData.config.guiConfig
+        }
+      } catch (err) {
+        logger.warn('[Shell] Failed to load org guiConfig:', (err as Error).message)
+      }
+    }
+  }
+
   // 11. Create thread for session history
   const { data: thread, error: threadErr } = await db.services.thread.create({
     orgId,
@@ -555,8 +613,12 @@ export const onShellConnect = async (
                 status: `done`,
                 timestamp: Date.now(),
               }
-              sbService.queueEventForPersistence(sessionId, done)
-              broadcastEvent(session, sessionId, done)
+              if (chunkBuffer) {
+                chunkBuffer.push(done)
+              } else {
+                sbService.queueEventForPersistence(sessionId, done)
+                broadcastEvent(session, sessionId, done, undefined, done.timestamp)
+              }
               session.lastRunningToolCall = null
             }
           }
@@ -573,8 +635,12 @@ export const onShellConnect = async (
             session.toolState = newState
           }
 
-          sbService.queueEventForPersistence(sessionId, event)
-          broadcastEvent(session, sessionId, event)
+          if (chunkBuffer) {
+            chunkBuffer.push(event)
+          } else {
+            broadcastEvent(session, sessionId, event, undefined, event.timestamp)
+            sbService.queueEventForPersistence(sessionId, event)
+          }
         },
         cols,
         rows,
@@ -599,6 +665,72 @@ export const onShellConnect = async (
       }
 
       sessionRef = session
+
+      // Generative UI: set up chunk buffer + interpreter when enabled
+      let chunkBuffer: ChunkBuffer | null = null
+      if (guiConfig && guiConfig.providerId) {
+        const interpreterService = new InterpreterService()
+        const secretResolver = new SecretResolver(db)
+
+        chunkBuffer = new ChunkBuffer({
+          onStampedEvent: (evt, chId) => {
+            broadcastEvent(session, sessionId, evt, chId, evt.timestamp)
+            sbService.queueEventForPersistence(sessionId, evt)
+          },
+          onFlush: async (chId, events) => {
+            if (!shouldInterpret(events)) return
+
+            try {
+              const { data: provider } = await db.services.provider.get(
+                guiConfig.providerId
+              )
+              if (!provider?.brand || !provider.secretId) {
+                logger.warn('[Shell] Generative UI provider misconfigured', {
+                  providerId: guiConfig.providerId,
+                  hasBrand: !!provider?.brand,
+                  hasSecretId: !!provider?.secretId,
+                })
+                return
+              }
+
+              const apiKey = await secretResolver.resolveApiKey({ orgId }, provider)
+              if (!apiKey) {
+                logger.warn('[Shell] Generative UI API key resolution failed', {
+                  providerId: guiConfig.providerId,
+                  secretId: provider.secretId,
+                })
+                return
+              }
+
+              const result = await interpreterService.interpret(
+                { chunkId: chId, events },
+                guiConfig,
+                provider.brand,
+                apiKey
+              )
+
+              if (result) {
+                const timestamp = events[0]?.timestamp ?? Date.now()
+                broadcastUpgrade(session, sessionId, chId, result.tree, timestamp)
+                sbService.queueEventForPersistence(sessionId, {
+                  type: 'unknown',
+                  raw: JSON.stringify({
+                    guiType: 'generative-ui',
+                    chunkId: chId,
+                    tree: result.tree,
+                  }),
+                  timestamp,
+                } as TParsedEvent)
+              }
+            } catch (err) {
+              logger.warn(
+                `[Shell] Generative UI interpretation failed for chunk ${chId}:`,
+                (err as Error).message
+              )
+            }
+          },
+        })
+      }
 
       sbService.addShellSession(session)
       wsMeta.set(ws, { sessionId })
@@ -674,6 +806,8 @@ export const onShellConnect = async (
       })
 
       stream.on(`close`, () => {
+        chunkBuffer?.destroy()
+
         if (session.lastRunningToolCall) {
           const done: TParsedEvent = {
             ...session.lastRunningToolCall,
@@ -765,6 +899,9 @@ function wireWebSocket(
           else if (msg.signal === `SIGTSTP`) session.sshStream.write(`\x1a`)
         } else if (msg.type === `permission-response`) {
           session.sshStream.write(`${msg.response}\n`)
+        } else if (msg.type === `gui-interaction`) {
+          const bytes = translateInteraction(msg.interaction)
+          session.sshStream.write(bytes)
         } else if (msg.type === `visibility`) {
           // Only the session creator can toggle visibility.
           // For the owner's WS, joinedUserId is unset so it falls back to session.userId (matching).

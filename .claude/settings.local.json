@@ -101,7 +101,12 @@
       "Bash(2>&1)",
       "Bash(xargs basename:*)",
       "Bash(npm test:*)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "Bash(grep:*)",
+      "Bash(gh:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh api:*)",
+      "Bash(gh search:*)"
     ]
   },
   "sandbox": {

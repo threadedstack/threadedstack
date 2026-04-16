@@ -1,6 +1,6 @@
 import type { User, Sandbox, Organization, Project } from '@tdsk/domain'
 import type { EThemeType } from '@TTH/types'
-import type { TParsedEvent, TToolState } from '@tdsk/domain'
+import type { TParsedEvent, TToolState, TJsonComponentTree } from '@tdsk/domain'
 import type { TOpenSession } from '@TTH/types'
 
 import { createStore } from 'jotai'
@@ -22,6 +22,7 @@ import {
   sandboxesAtom,
   orgsAtom,
   projectsAtom,
+  sessionUpgradesAtom,
 } from '@TTH/state/sessions'
 
 export const store = createStore()
@@ -109,3 +110,19 @@ export const resetActiveProjectId = () =>
   store.set(activeProjectIdState, defActiveProjectId)
 export const setActiveProjectId = (projectId: string) =>
   store.set(activeProjectIdState, projectId)
+
+export const setSessionUpgrade = (
+  sessionId: string,
+  chunkId: string,
+  tree: TJsonComponentTree
+) => {
+  const current = store.get(sessionUpgradesAtom)
+  const sessionMap = current.get(sessionId) ?? new Map()
+  sessionMap.set(chunkId, tree)
+  const next = new Map(current)
+  next.set(sessionId, sessionMap)
+  store.set(sessionUpgradesAtom, next)
+}
+
+export const getSessionUpgrades = (sessionId: string): Map<string, TJsonComponentTree> =>
+  store.get(sessionUpgradesAtom).get(sessionId) ?? new Map()

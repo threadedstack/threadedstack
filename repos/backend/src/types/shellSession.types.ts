@@ -5,6 +5,7 @@ import type {
   ESandboxSessionVisibility,
   TParsedEvent,
   TToolState,
+  TInteraction,
 } from '@tdsk/domain'
 import type { RingBuffer } from '@TBE/utils/ringBuffer'
 
@@ -36,6 +37,7 @@ export type TShellControlMsg =
   | { type: `signal`; signal: `SIGINT` | `SIGTSTP` }
   | { type: `visibility`; visibility: ESandboxSessionVisibility }
   | { type: `permission-response`; response: `y` | `n` }
+  | { type: `gui-interaction`; interaction: TInteraction }
 
 type TSessionIdentity = {
   runtime: string

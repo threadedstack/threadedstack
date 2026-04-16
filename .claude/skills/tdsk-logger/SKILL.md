@@ -13,6 +13,7 @@ The `@tdsk/logger` package is a Winston-based logging service that provides:
 - **Express Middleware**: Request/error logging middleware for Express apps
 - **Security**: Automatic redaction of sensitive data (passwords, tokens, API keys, secrets)
 - **stderr Interception**: Global `process.stderr` hijacking to sanitize error output (stdout interception is currently disabled)
+- **Environment Loading**: Config loader (`loadEnvs`) using `@keg-hub/parse-config` for unified env management
 
 This is a shared utility consumed by `backend` and `proxy` repos for consistent logging across the platform.
 
@@ -28,7 +29,8 @@ repos/logger/
 │   ├── middleware.ts               # Express middleware (request/error logging)
 │   ├── stdio.ts                    # Process stdout/stderr interception (side-effect import)
 │   ├── types/
-│   │   └── logger.types.ts         # TypeScript type definitions
+│   │   ├── index.ts                # Types barrel (re-exports from logger.types.ts)
+│   │   └── logger.types.ts         # TypeScript type definitions (TCLILogger, TWinLogger, TLogOpts, TSetupLogger, etc.)
 │   └── utils/
 │       ├── buildLogger.ts          # Winston logger factory
 │       ├── colors.ts               # ANSI color helpers
@@ -37,10 +39,13 @@ repos/logger/
 │       ├── safeReplacer.ts         # Secret redaction logic
 │       ├── injectKeyValues.ts      # Dynamic secret injection
 │       └── stripColors.ts          # ANSI color stripping
+├── scripts/
+│   ├── addToProcess.ts             # Process env helper (adds envs to process.env with force/ignore options)
+│   └── loadEnvs.ts                 # Environment config loader (@keg-hub/parse-config, caches loaded envs)
 ├── configs/
-│   ├── tsup.config.ts              # Build configuration
-│   ├── biome.json                  # Linting/formatting config
-│   └── vitest.config.ts            # Test configuration
+│   ├── tsup.config.ts              # Build configuration (CJS to dist/log/)
+│   ├── biome.json                  # Biome linting/formatting (a11y, correctness, security, style rules)
+│   └── vitest.config.ts            # Test configuration (vite-tsconfig-paths, loadEnvs pre-setup)
 └── package.json
 ```
 
@@ -77,6 +82,42 @@ repos/logger/
 - Hijacks `process.stdout.write` and `process.stderr.write`
 - **stdout**: Strips colors (when `TDSK_TEST_COLORS` disabled) but `replaceUnsafe()` is currently commented out (no secret redaction on stdout)
 - **stderr**: Strips colors AND applies `replaceUnsafe()` for secret redaction, bypassed via `STL_FORCE_DISABLE_SAFE=true`
+
+### Scripts
+
+**`scripts/addToProcess.ts`** - Process Environment Helper
+- `addToProcess(addEnvs, opts?)` - Loops over key-value pairs and adds them to `process.env`
+- Only sets values that don't already exist (unless `force: true`)
+- Supports `ignore` array to skip specific keys
+- Uses `@keg-hub/jsutils` utilities (`exists`, `emptyObj`, `emptyArr`)
+
+**`scripts/loadEnvs.ts`** - Environment Config Loader
+- `loadEnvs(cfg)` - Loads environment configs using `@keg-hub/parse-config`
+- Searches locations: project root, `deploy/`, `~/.config/tdsk/`, plus custom locations
+- Caches loaded envs in `__LOADED_ENVS__` (use `force: true` to reload)
+- Calls `addToProcess()` to inject loaded envs into `process.env`
+- Options: `env` (default: `NODE_ENV` or `local`), `name` (default: `tdsk`), `force`, `override`, `ignore`, `locations`
+- Used in `vitest.config.ts` pre-setup: `loadEnvs({ force: true })`
+
+### Types
+
+**`src/types/index.ts`** - Types barrel file, re-exports from `logger.types.ts`
+
+**`src/types/logger.types.ts`** - Comprehensive type definitions:
+- `TColorMap` - ANSI color name to escape code mapping
+- `TColorText`, `TColorTextMapFunc` - Color function types (basic + bright variants)
+- `TLogColors` - Full color system including `colorMap` and `underline` decorators
+- `TLogMethod`, `TLogMethods` - Generic log method signatures
+- `TLogLevels` - Level checking/comparison interface (`check`, `levels`, `compare`)
+- `TLevelLogger` - Logger methods keyed by level names
+- `TUtilLogger` - Utility methods (`clear`, `empty`, `log`, `dir`, `table`, `pair`, `header`, etc.)
+- `TStateLogger` - State methods (`fail`, `info`, `warn`, `error`, `success`)
+- `TTagLogger` - Tag management methods (`tag`, `setTag`, `removeTag`, `toggleTag`)
+- `TCLILogger` - Composite type: `TLevelLogger & TUtilLogger & TStateLogger & TTagLogger` plus `levels`, `level`, `colors`, `color`, `colorMap`
+- `TWinLogger` - Alias for `winston.Logger`
+- `TWLogger` - Alias for `TWinLogger`
+- `TLogOpts` - Extends `winston.LoggerOptions` with required `label: string`
+- `TSetupLogger` - Omits `label` from `TLogOpts`, adds optional `tag?: string` and optional `label?: string`
 
 ### Utilities
 
@@ -131,6 +172,12 @@ type TLogOpts = winston.LoggerOptions & {
   label: string              // Logger label for identification (default: 'TDSK')
 }
 
+// TSetupLogger omits required label, adds optional tag
+type TSetupLogger = Omit<TLogOpts, 'label'> & {
+  tag?: string
+  label?: string
+}
+
 // Defaults: silent: false, level: 'silly', label: 'TDSK', exitOnError: false, handleExceptions: true
 ```
 
@@ -145,6 +192,31 @@ type TLogOpts = winston.LoggerOptions & {
 **Development (non-production)**: `filterOptionsReq()` -> `timestamp()` -> `label()` -> `simple()` -> `json()` -> `prettyPrint({ depth: 10, colorize: true })`
 
 **Production**: `filterOptionsReq()` -> `splat()` -> `timestamp()` -> `label()` -> `json()`
+
+## Build & Test Configuration
+
+### Build (tsup)
+
+- **Entry**: `src/index.ts`
+- **Output**: `dist/log/` (CJS only, `format: ['cjs']`)
+- **Splitting**: disabled
+- **Sourcemaps**: enabled
+- **External**: All dependencies externalized via esbuild (reads from `package.json`)
+
+### Testing (Vitest)
+
+- **Framework**: Vitest with `vite-tsconfig-paths` plugin for path alias resolution
+- **Pre-setup**: Calls `loadEnvs({ force: true })` to populate `process.env` before tests run
+- **Environment**: `node`
+- **Globals**: enabled
+- **Pattern**: `**/*.test.ts`
+
+### Linting (Biome)
+
+- **Schema**: Biome 2.1.2
+- **Scope**: `src/**`, `scripts/**`, `package.json`, `configs/**`
+- **Key rules**: a11y (comprehensive), correctness (`noUnusedVariables: off`), security (`noBlankTarget`, `noDangerouslySetInnerHtmlWithChildren`), style (`useImportType: separatedType`, `useAsConstAssertion`, `useEnumInitializers`)
+- **Formatting**: 2-space indent, single quotes, trailing commas (ES5), no semicolons, LF line endings
 
 ## Architecture
 
@@ -228,6 +300,24 @@ setupLoggerErr(app)    // Error logging (add after routes)
 injectKeyValues({ access_token: 'abc123', refresh_token: 'xyz789' })
 ```
 
+### Environment Loading
+
+```typescript
+import { loadEnvs } from '../scripts/loadEnvs'
+
+// Load envs from default locations (project root, deploy/, ~/.config/tdsk/)
+loadEnvs({ force: true })
+
+// With custom options
+loadEnvs({
+  env: 'production',
+  force: true,               // Bypass cache
+  override: true,            // Override existing process.env values
+  ignore: ['SECRET_KEY'],    // Skip specific keys
+  locations: ['/extra/path'] // Additional search locations
+})
+```
+
 ## Integration Points
 
 ### Consumed By
@@ -260,12 +350,9 @@ export { resetInjectedLogs, injectUnsafe, safeReplacer, replaceUnsafe } from './
 export { injectKeyValues } from './utils/injectKeyValues'
 ```
 
-### Build Output
+### Root Entry Points
 
-- **Entry**: `src/index.ts`
-- **Output**: `dist/log/index.cjs` (CommonJS only)
-- **External**: All dependencies externalized via esbuild
-- **Root Entry Points**: `index.js` (CJS) and `index.mjs` (ESM)
+- `index.js` (CJS) and `index.mjs` (ESM) at package root
 
 ## Security Considerations
 
