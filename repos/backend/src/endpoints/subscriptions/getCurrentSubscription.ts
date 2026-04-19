@@ -2,16 +2,15 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { authorize } from '@TBE/middleware/authorize'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception } from '@tdsk/domain'
 
 /**
  * GET /subscriptions/current - Get current user's subscription
+ * User-scoped: authentication is sufficient (no org role needed).
  */
 export const getCurrentSubscription: TEndpointConfig = {
   path: `/current`,
   method: EPMethod.Get,
-  middleware: [authorize(EPermAction.read, EPermResource.subscription)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const userId = req.user?.id

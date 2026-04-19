@@ -1,13 +1,11 @@
 import { toast } from 'sonner'
 import { useState } from 'react'
-import { EPermResource } from '@tdsk/domain'
 import { createPortalSession } from '@TAF/actions'
 import { PlanSections } from '@TAF/constants/values'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
 import { formatDate } from '@TAF/utils/transforms/date'
 import { statusColor } from '@TAF/utils/transforms/status'
 import { CheckCircle as CheckIcon } from '@mui/icons-material'
-import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { usePaymentPlans, useSubscription } from '@TAF/state/selectors'
 import {
   Box,
@@ -28,8 +26,6 @@ export const CurrentPlan = (props: TCurrentPlan) => {
 
   const [plans] = usePaymentPlans()
   const [subscription] = useSubscription()
-  const { canManage } = usePermissions()
-  const manageDisabled = !canManage(EPermResource.subscription)
 
   const currentPlan = plans.find((p) => p.id === subscription?.tier)
 
@@ -232,7 +228,7 @@ export const CurrentPlan = (props: TCurrentPlan) => {
           <Box sx={{ mt: 3 }}>
             <Button
               variant='outlined'
-              disabled={loading || manageDisabled}
+              disabled={loading}
               onClick={handleManageSubscription}
             >
               {loading ? 'Loading...' : 'Manage Subscription'}

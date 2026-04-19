@@ -185,7 +185,6 @@ export const HeaderSettingsItems: TSettingNavItem[] = [
   {
     label: `Billing`,
     Icon: BillingIcon,
-    minRole: ERoleType.owner,
     id: `tdsk-settings-nav-billing`,
     onClick: async () => nav.to(`/${ERoutePath.Billing}`),
   },
@@ -206,7 +205,6 @@ export const GlobalNavItems: TNavItem[] = [
     to: `/${ERoutePath.Billing}`,
     text: `Billing`,
     Icon: <BillingIcon />,
-    visible: (ctx) => hasMinRole(ctx.role, ERoleType.owner),
   },
   { to: `/${ERoutePath.Profile}`, text: `Profile`, Icon: <PersonIcon /> },
 ]

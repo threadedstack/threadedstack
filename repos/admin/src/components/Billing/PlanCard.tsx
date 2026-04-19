@@ -4,10 +4,9 @@ import { useMemo } from 'react'
 import { Button } from '@tdsk/components'
 import { styled } from '@mui/material/styles'
 import { CheckCircle } from '@mui/icons-material'
+import { ESubscriptionTier } from '@tdsk/domain'
 import { wordCaps } from '@keg-hub/jsutils/wordCaps'
-import { ESubscriptionTier, EPermResource } from '@tdsk/domain'
 import ArrowCircleUpIcon from '@mui/icons-material/ArrowCircleUp'
-import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import {
   Box,
   Card,
@@ -109,9 +108,6 @@ const getPerSeatPrice = (plan: Plan): number | null => {
 export const PlanCard = (props: TPlanCardProps) => {
   const { plan, onUpgrade, currentTier, loading = false } = props
 
-  const { canUpdate } = usePermissions()
-  const upgradeDisabled = !canUpdate(EPermResource.subscription)
-
   const features = usePlanFeatures(plan)
   const isCurrent = currentTier?.toLowerCase() === plan.name.toLowerCase()
   const isHighlighted = plan.name.toLowerCase() === ESubscriptionTier.pro
@@ -211,7 +207,7 @@ export const PlanCard = (props: TPlanCardProps) => {
           size='large'
           color='success'
           Icon={<ArrowCircleUpIcon />}
-          disabled={isCurrent || loading || upgradeDisabled}
+          disabled={isCurrent || loading}
           onClick={() => onUpgrade(plan.name as TSubscriptionTier)}
           variant={isCurrent ? 'outlined' : 'contained'}
         >

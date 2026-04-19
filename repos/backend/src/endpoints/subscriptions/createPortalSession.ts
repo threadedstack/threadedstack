@@ -2,16 +2,15 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { authorize } from '@TBE/middleware/authorize'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { Exception } from '@tdsk/domain'
 
 /**
  * POST /subscriptions/portal - Create a customer portal session
+ * User-scoped: authentication is sufficient (no org role needed).
  */
 export const createPortalSession: TEndpointConfig = {
   path: `/portal`,
   method: EPMethod.Post,
-  middleware: [authorize(EPermAction.manage, EPermResource.subscription)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, payments } = req.app.locals
     const userId = req.user?.id

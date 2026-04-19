@@ -19,10 +19,13 @@ export const updateAgent: TEndpointConfig = {
     const {
       name,
       model,
+      tools,
+      envVars,
       secretIds,
       maxTokens,
       temperature,
       description,
+      environment,
       instructions,
       systemPrompt,
       thinkingBudget,
@@ -99,11 +102,14 @@ export const updateAgent: TEndpointConfig = {
     const agentUpdate: Record<string, unknown> & { id: string } = { id }
     if (name !== undefined) agentUpdate.name = name
     if (model !== undefined) agentUpdate.model = model
+    if (tools !== undefined) agentUpdate.tools = tools
     if (projects?.length) agentUpdate.projects = projects
+    if (envVars !== undefined) agentUpdate.envVars = envVars
     if (pins !== undefined) agentUpdate.providerInputs = pins
     if (maxTokens !== undefined) agentUpdate.maxTokens = maxTokens
     if (secretIds !== undefined) agentUpdate.secretIds = secretIds
     if (description !== undefined) agentUpdate.description = description
+    if (environment !== undefined) agentUpdate.environment = environment
     if (temperature !== undefined) agentUpdate.temperature = temperature
     if (systemPrompt !== undefined) agentUpdate.systemPrompt = systemPrompt
     if (instructions !== undefined) agentUpdate.instructions = instructions

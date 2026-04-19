@@ -58,9 +58,15 @@ describe('Tier 1: Role Permission Matrix', () => {
     test('admin cannot remove an owner-role org member', async () => {
       if (!hasAdmin) return
 
-      // ctx.userId is the owner — admin must not be able to remove them
+      // Find actual owner/super UUID from org member snapshot (ctx.userId may not be a UUID)
+      // Seed data uses 'super' role for the org owner, so check both
+      const ownerMember = ctx.orgMemberSnapshot?.find(
+        m => m.type === 'owner' || m.type === 'super'
+      )
+      expect(ownerMember, 'No owner/super found in orgMemberSnapshot').toBeTruthy()
+
       const res = await del(
-        `/orgs/${ctx.orgId}/members/${ctx.userId}`,
+        `/orgs/${ctx.orgId}/members/${ownerMember!.userId}`,
         adminOpts()
       )
       expect(res.status).toBe(403)

@@ -136,12 +136,7 @@ export const createRoutes = () =>
         },
         {
           path: 'billing',
-          Component: () => (
-            <RequireRole
-              minRole={ERoleType.owner}
-              Component={Billing}
-            />
-          ),
+          Component: () => <SuspensePage Component={Billing} />,
         },
         {
           path: 'orgs/:orgId',
