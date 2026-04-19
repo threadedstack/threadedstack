@@ -15,6 +15,7 @@ export const AllowedScopes: string[] = Object.values(EApiKeyScope)
 
 /** Ping interval to keep WS alive through proxy/LB layers during LLM silence */
 export const WsPingIntervalMS = 25_000
+export const WsMaxConnectionsPerIp = 20
 
 /** Valid message types the server accepts from WebSocket clients */
 export const ClientMsgTypes: ReadonlySet<string> = new Set<string>([

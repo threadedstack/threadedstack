@@ -1,14 +1,15 @@
 import type { User, TRoleType, ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { getInitials } from '@TAF/utils/user/getInitials'
 import { useApiKeys } from '@TAF/state/selectors'
+import { getInitials } from '@TAF/utils/user/getInitials'
 import { RoleSelect } from '@TAF/components/Roles/RoleSelect'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
-import { updateOrgRole } from '@TAF/actions/users/api/updateOrgRole'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { fetchApiKeys, revokeApiKey } from '@TAF/actions/apiKeys'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { updateOrgRole } from '@TAF/actions/users/api/updateOrgRole'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
 import { LoadingSpinner } from '@TAF/components/LoadingSpinner/LoadingSpinner'
@@ -70,6 +71,7 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
     initialTab = EActiveTab.role,
   } = props
 
+  const { canManageMembers } = usePermissions()
   const [activeTab, setActiveTab] = useState<TActiveTab>(initialTab)
 
   // Role tab state
@@ -350,7 +352,7 @@ export const EditUserDrawer = (props: TEditUserDrawer) => {
               <RoleSelect
                 showAlert
                 roleType={roleType}
-                disabled={roleLoading}
+                disabled={roleLoading || !canManageMembers}
                 onChange={(e) => setRoleType(e.target.value as TRoleType)}
               />
             </Box>

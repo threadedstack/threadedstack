@@ -1,11 +1,10 @@
-import type { TEndpointConfig, TRequest } from '@TBE/types'
-import type { Response } from 'express'
+import type { ERoleType } from '@tdsk/domain'
+import type { TEndpointConfig, TRequest, TResponse } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { isSuperAdmin } from '@tdsk/domain'
-import { Exception } from '@tdsk/domain'
-import { getUserRole, requireOrgMember } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
+import { Exception, EPermAction, isSuperAdmin, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /users - List all users
@@ -16,20 +15,17 @@ import { parsePagination } from '@TBE/utils/pagination'
 export const listUsers: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
-  action: async (req: TRequest, res: Response): Promise<void> => {
+  middleware: [authorize(EPermAction.read, EPermResource.user)],
+  action: async (req: TRequest, res: TResponse): Promise<void> => {
     const { db, auth } = req.app.locals
     const orgId = req.query.orgId || auth.orgId
 
     // Check if user is super admin
-    const userRole = await getUserRole(req, {})
-    const isSuper = isSuperAdmin(userRole)
+    const isSuper = isSuperAdmin((req.user?.role ?? '') as ERoleType)
 
     const { limit, offset } = parsePagination(req)
 
     if (!isSuper && !orgId) throw new Exception(400, `orgId query parameter required`)
-
-    // If orgId provided, verify user is member of that org
-    if (orgId) await requireOrgMember(req, orgId)
 
     // List users with roles in the specified org
     if (orgId) {

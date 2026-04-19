@@ -11,6 +11,7 @@ import type {
   TSandboxRuntimeId,
 } from '@tdsk/domain'
 
+import { isFeatureEnabled } from '@tdsk/domain'
 import { Code } from '@TAF/components/Code/Code'
 import { useState, useEffect, useMemo } from 'react'
 import { MonacoOptions } from '@TAF/constants/monaco'
@@ -988,43 +989,45 @@ export const SandboxDrawer = (props: TSandboxDrawer) => {
           </Accordion>
 
           {/* Generative UI */}
-          <Accordion defaultExpanded={false}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                fontWeight={500}
-                variant='subtitle1'
-              >
-                Generative UI
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      disabled={loading}
-                      checked={guiOverride}
-                      onChange={(e) => {
-                        setGuiOverride(e.target.checked)
-                        if (!e.target.checked) setSandboxGuiConfig(undefined)
-                      }}
-                    />
-                  }
-                  label='Use custom config (override org default)'
-                />
-                <GuiConfigForm
-                  config={sandboxGuiConfig}
-                  orgProviders={orgProviders.map((p) => ({
-                    id: p.id,
-                    name: p.name || p.id,
-                    brand: p.brand,
-                  }))}
-                  disabled={loading || !guiOverride}
-                  onChange={setSandboxGuiConfig}
-                />
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+          {isFeatureEnabled('terminalGui') && (
+            <Accordion defaultExpanded={false}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography
+                  fontWeight={500}
+                  variant='subtitle1'
+                >
+                  Generative UI
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <FormControlLabel
+                    label='Use custom config (override org default)'
+                    control={
+                      <Switch
+                        disabled={loading}
+                        checked={guiOverride}
+                        onChange={(e) => {
+                          setGuiOverride(e.target.checked)
+                          if (!e.target.checked) setSandboxGuiConfig(undefined)
+                        }}
+                      />
+                    }
+                  />
+                  <GuiConfigForm
+                    config={sandboxGuiConfig}
+                    onChange={setSandboxGuiConfig}
+                    disabled={loading || !guiOverride}
+                    orgProviders={orgProviders.map((p) => ({
+                      id: p.id,
+                      brand: p.brand,
+                      name: p.name || p.id,
+                    }))}
+                  />
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          )}
 
           {/* Environment Variables */}
           <Accordion>

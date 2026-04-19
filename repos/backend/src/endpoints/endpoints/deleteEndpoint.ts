@@ -3,9 +3,10 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
+import { requireResource } from '@TBE/utils/auth/requireResource'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * DELETE /endpoints/:id - Delete an endpoint
@@ -14,20 +15,12 @@ import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 export const deleteEndpoint: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.endpoint)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
 
-    await requireResourceWithPermission(
-      req,
-      db.services.endpoint,
-      id,
-      EPermAction.delete,
-      EPermResource.endpoint,
-      `Endpoint`,
-      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
-    )
-
+    await requireResource(db.services.endpoint, id, `Endpoint`)
     const { data, error } = await db.services.endpoint.delete(id)
 
     if (error) throw new Exception(500, error.message)

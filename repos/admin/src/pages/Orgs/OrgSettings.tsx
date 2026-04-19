@@ -3,15 +3,17 @@ import type { Organization, TGuiConfig } from '@tdsk/domain'
 import { ERoutePath } from '@TAF/types'
 import { useNavigate } from 'react-router'
 import { Page } from '@TAF/pages/Page/Page'
-import { useState, useEffect, useMemo } from 'react'
-import { ConfirmDelete } from '@tdsk/components'
-import { Box, Alert, Typography, Card, CardContent, Divider } from '@mui/material'
+import { ErrorAlert } from '@TAF/components'
 import SaveIcon from '@mui/icons-material/Save'
+import { ConfirmDelete } from '@tdsk/components'
+import { useState, useEffect, useMemo } from 'react'
 import { updateOrg } from '@TAF/actions/orgs/api/updateOrg'
 import { deleteOrg } from '@TAF/actions/orgs/api/deleteOrg'
-import { ErrorAlert } from '@TAF/components'
-import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { isFeatureEnabled, EPermResource } from '@tdsk/domain'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { GuiConfigForm } from '@TAF/components/GuiConfig/GuiConfigForm'
+import { LoadingButton } from '@TAF/components/LoadingButton/LoadingButton'
+import { Box, Alert, Typography, Card, CardContent, Divider } from '@mui/material'
 import { useActiveOrgId, useActiveOrg, useProviders } from '@TAF/state/selectors'
 import { InfoCard, DangerZoneCard, SettingsFormCard } from '@TAF/components/Settings'
 
@@ -22,6 +24,9 @@ export const OrgSettings = (props: TOrgSettings) => {
   const navigate = useNavigate()
   const [orgId] = useActiveOrgId()
   const [providersMap] = useProviders()
+  const { canUpdate, canDelete } = usePermissions()
+  const updateDisabled = !canUpdate(EPermResource.org)
+  const deleteDisabled = !canDelete(EPermResource.org)
 
   const [saving, setSaving] = useState(false)
   const [guiSaving, setGuiSaving] = useState(false)
@@ -143,6 +148,7 @@ export const OrgSettings = (props: TOrgSettings) => {
             saving={saving}
             title='General'
             onSave={onSave}
+            disabled={updateDisabled}
             hasChanges={hasChanges}
             fields={[
               {
@@ -176,33 +182,36 @@ export const OrgSettings = (props: TOrgSettings) => {
             ]}
           />
 
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant='h6'>Generative UI</Typography>
-              <Divider sx={{ my: 2 }} />
-              <GuiConfigForm
-                config={localGuiConfig}
-                orgProviders={orgProviders}
-                onChange={setLocalGuiConfig}
-              />
-              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                <LoadingButton
-                  color='success'
-                  onClick={onSaveGuiConfig}
-                  loading={guiSaving}
-                  Icon={<SaveIcon />}
-                  variant='contained'
-                  disabled={!guiHasChanges}
-                  loadingText='Saving...'
-                >
-                  Save
-                </LoadingButton>
-              </Box>
-            </CardContent>
-          </Card>
+          {isFeatureEnabled('terminalGui') && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant='h6'>Generative UI</Typography>
+                <Divider sx={{ my: 2 }} />
+                <GuiConfigForm
+                  config={localGuiConfig}
+                  orgProviders={orgProviders}
+                  onChange={setLocalGuiConfig}
+                />
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                  <LoadingButton
+                    color='success'
+                    onClick={onSaveGuiConfig}
+                    loading={guiSaving}
+                    Icon={<SaveIcon />}
+                    variant='contained'
+                    disabled={updateDisabled || !guiHasChanges}
+                    loadingText='Saving...'
+                  >
+                    Save
+                  </LoadingButton>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
 
           <DangerZoneCard
             buttonLabel='Delete'
+            disabled={deleteDisabled}
             onAction={onDeleteClick}
             title='Delete this organization'
             description='Once deleted, this action cannot be undone. All projects and data will be lost.'

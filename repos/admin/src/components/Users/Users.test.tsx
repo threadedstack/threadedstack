@@ -3,10 +3,12 @@ import { render, screen, within } from '@testing-library/react'
 
 const mockUseActiveOrgId = vi.fn(() => [`org-1`])
 const mockUseUser = vi.fn(() => [{ id: `auth-user-1`, role: `admin` }])
+const mockUseActiveOrgRole = vi.fn(() => [`admin`])
 
 vi.mock(`@TAF/state/selectors`, () => ({
   useActiveOrgId: () => mockUseActiveOrgId(),
   useUser: () => mockUseUser(),
+  useActiveOrgRole: () => mockUseActiveOrgRole(),
 }))
 
 const mockLoadUsers = vi.fn()

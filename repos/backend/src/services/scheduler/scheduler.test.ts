@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Scheduler, createScheduler } from './scheduler'
 import { logger } from '@TBE/utils/logger'
 
+vi.mock('@tdsk/domain', () => ({
+  isFeatureEnabled: vi.fn(() => true),
+}))
+
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
@@ -52,6 +56,20 @@ describe(`Scheduler`, () => {
   })
 
   describe(`start`, () => {
+    it(`should not start when schedules feature is disabled`, async () => {
+      const { isFeatureEnabled } = await import('@tdsk/domain')
+      const mockIsEnabled = vi.mocked(isFeatureEnabled)
+      mockIsEnabled.mockReturnValue(false)
+
+      mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
+      scheduler.start()
+
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(`disabled`))
+      expect(mockDb.services.schedule.listDue).not.toHaveBeenCalled()
+
+      mockIsEnabled.mockReturnValue(true)
+    })
+
     it(`should call tick immediately and set up interval`, () => {
       mockDb.services.schedule.listDue.mockResolvedValue({ data: [] })
 

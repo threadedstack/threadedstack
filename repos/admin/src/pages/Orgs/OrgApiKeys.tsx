@@ -1,19 +1,20 @@
 import type { ApiKey } from '@tdsk/domain'
 import type { TDataTableColumn } from '@TAF/components'
 
-import { Page } from '@TAF/pages/Page/Page'
 import { useState, useMemo } from 'react'
+import { Page } from '@TAF/pages/Page/Page'
+import { EPermResource } from '@tdsk/domain'
+import { revokeApiKey } from '@TAF/actions/apiKeys'
 import { Box, Typography, Chip } from '@mui/material'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
-import { revokeApiKey } from '@TAF/actions/apiKeys'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { CreateApiKeyDrawer } from '@TAF/components/Orgs/CreateApiKeyDrawer'
 import { useApiKeys, useActiveOrgId, useOrgUsers } from '@TAF/state/selectors'
 import { scopeChipColor, formatScopeLabel } from '@TAF/utils/transforms/scopes'
 import { ConfirmDelete, IconButton, useCopyToClipboard } from '@tdsk/components'
 import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
-
 import {
   Add as AddIcon,
   VpnKey as KeyIcon,
@@ -27,6 +28,9 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
   const [apiKeys] = useApiKeys()
   const [orgId] = useActiveOrgId()
   const [orgUsersMap] = useOrgUsers()
+  const { canCreate, canDelete } = usePermissions()
+  const createDisabled = !canCreate(EPermResource.apiKey)
+  const deleteDisabled = !canDelete(EPermResource.apiKey)
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<Error | null>(null)
@@ -183,7 +187,10 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
           color='error'
           icon={<DeleteIcon />}
           tooltip='Revoke API Key'
-          disabled={!apiKey.active}
+          disabled={!apiKey.active || deleteDisabled}
+          disabledTooltip={
+            deleteDisabled ? 'You do not have permission to revoke API keys' : undefined
+          }
           onClick={(e) => {
             e.stopPropagation()
             onDeleteClick(apiKey)
@@ -206,6 +213,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
         searchCount={filteredApiKeys.length}
         onAction={apiKeysCount > 0 && onCreateApiKey}
         actionLabel={apiKeysCount > 0 && 'Generate API Key'}
+        actionDisabled={createDisabled}
         searchPlaceholder='Search API keys by name or prefix...'
         setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
       >
@@ -214,6 +222,7 @@ export const OrgApiKeys = (props: TOrgApiKeys) => {
             actionIcon={<AddIcon />}
             onAction={onCreateApiKey}
             actionLabel='Generate API Key'
+            actionDisabled={createDisabled}
             message='No API keys yet. Generate your first API key to enable M2M authentication.'
           />
         )}

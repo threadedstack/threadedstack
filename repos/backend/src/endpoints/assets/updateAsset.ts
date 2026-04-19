@@ -2,8 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * PUT /assets/:id - Update an existing asset
@@ -11,6 +11,7 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const updateAsset: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.asset)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
@@ -18,11 +19,6 @@ export const updateAsset: TEndpointConfig = {
     const { data: existing, error: getError } = await db.services.asset.get(id)
     if (getError) throw new Exception(500, getError.message)
     if (!existing) throw new Exception(404, `Asset not found`)
-
-    await checkPermission(req, EPermAction.update, EPermResource.asset, {
-      orgId: existing.orgId,
-      projectId: existing.projectId,
-    })
 
     const { name, type, url, meta, content } = req.body
     const updateData = {

@@ -5,13 +5,54 @@ import type { IncomingMessage } from 'http'
 import net from 'net'
 import { URL } from 'url'
 import { nanoid } from 'nanoid'
-import { Exception, hashKey, ESandboxSessionVisibility } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
+import { Exception, hashKey, ESandboxSessionVisibility } from '@tdsk/domain'
 import {
-  SBBackpressureThreshold,
   SBTcpTimeout,
+  TunnelRateWindow,
+  TunnelRateLimit,
+  TunnelBlockDuration,
   SBBackpressureMaxWait,
+  SBBackpressureThreshold,
+  TunnelFastCloseThreshold,
 } from '@TBE/constants/sandbox'
+
+const tunnelFailures = new Map<string, number[]>()
+
+export const recordTunnelFailure = (sandboxId: string): void => {
+  const failures = tunnelFailures.get(sandboxId) || []
+  failures.push(Date.now())
+  tunnelFailures.set(sandboxId, failures)
+}
+
+export const clearTunnelFailures = (sandboxId?: string): void => {
+  if (sandboxId) tunnelFailures.delete(sandboxId)
+  else tunnelFailures.clear()
+}
+
+export const checkTunnelRateLimit = (sandboxId: string): boolean => {
+  const failures = tunnelFailures.get(sandboxId)
+  if (!failures || failures.length === 0) return false
+
+  const now = Date.now()
+  const recent = failures.filter((t) => now - t < TunnelRateWindow)
+  tunnelFailures.set(sandboxId, recent)
+
+  if (recent.length === 0) {
+    tunnelFailures.delete(sandboxId)
+    return false
+  }
+
+  if (recent.length < TunnelRateLimit) return false
+
+  const lastFailure = recent[recent.length - 1]
+  if (now - lastFailure > TunnelBlockDuration) {
+    tunnelFailures.delete(sandboxId)
+    return false
+  }
+
+  return true
+}
 
 /**
  * Handle WebSocket tunnel connections for SSH access to sandbox pods.
@@ -35,6 +76,25 @@ export const onTunnelConnect = async (
     return
   }
   const sandboxId = match[1]
+
+  // Rate guard: reject pathological connect/disconnect cycles
+  if (checkTunnelRateLimit(sandboxId)) {
+    logger.debug(`[Tunnel] Rate limited for sandbox ${sandboxId}`)
+    ws.close(4008, `Too many failed connections, retry later`)
+    return
+  }
+  const connectTime = Date.now()
+
+  // Track fast closes for rate guard — registered early so pre-TCP failures
+  // (auth, pod lookup) also count. The guard flag prevents double-counting
+  // when the post-TCP cleanup function also closes the WebSocket.
+  let rateGuardCounted = false
+  ws.on(`close`, () => {
+    if (!rateGuardCounted && Date.now() - connectTime < TunnelFastCloseThreshold) {
+      rateGuardCounted = true
+      recordTunnelFailure(sandboxId)
+    }
+  })
 
   // 2. Authenticate via API key
   const authHeader = req.headers.authorization
@@ -113,16 +173,29 @@ export const onTunnelConnect = async (
     if (closed) return
     closed = true
     if (pingInterval) clearInterval(pingInterval)
-    sbService.removeSession(podName, sessionId)
-    tcp.destroy()
+    try {
+      sbService.removeSession(podName, sessionId)
+    } catch (e) {
+      logger.error('[Tunnel] removeSession failed:', (e as Error).message)
+    }
+    try {
+      tcp.destroy()
+    } catch (e) {
+      logger.error('[Tunnel] tcp.destroy failed:', (e as Error).message)
+    }
     if (ws.readyState === ws.OPEN || ws.readyState === ws.CONNECTING) {
-      ws.close()
+      try {
+        ws.close()
+      } catch (e) {
+        logger.error('[Tunnel] ws.close failed:', (e as Error).message)
+      }
     }
   }
 
   // 7. Bridge WebSocket ↔ TCP (session registered on TCP connect, not before)
   tcp.on(`connect`, () => {
     logger.info(`[Tunnel] Connected to pod ${podName}:2222 (session ${sessionId})`)
+    clearTunnelFailures(sandboxId)
 
     // Register session only after TCP connects successfully
     sbService.addSession(podName, {
@@ -136,12 +209,22 @@ export const onTunnelConnect = async (
     })
 
     // Start keepalive pings (every 30s) to prevent Caddy idle timeout
+    let pongReceived = true
+    ws.on(`pong`, () => {
+      pongReceived = true
+    })
+
     pingInterval = setInterval(() => {
-      if (ws.readyState === ws.OPEN) {
-        ws.ping()
-      } else {
+      if (ws.readyState !== ws.OPEN) {
         cleanup()
+        return
       }
+      if (!pongReceived) {
+        cleanup()
+        return
+      }
+      pongReceived = false
+      ws.ping()
     }, 30_000)
   })
 
@@ -194,7 +277,7 @@ export const onTunnelConnect = async (
   tcp.on(`error`, (err) => {
     logger.error(`[Tunnel] TCP error for ${podName}:`, err.message)
     if (ws.readyState === ws.OPEN || ws.readyState === ws.CONNECTING) {
-      ws.close(4005, `SSH connection to pod failed: ${err.message}`)
+      ws.close(4005, `SSH connection to pod failed`)
     }
     cleanup()
   })

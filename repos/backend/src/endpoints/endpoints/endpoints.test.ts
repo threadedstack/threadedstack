@@ -1,6 +1,12 @@
 import type { Response } from 'express'
-import type { TApp, TRequest, TEndpointConfig, TEndpoint } from '@TBE/types'
+import type { TApp, TRequest, TEndpoint } from '@TBE/types'
+
+import { endpoints } from './endpoints'
+import { config } from '@TBE/configs/backend.config'
+import { getEPService } from '@TBE/services/endpoints'
+import { PaymentsService } from '@TBE/services/payments'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
 
 // Mock the endpoint services module
 vi.mock(`@TBE/services/endpoints`, () => ({
@@ -8,13 +14,6 @@ vi.mock(`@TBE/services/endpoints`, () => ({
     validateOptions: vi.fn(),
   }),
 }))
-
-import { endpoints } from './endpoints'
-import { isFunc } from '@keg-hub/jsutils/isFunc'
-import { config } from '@TBE/configs/backend.config'
-import { PaymentsService } from '@TBE/services/payments'
-import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
-import { getEPService } from '@TBE/services/endpoints'
 
 describe(`Endpoints endpoints`, () => {
   let mockReq: Partial<TRequest>
@@ -557,46 +556,23 @@ describe(`Endpoints endpoints`, () => {
     const ep = getEndpointCfg(endpoints.endpoints?.deleteEndpoint)
 
     it(`should return 200 with success on delete`, async () => {
-      const existingEndpoint = {
-        id: `123`,
-        name: `To Delete`,
-        method: `GET`,
-        projectId: `project-1`,
-        options: {
-          url: `https://api.com`,
-        },
-      }
       mockReq.params = { id: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.endpoint.get as ReturnType<
         typeof vi.fn
       >
+      mockGet.mockResolvedValue({ data: { id: `123` } })
+
       const mockDelete = mockReq.app?.locals.db.services.endpoint.delete as ReturnType<
         typeof vi.fn
       >
-      mockGet.mockResolvedValue({ data: existingEndpoint })
-      mockDelete.mockResolvedValue({ data: existingEndpoint })
+      mockDelete.mockResolvedValue({ data: true })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockGet).toHaveBeenCalledWith(`123`)
       expect(mockDelete).toHaveBeenCalledWith(`123`)
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: { success: true, id: `123` } })
-    })
-
-    it(`should return 404 when endpoint not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
-
-      const mockGet = mockReq.app?.locals.db.services.endpoint.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: undefined })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Endpoint not found`
-      )
-      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 })

@@ -4,11 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { ERoleType } from '@tdsk/domain'
 import { config } from '@TBE/configs/backend.config'
+import { addProjectMember } from './addProjectMember'
 import { PaymentsService } from '@TBE/services/payments'
 import { listProjectMembers } from './listProjectMembers'
-import { addProjectMember } from './addProjectMember'
-import { updateProjectMemberRole } from './updateProjectMemberRole'
 import { removeProjectMember } from './removeProjectMember'
+import { updateProjectMemberRole } from './updateProjectMemberRole'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: {
@@ -147,24 +147,6 @@ describe(`Project Members endpoints`, () => {
       const response = mockJson.mock.calls[0][0]
       expect(response.limit).toBe(10)
       expect(response.offset).toBe(20)
-    })
-
-    it(`should throw 401 when user is not authenticated`, async () => {
-      mockReq.user = undefined
-
-      await expect(
-        listProjectMembers.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`Authentication required`)
-    })
-
-    it(`should throw 403 when user is not an org member`, async () => {
-      const mockIsOrgMember = mockReq.app?.locals.db.services.role
-        .isOrgMember as ReturnType<typeof vi.fn>
-      mockIsOrgMember.mockResolvedValue({ data: false })
-
-      await expect(
-        listProjectMembers.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`You are not a member of this organization`)
     })
 
     it(`should throw 500 when database query fails`, async () => {
@@ -342,7 +324,7 @@ describe(`Project Members endpoints`, () => {
 
       await expect(
         addProjectMember.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`Requires admin role or higher`)
+      ).rejects.toThrow(`You cannot add a member with member role`)
     })
 
     it(`should throw 500 when role creation fails`, async () => {
@@ -395,14 +377,12 @@ describe(`Project Members endpoints`, () => {
       const mockUpdateProjectRole = mockReq.app?.locals.db.services.role
         .updateProjectRole as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole(currentUser), getProjectRole(currentUser)
-      // 2. getUserRole -> getOrgRole(currentUser), getProjectRole(currentUser)
-      // 3. getProjectRole(targetUser, projectId) -- target user lookup
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getUserRole -> getOrgRole(currentUser), getProjectRole(currentUser)
+      // 2. getProjectRole(targetUser, projectId) -- target user lookup
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
       mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
+        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // getUserRole
         .mockResolvedValueOnce({ data: { type: ERoleType.member } }) // target user lookup
 
       mockUpdateProjectRole.mockResolvedValue({ data: updatedRole })
@@ -465,14 +445,12 @@ describe(`Project Members endpoints`, () => {
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole, getProjectRole
-      // 2. getUserRole -> getOrgRole, getProjectRole
-      // 3. getProjectRole(targetUser) -> null
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getUserRole -> getOrgRole, getProjectRole
+      // 2. getProjectRole(targetUser) -> null
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
       mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
+        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // getUserRole
         .mockResolvedValueOnce({ data: null }) // target user not found
 
       await expect(
@@ -489,14 +467,12 @@ describe(`Project Members endpoints`, () => {
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole, getProjectRole (admin)
-      // 2. getUserRole -> getOrgRole, getProjectRole (admin)
-      // 3. getProjectRole(target) -> admin (equal role)
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getUserRole -> getOrgRole, getProjectRole (admin)
+      // 2. getProjectRole(target) -> admin (equal role)
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
       mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
+        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // getUserRole
         .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // target has equal admin role
 
       await expect(
@@ -520,7 +496,7 @@ describe(`Project Members endpoints`, () => {
 
       await expect(
         updateProjectMemberRole.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`Requires admin role or higher`)
+      ).rejects.toThrow(`You cannot assign viewer role`)
     })
 
     it(`should throw 500 when update fails`, async () => {
@@ -534,14 +510,12 @@ describe(`Project Members endpoints`, () => {
       const mockUpdateProjectRole = mockReq.app?.locals.db.services.role
         .updateProjectRole as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole, getProjectRole (admin)
-      // 2. getUserRole -> getOrgRole, getProjectRole (admin)
-      // 3. getProjectRole(target) -> member (can manage)
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getUserRole -> getOrgRole, getProjectRole (admin)
+      // 2. getProjectRole(target) -> member (can manage)
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
       mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
+        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // getUserRole
         .mockResolvedValueOnce({ data: { type: ERoleType.member } }) // target user lookup
 
       mockUpdateProjectRole.mockResolvedValue({ error: new Error(`Update failed`) })
@@ -577,15 +551,13 @@ describe(`Project Members endpoints`, () => {
       const mockRemoveFromProject = mockReq.app?.locals.db.services.role
         .removeFromProject as ReturnType<typeof vi.fn>
 
-      // Call flow for removeProjectMember:
-      // 1. checkPermission -> getUserRole -> getOrgRole, getProjectRole (admin)
-      // 2. getProjectRole(target) -> member role (target user lookup)
-      // 3. getUserRole -> getOrgRole, getProjectRole (admin) (for canManageRole check)
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getProjectRole(target) -> member role (target user lookup)
+      // 2. getUserRole -> getOrgRole, getProjectRole (admin) (for canManageRole check)
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
       mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
         .mockResolvedValueOnce({ data: mockRole }) // target user lookup
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
+        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // getUserRole for canManageRole
 
       mockRemoveFromProject.mockResolvedValue({ data: true })
 
@@ -613,13 +585,10 @@ describe(`Project Members endpoints`, () => {
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole, getProjectRole (admin)
-      // 2. getProjectRole(target) -> null (not found)
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getProjectRole(target) -> null (not found)
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
-      mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
-        .mockResolvedValueOnce({ data: null }) // target user not found
+      mockGetProjectRole.mockResolvedValueOnce({ data: null }) // target user not found
 
       await expect(
         removeProjectMember.action(mockReq as TRequest, mockRes as Response)
@@ -641,13 +610,10 @@ describe(`Project Members endpoints`, () => {
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole, getProjectRole (admin)
-      // 2. getProjectRole(target) -> owner
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getProjectRole(target) -> owner
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
-      mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
-        .mockResolvedValueOnce({ data: mockRole }) // target is owner
+      mockGetProjectRole.mockResolvedValueOnce({ data: mockRole }) // target is owner
 
       await expect(
         removeProjectMember.action(mockReq as TRequest, mockRes as Response)
@@ -669,15 +635,13 @@ describe(`Project Members endpoints`, () => {
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole(admin), getProjectRole(admin)
-      // 2. getProjectRole(target) -> admin (equal role)
-      // 3. getUserRole -> getOrgRole(admin), getProjectRole(admin)
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getProjectRole(target) -> admin (equal role)
+      // 2. getUserRole -> getOrgRole(admin), getProjectRole(admin)
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
       mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
         .mockResolvedValueOnce({ data: mockRole }) // target has admin role
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
+        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // getUserRole for canManageRole
 
       await expect(
         removeProjectMember.action(mockReq as TRequest, mockRes as Response)
@@ -699,7 +663,9 @@ describe(`Project Members endpoints`, () => {
 
       await expect(
         removeProjectMember.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`Requires admin role or higher`)
+      ).rejects.toThrow(
+        `You cannot remove members with equal or higher roles than your own`
+      )
     })
 
     it(`should throw 500 when delete fails`, async () => {
@@ -719,15 +685,13 @@ describe(`Project Members endpoints`, () => {
       const mockRemoveFromProject = mockReq.app?.locals.db.services.role
         .removeFromProject as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole(admin), getProjectRole(admin)
-      // 2. getProjectRole(target) -> member
-      // 3. getUserRole -> getOrgRole(admin), getProjectRole(admin)
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getProjectRole(target) -> member
+      // 2. getUserRole -> getOrgRole(admin), getProjectRole(admin)
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
       mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
         .mockResolvedValueOnce({ data: mockRole }) // target user lookup
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
+        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // getUserRole for canManageRole
 
       mockRemoveFromProject.mockResolvedValue({ error: new Error(`Delete failed`) })
 
@@ -744,13 +708,10 @@ describe(`Project Members endpoints`, () => {
       const mockGetProjectRole = mockReq.app?.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole(admin), getProjectRole(admin)
-      // 2. getProjectRole(target) -> error
+      // Call flow (no checkPermission — middleware handles auth):
+      // 1. getProjectRole(target) -> error
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
-      mockGetProjectRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
-        .mockResolvedValueOnce({ error: new Error(`Connection lost`) }) // target lookup fails
+      mockGetProjectRole.mockResolvedValueOnce({ error: new Error(`Connection lost`) }) // target lookup fails
 
       await expect(
         removeProjectMember.action(mockReq as TRequest, mockRes as Response)

@@ -2,13 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { TRequest } from '@TBE/types'
 import { ERoleType, EPermAction, EPermResource } from '@tdsk/domain'
 
-import {
-  getUserRole,
-  checkPermission,
-  requireOrgMember,
-  requireProjectMember,
-  requireMinRole,
-} from './checkPermission'
+import { getUserRole, checkPermission } from './checkPermission'
 
 describe(`checkPermission`, () => {
   const buildMockReq = (overrides: Record<string, any> = {}) => {
@@ -21,8 +15,6 @@ describe(`checkPermission`, () => {
               role: {
                 getOrgRole: vi.fn().mockResolvedValue({ data: null }),
                 getProjectRole: vi.fn().mockResolvedValue({ data: null }),
-                isOrgMember: vi.fn().mockResolvedValue({ data: false }),
-                isProjectMember: vi.fn().mockResolvedValue({ data: false }),
               },
             },
           },
@@ -40,16 +32,16 @@ describe(`checkPermission`, () => {
   })
 
   describe(`getUserRole`, () => {
-    it(`should return viewer when no userId`, async () => {
+    it(`should return null when no userId`, async () => {
       const req = buildMockReq({ user: {} })
       const role = await getUserRole(req, {})
-      expect(role).toBe(ERoleType.viewer)
+      expect(role).toBeNull()
     })
 
-    it(`should return viewer when user is undefined`, async () => {
+    it(`should return null when user is undefined`, async () => {
       const req = buildMockReq({ user: undefined })
       const role = await getUserRole(req, {})
-      expect(role).toBe(ERoleType.viewer)
+      expect(role).toBeNull()
     })
 
     it(`should return role from DB org role lookup`, async () => {
@@ -95,14 +87,13 @@ describe(`checkPermission`, () => {
       })
 
       const role = await getUserRole(req, { orgId: `org-1` })
-      // Without isNeonAdmin, the role comes from DB, which returns null/viewer
-      expect(role).toBe(ERoleType.viewer)
+      expect(role).toBeNull()
     })
 
-    it(`should return viewer when no roles found in DB`, async () => {
+    it(`should return null when no roles found in DB`, async () => {
       const req = buildMockReq()
       const role = await getUserRole(req, { orgId: `org-1` })
-      expect(role).toBe(ERoleType.viewer)
+      expect(role).toBeNull()
     })
   })
 
@@ -150,129 +141,33 @@ describe(`checkPermission`, () => {
         checkPermission(req, EPermAction.read, EPermResource.org, { orgId: `org-1` })
       ).resolves.toBeUndefined()
     })
-  })
 
-  describe(`requireOrgMember`, () => {
-    it(`should throw 401 when no userId`, async () => {
+    it(`should throw 403 for null role (non-member)`, async () => {
       const req = buildMockReq({ user: {} })
 
       try {
-        await requireOrgMember(req, `org-1`)
-        expect.unreachable(`Should have thrown`)
-      } catch (err: any) {
-        expect(err.status).toBe(401)
-      }
-    })
-
-    it(`should throw 403 when not a member`, async () => {
-      const req = buildMockReq()
-      const mockIsOrgMember = req.app.locals.db.services.role.isOrgMember as ReturnType<
-        typeof vi.fn
-      >
-      mockIsOrgMember.mockResolvedValue({ data: false })
-
-      try {
-        await requireOrgMember(req, `org-1`)
+        await checkPermission(req, EPermAction.read, EPermResource.org, {
+          orgId: `org-1`,
+        })
         expect.unreachable(`Should have thrown`)
       } catch (err: any) {
         expect(err.status).toBe(403)
       }
     })
 
-    it(`should pass when user is a member`, async () => {
-      const req = buildMockReq()
-      const mockIsOrgMember = req.app.locals.db.services.role.isOrgMember as ReturnType<
-        typeof vi.fn
-      >
-      mockIsOrgMember.mockResolvedValue({ data: true })
-
-      await expect(requireOrgMember(req, `org-1`)).resolves.toBeUndefined()
-    })
-
-    it(`should NOT auto-pass for JWT admin users (backdoor removed)`, async () => {
-      const req = buildMockReq({
-        user: { id: `admin-user`, email: `admin@example.com`, role: ERoleType.admin },
-      })
-      const mockIsOrgMember = req.app.locals.db.services.role.isOrgMember as ReturnType<
-        typeof vi.fn
-      >
-      mockIsOrgMember.mockResolvedValue({ data: false })
-
-      try {
-        await requireOrgMember(req, `org-1`)
-        expect.unreachable(`Should have thrown - admin backdoor should be removed`)
-      } catch (err: any) {
-        expect(err.status).toBe(403)
-      }
-    })
-  })
-
-  describe(`requireProjectMember`, () => {
-    it(`should throw 401 when no userId`, async () => {
-      const req = buildMockReq({ user: {} })
-
-      try {
-        await requireProjectMember(req, `project-1`)
-        expect.unreachable(`Should have thrown`)
-      } catch (err: any) {
-        expect(err.status).toBe(401)
-      }
-    })
-
-    it(`should throw 403 when not a member`, async () => {
-      const req = buildMockReq()
-      const mockIsProjectMember = req.app.locals.db.services.role
-        .isProjectMember as ReturnType<typeof vi.fn>
-      mockIsProjectMember.mockResolvedValue({ data: false })
-
-      try {
-        await requireProjectMember(req, `project-1`)
-        expect.unreachable(`Should have thrown`)
-      } catch (err: any) {
-        expect(err.status).toBe(403)
-      }
-    })
-
-    it(`should pass when user is a member`, async () => {
-      const req = buildMockReq()
-      const mockIsProjectMember = req.app.locals.db.services.role
-        .isProjectMember as ReturnType<typeof vi.fn>
-      mockIsProjectMember.mockResolvedValue({ data: true })
-
-      await expect(requireProjectMember(req, `project-1`)).resolves.toBeUndefined()
-    })
-
-    it(`should NOT auto-pass for JWT admin users (backdoor removed)`, async () => {
-      const req = buildMockReq({
-        user: { id: `admin-user`, email: `admin@example.com`, role: ERoleType.admin },
-      })
-      const mockIsProjectMember = req.app.locals.db.services.role
-        .isProjectMember as ReturnType<typeof vi.fn>
-      mockIsProjectMember.mockResolvedValue({ data: false })
-
-      try {
-        await requireProjectMember(req, `project-1`)
-        expect.unreachable(`Should have thrown - admin backdoor should be removed`)
-      } catch (err: any) {
-        expect(err.status).toBe(403)
-      }
-    })
-  })
-
-  describe(`requireMinRole`, () => {
-    it(`should pass when user has sufficient role`, async () => {
+    it(`should allow member to exec sandbox`, async () => {
       const req = buildMockReq()
       const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
         typeof vi.fn
       >
-      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.member } })
 
       await expect(
-        requireMinRole(req, ERoleType.member, { orgId: `org-1` })
+        checkPermission(req, EPermAction.exec, EPermResource.sandbox, { orgId: `org-1` })
       ).resolves.toBeUndefined()
     })
 
-    it(`should throw 403 when user has insufficient role`, async () => {
+    it(`should throw 403 when viewer tries to exec sandbox`, async () => {
       const req = buildMockReq()
       const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
         typeof vi.fn
@@ -280,11 +175,50 @@ describe(`checkPermission`, () => {
       mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.viewer } })
 
       try {
-        await requireMinRole(req, ERoleType.admin, { orgId: `org-1` })
+        await checkPermission(req, EPermAction.exec, EPermResource.sandbox, {
+          orgId: `org-1`,
+        })
         expect.unreachable(`Should have thrown`)
       } catch (err: any) {
         expect(err.status).toBe(403)
       }
+    })
+
+    it(`should allow admin to manage org`, async () => {
+      const req = buildMockReq()
+      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
+        typeof vi.fn
+      >
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.admin } })
+
+      await expect(
+        checkPermission(req, EPermAction.manage, EPermResource.org, { orgId: `org-1` })
+      ).resolves.toBeUndefined()
+    })
+
+    it(`should throw 403 when member tries to manage org`, async () => {
+      const req = buildMockReq()
+      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
+        typeof vi.fn
+      >
+      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.member } })
+
+      try {
+        await checkPermission(req, EPermAction.manage, EPermResource.org, {
+          orgId: `org-1`,
+        })
+        expect.unreachable(`Should have thrown`)
+      } catch (err: any) {
+        expect(err.status).toBe(403)
+      }
+    })
+  })
+
+  describe(`getUserRole with undefined req.user`, () => {
+    it(`should return null when req.user is undefined entirely`, async () => {
+      const req = buildMockReq({ user: undefined })
+      const role = await getUserRole(req, { orgId: `org-1` })
+      expect(role).toBeNull()
     })
   })
 })

@@ -3,8 +3,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 
 /**
@@ -16,6 +16,7 @@ import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 export const createMessage: TEndpointConfig = {
   path: `/:threadId/messages`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.message)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const userId = req.user?.id
@@ -28,10 +29,6 @@ export const createMessage: TEndpointConfig = {
     if (tErr || !thread) throw new Exception(404, `Thread not found`)
 
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)
-
-    await checkPermission(req, EPermAction.create, EPermResource.message, {
-      orgId: thread.orgId,
-    })
 
     if (thread.userId !== userId) throw new Exception(403, `Access denied`)
 

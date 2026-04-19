@@ -2,9 +2,14 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
-import { Function as FunctionModel, EPermAction, EPermResource } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
+import { requireResource } from '@TBE/utils/auth/requireResource'
+import {
+  Exception,
+  EPermAction,
+  EPermResource,
+  Function as FunctionModel,
+} from '@tdsk/domain'
 
 /**
  * PUT /_/functions/:id - Update function
@@ -13,6 +18,7 @@ import { Function as FunctionModel, EPermAction, EPermResource } from '@tdsk/dom
 export const updateFunction: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.function)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { id } = req.params
@@ -27,15 +33,7 @@ export const updateFunction: TEndpointConfig = {
       dependencies,
     } = req.body
 
-    const existingFunc = await requireResourceWithPermission(
-      req,
-      db.services.function,
-      id,
-      EPermAction.update,
-      EPermResource.function,
-      `Function`,
-      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
-    )
+    const existingFunc = await requireResource(db.services.function, id, `Function`)
 
     const func = new FunctionModel({
       ...existingFunc,

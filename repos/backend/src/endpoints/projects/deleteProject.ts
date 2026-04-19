@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -14,6 +14,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const deleteProject: TEndpointConfig = {
   path: `/:projectId`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.project)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { projectId } = req.params
     const { db } = req.app.locals
@@ -22,11 +23,6 @@ export const deleteProject: TEndpointConfig = {
     const { data: existing, error: getError } = await db.services.project.get(projectId)
     if (getError) throw new Exception(500, getError.message)
     if (!existing) throw new Exception(404, `Project not found`)
-
-    // Check permission - user must be admin of org to delete project
-    await checkPermission(req, EPermAction.delete, EPermResource.project, {
-      orgId: existing.orgId,
-    })
 
     // Delete the project
     const { data, error } = await db.services.project.delete(projectId)

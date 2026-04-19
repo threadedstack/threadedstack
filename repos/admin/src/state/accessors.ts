@@ -69,7 +69,12 @@ import {
   endpointsState,
   activeEndpointIdState,
 } from '@TAF/state/endpoints'
-import { orgsState, orgUsersState, activeOrgIdState } from '@TAF/state/orgs'
+import {
+  orgsState,
+  orgUsersState,
+  activeOrgIdState,
+  activeOrgRoleState,
+} from '@TAF/state/orgs'
 
 export const store = createStore()
 
@@ -103,6 +108,8 @@ export const setOrgUsers = (orgUsers: Record<string, User[]>) =>
 export const getOrgs = () => store.get(orgsState)
 export const resetOrgs = () => store.set(orgsState, undefined)
 export const setOrgs = (orgs: Record<string, Organization>) => store.set(orgsState, orgs)
+
+export const getActiveOrgRole = () => store.get(activeOrgRoleState)
 
 export const getActiveOrgId = () => store.get(activeOrgIdState)
 export const resetActiveOrgId = () => store.set(activeOrgIdState, undefined)

@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -12,6 +12,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const getSandboxProjectConfig: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { sandboxId, projectId } = req.params
@@ -22,11 +23,6 @@ export const getSandboxProjectConfig: TEndpointConfig = {
     // Get the sandbox to check permissions
     const { data: sandbox, error: getError } = await db.services.sandbox.get(sandboxId)
     if (getError || !sandbox) throw new Exception(404, `Sandbox not found`)
-
-    // Check read permission on the sandbox's org
-    await checkPermission(req, EPermAction.read, EPermResource.sandbox, {
-      orgId: sandbox.orgId,
-    })
 
     const { data: config, error } = await db.services.sandbox.getProjectConfig(
       sandboxId,
@@ -51,6 +47,7 @@ export const getSandboxProjectConfig: TEndpointConfig = {
 export const upsertSandboxProjectConfig: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { sandboxId, projectId } = req.params
@@ -61,11 +58,6 @@ export const upsertSandboxProjectConfig: TEndpointConfig = {
     // Validate the sandbox exists and get org info
     const { data: sandbox, error: getError } = await db.services.sandbox.get(sandboxId)
     if (getError || !sandbox) throw new Exception(404, `Sandbox not found`)
-
-    // Check update permission on the sandbox's org
-    await checkPermission(req, EPermAction.update, EPermResource.sandbox, {
-      orgId: sandbox.orgId,
-    })
 
     const { alias, enabled, config } = req.body
 
@@ -104,6 +96,7 @@ export const upsertSandboxProjectConfig: TEndpointConfig = {
 export const deleteSandboxProjectConfig: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.update, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { sandboxId, projectId } = req.params
@@ -114,11 +107,6 @@ export const deleteSandboxProjectConfig: TEndpointConfig = {
     // Validate the sandbox exists
     const { data: sandbox, error: getError } = await db.services.sandbox.get(sandboxId)
     if (getError || !sandbox) throw new Exception(404, `Sandbox not found`)
-
-    // Check update permission on the sandbox's org
-    await checkPermission(req, EPermAction.update, EPermResource.sandbox, {
-      orgId: sandbox.orgId,
-    })
 
     // Reset all override columns to null
     const { error } = await db.services.sandbox.upsertProjectConfig(

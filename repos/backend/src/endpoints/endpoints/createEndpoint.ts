@@ -7,7 +7,7 @@ import { isObj } from '@keg-hub/jsutils/isObj'
 import { logger } from '@TBE/utils/logger'
 import { HttpMethods } from '@TBE/constants/values'
 import { getEPService } from '@TBE/services/endpoints'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
 
@@ -18,6 +18,7 @@ import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
 export const createEndpoint: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.endpoint)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const {
@@ -37,13 +38,6 @@ export const createEndpoint: TEndpointConfig = {
     if (!method) throw new Exception(400, `Endpoint method is required`)
 
     if (!projectId) throw new Exception(400, `Endpoint projectId is required`)
-
-    // Check permission - requires member+
-    // Include orgId so org-level roles (e.g., org admin) are considered
-    await checkPermission(req, EPermAction.create, EPermResource.endpoint, {
-      orgId: req.params.orgId,
-      projectId,
-    })
 
     // Validate HTTP method
     const lower = method.toLowerCase()

@@ -14,10 +14,11 @@ import { RoleHierarchy, PermissionMatrix } from '@TDM/constants/values'
  * Get the numeric level of a role in the hierarchy
  * Higher number = more permissions
  *
- * @param role - Role to get level for
- * @returns Numeric level (0-4)
+ * @param role - Role to get level for, or null for non-members
+ * @returns Numeric level (0-4), or -1 for null (non-member)
  */
-export const getRoleLevel = (role: ERoleType): number => {
+export const getRoleLevel = (role: ERoleType | null): number => {
+  if (role === null) return -1
   return RoleHierarchy.indexOf(role)
 }
 
@@ -25,11 +26,15 @@ export const getRoleLevel = (role: ERoleType): number => {
  * Check if a user's role has at least the permissions of the required role
  * Uses hierarchical comparison - higher roles include all lower role permissions
  *
- * @param userRole - The user's current role
+ * @param userRole - The user's current role, or null for non-members
  * @param requiredRole - The minimum role required
- * @returns True if user has sufficient permissions
+ * @returns True if user has sufficient permissions, false if null (non-member)
  */
-export const hasMinRole = (userRole: ERoleType, requiredRole: ERoleType): boolean => {
+export const hasMinRole = (
+  userRole: ERoleType | null,
+  requiredRole: ERoleType
+): boolean => {
+  if (userRole === null) return false
   return getRoleLevel(userRole) >= getRoleLevel(requiredRole)
 }
 
@@ -45,16 +50,23 @@ export const hasMinRole = (userRole: ERoleType, requiredRole: ERoleType): boolea
  *   All permission checks are purely role-based via `PermissionMatrix`. Org-level vs
  *   project-level scoping must be handled by the caller before invoking `canPerform`.
  *
- * @param userRole - The user's current role
+ * @param userRole - The user's current role, or null for non-members
  * @param action - The action being attempted
  * @param resource - The resource being accessed
  * @returns Result object with allowed status and optional reason
  */
 export const canPerform = (
-  userRole: ERoleType,
+  userRole: ERoleType | null,
   action: EPermAction,
   resource: EPermResource
 ): TPermCheckResult => {
+  if (userRole === null) {
+    return {
+      allowed: false,
+      reason: `Not a member of this organization or project`,
+    }
+  }
+
   const requiredRole = PermissionMatrix[resource]?.[action]
 
   if (!requiredRole) {
@@ -78,10 +90,11 @@ export const canPerform = (
  * Secret values are only visible to admins and above
  * Members can see secret names but not values
  *
- * @param userRole - The user's current role
- * @returns True if user can access secret values
+ * @param userRole - The user's current role, or null for non-members
+ * @returns True if user can access secret values, false if null (non-member)
  */
-export const canAccessSecretValue = (userRole: ERoleType): boolean => {
+export const canAccessSecretValue = (userRole: ERoleType | null): boolean => {
+  if (userRole === null) return false
   return hasMinRole(userRole, ERoleType.admin)
 }
 
@@ -89,10 +102,11 @@ export const canAccessSecretValue = (userRole: ERoleType): boolean => {
  * Check if user is a super admin (platform-wide access)
  * Super admins bypass all permission checks
  *
- * @param userRole - The user's current role
- * @returns True if user is super admin
+ * @param userRole - The user's current role, or null for non-members
+ * @returns True if user is super admin, false if null (non-member)
  */
-export const isSuperAdmin = (userRole: ERoleType): boolean => {
+export const isSuperAdmin = (userRole: ERoleType | null): boolean => {
+  if (userRole === null) return false
   return userRole === ERoleType.super
 }
 
@@ -100,13 +114,14 @@ export const isSuperAdmin = (userRole: ERoleType): boolean => {
  * Get the highest role from multiple role assignments
  * Useful when a user has multiple roles (e.g., admin in one org, member in another)
  *
- * @param roles - Array of roles to compare
- * @returns The highest role in the hierarchy
+ * @param roles - Array of roles to compare (may include null for non-members)
+ * @returns The highest role in the hierarchy, or null if no valid roles
  */
-export const getHighestRole = (roles: ERoleType[]): ERoleType => {
-  if (!roles.length) return ERoleType.viewer
+export const getHighestRole = (roles: (ERoleType | null)[]): ERoleType | null => {
+  const validRoles = roles.filter((r): r is ERoleType => r !== null)
+  if (!validRoles.length) return null
 
-  return roles.reduce((highest, current) =>
+  return validRoles.reduce((highest, current) =>
     getRoleLevel(current) > getRoleLevel(highest) ? current : highest
   )
 }
@@ -116,15 +131,16 @@ export const getHighestRole = (roles: ERoleType[]): ERoleType => {
  * Rule: You can only manage roles below your level
  * e.g., Admins can manage members and viewers, but not other admins or owners
  *
- * @param managerRole - The role attempting to manage
+ * @param managerRole - The role attempting to manage, or null for non-members
  * @param targetRole - The role being managed
- * @returns True if manager can manage target
+ * @returns True if manager can manage target, false if null (non-member)
  */
-export const canManageRole = (managerRole: ERoleType, targetRole: ERoleType): boolean => {
-  // Super admin can manage anyone
+export const canManageRole = (
+  managerRole: ERoleType | null,
+  targetRole: ERoleType
+): boolean => {
+  if (managerRole === null) return false
   if (isSuperAdmin(managerRole)) return true
-
-  // Can't manage roles at same level or higher
   return getRoleLevel(managerRole) > getRoleLevel(targetRole)
 }
 
@@ -135,14 +151,15 @@ export const canManageRole = (managerRole: ERoleType, targetRole: ERoleType): bo
  * **Edge case:** If `resource` is not found in `PermissionMatrix`, returns an empty
  * array (fails closed — no actions are allowed for unknown resources).
  *
- * @param userRole - The user's current role
+ * @param userRole - The user's current role, or null for non-members
  * @param resource - The resource to check
- * @returns Array of allowed actions
+ * @returns Array of allowed actions, empty if null (non-member)
  */
 export const getAllowedActions = (
-  userRole: ERoleType,
+  userRole: ERoleType | null,
   resource: EPermResource
 ): EPermAction[] => {
+  if (userRole === null) return []
   const permissions = PermissionMatrix[resource]
   if (!permissions) return []
 

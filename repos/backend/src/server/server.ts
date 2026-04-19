@@ -11,7 +11,7 @@ export const initServer = () => {
   const httpServer = http.createServer(app)
 
   // Attach WebSocket upgrade handler
-  const { onUpgrade } = createWSServer(app)
+  const { wss, onUpgrade } = createWSServer(app)
   httpServer.on(`upgrade`, onUpgrade)
 
   const server = httpServer
@@ -26,5 +26,5 @@ export const initServer = () => {
       server.close()
     })
 
-  return server
+  return { server, wss }
 }

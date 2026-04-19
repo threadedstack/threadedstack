@@ -3,6 +3,7 @@ import type { Endpoint } from '@tdsk/domain'
 import { useCallback } from 'react'
 import { Box } from '@mui/material'
 import { ERoutePath } from '@TAF/types'
+import { EPermResource } from '@tdsk/domain'
 import { Add as AddIcon } from '@mui/icons-material'
 import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
 import { setActiveEndpointId } from '@TAF/state/accessors'
@@ -10,6 +11,7 @@ import { SearchBar } from '@TAF/components/SearchBar/SearchBar'
 import { useEndpoints } from '@TAF/hooks/endpoints/useEndpoints'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
 import { HttpMethodOps, EPVisibilityOpts } from '@TAF/constants/values'
 import { FilterSelect } from '@TAF/components/FilterSelect/FilterSelect'
 import { EndpointsTable } from '@TAF/components/Endpoints/EndpointsTable'
@@ -38,6 +40,9 @@ export const Endpoints = (props: TEndpoints) => {
     setVisibilityFilter,
   } = useEndpoints()
 
+  const { canCreate, canUpdate, canDelete } = usePermissions()
+  const createDisabled = !canCreate(EPermResource.endpoint)
+
   const onCreateSuccess = useCallback(
     (endpoint?: Endpoint) => {
       setCreateDrawerOpen(false)
@@ -60,6 +65,7 @@ export const Endpoints = (props: TEndpoints) => {
       countLabel='endpoint'
       onAction={onCreate}
       actionLabel='Create Endpoint'
+      actionDisabled={createDisabled}
     >
       {count > 0 && (
         <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -93,6 +99,7 @@ export const Endpoints = (props: TEndpoints) => {
           onAction={onCreate}
           actionIcon={<AddIcon />}
           actionLabel='Create Endpoint'
+          actionDisabled={createDisabled}
           message='No endpoints found for this project.'
         />
       )}
@@ -106,6 +113,8 @@ export const Endpoints = (props: TEndpoints) => {
           onDelete={onDelete}
           endpoints={endpoints}
           onNavigate={onNavigate}
+          editDisabled={!canUpdate(EPermResource.endpoint)}
+          deleteDisabled={!canDelete(EPermResource.endpoint)}
         />
       )}
 

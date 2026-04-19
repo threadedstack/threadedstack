@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -13,6 +13,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const createProvider: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.provider)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId: paramOrgId } = req.params
@@ -23,10 +24,6 @@ export const createProvider: TEndpointConfig = {
 
     db.services.provider.validateType(providerData.type)
     db.services.provider.validateLLM(providerData.type, providerData.brand)
-
-    await checkPermission(req, EPermAction.create, EPermResource.provider, {
-      orgId,
-    })
 
     const { data, error } = await db.services.provider.create({
       ...providerData,

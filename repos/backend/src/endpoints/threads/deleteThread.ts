@@ -2,9 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * DELETE /:orgId/agents/:agentId/threads/:id - Delete a thread
@@ -13,6 +12,7 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const deleteThread: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Delete,
+  middleware: [authorize(EPermAction.delete, EPermResource.thread)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { id, agentId } = req.params
@@ -25,10 +25,6 @@ export const deleteThread: TEndpointConfig = {
     if (getError || !thread) throw new Exception(404, `Thread not found`)
 
     if (thread.agentId !== agentId) throw new Exception(404, `Thread not found`)
-
-    await checkPermission(req, EPermAction.delete, EPermResource.thread, {
-      orgId: thread.orgId,
-    })
 
     if (thread.userId !== userId) throw new Exception(403, `Access denied`)
 

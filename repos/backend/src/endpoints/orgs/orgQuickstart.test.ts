@@ -230,16 +230,6 @@ describe(`Quickstart endpoint`, () => {
     })
   })
 
-  describe(`Permission check`, () => {
-    it(`should return 403 when user is not admin`, async () => {
-      const mockGetOrgRole = mockReq.app?.locals.db.services.role
-        .getOrgRole as ReturnType<typeof vi.fn>
-      mockGetOrgRole.mockResolvedValueOnce({ data: { type: `viewer` } })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow()
-    })
-  })
-
   describe(`Custom provider`, () => {
     it(`should accept custom provider with name and baseUrl`, async () => {
       mockReq.body = {

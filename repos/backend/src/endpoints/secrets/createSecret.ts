@@ -3,6 +3,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
+import { authorize } from '@TBE/middleware/authorize'
 import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 import { validateExclusiveArc } from '@TBE/utils/validation/exclusiveArc'
@@ -24,6 +25,7 @@ import {
 export const createSecret: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.secret)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { name, value, agentId, providerId, description } = req.body

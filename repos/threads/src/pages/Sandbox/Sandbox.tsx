@@ -2,11 +2,13 @@ import type { TSandboxSession } from '@tdsk/domain'
 
 import { toast } from 'sonner'
 import { Loading } from '@tdsk/components'
+import { EPermResource } from '@tdsk/domain'
 import { Page } from '@TTH/pages/Page/Page'
 import { openSession } from '@TTH/actions/sessions'
-import { useParams, useNavigate, useLocation } from 'react-router'
 import { sandboxApi } from '@TTH/services/sandboxApi'
+import { usePermissions } from '@TTH/hooks/permissions'
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router'
 import { ArrowBack, PlayArrow, Login, Add } from '@mui/icons-material'
 import { useOrgId, useSandboxes, useUser, useOpenSessions } from '@TTH/state/selectors'
 import {
@@ -25,6 +27,9 @@ const Sandbox = () => {
   const orgId = useOrgId()
   const sandboxes = useSandboxes()
   const [user] = useUser()
+
+  const { canExec } = usePermissions()
+  const canExecSandbox = canExec(EPermResource.sandbox)
 
   const openSessions = useOpenSessions()
   const [sessions, setSessions] = useState<TSandboxSession[]>([])
@@ -213,8 +218,11 @@ const Sandbox = () => {
                           ? navigate(`/session/${s.sessionId}`, {
                               state: { sandboxId, projectId },
                             })
-                          : handleReconnect(s.sessionId)
+                          : canExecSandbox
+                            ? handleReconnect(s.sessionId)
+                            : undefined
                       }
+                      disabled={!isOpen && !canExecSandbox}
                       sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
                     >
                       <Box>
@@ -232,6 +240,7 @@ const Sandbox = () => {
                         component='span'
                         size='small'
                         variant='outlined'
+                        disabled={!isOpen && !canExecSandbox}
                         color={isOpen ? `primary` : `inherit`}
                         startIcon={isOpen ? <Login /> : <PlayArrow />}
                       >
@@ -265,7 +274,8 @@ const Sandbox = () => {
                   variant='outlined'
                 >
                   <CardActionArea
-                    onClick={() => handleJoin(s.sessionId)}
+                    onClick={() => (canExecSandbox ? handleJoin(s.sessionId) : undefined)}
+                    disabled={!canExecSandbox}
                     sx={{ display: `flex`, justifyContent: `space-between`, p: 2 }}
                   >
                     <Box>
@@ -281,10 +291,11 @@ const Sandbox = () => {
                       </Typography>
                     </Box>
                     <Button
-                      component='span'
                       size='small'
+                      component='span'
                       variant='outlined'
                       startIcon={<Login />}
+                      disabled={!canExecSandbox}
                     >
                       Join
                     </Button>
@@ -295,17 +306,19 @@ const Sandbox = () => {
           </Box>
         )}
 
-        <Box sx={{ display: `flex`, justifyContent: `center`, mt: 2 }}>
-          <Button
-            variant='contained'
-            size='large'
-            startIcon={<Add />}
-            onClick={() => handleStart(null)}
-            disabled={!orgId || !projectId}
-          >
-            New Session
-          </Button>
-        </Box>
+        {canExecSandbox && (
+          <Box sx={{ display: `flex`, justifyContent: `center`, mt: 2 }}>
+            <Button
+              size='large'
+              variant='contained'
+              startIcon={<Add />}
+              onClick={() => handleStart(null)}
+              disabled={!orgId || !projectId}
+            >
+              New Session
+            </Button>
+          </Box>
+        )}
       </Box>
     </Page>
   )

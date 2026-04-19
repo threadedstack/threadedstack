@@ -2,9 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { ApiKey, EPermAction, EPermResource } from '@tdsk/domain'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
+import { authorize } from '@TBE/middleware/authorize'
+import { ApiKey, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { validateExpiresAt, validateApiScopes } from '@TBE/utils/auth/validateApiKey'
 
 /**
@@ -14,23 +13,11 @@ import { validateExpiresAt, validateApiScopes } from '@TBE/utils/auth/validateAp
 export const updateApiKey: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.apiKey)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
     const { name, scopes, expiresAt, rateLimit, active } = req.body
-
-    await requireResourceWithPermission(
-      req,
-      db.services.apiKey,
-      id,
-      EPermAction.update,
-      EPermResource.apiKey,
-      `API key`,
-      (data) => ({
-        orgId: data.orgId || req.params.orgId,
-        projectId: data.projectId,
-      })
-    )
 
     if (scopes) {
       const { valid, error } = validateApiScopes(scopes)

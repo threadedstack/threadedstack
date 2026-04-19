@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { EFunLanguage } from '@tdsk/domain'
 import { Exception } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Function as FunctionModel, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -14,6 +14,7 @@ import { Function as FunctionModel, EPermAction, EPermResource } from '@tdsk/dom
 export const createFunction: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.function)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const {
@@ -32,13 +33,6 @@ export const createFunction: TEndpointConfig = {
     if (!name) throw new Exception(400, `Function name is required`)
     if (!projectId) throw new Exception(400, `Project ID is required`)
     if (!content) throw new Exception(400, `Function content is required`)
-
-    // Check permission - requires admin+
-    // Include orgId so org-level roles (e.g., org admin) are considered
-    await checkPermission(req, EPermAction.create, EPermResource.function, {
-      orgId: req.params.orgId,
-      projectId,
-    })
 
     const func = new FunctionModel({
       name,

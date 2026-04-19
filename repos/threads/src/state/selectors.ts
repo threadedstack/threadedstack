@@ -1,28 +1,27 @@
 import type { atomWithReset } from 'jotai/utils'
-import type { TToolState, TJsonComponentTree } from '@tdsk/domain'
 import type { TOpenSession } from '@TTH/types'
+import type { TViewportMode } from '@TTH/ast'
 
 import { useMemo } from 'react'
-import { useAtom, useAtomValue } from 'jotai'
 import { useResetAtom } from 'jotai/utils'
 import { userState } from '@TTH/state/user'
+import { useAtom, useAtomValue } from 'jotai'
+import { sessionModeAtom } from '@TTH/state/gui'
 import { themeTypeState } from '@TTH/state/theme'
 import {
-  sidebarOpenState,
   orgIdState,
-  activeProjectIdState,
   activeOrgState,
+  sidebarOpenState,
   activeProjectState,
+  activeOrgRoleState,
+  activeProjectIdState,
 } from '@TTH/state/app'
 import {
-  sessionEventsAtom,
-  sessionToolStateAtom,
-  openSessionsAtom,
-  activeSessionAtom,
-  sandboxesAtom,
   orgsAtom,
   projectsAtom,
-  sessionUpgradesAtom,
+  sandboxesAtom,
+  openSessionsAtom,
+  activeSessionAtom,
 } from '@TTH/state/sessions'
 
 const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
@@ -40,15 +39,11 @@ export const useUser = () => useRecState(userState)
 export const useThemeType = () => useRecState(themeTypeState)
 export const useSidebarOpen = () => useRecState(sidebarOpenState)
 export const useOrgId = () => useRecState(orgIdState)[0]
+export const useActiveOrgRole = () => useRecState(activeOrgRoleState)
 
-export const useSessionEvents = (sessionId: string) => {
-  const [eventsMap] = useRecState(sessionEventsAtom)
-  return eventsMap.get(sessionId) ?? []
-}
-
-export const useToolState = (sessionId: string) => {
-  const [stateMap] = useRecState(sessionToolStateAtom)
-  return stateMap.get(sessionId) ?? ('idle' as TToolState)
+export const useSessionMode = (sessionId: string): TViewportMode => {
+  const modeMap = useAtomValue(sessionModeAtom)
+  return modeMap.get(sessionId) ?? `idle`
 }
 
 export const useOpenSessions = () => useRecState(openSessionsAtom)[0]
@@ -78,19 +73,12 @@ export const useSandboxHasSession = (sandboxId: string): boolean => {
   return sessions.length > 0
 }
 
-export const useSandboxToolState = (sandboxId: string): TToolState => {
+export const useSandboxMode = (sandboxId: string): TViewportMode => {
   const sessions = useSessionsForSandbox(sandboxId)
-  const [stateMap] = useRecState(sessionToolStateAtom)
+  const modeMap = useAtomValue(sessionModeAtom)
   for (const session of sessions) {
-    const state = stateMap.get(session.sessionId)
-    if (state && state !== `idle`) return state
+    const mode = modeMap.get(session.sessionId)
+    if (mode && mode !== `idle`) return mode
   }
-  return `idle` as TToolState
-}
-
-const EmptyUpgradesMap = new Map<string, TJsonComponentTree>()
-
-export const useSessionUpgrades = (sessionId: string) => {
-  const [all] = useRecState(sessionUpgradesAtom)
-  return all.get(sessionId) ?? EmptyUpgradesMap
+  return `idle`
 }

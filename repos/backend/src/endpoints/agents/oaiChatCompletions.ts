@@ -4,7 +4,7 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { nanoid } from 'nanoid'
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { AgentEndpoint } from '@TBE/services/endpoints/agentEndpoint'
 import { resolveAgentConfig } from '@TBE/utils/agent/resolveAgentConfig'
@@ -14,9 +14,9 @@ import {
   convertOAIMessages,
 } from '@TBE/services/openai/requestAdapter'
 import {
+  formatOAIError,
   createStreamingAdapter,
   createNonStreamingAdapter,
-  formatOAIError,
 } from '@TBE/services/openai/responseAdapter'
 
 /**
@@ -34,6 +34,7 @@ import {
 export const oaiChatCompletions: TEndpointConfig = {
   path: `/:id/v1/chat/completions`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.read, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const agentId = req.params.id
@@ -72,16 +73,6 @@ export const oaiChatCompletions: TEndpointConfig = {
       config = await resolveAgentConfig(agentId, db, req.app, {
         userId,
         overrides,
-      })
-    } catch (err) {
-      const { status, body: errBody } = formatOAIError(err)
-      res.status(status).json(errBody)
-      return
-    }
-
-    try {
-      await checkPermission(req, EPermAction.read, EPermResource.agent, {
-        orgId: config.orgId,
       })
     } catch (err) {
       const { status, body: errBody } = formatOAIError(err)

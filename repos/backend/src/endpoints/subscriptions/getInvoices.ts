@@ -2,7 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /subscriptions/invoices - Get invoices for the current user
@@ -11,6 +12,7 @@ import { Exception } from '@tdsk/domain'
 export const getInvoices: TEndpointConfig = {
   path: `/invoices`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.subscription)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const userId = req.user?.id

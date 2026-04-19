@@ -1,29 +1,25 @@
+import type { TViewMode } from '@TTH/components/ViewToggle'
+
 import { toast } from 'sonner'
 import { Loading } from '@tdsk/components'
+import { EPermResource } from '@tdsk/domain'
 import { Page } from '@TTH/pages/Page/Page'
 import { styled } from '@mui/material/styles'
-import { openSession } from '@TTH/actions/sessions'
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { ChatView } from '@TTH/components/ChatView/ChatView'
-import { ArrowBack, Chat, Terminal } from '@mui/icons-material'
+import { ArrowBack } from '@mui/icons-material'
+import { isFeatureEnabled } from '@tdsk/domain'
+import { usePermissions } from '@TTH/hooks/permissions'
+import { ViewToggle } from '@TTH/components/ViewToggle'
+import { useSessionEngine } from '@TTH/hooks/useSessionEngine'
+import { SessionGUIView } from '@TTH/components/SessionGUIView'
+import { findSandboxForSession } from '@TTH/utils/sessionStorage'
 import { useParams, useNavigate, useLocation } from 'react-router'
 import { SmartInput } from '@TTH/components/SmartInput/SmartInput'
 import { TerminalView } from '@TTH/components/TerminalView/TerminalView'
 import { SessionCommands } from '@TTH/components/Session/SessionCommands'
-import { findSandboxForSession } from '@TTH/utils/sessionStorage'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { openSession, getRawBuffer, subscribeEngineData } from '@TTH/actions/sessions'
 import { useOpenSessions, useSandboxes, useOrgId, useUser } from '@TTH/state/selectors'
-import {
-  Box,
-  Chip,
-  Card,
-  Button,
-  IconButton,
-  Typography,
-  ToggleButton,
-  ToggleButtonGroup,
-} from '@mui/material'
-
-type TViewMode = 'chat' | 'terminal'
+import { Box, Chip, Card, Button, IconButton, Typography } from '@mui/material'
 
 const SessionContainer = styled(Box)`
   display: flex;
@@ -91,11 +87,17 @@ const Session = () => {
   const sandboxes = useSandboxes()
   const openSessions = useOpenSessions()
   const [connecting, setConnecting] = useState(false)
-  const [viewMode, setViewMode] = useState<TViewMode>(`chat`)
+  const [viewMode, setViewMode] = useState<TViewMode>(
+    isFeatureEnabled('terminalGui') ? `gui` : `terminal`
+  )
   const [pendingOp, setPendingOp] = useState<`restart` | `recreate` | null>(null)
+  const { canExec } = usePermissions()
+  const canExecSandbox = canExec(EPermResource.sandbox)
 
   const session = sessionId ? openSessions.get(sessionId) : undefined
   const hasSession = !!session
+  const activeSessionId = hasSession ? sessionId : null
+  const engine = useSessionEngine(activeSessionId ?? null)
 
   // Resolve sandboxId: active session > route state > sessionStorage reverse lookup
   const sandboxId = useMemo(() => {
@@ -156,17 +158,24 @@ const Session = () => {
       .finally(() => setConnecting(false))
   }, [hasSession, connecting, pendingOp, sessionId, sandboxId, orgId, projectId])
 
+  useEffect(() => {
+    if (!activeSessionId || !engine) return
+    const buffer = getRawBuffer(activeSessionId)
+    for (const chunk of buffer) {
+      engine.write(chunk)
+    }
+    const unsub = subscribeEngineData(activeSessionId, (data) => engine.write(data))
+    return unsub
+  }, [activeSessionId, engine])
+
   const handleBack = useCallback(() => {
     if (sandboxId) navigate(`/sandbox/${sandboxId}`)
     else navigate(`/`)
   }, [navigate, sandboxId])
 
-  const handleViewChange = useCallback(
-    (_evt: React.MouseEvent<HTMLElement>, value: TViewMode | null) => {
-      if (value) setViewMode(value)
-    },
-    []
-  )
+  const handleViewChange = useCallback((value: TViewMode) => {
+    setViewMode(value)
+  }, [])
 
   const handleConnect = useCallback(async () => {
     if (!sandboxId || !orgId || !projectId) return
@@ -231,21 +240,12 @@ const Session = () => {
                 isOwner={isOwner}
                 onPendingOp={setPendingOp}
               />
-              <ToggleButtonGroup
-                value={viewMode}
-                exclusive
-                onChange={handleViewChange}
-                size='small'
-              >
-                <ToggleButton value='chat'>
-                  <Chat sx={{ fontSize: 18, mr: 0.5 }} />
-                  Chat
-                </ToggleButton>
-                <ToggleButton value='terminal'>
-                  <Terminal sx={{ fontSize: 18, mr: 0.5 }} />
-                  Terminal
-                </ToggleButton>
-              </ToggleButtonGroup>
+              {isFeatureEnabled('terminalGui') && (
+                <ViewToggle
+                  value={viewMode}
+                  onChange={handleViewChange}
+                />
+              )}
             </>
           )}
         </SessionHeader>
@@ -406,21 +406,23 @@ const Session = () => {
                   )}
 
                   {/* Start Session button */}
-                  <Box sx={{ display: `flex`, justifyContent: `center` }}>
-                    <Button
-                      variant='contained'
-                      size='large'
-                      onClick={handleConnect}
-                      disabled={!orgId || !projectId || !sandboxId}
-                    >
-                      Start Session
-                    </Button>
-                  </Box>
+                  {canExecSandbox && (
+                    <Box sx={{ display: `flex`, justifyContent: `center` }}>
+                      <Button
+                        variant='contained'
+                        size='large'
+                        onClick={handleConnect}
+                        disabled={!orgId || !projectId || !sandboxId}
+                      >
+                        Start Session
+                      </Button>
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>
-          ) : viewMode === `chat` ? (
-            <ChatView sessionId={sessionId} />
+          ) : viewMode === `gui` && isFeatureEnabled('terminalGui') ? (
+            <SessionGUIView sessionId={sessionId} />
           ) : (
             <TerminalView
               sessionId={sessionId}
@@ -428,7 +430,9 @@ const Session = () => {
             />
           )}
         </ContentArea>
-        {hasSession && viewMode === `chat` && <SmartInput sessionId={sessionId} />}
+        {hasSession && viewMode === `gui` && isFeatureEnabled('terminalGui') && (
+          <SmartInput sessionId={sessionId} />
+        )}
       </SessionContainer>
     </Page>
   )

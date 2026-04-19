@@ -34,17 +34,3 @@ export type TParsedEvent =
   | { type: `activity`; timestamp: number }
   | { type: `prompt-ready`; timestamp: number }
   | { type: `unknown`; raw: string; timestamp: number }
-
-export type TToolState = `idle` | `prompt` | `working` | `permission` | `interactive`
-
-export type TPatternMatcher = {
-  name: string
-  match: (text: string) => TParsedEvent | null
-}
-
-export type TTerminalParserOpts = {
-  runtime: string
-  onEvent: (event: TParsedEvent) => void
-  cols?: number
-  rows?: number
-}

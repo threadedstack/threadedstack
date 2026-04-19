@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
+import { requireResource } from '@TBE/utils/auth/requireResource'
 import { EProvider, Exception, EPermAction, EPermResource } from '@tdsk/domain'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 
 /**
  * PUT /_/sandboxes/:id - Update a sandbox
@@ -12,19 +13,12 @@ import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 export const updateSandbox: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { id } = req.params
 
-    const existing = await requireResourceWithPermission(
-      req,
-      db.services.sandbox,
-      id,
-      EPermAction.update,
-      EPermResource.sandbox,
-      `Sandbox`,
-      (data) => ({ orgId: data.orgId })
-    )
+    const existing = await requireResource(db.services.sandbox, id, `Sandbox`)
 
     const { name, config, projectIds, providerInputs } = req.body
 

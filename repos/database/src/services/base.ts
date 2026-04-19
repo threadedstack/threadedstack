@@ -59,13 +59,24 @@ export class Base<
     return data as unknown as M
   }
 
+  private classifyError(error: any): TDBApiRes<any> {
+    const code = error?.code
+    if (code === `23505`)
+      return { error: new DBError(`Record already exists`), status: 409 }
+    if (code === `23503`)
+      return { error: new DBError(`Referenced record not found`), status: 400 }
+    if (code === `23502`)
+      return { error: new DBError(`Missing required field`), status: 400 }
+    return { error }
+  }
+
   async create(data: I): Promise<TDBApiRes<M>> {
     try {
       const resp = await this.db.insert(this.table).values(data).returning()
 
       return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {
-      return { error }
+      return this.classifyError(error)
     }
   }
 
@@ -94,7 +105,7 @@ export class Base<
         ? { data: this.model(row) }
         : { error: new DBError(`${this.title} not found`) }
     } catch (error: any) {
-      return { error }
+      return this.classifyError(error)
     }
   }
 
@@ -109,7 +120,7 @@ export class Base<
         ? { data: this.model(row) }
         : { error: new DBError(`${this.title} not found`) }
     } catch (error: any) {
-      return { error }
+      return this.classifyError(error)
     }
   }
 
@@ -129,7 +140,7 @@ export class Base<
         ? { data: found.map((row) => this.model(row)) as M[] }
         : { data: [] }
     } catch (error: any) {
-      return { error }
+      return this.classifyError(error)
     }
   }
 
@@ -148,7 +159,7 @@ export class Base<
 
       return { data: this.model(resp[0]) as M }
     } catch (error: any) {
-      return { error }
+      return this.classifyError(error)
     }
   }
 
@@ -170,7 +181,7 @@ export class Base<
 
       return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {
-      return { error }
+      return this.classifyError(error)
     }
   }
 
@@ -185,7 +196,7 @@ export class Base<
 
       return { data: this.model(resp[0] as S) as M }
     } catch (error: any) {
-      return { error }
+      return this.classifyError(error)
     }
   }
 }

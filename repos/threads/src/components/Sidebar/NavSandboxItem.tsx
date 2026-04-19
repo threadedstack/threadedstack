@@ -1,4 +1,5 @@
-import type { Sandbox, TToolState, TSandboxSession } from '@tdsk/domain'
+import type { Sandbox, TSandboxSession } from '@tdsk/domain'
+import type { TViewportMode } from '@TTH/ast'
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router'
@@ -11,7 +12,7 @@ import { NavSessionItem } from '@TTH/components/Sidebar/NavSessionItem'
 import {
   useUser,
   useSandboxHasSession,
-  useSandboxToolState,
+  useSandboxMode,
   useSessionsForSandbox,
 } from '@TTH/state/selectors'
 
@@ -37,16 +38,16 @@ type PaletteColor = { main: string }
 
 const statusDotColor = (
   hasSession: boolean,
-  toolState: TToolState,
+  mode: TViewportMode,
   palette: { success: PaletteColor; warning: PaletteColor }
 ) => {
   if (!hasSession) return colors.grey[500]
-  switch (toolState) {
-    case `working`:
+  switch (mode) {
+    case `streaming`:
       return palette.success.main
-    case `permission`:
+    case `interactive`:
       return palette.warning.main
-    case `prompt`:
+    case `tui`:
     case `idle`:
     default:
       return colors.grey[500]
@@ -61,7 +62,7 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
   const theme = useTheme()
   const [user] = useUser()
   const hasSession = useSandboxHasSession(sandbox.id)
-  const toolState = useSandboxToolState(sandbox.id)
+  const sandboxMode = useSandboxMode(sandbox.id)
   const sessions = useSessionsForSandbox(sandbox.id)
 
   const [expanded, setExpanded] = useState(() => getInitialExpanded(sandbox.id))
@@ -165,7 +166,7 @@ export const NavSandboxItem = (props: TNavSandboxItem) => {
             height: 8,
             borderRadius: `50%`,
             flexShrink: 0,
-            backgroundColor: statusDotColor(hasSession, toolState, theme.palette),
+            backgroundColor: statusDotColor(hasSession, sandboxMode, theme.palette),
             transition: `background-color 0.3s ease`,
           }}
         />

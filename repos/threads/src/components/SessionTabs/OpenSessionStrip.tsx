@@ -5,7 +5,7 @@ import { setActiveSession } from '@TTH/state/accessors'
 import {
   useOpenSessions,
   useActiveSession,
-  useToolState,
+  useSessionMode,
   useSandboxes,
   useSessionsForSandbox,
 } from '@TTH/state/selectors'
@@ -37,19 +37,19 @@ const SessionChip = (props: {
 }) => {
   const { sessionId, session, active } = props
   const navigate = useNavigate()
-  const toolState = useToolState(sessionId)
+  const mode = useSessionMode(sessionId)
   const label = useChipLabel(session)
 
   const dotColor = useMemo(() => {
-    switch (toolState) {
-      case `working`:
+    switch (mode) {
+      case `streaming`:
         return `success.main`
-      case `permission`:
+      case `interactive`:
         return `warning.main`
       default:
         return `text.disabled`
     }
-  }, [toolState])
+  }, [mode])
 
   const handleClick = useCallback(() => {
     setActiveSession(sessionId)

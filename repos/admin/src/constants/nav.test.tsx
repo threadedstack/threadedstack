@@ -1,5 +1,6 @@
 import type { TNavCtx } from '@TAF/types'
 
+import { ERoleType } from '@tdsk/domain'
 import { describe, it, expect } from 'vitest'
 import { getDynamicNav } from '@TAF/utils/nav/getDynamicNav'
 import {
@@ -242,16 +243,58 @@ describe(`OrgNavItems`, () => {
   })
 
   describe(`visibility`, () => {
-    it(`should be visible when orgId is present`, () => {
-      const context: TNavCtx = { orgId: `org-123` }
+    it(`should be visible when orgId is present with admin role`, () => {
+      const context: TNavCtx = { orgId: `org-123`, role: ERoleType.admin }
+      const featureGatedItems = [`Skills`, `Schedules`]
       OrgNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
-        expect(item.visible?.(context)).toBe(true)
+        if (featureGatedItems.includes(item.text as string)) {
+          // Skills and Schedules are feature-gated — hidden while flags are disabled
+          expect(item.visible?.(context)).toBe(false)
+        } else {
+          expect(item.visible?.(context)).toBe(true)
+        }
+      })
+    })
+
+    it(`should hide role-gated items for viewers`, () => {
+      const context: TNavCtx = { orgId: `org-123`, role: ERoleType.viewer }
+      const viewerVisible = [`Projects`, `Agents`, `Members`]
+      const viewerHidden = [
+        `Sandboxes`,
+        `Secrets`,
+        `Providers`,
+        `Domains`,
+        `API Keys`,
+        `Usage`,
+        `Settings`,
+      ]
+      viewerVisible.forEach((name) => {
+        const item = OrgNavItems.find((i) => i.text === name)
+        expect(item?.visible?.(context)).toBe(true)
+      })
+      viewerHidden.forEach((name) => {
+        const item = OrgNavItems.find((i) => i.text === name)
+        expect(item?.visible?.(context)).toBe(false)
+      })
+    })
+
+    it(`should show member-level items for members`, () => {
+      const context: TNavCtx = { orgId: `org-123`, role: ERoleType.member }
+      const memberVisible = [`Sandboxes`, `Secrets`, `Providers`, `Domains`, `Usage`]
+      const memberHidden = [`API Keys`, `Settings`]
+      memberVisible.forEach((name) => {
+        const item = OrgNavItems.find((i) => i.text === name)
+        expect(item?.visible?.(context)).toBe(true)
+      })
+      memberHidden.forEach((name) => {
+        const item = OrgNavItems.find((i) => i.text === name)
+        expect(item?.visible?.(context)).toBe(false)
       })
     })
 
     it(`should not be visible when orgId is missing`, () => {
-      const context: TNavCtx = {}
+      const context: TNavCtx = { role: ERoleType.admin }
       OrgNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
         expect(item.visible?.(context)).toBe(false)
@@ -369,16 +412,38 @@ describe(`ProjectNavItems`, () => {
   })
 
   describe(`visibility`, () => {
-    it(`should be visible when orgId and projectId are present`, () => {
-      const context: TNavCtx = { orgId: `org-123`, projectId: `project-456` }
+    it(`should be visible when orgId, projectId, and admin role are present`, () => {
+      const context: TNavCtx = {
+        orgId: `org-123`,
+        projectId: `project-456`,
+        role: ERoleType.admin,
+      }
       ProjectNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
         expect(item.visible?.(context)).toBe(true)
       })
     })
 
+    it(`should hide role-gated items for viewers`, () => {
+      const context: TNavCtx = {
+        orgId: `org-123`,
+        projectId: `project-456`,
+        role: ERoleType.viewer,
+      }
+      const viewerVisible = [`Endpoints`, `Functions`, `Agents`, `Members`]
+      const viewerHidden = [`Secrets`, `Sandboxes`, `Domains`, `API Keys`, `Settings`]
+      viewerVisible.forEach((name) => {
+        const item = ProjectNavItems.find((i) => i.text === name)
+        expect(item?.visible?.(context)).toBe(true)
+      })
+      viewerHidden.forEach((name) => {
+        const item = ProjectNavItems.find((i) => i.text === name)
+        expect(item?.visible?.(context)).toBe(false)
+      })
+    })
+
     it(`should not be visible when orgId is missing`, () => {
-      const context: TNavCtx = { projectId: `project-456` }
+      const context: TNavCtx = { projectId: `project-456`, role: ERoleType.admin }
       ProjectNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
         expect(item.visible?.(context)).toBe(false)
@@ -386,20 +451,15 @@ describe(`ProjectNavItems`, () => {
     })
 
     it(`should not be visible when projectId is missing`, () => {
-      const context: TNavCtx = { orgId: `org-123` }
+      const context: TNavCtx = { orgId: `org-123`, role: ERoleType.admin }
       ProjectNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
-        // Domains only requires orgId, so it's visible even without projectId
-        if (item.text === `Domains`) {
-          expect(item.visible?.(context)).toBe(true)
-        } else {
-          expect(item.visible?.(context)).toBe(false)
-        }
+        expect(item.visible?.(context)).toBe(false)
       })
     })
 
     it(`should not be visible when both orgId and projectId are missing`, () => {
-      const context: TNavCtx = {}
+      const context: TNavCtx = { role: ERoleType.admin }
       ProjectNavItems.forEach((item) => {
         expect(item.visible).toBeDefined()
         expect(item.visible?.(context)).toBe(false)

@@ -5,10 +5,10 @@ import type { TDBApiRes } from '@TDB/types'
 import dns from 'node:dns'
 import { EPMethod } from '@TBE/types'
 import { Domain } from '@tdsk/domain'
-import { logger } from '@TBE/utils/logger'
 import { Exception } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
+import { authorize } from '@TBE/middleware/authorize'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * POST /domains - Create a new custom domain
@@ -19,6 +19,7 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const createDomain: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.domain)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db, config } = req.app.locals
     const { orgId: paramOrgId, projectId: paramProjectId } = req.params
@@ -37,19 +38,6 @@ export const createDomain: TEndpointConfig = {
 
     if (!orgId && !projectId)
       throw new Exception(400, `Either orgId or projectId is required`)
-
-    // Check permission
-    if (orgId) {
-      await checkPermission(req, EPermAction.create, EPermResource.domain, { orgId })
-    } else if (projectId) {
-      // Get project to find orgId
-      const { data: project } = await db.services.project.get(projectId)
-      if (!project) throw new Exception(404, `Project not found`)
-
-      await checkPermission(req, EPermAction.create, EPermResource.domain, {
-        orgId: project.orgId,
-      })
-    }
 
     // Step 1: Verify DNS — check if the domain points to our ingress
     let records: string[]

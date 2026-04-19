@@ -1,5 +1,6 @@
 import type { TDatabase } from '@tdsk/database'
 import type { Schedule } from '@tdsk/domain'
+import { isFeatureEnabled } from '@tdsk/domain'
 import { logger } from '@TBE/utils/logger'
 import { parseNextRun } from '@TBE/services/scheduler/cronParser'
 
@@ -25,6 +26,11 @@ export class Scheduler {
    * Start the scheduler — ticks every 60 seconds to check for due schedules.
    */
   start() {
+    if (!isFeatureEnabled('schedules')) {
+      logger.info(`[Scheduler] Schedules feature is disabled — not starting`)
+      return
+    }
+
     if (this.intervalId) {
       logger.warn(`[Scheduler] Already running`)
       return
@@ -33,7 +39,9 @@ export class Scheduler {
     logger.info(`[Scheduler] Starting scheduler (60s tick interval)`)
     // Run an initial tick immediately
     this.tick().catch((err) => logger.error(`[Scheduler] Initial tick failed: ${err}`))
-    this.intervalId = setInterval(() => this.tick(), 60_000)
+    this.intervalId = setInterval(() => {
+      this.tick().catch((err) => logger.error(`[Scheduler] Periodic tick failed: ${err}`))
+    }, 60_000)
   }
 
   /**

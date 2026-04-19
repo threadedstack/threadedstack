@@ -14,11 +14,15 @@ import {
   toggleSwitch,
   ensureFullListLoad,
 } from '../utils/crud-helpers'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 const PAGE_CLASS = 'tdsk-org-skills-page'
 const FORM_ID = 'skill-form'
 
 test.describe.serial('CRUD Skills', () => {
+  test.beforeEach(({}, testInfo) => {
+    test.skip(!isFeatureEnabled('skills'), 'skills feature flag is disabled')
+  })
   const skillName = uniqueName('pw-skill')
   const updatedName = uniqueName('pw-skill-upd')
   let skillId: string | undefined

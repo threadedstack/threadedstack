@@ -4,7 +4,8 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { parsePagination } from '@TBE/utils/pagination'
-import { checkPermission, getUserRole } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import { Exception, EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
 
 /**
@@ -14,6 +15,7 @@ import { Exception, EPermAction, EPermResource, canAccessSecretValue } from '@td
 export const listSecrets: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.secret)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, projectId } = req.params
@@ -36,12 +38,6 @@ export const listSecrets: TEndpointConfig = {
       if (!provider) throw new Exception(404, `Provider not found`)
       permOrgId = provider.orgId
     }
-
-    // Check permission based on scope
-    await checkPermission(req, EPermAction.read, EPermResource.secret, {
-      orgId: permOrgId,
-      projectId,
-    })
 
     const { limit, offset } = parsePagination(req)
 

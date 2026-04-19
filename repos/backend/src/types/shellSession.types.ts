@@ -1,17 +1,17 @@
 import type { WebSocket } from 'ws'
 import type { Client, ClientChannel } from 'ssh2'
-import type {
-  TerminalParser,
-  ESandboxSessionVisibility,
-  TParsedEvent,
-  TToolState,
-  TInteraction,
-} from '@tdsk/domain'
+import type { ESandboxSessionVisibility } from '@tdsk/domain'
 import type { RingBuffer } from '@TBE/utils/ringBuffer'
 
 export type TWebSocketMeta = {
   sessionId: string
   joinedUserId?: string
+}
+
+export type TPtyRecorder = {
+  write(data: Uint8Array): void
+  getRawBuffer(): Uint8Array
+  destroy(): void
 }
 
 export type TShellSession = {
@@ -23,11 +23,9 @@ export type TShellSession = {
   readonly sandboxId: string
   readonly buffer: RingBuffer
   readonly sshStream: ClientChannel
-  parser: TerminalParser
+  ptyRecorder: TPtyRecorder
   attachments: Set<WebSocket>
   ttlTimer: NodeJS.Timeout | null
-  toolState: TToolState
-  lastRunningToolCall: (TParsedEvent & { type: 'tool-call' }) | null
   projectId?: string
   visibility: ESandboxSessionVisibility
 }
@@ -37,7 +35,6 @@ export type TShellControlMsg =
   | { type: `signal`; signal: `SIGINT` | `SIGTSTP` }
   | { type: `visibility`; visibility: ESandboxSessionVisibility }
   | { type: `permission-response`; response: `y` | `n` }
-  | { type: `gui-interaction`; interaction: TInteraction }
 
 type TSessionIdentity = {
   runtime: string

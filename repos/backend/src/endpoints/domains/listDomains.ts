@@ -2,10 +2,10 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { ERoleType } from '@tdsk/domain'
-import { Exception } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
 import { getUserRole } from '@TBE/utils/auth/checkPermission'
+import { Exception, ERoleType, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /domains - List all domains for an organization or project
@@ -15,6 +15,7 @@ import { getUserRole } from '@TBE/utils/auth/checkPermission'
 export const listDomains: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.domain)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, projectId } = req.params

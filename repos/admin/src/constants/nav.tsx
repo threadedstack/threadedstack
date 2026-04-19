@@ -1,8 +1,15 @@
-import type { TNavCtx, TNavItem, TRailSection, TSubNavGroup } from '@TAF/types'
+import type {
+  TNavCtx,
+  TNavItem,
+  TRailSection,
+  TSubNavGroup,
+  TSettingNavItem,
+} from '@TAF/types'
 
 import { ERoutePath } from '@TAF/types'
 import { nav } from '@TAF/services/nav'
 import { OrgIcon } from '@tdsk/components'
+import { ERoleType, hasMinRole, isFeatureEnabled } from '@tdsk/domain'
 import { buildRoute } from '@TAF/utils/nav/buildRoute'
 import { signout } from '@TAF/actions/auth/local/signout'
 import { RobotIcon, DrawingBoxIcon, ProjectIcon } from '@tdsk/components'
@@ -25,6 +32,13 @@ import {
 
 const hasOrg = (ctx: TNavCtx) => !!ctx.orgId
 const hasOrgAndProject = (ctx: TNavCtx) => !!ctx.orgId && !!ctx.projectId
+const hasOrgMember = (ctx: TNavCtx) =>
+  hasOrg(ctx) && hasMinRole(ctx.role, ERoleType.member)
+const hasOrgAdmin = (ctx: TNavCtx) => hasOrg(ctx) && hasMinRole(ctx.role, ERoleType.admin)
+const hasProjectMember = (ctx: TNavCtx) =>
+  hasOrgAndProject(ctx) && hasMinRole(ctx.role, ERoleType.member)
+const hasProjectAdmin = (ctx: TNavCtx) =>
+  hasOrgAndProject(ctx) && hasMinRole(ctx.role, ERoleType.admin)
 
 const OrgSubNav: Record<string, TNavItem> = {
   Projects: {
@@ -43,7 +57,7 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `Sandboxes`,
     to: buildRoute(ERoutePath.OrgSandboxes),
     Icon: <DrawingBoxIcon />,
-    visible: hasOrg,
+    visible: hasOrgMember,
   },
   Members: {
     text: `Members`,
@@ -55,49 +69,49 @@ const OrgSubNav: Record<string, TNavItem> = {
     text: `Secrets`,
     to: buildRoute(ERoutePath.OrgSecrets),
     Icon: <SecretIcon />,
-    visible: hasOrg,
+    visible: hasOrgMember,
   },
   Providers: {
     text: `Providers`,
     to: buildRoute(ERoutePath.OrgProviders),
     Icon: <ProviderIcon />,
-    visible: hasOrg,
+    visible: hasOrgMember,
   },
   Domains: {
     text: `Domains`,
     to: buildRoute(ERoutePath.OrgDomains),
     Icon: <DnsIcon />,
-    visible: hasOrg,
+    visible: hasOrgMember,
   },
   APIKeys: {
     text: `API Keys`,
     Icon: <ApiIcon />,
     to: buildRoute(ERoutePath.OrgApiKeys),
-    visible: hasOrg,
+    visible: hasOrgAdmin,
   },
   Skills: {
     text: `Skills`,
     to: buildRoute(ERoutePath.OrgSkills),
     Icon: <ExtensionIcon />,
-    visible: hasOrg,
+    visible: (ctx) => hasOrg(ctx) && isFeatureEnabled(`skills`),
   },
   Schedules: {
     text: `Schedules`,
     to: buildRoute(ERoutePath.OrgSchedules),
     Icon: <TimerIcon />,
-    visible: hasOrg,
+    visible: (ctx) => hasOrg(ctx) && isFeatureEnabled(`schedules`),
   },
   Usage: {
     text: `Usage`,
     to: buildRoute(ERoutePath.OrgUsage),
     Icon: <UsageIcon />,
-    visible: hasOrg,
+    visible: hasOrgMember,
   },
   Settings: {
     text: `Settings`,
     to: buildRoute(ERoutePath.OrgSettings),
     Icon: <SettingsIcon />,
-    visible: hasOrg,
+    visible: hasOrgAdmin,
   },
 }
 
@@ -118,7 +132,7 @@ const ProjectSubNav: Record<string, TNavItem> = {
     text: `Secrets`,
     to: buildRoute(ERoutePath.ProjectSecrets),
     Icon: <SecretIcon />,
-    visible: hasOrgAndProject,
+    visible: hasProjectMember,
   },
   Agents: {
     text: `Agents`,
@@ -130,7 +144,7 @@ const ProjectSubNav: Record<string, TNavItem> = {
     text: `Sandboxes`,
     to: buildRoute(ERoutePath.ProjectSandboxes),
     Icon: <DrawingBoxIcon />,
-    visible: hasOrgAndProject,
+    visible: hasProjectMember,
   },
   Members: {
     text: `Members`,
@@ -142,26 +156,26 @@ const ProjectSubNav: Record<string, TNavItem> = {
     text: `Domains`,
     to: buildRoute(ERoutePath.ProjectDomains),
     Icon: <DnsIcon />,
-    visible: hasOrg,
+    visible: hasProjectMember,
   },
   APIKeys: {
     text: `API Keys`,
     Icon: <ApiIcon />,
     to: buildRoute(ERoutePath.ProjectApiKeys),
-    visible: hasOrgAndProject,
+    visible: hasProjectAdmin,
   },
   Settings: {
     text: `Settings`,
     to: buildRoute(ERoutePath.ProjectSettings),
     Icon: <SettingsIcon />,
-    visible: hasOrgAndProject,
+    visible: hasProjectAdmin,
   },
 }
 
 // Steps for the Quick Start section
 export const QSSteps = [`AI Provider`, `Project & Agent`, `Review & Create`]
 
-export const HeaderSettingsItems = [
+export const HeaderSettingsItems: TSettingNavItem[] = [
   {
     label: `Profile`,
     Icon: PersonIcon,
@@ -171,6 +185,7 @@ export const HeaderSettingsItems = [
   {
     label: `Billing`,
     Icon: BillingIcon,
+    minRole: ERoleType.owner,
     id: `tdsk-settings-nav-billing`,
     onClick: async () => nav.to(`/${ERoutePath.Billing}`),
   },
@@ -187,7 +202,12 @@ export const OrgNavItems: TNavItem[] = Object.values(OrgSubNav)
 export const ProjectNavItems: TNavItem[] = Object.values(ProjectSubNav)
 
 export const GlobalNavItems: TNavItem[] = [
-  { to: `/${ERoutePath.Billing}`, text: `Billing`, Icon: <BillingIcon /> },
+  {
+    to: `/${ERoutePath.Billing}`,
+    text: `Billing`,
+    Icon: <BillingIcon />,
+    visible: (ctx) => hasMinRole(ctx.role, ERoleType.owner),
+  },
   { to: `/${ERoutePath.Profile}`, text: `Profile`, Icon: <PersonIcon /> },
 ]
 

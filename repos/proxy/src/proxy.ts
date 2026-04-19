@@ -6,12 +6,13 @@ import { setupAuth } from '@TPX/middleware/setupAuth'
 import { setupProxy } from '@TPX/middleware/setupProxy'
 import { setupLogger } from '@TPX/middleware/setupLogger'
 import { setupServer } from '@TPX/middleware/setupServer'
+import { setupRateLimit } from '@TPX/middleware/rateLimit'
 import { setupPrewarm } from '@TPX/middleware/setupPrewarm'
 import { setupDatabase } from '@TPX/middleware/setupDatabase'
 import { setupEndpoints } from '@TPX/middleware/setupEndpoints'
-import { setupErrorHandler } from '@TPX/middleware/setupErrorHandler'
 import { setupApiKeyAuth } from '@TPX/middleware/setupApiKeyAuth'
 import { setupSessionAuth } from '@TPX/middleware/setupSessionAuth'
+import { setupErrorHandler } from '@TPX/middleware/setupErrorHandler'
 
 /**
  * Main proxy server initialization
@@ -22,6 +23,7 @@ export const proxy = (config: TProxyConfig) => {
 
   setupLogger(app)
   setupServer(app, router)
+  setupRateLimit(app)
   setupDatabase(app)
   setupAuth(app)
   setupApiKeyAuth(app)

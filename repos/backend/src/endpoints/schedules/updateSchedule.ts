@@ -2,13 +2,14 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { isValidCron, parseNextRun } from '@TBE/services/scheduler/cronParser'
 
 export const updateSchedule: TEndpointConfig = {
   path: `/:scheduleId`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.schedule)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, scheduleId } = req.params
@@ -16,20 +17,18 @@ export const updateSchedule: TEndpointConfig = {
     if (!orgId) throw new Exception(400, `orgId is required`)
     if (!scheduleId) throw new Exception(400, `scheduleId is required`)
 
-    await checkPermission(req, EPermAction.update, EPermResource.schedule, { orgId })
-
     // Verify schedule exists and belongs to org
     const { data: existing, error: getErr } = await db.services.schedule.get(scheduleId)
     if (getErr || !existing) throw new Exception(404, `Schedule not found`)
     if (existing.orgId !== orgId) throw new Exception(404, `Schedule not found`)
 
     const {
-      cronExpression,
       prompt,
       agentId,
       enabled,
       threadId,
       createThread,
+      cronExpression,
       maxConsecutiveErrors,
     } = req.body
 
@@ -57,14 +56,14 @@ export const updateSchedule: TEndpointConfig = {
 
     const { data, error } = await db.services.schedule.update({
       id: scheduleId,
-      ...(cronExpression !== undefined && { cronExpression }),
       ...(prompt !== undefined && { prompt }),
       ...(agentId !== undefined && { agentId }),
       ...(enabled !== undefined && { enabled }),
       ...(threadId !== undefined && { threadId }),
-      ...(createThread !== undefined && { createThread }),
-      ...(maxConsecutiveErrors !== undefined && { maxConsecutiveErrors }),
       ...(nextRunAt !== undefined && { nextRunAt }),
+      ...(createThread !== undefined && { createThread }),
+      ...(cronExpression !== undefined && { cronExpression }),
+      ...(maxConsecutiveErrors !== undefined && { maxConsecutiveErrors }),
     })
 
     if (error) throw new Exception(500, error.message)

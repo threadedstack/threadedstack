@@ -10,11 +10,6 @@ vi.mock(`@TBE/utils/logger`, () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }))
 
-const mockCheckPermission = vi.fn().mockResolvedValue(undefined)
-vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
-  checkPermission: (...args: any[]) => mockCheckPermission(...args),
-}))
-
 vi.mock(`@TBE/services/providers/modelRegistry`, () => ({
   ModelRegistry: {
     getModels: vi.fn().mockReturnValue([]),
@@ -92,8 +87,6 @@ describe(`GET /agents/:id/v1/models - OpenAI models list`, () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCheckPermission.mockResolvedValue(undefined)
-
     mockJson = vi.fn()
     mockStatus = vi.fn(() => mockRes as Response) as any
 
@@ -186,42 +179,6 @@ describe(`GET /agents/:id/v1/models - OpenAI models list`, () => {
     expect(mockJson).toHaveBeenCalledWith(
       expect.objectContaining({
         error: expect.objectContaining({ message: `Agent not found` }),
-      })
-    )
-  })
-
-  it(`should return 403 when permission check fails`, async () => {
-    const { formatOAIError } = await import(`@TBE/services/openai/responseAdapter`)
-    const mockFormat = formatOAIError as ReturnType<typeof vi.fn>
-    mockFormat.mockReturnValue({
-      status: 403,
-      body: {
-        error: {
-          message: `Permission denied: cannot read agent`,
-          type: `authentication_error`,
-          param: null,
-          code: null,
-        },
-      },
-    })
-
-    const { Exception } = await import(`@tdsk/domain`)
-    const permError = new Exception(
-      403,
-      `Permission denied: cannot read agent`,
-      `FORBIDDEN`
-    )
-    mockCheckPermission.mockRejectedValueOnce(permError)
-
-    const ep = getEndpointCfg(mockReq.app as TApp, oaiModels as any)
-    await ep.action(mockReq as TRequest, mockRes as Response)
-
-    expect(mockStatus).toHaveBeenCalledWith(403)
-    expect(mockJson).toHaveBeenCalledWith(
-      expect.objectContaining({
-        error: expect.objectContaining({
-          message: `Permission denied: cannot read agent`,
-        }),
       })
     )
   })

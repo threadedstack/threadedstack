@@ -2,6 +2,7 @@ import type { Router } from 'express'
 import type { TProxyApp } from '@TPX/types'
 
 import cors from 'cors'
+import helmet from 'helmet'
 import express from 'express'
 import { behindLBProxy } from '@tdsk/domain'
 import { ensureArr } from '@keg-hub/jsutils/ensureArr'
@@ -14,6 +15,7 @@ export const setupServer = (app: TProxyApp, router: Router) => {
   //app.disable(`etag`)
   //app.set(`trust proxy`, 1)
   app.disable(`x-powered-by`)
+  app.use(helmet())
   const origins = ensureArr(app.locals.config.server.origins)
 
   !behindLBProxy() &&

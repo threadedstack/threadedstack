@@ -2,8 +2,14 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception, PlanLimits, ESubscriptionTier } from '@tdsk/domain'
-import { requireOrgMember } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import {
+  Exception,
+  PlanLimits,
+  ESubscriptionTier,
+  EPermAction,
+  EPermResource,
+} from '@tdsk/domain'
 import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 
 /**
@@ -13,6 +19,7 @@ import { getBillingPeriod } from '@TBE/utils/auth/getBillingPeriod'
 export const checkQuota: TEndpointConfig = {
   path: `/check`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.read, EPermResource.quota)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { orgId } = req.params
     const { resource, amount = 1 } = req.body
@@ -23,9 +30,6 @@ export const checkQuota: TEndpointConfig = {
     if (!resource) throw new Exception(400, `Missing required field: resource`)
     if (typeof amount !== 'number' || amount <= 0)
       throw new Exception(400, `Amount must be a positive number`)
-
-    // Check membership
-    await requireOrgMember(req, orgId)
 
     // Get current period
     const period = getBillingPeriod()

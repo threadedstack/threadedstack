@@ -2,6 +2,7 @@ import type { Router } from 'express'
 import type { TApp, TRouter } from '@tdsk/domain'
 
 import cors from 'cors'
+import helmet from 'helmet'
 import { behindLBProxy } from '@tdsk/domain'
 import { ensureArr } from '@keg-hub/jsutils/ensureArr'
 
@@ -11,6 +12,7 @@ import { ensureArr } from '@keg-hub/jsutils/ensureArr'
  */
 export const setupServer = (app: TApp, router: TRouter) => {
   app.disable(`x-powered-by`)
+  app.use(helmet())
 
   const origins = ensureArr(app.locals.config.server.origins)
   if (!behindLBProxy())

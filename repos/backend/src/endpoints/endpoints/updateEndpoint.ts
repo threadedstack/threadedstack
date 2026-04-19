@@ -4,10 +4,10 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 import { EPMethod } from '@TBE/types'
 import { isObj } from '@keg-hub/jsutils/isObj'
 import { HttpMethods } from '@TBE/constants/values'
-import { Exception } from '@tdsk/domain'
-import { Endpoint, EPermAction, EPermResource } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
 import { getEPService } from '@TBE/services/endpoints'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
+import { requireResource } from '@TBE/utils/auth/requireResource'
+import { Endpoint, Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * PUT /endpoints/:id - Update an existing endpoint
@@ -16,21 +16,14 @@ import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
 export const updateEndpoint: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.endpoint)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
 
     const { name, path, type, method, headers, options, public: isPublic } = req.body
 
-    const existing = await requireResourceWithPermission(
-      req,
-      db.services.endpoint,
-      id,
-      EPermAction.update,
-      EPermResource.endpoint,
-      `Endpoint`,
-      (data) => ({ orgId: req.params.orgId, projectId: data.projectId })
-    )
+    const existing = await requireResource(db.services.endpoint, id, `Endpoint`)
 
     // Validate HTTP method if provided
     if (method) {

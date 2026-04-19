@@ -2,7 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission, getUserRole } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import { Exception, EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
 
 /**
@@ -12,6 +13,7 @@ import { Exception, EPermAction, EPermResource, canAccessSecretValue } from '@td
 export const getSecret: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.secret)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
@@ -23,12 +25,6 @@ export const getSecret: TEndpointConfig = {
     // Determine scope from secret's exclusive arc
     const orgId = data.orgId
     const projectId = data.projectId
-
-    // Check permission based on secret's scope
-    await checkPermission(req, EPermAction.read, EPermResource.secret, {
-      orgId,
-      projectId,
-    })
 
     // Check if user can see secret values
     const userRole = await getUserRole(req, { orgId, projectId })

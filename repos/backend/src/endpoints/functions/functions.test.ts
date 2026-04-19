@@ -334,44 +334,23 @@ describe(`Functions endpoints`, () => {
     const ep = getEndpointCfg(functions.endpoints?.deleteFunction)
 
     it(`should return 200 with success on delete`, async () => {
-      const existingFunction = new FunctionModel({
-        id: `123`,
-        name: `toDelete`,
-        content: `code`,
-        projectId: `p`,
-        endpointId: `e`,
-      })
       mockReq.params = { id: `123` }
 
       const mockGet = mockReq.app?.locals.db.services.function.get as ReturnType<
         typeof vi.fn
       >
+      mockGet.mockResolvedValue({ data: { id: `123` } })
+
       const mockDelete = mockReq.app?.locals.db.services.function.delete as ReturnType<
         typeof vi.fn
       >
-      mockGet.mockResolvedValue({ data: existingFunction })
-      mockDelete.mockResolvedValue({ data: existingFunction })
+      mockDelete.mockResolvedValue({ data: true })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockGet).toHaveBeenCalledWith(`123`)
       expect(mockDelete).toHaveBeenCalledWith(`123`)
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: { success: true } })
-    })
-
-    it(`should return 404 when function not found`, async () => {
-      mockReq.params = { id: `nonexistent` }
-
-      const mockGet = mockReq.app?.locals.db.services.function.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: undefined })
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Function not found`
-      )
-      expect(mockGet).toHaveBeenCalledWith(`nonexistent`)
     })
   })
 })

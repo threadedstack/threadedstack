@@ -2,8 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -13,15 +13,12 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const listProviders: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.provider)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
 
     if (!orgId) throw new Exception(400, `orgId is required`)
-
-    await checkPermission(req, EPermAction.read, EPermResource.provider, {
-      orgId,
-    })
 
     const { limit, offset } = parsePagination(req)
 

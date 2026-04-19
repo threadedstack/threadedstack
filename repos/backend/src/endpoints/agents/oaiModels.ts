@@ -3,7 +3,7 @@ import type { TEndpointConfig, TRequest, TOAIModel } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 import { formatOAIError } from '@TBE/services/openai/responseAdapter'
@@ -18,6 +18,7 @@ import { formatOAIError } from '@TBE/services/openai/responseAdapter'
 export const oaiModels: TEndpointConfig = {
   path: `/:id/v1/models`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const agentId = req.params.id
@@ -35,10 +36,6 @@ export const oaiModels: TEndpointConfig = {
         res.status(status).json(body)
         return
       }
-
-      await checkPermission(req, EPermAction.read, EPermResource.agent, {
-        orgId: agent.orgId,
-      })
 
       const created = Math.floor(Date.now() / 1000)
       const models: TOAIModel[] = []

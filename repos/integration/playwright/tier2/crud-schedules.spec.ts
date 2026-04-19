@@ -14,11 +14,15 @@ import {
   selectEntityOption,
   ensureFullListLoad,
 } from '../utils/crud-helpers'
+import { isFeatureEnabled } from '@tdsk/domain'
 
 const PAGE_CLASS = 'tdsk-org-schedules-page'
 const FORM_ID = 'schedule-form'
 
 test.describe.serial('CRUD Schedules', () => {
+  test.beforeEach(({}, testInfo) => {
+    test.skip(!isFeatureEnabled('schedules'), 'schedules feature flag is disabled')
+  })
   const cronExpr = '0 */6 * * *'
   const updatedCron = '30 9 * * 1-5'
   const promptText = `Playwright schedule test prompt ${Date.now()}`

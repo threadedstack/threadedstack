@@ -1,16 +1,19 @@
+import type { TOrgWithRole } from '@tdsk/domain'
+
 import { auth } from '@TTH/services/auth'
 import { orgsApi } from '@TTH/services/orgsApi'
 import { storage } from '@TTH/services/storage'
 import { ActiveOrgIdStorageKey } from '@TTH/constants/storage'
+import { listProjects } from '@TTH/actions/projects/listProjects'
+import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
 import {
   setUser,
   setOrgId,
   setOrgs,
   setSandboxes,
   setProjects,
+  setActiveOrgRole,
 } from '@TTH/state/accessors'
-import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
-import { listProjects } from '@TTH/actions/projects/listProjects'
 
 export const init = async () => {
   let resp
@@ -37,6 +40,10 @@ export const init = async () => {
 
   setOrgId(orgId)
   storage.set(ActiveOrgIdStorageKey, orgId)
+
+  // Set the user's role for the selected org
+  const selectedOrg = orgsResult.data?.find((o) => o.id === orgId)
+  setActiveOrgRole((selectedOrg as TOrgWithRole)?.userRole ?? null)
 
   const [sandboxResult, projectResult] = await Promise.all([
     listSandboxes({ orgId }),

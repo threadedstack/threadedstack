@@ -87,7 +87,7 @@ importers:
         version: 2.1.0
       '@mariozechner/pi-web-ui':
         specifier: 0.55.3
-        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)
+        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)(zod@4.3.5)
       '@mui/icons-material':
         specifier: 6.1.2
         version: 6.1.2(@mui/material@6.1.2(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@emotion/styled@11.13.0(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react@19.2.14)(react@18.3.1)
@@ -303,12 +303,18 @@ importers:
       express-jwt:
         specifier: 8.5.1
         version: 8.5.1
+      express-rate-limit:
+        specifier: 8.3.2
+        version: 8.3.2(express@5.1.0)
       glob-to-regexp:
         specifier: 0.4.1
         version: 0.4.1
       handlebars:
         specifier: 4.7.8
         version: 4.7.8
+      helmet:
+        specifier: 8.1.0
+        version: 8.1.0
       http-mitm-proxy:
         specifier: 1.1.0
         version: 1.1.0
@@ -733,6 +739,12 @@ importers:
       express-async-handler:
         specifier: 1.2.0
         version: 1.2.0
+      express-rate-limit:
+        specifier: 8.3.2
+        version: 8.3.2(express@5.1.0)
+      helmet:
+        specifier: 8.1.0
+        version: 8.1.0
       http-proxy-middleware:
         specifier: 3.0.5
         version: 3.0.5
@@ -833,7 +845,7 @@ importers:
         version: 2.1.0
       '@mariozechner/pi-web-ui':
         specifier: 0.55.3
-        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)(zod@4.3.5)
+        version: 0.55.3(@mariozechner/mini-lit@0.2.1(lit@3.3.2)(tailwindcss@4.1.18))(lit@3.3.2)
       '@mui/icons-material':
         specifier: 6.1.2
         version: 6.1.2(@mui/material@6.1.2(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@emotion/styled@11.13.0(@emotion/react@11.13.3(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react@18.3.1))(@types/react@19.2.14)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@types/react@19.2.14)(react@18.3.1)
@@ -7256,6 +7268,12 @@ packages:
     resolution: {integrity: sha512-Dv6QjDLpR2jmdb8M6XQXiCcpEom7mK8TOqnr0/TngDKsG2DHVkO8+XnVxkJVN7BuS1I3OrGw6N8j5DaaGgkDRQ==}
     engines: {node: '>= 8.0.0'}
 
+  express-rate-limit@8.3.2:
+    resolution: {integrity: sha512-77VmFeJkO0/rvimEDuUC5H30oqUC4EyOhyGccfqoLebB0oiEYfM7nwPrsDsBL1gsTpwfzX8SFy2MT3TDyRq+bg==}
+    engines: {node: '>= 16'}
+    peerDependencies:
+      express: '>= 4.11'
+
   express-unless@2.1.3:
     resolution: {integrity: sha512-wj4tLMyCVYuIIKHGt0FhCtIViBcwzWejX0EjNxveAa6dG+0XBCQhMbx+PnkLkFCxLC69qoFrxds4pIyL88inaQ==}
 
@@ -7813,6 +7831,10 @@ packages:
   he@1.2.0:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
+
+  helmet@8.1.0:
+    resolution: {integrity: sha512-jOiHyAZsmnr8LqoPGmCjYAaiuWwjAPLgY8ZX2XrmHawt99/u1y6RgrZMTeoPfpUbV96HOalYgz1qzkRbw54Pmg==}
+    engines: {node: '>=18.0.0'}
 
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
@@ -19490,6 +19512,11 @@ snapshots:
       express-unless: 2.1.3
       jsonwebtoken: 9.0.2
 
+  express-rate-limit@8.3.2(express@5.1.0):
+    dependencies:
+      express: 5.1.0
+      ip-address: 10.1.0
+
   express-unless@2.1.3: {}
 
   express-winston@4.2.0(winston@3.17.0):
@@ -20218,6 +20245,8 @@ snapshots:
       space-separated-tokens: 2.0.2
 
   he@1.2.0: {}
+
+  helmet@8.1.0: {}
 
   highlight.js@10.7.3: {}
 

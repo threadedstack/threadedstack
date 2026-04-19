@@ -108,6 +108,10 @@ describe(`permissions utilities`, () => {
     it(`should return -1 for invalid role`, () => {
       expect(getRoleLevel(`invalid` as ERoleType)).toBe(-1)
     })
+
+    it(`should return -1 for null (non-member)`, () => {
+      expect(getRoleLevel(null)).toBe(-1)
+    })
   })
 
   describe(`hasMinRole`, () => {
@@ -131,6 +135,14 @@ describe(`permissions utilities`, () => {
     it(`should handle edge cases`, () => {
       expect(hasMinRole(ERoleType.super, ERoleType.super)).toBe(true)
       expect(hasMinRole(ERoleType.viewer, ERoleType.super)).toBe(false)
+    })
+
+    it(`should return false for null (non-member)`, () => {
+      expect(hasMinRole(null, ERoleType.viewer)).toBe(false)
+      expect(hasMinRole(null, ERoleType.member)).toBe(false)
+      expect(hasMinRole(null, ERoleType.admin)).toBe(false)
+      expect(hasMinRole(null, ERoleType.owner)).toBe(false)
+      expect(hasMinRole(null, ERoleType.super)).toBe(false)
     })
   })
 
@@ -232,6 +244,78 @@ describe(`permissions utilities`, () => {
       })
     })
 
+    describe(`null role (non-member)`, () => {
+      it(`should deny all actions for null role`, () => {
+        for (const resource of Object.values(EPermResource)) {
+          for (const action of Object.values(EPermAction)) {
+            const result = canPerform(null, action, resource)
+            expect(result.allowed).toBe(false)
+            expect(result.reason).toBe(`Not a member of this organization or project`)
+          }
+        }
+      })
+    })
+
+    describe(`exec action`, () => {
+      it(`should allow member to exec sandbox`, () => {
+        const result = canPerform(
+          ERoleType.member,
+          EPermAction.exec,
+          EPermResource.sandbox
+        )
+        expect(result.allowed).toBe(true)
+      })
+
+      it(`should allow member to exec agent`, () => {
+        const result = canPerform(ERoleType.member, EPermAction.exec, EPermResource.agent)
+        expect(result.allowed).toBe(true)
+      })
+
+      it(`should allow member to exec function`, () => {
+        const result = canPerform(
+          ERoleType.member,
+          EPermAction.exec,
+          EPermResource.function
+        )
+        expect(result.allowed).toBe(true)
+      })
+
+      it(`should deny viewer from exec sandbox`, () => {
+        const result = canPerform(
+          ERoleType.viewer,
+          EPermAction.exec,
+          EPermResource.sandbox
+        )
+        expect(result.allowed).toBe(false)
+        expect(result.requiredRole).toBe(ERoleType.member)
+      })
+
+      it(`should deny viewer from exec agent`, () => {
+        const result = canPerform(ERoleType.viewer, EPermAction.exec, EPermResource.agent)
+        expect(result.allowed).toBe(false)
+        expect(result.requiredRole).toBe(ERoleType.member)
+      })
+
+      it(`should deny member from exec org`, () => {
+        const result = canPerform(ERoleType.member, EPermAction.exec, EPermResource.org)
+        expect(result.allowed).toBe(false)
+        expect(result.requiredRole).toBe(ERoleType.admin)
+      })
+
+      it(`should allow admin to exec org`, () => {
+        const result = canPerform(ERoleType.admin, EPermAction.exec, EPermResource.org)
+        expect(result.allowed).toBe(true)
+      })
+
+      it(`should deny null role from exec any resource`, () => {
+        for (const resource of Object.values(EPermResource)) {
+          const result = canPerform(null, EPermAction.exec, resource)
+          expect(result.allowed).toBe(false)
+          expect(result.reason).toBe(`Not a member of this organization or project`)
+        }
+      })
+    })
+
     describe(`super admin bypass`, () => {
       it(`should allow super admin all actions on all resources`, () => {
         for (const resource of Object.values(EPermResource)) {
@@ -264,6 +348,10 @@ describe(`permissions utilities`, () => {
     it(`should return true for super`, () => {
       expect(canAccessSecretValue(ERoleType.super)).toBe(true)
     })
+
+    it(`should return false for null (non-member)`, () => {
+      expect(canAccessSecretValue(null)).toBe(false)
+    })
   })
 
   describe(`isSuperAdmin`, () => {
@@ -277,11 +365,15 @@ describe(`permissions utilities`, () => {
     it(`should return true only for super`, () => {
       expect(isSuperAdmin(ERoleType.super)).toBe(true)
     })
+
+    it(`should return false for null (non-member)`, () => {
+      expect(isSuperAdmin(null)).toBe(false)
+    })
   })
 
   describe(`getHighestRole`, () => {
-    it(`should return viewer for empty array`, () => {
-      expect(getHighestRole([])).toBe(ERoleType.viewer)
+    it(`should return null for empty array`, () => {
+      expect(getHighestRole([])).toBeNull()
     })
 
     it(`should return single role when array has one item`, () => {
@@ -308,6 +400,16 @@ describe(`permissions utilities`, () => {
     it(`should handle duplicate roles`, () => {
       expect(getHighestRole([ERoleType.member, ERoleType.member, ERoleType.member])).toBe(
         ERoleType.member
+      )
+    })
+
+    it(`should return null when all roles are null`, () => {
+      expect(getHighestRole([null, null, null])).toBeNull()
+    })
+
+    it(`should filter out null values and return highest valid role`, () => {
+      expect(getHighestRole([null, ERoleType.admin, null, ERoleType.member])).toBe(
+        ERoleType.admin
       )
     })
   })
@@ -355,6 +457,14 @@ describe(`permissions utilities`, () => {
       expect(canManageRole(ERoleType.viewer, ERoleType.viewer)).toBe(false)
       expect(canManageRole(ERoleType.viewer, ERoleType.member)).toBe(false)
     })
+
+    it(`should not allow null (non-member) to manage anyone`, () => {
+      expect(canManageRole(null, ERoleType.viewer)).toBe(false)
+      expect(canManageRole(null, ERoleType.member)).toBe(false)
+      expect(canManageRole(null, ERoleType.admin)).toBe(false)
+      expect(canManageRole(null, ERoleType.owner)).toBe(false)
+      expect(canManageRole(null, ERoleType.super)).toBe(false)
+    })
   })
 
   describe(`getAllowedActions`, () => {
@@ -401,6 +511,22 @@ describe(`permissions utilities`, () => {
       expect(actions).toContain(EPermAction.update)
       expect(actions).toContain(EPermAction.delete)
       expect(actions).toContain(EPermAction.manage)
+    })
+
+    it(`should include exec in allowed actions for member on sandbox`, () => {
+      const actions = getAllowedActions(ERoleType.member, EPermResource.sandbox)
+      expect(actions).toContain(EPermAction.exec)
+    })
+
+    it(`should not include exec in allowed actions for viewer on sandbox`, () => {
+      const actions = getAllowedActions(ERoleType.viewer, EPermResource.sandbox)
+      expect(actions).not.toContain(EPermAction.exec)
+    })
+
+    it(`should return empty array for null (non-member)`, () => {
+      expect(getAllowedActions(null, EPermResource.org)).toEqual([])
+      expect(getAllowedActions(null, EPermResource.project)).toEqual([])
+      expect(getAllowedActions(null, EPermResource.apiKey)).toEqual([])
     })
   })
 

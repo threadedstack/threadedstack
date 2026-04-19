@@ -2,7 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 import {
   agents,
   secrets,
@@ -23,7 +24,6 @@ import {
   encodeEncrypted,
   ProviderTemplates,
 } from '@tdsk/domain'
-import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 
 /**
  * POST /:orgId/quickstart - Create Provider + Secret + Project + Agent + Endpoint
@@ -34,6 +34,7 @@ import { ModelRegistry } from '@TBE/services/providers/modelRegistry'
 export const orgQuickstart: TEndpointConfig = {
   path: `/:orgId/quickstart`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.project)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const orgId = req.params.orgId
@@ -83,9 +84,6 @@ export const orgQuickstart: TEndpointConfig = {
     const resolvedModel = model || ModelRegistry.getDefaultModelId(providerBrand) || ``
     const modelEntry = ModelRegistry.getModel(providerBrand, resolvedModel)
     const resolvedMaxTokens = maxTokens || modelEntry?.maxTokens || 100000
-
-    // --- Permission check ---
-    await checkPermission(req, EPermAction.create, EPermResource.project, { orgId })
 
     // --- Create endpoint path slug ---
     const slug = agentName

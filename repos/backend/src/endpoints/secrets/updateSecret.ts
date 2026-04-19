@@ -2,7 +2,7 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import {
   Secret,
   Exception,
@@ -21,6 +21,7 @@ import {
 export const updateSecret: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Put,
+  middleware: [authorize(EPermAction.update, EPermResource.secret)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db } = req.app.locals
@@ -29,12 +30,6 @@ export const updateSecret: TEndpointConfig = {
     const { data: existing, error: getError } = await db.services.secret.get(id)
     if (getError) throw new Exception(500, getError.message)
     if (!existing) throw new Exception(404, `Secret not found`)
-
-    // Check permission based on secret's scope - requires admin+
-    await checkPermission(req, EPermAction.update, EPermResource.secret, {
-      orgId: existing.orgId,
-      projectId: existing.projectId,
-    })
 
     try {
       const update = new Secret({ id })

@@ -2,6 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
   Sandbox,
   Exception,
@@ -10,7 +12,6 @@ import {
   EPermAction,
   EPermResource,
 } from '@tdsk/domain'
-import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 
 /**
  * POST /sandboxes/:id/copy - Deep-copy a sandbox config
@@ -19,6 +20,7 @@ import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 export const copySandbox: TEndpointConfig = {
   path: `/:id/copy`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { id } = req.params
@@ -30,10 +32,6 @@ export const copySandbox: TEndpointConfig = {
     const { data: original, error: getError } = await db.services.sandbox.get(id)
     if (getError || !original) throw new Exception(404, `Sandbox not found`)
     if (original.orgId !== orgId) throw new Exception(404, `Sandbox not found`)
-
-    await checkPermission(req, EPermAction.create, EPermResource.sandbox, {
-      orgId: original.orgId,
-    })
 
     const name = req.body.name || `${original.name} (copy)`
     const copy = new Sandbox({

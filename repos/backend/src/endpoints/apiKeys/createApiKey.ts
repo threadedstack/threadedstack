@@ -2,19 +2,20 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { logger } from '@TBE/utils/logger'
 import { Exception } from '@tdsk/domain'
+import { logger } from '@TBE/utils/logger'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
   validateApiKey,
   validateProjectKeyPermission,
 } from '@TBE/utils/auth/validateApiKey'
-import { checkPermission, getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
   ApiKey,
-  EPermAction,
-  EPermResource,
   ERoleType,
   hasMinRole,
+  EPermAction,
+  EPermResource,
   generateApiKey,
 } from '@tdsk/domain'
 
@@ -25,6 +26,7 @@ import {
 export const createApiKey: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.create, EPermResource.apiKey)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const keyData = { ...req.body }
@@ -37,19 +39,6 @@ export const createApiKey: TEndpointConfig = {
     if (!valid || error) throw new Exception(400, error)
 
     const { name, orgId, scopes, projectId, expiresAt, rateLimit } = keyData
-
-    // Check permission based on scope type
-    if (projectId) {
-      // Project-scoped key: check project or org-level permission
-      // Org admins/owners can manage project keys even without explicit project membership
-      await checkPermission(req, EPermAction.create, EPermResource.apiKey, {
-        projectId,
-        orgId: req.params.orgId,
-      })
-    } else {
-      // Org-scoped key: check org-level permission
-      await checkPermission(req, EPermAction.create, EPermResource.apiKey, { orgId })
-    }
 
     // Resolve target userId
     let targetUserId = req.user?.id

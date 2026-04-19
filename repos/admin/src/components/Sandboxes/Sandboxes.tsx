@@ -5,11 +5,12 @@ import { toast } from 'sonner'
 import { ConfirmDelete } from '@tdsk/components'
 import { useState, useMemo, useCallback } from 'react'
 import { statusColor } from '@TAF/utils/sandbox/status'
-import { ESBState, ESandboxRuntime } from '@tdsk/domain'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ConnectModal } from '@TAF/components/Sandboxes/ConnectModal'
+import { usePermissions } from '@TAF/hooks/permissions/usePermissions'
+import { ESBState, ESandboxRuntime, EPermResource } from '@tdsk/domain'
 import { SandboxDrawer } from '@TAF/components/Sandboxes/SandboxDrawer'
 import { useOrgSandboxes, useProjectSandboxes } from '@TAF/state/selectors'
 import { Box, Typography, Chip, CircularProgress, Tooltip } from '@mui/material'
@@ -64,6 +65,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<Sandbox>()
   const [error, setError] = useState<Error | null>(null)
+  const { canCreate, canUpdate, canDelete, canExec } = usePermissions()
   const [podStates, setPodStates] = useState<Record<string, TPodState>>({})
   const [busySandboxes, setBusySandboxes] = useState<Set<string>>(new Set())
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null)
@@ -460,9 +462,10 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
                 <ActionIconButton
                   size='small'
                   color='warning'
-                  disabled={isBusy}
                   tooltip='Stop Sandbox'
                   icon={<StopIcon sx={styles.table.actions.icon} />}
+                  disabled={isBusy || !canExec(EPermResource.sandbox)}
+                  disabledTooltip='You do not have permission to stop sandboxes'
                   onClick={(e) => {
                     e.stopPropagation()
                     onStopSandbox(sandbox)
@@ -472,9 +475,10 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
                 <ActionIconButton
                   size='small'
                   color='info'
-                  disabled={isBusy}
                   tooltip='Start Sandbox'
                   icon={<StartIcon sx={styles.table.actions.icon} />}
+                  disabled={isBusy || !canExec(EPermResource.sandbox)}
+                  disabledTooltip='You do not have permission to start sandboxes'
                   onClick={(e) => {
                     e.stopPropagation()
                     onStartSandbox(sandbox)
@@ -485,9 +489,10 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
               <ActionIconButton
                 size='small'
                 color='success'
-                disabled={isBusy}
                 tooltip='Connect to Sandbox'
+                disabled={isBusy || !canExec(EPermResource.sandbox)}
                 icon={<ConnectIcon sx={styles.table.actions.icon} />}
+                disabledTooltip='You do not have permission to connect to sandboxes'
                 onClick={(e) => {
                   e.stopPropagation()
                   onConnectSandbox(sandbox)
@@ -497,9 +502,10 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
             <ActionIconButton
               size='small'
               color='secondary'
-              disabled={isBusy}
               tooltip='Copy Sandbox'
               icon={<CopyIcon sx={styles.table.actions.icon} />}
+              disabled={isBusy || !canCreate(EPermResource.sandbox)}
+              disabledTooltip='You do not have permission to copy sandboxes'
               onClick={(e) => {
                 e.stopPropagation()
                 onCopySandbox(sandbox)
@@ -509,7 +515,9 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
               size='small'
               color='primary'
               tooltip='Edit Sandbox'
+              disabled={!canUpdate(EPermResource.sandbox)}
               icon={<EditIcon sx={styles.table.actions.icon} />}
+              disabledTooltip='You do not have permission to edit sandboxes'
               onClick={(e) => {
                 e.stopPropagation()
                 onEditSandbox(sandbox)
@@ -519,7 +527,9 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
               size='small'
               color='error'
               tooltip='Delete Sandbox'
+              disabled={!canDelete(EPermResource.sandbox)}
               icon={<DeleteIcon sx={styles.table.actions.icon} />}
+              disabledTooltip='You do not have permission to delete sandboxes'
               onClick={(e) => {
                 e.stopPropagation()
                 setDeleting(sandbox)
@@ -544,6 +554,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
       searchPlaceholder='Search sandbox configs...'
       onAction={sandboxCount > 0 && onCreateSandbox}
       actionLabel={sandboxCount > 0 && 'Create Sandbox'}
+      actionDisabled={!canCreate(EPermResource.sandbox)}
       setError={(msg?: string) => setError(msg ? new Error(msg) : null)}
     >
       {!error && sandboxCount === 0 && !loading && (
@@ -551,6 +562,7 @@ export const Sandboxes = ({ orgId, projectId }: TSandboxes) => {
           actionIcon={<AddIcon />}
           onAction={onCreateSandbox}
           actionLabel='Create Sandbox'
+          actionDisabled={!canCreate(EPermResource.sandbox)}
           message='No sandbox configs yet. Create your first sandbox config to get started.'
         />
       )}

@@ -2,10 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
-import { Exception } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * GET /:orgId/agents/:agentId/threads - List threads for an agent
@@ -14,6 +13,7 @@ import { parsePagination } from '@TBE/utils/pagination'
 export const listThreads: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.thread)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId, agentId } = req.params
@@ -22,10 +22,6 @@ export const listThreads: TEndpointConfig = {
     if (!orgId) throw new Exception(400, `orgId parameter required`)
     if (!agentId) throw new Exception(400, `agentId parameter required`)
     if (!userId) throw new Exception(401, `Authentication required`)
-
-    await checkPermission(req, EPermAction.read, EPermResource.thread, {
-      orgId,
-    })
 
     const { limit, offset } = parsePagination(req)
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Organization, Project, Agent } from '@tdsk/domain'
+import type { Organization, Project, Agent, ERoleType } from '@tdsk/domain'
 import type { TAnyCB } from '@TAF/types/helper.types'
 import type {
   LinkProps,
@@ -16,6 +16,7 @@ export type TNavCtx = {
   projectId?: string
   org?: Organization
   endpointId?: string
+  role?: ERoleType | null
   agents?: Record<string, Agent>
 }
 
@@ -77,6 +78,7 @@ export type TSettingNavItem = {
   label: string
   onClick?: TAnyCB
   divider?: boolean
+  minRole?: ERoleType
   linkProps?: LinkProps
   iconProps?: SvgIconProps
   itemProps?: MenuItemProps

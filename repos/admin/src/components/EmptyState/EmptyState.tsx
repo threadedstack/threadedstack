@@ -8,6 +8,7 @@ export type TEmptyState = {
   actionLabel?: string
   onAction?: () => void
   actionIcon?: ReactNode
+  actionDisabled?: boolean
   actionVariant?: 'contained' | 'outlined' | 'text'
 }
 
@@ -18,6 +19,7 @@ export const EmptyState = (props: TEmptyState) => {
     onAction,
     actionIcon,
     actionLabel,
+    actionDisabled,
     actionVariant = 'outlined',
   } = props
 
@@ -36,6 +38,7 @@ export const EmptyState = (props: TEmptyState) => {
               onClick={onAction}
               startIcon={actionIcon}
               variant={actionVariant}
+              disabled={actionDisabled}
             >
               {actionLabel}
             </Button>

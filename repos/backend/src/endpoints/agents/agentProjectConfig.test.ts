@@ -10,10 +10,6 @@ import {
   deleteAgentProjectConfig,
 } from './agentProjectConfig'
 
-vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
-  checkPermission: vi.fn().mockResolvedValue(undefined),
-}))
-
 describe(`AgentProjectConfig endpoints`, () => {
   let mockReq: Partial<TRequest>
   let mockRes: Partial<Response>
@@ -132,17 +128,6 @@ describe(`AgentProjectConfig endpoints`, () => {
         getAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
       ).rejects.toThrow(`No config found for agent agent-1 in project proj-1`)
     })
-
-    it(`should return 404 when agent not found`, async () => {
-      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: undefined })
-
-      await expect(
-        getAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`Agent not found`)
-    })
   })
 
   describe(`PUT - upsertAgentProjectConfig`, () => {
@@ -260,19 +245,6 @@ describe(`AgentProjectConfig endpoints`, () => {
       ).rejects.toThrow(`Function func-other does not belong to project proj-1`)
     })
 
-    it(`should return 404 when agent not found`, async () => {
-      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: undefined })
-
-      mockReq.body = { model: `claude-3` }
-
-      await expect(
-        upsertAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`Agent not found`)
-    })
-
     it(`should return 500 when upsertProjectConfig fails`, async () => {
       mockReq.body = { model: `claude-3` }
 
@@ -342,17 +314,6 @@ describe(`AgentProjectConfig endpoints`, () => {
       expect(mockJson).toHaveBeenCalledWith({
         data: { id: `agent-1`, configReset: true },
       })
-    })
-
-    it(`should return 404 when agent not found`, async () => {
-      const mockGet = mockReq.app?.locals.db.services.agent.get as ReturnType<
-        typeof vi.fn
-      >
-      mockGet.mockResolvedValue({ data: undefined })
-
-      await expect(
-        deleteAgentProjectConfig.action!(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`Agent not found`)
     })
 
     it(`should return 500 when upsertProjectConfig fails on reset`, async () => {

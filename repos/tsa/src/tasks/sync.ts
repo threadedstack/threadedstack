@@ -11,6 +11,10 @@ import { SyncManager } from '@TSA/services/sync/syncManager'
 import { resolveProjectId } from '@TSA/utils/tasks/resolveProjectId'
 import { ensureSshConfig, getPublicKey } from '@TSA/services/sync/sshConfig'
 import { mergeRules, resolveSourcePath } from '@TSA/services/sync/configLoader'
+import {
+  registerSyncCleanup,
+  clearSyncCleanup,
+} from '@TSA/utils/tasks/syncCleanupRegistry'
 
 const driver = new CliDriver()
 const manager = new SyncManager(driver)
@@ -113,6 +117,49 @@ const flushTask: TTask = {
   }),
 }
 
+const cleanupTask: TTask = {
+  name: `cleanup`,
+  description: `Terminate orphaned sync sessions (errored/disconnected)`,
+  example: `tsa sync cleanup`,
+  action: requireAuth(async () => {
+    const sessions = await manager.status()
+    const orphaned = sessions.filter(
+      (s) => s.status === `errored` || s.status === `disconnected`
+    )
+
+    if (orphaned.length === 0) {
+      process.stdout.write(`${themed(`muted`, `No orphaned sessions found`)}\n`)
+      return
+    }
+
+    process.stdout.write(
+      `${themed(`muted`, `Found ${orphaned.length} orphaned session${orphaned.length !== 1 ? `s` : ``}`)}\n`
+    )
+
+    const errors: string[] = []
+    for (const s of orphaned) {
+      const sbId = s.labels?.sandboxId || `unknown`
+      process.stdout.write(
+        `  ${themed(`muted`, s.name)} (${sbId}) — ${themed(`warning`, s.status)}\n`
+      )
+      try {
+        await driver.terminateSession(s.id)
+      } catch (err) {
+        errors.push(`${s.name || s.id}: ${(err as Error).message}`)
+      }
+    }
+
+    if (errors.length) {
+      process.stderr.write(
+        `${themed(`warning`, `Warning: could not terminate ${errors.length} session(s):`)} ${errors.join(`; `)}\n`
+      )
+    }
+    process.stdout.write(
+      `${themed(`success`, `Cleaned up ${orphaned.length - errors.length} session${orphaned.length - errors.length !== 1 ? `s` : ``}`)}\n`
+    )
+  }),
+}
+
 export const sync: TTask = {
   name: `sync`,
   alias: [`sy`],
@@ -122,6 +169,7 @@ export const sync: TTask = {
     stop: stopTask,
     status: statusTask,
     flush: flushTask,
+    cleanup: cleanupTask,
   },
   options: {
     daemon: {
@@ -332,11 +380,17 @@ export const sync: TTask = {
           `  ${themed(`muted`, s.name)} ${s.source || `?`} -> ${s.target || `?`}\n`
         )
       }
+      process.stdout.write(
+        `\n${themed(`muted`, `File sync running in background. Use "tsa sync stop ${sandboxId}" to stop.`)}\n`
+      )
       return
     }
 
     // Foreground mode: block until Ctrl+C
     process.stdout.write(`${themed(`muted`, `Press Ctrl+C to stop sync`)}\n\n`)
+
+    // Register for global signal handler fallback
+    registerSyncCleanup(sandboxId, manager)
 
     let cleanupRunning = false
     const cleanup = async () => {
@@ -345,6 +399,7 @@ export const sync: TTask = {
         process.exit(1)
       }
       cleanupRunning = true
+      clearSyncCleanup()
       process.stdout.write(`\n${themed(`muted`, `Stopping sync...`)}\n`)
       const timer = setTimeout(() => {
         process.stderr.write(

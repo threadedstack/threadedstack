@@ -1,13 +1,12 @@
 import type { Response } from 'express'
+import type { Domain } from '@tdsk/domain'
 import type { TDBApiRes } from '@TDB/types'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { cleanColl } from '@keg-hub/jsutils/cleanColl'
-import { Exception } from '@tdsk/domain'
-import type { Domain } from '@tdsk/domain'
-import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
+import { authorize } from '@TBE/middleware/authorize'
+import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
  * PATCH /domains/:domain - Update a domain
@@ -17,6 +16,7 @@ import { checkPermission } from '@TBE/utils/auth/checkPermission'
 export const updateDomain: TEndpointConfig = {
   path: `/:domain`,
   method: EPMethod.Patch,
+  middleware: [authorize(EPermAction.update, EPermResource.domain)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { domain } = req.params
@@ -34,21 +34,6 @@ export const updateDomain: TEndpointConfig = {
     // Get the domain first to check permissions
     const { data: record, error } = await db.services.domain.by({ domain })
     if (error) throw new Exception(404, error?.message || `Domain "${domain}" not found!`)
-
-    // Check permission
-    if (record.orgId) {
-      await checkPermission(req, EPermAction.update, EPermResource.domain, {
-        orgId: record.orgId,
-      })
-    } else if (record.projectId) {
-      // Get project to find orgId
-      const { data: project } = await db.services.project.get(record.projectId)
-      if (project) {
-        await checkPermission(req, EPermAction.update, EPermResource.domain, {
-          orgId: project.orgId,
-        })
-      }
-    }
 
     const updateResult = await db.services.domain.update(
       cleanColl({

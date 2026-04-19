@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { parsePagination } from '@TBE/utils/pagination'
-import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import {
   Exception,
   ERoleType,
@@ -22,6 +23,7 @@ import {
 export const listSandboxes: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const orgId = req.params.orgId || (req.query.orgId as string)
@@ -30,9 +32,6 @@ export const listSandboxes: TEndpointConfig = {
     const projectId = (req.params.projectId || req.query.projectId) as string | undefined
 
     if (!orgId) throw new Exception(400, `orgId parameter required`)
-
-    // Check permission to read sandboxes in this org
-    await checkPermission(req, EPermAction.read, EPermResource.sandbox, { orgId })
 
     // Get user role once for access filtering
     const userRole = await getUserRole(req, { orgId })

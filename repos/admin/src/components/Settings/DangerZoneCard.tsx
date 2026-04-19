@@ -4,15 +4,13 @@ export type TDangerZoneCard = {
   title: string
   description: string
   buttonLabel: string
+  disabled?: boolean
   onAction: () => void
 }
 
-export const DangerZoneCard = ({
-  title,
-  description,
-  buttonLabel,
-  onAction,
-}: TDangerZoneCard) => {
+export const DangerZoneCard = (props: TDangerZoneCard) => {
+  const { title, disabled, onAction, description, buttonLabel } = props
+
   return (
     <Card sx={{ border: '1px solid', borderColor: 'error.main' }}>
       <CardContent>
@@ -43,6 +41,7 @@ export const DangerZoneCard = ({
             variant='outlined'
             color='error'
             onClick={onAction}
+            disabled={disabled}
           >
             {buttonLabel}
           </Button>

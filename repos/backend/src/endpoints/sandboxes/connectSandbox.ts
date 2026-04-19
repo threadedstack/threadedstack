@@ -3,26 +3,20 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { logger } from '@TBE/utils/logger'
+import { authorize } from '@TBE/middleware/authorize'
 import { signShellToken } from '@TBE/services/sessionToken'
-import { requireResourceWithPermission } from '@TBE/utils/auth/requireResource'
-import { EContainerState, Exception, EPermAction, EPermResource } from '@tdsk/domain'
+import { requireResource } from '@TBE/utils/auth/requireResource'
+import { Exception, EPermAction, EPermResource, EContainerState } from '@tdsk/domain'
 
 export const connectSandbox: TEndpointConfig = {
   path: `/:id/connect`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.exec, EPermResource.sandbox)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { id } = req.params
     const { db, config } = req.app.locals
 
-    const sandbox = await requireResourceWithPermission(
-      req,
-      db.services.sandbox,
-      id,
-      EPermAction.update,
-      EPermResource.sandbox,
-      `Sandbox`,
-      (sb) => ({ orgId: sb.orgId })
-    )
+    const sandbox = await requireResource(db.services.sandbox, id, `Sandbox`)
 
     const { projectId } = req.params
     if (!projectId)

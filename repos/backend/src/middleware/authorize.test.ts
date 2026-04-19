@@ -3,7 +3,7 @@ import type { TRequest, TResponse } from '@TBE/types'
 import type { NextFunction } from 'express'
 import { ERoleType, EPermAction, EPermResource } from '@tdsk/domain'
 
-import { authorize, requireOrg, requireProject, requireRole } from './authorize'
+import { authorize } from './authorize'
 
 describe(`authorize middleware`, () => {
   let mockNext: ReturnType<typeof vi.fn>
@@ -23,8 +23,6 @@ describe(`authorize middleware`, () => {
                 getProjectRole: vi
                   .fn()
                   .mockResolvedValue({ data: { type: ERoleType.admin } }),
-                isOrgMember: vi.fn().mockResolvedValue({ data: true }),
-                isProjectMember: vi.fn().mockResolvedValue({ data: true }),
               },
             },
           },
@@ -33,6 +31,7 @@ describe(`authorize middleware`, () => {
       params: {},
       query: {},
       body: {},
+      header: vi.fn().mockReturnValue(undefined),
       ...overrides,
     } as unknown as TRequest
   }
@@ -78,10 +77,10 @@ describe(`authorize middleware`, () => {
       expect(mockNext).toHaveBeenCalledWith()
     })
 
-    it(`should NOT use body.orgId even when params and query are empty`, async () => {
+    it(`should use body.orgId as last fallback`, async () => {
       const req = buildMockReq({
         params: {},
-        body: { orgId: `evil-org-id` },
+        body: { orgId: `org-from-body` },
         query: {},
       })
 
@@ -91,10 +90,8 @@ describe(`authorize middleware`, () => {
       const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
         typeof vi.fn
       >
-      // orgId should be undefined/falsy, not 'evil-org-id'
-      if (mockGetOrgRole.mock.calls.length > 0) {
-        expect(mockGetOrgRole.mock.calls[0][1]).not.toBe(`evil-org-id`)
-      }
+      expect(mockGetOrgRole).toHaveBeenCalledWith(`test-user-id`, `org-from-body`)
+      expect(mockNext).toHaveBeenCalledWith()
     })
 
     it(`should pass error to next on permission failure`, async () => {
@@ -111,168 +108,121 @@ describe(`authorize middleware`, () => {
 
       expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
     })
-  })
 
-  describe(`requireOrg() - Exception handling`, () => {
-    it(`should throw Exception with 400 status when org ID is missing`, async () => {
-      const { Exception } = await import('@tdsk/domain')
-      const req = buildMockReq({
-        params: {},
-        query: {},
-      })
-
-      const middleware = requireOrg()
-      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
-
-      expect(mockNext).toHaveBeenCalledTimes(1)
-      const error = mockNext.mock.calls[0][0]
-      expect(error).toBeInstanceOf(Exception)
-      expect(error.status).toBe(400)
-      expect(error.message).toBe(`Organization ID required`)
-    })
-  })
-
-  describe(`requireProject() - Exception handling`, () => {
-    it(`should throw Exception with 400 status when project ID is missing`, async () => {
-      const { Exception } = await import('@tdsk/domain')
-      const req = buildMockReq({
-        params: {},
-        query: {},
-      })
-
-      const middleware = requireProject()
-      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
-
-      expect(mockNext).toHaveBeenCalledTimes(1)
-      const error = mockNext.mock.calls[0][0]
-      expect(error).toBeInstanceOf(Exception)
-      expect(error.status).toBe(400)
-      expect(error.message).toBe(`Project ID required`)
-    })
-  })
-
-  describe(`requireOrg()`, () => {
-    it(`should use params.orgId and ignore body.orgId`, async () => {
-      const req = buildMockReq({
-        params: { orgId: `org-from-params` },
-        body: { orgId: `evil-org-id` },
-      })
-
-      const middleware = requireOrg()
-      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
-
-      const mockIsOrgMember = req.app.locals.db.services.role.isOrgMember as ReturnType<
-        typeof vi.fn
-      >
-      expect(mockIsOrgMember).toHaveBeenCalledWith(`test-user-id`, `org-from-params`)
-      expect(mockNext).toHaveBeenCalledWith()
-    })
-
-    it(`should NOT use body.orgId when params are empty`, async () => {
-      const req = buildMockReq({
-        params: {},
-        body: { orgId: `evil-org-id` },
-        query: {},
-      })
-
-      const middleware = requireOrg()
-      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
-
-      // Should error because no orgId found (body is ignored)
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
-    })
-
-    it(`should use params.id as fallback`, async () => {
-      const req = buildMockReq({
-        params: { id: `org-from-id` },
-        body: { orgId: `evil-org-id` },
-      })
-
-      const middleware = requireOrg()
-      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
-
-      const mockIsOrgMember = req.app.locals.db.services.role.isOrgMember as ReturnType<
-        typeof vi.fn
-      >
-      expect(mockIsOrgMember).toHaveBeenCalledWith(`test-user-id`, `org-from-id`)
-    })
-  })
-
-  describe(`requireProject()`, () => {
-    it(`should use params.projectId and ignore body.projectId`, async () => {
+    it(`should extract projectId from params, query, or body`, async () => {
       const req = buildMockReq({
         params: { projectId: `proj-from-params` },
-        body: { projectId: `evil-project-id` },
-      })
-
-      const middleware = requireProject()
-      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
-
-      const mockIsProjectMember = req.app.locals.db.services.role
-        .isProjectMember as ReturnType<typeof vi.fn>
-      expect(mockIsProjectMember).toHaveBeenCalledWith(`test-user-id`, `proj-from-params`)
-      expect(mockNext).toHaveBeenCalledWith()
-    })
-
-    it(`should NOT use body.projectId when params are empty`, async () => {
-      const req = buildMockReq({
-        params: {},
-        body: { projectId: `evil-project-id` },
+        body: {},
         query: {},
       })
 
-      const middleware = requireProject()
+      const middleware = authorize(EPermAction.read, EPermResource.project)
       await middleware(req, mockRes as TResponse, mockNext as NextFunction)
 
-      // Should error because no projectId found (body is ignored)
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
-    })
-
-    it(`should use params.id as fallback`, async () => {
-      const req = buildMockReq({
-        params: { id: `proj-from-id` },
-        body: { projectId: `evil-project-id` },
-      })
-
-      const middleware = requireProject()
-      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
-
-      const mockIsProjectMember = req.app.locals.db.services.role
-        .isProjectMember as ReturnType<typeof vi.fn>
-      expect(mockIsProjectMember).toHaveBeenCalledWith(`test-user-id`, `proj-from-id`)
-    })
-  })
-
-  describe(`requireRole()`, () => {
-    it(`should use params and ignore body for context`, async () => {
-      const req = buildMockReq({
-        params: { orgId: `org-from-params` },
-        body: { orgId: `evil-org-id` },
-      })
-
-      const middleware = requireRole(ERoleType.admin)
-      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
-
-      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
-        typeof vi.fn
-      >
-      expect(mockGetOrgRole).toHaveBeenCalledWith(`test-user-id`, `org-from-params`)
+      const mockGetProjectRole = req.app.locals.db.services.role
+        .getProjectRole as ReturnType<typeof vi.fn>
+      expect(mockGetProjectRole).toHaveBeenCalledWith(`test-user-id`, `proj-from-params`)
       expect(mockNext).toHaveBeenCalledWith()
     })
 
-    it(`should pass error to next when role is insufficient`, async () => {
+    it(`should call next with 403 error when getUserRole returns null (non-member)`, async () => {
       const req = buildMockReq({
         params: { orgId: `org-1` },
       })
       const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
         typeof vi.fn
       >
-      mockGetOrgRole.mockResolvedValue({ data: { type: ERoleType.viewer } })
+      mockGetOrgRole.mockResolvedValue({ data: null })
 
-      const middleware = requireRole(ERoleType.admin)
+      const middleware = authorize(EPermAction.read, EPermResource.org)
       await middleware(req, mockRes as TResponse, mockNext as NextFunction)
 
       expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
+      const error = mockNext.mock.calls[0][0]
+      expect(error.status).toBe(403)
+    })
+
+    it(`should call next with error when req.user is undefined`, async () => {
+      const req = buildMockReq({
+        user: undefined,
+        params: { orgId: `org-1` },
+      })
+
+      const middleware = authorize(EPermAction.read, EPermResource.org)
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
+      const error = mockNext.mock.calls[0][0]
+      expect(error.status).toBe(403)
+    })
+
+    it(`should call next with error when req.user.id is missing`, async () => {
+      const req = buildMockReq({
+        user: { email: `test@example.com` },
+        params: { orgId: `org-1` },
+      })
+
+      const middleware = authorize(EPermAction.read, EPermResource.org)
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
+      const error = mockNext.mock.calls[0][0]
+      expect(error.status).toBe(403)
+    })
+
+    it(`should use orgId from auth headers when present`, async () => {
+      const req = buildMockReq({
+        params: {},
+        query: {},
+        body: {},
+        header: vi.fn().mockImplementation((key: string) => {
+          if (key === `X-User-Org-Id`) return `org-from-auth-header`
+          return undefined
+        }),
+      })
+
+      const middleware = authorize(EPermAction.read, EPermResource.org)
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockGetOrgRole).toHaveBeenCalledWith(`test-user-id`, `org-from-auth-header`)
+      expect(mockNext).toHaveBeenCalledWith()
+    })
+
+    it(`should use orgId from body when no params, query, or auth header`, async () => {
+      const req = buildMockReq({
+        params: {},
+        query: {},
+        body: { orgId: `org-from-body` },
+        header: vi.fn().mockReturnValue(undefined),
+      })
+
+      const middleware = authorize(EPermAction.read, EPermResource.org)
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
+        typeof vi.fn
+      >
+      expect(mockGetOrgRole).toHaveBeenCalledWith(`test-user-id`, `org-from-body`)
+      expect(mockNext).toHaveBeenCalledWith()
+    })
+
+    it(`should use projectId from body when not in params or query`, async () => {
+      const req = buildMockReq({
+        params: { orgId: `org-1` },
+        query: {},
+        body: { projectId: `proj-from-body` },
+      })
+
+      const middleware = authorize(EPermAction.read, EPermResource.project)
+      await middleware(req, mockRes as TResponse, mockNext as NextFunction)
+
+      const mockGetProjectRole = req.app.locals.db.services.role
+        .getProjectRole as ReturnType<typeof vi.fn>
+      expect(mockGetProjectRole).toHaveBeenCalledWith(`test-user-id`, `proj-from-body`)
+      expect(mockNext).toHaveBeenCalledWith()
     })
   })
 })

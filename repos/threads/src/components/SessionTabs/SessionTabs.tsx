@@ -5,7 +5,7 @@ import { closeSession } from '@TTH/actions/sessions'
 import { Box, Tabs, Tab, Badge } from '@mui/material'
 import { setActiveSession } from '@TTH/state/accessors'
 import {
-  useToolState,
+  useSessionMode,
   useSandboxes,
   useOpenSessions,
   useActiveSession,
@@ -28,18 +28,18 @@ type TTabLabel = {
 }
 
 const StatusDot = (props: TStatusDot) => {
-  const toolState = useToolState(props.sessionId)
+  const mode = useSessionMode(props.sessionId)
 
   const color = useMemo(() => {
-    switch (toolState) {
-      case `working`:
+    switch (mode) {
+      case `streaming`:
         return `success.main`
-      case `permission`:
+      case `interactive`:
         return `warning.main`
       default:
         return `text.disabled`
     }
-  }, [toolState])
+  }, [mode])
 
   return (
     <Box
@@ -57,8 +57,8 @@ const StatusDot = (props: TStatusDot) => {
 
 const TabLabel = (props: TTabLabel) => {
   const { sessionId, name, onClose } = props
-  const toolState = useToolState(sessionId)
-  const showBadge = toolState === `permission`
+  const mode = useSessionMode(sessionId)
+  const showBadge = mode === `interactive`
 
   const handleClose = useCallback(
     (evt: React.MouseEvent) => {

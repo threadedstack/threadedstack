@@ -3,10 +3,10 @@ import type { TApp, TRequest } from '@TBE/types'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { ERoleType } from '@tdsk/domain'
-import { config } from '@TBE/configs/backend.config'
-import { PaymentsService } from '@TBE/services/payments'
 import { listOrgMembers } from './listOrgMembers'
 import { removeOrgMember } from './removeOrgMember'
+import { config } from '@TBE/configs/backend.config'
+import { PaymentsService } from '@TBE/services/payments'
 
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: {
@@ -114,24 +114,6 @@ describe(`Org Members endpoints`, () => {
       expect(response.offset).toBe(10)
     })
 
-    it(`should throw 401 when user is not authenticated`, async () => {
-      mockReq.user = undefined
-
-      await expect(
-        listOrgMembers.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`Authentication required`)
-    })
-
-    it(`should throw 403 when user is not an org member`, async () => {
-      const mockIsOrgMember = mockReq.app?.locals.db.services.role
-        .isOrgMember as ReturnType<typeof vi.fn>
-      mockIsOrgMember.mockResolvedValue({ data: false })
-
-      await expect(
-        listOrgMembers.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`You are not a member of this organization`)
-    })
-
     it(`should throw 500 when database query fails`, async () => {
       const mockGetOrgMembers = mockReq.app?.locals.db.services.role
         .getOrgMembers as ReturnType<typeof vi.fn>
@@ -166,15 +148,13 @@ describe(`Org Members endpoints`, () => {
       const mockRemoveFromOrg = mockReq.app?.locals.db.services.role
         .removeFromOrg as ReturnType<typeof vi.fn>
 
-      // Call flow:
-      // 1. checkPermission -> getUserRole -> getOrgRole(admin), getProjectRole(admin)
-      // 2. org.get -> exists
-      // 3. getOrgRole(target) -> member
-      // 4. getUserRole -> getOrgRole(admin), getProjectRole(admin) (for canManageRole)
+      // Call flow (no more checkPermission — middleware handles auth):
+      // 1. org.get -> exists
+      // 2. getOrgRole(target) -> member
+      // 3. getUserRole -> getOrgRole(admin), getProjectRole(admin) (for canManageRole)
       mockGetOrgRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission -> getUserRole
         .mockResolvedValueOnce({ data: mockRole }) // target user lookup
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // explicit getUserRole
+        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // getUserRole for canManageRole
 
       mockRemoveFromOrg.mockResolvedValue({ data: true })
 
@@ -183,15 +163,6 @@ describe(`Org Members endpoints`, () => {
       expect(mockRemoveFromOrg).toHaveBeenCalledWith(`user-2`, `org-1`)
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: mockRole })
-    })
-
-    it(`should throw 401 when user is not authenticated`, async () => {
-      mockReq.user = undefined
-      mockReq.params = { orgId: `org-1`, userId: `user-2` }
-
-      await expect(
-        removeOrgMember.action(mockReq as TRequest, mockRes as Response)
-      ).rejects.toThrow(`Authentication required`)
     })
 
     it(`should throw 404 when org not found`, async () => {
@@ -213,11 +184,9 @@ describe(`Org Members endpoints`, () => {
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
 
-      // 1. checkPermission -> getUserRole -> getOrgRole(admin)
-      // 2. getOrgRole(target) -> null
-      mockGetOrgRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission
-        .mockResolvedValueOnce({ data: null }) // target not found
+      // No checkPermission — middleware handles auth
+      // 1. getOrgRole(target) -> null
+      mockGetOrgRole.mockResolvedValueOnce({ data: null }) // target not found
 
       await expect(
         removeOrgMember.action(mockReq as TRequest, mockRes as Response)
@@ -230,11 +199,9 @@ describe(`Org Members endpoints`, () => {
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
 
-      // 1. checkPermission -> getUserRole -> getOrgRole(admin)
-      // 2. getOrgRole(target) -> owner
-      mockGetOrgRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission
-        .mockResolvedValueOnce({ data: { type: ERoleType.owner } }) // target is owner
+      // No checkPermission — middleware handles auth
+      // 1. getOrgRole(target) -> owner
+      mockGetOrgRole.mockResolvedValueOnce({ data: { type: ERoleType.owner } }) // target is owner
 
       await expect(
         removeOrgMember.action(mockReq as TRequest, mockRes as Response)
@@ -249,11 +216,10 @@ describe(`Org Members endpoints`, () => {
       const mockGetOrgRole = mockReq.app?.locals.db.services.role
         .getOrgRole as ReturnType<typeof vi.fn>
 
-      // 1. checkPermission -> getUserRole -> getOrgRole(admin)
-      // 2. getOrgRole(target) -> admin (equal)
-      // 3. getUserRole -> getOrgRole(admin) (for canManageRole)
+      // No checkPermission — middleware handles auth
+      // 1. getOrgRole(target) -> admin (equal)
+      // 2. getUserRole -> getOrgRole(admin) (for canManageRole)
       mockGetOrgRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission
         .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // target has equal role
         .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // canManageRole check
 
@@ -279,8 +245,8 @@ describe(`Org Members endpoints`, () => {
       const mockRemoveFromOrg = mockReq.app?.locals.db.services.role
         .removeFromOrg as ReturnType<typeof vi.fn>
 
+      // No checkPermission — middleware handles auth
       mockGetOrgRole
-        .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // checkPermission
         .mockResolvedValueOnce({ data: mockRole }) // target user lookup
         .mockResolvedValueOnce({ data: { type: ERoleType.admin } }) // canManageRole
 

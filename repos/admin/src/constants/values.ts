@@ -105,3 +105,12 @@ export const SecretModeOptions = [
   { value: ESecretMode.new, label: `Create new secret` },
   { value: ESecretMode.existing, label: `Select existing secret` },
 ]
+
+export const PlanSections = [
+  { key: `projects`, label: `Projects`, suffix: `` },
+  { key: `endpoints`, label: `Endpoints`, suffix: `` },
+  { key: `compute`, label: `Compute`, suffix: `seconds` },
+  { key: `threads`, label: `Threads`, suffix: `` },
+  { key: `messages`, label: `Messages`, suffix: `` },
+  { key: `secrets`, label: `Secrets`, suffix: `` },
+] as const

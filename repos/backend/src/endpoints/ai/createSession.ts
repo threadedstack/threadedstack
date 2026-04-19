@@ -2,8 +2,8 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
 import { signSessionToken } from '@TBE/services/sessionToken'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 
 /**
@@ -17,6 +17,7 @@ import { Exception, EPermAction, EPermResource } from '@tdsk/domain'
 export const createSession: TEndpointConfig = {
   path: `/sessions`,
   method: EPMethod.Post,
+  middleware: [authorize(EPermAction.read, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const userId = req.user?.id
@@ -29,11 +30,6 @@ export const createSession: TEndpointConfig = {
     const { data: agent, error: agentErr } = await db.services.agent.get(agentId)
 
     if (agentErr || !agent) throw new Exception(404, `Agent not found`)
-
-    // Check permission
-    await checkPermission(req, EPermAction.read, EPermResource.agent, {
-      orgId: agent.orgId,
-    })
 
     // Get primary provider from agent's providers array
     const provider = agent.primaryProvider

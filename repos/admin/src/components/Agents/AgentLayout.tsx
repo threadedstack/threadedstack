@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useState } from 'react'
 import { Page } from '@TAF/pages/Page/Page'
 import { EAgentDetailTab } from '@TAF/types'
+import { isFeatureEnabled } from '@tdsk/domain'
 import { Button, ConfirmDelete } from '@tdsk/components'
 import { AgentDrawer } from '@TAF/components/Agents/AgentDrawer'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
@@ -38,16 +39,20 @@ export const AgentLayout = () => {
   const showTabs = !threadId && !pathAfterAgent.includes(`/chat`)
   const activeTab: TAgentDetailTab = pathAfterAgent.startsWith(`/threads`)
     ? EAgentDetailTab.threads
-    : pathAfterAgent.startsWith(`/skills`)
+    : pathAfterAgent.startsWith(`/skills`) && isFeatureEnabled('skills')
       ? EAgentDetailTab.skills
-      : pathAfterAgent.startsWith(`/schedules`)
+      : pathAfterAgent.startsWith(`/schedules`) && isFeatureEnabled('schedules')
         ? EAgentDetailTab.schedules
         : EAgentDetailTab.agent
 
   const tabRoutes: Record<string, string> = {
-    [EAgentDetailTab.skills]: `${agentPath}/skills`,
     [EAgentDetailTab.threads]: `${agentPath}/threads`,
-    [EAgentDetailTab.schedules]: `${agentPath}/schedules`,
+    ...(isFeatureEnabled('skills') && {
+      [EAgentDetailTab.skills]: `${agentPath}/skills`,
+    }),
+    ...(isFeatureEnabled('schedules') && {
+      [EAgentDetailTab.schedules]: `${agentPath}/schedules`,
+    }),
   }
 
   const onTabChange = (_: React.SyntheticEvent, val: TAgentDetailTab) => {
@@ -167,14 +172,18 @@ export const AgentLayout = () => {
               label='Threads'
               value={EAgentDetailTab.threads}
             />
-            <Tab
-              label='Skills'
-              value={EAgentDetailTab.skills}
-            />
-            <Tab
-              label='Schedules'
-              value={EAgentDetailTab.schedules}
-            />
+            {isFeatureEnabled('skills') && (
+              <Tab
+                label='Skills'
+                value={EAgentDetailTab.skills}
+              />
+            )}
+            {isFeatureEnabled('schedules') && (
+              <Tab
+                label='Schedules'
+                value={EAgentDetailTab.schedules}
+              />
+            )}
           </Tabs>
         </Box>
       )}

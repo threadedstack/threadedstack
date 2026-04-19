@@ -6,4 +6,5 @@ export {
   getRawBuffer,
   getConnection,
   subscribeTerminalData,
+  subscribeEngineData,
 } from './openSession'

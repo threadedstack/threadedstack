@@ -3,19 +3,18 @@ import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
 import { Exception } from '@tdsk/domain'
+import { authorize } from '@TBE/middleware/authorize'
 import { EPermAction, EPermResource } from '@tdsk/domain'
-import { checkPermission } from '@TBE/utils/auth/checkPermission'
 
 export const listSkills: TEndpointConfig = {
   path: `/`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.skill)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { orgId } = req.params
 
     if (!orgId) throw new Exception(400, `orgId is required`)
-
-    await checkPermission(req, EPermAction.read, EPermResource.skill, { orgId })
 
     const { data, error } = await db.services.skill.list({
       where: { orgId },

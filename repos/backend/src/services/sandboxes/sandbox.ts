@@ -597,7 +597,7 @@ export class SandboxService {
     if (session.attachments.size === 0) {
       // Persist ptyBuffer immediately so reconnecting clients get terminal history
       try {
-        const rawBuffer = session.parser.getRawBuffer()
+        const rawBuffer = session.ptyRecorder.getRawBuffer()
         if (rawBuffer.length > 0) {
           this.db.services.thread
             .update({ id: session.threadId, ptyBuffer: Buffer.from(rawBuffer) })
@@ -619,10 +619,18 @@ export class SandboxService {
         try {
           await this.flushEventBatch(sessionId)
         } catch (err) {
-          logger.error(
-            `[ShellSession] Flush failed during TTL cleanup for ${sessionId}:`,
+          logger.warn(
+            `[ShellSession] Flush failed during TTL cleanup for ${sessionId}, retrying:`,
             (err as Error).message
           )
+          try {
+            await this.flushEventBatch(sessionId)
+          } catch (retryErr) {
+            logger.error(
+              `[ShellSession] Flush retry failed during TTL cleanup for ${sessionId}, events lost:`,
+              (retryErr as Error).message
+            )
+          }
         }
         this.removeShellSession(sessionId)
       }, this.ShellTtlMS)
@@ -638,16 +646,38 @@ export class SandboxService {
     batch.push(event)
 
     if (batch.length >= 20) {
-      this.flushEventBatch(sessionId).catch((err) => {
-        logger.error('[Shell] Event batch flush failed:', (err as Error).message)
+      this.flushEventBatch(sessionId).catch(async (err) => {
+        logger.warn(
+          `[Shell] Event batch flush failed, retrying once:`,
+          (err as Error).message
+        )
+        try {
+          await this.flushEventBatch(sessionId)
+        } catch (retryErr) {
+          logger.error(
+            `[Shell] Event batch flush retry failed, events lost:`,
+            (retryErr as Error).message
+          )
+        }
       })
       return
     }
 
     if (!this.eventBatchTimers.has(sessionId)) {
       const timer = setTimeout(() => {
-        this.flushEventBatch(sessionId).catch((err) => {
-          logger.error('[Shell] Event batch flush failed:', (err as Error).message)
+        this.flushEventBatch(sessionId).catch(async (err) => {
+          logger.warn(
+            `[Shell] Event batch flush failed, retrying once:`,
+            (err as Error).message
+          )
+          try {
+            await this.flushEventBatch(sessionId)
+          } catch (retryErr) {
+            logger.error(
+              `[Shell] Event batch flush retry failed, events lost:`,
+              (retryErr as Error).message
+            )
+          }
         })
       }, 2000)
       this.eventBatchTimers.set(sessionId, timer)

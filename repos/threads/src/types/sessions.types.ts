@@ -1,5 +1,15 @@
 import type { ESandboxSessionVisibility, TSandboxSession } from '@tdsk/domain'
 
+export type TCommand = `stop` | `restart` | `recreate`
+
+export type TSessionCommandsProps = {
+  sandboxId: string
+  sessionId: string
+  projectId: string
+  isOwner: boolean
+  onPendingOp: (op: `restart` | `recreate` | null) => void
+}
+
 export type TSandboxStatus = 'stopped' | 'starting' | 'running' | 'error'
 
 export type TOpenSession = {

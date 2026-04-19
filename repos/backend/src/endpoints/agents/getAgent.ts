@@ -2,8 +2,9 @@ import type { Response } from 'express'
 import type { TEndpointConfig, TRequest } from '@TBE/types'
 
 import { EPMethod } from '@TBE/types'
+import { authorize } from '@TBE/middleware/authorize'
+import { getUserRole } from '@TBE/utils/auth/checkPermission'
 import { requireAgentAccess } from '@TBE/utils/auth/requireAgentAccess'
-import { getUserRole, checkPermission } from '@TBE/utils/auth/checkPermission'
 import { Exception, EPermAction, EPermResource, canAccessSecretValue } from '@tdsk/domain'
 
 /**
@@ -14,6 +15,7 @@ import { Exception, EPermAction, EPermResource, canAccessSecretValue } from '@td
 export const getAgent: TEndpointConfig = {
   path: `/:id`,
   method: EPMethod.Get,
+  middleware: [authorize(EPermAction.read, EPermResource.agent)],
   action: async (req: TRequest, res: Response): Promise<void> => {
     const { db } = req.app.locals
     const { id } = req.params
@@ -23,11 +25,6 @@ export const getAgent: TEndpointConfig = {
       sanitize: false,
     })
     if (getError || !agent) throw new Exception(404, `Agent not found`)
-
-    // Check permission to read agents in this org
-    await checkPermission(req, EPermAction.read, EPermResource.agent, {
-      orgId: agent.orgId,
-    })
 
     // Enforce project-level access for non-admin users
     await requireAgentAccess(req, id, agent.orgId, agent)

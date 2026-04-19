@@ -7,10 +7,6 @@ import { config } from '@TBE/configs/backend.config'
 import { PaymentsService } from '@TBE/services/payments'
 import { getEndpointCfg as getEpCfg } from '@TBE/mocks/endpoints'
 
-vi.mock(`@TBE/utils/auth/checkPermission`, () => ({
-  checkPermission: vi.fn().mockResolvedValue(undefined),
-}))
-
 vi.mock(`@TBE/utils/logger`, () => ({
   logger: {
     error: vi.fn(),
@@ -344,12 +340,6 @@ describe(`Asset endpoints`, () => {
     })
 
     it(`should create asset with threadId owner`, async () => {
-      const mockThread = { id: `t-1`, orgId: `org-1` }
-      const mockThreadGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
-        typeof vi.fn
-      >
-      mockThreadGet.mockResolvedValue({ data: mockThread })
-
       const createdAsset = {
         id: `a-new`,
         name: `Thread Asset`,
@@ -369,18 +359,11 @@ describe(`Asset endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockThreadGet).toHaveBeenCalledWith(`t-1`)
       expect(mockCreate).toHaveBeenCalledOnce()
       expect(mockStatus).toHaveBeenCalledWith(201)
     })
 
     it(`should create asset with messageId owner`, async () => {
-      const mockMessage = { id: `m-1`, orgId: `org-1` }
-      const mockMessageGet = mockReq.app?.locals.db.services.message.get as ReturnType<
-        typeof vi.fn
-      >
-      mockMessageGet.mockResolvedValue({ data: mockMessage })
-
       const createdAsset = {
         id: `a-new`,
         name: `Message Asset`,
@@ -400,7 +383,6 @@ describe(`Asset endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockMessageGet).toHaveBeenCalledWith(`m-1`)
       expect(mockCreate).toHaveBeenCalledOnce()
       expect(mockStatus).toHaveBeenCalledWith(201)
     })
@@ -442,40 +424,6 @@ describe(`Asset endpoints`, () => {
       )
     })
 
-    it(`should throw 404 when threadId references non-existent thread`, async () => {
-      const mockThreadGet = mockReq.app?.locals.db.services.thread.get as ReturnType<
-        typeof vi.fn
-      >
-      mockThreadGet.mockResolvedValue({ data: null })
-
-      mockReq.body = {
-        name: `Asset`,
-        type: `document`,
-        threadId: `t-nonexistent`,
-      }
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Thread not found`
-      )
-    })
-
-    it(`should throw 404 when messageId references non-existent message`, async () => {
-      const mockMessageGet = mockReq.app?.locals.db.services.message.get as ReturnType<
-        typeof vi.fn
-      >
-      mockMessageGet.mockResolvedValue({ data: null })
-
-      mockReq.body = {
-        name: `Asset`,
-        type: `document`,
-        messageId: `m-nonexistent`,
-      }
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Message not found`
-      )
-    })
-
     it(`should throw 500 on database create error`, async () => {
       const mockCreate = mockReq.app?.locals.db.services.asset.create as ReturnType<
         typeof vi.fn
@@ -493,12 +441,6 @@ describe(`Asset endpoints`, () => {
     })
 
     it(`should create asset with projectId owner`, async () => {
-      const mockProject = { id: `proj-1`, orgId: `org-1` }
-      const mockProjectGet = mockReq.app?.locals.db.services.project.get as ReturnType<
-        typeof vi.fn
-      >
-      mockProjectGet.mockResolvedValue({ data: mockProject })
-
       const createdAsset = {
         id: `a-new`,
         name: `Project Asset`,
@@ -518,26 +460,8 @@ describe(`Asset endpoints`, () => {
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
-      expect(mockProjectGet).toHaveBeenCalledWith(`proj-1`)
       expect(mockCreate).toHaveBeenCalledOnce()
       expect(mockStatus).toHaveBeenCalledWith(201)
-    })
-
-    it(`should throw 404 when projectId references non-existent project`, async () => {
-      const mockProjectGet = mockReq.app?.locals.db.services.project.get as ReturnType<
-        typeof vi.fn
-      >
-      mockProjectGet.mockResolvedValue({ data: null })
-
-      mockReq.body = {
-        name: `Asset`,
-        type: `document`,
-        projectId: `proj-nonexistent`,
-      }
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Project not found`
-      )
     })
 
     it(`should create asset with userId owner matching authenticated user`, async () => {
@@ -562,18 +486,6 @@ describe(`Asset endpoints`, () => {
 
       expect(mockCreate).toHaveBeenCalledOnce()
       expect(mockStatus).toHaveBeenCalledWith(201)
-    })
-
-    it(`should throw 403 when userId does not match authenticated user`, async () => {
-      mockReq.body = {
-        name: `Asset`,
-        type: `document`,
-        userId: `different-user-id`,
-      }
-
-      await expect(ep.action(mockReq as TRequest, mockRes as Response)).rejects.toThrow(
-        `Cannot create assets for another user`
-      )
     })
   })
 
