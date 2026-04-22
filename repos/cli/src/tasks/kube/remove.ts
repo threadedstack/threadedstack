@@ -3,12 +3,11 @@ import type { TTask, TTaskAction } from '@TSCL/types'
 import { kubectl } from '@TSCL/utils/kube/kubectl'
 import { getCtx } from '@TSCL/utils/config/getCtx'
 import { taskError } from '@TSCL/utils/tasks/error'
+import { getKubeMeta } from '@TSCL/utils/kube/getKubeMeta'
 
 /**
  * Deletes kubernetes resources
- * @function
- * @public
- * @returns {Void}
+ * For pods, uses label selector to match the deployment (pod names have random suffixes)
  */
 const removeAction: TTaskAction = async (args) => {
   const { params } = args
@@ -16,33 +15,44 @@ const removeAction: TTaskAction = async (args) => {
   !ctx && taskError(`Build context name is missing or invalid`)
 
   const { resource } = params
-  !resource && console.error(`Resource type is required`)
+  !resource && taskError(`Resource type is required`)
 
-  const deleteArgs = [ctx.deployment]
+  const meta = getKubeMeta(args, false)
+  const nsArgs = meta.namespace ? [`--namespace`, meta.namespace] : []
 
-  resource === `pod`
-    ? await kubectl.delete.pod(args, deleteArgs)
-    : await kubectl.delete(args, [resource, ...deleteArgs])
+  if (resource === `pod`) {
+    await kubectl.delete.pod(args, [
+      `-l`,
+      `app.kubernetes.io/component=${ctx.deployment}`,
+      ...nsArgs,
+    ])
+  } else {
+    await kubectl.delete(args, [resource, ctx.deployment, ...nsArgs])
+  }
 }
 
 export const remove: TTask = {
   name: `remove`,
   alias: [`rm`, `delete`],
   action: removeAction,
-  example: `pnpm tdsk kube remove <options>`,
+  example: `tdsk kube remove --context proxy --env production`,
   description: `Delete kubernetes resources (pods, services, deployments, etc.)`,
   options: {
     context: {
       alias: [`ctx`, `name`, `n`],
       required: true,
-      example: `--context my-pod`,
-      description: `Name of the resource to delete`,
+      example: `--context proxy`,
+      description: `Context of the resource to delete`,
     },
     resource: {
       default: `pod`,
       alias: [`type`, `res`],
       example: `--resource pod`,
       description: `Type of resource to delete`,
+    },
+    namespace: {
+      alias: [`ns`],
+      description: `Kubernetes namespace`,
     },
     log: {
       type: `boolean`,

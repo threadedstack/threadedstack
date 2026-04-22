@@ -13,13 +13,20 @@ import { ife } from '@keg-hub/jsutils/ife'
  */
 
 const tables = [
+  // Leaf / junction tables first
   `quotas`,
   `assets`,
   `messages`,
   `threads`,
+  `schedules`,
+  `invoices`,
   `agent_functions`,
   `agent_providers`,
   `agent_projects`,
+  `agent_skills`,
+  `sandbox_projects`,
+  `sandbox_providers`,
+  // Mid-level tables
   `functions`,
   `endpoints`,
   `api_keys`,
@@ -28,11 +35,13 @@ const tables = [
   `invitations`,
   `subscriptions`,
   `agents`,
+  `skills`,
+  `sandboxes`,
   `domains`,
+  // Parent tables
   `projects`,
   `roles`,
   `organizations`,
-  `configs`,
 ]
 
 ife(async () => {

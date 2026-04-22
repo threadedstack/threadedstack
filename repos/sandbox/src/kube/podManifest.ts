@@ -160,7 +160,7 @@ const buildSandboxContainer = (
     lifecycle: {
       postStart: {
         exec: {
-          command: [`sh`, `-c`, buildEnvProfileScript(env)],
+          command: [`sh`, `-c`, buildPostStartScript(env, config.initScript)],
         },
       },
     },
@@ -203,18 +203,31 @@ const buildSandboxContainer = (
   return container
 }
 
-const buildEnvProfileScript = (env: V1EnvVar[]): string => {
-  const lines = env
+const buildPostStartScript = (env: V1EnvVar[], initScript?: string): string => {
+  const exports = env
     .filter((e) => e.value != null)
     .map((e) => `export ${e.name}='${(e.value ?? ``).replace(/'/g, `'\\''`)}'`)
     .join(`\n`)
 
-  return [
+  const parts = [
     `mkdir -p /etc/profile.d`,
     `cat > ${EnvProfilePath} << 'TDSK_ENV_EOF'`,
-    lines,
+    exports,
     `TDSK_ENV_EOF`,
-  ].join(`\n`)
+    `. ${EnvProfilePath}`,
+  ]
+
+  if (initScript) {
+    // K8s kills the container if postStart exits non-zero — catch failures and log instead
+    parts.push(
+      `sh -c '${initScript.replace(/'/g, `'\\''`)}'; _rc=$?`,
+      `if [ $_rc -ne 0 ]; then`,
+      `  echo "[tdsk] initScript failed (exit $_rc)" >> /tmp/tdsk-init-error.log`,
+      `fi`
+    )
+  }
+
+  return parts.join(`\n`)
 }
 
 const buildEnvVars = (envVars?: Record<string, string>): V1EnvVar[] => {

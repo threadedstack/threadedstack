@@ -3,6 +3,7 @@ import type { EProvider, TProviderBrand } from '@tdsk/domain'
 import { relations } from 'drizzle-orm'
 import { orgs } from '@TDB/schemas/orgs'
 import { base } from '@TDB/utils/schema/base'
+import { secrets } from '@TDB/schemas/secrets'
 import { agentProviders } from '@TDB/schemas/agentProviders'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
 import { jsonb, index, pgTable, text, varchar } from 'drizzle-orm/pg-core'
@@ -17,8 +18,9 @@ export const providers = pgTable(
     options: jsonb(`options`).$type<Record<string, any>>(),
     headers: jsonb(`headers`).$type<Record<string, string>>(),
     bodyParams: jsonb(`body_params`).$type<Record<string, any>>(),
-    // FK to secrets.id — defined via migration to avoid circular import (secrets → providers → secrets)
-    secretId: varchar(`secret_id`, { length: 10 }),
+    secretId: varchar(`secret_id`, { length: 10 }).references(() => secrets.id, {
+      onDelete: `restrict`,
+    }),
     orgId: varchar(`org_id`, { length: 10 })
       .notNull()
       .references(() => orgs.id, { onDelete: `cascade` }),
@@ -30,4 +32,5 @@ export const providersRelations = relations(providers, ({ one, many }) => ({
   agents: many(agentProviders),
   sandboxes: many(sandboxProviders),
   org: one(orgs, { fields: [providers.orgId], references: [orgs.id] }),
+  secret: one(secrets, { fields: [providers.secretId], references: [secrets.id] }),
 }))

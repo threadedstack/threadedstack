@@ -4,6 +4,21 @@
 
 	email {$TDSK_CADDY_ACME_EMAIL}
 
+	# ── NEW: accept PROXY v2 from the Civo LB on :80 and :443 ──
+	servers {
+		listener_wrappers {
+			proxy_protocol {
+				timeout 5s
+				allow 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
+				fallback_policy ignore
+			}
+			tls
+		}
+		# Preserve real client IP in request headers / logs
+		trusted_proxies static 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
+		client_ip_headers X-Forwarded-For
+	}
+
 	# Configure PostgreSQL storage for certificates
 	# NOTE: Caddy must be able to reach this DB, or it will fail to start.
 	storage postgresql {

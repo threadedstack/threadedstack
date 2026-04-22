@@ -28,12 +28,17 @@ const cleanOrder: CleanEntry[] = [
   { table: `messages`, seedIds: Object.values(Ids.message) },
   { table: `threads`, seedIds: Object.values(Ids.thread) },
   { table: `schedules` },
+  { table: `invoices` },
 
   // Junction tables — filter by agent_id
   { table: `agent_skills`, fkColumn: `agent_id`, seedIds: agentIds },
   { table: `agent_functions`, fkColumn: `agent_id`, seedIds: agentIds },
   { table: `agent_providers`, fkColumn: `agent_id`, seedIds: agentIds },
   { table: `agent_projects`, fkColumn: `agent_id`, seedIds: agentIds },
+
+  // Sandbox junction tables
+  { table: `sandbox_projects` },
+  { table: `sandbox_providers` },
 
   // Mid-level tables
   { table: `functions`, seedIds: Object.values(Ids.function) },
@@ -47,7 +52,6 @@ const cleanOrder: CleanEntry[] = [
   { table: `domains`, seedIds: Object.values(Ids.domain) },
   { table: `sandboxes` },
   { table: `skills` },
-  { table: `configs` },
 
   // Parent tables last
   { table: `projects`, seedIds: Object.values(Ids.project) },

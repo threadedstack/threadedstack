@@ -154,6 +154,9 @@ vars:
   TDSK_KUBE_SCRT_DOC_AUTH:
     source: env
     default: docker-auth
+  TDSK_KUBE_SCRT_DOC_PULL:
+    source: env
+    default: docker-auth-pull
   TDSK_KUBE_SCRT_DB_CFG:
     source: env
     default: tdsk-db-cfg
@@ -679,11 +682,55 @@ dev:
 # Use profile to dynamically set options based on the environment
 profiles:
 - name: local
-  #patches:
-  #- op: replace
-  #  path: deployments.tdsk-proxy.helm.values.containers[0].image
-  #  value: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
-  #- op: replace
-  #  path: deployments.tdsk-backend.helm.values.containers[0].image
-  #  value: ${TDSK_IMAGE}:${TDSK_IMAGE_TAG}
 - name: production
+  patches:
+    # Use production images and tags
+    - op: replace
+      path: deployments.tdsk-caddy.helm.values.containers[0].image
+      value: ghcr.io/threadedstack/tdsk-caddy:${TDSK_CADDY_IMAGE_TAG}
+    - op: replace
+      path: deployments.tdsk-proxy.helm.values.containers[0].image
+      value: ghcr.io/threadedstack/tdsk-proxy:${TDSK_PX_IMAGE_TAG}
+    - op: replace
+      path: deployments.tdsk-backend.helm.values.containers[0].image
+      value: ghcr.io/threadedstack/tdsk-backend:${TDSK_BE_IMAGE_TAG}
+
+    # Always re-pull images in production (prevents stale cached images)
+    - op: replace
+      path: deployments.tdsk-caddy.helm.values.containers[0].imagePullPolicy
+      value: Always
+    - op: replace
+      path: deployments.tdsk-proxy.helm.values.containers[0].imagePullPolicy
+      value: Always
+    - op: replace
+      path: deployments.tdsk-backend.helm.values.containers[0].imagePullPolicy
+      value: Always
+
+    # Add imagePullSecrets for ghcr.io private registry
+    - op: add
+      path: deployments.tdsk-caddy.helm.values.pullSecrets
+      value:
+        - ${TDSK_KUBE_SCRT_DOC_PULL}
+    - op: add
+      path: deployments.tdsk-proxy.helm.values.pullSecrets
+      value:
+        - ${TDSK_KUBE_SCRT_DOC_PULL}
+    - op: add
+      path: deployments.tdsk-backend.helm.values.pullSecrets
+      value:
+        - ${TDSK_KUBE_SCRT_DOC_PULL}
+
+    # Disable caddy admin interface in production
+    - op: remove
+      path: deployments.tdsk-caddy.helm.values.service.ports[2]
+
+    # Add caddy labels for production deployment
+    - op: add
+      path: deployments.tdsk-caddy.helm.values.service.annotations
+      value:
+        kubernetes.civo.com/protocol: "tcp"
+        kubernetes.civo.com/client-timeout: "3600s"
+        kubernetes.civo.com/server-timeout: "3600s"
+        kubernetes.civo.com/max-concurrent-requests: "20000"
+        kubernetes.civo.com/loadbalancer-algorithm: "least_connections"
+        kubernetes.civo.com/loadbalancer-enable-proxy-protocol: "send-proxy-v2"

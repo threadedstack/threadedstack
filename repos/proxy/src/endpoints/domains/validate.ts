@@ -2,6 +2,28 @@ import type { Request, Response } from 'express'
 import { isStr } from '@keg-hub/jsutils/isStr'
 import { logger } from '@TPX/utils/logger'
 
+const systemDomains = (process.env.TDSK_PX_SYSTEM_DOMAINS || ``)
+  .split(`,`)
+  .map((d) =>
+    d
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, ``)
+      .replace(/\/+$/, ``)
+  )
+  .filter(Boolean)
+
+const normalize = (raw: string) =>
+  raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, ``)
+    .replace(/\/+$/, ``)
+    .split(`:`)[0]
+
+const isSystemDomain = (domain: string) =>
+  systemDomains.some((base) => domain === base || domain.endsWith(`.${base}`))
+
 /**
  * GET /domains/validate
  *
@@ -13,10 +35,17 @@ import { logger } from '@TPX/utils/logger'
  */
 export const validate = async (req: Request, res: Response) => {
   try {
-    const { domain } = req.query
+    const { domain: raw } = req.query
 
-    if (!domain || !isStr(domain)) {
+    if (!raw || !isStr(raw)) {
       res.status(400).json({ error: `Domain parameter is required` })
+      return
+    }
+
+    const domain = normalize(raw)
+
+    if (isSystemDomain(domain)) {
+      res.status(200).json({ status: `valid`, domain })
       return
     }
 

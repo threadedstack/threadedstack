@@ -2,5 +2,39 @@ env:
 
 # ---- General Shared ENVs ---- #
   NODE_ENV: production
+  TDSK_KUBE_CONTEXT: tdsk
   TDSK_KUBE_NAMESPACE: tdsk-production
+  TDSK_LOG_LEVEL: info
+  TDSK_LOG_PRETTY_PRINT: false
+
+
+# ---- Caddy Envs ---- #
+  # TODO: Figure this out compared to internal proxy
+  TDSK_CADDY_TLS_MODE: on_demand
   TDSK_CADDY_PX_HOST: px.threadedstack.app
+  TDSK_CADDY_ACME_EMAIL: admin@threadedstack.com
+
+
+# ---- Proxy Envs ---- #
+  TDSK_PX_PORT: 7118
+  TDSK_PX_LOGGER_PRETTY: 0
+  TDSK_PX_URL: https://px.threadedstack.app
+  TDSK_PX_SYSTEM_DOMAINS: 'threadedstack.app,threadedstack.com,threadedstack.dev'
+
+
+# ---- Backend Envs ---- #
+  TDSK_BE_URL: https://be.threadedstack.app
+  # TODO change this use Kubernetes networking to call be directly
+  TDSK_BE_HOST:
+  TDSK_BE_PORT: 5885
+  TDSK_BE_LOGGER_PRETTY: 0
+
+
+# ---- Admin Envs ---- #
+  TDSK_AD_APP_URL: https://admin.threadedstack.com
+  TDSK_AD_PORT: 443
+
+
+# ---- Threads Envs ---- #
+  TDSK_TH_APP_URL: https://threads.threadedstack.com
+  TDSK_TH_PORT: 443

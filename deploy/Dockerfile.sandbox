@@ -31,7 +31,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 # Install the platform-specific npm package, extract the agent binary
 # from its bundled mutagen-agents.tar.gz, place it where the daemon expects it
 ARG TARGETARCH
-RUN MUTAGEN_PKG="@nuanced-dev/mutagen-linux-${TARGETARCH:-arm64}" \
+RUN NPM_ARCH="${TARGETARCH:-arm64}" \
+    && if [ "$NPM_ARCH" = "amd64" ]; then NPM_ARCH="x64"; fi \
+    && MUTAGEN_PKG="@nuanced-dev/mutagen-linux-${NPM_ARCH}" \
     && MUTAGEN_VER=$(npm show "$MUTAGEN_PKG" version 2>/dev/null) \
     && npm pack "$MUTAGEN_PKG" --pack-destination /tmp \
     && tar xzf /tmp/nuanced-dev-mutagen-linux-*.tgz -C /tmp \

@@ -1,17 +1,10 @@
 env:
 
-
 # ---- General Shared ENVs ---- #
   BUILDKIT_INLINE_CACHE: 1
   DOCKER_REGISTRY: ghcr.io
   TDSK_NODE_VERSION: 20
   TDSK_PNPM_VERSION: 8.12.1
-  TDSK_KUBE_SCRT_DB_CFG: tdsk-db-cfg
-  TDSK_KUBE_SCRT_DOC_AUTH: docker-auth
-  TDSK_KUBE_SCRT_TLS_NAME: tdsk-tls-secret
-  TDSK_KUBE_SCRT_EGRESS_CA: tdsk-egress-ca
-  TDSK_KUBE_SCRT_EMAIL_CFG: tdsk-email-secret
-  TDSK_KUBE_SCRT_PAY_CFG: tdsk-payments-secret
 
   # URLS for threaded stack
   TDSK_URL: http://threadedstack.com/
@@ -33,6 +26,18 @@ env:
   TDSK_KUBE_SCRT_MASTER_KEY: tdsk-master-key
   # Set by the TDSK_KUBE_SCRT_MASTER_KEY secret with-in kubernetes
   TDSK_MASTER_KEY:
+  # Database configuration secret (multi-value)
+  TDSK_KUBE_SCRT_DB_CFG: tdsk-db-cfg
+  # Auth Secret - Allows kubernetes to pull docker images for pods
+  TDSK_KUBE_SCRT_DOC_PULL: docker-auth-pull
+  # Internal Auth secret - Pull docker images from within the backend pod
+  TDSK_KUBE_SCRT_DOC_AUTH: docker-auth
+  # Email configuration secret (multi-value)
+  TDSK_KUBE_SCRT_EMAIL_CFG: tdsk-email-secret
+  # Payments (stripe) configuration secret (multi-value)
+  TDSK_KUBE_SCRT_PAY_CFG: tdsk-payments-secret
+  TDSK_KUBE_SCRT_TLS_NAME: tdsk-tls-secret
+  TDSK_KUBE_SCRT_EGRESS_CA: tdsk-egress-ca
 
 # ---- Egress Proxy CA ENVs ---- #
   # Paths to CA cert/key files for the egress proxy (set in ~/.config/tdsk/values.yaml)
@@ -42,7 +47,7 @@ env:
 
 # ---- TDSK Shared ENVs ---- #
   TDSK_SH_LOCAL_MOUNT: tdsk-local
-  TDSK_SERVER_ORIGINS: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,local.threadedstack.app,px.threadedstack.app,px.dev.threadedstack.app,px.local.threadedstack.app,sandbox.threadedstack.app,sandbox.dev.threadedstack.app,sandbox.local.threadedstack.app,http://0.0.0.0'
+  TDSK_SERVER_ORIGINS: 'http://localhost:7117,localhost,threadedstack.app,dev.threadedstack.app,local.threadedstack.app,px.threadedstack.app,px.dev.threadedstack.app,px.local.threadedstack.app,sandbox.threadedstack.app,sandbox.dev.threadedstack.app,sandbox.local.threadedstack.app,http://0.0.0.0,threads.threadedstack.com,threads.local.threadedstack.com,admin.threadedstack.com,admin.local.threadedstack.com,admin.threadedstack.app,admin.local.threadedstack.app,be.threadedstack.app,be.local.threadedstack.app'
   TDSK_ALLOWED_HEADERS: 'X-PINGOTHER,Origin,X-Requested-With,Content-Type,Accept,Authorization,AuthToken,x-tdsk-host,x-tdsk-proto,x-tdsk-port,x-tdsk-route,x-tdsk-job-id,x-tdsk-subdomain,x-forwarded-subdomain,x-forwarded-port,x-forwarded-proto,x-forwarded-host,x-forwarded-for,x-user-id,x-user-role,x-user-email'
 
 
@@ -80,15 +85,20 @@ env:
   TDSK_PX_IMAGE_FROM: 'ubuntu:20.04'
   TDSK_PX_IMAGE: 'ghcr.io/threadedstack/tdsk-proxy'
 
+  # Domains auto-approved for Caddy on-demand TLS without a DB lookup
+  # Any subdomain of these base domains is also accepted (e.g. px.threadedstack.app)
+  TDSK_PX_SYSTEM_DOMAINS: 'threadedstack.app,threadedstack.com,threadedstack.dev,localhost'
+
   # ---- Proxy Websocket ENVs ---- #
+
   TDSK_PX_WS_PATH: /tdsk-socket
   TDSK_PX_WS_PROTOCOL: http
 
 
 # --- AUTH ENVs --- #
   TDSK_AUTH_PROVIDERS: github,google,vercel,email
-  TDSK_AUTH_URL: https://ep-flat-heart-ad7btwci.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth
-  TDSK_AUTH_JWKS: https://ep-flat-heart-ad7btwci.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth/.well-known/jwks.json
+  TDSK_AUTH_URL: https://ep-lucky-flower-adzhpxl9.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth
+  TDSK_AUTH_JWKS: https://ep-lucky-flower-adzhpxl9.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth/.well-known/jwks.json
 
 
 # --- Certs ENVs --- #
@@ -191,14 +201,17 @@ env:
 
   # ---- Backend ENVs --- #
 
-  # Host where the Proxy can be accessed, mainly used by the frontend
+  # Backend URL overrides the TDSK_BE_HOST and TDSK_BE_PORT envs
+  # Used by the proxy to call the backend
+  # Overrides TDSK_BE_HOST env
+  TDSK_BE_URL: http://0.0.0.0:5885
+
+  # Host where the Backend can be accessed, used by the proxy to call the backend
+  # Overridden by TDSK_BE_URL env
   TDSK_BE_HOST: 0.0.0.0
 
   # Port the Proxy server will listen on, and what is publicly exposed from the docker container
   TDSK_BE_PORT: 5885
-
-  # Backend URL overrides the TDSK_BE_HOST and TDSK_BE_PORT envs
-  TDSK_BE_URL: http://0.0.0.0:5885
 
   # Admin API path for the proxy backend
   # All other paths are forwarded to configured endpoints
@@ -252,8 +265,8 @@ env:
   TDSK_WEB_IMAGE: 'ghcr.io/threadedstack/tdsk-web'
 
 
-  # ---- Admin ENVs --- #
-  TDSK_TH_APP_URL: http://localhost:5887
+  # ---- Threads ENVs --- #
+  TDSK_TH_APP_URL: http://localhost:5886
   TDSK_TH_PORT: 5886
   TDSK_TH_IMAGE_TAG: latest
   TDSK_TH_DEV_IMAGE_TAG: main
@@ -283,7 +296,7 @@ env:
 
 
   # ---- Payments ENVs --- #
-  # Email provider type - 'polar' | 'console'
+  # Email provider type - 'stripe' | 'console'
   TDSK_PAY_TYPE:
   TDSK_PAY_URL:
   TDSK_PAY_PLANS:

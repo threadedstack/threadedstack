@@ -1,9 +1,9 @@
 import type {
-  Project as ProjectModel,
-  TSandboxProjectConfig,
-  TKubeSandboxConfig,
-  TProviderInput,
   TProviderLink,
+  TProviderInput,
+  TKubeSandboxConfig,
+  TSandboxProjectConfig,
+  Project as ProjectModel,
 } from '@tdsk/domain'
 import type {
   TDBUpdate,
@@ -20,11 +20,11 @@ import { Base } from '@TDB/services/base'
 import { logger } from '@TDB/utils/logger'
 import { DBError } from '@TDB/utils/error/error'
 import { sandboxes } from '@TDB/schemas/sandboxes'
-import { Sandbox as SandboxModel } from '@tdsk/domain'
 import { eq, and, sql, notInArray } from 'drizzle-orm'
 import { sandboxProjects } from '@TDB/schemas/sandboxProjects'
 import { sandboxProviders } from '@TDB/schemas/sandboxProviders'
 import { addWhere, addOrderBy } from '@TDB/utils/database/buildQuery'
+import { Sandbox as SandboxModel, Provider as ProviderModel } from '@tdsk/domain'
 
 export type TSandboxSelectOpts = TDBSandboxSelect & {
   projects?: {
@@ -116,9 +116,9 @@ export class Sandbox extends Base<
       providerLinks: (providers || [])
         .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
         .map((link) => ({
-          provider: link.provider,
           model: link.model ?? null,
           priority: link.priority ?? 0,
+          provider: new ProviderModel(link.provider as Partial<ProviderModel>),
         })),
     })
   }

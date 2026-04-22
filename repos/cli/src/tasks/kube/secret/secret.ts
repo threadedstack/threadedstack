@@ -1,6 +1,7 @@
 import type { TTask, TTaskActionArgs, TTaskParams } from '@TSCL/types'
 import os from 'os'
 import path from 'path'
+import { list } from './list'
 import { tdsk } from './tdsk'
 import { email } from './email'
 import { docker } from './docker'
@@ -154,6 +155,11 @@ const secretAct = async (props: TTaskActionArgs) => {
   const { tempFiles, secretArgs } = buildLocs(params, name, key)
   namespace && secretArgs.push(`--namespace`, namespace)
 
+  const deleteArgs = [`secret`, name]
+  namespace && deleteArgs.push(`--namespace`, namespace)
+  deleteArgs.push(`--ignore-not-found`)
+
+  await kubectl.delete(props, deleteArgs)
   await kubectl.create(props, [`secret`, type, name, ...secretArgs])
 
   tempFiles.forEach((loc) => rmSync(loc))
@@ -166,6 +172,7 @@ export const secret: TTask = {
   example: `tdsk kube secret <options>`,
   description: `Calls the kubectl create secret command`,
   tasks: {
+    list,
     tdsk,
     email,
     docker,

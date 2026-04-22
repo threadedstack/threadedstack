@@ -107,7 +107,12 @@
       "Bash(gh repo:*)",
       "Bash(gh api:*)",
       "Bash(gh search:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(npm show:*)",
+      "Bash(npm search:*)",
+      "Bash(npm pack:*)",
+      "Bash(tar xzf:*)",
+      "Bash(tar tzf:*)"
     ]
   },
   "sandbox": {

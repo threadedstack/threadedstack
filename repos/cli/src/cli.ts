@@ -5,9 +5,15 @@ import { argsParse } from '@keg-hub/args-parse'
 import { taskError } from '@TSCL/utils/tasks/error'
 
 const loadCfg = async (environment: string) => {
-  // Ensure the NODE_ENV is set based on the parsed options
-  // This way the correct ENVs are loaded when we import the cli.config file
+  /**
+   * Ensure the NODE_ENV is set based on the parsed options
+   * This way the correct ENVs are loaded when we import the cli.config file
+   */
   if (!process.env.NODE_ENV && environment) process.env.NODE_ENV = environment
+  /**
+   * If environment exists and it was derived from the NODE_ENV, update NODE_ENV
+   */ else if (environment && environment.startsWith(process.env.NODE_ENV))
+    process.env.NODE_ENV = environment
 
   try {
     const mod = await import('@TSCL/configs/cli.config.ts')
@@ -29,6 +35,7 @@ ife(async () => {
       defaultArgs: {
         env: {
           default: `local`,
+          env: `NODE_ENV`,
           alias: [`environment`],
           example: `<command> --env staging`,
           description: `Environment where the task should be executed`,

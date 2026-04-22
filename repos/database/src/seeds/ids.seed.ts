@@ -16,10 +16,11 @@ export const Ids = {
   },
   agent: {
     codingAgent: `ag00000001`,
-    planningAgent: `ag00000002`,
-    supportAgent: `ag00000003`,
+    openrouterAgent: `ag00000002`,
+    googleAgent: `ag00000003`,
     chatAgent: `ag00000004`,
     generalAgent: `ag00000005`,
+    ollamaAgent: `ag00000006`,
   },
   apikey: {
     tdskOrgKey: `ak00000001`,
@@ -49,6 +50,9 @@ export const Ids = {
     startupAnthropic: `pv00000003`,
     personalOpenai: `pv00000004`,
     zai: `pv00000005`,
+    openrouter: `pv00000006`,
+    google: `pv00000007`,
+    ollama: `pv00000008`,
   },
   quota: {
     acme202401: `qt00000001`,
@@ -89,6 +93,9 @@ export const Ids = {
     providerAnthropicKey: `sc00000005`,
     githubToken: `sc00000006`,
     zaiKey: `sc00000007`,
+    openrouterKey: `sc00000008`,
+    googleKey: `sc00000009`,
+    ollamaKey: `sc00000010`,
   },
   project: {
     acmeApi: `pj00000001`,
@@ -144,7 +151,11 @@ export const Ids = {
     weeklyReport: `sd00000002`,
   },
   sandbox: {
-    devNode: `sb_0000001`,
+    claudeCode: `sb_0000001`,
+    codex: `sb_0000002`,
+    openCode: `sb_0000003`,
+    geminiCli: `sb_0000004`,
+    custom: `sb_0000005`,
   },
   domain: {
     orgDomain: `dm00000001`,
