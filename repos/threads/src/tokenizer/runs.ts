@@ -1,19 +1,14 @@
-import type { TRect } from '../ast/types'
-import { decodeCell, resolveColors, cellOffset } from './decode'
+import type { TRect } from '@TTH/types/ast.types'
 import type {
   TCellMeta,
+  TRunResult,
   TTextRun,
   TWhitespaceGap,
   TLinkSpan,
   TRawSpan,
   TBorderFrame,
-} from './types'
-
-export type TRunResult = {
-  textRuns: TTextRun[]
-  gaps: TWhitespaceGap[]
-  links: TLinkSpan[]
-}
+} from '@TTH/types/tokenizer.types'
+import { decodeCell, resolveColors, cellOffset } from './decode'
 
 /**
  * Check whether a cell position is inside any child frame's bounds.
@@ -69,7 +64,7 @@ export function extractRuns(
     if (gapStartRow === null) return
     const height = endRow - gapStartRow + 1
     gaps.push({
-      type: 'WhitespaceGap',
+      type: `WhitespaceGap`,
       bounds: { top: gapStartRow, left: scope.left, bottom: endRow, right: scope.right },
       height,
     })
@@ -105,7 +100,7 @@ export function extractRuns(
     let runRight = -1
 
     // Track current span state
-    let spanText = ''
+    let spanText = ``
     let spanFg = { r: 0, g: 0, b: 0 }
     let spanBg = { r: 0, g: 0, b: 0 }
     let spanFlags = 0
@@ -113,7 +108,7 @@ export function extractRuns(
     let inSpan = false
 
     // Track current link state
-    let linkText = ''
+    let linkText = ``
     let linkHyperlinkId = 0
     let linkLeft = -1
     let linkRight = -1
@@ -124,21 +119,21 @@ export function extractRuns(
       spans.push({ text: spanText, fg: spanFg, bg: spanBg, flags: spanFlags })
       if (runLeft === -1) runLeft = spanStartCol
       runRight = endCol
-      spanText = ''
+      spanText = ``
       inSpan = false
     }
 
     function flushLink(endCol: number) {
       if (!inLink || linkText.length === 0) return
       links.push({
-        type: 'LinkSpan',
+        type: `LinkSpan`,
         bounds: { top: row, left: linkLeft, bottom: row, right: endCol },
         hyperlinkId: linkHyperlinkId,
         text: linkText,
       })
       if (runLeft === -1) runLeft = linkLeft
       runRight = endCol
-      linkText = ''
+      linkText = ``
       inLink = false
     }
 
@@ -163,7 +158,7 @@ export function extractRuns(
       const offset = cellOffset(row, col, cols)
       const decoded = decodeCell(view, offset)
       const { fg, bg } = resolveColors(decoded)
-      const ch = decoded.codepoint === 0 ? ' ' : String.fromCodePoint(decoded.codepoint)
+      const ch = decoded.codepoint === 0 ? ` ` : String.fromCodePoint(decoded.codepoint)
 
       if (cellMeta.hasLink) {
         // Flush any active non-link span first
@@ -225,7 +220,7 @@ export function extractRuns(
     // Emit TextRun if we have spans
     if (spans.length > 0 && runLeft !== -1) {
       textRuns.push({
-        type: 'TextRun',
+        type: `TextRun`,
         bounds: { top: row, left: runLeft, bottom: row, right: runRight },
         spans,
       })

@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box'
 import { styled } from '@mui/material/styles'
 import { ChevronRight } from '@mui/icons-material'
-import { useOrgId } from '@TTH/state/selectors'
+import { useOrgId, useOrgs } from '@TTH/state/selectors'
 import { OrgSelector } from './OrgSelector'
 import { ProjectSelector } from './ProjectSelector'
 
@@ -21,13 +21,20 @@ const SeparatorIcon = styled(ChevronRight)(({ theme }) => {
 })
 
 export const Breadcrumbs = () => {
+  const orgs = useOrgs()
   const orgId = useOrgId()
 
-  return orgId ? (
+  if (!orgs.length) return null
+
+  return (
     <Container>
       <OrgSelector />
-      <SeparatorIcon />
-      <ProjectSelector />
+      {orgId && (
+        <>
+          <SeparatorIcon />
+          <ProjectSelector />
+        </>
+      )}
     </Container>
-  ) : null
+  )
 }

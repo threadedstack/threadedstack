@@ -1,12 +1,18 @@
-import type { TRequest, TPermissionContext } from '@TBE/types'
-import type { EPermAction, EPermResource } from '@tdsk/domain'
-import type { ERoleType } from '@tdsk/domain'
+import type { TRequest } from '@TBE/types'
+import type {
+  ERoleType,
+  EPermAction,
+  EPermResource,
+  TPermissionContext,
+} from '@tdsk/domain'
+
 import { Exception, canPerform, isSuperAdmin, getHighestRole } from '@tdsk/domain'
 
 /**
  * Get user`s effective role for the given context
  * Checks org-level and project-level roles, returns highest
  * Returns null for non-members (no role found)
+ * Throws on DB errors to prevent silent permission denials
  */
 export const getUserRole = async (
   req: TRequest,
@@ -20,17 +26,22 @@ export const getUserRole = async (
   const roles: ERoleType[] = []
 
   if (context.orgId) {
-    const { data: orgRole } = await db.services.role.getOrgRole(userId, context.orgId)
+    const { data: orgRole, error: orgErr } = await db.services.role.getOrgRole(
+      userId,
+      context.orgId
+    )
+    if (orgErr) throw new Exception(500, `Role lookup failed: ${orgErr.message}`)
     if (orgRole?.type) {
       roles.push(orgRole.type as ERoleType)
     }
   }
 
   if (context.projectId) {
-    const { data: projectRole } = await db.services.role.getProjectRole(
+    const { data: projectRole, error: projErr } = await db.services.role.getProjectRole(
       userId,
       context.projectId
     )
+    if (projErr) throw new Exception(500, `Role lookup failed: ${projErr.message}`)
     if (projectRole?.type) roles.push(projectRole.type as ERoleType)
   }
 

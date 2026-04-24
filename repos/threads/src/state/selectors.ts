@@ -1,12 +1,12 @@
 import type { atomWithReset } from 'jotai/utils'
 import type { TOpenSession } from '@TTH/types'
-import type { TViewportMode } from '@TTH/ast'
+import type { TViewportMode } from '@TTH/types/ast.types'
 
 import { useMemo } from 'react'
 import { useResetAtom } from 'jotai/utils'
 import { userState } from '@TTH/state/user'
 import { useAtom, useAtomValue } from 'jotai'
-import { sessionModeAtom } from '@TTH/state/gui'
+import { sessionModeState } from '@TTH/state/gui'
 import { themeTypeState } from '@TTH/state/theme'
 import {
   orgIdState,
@@ -42,7 +42,7 @@ export const useOrgId = () => useRecState(orgIdState)[0]
 export const useActiveOrgRole = () => useRecState(activeOrgRoleState)
 
 export const useSessionMode = (sessionId: string): TViewportMode => {
-  const modeMap = useAtomValue(sessionModeAtom)
+  const modeMap = useAtomValue(sessionModeState)
   return modeMap.get(sessionId) ?? `idle`
 }
 
@@ -75,7 +75,7 @@ export const useSandboxHasSession = (sandboxId: string): boolean => {
 
 export const useSandboxMode = (sandboxId: string): TViewportMode => {
   const sessions = useSessionsForSandbox(sandboxId)
-  const modeMap = useAtomValue(sessionModeAtom)
+  const modeMap = useAtomValue(sessionModeState)
   for (const session of sessions) {
     const mode = modeMap.get(session.sessionId)
     if (mode && mode !== `idle`) return mode

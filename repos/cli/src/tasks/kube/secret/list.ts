@@ -25,7 +25,7 @@ export const list: TTask = {
   name: `list`,
   alias: [`ls`, `show`],
   action: listAction,
-  example: `pnpm tdsk kube secret list --env production`,
+  example: `tdsk kube secret list --env production`,
   description: `List kubernetes secrets in the target namespace`,
   options: {
     namespace: {

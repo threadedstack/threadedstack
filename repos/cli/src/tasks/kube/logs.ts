@@ -36,7 +36,7 @@ export const logs: TTask = {
   name: `logs`,
   alias: [`log`, `lg`],
   action: logsAction,
-  example: `pnpm tdsk kube logs --context proxy --env production`,
+  example: `tdsk kube logs --context proxy --env production`,
   description: `View logs for a kubernetes pod by context or name`,
   options: {
     context: {

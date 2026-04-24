@@ -23,7 +23,7 @@ export const namespace: TTask = {
   name: `namespace`,
   alias: [`nsp`, `ns`],
   action: namespaceAction,
-  example: `pnpm tdsk kube namespace <options>`,
+  example: `tdsk kube namespace <options>`,
   description: `Sets the active kubernetes namespace for the current context`,
   options: {
     namespace: {

@@ -12,7 +12,7 @@ export const push: TTask = {
   name: `push`,
   alias: [`ph`],
   action: pushAct,
-  example: `pnpm tdsk db push --env production`,
+  example: `tdsk db push --env production`,
   description: `Push schema directly to database (interactive — confirms destructive changes)`,
   options: {
     log: sharedOpts.shared.log,

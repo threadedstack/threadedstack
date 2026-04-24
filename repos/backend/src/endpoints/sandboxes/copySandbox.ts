@@ -49,7 +49,9 @@ export const copySandbox: TEndpointConfig = {
       if (!hasMinRole(userRole, ERoleType.admin)) {
         const userId = req.user?.id
         if (userId) {
-          const { data: userProjectIds } = await db.services.role.getUserProjects(userId)
+          const { data: userProjectIds, error: projErr } =
+            await db.services.role.getUserProjects(userId)
+          if (projErr) throw new Exception(500, `Failed to retrieve user projects`)
           if (userProjectIds?.length) {
             const userProjSet = new Set(userProjectIds)
             projectsToLink = projectsToLink.filter((p) => userProjSet.has(p.id))

@@ -31,11 +31,16 @@ export const init = async () => {
   const orgsResult = await orgsApi.list()
   if (orgsResult.data?.length) setOrgs(orgsResult.data)
 
-  // Restore saved org selection, or use session's active org
+  // Restore saved org selection, or session's active org
   const savedOrgId = storage.get<string>(ActiveOrgIdStorageKey)
   const validSaved = savedOrgId && orgsResult.data?.some((o) => o.id === savedOrgId)
-  const orgId = validSaved ? savedOrgId : resp.session?.activeOrganizationId
+  const orgId = validSaved
+    ? savedOrgId
+    : resp.session?.activeOrganizationId ||
+      // Auto-select when user belongs to exactly one org
+      (orgsResult.data?.length === 1 ? orgsResult.data[0].id : undefined)
 
+  // Multiple orgs with no selection — UI will show org picker
   if (!orgId) return
 
   setOrgId(orgId)

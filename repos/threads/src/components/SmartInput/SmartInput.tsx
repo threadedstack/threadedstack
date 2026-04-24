@@ -6,7 +6,7 @@ import { sendInput } from '@TTH/actions/sessions/sendInput'
 
 export type TSmartInput = { sessionId: string }
 
-export function SmartInput({ sessionId }: TSmartInput) {
+export const SmartInput = ({ sessionId }: TSmartInput) => {
   const [value, setValue] = useState(``)
 
   const handleSubmit = () => {

@@ -23,7 +23,7 @@ export const build: TTask = {
   name: `build`,
   alias: [`bld`],
   action: buildImg,
-  example: `pnpm tdsk dev img build <options>`,
+  example: `tdsk dev img build <options>`,
   description: `Calls the image build command`,
   options: {
     context: {

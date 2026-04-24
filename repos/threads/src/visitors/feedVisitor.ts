@@ -6,7 +6,7 @@ import type {
   TSelectList,
   TTextInput,
   TDiffBlock,
-} from '@TTH/ast'
+} from '@TTH/types/ast.types'
 
 // Monotonic counter for event IDs
 let _counter = 0
@@ -22,13 +22,13 @@ export function findNodesByType<T extends TContentNode>(
   typeName: string
 ): T[] {
   const results: T[] = []
-  const children = 'children' in doc ? (doc.children as TContentNode[]) : []
+  const children = `children` in doc ? (doc.children as TContentNode[]) : []
   for (const child of children) {
     if (child.type === typeName) {
       results.push(child as T)
     }
     // Recurse into container nodes
-    if ('children' in child) {
+    if (`children` in child) {
       results.push(...findNodesByType<T>(child, typeName))
     }
   }
@@ -39,14 +39,14 @@ export function findNodesByType<T extends TContentNode>(
  * Extract the plain text of a TextLine for comparison.
  */
 function lineText(line: TTextLine): string {
-  return line.children.map((s) => s.text).join('')
+  return line.children.map((s) => s.text).join(``)
 }
 
 /**
  * Build a content fingerprint from a set of TextLines for change detection.
  */
 function linesFingerprint(lines: TTextLine[]): string {
-  return lines.map(lineText).join('\n')
+  return lines.map(lineText).join(`\n`)
 }
 
 /**
@@ -68,89 +68,89 @@ export function diffToFeedEvents(prev: TDocument, next: TDocument): TFeedEvent[]
   const events: TFeedEvent[] = []
 
   // 1. Mode transitions
-  if (next.mode === 'idle' && prev.mode !== 'idle') {
-    events.push({ kind: 'idle', id: nextId(), timestamp: Date.now() })
+  if (next.mode === `idle` && prev.mode !== `idle`) {
+    events.push({ kind: `idle`, id: nextId(), timestamp: Date.now() })
   }
-  if (next.mode === 'tui') {
-    events.push({ kind: 'tui', id: nextId(), status: 'active', regionTree: next })
+  if (next.mode === `tui`) {
+    events.push({ kind: `tui`, id: nextId(), status: `active`, regionTree: next })
   }
-  if (prev.mode === 'tui' && next.mode !== 'tui') {
-    events.push({ kind: 'tui', id: nextId(), status: 'exited', regionTree: prev })
+  if (prev.mode === `tui` && next.mode !== `tui`) {
+    events.push({ kind: `tui`, id: nextId(), status: `exited`, regionTree: prev })
   }
 
   // 2. TextInput appeared / disappeared
-  const prevInputs = findNodesByType<TTextInput>(prev, 'TextInput')
-  const nextInputs = findNodesByType<TTextInput>(next, 'TextInput')
+  const prevInputs = findNodesByType<TTextInput>(prev, `TextInput`)
+  const nextInputs = findNodesByType<TTextInput>(next, `TextInput`)
   if (nextInputs.length > prevInputs.length) {
     const appeared = nextInputs[nextInputs.length - 1]
     events.push({
-      kind: 'prompt',
+      kind: `prompt`,
       id: nextId(),
-      status: 'waiting',
+      status: `waiting`,
       question: appeared.prompt,
     })
   } else if (prevInputs.length > nextInputs.length) {
     const disappeared = prevInputs[prevInputs.length - 1]
     events.push({
-      kind: 'prompt',
+      kind: `prompt`,
       id: nextId(),
-      status: 'answered',
+      status: `answered`,
       question: disappeared.prompt,
     })
   }
 
   // 3. SelectList appeared (with content change — not just same list re-rendered)
-  const prevSelects = findNodesByType<TSelectList>(prev, 'SelectList')
-  const nextSelects = findNodesByType<TSelectList>(next, 'SelectList')
+  const prevSelects = findNodesByType<TSelectList>(prev, `SelectList`)
+  const nextSelects = findNodesByType<TSelectList>(next, `SelectList`)
   if (nextSelects.length > prevSelects.length) {
     const appeared = nextSelects[nextSelects.length - 1]
     const options = appeared.children
       .filter((item) => {
         const text = item.children
           .map((span) => span.text)
-          .join('')
+          .join(``)
           .trim()
         // Filter out items that are purely separator/decoration characters
         return text.length > 0 && !/^[─━╌╍┄┈═╼╾\-=_·•●]+$/.test(text)
       })
-      .map((item) => item.children.map((span) => span.text).join(''))
+      .map((item) => item.children.map((span) => span.text).join(``))
 
     if (options.length > 0) {
       events.push({
-        kind: 'prompt',
+        kind: `prompt`,
         id: nextId(),
-        status: 'waiting',
-        question: 'Select an option',
+        status: `waiting`,
+        question: `Select an option`,
         options,
       })
     }
   }
 
   // 4. DiffBlock appeared
-  const prevDiffs = findNodesByType<TDiffBlock>(prev, 'DiffBlock')
-  const nextDiffs = findNodesByType<TDiffBlock>(next, 'DiffBlock')
+  const prevDiffs = findNodesByType<TDiffBlock>(prev, `DiffBlock`)
+  const nextDiffs = findNodesByType<TDiffBlock>(next, `DiffBlock`)
   if (nextDiffs.length > prevDiffs.length) {
     events.push({
-      kind: 'action',
+      kind: `action`,
       id: nextId(),
-      status: 'running',
-      action: 'edit',
-      target: 'file',
+      status: `running`,
+      action: `edit`,
+      target: `file`,
     })
   }
 
   // 5. New or changed TextLine content in streaming or interactive mode
-  if (next.mode === 'streaming' || next.mode === 'interactive') {
-    const prevLines = findNodesByType<TTextLine>(prev, 'TextLine')
-    const nextLines = findNodesByType<TTextLine>(next, 'TextLine')
+  if (next.mode === `streaming` || next.mode === `interactive`) {
+    const prevLines = findNodesByType<TTextLine>(prev, `TextLine`)
+    const nextLines = findNodesByType<TTextLine>(next, `TextLine`)
     const newCount = nextLines.length - prevLines.length
 
     if (newCount > 0) {
       // New lines appended
       events.push({
-        kind: 'output',
+        kind: `output`,
         id: nextId(),
-        status: next.mode === 'streaming' ? 'streaming' : 'complete',
+        status: next.mode === `streaming` ? `streaming` : `complete`,
         lines: nextLines.slice(prevLines.length),
         collapsed: false,
       })
@@ -174,9 +174,9 @@ export function diffToFeedEvents(prev: TDocument, next: TDocument): TFeedEvent[]
           )
           if (meaningful.length > 0) {
             events.push({
-              kind: 'output',
+              kind: `output`,
               id: nextId(),
-              status: 'complete',
+              status: `complete`,
               lines: meaningful,
               collapsed: meaningful.length > 5,
             })

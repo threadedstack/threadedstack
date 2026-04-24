@@ -15,7 +15,7 @@ export const apply: TTask = {
   name: `apply`,
   alias: [`ap`, `dep`],
   action: applyAct,
-  example: `pnpm tdsk deploy apply --env production`,
+  example: `tdsk deploy apply --env production`,
   description: `Deploy services to the target Kubernetes cluster via DevSpace`,
   options: {
     log: sharedOpts.shared.log,

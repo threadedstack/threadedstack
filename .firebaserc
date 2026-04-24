@@ -1,0 +1,21 @@
+{
+  "projects": {
+    "default": "threaded-stack-prod"
+  },
+  "targets": {
+    "threaded-stack-prod": {
+      "hosting": {
+        "admin": [
+          "tdsk-admin"
+        ],
+        "threads": [
+          "tdsk-threads"
+        ],
+        "website": [
+          "tdsk-website"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

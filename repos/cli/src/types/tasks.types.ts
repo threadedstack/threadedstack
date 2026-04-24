@@ -59,6 +59,8 @@ export type TTask<P extends TTaskParams = TTaskParams> = {
   name: string
   tasks?: TTasks
   alias?: string[]
+  example?: string
+  description?: string
   action?: TTaskAction<P>
   options?: TTaskOptions<P>
   [key: string]: any

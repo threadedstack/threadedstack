@@ -12,7 +12,7 @@ export const studio: TTask = {
   name: `studio`,
   alias: [`ui`],
   action: studioAct,
-  example: `pnpm tdsk db studio`,
+  example: `tdsk db studio`,
   description: `Launch Drizzle Studio visual database browser`,
   options: {
     log: sharedOpts.shared.log,

@@ -17,7 +17,7 @@ export const dk: TTask = {
   name: `dk`,
   alias: [`drizzle`, `kit`],
   action: dkAct,
-  example: `pnpm tdsk db dk generate --custom`,
+  example: `tdsk db dk generate --custom`,
   description: `Direct drizzle-kit passthrough — pass any drizzle-kit command`,
   options: {
     log: sharedOpts.shared.log,

@@ -1,6 +1,7 @@
+import type { TFeedEvent } from '@TTH/types/ast.types'
+
 import { Box, Button, Chip, Typography } from '@mui/material'
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
-import type { TFeedEvent } from '@TTH/ast'
 
 type TPromptEvent = Extract<TFeedEvent, { kind: 'prompt' }>
 

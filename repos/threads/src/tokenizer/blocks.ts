@@ -1,5 +1,5 @@
-import type { TRect } from '../ast/types'
-import type { TCellMeta, THighlightedBlock } from './types'
+import type { TRect } from '@TTH/types/ast.types'
+import type { TCellMeta, THighlightedBlock } from '@TTH/types/tokenizer.types'
 
 /**
  * Flood-fill (4-connected) starting at (startRow, startCol) within scope bounds.
@@ -94,15 +94,15 @@ export function segmentBlocks(
 
       let shape: 'full-width' | 'small' | 'multi-row'
       if (height > 1) {
-        shape = 'multi-row'
+        shape = `multi-row`
       } else if (width >= scopeWidth) {
-        shape = 'full-width'
+        shape = `full-width`
       } else {
-        shape = 'small'
+        shape = `small`
       }
 
       blocks.push({
-        type: 'HighlightedBlock',
+        type: `HighlightedBlock`,
         bounds,
         color: { r: 0, g: 0, b: 0 },
         shape,

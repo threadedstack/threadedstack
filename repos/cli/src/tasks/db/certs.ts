@@ -12,7 +12,7 @@ export const certs: TTask = {
   name: `certs`,
   alias: [`cert`],
   action: certsAct,
-  example: `pnpm tdsk db certs`,
+  example: `tdsk db certs`,
   description: `Restore Caddy root CA cert/key from local files to database`,
   options: {
     log: sharedOpts.shared.log,

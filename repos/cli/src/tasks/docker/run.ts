@@ -21,7 +21,7 @@ export const run: TTask = {
   name: `run`,
   alias: [`start`],
   action: runImg,
-  example: `pnpm tdsk dev img run <options>`,
+  example: `tdsk dev img run <options>`,
   description: `Calls the image run command`,
   options: {
     context: {

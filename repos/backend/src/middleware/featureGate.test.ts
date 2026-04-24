@@ -1,12 +1,16 @@
 import { featureGate } from './featureGate'
 import { describe, it, expect, vi } from 'vitest'
 
-vi.mock(`@tdsk/domain`, () => ({
-  isFeatureEnabled: vi.fn((flag: string) => {
-    if (flag === `terminalGui`) return true
-    return false
-  }),
-}))
+vi.mock(`@tdsk/domain`, async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tdsk/domain')>()
+  return {
+    ...actual,
+    isFeatureEnabled: vi.fn((flag: string) => {
+      if (flag === `terminalGui`) return true
+      return false
+    }),
+  }
+})
 
 describe(`featureGate`, () => {
   const mockReq = {} as any

@@ -1,6 +1,7 @@
+import type { TFeedEvent } from '@TTH/types/ast.types'
+
 import { useRef, useLayoutEffect } from 'react'
 import { Box } from '@mui/material'
-import type { TFeedEvent } from '@TTH/ast'
 import { ActionCard } from './ActionCard'
 import { PromptCard } from './PromptCard'
 import { OutputCard } from './OutputCard'

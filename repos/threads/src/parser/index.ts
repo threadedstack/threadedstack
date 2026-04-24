@@ -1,5 +1,4 @@
 export { parse } from './parser'
 export { detectMode } from './modeDetector'
-export type { TModeContext } from './modeDetector'
 export { parseScopes } from './scopeParser'
 export { parseFlatContent } from './flatParser'

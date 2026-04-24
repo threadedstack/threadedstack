@@ -10,7 +10,7 @@ import { namespace } from './namespace'
 export const kube: TTask = {
   name: `kube`,
   alias: [`kubectl`, `kb`, `kcl`],
-  example: `pnpm tdsk kube <options>`,
+  example: `tdsk kube <options>`,
   description: `Runs kubectl commands with the current context`,
   tasks: {
     set,

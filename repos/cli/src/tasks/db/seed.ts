@@ -12,7 +12,7 @@ export const seed: TTask = {
   name: `seed`,
   alias: [`sd`],
   action: seedAct,
-  example: `pnpm tdsk db seed --env production`,
+  example: `tdsk db seed --env production`,
   description: `Seed the database with fullorg test data`,
   options: {
     log: sharedOpts.shared.log,

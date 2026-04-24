@@ -19,7 +19,7 @@ import type {
   TActionTarget,
   TContentNode,
   TViewportMode,
-} from './types'
+} from '@TTH/types/ast.types'
 
 export const span = (
   text: string,
@@ -27,7 +27,7 @@ export const span = (
   bg: RGB,
   flags: Partial<Omit<TSpan, 'type' | 'text' | 'fg' | 'bg'>> = {}
 ): TSpan => ({
-  type: 'Span',
+  type: `Span`,
   text,
   fg,
   bg,
@@ -41,7 +41,7 @@ export const span = (
 })
 
 export const textLine = (bounds: TRect, children: TSpan[]): TTextLine => ({
-  type: 'TextLine',
+  type: `TextLine`,
   bounds,
   children,
 })
@@ -52,7 +52,7 @@ export const selectItem = (
   children: TSpan[],
   selected = false
 ): TSelectItem => ({
-  type: 'SelectItem',
+  type: `SelectItem`,
   bounds,
   selected,
   index,
@@ -64,14 +64,14 @@ export const tableRow = (
   cells: TSpan[][],
   isHeader = false
 ): TTableRow => ({
-  type: 'TableRow',
+  type: `TableRow`,
   bounds,
   isHeader,
   cells,
 })
 
 export const statusBar = (bounds: TRect, segments: TSpan[][]): TStatusBar => ({
-  type: 'StatusBar',
+  type: `StatusBar`,
   bounds,
   segments,
 })
@@ -82,7 +82,7 @@ export const confirm = (
   options: [string, string],
   focusedIndex: 0 | 1 = 0
 ): TConfirm => ({
-  type: 'Confirm',
+  type: `Confirm`,
   bounds,
   question,
   options,
@@ -96,7 +96,7 @@ export const textInput = (
   cursorOffset: number,
   suggestion?: string
 ): TTextInput => ({
-  type: 'TextInput',
+  type: `TextInput`,
   bounds,
   prompt,
   value,
@@ -111,7 +111,7 @@ export const actionTarget = (
   focused = false,
   hotkey?: string
 ): TActionTarget => ({
-  type: 'ActionTarget',
+  type: `ActionTarget`,
   bounds,
   label,
   focused,
@@ -125,7 +125,7 @@ export const link = (
   children: TSpan[],
   url?: string
 ): TLink => ({
-  type: 'Link',
+  type: `Link`,
   bounds,
   hyperlinkId,
   children,
@@ -134,9 +134,9 @@ export const link = (
 
 export const separator = (
   bounds: TRect,
-  style: TSeparator['style'] = 'line'
+  style: TSeparator['style'] = `line`
 ): TSeparator => ({
-  type: 'Separator',
+  type: `Separator`,
   bounds,
   style,
 })
@@ -145,9 +145,9 @@ export const selectList = (
   bounds: TRect,
   children: TSelectItem[],
   selectedIndex = 0,
-  style: TSelectList['style'] = 'arrow'
+  style: TSelectList['style'] = `arrow`
 ): TSelectList => ({
-  type: 'SelectList',
+  type: `SelectList`,
   bounds,
   selectedIndex,
   style,
@@ -159,20 +159,20 @@ export const table = (
   children: TTableRow[],
   hasHeader = false
 ): TTable => ({
-  type: 'Table',
+  type: `Table`,
   bounds,
   hasHeader,
   children,
 })
 
 export const diffBlock = (bounds: TRect, children: TTextLine[]): TDiffBlock => ({
-  type: 'DiffBlock',
+  type: `DiffBlock`,
   bounds,
   children,
 })
 
 export const group = (bounds: TRect, children: TContentNode[]): TGroup => ({
-  type: 'Group',
+  type: `Group`,
   bounds,
   children,
 })
@@ -180,10 +180,10 @@ export const group = (bounds: TRect, children: TContentNode[]): TGroup => ({
 export const panel = (
   bounds: TRect,
   children: TContentNode[],
-  border: TPanel['border'] = 'single',
+  border: TPanel['border'] = `single`,
   title?: string
 ): TPanel => ({
-  type: 'Panel',
+  type: `Panel`,
   bounds,
   border,
   children,
@@ -193,10 +193,10 @@ export const panel = (
 export const document = (
   bounds: TRect,
   children: TContentNode[],
-  mode: TViewportMode = 'idle',
+  mode: TViewportMode = `idle`,
   cursor: TDocument['cursor'] = { x: 0, y: 0, visible: false }
 ): TDocument => ({
-  type: 'Document',
+  type: `Document`,
   bounds,
   cursor,
   mode,

@@ -1,4 +1,4 @@
-import type { TViewMode } from '@TTH/components/ViewToggle'
+import type { TViewMode } from '@TTH/types'
 
 import { toast } from 'sonner'
 import { Loading } from '@tdsk/components'

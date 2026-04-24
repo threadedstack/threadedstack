@@ -1,4 +1,4 @@
-import type { TDiffBlock } from '@TTH/ast'
+import type { TDiffBlock } from '@TTH/types/ast.types'
 import Box from '@mui/material/Box'
 import { NodeTextLine } from './NodeTextLine'
 
@@ -13,7 +13,7 @@ function getDiffLineStyle(text: string): React.CSSProperties {
   return {}
 }
 
-export function NodeDiffBlock({ node }: { node: TDiffBlock }) {
+export const NodeDiffBlock = ({ node }: { node: TDiffBlock }) => {
   return (
     <Box
       sx={{

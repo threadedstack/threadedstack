@@ -1,15 +1,16 @@
-import { describe, it, expect } from 'vitest'
-import { parse } from './parser'
-import type { TModeContext } from './modeDetector'
-import type { TTokenizeResult } from '../tokenizer'
+import type { TModeContext } from '@TTH/types/parser.types'
 import type {
   TToken,
+  TTokenizeResult,
   TBorderFrame,
   TTextRun,
   TCursorToken,
   TPalette,
   TCellMeta,
-} from '../tokenizer/types'
+} from '@TTH/types/tokenizer.types'
+
+import { describe, it, expect } from 'vitest'
+import { parse } from './parser'
 
 const defaultPalette: TPalette = {
   defaultBg: { r: 0, g: 0, b: 0 },
@@ -20,7 +21,7 @@ const defaultMeta: TCellMeta[][] = []
 
 function makeTextRun(row: number, col: number, text: string): TTextRun {
   return {
-    type: 'TextRun',
+    type: `TextRun`,
     bounds: { top: row, left: col, bottom: row, right: col + text.length - 1 },
     spans: [
       {
@@ -34,7 +35,7 @@ function makeTextRun(row: number, col: number, text: string): TTextRun {
 }
 
 function makeCursor(x: number, y: number, visible: boolean): TCursorToken {
-  return { type: 'CursorToken', position: { x, y }, visible }
+  return { type: `CursorToken`, position: { x, y }, visible }
 }
 
 function makeFrame(
@@ -44,10 +45,10 @@ function makeFrame(
   right: number
 ): TBorderFrame {
   return {
-    type: 'BorderFrame',
+    type: `BorderFrame`,
     bounds: { top, left, bottom, right },
     interior: { top: top + 1, left: left + 1, bottom: bottom - 1, right: right - 1 },
-    style: 'single',
+    style: `single`,
   }
 }
 
@@ -88,42 +89,42 @@ const tuiModeCtx: TModeContext = {
   hasInteractiveRegion: false,
 }
 
-describe('parse', () => {
-  it('returns a Document node with correct type', () => {
-    const tokenResult = makeTokenResult([makeTextRun(0, 0, 'Hello')])
+describe(`parse`, () => {
+  it(`returns a Document node with correct type`, () => {
+    const tokenResult = makeTokenResult([makeTextRun(0, 0, `Hello`)])
     const doc = parse(tokenResult, interactiveModeCtx)
-    expect(doc.type).toBe('Document')
+    expect(doc.type).toBe(`Document`)
   })
 
-  it('detects idle mode and sets it on the Document', () => {
-    const tokenResult = makeTokenResult([makeTextRun(0, 0, 'Hello')])
+  it(`detects idle mode and sets it on the Document`, () => {
+    const tokenResult = makeTokenResult([makeTextRun(0, 0, `Hello`)])
     const doc = parse(tokenResult, idleModeCtx)
-    expect(doc.mode).toBe('idle')
+    expect(doc.mode).toBe(`idle`)
   })
 
-  it('detects interactive mode', () => {
-    const tokenResult = makeTokenResult([makeTextRun(0, 0, 'Hello')])
+  it(`detects interactive mode`, () => {
+    const tokenResult = makeTokenResult([makeTextRun(0, 0, `Hello`)])
     const doc = parse(tokenResult, interactiveModeCtx)
-    expect(doc.mode).toBe('interactive')
+    expect(doc.mode).toBe(`interactive`)
   })
 
-  it('detects tui mode', () => {
-    const tokenResult = makeTokenResult([makeTextRun(0, 0, 'Hello')])
+  it(`detects tui mode`, () => {
+    const tokenResult = makeTokenResult([makeTextRun(0, 0, `Hello`)])
     const doc = parse(tokenResult, tuiModeCtx)
-    expect(doc.mode).toBe('tui')
+    expect(doc.mode).toBe(`tui`)
   })
 
-  it('sets cursor from the tokenize result', () => {
+  it(`sets cursor from the tokenize result`, () => {
     const cursor = makeCursor(5, 10, true)
-    const tokenResult = makeTokenResult([makeTextRun(0, 0, 'Hello')], cursor)
+    const tokenResult = makeTokenResult([makeTextRun(0, 0, `Hello`)], cursor)
     const doc = parse(tokenResult, interactiveModeCtx)
     expect(doc.cursor).toEqual({ x: 5, y: 10, visible: true })
   })
 
-  it('derives bounds from tokens', () => {
+  it(`derives bounds from tokens`, () => {
     const tokenResult = makeTokenResult([
-      makeTextRun(2, 5, 'Hello'),
-      makeTextRun(8, 10, 'World'),
+      makeTextRun(2, 5, `Hello`),
+      makeTextRun(8, 10, `World`),
     ])
     const doc = parse(tokenResult, interactiveModeCtx)
     expect(doc.bounds.top).toBeLessThanOrEqual(2)
@@ -132,46 +133,46 @@ describe('parse', () => {
     expect(doc.bounds.right).toBeGreaterThanOrEqual(14)
   })
 
-  it('parses flat text runs into TextLine children', () => {
+  it(`parses flat text runs into TextLine children`, () => {
     const tokenResult = makeTokenResult([
-      makeTextRun(0, 0, 'Line 1'),
-      makeTextRun(1, 0, 'Line 2'),
+      makeTextRun(0, 0, `Line 1`),
+      makeTextRun(1, 0, `Line 2`),
     ])
     const doc = parse(tokenResult, interactiveModeCtx)
-    const textLines = doc.children.filter((c) => c.type === 'TextLine')
+    const textLines = doc.children.filter((c) => c.type === `TextLine`)
     expect(textLines.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('parses border frames into Panel children', () => {
+  it(`parses border frames into Panel children`, () => {
     const frame = makeFrame(0, 0, 5, 30)
-    const interiorText = makeTextRun(2, 3, 'Inside frame')
+    const interiorText = makeTextRun(2, 3, `Inside frame`)
     const tokenResult = makeTokenResult([frame, interiorText])
     const doc = parse(tokenResult, interactiveModeCtx)
-    const panels = doc.children.filter((c) => c.type === 'Panel')
+    const panels = doc.children.filter((c) => c.type === `Panel`)
     expect(panels).toHaveLength(1)
-    expect(panels[0].type).toBe('Panel')
+    expect(panels[0].type).toBe(`Panel`)
   })
 
-  it('includes both panels and flat content in children', () => {
+  it(`includes both panels and flat content in children`, () => {
     const frame = makeFrame(0, 0, 5, 30)
-    const insideText = makeTextRun(2, 3, 'Inside')
-    const outsideText = makeTextRun(8, 0, 'Outside')
+    const insideText = makeTextRun(2, 3, `Inside`)
+    const outsideText = makeTextRun(8, 0, `Outside`)
     const tokenResult = makeTokenResult([frame, insideText, outsideText])
     const doc = parse(tokenResult, interactiveModeCtx)
-    const panels = doc.children.filter((c) => c.type === 'Panel')
-    const lines = doc.children.filter((c) => c.type === 'TextLine')
+    const panels = doc.children.filter((c) => c.type === `Panel`)
+    const lines = doc.children.filter((c) => c.type === `TextLine`)
     expect(panels).toHaveLength(1)
     expect(lines.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('returns a Document with empty children for empty token result', () => {
+  it(`returns a Document with empty children for empty token result`, () => {
     const tokenResult = makeTokenResult([])
     const doc = parse(tokenResult, interactiveModeCtx)
-    expect(doc.type).toBe('Document')
+    expect(doc.type).toBe(`Document`)
     expect(doc.children).toHaveLength(0)
   })
 
-  it('uses fallback bounds when no tokens have bounds', () => {
+  it(`uses fallback bounds when no tokens have bounds`, () => {
     const cursor = makeCursor(0, 0, false)
     const tokenResult: TTokenizeResult = {
       tokens: [cursor],

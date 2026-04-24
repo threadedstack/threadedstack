@@ -1,5 +1,5 @@
 import type { Sandbox, TSandboxSession } from '@tdsk/domain'
-import type { TViewportMode } from '@TTH/ast'
+import type { TViewportMode } from '@TTH/types/ast.types'
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router'

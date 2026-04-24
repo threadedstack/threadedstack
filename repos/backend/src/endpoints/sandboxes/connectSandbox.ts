@@ -102,6 +102,19 @@ export const connectSandbox: TEndpointConfig = {
       }
     }
 
+    // Check for initScript failure inside the pod (K8s Exec API, not host shell)
+    let initError: string | undefined
+    try {
+      const sbInstance = await sb.getSandbox(podName)
+      const check = await sbInstance.exec(`cat`, [`/tmp/tdsk-init-error.log`])
+      if (check.exitCode === 0 && check.output?.trim()) {
+        initError = check.output.trim()
+        logger.warn(`[Sandbox] initScript failed for pod ${podName}: ${initError}`)
+      }
+    } catch {
+      // Non-fatal — pod may not have the file or K8s exec may not be ready yet
+    }
+
     let password = sb.getPassword(podName)
     if (!password) password = await sb.recoverPassword(podName)
     if (!password) throw new Exception(500, `Could not retrieve SSH password for pod`)
@@ -120,6 +133,7 @@ export const connectSandbox: TEndpointConfig = {
         shellToken,
         sandboxId: id,
         command: `tsa ssh ${id}`,
+        ...(initError && { initError }),
       },
     })
   },

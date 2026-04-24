@@ -4,21 +4,6 @@
 
 	email {$TDSK_CADDY_ACME_EMAIL}
 
-	# ── NEW: accept PROXY v2 from the Civo LB on :80 and :443 ──
-	servers {
-		listener_wrappers {
-			proxy_protocol {
-				timeout 5s
-				allow 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
-				fallback_policy ignore
-			}
-			tls
-		}
-		# Preserve real client IP in request headers / logs
-		trusted_proxies static 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
-		client_ip_headers X-Forwarded-For
-	}
-
 	# Configure PostgreSQL storage for certificates
 	# NOTE: Caddy must be able to reach this DB, or it will fail to start.
 	storage postgresql {
@@ -26,11 +11,6 @@
 		#max_open_conns 25
 		#max_idle_conns 5
 		#conn_max_lifetime 300s
-	}
-
-	# On-Demand TLS configuration (Used only by Prod block below)
-	on_demand_tls {
-		ask http://{$TDSK_PX_DEPLOYMENT}:{$TDSK_PX_PORT}/domains/validate
 	}
 }
 
@@ -122,28 +102,4 @@
 	import app_logic
 }
 
-# ---------------------------------------------------------
-# BLOCK: Sandbox Subdomains (Production)
-# Matches *.sandbox.threadedstack.app for sandbox pod access
-# ---------------------------------------------------------
-*.sandbox.{$TDSK_HOST_DOMAIN:threadedstack.app} {
-	tls {
-		on_demand
-	}
-
-	import app_logic
-}
-
-# ---------------------------------------------------------
-# BLOCK 2: Production (Catch-All)
-# Matches everything else (e.g. *.threadedstack.app)
-# ---------------------------------------------------------
-:443 {
-	# Use On-Demand TLS with Postgres storage
-	tls {
-		on_demand
-	}
-
-	import app_logic
-}
 

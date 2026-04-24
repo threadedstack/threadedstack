@@ -1,8 +1,11 @@
-import { useAtomValue } from 'jotai'
 import { Box } from '@mui/material'
-import { sessionASTAtom } from '@TTH/state/gui'
-import { useActivityFeed } from '@TTH/hooks/useActivityFeed'
+import { useAtomValue } from 'jotai'
+import { useCallback, useMemo } from 'react'
 import { renderDocument } from '@TTH/visitors'
+import { sessionASTState } from '@TTH/state/gui'
+import { useActivityFeed } from '@TTH/hooks/useActivityFeed'
+import { sendInput } from '@TTH/actions/sessions/sendInput'
+import { InteractionContext } from '@TTH/contexts/InteractionContext'
 import { ActivityFeed } from '@TTH/components/ActivityFeed/ActivityFeed'
 
 export type TSessionGUIViewProps = {
@@ -10,27 +13,54 @@ export type TSessionGUIViewProps = {
   onRespond?: (answer: string) => void
 }
 
-export const SessionGUIView = (props: TSessionGUIViewProps) => {
-  const { sessionId, onRespond } = props
-  const astMap = useAtomValue(sessionASTAtom)
-  const { events, mode } = useActivityFeed(sessionId)
-  const doc = astMap.get(sessionId)
+export type TRenderGUI = {
+  doc: any
+  overflow: string
+  interactionCtx: {
+    sendKeystroke: (data: string) => boolean
+  }
+}
 
-  if (mode === `tui` && doc) {
-    return (
+const RenderGUI = (props: TRenderGUI) => {
+  const { doc, overflow, interactionCtx } = props
+
+  return (
+    <InteractionContext.Provider value={interactionCtx}>
       <Box
         sx={{
           flex: 1,
           width: `100%`,
           height: `100%`,
-          overflow: `hidden`,
+          overflow,
           fontFamily: `monospace`,
         }}
       >
-        {renderDocument(doc)}
+        {renderDocument(doc!)}
       </Box>
+    </InteractionContext.Provider>
+  )
+}
+
+export const SessionGUIView = (props: TSessionGUIViewProps) => {
+  const { sessionId, onRespond } = props
+  const astMap = useAtomValue(sessionASTState)
+  const { events, mode } = useActivityFeed(sessionId)
+  const doc = astMap.get(sessionId)
+
+  const sendKeystroke = useCallback(
+    (data: string) => sendInput(sessionId, data),
+    [sessionId]
+  )
+  const interactionCtx = useMemo(() => ({ sendKeystroke }), [sendKeystroke])
+
+  if (mode === `tui` && doc)
+    return (
+      <RenderGUI
+        doc={doc}
+        overflow='hidden'
+        interactionCtx={interactionCtx}
+      />
     )
-  }
 
   if (events.length > 0) {
     return (
@@ -41,21 +71,14 @@ export const SessionGUIView = (props: TSessionGUIViewProps) => {
     )
   }
 
-  if (doc) {
+  if (doc)
     return (
-      <Box
-        sx={{
-          flex: 1,
-          width: `100%`,
-          height: `100%`,
-          overflow: `auto`,
-          fontFamily: `monospace`,
-        }}
-      >
-        {renderDocument(doc)}
-      </Box>
+      <RenderGUI
+        doc={doc}
+        overflow='auto'
+        interactionCtx={interactionCtx}
+      />
     )
-  }
 
   return (
     <ActivityFeed

@@ -12,7 +12,7 @@ export const generate: TTask = {
   name: `generate`,
   alias: [`gen`],
   action: generateAct,
-  example: `pnpm tdsk db generate`,
+  example: `tdsk db generate`,
   description: `Generate migration files from schema changes`,
   options: {
     log: sharedOpts.shared.log,

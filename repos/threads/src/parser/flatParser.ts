@@ -2,20 +2,18 @@ import type {
   TRect,
   RGB,
   TSpan,
-  TContentNode,
+  TToken,
+  TTextRun,
+  TRawSpan,
+  TLinkSpan,
   TTextLine,
   TSelectItem,
   TSelectList,
-} from '../ast'
-import type {
-  TToken,
-  TTextRun,
-  THighlightedBlock,
+  TContentNode,
   TWhitespaceGap,
-  TLinkSpan,
-  TRawSpan,
-} from '../tokenizer/types'
-import { CellFlags } from '../tokenizer/types'
+  THighlightedBlock,
+} from '@TTH/types'
+import { CellFlags } from '@TTH/tokenizer/types'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -24,7 +22,7 @@ import { CellFlags } from '../tokenizer/types'
 /** Convert a TRawSpan (tokenizer output) to a TSpan (AST leaf). */
 export function rawSpanToSpan(raw: TRawSpan): TSpan {
   return {
-    type: 'Span',
+    type: `Span`,
     text: raw.text,
     fg: raw.fg,
     bg: raw.bg,
@@ -40,7 +38,7 @@ export function rawSpanToSpan(raw: TRawSpan): TSpan {
 /** Convert a TTextRun token to a TTextLine AST node. */
 export function textRunToTextLine(run: TTextRun): TTextLine {
   return {
-    type: 'TextLine',
+    type: `TextLine`,
     bounds: run.bounds,
     children: run.spans.map(rawSpanToSpan),
   }
@@ -70,7 +68,7 @@ function rgbEq(a: RGB, b: RGB): boolean {
 
 /** Get the full text of a text run by concatenating its spans. */
 function runText(run: TTextRun): string {
-  return run.spans.map((s) => s.text).join('')
+  return run.spans.map((s) => s.text).join(``)
 }
 
 // ---------------------------------------------------------------------------
@@ -126,10 +124,10 @@ function splitSections(
       gapIdx++
     }
 
-    if (item.token.type === 'TextRun') currentSection.textRuns.push(item.token)
-    else if (item.token.type === 'HighlightedBlock')
+    if (item.token.type === `TextRun`) currentSection.textRuns.push(item.token)
+    else if (item.token.type === `HighlightedBlock`)
       currentSection.highlights.push(item.token)
-    else if (item.token.type === 'LinkSpan') currentSection.links.push(item.token)
+    else if (item.token.type === `LinkSpan`) currentSection.links.push(item.token)
   }
 
   // Flush last section
@@ -214,9 +212,9 @@ function trySelectList(section: TSection): TSelectList | null {
   if (score < 5) return null
 
   // Determine style
-  let style: TSelectList['style'] = 'highlighted'
-  if (arrowCount > 0) style = 'arrow'
-  else if (numberedCount === texts.length) style = 'numbered'
+  let style: TSelectList['style'] = `highlighted`
+  if (arrowCount > 0) style = `arrow`
+  else if (numberedCount === texts.length) style = `numbered`
 
   // Find selected index
   let selectedIndex = 0
@@ -230,7 +228,7 @@ function trySelectList(section: TSection): TSelectList | null {
   }
 
   const children: TSelectItem[] = sorted.map((run, i) => ({
-    type: 'SelectItem' as const,
+    type: `SelectItem` as const,
     bounds: run.bounds,
     selected: i === selectedIndex,
     index: i,
@@ -238,7 +236,7 @@ function trySelectList(section: TSection): TSelectList | null {
   }))
 
   return {
-    type: 'SelectList',
+    type: `SelectList`,
     bounds: combineBounds(sorted),
     selectedIndex,
     style,
@@ -260,7 +258,7 @@ function tryTable(section: TSection): TContentNode | null {
     let m: RegExpExecArray | null = null
     // Reset lastIndex for each row
     sepChars.lastIndex = 0
-    const localRe = new RegExp(sepChars.source, 'g')
+    const localRe = new RegExp(sepChars.source, `g`)
     while ((m = localRe.exec(t)) !== null) {
       positions.push(m.index)
     }
@@ -304,7 +302,7 @@ function tryTable(section: TSection): TContentNode | null {
 
     const cells: TSpan[][] = cellTexts.map((ct) => [
       {
-        type: 'Span' as const,
+        type: `Span` as const,
         text: ct,
         fg: run.spans[0]?.fg || { r: 255, g: 255, b: 255 },
         bg: run.spans[0]?.bg || { r: 0, g: 0, b: 0 },
@@ -318,7 +316,7 @@ function tryTable(section: TSection): TContentNode | null {
     ])
 
     return {
-      type: 'TableRow' as const,
+      type: `TableRow` as const,
       bounds: run.bounds,
       isHeader: rowIdx === 0 && isHeader,
       cells,
@@ -326,7 +324,7 @@ function tryTable(section: TSection): TContentNode | null {
   })
 
   return {
-    type: 'Table' as const,
+    type: `Table` as const,
     bounds: combineBounds(sorted),
     hasHeader: isHeader,
     children,
@@ -344,7 +342,7 @@ function tryDiffBlock(section: TSection): TContentNode | null {
   for (const run of sorted) {
     const text = runText(run)
     const trimmed = text.trimStart()
-    const hasDiffPrefix = trimmed.startsWith('+') || trimmed.startsWith('-')
+    const hasDiffPrefix = trimmed.startsWith(`+`) || trimmed.startsWith(`-`)
     const hasGreenFg = run.spans.some((s) => s.fg.g > 150 && s.fg.r < 100 && s.fg.b < 100)
     const hasRedFg = run.spans.some((s) => s.fg.r > 150 && s.fg.g < 100 && s.fg.b < 100)
     if (hasDiffPrefix || hasGreenFg || hasRedFg) diffCount++
@@ -354,7 +352,7 @@ function tryDiffBlock(section: TSection): TContentNode | null {
   if (diffCount < sorted.length * 0.5) return null
 
   return {
-    type: 'DiffBlock',
+    type: `DiffBlock`,
     bounds: combineBounds(sorted),
     children: sorted.map(textRunToTextLine),
   }
@@ -364,22 +362,22 @@ function tryConfirm(section: TSection): TContentNode | null {
   const { textRuns, highlights } = section
   if (textRuns.length === 0) return null
 
-  const fullText = textRuns.map(runText).join(' ')
+  const fullText = textRuns.map(runText).join(` `)
 
   // Pattern: (y/n), [Y/n], (yes/no), etc.
   const ynMatch = fullText.match(
     /[\[(](y(?:es)?)\s*[/|]\s*(n(?:o)?)\s*[\])]|[\[(](n(?:o)?)\s*[/|]\s*(y(?:es)?)\s*[\])]/i
   )
   if (ynMatch) {
-    const opt1 = (ynMatch[1] || ynMatch[4] || 'y').toLowerCase()
-    const opt2 = (ynMatch[2] || ynMatch[3] || 'n').toLowerCase()
+    const opt1 = (ynMatch[1] || ynMatch[4] || `y`).toLowerCase()
+    const opt2 = (ynMatch[2] || ynMatch[3] || `n`).toLowerCase()
     const idx = ynMatch.index || 0
     const question = fullText.slice(0, idx).trim()
     // Determine which is focused - uppercase letter means focused
     const rawFull = ynMatch[0]
     const focusedIndex: 0 | 1 = rawFull.includes(opt1.toUpperCase()) ? 0 : 1
     return {
-      type: 'Confirm',
+      type: `Confirm`,
       bounds: combineBounds(textRuns),
       question: question || fullText,
       options: [opt1, opt2] as [string, string],
@@ -389,14 +387,14 @@ function tryConfirm(section: TSection): TContentNode | null {
 
   // Pattern: exactly 2 small highlighted blocks
   if (highlights.length === 2) {
-    const allSmall = highlights.every((h) => h.shape === 'small')
+    const allSmall = highlights.every((h) => h.shape === `small`)
     if (allSmall) {
-      const question = textRuns.map(runText).join(' ').trim()
+      const question = textRuns.map(runText).join(` `).trim()
       return {
-        type: 'Confirm',
+        type: `Confirm`,
         bounds: combineBounds([...textRuns, ...highlights]),
         question,
-        options: ['yes', 'no'],
+        options: [`yes`, `no`],
         focusedIndex: 0,
       }
     }
@@ -428,7 +426,7 @@ function tryTextInput(
   if (!cursorRun) return null
 
   const text = runText(cursorRun)
-  const promptChars = ['>', '$', '%', '#', ':', '?', '\u276F', '\u203A']
+  const promptChars = [`>`, `$`, `%`, `#`, `:`, `?`, `\u276F`, `\u203A`]
 
   // Find a prompt char to the left of the cursor
   const cursorCol = cursor.x
@@ -449,12 +447,12 @@ function tryTextInput(
   const prompt = text.slice(0, promptEndIdx + 1).trimStart()
   // Skip whitespace after prompt char
   let valueStart = promptEndIdx + 1
-  while (valueStart < text.length && text[valueStart] === ' ') valueStart++
+  while (valueStart < text.length && text[valueStart] === ` `) valueStart++
   const value = text.slice(valueStart)
   const cursorOffset = Math.max(0, relativeCol - valueStart)
 
   return {
-    type: 'TextInput',
+    type: `TextInput`,
     bounds: combineBounds(textRuns),
     prompt,
     value,
@@ -467,7 +465,7 @@ function tryActionTarget(section: TSection, defaultBg: RGB): TContentNode[] | nu
   if (highlights.length === 0) return null
 
   // Only small highlighted blocks
-  const small = highlights.filter((h) => h.shape === 'small')
+  const small = highlights.filter((h) => h.shape === `small`)
   if (small.length === 0) return null
 
   const results: TContentNode[] = []
@@ -514,12 +512,12 @@ function tryActionTarget(section: TSection, defaultBg: RGB): TContentNode[] | nu
             r.bounds.right <= hl.bounds.right
         )
         .map(runText)
-        .join('')
-        .trim() || 'button'
+        .join(``)
+        .trim() || `button`
 
     const children: TSpan[] = [
       {
-        type: 'Span',
+        type: `Span`,
         text: label,
         fg: { r: 255, g: 255, b: 255 },
         bg: hl.color,
@@ -533,7 +531,7 @@ function tryActionTarget(section: TSection, defaultBg: RGB): TContentNode[] | nu
     ]
 
     const node: TContentNode = {
-      type: 'ActionTarget',
+      type: `ActionTarget`,
       bounds: hl.bounds,
       label,
       focused: false,
@@ -553,7 +551,7 @@ function tryStatusBar(section: TSection, scopeBounds: TRect): TContentNode | nul
   // Look for a full-width highlighted block on the last row of the scope
   const lastRow = scopeBounds.bottom
   const fullWidth = highlights.find(
-    (h) => h.shape === 'full-width' && h.bounds.top === lastRow
+    (h) => h.shape === `full-width` && h.bounds.top === lastRow
   )
   if (!fullWidth) return null
 
@@ -566,8 +564,8 @@ function tryStatusBar(section: TSection, scopeBounds: TRect): TContentNode | nul
       : [
           [
             {
-              type: 'Span',
-              text: '',
+              type: `Span`,
+              text: ``,
               fg: { r: 255, g: 255, b: 255 },
               bg: fullWidth.color,
               bold: false,
@@ -581,7 +579,7 @@ function tryStatusBar(section: TSection, scopeBounds: TRect): TContentNode | nul
         ]
 
   return {
-    type: 'StatusBar',
+    type: `StatusBar`,
     bounds: fullWidth.bounds,
     segments,
   }
@@ -592,12 +590,12 @@ function tryLink(section: TSection): TContentNode[] | null {
   if (links.length === 0) return null
 
   return links.map((lk) => ({
-    type: 'Link' as const,
+    type: `Link` as const,
     bounds: lk.bounds,
     hyperlinkId: lk.hyperlinkId,
     children: [
       {
-        type: 'Span' as const,
+        type: `Span` as const,
         text: lk.text,
         fg: { r: 100, g: 149, b: 237 },
         bg: { r: 0, g: 0, b: 0 },
@@ -614,9 +612,9 @@ function tryLink(section: TSection): TContentNode[] | null {
 
 function buildSeparator(gap: TWhitespaceGap): TContentNode {
   return {
-    type: 'Separator',
+    type: `Separator`,
     bounds: gap.bounds,
-    style: gap.height > 1 ? 'blank' : 'line',
+    style: gap.height > 1 ? `blank` : `line`,
   }
 }
 
@@ -651,16 +649,16 @@ export function parseFlatContent(
 
   for (const t of tokens) {
     switch (t.type) {
-      case 'TextRun':
+      case `TextRun`:
         textRuns.push(t)
         break
-      case 'HighlightedBlock':
+      case `HighlightedBlock`:
         highlights.push(t)
         break
-      case 'WhitespaceGap':
+      case `WhitespaceGap`:
         gaps.push(t)
         break
-      case 'LinkSpan':
+      case `LinkSpan`:
         links.push(t)
         break
     }

@@ -1,7 +1,7 @@
-import type { TTableRow } from '@TTH/ast'
+import type { TTableRow } from '@TTH/types/ast.types'
 import { NodeSpan } from './NodeSpan'
 
-export function NodeTableRow({ node }: { node: TTableRow }) {
+export const NodeTableRow = ({ node }: { node: TTableRow }) => {
   return (
     <tr>
       {node.cells.map((cell, i) => {

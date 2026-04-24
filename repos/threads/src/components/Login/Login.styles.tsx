@@ -19,7 +19,7 @@ export const LoginContainer = styled(Box)(({ theme }) => {
 })
 
 export const BrandGlow = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
+  const isDark = theme.palette.mode === `dark`
   return `
     inset: 0;
     z-index: 0;
@@ -36,7 +36,7 @@ export const BrandGlow = styled(Box)(({ theme }) => {
 })
 
 export const BrandBlob1 = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
+  const isDark = theme.palette.mode === `dark`
   return `
     position: absolute;
     border-radius: 50%;
@@ -46,7 +46,7 @@ export const BrandBlob1 = styled(Box)(({ theme }) => {
     height: 400px;
     top: 10%;
     left: 5%;
-    background: radial-gradient(circle, rgba(51,112,222,${isDark ? '0.06' : '0.08'}) 0%, transparent ${isDark ? '70%' : '65%'});
+    background: radial-gradient(circle, rgba(51,112,222,${isDark ? `0.06` : `0.08`}) 0%, transparent ${isDark ? `70%` : `65%`});
     animation: heroFloat1 18s ease-in-out infinite;
 
     @keyframes heroFloat1 {
@@ -61,7 +61,7 @@ export const BrandBlob1 = styled(Box)(({ theme }) => {
 })
 
 export const BrandBlob2 = styled(Box)(({ theme }) => {
-  const isDark = theme.palette.mode === 'dark'
+  const isDark = theme.palette.mode === `dark`
   return `
     position: absolute;
     border-radius: 50%;
@@ -71,7 +71,7 @@ export const BrandBlob2 = styled(Box)(({ theme }) => {
     height: 300px;
     bottom: 15%;
     right: 10%;
-    background: radial-gradient(circle, rgba(51,112,222,${isDark ? '0.04' : '0.06'}) 0%, transparent ${isDark ? '70%' : '65%'});
+    background: radial-gradient(circle, rgba(51,112,222,${isDark ? `0.04` : `0.06`}) 0%, transparent ${isDark ? `70%` : `65%`});
     animation: heroFloat2 22s ease-in-out infinite;
 
     @keyframes heroFloat2 {

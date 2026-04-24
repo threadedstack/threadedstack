@@ -7,7 +7,6 @@ import type {
   TPtyRecorder,
   TShellSession,
   TWebSocketMeta,
-  TShellControlMsg,
 } from '@TBE/types/shellSession.types'
 
 import { Client } from 'ssh2'
@@ -17,6 +16,7 @@ import { PodLabelKeys } from '@tdsk/sandbox'
 import { RingBuffer } from '@TBE/utils/ringBuffer'
 import { verifyShellToken } from '@TBE/services/sessionToken'
 import { SBBackpressureThreshold } from '@TBE/constants/sandbox'
+import { parseShellControlMsg } from '@TBE/utils/shell/parseControlMsg'
 import {
   WsPingInterval,
   SshReadyTimeout,
@@ -32,7 +32,6 @@ import {
   ESandboxSessionVisibility,
 } from '@tdsk/domain'
 
-const inputBuffers = new WeakMap<WebSocket, string>()
 const wsMeta = new Map<WebSocket, TWebSocketMeta>()
 
 function createPtyRecorder(): TPtyRecorder {
@@ -189,7 +188,18 @@ export const onShellConnect = async (
   }
 
   // 3b. Check exec permission on sandbox resource
-  const { data: userOrgRole } = await db.services.role.getOrgRole(userId, orgId)
+  const { error: roleErr, data: userOrgRole } = await db.services.role.getOrgRole(
+    userId,
+    orgId
+  )
+  if (roleErr) {
+    logger.error(
+      `[Shell] Role lookup failed for user ${userId} in org ${orgId}:`,
+      roleErr.message
+    )
+    ws.close(4005, `Permission check failed, please retry`)
+    return
+  }
   const effectiveRole = (userOrgRole?.type as ERoleType | null) ?? null
   const permResult = canPerform(effectiveRole, EPermAction.exec, EPermResource.sandbox)
   if (!permResult.allowed) {
@@ -302,7 +312,16 @@ export const onShellConnect = async (
       }
 
       // Verify joining user has exec permission on sandbox
-      const { data: joinUserRole } = await db.services.role.getOrgRole(userId, orgId)
+      const { data: joinUserRole, error: joinRoleErr } =
+        await db.services.role.getOrgRole(userId, orgId)
+      if (joinRoleErr) {
+        logger.error(
+          `[Shell] Join role lookup failed for user ${userId} in org ${orgId}:`,
+          joinRoleErr.message
+        )
+        ws.close(4005, `Permission check failed, please retry`)
+        return
+      }
       const joinRole = (joinUserRole?.type as ERoleType | null) ?? null
       const joinPermResult = canPerform(joinRole, EPermAction.exec, EPermResource.sandbox)
       if (!joinPermResult.allowed) {
@@ -648,13 +667,9 @@ function wireWebSocket(
 ) {
   ws.on(`message`, (data, isBinary) => {
     if (typeof data === `string` || !isBinary) {
-      let msg: TShellControlMsg
-      try {
-        msg = JSON.parse(data.toString()) as TShellControlMsg
-      } catch {
-        logger.debug(
-          `[Shell] Non-JSON text message received: ${data.toString().slice(0, 100)}`
-        )
+      const msg = parseShellControlMsg(data.toString())
+      if (!msg) {
+        logger.debug(`[Shell] Invalid control message: ${data.toString().slice(0, 100)}`)
         return
       }
 
@@ -700,7 +715,6 @@ function wireWebSocket(
   })
 
   ws.on(`close`, () => {
-    inputBuffers.delete(ws)
     wsMeta.delete(ws)
     cleanup(`WebSocket closed`)
   })

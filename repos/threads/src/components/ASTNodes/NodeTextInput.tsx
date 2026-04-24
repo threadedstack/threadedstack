@@ -1,9 +1,9 @@
-import type { TTextInput } from '@TTH/ast'
+import type { TTextInput } from '@TTH/types/ast.types'
 import Box from '@mui/material/Box'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 
-export function NodeTextInput({ node }: { node: TTextInput }) {
+export const NodeTextInput = ({ node }: { node: TTextInput }) => {
   return (
     <Box
       sx={{
@@ -24,7 +24,7 @@ export function NodeTextInput({ node }: { node: TTextInput }) {
       )}
       <TextField
         value={node.value}
-        InputProps={{ readOnly: true }}
+        slotProps={{ input: { readOnly: true } }}
         size='small'
         variant='outlined'
         placeholder={node.suggestion}

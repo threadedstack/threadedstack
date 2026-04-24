@@ -11,7 +11,7 @@ export const attach: TTask = {
   name: `attach`,
   action: attachAct,
   alias: [`attach`, `att`],
-  example: `pnpm tdsk ds attach <options>`,
+  example: `tdsk ds attach <options>`,
   description: `Calls the devspace attach command`,
   options: {
     context: sharedOpts.shared.context,

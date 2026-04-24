@@ -1,12 +1,10 @@
-import type { TSpan } from '@TTH/ast'
+import type { TSpan } from '@TTH/types/ast.types'
 
-export function NodeSpan({ node }: { node: TSpan }) {
-  const color = node.inverse
-    ? `rgb(${node.bg.r},${node.bg.g},${node.bg.b})`
-    : `rgb(${node.fg.r},${node.fg.g},${node.fg.b})`
-  const backgroundColor = node.inverse
-    ? `rgb(${node.fg.r},${node.fg.g},${node.fg.b})`
-    : `rgb(${node.bg.r},${node.bg.g},${node.bg.b})`
+export const NodeSpan = ({ node }: { node: TSpan }) => {
+  // fg/bg are already resolved (including INVERSE swap) by the tokenizer's resolveColors(),
+  // so we always use them directly — no second swap needed here.
+  const color = `rgb(${node.fg.r},${node.fg.g},${node.fg.b})`
+  const backgroundColor = `rgb(${node.bg.r},${node.bg.g},${node.bg.b})`
 
   return (
     <span

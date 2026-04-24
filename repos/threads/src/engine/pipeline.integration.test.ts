@@ -1,12 +1,13 @@
+import type { TModeContext } from '@TTH/types/parser.types'
+import type { TDocument, TContentNode } from '@TTH/types/ast.types'
+import type { TViewportFill } from '@TTH/types/tokenizer.types'
+
 import { describe, it, expect, vi } from 'vitest'
 import { buildTestViewport } from '../tokenizer/decode'
 import { tokenize } from '../tokenizer/tokenizer'
 import { parse } from '../parser/parser'
-import type { TModeContext } from '../parser/modeDetector'
 import { diffToFeedEvents } from '../visitors/feedVisitor'
 import { collectInteractions } from '../visitors/interactionVisitor'
-import type { TDocument, TContentNode } from '../ast/types'
-import type { TViewportFill } from '../tokenizer/decode'
 
 // ---------------------------------------------------------------------------
 // Color constants
@@ -40,7 +41,7 @@ function textFills(
     row,
     col: col + i,
     // Replace ASCII space with non-breaking space to avoid blank-cell skipping
-    text: ch === ' ' ? '\u00A0' : ch,
+    text: ch === ` ` ? `\u00A0` : ch,
     fg,
     bg,
   }))
@@ -55,7 +56,7 @@ function baseFills(cols: number, rows: number): TViewportFill[] {
   const fills: TViewportFill[] = []
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      fills.push({ row: r, col: c, text: ' ', fg: white, bg: black })
+      fills.push({ row: r, col: c, text: ` `, fg: white, bg: black })
     }
   }
   return fills
@@ -71,21 +72,21 @@ function borderFills(
   const fills: TViewportFill[] = []
 
   // Top-left ┌, top border ─, top-right ┐
-  fills.push({ row: top, col: left, text: '\u250c' })
-  for (let c = left + 1; c < right; c++) fills.push({ row: top, col: c, text: '\u2500' })
-  fills.push({ row: top, col: right, text: '\u2510' })
+  fills.push({ row: top, col: left, text: `\u250c` })
+  for (let c = left + 1; c < right; c++) fills.push({ row: top, col: c, text: `\u2500` })
+  fills.push({ row: top, col: right, text: `\u2510` })
 
   // Left │ and right │ borders
   for (let r = top + 1; r < bottom; r++) {
-    fills.push({ row: r, col: left, text: '\u2502' })
-    fills.push({ row: r, col: right, text: '\u2502' })
+    fills.push({ row: r, col: left, text: `\u2502` })
+    fills.push({ row: r, col: right, text: `\u2502` })
   }
 
   // Bottom-left └, bottom border ─, bottom-right ┘
-  fills.push({ row: bottom, col: left, text: '\u2514' })
+  fills.push({ row: bottom, col: left, text: `\u2514` })
   for (let c = left + 1; c < right; c++)
-    fills.push({ row: bottom, col: c, text: '\u2500' })
-  fills.push({ row: bottom, col: right, text: '\u2518' })
+    fills.push({ row: bottom, col: c, text: `\u2500` })
+  fills.push({ row: bottom, col: right, text: `\u2518` })
 
   return fills
 }
@@ -108,7 +109,7 @@ function findNodes<T extends TContentNode>(doc: TDocument, type: string): T[] {
   const walk = (nodes: TContentNode[]) => {
     for (const node of nodes) {
       if (node.type === type) results.push(node as T)
-      if ('children' in node && Array.isArray(node.children))
+      if (`children` in node && Array.isArray(node.children))
         walk(node.children as TContentNode[])
     }
   }
@@ -119,59 +120,59 @@ function findNodes<T extends TContentNode>(doc: TDocument, type: string): T[] {
 /** Flatten all span texts from a set of TextLine nodes into a single string. */
 function flatSpanText(nodes: TContentNode[]): string {
   return nodes
-    .flatMap((n) => ('children' in n ? (n as any).children : []))
+    .flatMap((n) => (`children` in n ? (n as any).children : []))
     .map((s: any) => s.text)
-    .join('')
+    .join(``)
 }
 
 // ---------------------------------------------------------------------------
 // Test 1: Plain text viewport → Document with TextLine nodes
 // ---------------------------------------------------------------------------
 
-describe('Pipeline integration', () => {
-  describe('Test 1: plain text viewport', () => {
-    it('produces Document with TextLine nodes containing the written text', () => {
+describe(`Pipeline integration`, () => {
+  describe(`Test 1: plain text viewport`, () => {
+    it(`produces Document with TextLine nodes containing the written text`, () => {
       const cols = 40
       const rows = 5
       const cursor = { x: 0, y: 0, visible: false }
 
       const { view } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
-        ...textFills(0, 0, 'Hello world'),
-        ...textFills(1, 0, 'Another line'),
-        ...textFills(2, 0, 'Third line'),
+        ...textFills(0, 0, `Hello world`),
+        ...textFills(1, 0, `Another line`),
+        ...textFills(2, 0, `Third line`),
       ])
 
       const tokenResult = tokenize(view, cols, rows, cursor)
       const modeCtx = defaultModeCtx(cursor)
       const doc = parse(tokenResult, modeCtx)
 
-      expect(doc.type).toBe('Document')
-      expect(doc.mode).toBe('interactive')
+      expect(doc.type).toBe(`Document`)
+      expect(doc.mode).toBe(`interactive`)
 
-      const textLines = findNodes(doc, 'TextLine')
+      const textLines = findNodes(doc, `TextLine`)
       expect(textLines.length).toBeGreaterThanOrEqual(3)
 
       // Verify span text content — spaces are written as U+00A0 (non-breaking)
       // so they appear as a single '\u00A0' character in the combined output.
       const combined = flatSpanText(textLines)
-      expect(combined).toContain('Hello')
-      expect(combined).toContain('world')
-      expect(combined).toContain('Another')
-      expect(combined).toContain('Third')
+      expect(combined).toContain(`Hello`)
+      expect(combined).toContain(`world`)
+      expect(combined).toContain(`Another`)
+      expect(combined).toContain(`Third`)
     })
 
-    it('sets interactive mode when no alternate screen and not idle', () => {
+    it(`sets interactive mode when no alternate screen and not idle`, () => {
       const cols = 20
       const rows = 3
       const cursor = { x: 0, y: 0, visible: false }
       const { view } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
-        ...textFills(0, 0, 'Hello world'),
+        ...textFills(0, 0, `Hello world`),
       ])
       const tokenResult = tokenize(view, cols, rows, cursor)
       const doc = parse(tokenResult, defaultModeCtx(cursor))
-      expect(doc.mode).toBe('interactive')
+      expect(doc.mode).toBe(`interactive`)
     })
   })
 
@@ -179,8 +180,8 @@ describe('Pipeline integration', () => {
   // Test 2: Bordered panel → Document with Panel node
   // ---------------------------------------------------------------------------
 
-  describe('Test 2: bordered panel', () => {
-    it('produces Document with a Panel node with border=single and TextLine children inside', () => {
+  describe(`Test 2: bordered panel`, () => {
+    it(`produces Document with a Panel node with border=single and TextLine children inside`, () => {
       const cols = 22
       const rows = 7
       const cursor = { x: 0, y: 0, visible: false }
@@ -190,7 +191,7 @@ describe('Pipeline integration', () => {
         // border: rows 0–4, cols 0–21
         ...borderFills(0, 0, 4, cols - 1),
         // interior text
-        ...textFills(2, 2, 'Panel content'),
+        ...textFills(2, 2, `Panel content`),
       ])
 
       const tokenResult = tokenize(view, cols, rows, cursor)
@@ -198,18 +199,18 @@ describe('Pipeline integration', () => {
       const doc = parse(tokenResult, modeCtx)
 
       // Must have a Panel child
-      const panels = doc.children.filter((c) => c.type === 'Panel')
+      const panels = doc.children.filter((c) => c.type === `Panel`)
       expect(panels.length).toBeGreaterThanOrEqual(1)
 
       const panel = panels[0] as any
-      expect(panel.border).toBe('single')
+      expect(panel.border).toBe(`single`)
 
       // Panel should contain TextLine children (interior content)
-      const textLines = findNodes(doc, 'TextLine')
+      const textLines = findNodes(doc, `TextLine`)
       expect(textLines.length).toBeGreaterThanOrEqual(1)
       const combined = flatSpanText(textLines)
-      expect(combined).toContain('Panel')
-      expect(combined).toContain('content')
+      expect(combined).toContain(`Panel`)
+      expect(combined).toContain(`content`)
     })
   })
 
@@ -217,8 +218,8 @@ describe('Pipeline integration', () => {
   // Test 3: Numbered select list → SelectList with SelectItem children
   // ---------------------------------------------------------------------------
 
-  describe('Test 3: numbered select list', () => {
-    it('produces a SelectList node with style=numbered and SelectItem children', () => {
+  describe(`Test 3: numbered select list`, () => {
+    it(`produces a SelectList node with style=numbered and SelectItem children`, () => {
       const cols = 30
       const rows = 7
       const cursor = { x: 0, y: 0, visible: false }
@@ -226,35 +227,35 @@ describe('Pipeline integration', () => {
       // Write all 4 numbered list lines using textFills (spaces are preserved via darkBg)
       const { view } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
-        ...textFills(0, 0, '1. Option Alpha'),
-        ...textFills(1, 0, '2. Option Beta'),
-        ...textFills(2, 0, '3. Option Gamma'),
-        ...textFills(3, 0, '4. Option Delta'),
+        ...textFills(0, 0, `1. Option Alpha`),
+        ...textFills(1, 0, `2. Option Beta`),
+        ...textFills(2, 0, `3. Option Gamma`),
+        ...textFills(3, 0, `4. Option Delta`),
       ])
 
       const tokenResult = tokenize(view, cols, rows, cursor)
       const modeCtx = defaultModeCtx(cursor)
       const doc = parse(tokenResult, modeCtx)
 
-      const selectLists = findNodes(doc, 'SelectList')
+      const selectLists = findNodes(doc, `SelectList`)
       expect(selectLists.length).toBeGreaterThanOrEqual(1)
 
       const selectList = selectLists[0] as any
-      expect(selectList.style).toBe('numbered')
+      expect(selectList.style).toBe(`numbered`)
       expect(selectList.children.length).toBeGreaterThanOrEqual(3)
-      expect(selectList.children[0].type).toBe('SelectItem')
+      expect(selectList.children[0].type).toBe(`SelectItem`)
     })
 
-    it('produces SelectItem handlers for each item via interactionVisitor', () => {
+    it(`produces SelectItem handlers for each item via interactionVisitor`, () => {
       const cols = 30
       const rows = 6
       const cursor = { x: 0, y: 0, visible: false }
 
       const { view } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
-        ...textFills(0, 0, '1. Option Alpha'),
-        ...textFills(1, 0, '2. Option Beta'),
-        ...textFills(2, 0, '3. Option Gamma'),
+        ...textFills(0, 0, `1. Option Alpha`),
+        ...textFills(1, 0, `2. Option Beta`),
+        ...textFills(2, 0, `3. Option Gamma`),
       ])
 
       const tokenResult = tokenize(view, cols, rows, cursor)
@@ -268,12 +269,12 @@ describe('Pipeline integration', () => {
 
       const handlers = collectInteractions(doc, sendKeystroke)
       expect(handlers.length).toBeGreaterThanOrEqual(3)
-      expect(handlers.every((h) => h.nodeType === 'SelectItem')).toBe(true)
+      expect(handlers.every((h) => h.nodeType === `SelectItem`)).toBe(true)
 
       // Execute first handler — numbered style sends `${index+1}\n`
       handlers[0].execute()
       expect(sendKeystroke).toHaveBeenCalled()
-      expect(sentKeys[0]).toBe('1\n')
+      expect(sentKeys[0]).toBe(`1\n`)
     })
   })
 
@@ -281,8 +282,8 @@ describe('Pipeline integration', () => {
   // Test 4: Diff block → DiffBlock with colored lines
   // ---------------------------------------------------------------------------
 
-  describe('Test 4: diff block', () => {
-    it('produces a DiffBlock node for diff-like colored content', () => {
+  describe(`Test 4: diff block`, () => {
+    it(`produces a DiffBlock node for diff-like colored content`, () => {
       const cols = 30
       const rows = 5
       const cursor = { x: 0, y: 0, visible: false }
@@ -290,18 +291,18 @@ describe('Pipeline integration', () => {
       const { view } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
         // Green fg → added line
-        ...textFills(0, 0, '+added line here', green, black),
+        ...textFills(0, 0, `+added line here`, green, black),
         // Red fg → removed line
-        ...textFills(1, 0, '-removed line here', red, black),
+        ...textFills(1, 0, `-removed line here`, red, black),
         // White fg → context line (normal)
-        ...textFills(2, 0, ' context line here', white, black),
+        ...textFills(2, 0, ` context line here`, white, black),
       ])
 
       const tokenResult = tokenize(view, cols, rows, cursor)
       const modeCtx = defaultModeCtx(cursor)
       const doc = parse(tokenResult, modeCtx)
 
-      const diffBlocks = findNodes(doc, 'DiffBlock')
+      const diffBlocks = findNodes(doc, `DiffBlock`)
       expect(diffBlocks.length).toBeGreaterThanOrEqual(1)
     })
   })
@@ -310,8 +311,8 @@ describe('Pipeline integration', () => {
   // Test 5: Status bar → StatusBar on last row
   // ---------------------------------------------------------------------------
 
-  describe('Test 5: status bar', () => {
-    it('produces a StatusBar node for a full-width highlighted block on the last row', () => {
+  describe(`Test 5: status bar`, () => {
+    it(`produces a StatusBar node for a full-width highlighted block on the last row`, () => {
       // Use a wide enough viewport so that black bg cells dominate the palette
       // Row 0-3: ordinary text content (black bg, white fg)
       // Row 4 (last): full-width blue bg → becomes StatusBar
@@ -322,16 +323,16 @@ describe('Pipeline integration', () => {
       const statusBarFills: TViewportFill[] = Array.from({ length: cols }, (_, i) => ({
         row: rows - 1,
         col: i,
-        text: 'X', // non-space so width=1 and counted in palette but overridden by base
+        text: `X`, // non-space so width=1 and counted in palette but overridden by base
         fg: white,
         bg: blueBg,
       }))
 
       const { view } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
-        ...textFills(0, 0, 'Normal content line here'),
-        ...textFills(1, 0, 'Second line of content'),
-        ...textFills(2, 0, 'Third line here'),
+        ...textFills(0, 0, `Normal content line here`),
+        ...textFills(1, 0, `Second line of content`),
+        ...textFills(2, 0, `Third line here`),
         // Override the last row with blue bg non-space cells
         ...statusBarFills,
       ])
@@ -340,7 +341,7 @@ describe('Pipeline integration', () => {
       const modeCtx = defaultModeCtx(cursor)
       const doc = parse(tokenResult, modeCtx)
 
-      const statusBars = findNodes(doc, 'StatusBar')
+      const statusBars = findNodes(doc, `StatusBar`)
       expect(statusBars.length).toBeGreaterThanOrEqual(1)
       expect((statusBars[0] as any).bounds.top).toBe(rows - 1)
     })
@@ -350,8 +351,8 @@ describe('Pipeline integration', () => {
   // Test 6: Feed events — TextInput appear/disappear
   // ---------------------------------------------------------------------------
 
-  describe('Test 6: feed events — TextInput appear', () => {
-    it('emits prompt waiting event when TextInput appears in next viewport', () => {
+  describe(`Test 6: feed events — TextInput appear`, () => {
+    it(`emits prompt waiting event when TextInput appears in next viewport`, () => {
       const cols = 30
       const rows = 5
 
@@ -365,7 +366,7 @@ describe('Pipeline integration', () => {
       const nextCursor = { x: 5, y: 2, visible: true }
       const { view: nextView } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
-        ...textFills(2, 0, '> some input here'),
+        ...textFills(2, 0, `> some input here`),
       ])
       const nextTokens = tokenize(nextView, cols, rows, nextCursor)
       const nextDoc = parse(nextTokens, defaultModeCtx(nextCursor))
@@ -373,10 +374,10 @@ describe('Pipeline integration', () => {
       const events = diffToFeedEvents(prevDoc, nextDoc)
 
       // If a TextInput was detected, prompt events should be 'waiting'
-      const promptEvents = events.filter((e) => e.kind === 'prompt')
+      const promptEvents = events.filter((e) => e.kind === `prompt`)
       for (const event of promptEvents) {
-        if (event.kind === 'prompt') {
-          expect(event.status).toBe('waiting')
+        if (event.kind === `prompt`) {
+          expect(event.status).toBe(`waiting`)
         }
       }
       // The pipeline runs without error
@@ -389,8 +390,8 @@ describe('Pipeline integration', () => {
   // Test 7: Feed events — mode transition to idle
   // ---------------------------------------------------------------------------
 
-  describe('Test 7: feed events — mode transition to idle', () => {
-    it('emits idle event when next viewport transitions to idle mode', () => {
+  describe(`Test 7: feed events — mode transition to idle`, () => {
+    it(`emits idle event when next viewport transitions to idle mode`, () => {
       const cols = 20
       const rows = 5
 
@@ -409,25 +410,25 @@ describe('Pipeline integration', () => {
 
       const { view: prevView } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
-        ...textFills(0, 0, 'Some output line'),
+        ...textFills(0, 0, `Some output line`),
       ])
       const prevTokens = tokenize(prevView, cols, rows, interactiveCursor)
       const prevDoc = parse(prevTokens, interactiveModeCtx)
 
       const { view: nextView } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
-        ...textFills(0, 0, 'Some output line'),
+        ...textFills(0, 0, `Some output line`),
       ])
       const nextTokens = tokenize(nextView, cols, rows, idleCursor)
       const nextDoc = parse(nextTokens, idleModeCtxVal)
 
-      expect(nextDoc.mode).toBe('idle')
+      expect(nextDoc.mode).toBe(`idle`)
 
       const events = diffToFeedEvents(prevDoc, nextDoc)
-      const idleEvents = events.filter((e) => e.kind === 'idle')
+      const idleEvents = events.filter((e) => e.kind === `idle`)
       expect(idleEvents.length).toBeGreaterThanOrEqual(1)
-      if (idleEvents[0]?.kind === 'idle') {
-        expect(typeof idleEvents[0].timestamp).toBe('number')
+      if (idleEvents[0]?.kind === `idle`) {
+        expect(typeof idleEvents[0].timestamp).toBe(`number`)
       }
     })
   })
@@ -436,15 +437,15 @@ describe('Pipeline integration', () => {
   // Test 8: Interaction handlers — Confirm y/n
   // ---------------------------------------------------------------------------
 
-  describe('Test 8: interaction handlers — Confirm y/n', () => {
-    it('produces a Confirm node with y/n options and correct interaction handlers', () => {
+  describe(`Test 8: interaction handlers — Confirm y/n`, () => {
+    it(`produces a Confirm node with y/n options and correct interaction handlers`, () => {
       const cols = 40
       const rows = 3
       const cursor = { x: 0, y: 0, visible: false }
 
       const { view } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
-        ...textFills(0, 0, 'Do you want to continue (y/n)'),
+        ...textFills(0, 0, `Do you want to continue (y/n)`),
       ])
 
       const tokenResult = tokenize(view, cols, rows, cursor)
@@ -452,7 +453,7 @@ describe('Pipeline integration', () => {
       const doc = parse(tokenResult, modeCtx)
 
       // Confirm node should be detected from the (y/n) pattern
-      const confirms = findNodes(doc, 'Confirm')
+      const confirms = findNodes(doc, `Confirm`)
       expect(confirms.length).toBeGreaterThanOrEqual(1)
 
       const confirmNode = confirms[0] as any
@@ -465,17 +466,17 @@ describe('Pipeline integration', () => {
         sentKeys.push(key)
       })
       const handlers = collectInteractions(doc, sendKeystroke)
-      const confirmHandlers = handlers.filter((h) => h.nodeType === 'Confirm')
+      const confirmHandlers = handlers.filter((h) => h.nodeType === `Confirm`)
       expect(confirmHandlers.length).toBeGreaterThanOrEqual(2)
 
       // Execute first handler → should send 'y'
       confirmHandlers[0].execute()
       expect(sendKeystroke).toHaveBeenCalled()
-      expect(sentKeys[0]).toBe('y')
+      expect(sentKeys[0]).toBe(`y`)
 
       // Execute second handler → should send 'n'
       confirmHandlers[1].execute()
-      expect(sentKeys[1]).toBe('n')
+      expect(sentKeys[1]).toBe(`n`)
     })
   })
 
@@ -483,8 +484,8 @@ describe('Pipeline integration', () => {
   // Test 9: Full pipeline round-trip — complex viewport
   // ---------------------------------------------------------------------------
 
-  describe('Test 9: full pipeline round-trip — complex viewport', () => {
-    it('parses a complex viewport with panel and status bar', () => {
+  describe(`Test 9: full pipeline round-trip — complex viewport`, () => {
+    it(`parses a complex viewport with panel and status bar`, () => {
       // 40 cols × 13 rows
       // Row 0: title "Claude Code"
       // Rows 1-9: bordered panel
@@ -497,7 +498,7 @@ describe('Pipeline integration', () => {
       const statusBarFills: TViewportFill[] = Array.from({ length: cols }, (_, i) => ({
         row: rows - 1,
         col: i,
-        text: 'X',
+        text: `X`,
         fg: white,
         bg: blueBg,
       }))
@@ -505,11 +506,11 @@ describe('Pipeline integration', () => {
       const { view } = buildTestViewport(cols, rows, [
         ...baseFills(cols, rows),
         // Title line
-        ...textFills(0, 0, 'Claude Code'),
+        ...textFills(0, 0, `Claude Code`),
         // Bordered panel
         ...borderFills(1, 0, 9, cols - 1),
         // Interior content
-        ...textFills(3, 2, 'Interior content'),
+        ...textFills(3, 2, `Interior content`),
         // Status bar on last row
         ...statusBarFills,
       ])
@@ -518,18 +519,18 @@ describe('Pipeline integration', () => {
       const modeCtx = defaultModeCtx(cursor)
       const doc = parse(tokenResult, modeCtx)
 
-      expect(doc.type).toBe('Document')
+      expect(doc.type).toBe(`Document`)
 
       // Panel must be present
-      const panels = doc.children.filter((c) => c.type === 'Panel')
+      const panels = doc.children.filter((c) => c.type === `Panel`)
       expect(panels.length).toBeGreaterThanOrEqual(1)
 
       // StatusBar must be present
-      const statusBars = findNodes(doc, 'StatusBar')
+      const statusBars = findNodes(doc, `StatusBar`)
       expect(statusBars.length).toBeGreaterThanOrEqual(1)
     })
 
-    it('parses panel interior containing a select list and produces interaction handlers', () => {
+    it(`parses panel interior containing a select list and produces interaction handlers`, () => {
       // 40 cols × 13 rows
       // Rows 0-10: bordered panel with numbered list inside
       // Row 12: status bar
@@ -540,7 +541,7 @@ describe('Pipeline integration', () => {
       const statusBarFills: TViewportFill[] = Array.from({ length: cols }, (_, i) => ({
         row: rows - 1,
         col: i,
-        text: 'X',
+        text: `X`,
         fg: white,
         bg: blueBg,
       }))
@@ -550,10 +551,10 @@ describe('Pipeline integration', () => {
         // Bordered panel
         ...borderFills(0, 0, 10, cols - 1),
         // Numbered select list inside panel (consistent left=2 indent)
-        ...textFills(2, 2, '1. Option Alpha'),
-        ...textFills(3, 2, '2. Option Beta'),
-        ...textFills(4, 2, '3. Option Gamma'),
-        ...textFills(5, 2, '4. Option Delta'),
+        ...textFills(2, 2, `1. Option Alpha`),
+        ...textFills(3, 2, `2. Option Beta`),
+        ...textFills(4, 2, `3. Option Gamma`),
+        ...textFills(5, 2, `4. Option Delta`),
         // Status bar on last row
         ...statusBarFills,
       ])
@@ -563,11 +564,11 @@ describe('Pipeline integration', () => {
       const doc = parse(tokenResult, modeCtx)
 
       // Panel must be present
-      const panels = doc.children.filter((c) => c.type === 'Panel')
+      const panels = doc.children.filter((c) => c.type === `Panel`)
       expect(panels.length).toBeGreaterThanOrEqual(1)
 
       // SelectList must exist somewhere in the tree
-      const selectLists = findNodes(doc, 'SelectList')
+      const selectLists = findNodes(doc, `SelectList`)
       expect(selectLists.length).toBeGreaterThanOrEqual(1)
 
       // Interaction handlers for select items
@@ -576,13 +577,13 @@ describe('Pipeline integration', () => {
         sentKeys.push(key)
       })
       const handlers = collectInteractions(doc, sendKeystroke)
-      const selectHandlers = handlers.filter((h) => h.nodeType === 'SelectItem')
+      const selectHandlers = handlers.filter((h) => h.nodeType === `SelectItem`)
       expect(selectHandlers.length).toBeGreaterThanOrEqual(3)
 
       // Execute second handler → numbered style sends `2\n`
       selectHandlers[1].execute()
       expect(sendKeystroke).toHaveBeenCalled()
-      expect(sentKeys[0]).toBe('2\n')
+      expect(sentKeys[0]).toBe(`2\n`)
     })
   })
 })

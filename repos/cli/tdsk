@@ -68,7 +68,7 @@ tdsk(){
     # Set the env so we know a task is coming from the tdsk-cli and not locally
     export TDSK_CLI_TASK_RUNNING=1
     cd $TDSK_CLI_PATH
-    # TODO: fix this, esbuild-register doesn't work with "type": "module" in package.json 
+    # TODO: fix this, esbuild-register doesn't work with "type": "module" in package.json
     pnpm cli $@
     #node -r esbuild-register -r $TDSK_CLI_PATH/configs/aliases.ts $TDSK_CLI_PATH/src/index.ts $@
 
@@ -81,3 +81,67 @@ tdsk(){
   )
 
 }
+
+# --- Tab completion ---
+
+# Resolve the CLI path from the completion function's own source file
+# Uses TDSK_CLI_PATH as a fast path if already set from a prior tdsk call
+_tdsk_resolve_cli_path(){
+  if [[ -n "$TDSK_CLI_PATH" ]]; then
+    echo "$TDSK_CLI_PATH"
+    return
+  fi
+
+  local src
+  if [[ "$TDSK_IS_ZSH" ]]; then
+    src="${(%):-%x}"
+  else
+    src="${BASH_SOURCE[1]}"
+  fi
+
+  local resolved_dir
+  while [ -h "$src" ]; do
+    resolved_dir="$(dirname "$src")"
+    src="$(readlink "$src")"
+    [[ $src != /* ]] && src="$resolved_dir/$src"
+  done
+
+  dirname "$src"
+}
+
+_tdsk_completions(){
+  local cli_path
+  cli_path="$(_tdsk_resolve_cli_path)"
+  local completions
+  completions=$(
+    cd "$cli_path" 2>/dev/null \
+      && TDSK_COMP_LINE="$COMP_LINE" TDSK_COMP_POINT="$COMP_POINT" pnpm --silent cli 2>/dev/null
+  )
+  COMPREPLY=($(compgen -W "$completions" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+
+_tdsk_completions_zsh(){
+  local cli_path
+  cli_path="$(_tdsk_resolve_cli_path)"
+  local line="${words[*]}"
+  local point=${#line}
+  local completions
+  completions=$(
+    cd "$cli_path" 2>/dev/null \
+      && TDSK_COMP_LINE="$line" TDSK_COMP_POINT="$point" pnpm --silent cli 2>/dev/null
+  )
+  local -a matches
+  matches=(${(f)completions})
+  compadd -- $matches
+}
+
+if [[ "$TDSK_IS_ZSH" ]]; then
+  # compdef requires compinit; ensure the completion system is loaded
+  autoload -Uz compinit
+  if ! (( $+functions[compdef] )); then
+    compinit -i -C 2>/dev/null
+  fi
+  compdef _tdsk_completions_zsh tdsk
+else
+  complete -o default -F _tdsk_completions tdsk
+fi

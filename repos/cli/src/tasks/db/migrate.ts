@@ -12,7 +12,7 @@ export const migrate: TTask = {
   name: `migrate`,
   alias: [`mig`],
   action: migrateAct,
-  example: `pnpm tdsk db migrate --env production`,
+  example: `tdsk db migrate --env production`,
   description: `Apply pending migrations to the database`,
   options: {
     log: sharedOpts.shared.log,

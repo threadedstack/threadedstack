@@ -298,3 +298,58 @@ tdsk kube logs --context <ctx> --env production     # View logs
 tdsk kube logs --context <ctx> --env production -f  # Stream logs
 tdsk kube pod --context <ctx> --env production      # Describe pod
 ```
+
+---
+
+## 3. CI/CD Automated Deployment
+
+The GitHub Actions workflow (`.github/workflows/deploy-production.yml`) automates deployments when changes are merged to the `production` branch.
+
+### 3.1 Required GitHub Secrets
+
+Add these secrets to the repository settings (Settings → Secrets and variables → Actions):
+
+**Infrastructure:**
+- `TDSK_CIVO_TOKEN` — Civo API token ([console.civo.com/security](https://console.civo.com/security))
+
+**Master Key:**
+- `TDSK_MASTER_KEY` — from `~/.config/tdsk/values.yaml` → `TDSK_MASTER_KEY`
+
+**Database (Neon):**
+- `TDSK_DB_URL` — Neon connection string
+- `TDSK_DB_USER` — Database user
+- `TDSK_DB_PASS` — Database password
+- `TDSK_DB_AUTH_URL` — Neon auth connection string
+- `TDSK_DB_JWT_SCRT` — Neon JWT secret
+- `TDSK_DB_SRV_ROLE` — Neon service role
+- `TDSK_DB_PUBLIC_KEY` — Neon public key
+- `TDSK_DB_PROJECT_ID` — Neon project ID
+
+**Payments:**
+- `TDSK_PAY_ACCESS_TOKEN` — Stripe secret key
+- `TDSK_PAY_WEBHOOK_SECRET` — Stripe webhook signing secret
+
+**Email:**
+- `TDSK_EMAIL_API_KEY` — Email provider API key
+
+**Egress Proxy:**
+- `TDSK_EGRESS_CA_CERT` — CA certificate (base64-encode the file content: `base64 < ~/.config/tdsk/domain/egress.cert`)
+- `TDSK_EGRESS_CA_KEY` — CA private key (base64-encode the file content: `base64 < ~/.config/tdsk/domain/egress.key`)
+
+### 3.2 Manual Dispatch
+
+Trigger a deployment manually from the GitHub UI:
+1. Go to **Actions** → **Deploy Production**
+2. Click **Run workflow**
+3. Select which images to build (or check "deploy_only" to redeploy without building)
+4. Click **Run workflow**
+
+### 3.3 Automatic Deployment
+
+Every merge to the `production` branch triggers the workflow automatically. Only changed images are rebuilt — the workflow detects which files changed and maps them to image contexts.
+
+### 3.4 Rollback
+
+If health checks fail after deployment, the workflow automatically rolls back to the previously running image tags. The workflow will show as failed even if rollback succeeds — investigate the root cause before re-deploying.
+
+Database migrations are NOT rolled back. Only non-destructive (additive) migrations run in CI, so the previous code version remains compatible with the new schema.

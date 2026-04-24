@@ -1,7 +1,7 @@
-import type { TTextLine } from '@TTH/ast'
+import type { TTextLine } from '@TTH/types/ast.types'
 import { NodeSpan } from './NodeSpan'
 
-export function NodeTextLine({ node }: { node: TTextLine }) {
+export const NodeTextLine = ({ node }: { node: TTextLine }) => {
   return (
     <div
       style={{

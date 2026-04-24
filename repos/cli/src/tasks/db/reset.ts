@@ -31,7 +31,7 @@ export const reset: TTask = {
   name: `reset`,
   alias: [`rst`],
   action: resetAct,
-  example: `pnpm tdsk db reset --env local --confirm`,
+  example: `tdsk db reset --env local --confirm`,
   description: `Full database reset: drop all tables, push schema, and seed (destructive)`,
   options: {
     log: sharedOpts.shared.log,

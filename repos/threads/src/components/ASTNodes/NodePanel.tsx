@@ -1,4 +1,4 @@
-import type { TPanel } from '@TTH/ast'
+import type { TPanel } from '@TTH/types/ast.types'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 
@@ -21,7 +21,7 @@ const borderRadius: Record<TPanel['border'], string | number> = {
   rounded: 1,
 }
 
-export function NodePanel({ node }: { node: TPanel }) {
+export const NodePanel = ({ node }: { node: TPanel }) => {
   return (
     <Box
       sx={{

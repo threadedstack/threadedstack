@@ -1,7 +1,8 @@
+import type { TJsonComponentTree } from '@tdsk/domain'
+
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { GenerativeUIRenderer } from './GenerativeUIRenderer'
-import type { TJsonComponentTree } from '@tdsk/domain'
 
 describe('GenerativeUIRenderer', () => {
   it('should render text children', () => {

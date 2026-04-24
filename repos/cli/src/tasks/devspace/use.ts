@@ -11,7 +11,7 @@ export const use: TTask = {
   name: `use`,
   alias: [`st`],
   action: useAct,
-  example: `pnpm tdsk ds use <options>`,
+  example: `tdsk ds use <options>`,
   description: `Calls the devspace use command`,
   options: {
     namespace: sharedOpts.devspace.namespace,

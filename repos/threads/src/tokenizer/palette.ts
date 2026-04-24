@@ -1,5 +1,5 @@
-import type { RGB } from '../ast'
-import type { TPalette } from './types'
+import type { RGB } from '@TTH/types/ast.types'
+import type { TPalette } from '@TTH/types/tokenizer.types'
 import { decodeCell, resolveColors, cellOffset } from './decode'
 
 function rgbKey(c: RGB): string {

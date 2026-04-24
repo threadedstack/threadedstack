@@ -1,18 +1,18 @@
 import { useEffect } from 'react'
 import { useAtom } from 'jotai'
 import {
-  sessionEngineAtom,
-  sessionASTAtom,
-  sessionFeedAtom,
-  sessionModeAtom,
+  sessionEngineState,
+  sessionASTState,
+  sessionFeedState,
+  sessionModeState,
 } from '@TTH/state/gui'
 import { SessionEngine } from '@TTH/engine/sessionEngine'
 
 export function useSessionEngine(sessionId: string | null) {
-  const [engines, setEngines] = useAtom(sessionEngineAtom)
-  const [, setASTs] = useAtom(sessionASTAtom)
-  const [, setFeeds] = useAtom(sessionFeedAtom)
-  const [, setModes] = useAtom(sessionModeAtom)
+  const [engines, setEngines] = useAtom(sessionEngineState)
+  const [, setASTs] = useAtom(sessionASTState)
+  const [, setFeeds] = useAtom(sessionFeedState)
+  const [, setModes] = useAtom(sessionModeState)
 
   useEffect(() => {
     if (!sessionId || engines.get(sessionId)) return

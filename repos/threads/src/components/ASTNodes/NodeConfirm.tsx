@@ -1,9 +1,12 @@
-import type { TConfirm } from '@TTH/ast'
+import type { TConfirm } from '@TTH/types/ast.types'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
+import { useInteraction } from '@TTH/contexts/InteractionContext'
 
-export function NodeConfirm({ node }: { node: TConfirm }) {
+export const NodeConfirm = ({ node }: { node: TConfirm }) => {
+  const ctx = useInteraction()
+
   return (
     <Box
       sx={{
@@ -27,6 +30,7 @@ export function NodeConfirm({ node }: { node: TConfirm }) {
             size='small'
             variant={node.focusedIndex === i ? `contained` : `outlined`}
             sx={{ fontFamily: `monospace`, textTransform: `none` }}
+            onClick={() => ctx?.sendKeystroke(option.toLowerCase().charAt(0))}
           >
             {option}
           </Button>

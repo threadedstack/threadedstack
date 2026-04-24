@@ -12,7 +12,7 @@ export const dbExport: TTask = {
   name: `export`,
   alias: [`exp`],
   action: dbExportAct,
-  example: `pnpm tdsk db export`,
+  example: `tdsk db export`,
   description: `Export database schema as SQL`,
   options: {
     log: sharedOpts.shared.log,

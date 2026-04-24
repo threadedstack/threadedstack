@@ -1,6 +1,5 @@
+import type { TViewMode } from '@TTH/types/sessions.types'
 import { ToggleButton, ToggleButtonGroup } from '@mui/material'
-
-export type TViewMode = 'gui' | 'terminal'
 
 export type TViewToggleProps = {
   value: TViewMode

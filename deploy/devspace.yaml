@@ -125,6 +125,9 @@ vars:
   TDSK_CADDY_IMAGE:
     source: env
     default: ghcr.io/threadedstack/tdsk-caddy
+  TDSK_CADDY_PROXY_PROTOCOL:
+    source: env
+    default: off
   TDSK_CADDY_TLS_MODE:
     source: env
     default: internal
@@ -183,10 +186,11 @@ vars:
 
 
 hooks:
-  - events: ["before:deploy"]
+  - events: ["before:deploy:tdsk-caddy"]
     silent: true
     command: |-
-      kubectl create configmap caddy-config --from-file=Caddyfile=./Caddyfile --dry-run=client -o yaml | kubectl apply -f -
+      CADDY_FILE="./Caddyfile"; [ "${TDSK_CADDY_PROXY_PROTOCOL:-off}" = "on" ] && CADDY_FILE="./Caddyfile.production"
+      kubectl create configmap caddy-config --from-file=Caddyfile="$CADDY_FILE" --dry-run=client -o yaml | kubectl apply -f -
 
 images:
   tdsk-app:
@@ -301,6 +305,8 @@ deployments:
             image: ${TDSK_PX_IMAGE}:${TDSK_PX_IMAGE_TAG}
             imagePullPolicy: IfNotPresent
             env:
+              - name: NODE_ENV
+                value: ${NODE_ENV}
               - name: TDSK_WITH_LB_PROXY
                 value: true
               - name: TDSK_IN_KUBE
@@ -414,6 +420,8 @@ deployments:
             image: ${TDSK_BE_IMAGE}:${TDSK_BE_IMAGE_TAG}
             imagePullPolicy: IfNotPresent
             env:
+              - name: NODE_ENV
+                value: ${NODE_ENV}
               - name: TDSK_WITH_LB_PROXY
                 value: true
               - name: TDSK_IN_KUBE

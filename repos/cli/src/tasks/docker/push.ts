@@ -24,7 +24,7 @@ export const push: TTask = {
   name: `push`,
   alias: [`psh`],
   action: pushImg,
-  example: `pnpm tdsk dev img push <options>`,
+  example: `tdsk dev img push <options>`,
   description: `Calls the image push command`,
   options: {
     context: {

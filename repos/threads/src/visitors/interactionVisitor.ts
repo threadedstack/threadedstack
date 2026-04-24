@@ -7,11 +7,11 @@ import type {
   TConfirm,
   TActionTarget,
   TLink,
-} from '@TTH/ast'
+} from '@TTH/types/ast.types'
 
-const ARROW_UP = '\x1b[A'
-const ARROW_DOWN = '\x1b[B'
-const ENTER = '\n'
+const ARROW_UP = `\x1b[A`
+const ARROW_DOWN = `\x1b[B`
+const ENTER = `\n`
 
 /**
  * Recursively walks Panel and Group children, collecting interaction handlers.
@@ -22,24 +22,24 @@ function walkNode(
   handlers: TInteractionHandler[]
 ): void {
   switch (node.type) {
-    case 'SelectList': {
+    case `SelectList`: {
       collectSelectListHandlers(node, sendKeystroke, handlers)
       break
     }
-    case 'Confirm': {
+    case `Confirm`: {
       collectConfirmHandlers(node, sendKeystroke, handlers)
       break
     }
-    case 'ActionTarget': {
+    case `ActionTarget`: {
       collectActionTargetHandlers(node, sendKeystroke, handlers)
       break
     }
-    case 'Link': {
+    case `Link`: {
       collectLinkHandlers(node, handlers)
       break
     }
-    case 'Panel':
-    case 'Group': {
+    case `Panel`:
+    case `Group`: {
       for (const child of node.children) {
         walkNode(child, sendKeystroke, handlers)
       }
@@ -56,10 +56,10 @@ function collectSelectListHandlers(
   handlers: TInteractionHandler[]
 ): void {
   for (const item of node.children) {
-    const label = item.children.map((s) => s.text).join('')
-    if (node.style === 'numbered') {
+    const label = item.children.map((s) => s.text).join(``)
+    if (node.style === `numbered`) {
       handlers.push({
-        nodeType: 'SelectItem',
+        nodeType: `SelectItem`,
         bounds: item.bounds,
         label,
         execute: () => sendKeystroke(`${item.index + 1}${ENTER}`),
@@ -67,7 +67,7 @@ function collectSelectListHandlers(
     } else {
       // arrow or highlighted style — navigate with arrow keys from current selectedIndex then Enter
       handlers.push({
-        nodeType: 'SelectItem',
+        nodeType: `SelectItem`,
         bounds: item.bounds,
         label,
         execute: () => {
@@ -89,7 +89,7 @@ function collectConfirmHandlers(
 ): void {
   for (const option of node.options) {
     handlers.push({
-      nodeType: 'Confirm',
+      nodeType: `Confirm`,
       bounds: node.bounds,
       label: option,
       execute: () => sendKeystroke(option.toLowerCase().charAt(0)),
@@ -104,7 +104,7 @@ function collectActionTargetHandlers(
 ): void {
   if (node.hotkey) {
     handlers.push({
-      nodeType: 'ActionTarget',
+      nodeType: `ActionTarget`,
       bounds: node.bounds,
       label: node.label,
       execute: () => sendKeystroke(node.hotkey as string),
@@ -113,7 +113,7 @@ function collectActionTargetHandlers(
     // Navigate to the target using arrow keys then Enter
     // Without knowing position context we emit a single Enter when already focused
     handlers.push({
-      nodeType: 'ActionTarget',
+      nodeType: `ActionTarget`,
       bounds: node.bounds,
       label: node.label,
       execute: () => {
@@ -130,10 +130,10 @@ function collectLinkHandlers(node: TLink, handlers: TInteractionHandler[]): void
   if (node.url) {
     const url = node.url
     handlers.push({
-      nodeType: 'Link',
+      nodeType: `Link`,
       bounds: node.bounds,
-      label: node.children.map((s) => s.text).join(''),
-      execute: () => window.open(url, '_blank'),
+      label: node.children.map((s) => s.text).join(``),
+      execute: () => window.open(url, `_blank`),
     })
   }
 }

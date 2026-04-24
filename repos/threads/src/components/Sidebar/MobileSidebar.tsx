@@ -23,12 +23,12 @@ export const MobileSidebar = (props: TMobileSidebar) => {
       variant='temporary'
       onOpen={() => setOpen(true)}
       onClose={() => setOpen(false)}
-      className='tdsk-admin-sidebar'
+      className='tdsk-threads-sidebar'
       ModalProps={{ keepMounted: true }}
       sx={{
         [`& .MuiDrawer-paper`]: {
           width: SidebarWidthOpen,
-          boxSizing: 'border-box',
+          boxSizing: `border-box`,
         },
       }}
     >

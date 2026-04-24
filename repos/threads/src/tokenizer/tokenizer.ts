@@ -1,18 +1,17 @@
-import type { TRect } from '../ast'
+import type { TRect } from '@TTH/types/ast.types'
+import type {
+  TToken,
+  TCursorToken,
+  TPalette,
+  TCellMeta,
+  TTokenizeResult,
+} from '@TTH/types/tokenizer.types'
 import { decodeCell, resolveColors, cellOffset } from './decode'
 import { detectPalette } from './palette'
 import { classifyCells } from './classify'
 import { traceBorders } from './borders'
 import { segmentBlocks } from './blocks'
 import { extractRuns } from './runs'
-import type { TToken, TCursorToken, TPalette, TCellMeta } from './types'
-
-export type TTokenizeResult = {
-  tokens: TToken[]
-  cursor: TCursorToken
-  palette: TPalette
-  meta: TCellMeta[][]
-}
 
 export function tokenize(
   view: DataView,
@@ -82,7 +81,7 @@ export function tokenize(
 
   // Step 6: Cursor token
   const cursorToken: TCursorToken = {
-    type: 'CursorToken',
+    type: `CursorToken`,
     position: { x: cursor.x, y: cursor.y },
     visible: cursor.visible,
   }

@@ -12,7 +12,7 @@ export const purge: TTask = {
   name: `purge`,
   alias: [`prg`],
   action: purgeAct,
-  example: `pnpm tdsk db purge --env local`,
+  example: `tdsk db purge --env local`,
   description: `Purge seeded data by ID (reverse FK order)`,
   options: {
     log: sharedOpts.shared.log,

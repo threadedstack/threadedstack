@@ -1,6 +1,10 @@
-import type { RGB } from '../ast'
+import type { RGB } from '@TTH/types/ast.types'
+import type {
+  TDecodedCell,
+  TViewportFill,
+  TTestViewport,
+} from '@TTH/types/tokenizer.types'
 import { CellFlags, GhosttyVTCellSize } from './types'
-import type { TDecodedCell } from './types'
 
 /**
  * Byte layout (16 bytes, little-endian):
@@ -47,23 +51,6 @@ export function resolveColors(cell: TDecodedCell): { fg: RGB; bg: RGB } {
 
 export function cellOffset(row: number, col: number, cols: number): number {
   return (row * cols + col) * GhosttyVTCellSize
-}
-
-export type TViewportFill = {
-  row: number
-  col: number
-  text: string
-  fg?: RGB
-  bg?: RGB
-  flags?: number
-  width?: number
-  hyperlinkId?: number
-}
-
-export type TTestViewport = {
-  view: DataView
-  cols: number
-  rows: number
 }
 
 export function buildTestViewport(

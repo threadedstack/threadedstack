@@ -1,4 +1,4 @@
-import type { TPalette, TCellMeta } from './types'
+import type { TPalette, TCellMeta } from '@TTH/types/tokenizer.types'
 import { decodeCell, resolveColors, cellOffset } from './decode'
 
 function rgbEqual(

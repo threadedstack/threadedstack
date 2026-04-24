@@ -1,8 +1,8 @@
-import type { TLink } from '@TTH/ast'
+import type { TLink } from '@TTH/types/ast.types'
 import MuiLink from '@mui/material/Link'
 import { NodeSpan } from './NodeSpan'
 
-export function NodeLink({ node }: { node: TLink }) {
+export const NodeLink = ({ node }: { node: TLink }) => {
   return (
     <MuiLink
       href={node.url}

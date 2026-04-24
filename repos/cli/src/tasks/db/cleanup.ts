@@ -12,7 +12,7 @@ export const cleanup: TTask = {
   name: `cleanup`,
   alias: [`clean`, `cl`],
   action: cleanupAct,
-  example: `pnpm tdsk db cleanup`,
+  example: `tdsk db cleanup`,
   description: `Remove non-seed data while preserving seed fixtures`,
   options: {
     log: sharedOpts.shared.log,

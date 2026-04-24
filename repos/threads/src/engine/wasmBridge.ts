@@ -5,7 +5,9 @@
  * fetch + WebAssembly.compileStreaming instead of fs.readFile.
  * The compiled module is cached as a singleton so all terminals share it.
  */
+import type { TBrowserVTerminal } from '@TTH/types'
 
+import { WasmMaxBackoffMs } from '@TTH/constants/values'
 import { GhosttyVTCellSize, GhosttyVTConfigSize } from '@TTH/tokenizer/types'
 
 // Vite resolves `?url` imports to a hashed asset URL at build time.
@@ -17,46 +19,28 @@ import ghosttyWasmUrl from 'ghostty-web/ghostty-vt.wasm?url'
 
 type WasmExports = {
   memory: WebAssembly.Memory
+  ghostty_terminal_free: (handle: number) => void
+  ghostty_wasm_alloc_u8_array: (len: number) => number
+  ghostty_render_state_update: (handle: number) => number
+  ghostty_render_state_mark_clean: (handle: number) => void
+  ghostty_render_state_get_cursor_x: (handle: number) => number
+  ghostty_render_state_get_cursor_y: (handle: number) => number
+  ghostty_wasm_free_u8_array: (ptr: number, len: number) => void
+  ghostty_terminal_is_alternate_screen: (handle: number) => number
+  ghostty_render_state_get_cursor_visible: (handle: number) => number
+  ghostty_terminal_write: (handle: number, ptr: number, len: number) => void
+  ghostty_terminal_resize: (handle: number, cols: number, rows: number) => void
+  ghostty_render_state_is_row_dirty: (handle: number, row: number) => boolean
   ghostty_terminal_new_with_config: (
     cols: number,
     rows: number,
     configPtr: number
   ) => number
-  ghostty_terminal_free: (handle: number) => void
-  ghostty_terminal_write: (handle: number, ptr: number, len: number) => void
-  ghostty_terminal_resize: (handle: number, cols: number, rows: number) => void
-  ghostty_terminal_is_alternate_screen: (handle: number) => number
-  ghostty_render_state_update: (handle: number) => number
-  ghostty_render_state_get_cursor_x: (handle: number) => number
-  ghostty_render_state_get_cursor_y: (handle: number) => number
-  ghostty_render_state_get_cursor_visible: (handle: number) => number
-  ghostty_render_state_is_row_dirty: (handle: number, row: number) => boolean
-  ghostty_render_state_mark_clean: (handle: number) => void
   ghostty_render_state_get_viewport: (
     handle: number,
     bufPtr: number,
     cellCount: number
   ) => number
-  ghostty_wasm_alloc_u8_array: (len: number) => number
-  ghostty_wasm_free_u8_array: (ptr: number, len: number) => void
-}
-
-// ---------------------------------------------------------------------------
-// Public interface
-// ---------------------------------------------------------------------------
-
-export type TBrowserVTerminal = {
-  readonly cols: number
-  readonly rows: number
-  write: (data: string | Uint8Array) => void
-  resize: (newCols: number, newRows: number) => void
-  getDirtyRows: () => number[]
-  /** Returns a DataView over the raw cell grid (cols × rows × 16 bytes). */
-  getViewport: () => DataView
-  getCursor: () => { x: number; y: number; visible: boolean }
-  isAlternateScreen: () => boolean
-  markClean: () => void
-  free: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -66,17 +50,40 @@ export type TBrowserVTerminal = {
 let compiledModule: WebAssembly.Module | null = null
 let compilePromise: Promise<WebAssembly.Module> | null = null
 
+let retryCount = 0
+let lastAttemptTime = 0
+
+function getBackoffMs(attempt: number): number {
+  return Math.min(1000 * 2 ** (attempt - 1), WasmMaxBackoffMs)
+}
+
 async function getCompiledModule(): Promise<WebAssembly.Module> {
   if (compiledModule) return compiledModule
   if (compilePromise) return compilePromise
 
+  // Enforce backoff after previous failures
+  if (retryCount > 0) {
+    const elapsed = Date.now() - lastAttemptTime
+    const backoff = getBackoffMs(retryCount)
+    if (elapsed < backoff) {
+      return Promise.reject(
+        new Error(`WASM load backoff: retry in ${backoff - elapsed}ms`)
+      )
+    }
+  }
+
+  lastAttemptTime = Date.now()
+
   compilePromise = WebAssembly.compileStreaming(fetch(ghosttyWasmUrl))
     .then((mod) => {
       compiledModule = mod
+      retryCount = 0
       return mod
     })
     .catch((err) => {
       compilePromise = null
+      retryCount++
+      lastAttemptTime = Date.now()
       throw err
     })
 
@@ -125,10 +132,10 @@ export async function createBrowserTerminal(
   const handle = exports.ghostty_terminal_new_with_config(cols, rows, configPtr)
   exports.ghostty_wasm_free_u8_array(configPtr, GhosttyVTConfigSize)
 
-  if (!handle) throw new Error('ghostty_terminal_new_with_config returned null handle')
+  if (!handle) throw new Error(`ghostty_terminal_new_with_config returned null handle`)
 
   // Clear screen to initialise all cells (prevents stale WASM allocator data).
-  const clearBytes = encoder.encode('\x1b[2J\x1b[H')
+  const clearBytes = encoder.encode(`\x1b[2J\x1b[H`)
   const clearPtr = exports.ghostty_wasm_alloc_u8_array(clearBytes.length)
   new Uint8Array(memory.buffer).set(clearBytes, clearPtr)
   exports.ghostty_terminal_write(handle, clearPtr, clearBytes.length)
@@ -166,8 +173,8 @@ export async function createBrowserTerminal(
     },
 
     write(data: string | Uint8Array) {
-      if (_freed) throw new Error('Terminal has been freed')
-      const bytes = typeof data === 'string' ? encoder.encode(data) : data
+      if (_freed) throw new Error(`Terminal has been freed`)
+      const bytes = typeof data === `string` ? encoder.encode(data) : data
       const ptr = exports.ghostty_wasm_alloc_u8_array(bytes.length)
       new Uint8Array(memory.buffer).set(bytes, ptr)
       exports.ghostty_terminal_write(handle, ptr, bytes.length)
@@ -175,14 +182,14 @@ export async function createBrowserTerminal(
     },
 
     resize(newCols: number, newRows: number) {
-      if (_freed) throw new Error('Terminal has been freed')
+      if (_freed) throw new Error(`Terminal has been freed`)
       _cols = newCols
       _rows = newRows
       exports.ghostty_terminal_resize(handle, newCols, newRows)
     },
 
     getDirtyRows(): number[] {
-      if (_freed) throw new Error('Terminal has been freed')
+      if (_freed) throw new Error(`Terminal has been freed`)
       exports.ghostty_render_state_update(handle)
       const dirty: number[] = []
       for (let r = 0; r < _rows; r++) {
@@ -192,7 +199,7 @@ export async function createBrowserTerminal(
     },
 
     getViewport(): DataView {
-      if (_freed) throw new Error('Terminal has been freed')
+      if (_freed) throw new Error(`Terminal has been freed`)
       exports.ghostty_render_state_update(handle)
       const { bufPtr, bufSize, cellCount } = allocViewport()
       new Uint8Array(memory.buffer).fill(0, bufPtr, bufPtr + bufSize)
@@ -201,7 +208,7 @@ export async function createBrowserTerminal(
     },
 
     getCursor() {
-      if (_freed) throw new Error('Terminal has been freed')
+      if (_freed) throw new Error(`Terminal has been freed`)
       exports.ghostty_render_state_update(handle)
       return {
         x: exports.ghostty_render_state_get_cursor_x(handle),
@@ -211,12 +218,12 @@ export async function createBrowserTerminal(
     },
 
     isAlternateScreen() {
-      if (_freed) throw new Error('Terminal has been freed')
+      if (_freed) throw new Error(`Terminal has been freed`)
       return !!exports.ghostty_terminal_is_alternate_screen(handle)
     },
 
     markClean() {
-      if (_freed) throw new Error('Terminal has been freed')
+      if (_freed) throw new Error(`Terminal has been freed`)
       exports.ghostty_render_state_mark_clean(handle)
     },
 

@@ -1,5 +1,6 @@
+import type { TFeedEvent } from '@TTH/types/ast.types'
+
 import { Box, Typography } from '@mui/material'
-import type { TFeedEvent } from '@TTH/ast'
 import { renderDocument } from '@TTH/visitors'
 
 type TTUIEvent = Extract<TFeedEvent, { kind: 'tui' }>

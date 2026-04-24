@@ -11,7 +11,7 @@ export const render: TTask = {
   name: `render`,
   action: renderAct,
   alias: [`renders`, `rd`],
-  example: `pnpm tdsk ds render <options>`,
+  example: `tdsk ds render <options>`,
   description: `Calls the devspace render command`,
   options: {
     log: sharedOpts.shared.log,

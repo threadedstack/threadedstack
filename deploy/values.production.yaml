@@ -10,9 +10,15 @@ env:
 
 # ---- Caddy Envs ---- #
   # TODO: Figure this out compared to internal proxy
+  TDSK_CADDY_PROXY_PROTOCOL: on
   TDSK_CADDY_TLS_MODE: on_demand
   TDSK_CADDY_PX_HOST: px.threadedstack.app
   TDSK_CADDY_ACME_EMAIL: admin@threadedstack.com
+
+
+# ---- Auth ENVs ---- #
+  TDSK_AUTH_URL: https://ep-rapid-waterfall-adaje9vz.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth
+  TDSK_AUTH_JWKS: https://ep-rapid-waterfall-adaje9vz.neonauth.c-2.us-east-1.aws.neon.tech/neondb/auth/.well-known/jwks.json
 
 
 # ---- Proxy Envs ---- #

@@ -1,8 +1,9 @@
+import type { TJsonComponentNode, TJsonComponentTree, TInteraction } from '@tdsk/domain'
+
 import React from 'react'
 import { Box } from '@mui/material'
 import { GuiComponentRegistry } from './registry'
 import { AllowedHtmlElements } from '@tdsk/domain'
-import type { TJsonComponentNode, TJsonComponentTree, TInteraction } from '@tdsk/domain'
 
 const AllowedHtmlSet = new Set<string>(AllowedHtmlElements)
 
@@ -14,10 +15,10 @@ type TRendererProps = {
 export function GenerativeUIRenderer({ tree, onAction }: TRendererProps) {
   return (
     <Box
-      className='fade-swap'
+      className={`fade-swap`}
       sx={{ fontSize: 14, lineHeight: 1.6 }}
     >
-      {renderNode(tree, onAction, 'root')}
+      {renderNode(tree, onAction, `root`)}
     </Box>
   )
 }
@@ -27,8 +28,8 @@ function renderNode(
   onAction: (interaction: TInteraction) => void,
   key: string
 ): React.ReactNode {
-  if (typeof node === 'string') return node
-  if (!node || typeof node !== 'object' || !node.type) return null
+  if (typeof node === `string`) return node
+  if (!node || typeof node !== `object` || !node.type) return null
 
   const RegistryComponent = GuiComponentRegistry[node.type]
 

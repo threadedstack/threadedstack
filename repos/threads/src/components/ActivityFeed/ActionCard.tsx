@@ -1,7 +1,8 @@
+import type { TFeedEvent } from '@TTH/types/ast.types'
+
 import { useState } from 'react'
 import { Box, Collapse, Typography } from '@mui/material'
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
-import type { TFeedEvent } from '@TTH/ast'
 import { renderDocument } from '@TTH/visitors'
 
 type TActionEvent = Extract<TFeedEvent, { kind: 'action' }>

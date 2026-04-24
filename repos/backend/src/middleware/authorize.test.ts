@@ -77,21 +77,18 @@ describe(`authorize middleware`, () => {
       expect(mockNext).toHaveBeenCalledWith()
     })
 
-    it(`should use body.orgId as last fallback`, async () => {
+    it(`should NOT use body.orgId (body is untrusted)`, async () => {
       const req = buildMockReq({
         params: {},
-        body: { orgId: `org-from-body` },
+        body: { orgId: `evil-org-id` },
         query: {},
       })
 
       const middleware = authorize(EPermAction.read, EPermResource.org)
       await middleware(req, mockRes as TResponse, mockNext as NextFunction)
 
-      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
-        typeof vi.fn
-      >
-      expect(mockGetOrgRole).toHaveBeenCalledWith(`test-user-id`, `org-from-body`)
-      expect(mockNext).toHaveBeenCalledWith()
+      // Body is not used for orgId — permission check fails without valid orgId
+      expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
     })
 
     it(`should pass error to next on permission failure`, async () => {
@@ -191,38 +188,37 @@ describe(`authorize middleware`, () => {
       expect(mockNext).toHaveBeenCalledWith()
     })
 
-    it(`should use orgId from body when no params, query, or auth header`, async () => {
+    it(`should NOT use orgId from body even when no params, query, or auth header`, async () => {
       const req = buildMockReq({
         params: {},
         query: {},
-        body: { orgId: `org-from-body` },
+        body: { orgId: `evil-org-id` },
         header: vi.fn().mockReturnValue(undefined),
       })
 
       const middleware = authorize(EPermAction.read, EPermResource.org)
       await middleware(req, mockRes as TResponse, mockNext as NextFunction)
 
-      const mockGetOrgRole = req.app.locals.db.services.role.getOrgRole as ReturnType<
-        typeof vi.fn
-      >
-      expect(mockGetOrgRole).toHaveBeenCalledWith(`test-user-id`, `org-from-body`)
-      expect(mockNext).toHaveBeenCalledWith()
+      // Body is untrusted — no valid orgId available, permission check fails
+      expect(mockNext).toHaveBeenCalledWith(expect.any(Error))
     })
 
-    it(`should use projectId from body when not in params or query`, async () => {
+    it(`should NOT use projectId from body (body is untrusted)`, async () => {
       const req = buildMockReq({
         params: { orgId: `org-1` },
         query: {},
-        body: { projectId: `proj-from-body` },
+        body: { projectId: `evil-proj-id` },
       })
 
       const middleware = authorize(EPermAction.read, EPermResource.project)
       await middleware(req, mockRes as TResponse, mockNext as NextFunction)
 
+      // Body is untrusted — projectId from body is ignored, org-level check passes
+      expect(mockNext).toHaveBeenCalledWith()
       const mockGetProjectRole = req.app.locals.db.services.role
         .getProjectRole as ReturnType<typeof vi.fn>
-      expect(mockGetProjectRole).toHaveBeenCalledWith(`test-user-id`, `proj-from-body`)
-      expect(mockNext).toHaveBeenCalledWith()
+      // getProjectRole should NOT have been called with the body value
+      expect(mockGetProjectRole).not.toHaveBeenCalledWith(`test-user-id`, `evil-proj-id`)
     })
   })
 })

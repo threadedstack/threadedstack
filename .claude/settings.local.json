@@ -112,7 +112,11 @@
       "Bash(npm search:*)",
       "Bash(npm pack:*)",
       "Bash(tar xzf:*)",
-      "Bash(tar tzf:*)"
+      "Bash(tar tzf:*)",
+      "Bash(firebase hosting:sites:list --project threaded-stack-prod)",
+      "Bash(firebase target:*)",
+      "Bash(firebase target:apply:*)",
+      "Bash(firebase deploy:*)"
     ]
   },
   "sandbox": {

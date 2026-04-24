@@ -12,7 +12,7 @@ export const check: TTask = {
   name: `check`,
   alias: [`chk`],
   action: checkAct,
-  example: `pnpm tdsk db check`,
+  example: `tdsk db check`,
   description: `Check migration consistency`,
   options: {
     log: sharedOpts.shared.log,

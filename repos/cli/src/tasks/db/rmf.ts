@@ -26,7 +26,7 @@ export const rmf: TTask = {
   name: `rmf`,
   alias: [`remove`, `dropall`],
   action: rmfAct,
-  example: `pnpm tdsk db rmf --env local --confirm`,
+  example: `tdsk db rmf --env local --confirm`,
   description: `DROP ALL Drizzle-managed tables with CASCADE (destructive)`,
   options: {
     log: sharedOpts.shared.log,

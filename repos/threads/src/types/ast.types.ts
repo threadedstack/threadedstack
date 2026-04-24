@@ -3,11 +3,11 @@ export type TRect = { top: number; left: number; bottom: number; right: number }
 export type RGB = { r: number; g: number; b: number }
 
 // --- Viewport Modes ---
-export type TViewportMode = 'interactive' | 'tui' | 'streaming' | 'idle'
+export type TViewportMode = `interactive` | `tui` | `streaming` | `idle`
 
 // --- Terminal Node (leaf) ---
 export type TSpan = {
-  type: 'Span'
+  type: `Span`
   text: string
   fg: RGB
   bg: RGB
@@ -21,13 +21,13 @@ export type TSpan = {
 
 // --- Leaf-ish Nodes ---
 export type TTextLine = {
-  type: 'TextLine'
+  type: `TextLine`
   bounds: TRect
   children: TSpan[]
 }
 
 export type TSelectItem = {
-  type: 'SelectItem'
+  type: `SelectItem`
   bounds: TRect
   selected: boolean
   index: number
@@ -35,20 +35,20 @@ export type TSelectItem = {
 }
 
 export type TTableRow = {
-  type: 'TableRow'
+  type: `TableRow`
   bounds: TRect
   isHeader: boolean
   cells: TSpan[][]
 }
 
 export type TStatusBar = {
-  type: 'StatusBar'
+  type: `StatusBar`
   bounds: TRect
   segments: TSpan[][]
 }
 
 export type TConfirm = {
-  type: 'Confirm'
+  type: `Confirm`
   bounds: TRect
   question: string
   options: [string, string]
@@ -56,7 +56,7 @@ export type TConfirm = {
 }
 
 export type TTextInput = {
-  type: 'TextInput'
+  type: `TextInput`
   bounds: TRect
   prompt: string
   value: string
@@ -65,7 +65,7 @@ export type TTextInput = {
 }
 
 export type TActionTarget = {
-  type: 'ActionTarget'
+  type: `ActionTarget`
   bounds: TRect
   label: string
   hotkey?: string
@@ -74,7 +74,7 @@ export type TActionTarget = {
 }
 
 export type TLink = {
-  type: 'Link'
+  type: `Link`
   bounds: TRect
   hyperlinkId: number
   url?: string
@@ -82,43 +82,43 @@ export type TLink = {
 }
 
 export type TSeparator = {
-  type: 'Separator'
+  type: `Separator`
   bounds: TRect
-  style: 'blank' | 'line' | 'dashed'
+  style: `blank` | `line` | `dashed`
 }
 
 // --- Container Nodes ---
 export type TSelectList = {
-  type: 'SelectList'
+  type: `SelectList`
   bounds: TRect
   selectedIndex: number
-  style: 'arrow' | 'numbered' | 'highlighted'
+  style: `arrow` | `numbered` | `highlighted`
   children: TSelectItem[]
 }
 
 export type TTable = {
-  type: 'Table'
+  type: `Table`
   bounds: TRect
   hasHeader: boolean
   children: TTableRow[]
 }
 
 export type TDiffBlock = {
-  type: 'DiffBlock'
+  type: `DiffBlock`
   bounds: TRect
   children: TTextLine[]
 }
 
 export type TGroup = {
-  type: 'Group'
+  type: `Group`
   bounds: TRect
   children: TContentNode[]
 }
 
 export type TPanel = {
-  type: 'Panel'
+  type: `Panel`
   bounds: TRect
-  border: 'single' | 'double' | 'heavy' | 'rounded'
+  border: `single` | `double` | `heavy` | `rounded`
   title?: string
   children: TContentNode[]
 }
@@ -140,7 +140,7 @@ export type TContentNode =
 
 // --- Document Root ---
 export type TDocument = {
-  type: 'Document'
+  type: `Document`
   bounds: TRect
   cursor: { x: number; y: number; visible: boolean }
   mode: TViewportMode
@@ -153,32 +153,32 @@ export type TASTNode = TDocument | TContentNode | TSpan | TSelectItem | TTableRo
 // --- Feed Event Types ---
 export type TFeedEvent =
   | {
-      kind: 'action'
+      kind: `action`
       id: string
-      status: 'running' | 'done' | 'error'
+      status: `running` | `done` | `error`
       action: string
       target: string
       detail?: TDocument
     }
   | {
-      kind: 'prompt'
+      kind: `prompt`
       id: string
-      status: 'waiting' | 'answered'
+      status: `waiting` | `answered`
       question: string
       options?: string[]
       answer?: string
     }
   | {
-      kind: 'output'
+      kind: `output`
       id: string
-      status: 'streaming' | 'complete'
+      status: `streaming` | `complete`
       lines: TTextLine[]
       summary?: string
       collapsed: boolean
     }
-  | { kind: 'tui'; id: string; status: 'active' | 'exited'; regionTree: TDocument }
-  | { kind: 'input'; id: string; text: string; source: 'user' }
-  | { kind: 'idle'; id: string; timestamp: number }
+  | { kind: `tui`; id: string; status: `active` | `exited`; regionTree: TDocument }
+  | { kind: `input`; id: string; text: string; source: `user` }
+  | { kind: `idle`; id: string; timestamp: number }
 
 // --- ARIA Props (from AccessibilityVisitor) ---
 export type TAriaProps = Record<string, string | boolean | undefined>

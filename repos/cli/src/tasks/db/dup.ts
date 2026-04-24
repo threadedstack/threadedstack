@@ -12,7 +12,7 @@ export const dup: TTask = {
   name: `dup`,
   alias: [`up`],
   action: dupAct,
-  example: `pnpm tdsk db dup`,
+  example: `tdsk db dup`,
   description: `Update migration format (drizzle-kit up)`,
   options: {
     log: sharedOpts.shared.log,

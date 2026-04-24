@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
-
+import { useCallback, useState } from 'react'
 import { EThemeType } from '@TTH/types'
 import { Page } from '@TTH/pages/Page/Page'
 import { storage } from '@TTH/services/storage'
@@ -44,13 +43,13 @@ export const Settings = (props: TSettings) => {
   const { themeType, onThemeToggle } = useThemeToggle()
   const [settings, setSettings] = useState<TSettingsData>(loadSettings)
 
-  useEffect(() => {
-    saveSettings(settings)
-  }, [settings])
-
   const onSettingChange = useCallback(
     <K extends keyof TSettingsData>(key: K, value: TSettingsData[K]) => {
-      setSettings((prev) => ({ ...prev, [key]: value }))
+      setSettings((prev) => {
+        const next = { ...prev, [key]: value }
+        saveSettings(next)
+        return next
+      })
     },
     []
   )

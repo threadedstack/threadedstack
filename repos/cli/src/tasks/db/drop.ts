@@ -12,7 +12,7 @@ export const drop: TTask = {
   name: `drop`,
   alias: [`drp`],
   action: dropAct,
-  example: `pnpm tdsk db drop`,
+  example: `tdsk db drop`,
   description: `Drop a migration (interactive)`,
   options: {
     log: sharedOpts.shared.log,

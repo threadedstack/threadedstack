@@ -6,7 +6,7 @@ export const login: TTask = {
   name: `login`,
   alias: [`auth`],
   action: async (args) => await docker.login(args),
-  example: `pnpm tdsk dev img build <options>`,
+  example: `tdsk dev img build <options>`,
   description: `Calls the image build command`,
   options: {
     registry: {

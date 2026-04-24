@@ -12,7 +12,7 @@ export const introspect: TTask = {
   name: `introspect`,
   alias: [`intro`, `inspect`],
   action: introspectAct,
-  example: `pnpm tdsk db introspect`,
+  example: `tdsk db introspect`,
   description: `Introspect existing database schema`,
   options: {
     log: sharedOpts.shared.log,

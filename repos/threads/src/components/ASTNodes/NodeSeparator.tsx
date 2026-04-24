@@ -1,8 +1,8 @@
-import type { TSeparator } from '@TTH/ast'
+import type { TSeparator } from '@TTH/types/ast.types'
 import Box from '@mui/material/Box'
 import Divider from '@mui/material/Divider'
 
-export function NodeSeparator({ node }: { node: TSeparator }) {
+export const NodeSeparator = ({ node }: { node: TSeparator }) => {
   if (node.style === `blank`) {
     return <Box sx={{ height: `1em` }} />
   }

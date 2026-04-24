@@ -1,7 +1,7 @@
-import type { TDocument, TContentNode } from '../ast'
-import type { TTokenizeResult } from '../tokenizer'
+import type { TDocument, TContentNode } from '@TTH/types/ast.types'
+import type { TModeContext } from '@TTH/types/parser.types'
+import type { TTokenizeResult } from '@TTH/types/tokenizer.types'
 import { detectMode } from './modeDetector'
-import type { TModeContext } from './modeDetector'
 import { parseScopes } from './scopeParser'
 import { parseFlatContent } from './flatParser'
 
@@ -35,7 +35,7 @@ export function parse(tokenResult: TTokenizeResult, modeCtx: TModeContext): TDoc
   const children: TContentNode[] = [...panels, ...flatNodes]
 
   return {
-    type: 'Document',
+    type: `Document`,
     bounds: rootBounds,
     cursor,
     mode,
@@ -60,7 +60,7 @@ function deriveRootBounds(tokenResult: TTokenizeResult): {
   let found = false
 
   for (const token of tokenResult.tokens) {
-    if ('bounds' in token) {
+    if (`bounds` in token) {
       const b = token.bounds
       if (b.top < top) top = b.top
       if (b.left < left) left = b.left

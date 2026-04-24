@@ -1,11 +1,12 @@
-import type { TDocument, TFeedEvent } from '@TTH/ast'
-import type { TBrowserVTerminal } from './wasmBridge'
-import type { TPalette } from '@TTH/tokenizer'
-import type { TModeContext } from '@TTH/parser'
-import { createBrowserTerminal } from './wasmBridge'
-import { tokenize } from '@TTH/tokenizer'
+import type { TPalette } from '@TTH/types/tokenizer.types'
+import type { TModeContext } from '@TTH/types/parser.types'
+import type { TBrowserVTerminal } from '@TTH/types'
+import type { TDocument, TFeedEvent } from '@TTH/types/ast.types'
+
 import { parse } from '@TTH/parser'
+import { tokenize } from '@TTH/tokenizer'
 import { diffToFeedEvents } from '@TTH/visitors'
+import { createBrowserTerminal } from './wasmBridge'
 
 type TEngineCallbacks = {
   onAST: (doc: TDocument) => void
@@ -13,25 +14,26 @@ type TEngineCallbacks = {
 }
 
 const emptyDoc: TDocument = {
-  type: 'Document',
-  bounds: { top: 0, left: 0, bottom: 23, right: 79 },
-  cursor: { x: 0, y: 0, visible: false },
-  mode: 'interactive',
   children: [],
+  type: `Document`,
+  mode: `interactive`,
+  cursor: { x: 0, y: 0, visible: false },
+  bounds: { top: 0, left: 0, bottom: 23, right: 79 },
 }
 
 export class SessionEngine {
+  private dirty = false
+  private lastDataTime = 0
+  private destroyed = false
+  readonly sessionId: string
+  private consecutiveErrors = 0
+  private consecutiveDirtyCycles = 0
+  private rafId: number | null = null
   private terminal: TBrowserVTerminal
   private callbacks: TEngineCallbacks
   private prevDoc: TDocument = emptyDoc
   private prevPalette: TPalette | null = null
-  private consecutiveDirtyCycles = 0
-  private lastDataTime = 0
   private idleCheckTimer: ReturnType<typeof setInterval> | null = null
-  private rafId: number | null = null
-  private dirty = false
-  private destroyed = false
-  readonly sessionId: string
 
   private constructor(
     sessionId: string,
@@ -45,7 +47,7 @@ export class SessionEngine {
     // Periodic idle check (every 1s)
     this.idleCheckTimer = setInterval(() => {
       if (this.destroyed) return
-      if (this.prevDoc.mode !== 'idle') {
+      if (this.prevDoc.mode !== `idle`) {
         const idleMs = Date.now() - this.lastDataTime
         if (idleMs > 2000) this.process()
       }
@@ -126,10 +128,27 @@ export class SessionEngine {
       }
 
       this.prevDoc = doc
+      this.consecutiveErrors = 0
       this.callbacks.onAST(doc)
       this.terminal.markClean()
     } catch (err) {
-      console.error(`[SessionEngine] process() failed for ${this.sessionId}:`, err)
+      this.consecutiveErrors++
+      console.error(
+        `[SessionEngine] process() failed for ${this.sessionId} (${this.consecutiveErrors} consecutive):`,
+        err
+      )
+      if (this.consecutiveErrors >= 3) {
+        this.callbacks.onFeedEvents([
+          {
+            kind: `output`,
+            id: `engine-err-${this.consecutiveErrors}`,
+            status: `complete`,
+            lines: [],
+            summary: `Engine error: terminal rendering failed (${this.consecutiveErrors} consecutive failures)`,
+            collapsed: false,
+          },
+        ])
+      }
     }
   }
 

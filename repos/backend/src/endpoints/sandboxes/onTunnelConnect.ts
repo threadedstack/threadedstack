@@ -7,6 +7,8 @@ import { URL } from 'url'
 import { nanoid } from 'nanoid'
 import { logger } from '@TBE/utils/logger'
 import { Exception, hashKey, ESandboxSessionVisibility } from '@tdsk/domain'
+import type { TRateLimiterBackend } from '@TBE/services/rateLimiter'
+import { InMemoryRateLimiter } from '@TBE/services/rateLimiter'
 import {
   SBTcpTimeout,
   TunnelRateWindow,
@@ -17,41 +19,27 @@ import {
   TunnelFastCloseThreshold,
 } from '@TBE/constants/sandbox'
 
-const tunnelFailures = new Map<string, number[]>()
+/**
+ * Tunnel rate limiter — pluggable backend for multi-replica deployments.
+ * Defaults to in-memory; swap to Redis/DB implementation via `setTunnelRateLimiter`.
+ */
+let tunnelLimiter: TRateLimiterBackend = new InMemoryRateLimiter()
+
+export const setTunnelRateLimiter = (backend: TRateLimiterBackend): void => {
+  tunnelLimiter = backend
+}
 
 export const recordTunnelFailure = (sandboxId: string): void => {
-  const failures = tunnelFailures.get(sandboxId) || []
-  failures.push(Date.now())
-  tunnelFailures.set(sandboxId, failures)
+  tunnelLimiter.record(sandboxId)
 }
 
 export const clearTunnelFailures = (sandboxId?: string): void => {
-  if (sandboxId) tunnelFailures.delete(sandboxId)
-  else tunnelFailures.clear()
+  tunnelLimiter.clear(sandboxId)
 }
 
 export const checkTunnelRateLimit = (sandboxId: string): boolean => {
-  const failures = tunnelFailures.get(sandboxId)
-  if (!failures || failures.length === 0) return false
-
-  const now = Date.now()
-  const recent = failures.filter((t) => now - t < TunnelRateWindow)
-  tunnelFailures.set(sandboxId, recent)
-
-  if (recent.length === 0) {
-    tunnelFailures.delete(sandboxId)
-    return false
-  }
-
-  if (recent.length < TunnelRateLimit) return false
-
-  const lastFailure = recent[recent.length - 1]
-  if (now - lastFailure > TunnelBlockDuration) {
-    tunnelFailures.delete(sandboxId)
-    return false
-  }
-
-  return true
+  if (!tunnelLimiter.isLimited(sandboxId, TunnelRateWindow, TunnelRateLimit)) return false
+  return tunnelLimiter.isBlocked(sandboxId, TunnelBlockDuration)
 }
 
 /**

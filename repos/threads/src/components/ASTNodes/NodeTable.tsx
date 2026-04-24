@@ -1,7 +1,7 @@
-import type { TTable } from '@TTH/ast'
+import type { TTable } from '@TTH/types/ast.types'
 import { NodeTableRow } from './NodeTableRow'
 
-export function NodeTable({ node }: { node: TTable }) {
+export const NodeTable = ({ node }: { node: TTable }) => {
   return (
     <table
       style={{

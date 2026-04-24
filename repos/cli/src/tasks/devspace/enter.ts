@@ -11,7 +11,7 @@ export const enter: TTask = {
   name: `enter`,
   action: enterAct,
   alias: [`enter`, `exec`],
-  example: `pnpm tdsk ds enter <options>`,
+  example: `tdsk ds enter <options>`,
   description: `Calls the devspace enter command`,
   options: {
     context: sharedOpts.shared.context,

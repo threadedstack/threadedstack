@@ -24,7 +24,7 @@ export const status: TTask = {
   name: `status`,
   alias: [`st`, `stat`],
   action: statusAct,
-  example: `pnpm tdsk deploy status --env production`,
+  example: `tdsk deploy status --env production`,
   description: `Show pod and service status for the target Kubernetes cluster`,
   options: {
     log: sharedOpts.shared.log,

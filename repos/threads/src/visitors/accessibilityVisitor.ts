@@ -1,4 +1,4 @@
-import type { TContentNode, TSelectItem, TAriaProps } from '@TTH/ast'
+import type { TContentNode, TSelectItem, TAriaProps } from '@TTH/types/ast.types'
 
 /**
  * Maps an AST content node to ARIA attributes for accessibility.
@@ -6,39 +6,39 @@ import type { TContentNode, TSelectItem, TAriaProps } from '@TTH/ast'
  */
 export function getAriaProps(node: TContentNode | TSelectItem): TAriaProps {
   switch (node.type) {
-    case 'SelectList':
+    case `SelectList`:
       return {
-        role: 'listbox',
+        role: `listbox`,
         'aria-activedescendant': `select-item-${node.selectedIndex}`,
       }
-    case 'SelectItem':
+    case `SelectItem`:
       return {
-        role: 'option',
+        role: `option`,
         'aria-selected': node.selected,
         id: `select-item-${node.index}`,
       }
-    case 'TextInput':
+    case `TextInput`:
       return {
-        role: 'textbox',
+        role: `textbox`,
         'aria-label': node.prompt,
       }
-    case 'ActionTarget':
+    case `ActionTarget`:
       return {
-        role: 'button',
+        role: `button`,
         'aria-label': node.label,
       }
-    case 'Table':
+    case `Table`:
       return {
-        role: 'table',
+        role: `table`,
       }
-    case 'StatusBar':
+    case `StatusBar`:
       return {
-        role: 'status',
-        'aria-live': 'polite',
+        role: `status`,
+        'aria-live': `polite`,
       }
-    case 'Confirm':
+    case `Confirm`:
       return {
-        role: 'alertdialog',
+        role: `alertdialog`,
         'aria-label': node.question,
       }
     default:

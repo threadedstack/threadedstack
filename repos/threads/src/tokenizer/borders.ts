@@ -1,6 +1,6 @@
-import type { TRect } from '../ast'
+import type { TRect } from '@TTH/types/ast.types'
 import { cellOffset, decodeCell } from './decode'
-import type { TCellMeta, TBorderFrame } from './types'
+import type { TCellMeta, TBorderFrame } from '@TTH/types/tokenizer.types'
 
 // --- Top-left corners ---
 const TOP_LEFT_CORNERS = new Set([
@@ -93,10 +93,10 @@ function cpAt(view: DataView, row: number, col: number, cols: number): number {
 
 // --- Style detection from top-left corner codepoint ---
 function detectStyle(tlCp: number): 'single' | 'double' | 'heavy' | 'rounded' {
-  if (tlCp === 0x2554) return 'double' // ╔
-  if (tlCp === 0x250f) return 'heavy' // ┏
-  if (tlCp === 0x256d) return 'rounded' // ╭
-  return 'single' // ┌ (0x250c) and fallback
+  if (tlCp === 0x2554) return `double` // ╔
+  if (tlCp === 0x250f) return `heavy` // ┏
+  if (tlCp === 0x256d) return `rounded` // ╭
+  return `single` // ┌ (0x250c) and fallback
 }
 
 /**
@@ -121,7 +121,7 @@ function extractTitle(
     }
   }
   if (titleChars.length === 0) return undefined
-  return titleChars.join('').trim() || undefined
+  return titleChars.join(``).trim() || undefined
 }
 
 /**
@@ -228,7 +228,7 @@ function traceBordersScoped(
       // Extract optional title from top border
       const title = extractTitle(view, row, col, trCol, cols, meta)
 
-      frames.push({ type: 'BorderFrame', bounds, interior, style, title })
+      frames.push({ type: `BorderFrame`, bounds, interior, style, title })
 
       // Recurse into interior for nested frames
       if (brRow - row > 2 && trCol - col > 2) {

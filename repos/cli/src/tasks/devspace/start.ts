@@ -22,7 +22,7 @@ export const start: TTask = {
   name: `start`,
   alias: [`st`],
   action: startAct,
-  example: `pnpm tdsk ds start <options>`,
+  example: `tdsk ds start <options>`,
   description: `Calls the devspace start command`,
   options: {
     context: sharedOpts.shared.context,

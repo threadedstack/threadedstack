@@ -1,5 +1,5 @@
-import type { TRect, TPanel, TContentNode } from '../ast'
-import type { TToken, TBorderFrame } from '../tokenizer/types'
+import type { TRect, TPanel, TContentNode } from '@TTH/types/ast.types'
+import type { TToken, TBorderFrame } from '@TTH/types/tokenizer.types'
 import { parseFlatContent } from './flatParser'
 
 /**
@@ -49,7 +49,7 @@ export function parseScopes(
   const otherTokens: TToken[] = []
 
   for (const t of tokens) {
-    if (t.type === 'BorderFrame') {
+    if (t.type === `BorderFrame`) {
       frames.push(t)
     } else {
       otherTokens.push(t)
@@ -84,7 +84,7 @@ export function parseScopes(
     // Collect tokens inside the frame's interior
     const interiorTokens: TToken[] = []
     for (const t of otherTokens) {
-      if ('bounds' in t && tokenInsideRect(t as { bounds: TRect }, frame.interior)) {
+      if (`bounds` in t && tokenInsideRect(t as { bounds: TRect }, frame.interior)) {
         interiorTokens.push(t)
         consumedTokens.add(t)
       }
@@ -111,7 +111,7 @@ export function parseScopes(
     const children: TContentNode[] = [...childPanels, ...flatNodes]
 
     const panelNode: TPanel = {
-      type: 'Panel',
+      type: `Panel`,
       bounds: frame.bounds,
       border: frame.style,
       children,

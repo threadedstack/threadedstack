@@ -16,5 +16,5 @@ export const FeatureFlags: TFeatureFlags = {
 }
 
 export function isFeatureEnabled(flag: TFeatureFlagName): boolean {
-  return FeatureFlags[flag].enabled
+  return FeatureFlags[flag]?.enabled ?? false
 }

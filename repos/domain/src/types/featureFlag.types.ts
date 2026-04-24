@@ -3,7 +3,7 @@ export type TFeatureFlagDef = {
   description: string
 }
 
-export type TFeatureFlags = Record<string, TFeatureFlagDef> & {
+export type TFeatureFlags = {
   skills: TFeatureFlagDef
   schedules: TFeatureFlagDef
   terminalGui: TFeatureFlagDef

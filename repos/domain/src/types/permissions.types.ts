@@ -92,3 +92,13 @@ export type TRoleUser = {
   last?: string
   image?: string
 }
+
+/**
+ * Context for permission checks.
+ * Used by authorize middleware and checkPermission utility.
+ */
+export type TPermissionContext = {
+  orgId?: string
+  projectId?: string
+  resourceId?: string
+}

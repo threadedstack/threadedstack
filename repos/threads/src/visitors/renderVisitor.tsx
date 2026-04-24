@@ -1,18 +1,18 @@
 import type { ReactElement } from 'react'
-import type { TContentNode, TDocument } from '@TTH/ast'
+import type { TContentNode, TDocument } from '@TTH/types'
 
+import { NodeLink } from '@TTH/components/ASTNodes/NodeLink'
 import { NodePanel } from '@TTH/components/ASTNodes/NodePanel'
 import { NodeGroup } from '@TTH/components/ASTNodes/NodeGroup'
-import { NodeTextLine } from '@TTH/components/ASTNodes/NodeTextLine'
-import { NodeSelectList } from '@TTH/components/ASTNodes/NodeSelectList'
-import { NodeConfirm } from '@TTH/components/ASTNodes/NodeConfirm'
-import { NodeTextInput } from '@TTH/components/ASTNodes/NodeTextInput'
-import { NodeActionTarget } from '@TTH/components/ASTNodes/NodeActionTarget'
-import { NodeStatusBar } from '@TTH/components/ASTNodes/NodeStatusBar'
 import { NodeTable } from '@TTH/components/ASTNodes/NodeTable'
+import { NodeConfirm } from '@TTH/components/ASTNodes/NodeConfirm'
+import { NodeTextLine } from '@TTH/components/ASTNodes/NodeTextLine'
+import { NodeStatusBar } from '@TTH/components/ASTNodes/NodeStatusBar'
 import { NodeDiffBlock } from '@TTH/components/ASTNodes/NodeDiffBlock'
-import { NodeLink } from '@TTH/components/ASTNodes/NodeLink'
 import { NodeSeparator } from '@TTH/components/ASTNodes/NodeSeparator'
+import { NodeTextInput } from '@TTH/components/ASTNodes/NodeTextInput'
+import { NodeSelectList } from '@TTH/components/ASTNodes/NodeSelectList'
+import { NodeActionTarget } from '@TTH/components/ASTNodes/NodeActionTarget'
 
 export function renderNode(node: TContentNode, key: number | string): ReactElement {
   switch (node.type) {

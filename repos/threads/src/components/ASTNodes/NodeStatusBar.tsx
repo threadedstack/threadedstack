@@ -1,8 +1,8 @@
-import type { TStatusBar } from '@TTH/ast'
+import type { TStatusBar } from '@TTH/types/ast.types'
 import Box from '@mui/material/Box'
 import { NodeSpan } from './NodeSpan'
 
-export function NodeStatusBar({ node }: { node: TStatusBar }) {
+export const NodeStatusBar = ({ node }: { node: TStatusBar }) => {
   return (
     <Box
       sx={{
