@@ -98,7 +98,7 @@ export const orgQuickstart: TEndpointConfig = {
     try {
       const result = await db.transaction(async (tx) => {
         // 1. Provider (org-scoped)
-        const [provider] = await tx
+        const providerRows = await tx
           .insert(providers)
           .values({
             orgId,
@@ -110,6 +110,7 @@ export const orgQuickstart: TEndpointConfig = {
             },
           })
           .returning()
+        const provider = providerRows[0]
 
         // 2. Encrypt API key using org ID (scope owner for org-scoped secrets)
         const derivedKey = await deriveKey(orgId)
@@ -122,7 +123,7 @@ export const orgQuickstart: TEndpointConfig = {
         const hashKey = createHashKey(secretName)
 
         // 3. Secret (dual ownership: org-scoped for Secrets page visibility + provider-linked)
-        const [secret] = await tx
+        const secretRows = await tx
           .insert(secrets)
           .values({
             name: secretName,
@@ -132,9 +133,10 @@ export const orgQuickstart: TEndpointConfig = {
             providerId: provider.id,
           })
           .returning()
+        const secret = secretRows[0]
 
         // 4. Project (org-scoped)
-        const [project] = await tx
+        const projectRows = await tx
           .insert(projects)
           .values({
             name: projectName,
@@ -142,9 +144,10 @@ export const orgQuickstart: TEndpointConfig = {
             meta: {},
           })
           .returning()
+        const project = projectRows[0]
 
         // 5. Agent (org-scoped)
-        const [agent] = await tx
+        const agentRows = await tx
           .insert(agents)
           .values({
             name: agentName,
@@ -155,6 +158,7 @@ export const orgQuickstart: TEndpointConfig = {
             ...(systemPrompt && { systemPrompt }),
           })
           .returning()
+        const agent = agentRows[0]
 
         // 6. Agent-Provider junction (priority 0 = primary)
         await tx.insert(agentProviders).values({
@@ -170,7 +174,7 @@ export const orgQuickstart: TEndpointConfig = {
         })
 
         // 8. Endpoint (project-scoped, type=agent)
-        const [endpoint] = await tx
+        const endpointRows = await tx
           .insert(endpoints)
           .values({
             type: `agent`,
@@ -181,6 +185,7 @@ export const orgQuickstart: TEndpointConfig = {
             options: { agentId: agent.id },
           })
           .returning()
+        const endpoint = endpointRows[0]
 
         return {
           agent,
