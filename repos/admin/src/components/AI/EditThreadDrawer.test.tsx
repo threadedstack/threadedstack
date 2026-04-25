@@ -34,6 +34,19 @@ vi.mock(`@tdsk/components`, () => ({
       </div>
     ) : null,
   DrawerActions: () => null,
+  TextInput: (props: any) => (
+    <input
+      data-testid={props.id || 'text-input'}
+      {...props}
+    />
+  ),
+  SwitchInput: (props: any) => (
+    <input
+      type='checkbox'
+      data-testid={props.id || 'switch-input'}
+      {...props}
+    />
+  ),
 }))
 
 vi.mock(`@TAF/hooks/components/useDrawerActions`, () => ({
@@ -118,7 +131,7 @@ describe(`EditThreadDrawer`, () => {
 
     const threadIdInput = screen.getByDisplayValue(`thread-abc-123`)
     expect(threadIdInput).toBeDefined()
-    expect(threadIdInput.getAttribute(`readonly`)).not.toBeNull()
+    expect(threadIdInput).toBeDisabled()
   })
 
   it(`should pre-fill form fields from thread data`, () => {

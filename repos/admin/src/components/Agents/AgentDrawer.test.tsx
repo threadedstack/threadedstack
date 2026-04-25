@@ -1,3 +1,5 @@
+// biome-ignore-all lint: is a test file
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
@@ -80,6 +82,12 @@ vi.mock(`@tdsk/components`, () => ({
     ) : null,
   DrawerActions: () => null,
   ConfirmDelete: () => null,
+  SelectInput: (props: any) => (
+    <div data-testid={props.id || 'select-input'}>
+      {props.label && <label>{props.label}</label>}
+      <select />
+    </div>
+  ),
 }))
 
 vi.mock(`@TAF/components/Selectors`, () => ({
