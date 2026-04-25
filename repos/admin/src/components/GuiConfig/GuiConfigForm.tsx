@@ -1,20 +1,19 @@
+import type { TGuiConfig } from '@tdsk/domain'
+
+import { Code } from '@TAF/components/Code/Code'
 import { useState, useCallback, useMemo } from 'react'
+import { MonacoOptions } from '@TAF/constants/monaco'
+import { TextInput, SwitchInput } from '@tdsk/components'
+import { ModelSelect } from '@TAF/components/Agents/ModelSelect'
+import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
+import { ProviderSelectorSingle } from '@TAF/components/Selectors/ProviderSelector'
 import {
   Box,
-  Switch,
-  FormControlLabel,
   Accordion,
+  Typography,
   AccordionSummary,
   AccordionDetails,
-  Typography,
 } from '@mui/material'
-import { ExpandMore as ExpandMoreIcon } from '@mui/icons-material'
-import { TextInput } from '@tdsk/components'
-import type { TGuiConfig } from '@tdsk/domain'
-import { Code } from '@TAF/components/Code/Code'
-import { MonacoOptions } from '@TAF/constants/monaco'
-import { ModelSelect } from '@TAF/components/Agents/ModelSelect'
-import { ProviderSelectorSingle } from '@TAF/components/Selectors/ProviderSelector'
 
 export type TGuiConfigFormProps = {
   config: TGuiConfig | undefined
@@ -24,18 +23,15 @@ export type TGuiConfigFormProps = {
 }
 
 const DefaultConfig: TGuiConfig = {
-  enabled: false,
-  providerId: '',
   model: '',
   maxRetries: 2,
+  enabled: false,
+  providerId: '',
 }
 
-export const GuiConfigForm = ({
-  config,
-  orgProviders,
-  disabled,
-  onChange,
-}: TGuiConfigFormProps) => {
+export const GuiConfigForm = (props: TGuiConfigFormProps) => {
+  const { config, disabled, onChange, orgProviders } = props
+
   const current = config ?? DefaultConfig
   const [promptOpen, setPromptOpen] = useState(false)
   const isDisabled = disabled || !current.enabled
@@ -59,31 +55,28 @@ export const GuiConfigForm = ({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={current.enabled}
-            onChange={(_, checked) => update({ enabled: checked })}
-            disabled={disabled}
-          />
-        }
+      <SwitchInput
+        disabled={disabled}
+        id='gui-config-enabled'
+        checked={current.enabled}
         label='Enable Generative UI'
+        onChange={(e, checked) => update({ enabled: checked })}
       />
 
       <ProviderSelectorSingle
-        providerId={current.providerId}
-        providers={providerList}
         disabled={isDisabled}
+        providers={providerList}
+        providerId={current.providerId}
         onChange={(providerId) => update({ providerId, model: '' })}
       />
 
       <ModelSelect
         size='small'
         disabled={isDisabled}
-        brand={selectedProvider?.brand ?? ''}
-        id={`gui-config-model-${current.providerId}`}
         model={current.model || ''}
+        brand={selectedProvider?.brand ?? ''}
         onChange={(model) => update({ model })}
+        id={`gui-config-model-${current.providerId}`}
       />
 
       <TextInput
@@ -105,23 +98,23 @@ export const GuiConfigForm = ({
       <Accordion
         disableGutters
         expanded={promptOpen}
-        onChange={(_, open) => setPromptOpen(open)}
         disabled={isDisabled}
         sx={{ '&:before': { display: 'none' } }}
+        onChange={(_, open) => setPromptOpen(open)}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography variant='body2'>Custom System Prompt (optional)</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <Code
-            id='gui-config-system-prompt'
+            label=''
             language='plaintext'
             disabled={isDisabled}
-            options={MonacoOptions}
-            defaultValue={current.systemPrompt ?? ''}
-            label=''
-            onChange={(value) => update({ systemPrompt: value || undefined })}
             sx={{ minHeight: 200 }}
+            options={MonacoOptions}
+            id='gui-config-system-prompt'
+            defaultValue={current.systemPrompt ?? ''}
+            onChange={(value) => update({ systemPrompt: value || undefined })}
           />
         </AccordionDetails>
       </Accordion>

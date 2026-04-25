@@ -1,8 +1,8 @@
 import { ERoutePath } from '@TAF/types'
-import { ConfirmDelete } from '@tdsk/components'
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { buildNavRoute } from '@TAF/utils/nav/buildRoute'
+import { TextInput, ConfirmDelete } from '@tdsk/components'
 import { msgTypeColor } from '@TAF/utils/transforms/messages'
 import { AgentSection } from '@TAF/components/Agents/AgentSection'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
@@ -29,13 +29,12 @@ import {
   TableCell,
   TableBody,
   TableHead,
-  TextField,
   Typography,
   IconButton,
-  TableContainer,
   DialogTitle,
   DialogContent,
   DialogActions,
+  TableContainer,
 } from '@mui/material'
 import {
   Edit as EditIcon,
@@ -48,22 +47,22 @@ import {
 
 export const ProjectThreadDetail = () => {
   const navigate = useNavigate()
-  const { agentId, threadId } = useParams<{ agentId: string; threadId: string }>()
   const [orgId] = useActiveOrgId()
-  const [projectId] = useActiveProjectId()
   const [agent] = useActiveAgent()
   const [thread] = useActiveThread()
-  const [messages] = useThreadMessages()
   const [providers] = useProviders()
+  const [messages] = useThreadMessages()
+  const [projectId] = useActiveProjectId()
   const [, setActiveThreadId] = useActiveThreadId()
+  const { agentId, threadId } = useParams<{ agentId: string; threadId: string }>()
 
   const [loading, setLoading] = useState(false)
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
 
   const msgActions = useMessageActions({
-    orgId: orgId || '',
-    agentId: agentId || '',
-    threadId: threadId || '',
+    orgId: orgId || ``,
+    agentId: agentId || ``,
+    threadId: threadId || ``,
     onBranchSuccess: (newThreadId) => {
       setActiveThreadId(newThreadId)
       navigate(
@@ -259,11 +258,11 @@ export const ProjectThreadDetail = () => {
                     <TableCell>
                       {msgActions.editingId === message.id ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <TextField
+                          <TextInput
+                            textarea
                             fullWidth
-                            multiline
                             maxRows={4}
-                            size='small'
+                            id='msg-edit-input'
                             value={msgActions.editContent}
                             onChange={(e) => msgActions.setEditContent(e.target.value)}
                           />

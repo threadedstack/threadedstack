@@ -18,10 +18,10 @@ import {
   removeOpenSession,
 } from '@TTH/state/accessors'
 
-const connections = new Map<string, WebSocket>()
-const rawBuffers = new Map<string, string[]>()
-const terminalWriters = new Map<string, Set<(data: string) => void>>()
-const engineWriters = new Map<string, Set<(data: Uint8Array) => void>>()
+let rawBuffers = new Map<string, string[]>()
+let connections = new Map<string, WebSocket>()
+let terminalWriters = new Map<string, Set<(data: string) => void>>()
+let engineWriters = new Map<string, Set<(data: Uint8Array) => void>>()
 
 export const getConnection = (sessionId: string) => connections.get(sessionId)
 export const getRawBuffer = (sessionId: string) => rawBuffers.get(sessionId) ?? []
@@ -226,4 +226,21 @@ export const openSession = async (opts: TOpenSessionOpts) => {
       }
     }
   })
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    for (const ws of connections.values()) {
+      try {
+        ws.close()
+      } catch {
+        /* already closed */
+      }
+    }
+    rawBuffers = new Map()
+    connections = new Map()
+    engineWriters = new Map()
+    terminalWriters = new Map()
+  })
+  import.meta.hot.accept()
 }

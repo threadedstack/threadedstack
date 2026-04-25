@@ -1,23 +1,22 @@
-import { useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router'
-import { closeSession } from '@TTH/actions/sessions'
-import { setActiveSession } from '@TTH/state/accessors'
-import {
-  useOpenSessions,
-  useActiveSession,
-  useSessionMode,
-  useSandboxes,
-  useSessionsForSandbox,
-} from '@TTH/state/selectors'
 import { Box, Chip } from '@mui/material'
+import { useNavigate } from 'react-router'
+import { useCallback, useMemo } from 'react'
+import { useSessionMode } from '@TTH/hooks/session/useSessionMode'
+import { activateSession, closeSession } from '@TTH/actions/sessions'
+import { useSandboxSessions } from '@TTH/hooks/sandbox/useSandboxSessions'
+import { useSandboxes, useOpenSessions, useActiveSession } from '@TTH/state/selectors'
 
-const useChipLabel = (session: {
+type TSession = {
+  runtime: string
   sandboxId: string
   sessionId: string
-  runtime: string
-}) => {
-  const sandboxes = useSandboxes()
-  const sbSessions = useSessionsForSandbox(session.sandboxId)
+}
+
+const useChipLabel = (session: TSession) => {
+  const { runtime, sandboxId, sessionId } = session
+
+  const [sandboxes] = useSandboxes()
+  const sbSessions = useSandboxSessions(session.sandboxId)
 
   return useMemo(() => {
     const sandbox = sandboxes.find((s) => s.id === session.sandboxId)
@@ -27,14 +26,16 @@ const useChipLabel = (session: {
       return `${baseName} (${idx + 1})`
     }
     return baseName
-  }, [sandboxes, session.sandboxId, session.sessionId, session.runtime, sbSessions])
+  }, [runtime, sandboxes, sandboxId, sessionId, sbSessions])
 }
 
-const SessionChip = (props: {
-  sessionId: string
-  session: { sandboxId: string; sessionId: string; runtime: string }
+type TSessionChip = {
   active: boolean
-}) => {
+  sessionId: string
+  session: TSession
+}
+
+const SessionChip = (props: TSessionChip) => {
   const { sessionId, session, active } = props
   const navigate = useNavigate()
   const mode = useSessionMode(sessionId)
@@ -52,7 +53,7 @@ const SessionChip = (props: {
   }, [mode])
 
   const handleClick = useCallback(() => {
-    setActiveSession(sessionId)
+    activateSession(sessionId)
     navigate(`/session/${sessionId}`, {
       state: { sandboxId: session.sandboxId },
     })
@@ -64,6 +65,12 @@ const SessionChip = (props: {
 
   return (
     <Chip
+      size='small'
+      onClick={handleClick}
+      onDelete={handleDelete}
+      sx={{ flexShrink: 0 }}
+      color={active ? `primary` : `default`}
+      variant={active ? `filled` : `outlined`}
       label={
         <Box
           display='flex'
@@ -74,20 +81,14 @@ const SessionChip = (props: {
             sx={{
               width: 8,
               height: 8,
+              flexShrink: 0,
               borderRadius: `50%`,
               backgroundColor: dotColor,
-              flexShrink: 0,
             }}
           />
           {label}
         </Box>
       }
-      size='small'
-      variant={active ? `filled` : `outlined`}
-      color={active ? `primary` : `default`}
-      onClick={handleClick}
-      onDelete={handleDelete}
-      sx={{ flexShrink: 0 }}
     />
   )
 }
@@ -95,8 +96,8 @@ const SessionChip = (props: {
 export type TOpenSessionStrip = {}
 
 export const OpenSessionStrip = (_props: TOpenSessionStrip) => {
-  const openSessions = useOpenSessions()
-  const activeSession = useActiveSession()
+  const [openSessions] = useOpenSessions()
+  const [activeSession] = useActiveSession()
 
   const sessions = useMemo(() => Array.from(openSessions.entries()), [openSessions])
 
@@ -105,23 +106,23 @@ export const OpenSessionStrip = (_props: TOpenSessionStrip) => {
   return (
     <Box
       sx={{
-        display: `flex`,
-        gap: 1,
-        px: 2,
         py: 1,
+        px: 2,
+        gap: 1,
+        borderBottom: 1,
+        display: `flex`,
         overflowX: `auto`,
         whiteSpace: `nowrap`,
-        borderBottom: 1,
         borderColor: `divider`,
-        '&::-webkit-scrollbar': { display: `none` },
         scrollbarWidth: `none`,
+        '&::-webkit-scrollbar': { display: `none` },
       }}
     >
       {sessions.map(([sessionId, session]) => (
         <SessionChip
           key={sessionId}
-          sessionId={sessionId}
           session={session}
+          sessionId={sessionId}
           active={activeSession === sessionId}
         />
       ))}

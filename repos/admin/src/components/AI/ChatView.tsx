@@ -1,5 +1,6 @@
 import type { TPendingFile } from '@tdsk/components'
 
+import { TextInput } from '@tdsk/components'
 import { useAgentChat } from '@TAF/hooks/chat/useAgentChat'
 import { PiChatPanel } from '@TAF/components/PI/PiChatPanel'
 import { FilePreview, MessageBubble } from '@tdsk/components'
@@ -14,7 +15,6 @@ import {
   Button,
   Dialog,
   Tooltip,
-  TextField,
   Typography,
   IconButton,
   DialogTitle,
@@ -337,18 +337,17 @@ export const ChatView = (props: TChatViewProps) => {
             >
               <AttachIcon />
             </IconButton>
-            <TextField
+            <TextInput
               fullWidth
-              multiline
+              textarea
+              autoFocus
               maxRows={4}
               value={input}
-              autoFocus
-              placeholder='Type a message...'
-              onChange={(e) => setInput(e.target.value)}
+              id='chat-input'
               onKeyDown={onKeyDown}
               disabled={isStreaming}
-              variant='outlined'
-              size='small'
+              placeholder='Type a message...'
+              onChange={(e) => setInput(e.target.value)}
             />
             {isStreaming ? (
               <IconButton

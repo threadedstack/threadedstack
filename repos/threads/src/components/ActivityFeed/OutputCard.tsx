@@ -1,9 +1,9 @@
-import type { TFeedEvent } from '@TTH/types/ast.types'
+import type { TFeedEvent } from '@TTH/types'
 
 import { useState } from 'react'
 import { Box, Collapse, Typography } from '@mui/material'
-import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
 import { NodeTextLine } from '@TTH/components/ASTNodes/NodeTextLine'
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
 
 type TOutputEvent = Extract<TFeedEvent, { kind: 'output' }>
 

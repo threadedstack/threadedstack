@@ -119,12 +119,13 @@ describe(`Orgs endpoints`, () => {
       mockGetOrgRole.mockResolvedValue({ data: null })
       mockGetUserRoles.mockResolvedValue({ data: [] })
       mockGetUserOrgs.mockResolvedValue({ data: [] })
-      mockList.mockResolvedValue({ data: [] })
 
       await ep.action(mockReq as TRequest, mockRes as Response)
 
       expect(mockStatus).toHaveBeenCalledWith(200)
       expect(mockJson).toHaveBeenCalledWith({ data: [], limit: 50, offset: 0 })
+      // Should NOT query orgs at all when user has no memberships
+      expect(mockList).not.toHaveBeenCalled()
     })
 
     it(`should pass pagination params to list and include in response`, async () => {

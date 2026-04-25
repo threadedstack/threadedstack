@@ -7,15 +7,22 @@ import { ActiveOrgIdStorageKey } from '@TTH/constants/storage'
 import { listProjects } from '@TTH/actions/projects/listProjects'
 import { listSandboxes } from '@TTH/actions/sandboxes/listSandboxes'
 import {
+  setOrgs,
   setUser,
   setOrgId,
-  setOrgs,
   setSandboxes,
   setProjects,
   setActiveOrgRole,
 } from '@TTH/state/accessors'
 
-export const init = async () => {
+let initPromise: Promise<void> | null = null
+
+export const init = () => {
+  if (!initPromise) initPromise = initOnce()
+  return initPromise
+}
+
+const initOnce = async () => {
   let resp
   try {
     resp = await auth.session()

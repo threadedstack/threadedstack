@@ -1,6 +1,6 @@
 import type { Message } from '@tdsk/domain'
 
-import { msgBgColor, msgTypeColor } from '@TAF/utils/transforms/messages'
+import { TextInput } from '@tdsk/components'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
 import { ConfirmDelete, RobotOutlineIcon } from '@tdsk/components'
@@ -8,6 +8,7 @@ import { branchThread } from '@TAF/actions/threads/api/branchThread'
 import { fetchMessages } from '@TAF/actions/messages/api/fetchMessages'
 import { updateMessage } from '@TAF/actions/messages/api/updateMessage'
 import { deleteMessage } from '@TAF/actions/messages/api/deleteMessage'
+import { msgBgColor, msgTypeColor } from '@TAF/utils/transforms/messages'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   useOrgThreads,
@@ -26,7 +27,6 @@ import {
   TableCell,
   TableBody,
   TableHead,
-  TextField,
   Typography,
   IconButton,
   ToggleButton,
@@ -49,7 +49,7 @@ import {
   ChatBubble as ChatViewIcon,
 } from '@mui/icons-material'
 
-type TViewMode = 'chat' | 'table'
+type TViewMode = `chat` | `table`
 
 export type TMessagesTab = {}
 
@@ -402,19 +402,14 @@ export const MessagesTab = (props: TMessagesTab) => {
                   >
                     {isEditing ? (
                       <Box className='tdsk-msg-edit-box'>
-                        <TextField
+                        <TextInput
                           fullWidth
-                          multiline
+                          textarea
                           minRows={2}
                           maxRows={10}
+                          id='msg-edit-input'
                           value={editContent}
                           onChange={(e) => setEditContent(e.target.value)}
-                          size='small'
-                          sx={{
-                            '& .MuiInputBase-root': {
-                              bgcolor: 'background.default',
-                            },
-                          }}
                         />
                         <Box
                           className='tdsk-msg-edit-actions-box'
@@ -542,8 +537,8 @@ export const MessagesTab = (props: TMessagesTab) => {
                       sx={{
                         maxWidth: 400,
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
+                        textOverflow: 'ellipsis',
                       }}
                     >
                       {formatContent(message.content)}

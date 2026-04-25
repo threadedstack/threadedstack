@@ -26,11 +26,12 @@ import {
 } from '@mui/material'
 
 export const SessionCommands = (props: TSessionCommandsProps) => {
-  const { sandboxId, sessionId, projectId, isOwner, onPendingOp } = props
+  const { isOwner, sandboxId, sessionId, projectId, onPendingOp } = props
+
+  const [orgId] = useOrgId()
   const navigate = useNavigate()
-  const openSessions = useOpenSessions()
-  const orgId = useOrgId()
   const { canExec } = usePermissions()
+  const [openSessions] = useOpenSessions()
   const canExecSandbox = canExec(EPermResource.sandbox)
   const [executing, setExecuting] = useState<TCommand | null>(null)
   const [confirmAction, setConfirmAction] = useState<TCommand | null>(null)

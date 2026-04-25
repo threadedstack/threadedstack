@@ -1,8 +1,10 @@
+import type { TCursorState } from '@TTH/types/ast.types'
+
 export type TModeContext = {
-  isAlternateScreen: boolean
-  cursor: { x: number; y: number; visible: boolean }
+  cursor: TCursorState
   dirtyRowCount: number
-  consecutiveDirtyCycles: number
   idleDurationMs: number
+  isAlternateScreen: boolean
   hasInteractiveRegion: boolean
+  consecutiveDirtyCycles: number
 }

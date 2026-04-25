@@ -1,9 +1,9 @@
-import type { TFeedEvent } from '@TTH/types/ast.types'
+import type { TFeedEvent } from '@TTH/types'
 
 import { useState } from 'react'
 import { Box, Collapse, Typography } from '@mui/material'
+import { renderDocument } from '@TTH/services/gui/visitors'
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
-import { renderDocument } from '@TTH/visitors'
 
 type TActionEvent = Extract<TFeedEvent, { kind: 'action' }>
 
@@ -26,12 +26,12 @@ export const ActionCard = (props: TActionCardProps) => {
   return (
     <Box
       sx={{
-        display: `flex`,
-        flexDirection: `column`,
+        px: 1,
         gap: 0.5,
         py: 0.75,
-        px: 1,
+        display: `flex`,
         borderRadius: 1,
+        flexDirection: `column`,
         cursor: hasDetail ? `pointer` : `default`,
         '&:hover': hasDetail ? { backgroundColor: `action.hover` } : {},
       }}
@@ -48,11 +48,11 @@ export const ActionCard = (props: TActionCardProps) => {
         <Typography
           variant='body2'
           sx={{
+            overflow: `hidden`,
+            whiteSpace: `nowrap`,
             fontFamily: `monospace`,
             color: `text.secondary`,
-            overflow: `hidden`,
             textOverflow: `ellipsis`,
-            whiteSpace: `nowrap`,
           }}
         >
           {event.target}

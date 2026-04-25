@@ -3,18 +3,19 @@ import type { TAiProviderOption } from '@TAF/types/agent.types'
 import type { Agent, TWebProviderBrand, TAgentProjectConfig } from '@tdsk/domain'
 
 import { EProvider } from '@tdsk/domain'
-import { useState, useEffect, useMemo } from 'react'
 import { Code } from '@TAF/components/Code'
+import { useState, useEffect, useMemo } from 'react'
 import { MonacoOptions } from '@TAF/constants/monaco'
+import { ensureArr } from '@keg-hub/jsutils/ensureArr'
 import { KeyValueEditor } from '@TAF/components/KeyValueEditor'
+import { Box, Stack, Divider, Typography } from '@mui/material'
 import { createAgent } from '@TAF/actions/agents/api/createAgent'
 import { updateAgent } from '@TAF/actions/agents/api/updateAgent'
 import { deleteAgent } from '@TAF/actions/agents/api/deleteAgent'
 import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { Drawer, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
 import { upsertAgentConfig } from '@TAF/actions/agents/api/upsertAgentConfig'
-import { Autocomplete, Box, Stack, Divider, TextField, Typography } from '@mui/material'
+import { Drawer, SelectInput, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import {
   useProviders,
   useProjects,
@@ -377,32 +378,17 @@ export const AgentDrawer = (props: TAgentDrawer) => {
             <>
               <Divider />
 
-              <Box>
-                <Typography
-                  variant='subtitle2'
-                  sx={{ fontWeight: 600, mb: 2 }}
-                >
-                  Project Assignment
-                </Typography>
-                <Autocomplete
-                  multiple
-                  id='agent-projects'
-                  value={selectedProjectIds}
-                  options={orgProjects.map((p) => p.id)}
-                  getOptionLabel={(id) =>
-                    orgProjects.find((p) => p.id === id)?.name || id
-                  }
-                  onChange={(_, updates) => setSelectedProjectIds(updates)}
-                  disabled={loading}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder='Select projects...'
-                      size='small'
-                    />
-                  )}
-                />
-              </Box>
+              <SelectInput
+                multiple
+                id='agent-projects'
+                disabled={loading}
+                label='Project Assignment'
+                value={selectedProjectIds}
+                selected={selectedProjectIds}
+                placeholder='Select projects...'
+                items={orgProjects.map((p) => ({ value: p.id, label: p.name }))}
+                onChange={(e) => setSelectedProjectIds(ensureArr(e.target.value))}
+              />
             </>
           )}
 

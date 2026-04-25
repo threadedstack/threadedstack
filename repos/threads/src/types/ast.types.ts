@@ -2,98 +2,101 @@
 export type TRect = { top: number; left: number; bottom: number; right: number }
 export type RGB = { r: number; g: number; b: number }
 
+// --- Cursor ---
+export type TCursorState = { x: number; y: number; visible: boolean }
+
 // --- Viewport Modes ---
 export type TViewportMode = `interactive` | `tui` | `streaming` | `idle`
 
 // --- Terminal Node (leaf) ---
 export type TSpan = {
-  type: `Span`
-  text: string
   fg: RGB
   bg: RGB
+  type: `Span`
+  text: string
   bold: boolean
+  faint: boolean
   italic: boolean
+  inverse: boolean
   underline: boolean
   strikethrough: boolean
-  faint: boolean
-  inverse: boolean
 }
 
 // --- Leaf-ish Nodes ---
 export type TTextLine = {
-  type: `TextLine`
   bounds: TRect
+  type: `TextLine`
   children: TSpan[]
 }
 
 export type TSelectItem = {
-  type: `SelectItem`
   bounds: TRect
-  selected: boolean
   index: number
+  type: `SelectItem`
+  selected: boolean
   children: TSpan[]
 }
 
 export type TTableRow = {
-  type: `TableRow`
   bounds: TRect
-  isHeader: boolean
+  type: `TableRow`
   cells: TSpan[][]
+  isHeader: boolean
 }
 
 export type TStatusBar = {
-  type: `StatusBar`
   bounds: TRect
+  type: `StatusBar`
   segments: TSpan[][]
 }
 
 export type TConfirm = {
-  type: `Confirm`
   bounds: TRect
+  type: `Confirm`
   question: string
-  options: [string, string]
   focusedIndex: 0 | 1
+  options: [string, string]
 }
 
 export type TTextInput = {
-  type: `TextInput`
   bounds: TRect
-  prompt: string
   value: string
-  cursorOffset: number
+  prompt: string
+  type: `TextInput`
   suggestion?: string
+  cursorOffset: number
 }
 
 export type TActionTarget = {
-  type: `ActionTarget`
   bounds: TRect
   label: string
   hotkey?: string
   focused: boolean
   children: TSpan[]
+  type: `ActionTarget`
 }
 
 export type TLink = {
   type: `Link`
-  bounds: TRect
-  hyperlinkId: number
   url?: string
+  bounds: TRect
   children: TSpan[]
+  hyperlinkId: number
 }
 
 export type TSeparator = {
-  type: `Separator`
   bounds: TRect
+  type: `Separator`
   style: `blank` | `line` | `dashed`
 }
 
 // --- Container Nodes ---
 export type TSelectList = {
-  type: `SelectList`
   bounds: TRect
+  type: `SelectList`
   selectedIndex: number
-  style: `arrow` | `numbered` | `highlighted`
   children: TSelectItem[]
+  style: `arrow` | `numbered` | `highlighted`
 }
 
 export type TTable = {
@@ -118,31 +121,31 @@ export type TGroup = {
 export type TPanel = {
   type: `Panel`
   bounds: TRect
-  border: `single` | `double` | `heavy` | `rounded`
   title?: string
   children: TContentNode[]
+  border: `single` | `double` | `heavy` | `rounded`
 }
 
 // --- Content Node Union ---
 export type TContentNode =
-  | TPanel
-  | TGroup
-  | TTextLine
-  | TSelectList
-  | TConfirm
-  | TTextInput
-  | TActionTarget
-  | TStatusBar
-  | TTable
-  | TDiffBlock
   | TLink
+  | TPanel
+  | TTable
+  | TGroup
+  | TConfirm
+  | TTextLine
+  | TDiffBlock
   | TSeparator
+  | TTextInput
+  | TStatusBar
+  | TSelectList
+  | TActionTarget
 
 // --- Document Root ---
 export type TDocument = {
   type: `Document`
   bounds: TRect
-  cursor: { x: number; y: number; visible: boolean }
+  cursor: TCursorState
   mode: TViewportMode
   children: TContentNode[]
 }
@@ -185,8 +188,8 @@ export type TAriaProps = Record<string, string | boolean | undefined>
 
 // --- Interaction Handler ---
 export type TInteractionHandler = {
-  nodeType: string
   bounds: TRect
   label: string
   execute: () => void
+  nodeType: TASTNode[`type`]
 }

@@ -1,10 +1,9 @@
 import { Box } from '@mui/material'
-import { useAtomValue } from 'jotai'
 import { useCallback, useMemo } from 'react'
-import { renderDocument } from '@TTH/visitors'
-import { sessionASTState } from '@TTH/state/gui'
-import { useActivityFeed } from '@TTH/hooks/useActivityFeed'
+import { useGuiAst } from '@TTH/state/selectors'
 import { sendInput } from '@TTH/actions/sessions/sendInput'
+import { renderDocument } from '@TTH/services/gui/visitors'
+import { useActivityFeed } from '@TTH/hooks/activity/useActivityFeed'
 import { InteractionContext } from '@TTH/contexts/InteractionContext'
 import { ActivityFeed } from '@TTH/components/ActivityFeed/ActivityFeed'
 
@@ -29,9 +28,9 @@ const RenderGUI = (props: TRenderGUI) => {
       <Box
         sx={{
           flex: 1,
+          overflow,
           width: `100%`,
           height: `100%`,
-          overflow,
           fontFamily: `monospace`,
         }}
       >
@@ -43,7 +42,7 @@ const RenderGUI = (props: TRenderGUI) => {
 
 export const SessionGUIView = (props: TSessionGUIViewProps) => {
   const { sessionId, onRespond } = props
-  const astMap = useAtomValue(sessionASTState)
+  const [astMap] = useGuiAst()
   const { events, mode } = useActivityFeed(sessionId)
   const doc = astMap.get(sessionId)
 

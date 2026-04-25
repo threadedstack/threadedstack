@@ -1,11 +1,13 @@
 import type { TOnLogin } from '@TTH/types'
 
+import { nav } from '@TTH/services/nav'
 import { auth } from '@TTH/services/auth'
 import { Login } from '@TTH/components/Login'
 import { useState, useCallback } from 'react'
-import { setUser } from '@TTH/state/accessors'
 import { signin } from '@TTH/actions/auth/local/signin'
 import { TDSK_AUTH_PROVIDERS } from '@TTH/constants/envs'
+import { loginWithEmail } from '@TTH/actions/auth/local/loginWithEmail'
+import { signupWithEmail } from '@TTH/actions/auth/local/signupWithEmail'
 
 export type TLogin = {}
 
@@ -23,7 +25,10 @@ export const LoginPage = (props: TLogin) => {
     setAuthenticating(data.provider)
     const resp = await signin(data.provider)
     resp.error && setError(resp.error.message)
-    setAuthenticating(undefined)
+    setTimeout(() => {
+      setEmailLoading(false)
+      setAuthenticating(undefined)
+    }, 1500)
   }, [])
 
   const runEmailAction = useCallback(
@@ -38,11 +43,15 @@ export const LoginPage = (props: TLogin) => {
           setEmailError(resp.error.message || fallbackMsg)
           return
         }
+        resp?.user && nav.home()
         return resp
       } catch (err: any) {
         setEmailError(err?.message || fallbackMsg)
       } finally {
-        setEmailLoading(false)
+        setTimeout(() => {
+          setEmailLoading(false)
+          setAuthenticating(undefined)
+        }, 1500)
       }
     },
     []
@@ -50,20 +59,14 @@ export const LoginPage = (props: TLogin) => {
 
   const onEmailSignIn = useCallback(
     async (email: string, password: string) => {
-      const resp = await runEmailAction(`Sign in failed`, () =>
-        auth.signInWithEmail(email, password)
-      )
-      resp?.user && setUser(resp.user)
+      await runEmailAction(`Sign in failed`, () => loginWithEmail(email, password))
     },
     [runEmailAction]
   )
 
   const onEmailSignUp = useCallback(
     async (email: string, password: string) => {
-      const resp = await runEmailAction(`Sign up failed`, () =>
-        auth.signUpWithEmail(email, password)
-      )
-      resp?.user && setUser(resp.user)
+      await runEmailAction(`Sign up failed`, () => signupWithEmail(email, password))
     },
     [runEmailAction]
   )

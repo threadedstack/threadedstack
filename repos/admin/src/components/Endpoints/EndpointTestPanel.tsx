@@ -1,56 +1,54 @@
-import { useState } from 'react'
 import type { Endpoint } from '@tdsk/domain'
+import type { TSnippetFormat } from '@TAF/utils/endpoints/snippets'
+import type { TBodyType } from '@TAF/hooks/endpoints/useEndpointTest'
+
+import { useState } from 'react'
 import { EEndpointType } from '@tdsk/domain'
+import { TextInput } from '@tdsk/components'
+import { Code } from '@TAF/components/Code/Code'
+import { useCopyToClipboard } from '@tdsk/components'
+import { generateSnippet } from '@TAF/utils/endpoints/snippets'
+import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
+import { useEndpointTest } from '@TAF/hooks/endpoints/useEndpointTest'
 import {
   Box,
   Chip,
   Menu,
   Button,
   MenuItem,
-  TextField,
   Typography,
   IconButton,
   ToggleButton,
-  ToggleButtonGroup,
   CircularProgress,
+  ToggleButtonGroup,
 } from '@mui/material'
 import {
   Add as AddIcon,
+  Code as CodeIcon,
   Close as CloseIcon,
   PlayArrow as PlayIcon,
   ClearAll as ClearIcon,
   ContentCopy as CopyIcon,
-  Code as CodeIcon,
 } from '@mui/icons-material'
-import { Code } from '@TAF/components/Code/Code'
-import { useCopyToClipboard } from '@tdsk/components'
-import { ErrorAlert } from '@TAF/components/ErrorAlert/ErrorAlert'
-import { generateSnippet } from '@TAF/utils/endpoints/snippets'
-import type { TSnippetFormat } from '@TAF/utils/endpoints/snippets'
-import {
-  useEndpointTest,
-  contentTypeToLanguage,
-} from '@TAF/hooks/endpoints/useEndpointTest'
-import type { TBodyType } from '@TAF/hooks/endpoints/useEndpointTest'
 
-const bodylessMethods = ['GET', 'HEAD']
+const bodylessMethods = [`GET`, `HEAD`]
 
-const statusColor = (status: number): 'success' | 'warning' | 'error' => {
-  if (status < 300) return 'success'
-  if (status < 400) return 'warning'
-  return 'error'
+const statusColor = (status: number): `success` | `warning` | `error` => {
+  if (status < 300) return `success`
+  if (status < 400) return `warning`
+  return `error`
 }
 
 const resolveMethod = (endpoint: Endpoint): string => {
-  if (endpoint.type === EEndpointType.proxy) return endpoint.method || 'GET'
-  return 'POST'
+  if (endpoint.type === EEndpointType.proxy) return endpoint.method || `GET`
+  return `POST`
 }
 
 const snippetFormats: { label: string; value: TSnippetFormat }[] = [
-  { label: 'cURL', value: 'curl' },
-  { label: 'fetch', value: 'fetch' },
-  { label: 'axios', value: 'axios' },
-  { label: 'HTTPie', value: 'httpie' },
+  { label: `cURL`, value: `curl` },
+  { label: `fetch`, value: `fetch` },
+  { label: `axios`, value: `axios` },
+  { label: `HTTPie`, value: `httpie` },
 ]
 
 export type TEndpointTestPanel = {
@@ -127,16 +125,11 @@ export const EndpointTestPanel = (props: TEndpointTestPanel) => {
 
       {/* URL bar */}
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-        <TextField
-          size='small'
+        <TextInput
+          id='endpoint-url'
           value={requestUrl}
-          sx={{ flex: 1, '& .MuiInputBase-root': { bgcolor: 'background.paper' } }}
-          slotProps={{
-            input: {
-              readOnly: true,
-              sx: { fontFamily: 'monospace', fontSize: '0.85rem' },
-            },
-          }}
+          disabled
+          sx={{ flex: 1 }}
         />
         <IconButton
           size='small'
@@ -160,19 +153,19 @@ export const EndpointTestPanel = (props: TEndpointTestPanel) => {
             key={index}
             sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}
           >
-            <TextField
-              size='small'
+            <TextInput
+              id={`query-param-key-${index}`}
               placeholder='Key'
               value={param.key}
               onChange={(e) => updateQueryParam(index, 'key', e.target.value)}
-              sx={{ flex: 1, '& .MuiInputBase-root': { bgcolor: 'background.paper' } }}
+              sx={{ flex: 1 }}
             />
-            <TextField
-              size='small'
+            <TextInput
+              id={`query-param-value-${index}`}
               placeholder='Value'
               value={param.value}
               onChange={(e) => updateQueryParam(index, 'value', e.target.value)}
-              sx={{ flex: 2, '& .MuiInputBase-root': { bgcolor: 'background.paper' } }}
+              sx={{ flex: 2 }}
             />
             <IconButton
               size='small'
@@ -205,19 +198,19 @@ export const EndpointTestPanel = (props: TEndpointTestPanel) => {
             key={index}
             sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}
           >
-            <TextField
-              size='small'
+            <TextInput
+              id={`header-key-${index}`}
               placeholder='Key'
               value={header.key}
               onChange={(e) => updateHeader(index, 'key', e.target.value)}
-              sx={{ flex: 1, '& .MuiInputBase-root': { bgcolor: 'background.paper' } }}
+              sx={{ flex: 1 }}
             />
-            <TextField
-              size='small'
+            <TextInput
+              id={`header-value-${index}`}
               placeholder='Value'
               value={header.value}
               onChange={(e) => updateHeader(index, 'value', e.target.value)}
-              sx={{ flex: 2, '& .MuiInputBase-root': { bgcolor: 'background.paper' } }}
+              sx={{ flex: 2 }}
             />
             <IconButton
               size='small'

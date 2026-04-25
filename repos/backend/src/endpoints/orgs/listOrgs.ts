@@ -61,6 +61,12 @@ export const listOrgs: TEndpointConfig = {
 
     if (orgIdsError) throw new Exception(500, orgIdsError.message)
 
+    // User has no org memberships — return empty list immediately
+    if (!orgIds?.length) {
+      res.status(200).json({ data: [], limit, offset })
+      return
+    }
+
     // Fetch only orgs the user is a member of using DB filtering
     const { data: userOrgs, error: listError } = await db.services.org.list({
       limit,

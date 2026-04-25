@@ -1,11 +1,11 @@
 import type { Thread } from '@tdsk/domain'
 import { useState, useEffect } from 'react'
 import { useProviders } from '@TAF/state/selectors'
-import { Loading, Drawer, DrawerActions } from '@tdsk/components'
+import { Stack, Alert, Divider } from '@mui/material'
 import { ProviderSelectorSingle } from '@TAF/components/Selectors'
 import { updateThread } from '@TAF/actions/threads/api/updateThread'
 import { useDrawerActions } from '@TAF/hooks/components/useDrawerActions'
-import { Stack, Alert, Switch, Divider, TextField, FormControlLabel } from '@mui/material'
+import { Loading, Drawer, TextInput, SwitchInput, DrawerActions } from '@tdsk/components'
 
 export type TEditThreadDrawerProps = {
   open: boolean
@@ -108,28 +108,22 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
 
           <form id='edit-thread-form'>
             <Stack spacing={3}>
-              <TextField
-                label='Thread Name'
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+              <TextInput
                 fullWidth
                 required
                 autoFocus
+                value={name}
+                label='Thread Name'
+                id='edit-thread-name'
+                onChange={(e) => setName(e.target.value)}
               />
 
-              <TextField
+              <TextInput
+                disabled
+                fullWidth
                 label='Thread ID'
                 value={thread.id}
-                fullWidth
-                size='small'
-                variant='outlined'
-                slotProps={{ input: { readOnly: true } }}
-                sx={{
-                  '& .MuiInputBase-input': {
-                    fontFamily: 'monospace',
-                    fontSize: '0.85rem',
-                  },
-                }}
+                id='edit-thread-id'
               />
 
               <Divider />
@@ -146,14 +140,11 @@ export const EditThreadDrawer = (props: TEditThreadDrawerProps) => {
 
               <Divider />
 
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={publicThread}
-                    onChange={(e) => setPublicThread(e.target.checked)}
-                  />
-                }
+              <SwitchInput
+                id='edit-thread-public'
                 label='Public Thread'
+                checked={publicThread}
+                onChange={(e, checked) => setPublicThread(checked)}
               />
             </Stack>
           </form>

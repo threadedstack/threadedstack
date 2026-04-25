@@ -1,22 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { Page } from '@TAF/pages/Page/Page'
 import { EThemeType } from '@TAF/types'
+import { Page } from '@TAF/pages/Page/Page'
 import { useOrgs } from '@TAF/state/selectors'
 import { storage } from '@TAF/services/storage'
 import { SettingsStorageKey } from '@TAF/constants/storage'
+import { SwitchInput, SelectInput } from '@tdsk/components'
 import { useThemeToggle } from '@TAF/hooks/theme/useThemeToggle'
-import {
-  Box,
-  Card,
-  CardContent,
-  Divider,
-  FormControlLabel,
-  MenuItem,
-  Select,
-  Switch,
-  Typography,
-} from '@mui/material'
+import { Box, Card, CardContent, Divider, Typography } from '@mui/material'
 
 type TSettingsData = {
   defaultOrgId: string
@@ -74,14 +65,11 @@ export const Settings = (props: TSettings) => {
         <CardContent>
           <Typography variant='h6'>Appearance</Typography>
           <Divider sx={{ my: 2 }} />
-          <FormControlLabel
+          <SwitchInput
             label='Dark Mode'
-            control={
-              <Switch
-                checked={themeType === EThemeType.dark}
-                onChange={() => onThemeToggle()}
-              />
-            }
+            id='settings-dark-mode'
+            onChange={() => onThemeToggle()}
+            checked={themeType === EThemeType.dark}
           />
           <Typography
             variant='body2'
@@ -104,25 +92,18 @@ export const Settings = (props: TSettings) => {
           >
             Select the organization to load by default when opening the dashboard.
           </Typography>
-          <Select
-            fullWidth
-            size='small'
-            displayEmpty
+          <SelectInput
+            id='settings-default-org'
             value={settings.defaultOrgId}
-            onChange={(e) => onSettingChange(`defaultOrgId`, e.target.value)}
-          >
-            <MenuItem value=''>
-              <em>None (use last visited)</em>
-            </MenuItem>
-            {Object.values(orgs ?? {}).map((org) => (
-              <MenuItem
-                key={org.id}
-                value={org.id}
-              >
-                {org.name}
-              </MenuItem>
-            ))}
-          </Select>
+            items={[
+              { value: '', label: 'None (use last visited)' },
+              ...Object.values(orgs ?? {}).map((org) => ({
+                value: org.id,
+                label: org.name,
+              })),
+            ]}
+            onChange={(e) => onSettingChange(`defaultOrgId`, e.target.value as string)}
+          />
         </CardContent>
       </Card>
 
@@ -131,16 +112,11 @@ export const Settings = (props: TSettings) => {
           <Typography variant='h6'>Notifications</Typography>
           <Divider sx={{ my: 2 }} />
           <Box sx={{ display: `flex`, flexDirection: `column`, gap: 1 }}>
-            <FormControlLabel
+            <SwitchInput
+              id='settings-email-notifications'
               label='Email Notifications'
-              control={
-                <Switch
-                  checked={settings.emailNotifications}
-                  onChange={(e) =>
-                    onSettingChange(`emailNotifications`, e.target.checked)
-                  }
-                />
-              }
+              checked={settings.emailNotifications}
+              onChange={(e, checked) => onSettingChange(`emailNotifications`, checked)}
             />
             <Typography
               variant='body2'
@@ -150,16 +126,11 @@ export const Settings = (props: TSettings) => {
               Receive email updates about your account and organizations.
             </Typography>
 
-            <FormControlLabel
+            <SwitchInput
+              id='settings-agent-run-notifications'
               label='Agent Run Notifications'
-              control={
-                <Switch
-                  checked={settings.agentRunNotifications}
-                  onChange={(e) =>
-                    onSettingChange(`agentRunNotifications`, e.target.checked)
-                  }
-                />
-              }
+              checked={settings.agentRunNotifications}
+              onChange={(e, checked) => onSettingChange(`agentRunNotifications`, checked)}
             />
             <Typography
               variant='body2'
@@ -169,14 +140,11 @@ export const Settings = (props: TSettings) => {
               Get notified when agent runs complete or encounter errors.
             </Typography>
 
-            <FormControlLabel
+            <SwitchInput
+              id='settings-security-alerts'
               label='Security Alerts'
-              control={
-                <Switch
-                  checked={settings.securityAlerts}
-                  onChange={(e) => onSettingChange(`securityAlerts`, e.target.checked)}
-                />
-              }
+              checked={settings.securityAlerts}
+              onChange={(e, checked) => onSettingChange(`securityAlerts`, checked)}
             />
             <Typography
               variant='body2'

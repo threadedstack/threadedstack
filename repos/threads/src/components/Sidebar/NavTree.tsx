@@ -1,11 +1,9 @@
 import type { Project, Sandbox } from '@tdsk/domain'
 
 import { useMemo } from 'react'
-import { Box, Typography } from '@mui/material'
-import { colors, cmx } from '@tdsk/components'
-import { useProjects, useSandboxes, useOrgId } from '@TTH/state/selectors'
+import { Box } from '@mui/material'
 import { NavProjectItem } from '@TTH/components/Sidebar/NavProjectItem'
-import { NavSandboxItem } from '@TTH/components/Sidebar/NavSandboxItem'
+import { useProjects, useSandboxes, useOrgId } from '@TTH/state/selectors'
 
 type TProjectGroup = {
   project: Project
@@ -56,9 +54,9 @@ const groupSandboxesByProject = (
 }
 
 export const NavTree = () => {
-  const projects = useProjects()
-  const sandboxes = useSandboxes()
-  const orgId = useOrgId()
+  const [orgId] = useOrgId()
+  const [projects] = useProjects()
+  const [sandboxes] = useSandboxes()
 
   const { groups } = useMemo(
     () => groupSandboxesByProject(projects, sandboxes),

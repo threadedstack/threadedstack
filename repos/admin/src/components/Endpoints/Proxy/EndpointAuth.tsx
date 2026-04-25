@@ -8,9 +8,7 @@ import {
   Chip,
   Alert,
   Accordion,
-  TextField,
   Typography,
-  Autocomplete,
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material'
@@ -94,29 +92,22 @@ export const EndpointAuth = (props: TEndpointAuthProps) => {
                 onChange={(e) => onTypeChange(e.target.value as typeof type)}
               />
               {secrets.length > 0 ? (
-                <Autocomplete
-                  size='small'
+                <SelectInput
+                  id='auth-secret'
+                  label='Secret'
+                  value={secretId}
                   disabled={loading}
-                  options={secretItems}
-                  value={selectedSecret}
-                  getOptionLabel={(option) => option.label}
-                  isOptionEqualToValue={(option, value) => option.value === value.value}
-                  onChange={(_, option) => onSecretIdChange(option?.value || ``)}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label='Secret'
-                      placeholder='Select a secret'
-                    />
-                  )}
+                  items={secretItems}
+                  placeholder='Select a secret'
+                  onChange={(e) => onSecretIdChange(e.target.value as string)}
                 />
               ) : (
                 <TextInput
                   fullWidth
-                  disabled={loading}
-                  label='Secret ID'
-                  id='auth-secret-id'
                   value={secretId}
+                  label='Secret ID'
+                  disabled={loading}
+                  id='auth-secret-id'
                   placeholder='Secret ID (10-char nanoid)'
                   onChange={(e) => onSecretIdChange(e.target.value)}
                 />
@@ -133,9 +124,9 @@ export const EndpointAuth = (props: TEndpointAuthProps) => {
               <TextInput
                 fullWidth
                 disabled={loading}
+                value={headerName}
                 label='Header Name'
                 id='auth-header-name'
-                value={headerName}
                 placeholder='Authorization'
                 onChange={(e) => onHeaderNameChange(e.target.value)}
               />

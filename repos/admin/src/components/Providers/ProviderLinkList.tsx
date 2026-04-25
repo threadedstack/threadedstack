@@ -1,16 +1,15 @@
 import type { TProviderLinkItem } from '@TAF/types'
 
 import { useState } from 'react'
+import { SelectInput } from '@tdsk/components'
 import { ModelSelect } from '@TAF/components/Agents/ModelSelect'
 import {
   Box,
   Chip,
   List,
   ListItem,
-  TextField,
   IconButton,
   Typography,
-  Autocomplete,
   CircularProgress,
 } from '@mui/material'
 import {
@@ -93,9 +92,9 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
                 pr: 1,
                 borderRadius: 1,
                 mb: 0.5,
+                alignItems: 'stretch',
                 bgcolor: 'action.hover',
                 flexDirection: 'column',
-                alignItems: 'stretch',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -105,6 +104,7 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
                       {reorderable ? `${index + 1}. ` : ``}
                       {provider.name}
                     </Typography>
+
                     {reorderable && index === 0 && (
                       <Chip
                         label='Primary'
@@ -123,8 +123,8 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
                     {!onModelChange && provider.model && (
                       <Chip
                         size='small'
-                        variant='outlined'
                         color='info'
+                        variant='outlined'
                         label={provider.model}
                       />
                     )}
@@ -161,8 +161,8 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
               {onModelChange && (
                 <Box sx={{ mt: 1, mb: 0.5 }}>
                   <ModelSelect
-                    id={provider.id}
                     size='small'
+                    id={provider.id}
                     disabled={isDisabled}
                     brand={provider.brand}
                     model={provider.model || ''}
@@ -182,10 +182,10 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
             disabled={isDisabled}
             onClick={() => setAddingProvider(true)}
             sx={{
+              px: 1.5,
+              borderRadius: 1,
               border: '1px dashed',
               borderColor: 'divider',
-              borderRadius: 1,
-              px: 1.5,
             }}
           >
             <AddIcon
@@ -199,75 +199,45 @@ export const ProviderLinkList = (props: TProviderLinkListProps) => {
 
       {reorderable && addingProvider && (
         <Box sx={{ mt: 1 }}>
-          <Autocomplete
-            autoFocus
-            openOnFocus
-            size='small'
-            options={availableProviders}
-            getOptionLabel={(opt) => opt.name}
-            onChange={(_, value) => {
-              if (value) onAdd(value)
+          <SelectInput
+            value=''
+            id='add-provider-reorderable'
+            placeholder='Select provider...'
+            items={availableProviders.map((p) => ({ value: p.id, label: p.name }))}
+            onChange={(e) => {
+              const p = availableProviders.find((x) => x.id === e.target.value)
+              if (p) onAdd(p)
               setAddingProvider(false)
             }}
-            onClose={() => setAddingProvider(false)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                placeholder='Select provider...'
-                autoFocus
-              />
-            )}
           />
         </Box>
       )}
 
       {!reorderable && availableProviders.length > 0 && (
-        <Autocomplete
-          size='small'
-          options={availableProviders}
-          disabled={isDisabled || linking}
-          getOptionLabel={(opt) => `${opt.name || opt.id} (${opt.brand})`}
-          onChange={(_evt, value) => {
-            if (value) onAdd(value)
-          }}
-          value={null}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={addLabel}
-              placeholder='Search providers...'
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    {linking && (
-                      <CircularProgress
-                        color='inherit'
-                        size={16}
-                      />
-                    )}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
-              }}
+        <Box sx={{ position: 'relative' }}>
+          <SelectInput
+            value=''
+            id='add-provider'
+            label={addLabel}
+            placeholder='Search providers...'
+            disabled={isDisabled || linking}
+            items={availableProviders.map((p) => ({
+              value: p.id,
+              label: `${p.name || p.id} (${p.brand})`,
+            }))}
+            onChange={(e) => {
+              const p = availableProviders.find((x) => x.id === e.target.value)
+              if (p) onAdd(p)
+            }}
+          />
+          {linking && (
+            <CircularProgress
+              size={16}
+              color='inherit'
+              sx={{ position: 'absolute', right: 40, top: '50%', mt: -1 }}
             />
           )}
-          renderOption={(optProps, option) => (
-            <li
-              {...optProps}
-              key={option.id}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant='body2'>{option.name || option.id}</Typography>
-                <Chip
-                  size='small'
-                  variant='outlined'
-                  label={option.brand}
-                />
-              </Box>
-            </li>
-          )}
-        />
+        </Box>
       )}
     </Box>
   )

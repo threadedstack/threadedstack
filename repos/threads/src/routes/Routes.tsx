@@ -3,14 +3,16 @@ import { ERoutePath } from '@TTH/types'
 import { Loading } from '@tdsk/components'
 import Layout from '@TTH/pages/Layout/Layout'
 import { Navigate, createBrowserRouter } from 'react-router'
+import { rootLoader, sandboxLoader } from '@TTH/routes/loaders'
 
 // Global pages
 const Home = lazy(() => import('@TTH/pages/Home/Home'))
 const Login = lazy(() => import('@TTH/pages/Login/Login'))
+const Project = lazy(() => import('@TTH/pages/Project/Project'))
+const Session = lazy(() => import('@TTH/pages/Session/Session'))
+const Sandbox = lazy(() => import('@TTH/pages/Sandbox/Sandbox'))
 const Settings = lazy(() => import('@TTH/pages/Settings/Settings'))
-const Sandbox = lazy(() => import(`@TTH/pages/Sandbox/Sandbox`))
 
-// Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
   <Suspense
     fallback={
@@ -26,6 +28,7 @@ const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
 
 export const Routes = createBrowserRouter([
   {
+    loader: rootLoader,
     id: ERoutePath.Home,
     path: ERoutePath.Home,
     hydrateFallbackElement: (
@@ -47,13 +50,14 @@ export const Routes = createBrowserRouter([
       },
       {
         path: ERoutePath.Project,
-        lazy: () => import('@TTH/pages/Project/Project'),
+        Component: () => <SuspensePage Component={Project} />,
       },
       {
         path: ERoutePath.Session,
-        lazy: () => import('@TTH/pages/Session/Session'),
+        Component: () => <SuspensePage Component={Session} />,
       },
       {
+        loader: sandboxLoader,
         path: ERoutePath.Sandbox,
         Component: () => <SuspensePage Component={Sandbox} />,
       },

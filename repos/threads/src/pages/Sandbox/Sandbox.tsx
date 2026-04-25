@@ -1,16 +1,19 @@
-import type { TSandboxSession } from '@tdsk/domain'
-
 import { toast } from 'sonner'
 import { Loading } from '@tdsk/components'
-import { EPermResource } from '@tdsk/domain'
 import { Page } from '@TTH/pages/Page/Page'
+import { EPermResource } from '@tdsk/domain'
 import { openSession } from '@TTH/actions/sessions'
-import { sandboxApi } from '@TTH/services/sandboxApi'
+import { useParams, useNavigate } from 'react-router'
+import { useState, useCallback, useMemo } from 'react'
 import { usePermissions } from '@TTH/hooks/permissions'
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router'
 import { ArrowBack, PlayArrow, Login, Add } from '@mui/icons-material'
-import { useOrgId, useSandboxes, useUser, useOpenSessions } from '@TTH/state/selectors'
+import {
+  useUser,
+  useOrgId,
+  useSandboxes,
+  useOpenSessions,
+  useBackendSessions,
+} from '@TTH/state/selectors'
 import {
   Box,
   Chip,
@@ -22,19 +25,18 @@ import {
 } from '@mui/material'
 
 const Sandbox = () => {
-  const { sandboxId } = useParams<{ sandboxId: string }>()
-  const navigate = useNavigate()
-  const orgId = useOrgId()
-  const sandboxes = useSandboxes()
+  const [orgId] = useOrgId()
   const [user] = useUser()
+  const navigate = useNavigate()
+  const [sandboxes] = useSandboxes()
+  const { sandboxId } = useParams<{ sandboxId: string }>()
 
   const { canExec } = usePermissions()
   const canExecSandbox = canExec(EPermResource.sandbox)
 
-  const openSessions = useOpenSessions()
-  const [sessions, setSessions] = useState<TSandboxSession[]>([])
-  const [loading, setLoading] = useState(true)
+  const [openSessions] = useOpenSessions()
   const [connecting, setConnecting] = useState(false)
+  const [backendSessionsMap] = useBackendSessions()
 
   const sandbox = useMemo(
     () => sandboxes.find((s) => s.id === sandboxId),
@@ -42,36 +44,7 @@ const Sandbox = () => {
   )
 
   const projectId = sandbox?.projects?.[0]?.id ?? ``
-
-  // Re-fetch sessions whenever this page is navigated to.
-  // location.key changes on every navigation (even to the same path),
-  // ensuring the fetch re-runs when returning from a session page.
-  const location = useLocation()
-  useEffect(() => {
-    if (!sandboxId || !orgId || !projectId) {
-      setLoading(false)
-      return
-    }
-
-    setSessions([])
-    setLoading(true)
-
-    let cancelled = false
-    sandboxApi.sessions(orgId, projectId, sandboxId).then((resp) => {
-      if (cancelled) return
-      if (resp.error) {
-        toast.error(`Failed to load sessions`, {
-          description: resp.error.message ?? `An unexpected error occurred`,
-        })
-      }
-      setSessions(resp.data ?? [])
-      setLoading(false)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [sandboxId, orgId, projectId, location.key])
+  const sessions = sandboxId ? (backendSessionsMap.get(sandboxId) ?? []) : []
 
   const mySessions = useMemo(
     () => sessions.filter((s) => s.userId === user?.id),
@@ -139,17 +112,6 @@ const Sandbox = () => {
         >
           No sandbox selected
         </Typography>
-      </Page>
-    )
-  }
-
-  if (loading) {
-    return (
-      <Page className='tdsk-sandbox-page'>
-        <Loading
-          message='Loading sessions...'
-          messageSx={{ color: `text.primary` }}
-        />
       </Page>
     )
   }

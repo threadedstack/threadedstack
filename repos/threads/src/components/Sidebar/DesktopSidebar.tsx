@@ -1,17 +1,12 @@
 import { Box, Divider } from '@mui/material'
+import { useOrgId, useOrgs } from '@TTH/state/selectors'
 import { OrgSelector } from '@TTH/components/OrgSelector'
 import { NavTree } from '@TTH/components/Sidebar/NavTree'
 import { SidebarContainer } from '@TTH/components/Sidebar/Sidebar.styles'
-import { useOrgId, useOrgs } from '@TTH/state/selectors'
 
-export type TDesktopSidebar = {
-  drawerOpen: boolean
-  toggleDrawer: (status?: boolean) => any
-}
-
-export const DesktopSidebar = (props: TDesktopSidebar) => {
-  const orgs = useOrgs()
-  const orgId = useOrgId()
+export const DesktopSidebar = () => {
+  const [orgs] = useOrgs()
+  const [orgId] = useOrgId()
   const showOrgSelector = orgs.length > 1 || !orgId
 
   return (
@@ -29,10 +24,10 @@ export const DesktopSidebar = (props: TDesktopSidebar) => {
         {showOrgSelector && orgId && <Divider />}
         <Box
           sx={{
-            flex: 1,
-            overflow: `auto`,
             px: 0.5,
             py: 0.5,
+            flex: 1,
+            overflow: `auto`,
           }}
         >
           {orgId && <NavTree />}

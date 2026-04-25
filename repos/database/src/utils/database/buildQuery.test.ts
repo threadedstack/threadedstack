@@ -27,9 +27,9 @@ describe(`addWhere`, () => {
     expect(conditions).toHaveLength(1)
   })
 
-  it(`should skip empty arrays`, () => {
+  it(`should produce a false condition for empty arrays to prevent returning all rows`, () => {
     const conditions = addWhere(testTable, { where: { name: [] } })
-    expect(conditions).toHaveLength(0)
+    expect(conditions).toHaveLength(1)
   })
 
   it(`should skip null values in where`, () => {

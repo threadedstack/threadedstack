@@ -1,10 +1,31 @@
-import type { EThemeType } from '@TTH/types'
-import type { TOpenSession } from '@TTH/types'
-import type { User, Sandbox, Organization, Project, TRoleType } from '@tdsk/domain'
+import type { SessionEngine } from '@TTH/services/gui/engine/sessionEngine'
+import type {
+  User,
+  Sandbox,
+  Project,
+  TRoleType,
+  Organization,
+  TSandboxSession,
+} from '@tdsk/domain'
+import type {
+  TDocument,
+  TFeedEvent,
+  EThemeType,
+  TOpenSession,
+  TViewportMode,
+  TTerminalSettings,
+} from '@TTH/types'
 
 import { createStore } from 'jotai'
 import { userState } from '@TTH/state/user'
+import { storage } from '@TTH/services/storage'
+import { terminalSettingsAtom } from '@TTH/state/terminal'
+import { validateTerminal } from '@TTH/utils/terminal/validate'
 import { themeTypeState, defThemeType } from '@TTH/state/theme'
+import { DefaultTerminalSettings } from '@TTH/constants/terminal'
+import { TerminalSettingsStorageKey } from '@TTH/constants/storage'
+import { guiASTState, guiModeState, guiFeedState, guiEngineState } from '@TTH/state/gui'
+
 import {
   defOrgId,
   orgIdState,
@@ -15,12 +36,14 @@ import {
   activeOrgRoleState,
   activeProjectIdState,
 } from '@TTH/state/app'
+
 import {
   orgsAtom,
   projectsAtom,
   sandboxesAtom,
   openSessionsAtom,
   activeSessionAtom,
+  backendSessionsAtom,
 } from '@TTH/state/sessions'
 
 export const store = createStore()
@@ -85,3 +108,35 @@ export const resetActiveProjectId = () =>
   store.set(activeProjectIdState, defActiveProjectId)
 export const setActiveProjectId = (projectId: string) =>
   store.set(activeProjectIdState, projectId)
+
+export const getTerminalSettings = () => store.get(terminalSettingsAtom)
+export const resetTerminalSettings = () => {
+  store.set(terminalSettingsAtom, DefaultTerminalSettings)
+  storage.remove(TerminalSettingsStorageKey)
+}
+export const setTerminalSettings = (settings: TTerminalSettings) => {
+  const validated = validateTerminal(settings)
+  store.set(terminalSettingsAtom, validated)
+  storage.set<TTerminalSettings>(TerminalSettingsStorageKey, validated)
+}
+
+export const getGuiAsts = () => store.get(guiASTState)
+export const setGuiAsts = (asts: Map<string, TDocument>) => store.set(guiASTState, asts)
+export const getGuiFeeds = () => store.get(guiFeedState)
+export const setGuiFeeds = (feeds: Map<string, TFeedEvent[]>) =>
+  store.set(guiFeedState, feeds)
+export const getGuiModes = () => store.get(guiModeState)
+export const setGuiModes = (modes: Map<string, TViewportMode>) =>
+  store.set(guiModeState, modes)
+export const getGuiEngines = () => store.get(guiEngineState)
+export const setGuiEngines = (engines: Map<string, SessionEngine>) =>
+  store.set(guiEngineState, engines)
+
+export const getBackendSessions = () => store.get(backendSessionsAtom)
+export const setBackendSessions = (sandboxId: string, sessions: TSandboxSession[]) => {
+  const map = new Map(store.get(backendSessionsAtom))
+  map.set(sandboxId, sessions)
+  store.set(backendSessionsAtom, map)
+}
+export const getBackendSessionsForSandbox = (sandboxId: string) =>
+  store.get(backendSessionsAtom).get(sandboxId) ?? []

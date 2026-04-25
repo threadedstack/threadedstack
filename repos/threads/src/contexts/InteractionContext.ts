@@ -1,8 +1,6 @@
-import { createContext, useContext } from 'react'
+import type { TInteractionCtx } from '@TTH/types/contexts.types'
 
-export type TInteractionCtx = {
-  sendKeystroke: (data: string) => void
-}
+import { createContext, useContext } from 'react'
 
 export const InteractionContext = createContext<TInteractionCtx | null>(null)
 

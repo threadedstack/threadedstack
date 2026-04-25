@@ -1,13 +1,10 @@
-import type { atomWithReset } from 'jotai/utils'
-import type { TOpenSession } from '@TTH/types'
-import type { TViewportMode } from '@TTH/types/ast.types'
+import type { Atom } from 'jotai'
 
-import { useMemo } from 'react'
-import { useResetAtom } from 'jotai/utils'
+import { useAtomValue } from 'jotai'
 import { userState } from '@TTH/state/user'
-import { useAtom, useAtomValue } from 'jotai'
-import { sessionModeState } from '@TTH/state/gui'
 import { themeTypeState } from '@TTH/state/theme'
+import { terminalSettingsAtom } from '@TTH/state/terminal'
+import { guiASTState, guiFeedState, guiModeState, guiEngineState } from '@TTH/state/gui'
 import {
   orgIdState,
   activeOrgState,
@@ -22,63 +19,33 @@ import {
   sandboxesAtom,
   openSessionsAtom,
   activeSessionAtom,
+  backendSessionsAtom,
 } from '@TTH/state/sessions'
 
-const useRecState = <T = any>(state: ReturnType<typeof atomWithReset<T>>) => {
-  const [current, setCurrent] = useAtom(state)
-  const resetCurrent = useResetAtom(state)
-
-  return [current, setCurrent, resetCurrent] as [
-    T,
-    typeof setCurrent,
-    typeof resetCurrent,
-  ]
+const useReadOnly = <T>(state: Atom<T>) => {
+  const value = useAtomValue(state)
+  return [value] as [T]
 }
 
-export const useUser = () => useRecState(userState)
-export const useThemeType = () => useRecState(themeTypeState)
-export const useSidebarOpen = () => useRecState(sidebarOpenState)
-export const useOrgId = () => useRecState(orgIdState)[0]
-export const useActiveOrgRole = () => useRecState(activeOrgRoleState)
+export const useUser = () => useReadOnly(userState)
+export const useOrgId = () => useReadOnly(orgIdState)
+export const useThemeType = () => useReadOnly(themeTypeState)
+export const useSidebarOpen = () => useReadOnly(sidebarOpenState)
+export const useActiveOrgRole = () => useReadOnly(activeOrgRoleState)
 
-export const useSessionMode = (sessionId: string): TViewportMode => {
-  const modeMap = useAtomValue(sessionModeState)
-  return modeMap.get(sessionId) ?? `idle`
-}
+export const useOrgs = () => useReadOnly(orgsAtom)
+export const useProjects = () => useReadOnly(projectsAtom)
+export const useSandboxes = () => useReadOnly(sandboxesAtom)
+export const useOpenSessions = () => useReadOnly(openSessionsAtom)
+export const useActiveSession = () => useReadOnly(activeSessionAtom)
 
-export const useOpenSessions = () => useRecState(openSessionsAtom)[0]
-export const useActiveSession = () => useRecState(activeSessionAtom)[0]
-export const useSandboxes = () => useRecState(sandboxesAtom)[0]
-export const useOrgs = () => useRecState(orgsAtom)[0]
-export const useProjects = () => useRecState(projectsAtom)[0]
+export const useActiveOrg = () => useReadOnly(activeOrgState)
+export const useActiveProjectId = () => useReadOnly(activeProjectIdState)
+export const useActiveProject = () => useReadOnly(activeProjectState)
 
-export const useActiveOrgId = () => useRecState(orgIdState)
-export const useActiveOrg = () => useAtomValue(activeOrgState)
-export const useActiveProjectId = () => useRecState(activeProjectIdState)
-export const useActiveProject = () => useAtomValue(activeProjectState)
-
-export const useSessionsForSandbox = (sandboxId: string): TOpenSession[] => {
-  const [sessions] = useRecState(openSessionsAtom)
-  return useMemo(() => {
-    const result: TOpenSession[] = []
-    for (const session of sessions.values()) {
-      if (session.sandboxId === sandboxId) result.push(session)
-    }
-    return result
-  }, [sessions, sandboxId])
-}
-
-export const useSandboxHasSession = (sandboxId: string): boolean => {
-  const sessions = useSessionsForSandbox(sandboxId)
-  return sessions.length > 0
-}
-
-export const useSandboxMode = (sandboxId: string): TViewportMode => {
-  const sessions = useSessionsForSandbox(sandboxId)
-  const modeMap = useAtomValue(sessionModeState)
-  for (const session of sessions) {
-    const mode = modeMap.get(session.sessionId)
-    if (mode && mode !== `idle`) return mode
-  }
-  return `idle`
-}
+export const useGuiAst = () => useReadOnly(guiASTState)
+export const useGuiFeed = () => useReadOnly(guiFeedState)
+export const useGuiModes = () => useReadOnly(guiModeState)
+export const useGuiEngines = () => useReadOnly(guiEngineState)
+export const useBackendSessions = () => useReadOnly(backendSessionsAtom)
+export const useTerminalSettings = () => useReadOnly(terminalSettingsAtom)

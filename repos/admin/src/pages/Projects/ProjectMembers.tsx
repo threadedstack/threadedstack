@@ -4,25 +4,24 @@ import type { TDataTableColumn } from '@TAF/components'
 import { toast } from 'sonner'
 import { ERoleType } from '@tdsk/domain'
 import { Page } from '@TAF/pages/Page/Page'
-import { ConfirmDelete } from '@tdsk/components'
 import { AuthRoles } from '@TAF/constants/values'
 import { listOrgUsers } from '@TAF/actions/users'
 import { useState, useEffect, useMemo } from 'react'
-import { Drawer, DrawerActions } from '@tdsk/components'
+import { Box, Chip, Typography } from '@mui/material'
 import { getRoleColor } from '@TAF/utils/user/getRoleColor'
 import { UserSelectorSingle } from '@TAF/components/Selectors'
 import { DataTable } from '@TAF/components/DataTable/DataTable'
 import { PageLayout } from '@TAF/components/PageLayout/PageLayout'
 import { EmptyState } from '@TAF/components/EmptyState/EmptyState'
+import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
+import { PersonAdd as PersonAddIcon, Delete as DeleteIcon } from '@mui/icons-material'
+import { Drawer, SelectInput, DrawerActions, ConfirmDelete } from '@tdsk/components'
 import {
   useOrgUsers,
   useActiveOrgId,
   useActiveProjectId,
   useActiveProjectMembers,
 } from '@TAF/state/selectors'
-import { Box, Chip, Typography, Autocomplete, TextField } from '@mui/material'
-import { ActionIconButton } from '@TAF/components/ActionIconButton/ActionIconButton'
-import { PersonAdd as PersonAddIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import {
   addProjectMember,
   listProjectMembers,
@@ -36,14 +35,12 @@ type TProjectMember = {
   displayName?: string
 }
 
-const AuthRoleValues = AuthRoles.map((item) => item.value)
-
 export const ProjectMembers = () => {
   const [orgId] = useActiveOrgId()
-  const [projectId] = useActiveProjectId()
   const [orgUsersMap] = useOrgUsers()
-  const [projectMembersMap] = useActiveProjectMembers()
+  const [projectId] = useActiveProjectId()
   const [loading, setLoading] = useState(false)
+  const [projectMembersMap] = useActiveProjectMembers()
 
   const orgUsers = useMemo(() => orgUsersMap?.[orgId] || [], [orgUsersMap, orgId])
 
@@ -285,18 +282,14 @@ export const ProjectMembers = () => {
                 name: u.displayName || u.email || u.id,
               }))}
             />
-            <Autocomplete
+            <SelectInput
+              label='Role'
+              id='member-role'
+              items={AuthRoles}
               value={selectedRole}
-              options={AuthRoleValues}
-              onChange={(_, value) => setSelectedRole(value || ERoleType.viewer)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label='Role'
-                  size='small'
-                />
-              )}
-              disableClearable
+              onChange={(e) =>
+                setSelectedRole((e.target.value as ERoleType) || ERoleType.viewer)
+              }
             />
           </Box>
         </Drawer>

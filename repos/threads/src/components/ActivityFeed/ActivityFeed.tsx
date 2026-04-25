@@ -1,13 +1,13 @@
-import type { TFeedEvent } from '@TTH/types/ast.types'
+import type { TFeedEvent } from '@TTH/types'
 
-import { useRef, useLayoutEffect } from 'react'
 import { Box } from '@mui/material'
-import { ActionCard } from './ActionCard'
-import { PromptCard } from './PromptCard'
-import { OutputCard } from './OutputCard'
-import { TUICard } from './TUICard'
-import { UserInputCard } from './UserInputCard'
-import { IdleMarker } from './IdleMarker'
+import { useRef, useLayoutEffect } from 'react'
+import { TUICard } from '@TTH/components/ActivityFeed/TUICard'
+import { ActionCard } from '@TTH/components/ActivityFeed/ActionCard'
+import { PromptCard } from '@TTH/components/ActivityFeed/PromptCard'
+import { OutputCard } from '@TTH/components/ActivityFeed/OutputCard'
+import { IdleMarker } from '@TTH/components/ActivityFeed/IdleMarker'
+import { UserInputCard } from '@TTH/components/ActivityFeed/UserInputCard'
 
 export type TActivityFeedProps = {
   events: TFeedEvent[]

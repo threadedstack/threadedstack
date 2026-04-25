@@ -71,7 +71,6 @@ const ProjectSettings = lazy(() => import('@TAF/pages/Projects/ProjectSettings')
 const ProjectFunctions = lazy(() => import('@TAF/pages/Projects/ProjectFunctions'))
 const ProjectEndpoints = lazy(() => import('@TAF/pages/Projects/ProjectEndpoints'))
 const ProjectSandboxes = lazy(() => import('@TAF/pages/Projects/ProjectSandboxes'))
-const ProjectWorkspace = lazy(() => import('@TAF/pages/Projects/ProjectWorkspace'))
 const ProjectThreadChat = lazy(() => import('@TAF/pages/Projects/ProjectThreadChat'))
 const ProjectThreadDetail = lazy(() => import('@TAF/pages/Projects/ProjectThreadDetail'))
 
@@ -90,7 +89,6 @@ const EndpointConfigTab = lazy(
   () => import('@TAF/components/Endpoints/Tabs/EndpointConfigTab')
 )
 
-// Helper component to wrap pages in Suspense
 const SuspensePage = ({ Component }: { Component: React.ComponentType }) => (
   <Suspense
     fallback={
@@ -230,7 +228,7 @@ export const createRoutes = () =>
                 {
                   index: true,
                   loader: projectSandboxesLoader,
-                  Component: () => <SuspensePage Component={ProjectWorkspace} />,
+                  Component: () => <SuspensePage Component={Project} />,
                 },
                 {
                   path: ERoutePath.Endpoints,

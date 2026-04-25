@@ -1,18 +1,18 @@
-import { Page } from '@TTH/pages/Page/Page'
-import { OpenSessionStrip } from '@TTH/components/SessionTabs/OpenSessionStrip'
-import { useProjects, useSandboxes, useOrgId } from '@TTH/state/selectors'
-import { useTheme, useMediaQuery, Box, Container, Typography } from '@mui/material'
-import { Terminal, FolderOutlined } from '@mui/icons-material'
 import { colors } from '@tdsk/components'
+import { Page } from '@TTH/pages/Page/Page'
+import { Terminal, FolderOutlined } from '@mui/icons-material'
+import { useProjects, useSandboxes, useOrgId } from '@TTH/state/selectors'
+import { OpenSessionStrip } from '@TTH/components/SessionTabs/OpenSessionStrip'
+import { useTheme, useMediaQuery, Box, Container, Typography } from '@mui/material'
 
 export type THome = {}
 
 export const Home = (props: THome) => {
   const theme = useTheme()
+  const [orgId] = useOrgId()
+  const [projects] = useProjects()
+  const [sandboxes] = useSandboxes()
   const isMobile = useMediaQuery(theme.breakpoints.down(`md`))
-  const projects = useProjects()
-  const sandboxes = useSandboxes()
-  const orgId = useOrgId()
 
   return (
     <Page className='tdsk-home-page'>
@@ -23,14 +23,14 @@ export const Home = (props: THome) => {
       >
         <Box
           sx={{
-            display: `flex`,
-            flexDirection: `column`,
-            alignItems: `center`,
-            justifyContent: `center`,
-            minHeight: 300,
             gap: 2,
-            textAlign: `center`,
             px: 2,
+            minHeight: 300,
+            display: `flex`,
+            textAlign: `center`,
+            alignItems: `center`,
+            flexDirection: `column`,
+            justifyContent: `center`,
           }}
         >
           <Terminal sx={{ fontSize: 48, color: colors.primary.main, opacity: 0.5 }} />

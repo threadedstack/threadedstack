@@ -1,4 +1,4 @@
-import type { TFeedEvent } from '@TTH/types/ast.types'
+import type { TFeedEvent } from '@TTH/types'
 
 import { Box, Divider, Typography } from '@mui/material'
 

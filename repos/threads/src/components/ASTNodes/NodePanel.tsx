@@ -5,7 +5,7 @@ import Typography from '@mui/material/Typography'
 // renderNode is imported lazily via the visitor to avoid circular deps
 // Components that need recursive rendering use a render prop pattern via
 // the visitors/renderVisitor module.
-import { renderNode } from '@TTH/visitors/renderVisitor'
+import { renderNode } from '@TTH/services/gui/visitors/renderVisitor'
 
 const borderStyle: Record<TPanel['border'], string> = {
   single: `1px solid`,

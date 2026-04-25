@@ -2,13 +2,19 @@ import type { ESandboxSessionVisibility, TSandboxSession } from '@tdsk/domain'
 
 export type TViewMode = `gui` | `terminal`
 export type TCommand = `stop` | `restart` | `recreate`
+export type TPendingOp = `restart` | `recreate` | null
+
+export type TSessionLocationState = {
+  sandboxId?: string
+  projectId?: string
+}
 
 export type TSessionCommandsProps = {
+  isOwner: boolean
   sandboxId: string
   sessionId: string
   projectId: string
-  isOwner: boolean
-  onPendingOp: (op: `restart` | `recreate` | null) => void
+  onPendingOp: (op: TPendingOp) => void
 }
 
 export type TOpenSession = {
